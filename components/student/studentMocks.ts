@@ -60,6 +60,7 @@ export const mockAuth: AuthContextType = {
     // No-op in student view
   },
   offlineGrantMissing: false,
+  offlineGrantPresent: false,
   captureOfflineGrant: () => Promise.resolve(false),
   ensureGoogleScope: () => Promise.resolve(null),
   savedWidgetConfigs: {},

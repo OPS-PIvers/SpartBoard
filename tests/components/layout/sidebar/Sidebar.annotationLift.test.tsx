@@ -17,6 +17,9 @@ const emptyDashboard: Dashboard = {
 
 const closeAnnotation = vi.fn();
 
+vi.mock('@/hooks/useFirstRun', () => ({
+  useFirstRun: () => ({ quiet: false, welcomePending: false, firstRun: false }),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', email: 'teacher@example.com' },

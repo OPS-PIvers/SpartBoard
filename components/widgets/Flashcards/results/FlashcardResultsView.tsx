@@ -46,6 +46,8 @@ interface FlashcardResultsViewProps {
   onUpdateMonitorPrefs?: (updates: Partial<MonitorRosterPrefs>) => void;
   /** Results opens a Check's Results screen; Monitor opens the live monitor. */
   screen?: 'monitor' | 'results';
+  /** Opens the assignment's Settings dialog from the monitor. */
+  onEditSettings?: () => void;
 }
 
 export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
@@ -56,6 +58,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   monitorPrefs,
   onUpdateMonitorPrefs,
   screen = 'monitor',
+  onEditSettings,
 }) => {
   const { orgId, canAccessFeature } = useAuth();
   const { rosters, addToast } = useDashboard();
@@ -433,6 +436,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         onResolveFlag={handleResolveFlag}
         letInFor={letInFor}
         onEnd={onEnd ? handleCloseAll : undefined}
+        onEditSettings={session.status !== 'ended' ? onEditSettings : undefined}
         classControls={classControls}
         launchedBy={
           assignment.launchedBy ? (

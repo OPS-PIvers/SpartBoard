@@ -23,6 +23,10 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.import-stack': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.import-responses': 'library-shell.tab:quiz#active',
       'quiz-library.reprint-sheets': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.import-written-answers':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.reprint-written-sheets':
+        'library-shell.archive-menu:quiz#row-1',
       'quiz-library.import-questions': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.archive-monitor': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-settings': 'library-shell.archive-menu:quiz#row-1',
@@ -84,6 +88,9 @@ export const SURFACES: TourSurfaceMap = {
       `${C}QuizEditorModal.tsx`,
       `${C}QuizEditor.tsx`,
       `${C}QuestionFields.tsx`,
+      `${C}AnswerKeyboardControls.tsx`,
+      `${C}AnswerKeyKeyboard.tsx`,
+      `${C}PromptEquations.tsx`,
       `${C}ChoiceOptionsEditor.tsx`,
       `${C}FibBlanksEditor.tsx`,
       `${C}MatchingOrderingEditor.tsx`,

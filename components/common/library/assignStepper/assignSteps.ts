@@ -12,6 +12,7 @@ export type AssignStepId =
   | 'cards'
   | 'speak'
   | 'sheets'
+  | 'written'
   | 'sharing';
 
 export type AssignActivity = 'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp';
@@ -83,6 +84,7 @@ const TITLES: Record<AssignStepId, string> = {
   cards: 'Cards',
   speak: 'Speak',
   sheets: 'Answer sheets',
+  written: 'Written answers',
   sharing: 'Sharing',
 };
 

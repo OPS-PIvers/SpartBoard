@@ -5,6 +5,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ToolContext } from './activity';
 import { registerBoardTools } from './boardTools';
 import { restoreBoard, revisionData } from './boardWrite';
+import { DEFAULT_BOARD_BACKGROUND } from './boardBackgrounds.gen';
 import {
   BOARD_TEMPLATES,
   DEFAULT_SCREEN,
@@ -272,7 +273,7 @@ describe('create_board', () => {
       collectionId: null,
       claudeAction: 'created',
       claudeUnseen: true,
-      background: 'bg-brand-gray-lightest',
+      background: DEFAULT_BOARD_BACKGROUND,
     });
     expect(board.order).toBeLessThan(1);
     expect(board.claudeEditedAt).toBe(board.updatedAt);

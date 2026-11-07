@@ -4,6 +4,7 @@
  * Allows exporting to Google Sheets.
  */
 
+import { MathText } from '@/components/common/MathText';
 import React, {
   useState,
   useRef,
@@ -531,7 +532,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       finalOverlay,
       (uid) => {
         const r = byUid.get(uid);
-        return r ? quizLiveRaw(r, quiz.questions, fibGrading) : null;
+        return r
+          ? quizLiveRaw(
+              r,
+              quiz.questions,
+              fibGrading,
+              session?.paperWrittenQuestionIds
+            )
+          : null;
       },
       // eslint-disable-next-line react-hooks/purity -- called from export handlers, not during render
       Date.now()
@@ -1012,8 +1020,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // provisional — the ungraded slot counts as 0 until the teacher grades it.
   const avgIsProvisional = useMemo(
     () =>
-      filteredScoreable.some((r) => isResponseAwaitingGrade(r, quiz.questions)),
-    [filteredScoreable, quiz.questions]
+      filteredScoreable.some((r) =>
+        isResponseAwaitingGrade(
+          r,
+          quiz.questions,
+          session?.paperWrittenQuestionIds
+        )
+      ),
+    [filteredScoreable, quiz.questions, session?.paperWrittenQuestionIds]
   );
   const firstTryAccuracy = useMemo(
     () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
@@ -1315,10 +1329,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // Classroom push (`buildQuizClassroomGradeEntries`).
       const pushable = selectPushableResponses(
         filteredCompleted,
-        quiz.questions
+        quiz.questions,
+        session?.paperWrittenQuestionIds
       );
       const awaitingCount = filteredCompleted.filter((r) =>
-        isResponseAwaitingGrade(r, quiz.questions)
+        isResponseAwaitingGrade(
+          r,
+          quiz.questions,
+          session?.paperWrittenQuestionIds
+        )
       ).length;
       const awaitingNote =
         awaitingCount > 0
@@ -1993,7 +2012,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             completed,
             quiz.questions,
             maxPoints,
-            fibGrading
+            fibGrading,
+            session?.paperWrittenQuestionIds
           ),
           maxPoints
         )
@@ -2025,7 +2045,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           completed,
           quiz.questions,
           maxPoints,
-          fibGrading
+          fibGrading,
+          session?.paperWrittenQuestionIds
         ),
       confirm: () =>
         showConfirm(
@@ -2068,7 +2089,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       completed,
       quiz.questions,
       quizMaxPoints(quiz.questions, session?.sections, session?.bankSlots),
-      fibGrading
+      fibGrading,
+      session?.paperWrittenQuestionIds
     );
   }, [
     ltiAttachment,
@@ -2077,6 +2099,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     fibGrading,
     session?.sections,
     session?.bankSlots,
+    session?.paperWrittenQuestionIds,
   ]);
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
@@ -2090,7 +2113,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         completed,
         quiz.questions,
         maxPoints,
-        fibGrading
+        fibGrading,
+        session?.paperWrittenQuestionIds
       ),
       maxPoints
     );
@@ -2188,7 +2212,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           completed,
           quiz.questions,
           maxPoints,
-          fibGrading
+          fibGrading,
+          session?.paperWrittenQuestionIds
         ),
         maxPoints
       );
@@ -3739,7 +3764,7 @@ const QuestionsScreen: React.FC<{
                 className="block font-sans text-brand-gray-dark truncate"
                 style={{ fontSize: 'min(13px, 4.5cqmin)' }}
               >
-                {q.text}
+                <MathText text={q.text} />
               </span>
             </button>
 
@@ -3937,6 +3962,8 @@ const StudentDrilldownPanel: React.FC<{
   sessionId?: string;
   /** The session's sections, so an earlier attempt's choose-N picks are its own. */
   sections?: readonly QuizSessionSection[];
+  /** Hybrid paper quiz: unscanned paper answers keep an attempt's score open. */
+  paperWrittenQuestionIds?: readonly string[];
 }> = ({
   id,
   quizTitle,
@@ -3953,6 +3980,7 @@ const StudentDrilldownPanel: React.FC<{
   showFeedback,
   sessionId,
   sections,
+  paperWrittenQuestionIds,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const { canAccessFeature } = useAuth();
@@ -3973,7 +4001,12 @@ const StudentDrilldownPanel: React.FC<{
   const attemptOptions = useMemo((): (readonly [string, string])[] => {
     if (earlier.length === 0) return [];
     const label = (n: number, r: QuizResponse): string => {
-      const raw = quizLiveRaw(r, questions, fibGrading);
+      const raw = quizLiveRaw(
+        r,
+        questions,
+        fibGrading,
+        paperWrittenQuestionIds
+      );
       return raw.points !== null && raw.max
         ? `${n} · ${Math.round((raw.points / raw.max) * 100)}%`
         : String(n);
@@ -3989,7 +4022,14 @@ const StudentDrilldownPanel: React.FC<{
       ),
       ['current', label(currentN, liveResponse)] as const,
     ];
-  }, [earlier, liveResponse, questions, fibGrading, sections]);
+  }, [
+    earlier,
+    liveResponse,
+    questions,
+    fibGrading,
+    sections,
+    paperWrittenQuestionIds,
+  ]);
   const drilldown = useMemo(
     () =>
       computeStudentDrilldown(
@@ -4387,14 +4427,32 @@ const StudentsScreen: React.FC<{
             canShowResultsScore(r, questions, session);
           // The total counts an ungraded written answer as 0, so flag it as
           // provisional rather than letting it read as the final grade.
+          // Written answers on paper whose sheet has not been scanned in yet.
+          const paperNotScanned =
+            scoreable &&
+            r.status === 'completed' &&
+            (session?.paperWrittenQuestionIds?.length ?? 0) > 0 &&
+            !r.paperWrittenBatchId;
           const awaitingGrade =
-            scoreable && !isGame && isResponseAwaitingGrade(r, questions);
+            !paperNotScanned &&
+            scoreable &&
+            !isGame &&
+            isResponseAwaitingGrade(
+              r,
+              questions,
+              session?.paperWrittenQuestionIds
+            );
           const final =
             finalOverlay && r.studentUid && !isGame
               ? finalScoreFor(
                   finalOverlay,
                   r.studentUid,
-                  quizLiveRaw(r, questions, fibGrading),
+                  quizLiveRaw(
+                    r,
+                    questions,
+                    fibGrading,
+                    session?.paperWrittenQuestionIds
+                  ),
                   overlayNow
                 )
               : null;
@@ -4686,6 +4744,17 @@ const StudentsScreen: React.FC<{
                             <SessionBadge tone="warn" label="Provisional" />
                           </span>
                         )}
+                        {paperNotScanned && (
+                          <span
+                            className="inline-flex"
+                            style={{ marginTop: 'min(2px, 0.5cqmin)' }}
+                          >
+                            <SessionBadge
+                              tone="neutral"
+                              label="Paper not scanned"
+                            />
+                          </span>
+                        )}
                         {/* Fresh responses now carry preSyncVersion: 0
                          * so the server-side sync query
                          * (`where('preSyncVersion', '==', 0)`) can find
@@ -4864,6 +4933,7 @@ const StudentsScreen: React.FC<{
                   showFeedback={showStudentFeedback}
                   sessionId={session?.id}
                   sections={session?.sections}
+                  paperWrittenQuestionIds={session?.paperWrittenQuestionIds}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

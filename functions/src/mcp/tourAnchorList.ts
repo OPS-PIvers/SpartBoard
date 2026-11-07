@@ -165,8 +165,74 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "drive.grant-card",
+    "label": "\"Stay connected to Drive\" card",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "drive.grant-approve",
+    "label": "Approve button on the \"Stay connected to Drive\" card",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "drive.disconnect-banner",
+    "label": "\"Drive Disconnected\" banner",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "drive.reconnect",
+    "label": "Connect button on the \"Drive Disconnected\" banner",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "widget.window",
     "label": "Widget window",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "board.widget",
+        "kind": "widget",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget.resize-handle",
+    "label": "Resize handle on a widget's bottom-right corner",
     "scope": "widget",
     "requires": "widget-restored",
     "routes": [
@@ -1095,6 +1161,144 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "backgrounds.tile",
+    "label": "Background tile in the Backgrounds window, by position",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "key_pattern": "backgrounds#item-[1-9]\\d*",
+    "key_hint": "backgrounds#item-1 is the first tile in the open section",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-url",
+    "label": "Schoology course link field in Link to Schoology",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-check",
+    "label": "Check button for a pasted Schoology course link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-class",
+    "label": "Class to link a pasted Schoology course to",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-link",
+    "label": "Link button for a pasted Schoology course",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quick-access.close",
+    "label": "Close button in the Quick Access window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.quick-access-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.quick-access"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quick-access.search",
+    "label": "Search field in the Quick Access window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.quick-access-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.quick-access"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quick-access.tool",
+    "label": "Widget tile in the Quick Access window",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.quick-access-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.quick-access"
+        ]
+      }
+    ]
+  },
+  {
     "id": "backgrounds.type-filter",
     "label": "Type filter button in the Backgrounds window",
     "scope": "field",
@@ -1301,6 +1505,99 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu"
         ],
         "reveal": "sidebar.open-menu"
+      }
+    ]
+  },
+  {
+    "id": "sidebar.getting-started",
+    "label": "Getting Started item in the menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": [
+          "sidebar.open-menu"
+        ],
+        "reveal": "sidebar.open-menu"
+      }
+    ]
+  },
+  {
+    "id": "getting-started.close",
+    "label": "Back to board button on the Getting Started page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.resume",
+    "label": "Start or Resume button on the Getting Started page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.start-tour",
+    "label": "Start or Replay button on a Getting Started tour",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.copy-page-link",
+    "label": "Copy page link button on the Getting Started page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "getting-started.restart",
+    "label": "Restart Getting Started button",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.getting-started",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.getting-started"
+        ]
       }
     ]
   },
@@ -2248,6 +2545,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "behavior.sparty-toggle",
+    "label": "Show Sparty switch",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.profile-behavior",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.profile-settings",
+          "profile.tab-behavior"
+        ]
+      }
+    ]
+  },
+  {
     "id": "language.options",
     "label": "Language choices",
     "scope": "board",
@@ -2442,7 +2757,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.new-plc",
-    "label": "New PLC button in My PLCs",
+    "label": "New team button in My Teams",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -2458,7 +2773,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.invites",
-    "label": "Invites button in My PLCs",
+    "label": "Invites button in My Teams",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -2474,7 +2789,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.plc-list",
-    "label": "PLC list in My PLCs",
+    "label": "Team list in My Teams",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -4295,6 +4610,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.written",
+    "label": "Written answers step header in the Quiz Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
     "label": "Sharing step header in the Assign dialog",
     "scope": "board",
@@ -4507,6 +4835,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-rule.written-where",
+    "label": "Written answers option (on the device or on paper) in the Quiz Assign dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-rule.number",
     "label": "Setting number box in the Assign dialog quiz steps",
     "scope": "field",
@@ -4514,7 +4855,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "assign#away-seconds",
       "assign#tab-switch-threshold",
-      "assign#time-limit"
+      "assign#time-limit",
+      "assign#written-spares"
     ],
     "routes": [
       {
@@ -8717,6 +9059,204 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.answer-math",
+    "label": "Math answer switch in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.answer-accents",
+    "label": "Accents answer switch in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.answer-accent-language",
+    "label": "Accent language row for an answer in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-equation",
+    "label": "Equation link on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-equation-cancel",
+    "label": "Cancel button in the prompt equation box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-equation-save",
+    "label": "Insert or Update button in the prompt equation box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-math-preview",
+    "label": "Drawn preview of a question prompt with equations in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-accents",
+    "label": "Accents switch on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-accent-language",
+    "label": "Accent language row on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.section-drag",
     "label": "Drag handle, section in the Quiz editor",
     "scope": "widget type",
@@ -12783,6 +13323,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-print.written-box-size",
     "label": "Written box size select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.assign-paper:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.written-box-style",
+    "label": "Written answer style select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.assign-paper:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.written-box-image",
+    "label": "Written answer custom image select in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -17146,6 +17726,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-monitor.roster-tab-warnings",
     "label": "Tab warnings toggle chip in the Quiz monitor roster",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.roster-board-view",
+    "label": "Board view toggle chip in the Quiz monitor roster",
     "scope": "widget type",
     "keys": [
       "quiz"
@@ -23399,7 +24002,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.open-plc",
-    "label": "Open a PLC card in My PLCs",
+    "label": "Open a team card in My Teams",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23415,7 +24018,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.actions-menu",
-    "label": "PLC actions kebab in My PLCs",
+    "label": "Team actions kebab in My Teams",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -24354,7 +24957,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.empty-create",
-    "label": "Create PLC button in the empty My PLCs list",
+    "label": "Create team button in the empty My Teams list",
     "scope": "board",
     "persists": true,
     "routes": [
@@ -37799,6 +38402,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.backgrounds.default-district",
+    "label": "District default background for new boards",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.backgrounds",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#backgrounds"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.backgrounds.default-building",
+    "label": "A building's default background for new boards",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.backgrounds",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#backgrounds"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.previews.district-switch",
     "label": "District switch on a Previews row",
     "scope": "field",
@@ -40296,6 +40939,146 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#sub-presets"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.pick-tour",
+    "label": "Tour to add in Getting Started settings",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.add",
+    "label": "Add button in Getting Started settings",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.tier",
+    "label": "Tier select on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.done-when",
+    "label": "Checks off select on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.move-up",
+    "label": "Move up button on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.move-down",
+    "label": "Move down button on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.getting-started.remove",
+    "label": "Remove button on a Getting Started tour",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.getting-started",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#getting-started"
         ],
         "needs": [
           "admin"
@@ -49000,6 +49783,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.monitor-settings",
+    "label": "Settings button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.monitor-question-result",
     "label": "Question result row in the video activity monitor",
     "scope": "field",
@@ -55343,6 +56145,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.boards"
         ]
+      }
+    ]
+  },
+  {
+    "id": "prompt-dialog.input",
+    "label": "Text box in the shared prompt dialog (New Board, New Collection, rename)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "prompt-dialog.confirm",
+    "label": "Confirm button in the shared prompt dialog (Create, Save, OK)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "prompt-dialog.cancel",
+    "label": "Cancel button in the shared prompt dialog",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -64348,6 +65190,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.monitor-settings",
+    "label": "Settings button in the Flashcards monitor footer",
+    "scope": "widget type",
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.card-results",
     "label": "Card results button in the Flashcards monitor",
     "scope": "widget type",
@@ -71670,6 +72534,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.reprint-sheets",
     "label": "Print response sheets item in a paper assignment menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-written-answers",
+    "label": "Import written answers item in a quiz assignment menu, for written answers on paper",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.reprint-written-sheets",
+    "label": "Print written answer sheets item in a quiz assignment menu, for written answers on paper",
     "scope": "widget type",
     "panel": true,
     "keys": [

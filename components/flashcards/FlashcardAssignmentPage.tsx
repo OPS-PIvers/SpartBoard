@@ -67,6 +67,7 @@ import {
   hasReachedTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { isHandedOff } from '@/utils/attemptHandOff';
 import { isFramedWindow } from './speak/micAccess';
 import {
   FlashcardPlayer,
@@ -284,6 +285,8 @@ export const TrackedPlayer: React.FC<{
   }, [adapter, paused, hasProgress, subsetKey, stampedKey]);
 
   const submitForced = (by: 'time' | 'tab') => {
+    // The tab the attempt moved to submits it; this stale copy must not.
+    if (isHandedOff()) return;
     const now = Date.now();
     if (now - forcedTriedAtRef.current < FORCED_RETRY_MS) return;
     forcedTriedAtRef.current = now;

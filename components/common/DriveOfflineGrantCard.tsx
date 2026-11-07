@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { GoogleDriveIcon } from './GoogleDriveIcon';
 import { useAuth } from '@/context/useAuth';
+import { useFirstRun } from '@/hooks/useFirstRun';
+import { useTourRunning } from '@/components/tours/tourState';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Long enough that a teacher who dismisses isn't re-asked the same week, short
 // enough that coverage still climbs. They keep working either way.
@@ -27,6 +30,9 @@ const readStoredDismissUntil = (): number => {
 export const DriveOfflineGrantCard: React.FC = () => {
   const { user, googleAccessToken, offlineGrantMissing, captureOfflineGrant } =
     useAuth();
+  // Held during a new teacher's quiet start, except while the Connect Drive tour may need it (D7).
+  const { quiet } = useFirstRun();
+  const tourRunning = useTourRunning();
   const [dismissedUntil, setDismissedUntil] = useState(readStoredDismissUntil);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -63,6 +69,7 @@ export const DriveOfflineGrantCard: React.FC = () => {
     !user ||
     !googleAccessToken ||
     !offlineGrantMissing ||
+    (quiet && !tourRunning) ||
     // eslint-disable-next-line react-hooks/purity -- deliberately re-read on each render
     dismissedUntil > Date.now()
   )
@@ -70,7 +77,10 @@ export const DriveOfflineGrantCard: React.FC = () => {
 
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
-      <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-3 flex items-center gap-3 max-w-[300px]">
+      <div
+        {...tourAttr('drive.grant-card')}
+        className="bg-white rounded-xl shadow-xl border border-slate-200 p-3 flex items-center gap-3 max-w-[300px]"
+      >
         <div className="shrink-0">
           <GoogleDriveIcon className="w-5 h-5 opacity-60" />
         </div>
@@ -85,7 +95,8 @@ export const DriveOfflineGrantCard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <button // no-tour-anchor: system prompt shown only when Drive needs re-approval
+          <button
+            {...tourAttr('drive.grant-approve')}
             onClick={() => void handleConnect()}
             disabled={isConnecting}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-blue-primary text-white text-xxxs font-black uppercase tracking-widest rounded-lg hover:bg-brand-blue-dark transition-colors disabled:opacity-60"

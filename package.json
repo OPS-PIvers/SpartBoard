@@ -99,6 +99,7 @@
     "leaflet": "^1.9.4",
     "lib0": "^0.2.119",
     "lucide-react": "^1.65.0",
+    "mathlive": "0.111.4",
     "onnxruntime-web-1-31": "npm:onnxruntime-web@1.31.1",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",

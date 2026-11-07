@@ -8,7 +8,15 @@ import { Z_INDEX } from '@/config/zIndex';
 describe('Google Picker stacking', () => {
   const pickerLayers = ['googlePicker', 'googlePickerBackdrop'] as const;
   // Layers allowed above the picker: nothing that can host a picker lives here.
-  const allowedAbove = ['critical', 'viewAsBanner', 'cursor'] as const;
+  const allowedAbove = [
+    'critical',
+    'mathKeyboard',
+    'mathKeyboardPopup',
+    'quizLockOverlay',
+    'quizLockTop',
+    'viewAsBanner',
+    'cursor',
+  ] as const;
 
   it('sits above every layer that can open it', () => {
     const entries = Object.entries(Z_INDEX).filter(

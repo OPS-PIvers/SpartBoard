@@ -73,6 +73,8 @@ interface QuizAssignmentSettingsModalProps {
   onShareResults?: () => void;
   /** Clears the PLC results link (linked assignments). */
   onStopSharing?: () => void | Promise<void>;
+  /** Renders the stepper in place (the live monitor's Settings screen) instead of a dialog. */
+  inline?: boolean;
 }
 
 /** Options object driven through AssignModal's `options` generic. */
@@ -140,6 +142,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   canShareWithPlc = false,
   onShareResults,
   onStopSharing,
+  inline = false,
 }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, rosters)
@@ -392,6 +395,7 @@ export const QuizAssignmentSettingsModal: React.FC<
     return (
       <AssignStepper
         isOpen
+        inline={inline}
         onClose={onClose}
         title={assignment.quizTitle}
         steps={[
@@ -415,6 +419,8 @@ export const QuizAssignmentSettingsModal: React.FC<
       />
     );
   }
+
+  if (inline) return null;
 
   return (
     <AssignModal<SettingsOptions>

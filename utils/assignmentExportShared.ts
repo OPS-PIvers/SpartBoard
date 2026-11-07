@@ -14,6 +14,7 @@
  * `submittedAt` + derive a `status` string.
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import type {
   StaffResponseFields,
   GradeResult,
@@ -162,6 +163,9 @@ export function formatQuizAnswerText(
   if (answer.paperTranscript === 'pending' && !answer.answer?.trim()) {
     return '(transcribing)';
   }
+  if (answer.paperTranscript === 'image' && !answer.answer?.trim()) {
+    return '(handwritten)';
+  }
   const raw = answer.answer ?? '';
   let text = raw;
   if (raw && question.type === 'Matching') {
@@ -300,7 +304,7 @@ export function buildResultsSheetData<
     'Submitted At',
     ...questions.flatMap((q, i) => {
       const cols = [
-        `Q${i + 1} (${q.points ?? 1}pt): ${q.text.substring(0, 40)}`,
+        `Q${i + 1} (${q.points ?? 1}pt): ${plainPromptText(q.text).substring(0, 40)}`,
       ];
       if (formatAnswer) cols.push(answerColumnHeader(i + 1));
       if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {

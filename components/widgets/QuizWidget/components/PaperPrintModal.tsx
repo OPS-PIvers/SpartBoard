@@ -6,6 +6,7 @@
  * the paper exists. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, {
   useCallback,
@@ -65,6 +66,7 @@ import type {
   ClassRoster,
   PaperBatch,
   PaperBoxSize,
+  PaperBoxStyle,
   PaperPageMap,
   PaperSheetStimulus,
   Plc,
@@ -116,6 +118,9 @@ import {
   PAPER_HANDWRITTEN_FEATURE,
   paperBoxSizeOf,
   withPaperBoxSizes,
+  withPaperBoxStyles,
+  paperBoxStyleOf,
+  type PaperBoxStylePick,
 } from '@/utils/paperWritten';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import {
@@ -224,6 +229,8 @@ export interface PaperPrintSetup {
   stimuli: PaperSheetStimulus[];
   /** Box sizes the teacher changed, by question id; only the quiz's own questions. */
   boxSizes: Record<string, PaperBoxSize>;
+  /** Box styles the teacher changed, by question id; only the quiz's own questions. */
+  boxStyles: Record<string, PaperBoxStylePick>;
 }
 
 /** A stub number the teacher marked as a handwritten answer (D17). */
@@ -242,6 +249,76 @@ const BOX_SIZE_OPTIONS = [
 /** A box size as the menu shows it: a named size, or Custom for a line count (and the older Large). */
 const boxSizeOption = (size: PaperBoxSize): string =>
   size === 'S' || size === 'M' || size === 'full' ? size : 'custom';
+
+const BOX_STYLE_OPTIONS: readonly { value: PaperBoxStyle; label: string }[] = [
+  { value: 'lines', label: 'Lines' },
+  { value: 'blank', label: 'Blank' },
+  { value: 'graph', label: 'Graph paper' },
+  { value: 'coordinate', label: 'Coordinate grid' },
+  { value: 'image', label: 'Custom image' },
+];
+
+const UPLOAD_BOX_IMAGE = '__upload';
+
+/** Which image a custom image box prints: one of the quiz's images, or an upload. */
+const BoxImageSelect: React.FC<{
+  image: PaperSheetStimulus | undefined;
+  quizImages: readonly PaperSheetStimulus[];
+  onPick: (image: PaperSheetStimulus) => void;
+  onUpload: () => void;
+  ariaLabel: string;
+  anchor: string;
+}> = ({ image, quizImages, onPick, onUpload, ariaLabel, anchor }) => {
+  const options =
+    image && !quizImages.some((q) => q.id === image.id)
+      ? [image, ...quizImages]
+      : quizImages;
+  return (
+    <select
+      aria-label={ariaLabel}
+      {...tourFieldAttr('quiz-print.written-box-image', 'quiz', anchor)}
+      value={image?.id ?? ''}
+      onChange={(e) => {
+        if (e.target.value === UPLOAD_BOX_IMAGE) return onUpload();
+        const next = options.find((o) => o.id === e.target.value);
+        if (next) onPick(next);
+      }}
+      className="min-w-0 max-w-[10rem] shrink rounded-lg border border-slate-200 px-2 py-1 text-sm"
+    >
+      {options.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.label}
+        </option>
+      ))}
+      <option value={UPLOAD_BOX_IMAGE}>Upload an image</option>
+    </select>
+  );
+};
+
+/** What prints inside a written box. */
+const BoxStyleSelect: React.FC<{
+  style: PaperBoxStyle;
+  onChange: (style: PaperBoxStyle) => void;
+  ariaLabel: string;
+  anchor: string;
+}> = ({ style, onChange, ariaLabel, anchor }) => (
+  <select
+    aria-label={ariaLabel}
+    {...tourFieldAttr('quiz-print.written-box-style', 'quiz', anchor)}
+    value={style}
+    onChange={(e) => {
+      const next = BOX_STYLE_OPTIONS.find((o) => o.value === e.target.value);
+      if (next) onChange(next.value);
+    }}
+    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+  >
+    {BOX_STYLE_OPTIONS.map((o) => (
+      <option key={o.value} value={o.value}>
+        {o.label}
+      </option>
+    ))}
+  </select>
+);
 
 /** Box size menu, with a line count beside it once Custom is picked. */
 const BoxSizeSelect: React.FC<{
@@ -373,22 +450,28 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const versionsOn = canAccessFeature('quiz-import-versions');
   // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
   const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
+  const [boxStyles, setBoxStyles] = useState<Record<string, PaperBoxStylePick>>(
+    {}
+  );
   const quiz = useMemo(
-    () => withPaperBoxSizes(savedQuiz, boxSizes),
-    [savedQuiz, boxSizes]
+    () => withPaperBoxStyles(withPaperBoxSizes(savedQuiz, boxSizes), boxStyles),
+    [savedQuiz, boxSizes, boxStyles]
   );
   const versionPlan = useMemo(() => {
     if (!versionsOn || !banks || !quiz.bankSlots?.length) return null;
     try {
       return planPaperVersions(
         quiz,
-        withPaperBoxSizes(resolveQuizAssignment(quiz, banks), boxSizes),
+        withPaperBoxStyles(
+          withPaperBoxSizes(resolveQuizAssignment(quiz, banks), boxSizes),
+          boxStyles
+        ),
         { written: writtenOn }
       );
     } catch {
       return null;
     }
-  }, [versionsOn, banks, quiz, writtenOn, boxSizes]);
+  }, [versionsOn, banks, quiz, writtenOn, boxSizes, boxStyles]);
   const analysis = useMemo(() => {
     if (versionPlan) return versionPlan.template;
     return promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn }));
@@ -580,6 +663,20 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     analysis.entries,
   ]);
   const tooManyPages = pagePlan?.ok === false;
+  /** Custom image box images by question id, for every written box that prints one. */
+  const boxImages = useMemo(() => {
+    const entries = versionPlan
+      ? versionPlan.versions.flatMap((v) => v.analysis.entries)
+      : analysis.entries;
+    const out = new Map<string, PaperSheetStimulus>();
+    for (const e of entries) {
+      if (e.kind !== 'written' || e.style !== 'image') continue;
+      const image = questionsById.get(e.questionId)?.paperBoxImage;
+      if (image) out.set(e.questionId, image);
+    }
+    return out;
+  }, [versionPlan, analysis.entries, questionsById]);
+  const boxImageStimuli = useMemo(() => [...boxImages.values()], [boxImages]);
   const imageStimuli = useMemo(() => {
     const prompts = promptSets.flatMap((p) =>
       Object.values(p).flatMap((x) => x.stimuli)
@@ -587,9 +684,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     const seen = new Set(sheetStimuli.map((s) => s.id));
     return [
       ...sheetStimuli,
-      ...prompts.filter((s) => !seen.has(s.id) && !!seen.add(s.id)),
+      ...[...prompts, ...boxImageStimuli].filter(
+        (s) => !seen.has(s.id) && !!seen.add(s.id)
+      ),
     ];
-  }, [sheetStimuli, promptSets]);
+  }, [sheetStimuli, promptSets, boxImageStimuli]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
@@ -613,6 +712,17 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     })
   );
   const boxSizesChanged = Object.keys(changedBoxSizes).length > 0;
+  const changedBoxStyles = Object.fromEntries(
+    Object.entries(boxStyles).filter(([id, pick]) => {
+      const q = savedQuiz.questions.find((sq) => sq.id === id);
+      return (
+        !!q &&
+        (paperBoxStyleOf(q) !== pick.style ||
+          (pick.style === 'image' && q.paperBoxImage?.id !== pick.image?.id))
+      );
+    })
+  );
+  const boxStylesChanged = Object.keys(changedBoxStyles).length > 0;
   /** Written boxes the teacher can size; one row per question, across versions. */
   const writtenRows = useMemo(() => {
     if (isStub) return [];
@@ -628,8 +738,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         {
           questionId: w.questionId,
           label: versionPlan ? null : w.label,
-          text: q.text,
+          text: plainPromptText(q.text),
           size: w.size,
+          style: paperBoxStyleOf(q),
+          image: q.paperBoxImage,
         },
       ];
     });
@@ -638,6 +750,47 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     () => (quiz.stimuli ?? []).filter((s) => s.type === 'image'),
     [quiz.stimuli]
   );
+  /** The quiz's own images, as a custom image box prints them. */
+  const quizBoxImages = useMemo(
+    (): PaperSheetStimulus[] =>
+      quizImageStimuli.flatMap((s) =>
+        s.driveFileId || s.url
+          ? [
+              {
+                id: s.id,
+                label: s.label,
+                source: 'image' as const,
+                ...(s.driveFileId ? { driveFileId: s.driveFileId } : {}),
+                ...(s.url ? { url: s.url } : {}),
+              },
+            ]
+          : []
+      ),
+    [quizImageStimuli]
+  );
+  const boxImageInput = useRef<HTMLInputElement>(null);
+  const [boxImageFor, setBoxImageFor] = useState<string | null>(null);
+  const openBoxImageUpload = (questionId: string) => {
+    setBoxImageFor(questionId);
+    boxImageInput.current?.click();
+  };
+  const pickBoxStyle = (
+    row: { questionId: string; image?: PaperSheetStimulus },
+    style: PaperBoxStyle
+  ) => {
+    if (style !== 'image') {
+      setBoxStyles((prev) => ({ ...prev, [row.questionId]: { style } }));
+      return;
+    }
+    // An image box needs its image first; with none to offer, the upload opens and the style waits for it.
+    const image = row.image ?? quizBoxImages[0];
+    if (image)
+      setBoxStyles((prev) => ({
+        ...prev,
+        [row.questionId]: { style, image },
+      }));
+    else openBoxImageUpload(row.questionId);
+  };
 
   /** Put the bytes in Drive and make the stimulus that points at them. */
   const uploadToDrive = useCallback(
@@ -714,6 +867,38 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     },
     [driveService, onError, uploadToDrive]
   );
+
+  const uploadBoxImage = async (file: File) => {
+    const questionId = boxImageFor;
+    if (!questionId) return;
+    if (!file.type.startsWith('image/')) {
+      onError(`"${file.name}" is not an image.`);
+      return;
+    }
+    if (file.size > MAX_SHEET_IMAGE_BYTES) {
+      onError(
+        `"${file.name}" is too large (max ${MAX_SHEET_IMAGE_BYTES / 1024 / 1024}MB).`
+      );
+      return;
+    }
+    try {
+      const image = await uploadToDrive(
+        file,
+        file.name,
+        file.name,
+        await imagePixelSize(file)
+      );
+      if (image)
+        setBoxStyles((prev) => ({
+          ...prev,
+          [questionId]: { style: 'image', image },
+        }));
+    } catch (err) {
+      onError(
+        err instanceof Error ? err.message : 'Could not upload that image.'
+      );
+    }
+  };
 
   const pickSheetImage =
     useCallback(async (): Promise<PaperSheetStimulus | null> => {
@@ -865,7 +1050,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     const fills: Record<number, QuestionFill> = {};
     for (const q of readDoc?.questions ?? []) {
       fills[q.number] = {
-        text: q.text,
+        text: plainPromptText(q.text),
         options: q.options.map((o) => o.text),
         correctAnswer: q.correctAnswer,
       };
@@ -986,6 +1171,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         includeKeySheet,
         sheetStimuli,
         boxSizes,
+        boxStyles,
         questionTextLayout,
       ]);
       const saved = assign ? committedRef.current : null;
@@ -1000,10 +1186,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         // the next print and every PLC copy start from the same sheet (D18).
         // Only when they changed: an unchanged save would publish a new version
         // to the PLC and tell every peer to pull a print they did not make.
-        else if (onSavePrintSetup && (sheetStimuliChanged || boxSizesChanged))
+        else if (
+          onSavePrintSetup &&
+          (sheetStimuliChanged || boxSizesChanged || boxStylesChanged)
+        )
           await onSavePrintSetup({
             stimuli: sheetStimuli,
             boxSizes: changedBoxSizes,
+            boxStyles: changedBoxStyles,
           });
         await onSaveBatch(batch);
         if (assign)
@@ -1030,7 +1220,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(batch.sheetLayout === 'questions'
           ? {
               questionTexts: sheetQuestions.map((q) => ({
-                text: q.text,
+                text: plainPromptText(q.text),
                 choices: batch.choiceOrder?.[q.id] ?? [],
               })),
             }
@@ -1042,6 +1232,16 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           ? {
               pageMaps: batch.pageMaps,
               ...(isStub ? {} : { writtenTexts: writtenTextsOf(analysis) }),
+              ...(boxImages.size > 0
+                ? {
+                    writtenImages: Object.fromEntries(
+                      [...boxImages].flatMap(([id, image]) => {
+                        const src = sheetImages.src[image.id];
+                        return src ? [[id, src]] : [];
+                      })
+                    ),
+                  }
+                : {}),
               ...(promptIds.size > 0 ? { prompts: promptPages } : {}),
             }
           : {}),
@@ -1194,7 +1394,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           return [
             {
               row: r.row,
-              text: q.text,
+              text: plainPromptText(q.text),
               choices,
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
@@ -1721,20 +1921,55 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 <span className="min-w-0 flex-1 pt-1 text-sm text-slate-700">
                   {row.text || 'Untitled question'}
                 </span>
-                <BoxSizeSelect
-                  size={row.size}
-                  onChange={(size) =>
-                    setBoxSizes((prev) => ({
-                      ...prev,
-                      [row.questionId]: size,
-                    }))
-                  }
-                  ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
-                  anchor={row.label ?? row.questionId}
-                />
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <BoxSizeSelect
+                    size={row.size}
+                    onChange={(size) =>
+                      setBoxSizes((prev) => ({
+                        ...prev,
+                        [row.questionId]: size,
+                      }))
+                    }
+                    ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
+                    anchor={row.label ?? row.questionId}
+                  />
+                  <BoxStyleSelect
+                    style={row.style}
+                    onChange={(style) => pickBoxStyle(row, style)}
+                    ariaLabel={`${row.label ? `Question ${row.label}` : row.text} answer style`}
+                    anchor={row.label ?? row.questionId}
+                  />
+                  {row.style === 'image' && (
+                    <BoxImageSelect
+                      image={row.image}
+                      quizImages={quizBoxImages}
+                      onPick={(image) =>
+                        setBoxStyles((prev) => ({
+                          ...prev,
+                          [row.questionId]: { style: 'image', image },
+                        }))
+                      }
+                      onUpload={() => openBoxImageUpload(row.questionId)}
+                      ariaLabel={`${row.label ? `Question ${row.label}` : row.text} image`}
+                      anchor={row.label ?? row.questionId}
+                    />
+                  )}
+                </div>
               </li>
             ))}
           </ul>
+          {/* no-tour-anchor: hidden file input, opened from the image menu */}
+          <input
+            ref={boxImageInput}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void uploadBoxImage(file);
+            }}
+          />
         </div>
       )}
 

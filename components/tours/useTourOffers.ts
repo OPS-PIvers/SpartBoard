@@ -14,6 +14,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useSharedHelpItems } from '@/hooks/useHelpResources';
 import { TOOLS } from '@/config/tools';
 import { isTourRunning, requestStartTour } from './tourState';
+import { useFirstRun } from '@/hooks/useFirstRun';
 import { tourStepsOf } from './tourSession';
 import {
   canUseTourWidgets,
@@ -130,9 +131,11 @@ export function useFirstUseTourOffers(): void {
   const { activeDashboard, addToast } = useDashboard();
   const items = useSharedHelpItems();
   const canUse = useCanUseWidget();
+  // Held during a new teacher's quiet start; an offer not made isn't marked, so it comes later (D7).
+  const { quiet } = useFirstRun();
 
   const offer = useEffectEvent((type: WidgetType) => {
-    if (isTourRunning() || wasOffered(type)) return;
+    if (quiet || isTourRunning() || wasOffered(type)) return;
     const ids = guideSetIds(items, type);
     if (ids.length === 0) return;
     void (async () => {

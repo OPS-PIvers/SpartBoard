@@ -25,9 +25,10 @@ export const BackgroundsGrid: React.FC<BackgroundsGridProps> = ({
 
   return (
     <div className="grid grid-cols-4 gap-3 p-4">
-      {items.map((item) => (
+      {items.map((item, index) => (
         <BackgroundThumbnail
           key={item.id}
+          position={index + 1}
           item={item}
           isActive={item.id === activeId}
           isFavorite={favSet.has(item.id)}

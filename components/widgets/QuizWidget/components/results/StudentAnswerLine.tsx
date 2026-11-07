@@ -1,4 +1,6 @@
 import React from 'react';
+import { MathText } from '@/components/common/MathText';
+import { plainPromptText } from '@/utils/promptMath';
 import {
   CheckCircle2,
   Circle,
@@ -204,13 +206,13 @@ export const StudentAnswerLine: React.FC<{
           className="font-sans font-medium text-brand-gray-darkest flex-1 min-w-0 wrap-break-word"
           style={BODY_TEXT}
         >
-          {line.text}
+          <MathText text={line.text} />
         </p>
         {onOpenGrader && (
           <button
             type="button"
             onClick={onOpenGrader}
-            aria-label={`Grade Q${line.number}: ${line.text}`}
+            aria-label={`Grade Q${line.number}: ${plainPromptText(line.text)}`}
             {...tourFieldAttr(
               'quiz-grading.answer-grade',
               'quiz',

@@ -22,6 +22,7 @@ import {
   Italic,
   List,
   ListOrdered,
+  Sigma,
   Underline,
 } from 'lucide-react';
 import { sanitizeQuizResponse } from '@/utils/security';
@@ -35,6 +36,23 @@ import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 import { countWords } from '@/utils/wordCount';
 import { QUOTE_ATTR, buildQuoteNodes } from '@/utils/quizQuotes';
 import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
+import { MATH_ATTR } from '@/utils/mathAnswer';
+import {
+  MATH_PLAIN_ATTR,
+  drawMathChips,
+  plainMathHtml,
+} from '@/components/student/keyboards/mathChips';
+
+const MathAnswerField = React.lazy(
+  () => import('@/components/student/keyboards/MathAnswerField')
+);
+
+/** Equations are single chips the student re-opens to edit, never typed inside. */
+function lockMathChips(root: HTMLElement): void {
+  for (const el of Array.from(root.querySelectorAll(`span[${MATH_ATTR}]`))) {
+    el.setAttribute('contenteditable', 'false');
+  }
+}
 
 interface WrittenResponseEditorProps {
   /** Initial HTML content. Sanitized on render. */
@@ -71,6 +89,8 @@ interface WrittenResponseEditorProps {
    * to the dark teacher-paced treatment so existing call sites are unchanged.
    */
   light?: boolean;
+  /** Shows the Insert equation button (quiz math keyboard). */
+  mathEnabled?: boolean;
   ref?: React.Ref<WrittenResponseEditorHandle>;
 }
 
@@ -96,9 +116,17 @@ const WrittenResponseEditorInner: React.FC<
   disabled,
   blockClipboard,
   light = false,
+  mathEnabled = false,
   ref,
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
+  // Open equation panel; `editing` when it changes the chip held in `editingChipRef`.
+  const [mathDraft, setMathDraft] = useState<{
+    editing: boolean;
+    latex: string;
+    plain: string;
+  } | null>(null);
+  const editingChipRef = useRef<HTMLElement | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [wordCount, setWordCount] = useState(() => countWords(value));
@@ -215,6 +243,8 @@ const WrittenResponseEditorInner: React.FC<
     const initial = sanitizeQuizResponse(value);
     editorRef.current.innerHTML = initial;
     normalizeEditorBlocks(editorRef.current, { wrapTag: 'p' });
+    lockMathChips(editorRef.current);
+    void drawMathChips(editorRef.current);
     setWordCount(countWords(initial));
     setIsEmpty(!editorRef.current.textContent?.trim());
     // We intentionally don't depend on `value` — the `questionKey`-driven
@@ -253,70 +283,116 @@ const WrittenResponseEditorInner: React.FC<
     if (needsBlockNormalization(editorRef.current, { wrapTag: 'p' })) {
       normalizeEditorBlocks(editorRef.current, { wrapTag: 'p' });
     }
-    const raw = editorRef.current.innerHTML;
+    const raw = plainMathHtml(editorRef.current);
     const clean = sanitizeQuizResponse(raw);
     setWordCount(countWords(clean));
     setIsEmpty(!editorRef.current.textContent?.trim());
     onChange(clean);
   };
 
-  useImperativeHandle(ref, () => ({
-    insertQuote: (quote) => {
-      const el = editorRef.current;
-      if (!el || disabled || !quote.text) return;
-      let range = savedRangeRef.current;
-      if (!range || !el.contains(range.commonAncestorContainer)) {
-        const block =
-          el.lastElementChild ?? el.appendChild(document.createElement('p'));
+  // Puts nodes at the student's last cursor spot (or the end), never inside a quote or equation.
+  const placeNodes = (nodes: Node[]) => {
+    const el = editorRef.current;
+    if (!el || disabled || nodes.length === 0) return;
+    let range = savedRangeRef.current;
+    if (!range || !el.contains(range.commonAncestorContainer)) {
+      const block =
+        el.lastElementChild ?? el.appendChild(document.createElement('p'));
+      range = document.createRange();
+      range.selectNodeContents(block);
+      range.collapse(false);
+    }
+    // Paragraph tidying can leave the saved caret on the editor itself; move it into the paragraph beside it.
+    if (range.startContainer === el) {
+      const prev = el.childNodes[range.startOffset - 1];
+      const next = el.childNodes[range.startOffset];
+      const block = prev ?? next;
+      if (block instanceof Element) {
         range = document.createRange();
         range.selectNodeContents(block);
-        range.collapse(false);
+        range.collapse(block !== prev);
       }
-      // Paragraph tidying can leave the saved caret on the editor itself; move it into the paragraph beside it.
-      if (range.startContainer === el) {
-        const prev = el.childNodes[range.startOffset - 1];
-        const next = el.childNodes[range.startOffset];
-        const block = prev ?? next;
-        if (block instanceof Element) {
-          range = document.createRange();
-          range.selectNodeContents(block);
-          range.collapse(block !== prev);
-        }
-      }
-      const startEl =
-        range.startContainer instanceof Element
-          ? range.startContainer
-          : range.startContainer.parentElement;
-      const insideQuote = startEl?.closest(`span[${QUOTE_ATTR}]`);
-      if (insideQuote && el.contains(insideQuote)) {
-        range.setStartAfter(insideQuote);
-        range.collapse(true);
-      }
-      // Insert after a highlighted passage of the student's own writing rather than replacing it.
-      range.collapse(false);
-      const nodes = buildQuoteNodes(document, quote);
-      const { startContainer, startOffset } = range;
-      const before =
-        startContainer.nodeType === Node.TEXT_NODE
-          ? (startContainer.textContent ?? '').slice(0, startOffset)
-          : (startContainer.childNodes[startOffset - 1]?.textContent ?? '');
-      if (before && !/\s$/.test(before)) {
-        nodes.unshift(document.createTextNode(' '));
-      }
-      const fragment = document.createDocumentFragment();
-      fragment.append(...nodes);
-      range.insertNode(fragment);
-      el.focus();
-      const caret = document.createRange();
-      caret.setStartAfter(nodes[nodes.length - 1]);
-      caret.collapse(true);
-      const sel = document.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(caret);
-      savedRangeRef.current = caret.cloneRange();
-      handleInput();
+    }
+    const startEl =
+      range.startContainer instanceof Element
+        ? range.startContainer
+        : range.startContainer.parentElement;
+    const insideQuote = startEl?.closest(
+      `span[${QUOTE_ATTR}], span[${MATH_ATTR}]`
+    );
+    if (insideQuote && el.contains(insideQuote)) {
+      range.setStartAfter(insideQuote);
+      range.collapse(true);
+    }
+    // Insert after a highlighted passage of the student's own writing rather than replacing it.
+    range.collapse(false);
+    const { startContainer, startOffset } = range;
+    const before =
+      startContainer.nodeType === Node.TEXT_NODE
+        ? (startContainer.textContent ?? '').slice(0, startOffset)
+        : (startContainer.childNodes[startOffset - 1]?.textContent ?? '');
+    if (before && !/\s$/.test(before)) {
+      nodes.unshift(document.createTextNode(' '));
+    }
+    const fragment = document.createDocumentFragment();
+    fragment.append(...nodes);
+    range.insertNode(fragment);
+    el.focus();
+    const caret = document.createRange();
+    caret.setStartAfter(nodes[nodes.length - 1]);
+    caret.collapse(true);
+    const sel = document.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(caret);
+    savedRangeRef.current = caret.cloneRange();
+    handleInput();
+  };
+
+  useImperativeHandle(ref, () => ({
+    insertQuote: (quote) => {
+      if (!quote.text) return;
+      placeNodes(buildQuoteNodes(document, quote));
     },
   }));
+
+  const openEquation = (chip: HTMLElement | null) => {
+    if (disabled) return;
+    editingChipRef.current = chip;
+    setMathDraft({
+      editing: chip !== null,
+      latex: chip?.getAttribute(MATH_ATTR) ?? '',
+      plain: chip?.getAttribute(MATH_PLAIN_ATTR) ?? chip?.textContent ?? '',
+    });
+  };
+
+  const commitEquation = () => {
+    const draft = mathDraft;
+    const editing = editingChipRef.current;
+    editingChipRef.current = null;
+    setMathDraft(null);
+    const el = editorRef.current;
+    if (!draft || !el) return;
+    const plain = draft.plain.trim();
+    if (editing && el.contains(editing)) {
+      if (plain) {
+        editing.setAttribute(MATH_ATTR, draft.latex);
+        editing.removeAttribute(MATH_PLAIN_ATTR);
+        editing.textContent = plain;
+      } else {
+        editing.remove();
+      }
+      handleInput();
+      void drawMathChips(el);
+      return;
+    }
+    if (!plain) return;
+    const chip = document.createElement('span');
+    chip.setAttribute(MATH_ATTR, draft.latex);
+    chip.setAttribute('contenteditable', 'false');
+    chip.textContent = plain;
+    placeNodes([chip, document.createTextNode(' ')]);
+    void drawMathChips(el);
+  };
 
   // Strip formatting from pasted content so students can't inject styled
   // HTML by copy/pasting from rich sources. We only allow plain text on
@@ -426,6 +502,21 @@ const WrittenResponseEditorInner: React.FC<
         >
           <ListOrdered className="w-4 h-4" />
         </ToolbarButton>
+        {mathEnabled && (
+          <>
+            <div
+              className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
+            />
+            <ToolbarButton
+              label="Insert equation"
+              onClick={() => openEquation(null)}
+              disabled={disabled}
+              light={light}
+            >
+              <Sigma className="w-4 h-4" />
+            </ToolbarButton>
+          </>
+        )}
         <div className="flex-1" />
         <span
           className={`text-xs font-mono px-2 py-0.5 rounded ${
@@ -443,6 +534,59 @@ const WrittenResponseEditorInner: React.FC<
         </span>
       </div>
 
+      {mathDraft && (
+        <div
+          className={`flex flex-col gap-2 p-2 border rounded-xl ${
+            light
+              ? 'bg-slate-50 border-slate-200'
+              : 'bg-slate-800 border-slate-700'
+          }`}
+        >
+          <React.Suspense fallback={null}>
+            <MathAnswerField
+              value={mathDraft.plain}
+              initialLatex={mathDraft.latex || undefined}
+              autoFocus
+              ariaLabel="Equation"
+              className={
+                light
+                  ? 'bg-white border-slate-300 text-slate-900'
+                  : 'bg-slate-900 border-slate-700 text-white'
+              }
+              onChange={(plain, latex) =>
+                setMathDraft((d) => (d ? { ...d, plain, latex } : d))
+              }
+              onEnter={commitEquation}
+            />
+          </React.Suspense>
+          <div className="flex justify-center gap-2">
+            <button
+              // no-tour-anchor: student quiz screen; tours walk teachers
+              type="button"
+              onClick={() => {
+                editingChipRef.current = null;
+                setMathDraft(null);
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-bold ${
+                light
+                  ? 'text-slate-600 hover:bg-slate-100'
+                  : 'text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              Cancel
+            </button>
+            <button
+              // no-tour-anchor: student quiz screen; tours walk teachers
+              type="button"
+              onClick={commitEquation}
+              className="px-4 py-2 rounded-lg text-sm font-bold bg-brand-blue-primary text-white hover:bg-brand-blue-dark"
+            >
+              {mathDraft.editing ? 'Update' : 'Insert'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="relative">
         <div
           ref={editorRef}
@@ -458,6 +602,11 @@ const WrittenResponseEditorInner: React.FC<
           contentEditable={!disabled}
           suppressContentEditableWarning
           onInput={handleInput}
+          onClick={(e) => {
+            if (!mathEnabled || !(e.target instanceof Element)) return;
+            const chip = e.target.closest<HTMLElement>(`span[${MATH_ATTR}]`);
+            if (chip && editorRef.current?.contains(chip)) openEquation(chip);
+          }}
           onPaste={handlePaste}
           onCopy={handleClipboardCopyCut}
           onCut={handleClipboardCopyCut}
@@ -473,7 +622,11 @@ const WrittenResponseEditorInner: React.FC<
               : light
                 ? 'border-slate-300 text-slate-900 focus:outline-hidden focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
                 : 'border-slate-700 text-white focus:outline-hidden focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
-          } rounded-b-2xl text-sm leading-relaxed overflow-y-auto`}
+          } rounded-b-2xl text-sm leading-relaxed overflow-y-auto [&_[data-math]]:inline-block [&_[data-math]]:px-1.5 [&_[data-math]]:mx-0.5 [&_[data-math]]:rounded [&_[data-math]]:align-middle [&_[data-math]]:cursor-pointer ${
+            light
+              ? '[&_[data-math]]:bg-slate-100 [&_[data-math]]:text-slate-900'
+              : '[&_[data-math]]:bg-slate-700 [&_[data-math]]:text-white'
+          }`}
           style={{
             wordBreak: 'break-word',
             height: `${heightPx}px`,

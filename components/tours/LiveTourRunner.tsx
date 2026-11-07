@@ -31,6 +31,8 @@ import {
 } from './tourMaterialSeed';
 import { getOpenTourMaterials, requestOpenTourMaterial } from './tourMaterials';
 import { TourMaterialPicks } from './TourMaterialPicks';
+import { useTourConditions } from './useTourConditions';
+import { GettingStartedNextOffer } from '@/components/gettingStarted/GettingStartedNextOffer';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -120,6 +122,7 @@ import {
   writeSavedTour,
   type SavedTour,
 } from './tourResume';
+import { recordTourFinished } from '@/utils/gettingStartedProgress';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
@@ -146,7 +149,13 @@ import {
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
 type Phase =
-  'welcome' | 'materials' | 'practice-offer' | 'running' | 'keep' | 'teardown';
+  | 'welcome'
+  | 'materials'
+  | 'practice-offer'
+  | 'running'
+  | 'keep'
+  | 'boards'
+  | 'teardown';
 
 interface LaunchOptions {
   /** Widgets a reloaded run had already added, so teardown can still remove them. */
@@ -199,6 +208,13 @@ interface ActiveTour {
   /** The teacher's items picked for the tour's materials. */
   picks?: Readonly<Record<string, string>>;
   test?: boolean;
+  /** What the run made, captured when the boards prompt opens. */
+  made?: RunMade;
+}
+
+interface RunMade {
+  boards: { id: string; name: string }[];
+  collections: { id: string; name: string }[];
 }
 
 /** A test run's step picture as a data URL, with its size. */
@@ -265,6 +281,12 @@ const BOARD_WAIT_MS = 2000;
 const VALUE_SETTLE_MS = 600;
 /** Pause after the last keystroke before a matching type step moves on. */
 const TYPE_SETTLE_MS = 500;
+/** Allows for clock skew between this device and the server's createdAt stamps. */
+const RUN_CLOCK_SLACK_MS = 5000;
+/** How far a widget has to move, or its size change, for a drag or resize step to count. */
+const MOVE_MIN_PX = 24;
+/** How long a step's "Done" shows before the tour moves on by itself. */
+const DONE_PAUSE_MS = 1200;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
@@ -371,12 +393,25 @@ export const LiveTourRunner: React.FC = () => {
   const { canAccessFeature, user, featurePermissions } = useAuth();
   const dashboard = useDashboard();
   const { activeDashboard, removeWidgets } = dashboard;
+  const checkCondition = useTourConditions();
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const showSparty = useShowSparty();
   // Set when a run reaches its last step, so the closing prompt can cheer.
   const [finished, setFinished] = useState(false);
   const [cheering, setCheering] = useState(false);
+  // The set a Getting Started launch started; finishing it offers the next tour there.
+  const chainRef = useRef<string | null>(null);
+  // What the teacher had when the run began; Remove deletes only what the run made since (D11).
+  const runStart = useRef<{
+    at: number;
+    boardId: string | null;
+    boards: ReadonlySet<string>;
+    collections: ReadonlySet<string>;
+  } | null>(null);
+  const [chainOffer, setChainOffer] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Counts step entries, so going Back to a step opens it afresh.
+  const [visit, setVisit] = useState(0);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
   // The bar's Autopilot switch; handsOn marks a teacher who turned it off this run.
   const [autoOn, setAutoOn] = useState(false);
@@ -407,6 +442,7 @@ export const LiveTourRunner: React.FC = () => {
     t,
     uid: user?.uid,
     featurePermissions,
+    checkCondition,
   });
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latest.current = {
@@ -415,6 +451,7 @@ export const LiveTourRunner: React.FC = () => {
     t,
     uid: user?.uid,
     featurePermissions,
+    checkCondition,
   };
 
   // Steps of this run that self-heal already tried.
@@ -870,6 +907,14 @@ export const LiveTourRunner: React.FC = () => {
           },
         }
       : set;
+    runStart.current = opts.edit
+      ? null
+      : {
+          at: Date.now(),
+          boardId: d.activeDashboard?.id ?? null,
+          boards: new Set(d.dashboards.map((b) => b.id)),
+          collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
+        };
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
     const beforeIds = new Set(current.map((w) => w.id));
@@ -1004,6 +1049,8 @@ export const LiveTourRunner: React.FC = () => {
     if (!req?.setId || startingRef.current || isTourRunning()) return;
     startingRef.current = true;
     setResumeOffer(null);
+    setChainOffer(null);
+    chainRef.current = req.chain === 'getting-started' ? req.setId : null;
     // A failed launch drops any saved run, so it does not come back later.
     const launchFailed = () => {
       clearSavedTour();
@@ -1024,7 +1071,13 @@ export const LiveTourRunner: React.FC = () => {
               (await d.addRoster(SAMPLE_CLASS_NAME, sampleStudents()))
           );
         }
-        const steps = set ? liveTourStepsOf(set) : [];
+        // Steps that can't apply to this teacher drop out; a test run plays them all.
+        const steps = set
+          ? liveTourStepsOf(
+              set,
+              test ? undefined : latest.current.checkCondition
+            )
+          : [];
         if (!set || steps.length === 0) {
           launchFailed();
           return;
@@ -1100,6 +1153,8 @@ export const LiveTourRunner: React.FC = () => {
     undoPrerequisites();
     endTourSandbox();
     endTourFrame();
+    chainRef.current = null;
+    runStart.current = null;
     setTour(null);
   };
 
@@ -1139,7 +1194,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // A step left while its anchor was still missing counts as a field miss.
   const noteMiss = () => {
-    if (step?.tour && anchor.status === 'missing')
+    if (step?.tour && anchor.status === 'missing' && !doneNow)
       runLog.current?.miss(step.id);
   };
 
@@ -1150,6 +1205,26 @@ export const LiveTourRunner: React.FC = () => {
       noteMiss();
       runLog.current?.end(done ? { done } : { done, exit: tour.index });
       runLog.current = null;
+      const { uid, canAccessFeature: canAccess } = latest.current;
+      if (
+        done &&
+        uid &&
+        !tour.draft &&
+        !tour.edit &&
+        !tour.test &&
+        canAccess('getting-started')
+      ) {
+        void recordTourFinished(uid, tour.set.id);
+      }
+      if (
+        done &&
+        chainRef.current === tour.set.id &&
+        !tour.draft &&
+        !tour.edit &&
+        !tour.test
+      ) {
+        setChainOffer(tour.set.id);
+      }
     }
     setFinished(done);
     // Items the tour made or loaded are offered to keep before anything is torn down.
@@ -1165,15 +1240,83 @@ export const LiveTourRunner: React.FC = () => {
     closeOut(done);
   };
 
-  // The widget prompt, or the end, after any keep prompt.
-  const closeOut = (done: boolean) => {
+  // The boards prompt, then the widget prompt, or the end, after any keep prompt.
+  const closeOut = (done: boolean, boardsAsked = false) => {
     if (!tour) return;
+    if (!boardsAsked && !tour.test) {
+      const made = runMade();
+      if (made.total > 0) {
+        setTour({ ...tour, phase: 'boards', made });
+        return;
+      }
+    }
     if (added.length > 0) {
       setTour({ ...tour, phase: 'teardown' });
       return;
     }
     endTour();
     if (done && showSparty) setCheering(true);
+  };
+
+  // Boards and collections this run made; never one shared with the teacher meanwhile.
+  const runMade = () => {
+    const start = runStart.current;
+    const d = latest.current.dashboard;
+    if (!start) return { boards: [], collections: [], total: 0 };
+    const madeNow = (createdAt: number) =>
+      createdAt >= start.at - RUN_CLOCK_SLACK_MS;
+    const collections = d.collectionsApi.collections.filter(
+      (c) =>
+        !start.collections.has(c.id) &&
+        !c.linkedCollectionId &&
+        madeNow(c.createdAt)
+    );
+    const shared = new Set(
+      d.collectionsApi.collections
+        .filter((c) => c.linkedCollectionId)
+        .map((c) => c.id)
+    );
+    const boards = d.dashboards.filter(
+      (b) =>
+        !start.boards.has(b.id) &&
+        madeNow(b.createdAt) &&
+        !(b.collectionId && shared.has(b.collectionId))
+    );
+    return { boards, collections, total: boards.length + collections.length };
+  };
+
+  const [removingBoards, setRemovingBoards] = useState(false);
+  const removeRunBoards = async () => {
+    const start = runStart.current;
+    const made = tour?.made ?? { boards: [], collections: [] };
+    const d = latest.current.dashboard;
+    setRemovingBoards(true);
+    // Back to where the tour started before its own boards go.
+    if (
+      start?.boardId &&
+      made.boards.some((b) => b.id === d.activeDashboard?.id)
+    ) {
+      d.loadDashboard(start.boardId);
+    }
+    // Boards first, so a collection's move-up never touches one being deleted; one failure doesn't stop the rest.
+    const boardResults = await Promise.allSettled(
+      made.boards.map((board) => d.deleteDashboard(board.id))
+    );
+    // Moving children up keeps a board the teacher filed in a new collection.
+    const collectionResults = await Promise.allSettled(
+      made.collections.map((collection) =>
+        d.collectionsApi.deleteCollection(collection.id, 'move-to-parent')
+      )
+    );
+    const failed = [...boardResults, ...collectionResults].filter(
+      (r) => r.status === 'rejected'
+    );
+    if (failed.length > 0) {
+      console.error('Live tour: could not remove boards', failed);
+      d.addToast(latest.current.t('tours.removeBoardsFailed'), 'error');
+    }
+    setRemovingBoards(false);
+    closeOut(finished, true);
   };
 
   const [keeping, setKeeping] = useState(false);
@@ -1210,6 +1353,7 @@ export const LiveTourRunner: React.FC = () => {
     noteMiss();
     runLog.current?.update({ furthest: index });
     setAttempt(0);
+    setVisit((n) => n + 1);
     const next = Math.max(index, 0);
     // The outline follows playback; a fast-forward already shows where it is heading.
     if (tour.edit && (ffTarget === null || next > ffTarget)) {
@@ -1320,6 +1464,28 @@ export const LiveTourRunner: React.FC = () => {
 
   // Record from here captures real clicks; the stage stays but the tour stands aside.
   const editRecording = standAside;
+  // A step with a done fact waits for the real result; the editor and test runs can't produce one.
+  const doneFact =
+    tour?.phase === 'running' && !tour.edit && !tour.test
+      ? step?.tour?.doneWhen
+      : undefined;
+  const doneNow = !!doneFact && checkCondition(doneFact) === true;
+  // Already true when the step opened (a replay): it says so and offers Next instead of moving on.
+  const [doneAtOpen, setDoneAtOpen] = useState<{
+    visit: number;
+    met: boolean;
+  } | null>(null);
+  if (doneFact && doneAtOpen?.visit !== visit) {
+    setDoneAtOpen({ visit, met: doneNow });
+  }
+  const metAtOpen = !!doneFact && doneAtOpen?.visit === visit && doneAtOpen.met;
+  const justDone = doneNow && !metAtOpen;
+  useEffect(() => {
+    if (!justDone) return;
+    const index = stepIndex;
+    const id = setTimeout(() => advanceRef.current(index + 1), DONE_PAUSE_MS);
+    return () => clearTimeout(id);
+  }, [justDone, stepIndex]);
   const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
@@ -1336,7 +1502,43 @@ export const LiveTourRunner: React.FC = () => {
   }, [stepIndex, ended]);
   useEffect(() => {
     const el = anchor.element;
-    if (!el || !acted || !action) return;
+    if (!el || !acted || !action || doneFact) return;
+    // Drag and resize move on once the widget, let go, has moved or changed size enough to see.
+    if (action === 'drag' || action === 'resize') {
+      const box =
+        action === 'drag'
+          ? el
+          : (el.closest<HTMLElement>('[data-draggable-window]') ?? el);
+      let from: DOMRect | null = null;
+      const onDown = () => {
+        from = box.getBoundingClientRect();
+      };
+      const onUp = () => {
+        const start = from;
+        from = null;
+        const signal = clickWait.current?.signal;
+        if (!start || !signal || signal.aborted) return;
+        const moved = () => {
+          if (!box.isConnected) return false;
+          const now = box.getBoundingClientRect();
+          return action === 'drag'
+            ? Math.hypot(now.x - start.x, now.y - start.y) >= MOVE_MIN_PX
+            : Math.hypot(now.width - start.width, now.height - start.height) >=
+                MOVE_MIN_PX;
+        };
+        void waitFor(moved, VALUE_SETTLE_MS, signal).then((ok) => {
+          if (ok) advanceFrom(stepIndex);
+        });
+      };
+      el.addEventListener('pointerdown', onDown, true);
+      window.addEventListener('pointerup', onUp, true);
+      window.addEventListener('pointercancel', onUp, true);
+      return () => {
+        el.removeEventListener('pointerdown', onDown, true);
+        window.removeEventListener('pointerup', onUp, true);
+        window.removeEventListener('pointercancel', onUp, true);
+      };
+    }
     const onChange =
       action === 'type' ||
       (action === 'select' &&
@@ -1383,7 +1585,7 @@ export const LiveTourRunner: React.FC = () => {
       el.removeEventListener(eventName, onClick, true);
       el.removeEventListener('input', onInput, true);
     };
-  }, [anchor.element, acted, action, stepValue, stepIndex]);
+  }, [anchor.element, acted, action, stepValue, stepIndex, doneFact]);
 
   const sandbox = useTourSandbox();
   // A teacher's own picked item takes real writes, so only a run without one autopilots sandboxed saves.
@@ -1422,7 +1624,7 @@ export const LiveTourRunner: React.FC = () => {
         ? () => endTour(true)
         : tour.phase === 'practice-offer' || tour.phase === 'materials'
           ? abandon
-          : tour.phase === 'keep'
+          : tour.phase === 'keep' || tour.phase === 'boards'
             ? () => undefined
             : () => finish();
 
@@ -1439,11 +1641,16 @@ export const LiveTourRunner: React.FC = () => {
       resetEdit();
       return;
     }
-    // A step that teaches board navigation follows the teacher to the new board.
+    // A step that teaches board navigation follows the teacher to the new board,
+    // and so does a switch to a board this run made or back to where it started.
+    const tourBoard =
+      !!board &&
+      (board.id === runStart.current?.boardId ||
+        runMade().boards.some((b) => b.id === board.id));
     if (
       tour?.phase === 'running' &&
       board &&
-      Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS
+      (Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS || tourBoard)
     ) {
       setTour({
         ...tour,
@@ -1595,6 +1802,7 @@ export const LiveTourRunner: React.FC = () => {
     !tour?.test &&
     !tour?.edit &&
     anchor.status === 'missing' &&
+    !doneNow &&
     !!binding?.anchor
       ? stepKey
       : null;
@@ -1716,13 +1924,16 @@ export const LiveTourRunner: React.FC = () => {
     }
     // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
-    const gate = canPerform(binding)
-      ? tour.test
-        ? 'perform'
-        : clickAll
-          ? replayGate(binding, tour.policy, inSandbox)
-          : autopilotGate(binding, tour.policy, inSandbox)
-      : 'teacher';
+    // Autopilot can't produce a real result for the teacher, so a step waiting on one is theirs.
+    const gate = doneFact
+      ? 'teacher'
+      : canPerform(binding)
+        ? tour.test
+          ? 'perform'
+          : clickAll
+            ? replayGate(binding, tour.policy, inSandbox)
+            : autopilotGate(binding, tour.policy, inSandbox)
+        : 'teacher';
     if (tour.test && gate === 'teacher') {
       reportTestStep({
         index: tour.index,
@@ -1832,7 +2043,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // Observe steps move on at reading pace.
   const observeMs =
-    step && !isClick
+    step && !isClick && !doneFact
       ? jumping
         ? 1
         : autoObserveMs(step, tour?.set.watchPace)
@@ -2046,6 +2257,26 @@ export const LiveTourRunner: React.FC = () => {
 
   if (typeof document === 'undefined') return null;
   if (!tour && !offeringResume) {
+    if (chainOffer) {
+      return createPortal(
+        <div
+          data-tour-ignore=""
+          data-click-outside-ignore="true"
+          onClick={(e) => e.stopPropagation()}
+          className="contents"
+        >
+          <GettingStartedNextOffer
+            key={chainOffer}
+            finishedSetId={chainOffer}
+            onClose={() => {
+              setChainOffer(null);
+              setCheering(false);
+            }}
+          />
+        </div>,
+        document.body
+      );
+    }
     if (!cheering) return null;
     return createPortal(
       <div
@@ -2182,6 +2413,40 @@ export const LiveTourRunner: React.FC = () => {
       </>,
       finished ? 'cheer' : undefined
     );
+  } else if (tour.phase === 'boards') {
+    const made = tour.made ?? { boards: [], collections: [] };
+    const total = made.boards.length + made.collections.length;
+    content = dialog(
+      t('tours.keepBoardsTitle', { count: total }),
+      [
+        ...made.boards.map((b) => b.name),
+        ...made.collections.map((c) => c.name),
+      ]
+        .map((name) => name.trim() || t('tours.untitledItem'))
+        .join(', '),
+      <>
+        <button
+          type="button"
+          data-testid="tour-remove-boards"
+          className={secondaryBtn}
+          disabled={removingBoards}
+          onClick={() => void removeRunBoards()}
+        >
+          {t('tours.removeBoards', { count: total })}
+        </button>
+        <button
+          type="button"
+          data-autofocus=""
+          data-testid="tour-keep-boards"
+          className={primaryBtn}
+          disabled={removingBoards}
+          onClick={() => closeOut(finished, true)}
+        >
+          {t('tours.keepBoards', { count: total })}
+        </button>
+      </>,
+      finished ? 'cheer' : undefined
+    );
   } else if (tour.phase === 'practice-offer') {
     content = dialog(
       t('tours.readOnlyTitle'),
@@ -2238,7 +2503,8 @@ export const LiveTourRunner: React.FC = () => {
     ]
       .filter(Boolean)
       .join('. ');
-    const isMissing = anchor.status === 'missing';
+    // A control that closed once its result came in isn't missing.
+    const isMissing = anchor.status === 'missing' && !doneNow;
     const autoText =
       autoStage === 'blocked'
         ? t(tour.edit ? 'tours.editor.youClick' : 'tours.autoSkipped')
@@ -2267,12 +2533,30 @@ export const LiveTourRunner: React.FC = () => {
       autoStage !== 'blocked' &&
       (!autoOn || autoStage === 'fallback');
     // Steps the teacher finishes by clicking the target, or that Autopilot moves on, need no Next here.
-    const showTipNext =
-      !autoRunning &&
-      !autoBusy &&
-      (!acted || action === 'type' || isMissing) &&
-      !(tour.edit && tour.index + 1 === total);
+    // A step waiting on a real result offers Skip until it's done, and Next when it was done already.
+    const waitingOnFact = !!doneFact && !doneNow && !isMissing;
+    const showTipNext = doneFact
+      ? metAtOpen || isMissing
+      : !autoRunning &&
+        !autoBusy &&
+        (!acted || action === 'type' || isMissing) &&
+        !(tour.edit && tour.index + 1 === total);
+    const doneStatus: TourTipStatus | null = doneNow
+      ? {
+          text: t(metAtOpen ? 'tours.stepAlreadyDone' : 'tours.stepDone'),
+          kind: 'done',
+          testId: 'tour-step-done',
+        }
+      : null;
     const status: TourTipStatus | null =
+      doneStatus ??
+      (waitingOnFact && found
+        ? {
+            text: t('tours.waitingForResult'),
+            kind: 'turn',
+            testId: 'tour-step-waiting',
+          }
+        : null) ??
       autoStatus ??
       (staticHintOn
         ? {
@@ -2357,6 +2641,19 @@ export const LiveTourRunner: React.FC = () => {
                   onNext: () => goTo(tour.index + 1),
                   last: tour.index + 1 === total,
                 }
+              : undefined
+          }
+          skip={
+            waitingOnFact ? { onSkip: () => goTo(tour.index + 1) } : undefined
+          }
+          avoid={target}
+          sparty={
+            showSparty
+              ? doneNow || tour.index + 1 === total
+                ? 'cheer'
+                : acted
+                  ? 'point'
+                  : 'think'
               : undefined
           }
           confirm={

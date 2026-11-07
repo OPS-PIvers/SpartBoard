@@ -1,6 +1,7 @@
 import React, { useState, useSyncExternalStore } from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 import { LiveTourRunner } from './LiveTourRunner';
@@ -118,7 +119,46 @@ const h = vi.hoisted(() => {
       return Promise.resolve('practice');
     }),
   };
+  type BoardRow = {
+    id: string;
+    name: string;
+    createdAt: number;
+    collectionId?: string;
+  };
+  type CollectionRow = {
+    id: string;
+    name: string;
+    createdAt: number;
+    linkedCollectionId?: string;
+  };
+  const boards: BoardRow[] = [{ id: 'board-1', name: 'Mine', createdAt: 0 }];
+  const collections: CollectionRow[] = [];
+  const boardActions = {
+    loadDashboard: vi.fn((id: string) => {
+      board.id = id;
+      emit();
+    }),
+    deleteDashboard: vi.fn((id: string) => {
+      const i = boards.findIndex((b) => b.id === id);
+      if (i >= 0) boards.splice(i, 1);
+      emit();
+      return Promise.resolve();
+    }),
+    deleteCollection: vi.fn((id: string, _mode: string) => {
+      const i = collections.findIndex((c) => c.id === id);
+      if (i >= 0) collections.splice(i, 1);
+      emit();
+      return Promise.resolve();
+    }),
+  };
   const reset = () => {
+    boards.splice(0, boards.length, {
+      id: 'board-1',
+      name: 'Mine',
+      createdAt: 0,
+    });
+    collections.splice(0, collections.length);
+    Object.values(boardActions).forEach((fn) => fn.mockClear());
     board.id = 'board-1';
     board.widgets = [];
     board.readOnly = false;
@@ -132,6 +172,10 @@ const h = vi.hoisted(() => {
   return {
     board,
     actions,
+    boards,
+    collections,
+    boardActions,
+    emit,
     reset,
     canAccess: vi.fn((_id: string) => true),
     loadTour: vi.fn(),
@@ -161,6 +205,11 @@ vi.mock('./tourRuns', () => ({
   },
 }));
 
+const recordFinished = vi.hoisted(() => vi.fn());
+vi.mock('@/utils/gettingStartedProgress', () => ({
+  recordTourFinished: recordFinished,
+}));
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: h.canAccess,
@@ -187,8 +236,60 @@ vi.mock('@/context/useDashboard', () => ({
       activeRosterId: 'class-1',
       selectedWidgetId: h.board.selectedWidgetId,
       activeDashboard: { id: h.board.id, widgets: h.board.widgets },
+      dashboards: [...h.boards],
+      loadDashboard: h.boardActions.loadDashboard,
+      deleteDashboard: h.boardActions.deleteDashboard,
+      collectionsApi: {
+        collections: [...h.collections],
+        deleteCollection: h.boardActions.deleteCollection,
+      },
     };
   },
+}));
+
+// Tour conditions as a tiny store, so a fact turning true re-renders the runner.
+const conds = vi.hoisted(() => {
+  const facts = new Map<string, boolean>();
+  const listeners = new Set<() => void>();
+  let version = 0;
+  return {
+    facts,
+    listeners,
+    get version() {
+      return version;
+    },
+    set(ref: string, value: boolean) {
+      facts.set(ref, value);
+      version++;
+      listeners.forEach((l) => l());
+    },
+  };
+});
+vi.mock('./useTourConditions', () => ({
+  useTourConditions: () => {
+    useSyncExternalStore(
+      (l) => {
+        conds.listeners.add(l);
+        return () => conds.listeners.delete(l);
+      },
+      () => conds.version
+    );
+    return (ref: string) => conds.facts.get(ref);
+  },
+}));
+
+vi.mock('@/components/gettingStarted/GettingStartedNextOffer', () => ({
+  GettingStartedNextOffer: ({
+    finishedSetId,
+    onClose,
+  }: {
+    finishedSetId: string;
+    onClose: () => void;
+  }) => (
+    <button data-testid="next-offer" onClick={onClose}>
+      Offer after {finishedSetId}
+    </button>
+  ),
 }));
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
@@ -211,10 +312,13 @@ vi.mock('./settingsTab', () => ({
 
 type Binding = {
   anchor: string;
-  action: 'click' | 'observe' | 'toggle' | 'select' | 'type';
+  action:
+    'click' | 'observe' | 'toggle' | 'select' | 'type' | 'drag' | 'resize';
   value?: boolean | string;
   teacherMustClick?: boolean;
   fallback?: { role: string; name: string };
+  showWhen?: string[];
+  doneWhen?: string;
 };
 
 // Every fixture is a tour-mode set; 'guided' turns autopilot on, as the migration did.
@@ -267,7 +371,14 @@ const Fixture: React.FC = () => {
       </div>
       <button>Elsewhere</button>
       {widgets.map((w) => (
-        <div key={w.id} {...tourAttr('widget.window', w.id)}>
+        <div
+          key={w.id}
+          data-draggable-window=""
+          {...tourAttr('widget.window', w.id, w.type)}
+        >
+          <div {...tourAttr('widget.resize-handle', w.id, w.type)}>
+            Resize {w.id}
+          </div>
           <button {...tourAttr('widget.settings-opener', w.id, w.type)}>
             Settings {w.id}
           </button>
@@ -314,7 +425,10 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
     function (this: HTMLElement) {
       const size = this.closest('[hidden]') ? 0 : 40;
-      return new DOMRect(10, 10, size, size);
+      // A test moves or resizes an element by setting these.
+      const x = Number(this.dataset.testX ?? 10);
+      const w = Number(this.dataset.testW ?? size);
+      return new DOMRect(x, 10, w, this.dataset.testW ? w : size);
     }
   );
   scrollIntoView.mockClear();
@@ -329,6 +443,7 @@ beforeEach(() => {
   h.dockOpens = false;
   h.startRunLog.mockClear();
   Object.values(h.runLog).forEach((fn) => fn.mockClear());
+  conds.facts.clear();
   sessionStorage.clear();
 });
 
@@ -1987,6 +2102,13 @@ describe('LiveTourRunner run stats', () => {
     fireEvent.click(barButton('Done'));
     expect(h.runLog.end).toHaveBeenCalledWith({ done: true });
     expect(h.runLog.miss).not.toHaveBeenCalled();
+    expect(recordFinished).toHaveBeenCalledWith('teacher-1', 'set-1');
+  });
+
+  it('does not check a tour off when the teacher leaves it', async () => {
+    await start(published([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(recordFinished).not.toHaveBeenCalled();
   });
 
   it('records a missed anchor and the step the teacher left from', async () => {
@@ -3455,5 +3577,456 @@ describe('LiveTourRunner DEV browser run', () => {
     // A destructive click a teacher run leaves alone; the test run performs it.
     expect(closed).toEqual(['mine']);
     expect(h.loadTour).not.toHaveBeenCalled();
+  });
+});
+
+describe('LiveTourRunner conditions', () => {
+  it('drops steps whose show conditions fail when the tour starts', async () => {
+    conds.facts.set('org-has-buildings', false);
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        {
+          anchor: 'dock.item:dice',
+          action: 'click',
+          showWhen: ['org-has-buildings'],
+        },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(progress()).toBe('1 / 2');
+  });
+
+  it('keeps a step whose condition is still loading', async () => {
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        {
+          anchor: 'dock.item:dice',
+          action: 'click',
+          showWhen: ['org-has-buildings'],
+        },
+      ])
+    );
+    expect(progress()).toBe('1 / 2');
+  });
+
+  it('waits for the real result instead of its own click, then moves on', async () => {
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'building-saved',
+        },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    expect(screen.getByTestId('tour-step-waiting')).toBeInTheDocument();
+    expect(screen.getByTestId('tour-tip-skip')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-tip-next')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Boards'));
+    await frames(2000);
+    expect(progress()).toBe('1 / 2');
+    act(() => conds.set('building-saved', true));
+    await frames();
+    expect(screen.getByTestId('tour-step-done')).toHaveTextContent('Done');
+    expect(progress()).toBe('1 / 2');
+    await frames(1300);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Skip for now moves past a step still waiting', async () => {
+    conds.facts.set('drive-connected', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'drive-connected',
+        },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByTestId('tour-tip-skip'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('a result already in place says so and waits for Next', async () => {
+    conds.facts.set('class-added', true);
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click', doneWhen: 'class-added' },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    expect(screen.getByTestId('tour-step-done')).toHaveTextContent(
+      'Already done'
+    );
+    expect(screen.queryByTestId('tour-tip-skip')).not.toBeInTheDocument();
+    await frames(3000);
+    expect(progress()).toBe('1 / 2');
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('going Back to a step done since then shows it without moving on', async () => {
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'building-saved',
+        },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    act(() => conds.set('building-saved', true));
+    await frames(1300);
+    expect(progress()).toBe('2 / 2');
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    await frames(3000);
+    expect(progress()).toBe('1 / 2');
+    expect(screen.getByTestId('tour-step-done')).toHaveTextContent(
+      'Already done'
+    );
+  });
+
+  it('Autopilot leaves a step waiting on a result to the teacher', async () => {
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet(
+        [
+          {
+            anchor: 'sidebar.boards',
+            action: 'click',
+            doneWhen: 'building-saved',
+          },
+          { anchor: 'dock.item:dice', action: 'click' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    await frames(AUTO_NEXT_WAIT_MS + 5000);
+    expect(progress()).toBe('1 / 2');
+  });
+});
+
+describe('LiveTourRunner Getting Started chaining', () => {
+  const finishTwoSteps = async (chain?: 'getting-started') => {
+    const set = makeSet([
+      { anchor: 'sidebar.boards', action: 'observe' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+    h.loadTour.mockResolvedValue(set);
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: set.id, ...(chain ? { chain } : {}) });
+    });
+    await frames();
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+  };
+
+  it('offers the next tour when a Getting Started tour finishes', async () => {
+    await finishTwoSteps('getting-started');
+    expect(screen.getByTestId('next-offer')).toHaveTextContent('set-1');
+    fireEvent.click(screen.getByTestId('next-offer'));
+    expect(screen.queryByTestId('next-offer')).not.toBeInTheDocument();
+  });
+
+  it('offers nothing for a tour started anywhere else', async () => {
+    await finishTwoSteps();
+    expect(screen.queryByTestId('next-offer')).not.toBeInTheDocument();
+  });
+
+  it('offers nothing when a Getting Started tour is left early', async () => {
+    const set = makeSet([
+      { anchor: 'sidebar.boards', action: 'observe' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+    h.loadTour.mockResolvedValue(set);
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: set.id, chain: 'getting-started' });
+    });
+    await frames();
+    expect(progress()).toBe('1 / 2');
+    fireEvent.click(barButton('Exit tour'));
+    await frames();
+    expect(screen.queryByTestId('next-offer')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveTourRunner drag and resize steps', () => {
+  const windowOf = (id: string): HTMLElement => {
+    const el = document.querySelector<HTMLElement>(
+      `[data-tour="widget.window"][data-tour-widget="${id}"]`
+    );
+    if (!el) throw new Error(`No window for ${id}`);
+    return el;
+  };
+
+  it('a drag step moves on once the widget is let go somewhere else', async () => {
+    h.board.widgets = [{ id: 'w1', type: 'dice' }];
+    await start(
+      makeSet([
+        { anchor: 'widget.window:dice', action: 'drag' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(progress()).toBe('1 / 2');
+    expect(screen.queryByTestId('tour-tip-next')).not.toBeInTheDocument();
+    const win = windowOf('w1');
+    // A tap that doesn't move it isn't a drag.
+    fireEvent.pointerDown(win);
+    fireEvent.pointerUp(window);
+    await frames(700);
+    expect(progress()).toBe('1 / 2');
+    fireEvent.pointerDown(win);
+    win.dataset.testX = '200';
+    fireEvent.pointerUp(window);
+    await frames(700);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('a resize step measures the widget, not the handle', async () => {
+    h.board.widgets = [{ id: 'w1', type: 'dice' }];
+    await start(
+      makeSet([
+        { anchor: 'widget.resize-handle:dice', action: 'resize' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    const handle = screen.getByText('Resize w1');
+    fireEvent.pointerDown(handle);
+    windowOf('w1').dataset.testW = '120';
+    fireEvent.pointerUp(window);
+    await frames(700);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Autopilot leaves a drag to the teacher', async () => {
+    h.board.widgets = [{ id: 'w1', type: 'dice' }];
+    await start(
+      makeSet(
+        [
+          { anchor: 'widget.window:dice', action: 'drag' },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    await frames(AUTO_NEXT_WAIT_MS + 5000);
+    expect(progress()).toBe('1 / 2');
+  });
+});
+
+describe('LiveTourRunner boards a tour made', () => {
+  const twoSteps = () =>
+    makeSet([
+      { anchor: 'sidebar.boards', action: 'observe' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+  const finishTour = async () => {
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+  };
+  const makeBoard = (id: string, extra: Record<string, unknown> = {}) => {
+    act(() => {
+      h.boards.push({
+        id,
+        name: `Board ${id}`,
+        createdAt: Date.now(),
+        ...extra,
+      });
+      h.emit();
+    });
+  };
+
+  it('asks to keep a board the run made, and Remove deletes only that board', async () => {
+    await start(twoSteps());
+    makeBoard('new-1');
+    // A switch to the run's own board keeps the tour going.
+    act(() => h.boardActions.loadDashboard('new-1'));
+    await frames();
+    expect(progress()).toBe('1 / 2');
+    await finishTour();
+    expect(screen.getByText('Keep the board you made?')).toBeInTheDocument();
+    expect(screen.getByText('Board new-1')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(h.boardActions.loadDashboard).toHaveBeenLastCalledWith('board-1');
+    expect(h.boardActions.deleteDashboard.mock.calls).toEqual([['new-1']]);
+    expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
+  });
+
+  it('Keep leaves the boards alone', async () => {
+    await start(twoSteps());
+    makeBoard('new-1');
+    await finishTour();
+    fireEvent.click(screen.getByTestId('tour-keep-boards'));
+    await frames();
+    expect(h.boardActions.deleteDashboard).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
+  });
+
+  it('removes a new collection by moving its boards up, and never counts a shared one', async () => {
+    await start(twoSteps());
+    act(() => {
+      h.collections.push(
+        { id: 'c-new', name: 'Unit 1', createdAt: Date.now() },
+        {
+          id: 'c-shared',
+          name: 'From a teammate',
+          createdAt: Date.now(),
+          linkedCollectionId: 'l1',
+        }
+      );
+      h.boards.push({
+        id: 'shared-board',
+        name: 'Shared',
+        createdAt: Date.now(),
+        collectionId: 'c-shared',
+      });
+      h.emit();
+    });
+    await finishTour();
+    expect(screen.getByText('Unit 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(h.boardActions.deleteCollection.mock.calls).toEqual([
+      ['c-new', 'move-to-parent'],
+    ]);
+    expect(h.boardActions.deleteDashboard).not.toHaveBeenCalled();
+  });
+
+  it('keeps removing after one delete fails, and says so', async () => {
+    await start(twoSteps());
+    makeBoard('new-1');
+    makeBoard('new-2');
+    h.boardActions.deleteDashboard.mockImplementationOnce(() =>
+      Promise.reject(new Error('offline'))
+    );
+    await finishTour();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(h.boardActions.deleteDashboard.mock.calls).toEqual([
+      ['new-1'],
+      ['new-2'],
+    ]);
+    expect(h.actions.addToast).toHaveBeenCalledWith(
+      expect.stringContaining("Couldn't remove"),
+      'error'
+    );
+  });
+
+  it('deletes the boards before moving a new collection up', async () => {
+    await start(twoSteps());
+    const order: string[] = [];
+    h.boardActions.deleteDashboard.mockImplementationOnce((id: string) => {
+      order.push(`board ${id}`);
+      return Promise.resolve();
+    });
+    h.boardActions.deleteCollection.mockImplementationOnce((id: string) => {
+      order.push(`collection ${id}`);
+      return Promise.resolve();
+    });
+    act(() => {
+      h.collections.push({
+        id: 'c-new',
+        name: 'Unit 1',
+        createdAt: Date.now(),
+      });
+      h.boards.push({
+        id: 'new-1',
+        name: 'Board new-1',
+        createdAt: Date.now(),
+        collectionId: 'c-new',
+      });
+      h.emit();
+    });
+    await finishTour();
+    fireEvent.click(screen.getByTestId('tour-remove-boards'));
+    await frames();
+    expect(order).toEqual(['board new-1', 'collection c-new']);
+  });
+
+  it('asks nothing when the run made no boards', async () => {
+    await start(twoSteps());
+    await finishTour();
+    expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveTourRunner Sparty on the tip', () => {
+  afterEach(() => {
+    h.sparty = false;
+  });
+
+  const pose = () =>
+    screen.queryByTestId('tour-tip-sparty')?.getAttribute('data-pose');
+
+  it('points on a step to do, thinks on one to read, and cheers at the end', async () => {
+    h.sparty = true;
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(pose()).toBe('point');
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(pose()).toBe('think');
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    expect(pose()).toBe('cheer');
+  });
+
+  it('cheers when a waiting step gets its result', async () => {
+    h.sparty = true;
+    conds.facts.set('building-saved', false);
+    await start(
+      makeSet([
+        {
+          anchor: 'sidebar.boards',
+          action: 'click',
+          doneWhen: 'building-saved',
+        },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(pose()).toBe('point');
+    act(() => conds.set('building-saved', true));
+    await frames();
+    expect(pose()).toBe('cheer');
+  });
+
+  it('stays off when Sparty is off for the teacher', async () => {
+    h.sparty = false;
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    expect(screen.queryByTestId('tour-tip-sparty')).not.toBeInTheDocument();
   });
 });

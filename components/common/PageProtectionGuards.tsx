@@ -7,8 +7,79 @@ import {
   useClipboardBlock,
   usePrintBlock,
 } from '@/hooks/usePageProtections';
-import { Maximize } from 'lucide-react';
+import { ExternalLink, Maximize } from 'lucide-react';
 import type { PageProtections } from '@/utils/pageProtections';
+import {
+  clearPopOutPending,
+  getHandOffState,
+  isSchoologyFrame,
+  markPopOutPending,
+  subscribeHandOff,
+} from '@/utils/attemptHandOff';
+
+const COVER_CLASS =
+  'fixed inset-0 flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center';
+
+/** Shown once this page's attempt moved to another tab, so the old copy can't be worked in. */
+export const HandedOffCover: React.FC = () => {
+  const state = useSyncExternalStore(
+    subscribeHandOff,
+    getHandOffState,
+    () => 'active' as const
+  );
+  if (state !== 'handed-off') return null;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="handed-off-cover-title"
+      className={`${COVER_CLASS} z-quiz-lock-top`}
+    >
+      <ExternalLink className="h-12 w-12 text-brand-blue-primary" aria-hidden />
+      <h2
+        id="handed-off-cover-title"
+        className="text-2xl font-black text-slate-800"
+      >
+        This activity is open in another tab
+      </h2>
+      <p className="max-w-sm text-sm text-slate-600">
+        Finish your work in that tab.
+      </p>
+    </div>
+  );
+};
+
+/** Fullscreen can't open in a cross-site frame, and a new tab of ours would lose the frame's sign-in, so the student uses the host's pop out. */
+const PopOutCover: React.FC = () => {
+  // While this is up the frame is inert: leaving for the pop out isn't a warning and nothing here submits.
+  useEffect(() => {
+    markPopOutPending();
+    return clearPopOutPending;
+  }, []);
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pop-out-cover-title"
+      className={`${COVER_CLASS} z-quiz-lock`}
+    >
+      <Maximize className="h-12 w-12 text-brand-blue-primary" aria-hidden />
+      <h2
+        id="pop-out-cover-title"
+        className="text-2xl font-black text-slate-800"
+      >
+        Open this activity in a new tab
+      </h2>
+      <p className="max-w-sm text-sm text-slate-600">
+        Your teacher asked for fullscreen. Fullscreen does not work on this
+        page.
+      </p>
+      <p className="max-w-sm text-sm font-semibold text-slate-700">
+        Use the pop out button on your class page.
+      </p>
+    </div>
+  );
+};
 
 /** Covers the page until the student is in fullscreen; skipped where fullscreen isn't available. */
 export const FullscreenCover: React.FC<{ required: boolean }> = ({
@@ -33,7 +104,9 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
     };
   }, [required]);
 
-  if (!required || isFullscreen || !fullscreenSupported()) return null;
+  if (!required || isFullscreen) return null;
+  if (!fullscreenSupported())
+    return isSchoologyFrame() ? <PopOutCover /> : null;
 
   const enter = () => {
     setFailed(false);
@@ -45,7 +118,7 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="fullscreen-cover-title"
-      className="fixed inset-0 z-overlay flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center"
+      className="fixed inset-0 z-quiz-lock flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center"
     >
       <Maximize className="h-12 w-12 text-brand-blue-primary" aria-hidden />
       <h2
@@ -83,5 +156,10 @@ export const PageProtectionGuards: React.FC<{
 }> = ({ protections, wholePage = false }) => {
   useClipboardBlock(wholePage && protections.blockClipboard);
   usePrintBlock(protections.blockPrint);
-  return <FullscreenCover required={protections.fullscreen} />;
+  return (
+    <>
+      <FullscreenCover required={protections.fullscreen} />
+      <HandedOffCover />
+    </>
+  );
 };
