@@ -13,6 +13,7 @@ import {
 } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
+import { useBoardTriggerClaim } from '@/hooks/useBoardTriggerClaim';
 import { useAuth } from '@/context/useAuth';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { reportHandAction } from '@/utils/connectionSignals';
@@ -158,6 +159,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   }, [updateWidget, widget.id]);
 
   const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);
+  const claimTrigger = useBoardTriggerClaim(widget.id);
 
   // Firestore "Buffer" Listener: Watch for incoming student entries
   useEffect(() => {
@@ -287,9 +289,12 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       config.externalTrigger > lastExternalTriggerRef.current
     ) {
       lastExternalTriggerRef.current = config.externalTrigger;
-      void handleNextStudent();
+      // Every device with the board open sees the trigger; only the one that claims it advances.
+      void claimTrigger(config.externalTrigger).then((won) => {
+        if (won) void handleNextStudent();
+      });
     }
-  }, [config.externalTrigger, handleNextStudent]);
+  }, [config.externalTrigger, handleNextStudent, claimTrigger]);
 
   const handleResetQueue = async () => {
     const confirmed = await showConfirm(

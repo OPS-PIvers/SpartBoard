@@ -10751,6 +10751,8 @@ export interface Dashboard {
   claudeAction?: 'created' | 'edited';
   /** True until the teacher opens the board after Claude's change; drives the Boards list badge. */
   claudeUnseen?: boolean;
+  /** Last trigger value each widget acted on, so one device acts per Timer or Connection trigger (utils/boardTriggerClaim.ts). */
+  triggerClaims?: Record<string, number>;
   /** Teacher-made Connections between this board's widgets (docs/adr/0002). */
   connections?: WidgetConnection[];
 }
