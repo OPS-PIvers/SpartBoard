@@ -349,7 +349,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         );
         const refKey = targetRefKeyByStudentUid?.get(r.studentUid);
         const deadline =
-          session.sessionMode === 'student'
+          session.sessionMode === 'student' && session.status !== 'paused'
             ? resolveAttemptDeadline(
                 timestampMillis(r.attemptStartedAt),
                 session.timeLimitMinutes,
