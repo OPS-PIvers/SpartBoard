@@ -11,6 +11,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { GraduationCap, X } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
@@ -94,6 +95,7 @@ export const SchoologyLinkNudge: React.FC = () => {
                   : `${pending.length} Schoology sections to link`}
               </p>
               <button
+                {...tourAttr('schoology-nudge.review')}
                 onClick={() => setModalOpen(true)}
                 className="mt-2 text-xs font-bold text-brand-blue-primary hover:underline"
               >
@@ -101,6 +103,7 @@ export const SchoologyLinkNudge: React.FC = () => {
               </button>
             </div>
             <button
+              {...tourAttr('schoology-nudge.dismiss')}
               onClick={handleDismiss}
               aria-label="Dismiss"
               className="text-slate-400 hover:text-slate-600 shrink-0 self-start"
