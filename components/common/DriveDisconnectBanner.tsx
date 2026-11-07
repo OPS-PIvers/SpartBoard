@@ -4,6 +4,8 @@ import { GoogleDriveIcon } from './GoogleDriveIcon';
 import { useAuth } from '@/context/useAuth';
 import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { VIEW_AS_DRIVE_UNAVAILABLE } from '@/utils/viewAsDrive';
+import { useFirstRun } from '@/hooks/useFirstRun';
+import { useTourRunning } from '@/components/tours/tourState';
 
 const DISMISS_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 // Persisting the dismiss expiry survives dev-mode HMR remounts and full
@@ -39,6 +41,9 @@ const writeStoredDismissUntil = (value: number | null): void => {
 export const DriveDisconnectBanner: React.FC = () => {
   const { user, googleAccessToken, connectGoogleDrive } = useAuth();
   const viewAsDrive = useViewAsDriveStatus();
+  // Held during a new teacher's quiet start, except while a tour may point at Drive (D7).
+  const { quiet } = useFirstRun();
+  const tourRunning = useTourRunning();
   const [dismissedUntil, setDismissedUntil] = useState(readStoredDismissUntil);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -94,7 +99,8 @@ export const DriveDisconnectBanner: React.FC = () => {
   };
 
   // Only show for authenticated users when Drive is not connected
-  if (!user || isConnected || isDismissed) return null;
+  if (!user || isConnected || isDismissed || (quiet && !tourRunning))
+    return null;
 
   // View as can't reconnect someone else's Drive, so it only says why content is missing.
   if (viewAsDrive) {

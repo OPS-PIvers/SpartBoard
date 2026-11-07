@@ -154,7 +154,7 @@ export const GettingStartedPage: React.FC = () => {
     const confirmed = await showConfirm(
       t('gettingStarted.restartBody', {
         defaultValue:
-          'This clears your own checkmarks. Setup you already did stays checked.',
+          'This clears your own checkmarks and shows the welcome again. Setup you already did stays checked.',
       }),
       {
         title: t('gettingStarted.restart', {

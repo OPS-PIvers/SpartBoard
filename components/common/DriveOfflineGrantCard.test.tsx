@@ -9,10 +9,23 @@ let authValue: Record<string, unknown>;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => authValue,
 }));
+const quiet = vi.hoisted(() => ({ on: false, tour: false }));
+vi.mock('@/hooks/useFirstRun', () => ({
+  useFirstRun: () => ({
+    quiet: quiet.on,
+    welcomePending: false,
+    firstRun: false,
+  }),
+}));
+vi.mock('@/components/tours/tourState', () => ({
+  useTourRunning: () => quiet.tour,
+}));
 
 const DISMISS_KEY = 'spart_offline_grant_dismissed_until';
 
 beforeEach(() => {
+  quiet.on = false;
+  quiet.tour = false;
   localStorage.clear();
   captureOfflineGrant.mockReset().mockResolvedValue(true);
   authValue = {
@@ -26,6 +39,15 @@ beforeEach(() => {
 describe('DriveOfflineGrantCard', () => {
   it('renders when a grant is missing', () => {
     render(<DriveOfflineGrantCard />);
+    expect(screen.getByText('Stay connected to Drive')).toBeInTheDocument();
+  });
+
+  it("waits through a new teacher's quiet start, unless a tour needs it", () => {
+    quiet.on = true;
+    const { rerender } = render(<DriveOfflineGrantCard />);
+    expect(screen.queryByText('Stay connected to Drive')).toBeNull();
+    quiet.tour = true;
+    rerender(<DriveOfflineGrantCard />);
     expect(screen.getByText('Stay connected to Drive')).toBeInTheDocument();
   });
 

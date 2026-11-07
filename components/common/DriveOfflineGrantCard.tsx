@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { GoogleDriveIcon } from './GoogleDriveIcon';
 import { useAuth } from '@/context/useAuth';
+import { useFirstRun } from '@/hooks/useFirstRun';
+import { useTourRunning } from '@/components/tours/tourState';
 
 // Long enough that a teacher who dismisses isn't re-asked the same week, short
 // enough that coverage still climbs. They keep working either way.
@@ -27,6 +29,9 @@ const readStoredDismissUntil = (): number => {
 export const DriveOfflineGrantCard: React.FC = () => {
   const { user, googleAccessToken, offlineGrantMissing, captureOfflineGrant } =
     useAuth();
+  // Held during a new teacher's quiet start, except while the Connect Drive tour may need it (D7).
+  const { quiet } = useFirstRun();
+  const tourRunning = useTourRunning();
   const [dismissedUntil, setDismissedUntil] = useState(readStoredDismissUntil);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -63,6 +68,7 @@ export const DriveOfflineGrantCard: React.FC = () => {
     !user ||
     !googleAccessToken ||
     !offlineGrantMissing ||
+    (quiet && !tourRunning) ||
     // eslint-disable-next-line react-hooks/purity -- deliberately re-read on each render
     dismissedUntil > Date.now()
   )
