@@ -83,6 +83,10 @@ describe('plan-deploy.sh', () => {
       plan('dev-bailey', ['components/a.tsx'], { otherDeployedLast: true })
         .backend
     ).toBe('false');
+    expect(
+      plan('main', ['components/a.tsx'], { otherDeployedLast: true })
+    ).toMatchObject({ backend: 'false', release_rules: 'false' });
+    expect(plan('dev-paul', ['components/a.tsx']).backend).toBe('false');
   });
 
   it('never deploys the backend from a branch behind dev-paul', () => {
