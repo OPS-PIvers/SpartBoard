@@ -571,6 +571,43 @@ describe('SmartNotebookWidget', () => {
     );
   });
 
+  it('does not re-upload an edit that autosave already saved when the notebook switches', async () => {
+    const nb = (id: string) => ({
+      id,
+      title: id,
+      pageUrls: [`http://example.com/${id}.svg`],
+      pagePaths: [`users/test-uid/notebooks/${id}/page0.svg`],
+      createdAt: 1,
+    });
+    (firestore.onSnapshot as unknown as Mock).mockImplementation(
+      (_q: unknown, cb: (s: { docs: unknown[] }) => void) => {
+        cb({
+          docs: [
+            { data: () => nb('nb-a'), id: 'nb-a' },
+            { data: () => nb('nb-b'), id: 'nb-b' },
+          ],
+        });
+        return vi.fn();
+      }
+    );
+    mockUploadFile.mockResolvedValue('http://example.com/new.svg');
+    (firestore.updateDoc as unknown as Mock).mockResolvedValue(undefined);
+
+    const widgetA = { ...mockWidget, config: { activeNotebookId: 'nb-a' } };
+    const { rerender } = render(<SmartNotebookWidget widget={widgetA} />);
+    fireEvent.click(screen.getByTestId('edit-nb-a'));
+    await waitFor(() => expect(mockUploadFile).toHaveBeenCalledTimes(1), {
+      timeout: 4000,
+    });
+
+    const widgetB = { ...mockWidget, config: { activeNotebookId: 'nb-b' } };
+    rerender(<SmartNotebookWidget widget={widgetB} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockUploadFile).toHaveBeenCalledTimes(1);
+  });
+
   describe('inside a sub share', () => {
     const inShare = (load: () => Promise<unknown>) =>
       function InShare({ children }: { children: React.ReactNode }) {

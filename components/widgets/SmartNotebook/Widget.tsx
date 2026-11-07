@@ -142,6 +142,8 @@ export const SmartNotebookWidget: React.FC<{
   // Pending autosave timer. Cleared (and flushed immediately) on page nav,
   // present-mode toggle, and close — so jumping pages never loses edits.
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Page the pending autosave timer will save; only meaningful while the timer is set.
+  const pendingAutosavePageRef = useRef<number | null>(null);
   // In-flight page-content uploads, keyed by nothing (just tracked as a set of
   // promises). A debounced autosave that has already *started* (its timer fired
   // and was cleared, so cancelPending/flushPending can no longer see it) must
@@ -266,12 +268,19 @@ export const SmartNotebookWidget: React.FC<{
     // Switching notebooks must drop in-memory edits for the previous one and
     // land in edit mode again — anything else either leaks edits across
     // notebooks or surprises the teacher with "present" on a fresh open.
-    // eslint-disable-next-line react-hooks/refs -- hands unsaved edits to the flush effect before the reset
-    const unsaved = Array.from(editedSvgsRef.current);
+    /* eslint-disable react-hooks/refs -- only an edit whose autosave never started is unsaved */
+    const pendingPage = autosaveTimerRef.current
+      ? pendingAutosavePageRef.current
+      : null;
+    const pendingSvg =
+      pendingPage !== null ? editedSvgsRef.current.get(pendingPage) : null;
+    const unsaved: [number, string][] =
+      pendingPage !== null && pendingSvg ? [[pendingPage, pendingSvg]] : [];
     const previous = notebooks.find((n) => n.id === prevNotebookId) ?? null;
     if (unsaved.length > 0 && previous) {
       setSwitchFlush({ notebook: previous, edits: unsaved });
     }
+    /* eslint-enable react-hooks/refs */
     // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
     editedSvgsRef.current = new Map();
     // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
@@ -446,6 +455,10 @@ export const SmartNotebookWidget: React.FC<{
           }
         }
 
+        if (activeNotebookId === id && autosaveTimerRef.current) {
+          clearTimeout(autosaveTimerRef.current);
+          autosaveTimerRef.current = null;
+        }
         await deleteDoc(doc(db, 'users', user.uid, 'notebooks', id));
         // Strip the deleted notebook's placed assets so they don't linger in
         // the dashboard config forever (they're keyed by notebookId and would
@@ -672,6 +685,7 @@ export const SmartNotebookWidget: React.FC<{
     editedSvgsRef.current.set(currentPage, svgString);
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     const pageToSave = currentPage;
+    pendingAutosavePageRef.current = pageToSave;
     autosaveTimerRef.current = setTimeout(() => {
       autosaveTimerRef.current = null;
       const latest = editedSvgsRef.current.get(pageToSave);
