@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   }>,
   updates: [] as Array<{ path: string; data: Record<string, unknown> }>,
   failUpdate: new Set<string>(),
+  deletes: [] as string[],
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, isConfigured: true }));
@@ -40,6 +41,10 @@ vi.mock('firebase/firestore', () => {
       };
       await fn(tx);
     },
+    deleteDoc: (ref: { path: string }) => {
+      h.deletes.push(ref.path);
+      return Promise.resolve();
+    },
     updateDoc: (ref: { path: string }, data: Record<string, unknown>) => {
       if (h.failUpdate.has(ref.path)) return Promise.reject(new Error('gone'));
       h.updates.push({ path: ref.path, data });
@@ -50,6 +55,7 @@ vi.mock('firebase/firestore', () => {
 });
 
 import {
+  dismissQueueItem,
   enqueueUnmappedAnchors,
   rebindQueueItem,
   removeQueueOccurrences,
@@ -231,5 +237,16 @@ describe('rebindQueueItem', () => {
       })
     ).rejects.toThrow('conflict');
     expect(h.updates).toEqual([]);
+  });
+});
+
+describe('dismissQueueItem', () => {
+  it('deletes a needs-human item only', async () => {
+    h.deletes.length = 0;
+    await dismissQueueItem({ fingerprint: FP1, status: 'needs-human' });
+    expect(h.deletes).toEqual([`tour_anchor_queue/${FP1}`]);
+    for (const status of ['open', 'pr-open', 'rebound'] as const)
+      await dismissQueueItem({ fingerprint: FP2, status });
+    expect(h.deletes).toHaveLength(1);
   });
 });

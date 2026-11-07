@@ -14,7 +14,7 @@ const h = vi.hoisted(() => ({
   token: 'secret-token',
   docs: [] as Array<{ id: string; data: () => Record<string, unknown> }>,
   whereArgs: [] as unknown[][],
-  existing: new Set<string>(),
+  existing: new Map<string, Record<string, unknown>>(),
   updates: [] as Array<{ id: string; fields: Record<string, unknown> }>,
   commits: 0,
 }));
@@ -33,18 +33,32 @@ vi.mock('./firebaseAdmin', () => {
         },
         doc: (id: string) => ({ id }),
       }),
-      getAll: (...refs: Array<{ id: string }>) =>
-        Promise.resolve(refs.map((r) => ({ exists: h.existing.has(r.id) }))),
-      batch: () => ({
-        update: (ref: { id: string }, fields: Record<string, unknown>) =>
-          h.updates.push({ id: ref.id, fields }),
-        commit: () => {
+      runTransaction: (
+        fn: (tx: {
+          getAll: (...refs: Array<{ id: string }>) => Promise<unknown[]>;
+          update: (ref: { id: string }, f: Record<string, unknown>) => void;
+        }) => Promise<unknown>
+      ) =>
+        fn({
+          getAll: (...refs) =>
+            Promise.resolve(
+              refs.map((r) => ({
+                exists: h.existing.has(r.id),
+                data: () => h.existing.get(r.id),
+              }))
+            ),
+          update: (ref, fields) => h.updates.push({ id: ref.id, fields }),
+        }).then((out) => {
           h.commits += 1;
-          return Promise.resolve();
-        },
-      }),
+          return out;
+        }),
     }),
-    { FieldValue: { serverTimestamp: () => 'SERVER_TS' } }
+    {
+      FieldValue: {
+        serverTimestamp: () => 'SERVER_TS',
+        delete: () => 'DELETE',
+      },
+    }
   );
   return { apps: [{}], initializeApp: vi.fn(), firestore };
 });
@@ -58,6 +72,7 @@ import {
   STALE_PR_MS,
 } from './tourAnchorApi';
 
+const occ = [{ setId: 's', stepId: 'x' }];
 const FP = 'a'.repeat(40);
 const FP2 = 'b'.repeat(40);
 const ts = (ms: number) => ({ toMillis: () => ms });
@@ -104,7 +119,7 @@ beforeEach(() => {
   h.token = 'secret-token';
   h.docs = [];
   h.whereArgs = [];
-  h.existing = new Set();
+  h.existing = new Map();
   h.updates = [];
   h.commits = 0;
 });
@@ -144,12 +159,19 @@ describe('selectOpenItems', () => {
   const now = 1_000_000_000_000;
   it('keeps open items and week-old PRs, oldest first, capped', () => {
     const docs = [
-      { id: 'new', data: { status: 'open', firstSeenAt: ts(3) } },
-      { id: 'old', data: { status: 'open', firstSeenAt: ts(1) } },
+      {
+        id: 'new',
+        data: { status: 'open', occurrences: occ, firstSeenAt: ts(3) },
+      },
+      {
+        id: 'old',
+        data: { status: 'open', occurrences: occ, firstSeenAt: ts(1) },
+      },
       {
         id: 'fresh-pr',
         data: {
           status: 'pr-open',
+          occurrences: occ,
           updatedAt: ts(now - 1000),
           firstSeenAt: ts(0),
         },
@@ -158,11 +180,15 @@ describe('selectOpenItems', () => {
         id: 'stale-pr',
         data: {
           status: 'pr-open',
+          occurrences: occ,
           updatedAt: ts(now - STALE_PR_MS - 1),
           firstSeenAt: ts(2),
         },
       },
-      { id: 'human', data: { status: 'needs-human', firstSeenAt: ts(0) } },
+      {
+        id: 'human',
+        data: { status: 'needs-human', occurrences: occ, firstSeenAt: ts(0) },
+      },
     ];
     expect(selectOpenItems(docs, now).map((i) => i.fingerprint)).toEqual([
       'old',
@@ -171,7 +197,7 @@ describe('selectOpenItems', () => {
     ]);
     const many = Array.from({ length: 80 }, (_, i) => ({
       id: String(i),
-      data: { status: 'open', firstSeenAt: ts(i) },
+      data: { status: 'open', occurrences: occ, firstSeenAt: ts(i) },
     }));
     expect(selectOpenItems(many, now)).toHaveLength(API_ITEM_CAP);
     expect(selectOpenItems(docs, now, true).map((i) => i.fingerprint)).toEqual([
@@ -182,6 +208,15 @@ describe('selectOpenItems', () => {
     ]);
   });
 
+  it('leaves out items with no occurrences', () => {
+    expect(
+      selectOpenItems(
+        [{ id: 'empty', data: { status: 'open', occurrences: [] } }],
+        0
+      )
+    ).toEqual([]);
+  });
+
   it('drops reboundAt and returns ISO timestamps', () => {
     const [item] = selectOpenItems(
       [
@@ -189,6 +224,7 @@ describe('selectOpenItems', () => {
           id: FP,
           data: {
             status: 'open',
+            occurrences: occ,
             name: 'start',
             firstSeenAt: ts(0),
             updatedAt: ts(0),
@@ -201,6 +237,7 @@ describe('selectOpenItems', () => {
     expect(item).toEqual({
       fingerprint: FP,
       status: 'open',
+      occurrences: occ,
       name: 'start',
       firstSeenAt: '1970-01-01T00:00:00.000Z',
       updatedAt: '1970-01-01T00:00:00.000Z',
@@ -210,7 +247,12 @@ describe('selectOpenItems', () => {
 
 describe('GET /', () => {
   it('queries only open and pr-open items', async () => {
-    h.docs = [{ id: FP, data: () => ({ status: 'open', firstSeenAt: ts(0) }) }];
+    h.docs = [
+      {
+        id: FP,
+        data: () => ({ status: 'open', occurrences: occ, firstSeenAt: ts(0) }),
+      },
+    ];
     const out = await call({ headers: bearer });
     expect(out.status).toBe(200);
     expect(h.whereArgs).toEqual([
@@ -244,13 +286,21 @@ describe('parseResolutions', () => {
   it('accepts pr-open and needs-human', () => {
     const r = parseResolutions([
       pr,
-      { fingerprint: FP2, status: 'needs-human', reason: ' portal ' },
+      {
+        fingerprint: FP2,
+        status: 'needs-human',
+        reason: ' portal ',
+      },
     ]);
     expect(r).toEqual({
       ok: true,
       items: [
         pr,
-        { fingerprint: FP2, status: 'needs-human', reason: 'portal' },
+        {
+          fingerprint: FP2,
+          status: 'needs-human',
+          reason: 'portal',
+        },
       ],
     });
   });
@@ -294,7 +344,7 @@ describe('parseResolutions', () => {
 
 describe('POST /resolve', () => {
   it('updates existing items and reports missing ones', async () => {
-    h.existing.add(FP);
+    h.existing.set(FP, { status: 'open', occurrences: occ });
     const out = await call({
       headers: bearer,
       method: 'POST',
@@ -305,18 +355,75 @@ describe('POST /resolve', () => {
       ],
     });
     expect(out.status).toBe(200);
-    expect(out.body).toMatchObject({ updated: 1, missing: [FP2] });
+    expect(out.body).toMatchObject({ updated: 1, missing: [FP2], skipped: [] });
     expect(h.updates).toEqual([
       {
         id: FP,
         fields: {
           status: 'needs-human',
           reason: 'in an iframe',
+          anchorId: 'DELETE',
+          prUrl: 'DELETE',
           updatedAt: 'SERVER_TS',
         },
       },
     ]);
     expect(h.commits).toBe(1);
+  });
+
+  it('clears the reason when a needs-human item gets a PR', async () => {
+    h.existing.set(FP, {
+      status: 'needs-human',
+      reason: 'old',
+      occurrences: occ,
+    });
+    await call({
+      headers: bearer,
+      method: 'POST',
+      path: '/resolve',
+      body: [
+        {
+          fingerprint: FP,
+          status: 'pr-open',
+          anchorId: 'timer.start',
+          prUrl: 'https://github.com/OPS-PIvers/SpartBoard/pull/1',
+        },
+      ],
+    });
+    expect(h.updates[0].fields).toMatchObject({
+      status: 'pr-open',
+      anchorId: 'timer.start',
+      prUrl: 'https://github.com/OPS-PIvers/SpartBoard/pull/1',
+      reason: 'DELETE',
+    });
+  });
+
+  it.each(['rebound', 'mapped'])(
+    'skips a %s item instead of reopening it',
+    async (status) => {
+      h.existing.set(FP, { status, occurrences: occ });
+      const out = await call({
+        headers: bearer,
+        method: 'POST',
+        path: '/resolve',
+        body: [{ fingerprint: FP, status: 'needs-human', reason: 'late run' }],
+      });
+      expect(out.body).toMatchObject({ updated: 0, skipped: [FP] });
+      expect(h.updates).toHaveLength(0);
+      expect(h.commits).toBe(1);
+    }
+  );
+
+  it('skips an item with no occurrences left', async () => {
+    h.existing.set(FP, { status: 'open', occurrences: [] });
+    const out = await call({
+      headers: bearer,
+      method: 'POST',
+      path: '/resolve',
+      body: [{ fingerprint: FP, status: 'needs-human', reason: 'x' }],
+    });
+    expect(out.body).toMatchObject({ updated: 0, skipped: [FP] });
+    expect(h.updates).toHaveLength(0);
   });
 
   it('400s an invalid body without writing', async () => {

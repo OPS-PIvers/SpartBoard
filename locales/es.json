@@ -4431,6 +4431,8 @@
       "rebind_other": "Reasignar {{count}} pasos",
       "rebinding": "Reasignando...",
       "rebindFailed": "No se pudo reasignar. Inténtalo de nuevo.",
+      "dismiss": "Descartar",
+      "actionFailed": "No se pudo actualizar. Inténtalo de nuevo.",
       "needsType": "Este botón cambia según el widget, así que ajusta estos pasos en el editor del recorrido.",
       "openLabel": "Editar {{title}}",
       "status": {

@@ -22,7 +22,7 @@ The endpoints are fixed: `https://us-central1-spartboard.cloudfunctions.net/tour
 - `POST /resolve` takes a JSON array, at most 100 entries:
   - `{ fingerprint, status: "pr-open", anchorId, prUrl }` once the PR is open. `anchorId` is the full step ref Rebind writes: a bare id, `id:<widgetType>` or `id:<widgetType>#<fieldKey>`;
   - `{ fingerprint, status: "needs-human", reason }` when you can't place it.
-  - Nothing else is accepted. Fingerprints the project doesn't have come back in `missing`; that is normal when an item exists in only one project.
+  - Nothing else is accepted. Fingerprints the project doesn't have come back in `missing`; that is normal when an item exists in only one project. Items already rebound, no longer queued for any step, or in an unexpected state come back in `skipped` and are left unchanged; do not retry them.
 
 ## Each run
 

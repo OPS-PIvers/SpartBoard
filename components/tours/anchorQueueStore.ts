@@ -3,6 +3,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   runTransaction,
@@ -83,6 +84,14 @@ export async function removeQueueOccurrences(
   for (const r of results)
     if (r.status === 'rejected')
       logError('anchorQueue.removeOccurrences', r.reason);
+}
+
+/** Removes a needs-human item from the queue; a later recording of the same click queues it afresh. */
+export async function dismissQueueItem(
+  item: Pick<TourAnchorQueueItem, 'fingerprint' | 'status'>
+): Promise<void> {
+  if (!isConfigured || item.status !== 'needs-human') return;
+  await deleteDoc(queueRef(item.fingerprint));
 }
 
 export interface RebindDeps {
