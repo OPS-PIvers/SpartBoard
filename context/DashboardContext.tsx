@@ -666,6 +666,8 @@ const saveBaselineFromFields = (
 interface ParkedBoard {
   data: string;
   fields: SavedFields;
+  // Save generations that still describe this baseline, so a save in flight across a switch can advance it.
+  generations: ReadonlySet<number>;
   // idle: needs a flush; queued: on the save chain; waiting: retry timer armed.
   flush: 'idle' | 'queued' | 'waiting';
   failures: number;
@@ -1854,6 +1856,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const pendingSaveCountRef = useRef<number>(0);
   // Boards switched away from, by id, until their queued and unsaved edits land.
   const parkedBoardsRef = useRef(new Map<string, ParkedBoard>());
+  // Older generations a resumed board's baseline still answers to, valid while the generation stays at `anchor`.
+  const resumedGenerationsRef = useRef<{
+    anchor: number;
+    generations: ReadonlySet<number>;
+  }>({ anchor: -1, generations: new Set() });
   // Tracks Drive file IDs for PII supplements per dashboard to enable in-place updates
   const piiDriveFileIdRef = useRef<Map<string, string>>(new Map());
   // Latest PII supplement known for each board. Firestore only ever holds the
@@ -2391,6 +2398,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const rebaselineForSwitch = useCallback((active: Dashboard): boolean => {
     const parked = parkedBoardsRef.current;
     const outgoingId = lastSavedDashboardIdRef.current;
+    const generation = baselineGenerationRef.current;
+    const resumed = resumedGenerationsRef.current;
     if (
       outgoingId !== null &&
       outgoingId !== active.id &&
@@ -2399,6 +2408,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       parked.set(outgoingId, {
         data: lastSavedDataRef.current,
         fields: lastSavedFieldsRef.current,
+        generations: new Set([
+          generation,
+          ...(resumed.anchor === generation ? resumed.generations : []),
+        ]),
         flush: 'idle',
         failures: 0,
       });
@@ -2418,6 +2431,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     lastSavedDashboardIdRef.current = active.id;
     // Saves started for the previous baseline must not write into this one.
     baselineGenerationRef.current++;
+    // A returning board's own saves still in flight may advance its restored baseline.
+    resumedGenerationsRef.current = {
+      anchor: returning ? baselineGenerationRef.current : -1,
+      generations: returning?.generations ?? new Set(),
+    };
     return returning !== undefined;
   }, []);
 
@@ -3181,8 +3199,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       generationAtSave: number
     ) => {
       if (lastSavedDashboardIdRef.current === dashboardId) {
+        const generation = baselineGenerationRef.current;
+        const resumed = resumedGenerationsRef.current;
         // Skip when a snapshot merge or switch moved the baseline mid-flight (see baselineGenerationRef).
-        if (baselineGenerationRef.current === generationAtSave) {
+        if (
+          generation === generationAtSave ||
+          (resumed.anchor === generation &&
+            resumed.generations.has(generationAtSave))
+        ) {
           // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
           lastSavedDataRef.current = savedData;
           // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
@@ -3191,7 +3215,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
       const parked = parkedBoardsRef.current.get(dashboardId);
-      if (parked) {
+      if (parked?.generations.has(generationAtSave)) {
         parked.data = savedData;
         parked.fields = savedFields;
       }
@@ -3231,7 +3255,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (toastId)
             setToasts((prev) => prev.filter((t) => t.id !== toastId));
           const serverCopy = entry.serverCopy;
-          if (!serverCopy) return;
+          // A queued offline save keeps this tab's copy until it lands, as the snapshot handler does.
+          if (!serverCopy || hasDeferredSave?.(dashboardId)) return;
           // The snapshot handler held this copy back; the save's own echo follows if it is older.
           setDashboards((prev) =>
             prev.map((d) =>
@@ -3255,7 +3280,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
           .then(
             (saved) => {
-              if (parkedBoards.get(dashboardId) !== entry) return;
+              if (parkedBoards.get(dashboardId) !== entry) {
+                // Switched back mid-write: what landed is the resumed board's baseline now.
+                const [generation] = entry.generations;
+                if (saved)
+                  advanceSavedBaseline(
+                    dashboardId,
+                    saved.serializedData,
+                    saved.fields,
+                    generation
+                  );
+                return;
+              }
               if (saved) {
                 entry.data = saved.serializedData;
                 entry.fields = saved.fields;
@@ -3301,11 +3337,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               0,
               pendingSaveCountRef.current - 1
             );
+            if (pendingSaveCountRef.current === 0) setIsSaving(false);
           });
       };
       flush(boardId);
     },
-    [chainSave]
+    [chainSave, advanceSavedBaseline, hasDeferredSave]
   );
   // A signed-out or switched account must not keep retrying the previous one's boards.
   useEffect(() => {

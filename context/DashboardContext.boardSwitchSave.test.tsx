@@ -151,6 +151,7 @@ interface ContextSnapshot {
   dashboards: Dashboard[];
   activeDashboard: Dashboard | null;
   loading: boolean;
+  isSaving: boolean;
   updateWidget: (id: string, updates: Partial<WidgetData>) => void;
   loadDashboard: (id: string) => void;
 }
@@ -164,6 +165,7 @@ const TestConsumer: React.FC<{
       dashboards: ctx.dashboards,
       activeDashboard: ctx.activeDashboard,
       loading: ctx.loading,
+      isSaving: ctx.isSaving,
       updateWidget: ctx.updateWidget,
       loadDashboard: ctx.loadDashboard,
     };
@@ -483,5 +485,97 @@ describe('DashboardContext board switch save', () => {
     });
     await tick(0);
     expect(saveDashboardMock).toHaveBeenCalledTimes(2);
+  });
+  it('clears the saving indicator after switching right after a save landed', async () => {
+    const stateRef = setup();
+    await settle(stateRef);
+    act(() => {
+      stateRef.current?.updateWidget('a1', { config: { text: 'edit-a' } });
+    });
+    await tick(900);
+    expect(stateRef.current?.isSaving).toBe(true);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(5000);
+    expect(stateRef.current?.isSaving).toBe(false);
+  });
+
+  it('switching back while the switch flush is in flight keeps the flushed baseline', async () => {
+    const stateRef = setup();
+    await settle(stateRef);
+    act(() => {
+      stateRef.current?.updateWidget('a1', { config: { text: 'edit-a' } });
+    });
+    await tick(100);
+    const flush = holdNextSave();
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    expect(savedIds()).toEqual(['dash-a']);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-a');
+    });
+    await tick(0);
+    await act(async () => {
+      flush.resolve(Date.now());
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const localA = stateRef.current?.dashboards.find((d) => d.id === 'dash-a');
+    const version = localA?.widgets[0].version ?? 0;
+    // Another device edits a1 after the flush landed.
+    await pushSnapshot([
+      makeDashboard(
+        [{ ...makeWidget('a1', 'remote'), version: version + 1 }],
+        'dash-a',
+        5000
+      ),
+      boardB(),
+    ]);
+    await tick(3000);
+    expect(widgetText(stateRef, 'dash-a', 'a1')).toBe('remote');
+    for (const call of saveDashboardMock.mock.calls.slice(1)) {
+      const saved = call[0] as Dashboard;
+      if (saved.id !== 'dash-a') continue;
+      expect((saved.widgets[0].config as { text: string }).text).not.toBe(
+        'edit-a'
+      );
+    }
+  });
+
+  it('switching back while a debounced save is in flight keeps that save as the baseline', async () => {
+    const stateRef = setup();
+    await settle(stateRef);
+    const inFlight = holdNextSave();
+    act(() => {
+      stateRef.current?.updateWidget('a1', { config: { text: 'edit-a' } });
+    });
+    await tick(900);
+    expect(savedIds()).toEqual(['dash-a']);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-a');
+    });
+    await tick(0);
+    await act(async () => {
+      inFlight.resolve(Date.now());
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const localA = stateRef.current?.dashboards.find((d) => d.id === 'dash-a');
+    const version = localA?.widgets[0].version ?? 0;
+    await pushSnapshot([
+      makeDashboard(
+        [{ ...makeWidget('a1', 'remote'), version: version + 1 }],
+        'dash-a',
+        5000
+      ),
+      boardB(),
+    ]);
+    await tick(3000);
+    expect(widgetText(stateRef, 'dash-a', 'a1')).toBe('remote');
   });
 });
