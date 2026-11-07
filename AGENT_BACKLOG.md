@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-151**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-152**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -18,6 +18,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 ## Ready
 
 ### Security and correctness
+
+- **AB-151 Live session follow-ups from B5** (S). (1) No heartbeat: `lastActive` is written only at join (`hooks/useLiveSession.ts` join path), so a student who drops stays `active` until the teacher removes them. (2) Deleting a board or undoing a widget delete does not end or restore a live session; only `removeWidget` and `removeWidgets` announce `spart-widget-removed`. Done when both are decided and covered by tests.
 
 - **AB-144 Finish server and client feature gate parity** (S). Follow-ups from the T4 gate-parity PR (#5374). (1) `transcribeVideoWithGemini` (`functions/src/aiGeneration.ts`) refuses everyone when `global_permissions/video-activity-audio-transcription` is missing, but `FEATURE_DEFAULTS` marks it `missingDocPublic: true`, so the client shows the button; ask Paul which side is right before changing either. (2) The AI gates check beta only against `betaUsers` (`isVerifiedBetaMember`), while `isGlobalFeatureGranted` and the client also accept the other beta sources (`isBetaTeacher`). (3) `isGlobalFeatureGranted` denies `accessLevel: 'all'` while the AI gates allow it. (4) PLC meeting-notes AI and the PLC goal coach screens never check `gemini-functions`, which the server now enforces with its tier and buildings. (5) `assertQuizTranslationFeature` (`functions/src/quizTranslation.ts`) compares saved `buildings` raw; route its tier and building checks through `permissionAudienceAllows`. (6) `enforceAiFeatureAccess` and `generateWithAI` don't apply a missing doc's `defaultMinTier` (use `missingDocAccess`). Done when each gate gives the client's answer, with tests.
 
@@ -177,7 +179,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-yjiumh claude/project-thread-yjiumh-ab112
   git push origin --delete claude/project-thread-wrsw83 claude/project-thread-gnqh9n
   git push origin --delete claude/project-thread-3r24g5 claude/b2-ab112
-  git push origin --delete claude/project-thread-ispilm
+  git push origin --delete claude/project-thread-ispilm claude/project-thread-ta7n7b
   git push origin --delete claude/project-thread-v022ec
   ```
 
