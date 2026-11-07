@@ -564,7 +564,7 @@ export const useLiveSession = (
       studentId: string,
       currentStatus: 'active' | 'frozen' | 'disconnected'
     ) => {
-      if (!userId) return;
+      if (!userId || currentStatus === 'disconnected') return;
       const studentRef = doc(
         db,
         SESSIONS_COLLECTION,
