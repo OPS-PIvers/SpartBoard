@@ -180,11 +180,12 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-wrsw83 claude/project-thread-gnqh9n
   git push origin --delete claude/project-thread-3r24g5 claude/b2-ab112
   git push origin --delete claude/project-thread-ispilm claude/project-thread-ta7n7b
+  git push origin --delete claude/project-thread-v022ec
   ```
 
   </details>
 
-- **AB-145 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
+- **AB-150 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
 
 ### Plans with a next slice
 
