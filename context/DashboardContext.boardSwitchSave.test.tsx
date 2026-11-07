@@ -608,4 +608,96 @@ describe('DashboardContext board switch save', () => {
       )
     ).toEqual(['edit-1', 'edit-2']);
   });
+  it("a held-back server copy older than the flush's write doesn't revert the old board", async () => {
+    const stateRef = setup();
+    await settle(stateRef);
+    act(() => {
+      stateRef.current?.updateWidget('a1', { config: { text: 'edit-a' } });
+    });
+    await tick(100);
+    const flush = holdNextSave();
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    // A snapshot from before the flush committed.
+    await pushSnapshot([boardA(), boardB()]);
+    await tick(0);
+    await act(async () => {
+      flush.resolve(7777);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await tick(0);
+    expect(widgetText(stateRef, 'dash-a', 'a1')).toBe('edit-a');
+
+    // The flush's own echo is adopted normally.
+    await pushSnapshot([
+      makeDashboard([makeWidget('a1', 'edit-a')], 'dash-a', 7777),
+      boardB(),
+    ]);
+    await tick(0);
+    expect(widgetText(stateRef, 'dash-a', 'a1')).toBe('edit-a');
+  });
+
+  it('switching back to a clean parked board shows the server copy held back meanwhile', async () => {
+    const stateRef = setup();
+    await settle(stateRef);
+    // B's save hangs, so A's switch flush stays queued behind it.
+    const bSave = holdNextSave();
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    act(() => {
+      stateRef.current?.updateWidget('b1', { config: { text: 'edit-b' } });
+    });
+    await tick(900);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-a');
+    });
+    await tick(0);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    // Another device edits A while it is parked.
+    await pushSnapshot([
+      makeDashboard([makeWidget('a1', 'remote-a')], 'dash-a', 4000),
+      makeDashboard([makeWidget('b1', 'edit-b')], 'dash-b', 4000),
+    ]);
+    await tick(0);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-a');
+    });
+    await tick(0);
+    expect(widgetText(stateRef, 'dash-a', 'a1')).toBe('remote-a');
+    await act(async () => {
+      bSave.resolve(Date.now());
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await tick(3000);
+    const aSaves = saveDashboardMock.mock.calls.filter(
+      (c) => (c[0] as Dashboard).id === 'dash-a'
+    );
+    expect(aSaves).toHaveLength(0);
+  });
+
+  it('a switch flush that never settles is retried', async () => {
+    const stateRef = setup();
+    await settle(stateRef);
+    act(() => {
+      stateRef.current?.updateWidget('a1', { config: { text: 'unsaved-a' } });
+    });
+    await tick(100);
+    saveDashboardMock.mockImplementationOnce(
+      () => new Promise<number>(() => undefined)
+    );
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    expect(savedIds()).toEqual(['dash-a']);
+    await tick(65_000);
+    expect(savedIds()).toEqual(['dash-a', 'dash-a']);
+  });
 });

@@ -675,7 +675,19 @@ interface ParkedBoard {
   toastId?: string;
   // Latest server copy held back while parked, adopted once the flush lands.
   serverCopy?: Dashboard;
+  // `updatedAt` of this tab's last write of the board while parked, and every `updatedAt` the snapshots showed.
+  lastWriteAt?: number;
+  seenUpdatedAts: Set<number>;
 }
+
+/** The held-back server copy is current once it has caught up with this tab's own last write. */
+const heldCopyIsCurrent = (entry: ParkedBoard): boolean =>
+  entry.serverCopy !== undefined &&
+  (entry.lastWriteAt === undefined ||
+    entry.seenUpdatedAts.has(entry.lastWriteAt));
+
+// A switch flush that never settles counts as failed, so it retries instead of holding the board forever.
+const PARKED_FLUSH_TIMEOUT_MS = 60_000;
 
 /** What the server says about a share doc; a denied read means it is no longer visible, other errors are unknown. */
 const shareStatus = async (
@@ -2395,49 +2407,77 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Points the save baseline at `active`, parking the outgoing board's own; true when `active` was parked.
-  const rebaselineForSwitch = useCallback((active: Dashboard): boolean => {
-    const parked = parkedBoardsRef.current;
-    const outgoingId = lastSavedDashboardIdRef.current;
-    const generation = baselineGenerationRef.current;
-    const resumed = resumedGenerationsRef.current;
-    if (
-      outgoingId !== null &&
-      outgoingId !== active.id &&
-      lastSavedDataRef.current !== ''
-    ) {
-      parked.set(outgoingId, {
-        data: lastSavedDataRef.current,
-        fields: lastSavedFieldsRef.current,
-        generations: new Set([
-          generation,
-          ...(resumed.anchor === generation ? resumed.generations : []),
-        ]),
-        flush: 'idle',
-        failures: 0,
-      });
-    }
-    const returning = parked.get(active.id);
-    if (returning) {
-      parked.delete(active.id);
-      clearTimeout(returning.retryTimer);
-      const toastId = returning.toastId;
-      if (toastId) setToasts((prev) => prev.filter((t) => t.id !== toastId));
-    }
-    const { serializedData, fields } = returning
-      ? { serializedData: returning.data, fields: returning.fields }
-      : getDashboardSaveState(active);
-    lastSavedDataRef.current = serializedData;
-    lastSavedFieldsRef.current = fields;
-    lastSavedDashboardIdRef.current = active.id;
-    // Saves started for the previous baseline must not write into this one.
-    baselineGenerationRef.current++;
-    // A returning board's own saves still in flight may advance its restored baseline.
-    resumedGenerationsRef.current = {
-      anchor: returning ? baselineGenerationRef.current : -1,
-      generations: returning?.generations ?? new Set(),
-    };
-    return returning !== undefined;
-  }, []);
+  const rebaselineForSwitch = useCallback(
+    (
+      active: Dashboard,
+      // The save effect passes true: a clean returning board takes the server copy held back while parked.
+      adoptHeldCopy = false
+    ): 'fresh' | 'resumed' | 'adopted' => {
+      const parked = parkedBoardsRef.current;
+      const outgoingId = lastSavedDashboardIdRef.current;
+      const generation = baselineGenerationRef.current;
+      const resumed = resumedGenerationsRef.current;
+      if (
+        outgoingId !== null &&
+        outgoingId !== active.id &&
+        lastSavedDataRef.current !== ''
+      ) {
+        parked.set(outgoingId, {
+          data: lastSavedDataRef.current,
+          fields: lastSavedFieldsRef.current,
+          generations: new Set([
+            generation,
+            ...(resumed.anchor === generation ? resumed.generations : []),
+          ]),
+          flush: 'idle',
+          failures: 0,
+          seenUpdatedAts: new Set(),
+        });
+      }
+      const returning = parked.get(active.id);
+      if (returning) {
+        parked.delete(active.id);
+        clearTimeout(returning.retryTimer);
+        const toastId = returning.toastId;
+        if (toastId) setToasts((prev) => prev.filter((t) => t.id !== toastId));
+      }
+      const heldCopy =
+        adoptHeldCopy &&
+        returning &&
+        heldCopyIsCurrent(returning) &&
+        !hasDeferredSave?.(active.id) &&
+        serializeDashboard(active) === returning.data
+          ? returning.serverCopy
+          : undefined;
+      if (heldCopy) {
+        const transient = active.widgets.filter((w) => w.transient);
+        setDashboards((prev) =>
+          prev.map((d) =>
+            d.id === active.id
+              ? { ...heldCopy, widgets: [...heldCopy.widgets, ...transient] }
+              : d
+          )
+        );
+      }
+      const { serializedData, fields } = heldCopy
+        ? getDashboardSaveState(heldCopy)
+        : returning
+          ? { serializedData: returning.data, fields: returning.fields }
+          : getDashboardSaveState(active);
+      lastSavedDataRef.current = serializedData;
+      lastSavedFieldsRef.current = fields;
+      lastSavedDashboardIdRef.current = active.id;
+      // Saves started for the previous baseline must not write into this one.
+      baselineGenerationRef.current++;
+      // A returning board's own saves still in flight may advance its restored baseline.
+      resumedGenerationsRef.current = {
+        anchor: returning ? baselineGenerationRef.current : -1,
+        generations: returning?.generations ?? new Set(),
+      };
+      return heldCopy ? 'adopted' : returning ? 'resumed' : 'fresh';
+    },
+    [hasDeferredSave]
+  );
 
   // Load dashboards on mount and subscribe to changes
   useEffect(() => {
@@ -2875,7 +2915,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (db.id === activeIdRef.current) return db;
           const parked = parkedBoardsRef.current.get(db.id);
           if (!parked && !hasDeferredSave?.(db.id)) return db;
-          if (parked) parked.serverCopy = db;
+          if (parked) {
+            parked.serverCopy = db;
+            if (db.updatedAt !== undefined)
+              parked.seenUpdatedAts.add(db.updatedAt);
+          }
           return dashboardsRef.current.find((d) => d.id === db.id) ?? db;
         });
 
@@ -3207,7 +3251,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       dashboardId: string,
       savedData: string,
       savedFields: SavedFields,
-      generationAtSave: number
+      generationAtSave: number,
+      writtenAt?: number
     ) => {
       if (lastSavedDashboardIdRef.current === dashboardId) {
         const generation = baselineGenerationRef.current;
@@ -3229,6 +3274,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (parked?.generations.has(generationAtSave)) {
         parked.data = savedData;
         parked.fields = savedFields;
+        if (writtenAt !== undefined) parked.lastWriteAt = writtenAt;
       }
     },
     []
@@ -3266,9 +3312,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (toastId)
             setToasts((prev) => prev.filter((t) => t.id !== toastId));
           const serverCopy = entry.serverCopy;
+          // Older than this tab's own write: its echo is still coming and the snapshot handler adopts it.
           // A queued offline save keeps this tab's copy until it lands, as the snapshot handler does.
-          if (!serverCopy || hasDeferredSave?.(dashboardId)) return;
-          // The snapshot handler held this copy back; the save's own echo follows if it is older.
+          if (
+            !serverCopy ||
+            !heldCopyIsCurrent(entry) ||
+            hasDeferredSave?.(dashboardId)
+          )
+            return;
           setDashboards((prev) =>
             prev.map((d) =>
               d.id === dashboardId && d.id !== activeIdRef.current
@@ -3283,11 +3334,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (parkedBoards.get(dashboardId) !== entry || !board) return null;
           const state = getDashboardSaveState(board);
           if (state.serializedData === entry.data) return null;
-          await saveDashboardRef.current(
-            board,
-            saveBaselineFromFields(entry.fields)
-          );
-          return state;
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const writtenAt = await Promise.race([
+            saveDashboardRef.current(
+              board,
+              saveBaselineFromFields(entry.fields)
+            ),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error('Switch flush timed out')),
+                PARKED_FLUSH_TIMEOUT_MS
+              );
+            }),
+          ]).finally(() => clearTimeout(timer));
+          return { ...state, writtenAt };
         })
           .then(
             (saved) => {
@@ -3299,13 +3359,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     dashboardId,
                     saved.serializedData,
                     saved.fields,
-                    generation
+                    generation,
+                    saved.writtenAt
                   );
                 return;
               }
               if (saved) {
                 entry.data = saved.serializedData;
                 entry.fields = saved.fields;
+                entry.lastWriteAt = saved.writtenAt;
               }
               entry.failures = 0;
               const board = dashboardsRef.current.find(
@@ -3394,7 +3456,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastSavedDashboardIdRef.current !== active.id;
     if (lastSavedDataRef.current === '' || isDashboardSwitch) {
       // Parks the outgoing board's baseline. A board coming back from parked keeps its unsaved edits, so they save below.
-      const resumedParkedBoard = rebaselineForSwitch(active);
+      const switched = rebaselineForSwitch(active, true);
+      // The held-back server copy replaced local state; the effect re-runs on it.
+      if (switched === 'adopted') return;
+      const resumedParkedBoard = switched === 'resumed';
       // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastWidgetCountRef.current = resumedParkedBoard
         ? (saveBaselineFromFields(lastSavedFieldsRef.current)?.widgets.length ??
@@ -3403,6 +3468,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // The refs now describe a different board, so any pending window from
       // the previous one is meaningless here.
       oldestUnsavedEditAtRef.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the save-retry toast for the board just left
       clearSaveRetry();
     }
     for (const [parkedId, entry] of parkedBoardsRef.current) {
@@ -3505,7 +3571,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return saveDashboard(toSave, buildSaveBaseline(active.id));
       });
       write
-        .then(() => {
+        .then((writtenAt) => {
           // Skip when a snapshot merge landed mid-flight: it already advanced
           // the baseline to the server values it adopted into local state, and
           // this pre-write capture would regress it (see baselineGenerationRef).
@@ -3513,7 +3579,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             active.id,
             savedData,
             savedFields,
-            baselineGenerationAtSave
+            baselineGenerationAtSave,
+            writtenAt
           );
           clearSaveRetry();
           pendingSaveCountRef.current = Math.max(
@@ -3833,13 +3900,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           generation: saveGenerationFor(board.id),
         };
         return saveDashboard(board, buildSaveBaseline(board.id));
-      }).then(() => {
+      }).then((writtenAt) => {
         if (saved)
           advanceSavedBaseline(
             active.id,
             saved.data,
             saved.fields,
-            saved.generation
+            saved.generation,
+            writtenAt
           );
       }, onFailed);
     };
