@@ -140,6 +140,19 @@ describe('assertViewAsAllowed', () => {
     await expect(read()).rejects.toThrow('ended');
   });
 
+  it('lets a student preview token, signed in as the student, use its live session', async () => {
+    const student = {
+      auth: { uid: 'stu', token: { viewAs: claim({ student: true }) } },
+    };
+    await expect(
+      assertViewAsAllowed(student, { read: true }, NOW)
+    ).resolves.toMatchObject({ sid: 's1', student: true });
+    docs['view_as_sessions/s1'].endedAt = new FakeTimestamp(NOW - 1);
+    await expect(
+      assertViewAsAllowed(student, { read: true }, NOW)
+    ).rejects.toThrow('ended');
+  });
+
   it('refuses once the session doc has expired', async () => {
     docs['view_as_sessions/s1'].expiresAt = new FakeTimestamp(NOW);
     await expect(

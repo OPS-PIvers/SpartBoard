@@ -13,6 +13,8 @@ export interface ViewAsClaim {
   ro: boolean;
   adminTarget: boolean;
   exp: number;
+  /** A student preview token (viewAsStudent.ts): signed in as the student, not the session's target. */
+  student?: boolean;
 }
 
 interface RequestWithAuth {
@@ -40,6 +42,7 @@ export function readViewAsClaim(request: RequestWithAuth): ViewAsClaim | null {
     ro: c.ro !== false,
     adminTarget: c.adminTarget !== false,
     exp: typeof c.exp === 'number' ? c.exp : 0,
+    ...(c.student === true ? { student: true } : {}),
   };
 }
 
@@ -102,7 +105,7 @@ async function assertSessionLive(
     !s ||
     (s.endedAt !== null && s.endedAt !== undefined) ||
     s.by !== claim.by ||
-    s.targetUid !== uid ||
+    (!claim.student && s.targetUid !== uid) ||
     now >= toMillis(s.expiresAt) ||
     !(settingsSnap.exists && settingsSnap.get('enabled') === true) ||
     !superAdmin
