@@ -91,6 +91,7 @@ export const McOptionList: React.FC<McOptionListProps> = ({
             'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
         }
         return (
+          // no-tour-anchor: student answer option; tours walk teachers
           <button
             key={`${i}-${option}`}
             disabled={locked}
@@ -136,6 +137,7 @@ export const FibAnswerInput: React.FC<FibAnswerInputProps> = ({
   correctAnswer,
 }) => (
   <div className="px-5 pb-5">
+    {/* no-tour-anchor: student answer box; tours walk teachers */}
     <input
       type="text"
       autoFocus
@@ -246,6 +248,7 @@ export const MaOptionList: React.FC<MaOptionListProps> = ({
             'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
         }
         return (
+          // no-tour-anchor: student answer option; tours walk teachers
           <button
             key={`${i}-${option}`}
             type="button"
@@ -468,6 +471,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
               Couldn&apos;t send your answer. Try again.
             </p>
           )}
+          {/* no-tour-anchor: student submit; tours walk teachers */}
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
