@@ -58,6 +58,8 @@ export const DASHBOARD_FIELDS = [
   'claudeAction',
   'claudeUnseen',
   'connections',
+  // Written by a claim transaction; a stale autosave must not undo a claim.
+  'triggerClaims',
 ] as const;
 
 export type MergedDashboardField = (typeof DASHBOARD_FIELDS)[number];

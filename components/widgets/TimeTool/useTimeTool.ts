@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useCallback,
+} from 'react';
 import { TimeToolConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
@@ -17,7 +23,8 @@ export const useTimeTool = (
   widget: WidgetData,
   { isBoardActive = true }: { isBoardActive?: boolean } = {}
 ) => {
-  const { updateWidget, activeDashboard } = useDashboard();
+  const { updateWidget, activeDashboard, dashboards, applyConnectionChanges } =
+    useDashboard();
   const connectionsOn = useConnectionsEnabled();
   const config = widget.config as TimeToolConfig;
   const useLegacy = usesLegacyToggles(connectionsOn, config);
@@ -144,7 +151,27 @@ export const useTimeTool = (
   // tore down and re-scheduled the RAF on every unrelated change, which
   // is wasteful even on a static board and pathological while a
   // position-aware widget (catalyst*) is being dragged at 60fps.
-  const [expirySignal, setExpirySignal] = useState<number | null>(null);
+  const [expirySignal, setExpirySignal] = useState<{
+    endAt: number;
+  } | null>(null);
+
+  // updateWidget only writes the shown board, so a hidden board's timer saves its expiry straight to its own board.
+  const writeExpiry = useEffectEvent((patch: Partial<TimeToolConfig>) => {
+    if (isBoardActive) {
+      updateWidget(widget.id, { config: patch }, { skipHistory: true });
+      return;
+    }
+    const board = dashboards?.find((d) =>
+      d.widgets.some((w) => w.id === widget.id)
+    );
+    if (
+      !board ||
+      (board.linkedShareRole === 'viewer' && !board.linkedShareEnded)
+    ) {
+      return;
+    }
+    applyConnectionChanges?.(board.id, { [widget.id]: patch });
+  });
 
   useEffect(() => {
     const clock = {
@@ -168,13 +195,12 @@ export const useTimeTool = (
       if (state.mode === 'timer' && nextTime === 0) {
         const patch = timeToolClockPatch(clock, { type: 'expire' });
         // Expiry is system-driven; keep it out of the undo stack.
-        if (patch)
-          updateWidget(widget.id, { config: patch }, { skipHistory: true });
+        if (patch) writeExpiry(patch);
         cancelRaf();
-        // Signal expiry to the trigger effect. Date.now() is unique
-        // per cycle so a second run can fire its own triggers even if
-        // the first signal is still being processed.
-        setExpirySignal(Date.now());
+        // A fresh object per cycle; endAt is the same on every device showing this run.
+        setExpirySignal({
+          endAt: Math.round((clock.startTime ?? 0) + clock.elapsedTime * 1000),
+        });
         return;
       }
 
@@ -189,8 +215,6 @@ export const useTimeTool = (
     config.startTime,
     config.elapsedTime,
     config.mode,
-    updateWidget,
-    widget.id,
     cancelRaf,
   ]);
 
@@ -203,7 +227,7 @@ export const useTimeTool = (
   // changes for any reason OTHER than a new expiry (e.g. the teacher
   // edits a different widget on the board and `activeDashboard`'s
   // reference flips). The ref is processing memory, not a state mirror.
-  const lastFiredSignalRef = useRef<number | null>(null);
+  const lastFiredSignalRef = useRef<{ endAt: number } | null>(null);
 
   useEffect(() => {
     if (expirySignal === null) return;
@@ -211,6 +235,14 @@ export const useTimeTool = (
     lastFiredSignalRef.current = expirySignal;
 
     playTimerAlert(config.selectedSound);
+
+    // Every device showing this run writes the same value, so the widget sees one trigger; a device that finds it already written skips.
+    const triggerValue = (target: WidgetData, field: string) => {
+      const prev = (target.config as Record<string, unknown>)[field];
+      return typeof prev === 'number' && prev >= expirySignal.endAt
+        ? null
+        : expirySignal.endAt;
+    };
 
     // Only a timer on the shown board drives sister widgets; a hidden board's timer would otherwise act on the shown one.
     // A migrated timer's end actions became Sequences, so its old fields are ignored.
@@ -248,52 +280,22 @@ export const useTimeTool = (
       }
     }
 
-    // Auto-pick next student in Randomizer
-    if (config.timerEndTriggerRandom && board && config.duration > 0) {
-      const randomWidget = board.widgets.find((w) => w.type === 'random');
-      if (randomWidget) {
-        updateWidget(
-          randomWidget.id,
-          {
-            config: {
-              externalTrigger: Date.now(),
-            },
-          },
-          { skipHistory: true }
-        );
-      }
-    }
-
-    // Auto-advance next student in NextUp
-    if (config.timerEndTriggerNextUp && board && config.duration > 0) {
-      const nextUpWidget = board.widgets.find((w) => w.type === 'nextUp');
-      if (nextUpWidget) {
-        updateWidget(
-          nextUpWidget.id,
-          {
-            config: {
-              externalTrigger: Date.now(),
-            },
-          },
-          { skipHistory: true }
-        );
-      }
-    }
-
-    // Auto-rotate the first Stations widget
-    if (config.timerEndTriggerStationsRotate && board && config.duration > 0) {
-      const stationsWidget = board.widgets.find((w) => w.type === 'stations');
-      if (stationsWidget) {
-        updateWidget(
-          stationsWidget.id,
-          {
-            config: {
-              rotationTrigger: Date.now(),
-            },
-          },
-          { skipHistory: true }
-        );
-      }
+    // Auto-pick next student in Randomizer, advance NextUp, rotate Stations
+    const bumps: [boolean | undefined, WidgetData['type'], string][] = [
+      [config.timerEndTriggerRandom, 'random', 'externalTrigger'],
+      [config.timerEndTriggerNextUp, 'nextUp', 'externalTrigger'],
+      [config.timerEndTriggerStationsRotate, 'stations', 'rotationTrigger'],
+    ];
+    for (const [on, type, field] of bumps) {
+      if (!on || !board || config.duration <= 0) continue;
+      const target = board.widgets.find((w) => w.type === type);
+      const value = target ? triggerValue(target, field) : null;
+      if (!target || value === null) continue;
+      updateWidget(
+        target.id,
+        { config: { [field]: value } },
+        { skipHistory: true }
+      );
     }
   }, [
     expirySignal,
