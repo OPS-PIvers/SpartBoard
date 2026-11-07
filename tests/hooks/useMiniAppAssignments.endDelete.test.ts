@@ -133,3 +133,31 @@ describe('deleteAssignment', () => {
     expect(batch.update).not.toHaveBeenCalled();
   });
 });
+
+describe('reactivateAssignment', () => {
+  it('reopens the row and the session in one batch', async () => {
+    withRows([{ id: 'row-1', sessionId: 'sess-1', status: 'inactive' }]);
+    const { result } = renderHook(() => useMiniAppAssignments(TEACHER_UID));
+
+    await act(() => result.current.reactivateAssignment('row-1'));
+
+    expect(batch.update).toHaveBeenCalledWith(ROW_PATH, {
+      status: 'active',
+      updatedAt: NOW,
+    });
+    expect(batch.update).toHaveBeenCalledWith('mini_app_sessions/sess-1', {
+      status: 'active',
+    });
+    expect(batch.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects when the batch fails so the row is not left active alone', async () => {
+    withRows([{ id: 'row-1', sessionId: 'sess-1', status: 'inactive' }]);
+    batch.commit.mockRejectedValue(new Error('permission-denied'));
+    const { result } = renderHook(() => useMiniAppAssignments(TEACHER_UID));
+
+    await expect(result.current.reactivateAssignment('row-1')).rejects.toThrow(
+      'permission-denied'
+    );
+  });
+});
