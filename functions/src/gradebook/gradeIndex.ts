@@ -787,7 +787,7 @@ export function sessionWriteMatters(
   );
 }
 
-/** Queues a whole-session recompute, oldest first. Entries queued before the key carried a kind are keyed by session id alone. */
+/** Queues a whole-session recompute, oldest first; an entry already backing off keeps its backoff. Entries queued before the key carried a kind are keyed by session id alone. */
 export async function markSessionDirty(
   db: Firestore,
   kind: GradeKind,
@@ -797,20 +797,19 @@ export async function markSessionDirty(
   await db
     .collection(GRADE_INDEX_QUEUE)
     .doc(`${kind}__${sessionId}`)
-    .set({ kind, sessionId, dirtyAt: now });
+    .set({ kind, sessionId, dirtyAt: now }, { merge: true });
 }
 
 export const RECOMPUTE_LIMIT = 200;
 /** Stops taking new sessions well before the 540 s timeout; the rest wait for the next run. */
 export const RECOMPUTE_BUDGET_MS = 420_000;
 
-/** Drains the dirty queue; a session re-dirtied mid-run stays queued. */
-const MAX_RECOMPUTE_FAILURES = 5;
 /** Roughly a day of outage; past this many retries the log escalates to an error. */
 const ROSTER_UNAVAILABLE_ERROR_AFTER = 26;
 const ROSTER_RETRY_BASE_MS = 5 * 60_000;
 const ROSTER_RETRY_MAX_MS = 60 * 60_000;
 
+/** Drains the dirty queue; a session re-dirtied mid-run stays queued. */
 export async function drainDirtySessions(
   db: Firestore,
   limit = RECOMPUTE_LIMIT
@@ -877,12 +876,18 @@ export async function drainDirtySessions(
         failures,
         error: err instanceof Error ? err.message : String(err),
       });
-      // Move it behind newer work; give up after MAX_RECOMPUTE_FAILURES tries.
+      // Back off up to an hour and keep the entry; dropping it would leave the grid stale for good.
+      const retryAt =
+        Date.now() +
+        Math.min(
+          ROSTER_RETRY_BASE_MS * 2 ** Math.min(failures - 1, 10),
+          ROSTER_RETRY_MAX_MS
+        );
       await db.runTransaction(async (tx) => {
         const current = await tx.get(doc.ref);
         if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt) return;
-        if (failures >= MAX_RECOMPUTE_FAILURES) tx.delete(doc.ref);
-        else tx.update(doc.ref, { dirtyAt: Date.now(), failures });
+        // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry.
+        tx.update(doc.ref, { failures, retryAt, dirtyAt: retryAt });
       });
     }
   }
