@@ -282,8 +282,9 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'keep',
     widget: 'video-activity',
     defaultAccessLevel: 'public',
-    defaultEnabled: true,
-    missingDocPublic: true,
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
   },
   // Google-API-backed (attaches Google Drive files as AI context). Default
   // tier floor of `org` denies external/free-tier users — they have only the

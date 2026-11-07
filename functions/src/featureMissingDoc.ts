@@ -90,7 +90,6 @@ export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
   'smart-poll': null,
   'screen-recording': null,
   'remote-control': null,
-  'video-activity-audio-transcription': null,
   'ai-file-context': 'org',
   'org-admin-writes': null,
   'assignment-modes': null,
