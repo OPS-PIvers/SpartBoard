@@ -121,7 +121,11 @@ const LocalWidgetScope: React.FC<LocalWidgetScopeProps> = ({
       updateWidget: (
         id: string,
         updates: Partial<WidgetData>,
-        opts?: { immediate?: boolean; skipHistory?: boolean }
+        opts?: {
+          immediate?: boolean;
+          skipHistory?: boolean;
+          joinHistory?: boolean;
+        }
       ) => {
         if (id !== widgetId) {
           realUpdate(id, updates, opts);

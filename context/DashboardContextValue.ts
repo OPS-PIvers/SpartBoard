@@ -225,7 +225,13 @@ export interface DashboardContextValue {
   updateWidget: (
     id: string,
     updates: Partial<WidgetData>,
-    opts?: { immediate?: boolean; skipHistory?: boolean }
+    opts?: {
+      immediate?: boolean;
+      // System write: never recorded, and undo/redo leave it alone.
+      skipHistory?: boolean;
+      // Part of the gesture recordWidgetSnapshot opened; undo reverts it with that step.
+      joinHistory?: boolean;
+    }
   ) => void;
   /**
    * Board-level undo/redo of widget add/remove/move/config changes. Pass the
@@ -305,7 +311,7 @@ export interface DashboardContextValue {
   ungroupWidgets: (groupId: string) => void;
   updateWidgets: (
     updates: Array<{ id: string; changes: Partial<WidgetData> }>,
-    opts?: { skipHistory?: boolean }
+    opts?: { skipHistory?: boolean; joinHistory?: boolean }
   ) => void;
   /**
    * Applies `transform` to the config of every widget of `type` on every board.
