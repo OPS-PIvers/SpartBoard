@@ -189,9 +189,9 @@ import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
   enqueueQuizMediaUpload,
+  createTurnInUploadGate,
   handOffLockedUpload,
-  waitForUploads,
-  type QuizMediaUploadResult,
+  type UploadSettleActions,
 } from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { RubricGuideExamples } from './RubricGuideExamples';
@@ -978,11 +978,25 @@ const QuizJoinFlow: React.FC<{
     [submitAnswer, isViewOnly]
   );
 
+  // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
+  const [uploadGate] = useState(createTurnInUploadGate);
+  const uploadActions = useMemo<UploadSettleActions>(
+    () => ({
+      write: (job, state) =>
+        setArtifactUploadState(job.questionId, job.artifactId, state),
+      handOff: (job) => handOffLockedUpload(job),
+    }),
+    [setArtifactUploadState]
+  );
+
   const handleComplete = useCallback(
     async (opts?: { timeUp?: boolean }) => {
       if (isViewOnly) return;
-      await waitForUploads(inFlightUploadsRef.current, TURN_IN_UPLOAD_WAIT_MS);
-      await (opts ? completeQuiz(opts) : completeQuiz());
+      await uploadGate.turnIn(
+        () => (opts ? completeQuiz(opts) : completeQuiz()),
+        uploadActions,
+        TURN_IN_UPLOAD_WAIT_MS
+      );
       const sessionId = session?.id;
       const responseKey = myResponse?._responseKey;
       if (sessionId && responseKey && session?.mediaResponseEnabled === true) {
@@ -997,6 +1011,8 @@ const QuizJoinFlow: React.FC<{
       myResponse?._responseKey,
       session?.id,
       session?.mediaResponseEnabled,
+      uploadActions,
+      uploadGate,
     ]
   );
 
@@ -1051,9 +1067,6 @@ const QuizJoinFlow: React.FC<{
   // artifact (same storagePath) instead of pretending something is retrying.
   const retryableTakesRef = useRef(new Map<string, Blob>());
 
-  // Uploads still running, so a turn-in can wait briefly for them to settle.
-  const inFlightUploadsRef = useRef(new Set<Promise<unknown>>());
-
   const runRecordingUpload = useCallback(
     async (questionId: string, artifact: ResponseArtifact, blob: Blob) => {
       const sessionId = session?.id;
@@ -1069,31 +1082,28 @@ const QuizJoinFlow: React.FC<{
         blob,
         mimeType: artifact.mimeType ?? blob.type,
       };
-      const run = (async () => {
-        const result = await enqueueQuizMediaUpload(job);
-        if (result.uploadState === 'failed')
-          retryableTakesRef.current.set(artifact.id, blob);
-        else retryableTakesRef.current.delete(artifact.id);
-        const locked = await setArtifactUploadState(
-          questionId,
-          artifact.id,
-          result.uploadState
-        );
-        if (locked && result.notStored) await handOffLockedUpload(job);
-        return result;
-      })();
-      inFlightUploadsRef.current.add(run);
-      let result: QuizMediaUploadResult;
-      try {
-        result = await run;
-      } finally {
-        inFlightUploadsRef.current.delete(run);
-      }
+      const result = await uploadGate.run(
+        job,
+        async () => {
+          const r = await enqueueQuizMediaUpload(job);
+          if (r.uploadState === 'failed')
+            retryableTakesRef.current.set(artifact.id, blob);
+          else retryableTakesRef.current.delete(artifact.id);
+          return r;
+        },
+        uploadActions
+      );
       if (result.uploadState === 'failed') {
         throw new Error(result.error ?? 'Archive failed');
       }
     },
-    [authedUid, myResponse?._responseKey, session?.id, setArtifactUploadState]
+    [
+      authedUid,
+      myResponse?._responseKey,
+      session?.id,
+      uploadActions,
+      uploadGate,
+    ]
   );
 
   const handleRetryRecordingUpload = useCallback(

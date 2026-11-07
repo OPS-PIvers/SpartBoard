@@ -13,8 +13,10 @@ import {
   buildQuizMediaStoragePath,
   quizMediaExtensionForMimeType,
   enqueueQuizMediaUpload,
+  createTurnInUploadGate,
   handOffLockedUpload,
   waitForUploads,
+  type QuizMediaUploadResult,
   __resetQuizMediaUploadQueue,
   MAX_QUIZ_MEDIA_BYTES,
   MAX_WHITEBOARD_PICTURE_BYTES,
@@ -259,20 +261,96 @@ describe('handOffLockedUpload', () => {
   });
 });
 
-describe('notStored', () => {
-  it('marks a Storage failure but not an archive failure', async () => {
-    const stored = await enqueueQuizMediaUpload(
+describe('createTurnInUploadGate', () => {
+  const failed: QuizMediaUploadResult = {
+    storagePath: 'p',
+    uploadState: 'failed',
+    error: 'net',
+  };
+  function actions(locked: boolean) {
+    return {
+      write: vi.fn(() => Promise.resolve(locked)),
+      handOff: vi.fn(() => Promise.resolve()),
+    };
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it('writes the state on an open attempt and never hands off', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(false);
+    await gate.run(job(), () => Promise.resolve(failed), a);
+    expect(a.write).toHaveBeenCalledWith(job(), 'failed');
+    expect(a.handOff).not.toHaveBeenCalled();
+  });
+
+  it('hands off any failure that lands on a locked attempt', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(true);
+    await gate.run(job(), () => Promise.resolve(failed), a);
+    expect(a.handOff).toHaveBeenCalledWith(job());
+  });
+
+  it('does not hand off an upload that succeeds after lock', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(true);
+    await gate.run(
       job(),
-      makeDeps({ uploadBlob: vi.fn(() => Promise.reject(new Error('net'))) })
+      () => Promise.resolve({ storagePath: 'p', uploadState: 'uploaded' }),
+      a
     );
-    expect(stored).toMatchObject({ uploadState: 'failed', notStored: true });
-    const archived = await enqueueQuizMediaUpload(
-      job({ artifactId: 'art-2' }),
-      makeDeps({
-        archiveArtifact: vi.fn(() => Promise.reject(new Error('drive'))),
-      })
+    expect(a.handOff).not.toHaveBeenCalled();
+  });
+
+  it('waits for an in-flight upload, then turns in, and hands off a failure from the wait', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(false);
+    let fail: () => void = () => undefined;
+    const upload = gate
+      .run(
+        job(),
+        () =>
+          new Promise<QuizMediaUploadResult>((resolve) => {
+            fail = () => resolve(failed);
+          }),
+        a
+      )
+      .catch(() => undefined);
+    const complete = vi.fn(() => Promise.resolve());
+    const turnIn = gate.turnIn(complete, a, 8000);
+    await flush();
+    expect(complete).not.toHaveBeenCalled();
+    fail();
+    await upload;
+    await turnIn;
+    await flush();
+    expect(complete).toHaveBeenCalledTimes(1);
+    // The failure stays pending through the turn-in, so it can show as lost.
+    expect(a.write).not.toHaveBeenCalled();
+    expect(a.handOff).toHaveBeenCalledWith(job());
+  });
+
+  it('writes a deferred failure back when the turn-in itself fails', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(false);
+    let fail: () => void = () => undefined;
+    const upload = gate.run(
+      job(),
+      () =>
+        new Promise<QuizMediaUploadResult>((resolve) => {
+          fail = () => resolve(failed);
+        }),
+      a
     );
-    expect(archived.uploadState).toBe('failed');
-    expect(archived.notStored).toBeUndefined();
+    const turnIn = gate.turnIn(
+      () => Promise.reject(new Error('offline')),
+      a,
+      8000
+    );
+    fail();
+    await upload;
+    await expect(turnIn).rejects.toThrow('offline');
+    await flush();
+    expect(a.handOff).not.toHaveBeenCalled();
+    expect(a.write).toHaveBeenCalledWith(job(), 'failed');
   });
 });
