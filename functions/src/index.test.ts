@@ -3379,14 +3379,14 @@ describe('getClassLinkRosterV1 chunked fan-out', () => {
 });
 
 describe('archiveActivityWallPhoto (retired)', () => {
-  it('touches no Storage object or submission doc, whatever the caller sends', () => {
+  it('touches no Storage object or submission doc, whatever the caller sends', async () => {
     vi.clearAllMocks();
     const handler = archiveActivityWallPhoto as unknown as (
       data: unknown,
       context: unknown
     ) => unknown;
 
-    expect(
+    await expect(
       handler(
         {
           accessToken: 'token',
@@ -3396,7 +3396,7 @@ describe('archiveActivityWallPhoto (retired)', () => {
         },
         { auth: { uid: 'teacher-uid', token: { email: 'a@b.c' } } }
       )
-    ).toEqual({ skipped: true, archiveStatus: 'retired' });
+    ).resolves.toEqual({ skipped: true, archiveStatus: 'retired' });
 
     expect(mockStorageBucket.file).not.toHaveBeenCalled();
     expect(submissionRefGet).not.toHaveBeenCalled();

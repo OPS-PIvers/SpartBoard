@@ -146,7 +146,7 @@ export const releaseGuidedLearningMediaV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const data = (request.data ?? {}) as ReleaseRequest;

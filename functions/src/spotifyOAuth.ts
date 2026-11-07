@@ -186,7 +186,7 @@ export const exchangeSpotifyAuthCode = onCall(
     ],
   },
   async (req) => {
-    assertViewAsAllowed(req);
+    await assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     const raw = (req.data ?? {}) as Record<string, unknown>;
     const code = typeof raw.code === 'string' ? raw.code : '';
@@ -297,7 +297,7 @@ export const refreshSpotifyAccessToken = onCall(
     ],
   },
   async (req) => {
-    assertViewAsAllowed(req);
+    await assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     const db = admin.firestore();
     const ref = db.doc(PRIVATE_DOC_PATH(uid));
@@ -478,7 +478,7 @@ export const refreshSpotifyAccessToken = onCall(
  * Idempotent: a missing doc is a no-op success.
  */
 export const revokeSpotifyAuth = onCall(async (req) => {
-  assertViewAsAllowed(req);
+  await assertViewAsAllowed(req);
   const uid = requireAuthUid(req.auth?.uid);
   const ref = admin.firestore().doc(PRIVATE_DOC_PATH(uid));
   const snap = await ref.get();

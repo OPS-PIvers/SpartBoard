@@ -208,7 +208,7 @@ export const fetchImportImage = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<FetchImportImageResult> => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

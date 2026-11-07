@@ -273,7 +273,7 @@ export const importConvertV1 = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

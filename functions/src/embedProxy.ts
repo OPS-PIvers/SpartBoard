@@ -34,7 +34,7 @@ export const fetchExternalProxy = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     const data = request.data as { url: string };
     if (!request.auth) {
       throw new HttpsError(
@@ -115,7 +115,7 @@ export const checkUrlCompatibility = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     const data = request.data as { url: string };
     if (!request.auth) {
       throw new HttpsError(

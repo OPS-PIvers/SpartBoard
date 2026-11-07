@@ -1048,7 +1048,7 @@ export const publishPaperResultsV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const caller: ImportPaperCaller | null = request.auth
       ? {
           uid: request.auth.uid,
@@ -1074,7 +1074,7 @@ export const importPaperResponsesV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const caller: ImportPaperCaller | null = request.auth
       ? {
           uid: request.auth.uid,

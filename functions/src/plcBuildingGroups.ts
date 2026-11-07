@@ -697,7 +697,7 @@ function verifiedCallerEmail(request: CallerAuth): string {
 export const createBuildingGroupV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 5 },
   async (request): Promise<{ plcId: string; added: number }> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const callerEmail = verifiedCallerEmail(request);
     const payload = parseCreateBuildingGroupPayload(request.data);
     const deps = defaultDeps();
@@ -709,7 +709,7 @@ export const createBuildingGroupV1 = onCall(
 export const syncBuildingGroupV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 5 },
   async (request): Promise<{ added: number; autoRoster: boolean }> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const callerEmail = verifiedCallerEmail(request);
     const raw = (request.data ?? {}) as Data;
     const plcId = typeof raw.plcId === 'string' ? raw.plcId.trim() : '';

@@ -714,7 +714,7 @@ export const requestPlcMeetingNotesV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const { uid, token } = requireAuth(request);
     return requestMeetingNotes(
       parseNotesRequest(request.data),
@@ -733,7 +733,7 @@ export const resolvePlcMeetingNotesDraftV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const { uid } = requireAuth(request);
     return resolveMeetingNotesDraft(
       parseResolveRequest(request.data),

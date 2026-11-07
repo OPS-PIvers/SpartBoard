@@ -809,7 +809,7 @@ export const createOrganizationInvites = onCall(
     timeoutSeconds: 60,
   },
   async (request): Promise<CreateOrganizationInvitesResponse> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',
@@ -1061,7 +1061,7 @@ export const claimOrganizationInvite = onCall(
     timeoutSeconds: 30,
   },
   async (request): Promise<ClaimOrganizationInviteResponse> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

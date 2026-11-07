@@ -289,7 +289,7 @@ async function assertDevAdmin(request: CallableRequest): Promise<{
 export const syncMyMaterialsFromProdV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 2 },
   async (request): Promise<{ copied: Record<string, number> }> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const { email, devUid, db } = await assertDevAdmin(request);
     const token = await prodToken();
     const prodUid = await findProdUid(token, email);
@@ -449,7 +449,7 @@ export async function readProdConfig(token: string): Promise<{
 export const syncConfigFromProdV1 = onCall(
   { memory: '1GiB', timeoutSeconds: 540, maxInstances: 1 },
   async (request): Promise<{ copied: Record<string, number> }> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const { db } = await assertDevAdmin(request);
     const token = await prodToken();
 

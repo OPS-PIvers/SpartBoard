@@ -1584,7 +1584,7 @@ export const prepareQuizReadAloudV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     await assertAiTeacherCaller(admin.firestore(), request.auth.token);
@@ -1619,7 +1619,7 @@ export const synthesizeQuizAudioV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const parsed = parseSynthesizeRequest(request.data);

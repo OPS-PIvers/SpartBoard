@@ -56,6 +56,23 @@ const db = {
       return Promise.resolve();
     },
   }),
+  runTransaction: async <T>(
+    fn: (tx: {
+      get: (r: { get: () => Promise<unknown> }) => Promise<unknown>;
+      update: (
+        r: { update: (d: Record<string, unknown>) => Promise<void> },
+        d: Record<string, unknown>
+      ) => void;
+    }) => Promise<T>
+  ): Promise<T> => {
+    const pending: Array<() => Promise<void>> = [];
+    const result = await fn({
+      get: (r) => r.get(),
+      update: (r, d) => pending.push(() => r.update(d)),
+    });
+    for (const op of pending) await op();
+    return result;
+  },
   batch: () => {
     const ops: Array<() => void> = [];
     return {

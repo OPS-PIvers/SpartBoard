@@ -212,7 +212,7 @@ export const resetOrganizationUserPassword = onCall(
     timeoutSeconds: 30,
   },
   async (request): Promise<ResetPasswordResponse> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

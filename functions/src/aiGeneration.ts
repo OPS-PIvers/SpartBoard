@@ -647,7 +647,7 @@ export const generateWithAI = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as AIData;
     if (!request.auth) {
       throw new HttpsError(
@@ -1838,7 +1838,7 @@ export const generateVideoActivity = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as VideoActivityRequestData;
     if (!request.auth) {
       throw new HttpsError(
@@ -2030,7 +2030,7 @@ export const transcribeVideoWithGemini = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as AudioTranscriptionRequestData;
     if (!request.auth) {
       throw new HttpsError(
@@ -2359,7 +2359,7 @@ export const generateGuidedLearning = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as {
       images?: GuidedLearningImageInput[];
       prompt?: string;
@@ -2578,7 +2578,7 @@ export const draftGuidedLearningStepTextV1 = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth?.uid) {
       throw new HttpsError(
         'unauthenticated',

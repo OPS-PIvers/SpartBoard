@@ -148,6 +148,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    await setDoc(doc(db, 'view_as_sessions/sid-1'), { endedAt: null });
     const session = {
       teacherUid: TEACHER_UID,
       status: 'active',
@@ -226,6 +227,17 @@ describe.each(['quiz_sessions', 'video_activity_sessions'])(
         getDoc(
           doc(asSsoPreview({ exp: PAST() }), `${coll}/s1/responses/${SSO_UID}`)
         )
+      );
+    });
+
+    it('refuses preview reads once the View as session ends', async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'view_as_sessions/sid-1'), {
+          endedAt: serverTimestamp(),
+        });
+      });
+      await assertFails(
+        getDoc(doc(asSsoPreview(), `${coll}/s1/responses/${SSO_UID}`))
       );
     });
 

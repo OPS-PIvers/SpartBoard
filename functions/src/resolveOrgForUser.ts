@@ -289,7 +289,7 @@ export const resolveOrgForUser = onCall(
     ],
   },
   async (request): Promise<ResolveOrgForUserResponse> => {
-    const viewAs = assertViewAsAllowed(request, { read: true });
+    const viewAs = await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

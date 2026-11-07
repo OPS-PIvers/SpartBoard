@@ -376,7 +376,7 @@ export const ltiExchange = onCall(
     ],
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const data = (request.data ?? {}) as { code?: unknown };
     const code = typeof data.code === 'string' ? data.code : '';
     if (!code) {
