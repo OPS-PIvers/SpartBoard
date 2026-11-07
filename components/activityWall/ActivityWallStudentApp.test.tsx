@@ -607,7 +607,25 @@ describe('ActivityWallStudentApp', () => {
     it('shows the closed message when the wall closes before the post lands', async () => {
       const user = userEvent.setup();
       signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
-      wireSnapshots(buildSession());
+      const session: Record<string, unknown> = buildSession();
+      let pushSession: (() => void) | null = null;
+      mockOnSnapshot.mockImplementation(
+        (target: SnapshotTarget, onNext: (snap: unknown) => void) => {
+          if (target.kind === 'doc') {
+            const emit = () =>
+              onNext({
+                id: SESSION_ID,
+                exists: () => true,
+                data: () => ({ ...session }),
+              });
+            pushSession = emit;
+            emit();
+          } else {
+            onNext({ docs: [] });
+          }
+          return () => undefined;
+        }
+      );
       mockSetDoc.mockRejectedValueOnce(
         Object.assign(new Error('denied'), { code: 'permission-denied' })
       );
@@ -616,12 +634,34 @@ describe('ActivityWallStudentApp', () => {
 
       await openSheetViaButton(user);
       await user.type(screen.getByLabelText(/your response/i), 'Late idea');
+      session.acceptingResponses = false;
+      act(() => pushSession?.());
       submitSheet();
 
       expect(
         await screen.findByText(/your teacher closed this wall/i)
       ).toBeInTheDocument();
       expect(screen.queryByText(/check your connection/i)).toBeNull();
+    });
+
+    it('keeps the connection message for permission errors on an open wall', async () => {
+      const user = userEvent.setup();
+      signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+      wireSnapshots(buildSession());
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      mockSetDoc.mockRejectedValueOnce(
+        Object.assign(new Error('denied'), { code: 'permission-denied' })
+      );
+
+      render(<ActivityWallStudentApp />);
+
+      await openSheetViaButton(user);
+      await user.type(screen.getByLabelText(/your response/i), 'Idea');
+      submitSheet();
+
+      expect(
+        await screen.findByText(/check your connection/i)
+      ).toBeInTheDocument();
     });
 
     it('keeps the connection message for other write failures', async () => {
