@@ -1331,6 +1331,7 @@
     "recordingDriveFailed": "Échec de la sauvegarde sur Drive. Téléchargement local...",
     "noGoogleDrive": "Aucun Google Drive connecté. Téléchargement local...",
     "viewLiveSession": "Voir les informations de la session en direct",
+    "endLiveSession": "Terminer la session en direct",
     "liveSession": "Session en direct",
     "noAppsSelected": "Restauration des valeurs par défaut…"
   },

@@ -281,7 +281,8 @@ export const LiveControl: React.FC<LiveControlProps> = ({
                     {/* no-tour-anchor: per-student row, exists only while students are joined */}
                     <button
                       onClick={() => onFreezeStudent(s.id, s.status)}
-                      className={`p-1 rounded hover:bg-blue-50 ${s.status === 'frozen' ? 'text-blue-600' : 'text-slate-300 hover:text-blue-500'}`}
+                      disabled={s.status === 'disconnected'}
+                      className={`p-1 rounded hover:bg-blue-50 disabled:opacity-40 disabled:pointer-events-none ${s.status === 'frozen' ? 'text-blue-600' : 'text-slate-300 hover:text-blue-500'}`}
                       aria-label={
                         s.status === 'frozen'
                           ? `Unfreeze ${label}`
