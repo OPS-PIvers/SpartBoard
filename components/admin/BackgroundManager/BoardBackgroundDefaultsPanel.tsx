@@ -48,6 +48,7 @@ export const BoardBackgroundDefaultsPanel: React.FC<Props> = ({
   ];
 
   const save = async (next: BoardBackgroundDefaults) => {
+    const before = defaults;
     setDefaults(next);
     try {
       await setDoc(settingsRef(), {
@@ -57,6 +58,8 @@ export const BoardBackgroundDefaultsPanel: React.FC<Props> = ({
       forgetBoardBackgroundDefaults();
     } catch (err) {
       logError('BoardBackgroundDefaultsPanel.save', err);
+      // Nothing changed on the server, so no snapshot will put the old choice back.
+      setDefaults(before);
       onError("Couldn't save the default background. Try again.");
     }
   };

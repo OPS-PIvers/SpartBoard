@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { BackgroundPreset } from '@/types';
@@ -86,5 +86,21 @@ describe('BoardBackgroundDefaultsPanel', () => {
     });
     await Promise.resolve();
     expect(h.forget).toHaveBeenCalled();
+  });
+
+  it('puts the old choice back when a save fails', async () => {
+    const onError = vi.fn();
+    h.setDoc.mockImplementationOnce(() => Promise.reject(new Error('offline')));
+    render(
+      <BoardBackgroundDefaultsPanel presets={[preset({})]} onError={onError} />
+    );
+    const district = screen.getByLabelText<HTMLSelectElement>(
+      'District default background'
+    );
+    fireEvent.change(district, {
+      target: { value: 'https://example.com/lake.jpg' },
+    });
+    await waitFor(() => expect(onError).toHaveBeenCalled());
+    expect(district.value).toBe('');
   });
 });
