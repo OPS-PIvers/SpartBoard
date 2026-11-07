@@ -21,6 +21,9 @@ export function createNextUpQueueStore(): NextUpQueueStore {
   let pendingWrites = 0;
   let chain: Promise<void> = Promise.resolve();
   let lastWrite: Promise<void> = Promise.resolve();
+  let lastWriteFailed = false;
+  // Joins this tab took in that Drive doesn't hold yet; a download must not drop them.
+  let unsavedJoins = false;
   // A join already taken in stays out after a Reset, even if its entry doc is still being deleted.
   const joinedIds = new Set<string>();
   const listeners = new Set<() => void>();
@@ -45,13 +48,28 @@ export function createNextUpQueueStore(): NextUpQueueStore {
         action = { type: 'joined', entries };
       }
       const next = nextUpQueueReducer(queue, action);
-      // Nothing changed: wait for the write already queued instead of repeating it.
-      if (next === queue) return lastWrite;
-      version++;
-      set(next);
+      // Nothing changed: wait for the write already queued, unless it failed and Drive is behind.
+      if (next === queue && !lastWriteFailed) return lastWrite;
+      if (next !== queue) {
+        version++;
+        set(next);
+      }
       pendingWrites++;
+      const isJoin = action.type === 'joined';
       const done = chain.then(() => write(next));
       lastWrite = done;
+      done.then(
+        () => {
+          if (lastWrite !== done) return;
+          lastWriteFailed = false;
+          unsavedJoins = false;
+        },
+        () => {
+          // Every write saves the whole queue, so any later success clears this.
+          if (isJoin) unsavedJoins = true;
+          if (lastWrite === done) lastWriteFailed = true;
+        }
+      );
       chain = done
         .catch(() => undefined)
         .finally(() => {
@@ -63,12 +81,22 @@ export function createNextUpQueueStore(): NextUpQueueStore {
       const startVersion = version;
       const startedIdle = pendingWrites === 0;
       const loaded = await download();
-      if (startedIdle && pendingWrites === 0 && version === startVersion) {
+      // Drive wins over a failed Next or Reset, as before, but not over joins only this tab holds.
+      if (
+        startedIdle &&
+        pendingWrites === 0 &&
+        version === startVersion &&
+        !unsavedJoins
+      ) {
+        lastWriteFailed = false;
+        lastWrite = Promise.resolve();
         set(loaded);
       }
     },
     clear: () => {
       joinedIds.clear();
+      lastWriteFailed = false;
+      unsavedJoins = false;
       version++;
       set([]);
     },
