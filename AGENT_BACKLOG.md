@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-141**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-142**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -76,6 +76,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Quiz, Video Activity and Guided Learning
 
+- **AB-141 Turn in scan-first written answers after End** (S). Every quiz End now turns in unfinished work, except a hybrid "written answers on paper" row the student never opened on a device: a `joined` row with `paperWrittenBatchId` and no `lastWriteAt` (`hybridResponseFields`, `functions/src/importPaperResponses.ts`; skipped in `utils/quizFinalizeOpenResponses.ts`). The idle sweep's query never sees these either. Turning one in marks its device questions abandoned and uses an attempt, so a Reopen with one attempt can't bring the student back. Decide with Paul (and the R5 slice, same function) whether End should turn these in, then add a unit test. Done when: the choice is made and End and the sweep agree.
 - **AB-122 Quiz picture lightbox and small buttons** (S, release #5270 review). `components/common/ImageLightbox.tsx` sets `aria-modal` but doesn't move focus into the dialog, trap Tab or return focus to the enlarge button on close. The enlarge button (`AnswerImageZoomButton`, 32px) and the one-list Ordering up/down arrows (`OrderingListInput`, 22px tall) are below the 44px touch target. Fix both with screenshots at phone and Chromebook sizes; no wording changes.
 - **AB-114 Delete the old paper print doors** (S). Assign on paper replaced New > Paper test and the library's Print response sheets and Import responses items, so `PaperPrintModal` no longer opens without `assign`: its roster checklist and the stub door (`onCreateQuiz`, `readDocument`, stub title/count/choices/written numbers) are unreachable. Keep `PaperImportModal`'s batch and administration pickers: the library's Import responses item for a stack with no Paper card still uses them. Delete the unreachable paths and their tests, keeping the stub _analysis_ path, which old paper tests still use. Check `tourAnchorsInUse.json` before removing any `quiz-print.*` or `quiz-import.*` anchor. Done when: both modals have only the paths Widget.tsx reaches.
 - **AB-16 Quiz view state cleanup** (M). From `docs/plans/shipped/QUIZ_INTERFACE_REDESIGN.md` Phase 3: remove the `'editor'` member from `QuizConfig.view` (`types.ts` ~6702) if nothing sets it; move ephemeral view state (tabs, view toggles) out of Firestore config into local state; check QuizResults (Phase 1.5) matches the monitor's toggle, sort and filter conventions.
@@ -168,6 +169,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-zl2u2x
   git push origin --delete claude/project-thread-1wj7jd
   git push origin --delete claude/project-thread-yjiumh claude/project-thread-yjiumh-ab112
+  git push origin --delete claude/project-thread-g7gl9c
   ```
 
   </details>

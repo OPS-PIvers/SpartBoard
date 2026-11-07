@@ -47,6 +47,7 @@ import {
   resolveUnrespondedQuestionIds,
   MAX_READ_PER_RUN,
   RESPONSE_PAGE_SIZE,
+  ENDED_SWEEP_SINCE_MS,
 } from './finalizeIdleQuizAttempts';
 
 const NOW = 1_700_000_000_000;
@@ -219,7 +220,17 @@ function makeStubDb(seed: {
       }
       return responsesQuery();
     },
-    doc: (path: string) => ({ __sid: path.split('/')[1] }),
+    doc: (path: string) => {
+      const sid = path.split('/')[1];
+      return {
+        __sid: sid,
+        get: () =>
+          Promise.resolve({
+            exists: sessions[sid] !== undefined,
+            data: () => sessions[sid],
+          }),
+      };
+    },
     getAll: (...refs: Array<{ __sid: string }>) =>
       Promise.resolve(
         refs.map((ref) => {
@@ -402,6 +413,118 @@ describe('runFinalizeIdleQuizAttempts', () => {
 
     expect(result.staleFound).toBe(0);
     expect(responses[0].data.status).toBe('in-progress');
+  });
+});
+
+// ===========================================================================
+// After End: frozen and held rows are turned in once the run is over
+// ===========================================================================
+
+describe('runFinalizeIdleQuizAttempts - ended sessions', () => {
+  const T = ENDED_SWEEP_SINCE_MS + 30 * 24 * 60 * MIN;
+  const ENDED_AT = T - 10 * MIN;
+  const closedPeriod = {
+    state: 'closed',
+    openAt: null,
+    closeAt: null,
+    bellPeriodId: null,
+    verified: true,
+    label: 'A',
+  };
+  const stale = (extra: Record<string, unknown>) => ({
+    status: 'in-progress',
+    lastWriteAt: tsVal(T - IDLE_MS - MIN),
+    answers: [{ questionId: 'q1', status: 'draft' }],
+    ...extra,
+  });
+  const seed = (session: Record<string, unknown>) =>
+    makeStubDb({
+      responses: [
+        { id: 'frozen', sid: 'sess1', data: stale({ classId: 'A' }) },
+        { id: 'held', sid: 'sess1', data: stale({ partHeld: true }) },
+      ],
+      sessions: {
+        sess1: {
+          createdAt: T - 2 * IDLE_MS,
+          periodAccess: { A: closedPeriod },
+          ...session,
+        },
+      },
+    });
+
+  it('still skips frozen and held rows while the run is live', async () => {
+    const { db, responses } = seed({ status: 'active' });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(0);
+    expect(result.skippedPaused).toBe(2);
+    expect(responses.map((r) => r.data.status)).toEqual([
+      'in-progress',
+      'in-progress',
+    ]);
+  });
+
+  it('turns in frozen and held rows once the session has ended', async () => {
+    const { db, responses } = seed({ status: 'ended', endedAt: ENDED_AT });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(2);
+    for (const r of responses) {
+      expect(r.data.status).toBe('completed');
+      expect(r.data.autoSubmitted).toBe(true);
+      expect(r.data.answers).toEqual([
+        { questionId: 'q1', status: 'submitted' },
+      ]);
+    }
+  });
+
+  it('waits out the 120 s student grace after End', async () => {
+    const { db, responses } = seed({ status: 'ended', endedAt: T - 60_000 });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(0);
+    expect(result.skippedPaused).toBe(2);
+    expect(responses[0].data.status).toBe('in-progress');
+  });
+
+  it('accepts a Timestamp endedAt', async () => {
+    const { db } = seed({ status: 'ended', endedAt: tsVal(ENDED_AT) });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(2);
+  });
+
+  it('leaves sessions ended before the fix shipped as they were', async () => {
+    const { db, responses } = seed({
+      status: 'ended',
+      endedAt: ENDED_SWEEP_SINCE_MS - 1,
+    });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(0);
+    expect(result.skippedPaused).toBe(2);
+    expect(responses[0].data.status).toBe('in-progress');
+  });
+
+  it('skips a frozen row when the teacher reopened during the run', async () => {
+    const { db, responses, sessions } = seed({
+      status: 'ended',
+      endedAt: ENDED_AT,
+    });
+    const realGetAll = db.getAll.bind(db);
+    (db as unknown as { getAll: typeof db.getAll }).getAll = async (
+      ...refs: Parameters<typeof db.getAll>
+    ) => {
+      const out = await realGetAll(...refs);
+      sessions.sess1 = { ...sessions.sess1, status: 'paused' };
+      return out;
+    };
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(0);
+    expect(result.skippedRaced).toBe(2);
+    expect(responses[0].data.status).toBe('in-progress');
+  });
+
+  it('keeps skipping a paused session even after an earlier End', async () => {
+    const { db } = seed({ status: 'paused', endedAt: null });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(0);
+    expect(result.skippedPaused).toBe(2);
   });
 });
 
