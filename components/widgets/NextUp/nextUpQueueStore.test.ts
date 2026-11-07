@@ -192,4 +192,32 @@ describe('Next Up queue store after a failed write', () => {
 
     expect(names(store.getQueue())).toEqual(['a:active']);
   });
+
+  it('takes the download over a failed Next, as before', async () => {
+    const store = createNextUpQueueStore();
+    await store.dispatch(
+      { type: 'joined', entries: [entry('a'), entry('b')] },
+      () => Promise.resolve()
+    );
+    await store
+      .dispatch({ type: 'advance' }, () =>
+        Promise.reject(new Error('Drive down'))
+      )
+      .catch(() => undefined);
+    await flush();
+    // Another tab added C and saved it.
+    await store.load(() =>
+      Promise.resolve([
+        { ...entry('a'), status: 'active' as const },
+        { ...entry('b'), status: 'waiting' as const },
+        { ...entry('c'), status: 'waiting' as const },
+      ])
+    );
+
+    expect(names(store.getQueue())).toEqual([
+      'a:active',
+      'b:waiting',
+      'c:waiting',
+    ]);
+  });
 });

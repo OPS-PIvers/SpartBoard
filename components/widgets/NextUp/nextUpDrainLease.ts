@@ -9,15 +9,84 @@ import type { NextUpDrainLease } from '@/types';
 
 /** Joins left untouched this long under another tab's lease mean that tab is gone. */
 export const NEXT_UP_TAKEOVER_MS = 10_000;
-/** A drain whose Drive write failed is tried again after this long. */
+/** A drain whose Drive write failed is tried again after this long, doubling to the cap. */
 export const NEXT_UP_RETRY_MS = 10_000;
+const RETRY_CAP_MS = 120_000;
 const CLAIM_TIMEOUT_MS = 8_000;
+const TAB_ID_KEY = 'nextUpTabId';
+const TAB_CHANNEL = 'nextup-tab-id';
+const TAB_CHECK_MS = 150;
 
-/** Names this tab in the lease; a reload is a new tab. */
-export const NEXT_UP_TAB_ID =
+const newTabId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+let tabId: Promise<string> | null = null;
+let resolvedTabId: string | null = null;
+
+// The id survives a reload (so the tab keeps its lease) but a duplicated tab, which copies sessionStorage, gets its own.
+const pickTabId = async (): Promise<string> => {
+  let stored: string | null = null;
+  try {
+    stored = sessionStorage.getItem(TAB_ID_KEY);
+  } catch {
+    stored = null;
+  }
+  let id = stored ?? newTabId();
+  if (stored && typeof BroadcastChannel === 'function') {
+    const channel = new BroadcastChannel(TAB_CHANNEL);
+    const taken = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), TAB_CHECK_MS);
+      channel.onmessage = (event: MessageEvent<unknown>) => {
+        if (event.data === `taken:${stored}`) {
+          clearTimeout(timer);
+          resolve(true);
+        }
+      };
+      channel.postMessage(`ask:${stored}`);
+    });
+    channel.close();
+    if (taken) id = newTabId();
+  } else if (stored) {
+    id = newTabId();
+  }
+  try {
+    sessionStorage.setItem(TAB_ID_KEY, id);
+  } catch {
+    // Without storage a reload is a new tab, which only delays the first join.
+  }
+  if (typeof BroadcastChannel === 'function') {
+    const channel = new BroadcastChannel(TAB_CHANNEL);
+    channel.onmessage = (event: MessageEvent<unknown>) => {
+      if (event.data === `ask:${id}`) channel.postMessage(`taken:${id}`);
+    };
+  }
+  resolvedTabId = id;
+  return id;
+};
+
+/** Names this tab in the lease. */
+export const getNextUpTabId = (): Promise<string> => (tabId ??= pickTabId());
+
+/** The tab id once known, for a page that is closing and can't wait. */
+export const knownNextUpTabId = (): string | null => resolvedTabId;
+
+const activeControllers = new Map<string, number>();
+
+/** Counts live drain controllers per session, so a re-run effect doesn't release the lease its successor holds. */
+export const trackNextUpController = (sessionId: string): (() => boolean) => {
+  activeControllers.set(sessionId, (activeControllers.get(sessionId) ?? 0) + 1);
+  return () => {
+    const left = (activeControllers.get(sessionId) ?? 1) - 1;
+    if (left > 0) activeControllers.set(sessionId, left);
+    else activeControllers.delete(sessionId);
+    return left > 0;
+  };
+};
+
+export const nextUpControllerLive = (sessionId: string): boolean =>
+  (activeControllers.get(sessionId) ?? 0) > 0;
 
 export interface DrainClaim {
   /** This tab may drain now. */
@@ -141,6 +210,9 @@ export function createNextUpDrainController<T extends EntryLike>(opts: {
   let stopped = false;
   let holder = false;
   let watch: { ids: Set<string>; seq: number; due: boolean } | null = null;
+  // A takeover whose first drain failed still owes the reload.
+  let reloadOwed = false;
+  let failures = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const schedule = (ms: number, before?: () => void) => {
@@ -187,11 +259,18 @@ export function createNextUpDrainController<T extends EntryLike>(opts: {
     }
     watch = null;
     clearTimeout(timer);
+    const acquired = claim.acquired || reloadOwed;
     try {
-      await opts.drain(latest, claim.acquired);
+      await opts.drain(latest, acquired);
+      reloadOwed = false;
+      failures = 0;
     } catch (error) {
       console.error('[NextUp] Failed to add students to the queue:', error);
-      if (!stopped) schedule(retryMs);
+      if (acquired) reloadOwed = true;
+      failures++;
+      if (!stopped) {
+        schedule(Math.min(retryMs * 2 ** (failures - 1), RETRY_CAP_MS));
+      }
     }
   };
 

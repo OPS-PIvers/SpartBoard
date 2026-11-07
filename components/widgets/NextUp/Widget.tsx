@@ -25,10 +25,13 @@ import {
 } from './nextUpQueueUtils';
 import { getNextUpQueueStore } from './nextUpQueueStore';
 import {
-  NEXT_UP_TAB_ID,
   claimNextUpDrain,
   createNextUpDrainController,
+  getNextUpTabId,
+  knownNextUpTabId,
+  nextUpControllerLive,
   releaseNextUpDrain,
+  trackNextUpController,
 } from './nextUpDrainLease';
 import { assertNextUpQueueFile } from './nextUpDriveFile';
 import {
@@ -219,9 +222,10 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         };
       });
 
+    const untrack = trackNextUpController(sessionId);
     const controller = createNextUpDrainController<JoinEntry>({
-      claim: (takeoverSeq) =>
-        claimNextUpDrain(sessionId, NEXT_UP_TAB_ID, takeoverSeq),
+      claim: async (takeoverSeq) =>
+        claimNextUpDrain(sessionId, await getNextUpTabId(), takeoverSeq),
       drain: async (seen, acquired) => {
         let entries = seen;
         if (acquired) {
@@ -248,10 +252,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     });
 
     const onPageHide = () => {
-      if (!controller.holding()) return;
-      releaseNextUpDrain(sessionId, NEXT_UP_TAB_ID, false).catch(
-        () => undefined
-      );
+      const id = knownNextUpTabId();
+      if (!controller.holding() || !id) return;
+      releaseNextUpDrain(sessionId, id, false).catch(() => undefined);
     };
     window.addEventListener('pagehide', onPageHide);
 
@@ -265,11 +268,16 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     return () => {
       unsubscribe();
       window.removeEventListener('pagehide', onPageHide);
-      if (controller.stop()) {
-        releaseNextUpDrain(sessionId, NEXT_UP_TAB_ID, true).catch(
-          () => undefined
-        );
-      }
+      const held = controller.stop();
+      untrack();
+      if (!held) return;
+      // A re-run effect starts its successor in the same commit; only a real leave hands the lease back.
+      setTimeout(() => {
+        if (nextUpControllerLive(sessionId)) return;
+        void getNextUpTabId()
+          .then((id) => releaseNextUpDrain(sessionId, id, true))
+          .catch(() => undefined);
+      }, 0);
     };
   }, [
     sessionId,

@@ -196,4 +196,78 @@ describe('Next Up drain controller across two tabs', () => {
     // A fallback is not a lease, so nothing is released on leave.
     expect(a.stop()).toBe(false);
   });
+
+  it('still reloads on the retry when a takeover drain failed', async () => {
+    const session = fakeSession();
+    const drain = vi
+      .fn<(entries: { id: string }[], acquired: boolean) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('Drive down'))
+      .mockResolvedValue(undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const a = createNextUpDrainController({
+      claim: session.claimFor('a'),
+      drain,
+      retryMs: 10_000,
+    });
+    a.onEntries([entry('x')]);
+    await flush();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(drain.mock.calls.map(([, acquired]) => acquired)).toEqual([
+      true,
+      true,
+    ]);
+    a.onEntries([entry('y')]);
+    await flush();
+    expect(drain.mock.calls.at(-1)?.[1]).toBe(false);
+    a.stop();
+  });
+
+  it('backs off while Drive keeps failing', async () => {
+    const session = fakeSession();
+    const drain = vi.fn(() => Promise.reject(new Error('Drive down')));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const a = createNextUpDrainController({
+      claim: session.claimFor('a'),
+      drain,
+      retryMs: 10_000,
+    });
+    a.onEntries([entry('x')]);
+    await flush();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(drain).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(19_000);
+    expect(drain).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(drain).toHaveBeenCalledTimes(3);
+    a.stop();
+  });
+});
+
+describe('Next Up tab id', () => {
+  it('keeps its id across a reload and hands a duplicated tab a new one', async () => {
+    sessionStorage.removeItem('nextUpTabId');
+    vi.resetModules();
+    const first = await import('./nextUpDrainLease');
+    const id = await first.getNextUpTabId();
+    expect(sessionStorage.getItem('nextUpTabId')).toBe(id);
+
+    // A duplicated tab copies sessionStorage while the first tab is still open.
+    vi.resetModules();
+    const duplicate = await import('./nextUpDrainLease');
+    const dupId = await duplicate.getNextUpTabId();
+    expect(dupId).not.toBe(id);
+  });
+});
+
+describe('Next Up controller tracking', () => {
+  it('reports a successor as live so the old effect keeps the lease', async () => {
+    const lease = await import('./nextUpDrainLease');
+    const untrackOld = lease.trackNextUpController('s1');
+    const untrackNew = lease.trackNextUpController('s1');
+    untrackOld();
+    expect(lease.nextUpControllerLive('s1')).toBe(true);
+    untrackNew();
+    expect(lease.nextUpControllerLive('s1')).toBe(false);
+  });
 });

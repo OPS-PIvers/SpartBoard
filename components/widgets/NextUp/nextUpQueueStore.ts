@@ -22,6 +22,8 @@ export function createNextUpQueueStore(): NextUpQueueStore {
   let chain: Promise<void> = Promise.resolve();
   let lastWrite: Promise<void> = Promise.resolve();
   let lastWriteFailed = false;
+  // Joins this tab took in that Drive doesn't hold yet; a download must not drop them.
+  let unsavedJoins = false;
   // A join already taken in stays out after a Reset, even if its entry doc is still being deleted.
   const joinedIds = new Set<string>();
   const listeners = new Set<() => void>();
@@ -53,14 +55,19 @@ export function createNextUpQueueStore(): NextUpQueueStore {
         set(next);
       }
       pendingWrites++;
+      const isJoin = action.type === 'joined';
       const done = chain.then(() => write(next));
       lastWrite = done;
       done.then(
         () => {
-          if (lastWrite === done) lastWriteFailed = false;
+          if (lastWrite !== done) return;
+          lastWriteFailed = false;
+          unsavedJoins = false;
         },
         () => {
-          if (lastWrite === done) lastWriteFailed = true;
+          if (lastWrite !== done) return;
+          lastWriteFailed = true;
+          if (isJoin) unsavedJoins = true;
         }
       );
       chain = done
@@ -74,19 +81,21 @@ export function createNextUpQueueStore(): NextUpQueueStore {
       const startVersion = version;
       const startedIdle = pendingWrites === 0;
       const loaded = await download();
-      // After a failed write this tab is ahead of Drive, so the download is stale.
+      // Drive wins over a failed Next or Reset, as before, but not over joins only this tab holds.
       if (
         startedIdle &&
         pendingWrites === 0 &&
         version === startVersion &&
-        !lastWriteFailed
+        !unsavedJoins
       ) {
+        lastWriteFailed = false;
         set(loaded);
       }
     },
     clear: () => {
       joinedIds.clear();
       lastWriteFailed = false;
+      unsavedJoins = false;
       version++;
       set([]);
     },
