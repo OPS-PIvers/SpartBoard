@@ -34,7 +34,8 @@ const run = async (
   id: string,
   after?: StubData
 ) => {
-  const stub = makeStubFirestore(seed);
+  const stored = after ? { [`poll_sessions/${id}`]: after } : {};
+  const stub = makeStubFirestore({ ...stored, ...seed });
   await handlePollSessionWrite(stub.db as unknown as Db, id, change(after));
   return stub.store.get('poll_codes/ABCDE');
 };
@@ -87,5 +88,66 @@ describe('pollCodePointer', () => {
       live('t1', { active: false, questions: [] })
     );
     expect(ptr).toBeUndefined();
+  });
+
+  it('hands the code to a live rival when the holder retires', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_sessions/tA_ABCDE': live('tA', { active: false, questions: [] }),
+        'poll_sessions/tB_ABCDE': live('tB'),
+      },
+      'tA_ABCDE'
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tB_ABCDE', teacherUid: 'tB' });
+  });
+
+  it('hands the code to a live rival when the holder goes inactive', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_sessions/tA_ABCDE': live('tA', { active: false }),
+        'poll_sessions/tB_ABCDE': live('tB'),
+      },
+      'tA_ABCDE'
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tB_ABCDE' });
+  });
+
+  it('keeps the pointer on an active holder', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_sessions/tA_ABCDE': live('tA'),
+        'poll_sessions/tB_ABCDE': live('tB', { updatedAt: 99 }),
+      },
+      'tA_ABCDE'
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tA_ABCDE' });
+  });
+
+  it('skips retired and other-code rivals, and clears when none are left', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_sessions/tA_ABCDE': live('tA', { active: false, questions: [] }),
+        'poll_sessions/tB_ABCDE': live('tB', { active: false, questions: [] }),
+        'poll_sessions/tC_ZZZZZ': live('tC', { code: 'ABCDE' }),
+      },
+      'tA_ABCDE'
+    );
+    expect(ptr).toBeUndefined();
+  });
+
+  it('decides from the stored session, not a stale event', async () => {
+    const stub = makeStubFirestore({
+      'poll_sessions/t1_ABCDE': live('t1', { active: false, questions: [] }),
+    });
+    await handlePollSessionWrite(
+      stub.db as unknown as Db,
+      't1_ABCDE',
+      change(live('t1'))
+    );
+    expect(stub.store.get('poll_codes/ABCDE')).toBeUndefined();
   });
 });
