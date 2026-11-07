@@ -304,8 +304,9 @@ export async function autoQueueMeetingNotes(
 
 function readCharge(v: unknown): AiUsageCharge | null {
   const ids = (v as { docIds?: unknown } | null)?.docIds;
+  const id = (v as { id?: unknown } | null)?.id;
   return Array.isArray(ids) && ids.every((i) => typeof i === 'string')
-    ? { docIds: ids }
+    ? { docIds: ids, ...(typeof id === 'string' ? { id } : {}) }
     : null;
 }
 

@@ -336,4 +336,211 @@ describe('useTimeTool Connection (Nexus)', () => {
       expect.anything()
     );
   });
+  describe('end-of-timer triggers', () => {
+    const sisters = (config: Record<string, unknown> = {}): WidgetData[] =>
+      (['random', 'nextUp', 'stations'] as const).map((type) => ({
+        id: `${type}-1`,
+        type,
+        x: 0,
+        y: 0,
+        w: 2,
+        h: 2,
+        z: 1,
+        flipped: false,
+        config: { ...config },
+      }));
+    const onAll = {
+      timerEndTriggerRandom: true,
+      timerEndTriggerNextUp: true,
+      timerEndTriggerStationsRotate: true,
+    };
+    const triggerWrites = (calls: unknown[][]) =>
+      calls
+        .filter(([id]) => /^(random|nextUp|stations)-1$/.test(String(id)))
+        .map(([id, u]) => [id, (u as { config: unknown }).config]);
+
+    it('writes the run end time, so every device showing the timer writes the same trigger', () => {
+      const startTime = Date.now();
+      const widget = createWidget({ isRunning: true, startTime, ...onAll });
+      const endAt = startTime + 5000;
+      const device = (lateMs: number) => {
+        const updateWidget = vi.fn();
+        (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+          activeDashboard: { widgets: sisters() },
+          updateWidget,
+        });
+        const { unmount } = renderHook(() => useTimeTool(widget));
+        act(() => {
+          vi.advanceTimersByTime(lateMs);
+        });
+        unmount();
+        return updateWidget;
+      };
+      // The projector's frame lands later than the laptop's; both write the same value.
+      const laptop = device(5100);
+      const projector = device(700);
+
+      const expected = [
+        ['random-1', { externalTrigger: endAt }],
+        ['nextUp-1', { externalTrigger: endAt }],
+        ['stations-1', { rotationTrigger: endAt }],
+      ];
+      expect(triggerWrites(laptop.mock.calls)).toEqual(expected);
+      expect(triggerWrites(projector.mock.calls)).toEqual(expected);
+    });
+
+    it('skips a trigger another device already wrote for this run', () => {
+      const startTime = Date.now();
+      const widget = createWidget({ isRunning: true, startTime, ...onAll });
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          widgets: sisters({
+            externalTrigger: startTime + 5000,
+            rotationTrigger: startTime + 5000,
+          }),
+        },
+        updateWidget: mockUpdateWidget,
+      });
+      renderHook(() => useTimeTool(widget));
+
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+
+      expect(triggerWrites(mockUpdateWidget.mock.calls)).toEqual([]);
+    });
+
+    it('still fires after an older trigger, with the same skipHistory write as before', () => {
+      const startTime = Date.now();
+      const widget = createWidget({ isRunning: true, startTime, ...onAll });
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: {
+          widgets: sisters({ externalTrigger: 10, rotationTrigger: 10 }),
+        },
+        updateWidget: mockUpdateWidget,
+      });
+      renderHook(() => useTimeTool(widget));
+
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'random-1',
+        { config: { externalTrigger: startTime + 5000 } },
+        { skipHistory: true }
+      );
+      expect(triggerWrites(mockUpdateWidget.mock.calls)).toHaveLength(3);
+    });
+  });
+
+  describe('expiry write', () => {
+    it('saves the expiry on the shown board through updateWidget', () => {
+      const applyConnectionChanges = vi.fn();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...mockDashboardContext,
+        applyConnectionChanges,
+      });
+      const widget = createWidget({ isRunning: true, startTime: Date.now() });
+      renderHook(() => useTimeTool(widget));
+
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        { config: { isRunning: false, elapsedTime: 0, startTime: null } },
+        { skipHistory: true }
+      );
+      expect(applyConnectionChanges).not.toHaveBeenCalled();
+    });
+
+    it("saves a hidden board's expiry to that board after a grace, so it doesn't stay running at 0", () => {
+      const applyConnectionChanges = vi.fn();
+      const widget = createWidget({ isRunning: true, startTime: Date.now() });
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...mockDashboardContext,
+        dashboards: [
+          { id: 'shown', widgets: [mockTrafficWidget] },
+          { id: 'hidden', widgets: [widget] },
+        ],
+        applyConnectionChanges,
+      });
+      renderHook(() => useTimeTool(widget, { isBoardActive: false }));
+
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      // A device showing the board gets the first chance to end the run.
+      expect(applyConnectionChanges).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(applyConnectionChanges).toHaveBeenCalledWith('hidden', {
+        'timetool-1': { isRunning: false, elapsedTime: 0, startTime: null },
+      });
+      expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+        'timetool-1',
+        expect.anything(),
+        expect.anything()
+      );
+    });
+
+    it('skips the hidden write when a device showing the board already ended the run', () => {
+      const applyConnectionChanges = vi.fn();
+      const startTime = Date.now();
+      const widget = createWidget({ isRunning: true, startTime });
+      const context = {
+        ...mockDashboardContext,
+        dashboards: [{ id: 'hidden', widgets: [widget] }],
+        applyConnectionChanges,
+      };
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        context
+      );
+      const { rerender } = renderHook(() =>
+        useTimeTool(widget, { isBoardActive: false })
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      // The shown device's expiry arrives by snapshot before the grace ends.
+      context.dashboards = [
+        {
+          id: 'hidden',
+          widgets: [
+            createWidget({ isRunning: false, elapsedTime: 0, startTime: null }),
+          ],
+        },
+      ];
+      rerender();
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(applyConnectionChanges).not.toHaveBeenCalled();
+    });
+
+    it("leaves a view-only board's hidden timer alone", () => {
+      const applyConnectionChanges = vi.fn();
+      const widget = createWidget({ isRunning: true, startTime: Date.now() });
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...mockDashboardContext,
+        dashboards: [
+          { id: 'hidden', linkedShareRole: 'viewer', widgets: [widget] },
+        ],
+        applyConnectionChanges,
+      });
+      renderHook(() => useTimeTool(widget, { isBoardActive: false }));
+
+      act(() => {
+        vi.advanceTimersByTime(20_000);
+      });
+
+      expect(applyConnectionChanges).not.toHaveBeenCalled();
+    });
+  });
 });

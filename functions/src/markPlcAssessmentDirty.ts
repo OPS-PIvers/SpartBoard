@@ -105,7 +105,12 @@ async function createAssessment(
   syncGroupId: string,
   session: LinkedSession,
   now: number
-): Promise<{ id: string; created: boolean; needsDirty: boolean } | null> {
+): Promise<{
+  id: string;
+  created: boolean;
+  needsDirty: boolean;
+  dirtyAt: unknown;
+} | null> {
   const plcSnap = await db.collection('plcs').doc(plcId).get();
   if (!activePlcMemberUids(plcSnap.data()).has(session.teacherUid)) return null;
   const ref = db
@@ -126,14 +131,15 @@ async function createAssessment(
       ...(session.kind === 'quiz' ? { sourceQuizId: session.quizId } : {}),
       dirtyAt: now,
     });
-    return { id: syncGroupId, created: true, needsDirty: false };
+    return { id: syncGroupId, created: true, needsDirty: false, dirtyAt: now };
   } catch (err) {
     if (!isAlreadyExists(err)) throw err;
     const raced = await findLiveAssessment(db, plcId, syncGroupId);
     return {
       id: raced?.id ?? syncGroupId,
       created: false,
-      needsDirty: !!raced && raced.dirtyAt == null,
+      needsDirty: !!raced,
+      dirtyAt: raced?.dirtyAt ?? null,
     };
   }
 }
@@ -152,10 +158,16 @@ export async function ensureAssessment(
   return made && { id: made.id, created: made.created };
 }
 
+/** Always later than the stored mark, so a recompute's compare-and-clear sees a change. */
+function nextDirtyAt(prev: unknown, now: number): number {
+  return typeof prev === 'number' && prev >= now ? prev + 1 : now;
+}
+
 async function setDirtyAt(
   db: Firestore,
   plcId: string,
   assessmentId: string,
+  prev: unknown,
   now: number
 ): Promise<void> {
   await db
@@ -163,10 +175,10 @@ async function setDirtyAt(
     .doc(plcId)
     .collection('assessments')
     .doc(assessmentId)
-    .update({ dirtyAt: now });
+    .update({ dirtyAt: nextDirtyAt(prev, now) });
 }
 
-/** Sets `dirtyAt` only when it is currently unset so repeat writes skip the update. */
+/** Moves `dirtyAt` forward on every call, so a recompute in flight cannot clear a newer mark. */
 export async function markDirty(
   db: Firestore,
   plcId: string,
@@ -176,12 +188,12 @@ export async function markDirty(
 ): Promise<string | null> {
   const existing = await findLiveAssessment(db, plcId, syncGroupId);
   if (existing) {
-    if (existing.dirtyAt == null) await setDirtyAt(db, plcId, existing.id, now);
+    await setDirtyAt(db, plcId, existing.id, existing.dirtyAt, now);
     return existing.id;
   }
   const made = await createAssessment(db, plcId, syncGroupId, session, now);
   if (!made) return null;
-  if (made.needsDirty) await setDirtyAt(db, plcId, made.id, now);
+  if (made.needsDirty) await setDirtyAt(db, plcId, made.id, made.dirtyAt, now);
   return made.id;
 }
 
@@ -289,8 +301,8 @@ export async function handleFlashcardSetWrite(
         session.plcId,
         session.syncGroupId
       );
-      if (live && live.dirtyAt == null)
-        await setDirtyAt(db, session.plcId, live.id, Date.now());
+      if (live)
+        await setDirtyAt(db, session.plcId, live.id, live.dirtyAt, Date.now());
     }
   } catch (err) {
     logger.error('markPlcAssessmentDirty: flashcard set handler failed', {
@@ -349,8 +361,14 @@ export async function handleSessionWrite(
           session.syncGroupId
         );
         assessmentId = existing?.id ?? null;
-        if (existing && existing.dirtyAt == null) {
-          await setDirtyAt(db, session.plcId, existing.id, Date.now());
+        if (existing) {
+          await setDirtyAt(
+            db,
+            session.plcId,
+            existing.id,
+            existing.dirtyAt,
+            Date.now()
+          );
         }
       }
       if (immediate && assessmentId) {

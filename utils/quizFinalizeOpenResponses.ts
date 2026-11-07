@@ -57,7 +57,7 @@ export async function finalizeOpenQuizResponses(
       where('status', 'in', ['joined', 'in-progress'])
     )
   );
-  // A scanned written-answers row the student never opened stays open (AB-133).
+  // A scanned written-answers row the student never opened stays open (AB-141).
   const docs = open.docs.filter((d) => {
     const r = d.data() as QuizResponse;
     return !(r.status === 'joined' && r.paperWrittenBatchId && !r.lastWriteAt);

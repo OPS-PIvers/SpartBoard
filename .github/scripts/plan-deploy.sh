@@ -9,6 +9,7 @@
 # branch would delete functions dev-paul added).
 #
 # Usage: plan-deploy.sh <branch> <last-deployed-sha> <full-backend:true|false>
+# OTHER_BRANCH_DEPLOYED_LAST=true (dev-paul only) redeploys rules, indexes and Storage, which another branch may have overwritten.
 # For dev-paul and main the diff base is the last successfully deployed commit, so a cancelled or
 # failed run's backend changes carry into the next run instead of being dropped.
 # Writes key=value lines to $GITHUB_OUTPUT (or stdout). CHANGED_FILES and
@@ -81,6 +82,10 @@ else
       FUNCTION_TARGETS="$(sed 's/[^,]*/functions:&/g' <<<"$names")"
     fi
   fi
+fi
+
+if [[ "$BRANCH" == "dev-paul" && "${OTHER_BRANCH_DEPLOYED_LAST:-}" == "true" ]]; then
+  INDEXES=true STORAGE=true RULES=true
 fi
 
 targets=()

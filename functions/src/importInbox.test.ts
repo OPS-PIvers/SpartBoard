@@ -4,7 +4,9 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
-  firestore: vi.fn(),
+  firestore: Object.assign(vi.fn(), {
+    Timestamp: { fromMillis: (ms: number) => ({ toMillis: () => ms }) },
+  }),
   auth: vi.fn(),
 }));
 vi.mock('firebase-functions/v2/https', () => ({
@@ -18,6 +20,8 @@ vi.mock('./glTours', () => ({
 import { ExtensionCallError } from './webTourExtension';
 import {
   checkImporter,
+  countLiveInboxItems,
+  defaultStore,
   failureUrl,
   storedUrl,
   isSecretParam,
@@ -81,11 +85,9 @@ function store(over: Partial<ImportStore> = {}) {
   const failures: { doc: object; expireAt: number }[] = [];
   const s: ImportStore = {
     blockPatterns: () => Promise.resolve([...DEFAULT_SEND_BLOCK_PATTERNS]),
-    count: () => Promise.resolve(0),
-    exists: () => Promise.resolve(false),
-    write: (uid, id, doc, expireAt) => {
+    writeWithinCap: (uid, id, doc, expireAt) => {
       writes.push({ uid, id, doc, expireAt });
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
     logFailure: (doc, expireAt) => {
       failures.push({ doc, expireAt });
@@ -392,17 +394,21 @@ describe('receiveSend', () => {
     ).toBe(403);
   });
 
-  it('caps the inbox, but lets a re-send replace its copy', async () => {
-    const full = store({
-      count: () => Promise.resolve(IMPORT_MAX_INBOX_ITEMS),
-    });
+  it('answers 429 when the store reports the inbox full', async () => {
+    const full = store({ writeWithinCap: () => Promise.resolve(false) });
     expect(await status(receiveSend(body(), ME, full.s))).toBe(429);
-    const again = store({
-      count: () => Promise.resolve(IMPORT_MAX_INBOX_ITEMS),
-      exists: () => Promise.resolve(true),
+  });
+
+  it('passes the cap and the clock to the store', async () => {
+    const calls: unknown[][] = [];
+    const { s } = store({
+      writeWithinCap: (...args) => {
+        calls.push(args);
+        return Promise.resolve(true);
+      },
     });
-    await receiveSend(body(), ME, again.s);
-    expect(again.writes).toHaveLength(1);
+    await receiveSend(body(), ME, s, 1000);
+    expect(calls[0].slice(4)).toEqual([IMPORT_MAX_INBOX_ITEMS, 1000]);
   });
 
   it('logs a reader failure without the query or hash', async () => {
@@ -571,5 +577,69 @@ describe('failureUrl', () => {
       'https://a.example/x'
     );
     expect(failureUrl('https://a.example/')).toBe('https://a.example/');
+  });
+});
+
+describe('inbox cap counting', () => {
+  const ts = (ms: number) => ({ toMillis: () => ms });
+  const item = (over: Record<string, unknown> = {}) => {
+    const data: Record<string, unknown> = {
+      url: 'https://a.example/x',
+      title: 'T',
+      expireAt: ts(5000),
+      ...over,
+    };
+    return { get: (f: string) => data[f] };
+  };
+
+  it('counts only pages the Import screen would show', () => {
+    expect(
+      countLiveInboxItems(
+        [
+          item(),
+          item({ expireAt: ts(900) }),
+          item({ url: '' }),
+          item({ title: undefined }),
+        ],
+        1000
+      )
+    ).toBe(1);
+  });
+
+  it('writes under the cap, refuses at it, and ignores its own copy', async () => {
+    const rows = (n: number, over: Record<string, unknown> = {}) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `d${i}`,
+        get: item(over).get,
+      }));
+    const run = async (docs: { id: string; get: (f: string) => unknown }[]) => {
+      const sets: string[] = [];
+      const tx = {
+        get: () => Promise.resolve({ docs }),
+        set: (ref: { id: string }) => sets.push(ref.id),
+      };
+      const inbox = {
+        select: () => inbox,
+        doc: (id: string) => ({ id }),
+      };
+      const db = {
+        collection: () => ({ doc: () => ({ collection: () => inbox }) }),
+        runTransaction: (fn: (t: typeof tx) => Promise<boolean>) => fn(tx),
+      };
+      const ok = await defaultStore(db as never).writeWithinCap(
+        'u',
+        'd0',
+        {},
+        9000,
+        3,
+        1000
+      );
+      return { ok, sets };
+    };
+    expect(await run(rows(2))).toEqual({ ok: true, sets: ['d0'] });
+    expect((await run(rows(4))).ok).toBe(false);
+    // Expired and unparsable leftovers don't block a send.
+    expect((await run(rows(5, { expireAt: ts(10) }))).ok).toBe(true);
+    expect((await run(rows(5, { title: '' }))).ok).toBe(true);
   });
 });

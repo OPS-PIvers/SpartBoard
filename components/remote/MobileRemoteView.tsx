@@ -116,6 +116,8 @@ export const MobileRemoteView: React.FC = () => {
     new URLSearchParams(window.location.search).get('boardId')
   );
   const hasTargetedBoard = useRef(false);
+  // Bumped when a write guard expires so the snapshot effect re-runs.
+  const [guardTick, setGuardTick] = useState(0);
 
   const clearPendingWriteGuards = useCallback(() => {
     pendingWidgetTimers.current.forEach((timer) => clearTimeout(timer));
@@ -190,7 +192,8 @@ export const MobileRemoteView: React.FC = () => {
 
     // A fresh context snapshot has been reflected — keep "updated just now" honest.
     markSynced();
-  }, [activeDashboard, initializedDashboardId, markSynced]);
+    // guardTick forces a re-sync after a write guard expires.
+  }, [activeDashboard, initializedDashboardId, markSynced, guardTick]);
 
   // Manual sync — pull latest state from context and clear any pending write guards.
   const handleSync = useCallback(() => {
@@ -216,7 +219,10 @@ export const MobileRemoteView: React.FC = () => {
       if (existing !== undefined) clearTimeout(existing);
       pendingWidgetTimers.current.set(
         id,
-        setTimeout(() => pendingWidgetTimers.current.delete(id), 5000)
+        setTimeout(() => {
+          pendingWidgetTimers.current.delete(id);
+          setGuardTick((n) => n + 1);
+        }, 5000)
       );
       setLocalWidgets((prev) => {
         if (!prev) return prev;
@@ -247,6 +253,7 @@ export const MobileRemoteView: React.FC = () => {
       }
       pendingSettingsTimer.current = setTimeout(() => {
         pendingSettingsTimer.current = null;
+        setGuardTick((n) => n + 1);
       }, 5000);
       setLocalSettings((prev) => ({ ...(prev ?? {}), ...updates }));
       ctxUpdateDashboardSettings(updates, { immediate: true });

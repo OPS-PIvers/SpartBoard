@@ -799,17 +799,18 @@ export async function runSweepExpiredRecordingAudio(
   return deleted;
 }
 
-function chargeOf(v: unknown): { docIds: string[] } | null {
+function chargeOf(v: unknown): { docIds: string[]; id?: string } | null {
   const ids = (v as { docIds?: unknown } | null)?.docIds;
+  const id = (v as { id?: unknown } | null)?.id;
   return Array.isArray(ids) && ids.every((i) => typeof i === 'string')
-    ? { docIds: ids }
+    ? { docIds: ids, ...(typeof id === 'string' ? { id } : {}) }
     : null;
 }
 
 // A failed refund must not block the audio delete that follows it.
 async function refundQuietly(
   deps: RecordingDeps,
-  charge: { docIds: string[] }
+  charge: { docIds: string[]; id?: string }
 ): Promise<void> {
   try {
     await refundAiUsage(deps.db, charge);

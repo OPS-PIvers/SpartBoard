@@ -235,6 +235,8 @@ async function moveRemovedAttempts(
   w: AttemptWrite
 ): Promise<void> {
   const session = db.collection('quiz_sessions').doc(w.sessionId);
+  // A retried removal must not touch a student who has since rejoined under the same key.
+  if ((await responseRef(db, w.sessionId, w.responseKey).get()).exists) return;
   const attempts = await responseRef(db, w.sessionId, w.responseKey)
     .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
     .get();
@@ -356,10 +358,11 @@ export async function applyAttemptGradeWrite(
       n: w.n,
       error: err instanceof Error ? err.message : String(err),
     });
+    throw err;
   }
 }
 
-/** Response trigger body; failures are logged so the grade index step still runs. */
+/** Response trigger body; failures are logged and rethrown so the trigger retries (the copy writes are idempotent). */
 export async function applyAttemptWrite(
   db: Firestore,
   w: AttemptWrite
@@ -390,5 +393,6 @@ export async function applyAttemptWrite(
       action: action.kind,
       error: err instanceof Error ? err.message : String(err),
     });
+    throw err;
   }
 }
