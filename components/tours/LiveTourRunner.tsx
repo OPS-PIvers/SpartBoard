@@ -2646,6 +2646,16 @@ export const LiveTourRunner: React.FC = () => {
           skip={
             waitingOnFact ? { onSkip: () => goTo(tour.index + 1) } : undefined
           }
+          avoid={target}
+          sparty={
+            showSparty
+              ? doneNow || tour.index + 1 === total
+                ? 'cheer'
+                : acted
+                  ? 'point'
+                  : 'think'
+              : undefined
+          }
           confirm={
             autoStage === 'confirm'
               ? {
