@@ -6,6 +6,7 @@ import {
   RosterFileContent,
   SyncSettings,
 } from './classlinkRosterSync';
+import * as admin from './firebaseAdmin';
 import { ClassLinkStudent } from './classlinkShared';
 import { SyncStudent } from './classlinkRosterReconcile';
 
@@ -77,16 +78,40 @@ function buildHarness(rosters: FakeRoster[]) {
     };
   });
 
-  let pagesServed = 0;
+  const cursorWrites: unknown[] = [];
+  let storedCursor: unknown;
   const db = {
+    doc: (path: string) => ({
+      path,
+      get: () =>
+        Promise.resolve({
+          data: () =>
+            storedCursor === undefined ? undefined : { cursor: storedCursor },
+        }),
+      set: (payload: { cursor: unknown }) => {
+        cursorWrites.push(payload.cursor);
+        storedCursor = payload.cursor;
+        return Promise.resolve();
+      },
+    }),
     collectionGroup: () => {
+      let after: string | undefined;
+      let max = Infinity;
       const q = {
         orderBy: () => q,
-        limit: () => q,
-        startAfter: () => q,
+        limit: (n: number) => {
+          max = n;
+          return q;
+        },
+        startAfter: (_classId: string, ref: { path: string }) => {
+          after = ref.path;
+          return q;
+        },
         get: () => {
-          const page = pagesServed === 0 ? docs : [];
-          pagesServed += 1;
+          const start = after
+            ? docs.findIndex((d) => d.ref.path === after) + 1
+            : 0;
+          const page = docs.slice(start, start + max);
           return Promise.resolve({
             empty: page.length === 0,
             docs: page,
@@ -160,6 +185,10 @@ function buildHarness(rosters: FakeRoster[]) {
     taught,
     teachLookups,
     upstreamFetches,
+    cursorWrites,
+    setCursor: (c: unknown) => {
+      storedCursor = c;
+    },
   };
 }
 
@@ -693,6 +722,128 @@ describe('runClassLinkRosterSync', () => {
     expect(out.errors).toBe(1);
     expect(out.synced).toBe(1);
     expect(harness.written.has('file-users/u2/rosters/r2')).toBe(true);
+  });
+});
+
+describe('runClassLinkRosterSync resume and blocked state', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  const three = () =>
+    buildHarness(
+      ['r1', 'r2', 'r3'].map((r, i) =>
+        classlinkRoster(
+          `users/u${i}/rosters/${r}`,
+          `u${i}`,
+          [student('Ada', '01', 's1')],
+          [up('s1', 'Ada'), up('s2', 'Grace')]
+        )
+      )
+    );
+
+  const slowAfterFirst = (h: ReturnType<typeof three>) => {
+    let t = 0;
+    h.deps.now = () => t;
+    const real = h.deps.fetchClassStudents;
+    h.deps.fetchClassStudents = async (c) => {
+      const out = await real(c);
+      t += 9 * 60 * 1000;
+      return out;
+    };
+  };
+
+  it('saves a cursor when the time budget runs out and continues from it next run', async () => {
+    const h = three();
+    slowAfterFirst(h);
+
+    const first = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+    expect(first.scanned).toBe(1);
+    expect(first.resumePending).toBe(true);
+    expect(h.cursorWrites.at(-1)).toEqual({
+      classId: 'class-users/u0/rosters/r1',
+      path: 'users/u0/rosters/r1',
+    });
+
+    h.deps.now = () => 1_000_000;
+    const second = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+    expect(second.scanned).toBe(2);
+    expect(h.upstreamFetches).toContain('class-users/u2/rosters/r3');
+    expect(second.resumePending).toBe(false);
+    expect(h.cursorWrites.at(-1)).toEqual(admin.firestore.FieldValue.delete());
+  });
+
+  it('does not use or move the cursor in dry run', async () => {
+    const h = three();
+    h.setCursor({ classId: 'x', path: 'users/u0/rosters/r1' });
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, {
+      enabled: true,
+      dryRun: true,
+    });
+
+    expect(out.scanned).toBe(3);
+    expect(h.cursorWrites).toHaveLength(0);
+  });
+
+  it('ignores a malformed cursor and scans from the start', async () => {
+    const h = three();
+    h.setCursor('garbage');
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(out.scanned).toBe(3);
+  });
+
+  it('stores why a roster was blocked, and clears it after a good sync', async () => {
+    const h = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1'), student('Alan', '02', 's2')],
+        []
+      ),
+    ]);
+
+    await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(h.updated.get('users/u1/rosters/r1')).toEqual({
+      classlinkSyncBlocked: { reason: 'empty-upstream', at: 1_000_000 },
+    });
+  });
+
+  it('does not store a blocked marker in dry run', async () => {
+    const h = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1'), student('Alan', '02', 's2')],
+        []
+      ),
+    ]);
+
+    await runClassLinkRosterSync(h.db, h.deps, { enabled: true, dryRun: true });
+
+    expect(h.updated.size).toBe(0);
+  });
+
+  it('clears an old blocked marker when the roster syncs cleanly', async () => {
+    const r = classlinkRoster(
+      'users/u1/rosters/r1',
+      'u1',
+      [student('Ada', '01', 's1')],
+      [up('s1', 'Ada'), up('s2', 'Grace')]
+    );
+    r.data.classlinkSyncBlocked = { reason: 'mass-removal', at: 1 };
+    const h = buildHarness([r]);
+
+    await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(h.updated.get('users/u1/rosters/r1')).toHaveProperty(
+      'classlinkSyncBlocked'
+    );
   });
 });
 

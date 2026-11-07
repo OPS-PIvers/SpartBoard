@@ -195,6 +195,11 @@ export interface ClassRosterMeta {
   classlinkPeriods?: string[];
   /** Counts from the last nightly sync. Names stay in Drive (`lastSync`). */
   classlinkSyncSummary?: RosterSyncCounts;
+  /** Set by the nightly sync when it refused to change this roster; cleared on the next good sync. */
+  classlinkSyncBlocked?: {
+    reason: 'empty-upstream' | 'mass-removal';
+    at: number;
+  };
   /**
    * Google Classroom `courseId` this ClassLink roster is linked to, set via the
    * "Link to Google Classroom" action. Mirrors the canonical mapping stored at
