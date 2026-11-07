@@ -230,6 +230,17 @@ describe.each(['quiz_sessions', 'video_activity_sessions'])(
       );
     });
 
+    it('refuses preview reads once the View as session ends', async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'view_as_sessions/sid-1'), {
+          endedAt: serverTimestamp(),
+        });
+      });
+      await assertFails(
+        getDoc(doc(asSsoPreview(), `${coll}/s1/responses/${SSO_UID}`))
+      );
+    });
+
     it('never lets the preview join, answer or submit', async () => {
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
         await deleteDoc(
