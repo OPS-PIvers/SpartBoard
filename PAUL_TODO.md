@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-143.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-144.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -148,6 +148,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 Each prompt starts a grilling; the agent writes your answers into the plan and moves approved work into AGENT_BACKLOG.md.
 
+- [ ] **PT-143 Should invited and inactive members count in org user totals?** Today every member doc counts regardless of status (kept as is in #5363). Tell an agent your choice.
 - [ ] **PT-87 🤖 PLC rename "Quizzes" to "Assessments"** scope (teacher-side widget? VA and rubrics as kinds? student copy?).
   > Grill me on docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md scope, then update the plan.
 - [ ] **PT-88 🤖 M16 PLC phases 7-8**: Open Decisions A/B/C (Mini-App share UI point, Mini-App sync content model, GL Drive coupling on PLC import).
