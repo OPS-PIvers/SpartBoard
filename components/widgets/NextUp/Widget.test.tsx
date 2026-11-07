@@ -57,7 +57,7 @@ const mockDeleteDoc = vi.fn((..._args: unknown[]) => Promise.resolve());
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn() }),
 }));
-vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('firebase/firestore', () => ({
   collection: () => ({}),
   query: () => ({}),
@@ -66,6 +66,13 @@ vi.mock('firebase/firestore', () => ({
   deleteDoc: (...args: unknown[]) => mockDeleteDoc(...args),
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
   updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
+  deleteField: () => 'deleteField',
+  getDocsFromServer: () => Promise.resolve({ docs: [] }),
+  // No session doc in these tests, so every claim falls back to draining as before.
+  runTransaction: (
+    _db: unknown,
+    run: (tx: { get: () => Promise<unknown> }) => Promise<unknown>
+  ) => run({ get: () => Promise.resolve({ exists: () => false }) }),
   onSnapshot: (_q: unknown, listener: SnapshotListener) => {
     entriesListener = listener;
     return () => undefined;

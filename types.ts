@@ -8277,6 +8277,13 @@ export interface NextUpSession {
   createdAt: number;
   lastUpdated: number;
   buildingId?: string; // For default settings
+  /** The teacher tab that moves joins into the queue. */
+  drainLease?: NextUpDrainLease;
+}
+
+export interface NextUpDrainLease {
+  clientId: string;
+  seq: number;
 }
 
 // Music widget types
