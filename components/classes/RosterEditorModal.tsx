@@ -876,6 +876,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                       students.map((s) => (
                         <li key={s.id}>
                           <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                            {/* no-tour-anchor: one checkbox per student per group, generated */}
                             <input
                               type="checkbox"
                               checked={group.studentIds.includes(s.id)}
