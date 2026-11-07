@@ -1403,7 +1403,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             dragState.current.y = newY;
           }
         } else if (groupDragActiveRef.current) {
-          updateWidget(widget.id, { x: newX, y: newY }, { skipHistory: true });
+          updateWidget(widget.id, { x: newX, y: newY }, { joinHistory: true });
         } else {
           updateWidget(widget.id, { x: newX, y: newY });
         }
@@ -1483,7 +1483,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ) {
           const finalPos = { x: dragState.current.x, y: dragState.current.y };
           if (groupDragActiveRef.current) {
-            updateWidget(widget.id, finalPos, { skipHistory: true });
+            updateWidget(widget.id, finalPos, { joinHistory: true });
           } else {
             updateWidget(widget.id, finalPos);
           }
@@ -1513,7 +1513,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             );
             return { id: sib.id, changes: { x: c.x, y: c.y } };
           }),
-          { skipHistory: true }
+          { joinHistory: true }
         );
         for (const sib of groupSiblingsRef.current) {
           setWidgetOverride(sib.id, null);

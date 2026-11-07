@@ -54,6 +54,7 @@ function input(
     periodLocked: false,
     questionsPending: false,
     needsMicCheck: false,
+    hadResponse: false,
     ...overrides,
   };
 }
@@ -346,6 +347,21 @@ describe('deriveQuizStudentScreen', () => {
 
   it('waits for the response doc on an active session', () => {
     expect(kindOf({ response: null })).toBe('loadingResponse');
+    expect(kindOf({ response: null, hadResponse: false })).toBe(
+      'loadingResponse'
+    );
+  });
+
+  it('shows a removed student the removed screen, not a spinner', () => {
+    expect(kindOf({ response: null, hadResponse: true })).toBe('removed');
+    expect(
+      kindOf({
+        response: null,
+        hadResponse: true,
+        session: session({ status: 'ended' }),
+      })
+    ).toBe('results');
+    expect(kindOf({ hadResponse: true })).toBe('answering');
   });
 
   it('holds a student at a Stop until the next part opens', () => {

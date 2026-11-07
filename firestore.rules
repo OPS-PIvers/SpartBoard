@@ -85,7 +85,15 @@ service cloud.firestore {
              !isStudentRoleUser() && staffMemberOk(operatorMember());
     }
     function staffMemberOk(m) {
-      return m != null && m.data.get('status', 'active') != 'inactive' && m.data.get('roleId', '') != 'student';
+      return m != null && liveStatus(m.data) && m.data.get('roleId', '') != 'student';
+    }
+    // Member status that keeps access; any other value (inactive, a stray 'removed') revokes it.
+    function liveStatus(d) {
+      return d.get('status', 'active') in ['active', 'invited'];
+    }
+    // The only member status values a client may store.
+    function memberStatusOk() {
+      return incoming().get('status', 'active') in ['active', 'invited', 'inactive'];
     }
     // Staff audience: a session with audience 'staff' takes only district
     // staff, whose response names them from their own token; any other session's
@@ -392,9 +400,11 @@ service cloud.firestore {
                get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []);
     }
 
+    // Deactivate keeps roleId, so the tier needs an active doc; sign-in turns an invited one active.
     function isMemberSuperAdmin() {
-      return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())) != null &&
-             get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower())).data.get('roleId', '') == 'super_admin';
+      return operatorMember() != null &&
+             operatorMember().data.get('roleId', '') == 'super_admin' &&
+             operatorMember().data.get('status', 'active') == 'active';
     }
 
     // Returns the caller's /organizations/{orgId}/members/{email} doc data.
@@ -459,7 +469,7 @@ service cloud.firestore {
     // deactivated (Deactivate keeps roleId, so the admin tier must check status).
     function memberRole(orgId, emailLower) {
       return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)) &&
-             !(get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data.get('status', 'active') in ['inactive', 'removed'])
+             liveStatus(get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data)
              ? get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data.get('roleId', '')
              : '';
     }
@@ -501,8 +511,8 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/organizations/orono/members/$(request.auth.token.email.lower()));
     }
 
-    // True UNLESS the caller is an operator-org member explicitly marked
-    // 'inactive'. Defaults ALLOW for anyone without an operator-org member doc
+    // True UNLESS the caller is an operator-org member whose status is not
+    // active/invited (see liveStatus). Defaults ALLOW for anyone without an operator-org member doc
     // (anon/PIN, SSO students, no-org/other-org teachers), so it only subtracts
     // access from a deliberately deactivated member. The email guard avoids a CEL
     // throw on tokens with no email claim.
@@ -510,7 +520,7 @@ service cloud.firestore {
       return !(signedIn() &&
                request.auth.token.get('email', '') != '' &&
                operatorMember() != null &&
-               operatorMember().data.get('status', 'active') == 'inactive');
+               !liveStatus(operatorMember().data));
     }
 
     // The owner-only boundary on /users/{userId}/**, written once. Same operand
@@ -675,7 +685,7 @@ service cloud.firestore {
         // buildingIds intersect their own. Create pins doc id == lowercased email (so
         // isOrgMember()'s lookup resolves) and forces data.email == emailLower (F15).
         // Only a super admin may create a super_admin member (same anti-escalation as update).
-        allow create: if (isSuperAdmin() ||
+        allow create: if memberStatusOk() && (isSuperAdmin() ||
                           (isDomainAdmin(orgId) && incoming().get('roleId', '') != 'super_admin')) &&
           incoming().email == incoming().email.lower() &&
           incoming().email == emailLower &&
@@ -688,7 +698,7 @@ service cloud.firestore {
         // A domain admin may not remove a super_admin member.
         allow delete: if isSuperAdmin() ||
           (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin');
-        allow update: if isSuperAdmin() ||
+        allow update: if memberStatusOk() && (isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
            unchanged('email') &&
            unchanged('orgId') &&
@@ -719,6 +729,8 @@ service cloud.firestore {
            // Never a higher tier, in either direction.
            !(existing().get('roleId', '') in ['super_admin', 'domain_admin']) &&
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
+           // Deactivate only: reactivating is a domain admin's call.
+           (liveStatus(existing()) || !liveStatus(incoming())) &&
            changedOnly(['status'])) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.
           // Strictly bound — email/orgId must match and only `lastActive` may
@@ -731,7 +743,7 @@ service cloud.firestore {
            viewAsOk() &&
            unchanged('email') &&
            unchanged('orgId') &&
-           changedOnly(['lastActive']));
+           changedOnly(['lastActive'])));
       }
 
       match /studentPageConfig/{configId} {
@@ -748,6 +760,11 @@ service cloud.firestore {
             'showLunchMenu', 'accentColor', 'heroText'
           ]);
         allow delete: if false;
+      }
+
+      // Remove-from-org tombstone: auto-enroll (Admin SDK) skips these emails.
+      match /removedMembers/{emailLower} {
+        allow write: if isSuperAdmin() || isDomainAdmin(orgId);
       }
 
       match /invitations/{token} {

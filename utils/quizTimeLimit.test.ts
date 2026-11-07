@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  appendPauseSpan,
   attemptClockRanOut,
   clampQuizTimeLimitMinutes,
   formatTimeLeft,
+  pausedMsSince,
   resolveAttemptDeadline,
   timestampMillis,
 } from './quizTimeLimit';
@@ -41,6 +43,48 @@ describe('resolveAttemptDeadline', () => {
     expect(resolveAttemptDeadline(start, 30, 'unlimited')).toBeNull();
     expect(resolveAttemptDeadline(start, null, undefined)).toBeNull();
     expect(resolveAttemptDeadline(null, 30, undefined)).toBeNull();
+  });
+});
+
+describe('pauses and the deadline', () => {
+  const start = 1_000_000;
+  const min = 60_000;
+
+  it('pushes the deadline out by a pause that happened during the attempt', () => {
+    const spans = [{ from: start + 5 * min, to: start + 15 * min }];
+    expect(resolveAttemptDeadline(start, 30, undefined, spans)).toBe(
+      start + 40 * min
+    );
+  });
+
+  it('counts only the part of a pause after the attempt started', () => {
+    const spans = [{ from: start - 10 * min, to: start + 2 * min }];
+    expect(pausedMsSince(start, spans)).toBe(2 * min);
+    expect(pausedMsSince(start, [{ from: start - 9, to: start - 1 }])).toBe(0);
+  });
+
+  it('ignores malformed spans', () => {
+    expect(pausedMsSince(start, [{ from: 5, to: 1 }])).toBe(0);
+    expect(pausedMsSince(start, undefined)).toBe(0);
+  });
+
+  it('appends a closed span on resume and keeps the newest 100', () => {
+    expect(appendPauseSpan(undefined, 100, 250)).toEqual([
+      { from: 100, to: 250 },
+    ]);
+    expect(appendPauseSpan([{ from: 1, to: 2 }], undefined, 250)).toBeNull();
+    const many = Array.from({ length: 100 }, (_, i) => ({
+      from: i,
+      to: i + 1,
+    }));
+    const next = appendPauseSpan(many, 500, 800);
+    expect(next).toHaveLength(100);
+    expect(next?.[99]).toEqual({ from: 500, to: 800 });
+    expect(next?.[0]).toEqual({ from: 1, to: 2 });
+  });
+
+  it('adds nothing for a pause an earlier Resume already closed (reopened run)', () => {
+    expect(appendPauseSpan([{ from: 100, to: 200 }], 100, 5000)).toBeNull();
   });
 });
 

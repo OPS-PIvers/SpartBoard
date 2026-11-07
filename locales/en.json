@@ -2566,6 +2566,7 @@
     "recordingDriveFailed": "Failed to save to Drive. Downloading locally...",
     "noGoogleDrive": "No Google Drive connected. Downloading locally...",
     "viewLiveSession": "View live session information",
+    "endLiveSession": "End live session",
     "liveSession": "Live Session",
     "noAppsSelected": "Restoring defaults…"
   },

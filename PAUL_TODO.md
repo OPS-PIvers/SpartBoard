@@ -150,7 +150,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 Each prompt starts a grilling; the agent writes your answers into the plan and moves approved work into AGENT_BACKLOG.md.
 
-- [ ] **PT-145 Should quiz End turn in scanned written answers the student never opened on a device?** Turning them in uses an attempt and marks the device questions blank; leaving them open keeps them In Progress and off the gradebook. Tell an agent your choice (AB-141).
+- [ ] **PT-145 Should quiz End turn in scanned written answers the student never opened on a device?** Turning them in uses an attempt and marks the device questions blank; leaving them open keeps them In Progress and off the gradebook. Tell an agent your choice (AB-152).
 - [ ] **PT-143 Should invited and inactive members count in org user totals?** Today every member doc counts regardless of status (kept as is in #5363). Tell an agent your choice.
 - [ ] **PT-87 🤖 PLC rename "Quizzes" to "Assessments"** scope (teacher-side widget? VA and rubrics as kinds? student copy?).
   > Grill me on docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md scope, then update the plan.

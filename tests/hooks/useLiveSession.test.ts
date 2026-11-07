@@ -929,3 +929,38 @@ describe('useLiveSession — student follows the teacher', () => {
     expect(result.current.session?.activeWidgetId).toBe('w1');
   });
 });
+
+describe('useLiveSession — toggleFreezeStudent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    asMock(firestore.onSnapshot).mockImplementation(() => vi.fn());
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.updateDoc).mockResolvedValue(undefined);
+    mockDocPaths();
+  });
+
+  it.each([
+    ['active', 'frozen'],
+    ['frozen', 'active'],
+  ] as const)('flips %s to %s', async (from, to) => {
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid', 'teacher')
+    );
+    await act(async () => {
+      await result.current.toggleFreezeStudent('s1', from);
+    });
+    expect(firestore.updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      status: to,
+    });
+  });
+
+  it('leaves a disconnected student alone', async () => {
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid', 'teacher')
+    );
+    await act(async () => {
+      await result.current.toggleFreezeStudent('s1', 'disconnected');
+    });
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+});
