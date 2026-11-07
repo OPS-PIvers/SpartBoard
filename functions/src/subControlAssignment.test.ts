@@ -251,6 +251,53 @@ describe('handleControlSubAssignment — pausing', () => {
     expect(resumed.written[0].data).toEqual({ status: 'active' });
   });
 
+  it('records the pause so the time limit skips it', async () => {
+    const resumed = control(
+      {
+        session: stamped({
+          status: 'paused',
+          pausedAt: NOW - 600_000,
+          pauseSpans: [{ from: 1, to: 2 }],
+        }),
+      },
+      input({ action: 'resume' })
+    );
+    await resumed.run();
+    expect(resumed.written[0].data).toEqual({
+      status: 'active',
+      pauseSpans: [
+        { from: 1, to: 2 },
+        { from: NOW - 600_000, to: NOW },
+      ],
+    });
+  });
+
+  // The hourly idle sweep would otherwise finish every paused student the moment the run goes active.
+  it('refreshes idle responses before the run goes active', async () => {
+    const stale = { toMillis: () => NOW - 3_600_000 };
+    const fresh = { toMillis: () => NOW - 60_000 };
+    const resumed = control(
+      {
+        session: stamped({ status: 'paused', pausedAt: NOW - 1000 }),
+        responses: {
+          a: { status: 'in-progress', lastWriteAt: stale },
+          b: { status: 'joined', lastWriteAt: fresh },
+          c: { status: 'completed', lastWriteAt: stale },
+          d: { status: 'joined' },
+        },
+      },
+      input({ action: 'resume' })
+    );
+    await resumed.run();
+    const paths = resumed.written.map((w) => w.path.split('/').slice(-1)[0]);
+    expect(paths.slice(0, 2).sort()).toEqual(['a', 'd']);
+    expect(paths[2]).toBe(SESSION);
+    const lastWrite = resumed.written[0].data.lastWriteAt as {
+      toMillis: () => number;
+    };
+    expect(lastWrite.toMillis()).toBe(NOW);
+  });
+
   // The other three kinds have no paused state, so a pause would write a
   // status nothing reads.
   it('refuses to pause anything but a quiz', async () => {

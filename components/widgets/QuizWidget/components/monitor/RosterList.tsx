@@ -355,7 +355,8 @@ export const RosterList: React.FC<RosterListProps> = ({
                 session.timeLimitMinutes,
                 refKey
                   ? overridesBySourcedId?.[refKey]?.timeMultiplier
-                  : undefined
+                  : undefined,
+                session.pauseSpans
               )
             : null;
         const locked =
