@@ -414,7 +414,25 @@ describe('POST /resolve', () => {
     }
   );
 
-  it('skips an item with no occurrences left', async () => {
+  it('still records a PR for an item whose steps were just deleted', async () => {
+    h.existing.set(FP, { status: 'open', occurrences: [] });
+    const out = await call({
+      headers: bearer,
+      method: 'POST',
+      path: '/resolve',
+      body: [
+        {
+          fingerprint: FP,
+          status: 'pr-open',
+          anchorId: 'timer.start',
+          prUrl: 'https://github.com/OPS-PIvers/SpartBoard/pull/1',
+        },
+      ],
+    });
+    expect(out.body).toMatchObject({ updated: 1, skipped: [] });
+  });
+
+  it('skips a needs-human result for an item with no occurrences left', async () => {
     h.existing.set(FP, { status: 'open', occurrences: [] });
     const out = await call({
       headers: bearer,

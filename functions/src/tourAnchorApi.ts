@@ -203,7 +203,7 @@ export const tourAnchorApi = onRequest(
             const data = (snap.data() ?? {}) as QueueDoc;
             if (
               !RESOLVABLE_FROM.has(String(data.status)) ||
-              !hasOccurrences(data)
+              (r.status === 'needs-human' && !hasOccurrences(data))
             ) {
               skipped.push(r.fingerprint);
               return;
