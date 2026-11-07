@@ -59,6 +59,7 @@ export const SURFACES: TourSurfaceMap = {
       'board-nav.name-input': BOARDS_MENU,
       'dock.live-session': DOCK,
       // The live popover sits behind dock.live-session too; inner holds one step.
+      'dock.live-popover-end': DOCK,
       'dock.live-popover-close': DOCK,
       'dock.restore-custom': DOCK,
       'dock.more-widgets': DOCK,

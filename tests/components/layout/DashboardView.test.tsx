@@ -178,7 +178,23 @@ vi.mock('@/components/layout/AnnotationOverlay', () => ({
   AnnotationOverlay: () => null,
 }));
 vi.mock('@/components/widgets/WidgetRenderer', () => ({
-  WidgetRenderer: () => <div data-testid="widget">Widget</div>,
+  WidgetRenderer: ({
+    widget,
+    removeWidget,
+  }: {
+    widget: { id: string };
+    removeWidget: (id: string) => void;
+  }) => (
+    <div data-testid="widget">
+      Widget
+      <button
+        data-testid={`del-${widget.id}`}
+        onClick={() => removeWidget(widget.id)}
+      >
+        del
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('@/hooks/useCollections', () => ({
@@ -265,6 +281,7 @@ describe('DashboardView Gestures & Navigation', () => {
       removeToast: vi.fn(),
       updateWidget: vi.fn(),
       removeWidget: vi.fn(),
+      setSelectedWidgetId: vi.fn(),
       duplicateWidget: vi.fn(),
       bringToFront: vi.fn(),
       addToast: vi.fn(),
@@ -285,6 +302,66 @@ describe('DashboardView Gestures & Navigation', () => {
         setCollectionMetadata: vi.fn(),
         setCollectionDefaultBoard: vi.fn(),
       },
+    });
+  });
+
+  describe('live widget lifecycle', () => {
+    const liveSession = {
+      id: 'teacher-1',
+      isActive: true,
+      activeWidgetId: 'live-w',
+      activeWidgetType: 'poll',
+      code: '123456',
+      frozen: false,
+      createdAt: 1,
+    };
+    const withSession = (endSession: () => void) =>
+      (useLiveSession as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        session: liveSession,
+        students: [],
+        startSession: vi.fn(),
+        updateSessionConfig: vi.fn(),
+        updateSessionBackground: vi.fn(),
+        endSession,
+        removeStudent: vi.fn(),
+        toggleFreezeStudent: vi.fn(),
+        toggleGlobalFreeze: vi.fn(),
+      });
+
+    const boardsWith = (ids: string[]) => {
+      const boards = mockDashboards.map((d, i) =>
+        i === 1 ? { ...d, widgets: ids.map((id) => ({ id, type: 'poll' })) } : d
+      );
+      const dash = (useDashboard as unknown as ReturnType<typeof vi.fn>)() as {
+        removeWidget: ReturnType<typeof vi.fn>;
+      };
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...dash,
+        activeDashboard: boards[1],
+        dashboards: boards,
+      });
+      return dash.removeWidget;
+    };
+
+    it('ends the session when the live widget is deleted', () => {
+      const endSession = vi.fn();
+      withSession(endSession);
+      const removeWidget = boardsWith(['live-w']);
+      renderView();
+      expect(endSession).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByTestId('del-live-w'));
+      expect(endSession).toHaveBeenCalledTimes(1);
+      expect(removeWidget).toHaveBeenCalledWith('live-w');
+    });
+
+    it('keeps the session when another widget is deleted', () => {
+      const endSession = vi.fn();
+      withSession(endSession);
+      const removeWidget = boardsWith(['live-w', 'other']);
+      renderView();
+      fireEvent.click(screen.getByTestId('del-other'));
+      expect(endSession).not.toHaveBeenCalled();
+      expect(removeWidget).toHaveBeenCalledWith('other');
     });
   });
 

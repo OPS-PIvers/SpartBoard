@@ -368,7 +368,7 @@ export const Dock: React.FC = () => {
     );
   }, [isRecording]);
 
-  const { session } = useLiveSession(user?.uid, 'teacher');
+  const { session, endSession } = useLiveSession(user?.uid, 'teacher');
   const liveState = deriveLiveSessionState(session);
   const [isExpanded, setIsExpanded] = useState(false);
   // A live tour opens the dock for a step and closes it again on teardown.
@@ -1595,7 +1595,17 @@ export const Dock: React.FC = () => {
                           {getJoinUrl()}
                         </div>
                       </div>
-                      <div className="p-2 border-t border-white/30">
+                      <div className="p-2 border-t border-white/30 flex flex-col gap-1">
+                        <button
+                          onClick={() => {
+                            setShowLiveInfo(false);
+                            void endSession();
+                          }}
+                          {...tourAttr('dock.live-popover-end')}
+                          className="w-full py-2 bg-red-500/90 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-400 focus-visible:ring-offset-white"
+                        >
+                          {t('dock.endLiveSession')}
+                        </button>
                         <button
                           onClick={() => setShowLiveInfo(false)}
                           {...tourAttr('dock.live-popover-close')}
