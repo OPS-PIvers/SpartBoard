@@ -153,6 +153,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
             ? `${t(`flashcards.cards.${answerSide}`)}: ${sides.answer}`
             : ''}
         </span>
+        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
           aria-pressed={flipped}
@@ -243,6 +244,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           </div>
         </button>
         {showMarks && (
+          // no-tour-anchor: student page; live tours run in the teacher app
           <button
             type="button"
             onClick={() => onStar(card.id)}
@@ -279,6 +281,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         className="flex shrink-0 items-center justify-center"
         style={{ gap: 'min(10px, 2.2cqmin)' }}
       >
+        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
           onClick={() => move(-1)}
@@ -295,6 +298,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         </button>
 
         {showMarks && (
+          // no-tour-anchor: student page; live tours run in the teacher app
           <button
             type="button"
             onClick={() => record(false)}
@@ -328,6 +332,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         </div>
 
         {showMarks && (
+          // no-tour-anchor: student page; live tours run in the teacher app
           <button
             type="button"
             onClick={() => record(true)}
@@ -350,6 +355,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           </button>
         )}
 
+        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
           onClick={() => move(1)}

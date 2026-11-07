@@ -113,6 +113,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
           className="flex flex-wrap justify-center"
           style={{ gap: 'min(10px, 2.5cqmin)', marginTop: 'min(24px, 5cqmin)' }}
         >
+          {/* no-tour-anchor: student page; live tours run in the teacher app */}
           <button
             type="button"
             onClick={onNextRound}
@@ -133,6 +134,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
             />
           </button>
           {onRestart && (
+            // no-tour-anchor: student page; live tours run in the teacher app
             <button
               type="button"
               onClick={onRestart}
@@ -248,6 +250,7 @@ export const CheckSubmitPanel: React.FC<CheckSubmitPanelProps> = ({
             {error}
           </p>
         )}
+        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
           onClick={onSubmit}
@@ -332,6 +335,7 @@ export const CharacterBar: React.FC<CharacterBarProps> = ({
       className="flex flex-wrap items-center justify-center"
       style={{ gap: 'min(5px, 1.2cqmin)' }}
     >
+      {/* no-tour-anchor: student page; live tours run in the teacher app */}
       <button
         type="button"
         aria-label={t(
@@ -361,6 +365,7 @@ export const CharacterBar: React.FC<CharacterBarProps> = ({
         />
       </button>
       {characters.map((character) => (
+        // no-tour-anchor: student page; live tours run in the teacher app
         <button
           key={character}
           type="button"

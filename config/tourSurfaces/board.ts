@@ -368,6 +368,22 @@ export const SURFACES: TourSurfaceMap = {
     openerMissing:
       'Push to Schoology gradebook button in Quiz and Video Activity results (useSchoologyToolColumnPush)',
   },
+  'board.spotify-premium-notice': {
+    label: 'Spotify Premium notice',
+    kind: 'modal',
+    files: ['components/spotify/SpotifyPremiumDialog.tsx'],
+    opensWith: 'widget-settings.music.spotify-connect',
+    widgetType: 'music',
+    needs: ['widget-on-stage'],
+  },
+  'board.flashcard-share': {
+    label: 'Flashcard Share dialog',
+    kind: 'modal',
+    widgetType: 'flashcards',
+    needs: ['widget-on-stage', 'library-item'],
+    files: ['components/flashcards/FlashcardShareModal.tsx'],
+    openerMissing: "Share item in a flashcard set's row menu (onShare)",
+  },
   'board.smart-paste': {
     label: 'Smart paste picker',
     kind: 'modal',

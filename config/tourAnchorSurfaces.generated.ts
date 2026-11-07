@@ -4046,4 +4046,13 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'stations.absent': ['widgets.stations.face'],
     'gradebook.tab': ['guidedLearning.gradebook'],
     'smart-notebook.object-link': ['widgets.smart-notebook.editor'],
+    'classes.restrictions-trigger': ['board.roster-editor'],
+    'classes.restrictions-filter': ['board.roster-editor'],
+    'schoology-nudge.review': ['board.roster-editor'],
+    'schoology-nudge.dismiss': ['board.roster-editor'],
+    'music.spotify-premium-cancel': ['board.spotify-premium-notice'],
+    'music.spotify-premium-continue': ['board.spotify-premium-notice'],
+    'music.spotify-premium-dont-show': ['board.spotify-premium-notice'],
+    'flashcards.public-link': ['board.flashcard-share'],
+    'flashcards.embed-code': ['board.flashcard-share'],
   };
