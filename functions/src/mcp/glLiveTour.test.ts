@@ -224,6 +224,8 @@ describe('get_live_tour and update_live_tour', () => {
       )
     ).toBe('changed');
     expect(tourPublishState(set, 10)).toBe('changed');
+    const bad = { ...snap, steps: [null] };
+    expect(tourPublishState(set, 10, bad)).toBe('changed');
   });
 
   it('lists steps whose anchor is no longer registered', () => {
