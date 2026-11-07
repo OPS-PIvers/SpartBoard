@@ -113,7 +113,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
           className="flex flex-wrap justify-center"
           style={{ gap: 'min(10px, 2.5cqmin)', marginTop: 'min(24px, 5cqmin)' }}
         >
-          {/* no-tour-anchor: student page; live tours run in the teacher app */}
+          {/* no-tour-anchor: end-of-round screen; a tour would not wait out a full round */}
           <button
             type="button"
             onClick={onNextRound}
@@ -134,7 +134,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
             />
           </button>
           {onRestart && (
-            // no-tour-anchor: student page; live tours run in the teacher app
+            // no-tour-anchor: end-of-round screen; a tour would not wait out a full round
             <button
               type="button"
               onClick={onRestart}

@@ -16829,6 +16829,16 @@ export const TOUR_ANCHORS = {
     label: "Don't show this again checkbox in the Spotify Premium notice",
     panel: true,
   },
+  'flashcards.present-flip': {
+    label:
+      'Flashcard shown on the board in the Flashcards widget (click to flip)',
+  },
+  'flashcards.present-previous': {
+    label: 'Previous card button in the Flashcards widget on the board',
+  },
+  'flashcards.present-next': {
+    label: 'Next card button in the Flashcards widget on the board',
+  },
   'flashcards.public-link': {
     label: 'Share link box in the flashcard Share dialog',
     perWidgetType: true,

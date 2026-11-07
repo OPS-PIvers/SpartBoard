@@ -10,6 +10,7 @@ import {
   ThumbsUp,
 } from 'lucide-react';
 import type { FlashcardCard, FlashcardSide } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { RoundSummary } from './PlayerPrimitives';
 import { cx, getFlashcardSides } from './playerUtils';
 
@@ -153,9 +154,9 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
             ? `${t(`flashcards.cards.${answerSide}`)}: ${sides.answer}`
             : ''}
         </span>
-        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
+          {...tourAttr('flashcards.present-flip')}
           aria-pressed={flipped}
           aria-label={`${t(`flashcards.cards.${flipped ? answerSide : showFirst}`)}: ${flipped ? sides.answer : sides.prompt}. ${t(flipped ? 'flashcards.cards.flipToPrompt' : 'flashcards.cards.flipToAnswer')}`}
           onClick={() => setFlipped((current) => !current)}
@@ -244,7 +245,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           </div>
         </button>
         {showMarks && (
-          // no-tour-anchor: student page; live tours run in the teacher app
+          // no-tour-anchor: marks show only on student pages, never on the board
           <button
             type="button"
             onClick={() => onStar(card.id)}
@@ -281,9 +282,9 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         className="flex shrink-0 items-center justify-center"
         style={{ gap: 'min(10px, 2.2cqmin)' }}
       >
-        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
+          {...tourAttr('flashcards.present-previous')}
           onClick={() => move(-1)}
           aria-label={t('flashcards.cards.previous')}
           className={cx(
@@ -298,7 +299,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         </button>
 
         {showMarks && (
-          // no-tour-anchor: student page; live tours run in the teacher app
+          // no-tour-anchor: marks show only on student pages, never on the board
           <button
             type="button"
             onClick={() => record(false)}
@@ -332,7 +333,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         </div>
 
         {showMarks && (
-          // no-tour-anchor: student page; live tours run in the teacher app
+          // no-tour-anchor: marks show only on student pages, never on the board
           <button
             type="button"
             onClick={() => record(true)}
@@ -355,9 +356,9 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           </button>
         )}
 
-        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
+          {...tourAttr('flashcards.present-next')}
           onClick={() => move(1)}
           aria-label={t('flashcards.cards.next')}
           className={cx(

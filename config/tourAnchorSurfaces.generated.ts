@@ -4053,6 +4053,9 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'music.spotify-premium-cancel': ['board.spotify-premium-notice'],
     'music.spotify-premium-continue': ['board.spotify-premium-notice'],
     'music.spotify-premium-dont-show': ['board.spotify-premium-notice'],
+    'flashcards.present-flip': ['board.flashcards-present'],
+    'flashcards.present-previous': ['board.flashcards-present'],
+    'flashcards.present-next': ['board.flashcards-present'],
     'flashcards.public-link': ['board.flashcard-share'],
     'flashcards.embed-code': ['board.flashcard-share'],
   };

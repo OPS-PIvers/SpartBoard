@@ -74413,6 +74413,42 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.present-flip",
+    "label": "Flashcard shown on the board in the Flashcards widget (click to flip)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-previous",
+    "label": "Previous card button in the Flashcards widget on the board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-next",
+    "label": "Next card button in the Flashcards widget on the board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
     "id": "flashcards.public-link",
     "label": "Share link box in the flashcard Share dialog",
     "scope": "widget type",

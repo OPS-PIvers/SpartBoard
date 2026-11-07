@@ -384,6 +384,14 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/flashcards/FlashcardShareModal.tsx'],
     openerMissing: "Share item in a flashcard set's row menu (onShare)",
   },
+  'board.flashcards-present': {
+    label: 'Flashcards set presented on the board',
+    kind: 'shared',
+    widgetType: 'flashcards',
+    needs: ['widget-on-stage', 'library-item'],
+    files: ['components/flashcards/FlashcardsMode.tsx'],
+    openerMissing: 'Present on a set row in the Flashcards library (onPresent)',
+  },
   'board.smart-paste': {
     label: 'Smart paste picker',
     kind: 'modal',
