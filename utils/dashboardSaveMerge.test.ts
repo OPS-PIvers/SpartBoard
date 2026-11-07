@@ -61,6 +61,16 @@ describe('mergeDashboardForSave', () => {
     expect(merged.claudeUnseen).toBe(true);
   });
 
+  it("keeps another device's trigger claim when this device saves a stale copy", () => {
+    const base = board([], { triggerClaims: { r1: 100 } });
+    const local = board([], { triggerClaims: { r1: 100 } });
+    const server = board([], { triggerClaims: { r1: 200 } });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.triggerClaims).toEqual({ r1: 200 });
+  });
+
   it('keeps a badge this device cleared', () => {
     const base = board([], { claudeUnseen: true, claudeEditedAt: 50 });
     const local = board([], { claudeEditedAt: 50 });

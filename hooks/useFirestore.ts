@@ -893,6 +893,7 @@ export const useFirestore = (userId: string | null) => {
           linkedShareHostName: _lsh,
           linkedShareHostUid: _lshu,
           linkedShareEnded: _lse,
+          triggerClaims: _tc,
           ...patch
         } = written;
         mockSharedStore.update(shareId, {
@@ -914,6 +915,8 @@ export const useFirestore = (userId: string | null) => {
           linkedShareHostName: _lsh,
           linkedShareHostUid: _lshu,
           linkedShareEnded: _lse,
+          // Claims belong to the host's own board doc, like a Run.
+          triggerClaims: _tc,
           ...patch
         } = board;
         // A Run belongs to the device carrying it out, so the share never holds one.
