@@ -1,7 +1,7 @@
 // Quiz assign: written questions answered on the device or on a printed sheet that is scanned back in.
 import React from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
-import { StepRow, StepNumberField } from './QuizStepRows';
+import { StepRow, StepNumberField, StepSegmented } from './QuizStepRows';
 import type {
   WrittenAnswersValue,
   WrittenAnswersWhere,
@@ -19,36 +19,15 @@ export const WrittenAnswersStep: React.FC<{
 }> = ({ value, onChange, count }) => (
   <div className="space-y-1.5">
     <StepRow label="Students write answers">
-      <div
-        role="group"
-        aria-label="Students write answers"
-        className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white"
-      >
-        {OPTIONS.map((opt) => {
-          const active = value.where === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onChange({ ...value, where: opt.value })}
-              {...tourFieldAttr(
-                'assign-rule.written-where',
-                'assign',
-                opt.value
-              )}
-              className={
-                'px-3 py-1.5 text-xs font-bold transition ' +
-                (active
-                  ? 'bg-brand-blue-primary text-white'
-                  : 'text-slate-600 hover:bg-slate-50')
-              }
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
+      <StepSegmented
+        label="Students write answers"
+        options={OPTIONS}
+        value={value.where}
+        onSelect={(where) => onChange({ ...value, where })}
+        anchor={(where) =>
+          tourFieldAttr('assign-rule.written-where', 'assign', where)
+        }
+      />
     </StepRow>
     {value.where === 'paper' && (
       <StepRow
