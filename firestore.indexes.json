@@ -1122,6 +1122,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "counterEvents",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "import_inbox",
       "fieldPath": "expireAt",
       "ttl": true,

@@ -1,7 +1,9 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+
+const LEDGER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Mirrors the guard in organizationMembersSync.ts so this module is safe to
 // load standalone (tests) or alongside the main bundle.
@@ -134,8 +136,8 @@ export function resolveDomainDocId(
  *    double-apply every per-path increment that succeeded before the throw.
  *    We log and swallow exceptions instead. Note that this only suppresses
  *    handler-retry duplication — Firestore/Eventarc delivery is itself
- *    at-least-once, so a rare duplicate invocation could still double-apply
- *    a delta. `scripts/recount-org-members.js` is the authoritative
+ *    at-least-once; a ledger doc keyed by `event.id` (TTL 7 days) makes a
+ *    duplicate delivery a no-op. `scripts/recount-org-members.js` is the authoritative
  *    reconcile tool for any drift (predated writes, partial failures, or
  *    the duplicate-delivery case).
  */
@@ -180,6 +182,44 @@ export const organizationMemberCounters = onDocumentWritten(
     }
 
     const db = admin.firestore();
+
+    // Ledger doc keyed by event id: a redelivered event fails create() and is skipped.
+    if (event.id) {
+      try {
+        await db
+          .doc(`organizations/${orgId}/counterEvents/${event.id}`)
+          .create({
+            createdAt: FieldValue.serverTimestamp(),
+            expireAt: Timestamp.fromMillis(Date.now() + LEDGER_TTL_MS),
+          });
+      } catch (err) {
+        const code =
+          err && typeof err === 'object' && 'code' in err
+            ? String(err.code)
+            : undefined;
+        if (code === '6' || code === 'already-exists') {
+          logger.info(
+            'organizationMemberCounters: duplicate delivery skipped',
+            {
+              orgId,
+              emailLower,
+              eventId: event.id,
+            }
+          );
+          return;
+        }
+        // Ledger unavailable: count as before rather than drop the change.
+        logger.warn(
+          'organizationMemberCounters: ledger write failed; counting anyway',
+          {
+            orgId,
+            emailLower,
+            eventId: event.id,
+            error: err instanceof Error ? err.message : String(err),
+          }
+        );
+      }
+    }
 
     const memberDocPath = `organizations/${orgId}/members/${emailLower}`;
 
