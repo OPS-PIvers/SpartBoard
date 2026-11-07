@@ -145,7 +145,7 @@ export async function handleQuizResponseWrite(
 ): Promise<void> {
   const { sessionId, docId } = event.params;
   const parsed = event.time ? Date.parse(event.time) : NaN;
-  await Promise.all([
+  const [attempt, index] = await Promise.allSettled([
     applyAttemptWrite(admin.firestore(), {
       sessionId,
       responseKey: docId,
@@ -155,11 +155,15 @@ export async function handleQuizResponseWrite(
     }),
     handleStudentDocWrite('quiz', event),
   ]);
+  // Both steps run first; a failed attempt copy then fails the event so it retries.
+  if (attempt.status === 'rejected') throw attempt.reason;
+  if (index.status === 'rejected') throw index.reason;
 }
 
 export const gradeIndexQuizResponse = onDocumentWritten(
   {
     ...TRIGGER_OPTS,
+    retry: true,
     document: `${SESSION_COLLECTION.quiz}/{sessionId}/${STUDENT_SUBCOLLECTION.quiz}/{docId}`,
   },
   (event) => handleQuizResponseWrite(event as unknown as WriteEvent)
@@ -168,6 +172,7 @@ export const gradeIndexQuizResponse = onDocumentWritten(
 export const quizAttemptGradeWrite = onDocumentWritten(
   {
     ...TRIGGER_OPTS,
+    retry: true,
     document: `${SESSION_COLLECTION.quiz}/{sessionId}/${STUDENT_SUBCOLLECTION.quiz}/{docId}/attempts/{n}`,
   },
   (event) => {

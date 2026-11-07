@@ -356,10 +356,11 @@ export async function applyAttemptGradeWrite(
       n: w.n,
       error: err instanceof Error ? err.message : String(err),
     });
+    throw err;
   }
 }
 
-/** Response trigger body; failures are logged so the grade index step still runs. */
+/** Response trigger body; failures are logged and rethrown so the trigger retries (the copy writes are idempotent). */
 export async function applyAttemptWrite(
   db: Firestore,
   w: AttemptWrite
@@ -390,5 +391,6 @@ export async function applyAttemptWrite(
       action: action.kind,
       error: err instanceof Error ? err.message : String(err),
     });
+    throw err;
   }
 }

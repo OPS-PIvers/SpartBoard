@@ -343,6 +343,40 @@ describe('applyAttemptWrite', () => {
     expect(stub.has(SCORES)).toBe(false);
   });
 
+  it('rethrows a failed write so the trigger retries', async () => {
+    const stub = seed();
+    stub.store.set(RESPONSE, done());
+    const db = stub.db as unknown as { runTransaction: () => Promise<never> };
+    db.runTransaction = () => Promise.reject(new Error('contention'));
+    await expect(
+      applyAttemptWrite(stub.db as unknown as Db, write(undefined, done()))
+    ).rejects.toThrow('contention');
+  });
+
+  it('is idempotent when the same event is delivered again', async () => {
+    const stub = seed();
+    const first = done();
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const second = done({ completedAttempts: 2, submittedAt: T + 10 });
+    const retake = write(reset(), second, T + 10);
+    await apply(stub, retake);
+    const snapshot = JSON.stringify([
+      stub.get(`${RESPONSE}/attempts/1`),
+      stub.get(`${RESPONSE}/attempts/2`),
+      stub.get(SCORES),
+    ]);
+    await apply(stub, retake);
+    await apply(stub, write(undefined, first));
+    expect(
+      JSON.stringify([
+        stub.get(`${RESPONSE}/attempts/1`),
+        stub.get(`${RESPONSE}/attempts/2`),
+        stub.get(SCORES),
+      ])
+    ).toBe(snapshot);
+  });
+
   it('skips Review game sessions', async () => {
     const stub = seed({
       'quiz_sessions/qs1': { ...session, widgetKind: 'review' },
