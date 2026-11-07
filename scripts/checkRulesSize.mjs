@@ -54,9 +54,11 @@ const WARN_RATIO = 0.9;
  * removed. Firebase enforces a different number ("Total size of compiled
  * executables must be smaller than 256000 bytes"), which runs about 4% above
  * ours: on 2026-11-07 the release of 703e4ad4 was refused at 256106 bytes
- * while this script measured it at 246104. The cliff below is that point
- * scaled to 256000 and rounded down a further 1000 bytes for margin, since
- * the ratio is calibrated from one refusal. Comments and whitespace add
+ * while this script measured it at 246104 (ratio 1.0406), and b8ca4ce0
+ * released at 240856. An older September pair (249350 released, 249568
+ * refused) implied only about 1.026, so the ratio drifts as the rules
+ * change. The cliff below is the larger ratio scaled to 256000 and rounded
+ * down a further 1000 bytes for that drift. Comments and whitespace add
  * nothing; expression nodes and identifier lengths are what count.
  *
  * What ships is the minified text (scripts/minifyRules.mjs), so that is the
