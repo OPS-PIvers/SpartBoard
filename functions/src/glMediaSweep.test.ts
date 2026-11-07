@@ -125,4 +125,28 @@ describe('runGlMediaSweep', () => {
     );
     expect(result.deleted).toEqual(['users/t2/hotspot_images/o.webp']);
   });
+
+  it('keeps files a Claude revision younger than 30 days names', async () => {
+    const bucket = createFakeBucket([
+      { name: path('recent.webp'), timeCreated: OLD },
+      { name: path('stale.webp'), timeCreated: OLD },
+      { name: path('orphan.webp'), timeCreated: OLD },
+    ]);
+    await sweep(
+      {
+        'users/t1/claude_revisions/r1': {
+          createdAt: NOW - 5 * 86_400_000,
+          data: { imagePaths: [path('recent.webp')] },
+        },
+        'users/t1/claude_revisions/r2': {
+          createdAt: NOW - 40 * 86_400_000,
+          data: { imagePaths: [path('stale.webp')] },
+        },
+      },
+      bucket
+    );
+    expect(bucket.deleted.sort()).toEqual(
+      [path('orphan.webp'), path('stale.webp')].sort()
+    );
+  });
 });
