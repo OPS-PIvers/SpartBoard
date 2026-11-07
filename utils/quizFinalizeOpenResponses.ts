@@ -34,7 +34,7 @@ export async function finalizeOpenQuizResponses(
   const session = sessionSnap.data() as QuizSession;
   // A Reopen during the delay wins.
   if (session.status !== 'ended') return;
-  let publicQuestions = session.publicQuestions;
+  let publicQuestions: unknown = session.publicQuestions;
   if (session.questionsInContent === true) {
     const contentSnap = await getDoc(
       doc(sessionRef, QUIZ_CONTENT_COLLECTION, QUIZ_CONTENT_DOC)
@@ -42,7 +42,11 @@ export async function finalizeOpenQuizResponses(
     publicQuestions = (contentSnap.data() as QuizSessionContent | undefined)
       ?.publicQuestions;
   }
-  const questionIds = (Array.isArray(publicQuestions) ? publicQuestions : [])
+  const questionIds = (
+    Array.isArray(publicQuestions)
+      ? (publicQuestions as { id?: unknown }[])
+      : []
+  )
     .map((q) => q?.id)
     .filter((id): id is string => typeof id === 'string');
   const completenessModel = session.completenessModel;
