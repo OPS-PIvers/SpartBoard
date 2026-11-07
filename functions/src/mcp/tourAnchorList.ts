@@ -56149,6 +56149,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "prompt-dialog.input",
+    "label": "Text box in the shared prompt dialog (New Board, New Collection, rename)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "prompt-dialog.confirm",
+    "label": "Confirm button in the shared prompt dialog (Create, Save, OK)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "prompt-dialog.cancel",
+    "label": "Cancel button in the shared prompt dialog",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "boards-modal.clear-selection",
     "label": "Clear selection button in the Manage Boards bulk bar",
     "scope": "board",

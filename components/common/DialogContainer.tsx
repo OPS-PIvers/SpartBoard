@@ -13,6 +13,7 @@ import {
 import { useDialog } from '@/context/useDialog';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 import { DialogVariant } from '@/context/DialogContextValue';
+import { tourAttr } from '@/config/tourAnchors';
 
 // ─── Variant config ───────────────────────────────────────────────────────────
 
@@ -336,6 +337,7 @@ const PromptDialog: React.FC<{
         </h3>
         <button
           onClick={onCancel}
+          {...tourAttr('prompt-dialog.cancel')}
           className="p-1 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
           aria-label="Cancel"
         >
@@ -359,6 +361,7 @@ const PromptDialog: React.FC<{
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={placeholder}
+            {...tourAttr('prompt-dialog.input')}
             rows={5}
             className={inputClass}
           />
@@ -366,6 +369,7 @@ const PromptDialog: React.FC<{
           <input
             ref={inputRef as React.RefObject<HTMLInputElement>}
             type="text"
+            {...tourAttr('prompt-dialog.input')}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={placeholder}
@@ -384,6 +388,7 @@ const PromptDialog: React.FC<{
         </button>
         <button
           onClick={handleSubmit}
+          {...tourAttr('prompt-dialog.confirm')}
           className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${cfg.confirmBg} ${cfg.confirmHover} ${cfg.confirmText}`}
         >
           {confirmLabel}
