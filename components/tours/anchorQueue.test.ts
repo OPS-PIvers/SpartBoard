@@ -114,9 +114,6 @@ describe('queueDisplayState and rebind gating', () => {
       canRebind(item({ status: 'pr-open', anchorId: 'timer.start' }), registry)
     ).toBe(true);
     expect(
-      canRebind(item({ status: 'pr-open', anchorId: 'timer.start' }), registry)
-    ).toBe(true);
-    expect(
       canRebind(item({ status: 'pr-open', anchorId: 'timer.new' }), registry)
     ).toBe(false);
     expect(
@@ -301,5 +298,11 @@ describe('parseQueueItem legacy status', () => {
       parseQueueItem('a'.repeat(40), { status: 'mapped', anchorId: 'x.y' })
         ?.status
     ).toBe('pr-open');
+    const legacy = parseQueueItem('a'.repeat(40), {
+      status: 'mapped',
+      anchorId: 'timer.start',
+      occurrences: [{ setId: 's', stepId: 'x' }],
+    });
+    expect(legacy && canRebind(legacy, registry)).toBe(true);
   });
 });

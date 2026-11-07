@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   updates: [] as Array<{ path: string; data: Record<string, unknown> }>,
   failUpdate: new Set<string>(),
   deletes: [] as string[],
+  statuses: new Map<string, string>(),
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, isConfigured: true }));
@@ -30,7 +31,13 @@ vi.mock('firebase/firestore', () => {
     ) => {
       const tx = {
         get: (ref: { path: string }) =>
-          Promise.resolve({ exists: () => h.existing.has(ref.path) }),
+          Promise.resolve({
+            exists: () => h.existing.has(ref.path),
+            data: () => ({ status: h.statuses.get(ref.path) }),
+          }),
+        delete: (ref: { path: string }) => {
+          h.deletes.push(ref.path);
+        },
         set: (
           ref: { path: string },
           data: Record<string, unknown>,
@@ -40,10 +47,6 @@ vi.mock('firebase/firestore', () => {
         },
       };
       await fn(tx);
-    },
-    deleteDoc: (ref: { path: string }) => {
-      h.deletes.push(ref.path);
-      return Promise.resolve();
     },
     updateDoc: (ref: { path: string }, data: Record<string, unknown>) => {
       if (h.failUpdate.has(ref.path)) return Promise.reject(new Error('gone'));
@@ -241,12 +244,23 @@ describe('rebindQueueItem', () => {
 });
 
 describe('dismissQueueItem', () => {
-  it('deletes a needs-human item only', async () => {
+  beforeEach(() => {
     h.deletes.length = 0;
+    h.statuses.clear();
+  });
+  it('deletes a needs-human item only', async () => {
+    h.existing.add(`tour_anchor_queue/${FP1}`);
+    h.statuses.set(`tour_anchor_queue/${FP1}`, 'needs-human');
     await dismissQueueItem({ fingerprint: FP1, status: 'needs-human' });
     expect(h.deletes).toEqual([`tour_anchor_queue/${FP1}`]);
     for (const status of ['open', 'pr-open', 'rebound'] as const)
       await dismissQueueItem({ fingerprint: FP2, status });
     expect(h.deletes).toHaveLength(1);
+  });
+  it('leaves an item the routine just moved on', async () => {
+    h.existing.add(`tour_anchor_queue/${FP1}`);
+    h.statuses.set(`tour_anchor_queue/${FP1}`, 'pr-open');
+    await dismissQueueItem({ fingerprint: FP1, status: 'needs-human' });
+    expect(h.deletes).toHaveLength(0);
   });
 });

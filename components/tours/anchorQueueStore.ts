@@ -3,7 +3,6 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   runTransaction,
@@ -91,7 +90,11 @@ export async function dismissQueueItem(
   item: Pick<TourAnchorQueueItem, 'fingerprint' | 'status'>
 ): Promise<void> {
   if (!isConfigured || item.status !== 'needs-human') return;
-  await deleteDoc(queueRef(item.fingerprint));
+  const ref = queueRef(item.fingerprint);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists() && snap.data()?.status === 'needs-human') tx.delete(ref);
+  });
 }
 
 export interface RebindDeps {

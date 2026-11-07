@@ -71,7 +71,10 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
   const { items, loading, error } = useTourAnchorQueue();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  const [failed, setFailed] = useState<{
+    id: string;
+    kind: 'rebind' | 'dismiss';
+  } | null>(null);
 
   const rows = items
     .map((item) => ({ item, state: queueDisplayState(item) }))
@@ -91,7 +94,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
       await rebindQueueItem(item, { load: loadSet, save: saveSet });
     } catch (err) {
       console.error('[TourHealth] Rebind failed:', err);
-      setFailed(item.fingerprint);
+      setFailed({ id: item.fingerprint, kind: 'rebind' });
     } finally {
       setBusy(null);
     }
@@ -104,7 +107,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
       await dismissQueueItem(item);
     } catch (err) {
       console.error('[TourHealth] Dismiss failed:', err);
-      setFailed(item.fingerprint);
+      setFailed({ id: item.fingerprint, kind: 'dismiss' });
     } finally {
       setBusy(null);
     }
@@ -230,9 +233,13 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
                 {state === 'needs-human' && item.reason && (
                   <p className="text-red-700">{item.reason}</p>
                 )}
-                {failed === item.fingerprint && (
+                {failed?.id === item.fingerprint && (
                   <p role="alert" className="text-red-700">
-                    {t('tourHealth.unmapped.actionFailed')}
+                    {t(
+                      failed.kind === 'dismiss'
+                        ? 'tourHealth.unmapped.dismissFailed'
+                        : 'tourHealth.unmapped.rebindFailed'
+                    )}
                   </p>
                 )}
                 {item.occurrences.length > 0 && (

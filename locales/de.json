@@ -4432,7 +4432,7 @@
       "rebinding": "Wird neu verknüpft...",
       "rebindFailed": "Neu verknüpfen fehlgeschlagen. Versuche es erneut.",
       "dismiss": "Verwerfen",
-      "actionFailed": "Aktualisierung fehlgeschlagen. Versuche es erneut.",
+      "dismissFailed": "Aktualisierung fehlgeschlagen. Versuche es erneut.",
       "needsType": "Diese Schaltfläche gibt es je Widget, also die Schritte im Tour-Editor festlegen.",
       "openLabel": "{{title}} bearbeiten",
       "status": {

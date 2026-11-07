@@ -34526,7 +34526,21 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Dismiss button for a needs-a-person unmapped anchor",
     "scope": "board",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.tour-health",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.tour-health-toggle"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.help-center.keep-all-in-help",
