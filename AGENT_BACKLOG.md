@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-152**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-153**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -182,6 +182,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-ispilm claude/project-thread-ta7n7b
   git push origin --delete claude/project-thread-v022ec
   git push origin --delete claude/project-thread-dkv28p
+  git push origin --delete claude/project-thread-g7gl9c
   ```
 
   </details>
@@ -214,6 +215,7 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 
 Each names what unblocks it. When the blocker clears, move the item to Ready.
 
+- **AB-152 Turn in scan-first written answers after End** (S). Blocked on PT-145. A hybrid "written answers on paper" row the student never opened on a device (`joined`, `paperWrittenBatchId`, no `lastWriteAt`; see `hybridResponseFields` in `functions/src/importPaperResponses.ts`) is left open by the assignment End (`utils/quizFinalizeOpenResponses.ts`) but turned in by the monitor's legacy End and the sub End (`finalizeAllResponses`), and the idle sweep's query never sees it. Turning one in marks its device questions abandoned and uses an attempt. Once Paul picks, make every End path and the sweep do the same (coordinate with the R5 slice, same import function) and add unit tests.
 - **AB-47 Drop the join code transition** (S). Blocked on PT-1, then one more release. Remove `o == null` in `ownsJoinCode` (`firestore.rules` ~4863) and flip the "staff use a code nobody has claimed" case in `tests/rules/quizJoinCodeLookup.test.ts` to `assertFails`.
 - **AB-48 Legacy tool features** (S). Blocked on PT-62, then one release. Delete the `LEGACY_TOOL_FEATURES` fallback (`components/layout/Dock.tsx:762`, `config/featureDefaults.ts`) and the three retired GlobalFeature ids.
 - **AB-49 One gate per rollout** (L). Blocked on AB-48. Collapse each rollout switch into its paired flag (ADMIN_ACCESS_PAGES, deferred).
