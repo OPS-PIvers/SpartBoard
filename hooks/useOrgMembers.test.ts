@@ -222,6 +222,21 @@ describe('useOrgMembers', () => {
     expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
+  it('removeMembers keeps each batch under 500 writes (delete + tombstone per id)', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => useOrgMembers('orono'));
+    const ids = Array.from({ length: 300 }, (_, i) => `u${i}@x.com`);
+    await act(async () => {
+      await result.current.removeMembers(ids);
+    });
+    expect(mockWriteBatch).toHaveBeenCalledTimes(2);
+    expect(batchDelete.mock.calls.length + batchSet.mock.calls.length).toBe(
+      600
+    );
+    expect(batchCommit).toHaveBeenCalledTimes(2);
+  });
+
   it('inviteMembers calls the createOrganizationInvites callable with the correct payload', async () => {
     mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
