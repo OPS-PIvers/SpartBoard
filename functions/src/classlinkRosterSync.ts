@@ -200,15 +200,21 @@ export async function readSyncSettings(
   };
 }
 
+/** True when `a` sorts before `b` in the sweep order (class id, then path). */
+function cursorBefore(a: SyncCursor, b: SyncCursor): boolean {
+  if (a.classId !== b.classId) return a.classId < b.classId;
+  return a.path < b.path;
+}
+
 async function readSyncCursor(
   ref: admin.firestore.DocumentReference
 ): Promise<SyncCursor | null> {
   const c: unknown = (await ref.get()).data()?.cursor;
   if (!c || typeof c !== 'object') return null;
   const { classId, path } = c as Record<string, unknown>;
-  if (typeof classId !== 'string' || typeof path !== 'string' || !path) {
-    return null;
-  }
+  if (typeof classId !== 'string' || typeof path !== 'string') return null;
+  const segments = path.split('/');
+  if (segments.length % 2 !== 0 || segments.some((x) => !x)) return null;
   return { classId, path };
 }
 
@@ -250,68 +256,78 @@ export async function runClassLinkRosterSync(
   const settingsRef = db.doc(SYNC_SETTINGS_PATH);
   // Dry runs write nothing, so they neither use nor move the cursor.
   const saved = settings.dryRun ? null : await readSyncCursor(settingsRef);
-  const resumeFrom: SyncCursor | null = saved;
   let lastDone: SyncCursor | null = null;
-  let reachedEnd = false;
 
-  while (summary.scanned < MAX_ROSTERS_PER_RUN) {
-    if (deps.now() - startedAt > RUN_BUDGET_MS) {
-      summary.budgetExhausted = true;
-      break;
-    }
-
-    let query = db
-      .collectionGroup('rosters')
-      .orderBy('classlinkClassId')
-      .orderBy(admin.firestore.FieldPath.documentId())
-      .limit(ROSTER_PAGE_SIZE);
-    const after = lastDone ?? resumeFrom;
-    if (after) query = query.startAfter(after.classId, db.doc(after.path));
-
-    const page = await query.get();
-    if (page.empty) {
-      reachedEnd = true;
-      break;
-    }
-
-    for (const rosterSnap of page.docs) {
+  // Walks rosters after `from` until the end of the list, `stopAt`, or a run limit.
+  const runPass = async (
+    from: SyncCursor | null,
+    stopAt: SyncCursor | null
+  ): Promise<'end' | 'stopAt' | 'limit'> => {
+    let after = from;
+    while (summary.scanned < MAX_ROSTERS_PER_RUN) {
       if (deps.now() - startedAt > RUN_BUDGET_MS) {
         summary.budgetExhausted = true;
-        break;
+        return 'limit';
       }
-      summary.scanned += 1;
-      try {
-        await syncOneRoster(
-          rosterSnap,
-          deps,
-          settings,
-          summary,
-          tokenCache,
-          taughtCache
-        );
-      } catch (err) {
-        summary.errors += 1;
-        console.error(
-          `[classlinkRosterSync] roster ${rosterSnap.ref.path} failed:`,
-          err
-        );
-      }
-      lastDone = {
-        classId: String(rosterSnap.data().classlinkClassId ?? ''),
-        path: rosterSnap.ref.path,
-      };
-    }
 
-    if (summary.budgetExhausted) break;
-    if (page.size < ROSTER_PAGE_SIZE) {
-      reachedEnd = true;
-      break;
+      let query = db
+        .collectionGroup('rosters')
+        .orderBy('classlinkClassId')
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .limit(ROSTER_PAGE_SIZE);
+      if (after) query = query.startAfter(after.classId, db.doc(after.path));
+
+      const page = await query.get();
+      if (page.empty) return 'end';
+
+      for (const rosterSnap of page.docs) {
+        const here = {
+          classId: String(rosterSnap.data().classlinkClassId ?? ''),
+          path: rosterSnap.ref.path,
+        };
+        if (stopAt && !cursorBefore(here, stopAt)) return 'stopAt';
+        if (deps.now() - startedAt > RUN_BUDGET_MS) {
+          summary.budgetExhausted = true;
+          return 'limit';
+        }
+        if (summary.scanned >= MAX_ROSTERS_PER_RUN) return 'limit';
+        summary.scanned += 1;
+        try {
+          await syncOneRoster(
+            rosterSnap,
+            deps,
+            settings,
+            summary,
+            tokenCache,
+            taughtCache
+          );
+        } catch (err) {
+          summary.errors += 1;
+          console.error(
+            `[classlinkRosterSync] roster ${rosterSnap.ref.path} failed:`,
+            err
+          );
+        }
+        lastDone = here;
+        after = here;
+      }
+
+      if (page.size < ROSTER_PAGE_SIZE) return 'end';
     }
+    return 'limit';
+  };
+
+  let complete: boolean;
+  const first = await runPass(saved, null);
+  if (first === 'end') {
+    // A resumed run that hits the end wraps to the top and stops where last night stopped.
+    complete = saved ? (await runPass(null, saved)) !== 'limit' : true;
+  } else {
+    complete = false;
   }
 
   if (!settings.dryRun && (saved || lastDone)) {
-    // Finished the list: start over tomorrow. Stopped early: continue after the last roster handled.
-    const next = reachedEnd ? null : (lastDone ?? saved);
+    const next = complete ? null : (lastDone ?? saved);
     summary.resumePending = next !== null;
     await writeSyncCursor(settingsRef, next);
   }

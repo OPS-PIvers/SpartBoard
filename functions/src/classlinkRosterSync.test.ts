@@ -775,6 +775,49 @@ describe('runClassLinkRosterSync resume and blocked state', () => {
     expect(h.cursorWrites.at(-1)).toEqual(admin.firestore.FieldValue.delete());
   });
 
+  it('wraps to the top after the tail and stops where the last run stopped', async () => {
+    const h = three();
+    h.setCursor({
+      classId: 'class-users/u1/rosters/r2',
+      path: 'users/u1/rosters/r2',
+    });
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(h.upstreamFetches).toEqual([
+      'class-users/u2/rosters/r3',
+      'class-users/u0/rosters/r1',
+    ]);
+    expect(out.scanned).toBe(2);
+    expect(out.resumePending).toBe(false);
+    expect(h.cursorWrites.at(-1)).toEqual(admin.firestore.FieldValue.delete());
+  });
+
+  it('syncs the whole list again when the saved cursor sits on the last roster', async () => {
+    const h = three();
+    h.setCursor({
+      classId: 'class-users/u2/rosters/r3',
+      path: 'users/u2/rosters/r3',
+    });
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(out.scanned).toBe(2);
+    expect(h.upstreamFetches).toEqual([
+      'class-users/u0/rosters/r1',
+      'class-users/u1/rosters/r2',
+    ]);
+  });
+
+  it('ignores a cursor whose path is not a document path', async () => {
+    const h = three();
+    h.setCursor({ classId: 'x', path: 'users/u1/rosters' });
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(out.scanned).toBe(3);
+  });
+
   it('does not use or move the cursor in dry run', async () => {
     const h = three();
     h.setCursor({ classId: 'x', path: 'users/u0/rosters/r1' });
