@@ -393,6 +393,14 @@ describe('resolveOrgForUser auto-enrollment', () => {
     expect(docCreateMock).not.toHaveBeenCalled();
   });
 
+  it('still flags a removed ClassLink student so they leave the teacher app', async () => {
+    fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+    scriptDocs({ memberExists: false, removed: true });
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
   it('never enrolls a ClassLink student, but still resolves', async () => {
     scriptDocs({ memberExists: false });
     fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);

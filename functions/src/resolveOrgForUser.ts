@@ -188,13 +188,6 @@ async function autoEnrollMember(
     return;
   }
 
-  // An admin's "Remove from org" tombstone keeps them out until re-added by hand.
-  if (
-    (await db.doc(`organizations/${orgId}/removedMembers/${email}`).get())
-      .exists
-  )
-    return;
-
   // Per-org opt-out: only read the org doc on the rare doc-missing path.
   const orgSnap = await db.doc(`organizations/${orgId}`).get();
   if (orgSnap.get('autoEnrollDomainUsers') === false) return;
@@ -216,6 +209,13 @@ async function autoEnrollMember(
   ) {
     return;
   }
+
+  // An admin's "Remove from org" tombstone keeps staff out until re-added by hand.
+  if (
+    (await db.doc(`organizations/${orgId}/removedMembers/${email}`).get())
+      .exists
+  )
+    return;
 
   try {
     await memberRef.create({
