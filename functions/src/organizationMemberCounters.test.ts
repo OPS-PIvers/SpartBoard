@@ -33,11 +33,24 @@ const adminMock = vi.hoisted(() => ({
   updateSpy:
     vi.fn<(call: { path: string; patch: Record<string, unknown> }) => void>(),
   domainDocs: [] as { id: string; data: Record<string, unknown> }[],
+  createdPaths: new Set<string>(),
+  createFailure: null as Error | null,
 }));
 
 vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => ({
     doc: vi.fn((path: string) => ({
+      create: () => {
+        if (adminMock.createFailure)
+          return Promise.reject(adminMock.createFailure);
+        if (adminMock.createdPaths.has(path)) {
+          return Promise.reject(
+            Object.assign(new Error('exists'), { code: 6 })
+          );
+        }
+        adminMock.createdPaths.add(path);
+        return Promise.resolve();
+      },
       update: (patch: Record<string, unknown>) => {
         adminMock.updateSpy({ path, patch });
         const failure = adminMock.updateFailures.get(path);
@@ -62,6 +75,7 @@ vi.mock('./firebaseAdmin', () => {
     firestore: Object.assign(firestoreFn, {
       FieldValue: {
         increment: (n: number) => ({ __op: 'increment', value: n }),
+        serverTimestamp: () => ({ __op: 'serverTimestamp' }),
       },
     }),
   };
@@ -70,7 +84,9 @@ vi.mock('./firebaseAdmin', () => {
 vi.mock('firebase-admin/firestore', () => ({
   FieldValue: {
     increment: (n: number) => ({ __op: 'increment', value: n }),
+    serverTimestamp: () => ({ __op: 'serverTimestamp' }),
   },
+  Timestamp: { fromMillis: (ms: number) => ({ ms }) },
 }));
 
 // Import AFTER mocks so the module's onDocumentWritten registration lands in
@@ -328,9 +344,11 @@ describe('resolveDomainDocId', () => {
 const makeWriteEvent = (opts: {
   orgId: string;
   emailLower: string;
+  id?: string;
   before: CounterMemberFields | null;
   after: CounterMemberFields | null;
 }) => ({
+  id: opts.id,
   params: { orgId: opts.orgId, emailLower: opts.emailLower },
   data: {
     before: {
@@ -358,6 +376,7 @@ describe('organizationMemberCounters trigger (all-or-nothing semantics)', () => 
   beforeEach(() => {
     adminMock.updateFailures.clear();
     adminMock.updateSpy.mockClear();
+    adminMock.createdPaths.clear();
     adminMock.domainDocs = [];
     loggerMock.warn.mockClear();
     loggerMock.info.mockClear();
@@ -440,5 +459,61 @@ describe('organizationMemberCounters trigger (all-or-nothing semantics)', () => 
     expect(paths).toContain(`organizations/${orgId}/buildings/orono-high`);
     expect(paths).toContain(`organizations/${orgId}/domains/primary`);
     expect(loggerMock.error).not.toHaveBeenCalled();
+  });
+});
+
+describe('organizationMemberCounters duplicate delivery', () => {
+  beforeEach(() => {
+    adminMock.updateSpy.mockClear();
+    adminMock.updateFailures.clear();
+    adminMock.createdPaths.clear();
+  });
+
+  it('applies a redelivered event id only once', async () => {
+    const event = makeWriteEvent({
+      orgId: 'o1',
+      emailLower: 'a@x.org',
+      id: 'evt-1',
+      before: null,
+      after: { email: 'a@x.org', buildingIds: [] },
+    });
+    await invokeTrigger(event);
+    const first = adminMock.updateSpy.mock.calls.length;
+    expect(first).toBeGreaterThan(0);
+    await invokeTrigger(event);
+    expect(adminMock.updateSpy.mock.calls.length).toBe(first);
+  });
+
+  it('applies distinct event ids separately', async () => {
+    const mk = (id: string) =>
+      makeWriteEvent({
+        orgId: 'o1',
+        emailLower: 'a@x.org',
+        id,
+        before: null,
+        after: { email: 'a@x.org', buildingIds: [] },
+      });
+    await invokeTrigger(mk('evt-1'));
+    const first = adminMock.updateSpy.mock.calls.length;
+    await invokeTrigger(mk('evt-2'));
+    expect(adminMock.updateSpy.mock.calls.length).toBe(first * 2);
+  });
+
+  it('still counts when the ledger write fails for another reason', async () => {
+    adminMock.createFailure = new Error('unavailable');
+    try {
+      await invokeTrigger(
+        makeWriteEvent({
+          orgId: 'o1',
+          emailLower: 'a@x.org',
+          id: 'evt-9',
+          before: null,
+          after: { email: 'a@x.org', buildingIds: [] },
+        })
+      );
+    } finally {
+      adminMock.createFailure = null;
+    }
+    expect(adminMock.updateSpy.mock.calls.length).toBeGreaterThan(0);
   });
 });
