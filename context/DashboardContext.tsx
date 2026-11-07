@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useRef,
   useMemo,
+  useEffectEvent,
 } from 'react';
 import {
   Dashboard,
@@ -73,6 +74,12 @@ import { TOOLS } from '@/config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 import { DEFAULT_BOARD_BACKGROUND } from '@/config/backgrounds';
 import { markFirstRun } from '@/utils/gettingStartedProgress';
+import {
+  defaultBackgroundFor,
+  firstBoardOnDefault,
+  FRESH_BOARD_MS,
+  loadBoardBackgroundDefaults,
+} from '@/utils/boardBackgroundDefaults';
 import {
   WIDGET_DEFAULTS,
   WIDGET_STRETCH_BEHAVIOR,
@@ -2062,6 +2069,44 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [user?.uid, saveDashboard]
   );
+
+  // A first board still on SpartBoard's default takes the admin's district or building default:
+  // once when the app has just made it, and again when the teacher saves a first building (D24, D25).
+  const restyledFirstBoard = useRef(false);
+  const lastBuildingsKey = useRef<string | null>(null);
+  const buildingsKey = selectedBuildings.join(',');
+  const restyleFirstBoard = useEffectEvent(() => {
+    if (!user || isViewAsTab) return;
+    const before = lastBuildingsKey.current;
+    lastBuildingsKey.current = buildingsKey;
+    const firstBuildingSaved = before === '' && buildingsKey !== '';
+    const justMade =
+      !restyledFirstBoard.current &&
+      dashboards.length === 1 &&
+      Date.now() - (dashboards[0]?.createdAt ?? 0) < FRESH_BOARD_MS;
+    if (!firstBuildingSaved && !justMade) return;
+    restyledFirstBoard.current = true;
+    const board = firstBoardOnDefault(dashboards);
+    if (!board) return;
+    const buildings = selectedBuildings;
+    void loadBoardBackgroundDefaults().then((defaults) => {
+      const background = defaultBackgroundFor(defaults, buildings);
+      if (background === board.background) return;
+      setDashboards((prev) =>
+        prev.map((d) =>
+          d.id === board.id && d.background === DEFAULT_BOARD_BACKGROUND
+            ? { ...d, background }
+            : d
+        )
+      );
+      updateDashboardFields({ ...board, background }, { background }).catch(
+        (err: unknown) => logError('DashboardContext.restyleFirstBoard', err)
+      );
+    });
+  });
+  useEffect(() => {
+    if (!loading) restyleFirstBoard();
+  }, [loading, buildingsKey, dashboards.length]);
 
   const saveDashboards = useCallback(
     // `previous` is each board as this tab last had it, so the write merges per widget instead of overwriting.
@@ -4830,7 +4875,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         : {
             id: crypto.randomUUID(),
             name,
-            background: DEFAULT_BOARD_BACKGROUND,
+            // The admin's building or district default; a template's own background still wins (D24).
+            background: defaultBackgroundFor(
+              await loadBoardBackgroundDefaults(),
+              selectedBuildings
+            ),
             widgets: [],
             createdAt: Date.now(),
             order: maxOrder + 1,
@@ -4860,7 +4909,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return undefined;
       }
     },
-    [user, dashboards, saveDashboard, addToast, updateActiveId]
+    [
+      user,
+      dashboards,
+      saveDashboard,
+      addToast,
+      updateActiveId,
+      selectedBuildings,
+    ]
   );
 
   // ─────────────────────────────────────────────────────────────────────────

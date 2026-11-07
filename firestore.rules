@@ -1204,6 +1204,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Default background for new boards, by district and building: every teacher's new board reads it; admins set it.
+    match /admin_settings/board_backgrounds {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Rollout switch for blocking the right-click menu — every student page reads it; admins flip it.
     match /admin_settings/student_context_menu {
       allow read: if signedIn();

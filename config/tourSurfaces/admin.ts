@@ -539,6 +539,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/admin/BackgroundManager/index.tsx',
       'components/admin/BackgroundManager/GridPresetCard.tsx',
       'components/admin/BackgroundManager/ListPresetRow.tsx',
+      'components/admin/BackgroundManager/BoardBackgroundDefaultsPanel.tsx',
     ],
     opensWith: 'admin.settings.tab:admin#backgrounds',
     needs: ['admin'],

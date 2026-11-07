@@ -2074,6 +2074,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.backgrounds.youtube-add': ['admin.backgrounds'],
     'admin.backgrounds.youtube-label': ['admin.backgrounds'],
     'admin.backgrounds.youtube-url': ['admin.backgrounds'],
+    'admin.backgrounds.default-district': ['admin.backgrounds'],
+    'admin.backgrounds.default-building': ['admin.backgrounds'],
     'admin.previews.district-switch': ['admin.previews'],
     'admin.previews.focus-hours-start': ['admin.previews'],
     'admin.previews.focus-hours-end': ['admin.previews'],

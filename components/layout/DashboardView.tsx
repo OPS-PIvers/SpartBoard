@@ -1759,9 +1759,6 @@ export const DashboardView: React.FC = () => {
             />
           </div>
         )}
-
-        {/* Background Overlay for Depth */}
-        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
       </div>
 
       {/* ZOOMABLE WIDGET SURFACE: widgets get pan/zoom. */}
