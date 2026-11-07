@@ -120,6 +120,7 @@ beforeEach(async () => {
       classId: CLASS_ID,
       classIds: [CLASS_ID],
       attemptLimit: 2,
+      paperWrittenQuestionIds: ['q2', 'q4'],
     });
   });
 });
@@ -176,6 +177,24 @@ describe('hybrid paper response: student writes keep paper answers', () => {
     await assertFails(
       updateDoc(doc(asStudent(), RESPONSE_PATH), {
         answers: [MC, { ...PAPER, questionId: 'q9' }],
+      })
+    );
+  });
+
+  it('refuses a device entry that shadows a paper answer', async () => {
+    await hybrid([MC, PAPER]);
+    await assertFails(
+      updateDoc(doc(asStudent(), RESPONSE_PATH), {
+        answers: [
+          {
+            questionId: 'q2',
+            answer: 'forged',
+            status: 'submitted',
+            paperTranscript: 'done',
+          },
+          MC,
+          PAPER,
+        ],
       })
     );
   });
@@ -254,6 +273,22 @@ describe('all-paper response unlocked by the teacher', () => {
 });
 
 describe('device-only response', () => {
+  it('control: a first answer on a doc with no answers field is unchanged', async () => {
+    await seed({});
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), RESPONSE_PATH), { answers: [MC] })
+    );
+  });
+
+  it('control: a device answer to a paper question before any import is unchanged', async () => {
+    await seed({ answers: [] });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), RESPONSE_PATH), {
+        answers: [{ ...MC, questionId: 'q2', answer: '' }],
+      })
+    );
+  });
+
   it('control: multi-entry rewrites are unchanged', async () => {
     await seed({ answers: [MC, { ...MC, questionId: 'q3' }] });
     await assertSucceeds(

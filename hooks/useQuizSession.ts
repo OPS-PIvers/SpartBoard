@@ -2213,6 +2213,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const mediaResponseEnabledRef = useRef(false);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   mediaResponseEnabledRef.current = session?.mediaResponseEnabled === true;
+  // Hybrid paper questions; once a scan is imported the rules refuse a device entry for them.
+  const paperWrittenIdsRef = useRef<readonly string[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  paperWrittenIdsRef.current = session?.paperWrittenQuestionIds ?? [];
 
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
@@ -3353,7 +3357,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           (a) => a.questionId === questionId
         );
         // An imported paper answer is server-written; the rules refuse a student rewrite of it.
-        if (priorEntry?.paperScanId) return { skip: true, snapshot: null };
+        if (
+          priorEntry?.paperScanId ||
+          (existing.paperWrittenBatchId &&
+            paperWrittenIdsRef.current.includes(questionId))
+        )
+          return { skip: true, snapshot: null };
 
         // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
         // that would silently clobber a non-empty saved answer with ''.

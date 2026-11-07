@@ -128,7 +128,13 @@ describe('useQuizSessionStudent — draft autosave vs transactional writes', () 
     );
   });
 
-  async function joinWith(answers: Record<string, unknown>[]) {
+  async function joinWith(
+    answers: Record<string, unknown>[],
+    extra: {
+      session?: Partial<QuizSession>;
+      response?: Record<string, unknown>;
+    } = {}
+  ) {
     (
       firestore.getDocs as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce({
@@ -140,6 +146,7 @@ describe('useQuizSessionStudent — draft autosave vs transactional writes', () 
             ({
               status: 'active',
               mediaResponseEnabled: true,
+              ...extra.session,
             }) as QuizSession,
         },
       ],
@@ -153,6 +160,7 @@ describe('useQuizSessionStudent — draft autosave vs transactional writes', () 
       status: 'in-progress',
       answers,
       lastWriteAt: stamp(clock),
+      ...extra.response,
     };
     deliver();
     return result;
@@ -388,6 +396,21 @@ describe('useQuizSessionStudent — draft autosave vs transactional writes', () 
     });
     expect(updateMock()).not.toHaveBeenCalled();
     expect(server.answers.find((a) => a.questionId === 'q3')).toEqual(paper);
+  });
+
+  it('writes no device entry for a hybrid paper question once a scan is imported', async () => {
+    const result = await joinWith([draftQ1], {
+      session: { paperWrittenQuestionIds: ['q5'] },
+      response: { paperWrittenBatchId: 'batch-1' },
+    });
+    updateMock().mockClear();
+    txMock().mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q5', 'typed', 0, { isDraft: true });
+      await result.current.submitAnswer('q5', 'typed');
+    });
+    expect(updateMock()).not.toHaveBeenCalled();
+    expect(server.answers.some((a) => a.questionId === 'q5')).toBe(false);
   });
 });
 

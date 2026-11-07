@@ -5073,9 +5073,12 @@ service cloud.firestore {
         // one more attempt, a retake (completed -> joined, answers cleared) under the
         // cap, or resuming a teacher unlock. Never completed -> completed.
         // Imported paper answers (paperScanId) are server-written: a student write changes one other entry at a time, or clears all for a retake.
+        // An added entry can't shadow a hybrid paper question either.
         function paperKept(e, d) {
+          let a = d.answers.removeAll(e.answers);
           return !e.keys().hasAny(['paperWrittenBatchId', 'paperBatchId']) ||
-                 (oneUnscanned(d.answers.removeAll(e.answers)) &&
+                 (oneUnscanned(a) &&
+                  (a.size() == 0 || !(a[0].questionId in sessionData().get('paperWrittenQuestionIds', []))) &&
                   (oneUnscanned(e.answers.removeAll(d.answers)) || (e.status == 'completed' && d.status == 'joined')));
         }
 
