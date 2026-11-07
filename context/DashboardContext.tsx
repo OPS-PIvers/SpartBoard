@@ -72,6 +72,7 @@ import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { TOOLS } from '@/config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 import { DEFAULT_BOARD_BACKGROUND } from '@/config/backgrounds';
+import { markFirstRun } from '@/utils/gettingStartedProgress';
 import {
   WIDGET_DEFAULTS,
   WIDGET_STRETCH_BEHAVIOR,
@@ -2840,6 +2841,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           void saveDashboardRef
             .current(defaultDb)
             .then(() => {
+              const created = user.metadata.creationTime;
+              void markFirstRun(user.uid, created ? Date.parse(created) : null);
               setToasts((prev) => [
                 ...prev,
                 {

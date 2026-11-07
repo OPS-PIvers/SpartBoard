@@ -36,6 +36,16 @@ import { StudentPreviewGate } from './components/viewAs/StudentPreviewGate';
 
 // Lazy load heavy components for code splitting
 // Using named export pattern: import(...).then(module => ({ default: module.ExportName }))
+const GettingStartedWelcome = lazy(() =>
+  import('./components/gettingStarted/GettingStartedWelcome').then(
+    (module) => ({ default: module.GettingStartedWelcome })
+  )
+);
+const FirstRunSetup = lazy(() =>
+  import('./components/gettingStarted/FirstRunSetup').then((module) => ({
+    default: module.FirstRunSetup,
+  }))
+);
 const NewUserSetup = lazy(() =>
   import('./components/auth/NewUserSetup').then((module) => ({
     default: module.NewUserSetup,
@@ -678,6 +688,7 @@ const AppContent: React.FC = () => {
     googleAccessToken,
     signOut,
     canAccessFeature,
+    globalPermissionsLoaded,
   } = useAuth();
   const {
     loading: dashLoading,
@@ -782,8 +793,17 @@ const AppContent: React.FC = () => {
     return <FullPageLoader />;
   }
 
-  // First-time users go through the lightweight setup wizard.
+  // First-time users go through the setup wizard, or under Getting Started straight to the board (D2).
   if (!setupCompleted) {
+    // The flag isn't known until role and permissions settle, and the wizard must never flash.
+    if (!globalPermissionsLoaded || isAdmin === null) return <FullPageLoader />;
+    if (canAccessFeature('getting-started')) {
+      return (
+        <Suspense fallback={<FullPageLoader />}>
+          <FirstRunSetup fallback={<FullPageLoader />} />
+        </Suspense>
+      );
+    }
     return (
       <Suspense fallback={<FullPageLoader />}>
         <NewUserSetup />
@@ -818,6 +838,11 @@ const AppContent: React.FC = () => {
       <DriveDisconnectBanner />
       <DriveOfflineGrantCard />
       <SchoologyLinkNudge />
+      {pathname === '/' && (
+        <Suspense fallback={null}>
+          <GettingStartedWelcome />
+        </Suspense>
+      )}
       {isPlcRoute && plcParsed && (
         <Suspense fallback={<FullPageLoader />}>
           <PlcRouteHost parsed={plcParsed} />

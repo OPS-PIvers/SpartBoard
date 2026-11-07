@@ -25,6 +25,7 @@ import {
   EMPTY_GETTING_STARTED_PROGRESS,
   gettingStartedProgressRef,
   normalizeGettingStartedProgress,
+  markEssentialsDone,
   type GettingStartedProgress,
 } from '@/utils/gettingStartedProgress';
 import { logError } from '@/utils/logError';
@@ -119,7 +120,8 @@ export function useGettingStartedSettings(): GettingStartedSettings & {
   return { ...state.settings, loading: state.loading };
 }
 
-function useGettingStartedProgress(uid: string | undefined): {
+/** Live view of one teacher's progress doc; cheap enough to mount on the board. */
+export function useGettingStartedProgress(uid: string | undefined): {
   progress: GettingStartedProgress;
   loading: boolean;
 } {
@@ -196,12 +198,25 @@ export function useGettingStarted(): GettingStartedState {
     }
   );
   const essentials = tours.filter((tour) => tour.tier === 'essentials');
+  const loading =
+    settings.loading ||
+    progressLoading ||
+    (settings.tours.length > 0 && help.loading) ||
+    toursLoading;
+  // A first-run teacher with every Essentials tour done leaves quiet start, once (D7).
+  const endsQuietStart =
+    !loading &&
+    !!user &&
+    progress.firstSignInAt !== undefined &&
+    progress.essentialsDoneAt === undefined &&
+    essentials.length > 0 &&
+    essentials.every((tour) => tour.done);
+  const uid = user?.uid;
+  useEffect(() => {
+    if (endsQuietStart && uid) void markEssentialsDone(uid);
+  }, [endsQuietStart, uid]);
   return {
-    loading:
-      settings.loading ||
-      progressLoading ||
-      (settings.tours.length > 0 && help.loading) ||
-      toursLoading,
+    loading,
     showInSidebar: settings.showInSidebar,
     essentials,
     nextSteps: tours.filter((tour) => tour.tier === 'next'),

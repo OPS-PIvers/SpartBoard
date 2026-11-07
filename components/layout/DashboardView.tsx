@@ -439,13 +439,19 @@ export const DashboardView: React.FC = () => {
     };
   }, []);
   const onboardingShownRef = React.useRef(false);
+  const seedAuth = useAuth();
+  // Under Getting Started the checklist widget is never seeded (D26); wait until the flag is known.
+  const seedHeld =
+    !seedAuth.globalPermissionsLoaded ||
+    seedAuth.isAdmin === null ||
+    seedAuth.canAccessFeature('getting-started');
 
   // Auto-add onboarding widget for brand-new users on their first empty board.
   // onboardingShownRef guards against duplicate adds within a session;
   // localStorage persists the flag across reloads so the widget is never re-added.
   // Skipped in auth-bypass mode (E2E / local dev) to keep tests deterministic.
   React.useEffect(() => {
-    if (!activeDashboard) return;
+    if (!activeDashboard || seedHeld) return;
     if (onboardingShownRef.current) return;
     if (import.meta.env.VITE_AUTH_BYPASS === 'true') return;
     try {
@@ -466,7 +472,7 @@ export const DashboardView: React.FC = () => {
       }
       addWidget('onboarding', { x: 60, y: 80, w: 380, h: 440 });
     }
-  }, [activeDashboard, dashboards, addWidget]);
+  }, [activeDashboard, dashboards, addWidget, seedHeld]);
 
   // WIDGET POSITION RESCUE
   // Refs keep values fresh inside stable callbacks without re-registering
