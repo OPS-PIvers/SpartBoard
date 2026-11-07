@@ -165,6 +165,56 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "drive.grant-card",
+    "label": "\"Stay connected to Drive\" card",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "drive.grant-approve",
+    "label": "Approve button on the \"Stay connected to Drive\" card",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "drive.disconnect-banner",
+    "label": "\"Drive Disconnected\" banner",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "drive.reconnect",
+    "label": "Connect button on the \"Drive Disconnected\" banner",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "widget.window",
     "label": "Widget window",
     "scope": "widget",
@@ -1106,6 +1156,144 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "backgrounds.tile",
+    "label": "Background tile in the Backgrounds window, by position",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "key_pattern": "backgrounds#item-[1-9]\\d*",
+    "key_hint": "backgrounds#item-1 is the first tile in the open section",
+    "routes": [
+      {
+        "surface": "board.backgrounds",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.backgrounds"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-url",
+    "label": "Schoology course link field in Link to Schoology",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-check",
+    "label": "Check button for a pasted Schoology course link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-class",
+    "label": "Class to link a pasted Schoology course to",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-link.paste-link",
+    "label": "Link button for a pasted Schoology course",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.schoology-link",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quick-access.close",
+    "label": "Close button in the Quick Access window",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.quick-access-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.quick-access"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quick-access.search",
+    "label": "Search field in the Quick Access window",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.quick-access-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.quick-access"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quick-access.tool",
+    "label": "Widget tile in the Quick Access window",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.quick-access-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.quick-access"
         ]
       }
     ]
@@ -2569,7 +2757,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.new-plc",
-    "label": "New PLC button in My PLCs",
+    "label": "New team button in My Teams",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -2585,7 +2773,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.invites",
-    "label": "Invites button in My PLCs",
+    "label": "Invites button in My Teams",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -2601,7 +2789,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.plc-list",
-    "label": "PLC list in My PLCs",
+    "label": "Team list in My Teams",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -23814,7 +24002,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.open-plc",
-    "label": "Open a PLC card in My PLCs",
+    "label": "Open a team card in My Teams",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -23830,7 +24018,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.actions-menu",
-    "label": "PLC actions kebab in My PLCs",
+    "label": "Team actions kebab in My Teams",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -24769,7 +24957,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "plcs.empty-create",
-    "label": "Create PLC button in the empty My PLCs list",
+    "label": "Create team button in the empty My Teams list",
     "scope": "board",
     "persists": true,
     "routes": [

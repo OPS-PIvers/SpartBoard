@@ -37,6 +37,8 @@ export const SURFACES: TourSurfaceMap = {
       'components/layout/sidebar/Sidebar.tsx',
       'components/layout/sidebar/SidebarGettingStarted.tsx',
       'components/share/ShareStatusBanner.tsx',
+      'components/common/DriveOfflineGrantCard.tsx',
+      'components/common/DriveDisconnectBanner.tsx',
       'components/layout/useClaudeBoardActivity.ts',
       'components/layout/ImportInboxNotice.tsx',
       'components/connections/ConnectModeBar.tsx',
@@ -518,6 +520,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/classes/LinkSchoologyModal.tsx',
       'components/classes/SchoologyLinkedCourses.tsx',
       'components/classes/SchoologyFindCourses.tsx',
+      'components/classes/SchoologyPasteLink.tsx',
     ],
     opensWith: 'classes.link-schoology',
   },
@@ -573,6 +576,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'profile.tab-connected-apps',
   },
 
+  'board.quick-access-modal': {
+    label: 'Quick Access',
+    kind: 'modal',
+    files: ['components/quickAccessModal/QuickAccessModal.tsx'],
+    opensWith: 'sidebar.quick-access',
+    parent: 'board.sidebar',
+  },
   'board.boards-modal': {
     label: 'Boards & Collections',
     kind: 'modal',

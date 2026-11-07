@@ -68,6 +68,20 @@ export const TOUR_ANCHORS = {
     closes: 'board.widget-library',
   },
 
+  'drive.grant-card': {
+    label: '"Stay connected to Drive" card',
+  },
+  'drive.grant-approve': {
+    label: 'Approve button on the "Stay connected to Drive" card',
+    persists: true,
+  },
+  'drive.disconnect-banner': {
+    label: '"Drive Disconnected" banner',
+  },
+  'drive.reconnect': {
+    label: 'Connect button on the "Drive Disconnected" banner',
+    persists: true,
+  },
   'widget.window': {
     label: 'Widget window',
     perWidget: true,
@@ -217,6 +231,46 @@ export const TOUR_ANCHORS = {
   },
   'backgrounds.search': {
     label: 'Search field in the Backgrounds window',
+    panel: true,
+  },
+  'backgrounds.tile': {
+    label: 'Background tile in the Backgrounds window, by position',
+    perField: true,
+    keyPattern: 'backgrounds#item-[1-9]\\d*',
+    keyHint: 'backgrounds#item-1 is the first tile in the open section',
+    persists: true,
+    panel: true,
+  },
+  'schoology-link.paste-url': {
+    label: 'Schoology course link field in Link to Schoology',
+    panel: true,
+  },
+  'schoology-link.paste-check': {
+    label: 'Check button for a pasted Schoology course link',
+    panel: true,
+  },
+  'schoology-link.paste-class': {
+    label: 'Class to link a pasted Schoology course to',
+    panel: true,
+  },
+  'schoology-link.paste-link': {
+    label: 'Link button for a pasted Schoology course',
+    persists: true,
+    panel: true,
+  },
+  'quick-access.close': {
+    label: 'Close button in the Quick Access window',
+    panel: true,
+    closes: 'own',
+  },
+  'quick-access.search': {
+    label: 'Search field in the Quick Access window',
+    panel: true,
+  },
+  'quick-access.tool': {
+    label: 'Widget tile in the Quick Access window',
+    perWidgetType: true,
+    persists: true,
     panel: true,
   },
   'backgrounds.type-filter': {
@@ -561,9 +615,9 @@ export const TOUR_ANCHORS = {
     label: 'Try again button in the Link to Google Classroom modal',
     panel: true,
   },
-  'plcs.new-plc': { label: 'New PLC button in My PLCs', panel: true },
-  'plcs.invites': { label: 'Invites button in My PLCs', panel: true },
-  'plcs.plc-list': { label: 'PLC list in My PLCs', panel: true },
+  'plcs.new-plc': { label: 'New team button in My Teams', panel: true },
+  'plcs.invites': { label: 'Invites button in My Teams', panel: true },
+  'plcs.plc-list': { label: 'Team list in My Teams', panel: true },
   'plc-edit.name': {
     label: 'PLC name input in the PLC edit modal',
     panel: true,
@@ -5795,12 +5849,12 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'plcs.open-plc': {
-    label: 'Open a PLC card in My PLCs',
+    label: 'Open a team card in My Teams',
     perField: true,
     panel: true,
   },
   'plcs.actions-menu': {
-    label: 'PLC actions kebab in My PLCs',
+    label: 'Team actions kebab in My Teams',
     perField: true,
     panel: true,
   },
@@ -6024,7 +6078,7 @@ export const TOUR_ANCHORS = {
     label: 'Group type select in the PLC edit modal',
   },
   'plcs.empty-create': {
-    label: 'Create PLC button in the empty My PLCs list',
+    label: 'Create team button in the empty My Teams list',
     persists: true,
   },
   'plc-import.close': {

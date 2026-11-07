@@ -3495,7 +3495,7 @@ const TeacherQuizWidget: React.FC<{
         onShareWithPlc={(meta) => {
           if (plcs.length === 0) {
             addToast(
-              'Join a PLC from the My PLCs sidebar to share quizzes with teammates.',
+              'Join a team under My Teams in the sidebar to share quizzes with teammates.',
               'info'
             );
             return;
@@ -3505,7 +3505,7 @@ const TeacherQuizWidget: React.FC<{
         onBulkShareWithPlc={(metas) => {
           if (plcs.length === 0) {
             addToast(
-              'Join a PLC from the My PLCs sidebar to share quizzes with teammates.',
+              'Join a team under My Teams in the sidebar to share quizzes with teammates.',
               'info'
             );
             return;

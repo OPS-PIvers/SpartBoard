@@ -611,7 +611,7 @@ export const Sidebar: React.FC = () => {
                     </button>
                   )}
                   {/* Org-only surfaces: My Classes (incl. ClassLink import),
-                      My PLCs, and My Building(s). Hidden for external (no-org/
+                      My Teams, and My Building(s). Hidden for external (no-org/
                       free-tier) users — buildings/PLCs/ClassLink are all org
                       concepts. `isExternalUser` is false while membership
                       resolves, so org/internal members never see these flicker
