@@ -154,14 +154,18 @@ interface ContextSnapshot {
   updateWidget: (
     id: string,
     updates: Partial<WidgetData>,
-    opts?: { immediate?: boolean; skipHistory?: boolean }
+    opts?: {
+      immediate?: boolean;
+      skipHistory?: boolean;
+      joinHistory?: boolean;
+    }
   ) => void;
   updateWidgets: (
     updates: Array<{
       id: string;
       changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
     }>,
-    opts?: { skipHistory?: boolean }
+    opts?: { skipHistory?: boolean; joinHistory?: boolean }
   ) => void;
   removeWidget: (id: string) => void;
   clearAllWidgets: () => void;
@@ -414,11 +418,11 @@ describe('DashboardContext widget undo/redo', () => {
     // Mirrors a group drag: one snapshot, then leader + follower commits.
     act(() => stateRef.current?.recordWidgetSnapshot());
     act(() =>
-      stateRef.current?.updateWidget('w1', { x: 400 }, { skipHistory: true })
+      stateRef.current?.updateWidget('w1', { x: 400 }, { joinHistory: true })
     );
     act(() =>
       stateRef.current?.updateWidgets([{ id: 'w2', changes: { x: 400 } }], {
-        skipHistory: true,
+        joinHistory: true,
       })
     );
     expect(stateRef.current?.activeDashboard?.widgets.map((w) => w.x)).toEqual([
@@ -430,6 +434,211 @@ describe('DashboardContext widget undo/redo', () => {
       before
     );
     expect(stateRef.current?.canUndo).toBe(false);
+
+    act(() => stateRef.current?.redoWidgets());
+    expect(stateRef.current?.activeDashboard?.widgets.map((w) => w.x)).toEqual([
+      400, 400,
+    ]);
+  });
+
+  const timerWidget = (): WidgetData => ({
+    ...makeWidget('timer', 2),
+    type: 'time-tool',
+    config: { duration: 60, isRunning: false, startTime: null },
+  });
+  const configOf = (ref: { current: ContextSnapshot | null }, id: string) =>
+    ref.current?.activeDashboard?.widgets.find((w) => w.id === id)?.config;
+  const xOf = (ref: { current: ContextSnapshot | null }, id: string) =>
+    ref.current?.activeDashboard?.widgets.find((w) => w.id === id)?.x;
+
+  it('undo and redo of a move leave a later system write on another widget alone', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), timerWidget()]),
+    ]);
+    const initialX = xOf(stateRef, 'w1');
+
+    act(() => stateRef.current?.updateWidget('w1', { x: 300 }));
+    // A running timer writes its state outside history.
+    act(() =>
+      stateRef.current?.updateWidget(
+        'timer',
+        { config: { isRunning: true, startTime: 5000 } },
+        { skipHistory: true }
+      )
+    );
+
+    act(() => stateRef.current?.undoWidgets());
+    expect(xOf(stateRef, 'w1')).toBe(initialX);
+    expect(configOf(stateRef, 'timer')).toMatchObject({
+      isRunning: true,
+      startTime: 5000,
+    });
+
+    act(() => stateRef.current?.redoWidgets());
+    expect(xOf(stateRef, 'w1')).toBe(300);
+    expect(configOf(stateRef, 'timer')).toMatchObject({
+      isRunning: true,
+      startTime: 5000,
+    });
+  });
+
+  it('undo of a config edit keeps a later system write to other keys of the same widget', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([timerWidget()])]);
+
+    act(() =>
+      stateRef.current?.updateWidget('timer', { config: { duration: 120 } })
+    );
+    act(() =>
+      stateRef.current?.updateWidget(
+        'timer',
+        { config: { isRunning: true, startTime: 5000 } },
+        { skipHistory: true }
+      )
+    );
+
+    act(() => stateRef.current?.undoWidgets());
+    expect(configOf(stateRef, 'timer')).toEqual({
+      duration: 60,
+      isRunning: true,
+      startTime: 5000,
+    });
+  });
+
+  it('undo of a removal keeps a system write made after it', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), timerWidget()]),
+    ]);
+    act(() => stateRef.current?.removeWidget('w1'));
+    act(() =>
+      stateRef.current?.updateWidget(
+        'timer',
+        { config: { isRunning: true, startTime: 5000 } },
+        { skipHistory: true }
+      )
+    );
+    act(() => stateRef.current?.undoWidgets());
+    expect(widgetIds(stateRef)).toEqual(['w1', 'timer']);
+    expect(configOf(stateRef, 'timer')).toMatchObject({ isRunning: true });
+  });
+
+  it('a coalesced edit does not pull in a system write made between its parts', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), timerWidget()]),
+    ]);
+    const initialX = xOf(stateRef, 'w1');
+    act(() => stateRef.current?.updateWidget('w1', { x: 100 }));
+    act(() =>
+      stateRef.current?.updateWidget(
+        'timer',
+        { config: { isRunning: true, startTime: 5000 } },
+        { skipHistory: true }
+      )
+    );
+    act(() => stateRef.current?.updateWidget('w1', { x: 200 }));
+    act(() => stateRef.current?.undoWidgets());
+    expect(xOf(stateRef, 'w1')).toBe(initialX);
+    expect(configOf(stateRef, 'timer')).toMatchObject({ isRunning: true });
+    expect(stateRef.current?.canUndo).toBe(false);
+    act(() => stateRef.current?.redoWidgets());
+    expect(xOf(stateRef, 'w1')).toBe(200);
+  });
+
+  it('a system write to the widget being moved is not undone with the move', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([timerWidget()])]);
+    const initialX = xOf(stateRef, 'timer');
+    act(() => stateRef.current?.updateWidget('timer', { x: 100 }));
+    // The timer expires mid-drag.
+    act(() =>
+      stateRef.current?.updateWidget(
+        'timer',
+        { config: { isRunning: true, startTime: 5000 } },
+        { skipHistory: true }
+      )
+    );
+    act(() => stateRef.current?.updateWidget('timer', { x: 200 }));
+    act(() => stateRef.current?.undoWidgets());
+    expect(xOf(stateRef, 'timer')).toBe(initialX);
+    expect(configOf(stateRef, 'timer')).toMatchObject({
+      isRunning: true,
+      startTime: 5000,
+    });
+  });
+
+  it('removing and restoring a widget by undo and redo keeps its later system writes', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), timerWidget()]),
+    ]);
+    act(() => stateRef.current?.removeWidget('timer'));
+    act(() => stateRef.current?.undoWidgets());
+    act(() =>
+      stateRef.current?.updateWidget(
+        'timer',
+        { config: { isRunning: true, startTime: 5000 } },
+        { skipHistory: true }
+      )
+    );
+    act(() => stateRef.current?.redoWidgets());
+    expect(widgetIds(stateRef)).toEqual(['w1']);
+    act(() => stateRef.current?.undoWidgets());
+    expect(widgetIds(stateRef)).toEqual(['w1', 'timer']);
+    expect(configOf(stateRef, 'timer')).toMatchObject({ isRunning: true });
+  });
+
+  it('gesture writes after an undo mid-gesture do not land on an older step', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), makeWidget('w2')]),
+    ]);
+    const initialX = xOf(stateRef, 'w1');
+    act(() =>
+      stateRef.current?.updateWidget('w2', { config: { text: 'edited' } })
+    );
+    act(() => stateRef.current?.recordWidgetSnapshot());
+    act(() =>
+      stateRef.current?.updateWidget('w1', { x: 400 }, { joinHistory: true })
+    );
+    act(() => stateRef.current?.undoWidgets());
+    act(() =>
+      stateRef.current?.updateWidget('w1', { x: 500 }, { joinHistory: true })
+    );
+    act(() => stateRef.current?.undoWidgets());
+    expect(configOf(stateRef, 'w2')).toEqual({ text: 'test' });
+    expect(xOf(stateRef, 'w1')).toBe(500);
+    expect(widgetIds(stateRef)).toEqual(['w1', 'w2']);
+    expect(initialX).not.toBe(500);
+  });
+
+  it('a system write during a group drag is not undone with the drag', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), timerWidget()]),
+    ]);
+    const initialX = xOf(stateRef, 'w1');
+    act(() => stateRef.current?.recordWidgetSnapshot());
+    act(() =>
+      stateRef.current?.updateWidget('w1', { x: 400 }, { joinHistory: true })
+    );
+    act(() =>
+      stateRef.current?.updateWidget(
+        'timer',
+        { config: { isRunning: true, startTime: 5000 } },
+        { skipHistory: true }
+      )
+    );
+    act(() =>
+      stateRef.current?.updateWidget('w1', { x: 500 }, { joinHistory: true })
+    );
+    act(() => stateRef.current?.undoWidgets());
+    expect(xOf(stateRef, 'w1')).toBe(initialX);
+    expect(configOf(stateRef, 'timer')).toMatchObject({ isRunning: true });
+    act(() => stateRef.current?.redoWidgets());
+    expect(xOf(stateRef, 'w1')).toBe(500);
   });
 
   it('ignores an undo pinned to a board that is no longer active', async () => {
