@@ -206,18 +206,18 @@ export const organizationMemberCounters = onDocumentWritten(
               eventId: event.id,
             }
           );
-        } else {
-          logger.error(
-            'organizationMemberCounters: ledger write failed; skipping to avoid double count. action_required: run scripts/recount-org-members.js',
-            {
-              orgId,
-              emailLower,
-              eventId: event.id,
-              error: err instanceof Error ? err.message : String(err),
-            }
-          );
+          return;
         }
-        return;
+        // Ledger unavailable: count as before rather than drop the change.
+        logger.warn(
+          'organizationMemberCounters: ledger write failed; counting anyway',
+          {
+            orgId,
+            emailLower,
+            eventId: event.id,
+            error: err instanceof Error ? err.message : String(err),
+          }
+        );
       }
     }
 

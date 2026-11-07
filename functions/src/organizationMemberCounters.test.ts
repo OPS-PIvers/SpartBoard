@@ -34,12 +34,15 @@ const adminMock = vi.hoisted(() => ({
     vi.fn<(call: { path: string; patch: Record<string, unknown> }) => void>(),
   domainDocs: [] as { id: string; data: Record<string, unknown> }[],
   createdPaths: new Set<string>(),
+  createFailure: null as Error | null,
 }));
 
 vi.mock('./firebaseAdmin', () => {
   const firestoreFn = vi.fn(() => ({
     doc: vi.fn((path: string) => ({
       create: () => {
+        if (adminMock.createFailure)
+          return Promise.reject(adminMock.createFailure);
         if (adminMock.createdPaths.has(path)) {
           return Promise.reject(
             Object.assign(new Error('exists'), { code: 6 })
@@ -494,5 +497,23 @@ describe('organizationMemberCounters duplicate delivery', () => {
     const first = adminMock.updateSpy.mock.calls.length;
     await invokeTrigger(mk('evt-2'));
     expect(adminMock.updateSpy.mock.calls.length).toBe(first * 2);
+  });
+
+  it('still counts when the ledger write fails for another reason', async () => {
+    adminMock.createFailure = new Error('unavailable');
+    try {
+      await invokeTrigger(
+        makeWriteEvent({
+          orgId: 'o1',
+          emailLower: 'a@x.org',
+          id: 'evt-9',
+          before: null,
+          after: { email: 'a@x.org', buildingIds: [] },
+        })
+      );
+    } finally {
+      adminMock.createFailure = null;
+    }
+    expect(adminMock.updateSpy.mock.calls.length).toBeGreaterThan(0);
   });
 });
