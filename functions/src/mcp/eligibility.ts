@@ -5,6 +5,7 @@ import {
   resolveOrgIdForDomain,
 } from '../classlinkShared';
 import { CONNECTOR_FEATURE_ID } from './config';
+import { isRevokedMemberStatus } from '../authz';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -29,7 +30,7 @@ export async function isActiveOrgMemberOrAdmin(
   if (!orgId) return { ok: false, orgId: null };
   const member = await db.doc(`organizations/${orgId}/members/${lower}`).get();
   const status: unknown = member.exists ? member.get('status') : undefined;
-  return { ok: member.exists && status !== 'inactive', orgId };
+  return { ok: member.exists && !isRevokedMemberStatus(status), orgId };
 }
 
 export async function isConnectorFeatureGranted(

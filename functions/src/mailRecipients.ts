@@ -2,6 +2,7 @@
 import * as admin from './firebaseAdmin';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
 import { isStaffMemberData } from './districtStaff';
+import { isRevokedMemberStatus } from './authz';
 
 type Firestore = admin.firestore.Firestore;
 type UserLike = Pick<
@@ -88,7 +89,7 @@ export function createOrgEmailChecker(db: Firestore) {
     const email = raw.trim().toLowerCase();
     if ((await domainOrg(email)) !== null) return true;
     return (await memberDocs(email)).some(
-      (m) => (m.status ?? 'active') !== 'inactive'
+      (m) => !isRevokedMemberStatus(m.status)
     );
   };
 

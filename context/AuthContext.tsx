@@ -1642,8 +1642,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setOrgId(resolvedOrgId);
             setRoleId(member.roleId ?? null);
             setBuildingIds(member.buildingIds ?? []);
-            // M1 full sign-in lockout: a member explicitly marked 'inactive'
-            // is locked out of the app entirely (not just stripped of admin).
+            // M1 full sign-in lockout: a member marked 'inactive' (or any
+            // unknown status) is locked out of the app entirely (not just stripped of admin).
             // Latch the sticky flag — AuthenticatedApp signs them out and
             // shows the DeactivatedScreen. We never UN-set it here: if an
             // admin reactivates the member mid-session the next snapshot would
@@ -1651,7 +1651,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // listener is torn down, so reactivation simply takes effect on
             // their next sign-in. Setting (not clearing) here keeps the lockout
             // strictly one-way within a session, which is the safe direction.
-            if (member.status === 'inactive') {
+            // Any status but active/invited locks out, as the rules' liveStatus() does.
+            const status: unknown = member.status;
+            if (
+              status !== undefined &&
+              status !== 'active' &&
+              status !== 'invited'
+            ) {
               setAccessDeactivated(true);
             }
             // Record that this session has resolved a real org at least once,
