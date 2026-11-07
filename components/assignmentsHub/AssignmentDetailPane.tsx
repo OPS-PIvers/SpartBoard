@@ -217,6 +217,13 @@ export const AssignmentDetailPane: React.FC<{
     setSaving(true);
     try {
       await closeNow(row, user.uid, classContext);
+    } catch {
+      addToast(
+        t('assignmentsHub.detail.editSaveFailed', {
+          defaultValue: 'Could not save changes. Try again.',
+        }),
+        'error'
+      );
     } finally {
       setSaving(false);
     }

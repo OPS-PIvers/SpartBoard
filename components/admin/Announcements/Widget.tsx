@@ -47,6 +47,10 @@ import { TOOLS } from '@/config/tools';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
 import { getLocalIsoDate, combineDateAndTime } from '@/utils/localDate';
 import { getPollQuestions } from '@/utils/pollQuestions';
+import {
+  getAnnouncementLiveStatus,
+  type AnnouncementLiveStatus,
+} from '@/utils/announcementWindow';
 import { AnnouncementFormData } from './types';
 import { TextConfigEditor } from './TextConfigEditor';
 import { EmbedConfigEditor } from './EmbedConfigEditor';
@@ -148,36 +152,6 @@ function buildDefaultForm(): AnnouncementFormData {
     targetBuildings: [],
     targetUsers: [],
   };
-}
-
-type AnnouncementLiveStatus = 'inactive' | 'scheduled' | 'active' | 'expired';
-
-/**
- * Derive a live status for an announcement at the given moment, accounting
- * for the master `isActive` flag plus the optional scheduled start/end window.
- */
-function getAnnouncementLiveStatus(
-  a: Announcement,
-  nowMs: number
-): AnnouncementLiveStatus {
-  if (!a.isActive) return 'inactive';
-
-  const endMs = combineDateAndTime(a.scheduledEndDate, a.scheduledEndTime);
-  if (endMs != null && nowMs >= endMs) return 'expired';
-
-  if (a.activationType === 'scheduled') {
-    const startMs = combineDateAndTime(
-      a.scheduledActivationDate,
-      a.scheduledActivationTime
-    );
-    if (startMs == null) {
-      // Misconfigured (date/time missing) — keep showing as active so admin notices.
-      return 'active';
-    }
-    if (nowMs < startMs) return 'scheduled';
-  }
-
-  return 'active';
 }
 
 // Inline config editors for common widget types
@@ -868,6 +842,8 @@ export const AnnouncementsManager: React.FC = () => {
       const existing = editingId
         ? announcements.find((a) => a.id === editingId)
         : undefined;
+      const isActiveNow =
+        existing?.isActive ?? form.activationType === 'scheduled';
 
       const payload: Omit<Announcement, 'id'> = {
         name: form.name.trim(),
@@ -893,8 +869,8 @@ export const AnnouncementsManager: React.FC = () => {
         // Scheduled announcements are enabled ("active") as soon as they're created —
         // the overlay itself gates visibility by the clock time. Manual announcements
         // start inactive until the admin explicitly clicks Activate.
-        isActive: existing?.isActive ?? form.activationType === 'scheduled',
-        activatedAt: existing?.activatedAt ?? null,
+        isActive: isActiveNow,
+        activatedAt: existing?.activatedAt ?? (isActiveNow ? Date.now() : null),
         dismissalType: form.dismissalType,
         scheduledDismissalTime:
           form.dismissalType === 'scheduled'

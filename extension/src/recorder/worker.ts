@@ -657,6 +657,7 @@ export function installRecorder(origins: readonly string[] = []): void {
     });
   });
   chrome.tabs.onRemoved.addListener((tabId) => {
+    intake?.tabRemoved(tabId);
     void recordingTab().then((id) => {
       if (id === tabId) void stopRecording();
     });

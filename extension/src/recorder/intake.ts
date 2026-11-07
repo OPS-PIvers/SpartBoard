@@ -40,6 +40,17 @@ const readJobs = async (): Promise<IntakeJob[]> => {
 };
 const writeJobs = (jobs: IntakeJob[]) => session().set({ [JOBS_KEY]: jobs });
 
+// Every job-list read-modify-write runs through one promise chain so none overwrites another.
+let jobsChain: Promise<unknown> = Promise.resolve();
+const withJobs = <T>(fn: () => Promise<T>): Promise<T> => {
+  const run = jobsChain.then(fn);
+  jobsChain = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+};
+
 export function createIntake(origins: readonly string[], notify: () => void) {
   let port: chrome.runtime.Port | null = null;
   let portOrigin = origins[0] ?? '';
@@ -143,32 +154,37 @@ export function createIntake(origins: readonly string[], notify: () => void) {
           } else if (msg.type === 'intake/denied') {
             phase = 'denied';
           } else {
-            const jobs = await readJobs();
-            const job = jobs.find((j) => j.jobId === msg.jobId);
-            if (!job) return;
-            if (msg.type === 'intake/created') {
-              job.setId = msg.setId;
-              awaitingDraft.delete(job.jobId);
-              await writeJobs(jobs);
-              await flush();
-            } else if (msg.type === 'intake/failed') {
-              job.failed = true;
-              awaitingDraft.delete(job.jobId);
-              await writeJobs(jobs);
-            } else {
+            const done = await withJobs(async () => {
+              const jobs = await readJobs();
+              const job = jobs.find((j) => j.jobId === msg.jobId);
+              if (!job) return null;
+              if (msg.type === 'intake/created') {
+                job.setId = msg.setId;
+                awaitingDraft.delete(job.jobId);
+                await writeJobs(jobs);
+                return { flushAfter: true };
+              }
+              if (msg.type === 'intake/failed') {
+                job.failed = true;
+                awaitingDraft.delete(job.jobId);
+                await writeJobs(jobs);
+                return { flushAfter: false };
+              }
               job.steps = job.steps.filter((s) => s.id !== msg.stepId);
               const setId =
                 job.setId ??
                 (job.target.kind === 'append' ? job.target.setId : null);
-              const left = jobs.filter((j) => j.steps.length > 0);
-              await writeJobs(left);
+              await writeJobs(jobs.filter((j) => j.steps.length > 0));
               if (job.steps.length === 0 && setId) {
                 await session().set({
                   [SAVED_KEY]: { setId, title: job.title, origin: portOrigin },
                 });
                 await closeOpenedTab();
               }
-            }
+              return { flushAfter: false };
+            });
+            if (!done) return;
+            if (done.flushAfter) await flush();
           }
           notify();
         })();
@@ -181,6 +197,16 @@ export function createIntake(origins: readonly string[], notify: () => void) {
         pageProtocol = 0;
         notify();
       });
+    },
+
+    /** The intake tab was closed before it connected: let ensure() open another. */
+    tabRemoved(tabId: number) {
+      if (tabId !== openedTab) return;
+      openedTab = null;
+      if (!port) {
+        phase = 'none';
+        notify();
+      }
     },
 
     /** Opens an intake tab in the background unless one is connected or opening. */
@@ -204,34 +230,42 @@ export function createIntake(origins: readonly string[], notify: () => void) {
       steps: RecordedWebStep[],
       jobId?: string
     ): Promise<string | null> {
-      const jobs = await readJobs();
-      const existing = jobId ? jobs.find((j) => j.jobId === jobId) : undefined;
-      if (jobId && !existing) return null;
-      const job = existing ?? {
-        jobId: crypto.randomUUID(),
-        target,
-        title,
-        steps: [],
-      };
-      const ids = new Set(job.steps.map((s) => s.id));
-      job.steps.push(...steps.filter((s) => !ids.has(s.id)));
-      if (!existing) jobs.push(job);
-      const stored = await writeJobs(jobs).then(
-        () => true,
-        () => false
-      );
-      if (!stored) return null;
-      await session().remove(SAVED_KEY);
+      const savedId = await withJobs(async () => {
+        const jobs = await readJobs();
+        const existing = jobId
+          ? jobs.find((j) => j.jobId === jobId)
+          : undefined;
+        if (jobId && !existing) return null;
+        const job = existing ?? {
+          jobId: crypto.randomUUID(),
+          target,
+          title,
+          steps: [],
+        };
+        const ids = new Set(job.steps.map((s) => s.id));
+        job.steps.push(...steps.filter((s) => !ids.has(s.id)));
+        if (!existing) jobs.push(job);
+        const stored = await writeJobs(jobs).then(
+          () => true,
+          () => false
+        );
+        if (!stored) return null;
+        await session().remove(SAVED_KEY);
+        return job.jobId;
+      });
+      if (!savedId) return null;
       await this.ensure();
       await flush();
-      return job.jobId;
+      return savedId;
     },
 
     /** Sends failed jobs again. */
     async retry(): Promise<void> {
-      const jobs = await readJobs();
-      for (const job of jobs) delete job.failed;
-      await writeJobs(jobs);
+      await withJobs(async () => {
+        const jobs = await readJobs();
+        for (const job of jobs) delete job.failed;
+        await writeJobs(jobs);
+      });
       await this.ensure();
       await flush();
     },
