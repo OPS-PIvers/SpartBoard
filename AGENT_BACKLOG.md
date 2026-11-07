@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-133**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-135**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -57,6 +57,9 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-65 Triage the 2026-10-28 release minors** (S). Issue #4786 (#4785: a rare widget-reappear race in the board sync fix, cross-board saves no longer atomic, AI boards polish) and the #4807 description (VA shuffle-off, Countdown scrollbar at tiny sizes, Number Line step at 500px, Music old-tab station, long Activity Wall prompt). Fix what's still real, close or update #4786.
 
 - **AB-120 Flashcards Checks hardening, release #5263 review minors** (M). (1) Stamp `attemptStartedAt` with `serverTimestamp()` and require `== request.time` in `fcValidProgress`; optionally reject an unforced submit in `submitFlashcardCheckV1` after start + limit x multiplier + grace. (2) Hidden or unpublished results are UI-only: the student can read their own `answerLog`/`score`; move them teacher-only or hide `correct` until release, or record it as accepted. (3) `publishSet` and present accept incomplete sets; apply `flashcardSetIncompleteReason`. (4) Close on a shared set with a blank title fails the public-set rule; block Close with an inline message. (5) Make `studentCards`/`forcedSubmitAllowed` in `functions/src/flashcardCheck.ts` require `rules.sessionOptions` like `checkOverrideOf`. (6) Memoize `withCardSubset` in `FlashcardAssignmentPage.tsx`. Add rules tests for a submitted student writing `cardSubset` and the teacher changing a stamped subset.
+
+- **AB-133 GL media scan cost** (S). T7 (#5369) made `loadSharedReferences` stream every `users/*/claude_revisions` doc, and `gcGuidedLearningMedia` calls it on each personal Guided Learning set delete. Scan revisions only in `loadAllReferences` (the weekly sweep) or filter by `createdAt` with a collection-group index, keeping the "revision under 30 days keeps its files" test green.
+- **AB-134 Refund marker cleanup** (S). T7 (#5369) writes `ai_usage_refunds/{chargeId}` once per refund and never removes it. Add an `expireAt` (about 7 days) and a TTL policy in `firestore.indexes.json` so the collection stays small.
 
 ### Performance and cost
 
