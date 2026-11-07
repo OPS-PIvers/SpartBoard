@@ -326,6 +326,9 @@ export const useOrgMembers = (orgId: string | null) => {
         const batch = writeBatch(db);
         for (const id of batchIds) {
           batch.delete(doc(db, 'organizations', orgId, 'members', id));
+          batch.set(doc(db, 'organizations', orgId, 'removedMembers', id), {
+            removedAt: new Date().toISOString(),
+          });
         }
         return batch.commit();
       })

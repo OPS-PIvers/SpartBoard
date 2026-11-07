@@ -762,6 +762,11 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Remove-from-org tombstone: auto-enroll (Admin SDK) skips these emails.
+      match /removedMembers/{emailLower} {
+        allow write: if isSuperAdmin() || isDomainAdmin(orgId);
+      }
+
       match /invitations/{token} {
         // Phase 4 wires invite acceptance; until then nothing reads or writes
         // from the client — Cloud Functions own this collection.
