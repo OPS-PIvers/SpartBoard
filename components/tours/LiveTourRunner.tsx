@@ -907,14 +907,16 @@ export const LiveTourRunner: React.FC = () => {
           },
         }
       : set;
-    runStart.current = opts.edit
-      ? null
-      : {
-          at: Date.now(),
-          boardId: d.activeDashboard?.id ?? null,
-          boards: new Set(d.dashboards.map((b) => b.id)),
-          collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
-        };
+    // Keep or Remove and following a run's own boards are Getting Started behaviour.
+    runStart.current =
+      opts.edit || !latest.current.canAccessFeature('getting-started')
+        ? null
+        : {
+            at: Date.now(),
+            boardId: d.activeDashboard?.id ?? null,
+            boards: new Set(d.dashboards.map((b) => b.id)),
+            collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
+          };
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
     const beforeIds = new Set(current.map((w) => w.id));
