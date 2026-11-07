@@ -863,6 +863,98 @@ describe('evaluateClaim', () => {
     }
   });
 
+  const claimAs = (
+    invitation: InvitationRecord,
+    member: MemberRecord,
+    uid = 'firebase-uid-42'
+  ) =>
+    evaluateClaim({
+      invitation,
+      member,
+      signedInEmailLower: 'user@ex.com',
+      signedInEmailVerified: true,
+      signedInUid: uid,
+      now,
+    });
+
+  it('refuses a live link for a deactivated member, so it cannot reactivate them', () => {
+    const verdict = claimAs(validInvitation, {
+      ...validMember,
+      status: 'inactive',
+    });
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.code).toBe('not-found');
+  });
+
+  it('refuses a live link for any status other than invited or active', () => {
+    const verdict = claimAs(validInvitation, {
+      ...validMember,
+      status: 'removed' as MemberRecord['status'],
+    });
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.code).toBe('not-found');
+  });
+
+  it('accepts a live link for an already active member without writing status', () => {
+    const verdict = claimAs(validInvitation, {
+      ...validMember,
+      status: 'active',
+      uid: 'firebase-uid-42',
+    });
+    expect(verdict.ok).toBe(true);
+    if (verdict.ok) {
+      expect(verdict.memberPatch).toEqual({
+        uid: 'firebase-uid-42',
+        lastActive: '2026-04-19T12:00:00.000Z',
+      });
+      expect(verdict.invitationPatch).toEqual({
+        claimedAt: '2026-04-19T12:00:00.000Z',
+        claimedByUid: 'firebase-uid-42',
+      });
+    }
+  });
+
+  it('links the uid when an active member has none yet, as before', () => {
+    const verdict = claimAs(validInvitation, {
+      ...validMember,
+      status: 'active',
+    });
+    expect(verdict.ok).toBe(true);
+    if (verdict.ok) {
+      expect(verdict.memberPatch).toEqual({
+        uid: 'firebase-uid-42',
+        lastActive: '2026-04-19T12:00:00.000Z',
+      });
+    }
+  });
+
+  it('treats a link that sign-in already claimed as done for the same active account', () => {
+    const verdict = claimAs(
+      {
+        ...validInvitation,
+        claimedAt: '2026-04-19T11:00:00.000Z',
+        claimedByUid: 'firebase-uid-42',
+      },
+      { ...validMember, status: 'active', uid: 'firebase-uid-42' }
+    );
+    expect(verdict).toEqual({ ok: true, memberPatch: {}, invitationPatch: {} });
+  });
+
+  it('still refuses a claimed link for another account or a deactivated member', () => {
+    const claimed = {
+      ...validInvitation,
+      claimedAt: '2026-04-19T11:00:00.000Z',
+    };
+    for (const member of [
+      { ...validMember, status: 'active' as const, uid: 'other-uid' },
+      { ...validMember, status: 'inactive' as const, uid: 'firebase-uid-42' },
+    ]) {
+      const verdict = claimAs(claimed, member);
+      expect(verdict.ok).toBe(false);
+      if (!verdict.ok) expect(verdict.code).toBe('failed-precondition');
+    }
+  });
+
   // Regression: an unverified caller must never claim an invitation, even one
   // addressed to a real (possibly admin) email they don't own — email/password
   // sign-in lets an attacker self-report any address. Sibling fix to

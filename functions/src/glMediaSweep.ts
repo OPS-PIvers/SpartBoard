@@ -65,7 +65,7 @@ export async function runGlMediaSweep(
   const candidates = await listCandidates(bucket, now - SWEEP_MIN_AGE_MS);
   if (candidates.length === 0) return { candidates: 0, deleted: [] };
   // Throws on a failed scan, so a partial reference picture never deletes anything.
-  const refs = await loadAllReferences(db);
+  const refs = await loadAllReferences(db, now);
   const deleted: string[] = [];
   const unrecorded = new Map<string, Promise<boolean>>();
   for (const path of candidates) {

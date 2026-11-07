@@ -250,9 +250,25 @@ jobs:
           sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=$GITHUB_REF_NAME&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
           echo "Last successful deploy: ${sha:-none}"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      # Rules, indexes and Storage are shared by every dev branch; if another branch deployed last, dev-paul redeploys them.
+      - id: last
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: firebase-dev-deploy.yml
+        run: |
+          # Another branch's run still in flight counts too, since its backend deploy may land after this plan.
+          other=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?per_page=30" --jq '
+            [.workflow_runs[] | select(.conclusion == "success" or .status == "in_progress" or .status == "queued")] as $r
+            | ([$r[] | select(.head_branch == "dev-paul" and .conclusion == "success") | .updated_at] | max // "") as $mine
+            | [$r[] | select(.head_branch != "dev-paul" and .updated_at > $mine)] | length') || other=0
+          echo "Other-branch deploys since the last dev-paul deploy: ${other:-0}"
+          if [[ "$GITHUB_REF_NAME" == "dev-paul" && "${other:-0}" -gt 0 ]]; then
+            echo "other_deployed_last=true" >> "$GITHUB_OUTPUT"
+          fi
       - id: plan
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
+          OTHER_BRANCH_DEPLOYED_LAST: ${{ steps.last.outputs.other_deployed_last }}
           FULL: ${{ inputs.full_backend || false }}
         run: ./.github/scripts/plan-deploy.sh "$GITHUB_REF_NAME" "$BASE_SHA" "$FULL"
 
