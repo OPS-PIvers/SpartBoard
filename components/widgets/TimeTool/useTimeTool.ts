@@ -226,7 +226,7 @@ export const useTimeTool = (
       if (state.mode === 'timer' && nextTime === 0) {
         const patch = timeToolClockPatch(clock, { type: 'expire' });
         // Expiry is system-driven; keep it out of the undo stack.
-        if (patch) writeExpiry(clock.startTime, patch);
+        if (patch) writeExpiry(clock.startTime ?? null, patch);
         cancelRaf();
         // A fresh object per cycle; endAt is the same on every device showing this run.
         setExpirySignal({

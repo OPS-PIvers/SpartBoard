@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const fb = vi.hoisted(() => ({
   bypass: false,
-  user: { uid: 'teacher-1' },
+  user: null as { uid: string } | null,
   stored: null as Record<string, unknown> | null,
   fail: null as Error | null,
   hang: false,
