@@ -14,6 +14,7 @@
  */
 
 const RELOAD_GUARD_KEY = 'spartboard:chunk-reload-attempted';
+const RELOAD_GUARD_WINDOW_MS = 5 * 60 * 1000;
 
 /**
  * Returns true if the error looks like a stale-chunk / failed dynamic-import
@@ -63,10 +64,16 @@ export function attemptChunkReload(): boolean {
   if (typeof window === 'undefined') return false;
 
   try {
-    if (window.sessionStorage.getItem(RELOAD_GUARD_KEY) === '1') {
+    const last = Number(window.sessionStorage.getItem(RELOAD_GUARD_KEY));
+    const stored = window.sessionStorage.getItem(RELOAD_GUARD_KEY) !== null;
+    // Legacy '1' or any non-timestamp value counts as a recent reload.
+    if (
+      stored &&
+      !(last > 1e12 && Date.now() - last > RELOAD_GUARD_WINDOW_MS)
+    ) {
       return false;
     }
-    window.sessionStorage.setItem(RELOAD_GUARD_KEY, '1');
+    window.sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
   } catch {
     // sessionStorage can throw in privacy modes; if it does, allow the
     // reload anyway — looping is unlikely without storage to track state.
