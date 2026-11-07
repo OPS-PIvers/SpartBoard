@@ -1453,7 +1453,13 @@ export async function isTestClassAuthority(
   ) {
     return true;
   }
-  if (roleIdOf(operatorMemberDoc) === 'super_admin') return true;
+  const operatorStatus: unknown = operatorMemberDoc.get('status');
+  if (
+    roleIdOf(operatorMemberDoc) === 'super_admin' &&
+    (operatorStatus === undefined || operatorStatus === 'active')
+  ) {
+    return true;
+  }
   return (
     roleIdOf(memberDoc) === 'domain_admin' &&
     !isRevokedMemberStatus(memberDoc.get('status'))

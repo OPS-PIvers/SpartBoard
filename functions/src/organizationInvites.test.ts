@@ -1061,7 +1061,10 @@ describe('createOrganizationInvites — super_admin role guard', () => {
               ? { exists: true, get: () => [] }
               : {
                   exists: path.endsWith(CALLER) && operatorRole !== null,
-                  get: () => (path.endsWith(CALLER) ? operatorRole : undefined),
+                  get: (k: string) =>
+                    path.endsWith(CALLER) && k === 'roleId'
+                      ? operatorRole
+                      : undefined,
                 }
           ),
       }),

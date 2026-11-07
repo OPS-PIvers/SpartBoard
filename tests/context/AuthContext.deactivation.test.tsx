@@ -213,6 +213,23 @@ describe('AuthContext — M1 deactivation lockout', () => {
     expect(getCtx().accessDeactivated).toBe(false);
   });
 
+  it('latches accessDeactivated for an unknown status such as removed', async () => {
+    await mount();
+    fireMemberStatus('removed');
+    await waitFor(() => {
+      expect(getCtx().accessDeactivated).toBe(true);
+    });
+  });
+
+  it('leaves accessDeactivated false for an invited member', async () => {
+    await mount();
+    fireMemberStatus('invited');
+    await waitFor(() => {
+      expect(getCtx().orgId).toBe('acme');
+    });
+    expect(getCtx().accessDeactivated).toBe(false);
+  });
+
   it('signInWithGoogle clears the sticky deactivation flag', async () => {
     await mount();
     fireMemberStatus('inactive');

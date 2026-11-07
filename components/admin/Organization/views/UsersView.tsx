@@ -869,9 +869,12 @@ const UserRow: React.FC<{
   // Granular gating: status toggle only needs in-scope; role/buildings/delete
   // additionally require manage privileges (domain admin or higher).
   // A building admin (canManage false) can't change a higher tier's status; the rules refuse it.
+  // Building admins may deactivate but not reactivate; the rules refuse it.
   const canEditStatus =
     inScope &&
-    (canManage || !['super_admin', 'domain_admin'].includes(user.role));
+    (canManage ||
+      (!['super_admin', 'domain_admin'].includes(user.role) &&
+        user.status !== 'inactive'));
   const canEditRole = canManage && inScope;
   const canEditBuildings = canManage && inScope;
   const canDelete = canDeleteAccount && inScope;
