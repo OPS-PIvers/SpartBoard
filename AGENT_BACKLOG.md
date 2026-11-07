@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-135**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-136**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -181,6 +181,7 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 - **AB-130 Drive grant fact while the probe is unknown** (S, from #5352 review). `offlineGrantPresent` stays false for a whole tab session when the grant probe errors or an older tab left the bare `'1'` flag, so the `drive-connected` tour condition and the Getting Started Drive checkmark read false for a teacher who is connected. Report the fact as undefined while the answer is unknown (`components/tours/useTourConditions.ts`, `hooks/useGettingStarted.ts`) and retry the probe after an error (`context/AuthContext.tsx`).
 - **AB-131 Tell a chosen Snowy from the default** (S, from #5352 review). `firstBoardOnDefault` (`utils/boardBackgroundDefaults.ts`) treats a first board on Snowy as untouched, but Snowy is also a pickable preset, so a teacher who chose it can have it replaced by an admin building default when they save a first building. Mark app-set backgrounds explicitly (for example a field set on creation and cleared on any background change).
 - **AB-132 Resume a live tour by step id** (S, from #5352 review). `SavedTour` keeps only a numeric index, and resume re-filters steps with the current `showWhen` facts, so a fact that flipped mid-run shifts the resumed step. Save the step id and resolve it on resume (`components/tours/tourResume.ts`, `LiveTourRunner.tsx` launch).
+- **AB-135 Keep a failed notebook page edit across a notebook switch** (S, from #5366). In `components/widgets/SmartNotebook/Widget.tsx`, an edit whose upload failed is dropped from `editedSvgsRef` and the notebook-switch reset, so it is lost after "Autosave failed". Keep failed edits in the map and retry them on the switch flush.
 
 ## Blocked
 
