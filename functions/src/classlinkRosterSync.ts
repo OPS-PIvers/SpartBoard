@@ -250,7 +250,7 @@ export async function runClassLinkRosterSync(
   const settingsRef = db.doc(SYNC_SETTINGS_PATH);
   // Dry runs write nothing, so they neither use nor move the cursor.
   const saved = settings.dryRun ? null : await readSyncCursor(settingsRef);
-  let resumeFrom: SyncCursor | null = saved;
+  const resumeFrom: SyncCursor | null = saved;
   let lastDone: SyncCursor | null = null;
   let reachedEnd = false;
 

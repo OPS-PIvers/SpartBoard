@@ -841,8 +841,8 @@ describe('runClassLinkRosterSync resume and blocked state', () => {
 
     await runClassLinkRosterSync(h.db, h.deps, ENABLED);
 
-    expect(h.updated.get('users/u1/rosters/r1')).toHaveProperty(
-      'classlinkSyncBlocked'
+    expect(h.updated.get('users/u1/rosters/r1')?.classlinkSyncBlocked).toEqual(
+      admin.firestore.FieldValue.delete()
     );
   });
 });
