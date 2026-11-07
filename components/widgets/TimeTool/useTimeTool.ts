@@ -18,6 +18,8 @@ import { reportHandAction } from '@/utils/connectionSignals';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 
+const HIDDEN_EXPIRY_GRACE_MS = 10_000;
+
 // `isBoardActive` is false for a timer on a mounted but hidden board, which must not drive widgets on the shown board.
 export const useTimeTool = (
   widget: WidgetData,
@@ -156,22 +158,51 @@ export const useTimeTool = (
   } | null>(null);
 
   // updateWidget only writes the shown board, so a hidden board's timer saves its expiry straight to its own board.
-  const writeExpiry = useEffectEvent((patch: Partial<TimeToolConfig>) => {
-    if (isBoardActive) {
-      updateWidget(widget.id, { config: patch }, { skipHistory: true });
-      return;
+  const saveHiddenExpiry = useEffectEvent(
+    (startTime: number | null, patch: Partial<TimeToolConfig>) => {
+      const board = dashboards?.find((d) =>
+        d.widgets.some((w) => w.id === widget.id)
+      );
+      const live = board?.widgets.find((w) => w.id === widget.id);
+      const liveConfig = live?.config as TimeToolConfig | undefined;
+      if (
+        !board ||
+        (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) ||
+        !liveConfig?.isRunning ||
+        liveConfig.startTime !== startTime
+      ) {
+        return;
+      }
+      applyConnectionChanges?.(board.id, { [widget.id]: patch });
     }
-    const board = dashboards?.find((d) =>
-      d.widgets.some((w) => w.id === widget.id)
-    );
-    if (
-      !board ||
-      (board.linkedShareRole === 'viewer' && !board.linkedShareEnded)
-    ) {
-      return;
+  );
+  const hiddenExpiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  useEffect(
+    () => () => {
+      if (hiddenExpiryTimerRef.current) {
+        clearTimeout(hiddenExpiryTimerRef.current);
+      }
+    },
+    []
+  );
+  const writeExpiry = useEffectEvent(
+    (startTime: number | null, patch: Partial<TimeToolConfig>) => {
+      if (isBoardActive) {
+        updateWidget(widget.id, { config: patch }, { skipHistory: true });
+        return;
+      }
+      // Waits, so a device showing the board rings and fires its triggers first even if this clock runs ahead.
+      if (hiddenExpiryTimerRef.current) {
+        clearTimeout(hiddenExpiryTimerRef.current);
+      }
+      hiddenExpiryTimerRef.current = setTimeout(() => {
+        hiddenExpiryTimerRef.current = null;
+        saveHiddenExpiry(startTime, patch);
+      }, HIDDEN_EXPIRY_GRACE_MS);
     }
-    applyConnectionChanges?.(board.id, { [widget.id]: patch });
-  });
+  );
 
   useEffect(() => {
     const clock = {
@@ -195,7 +226,7 @@ export const useTimeTool = (
       if (state.mode === 'timer' && nextTime === 0) {
         const patch = timeToolClockPatch(clock, { type: 'expire' });
         // Expiry is system-driven; keep it out of the undo stack.
-        if (patch) writeExpiry(patch);
+        if (patch) writeExpiry(clock.startTime, patch);
         cancelRaf();
         // A fresh object per cycle; endAt is the same on every device showing this run.
         setExpirySignal({

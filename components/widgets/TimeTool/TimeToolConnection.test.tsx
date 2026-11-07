@@ -456,7 +456,7 @@ describe('useTimeTool Connection (Nexus)', () => {
       expect(applyConnectionChanges).not.toHaveBeenCalled();
     });
 
-    it("saves a hidden board's expiry to that board, so it doesn't stay running at 0", () => {
+    it("saves a hidden board's expiry to that board after a grace, so it doesn't stay running at 0", () => {
       const applyConnectionChanges = vi.fn();
       const widget = createWidget({ isRunning: true, startTime: Date.now() });
       (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -472,7 +472,12 @@ describe('useTimeTool Connection (Nexus)', () => {
       act(() => {
         vi.advanceTimersByTime(6000);
       });
+      // A device showing the board gets the first chance to end the run.
+      expect(applyConnectionChanges).not.toHaveBeenCalled();
 
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
       expect(applyConnectionChanges).toHaveBeenCalledWith('hidden', {
         'timetool-1': { isRunning: false, elapsedTime: 0, startTime: null },
       });
@@ -481,6 +486,42 @@ describe('useTimeTool Connection (Nexus)', () => {
         expect.anything(),
         expect.anything()
       );
+    });
+
+    it('skips the hidden write when a device showing the board already ended the run', () => {
+      const applyConnectionChanges = vi.fn();
+      const startTime = Date.now();
+      const widget = createWidget({ isRunning: true, startTime });
+      const context = {
+        ...mockDashboardContext,
+        dashboards: [{ id: 'hidden', widgets: [widget] }],
+        applyConnectionChanges,
+      };
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        context
+      );
+      const { rerender } = renderHook(() =>
+        useTimeTool(widget, { isBoardActive: false })
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      // The shown device's expiry arrives by snapshot before the grace ends.
+      context.dashboards = [
+        {
+          id: 'hidden',
+          widgets: [
+            createWidget({ isRunning: false, elapsedTime: 0, startTime: null }),
+          ],
+        },
+      ];
+      rerender();
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(applyConnectionChanges).not.toHaveBeenCalled();
     });
 
     it("leaves a view-only board's hidden timer alone", () => {
@@ -496,7 +537,7 @@ describe('useTimeTool Connection (Nexus)', () => {
       renderHook(() => useTimeTool(widget, { isBoardActive: false }));
 
       act(() => {
-        vi.advanceTimersByTime(6000);
+        vi.advanceTimersByTime(20_000);
       });
 
       expect(applyConnectionChanges).not.toHaveBeenCalled();
