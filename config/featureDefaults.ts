@@ -272,7 +272,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     widget: 'embed',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
-    missingDocPublic: true,
+    missingDocPublic: false,
   },
   'video-activity-audio-transcription': {
     label: 'Video Activity Audio Transcription',
