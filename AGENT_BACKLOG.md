@@ -190,6 +190,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-mpuaai claude/a2-backlog
   git push origin --delete claude/project-thread-g7gl9c
   git push origin --delete claude/project-thread-xa560h claude/project-thread-xa560h-ab112
+  git push origin --delete claude/project-thread-kof3cp
   ```
 
   </details>
