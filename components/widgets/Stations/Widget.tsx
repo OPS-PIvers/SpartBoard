@@ -21,6 +21,7 @@ import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { LayoutGrid, RefreshCw, RotateCcw, Shuffle, Users } from 'lucide-react';
 import { StationsConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useBoardTriggerClaim } from '@/hooks/useBoardTriggerClaim';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { AbsentButton } from '@/components/common/AbsentButton';
@@ -380,6 +381,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   // effect every render and risk firing the rotation more than once for the
   // same trigger value).
   const lastTriggerRef = useRef(config.rotationTrigger ?? 0);
+  const claimTrigger = useBoardTriggerClaim(widget.id);
   const handleRotateRef = useRef(handleRotate);
   // eslint-disable-next-line react-hooks/refs
   handleRotateRef.current = handleRotate;
@@ -387,9 +389,12 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     const trigger = config.rotationTrigger ?? 0;
     if (trigger > lastTriggerRef.current) {
       lastTriggerRef.current = trigger;
-      handleRotateRef.current();
+      // Every device with the board open sees the trigger; only the one that claims it rotates.
+      void claimTrigger(trigger).then((won) => {
+        if (won) handleRotateRef.current();
+      });
     }
-  }, [config.rotationTrigger]);
+  }, [config.rotationTrigger, claimTrigger]);
 
   const dropAnimation = {
     sideEffects: defaultDropAnimationSideEffects({
