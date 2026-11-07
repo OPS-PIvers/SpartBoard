@@ -317,10 +317,16 @@ export const usePlcInvitations = (
         if (!Array.isArray(memberUids) || !memberUids.includes(user.uid)) {
           throw notJoined;
         }
-        await updateDoc(inviteRef, {
-          status: 'accepted',
-          respondedAt: Date.now(),
-        });
+        try {
+          await updateDoc(inviteRef, {
+            status: 'accepted',
+            respondedAt: Date.now(),
+          });
+        } catch (closeErr) {
+          // Already joined; another tab may have closed the invite first.
+          const closeCode = (closeErr as { code?: string } | null)?.code;
+          if (closeCode !== 'permission-denied') throw closeErr;
+        }
       }
     },
     [user, myEmailLower]

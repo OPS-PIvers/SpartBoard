@@ -203,6 +203,24 @@ describe('usePlcInvitations — acceptInvite', () => {
     expect(firestore.updateDoc).not.toHaveBeenCalled();
   });
 
+  it('treats a denied close-out as joined when membership is confirmed', async () => {
+    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ memberUids: ['lead-uid', 'invitee-uid'] }),
+    });
+    (firestore.updateDoc as unknown as Mock).mockRejectedValueOnce(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+
+    const { result } = renderHook(() => usePlcInvitations());
+    await expect(
+      result.current.acceptInvite(makeInvite())
+    ).resolves.toBeUndefined();
+  });
+
   it('leaves the invite pending when the group no longer exists', async () => {
     (firestore.runTransaction as unknown as Mock).mockRejectedValue(
       Object.assign(new Error('denied'), { code: 'permission-denied' })
