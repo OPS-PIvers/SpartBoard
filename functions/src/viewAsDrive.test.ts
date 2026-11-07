@@ -181,6 +181,14 @@ describe('getViewAsDriveTokenV1', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
+  it('refuses a student preview token signed in as the student', async () => {
+    const auth = viewAsAuth({ student: true });
+    await expect(
+      getToken({ auth: { ...auth, uid: 'stu-uid' }, data: {} })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
   it('refuses when the kill switch is off', async () => {
     docs['admin_settings/view_as'] = { enabled: false };
     await expect(

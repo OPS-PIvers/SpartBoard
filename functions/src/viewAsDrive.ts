@@ -33,7 +33,8 @@ export const getViewAsDriveTokenV1 = onCall(
     // The guard checks the session doc, the kill switch and super admin.
     const claim = await assertViewAsAllowed(request, { read: true });
     const uid = request.auth?.uid;
-    if (!claim || !uid) {
+    // A student preview tab is signed in as the student, never the session's target.
+    if (!claim || !uid || claim.student) {
       throw new HttpsError(
         'permission-denied',
         'Only a View as tab can do this.'
