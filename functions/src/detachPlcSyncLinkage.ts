@@ -173,7 +173,7 @@ export const detachPlcSyncLinkage = onCall<DetachPlcSyncLinkageRequest>(
     maxInstances: 5,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError(

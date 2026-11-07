@@ -364,8 +364,29 @@ describe('resolveOrgForUser auto-enrollment', () => {
               : undefined,
         });
       }
+      const viewAsDoc = VIEW_AS_DOCS[path];
+      if (viewAsDoc) {
+        return Promise.resolve({
+          exists: true,
+          data: () => viewAsDoc,
+          get: (field: string) => viewAsDoc[field],
+        });
+      }
+      if (path === 'admin_settings/user_roles') {
+        return Promise.resolve({ exists: false });
+      }
       throw new Error('unexpected doc read: ' + path);
     });
+  };
+  const VIEW_AS_DOCS: Record<string, Record<string, unknown>> = {
+    'view_as_sessions/s1': {
+      by: 'boss@x',
+      targetUid: 'uid-1',
+      expiresAt: 9e15,
+      endedAt: null,
+    },
+    'admin_settings/view_as': { enabled: true },
+    'organizations/orono/members/boss@x': { roleId: 'super_admin' },
   };
 
   it('creates an active teacher member doc on first verified sign-in', async () => {

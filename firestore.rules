@@ -62,8 +62,10 @@ service cloud.firestore {
     // claim { by, sid, ro, adminTarget, exp(ms) }. It may read until exp, and
     // write only while unlocked (ro == false) and live; authUid() enforces it for
     // every uid-keyed rule. Admin powers never write from a view-as tab (D3).
+    // Ending the session (endedAt set) cuts the token off before exp.
     function viewAsLive() {
-      return request.time.toMillis() < request.auth.token.viewAs.get('exp', 0);
+      return request.time.toMillis() < request.auth.token.viewAs.get('exp', 0) &&
+             get(/databases/$(database)/documents/view_as_sessions/$(request.auth.token.viewAs.sid)).data.get('endedAt', null) == null;
     }
     function isReadMethod() { return request.method in ['get', 'list']; }
     function viewAsOk() {

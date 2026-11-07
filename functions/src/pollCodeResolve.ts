@@ -214,7 +214,7 @@ export const resolvePollCodeV1 = onCall(
     maxInstances: 5,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -250,7 +250,7 @@ export const mintPollCodeV1 = onCall(
     maxInstances: 5,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (
       !request.auth ||
       !(await isPollStaffCaller(admin.firestore(), request.auth.token))

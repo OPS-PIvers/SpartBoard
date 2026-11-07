@@ -16,7 +16,7 @@ export const getAiProviderStatusV1 = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     if (!(await resolveCallerIsAdmin(admin.firestore(), request.auth.token)))

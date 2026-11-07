@@ -643,7 +643,7 @@ export const fetchImportPageV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<ImportPageFetchResult> => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in to import a page.');
     const db = admin.firestore();

@@ -248,7 +248,7 @@ export const controlSubAssignmentV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     return handleControlSubAssignment(
       admin.firestore(),
       request.auth

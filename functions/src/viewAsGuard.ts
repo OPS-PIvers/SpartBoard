@@ -1,5 +1,10 @@
 // Callable-side enforcement of a super admin "View as" token (docs/plans/shipped/ADMIN_VIEW_AS.md D7).
 import { HttpsError } from 'firebase-functions/v2/https';
+import * as admin from './firebaseAdmin';
+import { isStrictSuperAdmin } from './authz';
+
+export const VIEW_AS_SESSIONS = 'view_as_sessions';
+export const VIEW_AS_SETTINGS_PATH = 'admin_settings/view_as';
 
 /** The `viewAs` claim minted by startViewAsSessionV1; `exp` is epoch ms. Mirrors types/viewAs.ts. */
 export interface ViewAsClaim {
@@ -70,24 +75,57 @@ export function assertPinLoginSession(
   }
 }
 
+function sessionEnded(): HttpsError {
+  return new HttpsError('permission-denied', 'This View as session has ended.');
+}
+
+function toMillis(value: unknown): number {
+  if (typeof value === 'number') return value;
+  const t = value as { toMillis?: () => unknown } | null;
+  return typeof t?.toMillis === 'function' ? Number(t.toMillis()) : 0;
+}
+
+/** End, expiry, a lost super admin or the kill switch cut a view-as token off before its own `exp`. */
+async function assertSessionLive(
+  claim: ViewAsClaim,
+  uid: string | undefined,
+  now: number
+): Promise<void> {
+  const db = admin.firestore();
+  const [sessionSnap, settingsSnap, superAdmin] = await Promise.all([
+    db.doc(`${VIEW_AS_SESSIONS}/${claim.sid}`).get(),
+    db.doc(VIEW_AS_SETTINGS_PATH).get(),
+    isStrictSuperAdmin(db, claim.by),
+  ]);
+  const s = sessionSnap.exists ? (sessionSnap.data() ?? {}) : null;
+  if (
+    !s ||
+    (s.endedAt !== null && s.endedAt !== undefined) ||
+    s.by !== claim.by ||
+    s.targetUid !== uid ||
+    now >= toMillis(s.expiresAt) ||
+    !(settingsSnap.exists && settingsSnap.get('enabled') === true) ||
+    !superAdmin
+  ) {
+    throw sessionEnded();
+  }
+}
+
 /** Throws when a view-as token may not run this callable; returns the claim (or null) so callers can audit. */
-export function assertViewAsAllowed(
+export async function assertViewAsAllowed(
   request: RequestWithAuth,
   options: ViewAsGuardOptions = {},
   now: number = Date.now()
-): ViewAsClaim | null {
+): Promise<ViewAsClaim | null> {
   assertPinLoginSession(request, now);
   const claim = readViewAsClaim(request);
   if (!claim) return null;
-  if (!claim.sid || !claim.by || now >= claim.exp) {
-    throw new HttpsError(
-      'permission-denied',
-      'This View as session has ended.'
-    );
+  if (!claim.sid || !claim.by || now >= claim.exp) throw sessionEnded();
+  if (!options.read || options.outward) {
+    if (claim.ro) {
+      throw new HttpsError('permission-denied', 'Unlock edits to do this.');
+    }
   }
-  if (options.read && !options.outward) return claim;
-  if (claim.ro) {
-    throw new HttpsError('permission-denied', 'Unlock edits to do this.');
-  }
+  await assertSessionLive(claim, request.auth?.uid, now);
   return claim;
 }

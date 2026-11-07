@@ -185,7 +185,7 @@ describe('getViewAsDriveTokenV1', () => {
     docs['admin_settings/view_as'] = { enabled: false };
     await expect(
       getToken({ auth: viewAsAuth(), data: {} })
-    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(refreshMock).not.toHaveBeenCalled();
   });
 

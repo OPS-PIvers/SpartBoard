@@ -683,7 +683,7 @@ export const getTeammatePrintContextV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     const caller: DelegatedPrintCaller | null = request.auth
       ? {
           uid: request.auth.uid,

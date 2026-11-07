@@ -271,7 +271,7 @@ export const deleteOrganizationUser = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const callerEmail = request.auth.token.email;
     if (!callerEmail) {
       throw new HttpsError('invalid-argument', 'Caller must have an email.');

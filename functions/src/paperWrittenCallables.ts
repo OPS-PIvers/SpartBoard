@@ -941,8 +941,8 @@ const CALLABLE_OPTS = {
 
 export const getPaperWrittenCropV1 = onCall(
   { ...CALLABLE_OPTS, memory: '512MiB', secrets: QUIZ_MEDIA_GOOGLE_SECRETS },
-  (request) => {
-    assertViewAsAllowed(request, { read: true });
+  async (request) => {
+    await assertViewAsAllowed(request, { read: true });
     return handleGetPaperWrittenCrop(
       buildDefaultPaperWrittenDeps(),
       callerOf(request.auth),
@@ -951,17 +951,20 @@ export const getPaperWrittenCropV1 = onCall(
   }
 );
 
-export const updatePaperTranscriptV1 = onCall(CALLABLE_OPTS, (request) => {
-  assertViewAsAllowed(request);
-  return handleUpdatePaperTranscript(
-    buildDefaultPaperWrittenDeps(),
-    callerOf(request.auth),
-    request.data
-  );
-});
+export const updatePaperTranscriptV1 = onCall(
+  CALLABLE_OPTS,
+  async (request) => {
+    await assertViewAsAllowed(request);
+    return handleUpdatePaperTranscript(
+      buildDefaultPaperWrittenDeps(),
+      callerOf(request.auth),
+      request.data
+    );
+  }
+);
 
-export const applyPaperNewerScanV1 = onCall(CALLABLE_OPTS, (request) => {
-  assertViewAsAllowed(request);
+export const applyPaperNewerScanV1 = onCall(CALLABLE_OPTS, async (request) => {
+  await assertViewAsAllowed(request);
   return handleApplyPaperNewerScan(
     buildDefaultPaperWrittenDeps(),
     callerOf(request.auth),
@@ -969,8 +972,8 @@ export const applyPaperNewerScanV1 = onCall(CALLABLE_OPTS, (request) => {
   );
 });
 
-export const transcribePaperBlankV1 = onCall(CALLABLE_OPTS, (request) => {
-  assertViewAsAllowed(request, { outward: true });
+export const transcribePaperBlankV1 = onCall(CALLABLE_OPTS, async (request) => {
+  await assertViewAsAllowed(request, { outward: true });
   return handleTranscribePaperBlank(
     buildDefaultPaperWrittenDeps(),
     callerOf(request.auth),

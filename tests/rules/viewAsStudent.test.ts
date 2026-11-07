@@ -148,6 +148,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    await setDoc(doc(db, 'view_as_sessions/sid-1'), { endedAt: null });
     const session = {
       teacherUid: TEACHER_UID,
       status: 'active',

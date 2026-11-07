@@ -1691,7 +1691,7 @@ export const archiveQuizMediaArtifact = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
