@@ -2076,7 +2076,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const lastBuildingsKey = useRef<string | null>(null);
   const buildingsKey = selectedBuildings.join(',');
   const restyleFirstBoard = useEffectEvent(() => {
-    if (!user || isViewAsTab) return;
+    // Saved buildings arrive with the profile; before that, an empty list isn't "no building yet".
+    if (!user || isViewAsTab || !profileLoaded) return;
     const before = lastBuildingsKey.current;
     lastBuildingsKey.current = buildingsKey;
     const firstBuildingSaved = before === '' && buildingsKey !== '';
@@ -2106,7 +2107,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   useEffect(() => {
     if (!loading) restyleFirstBoard();
-  }, [loading, buildingsKey, dashboards.length]);
+  }, [loading, buildingsKey, dashboards.length, profileLoaded]);
 
   const saveDashboards = useCallback(
     // `previous` is each board as this tab last had it, so the write merges per widget instead of overwriting.
