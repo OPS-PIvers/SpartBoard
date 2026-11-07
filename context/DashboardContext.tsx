@@ -675,16 +675,21 @@ interface ParkedBoard {
   toastId?: string;
   // Latest server copy held back while parked, adopted once the flush lands.
   serverCopy?: Dashboard;
-  // `updatedAt` of this tab's last write of the board while parked, and every `updatedAt` the snapshots showed.
+  // `updatedAt` of this tab's last write of the board while parked.
   lastWriteAt?: number;
-  seenUpdatedAts: Set<number>;
 }
 
-/** The held-back server copy is current once it has caught up with this tab's own last write. */
-const heldCopyIsCurrent = (entry: ParkedBoard): boolean =>
+/** The held-back server copy is current once snapshots have shown this tab's own last write. */
+const heldCopyIsCurrent = (
+  entry: ParkedBoard,
+  seenUpdatedAts: readonly number[] | undefined
+): boolean =>
   entry.serverCopy !== undefined &&
   (entry.lastWriteAt === undefined ||
-    entry.seenUpdatedAts.has(entry.lastWriteAt));
+    (seenUpdatedAts?.includes(entry.lastWriteAt) ?? false));
+
+// Recent `updatedAt` values seen per board; only a write still in flight can be missing from them.
+const SEEN_UPDATED_AT_LIMIT = 20;
 
 // A switch flush that never settles counts as failed, so it retries instead of holding the board forever.
 const PARKED_FLUSH_TIMEOUT_MS = 60_000;
@@ -1868,6 +1873,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const pendingSaveCountRef = useRef<number>(0);
   // Boards switched away from, by id, until their queued and unsaved edits land.
   const parkedBoardsRef = useRef(new Map<string, ParkedBoard>());
+  // Recent server `updatedAt` values per board, from snapshots.
+  const seenUpdatedAtsRef = useRef(new Map<string, number[]>());
   // Older generations a resumed board's baseline still answers to, valid while the generation stays at `anchor`.
   const resumedGenerationsRef = useRef<{
     anchor: number;
@@ -2431,7 +2438,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           ]),
           flush: 'idle',
           failures: 0,
-          seenUpdatedAts: new Set(),
         });
       }
       const returning = parked.get(active.id);
@@ -2444,20 +2450,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const heldCopy =
         adoptHeldCopy &&
         returning &&
-        heldCopyIsCurrent(returning) &&
+        heldCopyIsCurrent(
+          returning,
+          seenUpdatedAtsRef.current.get(active.id)
+        ) &&
         !hasDeferredSave?.(active.id) &&
         serializeDashboard(active) === returning.data
           ? returning.serverCopy
           : undefined;
       if (heldCopy) {
         const transient = active.widgets.filter((w) => w.transient);
-        setDashboards((prev) =>
-          prev.map((d) =>
+        const adopt = (boards: Dashboard[]) =>
+          boards.map((d) =>
             d.id === active.id
               ? { ...heldCopy, widgets: [...heldCopy.widgets, ...transient] }
               : d
-          )
-        );
+          );
+        // A snapshot before the next render must merge against the adopted copy, not the stale one.
+        dashboardsRef.current = adopt(dashboardsRef.current);
+        setDashboards(adopt);
       }
       const { serializedData, fields } = heldCopy
         ? getDashboardSaveState(heldCopy)
@@ -2580,6 +2591,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             hasPendingWrites,
             pendingSaveCount: pendingSaveCountRef.current,
           });
+        }
+
+        for (const db of migratedDashboards) {
+          if (db.updatedAt === undefined) continue;
+          const seen = seenUpdatedAtsRef.current.get(db.id) ?? [];
+          if (seen.includes(db.updatedAt)) continue;
+          seenUpdatedAtsRef.current.set(
+            db.id,
+            [...seen, db.updatedAt].slice(-SEEN_UPDATED_AT_LIMIT)
+          );
         }
 
         // ---- Conflict-detection and merge ----
@@ -2915,11 +2936,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (db.id === activeIdRef.current) return db;
           const parked = parkedBoardsRef.current.get(db.id);
           if (!parked && !hasDeferredSave?.(db.id)) return db;
-          if (parked) {
-            parked.serverCopy = db;
-            if (db.updatedAt !== undefined)
-              parked.seenUpdatedAts.add(db.updatedAt);
-          }
+          if (parked) parked.serverCopy = db;
           return dashboardsRef.current.find((d) => d.id === db.id) ?? db;
         });
 
@@ -3316,7 +3333,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // A queued offline save keeps this tab's copy until it lands, as the snapshot handler does.
           if (
             !serverCopy ||
-            !heldCopyIsCurrent(entry) ||
+            !heldCopyIsCurrent(
+              entry,
+              seenUpdatedAtsRef.current.get(dashboardId)
+            ) ||
             hasDeferredSave?.(dashboardId)
           )
             return;
@@ -3420,9 +3440,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // A signed-out or switched account must not keep retrying the previous one's boards.
   useEffect(() => {
     const parkedBoards = parkedBoardsRef.current;
+    const seenUpdatedAts = seenUpdatedAtsRef.current;
     return () => {
       for (const entry of parkedBoards.values()) clearTimeout(entry.retryTimer);
       parkedBoards.clear();
+      seenUpdatedAts.clear();
     };
   }, [user?.uid]);
 

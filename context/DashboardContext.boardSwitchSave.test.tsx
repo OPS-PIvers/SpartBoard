@@ -700,4 +700,83 @@ describe('DashboardContext board switch save', () => {
     await tick(65_000);
     expect(savedIds()).toEqual(['dash-a', 'dash-a']);
   });
+  it("a snapshot right after adopting the held-back copy doesn't undo it or save the stale copy", async () => {
+    const boardC = () => makeDashboard([makeWidget('c1')], 'dash-c');
+    const fire: { armed: Dashboard[] | null } = { armed: null };
+    // Fires a snapshot from a sibling effect in the same commit, before the adoption renders.
+    const Fire: React.FC<{ n: number }> = ({ n }) => {
+      useEffect(() => {
+        if (!fire.armed || !capturedSnapshotCb) return;
+        const boards = fire.armed;
+        fire.armed = null;
+        capturedSnapshotCb(boards, false);
+      }, [n]);
+      return null;
+    };
+    const bump = { current: (): void => undefined };
+    const stateRef: { current: ContextSnapshot | null } = { current: null };
+    const Root: React.FC = () => {
+      const [n, setN] = React.useState(0);
+      React.useLayoutEffect(() => {
+        bump.current = () => setN((x) => x + 1);
+      });
+      return (
+        <>
+          <DashboardProvider>
+            <TestConsumer stateRef={stateRef} />
+          </DashboardProvider>
+          <Fire n={n} />
+        </>
+      );
+    };
+    render(<Root />);
+    await pushSnapshot([boardA(), boardB(), boardC()]);
+    await tick(0);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-c');
+    });
+    await tick(0);
+    const cSave = holdNextSave();
+    act(() => {
+      stateRef.current?.updateWidget('c1', { config: { text: 'edit-c' } });
+    });
+    await tick(900);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-a');
+    });
+    await tick(0);
+    act(() => {
+      stateRef.current?.loadDashboard('dash-b');
+    });
+    await tick(0);
+    const remote = () => [
+      makeDashboard(
+        [{ ...makeWidget('a1', 'remote'), version: 5 }],
+        'dash-a',
+        7000
+      ),
+      boardB(),
+      boardC(),
+    ];
+    await pushSnapshot(remote());
+    await tick(0);
+    fire.armed = remote();
+    act(() => {
+      stateRef.current?.loadDashboard('dash-a');
+      bump.current();
+    });
+    await tick(0);
+    await act(async () => {
+      cSave.resolve(Date.now());
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await tick(3000);
+    expect(widgetText(stateRef, 'dash-a', 'a1')).toBe('remote');
+    const aTexts = saveDashboardMock.mock.calls
+      .filter((c) => (c[0] as Dashboard).id === 'dash-a')
+      .map(
+        (c) => ((c[0] as Dashboard).widgets[0].config as { text: string }).text
+      );
+    expect(aTexts).not.toContain('test');
+  });
 });
