@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Code2, Copy, Link2, Loader2, ShieldOff } from 'lucide-react';
 import type { FlashcardSet } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 
@@ -160,6 +161,7 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
               <div className="mt-2 flex gap-2">
                 <input
                   id="flashcard-share-link"
+                  {...tourTypeAttr('flashcards.public-link', 'flashcards')}
                   readOnly
                   value={shareUrl}
                   onFocus={(event) => event.currentTarget.select()}
@@ -184,6 +186,7 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
               </label>
               <textarea
                 id="flashcard-embed-code"
+                {...tourTypeAttr('flashcards.embed-code', 'flashcards')}
                 readOnly
                 rows={3}
                 value={embedCode}
