@@ -962,6 +962,8 @@ export const LiveTourRunner: React.FC = () => {
         ? startTourRunLog(set.id, uid, { v: set.updatedAt, furthest: index })
         : null;
     setAttempt(0);
+    // A new run opens its first step afresh, never with the last run's "done at open".
+    setVisit((n) => n + 1);
     setAutoOn(
       !opts.edit &&
         (!!opts.test ||

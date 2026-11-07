@@ -49,4 +49,10 @@ describe('board background defaults', () => {
     ).toBeNull();
     expect(firstBoardOnDefault([])).toBeNull();
   });
+
+  it('also finds a first board the app already gave the district default', () => {
+    const boards = [{ id: 'first', background: 'district-bg', createdAt: 1 }];
+    expect(firstBoardOnDefault(boards)).toBeNull();
+    expect(firstBoardOnDefault(boards, ['district-bg'])?.id).toBe('first');
+  });
 });

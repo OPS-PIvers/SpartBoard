@@ -110,7 +110,7 @@ import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
 import { bindWithStarterText, type ChoiceLabel } from './starterText';
 import { asChoiceStep, nativeSelectOf, selectChoices } from './nativeSelect';
 import {
-  TOUR_ACTIONS,
+  actionsFor,
   isRedStatus,
   tourControlLabel,
   tourStepStatus,
@@ -1002,7 +1002,7 @@ const StepCard: React.FC<{
             }
             className={inputClass}
           >
-            {TOUR_ACTIONS.map((action) => (
+            {actionsFor(tour.anchor).map((action) => (
               <option key={action} value={action}>
                 {t(`glStudio.tourAction_${action}`)}
               </option>

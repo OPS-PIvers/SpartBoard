@@ -76,12 +76,17 @@ export const forgetBoardBackgroundDefaults = (): void => {
 /** A board this new was just made by the app, so it can still take an admin default. */
 export const FRESH_BOARD_MS = 10 * 60 * 1000;
 
-/** The teacher's first board, if it still has SpartBoard's own default; a background they chose is never replaced (D25). */
+/** The teacher's first board, if it still has a background the app gave it; a background they chose is never replaced (D25). */
 export const firstBoardOnDefault = <
   B extends { id: string; background: string; createdAt: number },
 >(
-  boards: readonly B[]
+  boards: readonly B[],
+  appSet: readonly string[] = []
 ): B | null => {
   const first = [...boards].sort((a, b) => a.createdAt - b.createdAt)[0];
-  return first && first.background === DEFAULT_BOARD_BACKGROUND ? first : null;
+  return first &&
+    (first.background === DEFAULT_BOARD_BACKGROUND ||
+      appSet.includes(first.background))
+    ? first
+    : null;
 };

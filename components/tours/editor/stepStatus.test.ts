@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { panelSide, PANEL_WIDTH } from './panelPlacement';
-import { tourControlLabel, tourStepStatus, withAction } from './stepStatus';
+import {
+  actionsFor,
+  fitActionToAnchor,
+  tourControlLabel,
+  tourStepStatus,
+  withAction,
+} from './stepStatus';
 
 describe('tourStepStatus', () => {
   it('reads each kind of step', () => {
@@ -77,5 +83,24 @@ describe('panelSide', () => {
     expect(
       panelSide('left', { x: 20, y: 0, w: 40, h: 40 }, vw, PANEL_WIDTH)
     ).toBe('right');
+  });
+});
+
+describe('actionsFor', () => {
+  it('offers drag and resize only on their widget anchors', () => {
+    expect(actionsFor('sidebar.boards')).not.toContain('drag');
+    expect(actionsFor('sidebar.boards')).not.toContain('resize');
+    expect(actionsFor('widget.window:dice')).toContain('drag');
+    expect(actionsFor('widget.window:dice')).not.toContain('resize');
+    expect(actionsFor('widget.resize-handle:dice')).toContain('resize');
+  });
+
+  it('turns a drag step on another control back into a click', () => {
+    expect(
+      fitActionToAnchor({ anchor: 'sidebar.boards', action: 'drag' }).action
+    ).toBe('click');
+    expect(
+      fitActionToAnchor({ anchor: 'widget.window:dice', action: 'drag' }).action
+    ).toBe('drag');
   });
 });
