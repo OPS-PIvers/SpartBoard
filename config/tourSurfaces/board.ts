@@ -601,9 +601,16 @@ export const SURFACES: TourSurfaceMap = {
     },
   },
   'board.prompt-dialog': {
-    label: 'Name prompt dialog',
-    kind: 'shared',
+    label: 'Name prompt, "Are you sure?" and message dialogs',
+    kind: 'modal',
     files: ['components/common/DialogContainer.tsx'],
+    opensWith: 'boards-modal.new-board',
+    alsoOpensWith: [
+      'boards-modal.new-collection',
+      'board-nav.new-board',
+      'board-nav.new-collection',
+    ],
+    parent: 'board.boards-modal',
   },
   'board.boards-board-menu': {
     label: 'Board edit menu',

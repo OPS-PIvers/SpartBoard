@@ -181,6 +181,7 @@ const AlertDialog: React.FC<{
   return (
     <DialogShell variant={variant} title={title} message={message}>
       <button
+        {...tourAttr('alert-dialog.ok')}
         autoFocus
         onClick={onOk}
         className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${cfg.confirmBg} ${cfg.confirmHover} ${cfg.confirmText}`}
@@ -237,6 +238,7 @@ const ConfirmDialog: React.FC<{
   return (
     <DialogShell variant={variant} title={title} message={message} isConfirm>
       <button
+        {...tourAttr('confirm-dialog.cancel')}
         autoFocus={isDestructive}
         onClick={onCancel}
         className="px-5 py-2 rounded-xl text-sm font-semibold transition-colors bg-slate-700 hover:bg-slate-600 text-slate-200"
@@ -244,6 +246,7 @@ const ConfirmDialog: React.FC<{
         {cancelLabel}
       </button>
       <button
+        {...tourAttr('confirm-dialog.confirm')}
         autoFocus={!isDestructive}
         onClick={onConfirm}
         className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${cfg.confirmBg} ${cfg.confirmHover} ${cfg.confirmText}`}
@@ -381,6 +384,7 @@ const PromptDialog: React.FC<{
       {/* Buttons */}
       <div className="flex gap-2 px-5 pb-5 justify-end">
         <button
+          {...tourAttr('prompt-dialog.cancel-button')}
           onClick={onCancel}
           className="px-5 py-2 rounded-xl text-sm font-semibold transition-colors bg-slate-700 hover:bg-slate-600 text-slate-200"
         >
