@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { EyeOff, Loader2, Plus } from 'lucide-react';
 import { useDialog } from '@/context/useDialog';
 import type {
@@ -150,6 +157,15 @@ const IdentityScreen: React.FC<{
   );
 };
 
+const CLOSED_WALL_MESSAGE =
+  'Your teacher closed this wall. New posts cannot be added.';
+
+// Rules refuse a post once the wall closes mid-draft; only then is it "closed".
+const isPermissionDenied = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as { code?: unknown }).code === 'permission-denied';
+
 export const ActivityWallStudentApp: React.FC = () => {
   const sessionId = useMemo(
     () => getSessionIdFromPath(window.location.pathname),
@@ -171,6 +187,11 @@ export const ActivityWallStudentApp: React.FC = () => {
       comments: engagementFlags.allowComments,
     }
   );
+
+  const wallClosedRef = useRef(false);
+  useLayoutEffect(() => {
+    wallClosedRef.current = readySession?.acceptingResponses === false;
+  });
 
   const [identity, setIdentity] = useState<Identity | null>(() =>
     readIdentity(sessionId)
@@ -302,6 +323,10 @@ export const ActivityWallStudentApp: React.FC = () => {
 
   const onSubmit = async (draft: PostDraft, placement: WallPlacement) => {
     if (!sheet || busy) return;
+    if (!open) {
+      setSheetError(CLOSED_WALL_MESSAGE);
+      return;
+    }
     setBusy(true);
     setSheetError(null);
     try {
@@ -334,6 +359,8 @@ export const ActivityWallStudentApp: React.FC = () => {
     } catch (submitError) {
       if (submitError instanceof PostSubmitError) {
         setSheetError(submitError.message);
+      } else if (isPermissionDenied(submitError) && wallClosedRef.current) {
+        setSheetError(CLOSED_WALL_MESSAGE);
       } else {
         console.error(
           '[ActivityWallStudentApp] Submission failed:',
