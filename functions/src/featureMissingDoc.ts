@@ -74,6 +74,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-schoology-course',
   'video-activity-stops',
   'video-import-ai',
+  'embed-mini-app',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
@@ -89,7 +90,6 @@ export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
   'smart-poll': null,
   'screen-recording': null,
   'remote-control': null,
-  'embed-mini-app': null,
   'video-activity-audio-transcription': null,
   'ai-file-context': 'org',
   'org-admin-writes': null,

@@ -4556,7 +4556,7 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
     );
 
     const err = await handler(
-      { ...MINI_APP_DATA, html: '<html>v1</html>' },
+      { ...MINI_APP_DATA, source: 'mini-app', html: '<html>v1</html>' },
       { auth: NON_ADMIN_AUTH }
     ).then(
       () => null,
@@ -4566,12 +4566,27 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
     expect(err?.name).not.toBe('permission-denied');
   });
 
-  it('does not check accessLevel when no global_permissions doc exists for the feature', async () => {
+  it('keeps embed-mini-app admin-only for teachers until its doc is saved', async () => {
     vi.mocked(admin.firestore).mockReturnValueOnce(
       makeDb({}) as unknown as admin.firestore.Firestore
     );
 
-    const err = await handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH }).then(
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'embed-mini-app is currently restricted to administrators.'
+    );
+  });
+
+  it('does not check accessLevel when no doc exists for a public-by-default feature', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({}) as unknown as admin.firestore.Firestore
+    );
+
+    const err = await handler(
+      { ...MINI_APP_DATA, source: 'mini-app' },
+      { auth: NON_ADMIN_AUTH }
+    ).then(
       () => null,
       (e: unknown) => e as Error
     );
