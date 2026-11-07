@@ -357,6 +357,27 @@ export async function refreshGoogleAccessTokenForUid(
     if (options.keepStoredOnFailure) return;
     await ref.delete();
   };
+  // Deletes only if the stored token is still the one that failed, so a token rotated by another caller survives.
+  const dropStoredIfUnchanged = async (
+    failedCiphertext: string
+  ): Promise<boolean> => {
+    if (options.keepStoredOnFailure) return true;
+    let rotated = false;
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(ref);
+      if (!fresh.exists) return;
+      const freshStored = parseStoredGoogleAuth(fresh.data());
+      if (
+        !freshStored ||
+        freshStored.encryptedRefreshToken === failedCiphertext
+      ) {
+        tx.delete(ref);
+      } else {
+        rotated = true;
+      }
+    });
+    return !rotated;
+  };
   const snap = await ref.get();
   if (!snap.exists) {
     throw needsConsent(
@@ -428,15 +449,22 @@ export async function refreshGoogleAccessTokenForUid(
     if (axios.isAxiosError(err)) {
       const googleErr = (err.response?.data as { error?: string })?.error;
       if (googleErr === 'invalid_grant') {
-        // Refresh token revoked (user disconnected at myaccount.google.com,
-        // password reset, etc.). Drop the stored token so the next refresh
-        // call surfaces `needs-consent` cleanly and the client re-routes
-        // through the code flow rather than looping on a dead token.
-        await dropStored().catch((delErr) => {
-          logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, {
-            uid,
+        // Refresh token revoked; drop it unless another caller already rotated it.
+        let wasRotated = false;
+        await dropStoredIfUnchanged(stored.encryptedRefreshToken)
+          .then((dropped) => {
+            wasRotated = !dropped;
+          })
+          .catch((delErr) => {
+            logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, {
+              uid,
+            });
           });
-        });
+        if (wasRotated) {
+          throw transientError(
+            'Google token refresh raced with another caller. Retry.'
+          );
+        }
         throw needsConsent(
           'invalid-grant',
           'needs-consent: stored refresh token was revoked.'

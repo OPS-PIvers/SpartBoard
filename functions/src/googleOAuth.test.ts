@@ -35,7 +35,24 @@ vi.mock('./firebaseAdmin', () => {
     apps: [{ name: '[DEFAULT]' }],
     initializeApp: vi.fn(),
     firestore: vi.fn(() => ({
+      runTransaction: async <T>(
+        fn: (tx: {
+          get: (ref: { path: string }) => Promise<DocSnap>;
+          delete: (ref: { path: string }) => void;
+        }) => Promise<T>
+      ): Promise<T> =>
+        fn({
+          get: async (ref) =>
+            firestoreDocs.has(ref.path)
+              ? { exists: true, data: () => firestoreDocs.get(ref.path) }
+              : { exists: false, data: () => undefined },
+          delete: (ref) => {
+            deletedPaths.push(ref.path);
+            firestoreDocs.delete(ref.path);
+          },
+        }),
       doc: (path: string) => ({
+        path,
         get: async (): Promise<DocSnap> => {
           if (firestoreDocs.has(path)) {
             const data = firestoreDocs.get(path);
@@ -425,6 +442,37 @@ describe('refreshGoogleAccessToken', () => {
     );
     expect((err.details as { cause: string }).cause).toBe('invalid-grant');
     expect(deletedPaths).toContain(PRIVATE_DOC_PATH_FOR(TEST_UID));
+  });
+
+  it('keeps a token another caller rotated during invalid_grant and returns transient', async () => {
+    setAxiosHandler(async () => ({
+      data: {
+        access_token: 'access-1',
+        expires_in: 3600,
+        refresh_token: 'refresh-1',
+        scope: ALL_SCOPES,
+        token_type: 'Bearer',
+      },
+    }));
+    await callAuthed(exchangeGoogleAuthCode, {
+      code: 'c',
+      redirectUri: 'postmessage',
+    });
+    const path = PRIVATE_DOC_PATH_FOR(TEST_UID);
+    // Simulate a concurrent caller rotating the token while Google rejects the old one.
+    setAxiosHandler(async () => {
+      const cur = firestoreDocs.get(path) as Record<string, unknown>;
+      firestoreDocs.set(path, { ...cur, encryptedRefreshToken: 'rotated' });
+      throw new FakeAxiosError('Bad Request', { error: 'invalid_grant' });
+    });
+
+    const err = await expectThrows(() =>
+      callAuthed(refreshGoogleAccessToken, {})
+    );
+    expect(err.code).toBe('internal');
+    expect((err.details as { reason: string }).reason).toBe('transient');
+    expect(deletedPaths).toEqual([]);
+    expect(firestoreDocs.has(path)).toBe(true);
   });
 
   it('keeps the stored doc on invalid_grant when asked (View as)', async () => {
