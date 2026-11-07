@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useBoardTriggerClaim } from '@/hooks/useBoardTriggerClaim';
 import {
   WidgetData,
   RandomConfig,
@@ -380,6 +381,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   ]);
 
   const lastExternalTriggerRef = useRef(config.externalTrigger ?? 0);
+  const claimTrigger = useBoardTriggerClaim(widget.id);
 
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId),
@@ -1772,10 +1774,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     ) {
       lastExternalTriggerRef.current = config.externalTrigger;
       if (!isSpinning) {
-        void handlePickRef.current();
+        // Every device with the board open sees the trigger; only the one that claims it picks.
+        void claimTrigger(config.externalTrigger).then((won) => {
+          if (won) void handlePickRef.current();
+        });
       }
     }
-  }, [config.externalTrigger, isSpinning]);
+  }, [config.externalTrigger, isSpinning, claimTrigger]);
 
   // Use the longest individual word (not full name length) so that a single
   // word is never forced to wrap. cqw (container-width-relative) units ensure
