@@ -309,12 +309,12 @@ import {
   playStreakSound,
 } from '@/utils/quizAudio';
 
-// Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
-// pulled into the initial student-app payload. Loaded on first render of a
-// free-response question.
 // How long a turn-in waits for recordings still uploading before it goes ahead.
 const TURN_IN_UPLOAD_WAIT_MS = 8000;
 
+// Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
+// pulled into the initial student-app payload. Loaded on first render of a
+// free-response question.
 const QuizGamePlay = React.lazy(() =>
   import('./game/QuizGamePlay').then((m) => ({ default: m.QuizGamePlay }))
 );
