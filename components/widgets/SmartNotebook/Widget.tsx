@@ -537,8 +537,8 @@ export const SmartNotebookWidget: React.FC<{
     page: number,
     svgString: string,
     target: NotebookLike
-  ): Promise<void> => {
-    if (!user) return;
+  ): Promise<NotebookLike> => {
+    if (!user) return target;
     const notebookPath = `users/${user.uid}/notebooks/${target.id}`;
     const path = target.pagePaths?.[page] ?? `${notebookPath}/page${page}.svg`;
     const file = new File([svgString], `page${page}.svg`, {
@@ -555,6 +555,7 @@ export const SmartNotebookWidget: React.FC<{
       pageUrls: newPageUrls,
       pagePaths: newPagePaths,
     });
+    return { ...target, pageUrls: newPageUrls, pagePaths: newPagePaths };
   };
 
   const uploadEditedPage = async (
@@ -597,12 +598,17 @@ export const SmartNotebookWidget: React.FC<{
 
   const flushSwitchEdits = useEffectEvent(
     (flush: { notebook: NotebookLike; edits: [number, string][] }) => {
-      for (const [page, svg] of flush.edits) {
-        persistPage(page, svg, flush.notebook).catch((err) => {
-          console.error('Failed to save edited page', err);
-          addToast('Autosave failed — your edits were not saved', 'error');
-        });
-      }
+      void (async () => {
+        let nb = flush.notebook;
+        for (const [page, svg] of flush.edits) {
+          try {
+            nb = await persistPage(page, svg, nb);
+          } catch (err) {
+            console.error('Failed to save edited page', err);
+            addToast('Autosave failed — your edits were not saved', 'error');
+          }
+        }
+      })();
     }
   );
   useEffect(() => {
