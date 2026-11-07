@@ -563,6 +563,7 @@ async function refundAiUsage(
   db: admin.firestore.Firestore,
   charge: AiUsageCharge
 ): Promise<void> {
+  if (charge.docIds.length === 0) return;
   await db.runTransaction(async (transaction) => {
     const refs = charge.docIds.map((id) => db.collection('ai_usage').doc(id));
     const markerRef = charge.id
