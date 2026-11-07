@@ -3,7 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
-import { isStrictSuperAdmin } from './authz';
+import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
 import {
   buildingIdVariants,
   canonicalBuildingIdServer,
@@ -294,8 +294,7 @@ export async function assertCallerIsOrgAdmin(
     if (
       typeof roleId === 'string' &&
       ADMIN_ROLE_IDS.includes(roleId) &&
-      status !== 'inactive' &&
-      status !== 'removed'
+      !isRevokedMemberStatus(status)
     ) {
       return;
     }

@@ -32,6 +32,7 @@ import {
 import {
   INACTIVE_STAFF_EMAIL,
   LEGACY_STUDENT_MEMBER_EMAIL,
+  UNKNOWN_STATUS_STAFF_EMAIL,
   STUDENT_GOOGLE_EMAIL,
   seedDistrictStaff,
 } from './districtStaffSeed';
@@ -94,6 +95,11 @@ const asLegacyStudentMember = () =>
   );
 const asInactiveStaff = () =>
   testEnv.authenticatedContext('inactive-uid', google(INACTIVE_STAFF_EMAIL));
+const asUnknownStatusStaff = () =>
+  testEnv.authenticatedContext(
+    'unknown-status-uid',
+    google(UNKNOWN_STATUS_STAFF_EMAIL)
+  );
 const asAnon = () =>
   testEnv.authenticatedContext('anon-uid', {
     firebase: { sign_in_provider: 'anonymous' },
@@ -113,6 +119,7 @@ const notStaff = (): RulesTestContext[] => [
   asStudentNamedGoogle(),
   asLegacyStudentMember(),
   asInactiveStaff(),
+  asUnknownStatusStaff(),
   asAnon(),
   asStudentRole(),
   asSignedOut(),
@@ -310,7 +317,7 @@ describe('web_tour_pictures storage', () => {
       "request.auth.token.get('studentRole', false) != true"
     );
     expect(rules).toContain(
-      "member.data.get('status', 'active') != 'inactive'"
+      "member.data.get('status', 'active') in ['active', 'invited']"
     );
     expect(rules).toContain("member.data.get('roleId', '') != 'student'");
   });

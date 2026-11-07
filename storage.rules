@@ -56,7 +56,7 @@ service firebase.storage {
     }
     function districtStaffMember(member) {
       return member != null &&
-             member.data.get('status', 'active') != 'inactive' &&
+             member.data.get('status', 'active') in ['active', 'invited'] &&
              member.data.get('roleId', '') != 'student';
     }
 
