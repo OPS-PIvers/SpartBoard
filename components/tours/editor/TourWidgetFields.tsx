@@ -10,6 +10,7 @@ import {
 } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
 import { fieldKeysForWidgetType, hasFieldSchema } from './tourFieldKeys';
+import { fitActionToAnchor } from './stepStatus';
 
 interface Props {
   tour: GuidedLearningTourBinding;
@@ -54,7 +55,9 @@ export const TourWidgetFields: React.FC<Props> = ({
 
   if (!needsType || !isTourAnchorId(id)) return null;
   const rebind = (type?: string, field?: string) =>
-    onChange({ ...tour, anchor: tourAnchorRef(id, type, field) });
+    onChange(
+      fitActionToAnchor({ ...tour, anchor: tourAnchorRef(id, type, field) })
+    );
   const knownType = !widgetType || TOOLS.some((x) => x.type === widgetType);
   const fieldOptions =
     fieldKey && !fieldKeys.includes(fieldKey)

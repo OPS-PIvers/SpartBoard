@@ -197,10 +197,10 @@ describe.each(KINDS)('$name', (kind) => {
     await assertSucceeds(updateDoc(doc(db, kind.path(uid)), kind.edit));
   });
 
-  it('lets an admin with no member doc create their own', async () => {
+  it('lets an admin with no member doc create and edit their own', async () => {
     const uid = uidFor(ADMIN_EMAIL);
-    await assertSucceeds(
-      setDoc(doc(asGoogle(ADMIN_EMAIL), kind.path(uid)), kind.data(uid))
-    );
+    const db = asGoogle(ADMIN_EMAIL);
+    await assertSucceeds(setDoc(doc(db, kind.path(uid)), kind.data(uid)));
+    await assertSucceeds(updateDoc(doc(db, kind.path(uid)), kind.edit));
   });
 });

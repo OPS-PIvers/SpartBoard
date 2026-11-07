@@ -9,6 +9,7 @@ import {
 import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
 import type { TourSlots } from '@/components/tours/tourSession';
 import { untaggedControlOf } from '@/components/tours/popups';
+import { fitActionToAnchor } from './stepStatus';
 
 /** What Pick control or the anchor list chose for a step. */
 export interface TourAnchorPick {
@@ -105,5 +106,5 @@ export function applyAnchorPick(
     next.action = 'observe';
     delete next.value;
   }
-  return next;
+  return fitActionToAnchor(next);
 }

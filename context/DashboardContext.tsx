@@ -2087,15 +2087,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       Date.now() - (dashboards[0]?.createdAt ?? 0) < FRESH_BOARD_MS;
     if (!firstBuildingSaved && !justMade) return;
     restyledFirstBoard.current = true;
-    const board = firstBoardOnDefault(dashboards);
-    if (!board) return;
     const buildings = selectedBuildings;
     void loadBoardBackgroundDefaults().then((defaults) => {
+      // The district default may already be on it from when the app made it, before any building.
+      const appSet =
+        firstBuildingSaved && defaults.district ? [defaults.district] : [];
+      const board = firstBoardOnDefault(dashboards, appSet);
+      if (!board) return;
       const background = defaultBackgroundFor(defaults, buildings);
       if (background === board.background) return;
       setDashboards((prev) =>
         prev.map((d) =>
-          d.id === board.id && d.background === DEFAULT_BOARD_BACKGROUND
+          d.id === board.id && d.background === board.background
             ? { ...d, background }
             : d
         )

@@ -3881,6 +3881,15 @@ describe('LiveTourRunner boards a tour made', () => {
     expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
   });
 
+  it('never asks about boards without Getting Started', async () => {
+    h.canAccess.mockImplementation((id: string) => id !== 'getting-started');
+    await start(twoSteps());
+    makeBoard('new-1');
+    await finishTour();
+    expect(screen.queryByTestId('tour-keep-boards')).not.toBeInTheDocument();
+    expect(h.boardActions.deleteDashboard).not.toHaveBeenCalled();
+  });
+
   it('Keep leaves the boards alone', async () => {
     await start(twoSteps());
     makeBoard('new-1');

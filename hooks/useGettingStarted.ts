@@ -209,7 +209,7 @@ export function useGettingStarted(): GettingStartedState {
     !!user &&
     progress.firstSignInAt !== undefined &&
     progress.essentialsDoneAt === undefined &&
-    essentials.length > 0 &&
+    // No Essentials for this teacher means nothing holds quiet start.
     essentials.every((tour) => tour.done);
   const uid = user?.uid;
   useEffect(() => {
