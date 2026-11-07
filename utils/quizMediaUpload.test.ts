@@ -13,6 +13,10 @@ import {
   buildQuizMediaStoragePath,
   quizMediaExtensionForMimeType,
   enqueueQuizMediaUpload,
+  createTurnInUploadGate,
+  handOffLockedUpload,
+  waitForUploads,
+  type QuizMediaUploadResult,
   __resetQuizMediaUploadQueue,
   MAX_QUIZ_MEDIA_BYTES,
   MAX_WHITEBOARD_PICTURE_BYTES,
@@ -207,5 +211,146 @@ describe('enqueueQuizMediaUpload', () => {
     );
     expect(first.uploadState).toBe('failed');
     expect(second.uploadState).toBe('uploaded');
+  });
+});
+
+describe('waitForUploads', () => {
+  it('resolves once every upload settles, even a rejected one', async () => {
+    let finish: () => void = () => undefined;
+    const slow = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    let done = false;
+    const wait = waitForUploads(
+      [slow, Promise.reject(new Error('x'))],
+      5000
+    ).then(() => {
+      done = true;
+    });
+    await Promise.resolve();
+    expect(done).toBe(false);
+    finish();
+    await wait;
+    expect(done).toBe(true);
+  });
+
+  it('stops waiting at the cap', async () => {
+    vi.useFakeTimers();
+    try {
+      const wait = waitForUploads([new Promise(() => undefined)], 8000);
+      await vi.advanceTimersByTimeAsync(8000);
+      await expect(wait).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns at once with nothing in flight', async () => {
+    await expect(waitForUploads([], 8000)).resolves.toBeUndefined();
+  });
+});
+
+describe('handOffLockedUpload', () => {
+  it('asks the server to settle the take and swallows its refusal', async () => {
+    const deps = makeDeps({
+      archiveArtifact: vi.fn(() => Promise.reject(new Error('not-found'))),
+    });
+    await expect(handOffLockedUpload(job(), deps)).resolves.toBeUndefined();
+    expect(deps.archiveArtifact).toHaveBeenCalledWith(job());
+    expect(deps.uploadBlob).not.toHaveBeenCalled();
+  });
+});
+
+describe('createTurnInUploadGate', () => {
+  const failed: QuizMediaUploadResult = {
+    storagePath: 'p',
+    uploadState: 'failed',
+    error: 'net',
+  };
+  function actions(locked: boolean) {
+    return {
+      write: vi.fn(() => Promise.resolve(locked)),
+      handOff: vi.fn(() => Promise.resolve()),
+    };
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it('writes the state on an open attempt and never hands off', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(false);
+    await gate.run(job(), () => Promise.resolve(failed), a);
+    expect(a.write).toHaveBeenCalledWith(job(), 'failed');
+    expect(a.handOff).not.toHaveBeenCalled();
+  });
+
+  it('hands off any failure that lands on a locked attempt', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(true);
+    await gate.run(job(), () => Promise.resolve(failed), a);
+    expect(a.handOff).toHaveBeenCalledWith(job());
+  });
+
+  it('does not hand off an upload that succeeds after lock', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(true);
+    await gate.run(
+      job(),
+      () => Promise.resolve({ storagePath: 'p', uploadState: 'uploaded' }),
+      a
+    );
+    expect(a.handOff).not.toHaveBeenCalled();
+  });
+
+  it('waits for an in-flight upload, then turns in, and hands off a failure from the wait', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(false);
+    let fail: () => void = () => undefined;
+    const upload = gate
+      .run(
+        job(),
+        () =>
+          new Promise<QuizMediaUploadResult>((resolve) => {
+            fail = () => resolve(failed);
+          }),
+        a
+      )
+      .catch(() => undefined);
+    const complete = vi.fn(() => Promise.resolve());
+    const turnIn = gate.turnIn(complete, a, 8000);
+    await flush();
+    expect(complete).not.toHaveBeenCalled();
+    fail();
+    await upload;
+    await turnIn;
+    await flush();
+    expect(complete).toHaveBeenCalledTimes(1);
+    // The failure stays pending through the turn-in, so it can show as lost.
+    expect(a.write).not.toHaveBeenCalled();
+    expect(a.handOff).toHaveBeenCalledWith(job());
+  });
+
+  it('writes a deferred failure back when the turn-in itself fails', async () => {
+    const gate = createTurnInUploadGate();
+    const a = actions(false);
+    let fail: () => void = () => undefined;
+    const upload = gate.run(
+      job(),
+      () =>
+        new Promise<QuizMediaUploadResult>((resolve) => {
+          fail = () => resolve(failed);
+        }),
+      a
+    );
+    const turnIn = gate.turnIn(
+      () => Promise.reject(new Error('offline')),
+      a,
+      8000
+    );
+    fail();
+    await upload;
+    await expect(turnIn).rejects.toThrow('offline');
+    await flush();
+    expect(a.handOff).not.toHaveBeenCalled();
+    expect(a.write).toHaveBeenCalledWith(job(), 'failed');
   });
 });

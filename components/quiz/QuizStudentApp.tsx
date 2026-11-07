@@ -189,6 +189,9 @@ import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
   enqueueQuizMediaUpload,
+  createTurnInUploadGate,
+  handOffLockedUpload,
+  type UploadSettleActions,
 } from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { RubricGuideExamples } from './RubricGuideExamples';
@@ -305,6 +308,9 @@ import {
   playCountdownTick,
   playStreakSound,
 } from '@/utils/quizAudio';
+
+// How long a turn-in waits for recordings still uploading before it goes ahead.
+const TURN_IN_UPLOAD_WAIT_MS = 8000;
 
 // Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
 // pulled into the initial student-app payload. Loaded on first render of a
@@ -972,10 +978,25 @@ const QuizJoinFlow: React.FC<{
     [submitAnswer, isViewOnly]
   );
 
+  // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
+  const [uploadGate] = useState(createTurnInUploadGate);
+  const uploadActions = useMemo<UploadSettleActions>(
+    () => ({
+      write: (job, state) =>
+        setArtifactUploadState(job.questionId, job.artifactId, state),
+      handOff: (job) => handOffLockedUpload(job),
+    }),
+    [setArtifactUploadState]
+  );
+
   const handleComplete = useCallback(
     async (opts?: { timeUp?: boolean }) => {
       if (isViewOnly) return;
-      await (opts ? completeQuiz(opts) : completeQuiz());
+      await uploadGate.turnIn(
+        () => (opts ? completeQuiz(opts) : completeQuiz()),
+        uploadActions,
+        TURN_IN_UPLOAD_WAIT_MS
+      );
       const sessionId = session?.id;
       const responseKey = myResponse?._responseKey;
       if (sessionId && responseKey && session?.mediaResponseEnabled === true) {
@@ -990,6 +1011,8 @@ const QuizJoinFlow: React.FC<{
       myResponse?._responseKey,
       session?.id,
       session?.mediaResponseEnabled,
+      uploadActions,
+      uploadGate,
     ]
   );
 
@@ -1050,7 +1073,7 @@ const QuizJoinFlow: React.FC<{
       const studentUid = authedUid;
       const responseKey = myResponse?._responseKey;
       if (!sessionId || !studentUid || !responseKey) return;
-      const result = await enqueueQuizMediaUpload({
+      const job = {
         sessionId,
         studentUid,
         responseKey,
@@ -1058,16 +1081,29 @@ const QuizJoinFlow: React.FC<{
         artifactId: artifact.id,
         blob,
         mimeType: artifact.mimeType ?? blob.type,
-      });
-      if (result.uploadState === 'failed')
-        retryableTakesRef.current.set(artifact.id, blob);
-      else retryableTakesRef.current.delete(artifact.id);
-      await setArtifactUploadState(questionId, artifact.id, result.uploadState);
+      };
+      const result = await uploadGate.run(
+        job,
+        async () => {
+          const r = await enqueueQuizMediaUpload(job);
+          if (r.uploadState === 'failed')
+            retryableTakesRef.current.set(artifact.id, blob);
+          else retryableTakesRef.current.delete(artifact.id);
+          return r;
+        },
+        uploadActions
+      );
       if (result.uploadState === 'failed') {
         throw new Error(result.error ?? 'Archive failed');
       }
     },
-    [authedUid, myResponse?._responseKey, session?.id, setArtifactUploadState]
+    [
+      authedUid,
+      myResponse?._responseKey,
+      session?.id,
+      uploadActions,
+      uploadGate,
+    ]
   );
 
   const handleRetryRecordingUpload = useCallback(

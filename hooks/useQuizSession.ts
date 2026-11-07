@@ -2090,12 +2090,12 @@ export interface UseQuizSessionStudentResult {
   commitRecordingTake: (
     input: CommitRecordingTakeInput
   ) => Promise<number | null>;
-  /** Flips one artifact's `uploadState` after the upload/archive settles. */
+  /** Flips one artifact's `uploadState` after the upload/archive settles; resolves true when the turned-in attempt is locked. */
   setArtifactUploadState: (
     questionId: string,
     artifactId: string,
     uploadState: ArtifactUploadState
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   /** Writes the terminal entry for a slot the student never filled. */
   markUnresponded: (
     questionId: string,
@@ -3734,10 +3734,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       questionId: string,
       artifactId: string,
       uploadState: ArtifactUploadState
-    ) => {
+    ): Promise<boolean> => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
-      if (!sessionId || !responseKey) return;
+      if (!sessionId || !responseKey) return false;
       const responseRef = doc(
         db,
         QUIZ_SESSIONS_COLLECTION,
@@ -3746,13 +3746,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         responseKey
       );
       const commit: { written: CommittedAnswers | null } = { written: null };
+      let locked = false;
       await runAnswersTx(commit, () =>
         runTransaction(db, async (tx) => {
           commit.written = null;
+          locked = false;
           const snap = await tx.get(responseRef);
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
-          if (isAnswerLocked(existing)) return;
+          if (isAnswerLocked(existing)) {
+            locked = true;
+            return;
+          }
           const existingAnswers = existing.answers ?? [];
           let changed = false;
           const updated = existingAnswers.map((a) => {
@@ -3773,6 +3778,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           commit.written = committedFromPatch(existing, { answers: updated });
         })
       );
+      return locked;
     },
     [runAnswersTx]
   );
