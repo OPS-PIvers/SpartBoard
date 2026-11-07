@@ -48,7 +48,11 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import * as admin from './firebaseAdmin';
-import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
+import {
+  isPeriodFrozen,
+  PERIOD_WINDOW_GRACE_MS,
+  withQuizSessionContent,
+} from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
@@ -98,6 +102,9 @@ export const RESPONSE_PAGE_SIZE = 500;
  */
 const WAITING_ABANDONED_AGE_MS = 24 * 60 * 60 * 1000;
 
+/** Frozen and held rows of sessions ended from this date on are turned in; older ones are left as they were. */
+export const ENDED_SWEEP_SINCE_MS = Date.UTC(2026, 10, 7);
+
 interface QuizResponseDoc {
   status?: string;
   lastWriteAt?: admin.firestore.Timestamp;
@@ -116,11 +123,19 @@ interface QuizSessionDoc {
   publicQuestions?: { id?: unknown }[];
   /** Opt-in marker; only sessions created by a client that understands `unresponded` carry it. */
   completenessModel?: number;
+  endedAt?: admin.firestore.Timestamp | number | null;
   periodAccess?: unknown;
   studentAccess?: unknown;
 }
 
 type Firestore = admin.firestore.Firestore;
+
+function toMillis(v: unknown): number | null {
+  if (typeof v === 'number') return v;
+  if (v && typeof (v as { toMillis?: unknown }).toMillis === 'function')
+    return (v as admin.firestore.Timestamp).toMillis();
+  return null;
+}
 type QueryDocSnap = admin.firestore.QueryDocumentSnapshot;
 
 /**
@@ -326,6 +341,8 @@ export async function runFinalizeIdleQuizAttempts(
     completenessModel: number;
     /** Per-period gate fields, read by `isPeriodFrozen`. */
     periodGate: Record<string, unknown>;
+    /** True once an ended run is past the students' write grace (`runOpen` in firestore.rules). */
+    runOver: boolean;
   }
   const sessionMetaBySid = new Map<string, CachedSession>();
   if (sessionRefs.length > 0) {
@@ -350,6 +367,12 @@ export async function runFinalizeIdleQuizAttempts(
       const questionIds = sessionQuestionIds(data.publicQuestions);
       const completenessModel =
         typeof data.completenessModel === 'number' ? data.completenessModel : 0;
+      const endedAtMs = toMillis(data.endedAt);
+      const runOver =
+        status === 'ended' &&
+        endedAtMs !== null &&
+        endedAtMs >= ENDED_SWEEP_SINCE_MS &&
+        now >= endedAtMs + PERIOD_WINDOW_GRACE_MS;
       sessionMetaBySid.set(sessionDoc.id, {
         status,
         createdAtMs,
@@ -359,6 +382,7 @@ export async function runFinalizeIdleQuizAttempts(
           periodAccess: data.periodAccess,
           studentAccess: data.studentAccess,
         },
+        runOver,
       });
     }
   }
@@ -422,11 +446,11 @@ export async function runFinalizeIdleQuizAttempts(
     }
     // A closed or paused period freezes the attempt until the teacher starts it again.
     // A student held at a Stop waits for the next part, possibly for days.
-    if (
-      meta.status === 'paused' ||
+    // Neither can resume once the run has ended, so both are turned in then.
+    const heldOrFrozen =
       docSnap.data()?.partHeld === true ||
-      isPeriodFrozen(meta.periodGate, docSnap.data() ?? {}, finalizedAt)
-    ) {
+      isPeriodFrozen(meta.periodGate, docSnap.data() ?? {}, finalizedAt);
+    if (meta.status === 'paused' || (heldOrFrozen && !meta.runOver)) {
       skippedPaused++;
       continue;
     }
@@ -456,7 +480,13 @@ export async function runFinalizeIdleQuizAttempts(
         if (fresh.status !== 'joined' && fresh.status !== 'in-progress') {
           return 'raced-status' as const;
         }
-        if (fresh.partHeld === true) return 'raced-status' as const;
+        if (fresh.partHeld === true && !meta.runOver)
+          return 'raced-status' as const;
+        // A Reopen since the batch read makes held and frozen rows resumable again.
+        if (heldOrFrozen || fresh.partHeld === true) {
+          const parent = await tx.get(db.doc(`quiz_sessions/${sid}`));
+          if (parent.data()?.status !== 'ended') return 'raced-status' as const;
+        }
         if (
           fresh.lastWriteAt &&
           fresh.lastWriteAt.toMillis() >= cutoff.toMillis()
