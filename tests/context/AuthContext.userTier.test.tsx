@@ -509,3 +509,66 @@ describe('AuthContext — roster students without a member doc', () => {
     expect(getCtx().roleId).not.toBe('student');
   });
 });
+
+describe('AuthContext — role unconfirmed when ClassLink or the resolver is down', () => {
+  it('flags a district user with no member doc when enrollment failed', async () => {
+    httpsCallableImpl = () =>
+      Promise.resolve({
+        data: { orgId: 'orono', enrollFailed: true } as {
+          orgId: string | null;
+        },
+      });
+    await mountAs({ email: 'kid@orono.k12.mn.us' });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(true);
+  });
+
+  it('leaves a member alone when enrollment failed but the doc exists', async () => {
+    httpsCallableImpl = () =>
+      Promise.resolve({
+        data: { orgId: 'orono', enrollFailed: true } as {
+          orgId: string | null;
+        },
+      });
+    await mountAs({ email: INTERNAL_EMAIL, isOrgMember: true });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(false);
+  });
+
+  it('flags a district user with no member doc when the resolver fails', async () => {
+    await mountAs({ email: 'kid@orono.k12.mn.us' });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(true);
+  });
+
+  it('never flags an outside user when the resolver fails', async () => {
+    await mountAs({ email: EXTERNAL_EMAIL });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(false);
+  });
+
+  it('never flags a district member when the resolver fails', async () => {
+    await mountAs({ email: INTERNAL_EMAIL, isOrgMember: true });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(false);
+  });
+
+  it('never flags a resolved caller with no member doc', async () => {
+    httpsCallableImpl = () => Promise.resolve({ data: { orgId: 'orono' } });
+    await mountAs({ email: INTERNAL_EMAIL });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(false);
+  });
+});

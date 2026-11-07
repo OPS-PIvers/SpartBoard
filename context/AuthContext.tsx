@@ -112,7 +112,11 @@ import {
 import { endViewAsSession } from '@/utils/viewAsSession';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import { fetchViewAsDriveToken } from '@/utils/viewAsDrive';
-import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
+import {
+  deriveUserTier,
+  INTERNAL_TIER_DOMAINS,
+  meetsMinTier,
+} from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
 import { normalizePenColors } from '@/utils/penColors';
@@ -146,9 +150,11 @@ const RESOLVED_ORG_CACHE_PREFIX = 'spart_resolved_org:v2:';
  * failure so callers can apply their own resilience fallback (the operator-org
  * lookup).
  */
-async function resolveOrgIdForUser(
-  emailLower: string
-): Promise<{ orgId: string | null; rosterStudent?: true }> {
+async function resolveOrgIdForUser(emailLower: string): Promise<{
+  orgId: string | null;
+  rosterStudent?: true;
+  enrollFailed?: true;
+}> {
   try {
     const cached = sessionStorage.getItem(
       RESOLVED_ORG_CACHE_PREFIX + emailLower
@@ -167,7 +173,8 @@ async function resolveOrgIdForUser(
   if (data?.rosterStudent) return { orgId, rosterStudent: true };
 
   // A failed enrollment isn't cached, so the next load retries it.
-  if (orgId && !data?.enrollFailed) {
+  if (data?.enrollFailed) return { orgId, enrollFailed: true };
+  if (orgId) {
     try {
       sessionStorage.setItem(RESOLVED_ORG_CACHE_PREFIX + emailLower, orgId);
     } catch {
@@ -493,6 +500,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // rather than a silent bounce. A fresh sign-in attempt clears it (see
   // signInWithGoogle).
   const [accessDeactivated, setAccessDeactivated] = useState<boolean>(false);
+  const [roleUnconfirmed, setRoleUnconfirmed] = useState<boolean>(false);
   const [isStudentRole, setIsStudentRole] = useState<boolean>(false);
   // Two-part "have we figured out who this user is" gate. Both flags must be
   // true for `roleResolved` to flip true. They're reset synchronously when
@@ -1607,8 +1615,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // for this run, so a transient error before the first snapshot clears
     // rather than preserving stale state from a previous session.
     everResolvedOrgIdRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a new user starts unflagged until their membership resolves
+    setRoleUnconfirmed(false);
     if (!user?.email) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears org state when there is no user to subscribe for
       setOrgId(null);
       setRoleId(null);
       setBuildingIds([]);
@@ -1630,7 +1639,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     let cancelled = false;
     let unsub: (() => void) | null = null;
 
-    const subscribeToMembership = (candidateOrgId: string) => {
+    // A verified district user with no member doc whose role couldn't be checked sees a try-again screen.
+    const subscribeToMembership = (
+      candidateOrgId: string,
+      unconfirmedIfMissing: boolean
+    ) => {
       if (cancelled || auth.currentUser?.uid !== startUid) return;
       unsub = onSnapshot(
         doc(db, 'organizations', candidateOrgId, 'members', emailLower),
@@ -1664,7 +1677,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // so a later transient snapshot error can safely preserve the
             // last-known state (vs. clearing on a never-resolved first load).
             if (resolvedOrgId) everResolvedOrgIdRef.current = true;
+            setRoleUnconfirmed(false);
           } else {
+            setRoleUnconfirmed(unconfirmedIfMissing);
             // Domain resolved to an org but no member doc exists yet (e.g.
             // a registered-domain user who was never invited): no org access,
             // free tier. Also the no-org / unregistered-domain case.
@@ -1703,6 +1718,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setOrgId(null);
             setRoleId(null);
             setBuildingIds([]);
+            setRoleUnconfirmed(unconfirmedIfMissing);
           }
           // Always mark resolved so consumers don't stall indefinitely.
           setMembershipResolved(true);
@@ -1711,7 +1727,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     resolveOrgIdForUser(emailLower)
-      .then(({ orgId: resolvedOrgId, rosterStudent }) => {
+      .then(({ orgId: resolvedOrgId, rosterStudent, enrollFailed }) => {
         if (cancelled || auth.currentUser?.uid !== startUid) return;
         if (rosterStudent) {
           // A roster student with no member doc: AppContent signs them out and sends them to /my-assignments.
@@ -1720,7 +1736,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setBuildingIds([]);
           setMembershipResolved(true);
         } else if (resolvedOrgId) {
-          subscribeToMembership(resolvedOrgId);
+          subscribeToMembership(resolvedOrgId, enrollFailed === true);
         } else {
           // Domain isn't registered to any org — free/no-org tier. Nothing to
           // subscribe to; resolve membership immediately so the app doesn't
@@ -1740,7 +1756,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           '[AuthContext] resolveOrgForUser failed; falling back to operator org:',
           error
         );
-        subscribeToMembership(OPERATOR_ORG_ID);
+        const domain = emailLower.split('@')[1] ?? '';
+        subscribeToMembership(
+          OPERATOR_ORG_ID,
+          user.emailVerified && INTERNAL_TIER_DOMAINS.includes(domain)
+        );
       });
 
     return () => {
@@ -3535,6 +3555,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       roleId,
       isStudentRole,
       accessDeactivated,
+      roleUnconfirmed,
       roleResolved,
       buildingIds,
       orgBuildings,
@@ -3617,6 +3638,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       roleId,
       isStudentRole,
       accessDeactivated,
+      roleUnconfirmed,
       roleResolved,
       buildingIds,
       orgBuildings,
