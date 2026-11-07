@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-146**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-147**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -178,11 +178,12 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-wrsw83 claude/project-thread-gnqh9n
   git push origin --delete claude/project-thread-3r24g5 claude/b2-ab112
   git push origin --delete claude/project-thread-ispilm
+  git push origin --delete claude/project-thread-v022ec
   ```
 
   </details>
 
-- **AB-145 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
+- **AB-146 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
 
 ### Plans with a next slice
 
