@@ -35,6 +35,16 @@ const asStudent = () =>
     })
     .firestore();
 
+const asStudentRole = () =>
+  testEnv
+    .authenticatedContext(STUDENT_UID, {
+      email: '',
+      studentRole: true,
+      classIds: [CLASS_ID],
+      firebase: { sign_in_provider: 'custom' },
+    })
+    .firestore();
+
 const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
@@ -254,19 +264,27 @@ describe('hybrid paper response: student writes keep paper answers', () => {
   });
 });
 
-describe('all-paper response unlocked by the teacher', () => {
-  it('refuses editing its paper answer', async () => {
-    await seed({
-      answers: [MC, PAPER],
-      status: 'completed',
-      unlocked: true,
-      completedAttempts: 1,
-      paperBatchId: 'batch-1',
-      paperSeat: 3,
+describe('hybrid response: the costliest student path stays under the expression limit', () => {
+  it('an unlocked studentRole student turns in after the close time', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
+        teacherUid: TEACHER_UID,
+        status: 'active',
+        code: 'PAPERL',
+        classId: CLASS_ID,
+        classIds: [CLASS_ID],
+        closeAt: 1_000_000_000_000,
+        paperWrittenQuestionIds: ['q2', 'q4'],
+      });
     });
-    await assertFails(
-      updateDoc(doc(asStudent(), RESPONSE_PATH), {
-        answers: [MC, { ...PAPER, answer: 'forged' }],
+    await hybrid([PAPER], { status: 'joined', unlocked: true });
+    await assertSucceeds(
+      updateDoc(doc(asStudentRole(), RESPONSE_PATH), {
+        answers: [PAPER, MC],
+        status: 'completed',
+        submittedAt: Date.now(),
+        completedAttempts: 1,
+        unlocked: false,
       })
     );
   });
