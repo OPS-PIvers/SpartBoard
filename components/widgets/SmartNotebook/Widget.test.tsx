@@ -29,6 +29,23 @@ vi.mock('@/utils/olfConverter', () => ({
   isOlfFile: (name: string) => /\.olf$/i.test(name),
   convertOlfToBundle: vi.fn(),
 }));
+vi.mock('./components/PageEditorOverlay', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./components/PageEditorOverlay')>();
+  const Real = actual.PageEditorOverlay;
+  return {
+    ...actual,
+    PageEditorOverlay: (props: React.ComponentProps<typeof Real>) => (
+      <>
+        <Real {...props} />
+        <button
+          data-testid={`edit-${props.activeNotebookId}`}
+          onClick={() => props.onEditChange('<svg>edited</svg>')}
+        />
+      </>
+    ),
+  };
+});
 vi.mock('@/config/firebase', () => ({
   db: {},
 }));
@@ -517,6 +534,41 @@ describe('SmartNotebookWidget', () => {
       );
     });
     expect(mockUpdateWidget).toHaveBeenCalled();
+  });
+
+  it('uploads pending edits to the old notebook when the active notebook switches', async () => {
+    const nb = (id: string) => ({
+      id,
+      title: id,
+      pageUrls: [`http://example.com/${id}.svg`],
+      pagePaths: [`users/test-uid/notebooks/${id}/page0.svg`],
+      createdAt: 1,
+    });
+    (firestore.onSnapshot as unknown as Mock).mockImplementation(
+      (_q: unknown, cb: (s: { docs: unknown[] }) => void) => {
+        cb({
+          docs: [
+            { data: () => nb('nb-a'), id: 'nb-a' },
+            { data: () => nb('nb-b'), id: 'nb-b' },
+          ],
+        });
+        return vi.fn();
+      }
+    );
+    mockUploadFile.mockResolvedValue('http://example.com/new.svg');
+    (firestore.updateDoc as unknown as Mock).mockResolvedValue(undefined);
+
+    const widgetA = { ...mockWidget, config: { activeNotebookId: 'nb-a' } };
+    const { rerender } = render(<SmartNotebookWidget widget={widgetA} />);
+    fireEvent.click(screen.getByTestId('edit-nb-a'));
+
+    const widgetB = { ...mockWidget, config: { activeNotebookId: 'nb-b' } };
+    rerender(<SmartNotebookWidget widget={widgetB} />);
+
+    await waitFor(() => expect(mockUploadFile).toHaveBeenCalledTimes(1));
+    expect(mockUploadFile.mock.calls[0][0]).toBe(
+      'users/test-uid/notebooks/nb-a/page0.svg'
+    );
   });
 
   describe('inside a sub share', () => {

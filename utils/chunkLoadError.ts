@@ -75,3 +75,19 @@ export function attemptChunkReload(): boolean {
   window.location.reload();
   return true;
 }
+
+const GUARD_CLEAR_DELAY_MS = 10_000;
+
+// Clears the reload guard once the page has stayed up, so a later deploy can reload again.
+export function clearChunkReloadGuardAfterLoad(
+  delayMs: number = GUARD_CLEAR_DELAY_MS
+): void {
+  if (typeof window === 'undefined') return;
+  window.setTimeout(() => {
+    try {
+      window.sessionStorage.removeItem(RELOAD_GUARD_KEY);
+    } catch {
+      // sessionStorage unavailable; nothing to clear.
+    }
+  }, delayMs);
+}

@@ -82,6 +82,8 @@ import { Viewer } from './components/Viewer';
 import { PageEditorOverlay } from './components/PageEditorOverlay';
 import { NOTEBOOK_ASSET_MIME } from './components/PageCanvas';
 
+type NotebookLike = Pick<NotebookItem, 'id' | 'pageUrls' | 'pagePaths'>;
+
 export const SmartNotebookWidget: React.FC<{
   widget: WidgetData;
   isActive?: boolean;
@@ -248,6 +250,10 @@ export const SmartNotebookWidget: React.FC<{
   const pageCount = activeNotebook?.pageUrls.length ?? 0;
   const [prevNotebookId, setPrevNotebookId] = useState(activeNotebookId);
   const [prevPageCount, setPrevPageCount] = useState(pageCount);
+  const [switchFlush, setSwitchFlush] = useState<{
+    notebook: NotebookLike;
+    edits: [number, string][];
+  } | null>(null);
 
   if (activeNotebookId !== prevNotebookId) {
     setPrevNotebookId(activeNotebookId);
@@ -260,6 +266,12 @@ export const SmartNotebookWidget: React.FC<{
     // Switching notebooks must drop in-memory edits for the previous one and
     // land in edit mode again — anything else either leaks edits across
     // notebooks or surprises the teacher with "present" on a fresh open.
+    // eslint-disable-next-line react-hooks/refs -- hands unsaved edits to the flush effect before the reset
+    const unsaved = Array.from(editedSvgsRef.current);
+    const previous = notebooks.find((n) => n.id === prevNotebookId) ?? null;
+    if (unsaved.length > 0 && previous) {
+      setSwitchFlush({ notebook: previous, edits: unsaved });
+    }
     // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
     editedSvgsRef.current = new Map();
     // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
@@ -521,11 +533,36 @@ export const SmartNotebookWidget: React.FC<{
   // in Firestore. Always resolves — errors are caught and surfaced via
   // `savingPages` / `saveErrorPage` for the UI indicator. Call through
   // `flushPage` (below) rather than directly, so the upload is tracked.
+  const persistPage = async (
+    page: number,
+    svgString: string,
+    target: NotebookLike
+  ): Promise<void> => {
+    if (!user) return;
+    const notebookPath = `users/${user.uid}/notebooks/${target.id}`;
+    const path = target.pagePaths?.[page] ?? `${notebookPath}/page${page}.svg`;
+    const file = new File([svgString], `page${page}.svg`, {
+      type: 'image/svg+xml',
+    });
+    const url = await uploadFile(path, file);
+
+    const newPageUrls = [...target.pageUrls];
+    newPageUrls[page] = url;
+    const newPagePaths = [...(target.pagePaths ?? [])];
+    newPagePaths[page] = path;
+
+    await updateDoc(doc(db, 'users', user.uid, 'notebooks', target.id), {
+      pageUrls: newPageUrls,
+      pagePaths: newPagePaths,
+    });
+  };
+
   const uploadEditedPage = async (
     page: number,
-    svgString: string
+    svgString: string,
+    target: NotebookLike | null = activeNotebook
   ): Promise<void> => {
-    if (!user || !activeNotebook || !svgString) return;
+    if (!user || !target || !svgString) return;
     setSavingPages((prev) => {
       const next = new Set(prev);
       next.add(page);
@@ -533,26 +570,7 @@ export const SmartNotebookWidget: React.FC<{
     });
     if (saveErrorPage === page) setSaveErrorPage(null);
     try {
-      const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
-      const path =
-        activeNotebook.pagePaths?.[page] ?? `${notebookPath}/page${page}.svg`;
-      const file = new File([svgString], `page${page}.svg`, {
-        type: 'image/svg+xml',
-      });
-      const url = await uploadFile(path, file);
-
-      const newPageUrls = [...activeNotebook.pageUrls];
-      newPageUrls[page] = url;
-      const newPagePaths = [...(activeNotebook.pagePaths ?? [])];
-      newPagePaths[page] = path;
-
-      await updateDoc(
-        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
-        {
-          pageUrls: newPageUrls,
-          pagePaths: newPagePaths,
-        }
-      );
+      await persistPage(page, svgString, target);
     } catch (err) {
       console.error('Failed to save edited page', err);
       setSaveErrorPage(page);
@@ -576,6 +594,21 @@ export const SmartNotebookWidget: React.FC<{
     void save.finally(() => inFlightSavesRef.current.delete(save));
     return save;
   };
+
+  const flushSwitchEdits = useEffectEvent(
+    (flush: { notebook: NotebookLike; edits: [number, string][] }) => {
+      for (const [page, svg] of flush.edits) {
+        persistPage(page, svg, flush.notebook).catch((err) => {
+          console.error('Failed to save edited page', err);
+          addToast('Autosave failed — your edits were not saved', 'error');
+        });
+      }
+    }
+  );
+  useEffect(() => {
+    if (!switchFlush) return;
+    flushSwitchEdits(switchFlush);
+  }, [switchFlush]);
 
   // Await every in-flight page-content upload (and the autosave timer, cleared
   // first so it can't fire a fresh upload while we wait). Called before a

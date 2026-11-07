@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   attemptChunkReload,
+  clearChunkReloadGuardAfterLoad,
   isChunkLoadError,
   neverResolvingPromise,
 } from './chunkLoadError';
@@ -100,6 +101,27 @@ describe('chunkLoadError', () => {
 
       expect(attemptChunkReload()).toBe(false);
       expect(reloadSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('clearChunkReloadGuardAfterLoad', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      window.sessionStorage.clear();
+    });
+
+    it('clears the guard once the page has stayed up', () => {
+      vi.useFakeTimers();
+      window.sessionStorage.setItem('spartboard:chunk-reload-attempted', '1');
+      clearChunkReloadGuardAfterLoad(1000);
+      vi.advanceTimersByTime(999);
+      expect(
+        window.sessionStorage.getItem('spartboard:chunk-reload-attempted')
+      ).toBe('1');
+      vi.advanceTimersByTime(2);
+      expect(
+        window.sessionStorage.getItem('spartboard:chunk-reload-attempted')
+      ).toBeNull();
     });
   });
 

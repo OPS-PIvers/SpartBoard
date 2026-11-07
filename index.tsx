@@ -6,7 +6,10 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { i18nReady } from './i18n';
-import { attemptChunkReload } from './utils/chunkLoadError';
+import {
+  attemptChunkReload,
+  clearChunkReloadGuardAfterLoad,
+} from './utils/chunkLoadError';
 import { installTranslateDomGuard } from './utils/translateDomGuard';
 import { LocalProdBanner } from './components/common/LocalProdBanner';
 import { StudentContextMenuGuard } from './components/student/StudentContextMenuGuard';
@@ -20,6 +23,7 @@ window.addEventListener('vite:preloadError', (event) => {
   attemptChunkReload();
 });
 
+clearChunkReloadGuardAfterLoad();
 installTranslateDomGuard();
 
 const rootElement = document.getElementById('root');
