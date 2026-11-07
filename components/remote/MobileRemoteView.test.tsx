@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileRemoteView } from './MobileRemoteView';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -181,5 +181,40 @@ describe('MobileRemoteView', () => {
     ).not.toBeInTheDocument();
     expect(ctx.updateWidget).not.toHaveBeenCalled();
     expect(ctx.updateDashboardSettings).not.toHaveBeenCalled();
+  });
+
+  describe('write guard expiry', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('re-syncs from the latest snapshot when the 5 s guard expires', () => {
+      vi.useFakeTimers();
+      const ctx = dashboardCtx(makeDashboard([makeWidget('w1')]));
+      mockedUseDashboard.mockReturnValue(ctx);
+      const { rerender } = render(<MobileRemoteView />);
+
+      act(() => {
+        screen.getByRole('button', { name: 'Spotlight widget' }).click();
+      });
+      expect(
+        screen.getByRole('button', { name: 'Remove spotlight' })
+      ).toBeInTheDocument();
+
+      // Desktop snapshot arrives inside the guard window without the spotlight.
+      ctx.activeDashboard = makeDashboard([makeWidget('w1')]);
+      mockedUseDashboard.mockReturnValue(ctx);
+      rerender(<MobileRemoteView />);
+      expect(
+        screen.getByRole('button', { name: 'Remove spotlight' })
+      ).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(5100);
+      });
+      expect(
+        screen.getByRole('button', { name: 'Spotlight widget' })
+      ).toBeInTheDocument();
+    });
   });
 });

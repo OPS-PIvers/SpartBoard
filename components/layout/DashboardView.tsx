@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
+import { isSpotlightLive } from '@/utils/spotlightOverlay';
 import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
 import { useTranslation } from 'react-i18next';
@@ -1957,7 +1958,7 @@ export const DashboardView: React.FC = () => {
       )}
 
       {/* Spotlight Dimming Overlay */}
-      {activeDashboard.settings?.spotlightWidgetId &&
+      {isSpotlightLive(activeDashboard.settings, activeDashboard.widgets) &&
         createPortal(
           <div
             className="fixed inset-0 z-backdrop bg-slate-900/80 transition-opacity duration-500 ease-in-out"
