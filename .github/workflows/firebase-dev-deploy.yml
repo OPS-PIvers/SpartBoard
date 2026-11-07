@@ -256,9 +256,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           WORKFLOW: firebase-dev-deploy.yml
         run: |
-          branch=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?status=success&per_page=20" --jq '[.workflow_runs[]] | max_by(.updated_at) | .head_branch // empty') || branch=""
-          echo "Last successful deploy on any branch: ${branch:-none}"
-          if [[ "$GITHUB_REF_NAME" == "dev-paul" && -n "$branch" && "$branch" != "dev-paul" ]]; then
+          # Another branch's run still in flight counts too, since its backend deploy may land after this plan.
+          other=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?per_page=30" --jq '
+            [.workflow_runs[] | select(.conclusion == "success" or .status == "in_progress" or .status == "queued")] as $r
+            | ([$r[] | select(.head_branch == "dev-paul" and .conclusion == "success") | .updated_at] | max // "") as $mine
+            | [$r[] | select(.head_branch != "dev-paul" and .updated_at > $mine)] | length') || other=0
+          echo "Other-branch deploys since the last dev-paul deploy: ${other:-0}"
+          if [[ "$GITHUB_REF_NAME" == "dev-paul" && "${other:-0}" -gt 0 ]]; then
             echo "other_deployed_last=true" >> "$GITHUB_OUTPUT"
           fi
       - id: plan
