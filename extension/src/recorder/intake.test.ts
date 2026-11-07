@@ -43,7 +43,7 @@ beforeEach(() => {
   (globalThis as { chrome?: unknown }).chrome = {
     storage: {
       session: {
-        get: (k: string) => Promise.resolve({ [k]: store[k] }),
+        get: (k: string) => Promise.resolve({ [k]: structuredClone(store[k]) }),
         set: (o: Record<string, unknown>) => {
           Object.assign(store, o);
           return Promise.resolve();
@@ -163,5 +163,53 @@ describe('intake', () => {
     intake.handlePort(fakePort().port);
     await old.reply({ type: 'intake/ack', jobId, stepId: 'a' });
     expect((await intake.status()).pending).toBe(1);
+  });
+
+  it('keeps steps saved while an ack is in flight', async () => {
+    const intake = createIntake([ORIGIN], () => undefined);
+    const jobId = (await intake.save({ kind: 'append', setId: 'd4' }, '', [
+      step('a'),
+    ])) as string;
+    const p = fakePort();
+    intake.handlePort(p.port);
+    await p.reply({ type: 'intake/ready', drafts: [] });
+    const session = (
+      globalThis as unknown as {
+        chrome: {
+          storage: { session: { get: (k: string) => Promise<unknown> } };
+        };
+      }
+    ).chrome.storage.session;
+    const get = session.get;
+    let calls = 0;
+    session.get = async (k: string) => {
+      const out = await get(k);
+      await new Promise((r) => setTimeout(r, calls++ === 1 ? 20 : 1));
+      return out;
+    };
+    const saved = intake.save(
+      { kind: 'append', setId: 'd4' },
+      '',
+      [step('b')],
+      jobId
+    );
+    const ack = p.reply({ type: 'intake/ack', jobId, stepId: 'a' });
+    await Promise.all([saved, ack]);
+    await new Promise((r) => setTimeout(r, 30));
+    expect((await intake.status()).pending).toBe(1);
+    expect(
+      (store['recorder.jobs'] as Array<{ steps: unknown[] }>)[0].steps
+    ).toHaveLength(1);
+  });
+
+  it('lets Retry open a new tab after the intake tab closes before it connects', async () => {
+    const intake = createIntake([ORIGIN], () => undefined);
+    await intake.save({ kind: 'append', setId: 'd5' }, '', [step('a')]);
+    expect((await intake.status()).phase).toBe('opening');
+    intake.tabRemoved(9);
+    expect((await intake.status()).phase).toBe('none');
+    tabs.create.mockClear();
+    await intake.retry();
+    expect(tabs.create).toHaveBeenCalledTimes(1);
   });
 });
