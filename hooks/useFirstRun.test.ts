@@ -1,11 +1,18 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { GettingStartedProgress } from '@/utils/gettingStartedProgress';
 
-const h = vi.hoisted(() => ({
-  on: true,
-  loading: false,
-  progress: { finished: {} },
-}));
+const h = vi.hoisted(
+  (): {
+    on: boolean;
+    loading: boolean;
+    progress: GettingStartedProgress;
+  } => ({
+    on: true,
+    loading: false,
+    progress: { finished: {} },
+  })
+);
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
