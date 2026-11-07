@@ -150,6 +150,7 @@ export type QuizStudentScreen =
   | { kind: 'waiting' }
   | { kind: 'submitted'; response: QuizResponse; completed: boolean }
   | { kind: 'loadingResponse' }
+  | { kind: 'removed' }
   | {
       kind: 'heldAtStop';
       response: QuizResponse;
@@ -177,6 +178,8 @@ export interface QuizStudentScreenInput {
   questionsPending: boolean;
   /** The session records answers and this page hasn't passed the microphone check. */
   needsMicCheck: boolean;
+  /** This student's response doc was seen earlier, so a missing one means the teacher removed them. */
+  hadResponse: boolean;
 }
 
 /** The screen a joined student sees, from the session and their response. */
@@ -208,7 +211,9 @@ export function deriveQuizStudentScreen(
     return { kind: 'submitted', response, completed: submitted };
   }
   // The attempt's shuffle seed comes from the response, so wait for it.
-  if (!response) return { kind: 'loadingResponse' };
+  if (!response) {
+    return { kind: input.hadResponse ? 'removed' : 'loadingResponse' };
+  }
 
   const partsDone = partsDoneOf(response);
   if (

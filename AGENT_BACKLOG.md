@@ -182,6 +182,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   </details>
 
+- **AB-145 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
+
 ### Plans with a next slice
 
 The plan holds the slices; build the **Next** one and update this line in the same PR.
