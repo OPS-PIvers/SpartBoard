@@ -74311,20 +74311,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes"
-        ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
-        ]
+        "surface": "board.schoology-nudge",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -74335,20 +74324,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "destructive": true,
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes"
-        ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
-        ]
+        "surface": "board.schoology-nudge",
+        "kind": "shared",
+        "path": []
       }
     ]
   },

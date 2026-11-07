@@ -368,6 +368,11 @@ export const SURFACES: TourSurfaceMap = {
     openerMissing:
       'Push to Schoology gradebook button in Quiz and Video Activity results (useSchoologyToolColumnPush)',
   },
+  'board.schoology-nudge': {
+    label: 'Schoology sections banner',
+    kind: 'shared',
+    files: ['components/classes/SchoologyLinkNudge.tsx'],
+  },
   'board.spotify-premium-notice': {
     label: 'Spotify Premium notice',
     kind: 'modal',
