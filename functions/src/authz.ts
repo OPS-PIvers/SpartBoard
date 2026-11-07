@@ -46,9 +46,9 @@ export async function isSiteSuperAdmin(
   );
 }
 
-/** A deactivated member keeps their roleId, so every org-admin gate must also reject this status. */
+/** A deactivated member keeps their roleId; like the rules' liveStatus(), anything but active, invited or missing revokes. */
 export function isRevokedMemberStatus(status: unknown): boolean {
-  return status === 'inactive' || status === 'removed';
+  return status !== undefined && status !== 'active' && status !== 'invited';
 }
 
 // Operator org: the fixed path the rules' isMemberSuperAdmin() reads.
@@ -57,7 +57,7 @@ export const OPERATOR_ORG_ID = 'orono';
 /** Role ids the strict gate admits; domain_admin and a missing roleId are deliberately out. */
 export const STRICT_SUPER_ADMIN_ROLE_IDS: readonly string[] = ['super_admin'];
 
-/** Strict super admin, mirroring the rules' isSuperAdmin(): operator-org member roleId or legacy user_roles list. */
+/** Strict super admin, mirroring the rules' isSuperAdmin(): an active operator-org super_admin member or the legacy user_roles list. */
 export async function isStrictSuperAdmin(
   db: admin.firestore.Firestore,
   emailLower: string
@@ -68,9 +68,11 @@ export async function isStrictSuperAdmin(
   ]);
   if (operatorSnap.exists) {
     const roleId: unknown = operatorSnap.get('roleId');
+    const status: unknown = operatorSnap.get('status');
     if (
       typeof roleId === 'string' &&
-      STRICT_SUPER_ADMIN_ROLE_IDS.includes(roleId)
+      STRICT_SUPER_ADMIN_ROLE_IDS.includes(roleId) &&
+      (status === undefined || status === 'active')
     ) {
       return true;
     }

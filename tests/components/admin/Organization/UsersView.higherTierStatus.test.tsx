@@ -89,6 +89,18 @@ describe('higher-tier member status', () => {
     );
   });
 
+  it('locks an inactive member for a building admin but not a domain admin', () => {
+    const inactive = {
+      ...makeUser('t', 'teacher'),
+      status: 'inactive' as const,
+    };
+    expect(statusCell(inactive, 'building_admin')).toBe(true);
+    expect(statusCell(inactive, 'domain_admin')).toBe(false);
+    expect(
+      statusCell({ ...inactive, status: 'invited' }, 'building_admin')
+    ).toBe(false);
+  });
+
   it('drops higher tiers from a bulk status change by actor tier', () => {
     const users = [
       makeUser('sa', 'super_admin'),

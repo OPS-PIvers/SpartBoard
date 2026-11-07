@@ -18,7 +18,9 @@ const toEntries = (records: Partial<MemberRecord>[]): StaffEntry[] =>
         typeof m.email === 'string' &&
         m.email.includes('@') &&
         m.roleId !== 'student' &&
-        m.status !== 'inactive'
+        (m.status === undefined ||
+          m.status === 'active' ||
+          m.status === 'invited')
     )
     .map((m) => ({
       email: m.email.toLowerCase(),

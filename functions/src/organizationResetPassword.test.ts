@@ -170,9 +170,15 @@ function buildFirestoreStub(opts: {
         const email = path.split('/').pop() ?? '';
         if (email === callerEmail && opts.callerOperatorRole !== undefined) {
           const role = opts.callerOperatorRole;
-          return Promise.resolve({ exists: role !== null, get: () => role });
+          return Promise.resolve({
+            exists: role !== null,
+            get: (k: string) => (k === 'status' ? undefined : role),
+          });
         }
-        return Promise.resolve({ exists: true, get: () => roleOf(email) });
+        return Promise.resolve({
+          exists: true,
+          get: (k: string) => (k === 'status' ? undefined : roleOf(email)),
+        });
       },
     }),
     // Verified domain docs, keyed '@domain' -> owning orgId(s).
