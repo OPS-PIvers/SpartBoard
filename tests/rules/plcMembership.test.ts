@@ -1021,6 +1021,54 @@ describe('plcs/{plcId} update — broad lead branch keeps memberUids in step', (
   });
 });
 
+describe('plcs/{plcId} update — role change keeps the target active', () => {
+  it('rejects a role change that marks an indexed member removed', async () => {
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(
+          OTHER_UID,
+          OTHER_EMAIL,
+          'member',
+          'removed'
+        ),
+        roleChangeUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a role change on a departed member who left memberUids', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(
+          OTHER_UID,
+          OTHER_EMAIL,
+          'member',
+          'removed'
+        ),
+        memberUids: [LEAD_UID, MEMBER_UID],
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(OTHER_UID, OTHER_EMAIL, 'coLead'),
+        roleChangeUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('the lead can still make an active member a viewer', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(OTHER_UID, OTHER_EMAIL, 'viewer'),
+        roleChangeUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
 describe('plc_invitations — manager writes are pending only', () => {
   const inviteId = `plc_invitations/${PLC_ID}_${NON_MEMBER_EMAIL}`;
   const invite = (status: string) => ({

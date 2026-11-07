@@ -2929,16 +2929,10 @@ service cloud.firestore {
         && target != resource.data.get('leadUid', '')
         // …to a non-lead role (coLead | member | viewer) — never 'lead'.
         && request.resource.data.members[target].role in ['coLead', 'member', 'viewer']
-        // The changed member must already be a member — in the map, or (invite accept
-        // writes only the arrays) in memberUids and written in as active. Role changes
-        // don't add/drop people (that's invite/leave/remove).
-        && (
-             (target in resource.data.get('members', {}))
-             || (
-                  (target in resource.data.memberUids)
-                  && request.resource.data.members[target].status == 'active'
-                )
-           )
+        // The target is a current member (in memberUids, keyed or array-only) and stays
+        // active. Role changes don't add, drop or mark people removed (invite/leave/remove).
+        && (target in resource.data.memberUids)
+        && request.resource.data.members[target].status == 'active'
         && request.resource.data.members[target].uid == target
         && plcUpdatedAtOk();
     }
