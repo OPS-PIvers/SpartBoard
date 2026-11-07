@@ -49,6 +49,62 @@ export function buildGlTourContent(
   return out;
 }
 
+const sortKeys = (_key: string, value: unknown): unknown =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+          a < b ? -1 : a > b ? 1 : 0
+        )
+      )
+    : value;
+
+/** Mirrors fingerprint() in components/tours/tourSnapshot.ts: what a tour run shows, stable under key order. */
+export function glTourFingerprint(
+  setId: string,
+  data: Record<string, unknown>
+): string {
+  const urls = data.imageUrls;
+  const paths = data.imagePaths;
+  const imageUrls =
+    Array.isArray(urls) && urls.length > 0
+      ? urls
+      : data.imageUrl
+        ? [data.imageUrl]
+        : [];
+  const imagePaths =
+    Array.isArray(paths) && paths.length > 0
+      ? paths
+      : data.imagePath
+        ? [data.imagePath]
+        : undefined;
+  const last = Math.max(imageUrls.length - 1, 0);
+  const rawSteps = Array.isArray(data.steps)
+    ? (data.steps as Record<string, unknown>[])
+    : [];
+  const steps = rawSteps.map((step) => {
+    const idx = typeof step.imageIndex === 'number' ? step.imageIndex : 0;
+    const web = step.web as Record<string, unknown> | undefined;
+    const publicWeb = { ...web };
+    delete publicWeb.note;
+    delete publicWeb.claudeQuestion;
+    return {
+      ...step,
+      imageIndex: Math.min(Math.max(idx, 0), imageUrls.length > 0 ? last : 0),
+      xPct: step.xPct ?? 50,
+      yPct: step.yPct ?? 50,
+      showOverlay: step.showOverlay ?? 'none',
+      ...(web ? { web: publicWeb } : {}),
+    };
+  });
+  const content = buildGlTourContent(setId, {
+    ...data,
+    imageUrls,
+    imagePaths,
+    steps,
+  });
+  return JSON.stringify(JSON.parse(JSON.stringify(content)), sortKeys);
+}
+
 // Claims the one-time seed; a lock older than 10 minutes is treated as abandoned.
 export async function claimGlToursSeed(
   db: admin.firestore.Firestore,
@@ -102,8 +158,16 @@ export async function seedGlTours(
         });
         published++;
       } catch (err) {
-        if ((err as { code?: number }).code === 6) {
+        const code = (err as { code?: number }).code;
+        // Already published (6) or permanently unpublishable (3, such as over 1 MiB) must not block the marker.
+        if (code === 6) {
           skipped++;
+        } else if (code === 3) {
+          skipped++;
+          logger.error('[glTours] seed publish skipped for good', {
+            id: doc.id,
+            err,
+          });
         } else {
           failed++;
           logger.warn('[glTours] seed publish failed', { id: doc.id, err });

@@ -34,6 +34,7 @@ const authState = vi.hoisted(() => ({
 const tourState = vi.hoisted(() => ({
   tourSetIds: new Set<string>(),
   runnable: new Map<string, boolean>(),
+  gated: false,
 }));
 
 const helpState = vi.hoisted(() => ({
@@ -65,7 +66,11 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => true, ...authState.value }),
+  useAuth: () => ({
+    canAccessFeature: () => true,
+    canAccessWidget: () => false,
+    ...authState.value,
+  }),
 }));
 
 vi.mock('@/context/useDialog', () => ({
@@ -113,7 +118,10 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 vi.mock('@/components/tours/publishedTours', () => ({
   watchTours: () => () => undefined,
   getToursVersion: () => 0,
-  isTourRunnable: (id: string) => tourState.runnable.get(id),
+  isTourRunnable: (id: string, canUse?: (type: string) => boolean) =>
+    tourState.gated && canUse && !canUse('timer')
+      ? false
+      : tourState.runnable.get(id),
 }));
 
 vi.mock('@/components/common/SortableList', () => ({
@@ -238,6 +246,7 @@ describe('HelpCenterManager', () => {
     glState.buildingSets = [];
     tourState.tourSetIds = new Set();
     tourState.runnable = new Map();
+    tourState.gated = false;
     asSuperAdmin();
   });
 
@@ -535,6 +544,24 @@ describe('HelpCenterManager', () => {
         name: 'Linked activities in the Guided Learning library',
       })
     ).not.toBeInTheDocument();
+  });
+
+  it('labels a tour that teachers cannot run as Draft, using the same widget gate as the Help tab', () => {
+    tourState.tourSetIds = new Set(['tour1']);
+    tourState.runnable = new Map([['tour1', true]]);
+    tourState.gated = true;
+    helpState.items = [
+      makeItem({
+        kind: 'guided-learning',
+        setId: 'tour1',
+        url: null,
+        embedType: null,
+        visible: true,
+        title: 'Clock tour',
+      }),
+    ];
+    render(<HelpCenterManager />);
+    expect(screen.getByText('Live tour · Draft')).toBeInTheDocument();
   });
 
   it.each([

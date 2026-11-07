@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Search, UserX } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 export interface RestrictionsPickerCandidate {
@@ -64,6 +65,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
     <div ref={wrapperRef} className="relative">
       <button
         ref={triggerRef}
+        {...tourAttr('classes.restrictions-trigger')}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -101,6 +103,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
           <div className="p-2 border-b border-slate-200 flex items-center gap-2">
             <Search size={14} className="text-slate-400 shrink-0" />
             <input
+              {...tourAttr('classes.restrictions-filter')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t('sidebar.classes.restrictionsFilter', {
@@ -128,6 +131,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
                   return (
                     <li key={c.id}>
                       <label className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-800 cursor-pointer hover:bg-slate-100">
+                        {/* no-tour-anchor: one checkbox per classmate row, generated */}
                         <input
                           type="checkbox"
                           checked={checked}

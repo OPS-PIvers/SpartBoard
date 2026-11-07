@@ -315,26 +315,21 @@ export const useMiniAppAssignments = (
       const now = Date.now();
       const assignment = assignments.find((a) => a.id === assignmentId);
 
-      await updateDoc(
+      // Row and session flip together so a failed session write can't leave a row that says active over a dead link.
+      const batch = writeBatch(db);
+      batch.update(
         doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId),
         { status: 'active', updatedAt: now }
       );
-
-      // Mirror onto the session doc — its `status` is what the student app
-      // checks before rendering. The historical `endedAt` is intentionally
-      // left in place; the student gate keys off `status`, not `endedAt`,
-      // and preserving the timestamp is useful audit history.
       if (assignment?.sessionId) {
-        try {
-          await updateDoc(doc(db, SESSIONS_COLLECTION, assignment.sessionId), {
-            status: 'active',
-          });
-        } catch (err) {
-          console.warn(
-            '[useMiniAppAssignments] session reactivate mirror failed',
-            err
-          );
-        }
+        // The student gate keys off `status`; the old `endedAt` stays as audit history.
+        batch.update(doc(db, SESSIONS_COLLECTION, assignment.sessionId), {
+          status: 'active',
+        });
+      }
+      await batch.commit();
+
+      if (assignment?.sessionId) {
         // Drop any cached view count so the Shared row re-issues the
         // aggregation query on next mount — students opening the link
         // post-reactivate will be missed otherwise (the cache is keyed
