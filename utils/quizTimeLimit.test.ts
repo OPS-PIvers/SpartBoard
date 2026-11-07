@@ -68,16 +68,23 @@ describe('pauses and the deadline', () => {
     expect(pausedMsSince(start, undefined)).toBe(0);
   });
 
-  it('appends a closed span on resume and keeps the newest 20', () => {
+  it('appends a closed span on resume and keeps the newest 100', () => {
     expect(appendPauseSpan(undefined, 100, 250)).toEqual([
       { from: 100, to: 250 },
     ]);
     expect(appendPauseSpan([{ from: 1, to: 2 }], undefined, 250)).toBeNull();
-    const many = Array.from({ length: 20 }, (_, i) => ({ from: i, to: i + 1 }));
-    const next = appendPauseSpan(many, 100, 250);
-    expect(next).toHaveLength(20);
-    expect(next?.[19]).toEqual({ from: 100, to: 250 });
+    const many = Array.from({ length: 100 }, (_, i) => ({
+      from: i,
+      to: i + 1,
+    }));
+    const next = appendPauseSpan(many, 500, 800);
+    expect(next).toHaveLength(100);
+    expect(next?.[99]).toEqual({ from: 500, to: 800 });
     expect(next?.[0]).toEqual({ from: 1, to: 2 });
+  });
+
+  it('adds nothing for a pause an earlier Resume already closed (reopened run)', () => {
+    expect(appendPauseSpan([{ from: 100, to: 200 }], 100, 5000)).toBeNull();
   });
 });
 

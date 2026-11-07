@@ -272,6 +272,21 @@ describe('handleControlSubAssignment — pausing', () => {
     });
   });
 
+  it('adds no span for a pause an earlier Resume already closed', async () => {
+    const resumed = control(
+      {
+        session: stamped({
+          status: 'paused',
+          pausedAt: 100,
+          pauseSpans: [{ from: 100, to: 200 }],
+        }),
+      },
+      input({ action: 'resume' })
+    );
+    await resumed.run();
+    expect(resumed.written[0].data).toEqual({ status: 'active' });
+  });
+
   // The hourly idle sweep would otherwise finish every paused student the moment the run goes active.
   it('refreshes idle responses before the run goes active', async () => {
     const stale = { toMillis: () => NOW - 3_600_000 };

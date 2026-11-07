@@ -18,7 +18,7 @@ export function clampQuizTimeLimitMinutes(raw: unknown): number | null {
   );
 }
 
-export const MAX_PAUSE_SPANS = 20;
+export const MAX_PAUSE_SPANS = 100;
 
 /** Pause time that fell inside the attempt, so the limit does not run through it. */
 export function pausedMsSince(
@@ -40,6 +40,9 @@ export function appendPauseSpan(
   now: number
 ): PauseSpan[] | null {
   if (typeof pausedAt !== 'number' || !(now > pausedAt)) return null;
+  // A pause already closed by an earlier Resume (a reopened run keeps its old pausedAt).
+  const lastTo = spans?.length ? spans[spans.length - 1].to : 0;
+  if (pausedAt <= lastTo) return null;
   return [...(spans ?? []), { from: pausedAt, to: now }].slice(
     -MAX_PAUSE_SPANS
   );

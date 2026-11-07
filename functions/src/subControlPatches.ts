@@ -82,7 +82,7 @@ export function controlPatches(
   };
 }
 
-/** The span list with this Resume added (newest 20); null when the run was not paused. Mirrors `appendPauseSpan` in utils/quizTimeLimit.ts. */
+/** The span list with this Resume added (newest 100); null when the run was not paused. Mirrors `appendPauseSpan` in utils/quizTimeLimit.ts. */
 export function appendPauseSpan(
   spans: unknown,
   pausedAt: unknown,
@@ -92,5 +92,7 @@ export function appendPauseSpan(
   const prior = Array.isArray(spans)
     ? (spans as { from: number; to: number }[])
     : [];
-  return [...prior, { from: pausedAt, to: now }].slice(-20);
+  const lastTo = prior.length ? prior[prior.length - 1].to : 0;
+  if (pausedAt <= lastTo) return null;
+  return [...prior, { from: pausedAt, to: now }].slice(-100);
 }
