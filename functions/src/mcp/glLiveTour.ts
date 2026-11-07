@@ -6,6 +6,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { ToolError, reserveWrite, type ToolContext } from './activity';
 import { isStrictSuperAdmin } from '../authz';
+import { glTourFingerprint } from '../glTours';
 import {
   saveNewSet,
   savedSummary,
@@ -455,15 +456,18 @@ export function clearedNotes(resolved: readonly string[]) {
 
 export type TourPublishState = 'draft' | 'published' | 'changed';
 
-/** Draft = never published; changed = saved after the snapshot teachers run. */
+/** Draft = never published; changed = the set differs from the snapshot teachers run (same fingerprint as the editor). */
 export function tourPublishState(
-  updatedAt: unknown,
-  publishedAt: number | null
+  set: GlSet,
+  publishedAt: number | null,
+  publishedSet?: Record<string, unknown>
 ): TourPublishState {
   if (publishedAt === null) return 'draft';
-  return typeof updatedAt === 'number' && updatedAt > publishedAt
-    ? 'changed'
-    : 'published';
+  if (!publishedSet) return 'changed';
+  return glTourFingerprint(set.id, set) ===
+    glTourFingerprint(set.id, publishedSet)
+    ? 'published'
+    : 'changed';
 }
 
 /** Steps that work from their English fallback only, until a developer tags the control (D9). */
@@ -486,11 +490,12 @@ export function liveTourView(
   ready: ReadonlyMap<string, string> = new Map(),
   withSamples = false,
   health?: ReturnType<typeof tourHealth>,
-  review: TourReviewDoc = {}
+  review: TourReviewDoc = {},
+  publishedSet?: Record<string, unknown>
 ) {
   const note = publicNote(review.tourNote);
   const playtest = publicPlaytest(review.playtest, set.steps);
-  const state = tourPublishState(set.updatedAt, publishedAt);
+  const state = tourPublishState(set, publishedAt, publishedSet);
   const unregistered = set.steps.flatMap((s) => {
     const anchor = (s.tour as { anchor?: unknown } | undefined)?.anchor;
     const id = typeof anchor === 'string' ? anchor.split(/[:#]/)[0] : '';
@@ -613,14 +618,20 @@ export async function healthOf(ctx: ToolContext, setId: string) {
   );
 }
 
-async function publishedAtOf(
+async function publishedOf(
   ctx: ToolContext,
   setId: string
-): Promise<number | null> {
+): Promise<{ at: number; set?: Record<string, unknown> } | null> {
   const snap = await ctx.db.doc(`${GL_TOURS}/${setId}`).get();
   if (!snap.exists) return null;
   const at: unknown = snap.get('publishedAt');
-  return typeof at === 'number' ? at : 0;
+  const set: unknown = snap.get('set');
+  return {
+    at: typeof at === 'number' ? at : 0,
+    ...(set && typeof set === 'object'
+      ? { set: set as Record<string, unknown> }
+      : {}),
+  };
 }
 
 const setupInputs = {
@@ -1037,9 +1048,9 @@ export function registerLiveTourTools(
     ({ set_id, for_browser_run }) =>
       run('get_live_tour', ctx, async () => {
         await assertAccess(ctx, 'building');
-        const [loaded, publishedAt, review, health] = await Promise.all([
+        const [loaded, published, review, health] = await Promise.all([
           loadTour(ctx, set_id),
-          publishedAtOf(ctx, set_id),
+          publishedOf(ctx, set_id),
           loadReview(ctx, set_id),
           healthOf(ctx, set_id).catch((err: unknown) => {
             // Health is extra; a failed read leaves it out rather than failing the tour.
@@ -1050,11 +1061,12 @@ export function registerLiveTourTools(
         const ready = await readyAnchors(ctx, loaded.set.steps);
         return liveTourView(
           loaded.set,
-          publishedAt,
+          published?.at ?? null,
           ready,
           for_browser_run === true,
           health,
-          review
+          review,
+          published?.set
         );
       })
   );

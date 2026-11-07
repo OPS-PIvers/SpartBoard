@@ -200,10 +200,30 @@ describe('get_live_tour and update_live_tour', () => {
     );
   });
 
-  it('reports draft, published and changed', () => {
-    expect(tourPublishState(10, null)).toBe('draft');
-    expect(tourPublishState(10, 10)).toBe('published');
-    expect(tourPublishState(11, 10)).toBe('changed');
+  it('reports draft, published and changed by content, as the editor does', () => {
+    const step = { id: 's1', text: 'Hi', imageIndex: 0 };
+    const set = {
+      id: 'set1',
+      title: 'T',
+      updatedAt: 50,
+      description: 'a',
+      steps: [step],
+    } as unknown as Parameters<typeof tourPublishState>[0];
+    const snap = { id: 'set1', title: 'T', steps: [step] };
+    expect(tourPublishState(set, null)).toBe('draft');
+    // A later updatedAt, a new description or key order alone is not a change.
+    expect(tourPublishState(set, 10, snap)).toBe('published');
+    expect(
+      tourPublishState({ ...set, updatedAt: 99, description: 'b' }, 10, snap)
+    ).toBe('published');
+    expect(
+      tourPublishState(
+        { ...set, steps: [{ ...step, text: 'Changed' }] },
+        10,
+        snap
+      )
+    ).toBe('changed');
+    expect(tourPublishState(set, 10)).toBe('changed');
   });
 
   it('lists steps whose anchor is no longer registered', () => {
