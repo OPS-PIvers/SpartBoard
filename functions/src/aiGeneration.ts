@@ -1,6 +1,7 @@
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { randomUUID } from 'crypto';
 import * as admin from './firebaseAdmin';
 import { Type, Schema } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
@@ -404,6 +405,8 @@ export interface AiExtraCap {
 /** The `ai_usage` docs one successful charge incremented, so a failed run can be refunded. */
 export interface AiUsageCharge {
   docIds: string[];
+  /** Makes the refund once-only; charges saved before this field refund as before. */
+  id?: string;
 }
 
 /** Non-admin gate for a dedicated AI function: `gemini-functions`, then the widget's own doc, then both daily caps. */
@@ -516,6 +519,7 @@ async function enforceAiFeatureAccess(
   }
   return {
     docIds: [overallRef.id, specificRef.id, ...(extraRef ? [extraRef.id] : [])],
+    id: randomUUID(),
   };
 }
 
@@ -547,7 +551,7 @@ async function recordAiUsage(
         );
       });
     });
-    return { docIds };
+    return { docIds, id: randomUUID() };
   } catch (error) {
     console.error(`[${featureId}] admin usage record failed:`, error);
     return { docIds: [] };
@@ -561,7 +565,18 @@ async function refundAiUsage(
 ): Promise<void> {
   await db.runTransaction(async (transaction) => {
     const refs = charge.docIds.map((id) => db.collection('ai_usage').doc(id));
-    const snaps = await Promise.all(refs.map((r) => transaction.get(r)));
+    const markerRef = charge.id
+      ? db.collection('ai_usage_refunds').doc(charge.id)
+      : null;
+    const [snaps, marker] = await Promise.all([
+      Promise.all(refs.map((r) => transaction.get(r))),
+      markerRef ? transaction.get(markerRef) : null,
+    ]);
+    if (markerRef && marker?.exists) return;
+    if (markerRef)
+      transaction.set(markerRef, {
+        refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     snaps.forEach((snap, i) => {
       const count = (snap.data()?.count as number) || 0;
       if (count > 0)

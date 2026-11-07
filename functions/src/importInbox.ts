@@ -420,14 +420,15 @@ export async function checkImporter(
 
 export interface ImportStore {
   blockPatterns: () => Promise<string[]>;
-  count: (uid: string) => Promise<number>;
-  exists: (uid: string, id: string) => Promise<boolean>;
-  write: (
+  /** Stores the page unless the teacher already has `cap` other waiting pages; false when full. */
+  writeWithinCap: (
     uid: string,
     id: string,
     doc: object,
-    expireAt: number
-  ) => Promise<void>;
+    expireAt: number,
+    cap: number,
+    now: number
+  ) => Promise<boolean>;
   logFailure: (doc: object, expireAt: number) => Promise<void>;
 }
 
@@ -479,12 +480,16 @@ export async function receiveSend(
   const doc = { ...stored, receivedAt: now };
   if (Buffer.byteLength(JSON.stringify(stored)) > MAX_DOC_BYTES)
     throw fail(413, 'This page is too long to send at once.');
-  if (
-    !(await store.exists(uid, id)) &&
-    (await store.count(uid)) >= IMPORT_MAX_INBOX_ITEMS
-  )
+  const placed = await store.writeWithinCap(
+    uid,
+    id,
+    doc,
+    now + IMPORT_INBOX_TTL_MS,
+    IMPORT_MAX_INBOX_ITEMS,
+    now
+  );
+  if (!placed)
     throw fail(429, 'Import the pages already waiting in SpartBoard first.');
-  await store.write(uid, id, doc, now + IMPORT_INBOX_TTL_MS);
   if (readerFailure)
     await store
       .logFailure(
@@ -534,7 +539,20 @@ function defaultDeps(db: Firestore): ImporterDeps {
   };
 }
 
-function defaultStore(db: Firestore): ImportStore {
+/** Counts what the Import screen shows: not yet expired and with a url and title. */
+export function countLiveInboxItems(
+  docs: { get: (field: string) => unknown }[],
+  now: number
+): number {
+  const filled = (v: unknown) => typeof v === 'string' && v !== '';
+  return docs.filter((d) => {
+    const at = d.get('expireAt') as { toMillis?: () => number } | undefined;
+    const expired = typeof at?.toMillis === 'function' && at.toMillis() <= now;
+    return !expired && filled(d.get('url')) && filled(d.get('title'));
+  }).length;
+}
+
+export function defaultStore(db: Firestore): ImportStore {
   return {
     blockPatterns: async () =>
       resolveBlockPatterns(
@@ -545,16 +563,19 @@ function defaultStore(db: Firestore): ImportStore {
             .get()
         ).data()
       ),
-    count: async (uid) => (await inboxRef(db, uid).count().get()).data().count,
-    exists: async (uid, id) => (await inboxRef(db, uid).doc(id).get()).exists,
-    write: async (uid, id, doc, expireAt) => {
-      await inboxRef(db, uid)
-        .doc(id)
-        .set({
+    writeWithinCap: (uid, id, doc, expireAt, cap, now) =>
+      db.runTransaction(async (tx) => {
+        const waiting = await tx.get(
+          inboxRef(db, uid).select('url', 'title', 'expireAt')
+        );
+        const others = waiting.docs.filter((d) => d.id !== id);
+        if (countLiveInboxItems(others, now) >= cap) return false;
+        tx.set(inboxRef(db, uid).doc(id), {
           ...doc,
           expireAt: admin.firestore.Timestamp.fromMillis(expireAt),
         });
-    },
+        return true;
+      }),
     logFailure: async (doc, expireAt) => {
       await db.collection(IMPORT_READER_FAILURES_COLLECTION).add({
         ...doc,
