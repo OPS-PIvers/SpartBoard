@@ -132,17 +132,18 @@ function makeStubDb(seed: SeedOptions) {
   const submission: Bag | null =
     seed.submission === undefined ? null : seed.submission;
   const state = submission ? { ...submission } : null;
+  let gone = false;
   const writes: Bag[] = [];
   const submissionRef = {
     id: SUBMISSION_ID,
     get: () =>
       Promise.resolve({
-        exists: state !== null,
-        data: () => state ?? undefined,
+        exists: state !== null && !gone,
+        data: () => (gone ? undefined : (state ?? undefined)),
       }),
     set: (data: Bag) => {
       writes.push(data);
-      if (state) mergeInto(state, data);
+      if (state && !gone) mergeInto(state, data);
       return Promise.resolve();
     },
   };
@@ -181,7 +182,14 @@ function makeStubDb(seed: SeedOptions) {
       return next;
     },
   };
-  return { db, writes, state };
+  return {
+    db,
+    writes,
+    state,
+    deleteSubmission: () => {
+      gone = true;
+    },
+  };
 }
 
 function makeDeps(
@@ -610,6 +618,33 @@ describe('archiveActivityWallMediaCore', () => {
       'https://drive.google.com/thumbnail?id=drive-orphaned&sz=w2000'
     );
     expect(state?.storagePath).toBeUndefined();
+  });
+
+  it('does not recreate a submission deleted while the upload ran', async () => {
+    const { db, writes, deleteSubmission } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        deleteSubmission();
+        return Promise.resolve({ id: 'drive-1' });
+      }),
+    });
+    const result = await call(deps);
+
+    expect(result).toEqual({ archiveStatus: 'skipped' });
+    expect(writes.some((w) => w.archiveStatus === 'archived')).toBe(false);
+    expect(deps.deleteObject).toHaveBeenCalledWith(GOOD_PATH);
+  });
+
+  it('does not recreate a deleted submission when the upload fails', async () => {
+    const { db, writes, deleteSubmission } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        deleteSubmission();
+        return Promise.reject(new Error('drive down'));
+      }),
+    });
+    await expect(call(deps)).rejects.toThrow();
+    expect(writes.some((w) => w.archiveStatus === 'failed')).toBe(false);
   });
 
   it('ignores a client-writable session.teacherUid and derives it from the sessionId', async () => {

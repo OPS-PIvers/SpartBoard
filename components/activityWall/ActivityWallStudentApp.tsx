@@ -150,6 +150,15 @@ const IdentityScreen: React.FC<{
   );
 };
 
+const CLOSED_WALL_MESSAGE =
+  'Your teacher closed this wall. New posts cannot be added.';
+
+// Rules refuse a post once the wall closes, which a student can hit mid-draft.
+const isPermissionDenied = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as { code?: unknown }).code === 'permission-denied';
+
 export const ActivityWallStudentApp: React.FC = () => {
   const sessionId = useMemo(
     () => getSessionIdFromPath(window.location.pathname),
@@ -302,6 +311,10 @@ export const ActivityWallStudentApp: React.FC = () => {
 
   const onSubmit = async (draft: PostDraft, placement: WallPlacement) => {
     if (!sheet || busy) return;
+    if (!open) {
+      setSheetError(CLOSED_WALL_MESSAGE);
+      return;
+    }
     setBusy(true);
     setSheetError(null);
     try {
@@ -334,6 +347,8 @@ export const ActivityWallStudentApp: React.FC = () => {
     } catch (submitError) {
       if (submitError instanceof PostSubmitError) {
         setSheetError(submitError.message);
+      } else if (isPermissionDenied(submitError)) {
+        setSheetError(CLOSED_WALL_MESSAGE);
       } else {
         console.error(
           '[ActivityWallStudentApp] Submission failed:',
