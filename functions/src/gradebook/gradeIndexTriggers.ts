@@ -139,6 +139,27 @@ const sessionTrigger = (kind: GradeKind) =>
     (event) => handleSessionWrite(kind, event as unknown as WriteEvent)
   );
 
+const MAX_RETRY_AGE_MS = 2 * 60 * 60_000;
+
+/** A failure past this age is logged and dropped, so a bad event cannot retry for days. */
+export async function failUnlessStale(
+  time: string | undefined,
+  run: () => Promise<void>
+): Promise<void> {
+  try {
+    await run();
+  } catch (err) {
+    const at = time ? Date.parse(time) : NaN;
+    if (Number.isFinite(at) && Date.now() - at > MAX_RETRY_AGE_MS) {
+      logger.error('gradeIndex: dropping stale event after retries', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+    throw err;
+  }
+}
+
 /** Quiz responses also feed the attempt history, which runs whether or not the index is on. */
 export async function handleQuizResponseWrite(
   event: WriteEvent
@@ -156,8 +177,11 @@ export async function handleQuizResponseWrite(
     handleStudentDocWrite('quiz', event),
   ]);
   // Both steps run first; a failed attempt copy then fails the event so it retries.
-  if (attempt.status === 'rejected') throw attempt.reason;
-  if (index.status === 'rejected') throw index.reason;
+  await failUnlessStale(event.time, () => {
+    if (attempt.status === 'rejected') throw attempt.reason;
+    if (index.status === 'rejected') throw index.reason;
+    return Promise.resolve();
+  });
 }
 
 export const gradeIndexQuizResponse = onDocumentWritten(
@@ -179,13 +203,15 @@ export const quizAttemptGradeWrite = onDocumentWritten(
     const { sessionId, docId, n } = (
       event as unknown as { params: Record<string, string> }
     ).params;
-    return applyAttemptGradeWrite(admin.firestore(), {
-      sessionId,
-      responseKey: docId,
-      n: Number(n),
-      before: dataOf(event.data?.before),
-      after: dataOf(event.data?.after),
-    });
+    return failUnlessStale((event as { time?: string }).time, () =>
+      applyAttemptGradeWrite(admin.firestore(), {
+        sessionId,
+        responseKey: docId,
+        n: Number(n),
+        before: dataOf(event.data?.before),
+        after: dataOf(event.data?.after),
+      })
+    );
   }
 );
 export const gradeIndexVideoResponse = studentDocTrigger('video-activity');

@@ -39,7 +39,7 @@ const doc = (data: Record<string, unknown> | undefined) => ({
 });
 const event = {
   params: { sessionId: 'qs1', docId: 'u1' },
-  time: '2026-01-01T00:00:00Z',
+  time: new Date().toISOString(),
   data: {
     before: doc(undefined),
     after: doc({ status: 'completed', studentUid: 'u1' }),
@@ -58,6 +58,16 @@ describe('handleQuizResponseWrite', () => {
       'copy failed'
     );
     expect(mocks.applyDocWrite).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a failure on an event older than the retry window', async () => {
+    mocks.applyAttemptWrite.mockRejectedValue(new Error('copy failed'));
+    await expect(
+      handleQuizResponseWrite({
+        ...event,
+        time: '2020-01-01T00:00:00Z',
+      })
+    ).resolves.toBeUndefined();
   });
 
   it('resolves when both steps succeed', async () => {
