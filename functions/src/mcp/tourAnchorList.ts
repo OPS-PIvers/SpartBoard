@@ -56176,10 +56176,63 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "prompt-dialog.cancel",
-    "label": "Cancel button in the shared prompt dialog",
+    "label": "X (cancel) button in the shared prompt dialog",
     "scope": "board",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "prompt-dialog.cancel-button",
+    "label": "Cancel button in the shared prompt dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "confirm-dialog.confirm",
+    "label": "Confirm button in an \"Are you sure?\" dialog",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "confirm-dialog.cancel",
+    "label": "Cancel button in an \"Are you sure?\" dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.prompt-dialog",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "alert-dialog.ok",
+    "label": "OK button in a message dialog",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.prompt-dialog",

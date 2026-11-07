@@ -601,7 +601,7 @@ export const SURFACES: TourSurfaceMap = {
     },
   },
   'board.prompt-dialog': {
-    label: 'Name prompt dialog',
+    label: 'Name prompt, "Are you sure?" and message dialogs',
     kind: 'shared',
     files: ['components/common/DialogContainer.tsx'],
   },
