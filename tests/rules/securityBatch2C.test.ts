@@ -20,6 +20,7 @@ import {
   type TokenOptions,
 } from '@firebase/rules-unit-testing';
 import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 import { ref, uploadBytes } from 'firebase/storage';
 
 const PROJECT_ID = 'spartboard-security-batch-2c';
@@ -52,6 +53,7 @@ const hostPort = (envValue: string | undefined, fallbackPort: number) => {
 
 const teacherToken = (uid: string): TokenOptions => ({
   email: `${uid}@example.com`,
+  email_verified: true,
   firebase: { sign_in_provider: 'google.com' },
 });
 const studentToken: TokenOptions = {
@@ -134,6 +136,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(
+      ctx.firestore(),
+      [TEACHER_UID, OTHER_TEACHER_UID].map((uid) => `${uid}@example.com`)
+    )
+  );
 });
 
 describe('a run id starts with its teacher uid', () => {

@@ -5,7 +5,9 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isTeacherShapedToken } from './aiCallerGate';
+import { isTeacherShapedToken, type AiCallerToken } from './aiCallerGate';
+import { OPERATOR_ORG_ID } from './authz';
+import { isStaffMemberData } from './districtStaff';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
@@ -226,6 +228,20 @@ export const resolvePollCodeV1 = onCall(
   }
 );
 
+/** Mirrors the poll_sessions rule: an active, non-student operator-org member doc, or an admin. */
+export async function isPollStaffCaller(
+  db: Firestore,
+  token: AiCallerToken
+): Promise<boolean> {
+  if (!isTeacherShapedToken(token)) return false;
+  const email = (token.email as string).toLowerCase();
+  const [member, adminDoc] = await Promise.all([
+    db.doc(`organizations/${OPERATOR_ORG_ID}/members/${email}`).get(),
+    db.doc(`admins/${email}`).get(),
+  ]);
+  return isStaffMemberData(member.data()) || adminDoc.exists;
+}
+
 export const mintPollCodeV1 = onCall(
   {
     memory: '256MiB',
@@ -235,7 +251,10 @@ export const mintPollCodeV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request);
-    if (!request.auth || !isTeacherShapedToken(request.auth.token)) {
+    if (
+      !request.auth ||
+      !(await isPollStaffCaller(admin.firestore(), request.auth.token))
+    ) {
       throw new HttpsError('permission-denied', 'Teacher sign-in required.');
     }
     return { code: await mintPollCode(admin.firestore(), request.auth.uid) };

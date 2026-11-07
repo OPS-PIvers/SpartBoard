@@ -1583,12 +1583,12 @@ describe('PR #1391 regression — teacher create + single-doc read on all sessio
 
   beforeEach(async () => {
     await testEnv.clearFirestore();
-  });
-
-  it('quiz_sessions: teacher create → single-doc get succeeds', async () => {
     await testEnv.withSecurityRulesDisabled((ctx) =>
       seedDistrictStaff(ctx.firestore(), ['teacher@school.edu'])
     );
+  });
+
+  it('quiz_sessions: teacher create → single-doc get succeeds', async () => {
     await assertSucceeds(
       setDoc(doc(asTeacher(), `quiz_sessions/${SESSION_ID}`), {
         teacherUid: TEACHER_UID,

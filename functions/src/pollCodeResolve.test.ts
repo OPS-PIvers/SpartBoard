@@ -26,9 +26,11 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 vi.mock('firebase-functions/logger', () => ({ warn: vi.fn() }));
 import * as logger from 'firebase-functions/logger';
+import * as admin from './firebaseAdmin';
 
 import {
   mintPollCode,
+  mintPollCodeV1,
   normalizePollCodeInput,
   pollJoinId,
   resolvePollCode,
@@ -228,5 +230,63 @@ describe('mintPollCode', () => {
     const code = await mintPollCode(db, 't1', NOW, () => 2);
     stub.store.set(`poll_sessions/t1_${code}`, { teacherUid: 't1' });
     expect(await resolve('anon1', code)).toBe(`t1_${code}`);
+  });
+});
+
+describe('mintPollCodeV1', () => {
+  const call = mintPollCodeV1 as unknown as (req: unknown) => Promise<{
+    code: string;
+  }>;
+  const tokenFor = (email: string) => ({
+    email,
+    email_verified: true,
+    firebase: { sign_in_provider: 'google.com' },
+  });
+  const mintAs = (email: string, seed: Record<string, StubData> = {}) => {
+    const { db } = setup(seed);
+    vi.mocked(admin.firestore).mockReturnValue(db);
+    return call({ auth: { uid: 'u1', token: tokenFor(email) } });
+  };
+
+  it.each([
+    ['no member doc', {}],
+    [
+      'a student member doc',
+      {
+        'organizations/orono/members/704522@orono.k12.mn.us': {
+          roleId: 'student',
+        },
+      },
+    ],
+    [
+      'an inactive member doc',
+      {
+        'organizations/orono/members/704522@orono.k12.mn.us': {
+          roleId: 'teacher',
+          status: 'inactive',
+        },
+      },
+    ],
+  ])('refuses a verified district account with %s', async (_, seed) => {
+    await expect(mintAs('704522@orono.k12.mn.us', seed)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('mints for an Orono staff member, whatever their address domain', async () => {
+    const { code } = await mintAs('partner@example.org', {
+      'organizations/orono/members/partner@example.org': {
+        roleId: 'teacher',
+        status: 'active',
+      },
+    });
+    expect(code).toMatch(/^[A-Z0-9]{5}$/);
+  });
+
+  it('mints for an admin with no member doc', async () => {
+    const { code } = await mintAs('boss@example.org', {
+      'admins/boss@example.org': {},
+    });
+    expect(code).toMatch(/^[A-Z0-9]{5}$/);
   });
 });
