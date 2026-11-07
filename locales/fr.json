@@ -4432,6 +4432,8 @@
       "rebind_other": "Réassocier {{count}} étapes",
       "rebinding": "Réassociation...",
       "rebindFailed": "Impossible de réassocier. Réessayez.",
+      "dismiss": "Ignorer",
+      "dismissFailed": "Impossible de mettre à jour. Réessayez.",
       "needsType": "Ce bouton change selon le widget, réglez donc ces étapes dans l'éditeur de visite.",
       "openLabel": "Modifier {{title}}",
       "status": {

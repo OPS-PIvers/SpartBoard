@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-156**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-157**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -173,6 +173,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 - **AB-143 Re-sharing an Activity Wall can lose a race with the hourly relock** (S). `ShareModal.tsx:218-226` writes `publiclyShared: true` on the session, then creates the share doc in a separate write. If `expireActivityWallShares` runs between them it sees only lapsed shares and relocks, leaving a dead gallery link until the teacher re-shares. Fix: write both atomically from the client, or have the sweep skip a session whose `latestShareId` has no share doc yet (bounded to one run). Found in review of #5362.
 
+- **AB-156 Shape check for `tour_anchor_queue` rules** (S). `firestore.rules` `tour_anchor_queue` is bare `isAdmin()`; add a minimal status-enum and transition check with the shorthands, after the other rules slices have landed, and put the `check:rules-size` before and after in the PR. Skipped from T2 to protect the rules budget.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
@@ -191,6 +192,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-g7gl9c
   git push origin --delete claude/project-thread-xa560h claude/project-thread-xa560h-ab112
   git push origin --delete claude/project-thread-kof3cp
+  git push origin --delete claude/project-thread-6j0hsf
   ```
 
   </details>

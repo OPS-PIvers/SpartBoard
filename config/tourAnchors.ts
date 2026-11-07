@@ -8045,6 +8045,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.help-center.unmapped-dismiss': {
+    label: 'Dismiss button for a needs-a-person unmapped anchor',
+    persists: true,
+    panel: true,
+  },
   'admin.help-center.keep-all-in-help': {
     label: 'Keep all in Help button for linked library sets',
     persists: true,

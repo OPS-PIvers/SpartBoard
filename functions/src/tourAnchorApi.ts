@@ -44,6 +44,12 @@ const STAMP_KEYS = new Set(['updatedAt', 'firstSeenAt', 'reboundAt']);
 const millis = (t: Stamp) =>
   typeof t?.toMillis === 'function' ? t.toMillis() : 0;
 
+const hasOccurrences = (data: QueueDoc) =>
+  Array.isArray(data.occurrences) && data.occurrences.length > 0;
+
+/** Stored states a routine result may replace; rebound and emptied items stay put. */
+export const RESOLVABLE_FROM = new Set(['open', 'pr-open', 'needs-human']);
+
 /** Open items, plus PRs older than a week so abandoned ones are retried; needs-human only on request. */
 export function selectOpenItems(
   docs: Array<{ id: string; data: QueueDoc }>,
@@ -53,10 +59,11 @@ export function selectOpenItems(
   return docs
     .filter(
       ({ data }) =>
-        data.status === 'open' ||
-        (includeNeedsHuman && data.status === 'needs-human') ||
-        (data.status === 'pr-open' &&
-          now - millis(data.updatedAt) > STALE_PR_MS)
+        hasOccurrences(data) &&
+        (data.status === 'open' ||
+          (includeNeedsHuman && data.status === 'needs-human') ||
+          (data.status === 'pr-open' &&
+            now - millis(data.updatedAt) > STALE_PR_MS))
     )
     .sort((a, b) => millis(a.data.firstSeenAt) - millis(b.data.firstSeenAt))
     .slice(0, API_ITEM_CAP)
@@ -182,30 +189,43 @@ export const tourAnchorApi = onRequest(
         const refs = parsed.items.map((r) =>
           db.collection(TOUR_ANCHOR_QUEUE).doc(r.fingerprint)
         );
-        const existing = await db.getAll(...refs);
-        const batch = db.batch();
-        const missing: string[] = [];
-        parsed.items.forEach((r, i) => {
-          if (!existing[i].exists) {
-            missing.push(r.fingerprint);
-            return;
-          }
-          batch.update(refs[i], {
-            status: r.status,
-            ...(r.anchorId ? { anchorId: r.anchorId } : {}),
-            ...(r.prUrl ? { prUrl: r.prUrl } : {}),
-            ...(r.reason ? { reason: r.reason } : {}),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        const del = admin.firestore.FieldValue.delete();
+        const { missing, skipped } = await db.runTransaction(async (tx) => {
+          const snaps = await tx.getAll(...refs);
+          const missing: string[] = [];
+          const skipped: string[] = [];
+          parsed.items.forEach((r, i) => {
+            const snap = snaps[i];
+            if (!snap.exists) {
+              missing.push(r.fingerprint);
+              return;
+            }
+            const data = (snap.data() ?? {}) as QueueDoc;
+            if (
+              !RESOLVABLE_FROM.has(String(data.status)) ||
+              (r.status === 'needs-human' && !hasOccurrences(data))
+            ) {
+              skipped.push(r.fingerprint);
+              return;
+            }
+            tx.update(refs[i], {
+              status: r.status,
+              anchorId: r.anchorId ?? del,
+              prUrl: r.prUrl ?? del,
+              reason: r.reason ?? del,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
           });
+          return { missing, skipped };
         });
-        const updated = parsed.items.length - missing.length;
-        if (updated > 0) await batch.commit();
+        const updated = parsed.items.length - missing.length - skipped.length;
         logger.info('[tourAnchorApi] resolved', {
           requestId,
           updated,
           missing: missing.length,
+          skipped: skipped.length,
         });
-        res.json({ updated, missing, requestId });
+        res.json({ updated, missing, skipped, requestId });
         return;
       }
       res.status(404).json({ error: 'not-found', requestId });
