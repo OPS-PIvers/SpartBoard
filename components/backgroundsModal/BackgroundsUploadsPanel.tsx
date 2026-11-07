@@ -198,9 +198,10 @@ export const BackgroundsUploadsPanel: React.FC<
         </p>
       ) : (
         <div className="grid grid-cols-4 gap-3">
-          {uploadItems.map((item) => (
+          {uploadItems.map((item, index) => (
             <BackgroundThumbnail
               key={item.id}
+              position={index + 1}
               item={item}
               isActive={item.id === activeBackground}
               isFavorite={favoriteBackgrounds.includes(item.id)}
