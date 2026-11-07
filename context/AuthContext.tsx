@@ -1732,6 +1732,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     };
 
+    // Only the district on the ClassLink roster can tell students from staff that way.
+    const isRosteredDistrict =
+      user.emailVerified &&
+      INTERNAL_TIER_DOMAINS.includes(emailLower.split('@')[1] ?? '');
     resolveOrgIdForUser(emailLower)
       .then(({ orgId: resolvedOrgId, rosterStudent, enrollFailed }) => {
         if (cancelled || auth.currentUser?.uid !== startUid) return;
@@ -1742,7 +1746,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setBuildingIds([]);
           setMembershipResolved(true);
         } else if (resolvedOrgId) {
-          subscribeToMembership(resolvedOrgId, enrollFailed === true);
+          subscribeToMembership(
+            resolvedOrgId,
+            enrollFailed === true && isRosteredDistrict
+          );
         } else {
           // Domain isn't registered to any org — free/no-org tier. Nothing to
           // subscribe to; resolve membership immediately so the app doesn't
@@ -1762,11 +1769,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           '[AuthContext] resolveOrgForUser failed; falling back to operator org:',
           error
         );
-        const domain = emailLower.split('@')[1] ?? '';
-        subscribeToMembership(
-          OPERATOR_ORG_ID,
-          user.emailVerified && INTERNAL_TIER_DOMAINS.includes(domain)
-        );
+        subscribeToMembership(OPERATOR_ORG_ID, isRosteredDistrict);
       });
 
     return () => {

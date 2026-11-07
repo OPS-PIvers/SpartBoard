@@ -547,6 +547,20 @@ describe('AuthContext — role unconfirmed when ClassLink or the resolver is dow
     expect(getCtx().roleUnconfirmed).toBe(true);
   });
 
+  it('never flags another district when its enrollment failed', async () => {
+    httpsCallableImpl = () =>
+      Promise.resolve({
+        data: { orgId: 'orono', enrollFailed: true } as {
+          orgId: string | null;
+        },
+      });
+    await mountAs({ email: EXTERNAL_EMAIL });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    expect(getCtx().roleUnconfirmed).toBe(false);
+  });
+
   it('never flags an outside user when the resolver fails', async () => {
     await mountAs({ email: EXTERNAL_EMAIL });
     await waitFor(() => {
