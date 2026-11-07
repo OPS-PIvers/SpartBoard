@@ -21,13 +21,7 @@ _Nothing currently in progress._
 
 ## Open
 
-### LOW `utils/geminiModelDeprecation.ts` now has no production consumer
-
-- **Detected:** 2026-10-30
-- **File:** utils/geminiModelDeprecation.ts
-- **Detail:** `isDeprecatedGeminiModelId` was last imported by `components/admin/GlobalPermissionsManager.tsx` (see the single-consumer list); that import is gone and only `tests/utils/geminiModelDeprecation*.test.ts` reference it. The model check now lives server-side in `functions/src/shared.ts`, so the client mirror and its parity test are dead weight.
-- **Fix:** Delete `utils/geminiModelDeprecation.ts` and its two tests, or re-wire it into the Admin AI tab if a client-side warning is still wanted.
-
+_2026-11-07 action: Saturday run. Nothing In Progress. Open HIGH (DashboardContext growth) is a multi-slice refactor and MEDIUMs are design calls or large extractions; picked the smallest safe item, the dead `geminiModelDeprecation` util (recency check clean). Deleted with its tests; moved to Completed._
 
 _2026-10-30: Friday weekly audit (C1), light pass. Non-test files >500 lines: 297. Largest: `context/DashboardContext.tsx` 8527 lines (was 7770 on 10-16; existing HIGH item), `QuizStudentApp.tsx` 6675, `QuizResults.tsx` 4827, `QuizWidget/Widget.tsx` 4527, `useQuizSession.ts` 4210, `useQuizAssignments.ts` 3869, `DraggableWindow.tsx` 3724, `AuthContext.tsx` 3538. No imports with 3+ levels of `../`. No `functionsV1` in `functions/src/index.ts`. Single-consumer utils: list unchanged apart from the new item below. 1 new issue._
 
@@ -310,6 +304,15 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ---
 
 ## Completed
+
+### LOW `utils/geminiModelDeprecation.ts` now has no production consumer
+
+- **Detected:** 2026-10-30
+- **File:** utils/geminiModelDeprecation.ts
+- **Detail:** `isDeprecatedGeminiModelId` was last imported by `components/admin/GlobalPermissionsManager.tsx` (see the single-consumer list); that import is gone and only `tests/utils/geminiModelDeprecation*.test.ts` reference it. The model check now lives server-side in `functions/src/shared.ts`, so the client mirror and its parity test are dead weight.
+- **Fix:** Delete `utils/geminiModelDeprecation.ts` and its two tests, or re-wire it into the Admin AI tab if a client-side warning is still wanted.
+- **Resolved:** 2026-11-07 — deleted `utils/geminiModelDeprecation.ts` and its two tests; PR opened to `dev-paul`.
+
 
 ### MEDIUM `FeaturePermissionsManager.tsx` duplicates its entire card body between grid and list view modes
 
