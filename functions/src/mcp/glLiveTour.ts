@@ -464,10 +464,15 @@ export function tourPublishState(
 ): TourPublishState {
   if (publishedAt === null) return 'draft';
   if (!publishedSet) return 'changed';
-  return glTourFingerprint(set.id, set) ===
-    glTourFingerprint(set.id, publishedSet)
-    ? 'published'
-    : 'changed';
+  try {
+    return glTourFingerprint(set.id, set) ===
+      glTourFingerprint(set.id, publishedSet)
+      ? 'published'
+      : 'changed';
+  } catch {
+    // Malformed stored data must not fail get_live_tour.
+    return 'changed';
+  }
 }
 
 /** Steps that work from their English fallback only, until a developer tags the control (D9). */
