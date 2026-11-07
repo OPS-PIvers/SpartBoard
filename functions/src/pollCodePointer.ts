@@ -84,9 +84,13 @@ export async function handlePollSessionWrite(
     // The holder retired or went inactive: hand the code to the best joinable session sharing it.
     if (isJoinable(mine) && mine.active === true) return;
     const rivals = await tx.get(sessions.where('code', '==', code));
-    let best: { id: string; data: Doc } | null = null;
+    // Seed with the holder so ties keep the pointer where it is.
+    let best: { id: string; data: Doc } | null = isJoinable(mine)
+      ? { id: sessionId, data: mine }
+      : null;
     for (const d of rivals.docs) {
       const data = d.data();
+      if (d.id === sessionId) continue;
       if (codeOfSessionId(d.id) !== code || !isJoinable(data)) continue;
       if (!best || outranks(data, best.data)) best = { id: d.id, data };
     }

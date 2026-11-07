@@ -150,4 +150,16 @@ describe('pollCodePointer', () => {
     );
     expect(stub.store.get('poll_codes/ABCDE')).toBeUndefined();
   });
+
+  it('keeps an inactive holder on a tie with an inactive rival', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': { sessionId: 'tB_ABCDE', teacherUid: 'tB' },
+        'poll_sessions/tA_ABCDE': live('tA', { active: false }),
+      },
+      'tB_ABCDE',
+      live('tB', { active: false })
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tB_ABCDE' });
+  });
 });
