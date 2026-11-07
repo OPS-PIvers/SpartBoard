@@ -1207,6 +1207,23 @@ describe('isQuizMediaResponseGranted', () => {
     ).resolves.toBe(false);
   });
 
+  it('matches a legacy building id saved on the record', async () => {
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(
+          {
+            enabled: true,
+            accessLevel: 'public',
+            buildings: ['orono-middle-school'],
+          },
+          { selectedBuildings: ['middle'] }
+        ),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(true);
+  });
+
   it('honors a buildings-scoped record', async () => {
     const permission = {
       enabled: true,
@@ -1408,6 +1425,45 @@ describe('isGlobalFeatureGranted with no saved doc', () => {
       isGlobalFeatureGranted(
         db(['boss@x.org']),
         'quiz-media-response',
+        'boss@x.org',
+        'u'
+      )
+    ).resolves.toBe(false);
+  });
+
+  it('passes a teacher on a flag that is public with no saved doc', async () => {
+    await expect(
+      isGlobalFeatureGranted(db([]), 'gemini-functions', 'teacher@x.org', 'u')
+    ).resolves.toBe(true);
+  });
+
+  it('applies the default tier floor to a teacher with no saved doc', async () => {
+    await expect(
+      isGlobalFeatureGranted(db([]), 'ai-file-context', 'teacher@x.org', 'u')
+    ).resolves.toBe(false);
+    await expect(
+      isGlobalFeatureGranted(
+        db([]),
+        'ai-file-context',
+        'teacher@orono.k12.mn.us',
+        'u'
+      )
+    ).resolves.toBe(true);
+    await expect(
+      isGlobalFeatureGranted(
+        db(['boss@x.org']),
+        'ai-file-context',
+        'boss@x.org',
+        'u'
+      )
+    ).resolves.toBe(true);
+  });
+
+  it('denies everyone on an unknown feature with no saved doc', async () => {
+    await expect(
+      isGlobalFeatureGranted(
+        db(['boss@x.org']),
+        'not-a-feature',
         'boss@x.org',
         'u'
       )

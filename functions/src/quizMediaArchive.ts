@@ -24,7 +24,7 @@ import * as os from 'os';
 import * as path from 'path';
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
-import { adminPassesMissingDoc } from './featureMissingDoc';
+import { missingDocAccess } from './featureMissingDoc';
 import {
   ALLOWED_ORIGINS,
   normalizeEmailDomain,
@@ -657,7 +657,7 @@ export async function isQuizWhiteboardResponseGranted(
   );
 }
 
-/** Same gate for any `global_permissions/{featureId}` record; missing docs pass only admins on preview flags. */
+/** Same gate for any `global_permissions/{featureId}` record; a missing doc follows the client's `FEATURE_DEFAULTS`. */
 export async function isGlobalFeatureGranted(
   db: Firestore,
   featureId: string,
@@ -668,7 +668,18 @@ export async function isGlobalFeatureGranted(
   const email = (teacherEmail ?? '').toLowerCase();
   const isAdmin = async (): Promise<boolean> =>
     !!email && (await db.collection('admins').doc(email).get()).exists;
-  if (!snap.exists) return adminPassesMissingDoc(featureId) && isAdmin();
+  if (!snap.exists) {
+    const access = missingDocAccess(featureId);
+    if (access.audience === 'nobody') return false;
+    if (await isAdmin()) return true;
+    if (access.audience === 'admins') return false;
+    return permissionAudienceAllows(
+      db,
+      { minTier: access.minTier },
+      email,
+      teacherUid
+    );
+  }
   const data = snap.data() ?? {};
   if (data.enabled !== true) return false;
   if (await isAdmin()) return true;
@@ -679,15 +690,24 @@ export async function isGlobalFeatureGranted(
   } else if (data.accessLevel !== 'public') {
     return false;
   }
-  if (data.minTier !== undefined && data.minTier !== null) {
-    const tier = email ? await deriveTeacherTier(db, email) : 'free';
-    if (!meetsMinTierServer(tier, data.minTier)) return false;
+  return permissionAudienceAllows(db, data, email, teacherUid);
+}
+
+/** A permission doc's `minTier` and `buildings` limits, applied as the client's `resolvePermissionAccess` does. */
+export async function permissionAudienceAllows(
+  db: Firestore,
+  perm: { minTier?: unknown; buildings?: unknown },
+  teacherEmail: string,
+  teacherUid: string
+): Promise<boolean> {
+  if (perm.minTier !== undefined && perm.minTier !== null) {
+    const tier = teacherEmail
+      ? await deriveTeacherTier(db, teacherEmail.toLowerCase())
+      : 'free';
+    if (!meetsMinTierServer(tier, perm.minTier)) return false;
   }
-  // `buildings` is compared raw, exactly as the client does — only the user's
-  // own selection is canonicalized on either side.
-  const buildings = Array.isArray(data.buildings) ? data.buildings : [];
-  if (buildings.length > 0) {
-    const allowed = new Set(buildings);
+  if (Array.isArray(perm.buildings) && perm.buildings.length > 0) {
+    const allowed = new Set(canonicalizeBuildingIdsServer(perm.buildings));
     const selected = await loadTeacherBuildings(db, teacherUid);
     if (!selected.some((b) => allowed.has(b))) return false;
   }
