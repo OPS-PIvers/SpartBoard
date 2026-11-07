@@ -951,13 +951,15 @@ export const DashboardView: React.FC = () => {
   // Deleting the live widget ends the session.
   const liveWidgetId =
     liveState.kind === 'live' ? session?.activeWidgetId : null;
-  const removeWidgetEndingLive = React.useCallback(
-    (id: string) => {
-      if (liveWidgetId && id === liveWidgetId) void endSession();
-      removeWidget(id);
-    },
-    [liveWidgetId, endSession, removeWidget]
-  );
+  React.useEffect(() => {
+    if (!liveWidgetId) return undefined;
+    const onRemoved = (e: Event) => {
+      if ((e as CustomEvent<{ id: string }>).detail.id === liveWidgetId)
+        void endSession();
+    };
+    window.addEventListener('spart-widget-removed', onRemoved);
+    return () => window.removeEventListener('spart-widget-removed', onRemoved);
+  }, [liveWidgetId, endSession]);
 
   const sessions = useMemo<Map<string, LiveSession> | undefined>(() => {
     if (liveState.kind !== 'live' || !session || !activeDashboard)
@@ -1790,7 +1792,7 @@ export const DashboardView: React.FC = () => {
           toggleFreezeStudent={toggleFreezeStudent}
           toggleGlobalFreeze={toggleGlobalFreeze}
           updateWidget={updateWidget}
-          removeWidget={removeWidgetEndingLive}
+          removeWidget={removeWidget}
           duplicateWidget={duplicateWidget}
           bringToFront={bringToFront}
           addToast={addToast}

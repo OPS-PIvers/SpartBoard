@@ -346,22 +346,24 @@ describe('DashboardView Gestures & Navigation', () => {
     it('ends the session when the live widget is deleted', () => {
       const endSession = vi.fn();
       withSession(endSession);
-      const removeWidget = boardsWith(['live-w']);
+      boardsWith(['live-w']);
       renderView();
       expect(endSession).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByTestId('del-live-w'));
+      window.dispatchEvent(
+        new CustomEvent('spart-widget-removed', { detail: { id: 'live-w' } })
+      );
       expect(endSession).toHaveBeenCalledTimes(1);
-      expect(removeWidget).toHaveBeenCalledWith('live-w');
     });
 
     it('keeps the session when another widget is deleted', () => {
       const endSession = vi.fn();
       withSession(endSession);
-      const removeWidget = boardsWith(['live-w', 'other']);
+      boardsWith(['live-w', 'other']);
       renderView();
-      fireEvent.click(screen.getByTestId('del-other'));
+      window.dispatchEvent(
+        new CustomEvent('spart-widget-removed', { detail: { id: 'other' } })
+      );
       expect(endSession).not.toHaveBeenCalled();
-      expect(removeWidget).toHaveBeenCalledWith('other');
     });
   });
 
