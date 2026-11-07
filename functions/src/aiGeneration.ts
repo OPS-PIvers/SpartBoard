@@ -394,6 +394,25 @@ function assertPermissionAllows(
   }
 }
 
+/** Applies a saved doc's `minTier` and `buildings`, as the client's `resolvePermissionAccess` does. */
+async function assertAudienceAllows(
+  db: admin.firestore.Firestore,
+  perm: GlobalPermission,
+  token: { email?: string; email_verified?: boolean },
+  uid: string,
+  message: string
+): Promise<void> {
+  const limited =
+    (perm.minTier !== undefined && perm.minTier !== null) ||
+    (Array.isArray(perm.buildings) && perm.buildings.length > 0);
+  if (!limited) return;
+  const { permissionAudienceAllows } = await import('./quizMediaArchive');
+  const email = token.email_verified === true ? (token.email ?? '') : '';
+  if (!(await permissionAudienceAllows(db, perm, email, uid))) {
+    throw new HttpsError('permission-denied', message);
+  }
+}
+
 /** An extra per-user daily counter checked in the same transaction as the AI caps. */
 export interface AiExtraCap {
   key: string;
@@ -429,6 +448,13 @@ async function enforceAiFeatureAccess(
       adminOnly: 'Gemini functions are currently restricted to administrators.',
       notBeta: 'You do not have access to Gemini beta functions.',
     });
+    await assertAudienceAllows(
+      db,
+      geminiPerm,
+      token,
+      uid,
+      'You do not have access to Gemini functions.'
+    );
   }
   const specPerm = specDoc.exists
     ? (specDoc.data() as GlobalPermission)
@@ -440,6 +466,13 @@ async function enforceAiFeatureAccess(
       adminOnly: `${featureId} is currently restricted to administrators.`,
       notBeta: `You do not have access to the ${featureId} beta feature.`,
     });
+    await assertAudienceAllows(
+      db,
+      specPerm,
+      token,
+      uid,
+      `You do not have access to ${featureId}.`
+    );
   } else if (!specPerm && !missingDocAllowed) {
     throw new HttpsError(
       'permission-denied',
@@ -713,6 +746,13 @@ export const generateWithAI = onCall(
                 'You do not have access to Gemini beta functions.'
               );
             }
+            await assertAudienceAllows(
+              db,
+              globalPerm,
+              callerToken,
+              uid,
+              'You do not have access to Gemini functions.'
+            );
           }
 
           const overallLimitEnabled =
@@ -762,6 +802,13 @@ export const generateWithAI = onCall(
                   `You do not have access to the ${specificFeatureId} beta feature.`
                 );
               }
+              await assertAudienceAllows(
+                db,
+                specPerm,
+                callerToken,
+                uid,
+                `You do not have access to ${specificFeatureId}.`
+              );
 
               const specLimitEnabled =
                 specPerm.config?.dailyLimitEnabled !== false;
@@ -1944,6 +1991,8 @@ interface AudioTranscriptionPerm {
   enabled: boolean;
   accessLevel: 'admin' | 'beta' | 'all';
   betaUsers?: string[];
+  minTier?: unknown;
+  buildings?: unknown;
   config?: AudioTranscriptionPermConfig;
 }
 
@@ -2039,6 +2088,13 @@ export const transcribeVideoWithGemini = onCall(
           'You do not have access to Gemini audio transcription.'
         );
       }
+      await assertAudienceAllows(
+        db,
+        perm,
+        request.auth.token,
+        uid,
+        'You do not have access to Gemini audio transcription.'
+      );
     }
 
     if (!isAdmin) {

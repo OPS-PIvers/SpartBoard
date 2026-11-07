@@ -76,6 +76,55 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'video-import-ai',
 ];
 
+// Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
+export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
+  Record<string, string | null>
+> = {
+  'live-session': null,
+  'gemini-functions': null,
+  'dashboard-sharing': null,
+  'dashboard-import': null,
+  'magic-layout': null,
+  'smart-paste': null,
+  'smart-poll': null,
+  'screen-recording': null,
+  'remote-control': null,
+  'embed-mini-app': null,
+  'video-activity-audio-transcription': null,
+  'ai-file-context': 'org',
+  'org-admin-writes': null,
+  'assignment-modes': null,
+  'share-link-tracking': null,
+  'google-classroom': 'org',
+  'anonymous-join': null,
+  'video-activity-ai': null,
+  'mini-app-ai': null,
+  ocr: null,
+  quiz: null,
+  'drawing-ai': null,
+  'webcam-ai': null,
+  'dashboard-layout': null,
+  'instructional-routine': null,
+};
+
+/** Who a missing `global_permissions` doc lets in, as the client's `canAccessFeature` decides it. */
+export type MissingDocAccess =
+  | { audience: 'everyone'; minTier: string | null }
+  | { audience: 'admins' }
+  | { audience: 'nobody' };
+
+export function missingDocAccess(featureId: string): MissingDocAccess {
+  if (Object.hasOwn(PUBLIC_MISSING_DOC_FEATURES, featureId)) {
+    return {
+      audience: 'everyone',
+      minTier: PUBLIC_MISSING_DOC_FEATURES[featureId],
+    };
+  }
+  return adminPassesMissingDoc(featureId)
+    ? { audience: 'admins' }
+    : { audience: 'nobody' };
+}
+
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */
 export const adminPassesMissingDoc = (featureId: string): boolean =>
   ADMIN_PREVIEW_FEATURES.includes(featureId);

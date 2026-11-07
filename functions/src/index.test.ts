@@ -4168,6 +4168,17 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     expect(generateContentMock).not.toHaveBeenCalled();
   });
 
+  it('throws permission-denied when the caller is below the minTier on gemini-functions', async () => {
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ enabled: true, accessLevel: 'all', minTier: 'internal' }),
+    });
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'You do not have access to Gemini functions.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
   it('throws permission-denied for non-beta user when accessLevel is "beta"', async () => {
     // Arrange: global permission restricts Gemini to beta users.
     geminiConfigDocGet.mockResolvedValue({
@@ -4310,6 +4321,8 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
     enabled: boolean;
     accessLevel: 'admin' | 'beta' | 'all';
     betaUsers?: string[];
+    minTier?: string;
+    buildings?: string[];
   }
 
   // Covers exactly what generateWithAI's usage-tracking transaction touches:
@@ -4318,9 +4331,20 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
   // (the global gate) plus the request's own `specificFeatureId`. Also backs
   // `resolveCallerIsAdmin`'s `admins/{email}` lookup (outside the
   // transaction) — every caller in this describe block is a non-admin.
-  function makeDb(globalPermissions: Record<string, PermDoc | undefined>) {
+  function makeDb(
+    globalPermissions: Record<string, PermDoc | undefined>,
+    selectedBuildings?: string[]
+  ) {
     const notFound = { exists: false, data: () => undefined };
     return {
+      doc: (path: string) => ({
+        get: () =>
+          Promise.resolve(
+            selectedBuildings && path.endsWith('/userProfile/profile')
+              ? { exists: true, data: () => ({ selectedBuildings }) }
+              : notFound
+          ),
+      }),
       collection: (name: string) => {
         if (name === 'ai_usage') {
           return { doc: () => ({ get: () => Promise.resolve(notFound) }) };
@@ -4426,6 +4450,86 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
     );
     expect(err).toBeInstanceOf(Error);
     expect(err?.name).not.toBe('permission-denied');
+  });
+
+  it('throws permission-denied when embed-mini-app is limited to buildings the teacher has not picked', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb(
+        {
+          'embed-mini-app': {
+            enabled: true,
+            accessLevel: 'all',
+            buildings: ['high'],
+          },
+        },
+        ['middle']
+      ) as unknown as admin.firestore.Firestore
+    );
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow('You do not have access to embed-mini-app.');
+  });
+
+  it('lets a teacher through when one of their buildings matches, including a legacy id', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb(
+        {
+          'embed-mini-app': {
+            enabled: true,
+            accessLevel: 'all',
+            buildings: ['orono-high-school'],
+          },
+        },
+        ['high']
+      ) as unknown as admin.firestore.Firestore
+    );
+    const err = await handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH }).then(
+      () => null,
+      (e: unknown) => e as Error
+    );
+    expect(err?.message).not.toMatch(/access|restricted|disabled/);
+  });
+
+  it('throws permission-denied when the teacher is below the minTier on gemini-functions', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'gemini-functions': {
+          enabled: true,
+          accessLevel: 'all',
+          minTier: 'internal',
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow('You do not have access to Gemini functions.');
+  });
+
+  it('lets an internal-domain teacher through a minTier internal doc', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'gemini-functions': {
+          enabled: true,
+          accessLevel: 'all',
+          minTier: 'internal',
+        },
+        'embed-mini-app': {
+          enabled: true,
+          accessLevel: 'all',
+          minTier: 'internal',
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+    const err = await handler(MINI_APP_DATA, {
+      auth: {
+        uid: 'uid-teacher-2',
+        token: { email: 'teacher@orono.k12.mn.us', email_verified: true },
+      },
+    }).then(
+      () => null,
+      (e: unknown) => e as Error
+    );
+    expect(err?.message).not.toMatch(/access|restricted|disabled/);
   });
 
   it('SECURITY: does not grant beta access for an unverified self-reported beta email', async () => {
@@ -4560,6 +4664,17 @@ describe('transcribeVideoWithGemini', () => {
     });
     await expect(handler(VALID_DATA, { auth: ADMIN_AUTH })).rejects.toThrow(
       'Gemini functions are currently disabled by an administrator.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('throws permission-denied when the caller is below the minTier', async () => {
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ enabled: true, accessLevel: 'all', minTier: 'internal' }),
+    });
+    await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
+      'You do not have access to Gemini audio transcription.'
     );
     expect(generateContentMock).not.toHaveBeenCalled();
   });

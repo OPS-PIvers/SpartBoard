@@ -92,6 +92,27 @@ describe('isAdminPreviewFeature', () => {
     );
     expect([...mirrored].sort()).toEqual([...expected].sort());
   });
+
+  it('mirrors the public missing-doc flags and tier floors in functions/src/featureMissingDoc.ts', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../functions/src/featureMissingDoc.ts'),
+      'utf8'
+    );
+    const block = /PUBLIC_MISSING_DOC_FEATURES[^=]*=\s*\{([^}]*)\}/.exec(
+      source
+    );
+    const mirrored = Object.fromEntries(
+      [
+        ...(block?.[1] ?? '').matchAll(/'?([a-z0-9-]+)'?:\s*(?:'(\w+)'|null)/g),
+      ].map((m) => [m[1], m[2] ?? null])
+    );
+    const expected = Object.fromEntries(
+      (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[])
+        .filter((id) => FEATURE_DEFAULTS[id].missingDocPublic)
+        .map((id) => [id, FEATURE_DEFAULTS[id].defaultMinTier ?? null])
+    );
+    expect(mirrored).toEqual(expected);
+  });
 });
 
 describe('feature registry', () => {
