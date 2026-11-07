@@ -103,6 +103,38 @@ describe('chunkLoadError', () => {
     });
   });
 
+  describe('reload guard window', () => {
+    const KEY = 'spartboard:chunk-reload-attempted';
+    afterEach(() => {
+      vi.useRealTimers();
+      window.sessionStorage.clear();
+    });
+
+    it('allows another reload after the window has passed', () => {
+      vi.useFakeTimers();
+      const reloadSpy = vi.fn();
+      const original = window.location;
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { ...original, reload: reloadSpy },
+      });
+      window.sessionStorage.setItem(KEY, String(Date.now()));
+      expect(attemptChunkReload()).toBe(false);
+      vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+      expect(attemptChunkReload()).toBe(true);
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: original,
+      });
+    });
+
+    it('treats the legacy "1" flag as a recent reload', () => {
+      window.sessionStorage.setItem(KEY, '1');
+      expect(attemptChunkReload()).toBe(false);
+    });
+  });
+
   describe('neverResolvingPromise', () => {
     it('returns a promise that never settles', async () => {
       const p = neverResolvingPromise<number>();

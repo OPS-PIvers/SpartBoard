@@ -206,7 +206,7 @@ describe('ensureAssessment', () => {
 describe('markDirty', () => {
   const session = parseLinkedSession(linkedSession)!;
 
-  it('sets dirtyAt only when unset', async () => {
+  it('moves dirtyAt forward on every write so a compare-and-clear misses it', async () => {
     stub.store.set('plcs/plc-1/assessments/grp-1', {
       syncGroupId: 'grp-1',
       dirtyAt: null,
@@ -214,16 +214,24 @@ describe('markDirty', () => {
     await markDirty(stub.db as unknown as Db, 'plc-1', 'grp-1', session, NOW);
     expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
 
-    const before = stub.writes.length;
     await markDirty(
       stub.db as unknown as Db,
       'plc-1',
       'grp-1',
       session,
-      NOW + 1
+      NOW + 5
     );
-    expect(stub.writes.length).toBe(before);
-    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
+    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW + 5);
+
+    // A same-millisecond write still changes the value.
+    await markDirty(
+      stub.db as unknown as Db,
+      'plc-1',
+      'grp-1',
+      session,
+      NOW + 5
+    );
+    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW + 6);
   });
 
   it('does not create an assessment for a session whose owner left the PLC', async () => {

@@ -507,7 +507,7 @@ describe('recomputeSession and the dirty queue', () => {
     expect(stub.has('grade_index/qs9__u1')).toBe(true);
   });
 
-  it('moves a failing session behind newer work, then drops it', async () => {
+  it('backs a failing session off up to an hour and never drops it', async () => {
     const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
     const db = stub.db as unknown as { collection: (n: string) => unknown };
     const collection = db.collection.bind(db);
@@ -523,9 +523,40 @@ describe('recomputeSession and the dirty queue', () => {
     });
     const queued = stub.get('grade_index_sessions/quiz__qs1');
     expect(queued?.failures).toBe(1);
-    expect(queued?.dirtyAt).toBeGreaterThan(1);
-    for (let i = 0; i < 4; i++) await drainDirtySessions(typed);
-    expect(stub.has('grade_index_sessions/quiz__qs1')).toBe(false);
+    expect(queued?.retryAt).toBeGreaterThan(Date.now());
+    // Not due yet, so a second drain leaves it alone.
+    expect(await drainDirtySessions(typed)).toEqual({
+      recomputed: 0,
+      failed: 0,
+    });
+    for (let i = 0; i < 8; i++) {
+      stub.store.set('grade_index_sessions/quiz__qs1', {
+        ...stub.get('grade_index_sessions/quiz__qs1'),
+        retryAt: 1,
+      });
+      await drainDirtySessions(typed);
+    }
+    const later = stub.get('grade_index_sessions/quiz__qs1');
+    expect(later?.failures).toBe(9);
+    expect(later?.retryAt).toBeLessThanOrEqual(Date.now() + 60 * 60_000);
+  });
+
+  it('keeps an existing backoff when the session is marked dirty again', async () => {
+    const stub = seed();
+    const db = stub.db as unknown as Db;
+    stub.store.set('grade_index_sessions/quiz__qs1', {
+      kind: 'quiz',
+      sessionId: 'qs1',
+      dirtyAt: 5,
+      failures: 2,
+      retryAt: NOW + 1000,
+    });
+    await markSessionDirty(db, 'quiz', 'qs1', NOW);
+    expect(stub.get('grade_index_sessions/quiz__qs1')).toMatchObject({
+      dirtyAt: NOW,
+      failures: 2,
+      retryAt: NOW + 1000,
+    });
   });
 
   it('drains queued sessions and clears the queue entry', async () => {
