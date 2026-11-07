@@ -5,6 +5,7 @@ interface Store {
   docs: Record<string, Doc | undefined>;
   updates: Array<[string, Doc]>;
   queries: unknown[];
+  onQuery?: () => void;
 }
 
 const store = vi.hoisted<Store>(() => ({ docs: {}, updates: [], queries: [] }));
@@ -29,6 +30,7 @@ vi.mock('firebase/firestore', () => {
     getDoc: (path: string) => Promise.resolve(snap(path)),
     getDocs: (q: { coll: string; filters: unknown[] }) => {
       store.queries.push(q);
+      store.onQuery?.();
       const prefix = `${q.coll}/`;
       const docs = Object.keys(store.docs)
         .filter(
@@ -65,6 +67,7 @@ beforeEach(() => {
   store.docs = {};
   store.updates = [];
   store.queries = [];
+  store.onQuery = undefined;
 });
 
 describe('finalizeOpenQuizResponses', () => {
@@ -146,6 +149,16 @@ describe('finalizeOpenQuizResponses', () => {
   it('does nothing when the teacher reopened before the turn-in ran', async () => {
     store.docs[S] = { status: 'paused', publicQuestions: [{ id: 'q1' }] };
     store.docs[`${S}/responses/r1`] = { status: 'in-progress', answers: [] };
+    await finalizeOpenQuizResponses('s1', NOW);
+    expect(store.updates).toHaveLength(0);
+  });
+
+  it('skips rows once a Reopen lands while the turn-in runs', async () => {
+    store.docs[S] = { status: 'ended', publicQuestions: [{ id: 'q1' }] };
+    store.docs[`${S}/responses/r1`] = { status: 'in-progress', answers: [] };
+    store.onQuery = () => {
+      store.docs[S] = { ...store.docs[S], status: 'paused' };
+    };
     await finalizeOpenQuizResponses('s1', NOW);
     expect(store.updates).toHaveLength(0);
   });

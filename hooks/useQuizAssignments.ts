@@ -2070,7 +2070,7 @@ export const useQuizAssignments = (
   >(
     async (assignmentId) => {
       await setStatus(assignmentId, { type: 'end' });
-      // Turn in after in-flight student saves land; the idle sweep backs this up if the tab closes.
+      // Turn in once student saves can no longer land; the idle sweep backs this up if the tab closes.
       setTimeout(() => {
         finalizeOpenQuizResponses(assignmentId).catch((err: unknown) =>
           console.error('[useQuizAssignments] End turn-in failed:', err)

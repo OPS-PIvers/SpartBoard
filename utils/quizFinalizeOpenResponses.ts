@@ -6,6 +6,7 @@ import {
   query,
   runTransaction,
   where,
+  type DocumentReference,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -17,8 +18,8 @@ import {
 } from '@/utils/quizSessionContent';
 import { buildTeacherSubmitUpdate } from '@/utils/quizTeacherSubmit';
 
-/** How long End waits before turning work in, so a student's last autosave lands first. */
-export const END_TURN_IN_DELAY_MS = 10_000;
+/** End waits out the students' 120 s write grace (`runOpen` in firestore.rules) before turning work in. */
+export const END_TURN_IN_DELAY_MS = 125_000;
 
 const SESSIONS = 'quiz_sessions';
 const RESPONSES = 'responses';
@@ -62,18 +63,28 @@ export async function finalizeOpenQuizResponses(
     const r = d.data() as QuizResponse;
     return !(r.status === 'joined' && r.paperWrittenBatchId && !r.lastWriteAt);
   });
-  await turnInResponses(docs, { questionIds, completenessModel }, now);
+  await turnInResponses(docs, { questionIds, completenessModel }, now, {
+    whileEnded: sessionRef,
+  });
 }
 
 /** Turns in each listed response from a fresh read; throws the first failure after trying them all. */
 export async function turnInResponses(
   docs: readonly QueryDocumentSnapshot[],
   session: { questionIds: readonly string[]; completenessModel?: number },
-  now: number
+  now: number,
+  opts: { whileEnded?: DocumentReference } = {}
 ): Promise<void> {
+  const { whileEnded } = opts;
   const results = await Promise.allSettled(
     docs.map((d) =>
       runTransaction(db, async (tx) => {
+        // A Reopen that lands while these run wins.
+        if (whileEnded) {
+          const parent = await tx.get(whileEnded);
+          if ((parent.data() as QuizSession | undefined)?.status !== 'ended')
+            return;
+        }
         const fresh = await tx.get(d.ref);
         if (!fresh.exists()) return;
         const update = buildTeacherSubmitUpdate(

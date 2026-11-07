@@ -43,7 +43,7 @@ const finalizeOpenQuizResponsesMock = vi
   .fn<(sessionId: string) => Promise<void>>()
   .mockResolvedValue(undefined);
 vi.mock('@/utils/quizFinalizeOpenResponses', () => ({
-  END_TURN_IN_DELAY_MS: 10_000,
+  END_TURN_IN_DELAY_MS: 125_000,
   finalizeOpenQuizResponses: (sessionId: string) =>
     finalizeOpenQuizResponsesMock(sessionId),
 }));
@@ -613,10 +613,13 @@ describe('useQuizAssignments - reopenAssignment', () => {
       });
 
       expect(findSessionPatch()).toMatchObject({ status: 'ended' });
-      // Waits so in-flight student autosaves land before the turn-in.
+      // Waits out the students' write grace before the turn-in.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(124_000);
+      });
       expect(finalizeOpenQuizResponsesMock).not.toHaveBeenCalled();
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(10_000);
+        await vi.advanceTimersByTimeAsync(1_000);
       });
       expect(finalizeOpenQuizResponsesMock).toHaveBeenCalledWith(ASSIGNMENT_ID);
       // A failed turn-in is logged, never thrown at the already-ended End.
