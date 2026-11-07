@@ -93,7 +93,7 @@
       "assignments": "Assignments",
       "gradebook": "Gradebook",
       "classes": "My Classes",
-      "plcs": "My PLCs",
+      "plcs": "My Teams",
       "widgets": "Widgets",
       "globalStyle": "Global Style",
       "generalSettings": "General Settings",
@@ -218,7 +218,7 @@
       "changeGoogleClassroomLink": "Change Google Classroom link"
     },
     "plcs": {
-      "title": "My PLCs",
+      "title": "My Teams",
       "newPlc": "New PLC",
       "newPlcTitle": "New PLC",
       "createNewPlc": "Create New PLC",
@@ -3235,7 +3235,7 @@
     "notFoundTitle": "PLC not found",
     "notFoundBody": "This PLC doesn't exist or you're no longer a member of it.",
     "backToBoard": "Back to my board",
-    "hubTitle": "My PLCs",
+    "hubTitle": "My Teams",
     "hubEmptyTitle": "No PLCs yet",
     "hubEmptySubtitle": "Create one from the sidebar.",
     "leadBadge": "Lead",

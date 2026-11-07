@@ -6,6 +6,7 @@ import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { VIEW_AS_DRIVE_UNAVAILABLE } from '@/utils/viewAsDrive';
 import { useFirstRun } from '@/hooks/useFirstRun';
 import { useTourRunning } from '@/components/tours/tourState';
+import { tourAttr } from '@/config/tourAnchors';
 
 const DISMISS_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 // Persisting the dismiss expiry survives dev-mode HMR remounts and full
@@ -128,7 +129,10 @@ export const DriveDisconnectBanner: React.FC = () => {
 
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
-      <div className="bg-white rounded-xl shadow-xl border border-amber-200 p-3 flex items-center gap-3 max-w-[280px]">
+      <div
+        {...tourAttr('drive.disconnect-banner')}
+        className="bg-white rounded-xl shadow-xl border border-amber-200 p-3 flex items-center gap-3 max-w-[280px]"
+      >
         <div className="shrink-0">
           <GoogleDriveIcon className="w-5 h-5 opacity-60" />
         </div>
@@ -143,7 +147,8 @@ export const DriveDisconnectBanner: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <button // no-tour-anchor: system banner shown only when Drive drops
+          <button
+            {...tourAttr('drive.reconnect')}
             onClick={() => void handleConnect()}
             disabled={isConnecting}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-blue-primary text-white text-xxxs font-black uppercase tracking-widest rounded-lg hover:bg-brand-blue-dark transition-colors disabled:opacity-60"

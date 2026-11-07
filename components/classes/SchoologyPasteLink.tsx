@@ -9,6 +9,7 @@ import {
   type LtiSectionByUrlPreview,
 } from '@/utils/ltiCourseLinks';
 import { syncRosterMirrors } from '@/utils/ltiRosterMirrors';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SchoologyPasteLinkProps {
   /** The teacher's ClassLink and admin test-class rosters. */
@@ -110,6 +111,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
       </label>
       <div className="flex items-center gap-2">
         <input
+          {...tourAttr('schoology-link.paste-url')}
           id="schoology-course-link"
           type="url"
           inputMode="url"
@@ -127,6 +129,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
         />
         <button
           type="button"
+          {...tourAttr('schoology-link.paste-check')}
           onClick={() => void handleCheck()}
           disabled={!url.trim() || checking || linking}
           className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-blue-primary border border-brand-blue-primary/30 hover:border-brand-blue-primary px-3 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
@@ -156,6 +159,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
           </p>
           <div className="flex items-center gap-2">
             <select
+              {...tourAttr('schoology-link.paste-class')}
               aria-label="Class to link"
               value={rosterId}
               disabled={linking}
@@ -177,6 +181,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
             </select>
             <button
               type="button"
+              {...tourAttr('schoology-link.paste-link')}
               onClick={() => void handleLink()}
               disabled={!rosterId || linking}
               className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
