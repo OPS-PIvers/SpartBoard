@@ -7287,6 +7287,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       const idSet = new Set(ids);
+      ids.forEach((id) =>
+        window.dispatchEvent(
+          new CustomEvent('spart-widget-removed', { detail: { id } })
+        )
+      );
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeId) return d;

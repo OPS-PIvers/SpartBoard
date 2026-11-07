@@ -238,9 +238,10 @@ describe('DashboardContext removeWidgets regression tests', () => {
     window.addEventListener('spart-widget-removed', onRemoved);
     act(() => {
       stateRef.current?.removeWidget('w1');
+      stateRef.current?.removeWidgets(['w2']);
     });
     window.removeEventListener('spart-widget-removed', onRemoved);
-    expect(heard).toEqual(['w1']);
+    expect(heard).toEqual(['w1', 'w2']);
   });
 
   it('dissolves a group when only one member remains', async () => {
