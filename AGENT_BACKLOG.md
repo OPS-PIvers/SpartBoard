@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-133**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-134**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -150,6 +150,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-36 useEffect cleanups** (S + M). Move the `prevIndexRef` sync out of an effect in `components/layout/DashboardView.tsx` (~559, 966); extract the ~175-line live scoreboard sync effect in `components/widgets/QuizWidget/Widget.tsx` into a `useLiveScoreboardSync` hook.
 - **AB-37 Configurable internal domain** (S-M). LO8: `orono.k12.mn.us` is hardcoded in `utils/userTier.ts`, and /subs operator scoping is fixed; make both admin-configurable.
 - **AB-38 Quiz assign picker and `rosterIds`** (M, MED). M6: the Quiz edit modal's AssignClassPicker plus the `rosterIds` data migration.
+
+- **AB-133 Sub-share sweep leaves Drive grants unrevoked (needs a design call)** (M). After the 7-day grace, `functions/src/expireSubShares.ts` deletes a share that still has `driveGrants` and only logs them; the service identity cannot revoke on a teacher's files. Keeping the doc with a `grantsOrphaned` marker was tried and rejected in review (#5362): expired docs stay listable by any district staff account under `firestore.rules` (shared_boards/shared_collections list), the client reconciler warns the host every session when a revoke keeps failing, and kept docs pile up at the front of the sweep query. A fix must strip `initialState`/`subEmails` and subcollections when marking (or move the orphan record to an admin-only collection), make the reconciler skip marked docs, exclude marked docs from the sweep query, and catch NOT_FOUND on the marker update.
 
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 

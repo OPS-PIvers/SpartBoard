@@ -20,10 +20,9 @@
  *     4. delete the share doc once all revokes succeed
  *
  *   If the host never signs in within 7 days, we give up: the doc is
- *   kept with a `grantsOrphaned` marker and a Cloud Logging WARNING
- *   listing every unrevoked (email, fileId, permissionId), so an admin can
- *   clean them up via Drive Admin tools. The doc is never deleted with live
- *   grants on it.
+ *   deleted with a Cloud Logging WARNING listing every unrevoked
+ *   (email, fileId, permissionId) so an admin can manually clean them
+ *   up via Drive Admin tools.
  *
  * Why no server-side revoke: revoking permissions on a teacher's own
  * Drive files requires either the teacher's OAuth refresh token (we
@@ -76,7 +75,6 @@ interface SubstituteShareData {
   intendedMode?: string;
   expiresAt?: number;
   originalAuthor?: string;
-  grantsOrphaned?: { at: number; count: number };
   driveGrants?: Array<{
     email?: string;
     fileId?: string;
@@ -178,23 +176,19 @@ async function sweepCollection(
       continue;
     }
 
-    // The service identity can't revoke grants on a teacher's files, so keep the doc and mark it.
+    // If we're deleting a doc that still has grants (i.e. grace expired),
+    // log the orphans so a Workspace admin can clean up by hand.
     if (grants.length > 0) {
-      if (data.grantsOrphaned) continue;
+      orphanedGrantCount += grants.length;
       const host = data[hostField] ?? data.originalAuthor ?? data.hostUid;
       console.warn(
-        `[expireSubShares] KEEPING ${collectionName} share ${doc.id} (host ${host}) ` +
-          `with ${grants.length} unrevoked Drive permissions after the grace window. ` +
-          `Manual revocation needed for: ` +
+        `[expireSubShares] DELETING ${collectionName} share ${doc.id} (host ${host}) ` +
+          `with ${grants.length} unrevoked Drive permissions — host never ` +
+          `returned to clean up. Manual revocation needed for: ` +
           grants
             .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
             .join(', ')
       );
-      await doc.ref.update({
-        grantsOrphaned: { at: now, count: grants.length },
-      });
-      orphanedGrantCount += grants.length;
-      continue;
     }
     readyToDelete.push(doc);
   }
@@ -203,11 +197,7 @@ async function sweepCollection(
     console.log(
       `[expireSubShares] ${stillInGrace} expired ${collectionName} in grace window — waiting for host to clean up`
     );
-    return {
-      deleted: 0,
-      inGrace: stillInGrace,
-      orphanedGrants: orphanedGrantCount,
-    };
+    return { deleted: 0, inGrace: stillInGrace, orphanedGrants: 0 };
   }
 
   // Collection parents carry boards/, content/ and keys/ sub-collections — reap
@@ -257,7 +247,7 @@ async function sweepCollection(
   console.log(
     `[expireSubShares] deleted ${deleted} expired substitute ${collectionName} ` +
       `(${stillInGrace} still in ${ORPHAN_GRACE_DAYS}-day grace window; ` +
-      `${orphanedGrantCount} Drive permissions newly marked as needing manual revocation)`
+      `${orphanedGrantCount} Drive permissions logged as needing manual revocation)`
   );
   return { deleted, inGrace: stillInGrace, orphanedGrants: orphanedGrantCount };
 }
