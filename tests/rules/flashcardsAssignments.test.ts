@@ -24,6 +24,7 @@ import {
   deleteField,
   where,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-flashcards-assignments';
 const TEACHER_UID = 'fc-teacher';
@@ -42,6 +43,7 @@ const asTeacher = (uid: string) =>
   testEnv
     .authenticatedContext(uid, {
       email: `${uid}@example.com`,
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -109,6 +111,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@example.com`,
+      `${OTHER_TEACHER_UID}@example.com`,
+    ])
+  );
 });
 
 describe('flashcard_sessions', () => {

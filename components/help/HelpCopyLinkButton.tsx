@@ -1,12 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Link2, Loader2 } from 'lucide-react';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import { useAuth } from '@/context/useAuth';
-import { useCreateShortLink } from '@/hooks/useShortLinks';
-import { resolveShortLink } from '@/utils/shortLinksApi';
-import { buildShortUrl } from '@/utils/shortLinkValidation';
-import { logError } from '@/utils/logError';
+import { useCopyShortLink } from '@/hooks/useCopyShortLink';
 import { buildHelpItemUrl, helpShortLinkCode } from './helpCenterState';
 import { tourAttr } from '@/config/tourAnchors';
 
@@ -21,57 +18,17 @@ export const HelpCopyLinkButton: React.FC<HelpCopyLinkButtonProps> = ({
 }) => {
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
-  const { createShortLink } = useCreateShortLink();
-  const [state, setState] = useState<'idle' | 'working' | 'done'>('idle');
-  const resetTimerRef = useRef<number | null>(null);
-  useEffect(
-    () => () => {
-      if (resetTimerRef.current !== null) {
-        window.clearTimeout(resetTimerRef.current);
-      }
-    },
-    []
-  );
+  const { state, copy } = useCopyShortLink('HelpCopyLinkButton');
 
   if (!isAdmin) return null;
 
-  const getShareUrl = async (): Promise<string> => {
-    const destination = buildHelpItemUrl(item.id);
-    const code = helpShortLinkCode(item.id);
-    try {
-      const existing = await resolveShortLink(code);
-      if (existing?.destination === destination) return buildShortUrl(code);
-      const result = await createShortLink({
-        destination,
-        slug: existing ? undefined : code,
-        label: `Help: ${item.title}`,
-      });
-      if (result.ok) return buildShortUrl(result.link.code);
-      // Another admin may have claimed the code a moment ago.
-      const raced = await resolveShortLink(code);
-      if (raced?.destination === destination) return buildShortUrl(code);
-    } catch (err) {
-      logError('HelpCopyLinkButton.shortLink', err, { itemId: item.id });
-    }
-    return destination;
-  };
-
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (state === 'working') return;
-    setState('working');
-    try {
-      const url = await getShareUrl();
-      await navigator.clipboard.writeText(url);
-      setState('done');
-      if (resetTimerRef.current !== null) {
-        window.clearTimeout(resetTimerRef.current);
-      }
-      resetTimerRef.current = window.setTimeout(() => setState('idle'), 1500);
-    } catch (err) {
-      logError('HelpCopyLinkButton.clipboard', err, { itemId: item.id });
-      setState('idle');
-    }
+    await copy({
+      destination: buildHelpItemUrl(item.id),
+      code: helpShortLinkCode(item.id),
+      label: `Help: ${item.title}`,
+    });
   };
 
   const icon =

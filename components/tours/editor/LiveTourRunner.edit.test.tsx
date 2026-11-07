@@ -60,6 +60,9 @@ vi.mock('@/components/sparty/useShowSparty', () => ({
   useShowSparty: () => false,
 }));
 vi.mock('../tourRuns', () => ({ startTourRunLog: vi.fn() }));
+vi.mock('../useTourConditions', () => ({
+  useTourConditions: () => () => undefined,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: () => true,

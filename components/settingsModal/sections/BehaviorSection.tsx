@@ -181,6 +181,7 @@ export const BehaviorSection: React.FC = () => {
                 <Toggle
                   size="sm"
                   label={spartyLabel}
+                  anchor={tourAttr('behavior.sparty-toggle')}
                   checked={spartyEnabled}
                   onChange={(checked) =>
                     void updateAccountPreferences({ spartyEnabled: checked })

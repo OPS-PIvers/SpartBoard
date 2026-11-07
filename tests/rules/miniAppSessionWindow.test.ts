@@ -13,6 +13,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-mini-app-session-window';
 const TEACHER_UID = 'maw-teacher';
@@ -31,6 +32,7 @@ const asTeacher = (uid: string) =>
   testEnv
     .authenticatedContext(uid, {
       email: `${uid}@example.com`,
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -79,6 +81,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [
+      `${TEACHER_UID}@example.com`,
+      `${OTHER_TEACHER_UID}@example.com`,
+    ])
+  );
 });
 
 describe('mini_app_sessions window edits', () => {

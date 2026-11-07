@@ -41,9 +41,11 @@ import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import {
   useChangelog,
   readLastSeenVersion,
+  writeLastSeenVersion,
   WHATSNEW_SEEN_EVENT_NAME,
   WHATSNEW_LAST_SEEN_STORAGE_KEY,
 } from '@/hooks/useChangelog';
+import { useFirstRun } from '@/hooks/useFirstRun';
 import { useAppVersion } from '@/hooks/useAppVersion';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
@@ -58,6 +60,7 @@ import { QuickAccessModal } from '@/components/quickAccessModal/QuickAccessModal
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
 import { SidebarClasses } from './SidebarClasses';
 import { SidebarPlcs } from './SidebarPlcs';
+import { SidebarGettingStarted } from './SidebarGettingStarted';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
@@ -246,8 +249,18 @@ export const Sidebar: React.FC = () => {
   const [isQuickAccessModalOpen, setIsQuickAccessModalOpen] = useState(false);
   const { latestVersion } = useChangelog();
   const { updateAvailable, reloadApp } = useAppVersion();
+  const firstRun = useFirstRun();
+  // Quiet start holds the badge (D7).
   const hasUnreadWhatsNew =
-    latestVersion !== null && latestVersion !== lastSeenWhatsNew;
+    !firstRun.quiet &&
+    latestVersion !== null &&
+    latestVersion !== lastSeenWhatsNew;
+  // A brand-new teacher's What's New starts from today, so there's no backlog when quiet start ends (D7).
+  const startsFromToday =
+    firstRun.firstRun && lastSeenWhatsNew === null && latestVersion !== null;
+  useEffect(() => {
+    if (startsFromToday) writeLastSeenVersion(latestVersion);
+  }, [startsFromToday, latestVersion]);
   const closeWhatsNew = () => {
     setShowWhatsNew(false);
     setLastSeenWhatsNew(readLastSeenVersion());
@@ -598,7 +611,7 @@ export const Sidebar: React.FC = () => {
                     </button>
                   )}
                   {/* Org-only surfaces: My Classes (incl. ClassLink import),
-                      My PLCs, and My Building(s). Hidden for external (no-org/
+                      My Teams, and My Building(s). Hidden for external (no-org/
                       free-tier) users — buildings/PLCs/ClassLink are all org
                       concepts. `isExternalUser` is false while membership
                       resolves, so org/internal members never see these flicker
@@ -768,6 +781,14 @@ export const Sidebar: React.FC = () => {
                       )}
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
+                  )}
+                  {canAccessFeature('getting-started') && (
+                    <SidebarGettingStarted
+                      onOpen={() => {
+                        setIsOpen(false);
+                        setActiveSection('main');
+                      }}
+                    />
                   )}
                 </div>
               </nav>

@@ -146,6 +146,8 @@ export interface AuthContextType {
    * `DriveOfflineGrantCard` prompt. False while unknown or already granted.
    */
   offlineGrantMissing: boolean;
+  /** True once this tab has confirmed a stored Drive refresh token. */
+  offlineGrantPresent: boolean;
   /**
    * Run the GIS auth-code flow to capture a server-side refresh token, which is
    * the only renewal path that survives Google-session expiry. Must be called

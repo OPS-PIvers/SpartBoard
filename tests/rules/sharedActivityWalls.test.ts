@@ -18,6 +18,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { setDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-shared-activity-walls';
 const TEACHER_UID = 'teacher-uid';
@@ -39,6 +40,7 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
       email: 'teacher@example.com',
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -86,6 +88,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await seedDistrictStaff(ctx.firestore(), ['teacher@example.com']);
     await setDoc(doc(ctx.firestore(), `activity_wall_sessions/${SESSION_ID}`), {
       id: SESSION_ID,
       activityId: ACTIVITY_ID,

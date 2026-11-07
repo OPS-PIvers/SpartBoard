@@ -27,6 +27,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-sub-monitor-test';
 const TEACHER_UID = 'teacher-uid-1';
@@ -107,6 +108,7 @@ beforeAll(async () => {
 
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    await seedDistrictStaff(db, ['teacher@orono.k12.mn.us']);
     // The live share the run was launched from, and the switch that allows it.
     await setDoc(doc(db, 'shared_collections/share-1'), {
       hostUid: TEACHER_UID,

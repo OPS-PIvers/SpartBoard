@@ -3748,7 +3748,7 @@ export const ActiveQuiz: React.FC<{
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
       {showResumeModal && (
-        <div className="fixed inset-0 z-overlay bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
             Attempt Unlocked
@@ -3842,7 +3842,7 @@ export const ActiveQuiz: React.FC<{
 
       {/* 🔴 The Cheating Warning Modal */}
       {showCheatWarning && (
-        <div className="fixed inset-0 z-overlay bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED

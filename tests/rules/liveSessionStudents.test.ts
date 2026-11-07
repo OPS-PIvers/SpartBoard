@@ -31,6 +31,7 @@ import {
   collection,
   deleteField,
 } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-live-session-students-test';
 const TEACHER_UID = 'teacher-live';
@@ -81,6 +82,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    await seedDistrictStaff(db, ['teacher@school.edu']);
     await setDoc(doc(db, `sessions/${TEACHER_UID}`), {
       id: TEACHER_UID,
       isActive: true,

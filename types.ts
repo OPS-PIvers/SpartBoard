@@ -1,6 +1,7 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { FocusSite } from '@/utils/focus/contract';
 import type { ImportAttribution } from '@/utils/import/contract';
+import type { TourConditionRef, TourDoneFact } from '@/config/tourConditions';
 
 export type WidgetType =
   | 'clock'
@@ -8736,7 +8737,7 @@ export type GuidedLearningPublicNarration = Pick<
 >;
 
 export type GuidedLearningTourAction =
-  'click' | 'observe' | 'toggle' | 'select' | 'type';
+  'click' | 'observe' | 'toggle' | 'select' | 'type' | 'drag' | 'resize';
 
 /** Where a live tour plays; absent = 'spartboard'. */
 export type GuidedLearningTourSurface = 'spartboard' | 'web';
@@ -8838,7 +8839,7 @@ export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
   fallback?: { role: string; name: string };
-  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them. */
+  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them; drag and resize move on once the widget moved or changed size. */
   action: GuidedLearningTourAction;
   /** toggle: target state; select: option value; type: text Autopilot enters. */
   value?: boolean | string;
@@ -8856,6 +8857,10 @@ export interface GuidedLearningTourBinding {
   thumbnail?: GuidedLearningTourThumbnail;
   /** The board this step starts from; a jump straight here loads it instead of replaying earlier steps. */
   start?: TourStepStart;
+  /** Played only when every condition holds when the tour starts; absent = always. */
+  showWhen?: TourConditionRef[];
+  /** Waits for this fact instead of moving on at its own click; the teacher can skip it. */
+  doneWhen?: TourDoneFact;
 }
 
 /** A step's starting board: widget places and the material open in an editor. */
@@ -9018,6 +9023,8 @@ export interface GuidedLearningSet {
     autopilot?: true;
     /** Library items the tour works on; absent = a tour from before materials, which runs on real items. */
     materials?: TourMaterial[];
+    /** Listed on Getting Started only when every condition holds; absent = always. */
+    showWhen?: TourConditionRef[];
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
@@ -10999,6 +11006,8 @@ export type GlobalFeature =
   | 'focus-sessions'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
+  /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
+  | 'getting-started'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */

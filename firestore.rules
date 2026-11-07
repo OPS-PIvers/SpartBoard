@@ -1198,6 +1198,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Getting Started tour list and sidebar switch: teachers read it for the page; admins curate it.
+    match /admin_settings/getting_started {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Default background for new boards, by district and building: every teacher's new board reads it; admins set it.
+    match /admin_settings/board_backgrounds {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Rollout switch for blocking the right-click menu — every student page reads it; admins flip it.
     match /admin_settings/student_context_menu {
       allow read: if signedIn();
@@ -4611,10 +4623,9 @@ service cloud.firestore {
     }
 
     // Sessions - Teacher owns it, Students can join
-    // Live Session broadcasters: never anonymous or studentRole, and a verified email.
+    // Live Session broadcasters: never anonymous or studentRole; staff or an admin (both need a verified email).
     function liveTeacher() {
-      return signedIn() && notAnon() && !isStudentRoleUser() &&
-        request.auth.token.get('email_verified', false) == true;
+      return signedIn() && notAnon() && !isStudentRoleUser() && sessionStaff();
     }
 
     // Live Session join code -> broadcaster pointer, create-if-absent, so a code has
@@ -4904,6 +4915,10 @@ service cloud.firestore {
       return signedIn() && notAnon() && !isStudentRoleUser() &&
         request.auth.token.get('email_verified', false) == true &&
         staffMemberOk(operatorMember());
+    }
+    // Student-facing sessions and public pages: staff or an admin, never a student's own district account.
+    function sessionStaff() {
+      return quizStaff() || isAdmin();
     }
     // The caller owns this code once the write lands (getAfter: claimed in the same batch).
     // TRANSITIONAL: a still-unclaimed code also passes, so a tab on the client before
@@ -5877,6 +5892,7 @@ service cloud.firestore {
         notAnon() &&
         !isStudentRoleUser() &&
         notDeactivated() &&
+        sessionStaff() &&
         subMonitorStampAbsent() &&
         incoming().teacherUid == authUid() &&
         !('ltiAttachment' in incoming());
@@ -5888,6 +5904,7 @@ service cloud.firestore {
         notAnon() &&
         !isStudentRoleUser() &&
         existing().teacherUid == authUid() &&
+        sessionStaff() &&
         subMonitorStampUnchanged() &&
         sameId() &&
         unchanged('activityId') &&
@@ -6088,12 +6105,14 @@ service cloud.firestore {
         notAnon() &&
         !isStudentRoleUser() &&
         notDeactivated() &&
+        sessionStaff() &&
         incoming().teacherUid == authUid();
       // Teachers can rename, end, re-window or re-period their own sessions
       allow update: if signedIn() &&
         notAnon() &&
         !isStudentRoleUser() &&
         existing().teacherUid == authUid() &&
+        sessionStaff() &&
         changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt', 'classIds', 'rosterIds', 'removedClasses']) &&
         incoming().status in ['active', 'ended'];
       allow delete: if false;
@@ -6252,6 +6271,7 @@ service cloud.firestore {
         notAnon() &&
         !isStudentRoleUser() &&
         notDeactivated() &&
+        sessionStaff() &&
         subMonitorStampAbsent() &&
         incoming().teacherUid == authUid();
       // Owning teacher (or admin) may update (publishAssignmentScores mirrors
@@ -6260,6 +6280,7 @@ service cloud.firestore {
       // delete (GL "Delete permanently" cleanup).
       allow update: if signedIn() && !isStudentRoleUser() &&
         (existing().teacherUid == authUid() || isAdmin()) &&
+        sessionStaff() &&
         subMonitorStampUnchanged();
       allow delete: if signedIn() && !isStudentRoleUser() &&
         (existing().teacherUid == authUid() || isAdmin());
@@ -6408,6 +6429,7 @@ service cloud.firestore {
                             notAnon() &&
                             !isStudentRoleUser() &&
                             notDeactivated() &&
+                            sessionStaff() &&
                             ((sessionId.matches(authUid() + '_.*') &&
                                 incoming().get('teacherUid', authUid()) == authUid()) ||
                               awSiteAdmin());
@@ -6876,12 +6898,12 @@ service cloud.firestore {
       allow get: if signedIn();
       allow list: if signedIn() &&
                   (isAdmin() || existing().teacherUid == authUid());
-      // Only a non-anonymous teacher whose uid prefixes the sessionId (or an
-      // admin) may create/update the session doc itself.
+      // Only staff whose uid prefixes the sessionId, or an admin, may create/update the session doc itself.
       allow create, update: if signedIn() &&
                             notAnon() &&
                             (isAdmin() ||
-                              (sessionId.matches(authUid() + '_.*') &&
+                              (quizStaff() &&
+                                sessionId.matches(authUid() + '_.*') &&
                                 incoming().get('teacherUid', authUid()) == authUid()));
       allow delete: if false;
 
@@ -7111,11 +7133,13 @@ service cloud.firestore {
                     && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
+                    && sessionStaff()
                     && validPublicFlashcardSnapshot();
       allow update: if signedIn()
                     && notAnon()
                     && !isStudentRoleUser()
                     && notDeactivated()
+                    && sessionStaff()
                     && existing().teacherUid == authUid()
                     && validPublicFlashcardSnapshot();
       allow delete: if signedIn()
@@ -7175,6 +7199,7 @@ service cloud.firestore {
                   && (existing().teacherUid == authUid()
                       || fcInSessionClass(existing().get('classIds', [])));
       allow create: if fcTeacherSignedIn()
+                    && sessionStaff()
                     && incoming().teacherUid == authUid()
                     && subMonitorStampAbsent()
                     && incoming().kind in ['check', 'study']
@@ -7186,6 +7211,7 @@ service cloud.firestore {
                     && (!('plcId' in incoming()) || fcPlcLinkOk());
       allow update: if fcTeacherSignedIn()
                     && existing().teacherUid == authUid()
+                    && sessionStaff()
                     && subMonitorStampUnchanged()
                     && unchanged('teacherUid')
                     && unchanged('kind')
@@ -7376,6 +7402,7 @@ service cloud.firestore {
                   && notAnon()
                   && pjRunListScoped();
       allow create: if pjTeacher()
+                    && sessionStaff()
                     && runId.matches(authUid() + '_.+')
                     && incoming().teacherUid == authUid()
                     && incoming().id == runId
@@ -7386,6 +7413,7 @@ service cloud.firestore {
                     && isBool('acceptingUpdates');
       allow update: if pjTeacher()
                     && existing().teacherUid == authUid()
+                    && sessionStaff()
                     && unchanged('teacherUid')
                     && sameId()
                     && isList('classIds')

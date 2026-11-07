@@ -182,6 +182,7 @@ describe('users/{uid}/** under a view-as token', () => {
 
   it('read-only cannot start or end a live session or drop its students', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await seedDistrictStaff(ctx.firestore(), [TEACHER_EMAIL]);
       await setDoc(doc(ctx.firestore(), `sessions/${TEACHER_UID}/students/k`), {
         pin: '1',
         status: 'active',

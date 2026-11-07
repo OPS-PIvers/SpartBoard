@@ -539,6 +539,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/admin/BackgroundManager/index.tsx',
       'components/admin/BackgroundManager/GridPresetCard.tsx',
       'components/admin/BackgroundManager/ListPresetRow.tsx',
+      'components/admin/BackgroundManager/BoardBackgroundDefaultsPanel.tsx',
     ],
     opensWith: 'admin.settings.tab:admin#backgrounds',
     needs: ['admin'],
@@ -670,6 +671,13 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: ['components/admin/StandardsPanel.tsx'],
     opensWith: 'admin.settings.tab:admin#standards',
+    needs: ['admin'],
+  },
+  'admin.getting-started': {
+    label: 'Admin Settings > Getting Started',
+    kind: 'panel',
+    files: ['components/admin/GettingStarted/'],
+    opensWith: 'admin.settings.tab:admin#getting-started',
     needs: ['admin'],
   },
   'admin.import-block-list': {

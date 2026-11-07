@@ -32,6 +32,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-ai',
   'plc-meeting-ai-notes',
   'sparty',
+  'getting-started',
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',

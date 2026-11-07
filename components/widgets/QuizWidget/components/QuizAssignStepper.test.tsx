@@ -108,7 +108,7 @@ describe('QuizAssignStepper Written answers step', () => {
       screen.getByRole('button', { name: /^Assign$/ })
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^\dWritten answers/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'On paper' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'On paper' }));
     expect(screen.getByLabelText('Spare sheets')).toHaveValue(2);
     expect(
       screen.getByRole('button', { name: /Assign and print/ })

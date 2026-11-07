@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { isImeComposing } from '@/utils/imeComposing';
 import { Toggle } from '@/components/common/Toggle';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 
 export const StepRowLabel: React.FC<{ text: string; sub?: boolean }> = ({
   text,
@@ -123,3 +124,51 @@ export const StepSubRows: React.FC<{ children: React.ReactNode }> = ({
     {children}
   </div>
 );
+
+export function StepSegmented<V extends string>({
+  label,
+  options,
+  value,
+  onSelect,
+  anchor,
+}: {
+  label: string;
+  options: readonly { value: V; label: string }[];
+  value: V;
+  onSelect: (next: V) => void;
+  anchor: (value: V) => TourAnchorAttrs;
+}): React.ReactElement {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={(e) =>
+        handleRadioGroupKeyDown(e, options, (o) => onSelect(o.value))
+      }
+      className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white"
+    >
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            tabIndex={active ? 0 : -1}
+            onClick={() => onSelect(opt.value)}
+            {...anchor(opt.value)}
+            className={
+              'px-3 py-1.5 text-xs font-bold transition ' +
+              (active
+                ? 'bg-brand-blue-primary text-white'
+                : 'text-slate-600 hover:bg-slate-50')
+            }
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

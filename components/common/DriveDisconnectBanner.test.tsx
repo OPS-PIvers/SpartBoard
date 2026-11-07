@@ -8,6 +8,12 @@ const authValue: { user: unknown; googleAccessToken: string | null } = {
   googleAccessToken: null,
 };
 
+vi.mock('@/hooks/useFirstRun', () => ({
+  useFirstRun: () => ({ quiet: false, welcomePending: false, firstRun: false }),
+}));
+vi.mock('@/components/tours/tourState', () => ({
+  useTourRunning: () => false,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ ...authValue, connectGoogleDrive: vi.fn() }),
 }));

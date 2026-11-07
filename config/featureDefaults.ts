@@ -994,6 +994,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'getting-started': {
+    label: 'Getting Started',
+    icon: Footprints,
+    description: 'Live tours and a Getting Started page for new teachers.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',

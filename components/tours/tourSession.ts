@@ -13,6 +13,10 @@ import {
   WHOLE_BOARD_ANCHOR,
 } from '@/config/tourAnchors';
 import type { TourLayoutOverride } from '@/context/dashboardCanvasStore';
+import {
+  tourConditionsHold,
+  type TourConditionCheck,
+} from '@/config/tourConditions';
 import type {
   FeaturePermission,
   GuidedLearningSet,
@@ -36,12 +40,18 @@ export const tourStepsOf = (set: GuidedLearningSet): TourStep[] =>
 const runStep = (s: GuidedLearningStep): GuidedLearningStep =>
   s.tour?.anchor === WHOLE_BOARD_ANCHOR ? { ...s, tour: undefined } : s;
 
-/** Every step a live tour plays on the board, anchored or plain; none for a non-tour set or a web tour. */
+/** Every step a live tour plays on the board, anchored or plain; none for a non-tour set or a web tour. With `check`, steps whose show conditions fail drop out. */
 export const liveTourStepsOf = (
-  set: Pick<GuidedLearningSet, 'mode' | 'steps' | 'surface'>
+  set: Pick<GuidedLearningSet, 'mode' | 'steps' | 'surface'>,
+  check?: TourConditionCheck
 ): GuidedLearningStep[] =>
   isLiveTourSet(set) && !isWebTourSet(set)
-    ? set.steps.filter((s) => !s.web).map(runStep)
+    ? set.steps
+        .filter(
+          (s) =>
+            !s.web && (!check || tourConditionsHold(s.tour?.showWhen, check))
+        )
+        .map(runStep)
     : [];
 
 /** The set's welcome message when it is switched on and not blank. */

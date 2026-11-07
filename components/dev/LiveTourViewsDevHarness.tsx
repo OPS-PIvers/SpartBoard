@@ -3,6 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Dices, Clock, ListTodo, Settings2, Timer } from 'lucide-react';
 import { TourSpotlight } from '@/components/tours/TourSpotlight';
 import { TourTip, type TourTipStatus } from '@/components/tours/TourTip';
+import {
+  SPARTY_POSE_IDS,
+  type SpartyPose,
+} from '@/components/sparty/spartyFrames';
+
+// ?sparty=<pose> perches Sparty on the tip.
+const readSparty = (): SpartyPose | undefined => {
+  const q = new URLSearchParams(window.location.search).get('sparty');
+  return SPARTY_POSE_IDS.find((pose) => pose === q);
+};
 import { TourBar } from '@/components/tours/TourBar';
 import { centreTip } from '@/components/tours/tipPlacement';
 import { TourEditorPanel } from '@/components/tours/editor/TourEditorPanel';
@@ -526,6 +536,8 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           width={placement ? placement.width : width}
           tether={tether}
           plain={!target}
+          sparty={readSparty()}
+          avoid={target}
           animate
           title={step.title}
           looking={false}

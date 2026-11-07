@@ -165,7 +165,11 @@ const TOUR_KEYS = new Set([
   'slot',
   'spawns',
   'layoutKeyframes',
+  'showWhen',
+  'doneWhen',
 ]);
+// The runner measures a drag on the widget window and a resize on its corner handle.
+const MEASURED_ANCHOR = { drag: 'widget.window', resize: 'widget.resize-handle' };
 // Proportional layouts are fractions of the safe board; allow rounding at the edges.
 const PROP_SLACK = 0.01;
 // row-<n> and list.<n>.field refs point at whatever sits in that position on the teacher's board.
@@ -288,9 +292,20 @@ function validateTour(step, path, ctx) {
     toggle: 'boolean',
     select: 'string',
     type: 'string',
+    drag: 'undefined',
+    resize: 'undefined',
   }[tour.action];
   if (!valueType) {
-    fail(`${path}.tour.action must be click, observe, toggle, select or type`);
+    fail(
+      `${path}.tour.action must be click, observe, toggle, select, type, drag or resize`
+    );
+  } else if (
+    MEASURED_ANCHOR[tour.action] &&
+    String(tour.anchor).split(':')[0] !== MEASURED_ANCHOR[tour.action]
+  ) {
+    fail(
+      `${path}.tour: a ${tour.action} step points at "${MEASURED_ANCHOR[tour.action]}:<type>"`
+    );
   } else if (typeof tour.value !== valueType) {
     fail(
       valueType === 'undefined'

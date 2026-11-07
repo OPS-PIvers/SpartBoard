@@ -1,5 +1,11 @@
 // A MathLive equation box whose value is plain math text, e.g. "(x+1)/2".
-import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Loader2 } from 'lucide-react';
 import type { MathfieldElement } from 'mathlive';
 import { tidyAsciiMath } from '@/utils/mathAnswer';
@@ -67,6 +73,22 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
         mf.style.background = 'transparent';
         mf.style.border = 'none';
         mf.style.outline = 'none';
+        // Light colors on dark-mode devices, and no shading behind the fraction being typed.
+        mf.style.setProperty(
+          '--contains-highlight-background-color',
+          'transparent'
+        );
+        mf.style.setProperty(
+          '--selection-background-color',
+          'hsl(212, 70%, 85%)'
+        );
+        mf.style.setProperty('--selection-color', '#000');
+        mf.style.setProperty('--caret-color', 'hsl(212, 40%, 49%)');
+        mf.style.setProperty(
+          '--contains-highlight-color',
+          'hsl(212, 40%, 49%)'
+        );
+        mf.style.setProperty('--smart-fence-color', 'currentColor');
         mf.value =
           start.initialLatex ?? ml.convertAsciiMathToLatex(start.value);
         const current = mf;
@@ -78,6 +100,8 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
           }
         });
         host.append(current);
+        // Hide the formatting menu: its colors, fonts and text mode don't grade.
+        current.menuItems = [];
         fieldRef.current = current;
         setReady(true);
         if (
@@ -96,6 +120,16 @@ const MathAnswerField: React.FC<MathAnswerFieldProps> = ({
       cancelled = true;
       mf?.remove();
       fieldRef.current = null;
+    };
+  }, []);
+
+  // A field removed while focused never fires the blur that hides the keyboard; check before the DOM goes.
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    return () => {
+      if (host?.querySelector<MathfieldElement>('math-field')?.hasFocus()) {
+        window.mathVirtualKeyboard.hide();
+      }
     };
   }, []);
 
