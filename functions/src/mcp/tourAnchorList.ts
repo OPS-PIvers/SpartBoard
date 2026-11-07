@@ -56156,17 +56156,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.prompt-dialog",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.new-board"
-        ],
-        "opened_by": [
-          "boards-modal.new-collection",
-          "board-nav.new-board",
-          "board-nav.new-collection"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -56175,21 +56166,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Confirm button in the shared prompt dialog (Create, Save, OK)",
     "scope": "board",
     "panel": true,
-    "closes": "own",
     "routes": [
       {
         "surface": "board.prompt-dialog",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.new-board"
-        ],
-        "opened_by": [
-          "boards-modal.new-collection",
-          "board-nav.new-board",
-          "board-nav.new-collection"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -56199,21 +56180,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "destructive": true,
-    "closes": "own",
     "routes": [
       {
         "surface": "board.prompt-dialog",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.new-board"
-        ],
-        "opened_by": [
-          "boards-modal.new-collection",
-          "board-nav.new-board",
-          "board-nav.new-collection"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -56222,21 +56193,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the shared prompt dialog",
     "scope": "board",
     "panel": true,
-    "closes": "own",
     "routes": [
       {
         "surface": "board.prompt-dialog",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.new-board"
-        ],
-        "opened_by": [
-          "boards-modal.new-collection",
-          "board-nav.new-board",
-          "board-nav.new-collection"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -56246,21 +56207,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "destructive": true,
-    "closes": "own",
     "routes": [
       {
         "surface": "board.prompt-dialog",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.new-board"
-        ],
-        "opened_by": [
-          "boards-modal.new-collection",
-          "board-nav.new-board",
-          "board-nav.new-collection"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -56269,21 +56220,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in an \"Are you sure?\" dialog",
     "scope": "board",
     "panel": true,
-    "closes": "own",
     "routes": [
       {
         "surface": "board.prompt-dialog",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.new-board"
-        ],
-        "opened_by": [
-          "boards-modal.new-collection",
-          "board-nav.new-board",
-          "board-nav.new-collection"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -56292,21 +56233,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "OK button in a message dialog",
     "scope": "board",
     "panel": true,
-    "closes": "own",
     "routes": [
       {
         "surface": "board.prompt-dialog",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.new-board"
-        ],
-        "opened_by": [
-          "boards-modal.new-collection",
-          "board-nav.new-board",
-          "board-nav.new-collection"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },

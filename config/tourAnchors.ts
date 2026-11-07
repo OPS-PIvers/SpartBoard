@@ -12450,34 +12450,28 @@ export const TOUR_ANCHORS = {
   'prompt-dialog.confirm': {
     label: 'Confirm button in the shared prompt dialog (Create, Save, OK)',
     panel: true,
-    closes: 'own',
   },
   'prompt-dialog.cancel': {
     label: 'X (cancel) button in the shared prompt dialog',
     panel: true,
     destructive: true,
-    closes: 'own',
   },
   'prompt-dialog.cancel-button': {
     label: 'Cancel button in the shared prompt dialog',
     panel: true,
-    closes: 'own',
   },
   'confirm-dialog.confirm': {
     label: 'Confirm button in an "Are you sure?" dialog',
     panel: true,
     destructive: true,
-    closes: 'own',
   },
   'confirm-dialog.cancel': {
     label: 'Cancel button in an "Are you sure?" dialog',
     panel: true,
-    closes: 'own',
   },
   'alert-dialog.ok': {
     label: 'OK button in a message dialog',
     panel: true,
-    closes: 'own',
   },
   'boards-modal.clear-selection': {
     label: 'Clear selection button in the Manage Boards bulk bar',
