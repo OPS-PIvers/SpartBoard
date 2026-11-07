@@ -947,3 +947,155 @@ describe('plcs/{plcId} — removed entries keep no authority', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// The lead's broad update keeps memberUids in step with the members map (A5).
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId} update — broad lead branch keeps memberUids in step', () => {
+  const plcRef = () => doc(asLead(), `plcs/${PLC_ID}`);
+  const allEmails = {
+    [LEAD_UID]: LEAD_EMAIL,
+    [MEMBER_UID]: MEMBER_EMAIL,
+    [OTHER_UID]: OTHER_EMAIL,
+  };
+
+  it('rejects the lead adding a uid to memberUids with no map entry', async () => {
+    await assertFails(
+      updateDoc(plcRef(), {
+        memberUids: [LEAD_UID, MEMBER_UID, OTHER_UID, NON_MEMBER_UID],
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects the lead marking a member removed while keeping them in memberUids', async () => {
+    await assertFails(
+      updateDoc(plcRef(), {
+        [`members.${OTHER_UID}`]: member(
+          OTHER_UID,
+          OTHER_EMAIL,
+          'member',
+          'removed'
+        ),
+        removeMemberUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('the lead can drop a removed-but-still-indexed member by naming them', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(
+          OTHER_UID,
+          OTHER_EMAIL,
+          'member',
+          'removed'
+        ),
+      });
+    });
+    await assertSucceeds(
+      updateDoc(plcRef(), {
+        memberUids: [LEAD_UID, MEMBER_UID],
+        memberEmails: { [LEAD_UID]: LEAD_EMAIL, [MEMBER_UID]: MEMBER_EMAIL },
+        removeMemberUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('a stale removeMemberUid naming a rejoined member does not block a rename', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        removeMemberUid: OTHER_UID,
+      });
+    });
+    await assertSucceeds(
+      updateDoc(plcRef(), {
+        name: 'Renamed',
+        memberEmails: allEmails,
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
+describe('plcs/{plcId} update — role change keeps the target active', () => {
+  it('rejects a role change that marks an indexed member removed', async () => {
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(
+          OTHER_UID,
+          OTHER_EMAIL,
+          'member',
+          'removed'
+        ),
+        roleChangeUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a role change on a departed member who left memberUids', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(
+          OTHER_UID,
+          OTHER_EMAIL,
+          'member',
+          'removed'
+        ),
+        memberUids: [LEAD_UID, MEMBER_UID],
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(OTHER_UID, OTHER_EMAIL, 'coLead'),
+        roleChangeUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('the lead can still make an active member a viewer', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(OTHER_UID, OTHER_EMAIL, 'viewer'),
+        roleChangeUid: OTHER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
+describe('plc_invitations — manager writes are pending only', () => {
+  const inviteId = `plc_invitations/${PLC_ID}_${NON_MEMBER_EMAIL}`;
+  const invite = (status: string) => ({
+    plcId: PLC_ID,
+    plcName: 'Test PLC',
+    inviteeEmailLower: NON_MEMBER_EMAIL,
+    invitedByUid: LEAD_UID,
+    status,
+    invitedAt: 1,
+  });
+
+  it('the lead can create and re-send a pending invite', async () => {
+    await assertSucceeds(setDoc(doc(asLead(), inviteId), invite('pending')));
+    await assertSucceeds(setDoc(doc(asLead(), inviteId), invite('pending')));
+    await assertSucceeds(getDoc(doc(asLead(), inviteId)));
+  });
+
+  it('rejects the lead creating an invite in any other status', async () => {
+    await assertFails(setDoc(doc(asLead(), inviteId), invite('accepted')));
+    await assertFails(setDoc(doc(asLead(), inviteId), invite('declined')));
+  });
+
+  it('rejects the lead re-arming an accepted invite as accepted', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), inviteId), invite('accepted'));
+    });
+    await assertFails(setDoc(doc(asLead(), inviteId), invite('accepted')));
+    await assertSucceeds(setDoc(doc(asLead(), inviteId), invite('pending')));
+  });
+});

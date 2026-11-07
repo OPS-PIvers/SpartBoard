@@ -2556,8 +2556,9 @@ service cloud.firestore {
 
     // Guards the broad sitting-lead update branch against minting a second lead
     // (Decision 1.2). Its only permitted members mutation is a single-member REMOVAL
-    // named by the transient `removeMemberUid` pointer. Returns true when members is
-    // untouched, so rename / tenancy-backfill writes still pass.
+    // named by the transient `removeMemberUid` pointer, and that member leaves memberUids.
+    // memberUids may only shrink here. Returns true when members is untouched, so
+    // rename / tenancy-backfill writes still pass.
     // shorthands: off (PLC membership transitions run close to the 1,000-expression limit)
     function plcBroadMembersOk() {
       let touchesMembers =
@@ -2567,8 +2568,12 @@ service cloud.firestore {
       let memberDiff = newMembers
         .diff(resource.data.get('members', {}))
         .affectedKeys();
-      return !touchesMembers
-        || (
+      let newUids = request.resource.data.memberUids;
+      // memberUids never gains a uid here (adds go through accept or admin edit).
+      return resource.data.memberUids.hasAll(newUids)
+        && (
+          !touchesMembers
+          || (
              // The sitting lead must stay lead (no self-demote via this path).
              plcLeadRoleUnchanged(resource.data, request.resource.data)
              // A removal pointer is supplied and names the sole changed entry.
@@ -2579,7 +2584,9 @@ service cloud.firestore {
              && removed != resource.data.get('leadUid', '')
              && (removed in resource.data.get('members', {}))
              && newMembers[removed].status == 'removed'
-           );
+             && !(removed in newUids)
+           )
+        );
     }
 
     // True iff the update is the caller self-adding to memberUids (accepting an
@@ -2922,16 +2929,10 @@ service cloud.firestore {
         && target != resource.data.get('leadUid', '')
         // …to a non-lead role (coLead | member | viewer) — never 'lead'.
         && request.resource.data.members[target].role in ['coLead', 'member', 'viewer']
-        // The changed member must already be a member — in the map, or (invite accept
-        // writes only the arrays) in memberUids and written in as active. Role changes
-        // don't add/drop people (that's invite/leave/remove).
-        && (
-             (target in resource.data.get('members', {}))
-             || (
-                  (target in resource.data.memberUids)
-                  && request.resource.data.members[target].status == 'active'
-                )
-           )
+        // The target is a current member (in memberUids, keyed or array-only) and stays
+        // active. Role changes don't add, drop or mark people removed (invite/leave/remove).
+        && (target in resource.data.memberUids)
+        && request.resource.data.members[target].status == 'active'
         && request.resource.data.members[target].uid == target
         && plcUpdatedAtOk();
     }
@@ -4607,6 +4608,8 @@ service cloud.firestore {
         // back to the denormalized leadUid mirror) so it covers both shapes.
         && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(incoming().plcId)).data)
         && inviteId == plcInviteDocId(incoming().plcId, incoming().inviteeEmailLower)
+        // A send or re-send is always pending; accepted/declined come only from the invitee.
+        && incoming().status == 'pending'
         // Schema lock (L-1): pin the invite doc shape so a manager can't inject
         // arbitrary fields future code/rules might trust. `orgId` is optional.
         && incoming().keys().hasOnly([

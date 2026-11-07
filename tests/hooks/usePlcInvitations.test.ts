@@ -179,8 +179,10 @@ describe('usePlcInvitations — acceptInvite', () => {
 
     const { result } = renderHook(() => usePlcInvitations());
     await expect(result.current.acceptInvite(makeInvite())).rejects.toThrow(
-      /membership did not apply/i
+      /could not accept this invitation/i
     );
+    // The invite stays pending so the invitee can try again.
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
   });
 
   it('throws actionable error when fallback membership-verify itself permission-denies', async () => {
@@ -196,8 +198,43 @@ describe('usePlcInvitations — acceptInvite', () => {
 
     const { result } = renderHook(() => usePlcInvitations());
     await expect(result.current.acceptInvite(makeInvite())).rejects.toThrow(
-      /membership did not apply/i
+      /could not accept this invitation/i
     );
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('treats a denied close-out as joined when membership is confirmed', async () => {
+    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ memberUids: ['lead-uid', 'invitee-uid'] }),
+    });
+    (firestore.updateDoc as unknown as Mock).mockRejectedValueOnce(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+
+    const { result } = renderHook(() => usePlcInvitations());
+    await expect(
+      result.current.acceptInvite(makeInvite())
+    ).resolves.toBeUndefined();
+  });
+
+  it('leaves the invite pending when the group no longer exists', async () => {
+    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
+      exists: () => false,
+      data: () => undefined,
+    });
+
+    const { result } = renderHook(() => usePlcInvitations());
+    await expect(result.current.acceptInvite(makeInvite())).rejects.toThrow(
+      /could not accept this invitation/i
+    );
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
   });
 
   it('rethrows non-permission errors from the transaction', async () => {
