@@ -74463,6 +74463,89 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.present-back",
+    "label": "Back to library button in the Flashcards widget on the board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-mode",
+    "label": "Mode button above the cards in the Flashcards widget on the board",
+    "scope": "field",
+    "key_pattern": "flashcards#(flashcards|speak)",
+    "key_hint": "flashcards#flashcards is the Flashcards mode button",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-settings",
+    "label": "Settings button in the Flashcards widget on the board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-settings-close",
+    "label": "Close button of the Flashcards settings panel on the board",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-show-first",
+    "label": "Term or Definition option in the Flashcards settings panel",
+    "scope": "field",
+    "panel": true,
+    "keys": [
+      "flashcards#definition",
+      "flashcards#term"
+    ],
+    "key_pattern": "flashcards#(term|definition)",
+    "key_hint": "flashcards#term shows the term side first",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-shuffle",
+    "label": "Shuffle switch in the Flashcards settings panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
     "id": "flashcards.public-link",
     "label": "Share link box in the flashcard Share dialog",
     "scope": "widget type",

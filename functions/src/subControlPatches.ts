@@ -82,6 +82,15 @@ export function controlPatches(
   };
 }
 
+/** True when pausedAt starts a pause no Resume has closed yet. Mirrors `hasOpenPause` in utils/quizTimeLimit.ts. */
+export function hasOpenPause(spans: unknown, pausedAt: unknown): boolean {
+  const prior = Array.isArray(spans)
+    ? (spans as { from: number; to: number }[])
+    : [];
+  const lastTo = prior.length ? prior[prior.length - 1].to : 0;
+  return typeof pausedAt === 'number' && pausedAt > lastTo;
+}
+
 /** The span list with this Resume added (newest 100); null when the run was not paused. Mirrors `appendPauseSpan` in utils/quizTimeLimit.ts. */
 export function appendPauseSpan(
   spans: unknown,

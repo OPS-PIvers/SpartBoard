@@ -131,6 +131,8 @@ doc, submission doc, and pseudonym UID is derived from it.
 firebase functions:secrets:set STUDENT_PSEUDONYM_HMAC_SECRET
 ```
 
+Release deploys update only the functions whose code changed, and a function keeps the secret version it was deployed with. After setting any function secret on prod, run Actions > Deployment > Run workflow with `full_backend` so every function picks up the new version.
+
 **Rotation rules — read before touching:**
 
 - **NEVER rotate during a semester.** Rotation invalidates every pseudonym in
