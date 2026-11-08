@@ -941,7 +941,7 @@ export const createTeammatePaperBatchV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     return handleCreateTeammatePaperBatch(
       admin.firestore(),
       request.auth
@@ -967,7 +967,7 @@ export const withdrawTeammatePaperBatchV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     return handleWithdrawTeammatePaperBatch(
       admin.firestore(),
       request.auth

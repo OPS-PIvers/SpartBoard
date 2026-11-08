@@ -115,7 +115,7 @@ export const hearSpeakIpaV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<{ audio: string }> => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     const auth = request.auth;
     if (!auth) throw new HttpsError('unauthenticated', 'Sign in first.');
     if (!(await isAiTeacherCaller(admin.firestore(), auth.token))) {

@@ -11,7 +11,7 @@ export const TOUR_ANCHOR_QUEUE_COLLECTION = 'tour_anchor_queue';
 export const TOUR_ANCHOR_BATCHES_COLLECTION = 'tour_anchor_batches';
 
 export type TourAnchorQueueStatus =
-  'open' | 'pr-open' | 'mapped' | 'rebound' | 'needs-human';
+  'open' | 'pr-open' | 'rebound' | 'needs-human';
 
 export interface TourAnchorAncestor {
   tag: string;
@@ -91,7 +91,6 @@ const optStr = (v: unknown) => (typeof v === 'string' ? v : undefined);
 const STATUSES: readonly TourAnchorQueueStatus[] = [
   'open',
   'pr-open',
-  'mapped',
   'rebound',
   'needs-human',
 ];
@@ -103,7 +102,9 @@ export function parseQueueItem(
 ): TourAnchorQueueItem | null {
   if (!data || typeof data !== 'object') return null;
   const d = data as Record<string, unknown>;
-  const status = STATUSES.find((s) => s === d.status);
+  // A stored 'mapped' is a retired value no code writes; read it as pr-open.
+  const status =
+    d.status === 'mapped' ? 'pr-open' : STATUSES.find((s) => s === d.status);
   if (!status) return null;
   const ancestors = Array.isArray(d.ancestors)
     ? d.ancestors.flatMap((a: unknown) => {

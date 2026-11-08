@@ -195,6 +195,11 @@ export interface ClassRosterMeta {
   classlinkPeriods?: string[];
   /** Counts from the last nightly sync. Names stay in Drive (`lastSync`). */
   classlinkSyncSummary?: RosterSyncCounts;
+  /** Set by the nightly sync when it refused to change this roster; cleared on the next good sync. */
+  classlinkSyncBlocked?: {
+    reason: 'empty-upstream' | 'mass-removal';
+    at: number;
+  };
   /**
    * Google Classroom `courseId` this ClassLink roster is linked to, set via the
    * "Link to Google Classroom" action. Mirrors the canonical mapping stored at
@@ -5420,6 +5425,12 @@ export interface PeriodAccessSessionFields {
   pausedAt?: number;
 }
 
+/** One closed pause, epoch ms; the overall time limit does not run through it. */
+export interface PauseSpan {
+  from: number;
+  to: number;
+}
+
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
 export interface QuizSession
   extends
@@ -5440,6 +5451,8 @@ export interface QuizSession
   /** ms when the PLC link was written (assign time or a retroactive link). */
   plcLinkedAt?: number;
   status: QuizSessionStatus;
+  /** Closed pauses, newest last; each Resume appends one. */
+  pauseSpans?: PauseSpan[];
   sessionMode: QuizSessionMode;
   /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
@@ -8272,6 +8285,13 @@ export interface NextUpSession {
   createdAt: number;
   lastUpdated: number;
   buildingId?: string; // For default settings
+  /** The teacher tab that moves joins into the queue. */
+  drainLease?: NextUpDrainLease;
+}
+
+export interface NextUpDrainLease {
+  clientId: string;
+  seq: number;
 }
 
 // Music widget types
@@ -10751,6 +10771,8 @@ export interface Dashboard {
   claudeAction?: 'created' | 'edited';
   /** True until the teacher opens the board after Claude's change; drives the Boards list badge. */
   claudeUnseen?: boolean;
+  /** Last trigger value each widget acted on, so one device acts per Timer or Connection trigger (utils/boardTriggerClaim.ts). */
+  triggerClaims?: Record<string, number>;
   /** Teacher-made Connections between this board's widgets (docs/adr/0002). */
   connections?: WidgetConnection[];
 }

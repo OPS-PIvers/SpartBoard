@@ -351,7 +351,7 @@ export const studentLoginV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const rawIdToken = (request.data as { idToken?: unknown })?.idToken;
     const idToken = typeof rawIdToken === 'string' ? rawIdToken : '';
     if (!idToken) {
@@ -562,8 +562,8 @@ export const getAssignmentPseudonymV1 = onCall(
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
   },
-  (request) => {
-    assertViewAsAllowed(request, { read: true });
+  async (request) => {
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -635,7 +635,7 @@ export const getStudentClassDirectoryV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -876,7 +876,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -1420,7 +1420,7 @@ export const commitRosterPinIndexV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -1930,7 +1930,7 @@ export const pinLoginV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     // Both join flows sign in anonymously first; the uid keys the attempt limit.
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');

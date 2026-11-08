@@ -32,7 +32,7 @@ export const finalizePlcRecordingV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const uid = requireUid(request);
     const { plcId, recordingId } = parseRecordingRequest(request.data);
     const result = await finalizeAsRecorder(
@@ -56,7 +56,7 @@ export const deletePlcRecordingAudioV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const uid = requireUid(request);
     const { plcId, recordingId } = parseRecordingRequest(request.data);
     return deleteAudioAsEditor(defaultRecordingDeps(), uid, plcId, recordingId);

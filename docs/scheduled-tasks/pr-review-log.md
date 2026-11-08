@@ -5037,22 +5037,11 @@ rather than "no data") is also still open.
   - Ready with minor notes: #5116 (non-transactional first-grant write, which is harmless; the managed grant's `clientName` is set only when it is created).
 - Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
 
-## 2026-11-05
+## 2026-11-07
 
-- PRs reviewed: #5198 lint: give ESLint a 6 GB heap; #5196 docs: nightly debugger log, run 115; #5195 Rubric CSV import: physical line numbers after multi-line cells; #5194 Concept Web admin: stop node size fields clamping on every keystroke; #5193 Music: clip YouTube title/channel without splitting emoji; #5179 Unifier run 137: aligned (light probe)
-- Comments processed: 4 total. 0 fixed, 0 needing a reply. All four were claude[bot] "no issues" summaries (#5198, #5195, #5194, #5193). No PR had inline review threads.
+- PRs reviewed: #5355 chore(code-structure): delete unused geminiModelDeprecation util
+- Comments processed: 1 total. 0 fixed, 0 needing a reply. The only comment was a claude[bot] "no issues" summary. There were no inline review threads.
 - Fixes pushed: none
-- Reviews posted: 6
-  - Ready: #5196, #5195, #5194, #5193, #5179.
-  - Ready with minor notes: #5198. Its new `spawnSync` args line is not Prettier-formatted. CI won't catch it, because `format:check` and lint-staged skip `.mjs` files.
-- Notes: GitHub access went through MCP. The `gh` token was invalid. No code fixes were made, so I ran no local type-check, lint or tests.
-
-## 2026-11-06
-
-- PRs reviewed: #5279 docs: debugger run 116 log; #5278 minifyRules CLI honors its path argument without --map; #5277 View As log prints live Firestore Timestamps as dates; #5276 rubric CSV export formula guard; #5275 Enter no longer starts a second Layout Generator run; #5274 hide Reset when a structured value deep-equals its default; #5269 docs: unifier run 138 (aligned)
-- Comments processed: 3 total. 0 fixed, 0 needing a reply. All three were claude[bot] "no issues" summaries (#5278, #5277, #5276). No PR had inline review threads.
-- Fixes pushed: none
-- Reviews posted: 7
-  - Ready: #5278, #5277, #5276, #5274, #5269.
-  - Ready with minor notes: #5275 (while the View As confirm prompt is open, `isGenerating` is still false, so a second Enter could queue another confirm); #5279 (new Backlog rows have 2 cells, but the table has 4).
-- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.
+- Reviews posted: 1
+  - Ready with minor notes: #5355. The deleted test also checked that `KNOWN_GEMINI_MODELS` offers nothing the server would reject, and no other test covers that now. The single-consumer utils list in `code-structure.md` still names the deleted file.
+- Notes: GitHub access went through MCP. CI on #5355 was already green. No code fixes were made, so I ran no local type-check, lint or tests.

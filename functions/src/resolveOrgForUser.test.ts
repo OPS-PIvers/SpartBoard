@@ -10,41 +10,64 @@ const docGetMock = vi.fn();
 const docCreateMock = vi.fn();
 const docUpdateMock = vi.fn();
 const docMock = vi.fn((path: string) => ({
+  path,
   get: () => docGetMock(path) as Promise<unknown>,
   create: (data: unknown) => docCreateMock(path, data) as Promise<unknown>,
   update: (data: unknown, pre: unknown) =>
     docUpdateMock(path, data, pre) as Promise<unknown>,
 }));
 
-// Collection queries: mock-class membership and the matched domain doc.
+// Collection queries: mock-class membership, the matched domain doc and the member's invite tokens.
 const mockClassHit = { value: false };
 const domainRole: { value: string | undefined } = { value: 'primary' };
+const inviteTokens: { value: Record<string, unknown>[] } = { value: [] };
 const collectionMock = vi.fn((path: string) => {
   const query = {
     where: () => query,
     limit: () => query,
     get: () =>
       Promise.resolve(
-        path.endsWith('/testClasses')
-          ? { empty: !mockClassHit.value }
-          : {
-              empty: false,
-              docs: [
-                {
-                  get: (f: string) =>
-                    f === 'role' ? domainRole.value : undefined,
-                },
-              ],
+        path.endsWith('/invitations')
+          ? {
+              docs: inviteTokens.value.map((t) => ({
+                ref: { path: `${path}/${String(t.token)}` },
+                get: (f: string) => t[f],
+              })),
             }
+          : path.endsWith('/testClasses')
+            ? { empty: !mockClassHit.value }
+            : {
+                empty: false,
+                docs: [
+                  {
+                    get: (f: string) =>
+                      f === 'role' ? domainRole.value : undefined,
+                  },
+                ],
+              }
       ),
   };
   return query;
 });
 
+// Sign-in activation commits the member and its open tokens in one batch.
+const batchUpdateMock = vi.fn();
+const batchCommitMock = vi.fn();
+const batchMock = vi.fn(() => ({
+  update: (ref: { path: string }, data: unknown, pre?: unknown) => {
+    batchUpdateMock(ref.path, data, pre);
+  },
+  commit: () => batchCommitMock() as Promise<unknown>,
+}));
+
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
-  firestore: () => ({ doc: docMock, collection: collectionMock }),
+  firestore: () => ({
+    doc: docMock,
+    collection: collectionMock,
+    batch: batchMock,
+  }),
 }));
 
 vi.mock('firebase-functions/v2/https', () => {
@@ -301,6 +324,10 @@ describe('resolveOrgForUser auto-enrollment', () => {
     fetchOneRosterUsersMock.mockResolvedValue([{ role: 'teacher' }]);
     mockClassHit.value = false;
     domainRole.value = 'primary';
+    inviteTokens.value = [];
+    batchUpdateMock.mockReset();
+    batchCommitMock.mockReset();
+    batchCommitMock.mockResolvedValue(undefined);
   });
 
   const scriptDocs = (opts: {
@@ -308,8 +335,15 @@ describe('resolveOrgForUser auto-enrollment', () => {
     autoEnrollDomainUsers?: boolean;
     isAdmin?: boolean;
     member?: Record<string, unknown>;
+    removed?: boolean;
   }): void => {
     docGetMock.mockImplementation((path: string) => {
+      if (
+        path ===
+        'organizations/orono/removedMembers/new.teacher@orono.k12.mn.us'
+      ) {
+        return Promise.resolve({ exists: opts.removed === true });
+      }
       if (path === 'admins/new.teacher@orono.k12.mn.us') {
         return Promise.resolve({ exists: opts.isAdmin === true });
       }
@@ -330,8 +364,29 @@ describe('resolveOrgForUser auto-enrollment', () => {
               : undefined,
         });
       }
+      const viewAsDoc = VIEW_AS_DOCS[path];
+      if (viewAsDoc) {
+        return Promise.resolve({
+          exists: true,
+          data: () => viewAsDoc,
+          get: (field: string) => viewAsDoc[field],
+        });
+      }
+      if (path === 'admin_settings/user_roles') {
+        return Promise.resolve({ exists: false });
+      }
       throw new Error('unexpected doc read: ' + path);
     });
+  };
+  const VIEW_AS_DOCS: Record<string, Record<string, unknown>> = {
+    'view_as_sessions/s1': {
+      by: 'boss@x',
+      targetUid: 'uid-1',
+      expiresAt: 9e15,
+      endedAt: null,
+    },
+    'admin_settings/view_as': { enabled: true },
+    'organizations/orono/members/boss@x': { roleId: 'super_admin' },
   };
 
   it('creates an active teacher member doc on first verified sign-in', async () => {
@@ -350,6 +405,21 @@ describe('resolveOrgForUser auto-enrollment', () => {
       uid: 'uid-1',
       addedBySource: 'auto-enroll:resolveOrgForUser',
     });
+  });
+
+  it('does not re-enroll staff an admin removed from the org', async () => {
+    scriptDocs({ memberExists: false, removed: true });
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('still flags a removed ClassLink student so they leave the teacher app', async () => {
+    fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+    scriptDocs({ memberExists: false, removed: true });
+    const res = await handler({ auth: verifiedAuth, data: {} });
+    expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
+    expect(docCreateMock).not.toHaveBeenCalled();
   });
 
   it('never enrolls a ClassLink student, but still resolves', async () => {
@@ -461,16 +531,20 @@ describe('resolveOrgForUser auto-enrollment', () => {
     expect(docUpdateMock).not.toHaveBeenCalled();
   });
 
+  const TOKENS = 'organizations/orono/invitations';
+  const LIVE = '2099-01-01T00:00:00.000Z';
+  const PAST = '2020-01-01T00:00:00.000Z';
+
   it('marks an invited staff member active on sign-in, keeping role and buildings', async () => {
     scriptDocs({
       memberExists: true,
       member: { status: 'invited', roleId: 'teacher', buildingIds: ['b1'] },
     });
-    docUpdateMock.mockResolvedValue(undefined);
     const res = await handler({ auth: verifiedAuth, data: {} });
     expect(res).toEqual({ orgId: 'orono' });
     expect(docCreateMock).not.toHaveBeenCalled();
-    const [path, data, pre] = docUpdateMock.mock.calls[0] as [
+    expect(docUpdateMock).not.toHaveBeenCalled();
+    const [path, data, pre] = batchUpdateMock.mock.calls[0] as [
       string,
       Record<string, unknown>,
       unknown,
@@ -479,6 +553,51 @@ describe('resolveOrgForUser auto-enrollment', () => {
     expect(Object.keys(data).sort()).toEqual(['lastActive', 'status', 'uid']);
     expect(data).toMatchObject({ status: 'active', uid: 'uid-1' });
     expect(pre).toEqual({ lastUpdateTime: 'T1' });
+    expect(batchCommitMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('claims the open, unexpired invite links in the same write as the activation', async () => {
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'invited', roleId: 'teacher' },
+    });
+    inviteTokens.value = [
+      { token: 'live', expiresAt: LIVE },
+      { token: 'old', expiresAt: PAST },
+      { token: 'used', expiresAt: LIVE, claimedAt: PAST },
+    ];
+    await handler({ auth: verifiedAuth, data: {} });
+    const paths = batchUpdateMock.mock.calls.map((c) => c[0] as string);
+    expect(paths).toEqual([MEMBER_PATH, `${TOKENS}/live`]);
+    expect(batchUpdateMock.mock.calls[1][1]).toMatchObject({
+      claimedByUid: 'uid-1',
+      claimedAt: expect.any(String) as string,
+    });
+  });
+
+  it('still activates on sign-in when every invite link has expired, as before', async () => {
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'invited', roleId: 'teacher' },
+    });
+    inviteTokens.value = [{ token: 'old', expiresAt: PAST }];
+    await handler({ auth: verifiedAuth, data: {} });
+    expect(batchUpdateMock.mock.calls.map((c) => c[0] as string)).toEqual([
+      MEMBER_PATH,
+    ]);
+    expect(batchCommitMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('activates a member an admin marked invited by hand (no invite link)', async () => {
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'invited', roleId: 'teacher' },
+    });
+    inviteTokens.value = [{ token: 'used', expiresAt: PAST, claimedAt: PAST }];
+    await handler({ auth: verifiedAuth, data: {} });
+    expect(batchUpdateMock.mock.calls.map((c) => c[0] as string)).toEqual([
+      MEMBER_PATH,
+    ]);
   });
 
   it('never activates a deactivated, student or already active member doc', async () => {
@@ -488,9 +607,11 @@ describe('resolveOrgForUser auto-enrollment', () => {
       { status: 'active', roleId: 'teacher' },
     ]) {
       scriptDocs({ memberExists: true, member });
+      inviteTokens.value = [{ token: 'live', expiresAt: LIVE }];
       await handler({ auth: verifiedAuth, data: {} });
     }
     expect(docUpdateMock).not.toHaveBeenCalled();
+    expect(batchUpdateMock).not.toHaveBeenCalled();
   });
 
   it('ignores a lost race with an admin edit', async () => {
@@ -498,7 +619,9 @@ describe('resolveOrgForUser auto-enrollment', () => {
       memberExists: true,
       member: { status: 'invited', roleId: 'teacher' },
     });
-    docUpdateMock.mockRejectedValue(Object.assign(new Error('x'), { code: 9 }));
+    batchCommitMock.mockRejectedValue(
+      Object.assign(new Error('x'), { code: 9 })
+    );
     const res = await handler({ auth: verifiedAuth, data: {} });
     expect(res).toEqual({ orgId: 'orono' });
   });

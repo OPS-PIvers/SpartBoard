@@ -213,8 +213,8 @@ export const getMyQuizAttemptsV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
-    assertViewAsAllowed(request, { read: true });
+  async (request) => {
+    await assertViewAsAllowed(request, { read: true });
     return handleGetMyQuizAttempts(
       {
         db: admin.firestore(),

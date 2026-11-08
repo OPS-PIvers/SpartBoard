@@ -211,12 +211,12 @@ describe('no self-reactivation or self role change', () => {
 
   it('active admins can still deactivate another member', async () => {
     await assertSucceeds(
-      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
+      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
         status: 'inactive',
       })
     );
     await assertSucceeds(
-      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
+      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
         status: 'active',
       })
     );

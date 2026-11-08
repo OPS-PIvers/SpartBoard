@@ -956,7 +956,7 @@ export const gradebookDemoV1 = onCall(
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (currentProjectId() !== DEV_PROJECT_ID) {
       throw new HttpsError(
         'failed-precondition',

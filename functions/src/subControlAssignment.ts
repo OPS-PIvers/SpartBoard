@@ -24,6 +24,7 @@ import { withQuizSessionContent } from './quizSessionContent';
 import {
   ACTIONS,
   CONTROLLABLE_KINDS,
+  appendPauseSpan,
   controlPatches,
   type ControlAction,
   type ControlKind,
@@ -48,6 +49,16 @@ const ASSIGNMENTS: Record<ControlKind, string> = {
 
 /** Responses read when a quiz ends; a sub-launched class is one class. */
 const MAX_FINALIZED = 400;
+const IDLE_REFRESH_CUTOFF_MS = 5 * 60 * 1000;
+const BATCH_LIMIT = 450;
+
+function timestampMillis(value: unknown): number | null {
+  if (typeof value === 'number') return value;
+  const fn = (value as { toMillis?: unknown } | null)?.toMillis;
+  return typeof fn === 'function'
+    ? (value as { toMillis: () => number }).toMillis()
+    : null;
+}
 
 export interface ControlSubAssignmentInput {
   shareId: string;
@@ -118,6 +129,33 @@ export async function finalizeQuizResponses(
   return count;
 }
 
+/** Mirror of the teacher's Resume: writes made before the run goes active keep the idle sweep off paused students. */
+async function refreshIdleResponses(
+  db: admin.firestore.Firestore,
+  sessionId: string,
+  now: number
+): Promise<void> {
+  const cutoff = now - IDLE_REFRESH_CUTOFF_MS;
+  const snap = await db
+    .collection(`quiz_sessions/${sessionId}/responses`)
+    .limit(MAX_FINALIZED)
+    .get();
+  const idle = snap.docs.filter((doc) => {
+    const data = doc.data();
+    if (data.status !== 'in-progress' && data.status !== 'joined') return false;
+    const last = timestampMillis(data.lastWriteAt);
+    return last == null || last < cutoff;
+  });
+  const stamp = admin.firestore.Timestamp.fromMillis(now);
+  for (let i = 0; i < idle.length; i += BATCH_LIMIT) {
+    const batch = db.batch();
+    for (const doc of idle.slice(i, i + BATCH_LIMIT)) {
+      batch.update(doc.ref, { lastWriteAt: stamp });
+    }
+    await batch.commit();
+  }
+}
+
 export async function handleControlSubAssignment(
   db: admin.firestore.Firestore,
   caller: SubShareCaller | null,
@@ -179,6 +217,14 @@ export async function handleControlSubAssignment(
   if (over) return { state: 'ended' };
 
   const patches = controlPatches(kind, action, now);
+  if (kind === 'quiz' && action === 'resume') {
+    await refreshIdleResponses(db, sessionId, now);
+    const spans =
+      session.status === 'paused'
+        ? appendPauseSpan(session.pauseSpans, session.pausedAt, now)
+        : null;
+    if (spans) patches.session.pauseSpans = spans;
+  }
   const batch = db.batch();
   batch.update(sessionRef, patches.session);
   batch.update(
@@ -202,7 +248,7 @@ export const controlSubAssignmentV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     return handleControlSubAssignment(
       admin.firestore(),
       request.auth

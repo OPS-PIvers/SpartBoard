@@ -47,6 +47,7 @@ import {
 } from '@/utils/quizLeaderboardNames';
 import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
 import { db, auth, functions } from '@/config/firebase';
+import { turnInResponses } from '@/utils/quizFinalizeOpenResponses';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -1489,26 +1490,11 @@ export const useQuizSessionTeacher = (
     const questionIds = (session?.publicQuestions ?? []).map((q) => q.id);
     const completenessModel = session?.completenessModel;
     const now = Date.now();
-    const results = await Promise.allSettled(
-      snap.docs
-        .filter((d) => canTeacherSubmit(d.data() as QuizResponse))
-        .map((d) =>
-          runTransaction(db, async (tx) => {
-            const fresh = await tx.get(d.ref);
-            if (!fresh.exists()) return;
-            const update = buildTeacherSubmitUpdate(
-              fresh.data() as QuizResponse,
-              { questionIds, completenessModel },
-              now
-            );
-            if (update) tx.update(d.ref, update);
-          })
-        )
+    await turnInResponses(
+      snap.docs.filter((d) => canTeacherSubmit(d.data() as QuizResponse)),
+      { questionIds, completenessModel },
+      now
     );
-    const failed = results.find(
-      (r): r is PromiseRejectedResult => r.status === 'rejected'
-    );
-    if (failed) throw failed.reason;
   }, [sessionId, session?.publicQuestions, session?.completenessModel]);
 
   const removeStudent = useCallback(
@@ -1766,7 +1752,8 @@ export const useQuizSessionTeacher = (
         target.timeUp,
         timestampMillis(target.attemptStartedAt),
         rawSession?.timeLimitMinutes,
-        Date.now()
+        Date.now(),
+        rawSession?.pauseSpans
       );
       const currentAttempts = target.completedAttempts ?? 0;
       const refundedAttempts = Math.max(0, currentAttempts - 1);
@@ -1807,7 +1794,7 @@ export const useQuizSessionTeacher = (
       }
       await batch.commit();
     },
-    [sessionId, responses, rawSession?.timeLimitMinutes]
+    [sessionId, responses, rawSession?.timeLimitMinutes, rawSession?.pauseSpans]
   );
 
   const submitForStudent = useCallback(
@@ -2104,12 +2091,12 @@ export interface UseQuizSessionStudentResult {
   commitRecordingTake: (
     input: CommitRecordingTakeInput
   ) => Promise<number | null>;
-  /** Flips one artifact's `uploadState` after the upload/archive settles. */
+  /** Flips one artifact's `uploadState` after the upload/archive settles; resolves true when the turned-in attempt is locked. */
   setArtifactUploadState: (
     questionId: string,
     artifactId: string,
     uploadState: ArtifactUploadState
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   /** Writes the terminal entry for a slot the student never filled. */
   markUnresponded: (
     questionId: string,
@@ -2227,6 +2214,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const mediaResponseEnabledRef = useRef(false);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   mediaResponseEnabledRef.current = session?.mediaResponseEnabled === true;
+  // Hybrid paper questions; once a scan is imported the rules refuse a device entry for them.
+  const paperWrittenIdsRef = useRef<readonly string[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  paperWrittenIdsRef.current = session?.paperWrittenQuestionIds ?? [];
 
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
@@ -3366,6 +3357,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const priorEntry = existingAnswers.find(
           (a) => a.questionId === questionId
         );
+        // An imported paper answer is server-written; the rules refuse a student rewrite of it.
+        if (
+          priorEntry?.paperScanId ||
+          (existing.paperWrittenBatchId &&
+            paperWrittenIdsRef.current.includes(questionId))
+        )
+          return { skip: true, snapshot: null };
 
         // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
         // that would silently clobber a non-empty saved answer with ''.
@@ -3737,10 +3735,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       questionId: string,
       artifactId: string,
       uploadState: ArtifactUploadState
-    ) => {
+    ): Promise<boolean> => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
-      if (!sessionId || !responseKey) return;
+      if (!sessionId || !responseKey) return false;
       const responseRef = doc(
         db,
         QUIZ_SESSIONS_COLLECTION,
@@ -3749,13 +3747,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         responseKey
       );
       const commit: { written: CommittedAnswers | null } = { written: null };
+      let locked = false;
       await runAnswersTx(commit, () =>
         runTransaction(db, async (tx) => {
           commit.written = null;
+          locked = false;
           const snap = await tx.get(responseRef);
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
-          if (isAnswerLocked(existing)) return;
+          if (isAnswerLocked(existing)) {
+            locked = true;
+            return;
+          }
           const existingAnswers = existing.answers ?? [];
           let changed = false;
           const updated = existingAnswers.map((a) => {
@@ -3776,6 +3779,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           commit.written = committedFromPatch(existing, { answers: updated });
         })
       );
+      return locked;
     },
     [runAnswersTx]
   );

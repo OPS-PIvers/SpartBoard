@@ -304,8 +304,9 @@ export async function autoQueueMeetingNotes(
 
 function readCharge(v: unknown): AiUsageCharge | null {
   const ids = (v as { docIds?: unknown } | null)?.docIds;
+  const id = (v as { id?: unknown } | null)?.id;
   return Array.isArray(ids) && ids.every((i) => typeof i === 'string')
-    ? { docIds: ids }
+    ? { docIds: ids, ...(typeof id === 'string' ? { id } : {}) }
     : null;
 }
 
@@ -713,7 +714,7 @@ export const requestPlcMeetingNotesV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const { uid, token } = requireAuth(request);
     return requestMeetingNotes(
       parseNotesRequest(request.data),
@@ -732,7 +733,7 @@ export const resolvePlcMeetingNotesDraftV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const { uid } = requireAuth(request);
     return resolveMeetingNotesDraft(
       parseResolveRequest(request.data),

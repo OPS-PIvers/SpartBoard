@@ -365,11 +365,12 @@ describe('building admin status changes stop at higher tiers', () => {
     );
   });
 
-  it('still lets a building admin change a teacher in their building', async () => {
+  it('still lets a building admin deactivate a teacher in their building', async () => {
     await assertSucceeds(
       updateDoc(doc(asOrgUser(BA), path(T)), { status: 'inactive' })
     );
-    await assertSucceeds(
+    // Reactivating is a domain admin's call.
+    await assertFails(
       updateDoc(doc(asOrgUser(BA), path(T)), { status: 'active' })
     );
   });

@@ -1331,6 +1331,7 @@
     "recordingDriveFailed": "Speichern auf Drive fehlgeschlagen. Lokaler Download...",
     "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download...",
     "viewLiveSession": "Informationen zur Live-Sitzung anzeigen",
+    "endLiveSession": "Live-Sitzung beenden",
     "liveSession": "Live-Sitzung",
     "noAppsSelected": "Standardwerte werden wiederhergestellt…"
   },
@@ -4431,6 +4432,8 @@
       "rebind_other": "{{count}} Schritte neu verknüpfen",
       "rebinding": "Wird neu verknüpft...",
       "rebindFailed": "Neu verknüpfen fehlgeschlagen. Versuche es erneut.",
+      "dismiss": "Verwerfen",
+      "dismissFailed": "Aktualisierung fehlgeschlagen. Versuche es erneut.",
       "needsType": "Diese Schaltfläche gibt es je Widget, also die Schritte im Tour-Editor festlegen.",
       "openLabel": "{{title}} bearbeiten",
       "status": {

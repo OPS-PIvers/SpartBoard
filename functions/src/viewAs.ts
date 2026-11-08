@@ -4,13 +4,17 @@ import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { OPERATOR_ORG_ID, isStrictSuperAdmin } from './authz';
-import { readViewAsClaim, type ViewAsClaim } from './viewAsGuard';
+import {
+  VIEW_AS_SESSIONS,
+  VIEW_AS_SETTINGS_PATH,
+  readViewAsClaim,
+  type ViewAsClaim,
+} from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
 
 export const VIEW_AS_SESSION_MS = 60 * 60 * 1000;
-export const VIEW_AS_SESSIONS = 'view_as_sessions';
-export const VIEW_AS_SETTINGS_PATH = 'admin_settings/view_as';
+export { VIEW_AS_SESSIONS, VIEW_AS_SETTINGS_PATH } from './viewAsGuard';
 export const MAX_REASON_LENGTH = 500;
 
 export type ViewAsServerAuditAction =
@@ -340,20 +344,25 @@ export const updateViewAsSessionV1 = onCall(
     await assertStrictSuperAdmin(db, claim.by);
 
     const unlockAllowed = await isViewAsUnlockAllowed(db);
+    const uid = request.auth.uid;
     if (action === 'renew') {
       const exp = now + VIEW_AS_SESSION_MS;
-      const unlocked = session.unlocked && unlockAllowed;
-      await ref.update({
-        expiresAt: admin.firestore.Timestamp.fromMillis(exp),
+      const live = await db.runTransaction(async (tx) => {
+        const s = liveSession(readSession(await tx.get(ref)), claim, uid);
+        tx.update(ref, {
+          expiresAt: admin.firestore.Timestamp.fromMillis(exp),
+        });
+        return s;
       });
+      const unlocked = live.unlocked && unlockAllowed;
       await db
         .collection('admin_audit_log')
-        .add(auditEntry('view_as_renew', claim.sid, session));
-      const token = await mint(session.targetUid, {
-        by: session.by,
+        .add(auditEntry('view_as_renew', claim.sid, live));
+      const token = await mint(live.targetUid, {
+        by: live.by,
         sid: claim.sid,
         ro: !unlocked,
-        adminTarget: session.adminTarget,
+        adminTarget: live.adminTarget,
         exp,
       });
       return { token, expiresAt: exp, unlocked };
@@ -373,20 +382,45 @@ export const updateViewAsSessionV1 = onCall(
         'Admin accounts are view-only.'
       );
     }
-    await ref.update({ unlocked: true, reason });
+    const live = await db.runTransaction(async (tx) => {
+      const s = liveSession(readSession(await tx.get(ref)), claim, uid);
+      tx.update(ref, { unlocked: true, reason });
+      return s;
+    });
     await db
       .collection('admin_audit_log')
-      .add(auditEntry('view_as_unlock', claim.sid, session, { reason }));
-    const token = await mint(session.targetUid, {
-      by: session.by,
+      .add(auditEntry('view_as_unlock', claim.sid, live, { reason }));
+    const token = await mint(live.targetUid, {
+      by: live.by,
       sid: claim.sid,
       ro: false,
       adminTarget: false,
-      exp: session.expiresAtMs,
+      exp: live.expiresAtMs,
     });
-    return { token, expiresAt: session.expiresAtMs, unlocked: true };
+    return { token, expiresAt: live.expiresAtMs, unlocked: true };
   }
 );
+
+/** Re-checked inside the renew/unlock transaction so a concurrent End wins. */
+function liveSession(
+  session: SessionDoc | null,
+  claim: ViewAsClaim,
+  uid: string
+): SessionDoc {
+  if (
+    !session ||
+    session.ended ||
+    session.by !== claim.by ||
+    session.targetUid !== uid ||
+    Date.now() >= session.expiresAtMs
+  ) {
+    throw new HttpsError(
+      'permission-denied',
+      'This View as session has ended.'
+    );
+  }
+  return session;
+}
 
 async function endSession(
   db: Firestore,
@@ -395,7 +429,13 @@ async function endSession(
   session: SessionDoc
 ): Promise<{ ended: true }> {
   if (session.ended) return { ended: true };
-  await ref.update({ endedAt: admin.firestore.FieldValue.serverTimestamp() });
+  const ended = await db.runTransaction(async (tx) => {
+    const s = readSession(await tx.get(ref));
+    if (!s || s.ended) return false;
+    tx.update(ref, { endedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return true;
+  });
+  if (!ended) return { ended: true };
   await db
     .collection('admin_audit_log')
     .add(auditEntry('view_as_end', sid, session))

@@ -34522,6 +34522,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.unmapped-dismiss",
+    "label": "Dismiss button for a needs-a-person unmapped anchor",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.tour-health",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.tour-health-toggle"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.keep-all-in-help",
     "label": "Keep all in Help button for linked library sets",
     "scope": "board",
@@ -54836,6 +54857,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "dock.live-popover-end",
+    "label": "End live session button in the live session popover",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": [
+          "dock.open-tools"
+        ],
+        "reveal": "dock.open-tools"
+      }
+    ]
+  },
+  {
     "id": "dock.live-popover-close",
     "label": "Close button in the live session popover",
     "scope": "board",
@@ -74254,6 +74291,206 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-item",
           "widget-on-stage"
         ]
+      }
+    ]
+  },
+  {
+    "id": "classes.restrictions-trigger",
+    "label": "Keep apart button in a class roster row",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.restrictions-filter",
+    "label": "Search classmates box in the Keep apart list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "classes.restrictions-trigger"
+        ],
+        "reveal": "classes.restrictions-trigger",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "schoology-nudge.review",
+    "label": "Review & link button in the Schoology sections banner",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.schoology-nudge",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "schoology-nudge.dismiss",
+    "label": "Dismiss button on the Schoology sections banner",
+    "scope": "board",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.schoology-nudge",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "music.spotify-premium-cancel",
+    "label": "Cancel button in the Spotify Premium notice",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.spotify-premium-notice",
+        "kind": "modal",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.music.spotify-connect"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "music.spotify-premium-continue",
+    "label": "Got it, continue button in the Spotify Premium notice",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.spotify-premium-notice",
+        "kind": "modal",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.music.spotify-connect"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "music.spotify-premium-dont-show",
+    "label": "Don't show this again checkbox in the Spotify Premium notice",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.spotify-premium-notice",
+        "kind": "modal",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.music.spotify-connect"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-flip",
+    "label": "Flashcard shown on the board in the Flashcards widget (click to flip)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-previous",
+    "label": "Previous card button in the Flashcards widget on the board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.present-next",
+    "label": "Next card button in the Flashcards widget on the board",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.flashcards-present",
+        "kind": "shared",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.public-link",
+    "label": "Share link box in the flashcard Share dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "board.flashcard-share",
+        "kind": "modal",
+        "widget_type": "flashcards"
+      }
+    ]
+  },
+  {
+    "id": "flashcards.embed-code",
+    "label": "Embed code box in the flashcard Share dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "board.flashcard-share",
+        "kind": "modal",
+        "widget_type": "flashcards"
       }
     ]
   }

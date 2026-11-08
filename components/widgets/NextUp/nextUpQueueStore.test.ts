@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { NextUpQueueItem } from '@/types';
 import { createNextUpQueueStore } from './nextUpQueueStore';
 
@@ -159,5 +159,80 @@ describe('Next Up queue store', () => {
     await expect(failed).rejects.toThrow('offline');
     await next;
     expect(names(saved[0])).toEqual(['a:active', 'b:waiting']);
+  });
+});
+
+describe('Next Up queue store after a failed write', () => {
+  it('writes the joins again when the same entries are retried', async () => {
+    const store = createNextUpQueueStore();
+    const write = vi
+      .fn<(queue: NextUpQueueItem[]) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('Drive down'))
+      .mockResolvedValue(undefined);
+
+    await expect(
+      store.dispatch({ type: 'joined', entries: [entry('a')] }, write)
+    ).rejects.toThrow('Drive down');
+    await flush();
+    await store.dispatch({ type: 'joined', entries: [entry('a')] }, write);
+
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(names(write.mock.calls[1][0])).toEqual(['a:active']);
+  });
+
+  it('keeps its unsaved joins over a stale download', async () => {
+    const store = createNextUpQueueStore();
+    await store
+      .dispatch({ type: 'joined', entries: [entry('a')] }, () =>
+        Promise.reject(new Error('Drive down'))
+      )
+      .catch(() => undefined);
+    await flush();
+    await store.load(() => Promise.resolve([]));
+
+    expect(names(store.getQueue())).toEqual(['a:active']);
+  });
+
+  it('takes the download over a failed Next, as before', async () => {
+    const store = createNextUpQueueStore();
+    await store.dispatch(
+      { type: 'joined', entries: [entry('a'), entry('b')] },
+      () => Promise.resolve()
+    );
+    await store
+      .dispatch({ type: 'advance' }, () =>
+        Promise.reject(new Error('Drive down'))
+      )
+      .catch(() => undefined);
+    await flush();
+    // Another tab added C and saved it.
+    await store.load(() =>
+      Promise.resolve([
+        { ...entry('a'), status: 'active' as const },
+        { ...entry('b'), status: 'waiting' as const },
+        { ...entry('c'), status: 'waiting' as const },
+      ])
+    );
+
+    expect(names(store.getQueue())).toEqual([
+      'a:active',
+      'b:waiting',
+      'c:waiting',
+    ]);
+  });
+
+  it('keeps unsaved joins when a Next queued behind them also fails', async () => {
+    const store = createNextUpQueueStore();
+    const fail = () => Promise.reject(new Error('Drive down'));
+    const join = store.dispatch(
+      { type: 'joined', entries: [entry('a')] },
+      fail
+    );
+    const next = store.dispatch({ type: 'advance' }, fail);
+    await Promise.allSettled([join, next]);
+    await flush();
+    await store.load(() => Promise.resolve([]));
+
+    expect(store.getQueue().map((item) => item.id)).toEqual(['a']);
   });
 });

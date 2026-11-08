@@ -200,6 +200,11 @@ const DeactivatedScreen = lazy(() =>
     default: module.DeactivatedScreen,
   }))
 );
+const RoleUnconfirmedScreen = lazy(() =>
+  import('./components/auth/RoleUnconfirmedScreen').then((module) => ({
+    default: module.RoleUnconfirmedScreen,
+  }))
+);
 const InviteAcceptance = lazy(() =>
   import('./components/auth/InviteAcceptance').then((module) => ({
     default: module.InviteAcceptance,
@@ -606,7 +611,14 @@ function usePathname(): string {
 const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   isRemote = false,
 }) => {
-  const { user, loading, accessDeactivated, signOut } = useAuth();
+  const {
+    user,
+    loading,
+    accessDeactivated,
+    roleUnconfirmed,
+    isAdmin,
+    signOut,
+  } = useAuth();
 
   // M1 full sign-in lockout: the membership snapshot latched `accessDeactivated`
   // because this user's org member doc is `status: 'inactive'`. Sign them out
@@ -645,6 +657,16 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SignInPage minimal={isRemote} />
+      </Suspense>
+    );
+  }
+
+  // A district user whose role couldn't be checked never gets the teacher app; admins keep it.
+  if (roleUnconfirmed && isAdmin !== true) {
+    if (isAdmin === null) return <FullPageLoader />;
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <RoleUnconfirmedScreen />
       </Suspense>
     );
   }

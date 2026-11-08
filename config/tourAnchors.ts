@@ -8045,6 +8045,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.help-center.unmapped-dismiss': {
+    label: 'Dismiss button for a needs-a-person unmapped anchor',
+    persists: true,
+    panel: true,
+  },
   'admin.help-center.keep-all-in-help': {
     label: 'Keep all in Help button for linked library sets',
     persists: true,
@@ -12079,6 +12084,10 @@ export const TOUR_ANCHORS = {
   },
   // Dashboard shell and classroom-tool anchors.
   'dock.live-session': { label: 'Live session button in the dock' },
+  'dock.live-popover-end': {
+    label: 'End live session button in the live session popover',
+    panel: true,
+  },
   'dock.live-popover-close': {
     label: 'Close button in the live session popover',
     panel: true,
@@ -16799,6 +16808,54 @@ export const TOUR_ANCHORS = {
   },
   'smart-notebook.object-link': {
     label: 'Link badge on a selected object in the Smart Notebook page editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'classes.restrictions-trigger': {
+    label: 'Keep apart button in a class roster row',
+    panel: true,
+  },
+  'classes.restrictions-filter': {
+    label: 'Search classmates box in the Keep apart list',
+    panel: true,
+  },
+  'schoology-nudge.review': {
+    label: 'Review & link button in the Schoology sections banner',
+  },
+  'schoology-nudge.dismiss': {
+    label: 'Dismiss button on the Schoology sections banner',
+    destructive: true,
+  },
+  'music.spotify-premium-cancel': {
+    label: 'Cancel button in the Spotify Premium notice',
+    panel: true,
+  },
+  'music.spotify-premium-continue': {
+    label: 'Got it, continue button in the Spotify Premium notice',
+    panel: true,
+    persists: true,
+  },
+  'music.spotify-premium-dont-show': {
+    label: "Don't show this again checkbox in the Spotify Premium notice",
+    panel: true,
+  },
+  'flashcards.present-flip': {
+    label:
+      'Flashcard shown on the board in the Flashcards widget (click to flip)',
+  },
+  'flashcards.present-previous': {
+    label: 'Previous card button in the Flashcards widget on the board',
+  },
+  'flashcards.present-next': {
+    label: 'Next card button in the Flashcards widget on the board',
+  },
+  'flashcards.public-link': {
+    label: 'Share link box in the flashcard Share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.embed-code': {
+    label: 'Embed code box in the flashcard Share dialog',
     perWidgetType: true,
     panel: true,
   },

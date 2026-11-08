@@ -229,6 +229,21 @@ describe('DashboardContext removeWidgets regression tests', () => {
     });
   });
 
+  it('announces a removed widget id', async () => {
+    const stateRef = setup();
+    await pushSnapshot([makeDashboard([makeWidget('w1'), makeWidget('w2')])]);
+    const heard: string[] = [];
+    const onRemoved = (e: Event) =>
+      heard.push((e as CustomEvent<{ id: string }>).detail.id);
+    window.addEventListener('spart-widget-removed', onRemoved);
+    act(() => {
+      stateRef.current?.removeWidget('w1');
+      stateRef.current?.removeWidgets(['w2']);
+    });
+    window.removeEventListener('spart-widget-removed', onRemoved);
+    expect(heard).toEqual(['w1', 'w2']);
+  });
+
   it('dissolves a group when only one member remains', async () => {
     const stateRef = setup();
     const w1 = makeWidget('w1', 'group-1');

@@ -399,7 +399,7 @@ export const submitMiniAppResultV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     return handleSubmitMiniAppResult(
       admin.firestore(),
       request.auth

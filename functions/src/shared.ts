@@ -23,6 +23,8 @@ export interface GlobalPermission {
   enabled: boolean;
   accessLevel: 'admin' | 'beta' | 'all';
   betaUsers?: string[];
+  minTier?: unknown;
+  buildings?: unknown;
   config?: GlobalPermConfig;
 }
 

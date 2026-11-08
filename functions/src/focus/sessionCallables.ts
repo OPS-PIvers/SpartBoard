@@ -81,7 +81,7 @@ const OPTIONS = {
 
 // Every action reaches students' devices, so a View as session needs it unlocked (outward).
 export const focusStartV1 = onCall(OPTIONS, async (request) => {
-  assertViewAsAllowed(request, { outward: true });
+  await assertViewAsAllowed(request, { outward: true });
   return handleFocusStart(
     admin.firestore(),
     callerOf(request),
@@ -91,7 +91,7 @@ export const focusStartV1 = onCall(OPTIONS, async (request) => {
 });
 
 export const focusExtendV1 = onCall(OPTIONS, async (request) => {
-  assertViewAsAllowed(request, { outward: true });
+  await assertViewAsAllowed(request, { outward: true });
   return handleFocusExtend(
     admin.firestore(),
     callerOf(request),
@@ -101,7 +101,7 @@ export const focusExtendV1 = onCall(OPTIONS, async (request) => {
 });
 
 export const focusReleaseV1 = onCall(OPTIONS, async (request) => {
-  assertViewAsAllowed(request, { outward: true });
+  await assertViewAsAllowed(request, { outward: true });
   return handleFocusRelease(
     admin.firestore(),
     callerOf(request),
@@ -111,7 +111,7 @@ export const focusReleaseV1 = onCall(OPTIONS, async (request) => {
 });
 
 export const focusAddSiteV1 = onCall(OPTIONS, async (request) => {
-  assertViewAsAllowed(request, { outward: true });
+  await assertViewAsAllowed(request, { outward: true });
   return handleFocusAddSite(
     admin.firestore(),
     callerOf(request),
@@ -122,7 +122,7 @@ export const focusAddSiteV1 = onCall(OPTIONS, async (request) => {
 
 // Read-only for the session's content; it only adds the caller as a reader.
 export const focusOpenV1 = onCall(OPTIONS, async (request) => {
-  assertViewAsAllowed(request, { read: true });
+  await assertViewAsAllowed(request, { read: true });
   return handleFocusOpen(
     admin.firestore(),
     callerOf(request),
@@ -132,7 +132,7 @@ export const focusOpenV1 = onCall(OPTIONS, async (request) => {
 });
 
 export const focusEndV1 = onCall(OPTIONS, async (request) => {
-  assertViewAsAllowed(request, { outward: true });
+  await assertViewAsAllowed(request, { outward: true });
   return handleFocusEnd(
     admin.firestore(),
     callerOf(request),

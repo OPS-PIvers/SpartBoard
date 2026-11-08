@@ -59,8 +59,8 @@ export function sanitizeLoadIssues(raw: unknown): StudentLoadIssue[] {
 /** Logs student assignment-list load failures so a "students couldn't see it" report has evidence. */
 export const reportStudentLoadIssueV1 = onCall(
   { memory: '256MiB', invoker: 'public', cors: ALLOWED_ORIGINS },
-  (request) => {
-    assertViewAsAllowed(request, { read: true });
+  async (request) => {
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

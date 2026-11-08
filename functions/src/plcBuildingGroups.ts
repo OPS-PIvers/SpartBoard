@@ -3,7 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
-import { isStrictSuperAdmin } from './authz';
+import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
 import {
   buildingIdVariants,
   canonicalBuildingIdServer,
@@ -294,8 +294,7 @@ export async function assertCallerIsOrgAdmin(
     if (
       typeof roleId === 'string' &&
       ADMIN_ROLE_IDS.includes(roleId) &&
-      status !== 'inactive' &&
-      status !== 'removed'
+      !isRevokedMemberStatus(status)
     ) {
       return;
     }
@@ -698,7 +697,7 @@ function verifiedCallerEmail(request: CallerAuth): string {
 export const createBuildingGroupV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 5 },
   async (request): Promise<{ plcId: string; added: number }> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const callerEmail = verifiedCallerEmail(request);
     const payload = parseCreateBuildingGroupPayload(request.data);
     const deps = defaultDeps();
@@ -710,7 +709,7 @@ export const createBuildingGroupV1 = onCall(
 export const syncBuildingGroupV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 5 },
   async (request): Promise<{ added: number; autoRoster: boolean }> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const callerEmail = verifiedCallerEmail(request);
     const raw = (request.data ?? {}) as Data;
     const plcId = typeof raw.plcId === 'string' ? raw.plcId.trim() : '';

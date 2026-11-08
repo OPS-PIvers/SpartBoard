@@ -248,7 +248,7 @@ export const rebuildGlBuildingIndexV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const db = admin.firestore();

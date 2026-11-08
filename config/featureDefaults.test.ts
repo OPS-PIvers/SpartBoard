@@ -71,6 +71,9 @@ describe('isAdminPreviewFeature', () => {
     expect(isAdminPreviewFeature('quiz-read-aloud')).toBe(true);
     expect(isAdminPreviewFeature('quiz-media-response')).toBe(false);
     expect(isAdminPreviewFeature('personal-spotify')).toBe(false);
+    expect(isAdminPreviewFeature('video-activity-audio-transcription')).toBe(
+      false
+    );
     expect(isAdminPreviewFeature('live-session')).toBe(false);
     // Guided Learning AI stays admin-only until its switch is saved.
     expect(isAdminPreviewFeature('guided-learning-ai')).toBe(true);
@@ -91,6 +94,27 @@ describe('isAdminPreviewFeature', () => {
       isAdminPreviewFeature
     );
     expect([...mirrored].sort()).toEqual([...expected].sort());
+  });
+
+  it('mirrors the public missing-doc flags and tier floors in functions/src/featureMissingDoc.ts', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../functions/src/featureMissingDoc.ts'),
+      'utf8'
+    );
+    const block = /PUBLIC_MISSING_DOC_FEATURES[^=]*=\s*\{([^}]*)\}/.exec(
+      source
+    );
+    const mirrored = Object.fromEntries(
+      [
+        ...(block?.[1] ?? '').matchAll(/'?([a-z0-9-]+)'?:\s*(?:'(\w+)'|null)/g),
+      ].map((m) => [m[1], m[2] ?? null])
+    );
+    const expected = Object.fromEntries(
+      (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[])
+        .filter((id) => FEATURE_DEFAULTS[id].missingDocPublic)
+        .map((id) => [id, FEATURE_DEFAULTS[id].defaultMinTier ?? null])
+    );
+    expect(mirrored).toEqual(expected);
   });
 });
 

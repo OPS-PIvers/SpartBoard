@@ -85,6 +85,18 @@ export async function removeQueueOccurrences(
       logError('anchorQueue.removeOccurrences', r.reason);
 }
 
+/** Removes a needs-human item from the queue; a later recording of the same click queues it afresh. */
+export async function dismissQueueItem(
+  item: Pick<TourAnchorQueueItem, 'fingerprint' | 'status'>
+): Promise<void> {
+  if (!isConfigured || item.status !== 'needs-human') return;
+  const ref = queueRef(item.fingerprint);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists() && snap.data()?.status === 'needs-human') tx.delete(ref);
+  });
+}
+
 export interface RebindDeps {
   load: (setId: string) => Promise<GuidedLearningSet | null>;
   save: (

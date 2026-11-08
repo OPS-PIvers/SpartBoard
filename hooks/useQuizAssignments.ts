@@ -13,6 +13,7 @@
 
 import {
   QUIZ_TIME_LIMIT_FEATURE,
+  appendPauseSpan,
   clampQuizTimeLimitMinutes,
 } from '@/utils/quizTimeLimit';
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
@@ -194,6 +195,10 @@ import {
   type AssignmentLifecyclePatches,
 } from '@/utils/sessionLifecycle';
 import { reopenIndexPatch } from '@/utils/quizSessionPhase';
+import {
+  END_TURN_IN_DELAY_MS,
+  finalizeOpenQuizResponses,
+} from '@/utils/quizFinalizeOpenResponses';
 
 /** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
 async function commitQuizLifecycle(
@@ -213,13 +218,20 @@ async function commitQuizLifecycle(
     if (ended && (event.type === 'pause' || event.type === 'resume')) {
       return null;
     }
-    const patches = assignmentLifecyclePatches('quiz', event, Date.now());
+    const now = Date.now();
+    const patches = assignmentLifecyclePatches('quiz', event, now);
+    // The time limit skips this pause.
+    const pauseSpans =
+      session?.status === 'paused' && event.type === 'resume'
+        ? appendPauseSpan(session.pauseSpans, session.pausedAt, now)
+        : null;
     tx.update(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
       patches.assignment
     );
     tx.update(sessionRef, {
       ...patches.session,
+      ...(pauseSpans ? { pauseSpans } : {}),
       ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
     });
     return patches;
@@ -2066,6 +2078,12 @@ export const useQuizAssignments = (
   >(
     async (assignmentId) => {
       await setStatus(assignmentId, { type: 'end' });
+      // Turn in once student saves can no longer land; the idle sweep backs this up if the tab closes.
+      setTimeout(() => {
+        finalizeOpenQuizResponses(assignmentId).catch((err: unknown) =>
+          console.error('[useQuizAssignments] End turn-in failed:', err)
+        );
+      }, END_TURN_IN_DELAY_MS);
     },
     [setStatus]
   );

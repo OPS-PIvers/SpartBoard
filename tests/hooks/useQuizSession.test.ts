@@ -3184,6 +3184,61 @@ describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () =
       (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mock.calls
     ).toHaveLength(0);
   });
+
+  it('reports a locked turned-in attempt instead of settling uploadState silently', async () => {
+    const result = await joinAndSeed([
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 50,
+        status: 'submitted',
+        takeIndex: 1,
+        artifacts: [makeTestArtifact({ id: 'art-1', uploadState: 'pending' })],
+      },
+    ]);
+    latestResponseData = { ...latestResponseData, status: 'completed' };
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+
+    let locked: boolean | undefined;
+    await act(async () => {
+      locked = await result.current.setArtifactUploadState(
+        'q1',
+        'art-1',
+        'failed'
+      );
+    });
+
+    expect(locked).toBe(true);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('reports not locked when it settles uploadState on an open attempt', async () => {
+    const result = await joinAndSeed([
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 50,
+        status: 'submitted',
+        takeIndex: 1,
+        artifacts: [makeTestArtifact({ id: 'art-1', uploadState: 'pending' })],
+      },
+    ]);
+    let locked: boolean | undefined;
+    await act(async () => {
+      locked = await result.current.setArtifactUploadState(
+        'q1',
+        'art-1',
+        'uploaded'
+      );
+    });
+    expect(locked).toBe(false);
+    expect(
+      (lastAnswers()[0].artifacts as { uploadState: string }[])[0].uploadState
+    ).toBe('uploaded');
+  });
 });
 
 // ─── Teacher hook ─────────────────────────────────────────────────────────────

@@ -79,6 +79,16 @@ describe('isStaffMemberData', () => {
     );
     expect(isStaffMemberData(undefined)).toBe(false);
   });
+
+  it('treats invited as staff and any unknown status as revoked', () => {
+    expect(isStaffMemberData({ roleId: 'teacher', status: 'invited' })).toBe(
+      true
+    );
+    expect(isStaffMemberData({ roleId: 'teacher', status: 'removed' })).toBe(
+      false
+    );
+    expect(isStaffMemberData({ roleId: 'teacher', status: null })).toBe(false);
+  });
 });
 
 describe('isDistrictStaffEmail', () => {

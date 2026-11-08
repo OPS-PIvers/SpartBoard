@@ -541,7 +541,7 @@ async function syncedCount(uid: string): Promise<number> {
 export const setGoogleTasksSyncV1 = onCall(
   { secrets: SECRETS, timeoutSeconds: 300 },
   async (req) => {
-    assertViewAsAllowed(req);
+    await assertViewAsAllowed(req);
     const { uid, email } = requireUser(req);
     const enabled = (req.data as { enabled?: unknown } | undefined)?.enabled;
     if (typeof enabled !== 'boolean') {
@@ -609,7 +609,7 @@ export const setGoogleTasksSyncV1 = onCall(
 
 /** The caller's own connection state for the settings toggle; never anyone else's (D11). */
 export const getGoogleTasksSyncStatusV1 = onCall(async (req) => {
-  assertViewAsAllowed(req, { read: true });
+  await assertViewAsAllowed(req, { read: true });
   const { uid } = requireUser(req);
   const snap = await stateRef(uid).get();
   const state = parseState(snap.data());
@@ -633,7 +633,7 @@ export interface PulledChange {
 export const pullGoogleTasksStatusV1 = onCall(
   { secrets: SECRETS },
   async (req): Promise<{ changes: PulledChange[] }> => {
-    assertViewAsAllowed(req);
+    await assertViewAsAllowed(req);
     const { uid } = requireUser(req);
     const session = await openSession(uid);
     if (!session?.state.listId) return { changes: [] };

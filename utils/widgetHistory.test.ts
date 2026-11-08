@@ -3,13 +3,21 @@ import type { WidgetData } from '@/types';
 import {
   createWidgetHistoryStack,
   recordWidgetHistory,
+  setWidgetHistoryAfter,
   undoWidgetHistory,
   redoWidgetHistory,
+  revertWidgetHistoryEntry,
+  replayWidgetHistoryEntry,
+  applyWidgetDiff,
   WIDGET_HISTORY_LIMIT,
   WIDGET_HISTORY_COALESCE_MS,
 } from './widgetHistory';
 
-const widget = (id: string, x = 0): WidgetData => ({
+const widget = (
+  id: string,
+  x = 0,
+  config: Record<string, unknown> = {}
+): WidgetData => ({
   id,
   type: 'text',
   x,
@@ -18,7 +26,7 @@ const widget = (id: string, x = 0): WidgetData => ({
   h: 100,
   z: 1,
   flipped: false,
-  config: {},
+  config,
 });
 
 describe('widgetHistory', () => {
@@ -28,9 +36,19 @@ describe('widgetHistory', () => {
     const after = [widget('a')];
 
     expect(recordWidgetHistory(stack, before, null, 0)).toBe(true);
-    expect(undoWidgetHistory(stack, after)).toBe(before);
+    setWidgetHistoryAfter(stack, after);
+    const entry = undoWidgetHistory(stack, after);
+    if (!entry) throw new Error('no entry');
+    expect(revertWidgetHistoryEntry(entry, after).map((w) => w.id)).toEqual([
+      'a',
+      'b',
+    ]);
     expect(stack.undo).toHaveLength(0);
-    expect(redoWidgetHistory(stack, before)).toBe(after);
+    const redo = redoWidgetHistory(stack, before);
+    if (!redo) throw new Error('no redo');
+    expect(replayWidgetHistoryEntry(redo, before).map((w) => w.id)).toEqual([
+      'a',
+    ]);
     expect(stack.undo).toHaveLength(1);
     expect(stack.redo).toHaveLength(0);
   });
@@ -45,7 +63,7 @@ describe('widgetHistory', () => {
     expect(recordWidgetHistory(stack, s1, 'a', 200)).toBe(false);
     expect(recordWidgetHistory(stack, s2, 'a', 400)).toBe(false);
     expect(stack.undo).toHaveLength(1);
-    expect(undoWidgetHistory(stack, [widget('a', 30)])).toBe(s0);
+    expect(undoWidgetHistory(stack, [])?.before).toBe(s0);
   });
 
   it('starts a new entry after the coalesce window or for another widget', () => {
@@ -77,9 +95,8 @@ describe('widgetHistory', () => {
   it('clears redo when a new change is recorded', () => {
     const stack = createWidgetHistoryStack();
     const s0 = [widget('a')];
-    const s1: WidgetData[] = [];
     recordWidgetHistory(stack, s0, null, 0);
-    undoWidgetHistory(stack, s1);
+    undoWidgetHistory(stack, []);
     expect(stack.redo).toHaveLength(1);
     recordWidgetHistory(stack, s0, null, 5000);
     expect(stack.redo).toHaveLength(0);
@@ -91,18 +108,120 @@ describe('widgetHistory', () => {
       recordWidgetHistory(stack, [widget('a', i)], null, i * 5000);
     }
     expect(stack.undo).toHaveLength(WIDGET_HISTORY_LIMIT);
-    expect(stack.undo[0].widgets[0].x).toBe(10);
+    expect(stack.undo[0].before[0].x).toBe(10);
   });
 
   it('does not fold an edit after undo into an older same-widget entry', () => {
     const stack = createWidgetHistoryStack();
     const s0 = [widget('a', 0), widget('b', 0)];
     const s1 = [widget('a', 10), widget('b', 0)];
-    const s2 = [widget('a', 10), widget('b', 10)];
     recordWidgetHistory(stack, s0, 'a', 0);
     recordWidgetHistory(stack, s1, 'b', 100);
-    expect(undoWidgetHistory(stack, s2)).toBe(s1);
+    expect(undoWidgetHistory(stack, [])?.before).toBe(s1);
     expect(recordWidgetHistory(stack, s1, 'a', 200)).toBe(true);
     expect(stack.undo).toHaveLength(2);
+  });
+
+  it('redo does not fold a later edit into the replayed entry', () => {
+    const stack = createWidgetHistoryStack();
+    const s0 = [widget('a', 0)];
+    recordWidgetHistory(stack, s0, 'a', 0);
+    undoWidgetHistory(stack, []);
+    redoWidgetHistory(stack, []);
+    expect(recordWidgetHistory(stack, [widget('a', 10)], 'a', 100)).toBe(true);
+    expect(stack.undo).toHaveLength(2);
+  });
+});
+
+describe('applyWidgetDiff', () => {
+  it('reverts only the moved widget and leaves a system write on another widget', () => {
+    const before = [widget('a', 0), widget('t', 0, { startTime: 1 })];
+    const after = [widget('a', 50), widget('t', 0, { startTime: 1 })];
+    const current = [
+      widget('a', 50),
+      { ...widget('t', 0, { startTime: 99, isRunning: true }), version: 4 },
+    ];
+    const result = applyWidgetDiff(after, before, current);
+    expect(result[0].x).toBe(0);
+    expect(result[1]).toBe(current[1]);
+  });
+
+  it('restores only the config keys the step changed on the same widget', () => {
+    const before = [widget('t', 0, { duration: 60, startTime: null })];
+    const after = [widget('t', 0, { duration: 120, startTime: null })];
+    const current = [
+      {
+        ...widget('t', 0, { duration: 120, startTime: 99, isRunning: true }),
+        version: 3,
+      },
+    ];
+    const [t] = applyWidgetDiff(after, before, current);
+    expect(t.config).toEqual({
+      duration: 60,
+      startTime: 99,
+      isRunning: true,
+    });
+    expect(t.version).toBe(4);
+  });
+
+  it('removes a key the step added and keeps untouched fields', () => {
+    const before = [widget('a', 0, { text: 'x' })];
+    const after = [{ ...widget('a', 0, { text: 'x', title: 'Hi' }), y: 40 }];
+    const current = [{ ...after[0], h: 300 }];
+    const [a] = applyWidgetDiff(after, before, current);
+    expect(a.config).toEqual({ text: 'x' });
+    expect(a.y).toBe(0);
+    expect(a.h).toBe(300);
+  });
+
+  it('keeps widgets added elsewhere and removes only the one the step added', () => {
+    const before = [widget('a')];
+    const after = [widget('a'), widget('new')];
+    const current = [widget('a'), widget('new'), widget('other')];
+    expect(applyWidgetDiff(after, before, current).map((w) => w.id)).toEqual([
+      'a',
+      'other',
+    ]);
+  });
+
+  it('puts a restored widget back after its earlier neighbour', () => {
+    const before = [widget('a'), widget('b'), widget('c')];
+    const after = [widget('a'), widget('c')];
+    const current = [widget('a'), widget('c'), widget('tour')];
+    expect(applyWidgetDiff(after, before, current).map((w) => w.id)).toEqual([
+      'a',
+      'b',
+      'c',
+      'tour',
+    ]);
+  });
+
+  it('does not resurrect a widget the step removed if it is already back', () => {
+    const before = [widget('a'), widget('b')];
+    const after = [widget('a')];
+    const current = [widget('a'), widget('b', 7)];
+    const result = applyWidgetDiff(after, before, current);
+    expect(result).toBe(current);
+  });
+
+  it('refreshes only the written config keys of a coalesced widget', () => {
+    const stack = createWidgetHistoryStack();
+    const s0 = [widget('t', 0, { duration: 60, startTime: null })];
+    recordWidgetHistory(stack, s0, 't', 0);
+    setWidgetHistoryAfter(
+      stack,
+      [widget('t', 10, { duration: 90, startTime: 99 })],
+      new Map([['t', new Set(['duration'])]])
+    );
+    const after = stack.undo[0].after[0];
+    expect(after.x).toBe(10);
+    expect(after.config).toEqual({ duration: 90, startTime: null });
+  });
+
+  it('returns the same array when the step has nothing left to change', () => {
+    const before = [widget('a', 0)];
+    const after = [widget('a', 10)];
+    const current = [widget('a', 0)];
+    expect(applyWidgetDiff(after, before, current)).toBe(current);
   });
 });

@@ -173,46 +173,30 @@ export async function runExpireActivityWallShares(
 
   let relocked = 0;
   for (const sessionId of sessionIds) {
-    const allSharesSnap = await db
+    const sessionRef = db.collection('activity_wall_sessions').doc(sessionId);
+    const sharesQuery = db
       .collection('shared_activity_walls')
-      .where('sessionId', '==', sessionId)
-      .get();
-    const stillLive = allSharesSnap.docs.some(
-      (doc) => !isLapsedShare(doc.data(), now)
-    );
-    if (stillLive) continue;
-
-    // Expired share docs are never deleted, so every subsequent run
-    // re-finds the same lapsed shares — skip the write once a session is
-    // already relocked, or the write count grows forever with no bound.
-    const sessionSnap = await db
-      .collection('activity_wall_sessions')
-      .doc(sessionId)
-      .get();
-    if (!sessionSnap.exists || sessionSnap.data()?.publiclyShared !== true) {
-      continue;
-    }
-
-    // Known, accepted trade-off: the `allSharesSnap` read above and this
-    // write are not wrapped in a transaction, so there is a millisecond-wide
-    // TOCTOU window in which a teacher could create a fresh live share for
-    // this session after `allSharesSnap` was captured. If that happens, this
-    // sweep would relock a session that is once again legitimately shared, and
-    // it would stay locked until the next hourly run re-evaluates it (it will
-    // find the new live share and leave `publiclyShared` alone). Given the
-    // hourly cadence and the sub-millisecond window, this self-heals within
-    // one cycle and is intentionally left non-transactional for simplicity —
-    // wrap the read+write in a Firestore transaction if this ever needs to be
-    // airtight.
+      .where('sessionId', '==', sessionId);
     try {
-      await db
-        .collection('activity_wall_sessions')
-        .doc(sessionId)
-        .update({ publiclyShared: false });
-      relocked += 1;
+      // Re-reads shares and session in one transaction so a share created mid-sweep keeps the wall open.
+      const didRelock = await db.runTransaction(async (tx) => {
+        const allSharesSnap = await tx.get(sharesQuery);
+        if (allSharesSnap.docs.some((d) => !isLapsedShare(d.data(), now))) {
+          return false;
+        }
+        const sessionSnap = await tx.get(sessionRef);
+        if (
+          !sessionSnap.exists ||
+          sessionSnap.data()?.publiclyShared !== true
+        ) {
+          return false;
+        }
+        tx.update(sessionRef, { publiclyShared: false });
+        return true;
+      });
+      if (didRelock) relocked += 1;
     } catch (err) {
-      // The session doc may have been deleted independently of its shares —
-      // that's not an error for this sweep (nothing left to relock).
+      // The session doc may have been deleted independently of its shares.
       const code = (err as { code?: number | string }).code;
       if (code !== 5 && code !== 'not-found') throw err;
     }

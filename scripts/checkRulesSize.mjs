@@ -42,7 +42,7 @@ const WARN_RATIO = 0.9;
 
 /**
  * The binding limit in practice is the OTHER one: Firestore caps the COMPILED
- * ruleset at 250 KB, separately from the 256 KiB source cap above, and enforces
+ * ruleset at 256,000 bytes (as Firebase counts it), separately from the 256 KiB source cap above, and enforces
  * it only when the ruleset is RELEASED — never at the `:test` compile or at
  * ruleset creation, both of which return 200. The rejection is a bare
  * `400 INVALID_ARGUMENT` naming no field, and firebase-tools hides even that
@@ -51,15 +51,20 @@ const WARN_RATIO = 0.9;
  *
  * The Firestore emulator jar carries Firebase's own rules compiler, and
  * scripts/rulesAst/RulesAst.java measures its AST with source positions
- * removed. That number matches the 2026-09-21 outage: 249350 released
- * (081f914), 249568 was refused (56d0070), and every other commit that month
- * sorts the same way. Comments and whitespace add nothing to it; expression
- * nodes and identifier lengths are what count.
+ * removed. Firebase enforces a different number ("Total size of compiled
+ * executables must be smaller than 256000 bytes"), which runs about 4% above
+ * ours: on 2026-11-07 the release of 703e4ad4 was refused at 256106 bytes
+ * while this script measured it at 246104 (ratio 1.0406), and b8ca4ce0
+ * released at 240856. An older September pair (249350 released, 249568
+ * refused) implied only about 1.026, so the ratio drifts as the rules
+ * change. The cliff below is the larger ratio scaled to 256000 and rounded
+ * down a further 1000 bytes for that drift. Comments and whitespace add
+ * nothing; expression nodes and identifier lengths are what count.
  *
  * What ships is the minified text (scripts/minifyRules.mjs), so that is the
  * size that counts; the source's own compiled size is reported for reference.
  */
-const COMPILED_CLIFF = 249350;
+const COMPILED_CLIFF = 245000;
 const COMPILED_WARN_RATIO = 0.9;
 
 const RULES_PATH = fileURLToPath(

@@ -1996,6 +1996,19 @@ describe('isTestClassAuthority', () => {
     await expect(check()).resolves.toBe(false);
   });
 
+  it('allows an active operator super admin and refuses a deactivated one', async () => {
+    state.docs.set(`organizations/${ORG}/members/${EMAIL}`, {
+      roleId: 'super_admin',
+      status: 'active',
+    });
+    await expect(check()).resolves.toBe(true);
+    state.docs.set(`organizations/${ORG}/members/${EMAIL}`, {
+      roleId: 'super_admin',
+      status: 'inactive',
+    });
+    await expect(check()).resolves.toBe(false);
+  });
+
   it('allows a super admin listed only in the legacy user_roles list', async () => {
     state.docs.set('admin_settings/user_roles', {
       superAdmins: ['Teacher@Orono.k12.mn.us'],

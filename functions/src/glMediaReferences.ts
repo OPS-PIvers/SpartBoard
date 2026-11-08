@@ -135,12 +135,30 @@ async function addSubShareReferences(
   });
 }
 
+const REVISIONS_COLLECTION = 'claude_revisions';
+const REVISION_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+
+// A restorable Claude revision can name files its item no longer lists.
+async function addRevisionReferences(
+  db: Firestore,
+  into: Set<string>,
+  now: number
+): Promise<void> {
+  await scan(db.collectionGroup(REVISIONS_COLLECTION), (doc) => {
+    const createdAt: unknown = doc.get('createdAt');
+    if (typeof createdAt !== 'number' || createdAt < now - REVISION_KEEP_MS)
+      return;
+    collectReferences(doc.data(), into);
+  });
+}
+
 export interface ReferenceScanOptions {
   /** A building set whose own listing does not count (its editor just removed the file). */
   ignoreBuildingSetId?: string;
+  now?: number;
 }
 
-/** Building and Help Center sets, published tours, sessions, sub-share keys and open tombstones. */
+/** Building and Help Center sets, published tours, sessions, sub-share keys, recent Claude revisions and open tombstones. */
 export async function loadSharedReferences(
   db: Firestore,
   opts: ReferenceScanOptions = {}
@@ -157,15 +175,19 @@ export async function loadSharedReferences(
     ),
     addSessionReferences(db, refs),
     addSubShareReferences(db, refs),
+    addRevisionReferences(db, refs, opts.now ?? Date.now()),
     addTombstoneHolds(db, refs),
   ]);
   return refs;
 }
 
 /** Everything `loadSharedReferences` covers plus every personal set's metadata. */
-export async function loadAllReferences(db: Firestore): Promise<Set<string>> {
+export async function loadAllReferences(
+  db: Firestore,
+  now?: number
+): Promise<Set<string>> {
   const [shared, personal] = await Promise.all([
-    loadSharedReferences(db),
+    loadSharedReferences(db, { now }),
     (async () => {
       const refs = new Set<string>();
       await scan(db.collectionGroup(PERSONAL_COLLECTION), (doc) =>

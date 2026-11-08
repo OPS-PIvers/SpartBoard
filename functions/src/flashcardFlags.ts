@@ -141,8 +141,8 @@ export const resolveFlashcardFlagV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
-    assertViewAsAllowed(request);
+  async (request) => {
+    await assertViewAsAllowed(request);
     return handleResolveFlashcardFlag(
       admin.firestore(),
       request.auth

@@ -10,8 +10,8 @@ import { assertViewAsAllowed } from './viewAsGuard';
 
 export const archiveActivityWallPhoto = onCall(
   { cors: ALLOWED_ORIGINS },
-  (request) => {
-    assertViewAsAllowed(request, { outward: true });
+  async (request) => {
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

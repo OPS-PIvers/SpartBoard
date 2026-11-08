@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
+import { isSpotlightLive } from '@/utils/spotlightOverlay';
 import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +19,6 @@ import { ImportSharedCollectionModal } from '@/components/share/ImportSharedColl
 import { ImportLinkedCollectionModal } from '@/components/share/ImportLinkedCollectionModal';
 import { parseLinkedCollectionPath } from '@/utils/linkedCollectionImport';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
-import { logError } from '@/utils/logError';
 import {
   PLC_WRITE_FAILED_EVENT,
   type PlcWriteFailureDetail,
@@ -948,40 +948,46 @@ export const DashboardView: React.FC = () => {
     return has ? dashboards : [activeDashboard, ...dashboards];
   }, [dashboards, activeDashboard]);
 
-  // Stable sessions Map for MountedBoardsLayer — memoized so each render
-  // doesn't produce a new Map that invalidates useMountedBoardCache's memo.
-  //
-  // Pinning limitation: useLiveSession() returns the session bound to the
-  // currently active board. When the teacher switches away, `session`
-  // becomes null and we lose the pin. Fixing this requires lifting session
-  // ownership to a board-keyed map at the data layer (deferred).
+  // Pin the board hosting the live widget (and the active board) so a live session's board stays mounted.
+  // Deleting the live widget ends the session.
+  const liveWidgetId =
+    liveState.kind === 'live' ? session?.activeWidgetId : null;
+  // Copied boards keep widget ids, so a removal only ends the session when no other board still holds the widget.
+  const liveHostBoardIds = useMemo(
+    () =>
+      liveWidgetId
+        ? dashboards
+            .filter((d) => d.widgets.some((w) => w.id === liveWidgetId))
+            .map((d) => d.id)
+            .join('\n')
+        : '',
+    [dashboards, liveWidgetId]
+  );
+  React.useEffect(() => {
+    if (!liveWidgetId) return undefined;
+    const hosts = liveHostBoardIds ? liveHostBoardIds.split('\n') : [];
+    const onRemoved = (e: Event) => {
+      const { id, boardId } = (
+        e as CustomEvent<{ id: string; boardId?: string }>
+      ).detail;
+      if (id !== liveWidgetId) return;
+      if (hosts.some((h) => h !== boardId)) return;
+      void endSession();
+    };
+    window.addEventListener('spart-widget-removed', onRemoved);
+    return () => window.removeEventListener('spart-widget-removed', onRemoved);
+  }, [liveWidgetId, liveHostBoardIds, endSession]);
+
   const sessions = useMemo<Map<string, LiveSession> | undefined>(() => {
     if (liveState.kind !== 'live' || !session || !activeDashboard)
       return undefined;
-    return new Map([[activeDashboard.id, session]]);
-  }, [liveState.kind, session, activeDashboard]);
-
-  // One-time tripwire: log when a session first goes active so the pinning
-  // limitation is visible in monitoring. useLiveSession() does not expose a
-  // stable hostBoardId across board switches, meaning useMountedBoardCache
-  // never receives a pin for a non-active board. Fixing requires lifting
-  // session ownership to a board-keyed data layer (deferred).
-  const pinningWarnedRef = React.useRef(false);
-  // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
-  if (liveState.kind === 'live' && session && !pinningWarnedRef.current) {
-    pinningWarnedRef.current = true;
-    logError(
-      'MountedBoardsLayer.pinningLimitation',
-      new Error(
-        'Live session pinning is bound to the active board only — non-active boards cannot be pinned until session ownership is lifted to a board-keyed data layer'
-      ),
-      { activeBoardId: activeDashboard?.id, sessionCode: session.code }
-    );
-  }
-  if (liveState.kind !== 'live') {
-    // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
-    pinningWarnedRef.current = false;
-  }
+    const map = new Map<string, LiveSession>([[activeDashboard.id, session]]);
+    const hostId = dashboards.find((d) =>
+      d.widgets.some((w) => w.id === session.activeWidgetId)
+    )?.id;
+    if (hostId) map.set(hostId, session);
+    return map;
+  }, [liveState.kind, session, activeDashboard, dashboards]);
 
   if (activeDashboard?.id !== lastDashboardId) {
     setLastDashboardId(activeDashboard?.id);
@@ -1957,7 +1963,7 @@ export const DashboardView: React.FC = () => {
       )}
 
       {/* Spotlight Dimming Overlay */}
-      {activeDashboard.settings?.spotlightWidgetId &&
+      {isSpotlightLive(activeDashboard.settings, activeDashboard.widgets) &&
         createPortal(
           <div
             className="fixed inset-0 z-backdrop bg-slate-900/80 transition-opacity duration-500 ease-in-out"

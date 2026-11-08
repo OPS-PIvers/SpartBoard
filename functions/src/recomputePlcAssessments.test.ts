@@ -491,6 +491,19 @@ describe('recomputeOnePlcAssessment', () => {
     expect(stub.has('plcs/plc-1/aggregates/grp-1')).toBe(true);
   });
 
+  it('claims the mark before reading sources, so a change during the run is not cleared', async () => {
+    const stub = seedPipeline();
+    let seenDuringRun: unknown;
+    stub.hooks.beforeQuery = (label) => {
+      if (label !== 'quiz_sessions') return;
+      stub.hooks.beforeQuery = undefined;
+      seenDuringRun = stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt;
+    };
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
+    expect(seenDuringRun).toBe(-(NOW - 1000));
+    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBeNull();
+  });
+
   it('deletes the aggregate and clears dirtyAt for a tombstoned assessment', async () => {
     const stub = seedPipeline({
       'plcs/plc-1/assessments/grp-1': {
@@ -614,8 +627,9 @@ describe('runRecomputePlcAssessments', () => {
     const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
     expect(counts).toEqual({ scanned: 2, recomputed: 1, failed: 1 });
     expect(stub.has('plcs/plc-1/aggregates/grp-1')).toBe(true);
+    // The failed run's claim stays non-null, so the next pass retries it.
     expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(
-      NOW - 50_000
+      -(NOW - 50_000)
     );
   });
 });

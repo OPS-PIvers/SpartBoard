@@ -22,6 +22,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  runTransaction,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
@@ -76,6 +77,7 @@ import {
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import {
   assignmentLifecyclePatches,
+  deriveRunState,
   type AssignmentLifecycleEvent,
 } from '@/utils/sessionLifecycle';
 import { useSandboxedVideoActivityAssignments } from './useTourSandboxed';
@@ -509,29 +511,48 @@ export const useVideoActivityAssignments = (
       event: AssignmentLifecycleEvent
     ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
-      const patches = assignmentLifecyclePatches(
-        'videoActivity',
-        event,
-        Date.now()
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
+        assignmentId
       );
+      const sessionRef = doc(
+        db,
+        VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+        assignmentId
+      );
+      const patches = await runTransaction(db, async (tx) => {
+        const [assignmentSnap, sessionSnap] = await Promise.all([
+          tx.get(assignmentRef),
+          tx.get(sessionRef),
+        ]);
+        const session = sessionSnap.data() as { status?: unknown } | undefined;
+        const assignment = assignmentSnap.data() as
+          { status?: unknown } | undefined;
+        // A stale Pause or Resume must not reopen or re-pause a run that has ended.
+        const ended = session
+          ? deriveRunState('videoActivity', {
+              status: session.status,
+              assignmentStatus: assignment?.status,
+            })?.phase === 'ended'
+          : false;
+        if (ended && (event.type === 'pause' || event.type === 'resume')) {
+          return null;
+        }
+        const next = assignmentLifecyclePatches(
+          'videoActivity',
+          event,
+          Date.now()
+        );
+        tx.update(assignmentRef, next.assignment);
+        tx.update(sessionRef, next.session);
+        return next;
+      });
+      if (!patches) return;
       const assignmentStatus: VideoActivityAssignmentStatus =
         patches.assignmentStatus;
-      const batch = writeBatch(db);
-      batch.update(
-        doc(
-          db,
-          'users',
-          userId,
-          VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
-          assignmentId
-        ),
-        patches.assignment
-      );
-      batch.update(
-        doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
-        patches.session
-      );
-      await batch.commit();
 
       // Mirror status onto the PLC index entry when this assignment
       // participates in a PLC. Fire-and-forget — the canonical batch
