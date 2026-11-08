@@ -162,8 +162,18 @@ describe('firebase-dev-deploy.yml check modes', () => {
       );
       expect(guard).toBeGreaterThan(-1);
       expect(guard).toBeLessThan(body.indexOf('- uses: actions/checkout@v6'));
-      expect(body).toContain('gh run cancel "$GITHUB_RUN_ID"');
       expect(body).toContain('actions: write');
+    }
+    expect(job('deploy')).toContain('gh run cancel "$GITHUB_RUN_ID"');
+  });
+
+  it('never cancels the run from hosting, so a running backend deploy finishes', () => {
+    const body = job('deploy-hosting');
+    expect(body).not.toContain('gh run cancel');
+    expect(body).toContain('echo "SUPERSEDED=true" >> "$GITHUB_ENV"');
+    const steps = body.split('\n      - ').slice(2);
+    for (const step of steps) {
+      expect(step).toContain("if: env.SUPERSEDED != 'true'");
     }
   });
 

@@ -339,41 +339,47 @@ jobs:
     env:
       SITE: spartboard-${{ needs.plan.outputs.site_suffix }}
     steps:
+      # Skips this job's steps only; cancelling the run could stop this run's backend deploy mid-flight.
       - name: Stop if a newer push superseded this one
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$GITHUB_REF_NAME" --jq .status) || status=unknown
           if [[ "$status" == ahead ]]; then
-            echo "::notice::$GITHUB_REF_NAME has moved past this commit; the newer run deploys it."
-            gh run cancel "$GITHUB_RUN_ID"
-            sleep 120
-            exit 1
+            echo "::notice::$GITHUB_REF_NAME has moved past this commit; the newer run deploys its hosting."
+            echo "SUPERSEDED=true" >> "$GITHUB_ENV"
           fi
       - uses: actions/checkout@v6
+        if: env.SUPERSEDED != 'true'
       - uses: ./.github/actions/setup
+        if: env.SUPERSEDED != 'true'
 
       - uses: actions/download-artifact@v4
+        if: env.SUPERSEDED != 'true'
         with:
           name: build-output
 
       - uses: google-github-actions/auth@v2
+        if: env.SUPERSEDED != 'true'
         with:
           workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
           service_account: ${{ env.DEV_DEPLOY_SA }}
 
       # Open tabs on an older build still lazy-load their own chunks instead of reloading mid-lesson.
       - name: Carry recent builds' assets forward
+        if: env.SUPERSEDED != 'true'
         # Dev deploys dozens of times a day, so it keeps fewer builds than prod to cut Hosting egress.
         run: node scripts/carryForwardAssets.mjs "https://${SITE}.web.app" dist 10
 
       - name: Deploy Hosting
+        if: env.SUPERSEDED != 'true'
         run: |
           jq --arg site "$SITE" '.hosting.site = $site' firebase.json > firebase.json.tmp
           mv firebase.json.tmp firebase.json
           pnpm exec firebase deploy --only hosting --project "$DEV_PROJECT_ID" --force
 
       - name: Comment deployment URL
+        if: env.SUPERSEDED != 'true'
         run: |
           echo "### 🚀 Preview deployed" >> $GITHUB_STEP_SUMMARY
           echo "**URL:** https://${SITE}.web.app" >> $GITHUB_STEP_SUMMARY
