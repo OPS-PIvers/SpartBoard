@@ -112,4 +112,5 @@ fi
   echo "deploy_only=$DEPLOY_ONLY"
   echo "release_rules=$RULES"
   echo "indexes=$INDEXES"
+  echo "functions=$([[ "$FUNCTIONS" == true && "$BACKEND" == true ]] && echo true || echo false)"
 } >>"$OUT"

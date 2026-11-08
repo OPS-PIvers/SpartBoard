@@ -134,6 +134,11 @@ describe('plan-deploy.sh', () => {
     );
   });
 
+  it('says whether functions are planned, apart from the target list', () => {
+    expect(plan('main', ['functions/src/linkPreview.ts']).functions).toBe('true');
+    expect(plan('main', ['firestore.rules']).functions).toBe('false');
+  });
+
   it('redeploys every prod target when a deploy script or the narrowing changes', () => {
     for (const script of [
       '.github/scripts/affected-functions.mjs',

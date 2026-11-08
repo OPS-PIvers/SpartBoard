@@ -411,7 +411,7 @@ function runDeployAndRelease(deployExit: number, releaseExit: number) {
   stub(
     'pnpm',
     [
-      `for _ in $(seq 100); do [[ -f "${dir}/released" ]] && break; command sleep 0.05; done`,
+      `for _ in $(seq 100); do [[ -f "${dir}/released" ]] && break; /bin/sleep 0.05; done`,
       `[[ -f "${dir}/released" ]] && echo yes > "${dir}/overlapped"`,
       'echo "Error: Compilation errors in index.ts"',
       `exit ${deployExit}`,

@@ -62,6 +62,8 @@ on_exit() {
   exit "$code"
 }
 trap on_exit EXIT
+# A cancelled deploy stops the rules release too, as when it ran after the CLI deploy.
+trap 'if [[ -n "$rules_pid" ]]; then pkill -TERM -P "$rules_pid"; kill "$rules_pid"; fi 2>/dev/null; rules_pid=""; exit 143' INT TERM
 
 # Case-insensitive substrings that mark a transient, retryable failure
 # rather than a real deploy error. `HTTP Error: 5[0-9][0-9]` covers every
