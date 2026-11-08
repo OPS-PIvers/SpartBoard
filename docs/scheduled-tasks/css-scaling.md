@@ -100,6 +100,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-11-08 action: Sunday daily run. Nothing In Progress. Rebase onto `dev-paul` conflicts (unrelated histories), so the tree stays synced via the earlier ours-merge; code is identical to `dev-paul`. Only LOW items open; top item (RandomClassContextButton portaled dropdown) is viewport-level popover chrome, same design call as the 2026-11-02 note; no code change, left Open._
+
 _2026-11-02 action: Monday daily run. Nothing In Progress. widget-registry has no Open items. Top css-scaling item (EmbedWidget `px-1`) was already fixed in #4953 (`93e8ee40`), so moved it to Completed as a journal-only change. The two remaining items (RandomClassContextButton, ActiveClassChip portaled dropdowns) are fixed-size popover menus where scaling is a design call; left Open, no code change._
 
 _2026-10-29 action: Thursday daily run. Nothing In Progress; no weekly journal for Thursday. Only LOW items open; picked css-scaling's first (QuizResults `mt-0.5` badges). Recency check clean. Fixed and moved to Completed; PR opened to `dev-paul`._
