@@ -605,6 +605,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
         }}
       >
         {onBack && (
+          // no-tour-anchor: student page; live tours run in the teacher app
           <button
             type="button"
             onClick={onBack}
@@ -634,6 +635,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             const Icon = candidate.icon;
             const selected = mode === candidate.id;
             return (
+              // no-tour-anchor: student page; live tours run in the teacher app
               <button
                 key={candidate.id}
                 type="button"
@@ -718,6 +720,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               </div>
             </div>
           )}
+          {/* no-tour-anchor: student page; live tours run in the teacher app */}
           <button
             type="button"
             onClick={() => setSettingsOpen((open) => !open)}
@@ -993,6 +996,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             >
               {t('flashcards.settings.title')}
             </h2>
+            {/* no-tour-anchor: student page; live tours run in the teacher app */}
             <button
               type="button"
               onClick={() => setSettingsOpen(false)}
@@ -1203,6 +1207,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             )}
 
             {adapter.showsMarks && adapter.canReset && (
+              // no-tour-anchor: student page; live tours run in the teacher app
               <button
                 type="button"
                 onClick={resetProgress}
@@ -1280,6 +1285,7 @@ const SegmentedSetting: React.FC<{
       style={{ gap: 'min(3px, .7cqmin)', padding: 'min(3px, .7cqmin)' }}
     >
       {options.map((option) => (
+        // no-tour-anchor: student page; live tours run in the teacher app
         <button
           key={option.value}
           type="button"
@@ -1338,6 +1344,7 @@ const QuestionCountSetting: React.FC<{
         {label}
       </div>
       <div className="flex items-stretch" style={{ gap: 'min(6px, 1.4cqmin)' }}>
+        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <input
           type="number"
           inputMode="numeric"
@@ -1363,6 +1370,7 @@ const QuestionCountSetting: React.FC<{
             fontSize: 'min(12px, 3.2cqmin)',
           }}
         />
+        {/* no-tour-anchor: student page; live tours run in the teacher app */}
         <button
           type="button"
           onClick={() => onChange('all')}
@@ -1466,6 +1474,7 @@ const ToggleSetting: React.FC<{
         </span>
       )}
     </span>
+    {/* no-tour-anchor: student page; live tours run in the teacher app */}
     <input
       type="checkbox"
       className="sr-only"
