@@ -135,7 +135,9 @@ describe('plan-deploy.sh', () => {
   });
 
   it('says whether functions are planned, apart from the target list', () => {
-    expect(plan('main', ['functions/src/linkPreview.ts']).functions).toBe('true');
+    expect(plan('main', ['functions/src/linkPreview.ts']).functions).toBe(
+      'true'
+    );
     expect(plan('main', ['firestore.rules']).functions).toBe('false');
   });
 
