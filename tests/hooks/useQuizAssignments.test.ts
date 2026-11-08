@@ -354,6 +354,37 @@ describe('useQuizAssignments - reopenAssignment', () => {
     expect(findSessionPatch()).not.toHaveProperty('pausedAt');
   });
 
+  it('keeps the first pausedAt when Reopen hits an already-paused run', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+        pausedAt: 1000,
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.reopenAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).not.toHaveProperty('pausedAt');
+  });
+
+  it('sets pausedAt on a repeat Pause when the paused run has none', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.pauseAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).toHaveProperty('pausedAt');
+  });
+
   it('records the reopened pause so Resume credits it to the time limit', async () => {
     const sessionState: Partial<QuizSession> = {
       id: ASSIGNMENT_ID,
