@@ -4,7 +4,7 @@
 // update rules, so the write runs here as admin once the caller is proven to
 // be the monitor the launch stamped.
 
-import { onCall } from 'firebase-functions/v2/https';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { logger } from 'firebase-functions';
 import './functionsInit';
@@ -218,13 +218,11 @@ export async function handleControlSubAssignment(
   if (over) return { state: 'ended' };
   const patches = controlPatches(kind, action, now);
   // A repeat pause keeps the open pause's start but still repairs the assignment.
-  if (
+  const repeatPause =
     action === 'pause' &&
     session.status === 'paused' &&
-    hasOpenPause(session.pauseSpans, session.pausedAt)
-  ) {
-    delete patches.session.pausedAt;
-  }
+    hasOpenPause(session.pauseSpans, session.pausedAt);
+  if (repeatPause) delete patches.session.pausedAt;
   if (kind === 'quiz' && action === 'resume') {
     await refreshIdleResponses(db, sessionId, now);
     const spans =
@@ -234,12 +232,29 @@ export async function handleControlSubAssignment(
     if (spans) patches.session.pauseSpans = spans;
   }
   const batch = db.batch();
-  batch.update(sessionRef, patches.session);
+  // A repeat pause writes only if no Resume landed since the read, so its kept pausedAt is still open.
+  if (repeatPause && snap.updateTime) {
+    batch.update(sessionRef, patches.session, {
+      lastUpdateTime: snap.updateTime,
+    });
+  } else {
+    batch.update(sessionRef, patches.session);
+  }
   batch.update(
     db.doc(`users/${hostUid}/${ASSIGNMENTS[kind]}/${sessionId}`),
     patches.assignment
   );
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (err) {
+    if (repeatPause && (err as { code?: unknown }).code === 9) {
+      throw new HttpsError(
+        'failed-precondition',
+        'That run just changed. Try again.'
+      );
+    }
+    throw err;
+  }
 
   if (kind === 'quiz' && action === 'end') {
     await finalizeQuizResponses(db, sessionId, session, now);
