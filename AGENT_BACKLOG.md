@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-162**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-164**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -91,6 +91,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Quiz, Video Activity and Guided Learning
 
+- **AB-162 Substitute pause can lose pause credit in a race** (S, 2026-11-08 sweep of #5428). `handleControlSubAssignment` (`functions/src/subControlAssignment.ts`) reads the session with `get()` and writes with a batch. If the teacher's Resume lands between the sub's read and write, the sub writes `status: 'paused'` without `pausedAt` (the open pause was just closed), so that pause is never credited to the quiz time limit. Do the read and write in a transaction, or write `pausedAt: now` when `hasOpenPause` is false at write time. Done when a test covers the interleaving.
 - **AB-122 Quiz picture lightbox and small buttons** (S, release #5270 review). `components/common/ImageLightbox.tsx` sets `aria-modal` but doesn't move focus into the dialog, trap Tab or return focus to the enlarge button on close. The enlarge button (`AnswerImageZoomButton`, 32px) and the one-list Ordering up/down arrows (`OrderingListInput`, 22px tall) are below the 44px touch target. Fix both with screenshots at phone and Chromebook sizes; no wording changes.
 - **AB-114 Delete the old paper print doors** (S). Assign on paper replaced New > Paper test and the library's Print response sheets and Import responses items, so `PaperPrintModal` no longer opens without `assign`: its roster checklist and the stub door (`onCreateQuiz`, `readDocument`, stub title/count/choices/written numbers) are unreachable. Keep `PaperImportModal`'s batch and administration pickers: the library's Import responses item for a stack with no Paper card still uses them. Delete the unreachable paths and their tests, keeping the stub _analysis_ path, which old paper tests still use. Check `tourAnchorsInUse.json` before removing any `quiz-print.*` or `quiz-import.*` anchor. Done when: both modals have only the paths Widget.tsx reaches.
 - **AB-16 Quiz view state cleanup** (M). From `docs/plans/shipped/QUIZ_INTERFACE_REDESIGN.md` Phase 3: remove the `'editor'` member from `QuizConfig.view` (`types.ts` ~6702) if nothing sets it; move ephemeral view state (tabs, view toggles) out of Firestore config into local state; check QuizResults (Phase 1.5) matches the monitor's toggle, sort and filter conventions.
@@ -127,6 +128,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Tours and extension
 
+- **AB-163 Flashcards Speak opt-outs that render for admins** (S, 2026-11-08 sweep of #5431). `components/flashcards/SpeakMode.tsx` has `no-tour-anchor: student player` opt-outs on controls that also render in Admin Settings' Words to check practice (`components/admin/FlashcardsSpeakWordsToCheck.tsx`, `allowedModes={['speak']}`): the `SelectSetting` select, the auto-continue and example toggles, Hear it and Speak. Give the ones an admin tour could point at real anchors (follow the `flashcards.present-*` ids from #5431) or correct the reasons. Also fix `FlashcardPlayer.tsx`'s remaining `no-tour-anchor: student player` line. Done when `check:tour-anchors` passes and every reason is true.
 - **AB-109 Learning target picker and Schoology push anchors** (S). From #5126 review: the four `target-picker` close/apply/replace/cancel anchors use `closes: 'own'` on a `kind: 'shared'` surface, so the dry run closes the surrounding editor instead (`config/tourAnchors.ts` ~922-954; set `closes: 'board.target-picker'` or make the surface a dialog kind). `schoology-push.add-category`, `.create-categories` and `.skip-course` render once per course (`components/schoology/ToolColumnPushDialog.tsx`); scope them `perField` by course or opt them out. `board.target-picker` has no `opensWith`, and the PLC mount in `LearningTargetsManager.tsx` has no surface. Done when `tourDryRun` gives no false closed-panel warning, with a test.
 - **AB-27 Live tour benchmark fixes** (M). `docs/live-tours/BENCHMARK.md` B1-B6, B10: `get_live_tour` drops the material sample; picture `upload_url` unreachable; a type step with no value is refused against the guide; the `editor.save:quiz` key; demo content in the guide; multiple openers per surface; video activity tour 11 not green.
 - **AB-28 Web tour pictures with suggestions** (M). C15 in `docs/plans/shipped/WEB_TOURS_CLAUDE.md`: save a fresh picture with a suggestion from an admin's own run or a check run (PR 5 sends clues only).
@@ -200,6 +202,11 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-6j0hsf
   git push origin --delete claude/project-thread-42s01y claude/project-thread-42s01y-ab112
   git push origin --delete claude/project-thread-unrkuv
+  git push origin --delete claude/project-thread-6mytcz claude/project-thread-6mytcz-ab112
+  git push origin --delete claude/project-thread-7g5uex
+  git push origin --delete nightly/widgets-2026-11-08 nightly/state-2026-11-08 nightly/debugger-log-2026-11-08
+  git push origin --delete claude/nice-dirac-tv4ijm claude/kind-johnson-m215i6 claude/amazing-meitner-tc2h9q
+  git push origin --delete claude/project-thread-aimuy5
   ```
 
   </details>
