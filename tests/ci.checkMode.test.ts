@@ -7,6 +7,7 @@ import {
   decideMode,
   prChecksRan,
   REQUIRED_PR_JOBS,
+  runIsFromPr,
 } from '@/.github/scripts/check-mode.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -168,5 +169,52 @@ describe('firebase-dev-deploy.yml check modes', () => {
 
   it('treats an unexpected mode as full', () => {
     expect(yaml).toContain('[[ "$mode" =~ ^(full|reuse|docs)$ ]] || mode=full');
+  });
+});
+
+describe('runIsFromPr', () => {
+  const pr = { number: 5, head: 'h', headRef: 'feature', baseRef: 'dev-paul' };
+  const base = (ref: string) => ({ ref });
+
+  it('matches a run GitHub still lists under the PR', () => {
+    expect(
+      runIsFromPr(
+        {
+          head_branch: 'other',
+          pull_requests: [{ number: 5, base: base('main') }],
+        },
+        pr
+      )
+    ).toBe(true);
+  });
+
+  it('matches a merged PR run that lists no PR or a newer PR on the same branch and base', () => {
+    expect(runIsFromPr({ head_branch: 'feature', pull_requests: [] }, pr)).toBe(
+      true
+    );
+    expect(
+      runIsFromPr(
+        {
+          head_branch: 'feature',
+          pull_requests: [{ number: 6, base: base('dev-paul') }],
+        },
+        pr
+      )
+    ).toBe(true);
+  });
+
+  it('rejects a run from another branch or one listed under a PR into another base', () => {
+    expect(runIsFromPr({ head_branch: 'other', pull_requests: [] }, pr)).toBe(
+      false
+    );
+    expect(
+      runIsFromPr(
+        {
+          head_branch: 'feature',
+          pull_requests: [{ number: 6, base: base('main') }],
+        },
+        pr
+      )
+    ).toBe(false);
   });
 });
