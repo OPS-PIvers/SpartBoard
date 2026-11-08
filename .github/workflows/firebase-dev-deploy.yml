@@ -16,7 +16,8 @@ on:
 # (.github/scripts/plan-deploy.sh). Concurrency is per job: a newer push cancels superseded
 # checks, but a deploy that has started always finishes.
 # plan's mode (.github/scripts/check-mode.mjs): full runs every check; reuse skips the checks PR
-# Validation already passed on this exact tree; docs runs only format and unit tests, and deploys nothing.
+# Validation already passed on this exact tree; docs skips app lint, type-check, rules tests and build, and deploys nothing.
+# A deploy job whose commit a newer push to the branch already contains cancels its run, so an older run never lands last.
 
 # Build and deploy add id-token: write for keyless Workload Identity Federation into spartboard-dev.
 permissions:
@@ -318,6 +319,7 @@ jobs:
           BACKEND: ${{ steps.plan.outputs.backend }}
         run: |
           mode=$(node .github/scripts/check-mode.mjs "$BASE_SHA" "$FULL" "$BACKEND")
+          [[ "$mode" =~ ^(full|reuse|docs)$ ]] || mode=full
           echo "Check mode: $mode" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
@@ -332,10 +334,22 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
+      actions: write
       id-token: write
     env:
       SITE: spartboard-${{ needs.plan.outputs.site_suffix }}
     steps:
+      - name: Stop if a newer push superseded this one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$GITHUB_REF_NAME" --jq .status) || status=unknown
+          if [[ "$status" == ahead ]]; then
+            echo "::notice::$GITHUB_REF_NAME has moved past this commit; the newer run deploys it."
+            gh run cancel "$GITHUB_RUN_ID"
+            sleep 120
+            exit 1
+          fi
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
 
@@ -381,9 +395,20 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
-      actions: read
+      actions: write
       id-token: write
     steps:
+      - name: Stop if a newer push superseded this one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$GITHUB_REF_NAME" --jq .status) || status=unknown
+          if [[ "$status" == ahead ]]; then
+            echo "::notice::$GITHUB_REF_NAME has moved past this commit; the newer run deploys it."
+            gh run cancel "$GITHUB_RUN_ID"
+            sleep 120
+            exit 1
+          fi
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -417,9 +442,16 @@ jobs:
           # A named deploy is only safe on top of dev-paul's own last deploy of the shared backend.
           last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/firebase-dev-deploy.yml/runs?status=success&per_page=20"             --jq '[.workflow_runs[]] | max_by(.updated_at) | "\(.head_branch) \(.head_sha)"') || last=""
           read -r last_branch last_sha <<<"$last"
-          # A later dev-paul deploy between the plan's base and this commit changed only a subset of the planned functions.
-          if [[ "$last" != "dev-paul $BASE_SHA" ]] && ! { [[ "$GITHUB_REF_NAME" == dev-paul && "$last_branch" == dev-paul && -n "$BASE_SHA" ]] &&
-            git merge-base --is-ancestor "$BASE_SHA" "$last_sha" && git merge-base --is-ancestor "$last_sha" HEAD; }; then
+          # A later dev-paul deploy between the plan's base and this commit is covered when every file it changed is also planned here.
+          # A file it changed that this commit set back (a revert) is not, so that case deploys every function.
+          covered() {
+            [[ "$GITHUB_REF_NAME" == dev-paul && "$last_branch" == dev-paul && -n "$BASE_SHA" ]] || return 1
+            git merge-base --is-ancestor "$BASE_SHA" "$last_sha" && git merge-base --is-ancestor "$last_sha" HEAD || return 1
+            local theirs ours
+            theirs=$(git diff --name-only "$BASE_SHA" "$last_sha") && ours=$(git diff --name-only "$BASE_SHA" HEAD) || return 1
+            [[ -z "$(comm -23 <(sort <<<"$theirs") <(sort <<<"$ours"))" ]]
+          }
+          if [[ "$last" != "dev-paul $BASE_SHA" ]] && ! covered; then
             export DEPLOY_ALL_FUNCTIONS=true
           fi
           targets="$(node .github/scripts/function-targets.mjs "$DEPLOY_ONLY")"

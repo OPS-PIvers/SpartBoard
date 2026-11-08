@@ -27,18 +27,22 @@ export function prChecksRan(jobs) {
 
 /**
  * @typedef {{ name: string, conclusion: string | null }} Job
- * @typedef {{ full: boolean, backend: boolean, changedFiles: string[] | null, headTree: string, mergedPrHeads: string[],
- *   treeOf: (sha: string) => Promise<string>, successfulRuns: (sha: string) => Promise<number[]>, jobsOf: (run: number) => Promise<Job[]> }} ModeInput
+ * @typedef {{ number: number, head: string }} MergedPr
+ * @typedef {{ full: boolean, backend: boolean, changedFiles: string[] | null, headTree: string, mergedPrs: MergedPr[],
+ *   treeOf: (sha: string) => Promise<string>, baseIsInHead: (head: string) => Promise<boolean>,
+ *   successfulRuns: (pr: MergedPr) => Promise<number[]>, jobsOf: (run: number) => Promise<Job[]> }} ModeInput
  */
 
-// docs: only docs changed since the last good run. reuse: a merged PR's head had this exact tree and PR Validation ran every check on it.
+// docs: only docs changed since the last good run. reuse: the merged PR's head held this exact tree and the branch's
+// prior commit, so PR Validation's merge ref was this tree, and that PR's own run passed every check on it.
 /** @param {ModeInput} input @returns {Promise<'full' | 'reuse' | 'docs'>} */
-export async function decideMode({ full, backend, changedFiles, headTree, mergedPrHeads, treeOf, successfulRuns, jobsOf }) {
+export async function decideMode({ full, backend, changedFiles, headTree, mergedPrs, treeOf, baseIsInHead, successfulRuns, jobsOf }) {
   if (full) return 'full';
   if (changedFiles && changedFiles.length > 0 && changedFiles.every(isDoc) && !backend) return 'docs';
-  for (const head of mergedPrHeads) {
-    if ((await treeOf(head)) !== headTree) continue;
-    for (const run of await successfulRuns(head)) {
+  for (const pr of mergedPrs) {
+    if ((await treeOf(pr.head)) !== headTree) continue;
+    if (!(await baseIsInHead(pr.head))) continue;
+    for (const run of await successfulRuns(pr)) {
       if (prChecksRan(await jobsOf(run))) return 'reuse';
     }
   }
@@ -76,10 +80,17 @@ async function main() {
     backend: backend === 'true',
     changedFiles,
     headTree: git('rev-parse', `${sha}^{tree}`),
-    mergedPrHeads: (await api(`commits/${sha}/pulls`)).filter((pr) => pr.merged_at).map((pr) => pr.head.sha),
+    mergedPrs: (await api(`commits/${sha}/pulls`))
+      .filter((pr) => pr.merged_at)
+      .map((pr) => ({ number: pr.number, head: pr.head.sha })),
     treeOf: async (head) => (await api(`git/commits/${head}`)).tree.sha,
-    successfulRuns: async (head) =>
-      (await api(`actions/workflows/pr-validation.yml/runs?head_sha=${head}&status=success&per_page=5`)).workflow_runs.map((run) => run.id),
+    // The pushed commit's first parent is the branch before the merge; it must already be in the PR head.
+    baseIsInHead: async (head) =>
+      ['ahead', 'identical'].includes((await api(`compare/${git('rev-parse', `${sha}^1`)}...${head}`)).status),
+    successfulRuns: async (pr) =>
+      (await api(`actions/workflows/pr-validation.yml/runs?head_sha=${pr.head}&event=pull_request&status=success&per_page=10`)).workflow_runs
+        .filter((run) => run.pull_requests.some((p) => p.number === pr.number))
+        .map((run) => run.id),
     jobsOf: async (run) => (await api(`actions/runs/${run}/jobs?per_page=100`)).jobs,
   });
   process.stdout.write(`${mode}\n`);

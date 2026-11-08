@@ -32,8 +32,9 @@ function input(overrides: Partial<ModeInput> = {}): ModeInput {
     backend: false,
     changedFiles: ['components/a.tsx'],
     headTree: 'tree1',
-    mergedPrHeads: ['head1'],
+    mergedPrs: [{ number: 5, head: 'head1' }],
     treeOf: () => Promise.resolve('tree1'),
+    baseIsInHead: () => Promise.resolve(true),
     successfulRuns: () => Promise.resolve([1]),
     jobsOf: () => Promise.resolve(passedJobs),
     ...overrides,
@@ -49,7 +50,11 @@ describe('check-mode.mjs', () => {
     expect(
       await decideMode(input({ treeOf: () => Promise.resolve('other') }))
     ).toBe('full');
-    expect(await decideMode(input({ mergedPrHeads: [] }))).toBe('full');
+    expect(await decideMode(input({ mergedPrs: [] }))).toBe('full');
+    // A PR behind its base was validated on a merge ref holding other commits, not on this tree.
+    expect(
+      await decideMode(input({ baseIsInHead: () => Promise.resolve(false) }))
+    ).toBe('full');
     expect(
       await decideMode(input({ successfulRuns: () => Promise.resolve([]) }))
     ).toBe('full');
@@ -85,29 +90,29 @@ describe('check-mode.mjs', () => {
 
   it('takes docs mode only for docs-only changes that touch no backend target', async () => {
     const docs = ['docs/a.md', 'AGENT_BACKLOG.md'];
-    expect(
-      await decideMode(input({ changedFiles: docs, mergedPrHeads: [] }))
-    ).toBe('docs');
+    expect(await decideMode(input({ changedFiles: docs, mergedPrs: [] }))).toBe(
+      'docs'
+    );
     expect(
       await decideMode(
-        input({ changedFiles: docs, backend: true, mergedPrHeads: [] })
+        input({ changedFiles: docs, backend: true, mergedPrs: [] })
       )
     ).toBe('full');
     expect(
       await decideMode(
         input({
           changedFiles: [...docs, 'public/changelog.json'],
-          mergedPrHeads: [],
+          mergedPrs: [],
         })
       )
     ).toBe('full');
     // No usable base (first run or a missing commit) is never docs mode.
-    expect(
-      await decideMode(input({ changedFiles: null, mergedPrHeads: [] }))
-    ).toBe('full');
-    expect(
-      await decideMode(input({ changedFiles: [], mergedPrHeads: [] }))
-    ).toBe('full');
+    expect(await decideMode(input({ changedFiles: null, mergedPrs: [] }))).toBe(
+      'full'
+    );
+    expect(await decideMode(input({ changedFiles: [], mergedPrs: [] }))).toBe(
+      'full'
+    );
   });
 
   it('runs everything on a full-backend dispatch', async () => {
@@ -146,5 +151,22 @@ describe('firebase-dev-deploy.yml check modes', () => {
     expect(job('functions-test')).toContain(
       "if: needs.plan.outputs.mode != 'reuse'"
     );
+  });
+
+  it('lets a newer push deploy instead of an older run landing last', () => {
+    for (const name of ['deploy', 'deploy-hosting']) {
+      const body = job(name);
+      const guard = body.indexOf(
+        '- name: Stop if a newer push superseded this one'
+      );
+      expect(guard).toBeGreaterThan(-1);
+      expect(guard).toBeLessThan(body.indexOf('- uses: actions/checkout@v6'));
+      expect(body).toContain('gh run cancel "$GITHUB_RUN_ID"');
+      expect(body).toContain('actions: write');
+    }
+  });
+
+  it('treats an unexpected mode as full', () => {
+    expect(yaml).toContain('[[ "$mode" =~ ^(full|reuse|docs)$ ]] || mode=full');
   });
 });
