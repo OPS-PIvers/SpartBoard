@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-158**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-162**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,6 +19,10 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
+- **AB-158 R5 paper answer skip on the other student write paths** (S, before `paper-written-hybrid` opens). From release #5423 review. `computeWrite` skips writing a question the student answered on paper, but `markUnresponded` and the recording take path in `hooks/useQuizSession.ts` don't, so if the scan for that question is missing those writes add an entry the response rule (`paperKept` in `firestore.rules`) refuses and the student sees a save error. Apply the same skip in both paths, with tests.
+- **AB-159 GL media reference scan reads every recent Claude revision** (S). From release #5423 review. `addRevisionReferences` in `functions/src/glMediaReferences.ts` streams the whole `claude_revisions` collection group (bounded only by its 30-day TTL) on every `releaseGuidedLearningMediaV1` call. Filter to Guided Learning revisions or by `createdAt` in the query (check the collection-group index it needs), and keep the fail-safe that a failed scan keeps every file.
+- **AB-160 NextUp lease release should check ownership** (S). From release #5423 review of #5397. The `pagehide` release in `components/widgets/NextUp/nextUpDrainLease.ts` deletes the lease without checking it still belongs to this tab, so a stale tab can clear the live holder's lease (it re-claims and reloads from Drive). Release in a transaction that checks `clientId`, with a test.
+- **AB-161 Storage rules test for staff member status** (S, rules tests). From release #5423 review. `storage.rules` `districtStaffMember` now admits only `active` and `invited`, but nothing in `tests/rules/` exercises it with `invited`, `inactive` or a stray value. Add allowed and denied cases.
 - **AB-157 Recording take whose tab closed mid-upload after turn-in** (S). From R4 (state machine audit). When the tab closes before a take's Storage upload finishes, or the device is offline when the post-turn-in hand-off to `archiveQuizMediaArtifact` runs (or that callable refuses before its claim), the response keeps `uploadState: 'pending'` with no `artifactArchive` entry, so the teacher's card reads "archiving" forever and the hourly sweep (it only queries `hasStuckArchive`) never sees it. Have a server pass mark any such pending take with no archive entry `lost` once the response is completed and older than `STUCK_ARCHIVE_AGE_MS` (for example from `finalizeIdleQuizAttempts` or the finalize paths setting `hasStuckArchive`). Done with a functions test.
 - **AB-154 Grade index retry cost** (S, from the PR sweep's integration review of #5364; the PLC dirty mark half shipped with release #5423). In `functions/src/gradebook/gradeIndex.ts` `markSessionDirty` merges `dirtyAt` but keeps an old `retryAt`, so fresh data waits up to an hour, and sessions that always fail now retry hourly forever (the old 5-try cap is gone). Clear `retryAt` on a new mark and cap permanent failures. Done when both have tests.
 - **AB-155 Spotlight setting survives a minimize** (S, from #5366). `utils/spotlightOverlay.ts` hides the dim overlay when the spotlit widget is minimized, but `spotlightWidgetId` stays set, so `WidgetRenderer`, `DraggableWindow` and `RemoteWidgetCard` still treat it as spotlit and the overlay returns on restore. Decide whether minimizing clears the spotlight, and test it.
@@ -195,6 +199,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/project-thread-kof3cp
   git push origin --delete claude/project-thread-6j0hsf
   git push origin --delete claude/project-thread-42s01y claude/project-thread-42s01y-ab112
+  git push origin --delete claude/project-thread-unrkuv
   ```
 
   </details>
