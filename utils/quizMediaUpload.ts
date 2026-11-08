@@ -194,3 +194,99 @@ export function enqueueQuizMediaUpload(
   );
   return next;
 }
+
+/** Resolves when every upload settles or the cap passes, whichever is first; never rejects. */
+export async function waitForUploads(
+  uploads: Iterable<Promise<unknown>>,
+  capMs: number
+): Promise<void> {
+  const pending = [...uploads];
+  if (pending.length === 0) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.allSettled(pending),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, capMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/** After turn-in the student can't write uploadState; the archive callable settles the take's archive entry instead. */
+export async function handOffLockedUpload(
+  job: QuizMediaUploadJob,
+  deps: QuizMediaUploadDeps = defaultDeps
+): Promise<void> {
+  try {
+    await deps.archiveArtifact(job);
+  } catch {
+    // A missing transit object is recorded as lost server-side; the teacher sees that.
+  }
+}
+
+export interface UploadSettleActions {
+  /** Writes uploadState; resolves true when the turned-in attempt is locked. */
+  write: (
+    job: QuizMediaUploadJob,
+    state: ArtifactUploadState
+  ) => Promise<boolean>;
+  handOff: (job: QuizMediaUploadJob) => Promise<void>;
+}
+
+/** Tracks uploads around a turn-in so no failure lands as a hidden 'failed' write on a locked attempt. */
+export function createTurnInUploadGate() {
+  const inFlight = new Set<Promise<unknown>>();
+  const deferred = new Map<string, QuizMediaUploadJob>();
+  let turningIn = false;
+  return {
+    async run<T extends QuizMediaUploadResult>(
+      job: QuizMediaUploadJob,
+      upload: () => Promise<T>,
+      actions: UploadSettleActions
+    ): Promise<T> {
+      const run = (async () => {
+        const result = await upload();
+        if (result.uploadState === 'failed' && turningIn) {
+          deferred.set(job.artifactId, job);
+          return result;
+        }
+        const locked = await actions.write(job, result.uploadState);
+        if (locked && result.uploadState === 'failed')
+          await actions.handOff(job);
+        return result;
+      })();
+      inFlight.add(run);
+      try {
+        return await run;
+      } finally {
+        inFlight.delete(run);
+      }
+    },
+    async turnIn(
+      complete: () => Promise<void>,
+      actions: UploadSettleActions,
+      capMs: number
+    ): Promise<void> {
+      turningIn = true;
+      let turnedIn = false;
+      try {
+        await waitForUploads(inFlight, capMs);
+        await complete();
+        turnedIn = true;
+      } finally {
+        turningIn = false;
+        const jobs = [...deferred.values()];
+        deferred.clear();
+        for (const job of jobs) {
+          const settle = turnedIn
+            ? actions.handOff(job)
+            : actions.write(job, 'failed');
+          void settle.catch(() => undefined);
+        }
+      }
+    },
+  };
+}

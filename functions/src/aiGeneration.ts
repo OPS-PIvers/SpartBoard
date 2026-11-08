@@ -1,6 +1,7 @@
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { randomUUID } from 'crypto';
 import * as admin from './firebaseAdmin';
 import { Type, Schema } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
@@ -394,6 +395,25 @@ function assertPermissionAllows(
   }
 }
 
+/** Applies a saved doc's `minTier` and `buildings`, as the client's `resolvePermissionAccess` does. */
+async function assertAudienceAllows(
+  db: admin.firestore.Firestore,
+  perm: GlobalPermission,
+  token: { email?: string; email_verified?: boolean },
+  uid: string,
+  message: string
+): Promise<void> {
+  const limited =
+    (perm.minTier !== undefined && perm.minTier !== null) ||
+    (Array.isArray(perm.buildings) && perm.buildings.length > 0);
+  if (!limited) return;
+  const { permissionAudienceAllows } = await import('./quizMediaArchive');
+  const email = token.email_verified === true ? (token.email ?? '') : '';
+  if (!(await permissionAudienceAllows(db, perm, email, uid))) {
+    throw new HttpsError('permission-denied', message);
+  }
+}
+
 /** An extra per-user daily counter checked in the same transaction as the AI caps. */
 export interface AiExtraCap {
   key: string;
@@ -404,6 +424,8 @@ export interface AiExtraCap {
 /** The `ai_usage` docs one successful charge incremented, so a failed run can be refunded. */
 export interface AiUsageCharge {
   docIds: string[];
+  /** Makes the refund once-only; charges saved before this field refund as before. */
+  id?: string;
 }
 
 /** Non-admin gate for a dedicated AI function: `gemini-functions`, then the widget's own doc, then both daily caps. */
@@ -429,6 +451,13 @@ async function enforceAiFeatureAccess(
       adminOnly: 'Gemini functions are currently restricted to administrators.',
       notBeta: 'You do not have access to Gemini beta functions.',
     });
+    await assertAudienceAllows(
+      db,
+      geminiPerm,
+      token,
+      uid,
+      'You do not have access to Gemini functions.'
+    );
   }
   const specPerm = specDoc.exists
     ? (specDoc.data() as GlobalPermission)
@@ -440,6 +469,13 @@ async function enforceAiFeatureAccess(
       adminOnly: `${featureId} is currently restricted to administrators.`,
       notBeta: `You do not have access to the ${featureId} beta feature.`,
     });
+    await assertAudienceAllows(
+      db,
+      specPerm,
+      token,
+      uid,
+      `You do not have access to ${featureId}.`
+    );
   } else if (!specPerm && !missingDocAllowed) {
     throw new HttpsError(
       'permission-denied',
@@ -516,6 +552,7 @@ async function enforceAiFeatureAccess(
   }
   return {
     docIds: [overallRef.id, specificRef.id, ...(extraRef ? [extraRef.id] : [])],
+    id: randomUUID(),
   };
 }
 
@@ -547,7 +584,7 @@ async function recordAiUsage(
         );
       });
     });
-    return { docIds };
+    return { docIds, id: randomUUID() };
   } catch (error) {
     console.error(`[${featureId}] admin usage record failed:`, error);
     return { docIds: [] };
@@ -559,9 +596,21 @@ async function refundAiUsage(
   db: admin.firestore.Firestore,
   charge: AiUsageCharge
 ): Promise<void> {
+  if (charge.docIds.length === 0) return;
   await db.runTransaction(async (transaction) => {
     const refs = charge.docIds.map((id) => db.collection('ai_usage').doc(id));
-    const snaps = await Promise.all(refs.map((r) => transaction.get(r)));
+    const markerRef = charge.id
+      ? db.collection('ai_usage_refunds').doc(charge.id)
+      : null;
+    const [snaps, marker] = await Promise.all([
+      Promise.all(refs.map((r) => transaction.get(r))),
+      markerRef ? transaction.get(markerRef) : null,
+    ]);
+    if (markerRef && marker?.exists) return;
+    if (markerRef)
+      transaction.set(markerRef, {
+        refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     snaps.forEach((snap, i) => {
       const count = (snap.data()?.count as number) || 0;
       if (count > 0)
@@ -598,7 +647,7 @@ export const generateWithAI = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as AIData;
     if (!request.auth) {
       throw new HttpsError(
@@ -713,6 +762,13 @@ export const generateWithAI = onCall(
                 'You do not have access to Gemini beta functions.'
               );
             }
+            await assertAudienceAllows(
+              db,
+              globalPerm,
+              callerToken,
+              uid,
+              'You do not have access to Gemini functions.'
+            );
           }
 
           const overallLimitEnabled =
@@ -762,6 +818,13 @@ export const generateWithAI = onCall(
                   `You do not have access to the ${specificFeatureId} beta feature.`
                 );
               }
+              await assertAudienceAllows(
+                db,
+                specPerm,
+                callerToken,
+                uid,
+                `You do not have access to ${specificFeatureId}.`
+              );
 
               const specLimitEnabled =
                 specPerm.config?.dailyLimitEnabled !== false;
@@ -1775,7 +1838,7 @@ export const generateVideoActivity = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as VideoActivityRequestData;
     if (!request.auth) {
       throw new HttpsError(
@@ -1944,6 +2007,8 @@ interface AudioTranscriptionPerm {
   enabled: boolean;
   accessLevel: 'admin' | 'beta' | 'all';
   betaUsers?: string[];
+  minTier?: unknown;
+  buildings?: unknown;
   config?: AudioTranscriptionPermConfig;
 }
 
@@ -1965,7 +2030,7 @@ export const transcribeVideoWithGemini = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as AudioTranscriptionRequestData;
     if (!request.auth) {
       throw new HttpsError(
@@ -2039,6 +2104,13 @@ export const transcribeVideoWithGemini = onCall(
           'You do not have access to Gemini audio transcription.'
         );
       }
+      await assertAudienceAllows(
+        db,
+        perm,
+        request.auth.token,
+        uid,
+        'You do not have access to Gemini audio transcription.'
+      );
     }
 
     if (!isAdmin) {
@@ -2287,7 +2359,7 @@ export const generateGuidedLearning = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = request.data as {
       images?: GuidedLearningImageInput[];
       prompt?: string;
@@ -2506,7 +2578,7 @@ export const draftGuidedLearningStepTextV1 = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth?.uid) {
       throw new HttpsError(
         'unauthenticated',

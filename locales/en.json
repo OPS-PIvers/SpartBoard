@@ -2566,6 +2566,7 @@
     "recordingDriveFailed": "Failed to save to Drive. Downloading locally...",
     "noGoogleDrive": "No Google Drive connected. Downloading locally...",
     "viewLiveSession": "View live session information",
+    "endLiveSession": "End live session",
     "liveSession": "Live Session",
     "noAppsSelected": "Restoring defaults…"
   },
@@ -5639,6 +5640,8 @@
       "rebind_other": "Rebind {{count}} steps",
       "rebinding": "Rebinding...",
       "rebindFailed": "Couldn't rebind. Try again.",
+      "dismiss": "Dismiss",
+      "dismissFailed": "Couldn't update. Try again.",
       "needsType": "This button differs per widget, so set these steps in the tour editor.",
       "openLabel": "Edit {{title}}",
       "status": {

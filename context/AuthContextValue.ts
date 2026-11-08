@@ -309,6 +309,8 @@ export interface AuthContextType {
    * users with no org member doc.
    */
   accessDeactivated: boolean;
+  /** True when a verified district user has no member doc and the roster check (or the org resolver) failed, so their role can't be confirmed. */
+  roleUnconfirmed: boolean;
   /**
    * True once both `isStudentRole` (from the token claim) AND `roleId` (from
    * the org-members snapshot, or short-circuited when the user has no email)

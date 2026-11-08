@@ -53,6 +53,7 @@ describe('useOrgMembers', () => {
   const mockWriteBatch = writeBatch as Mock;
   const batchUpdate = vi.fn();
   const batchDelete = vi.fn();
+  const batchSet = vi.fn();
   const batchCommit = vi.fn();
   const mockHttpsCallable = httpsCallable as Mock;
 
@@ -65,10 +66,12 @@ describe('useOrgMembers', () => {
     mockUpdateDoc.mockResolvedValue(undefined);
     batchUpdate.mockReset();
     batchDelete.mockReset();
+    batchSet.mockReset();
     batchCommit.mockReset().mockResolvedValue(undefined);
     mockWriteBatch.mockReturnValue({
       update: batchUpdate,
       delete: batchDelete,
+      set: batchSet,
       commit: batchCommit,
     });
     // Default: any callable resolves with an empty activity payload. Tests that
@@ -211,7 +214,27 @@ describe('useOrgMembers', () => {
     expect(batchDelete).toHaveBeenCalledWith(
       'organizations/orono/members/b@x.com'
     );
+    expect(batchSet).toHaveBeenCalledTimes(2);
+    expect(batchSet).toHaveBeenCalledWith(
+      'organizations/orono/removedMembers/a@x.com',
+      { removedAt: expect.any(String) as string }
+    );
     expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('removeMembers keeps each batch under 500 writes (delete + tombstone per id)', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => useOrgMembers('orono'));
+    const ids = Array.from({ length: 300 }, (_, i) => `u${i}@x.com`);
+    await act(async () => {
+      await result.current.removeMembers(ids);
+    });
+    expect(mockWriteBatch).toHaveBeenCalledTimes(2);
+    expect(batchDelete.mock.calls.length + batchSet.mock.calls.length).toBe(
+      600
+    );
+    expect(batchCommit).toHaveBeenCalledTimes(2);
   });
 
   it('inviteMembers calls the createOrganizationInvites callable with the correct payload', async () => {

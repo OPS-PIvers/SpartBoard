@@ -5,8 +5,9 @@ import { doc, setDoc, type Firestore } from 'firebase/firestore';
 export const STUDENT_GOOGLE_EMAIL = '704522@orono.k12.mn.us';
 export const LEGACY_STUDENT_MEMBER_EMAIL = 'legacy.student@orono.k12.mn.us';
 export const INACTIVE_STAFF_EMAIL = 'former.teacher@orono.k12.mn.us';
+export const UNKNOWN_STATUS_STAFF_EMAIL = 'removed.teacher@orono.k12.mn.us';
 
-/** Active teacher member docs for each address, plus a student-role and an inactive member for the denial cases. */
+/** Active teacher member docs for each address, plus student-role, inactive and unknown-status members for the denial cases. */
 export async function seedDistrictStaff(
   ctxDb: ReturnType<RulesTestContext['firestore']>,
   emails: readonly string[]
@@ -27,6 +28,10 @@ export async function seedDistrictStaff(
       status: 'active',
     }),
     member(INACTIVE_STAFF_EMAIL, { roleId: 'teacher', status: 'inactive' }),
+    member(UNKNOWN_STATUS_STAFF_EMAIL, {
+      roleId: 'teacher',
+      status: 'removed',
+    }),
   ]);
 }
 
@@ -35,4 +40,5 @@ export const NOT_STAFF_DISTRICT_EMAILS = [
   STUDENT_GOOGLE_EMAIL,
   LEGACY_STUDENT_MEMBER_EMAIL,
   INACTIVE_STAFF_EMAIL,
+  UNKNOWN_STATUS_STAFF_EMAIL,
 ] as const;

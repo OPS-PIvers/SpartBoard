@@ -77,7 +77,7 @@ const UNCATEGORIZED: HelpCategory = {
 };
 
 export const HelpCenterManager: React.FC = () => {
-  const { user, userRoles, orgId, roleId } = useAuth();
+  const { user, userRoles, orgId, roleId, canAccessWidget } = useAuth();
   const { showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
@@ -255,7 +255,7 @@ export const HelpCenterManager: React.FC = () => {
   ): 'draft' | 'hidden' | 'live' | undefined => {
     if (item.kind !== 'guided-learning' || !item.setId) return undefined;
     if (!tourSetIds.has(item.setId)) return undefined;
-    const runnable = isTourRunnable(item.setId);
+    const runnable = isTourRunnable(item.setId, canAccessWidget);
     if (runnable === undefined) return undefined;
     if (!runnable) return 'draft';
     return item.visible ? 'live' : 'hidden';

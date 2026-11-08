@@ -13,6 +13,7 @@ import {
 } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
+import { useBoardTriggerClaim } from '@/hooks/useBoardTriggerClaim';
 import { useAuth } from '@/context/useAuth';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { reportHandAction } from '@/utils/connectionSignals';
@@ -23,16 +24,28 @@ import {
   type NextUpQueueAction,
 } from './nextUpQueueUtils';
 import { getNextUpQueueStore } from './nextUpQueueStore';
+import {
+  claimNextUpDrain,
+  createNextUpDrainController,
+  getNextUpTabId,
+  knownNextUpTabId,
+  nextUpControllerLive,
+  releaseNextUpDrain,
+  trackNextUpController,
+} from './nextUpDrainLease';
 import { assertNextUpQueueFile } from './nextUpDriveFile';
 import {
   collection,
   onSnapshot,
   deleteDoc,
   doc,
+  getDocsFromServer,
   updateDoc,
   query,
   orderBy,
   limit,
+  type DocumentReference,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { ListOrdered, RefreshCcw } from 'lucide-react';
@@ -45,6 +58,13 @@ import { usesLegacyToggles } from '@/utils/legacyConnections';
 
 /** A stable reference, so a share does not re-derive the queue every render. */
 const EMPTY_QUEUE: NextUpQueueItem[] = [];
+
+interface JoinEntry {
+  id: string;
+  name: string;
+  joinedAt: number;
+  ref: DocumentReference;
+}
 
 const SESSIONS_COLLECTION = 'nextup_sessions';
 const ENTRIES_SUBCOLLECTION = 'entries';
@@ -113,6 +133,15 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     sessionId,
   ]);
 
+  const downloadQueue = useCallback(async () => {
+    if (!driveService || !activeDriveFileId) {
+      throw new Error('Google Drive is not connected');
+    }
+    await assertNextUpQueueFile(driveService, activeDriveFileId);
+    const blob = await driveService.downloadFile(activeDriveFileId);
+    return JSON.parse(await blob.text()) as NextUpQueueItem[];
+  }, [driveService, activeDriveFileId]);
+
   // Sync from Drive when triggered by Firestore
   useEffect(() => {
     let isMounted = true;
@@ -121,11 +150,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for the Drive download started here
       setLoading(true);
       store
-        .load(async () => {
-          await assertNextUpQueueFile(driveService, activeDriveFileId);
-          const blob = await driveService.downloadFile(activeDriveFileId);
-          return JSON.parse(await blob.text()) as NextUpQueueItem[];
-        })
+        .load(downloadQueue)
         .catch((e: unknown) => {
           console.error('Failed to load queue data:', e);
         })
@@ -138,7 +163,15 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     return () => {
       isMounted = false;
     };
-  }, [store, activeDriveFileId, lastUpdated, driveService, isActive, inShare]);
+  }, [
+    store,
+    activeDriveFileId,
+    lastUpdated,
+    driveService,
+    isActive,
+    inShare,
+    downloadQueue,
+  ]);
 
   const writeQueue = useCallback(
     async (fileId: string, updatedQueue: NextUpQueueItem[]) => {
@@ -158,8 +191,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   }, [updateWidget, widget.id]);
 
   const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);
+  const claimTrigger = useBoardTriggerClaim(widget.id);
 
-  // Firestore "Buffer" Listener: Watch for incoming student entries
+  // Firestore "Buffer" Listener: one teacher tab moves student entries into the queue.
   useEffect(() => {
     if (
       inShare ||
@@ -177,41 +211,76 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       ENTRIES_SUBCOLLECTION
     );
     const q = query(entriesRef, orderBy('joinedAt', 'asc'), limit(5));
-
-    return onSnapshot(
-      q,
-      (snap) => {
-        if (snap.empty) return;
-
-        const processEntries = async () => {
-          const entries = snap.docs.map((entryDoc) => {
-            const data = entryDoc.data() as { name: string; joinedAt: number };
-            return {
-              id: entryDoc.id,
-              name: data.name,
-              joinedAt: data.joinedAt,
-            };
-          });
-          await store.dispatch({ type: 'joined', entries }, (updated) =>
-            writeQueue(activeDriveFileId, updated)
-          );
-
-          // Cleanup entries from Firestore (PII Safety)
-          await Promise.all(
-            snap.docs.map((entryDoc) => deleteDoc(entryDoc.ref))
-          );
-
-          announceQueueChange();
+    const toEntries = (docs: QueryDocumentSnapshot[]): JoinEntry[] =>
+      docs.map((entryDoc) => {
+        const data = entryDoc.data() as { name: string; joinedAt: number };
+        return {
+          id: entryDoc.id,
+          name: data.name,
+          joinedAt: data.joinedAt,
+          ref: entryDoc.ref,
         };
+      });
 
-        processEntries().catch((error: unknown) => {
-          console.error('[NextUp] Failed to add students to the queue:', error);
-        });
+    // Pick the tab id now, so this tab answers a duplicate's check before either claims.
+    void getNextUpTabId();
+    const untrack = trackNextUpController(sessionId);
+    const controller = createNextUpDrainController<JoinEntry>({
+      claim: async (takeoverSeq) =>
+        claimNextUpDrain(sessionId, await getNextUpTabId(), takeoverSeq),
+      drain: async (seen, acquired) => {
+        let entries = seen;
+        if (acquired) {
+          // Another tab may have drained before this one: start from what Drive and the server hold now.
+          await store.load(downloadQueue);
+          entries = toEntries((await getDocsFromServer(q)).docs);
+          if (entries.length === 0) return;
+        }
+        await store.dispatch(
+          {
+            type: 'joined',
+            entries: entries.map(({ id, name, joinedAt }) => ({
+              id,
+              name,
+              joinedAt,
+            })),
+          },
+          (updated) => writeQueue(activeDriveFileId, updated)
+        );
+        // Cleanup entries from Firestore (PII Safety), only once Drive holds them.
+        await Promise.all(entries.map((entry) => deleteDoc(entry.ref)));
+        announceQueueChange();
       },
+    });
+
+    const onPageHide = () => {
+      const id = knownNextUpTabId();
+      if (!controller.holding() || !id) return;
+      releaseNextUpDrain(sessionId, id, false).catch(() => undefined);
+    };
+    window.addEventListener('pagehide', onPageHide);
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => controller.onEntries(toEntries(snap.docs)),
       (error) => {
         console.error('[NextUp] Entries listener error:', error);
       }
     );
+    return () => {
+      unsubscribe();
+      window.removeEventListener('pagehide', onPageHide);
+      const held = controller.stop();
+      untrack();
+      if (!held) return;
+      // A re-run effect starts its successor in the same commit; only a real leave hands the lease back.
+      setTimeout(() => {
+        if (nextUpControllerLive(sessionId)) return;
+        void getNextUpTabId()
+          .then((id) => releaseNextUpDrain(sessionId, id, true))
+          .catch(() => undefined);
+      }, 0);
+    };
   }, [
     sessionId,
     driveService,
@@ -221,6 +290,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     store,
     writeQueue,
     announceQueueChange,
+    downloadQueue,
   ]);
 
   const syncToDrive = useCallback(
@@ -287,9 +357,12 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       config.externalTrigger > lastExternalTriggerRef.current
     ) {
       lastExternalTriggerRef.current = config.externalTrigger;
-      void handleNextStudent();
+      // Every device with the board open sees the trigger; only the one that claims it advances.
+      void claimTrigger(config.externalTrigger).then((won) => {
+        if (won) void handleNextStudent();
+      });
     }
-  }, [config.externalTrigger, handleNextStudent]);
+  }, [config.externalTrigger, handleNextStudent, claimTrigger]);
 
   const handleResetQueue = async () => {
     const confirmed = await showConfirm(

@@ -323,7 +323,7 @@ export const ltiFindSchoologySectionsV1 = onCall(
     ],
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

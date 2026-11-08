@@ -19,8 +19,10 @@ vi.mock('firebase-functions/v2/https', () => {
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 vi.mock('./functionsInit', () => ({}));
 
-const firestoreMock = vi.fn();
-const storageMock = vi.fn();
+const { firestoreMock, storageMock } = vi.hoisted(() => ({
+  firestoreMock: vi.fn(),
+  storageMock: vi.fn(),
+}));
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),

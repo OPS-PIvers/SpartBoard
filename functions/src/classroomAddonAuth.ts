@@ -906,7 +906,7 @@ export const classroomAddonLoginV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const data = (request.data ?? {}) as ClassroomAddonLoginData;
     const accessToken =
       typeof data.accessToken === 'string' ? data.accessToken : '';
@@ -1196,7 +1196,7 @@ export const createClassroomAttachment = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = (request.data ?? {}) as CreateAttachmentData;
     const accessToken =
       typeof data.accessToken === 'string' ? data.accessToken : '';
@@ -1387,7 +1387,7 @@ export const assignToClassroomV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = (request.data ?? {}) as AssignToClassroomData;
 
     // The session-ownership gate keys off the authenticated caller, never the
@@ -1714,7 +1714,7 @@ export const linkClassroomCourse = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const data = (request.data ?? {}) as LinkClassroomCourseData;
 
     // teacherUid comes from the authenticated caller, never the client payload.
@@ -1875,7 +1875,7 @@ export const unlinkClassroomCourse = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     const data = (request.data ?? {}) as UnlinkClassroomCourseData;
 
     // Identity comes from the authenticated caller, never the client payload.
@@ -2072,7 +2072,7 @@ export const pushClassroomGradesForAssignment = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = (request.data ?? {}) as PushBatchData;
 
     const courseId = typeof data.courseId === 'string' ? data.courseId : '';
@@ -2286,7 +2286,7 @@ export const pushClassroomFinalGradesForAssignment = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const data = (request.data ?? {}) as PushBatchData;
 
     const courseId = typeof data.courseId === 'string' ? data.courseId : '';

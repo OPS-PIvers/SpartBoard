@@ -132,7 +132,7 @@ function parseLastSignIn(metadata: admin.auth.UserMetadata): number | null {
 export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
   { region: 'us-central1' },
   async (request): Promise<OrgUserActivityResponse> => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

@@ -355,8 +355,8 @@ export const saveSharedActivityWallV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
-    assertViewAsAllowed(request);
+  async (request) => {
+    await assertViewAsAllowed(request);
     const token = request.auth?.token;
     const db = admin.firestore();
     return handleSaveSharedActivityWall(

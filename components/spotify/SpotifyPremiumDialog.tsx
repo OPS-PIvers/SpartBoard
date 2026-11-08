@@ -30,6 +30,7 @@
 
 import React, { useState } from 'react';
 import { Music2 } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Modal } from '@/components/common/Modal';
 import { setSpotifyPremiumNoticeDismissed } from '@/utils/spotifyPremiumNotice';
 
@@ -69,6 +70,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
     <div className="flex items-center justify-end gap-2">
       <button
         type="button"
+        {...tourAttr('music.spotify-premium-cancel')}
         onClick={onCancel}
         className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition"
       >
@@ -76,6 +78,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
       </button>
       <button
         type="button"
+        {...tourAttr('music.spotify-premium-continue')}
         onClick={handleContinue}
         className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition"
       >
@@ -113,6 +116,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
       <label className="flex items-center gap-2 px-6 py-3 border-t border-slate-100 cursor-pointer select-none">
         <input
           type="checkbox"
+          {...tourAttr('music.spotify-premium-dont-show')}
           checked={dontShow}
           onChange={(e) => setDontShow(e.target.checked)}
           className="w-4 h-4 rounded-sm border-slate-300 text-green-600 focus:ring-green-500"

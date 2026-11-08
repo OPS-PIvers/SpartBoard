@@ -602,6 +602,14 @@ export function evaluateClaim({
     };
   }
   if (invitation.claimedAt) {
+    // Sign-in may claim the link first (resolveOrgForUser); the same active account opening it is a no-op.
+    if (
+      invitation.email === signedInEmailLower &&
+      member?.status === 'active' &&
+      member.uid === signedInUid
+    ) {
+      return { ok: true, memberPatch: {}, invitationPatch: {} };
+    }
     return {
       ok: false,
       code: 'failed-precondition',
@@ -631,17 +639,26 @@ export function evaluateClaim({
     };
   }
   const nowIso = now.toISOString();
+  const invitationPatch = { claimedAt: nowIso, claimedByUid: signedInUid };
+  if (member.status === 'active') {
+    return {
+      ok: true,
+      memberPatch: { uid: signedInUid, lastActive: nowIso },
+      invitationPatch,
+    };
+  }
+  // Only an invited member may claim; a deactivated one must never reactivate through an old link.
+  if (member.status !== 'invited') {
+    return {
+      ok: false,
+      code: 'not-found',
+      message: 'Invitation not found or already used.',
+    };
+  }
   return {
     ok: true,
-    memberPatch: {
-      uid: signedInUid,
-      status: 'active',
-      lastActive: nowIso,
-    },
-    invitationPatch: {
-      claimedAt: nowIso,
-      claimedByUid: signedInUid,
-    },
+    memberPatch: { uid: signedInUid, status: 'active', lastActive: nowIso },
+    invitationPatch,
   };
 }
 
@@ -792,7 +809,7 @@ export const createOrganizationInvites = onCall(
     timeoutSeconds: 60,
   },
   async (request): Promise<CreateOrganizationInvitesResponse> => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',
@@ -971,6 +988,10 @@ async function writeInvitation(
       }
 
       tx.set(memberRef, plan.patch, { merge: true });
+      // Re-inviting clears a Remove-from-org tombstone.
+      tx.delete(
+        db.doc(`organizations/${orgId}/removedMembers/${invite.email}`)
+      );
 
       const expiresAt = computeExpiresAt(now, expiresInDays);
       const invitation: InvitationRecord = {
@@ -1040,7 +1061,7 @@ export const claimOrganizationInvite = onCall(
     timeoutSeconds: 30,
   },
   async (request): Promise<ClaimOrganizationInviteResponse> => {
-    assertViewAsAllowed(request);
+    await assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',
@@ -1107,8 +1128,12 @@ export const claimOrganizationInvite = onCall(
         throw new HttpsError(verdict.code, verdict.message);
       }
 
-      tx.update(memberRef, verdict.memberPatch);
-      tx.update(invitationRef, verdict.invitationPatch);
+      if (Object.keys(verdict.memberPatch).length > 0) {
+        tx.update(memberRef, verdict.memberPatch);
+      }
+      if (Object.keys(verdict.invitationPatch).length > 0) {
+        tx.update(invitationRef, verdict.invitationPatch);
+      }
 
       // `member` is defined here — evaluateClaim only returns ok when member
       // exists. Narrow explicitly for TS.

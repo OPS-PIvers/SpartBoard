@@ -125,6 +125,7 @@ const mockAuthContext = (
   roleId: null,
   isStudentRole: false,
   accessDeactivated: false,
+  roleUnconfirmed: false,
   roleResolved: true,
   buildingIds: [],
   orgBuildings: [],

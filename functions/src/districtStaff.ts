@@ -1,5 +1,6 @@
 // Staff and student checks that never trust the email domain: Orono students and staff share @orono.k12.mn.us.
 import * as admin from './firebaseAdmin';
+import { isRevokedMemberStatus } from './authz';
 import {
   isSafeEmailForOneRosterFilter,
   normalizeEmailDomain,
@@ -20,7 +21,7 @@ export function isStaffMemberData(
 ): boolean {
   return (
     !!data &&
-    (data.status ?? 'active') !== 'inactive' &&
+    !isRevokedMemberStatus(data.status) &&
     (data.roleId ?? '') !== 'student'
   );
 }

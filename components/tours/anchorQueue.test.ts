@@ -114,9 +114,6 @@ describe('queueDisplayState and rebind gating', () => {
       canRebind(item({ status: 'pr-open', anchorId: 'timer.start' }), registry)
     ).toBe(true);
     expect(
-      canRebind(item({ status: 'mapped', anchorId: 'timer.start' }), registry)
-    ).toBe(true);
-    expect(
       canRebind(item({ status: 'pr-open', anchorId: 'timer.new' }), registry)
     ).toBe(false);
     expect(
@@ -292,5 +289,20 @@ describe('formatUnmappedAnchors', () => {
     expect(md).toContain('## 1. button');
     expect(md).toContain('## 2. button.start');
     expect(md).toContain('````html\n<code>```</code>\n````');
+  });
+});
+
+describe('parseQueueItem legacy status', () => {
+  it('reads a stored mapped item as pr-open', () => {
+    expect(
+      parseQueueItem('a'.repeat(40), { status: 'mapped', anchorId: 'x.y' })
+        ?.status
+    ).toBe('pr-open');
+    const legacy = parseQueueItem('a'.repeat(40), {
+      status: 'mapped',
+      anchorId: 'timer.start',
+      occurrences: [{ setId: 's', stepId: 'x' }],
+    });
+    expect(legacy && canRebind(legacy, registry)).toBe(true);
   });
 });

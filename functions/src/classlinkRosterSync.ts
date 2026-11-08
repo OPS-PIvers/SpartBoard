@@ -53,6 +53,12 @@ const API_TIMEOUT_MS = 20000;
 /** Admin kill switch. Absent doc == disabled: this never runs by default. */
 export const SYNC_SETTINGS_PATH = 'admin_settings/classlink_sync';
 
+/** Resume cursor lives on the same server-only doc as the kill switch. */
+export interface SyncCursor {
+  classId: string;
+  path: string;
+}
+
 const ROSTER_PAGE_SIZE = 100;
 const MAX_ROSTERS_PER_RUN = 500;
 /** Stop early so a long run returns a summary instead of being killed at 540s. */
@@ -123,6 +129,8 @@ export interface SyncSummary {
   conflicts: number;
   errors: number;
   budgetExhausted: boolean;
+  /** True when the run stopped before the end of the list and saved a cursor for the next night. */
+  resumePending: boolean;
 }
 
 const emptySummary = (): SyncSummary => ({
@@ -139,6 +147,7 @@ const emptySummary = (): SyncSummary => ({
   conflicts: 0,
   errors: 0,
   budgetExhausted: false,
+  resumePending: false,
 });
 
 /**
@@ -191,6 +200,39 @@ export async function readSyncSettings(
   };
 }
 
+/** True when `a` sorts before `b` in the sweep order (class id, then path). */
+function cursorBefore(a: SyncCursor, b: SyncCursor): boolean {
+  if (a.classId !== b.classId) return a.classId < b.classId;
+  return a.path < b.path;
+}
+
+async function readSyncCursor(
+  ref: admin.firestore.DocumentReference
+): Promise<SyncCursor | null> {
+  const c: unknown = (await ref.get()).data()?.cursor;
+  if (!c || typeof c !== 'object') return null;
+  const { classId, path } = c as Record<string, unknown>;
+  if (typeof classId !== 'string' || typeof path !== 'string') return null;
+  const segments = path.split('/');
+  if (segments.length % 2 !== 0 || segments.some((x) => !x)) return null;
+  return { classId, path };
+}
+
+async function writeSyncCursor(
+  ref: admin.firestore.DocumentReference,
+  cursor: SyncCursor | null
+): Promise<void> {
+  try {
+    await ref.set(
+      { cursor: cursor ?? admin.firestore.FieldValue.delete() },
+      { merge: true }
+    );
+  } catch (err) {
+    // A lost cursor only means the next run starts from the top.
+    console.error('[classlinkRosterSync] could not save resume cursor:', err);
+  }
+}
+
 /**
  * Core sweep. Takes its I/O as `deps` so the whole decision surface — which
  * rosters sync, what blocks, what gets written — is unit-testable without
@@ -211,49 +253,83 @@ export async function runClassLinkRosterSync(
   // uid -> classes ClassLink says they teach (null: not a verified teacher); outages are not cached.
   const taughtCache = new Map<string, ReadonlySet<string> | null>();
 
-  let cursor: admin.firestore.QueryDocumentSnapshot | undefined;
+  const settingsRef = db.doc(SYNC_SETTINGS_PATH);
+  // Dry runs write nothing, so they neither use nor move the cursor.
+  const saved = settings.dryRun ? null : await readSyncCursor(settingsRef);
+  let lastDone: SyncCursor | null = null;
 
-  while (summary.scanned < MAX_ROSTERS_PER_RUN) {
-    if (deps.now() - startedAt > RUN_BUDGET_MS) {
-      summary.budgetExhausted = true;
-      break;
-    }
-
-    let query = db
-      .collectionGroup('rosters')
-      .orderBy('classlinkClassId')
-      .limit(ROSTER_PAGE_SIZE);
-    if (cursor) query = query.startAfter(cursor);
-
-    const page = await query.get();
-    if (page.empty) break;
-    cursor = page.docs[page.docs.length - 1];
-
-    for (const rosterSnap of page.docs) {
+  // Walks rosters after `from` until the end of the list, `stopAt`, or a run limit.
+  const runPass = async (
+    from: SyncCursor | null,
+    stopAt: SyncCursor | null
+  ): Promise<'end' | 'stopAt' | 'limit'> => {
+    let after = from;
+    while (summary.scanned < MAX_ROSTERS_PER_RUN) {
       if (deps.now() - startedAt > RUN_BUDGET_MS) {
         summary.budgetExhausted = true;
-        break;
+        return 'limit';
       }
-      summary.scanned += 1;
-      try {
-        await syncOneRoster(
-          rosterSnap,
-          deps,
-          settings,
-          summary,
-          tokenCache,
-          taughtCache
-        );
-      } catch (err) {
-        summary.errors += 1;
-        console.error(
-          `[classlinkRosterSync] roster ${rosterSnap.ref.path} failed:`,
-          err
-        );
-      }
-    }
 
-    if (summary.budgetExhausted || page.size < ROSTER_PAGE_SIZE) break;
+      let query = db
+        .collectionGroup('rosters')
+        .orderBy('classlinkClassId')
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .limit(ROSTER_PAGE_SIZE);
+      if (after) query = query.startAfter(after.classId, db.doc(after.path));
+
+      const page = await query.get();
+      if (page.empty) return 'end';
+
+      for (const rosterSnap of page.docs) {
+        const here = {
+          classId: String(rosterSnap.data().classlinkClassId ?? ''),
+          path: rosterSnap.ref.path,
+        };
+        if (stopAt && !cursorBefore(here, stopAt)) return 'stopAt';
+        if (deps.now() - startedAt > RUN_BUDGET_MS) {
+          summary.budgetExhausted = true;
+          return 'limit';
+        }
+        if (summary.scanned >= MAX_ROSTERS_PER_RUN) return 'limit';
+        summary.scanned += 1;
+        try {
+          await syncOneRoster(
+            rosterSnap,
+            deps,
+            settings,
+            summary,
+            tokenCache,
+            taughtCache
+          );
+        } catch (err) {
+          summary.errors += 1;
+          console.error(
+            `[classlinkRosterSync] roster ${rosterSnap.ref.path} failed:`,
+            err
+          );
+        }
+        lastDone = here;
+        after = here;
+      }
+
+      if (page.size < ROSTER_PAGE_SIZE) return 'end';
+    }
+    return 'limit';
+  };
+
+  let complete: boolean;
+  const first = await runPass(saved, null);
+  if (first === 'end') {
+    // A resumed run that hits the end wraps to the top and stops where last night stopped.
+    complete = saved ? (await runPass(null, saved)) !== 'limit' : true;
+  } else {
+    complete = false;
+  }
+
+  if (!settings.dryRun && (saved || lastDone)) {
+    const next = complete ? null : (lastDone ?? saved);
+    summary.resumePending = next !== null;
+    await writeSyncCursor(settingsRef, next);
   }
 
   return summary;
@@ -340,14 +416,31 @@ async function syncOneRoster(
     console.warn(
       `[classlinkRosterSync] ${rosterSnap.ref.path} blocked: ${result.blocked}`
     );
+    const prior: unknown = data.classlinkSyncBlocked;
+    const sameReason =
+      !!prior &&
+      typeof prior === 'object' &&
+      (prior as { reason?: unknown }).reason === result.blocked;
+    if (!settings.dryRun && !sameReason) {
+      await rosterSnap.ref.update({
+        classlinkSyncBlocked: { reason: result.blocked, at: deps.now() },
+      });
+    }
     return;
   }
+
+  const clearBlocked = data.classlinkSyncBlocked
+    ? { classlinkSyncBlocked: admin.firestore.FieldValue.delete() }
+    : {};
 
   // Gate on `changed`, not on added/removed: a by-name re-link stamps a stable
   // sourcedId that makes the NEXT sync survive a rename, and dropping it would
   // silently defeat that.
   if (!result.changed) {
     summary.unchanged += 1;
+    if (!settings.dryRun && data.classlinkSyncBlocked) {
+      await rosterSnap.ref.update(clearBlocked);
+    }
     return;
   }
 
@@ -397,6 +490,7 @@ async function syncOneRoster(
   });
 
   await rosterSnap.ref.update({
+    ...clearBlocked,
     studentCount: result.students.length,
     classlinkSyncedAt: deps.now(),
     // Counts only — names stay in Drive. See the PII note in the file header.
@@ -622,7 +716,8 @@ export const classlinkRosterSync = onSchedule(
         `notTeacher=${summary.skippedNotTeacher} ` +
         `blocked=${JSON.stringify(summary.blocked)} ` +
         `conflicts=${summary.conflicts} errors=${summary.errors} ` +
-        `budgetExhausted=${summary.budgetExhausted}`
+        `budgetExhausted=${summary.budgetExhausted} ` +
+        `resumePending=${summary.resumePending}`
     );
   }
 );

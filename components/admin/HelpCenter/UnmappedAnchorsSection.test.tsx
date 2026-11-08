@@ -7,11 +7,13 @@ import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
 const h = vi.hoisted(() => ({
   items: [] as TourAnchorQueueItem[],
   rebind: vi.fn(),
+  dismiss: vi.fn(),
 }));
 
 vi.mock('@/components/tours/anchorQueueStore', () => ({
   useTourAnchorQueue: () => ({ items: h.items, loading: false, error: false }),
   rebindQueueItem: h.rebind,
+  dismissQueueItem: h.dismiss,
 }));
 
 const item = (
@@ -49,6 +51,8 @@ const renderSection = () => {
 };
 
 beforeEach(() => {
+  h.dismiss.mockReset();
+  h.dismiss.mockResolvedValue(undefined);
   h.rebind.mockReset();
   h.rebind.mockResolvedValue(1);
   h.items = [
@@ -117,6 +121,31 @@ describe('UnmappedAnchorsSection', () => {
     });
     expect(within(rowFor('mapped')).getByRole('alert')).toHaveTextContent(
       "Couldn't rebind. Try again."
+    );
+  });
+
+  it('offers Dismiss on needs-human rows only and shows a failure', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    h.items = [
+      item('human', { status: 'needs-human', reason: 'in an iframe' }),
+      item('open', {}),
+    ];
+    h.dismiss.mockRejectedValue(new Error('denied'));
+    renderSection();
+    expect(
+      within(rowFor('open')).queryByRole('button', { name: 'Dismiss' })
+    ).toBeNull();
+    await act(async () => {
+      fireEvent.click(
+        within(rowFor('human')).getByRole('button', { name: 'Dismiss' })
+      );
+      await Promise.resolve();
+    });
+    expect(h.dismiss).toHaveBeenCalledWith(
+      expect.objectContaining({ fingerprint: 'human' })
+    );
+    expect(within(rowFor('human')).getByRole('alert')).toHaveTextContent(
+      "Couldn't update. Try again."
     );
   });
 

@@ -328,7 +328,7 @@ export const revertViewAsChangeV1 = onCall(
   { cors: ALLOWED_ORIGINS },
   async (request): Promise<RevertResult> => {
     // Revert runs from the admin's own session, never from a View as tab.
-    if (assertViewAsAllowed(request)) {
+    if (await assertViewAsAllowed(request)) {
       throw new HttpsError(
         'permission-denied',
         'Exit View as before reverting a change.'

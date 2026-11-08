@@ -1,4 +1,4 @@
-import type { StudentOverride } from '@/types';
+import type { PauseSpan, StudentOverride } from '@/types';
 import { applyTimeMultiplier } from './applyTimeMultiplier';
 
 export const QUIZ_TIME_LIMIT_FEATURE = 'quiz-time-limit';
@@ -18,16 +18,49 @@ export function clampQuizTimeLimitMinutes(raw: unknown): number | null {
   );
 }
 
+export const MAX_PAUSE_SPANS = 100;
+
+/** Pause time that fell inside the attempt, so the limit does not run through it. */
+export function pausedMsSince(
+  startedAtMs: number,
+  spans: readonly PauseSpan[] | undefined
+): number {
+  let total = 0;
+  for (const span of spans ?? []) {
+    if (!(span.to > span.from)) continue;
+    total += Math.max(0, span.to - Math.max(span.from, startedAtMs));
+  }
+  return total;
+}
+
+/** The span list with this Resume added; null when the session was not paused. */
+export function appendPauseSpan(
+  spans: readonly PauseSpan[] | undefined,
+  pausedAt: number | undefined,
+  now: number
+): PauseSpan[] | null {
+  if (typeof pausedAt !== 'number' || !(now > pausedAt)) return null;
+  // A pause already closed by an earlier Resume (a reopened run keeps its old pausedAt).
+  const lastTo = spans?.length ? spans[spans.length - 1].to : 0;
+  if (pausedAt <= lastTo) return null;
+  return [...(spans ?? []), { from: pausedAt, to: now }].slice(
+    -MAX_PAUSE_SPANS
+  );
+}
+
 /** Epoch ms when this attempt runs out; null when there is no limit for this student. */
 export function resolveAttemptDeadline(
   startedAtMs: number | null | undefined,
   limitMinutes: number | null | undefined,
-  multiplier: StudentOverride['timeMultiplier']
+  multiplier: StudentOverride['timeMultiplier'],
+  pauseSpans?: readonly PauseSpan[]
 ): number | null {
   const minutes = clampQuizTimeLimitMinutes(limitMinutes);
   if (minutes == null || typeof startedAtMs !== 'number') return null;
   const allowed = applyTimeMultiplier(minutes * 60_000, multiplier);
-  return Number.isFinite(allowed) ? startedAtMs + allowed : null;
+  return Number.isFinite(allowed)
+    ? startedAtMs + allowed + pausedMsSince(startedAtMs, pauseSpans)
+    : null;
 }
 
 /** True when an attempt's base time limit has run out, so an unlock should restart its clock. */
@@ -35,14 +68,16 @@ export function attemptClockRanOut(
   timeUp: boolean | undefined,
   startedAtMs: number | null,
   limitMinutes: number | null | undefined,
-  now: number
+  now: number,
+  pauseSpans?: readonly PauseSpan[]
 ): boolean {
   if (timeUp === true) return true;
   const minutes = clampQuizTimeLimitMinutes(limitMinutes);
   return (
     minutes != null &&
     startedAtMs != null &&
-    now - startedAtMs >= minutes * 60_000
+    now - startedAtMs - pausedMsSince(startedAtMs, pauseSpans) >=
+      minutes * 60_000
   );
 }
 

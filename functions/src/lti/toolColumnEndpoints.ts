@@ -456,7 +456,7 @@ export const ltiToolColumnCategoriesV1 = onCall(
     secrets: [SCHOOLOGY_API_CONSUMER_KEY, SCHOOLOGY_API_CONSUMER_SECRET],
   },
   async (request) => {
-    assertViewAsAllowed(request, { read: true });
+    await assertViewAsAllowed(request, { read: true });
     const { uid } = await requireTeacher(request);
     const db = admin.firestore();
     const session = await loadOwnedSession(
@@ -529,7 +529,7 @@ export const ltiCreateToolColumnCategoriesV1 = onCall(
     ],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
     const data = (request.data ?? {}) as Record<string, unknown>;
@@ -620,7 +620,7 @@ export const ltiPushToolColumnV1 = onCall(
     ],
   },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const { uid, email } = await requireTeacher(request);
     const db = admin.firestore();
     const data = (request.data ?? {}) as Record<string, unknown>;
@@ -767,7 +767,7 @@ export const ltiPushToolColumnV1 = onCall(
 export const ltiDeleteToolColumnsV1 = onCall(
   { ...CALL_OPTS, secrets: [LTI_TOOL_PRIVATE_KEY] },
   async (request) => {
-    assertViewAsAllowed(request, { outward: true });
+    await assertViewAsAllowed(request, { outward: true });
     const { uid, email } = await requireTeacher(request);
     const data = (request.data ?? {}) as { sessionId?: unknown };
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';

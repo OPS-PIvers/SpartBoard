@@ -158,6 +158,7 @@ const FibAnswer: React.FC<FibAnswerProps> = ({
       <label className="sr-only" htmlFor={`test-answer-${question.id}`}>
         {t('flashcards.write.placeholder')}
       </label>
+      {/* no-tour-anchor: student page; live tours run in the teacher app */}
       <input
         ref={inputRef}
         id={`test-answer-${question.id}`}
@@ -464,6 +465,7 @@ export const TestMode: React.FC<TestModeProps> = ({
             style={{ gap: 'min(9px, 2cqmin)', marginTop: 'min(18px, 4cqmin)' }}
           >
             {missed.length > 0 && (
+              // no-tour-anchor: student page; live tours run in the teacher app
               <button
                 type="button"
                 onClick={() => startTest(true)}
@@ -484,6 +486,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                 {t('flashcards.test.retake')}
               </button>
             )}
+            {/* no-tour-anchor: student page; live tours run in the teacher app */}
             <button
               type="button"
               onClick={() => startTest(false)}
@@ -646,6 +649,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                     {question.options.map((option) => {
                       const selected = answers[question.id] === option;
                       return (
+                        // no-tour-anchor: student page; live tours run in the teacher app
                         <button
                           key={option}
                           type="button"

@@ -464,7 +464,7 @@ describe('plcs/{plcId} update — isUpdatingPlcFeatures', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Lead broad-update branch — rename / add members, but cannot vacate
+// Lead broad-update branch — rename / remove members, but cannot vacate or add
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId} update — lead broad-update guard', () => {
@@ -477,8 +477,8 @@ describe('plcs/{plcId} update — lead broad-update guard', () => {
     );
   });
 
-  it('the lead can add a member', async () => {
-    await assertSucceeds(
+  it('rejects the lead adding a member directly (only invite accept or admin edit add)', async () => {
+    await assertFails(
       updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
         memberUids: [MEMBER_A_UID, MEMBER_B_UID, NON_MEMBER_UID],
         memberEmails: {

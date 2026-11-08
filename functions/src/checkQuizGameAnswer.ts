@@ -388,8 +388,8 @@ export const checkQuizGameAnswerV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) => {
-    assertViewAsAllowed(request);
+  async (request) => {
+    await assertViewAsAllowed(request);
     return handleCheckQuizGameAnswer(
       admin.firestore(),
       request.auth?.uid ?? null,

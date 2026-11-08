@@ -25,9 +25,11 @@ import {
   orderBy,
   query,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { ActivityWallLibraryEntry } from '@/types';
+import { activityWallSessionId } from '@/utils/activityWallLinks';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
 import { useSandboxedActivityWalls } from './useTourSandboxed';
 
@@ -115,6 +117,20 @@ export const useActivityWallLibrary = (
   const removeActivity = useCallback(
     async (activityId: string) => {
       if (!userId) throw new Error('Not signed in');
+      // Close the live session first so students stop posting to a deleted wall.
+      await updateDoc(
+        doc(
+          db,
+          'activity_wall_sessions',
+          activityWallSessionId(userId, activityId)
+        ),
+        { acceptingResponses: false }
+      ).catch((closeError: unknown) => {
+        console.error(
+          '[useActivityWallLibrary] Close session failed:',
+          closeError
+        );
+      });
       await deleteDoc(doc(db, 'users', userId, COLLECTION, activityId));
     },
     [userId]

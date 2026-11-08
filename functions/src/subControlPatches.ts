@@ -81,3 +81,18 @@ export function controlPatches(
     state: 'ended',
   };
 }
+
+/** The span list with this Resume added (newest 100); null when the run was not paused. Mirrors `appendPauseSpan` in utils/quizTimeLimit.ts. */
+export function appendPauseSpan(
+  spans: unknown,
+  pausedAt: unknown,
+  now: number
+): { from: number; to: number }[] | null {
+  if (typeof pausedAt !== 'number' || !(now > pausedAt)) return null;
+  const prior = Array.isArray(spans)
+    ? (spans as { from: number; to: number }[])
+    : [];
+  const lastTo = prior.length ? prior[prior.length - 1].to : 0;
+  if (pausedAt <= lastTo) return null;
+  return [...prior, { from: pausedAt, to: now }].slice(-100);
+}

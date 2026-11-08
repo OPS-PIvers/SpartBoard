@@ -322,10 +322,13 @@ export const useOrgMembers = (orgId: string | null) => {
     }
     if (ids.length === 0) return;
     await Promise.all(
-      chunk(ids, BATCH_CHUNK).map((batchIds) => {
+      chunk(ids, BATCH_CHUNK / 2).map((batchIds) => {
         const batch = writeBatch(db);
         for (const id of batchIds) {
           batch.delete(doc(db, 'organizations', orgId, 'members', id));
+          batch.set(doc(db, 'organizations', orgId, 'removedMembers', id), {
+            removedAt: new Date().toISOString(),
+          });
         }
         return batch.commit();
       })

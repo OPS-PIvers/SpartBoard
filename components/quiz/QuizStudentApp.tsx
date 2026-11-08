@@ -71,6 +71,7 @@ import {
   ChevronLeft,
   Trophy,
   AlertCircle,
+  CircleSlash,
   Flame,
   Zap,
   X as XIcon,
@@ -188,6 +189,9 @@ import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
   enqueueQuizMediaUpload,
+  createTurnInUploadGate,
+  handOffLockedUpload,
+  type UploadSettleActions,
 } from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { RubricGuideExamples } from './RubricGuideExamples';
@@ -304,6 +308,9 @@ import {
   playCountdownTick,
   playStreakSound,
 } from '@/utils/quizAudio';
+
+// How long a turn-in waits for recordings still uploading before it goes ahead.
+const TURN_IN_UPLOAD_WAIT_MS = 8000;
 
 // Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
 // pulled into the initial student-app payload. Loaded on first render of a
@@ -554,6 +561,12 @@ const QuizJoinFlow: React.FC<{
     contentPending,
   } = useQuizSessionStudent();
   useQuizScoreOnSubmit(session, myResponse);
+  // A response seen once and then gone means the teacher removed this student.
+  const [responseSeenFor, setResponseSeenFor] = useState<string | null>(null);
+  if (myResponse && session && responseSeenFor !== session.id) {
+    setResponseSeenFor(session.id);
+  }
+  const hadResponse = !!session && responseSeenFor === session.id;
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {
@@ -965,10 +978,25 @@ const QuizJoinFlow: React.FC<{
     [submitAnswer, isViewOnly]
   );
 
+  // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
+  const [uploadGate] = useState(createTurnInUploadGate);
+  const uploadActions = useMemo<UploadSettleActions>(
+    () => ({
+      write: (job, state) =>
+        setArtifactUploadState(job.questionId, job.artifactId, state),
+      handOff: (job) => handOffLockedUpload(job),
+    }),
+    [setArtifactUploadState]
+  );
+
   const handleComplete = useCallback(
     async (opts?: { timeUp?: boolean }) => {
       if (isViewOnly) return;
-      await (opts ? completeQuiz(opts) : completeQuiz());
+      await uploadGate.turnIn(
+        () => (opts ? completeQuiz(opts) : completeQuiz()),
+        uploadActions,
+        TURN_IN_UPLOAD_WAIT_MS
+      );
       const sessionId = session?.id;
       const responseKey = myResponse?._responseKey;
       if (sessionId && responseKey && session?.mediaResponseEnabled === true) {
@@ -983,6 +1011,8 @@ const QuizJoinFlow: React.FC<{
       myResponse?._responseKey,
       session?.id,
       session?.mediaResponseEnabled,
+      uploadActions,
+      uploadGate,
     ]
   );
 
@@ -1043,7 +1073,7 @@ const QuizJoinFlow: React.FC<{
       const studentUid = authedUid;
       const responseKey = myResponse?._responseKey;
       if (!sessionId || !studentUid || !responseKey) return;
-      const result = await enqueueQuizMediaUpload({
+      const job = {
         sessionId,
         studentUid,
         responseKey,
@@ -1051,16 +1081,29 @@ const QuizJoinFlow: React.FC<{
         artifactId: artifact.id,
         blob,
         mimeType: artifact.mimeType ?? blob.type,
-      });
-      if (result.uploadState === 'failed')
-        retryableTakesRef.current.set(artifact.id, blob);
-      else retryableTakesRef.current.delete(artifact.id);
-      await setArtifactUploadState(questionId, artifact.id, result.uploadState);
+      };
+      const result = await uploadGate.run(
+        job,
+        async () => {
+          const r = await enqueueQuizMediaUpload(job);
+          if (r.uploadState === 'failed')
+            retryableTakesRef.current.set(artifact.id, blob);
+          else retryableTakesRef.current.delete(artifact.id);
+          return r;
+        },
+        uploadActions
+      );
       if (result.uploadState === 'failed') {
         throw new Error(result.error ?? 'Archive failed');
       }
     },
-    [authedUid, myResponse?._responseKey, session?.id, setArtifactUploadState]
+    [
+      authedUid,
+      myResponse?._responseKey,
+      session?.id,
+      uploadActions,
+      uploadGate,
+    ]
   );
 
   const handleRetryRecordingUpload = useCallback(
@@ -1442,6 +1485,7 @@ const QuizJoinFlow: React.FC<{
     hasError: !!error,
     periodLocked,
     questionsPending: contentPending || dealPending,
+    hadResponse,
     needsMicCheck:
       !isViewOnly &&
       micReadyFor !== session.id &&
@@ -1585,6 +1629,26 @@ const QuizJoinFlow: React.FC<{
           />
         );
       }
+
+      case 'removed':
+        return (
+          <div
+            role="status"
+            className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-100 px-6 text-center"
+          >
+            <CircleSlash
+              className="w-10 h-10 text-slate-400"
+              aria-hidden="true"
+            />
+            <h1 className="text-xl font-bold text-slate-800">
+              You were removed from this quiz
+            </h1>
+            <p className="max-w-md text-sm text-slate-600">
+              Your teacher removed you from this assignment. Ask your teacher if
+              you believe this was a mistake.
+            </p>
+          </div>
+        );
 
       case 'loadingResponse': {
         // Self-paced / async loads onto the LIGHT quiz that follows; live stays dark.
@@ -1938,8 +2002,8 @@ export const ActiveQuiz: React.FC<{
     async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
       const message =
         reason === 'post-unlock'
-          ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the quiz too many times. Your quiz is being auto-submitted.';
+          ? 'Your unlocked attempt has been submitted.'
+          : 'You left the page too many times. Your assignment has been submitted. Ask your teacher if you believe this happened by mistake.';
       // Ask the inner question view to flush any pending written-response
       // autosave before we mark the response complete. Listened for in
       // `StudentQuestionView`'s flush handler. Without this, a strike-3
@@ -1948,11 +2012,17 @@ export const ActiveQuiz: React.FC<{
       // draft and silently drop the most recent edits.
       document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
       await commitActiveTake();
+      // Submit first: the alert waits for a tap, and a reload would leave the attempt open.
+      try {
+        await onComplete();
+      } catch (err: unknown) {
+        console.error('[QuizStudentApp] auto-submit failed:', err);
+        return;
+      }
       await showAlert(message, {
         title: 'Quiz Auto-Submitted',
         variant: 'warning',
       });
-      await onComplete();
     },
     [showAlert, onComplete]
   );
@@ -2017,11 +2087,12 @@ export const ActiveQuiz: React.FC<{
 
   // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
   const attemptDeadline =
-    session.sessionMode === 'student'
+    session.sessionMode === 'student' && session.status !== 'paused'
       ? resolveAttemptDeadline(
           timestampMillis(myResponse?.attemptStartedAt),
           session.timeLimitMinutes,
-          override?.timeMultiplier
+          override?.timeMultiplier,
+          session.pauseSpans
         )
       : null;
   // A limit added to a live assignment starts the clock for attempts already underway.
