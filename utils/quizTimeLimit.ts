@@ -33,6 +33,15 @@ export function pausedMsSince(
   return total;
 }
 
+/** True when pausedAt starts a pause no Resume has closed yet. */
+export function hasOpenPause(
+  spans: readonly PauseSpan[] | undefined,
+  pausedAt: number | undefined
+): boolean {
+  const lastTo = spans?.length ? spans[spans.length - 1].to : 0;
+  return typeof pausedAt === 'number' && pausedAt > lastTo;
+}
+
 /** The span list with this Resume added; null when the session was not paused. */
 export function appendPauseSpan(
   spans: readonly PauseSpan[] | undefined,

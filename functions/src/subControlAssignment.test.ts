@@ -251,13 +251,15 @@ describe('handleControlSubAssignment — pausing', () => {
     expect(resumed.written[0].data).toEqual({ status: 'active' });
   });
 
-  it('leaves an already paused run alone so its pause start is kept', async () => {
+  it('keeps the pause start on a repeat pause but still writes the assignment', async () => {
     const again = control(
       { session: stamped({ status: 'paused', pausedAt: NOW - 600_000 }) },
       input({ action: 'pause' })
     );
     expect(await again.run()).toEqual({ state: 'paused' });
-    expect(again.written).toEqual([]);
+    const session = again.written.find((w) => w.path.startsWith('quiz_sessions/'));
+    expect(session?.data).not.toHaveProperty('pausedAt');
+    expect(again.written.some((w) => w.path.startsWith('users/'))).toBe(true);
   });
 
   it('records the pause so the time limit skips it', async () => {
