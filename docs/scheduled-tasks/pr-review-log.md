@@ -5045,3 +5045,13 @@ rather than "no data") is also still open.
 - Reviews posted: 1
   - Ready with minor notes: #5355. The deleted test also checked that `KNOWN_GEMINI_MODELS` offers nothing the server would reject, and no other test covers that now. The single-consumer utils list in `code-structure.md` still names the deleted file.
 - Notes: GitHub access went through MCP. CI on #5355 was already green. No code fixes were made, so I ran no local type-check, lint or tests.
+
+## 2026-11-08
+
+- PRs reviewed: #5429 docs: nightly debugger run 117 log; #5428 fix(quiz): keep pause start on repeat Pause and credit time after Reopen; #5427 fix(video-activity): reject negative and junk timestamps in mm:ss parsing; #5426 docs: unifier run 140 log (aligned); #5422 AB-112: add the A4 branch; #5415 docs: add R5 branches to AB-112
+- Comments processed: 2 total. 0 fixed, 0 needing a reply. On #5427, the author had already fixed the claude[bot] whitespace-trim finding and replied. On #5422, the claude[bot] review was LGTM. No PR had inline review threads.
+- Fixes pushed: none
+- Reviews posted: 6
+  - Ready: #5427, #5429, #5426, #5422.
+  - Ready with minor notes: #5428 (the non-quiz arm of the new `reopen` ternary in `sessionPatchFor` can never run) and #5415 (stale base; it will conflict trivially with #5422 in the same AB-112 block).
+- Notes: GitHub access went through MCP. Scoped vitest runs were green on #5428 (188 tests) and #5427 (8 tests). CI had not reported on either head SHA when the reviews were posted.
