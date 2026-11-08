@@ -128,4 +128,14 @@ describe('attemptClockRanOut', () => {
     expect(attemptClockRanOut(undefined, start, null, start + 1e9)).toBe(false);
     expect(attemptClockRanOut(undefined, null, 30, start + 1e9)).toBe(false);
   });
+
+  it('does not count closed pauses as used time', () => {
+    const spans = [{ from: start + 10 * 60_000, to: start + 70 * 60_000 }];
+    expect(
+      attemptClockRanOut(undefined, start, 30, start + 75 * 60_000, spans)
+    ).toBe(false);
+    expect(
+      attemptClockRanOut(undefined, start, 30, start + 90 * 60_000, spans)
+    ).toBe(true);
+  });
 });

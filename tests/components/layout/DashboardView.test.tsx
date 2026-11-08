@@ -351,9 +351,37 @@ describe('DashboardView Gestures & Navigation', () => {
       renderView();
       expect(endSession).not.toHaveBeenCalled();
       window.dispatchEvent(
-        new CustomEvent('spart-widget-removed', { detail: { id: 'live-w' } })
+        new CustomEvent('spart-widget-removed', {
+          detail: { id: 'live-w', boardId: mockDashboards[1].id },
+        })
       );
       expect(endSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the session when a copied board deletes its widget with the same id', () => {
+      const endSession = vi.fn();
+      withSession(endSession);
+      const boards = mockDashboards.map((d) => ({
+        ...d,
+        widgets: [{ id: 'live-w', type: 'poll' }],
+      }));
+      const mocked = useDashboard as unknown as ReturnType<typeof vi.fn>;
+      const dash = vi.mocked(useDashboard)() as unknown as Record<
+        string,
+        unknown
+      >;
+      mocked.mockReturnValue({
+        ...dash,
+        activeDashboard: boards[1],
+        dashboards: boards,
+      });
+      renderView();
+      window.dispatchEvent(
+        new CustomEvent('spart-widget-removed', {
+          detail: { id: 'live-w', boardId: boards[1].id },
+        })
+      );
+      expect(endSession).not.toHaveBeenCalled();
     });
 
     it('keeps the session when another widget is deleted', () => {

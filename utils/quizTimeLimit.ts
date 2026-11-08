@@ -68,14 +68,16 @@ export function attemptClockRanOut(
   timeUp: boolean | undefined,
   startedAtMs: number | null,
   limitMinutes: number | null | undefined,
-  now: number
+  now: number,
+  pauseSpans?: readonly PauseSpan[]
 ): boolean {
   if (timeUp === true) return true;
   const minutes = clampQuizTimeLimitMinutes(limitMinutes);
   return (
     minutes != null &&
     startedAtMs != null &&
-    now - startedAtMs >= minutes * 60_000
+    now - startedAtMs - pausedMsSince(startedAtMs, pauseSpans) >=
+      minutes * 60_000
   );
 }
 
