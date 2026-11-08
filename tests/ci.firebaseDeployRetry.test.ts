@@ -397,3 +397,69 @@ describe('firebase-deploy-with-retry.sh rules release retry', () => {
     expect(releases).toBe(2);
   });
 });
+
+// Runs the CLI deploy and the rules release together against stubs; returns what each did.
+function runDeployAndRelease(deployExit: number, releaseExit: number) {
+  const dir = mkdtempSync(join(tmpdir(), 'deploy-and-release-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  const stub = (name: string, body: string) => {
+    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`);
+    chmodSync(join(bin, name), 0o755);
+  };
+  // The deploy waits until the release has started, which only works when the two run at once.
+  stub(
+    'pnpm',
+    [
+      `for _ in $(seq 100); do [[ -f "${dir}/released" ]] && break; command sleep 0.05; done`,
+      `[[ -f "${dir}/released" ]] && echo yes > "${dir}/overlapped"`,
+      'echo "Error: Compilation errors in index.ts"',
+      `exit ${deployExit}`,
+    ].join('\n')
+  );
+  stub(
+    'node',
+    [
+      '[[ $1 == scripts/releaseFirestoreRules.mjs ]] || exit 0',
+      `touch "${dir}/released"`,
+      `echo "release ran"; exit ${releaseExit}`,
+    ].join('\n')
+  );
+  stub('sleep', 'exit 0');
+  const result = spawnSync('bash', [scriptPath, 'demo'], {
+    cwd: dir,
+    encoding: 'utf-8',
+    env: {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+      FIREBASE_DEPLOY_ONLY: 'functions',
+      RELEASE_FIRESTORE_RULES: 'true',
+    },
+  });
+  const overlapped = (() => {
+    try {
+      return readFileSync(join(dir, 'overlapped'), 'utf-8').trim() === 'yes';
+    } catch {
+      return false;
+    }
+  })();
+  rmSync(dir, { recursive: true, force: true });
+  return { status: result.status, stdout: result.stdout, overlapped };
+}
+
+describe('firebase-deploy-with-retry.sh rules release beside the deploy', () => {
+  it('releases the rules while the CLI deploy runs and prints the release log', () => {
+    const { status, stdout, overlapped } = runDeployAndRelease(0, 0);
+    expect(status).toBe(0);
+    expect(overlapped).toBe(true);
+    expect(stdout).toContain('release ran');
+  });
+
+  it('fails when the release fails even though the deploy passed', () => {
+    expect(runDeployAndRelease(0, 1).status).toBe(1);
+  });
+
+  it('keeps the deploy failure when the release passed', () => {
+    expect(runDeployAndRelease(3, 0).status).toBe(3);
+  });
+});

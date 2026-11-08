@@ -256,12 +256,21 @@ jobs:
         run: pnpm exec firebase setup:emulators:firestore
 
       # Only changed targets (.github/scripts/plan-deploy.sh), wrapped in a retry for transient Google API blips.
+      # function-targets.mjs drops affected exports that are not Cloud Functions; any doubt deploys every function.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
         if: needs.plan.outputs.backend == 'true'
-        run: ./.github/scripts/firebase-deploy-with-retry.sh spartboard
+        run: |
+          # Loading the functions needs what the CLI sets during discovery (storage triggers read the bucket); only this node call gets it.
+          config="{\"projectId\":\"$PROJECT\",\"storageBucket\":\"$VITE_FIREBASE_STORAGE_BUCKET\"}"
+          FIREBASE_DEPLOY_ONLY="$(FIREBASE_CONFIG="$config" GCLOUD_PROJECT="$PROJECT" node .github/scripts/function-targets.mjs "$PLANNED")" ||
+            { echo "::error::function-targets.mjs failed"; exit 1; }
+          export FIREBASE_DEPLOY_ONLY
+          echo "Deploying: ${FIREBASE_DEPLOY_ONLY:-rules only}" | tee -a "$GITHUB_STEP_SUMMARY"
+          ./.github/scripts/firebase-deploy-with-retry.sh spartboard
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
-          FIREBASE_DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
+          PLANNED: ${{ needs.plan.outputs.deploy_only }}
+          PROJECT: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           RELEASE_FIRESTORE_RULES: ${{ needs.plan.outputs.release_rules }}
           # Incident escape hatch: repo variable RULES_MINIFY=0 releases the unminified rules.
           RULES_MINIFY: ${{ vars.RULES_MINIFY }}
