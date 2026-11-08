@@ -215,6 +215,10 @@ export async function handleControlSubAssignment(
       session.closeAt <= now);
   if (over && action !== 'end') denied('That run has already ended.');
   if (over) return { state: 'ended' };
+  // A repeat pause must not restart the clock and drop the time already paused.
+  if (action === 'pause' && session.status === 'paused') {
+    return { state: 'paused' };
+  }
 
   const patches = controlPatches(kind, action, now);
   if (kind === 'quiz' && action === 'resume') {

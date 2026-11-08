@@ -251,6 +251,15 @@ describe('handleControlSubAssignment — pausing', () => {
     expect(resumed.written[0].data).toEqual({ status: 'active' });
   });
 
+  it('leaves an already paused run alone so its pause start is kept', async () => {
+    const again = control(
+      { session: stamped({ status: 'paused', pausedAt: NOW - 600_000 }) },
+      input({ action: 'pause' })
+    );
+    expect(await again.run()).toEqual({ state: 'paused' });
+    expect(again.written).toEqual([]);
+  });
+
   it('records the pause so the time limit skips it', async () => {
     const resumed = control(
       {
