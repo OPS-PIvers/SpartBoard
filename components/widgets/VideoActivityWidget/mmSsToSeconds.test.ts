@@ -13,6 +13,8 @@ describe.each([
 
   it('tolerates surrounding whitespace', () => {
     expect(parse(' 1:30 ')).toBe(90);
+    expect(parse('1: 30')).toBe(90);
+    expect(parse('1 : 30')).toBe(90);
   });
 
   it('rejects negative parts instead of producing a shifted time', () => {
