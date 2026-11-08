@@ -208,7 +208,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
           {sides.prompt}
         </h2>
         {showMarks && (
-          // no-tour-anchor: student page; live tours run in the teacher app
+          // no-tour-anchor: Write mode only; the board and admin panel never allow it
           <button
             type="button"
             onClick={() => onStar(card.id)}
@@ -269,7 +269,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
             </span>{' '}
             <span>{renderDiff(acceptedReview)}</span>
           </p>
-          {/* no-tour-anchor: student page; live tours run in the teacher app */}
+          {/* no-tour-anchor: Write mode only; the board and admin panel never allow it */}
           <button
             ref={continueRef}
             type="button"
@@ -301,7 +301,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
               ).toLocaleLowerCase(),
             })}
           </label>
-          {/* no-tour-anchor: student page; live tours run in the teacher app */}
+          {/* no-tour-anchor: Write mode only; the board and admin panel never allow it */}
           <input
             ref={inputRef}
             id={`flashcard-write-${card.id}`}
@@ -326,7 +326,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
               dark={dark}
             />
           </div>
-          {/* no-tour-anchor: student page; live tours run in the teacher app */}
+          {/* no-tour-anchor: Write mode only; the board and admin panel never allow it */}
           <button
             type="submit"
             disabled={!response.trim()}
@@ -391,7 +391,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
             }}
             style={{ marginTop: 'min(8px, 2cqmin)' }}
           >
-            {/* no-tour-anchor: student page; live tours run in the teacher app */}
+            {/* no-tour-anchor: Write mode only; the board and admin panel never allow it */}
             <input
               ref={retypeRef}
               value={retype}
@@ -443,7 +443,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                 marginTop: 'min(10px, 2.5cqmin)',
               }}
             >
-              {/* no-tour-anchor: student page; live tours run in the teacher app */}
+              {/* no-tour-anchor: Write mode only; the board and admin panel never allow it */}
               <button
                 type="submit"
                 disabled={!retype.trim()}
@@ -456,7 +456,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                 {t('flashcards.write.continue')}
               </button>
               {check ? (
-                // no-tour-anchor: student page; live tours run in the teacher app
+                // no-tour-anchor: Write mode only; the board and admin panel never allow it
                 <button
                   type="button"
                   onClick={() => check.onFlag(card.id, wrongReview.response)}
@@ -486,7 +486,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                   )}
                 </button>
               ) : (
-                // no-tour-anchor: student page; live tours run in the teacher app
+                // no-tour-anchor: Write mode only; the board and admin panel never allow it
                 <button
                   type="button"
                   onClick={() => advance(true, wrongReview.response)}

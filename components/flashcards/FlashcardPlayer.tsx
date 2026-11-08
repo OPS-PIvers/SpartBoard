@@ -47,6 +47,11 @@ import { WriteMode } from './WriteMode';
 import { TestMode } from './TestMode';
 import { CheckSubmitPanel } from './PlayerPrimitives';
 import { cx } from './playerUtils';
+import {
+  tourAttr,
+  tourFieldAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 
 // Lazy so the player's first render never loads the recognizer (plan §7 performance).
 const SpeakMode = lazy(() =>
@@ -605,9 +610,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
         }}
       >
         {onBack && (
-          // no-tour-anchor: student page; live tours run in the teacher app
           <button
             type="button"
+            {...tourAttr('flashcards.present-back')}
             onClick={onBack}
             aria-label={t('flashcards.player.back')}
             className={cx(
@@ -635,10 +640,14 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             const Icon = candidate.icon;
             const selected = mode === candidate.id;
             return (
-              // no-tour-anchor: student page; live tours run in the teacher app
               <button
                 key={candidate.id}
                 type="button"
+                {...tourFieldAttr(
+                  'flashcards.present-mode',
+                  'flashcards',
+                  candidate.id
+                )}
                 onClick={() => selectMode(candidate.id)}
                 aria-pressed={selected}
                 className={cx(
@@ -720,9 +729,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               </div>
             </div>
           )}
-          {/* no-tour-anchor: student page; live tours run in the teacher app */}
           <button
             type="button"
+            {...tourAttr('flashcards.present-settings')}
             onClick={() => setSettingsOpen((open) => !open)}
             aria-label={t('flashcards.player.settings')}
             aria-expanded={settingsOpen}
@@ -996,9 +1005,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             >
               {t('flashcards.settings.title')}
             </h2>
-            {/* no-tour-anchor: student page; live tours run in the teacher app */}
             <button
               type="button"
+              {...tourAttr('flashcards.present-settings-close')}
               onClick={() => setSettingsOpen(false)}
               aria-label={t('flashcards.settings.close')}
               className={cx(
@@ -1053,10 +1062,23 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 label={t('flashcards.settings.showFirst')}
                 value={settings.showFirst}
                 options={[
-                  { value: 'term', label: t('flashcards.settings.term') },
+                  {
+                    value: 'term',
+                    label: t('flashcards.settings.term'),
+                    anchor: tourFieldAttr(
+                      'flashcards.present-show-first',
+                      'flashcards',
+                      'term'
+                    ),
+                  },
                   {
                     value: 'definition',
                     label: t('flashcards.settings.definition'),
+                    anchor: tourFieldAttr(
+                      'flashcards.present-show-first',
+                      'flashcards',
+                      'definition'
+                    ),
                   },
                 ]}
                 dark={dark}
@@ -1069,6 +1091,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               />
               <ToggleSetting
                 label={t('flashcards.settings.shuffle')}
+                anchor={tourAttr('flashcards.present-shuffle')}
                 checked={settings.shuffle}
                 disabled={locked && mode !== 'flashcards'}
                 dark={dark}
@@ -1207,7 +1230,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             )}
 
             {adapter.showsMarks && adapter.canReset && (
-              // no-tour-anchor: student page; live tours run in the teacher app
+              // no-tour-anchor: reset shows only with progress marks, which the board and admin panel never have
               <button
                 type="button"
                 onClick={resetProgress}
@@ -1262,7 +1285,7 @@ const SettingsGroup: React.FC<{
 const SegmentedSetting: React.FC<{
   label: string;
   value: string;
-  options: Array<{ value: string; label: string }>;
+  options: Array<{ value: string; label: string; anchor?: TourAnchorAttrs }>;
   dark: boolean;
   disabled?: boolean;
   onChange: (value: string) => void;
@@ -1285,10 +1308,10 @@ const SegmentedSetting: React.FC<{
       style={{ gap: 'min(3px, .7cqmin)', padding: 'min(3px, .7cqmin)' }}
     >
       {options.map((option) => (
-        // no-tour-anchor: student page; live tours run in the teacher app
         <button
           key={option.value}
           type="button"
+          {...option.anchor}
           onClick={() => onChange(option.value)}
           aria-pressed={value === option.value}
           disabled={disabled}
@@ -1344,7 +1367,7 @@ const QuestionCountSetting: React.FC<{
         {label}
       </div>
       <div className="flex items-stretch" style={{ gap: 'min(6px, 1.4cqmin)' }}>
-        {/* no-tour-anchor: student page; live tours run in the teacher app */}
+        {/* no-tour-anchor: Test mode only; the board and admin panel never allow it */}
         <input
           type="number"
           inputMode="numeric"
@@ -1370,7 +1393,7 @@ const QuestionCountSetting: React.FC<{
             fontSize: 'min(12px, 3.2cqmin)',
           }}
         />
-        {/* no-tour-anchor: student page; live tours run in the teacher app */}
+        {/* no-tour-anchor: Test mode only; the board and admin panel never allow it */}
         <button
           type="button"
           onClick={() => onChange('all')}
@@ -1441,12 +1464,21 @@ const SelectSetting: React.FC<{
 
 const ToggleSetting: React.FC<{
   label: string;
+  anchor?: TourAnchorAttrs;
   description?: string;
   checked: boolean;
   disabled?: boolean;
   dark: boolean;
   onChange: (checked: boolean) => void;
-}> = ({ label, description, checked, disabled = false, dark, onChange }) => (
+}> = ({
+  label,
+  anchor,
+  description,
+  checked,
+  disabled = false,
+  dark,
+  onChange,
+}) => (
   <label
     className={cx(
       'flex items-center rounded-xl border',
@@ -1474,10 +1506,10 @@ const ToggleSetting: React.FC<{
         </span>
       )}
     </span>
-    {/* no-tour-anchor: student page; live tours run in the teacher app */}
     <input
       type="checkbox"
       className="sr-only"
+      {...anchor}
       checked={checked}
       disabled={disabled}
       onChange={(event) => onChange(event.target.checked)}

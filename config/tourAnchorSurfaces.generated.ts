@@ -4058,6 +4058,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards.present-flip': ['board.flashcards-present'],
     'flashcards.present-previous': ['board.flashcards-present'],
     'flashcards.present-next': ['board.flashcards-present'],
+    'flashcards.present-back': ['board.flashcards-present'],
+    'flashcards.present-mode': ['board.flashcards-present'],
+    'flashcards.present-settings': ['board.flashcards-present'],
+    'flashcards.present-settings-close': ['board.flashcards-present'],
+    'flashcards.present-show-first': ['board.flashcards-present'],
+    'flashcards.present-shuffle': ['board.flashcards-present'],
     'flashcards.public-link': ['board.flashcard-share'],
     'flashcards.embed-code': ['board.flashcard-share'],
   };
