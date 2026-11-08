@@ -15,6 +15,8 @@ on:
 # deploys only changed targets, after every check, and only from a branch containing dev-paul
 # (.github/scripts/plan-deploy.sh). Concurrency is per job: a newer push cancels superseded
 # checks, but a deploy that has started always finishes.
+# plan's mode (.github/scripts/check-mode.mjs): full runs every check; reuse skips the checks PR
+# Validation already passed on this exact tree; docs runs only format and unit tests, and deploys nothing.
 
 # Build and deploy add id-token: write for keyless Workload Identity Federation into spartboard-dev.
 permissions:
@@ -41,6 +43,8 @@ jobs:
   # The app ESLint pass (type-aware, ~8 min unsplit) runs as 3 size-balanced shards; the functions
   # ESLint pass and Prettier share a fourth runner.
   lint:
+    needs: plan
+    if: needs.plan.outputs.mode != 'reuse'
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-lint-${{ matrix.check }}${{ matrix.shard }}
@@ -62,7 +66,7 @@ jobs:
       # (each gets Node's own default heap ceiling), so a worker touching this
       # program would hit an unraised limit and get OOM-killed — see
       # tests/ci.eslintConcurrencyMemory.test.ts.
-      - if: matrix.check == 'app'
+      - if: matrix.check == 'app' && needs.plan.outputs.mode == 'full'
         run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --shard=${{ matrix.shard }}/3
       - if: matrix.check != 'app'
         run: pnpm run format:check
@@ -72,6 +76,8 @@ jobs:
         run: pnpm run lint:extension
 
   type-check:
+    needs: plan
+    if: needs.plan.outputs.mode == 'full'
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-type-check
@@ -85,19 +91,21 @@ jobs:
   # roughly by the shard count. Each shard uploads its JSON report so the
   # test-counts job can merge them and apply the silent-omission guard.
   test:
+    needs: plan
+    if: needs.plan.outputs.mode != 'reuse'
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-test-${{ matrix.shard }}
       cancel-in-progress: true
-    name: test (shard ${{ matrix.shard }}/4)
+    name: test (shard ${{ matrix.shard }}/6)
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
-      - run: pnpm run test:shard --shard=${{ matrix.shard }}/4 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
+      - run: pnpm run test:shard --shard=${{ matrix.shard }}/6 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -105,9 +113,29 @@ jobs:
           path: .vitest-reports/root-shard-${{ matrix.shard }}.json
           retention-days: 1
 
-  # Functions suite (~5s) plus the merged-shard count guard (root and rules) from scripts/checkTestCounts.mjs.
+  # Runs beside the root shards so the count guard below doesn't wait on it.
+  functions-test:
+    needs: plan
+    if: needs.plan.outputs.mode != 'reuse'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-functions-test
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      - run: pnpm -C functions test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-report-functions
+          path: .vitest-reports/functions.json
+          retention-days: 1
+
+  # The merged-shard count guard (root, functions and, unless docs mode skipped them, rules) from scripts/checkTestCounts.mjs.
   test-counts:
-    needs: [test, rules]
+    needs: [plan, test, functions-test, rules]
+    if: ${{ !cancelled() && needs.plan.outputs.mode != 'reuse' && needs.test.result == 'success' && needs.functions-test.result == 'success' && (needs.rules.result == 'success' || needs.plan.outputs.mode == 'docs') }}
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-test-counts
@@ -125,22 +153,29 @@ jobs:
           pattern: vitest-rules-report-shard-*
           path: .vitest-reports/rules-shards
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: vitest-report-functions
+          path: .vitest-reports
       - run: pnpm run test:merge-reports .vitest-reports/root.json .vitest-reports/shards/root-shard-*.json
-      - run: pnpm run test:merge-reports .vitest-reports/rules.json .vitest-reports/rules-shards/rules-shard-*.json
-      - run: pnpm -C functions test
+      - if: needs.plan.outputs.mode == 'full'
+        run: pnpm run test:merge-reports .vitest-reports/rules.json .vitest-reports/rules-shards/rules-shard-*.json
       - run: pnpm run test:counts
 
   # test:all doesn't include test:rules; without this a firestore.rules regression could reach a preview deploy unverified.
+  # In reuse mode the minified copy is still tested whenever rules changed; PR Validation tested the source.
   rules:
+    needs: plan
+    if: needs.plan.outputs.mode == 'full' || (needs.plan.outputs.mode == 'reuse' && needs.plan.outputs.release_rules == 'true')
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-rules-${{ matrix.shard }}
       cancel-in-progress: true
-    name: rules (shard ${{ matrix.shard }}/2)
+    name: rules (shard ${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -161,7 +196,7 @@ jobs:
         if: vars.RULES_MINIFY != '0'
         run: pnpm exec firebase setup:emulators:firestore && node scripts/minifyRules.mjs firestore.rules --write
       - name: Run Firestore rules tests
-        run: RULES_SHARD=${{ matrix.shard }}/2 pnpm run test:rules
+        run: RULES_SHARD=${{ matrix.shard }}/4 pnpm run test:rules
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -171,6 +206,8 @@ jobs:
 
   # Dev's public web config (repo VITE_FIREBASE_* secrets are prod's), fetched apart from build so no build code sees the deploy credential.
   web-config:
+    needs: plan
+    if: needs.plan.outputs.mode != 'docs'
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-web-config
@@ -197,7 +234,7 @@ jobs:
 
   # Builds in parallel with the checks; deploy downloads the artifact instead of rebuilding.
   build:
-    needs: web-config
+    needs: [plan, web-config]
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-build
@@ -230,6 +267,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
     outputs:
       site_suffix: ${{ steps.plan.outputs.site_suffix }}
       backend: ${{ steps.plan.outputs.backend }}
@@ -237,6 +275,7 @@ jobs:
       release_rules: ${{ steps.plan.outputs.release_rules }}
       indexes: ${{ steps.plan.outputs.indexes }}
       base_sha: ${{ steps.base.outputs.sha }}
+      mode: ${{ steps.mode.outputs.mode }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -271,12 +310,22 @@ jobs:
           OTHER_BRANCH_DEPLOYED_LAST: ${{ steps.last.outputs.other_deployed_last }}
           FULL: ${{ inputs.full_backend || false }}
         run: ./.github/scripts/plan-deploy.sh "$GITHUB_REF_NAME" "$BASE_SHA" "$FULL"
+      - id: mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          FULL: ${{ inputs.full_backend || false }}
+          BACKEND: ${{ steps.plan.outputs.backend }}
+        run: |
+          mode=$(node .github/scripts/check-mode.mjs "$BASE_SHA" "$FULL" "$BACKEND")
+          echo "Check mode: $mode" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
   # Fast lane: the preview updates as soon as the bundle builds and type-checks. Lint, tests and
   # rules tests still gate the PR and the backend deploy.
   deploy-hosting:
     needs: [plan, type-check, build]
-    if: needs.plan.outputs.site_suffix != ''
+    if: ${{ !cancelled() && needs.plan.outputs.site_suffix != '' && needs.build.result == 'success' && (needs.type-check.result == 'success' || needs.plan.outputs.mode == 'reuse') }}
     runs-on: ubuntu-24.04
     concurrency:
       group: dev-hosting-${{ needs.plan.outputs.site_suffix }}
@@ -319,8 +368,12 @@ jobs:
   # Shared backend: only changed targets, after every check. One group for the whole project so two
   # branches never deploy functions at the same time.
   deploy:
-    needs: [plan, lint, type-check, test, test-counts, rules, build]
-    if: needs.plan.outputs.backend == 'true'
+    needs: [plan, lint, type-check, test, functions-test, test-counts, rules, build]
+    # Every check this mode runs must pass; reuse skips only what PR Validation passed on this exact tree.
+    if: >-
+      ${{ !cancelled() && needs.plan.outputs.backend == 'true' && needs.build.result == 'success'
+      && (needs.rules.result == 'success' || (needs.plan.outputs.mode == 'reuse' && needs.plan.outputs.release_rules != 'true'))
+      && (needs.plan.outputs.mode == 'reuse' || (needs.lint.result == 'success' && needs.type-check.result == 'success' && needs.test-counts.result == 'success')) }}
     runs-on: ubuntu-24.04
     # Never cancel a running deploy: a half-finished functions deploy leaves dev inconsistent.
     concurrency:
@@ -363,7 +416,12 @@ jobs:
         run: |
           # A named deploy is only safe on top of dev-paul's own last deploy of the shared backend.
           last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/firebase-dev-deploy.yml/runs?status=success&per_page=20"             --jq '[.workflow_runs[]] | max_by(.updated_at) | "\(.head_branch) \(.head_sha)"') || last=""
-          if [[ "$last" != "dev-paul $BASE_SHA" ]]; then export DEPLOY_ALL_FUNCTIONS=true; fi
+          read -r last_branch last_sha <<<"$last"
+          # A later dev-paul deploy between the plan's base and this commit changed only a subset of the planned functions.
+          if [[ "$last" != "dev-paul $BASE_SHA" ]] && ! { [[ "$GITHUB_REF_NAME" == dev-paul && "$last_branch" == dev-paul && -n "$BASE_SHA" ]] &&
+            git merge-base --is-ancestor "$BASE_SHA" "$last_sha" && git merge-base --is-ancestor "$last_sha" HEAD; }; then
+            export DEPLOY_ALL_FUNCTIONS=true
+          fi
           targets="$(node .github/scripts/function-targets.mjs "$DEPLOY_ONLY")"
           echo "deploy_only=$targets" >> "$GITHUB_OUTPUT"
 
