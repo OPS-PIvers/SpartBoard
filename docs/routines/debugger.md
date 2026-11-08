@@ -717,6 +717,12 @@
 | 2026-11-06 | State & Data | `rubricToCsv` lacked the spreadsheet-formula guard the other CSV exporters have; import now strips the guard prefix so the round trip holds. (contained). | [#5276](https://github.com/OPS-PIvers/SpartBoard/pull/5276) |
 | 2026-11-06 | Admin & Config | `formatLogValue` never matched live Firestore `Timestamp`s because `JSON.stringify` runs `toJSON()` before the replacer; View As log showed the raw seconds/nanoseconds object. Replacer reads the holder value. (contained). | [#5277](https://github.com/OPS-PIvers/SpartBoard/pull/5277) |
 | 2026-11-06 | Build & Tooling | `minifyRules.mjs` skipped its positional path when `--map` was absent (`-1 + 1` index), so it processed `firestore.rules` instead. (contained). | [#5278](https://github.com/OPS-PIvers/SpartBoard/pull/5278) |
+| 2026-11-08 | Baseline | `pnpm run validate` green on `dev-paul` at `60a19bed`. No open debugger `nightly/*` PRs at dispatch. | — |
+| 2026-11-08 | Widgets | `mmSsToSeconds` (two copies, Video Activity editor and CSV import) used per-side `parseInt`, so `-1:30`, `1:-30`, `12abc:30` were accepted and saved as timestamps. Strict `^\d+:\d+$` match. (contained). | [#5427](https://github.com/OPS-PIvers/SpartBoard/pull/5427) |
+| 2026-11-08 | Dashboard & Layout | Clean: read layout menus/selection, dock helpers, common stores and utilities, boardsModal DnD/tree utils, assignmentsHub, help state, settings drawer hooks, App.tsx routing; no reproducible bug. | — |
+| 2026-11-08 | State & Data | Quiz pause credit: a repeat Pause overwrote `pausedAt`, and Reopen did not set it, so Resume credited no span. Consolidated with Build & Tooling (same bug in `handleControlSubAssignment`). (contained). | [#5428](https://github.com/OPS-PIvers/SpartBoard/pull/5428) |
+| 2026-11-08 | Admin & Config | Clean: 252 files / 3274 tests green; read config normalizers, FEATURE_DEFAULTS (probe), admin access/Analytics/Organization libs, auth components, locale key and placeholder diff; no reproducible bug. | — |
+| 2026-11-08 | Build & Tooling | Repeat sub `pause` rewrote `pausedAt` (see State & Data row); fixed in the same PR. | [#5428](https://github.com/OPS-PIvers/SpartBoard/pull/5428) |
 
 ## Backlog
 
@@ -1159,6 +1165,11 @@
 | Dashboard & Layout | Cycle-only edge cases (need corrupt data): `buildChildrenByParent`/`flattenCollections` drop both collections of a parent cycle; `folderTotals` caches wrong totals on a folder cycle. `helpShortLinkCode` lowercases case-sensitive ids. |
 | Widgets | Open leads: Enter handlers without an `isComposing` guard; `navigator.clipboard.writeText` without try/catch (use `utils/copyText.ts`); `RandomWidget` timers not cleared on unmount; `diffSharedWallEdit` skips `undefined`. |
 | Admin & Config | Low: `withoutProtectedMembers` (`Organization/lib/protectedMembers.ts`) is O(n*m); build a Map once. |
+| State & Data | A run paused then ended never closes its pause span, so pause time before End is lost. `attemptClockRanOut` ignores `timeMultiplier` (product decision). `extractYouTubeId` rejects `youtube.com/live/<id>`. | 2026-11-08 | open |
+| Widgets | `videoActivityImportAdapter.parseCsv` reads the time limit with `parseInt` and no NaN guard. | 2026-11-08 | open |
+| Dashboard & Layout | Unverified: `DeepLinkShareImporter` `.then` callbacks close over the board at import start; `useUnifiedAssignments` guided-learning/mini-app rows drop `periodNames`/`classIds`. `DraggableWindow.tsx` and `DashboardView.tsx` still unread in depth. | 2026-11-08 | open |
+| Build & Tooling | Resume on an already-active quiz still runs `refreshIdleResponses` (up to 400 writes). `resolveOrgForUser.autoEnrollMember` checks `isStudentDomain` only for the matched `hd` domain. Unread: `studentAssignmentTargets`, `quizMediaArchive`, `organizationInvites`, `googleOAuth`, `aiGeneration`. | 2026-11-08 | open |
+| Admin & Config | Low: `isValidManagedAuthIssuer` accepts an explicit `:443`; `normalizeQuizTranslationSettings` does not dedupe languages and allows a cap of 0; `studentsForCategory` filters only on `lastSignInMs` (check server). | 2026-11-08 | open |
 
 ## Notes & Gotchas
 
@@ -1609,3 +1620,5 @@
 - 2026-11-05: three fixes (#5193-#5195), two clean (Dashboard, Build). Subagents ran scoped checks only; one gate (`validate` + `build`) on a temporary merge of the three branches, green. `dev-paul` moved during the run (no file overlap); branches were rebased before pushing.
 - 2026-11-06: five fixes (#5274-#5278). Subagents ran scoped checks only; the merged-tree gate caught a TS2739 (`Rubric` literal missing `id`/`createdAt`/`updatedAt`) in a subagent test that scoped vitest and eslint missed, so run `pnpm run type-check` on a temporary merge. Baseline plus gate took about 2 h wall-clock; start the baseline first.
 - Run count: **116** | Last run: **2026-11-06**
+- 2026-11-08: one consolidated fix (#5428, client and Cloud Function shared the `pausedAt` root cause) plus one (#5427); three areas clean. The merged-tree gate (`validate` + `build`) on both branches was green; baseline took about 40 min.
+- Run count: **117** | Last run: **2026-11-08**
