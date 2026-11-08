@@ -33,11 +33,11 @@ import type { VideoActivityData, VideoActivityQuestion } from '@/types';
 /** Convert MM:SS or M:SS string to total seconds. Returns NaN if invalid. */
 export function mmSsToSeconds(value: string): number {
   if (!value) return 0;
-  const parts = value.trim().split(':');
-  if (parts.length !== 2) return NaN;
-  const m = parseInt(parts[0] ?? '0');
-  const s = parseInt(parts[1] ?? '0');
-  if (isNaN(m) || isNaN(s) || s >= 60) return NaN;
+  const match = /^(\d+):(\d+)$/.exec(value.trim());
+  if (!match) return NaN;
+  const m = Number(match[1]);
+  const s = Number(match[2]);
+  if (s >= 60) return NaN;
   return m * 60 + s;
 }
 

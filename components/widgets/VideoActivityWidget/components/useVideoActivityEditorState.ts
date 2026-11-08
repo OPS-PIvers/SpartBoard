@@ -29,11 +29,11 @@ export function secondsToMmSs(seconds: number): string {
 
 /** Convert MM:SS or M:SS string to total seconds. Returns NaN if invalid. */
 export function mmSsToSeconds(value: string): number {
-  const parts = value.split(':');
-  if (parts.length !== 2) return NaN;
-  const m = parseInt(parts[0] ?? '0');
-  const s = parseInt(parts[1] ?? '0');
-  if (isNaN(m) || isNaN(s) || s >= 60) return NaN;
+  const match = /^(\d+):(\d+)$/.exec(value);
+  if (!match) return NaN;
+  const m = Number(match[1]);
+  const s = Number(match[2]);
+  if (s >= 60) return NaN;
   return m * 60 + s;
 }
 
