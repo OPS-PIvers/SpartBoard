@@ -27,11 +27,19 @@ export function prChecksRan(jobs) {
 
 /**
  * @typedef {{ name: string, conclusion: string | null }} Job
- * @typedef {{ number: number, head: string }} MergedPr
+ * @typedef {{ number: number, head: string, headRef?: string, baseRef?: string }} MergedPr
+ * @typedef {{ head_branch: string | null, pull_requests: { number: number, base: { ref: string } }[] }} PrRun
  * @typedef {{ full: boolean, backend: boolean, changedFiles: string[] | null, headTree: string, mergedPrs: MergedPr[],
  *   treeOf: (sha: string) => Promise<string>, baseIsInHead: (head: string) => Promise<boolean>,
  *   successfulRuns: (pr: MergedPr) => Promise<number[]>, jobsOf: (run: number) => Promise<Job[]> }} ModeInput
  */
+
+// GitHub lists only the branch's open PRs on a run, so a merged PR's run shows a newer PR or none.
+/** @param {PrRun} run @param {MergedPr} pr */
+export function runIsFromPr(run, pr) {
+  if (run.pull_requests.some((p) => p.number === pr.number)) return true;
+  return run.head_branch === pr.headRef && run.pull_requests.every((p) => p.base.ref === pr.baseRef);
+}
 
 // docs: only docs changed since the last good run. reuse: the merged PR's head held this exact tree and the branch's
 // prior commit, so PR Validation's merge ref was this tree, and that PR's own run passed every check on it.
@@ -82,14 +90,15 @@ async function main() {
     headTree: git('rev-parse', `${sha}^{tree}`),
     mergedPrs: (await api(`commits/${sha}/pulls`))
       .filter((pr) => pr.merged_at)
-      .map((pr) => ({ number: pr.number, head: pr.head.sha })),
+      .filter((pr) => pr.head.repo?.full_name === process.env.GITHUB_REPOSITORY)
+      .map((pr) => ({ number: pr.number, head: pr.head.sha, headRef: pr.head.ref, baseRef: pr.base.ref })),
     treeOf: async (head) => (await api(`git/commits/${head}`)).tree.sha,
     // The pushed commit's first parent is the branch before the merge; it must already be in the PR head.
     baseIsInHead: async (head) =>
       ['ahead', 'identical'].includes((await api(`compare/${git('rev-parse', `${sha}^1`)}...${head}`)).status),
     successfulRuns: async (pr) =>
       (await api(`actions/workflows/pr-validation.yml/runs?head_sha=${pr.head}&event=pull_request&status=success&per_page=10`)).workflow_runs
-        .filter((run) => run.pull_requests.some((p) => p.number === pr.number))
+        .filter((/** @type {PrRun} */ run) => runIsFromPr(run, pr))
         .map((run) => run.id),
     jobsOf: async (run) => (await api(`actions/runs/${run}/jobs?per_page=100`)).jobs,
   });

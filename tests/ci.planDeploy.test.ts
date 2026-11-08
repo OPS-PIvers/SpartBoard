@@ -125,23 +125,32 @@ describe('plan-deploy.sh', () => {
     ).toMatchObject({ backend: 'false', deploy_only: '' });
   });
 
-  it('keeps deploying every function on main', () => {
-    expect(plan('main', ['functions/src/linkPreview.ts']).deploy_only).toBe(
+  it('deploys only the affected functions on main, like dev-paul', () => {
+    expect(plan('main', ['functions/src/linkPreview.ts']).deploy_only).toMatch(
+      /^functions:/
+    );
+    expect(plan('main', ['functions/src/index.ts']).deploy_only).toBe(
       'functions'
     );
   });
 
-  it('does not redeploy prod for a change to the dev-only narrowing scripts', () => {
-    expect(
-      plan('main', [
-        '.github/scripts/affected-functions.mjs',
-        '.github/scripts/function-targets.mjs',
-      ])
-    ).toMatchObject({ backend: 'false', deploy_only: '' });
-    expect(
-      plan('main', ['.github/scripts/firebase-deploy-with-retry.sh'])
-        .deploy_only
-    ).toBe('functions,firestore:indexes,storage');
+  it('says whether functions are planned, apart from the target list', () => {
+    expect(plan('main', ['functions/src/linkPreview.ts']).functions).toBe(
+      'true'
+    );
+    expect(plan('main', ['firestore.rules']).functions).toBe('false');
+  });
+
+  it('redeploys every prod target when a deploy script or the narrowing changes', () => {
+    for (const script of [
+      '.github/scripts/affected-functions.mjs',
+      '.github/scripts/function-targets.mjs',
+      '.github/scripts/firebase-deploy-with-retry.sh',
+    ]) {
+      expect(plan('main', [script]).deploy_only).toBe(
+        'functions,firestore:indexes,storage'
+      );
+    }
   });
 
   it('deploys every function on dev when the change could reach them all', () => {
