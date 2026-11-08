@@ -395,7 +395,10 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     widgetType: 'flashcards',
     needs: ['widget-on-stage', 'library-item'],
-    files: ['components/flashcards/FlashcardsMode.tsx'],
+    files: [
+      'components/flashcards/FlashcardsMode.tsx',
+      'components/flashcards/FlashcardPlayer.tsx',
+    ],
     openerMissing: 'Present on a set row in the Flashcards library (onPresent)',
   },
   'board.smart-paste': {

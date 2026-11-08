@@ -16849,6 +16849,33 @@ export const TOUR_ANCHORS = {
   'flashcards.present-next': {
     label: 'Next card button in the Flashcards widget on the board',
   },
+  'flashcards.present-back': {
+    label: 'Back to library button in the Flashcards widget on the board',
+  },
+  'flashcards.present-mode': {
+    label: 'Mode button above the cards in the Flashcards widget on the board',
+    perField: true,
+    keyPattern: 'flashcards#(flashcards|speak)',
+    keyHint: 'flashcards#flashcards is the Flashcards mode button',
+  },
+  'flashcards.present-settings': {
+    label: 'Settings button in the Flashcards widget on the board',
+  },
+  'flashcards.present-settings-close': {
+    label: 'Close button of the Flashcards settings panel on the board',
+    panel: true,
+  },
+  'flashcards.present-show-first': {
+    label: 'Term or Definition option in the Flashcards settings panel',
+    perField: true,
+    panel: true,
+    keyPattern: 'flashcards#(term|definition)',
+    keyHint: 'flashcards#term shows the term side first',
+  },
+  'flashcards.present-shuffle': {
+    label: 'Shuffle switch in the Flashcards settings panel',
+    panel: true,
+  },
   'flashcards.public-link': {
     label: 'Share link box in the flashcard Share dialog',
     perWidgetType: true,
