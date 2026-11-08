@@ -229,8 +229,13 @@ async function commitQuizLifecycle(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
       patches.assignment
     );
+    // A Pause on an already-paused run keeps the first pausedAt.
+    const sessionPatch = { ...patches.session };
+    if (session?.status === 'paused' && event.type === 'pause') {
+      delete sessionPatch.pausedAt;
+    }
     tx.update(sessionRef, {
-      ...patches.session,
+      ...sessionPatch,
       ...(pauseSpans ? { pauseSpans } : {}),
       ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
     });

@@ -154,7 +154,9 @@ function sessionPatchFor(
     };
   }
   if (event.type === 'reopen') {
-    return { status: 'paused', autoProgressAt: null, endedAt: null };
+    return kind === 'quiz'
+      ? { status: 'paused', autoProgressAt: null, pausedAt: now, endedAt: null }
+      : { status: 'paused', autoProgressAt: null, endedAt: null };
   }
   return { status: event.to ?? 'active', endedAt: null };
 }
