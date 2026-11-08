@@ -11,6 +11,10 @@ describe.each([
     expect(parse('0:5')).toBe(5);
   });
 
+  it('tolerates surrounding whitespace', () => {
+    expect(parse(' 1:30 ')).toBe(90);
+  });
+
   it('rejects negative parts instead of producing a shifted time', () => {
     expect(parse('1:-30')).toBeNaN();
     expect(parse('-1:30')).toBeNaN();
