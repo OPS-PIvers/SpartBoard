@@ -34,8 +34,6 @@ export function prChecksRan(jobs) {
  *   successfulRuns: (pr: MergedPr) => Promise<number[]>, jobsOf: (run: number) => Promise<Job[]> }} ModeInput
  */
 
-// docs: only docs changed since the last good run. reuse: the merged PR's head held this exact tree and the branch's
-// prior commit, so PR Validation's merge ref was this tree, and that PR's own run passed every check on it.
 // GitHub lists only the branch's open PRs on a run, so a merged PR's run shows a newer PR or none.
 /** @param {PrRun} run @param {MergedPr} pr */
 export function runIsFromPr(run, pr) {
@@ -43,6 +41,8 @@ export function runIsFromPr(run, pr) {
   return run.head_branch === pr.headRef && run.pull_requests.every((p) => p.base.ref === pr.baseRef);
 }
 
+// docs: only docs changed since the last good run. reuse: the merged PR's head held this exact tree and the branch's
+// prior commit, so PR Validation's merge ref was this tree, and that PR's own run passed every check on it.
 /** @param {ModeInput} input @returns {Promise<'full' | 'reuse' | 'docs'>} */
 export async function decideMode({ full, backend, changedFiles, headTree, mergedPrs, treeOf, baseIsInHead, successfulRuns, jobsOf }) {
   if (full) return 'full';
