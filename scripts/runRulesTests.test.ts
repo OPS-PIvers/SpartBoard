@@ -60,7 +60,10 @@ describe.each(['pr-validation.yml', 'firebase-dev-deploy.yml'])(
       expect(yaml).toContain(
         'pnpm run test:merge-reports .vitest-reports/rules.json .vitest-reports/rules-shards/rules-shard-*.json'
       );
-      expect(yaml).toMatch(/test-counts:\n {4}needs: \[test, rules\]/);
+      const needs = /test-counts:\n {4}needs: \[([^\]]*)\]/.exec(yaml)?.[1];
+      expect(needs?.split(',').map((s) => s.trim())).toEqual(
+        expect.arrayContaining(['test', 'functions-test', 'rules'])
+      );
     });
   }
 );
