@@ -27,6 +27,7 @@ import {
   parseStepTargets,
   scoreFlashcardProgress,
   scoreGuidedLearningResponse,
+  scoreMiniAppBest,
   scoreProjectMember,
   scoreQuestions,
   scoreQuizResponse,
@@ -668,5 +669,30 @@ describe('currentShortAnswerGrading', () => {
         [{ questionId: 'q1', answer: 'retake', answeredAt: 200 }]
       )
     ).toEqual({ q2: { pointsAwarded: 2 } });
+  });
+});
+
+describe('scoreMiniAppBest', () => {
+  const submission = {
+    best: { score: 3, maxScore: 4, gradedBy: 'server' },
+    submittedAt: 1000,
+  };
+
+  it('publishes the best score when students see their answers', () => {
+    expect(scoreMiniAppBest({}, submission, 'c1')).toMatchObject({
+      published: true,
+      rawPct: 75,
+      points: 3,
+      max: 4,
+    });
+    expect(
+      scoreMiniAppBest({ showCorrectAnswers: true }, submission, null)
+    ).toMatchObject({ published: true });
+  });
+
+  it('keeps the score unpublished when answers are hidden from students', () => {
+    expect(
+      scoreMiniAppBest({ showCorrectAnswers: false }, submission, 'c1')
+    ).toMatchObject({ published: false, rawPct: 75, state: 'scored' });
   });
 });

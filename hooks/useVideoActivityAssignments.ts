@@ -240,11 +240,8 @@ export interface UseVideoActivityAssignmentsResult {
    * computed `score` + per-answer `isCorrect` flags onto each response,
    * and mirrors the visibility flag onto the assignment + session docs.
    *
-   * `'score-responses-and-answers'` populates `session.revealedAnswers`
-   * (id → correctAnswer) so the student review screen can show the
-   * canonical correct answer for each question — VA's session strips
-   * correct answers from `publicQuestions` for the in-progress flow,
-   * mirroring Quiz's student-safety pattern.
+   * No level writes an answer key: the VA student app never shows one, so
+   * publish clears any `session.revealedAnswers` an older publish left.
    *
    * The signature deliberately excludes `'none'` — use
    * {@link UseVideoActivityAssignmentsResult.unpublishAssignmentScores}
@@ -1231,17 +1228,9 @@ export const useVideoActivityAssignments = (
         scoreVisibility: visibility,
         // Republishing without protection must not keep a stale one.
         protection: protection ?? deleteField(),
+        // Students never see a VA answer key, so keep it off the readable session and clear an older publish's copy.
+        revealedAnswers: deleteField(),
       };
-      if (visibility === 'score-responses-and-answers') {
-        const revealedAnswers: Record<string, string> = {};
-        // First-wins, matching the grading map above — the revealed answer must match what the student was graded against.
-        for (const q of dedupeQuestionsById(activityData.questions)) {
-          revealedAnswers[q.id] = q.correctAnswer;
-        }
-        sessionPatch.revealedAnswers = revealedAnswers;
-      } else {
-        sessionPatch.revealedAnswers = deleteField();
-      }
       firstBatch.update(sessionRef, sessionPatch);
 
       // 2 writes already consumed (assignment + session); fill the rest
