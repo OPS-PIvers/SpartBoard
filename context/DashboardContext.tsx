@@ -7580,7 +7580,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       window.dispatchEvent(
-        new CustomEvent('spart-widget-removed', { detail: { id } })
+        new CustomEvent('spart-widget-removed', {
+          detail: { id, boardId: activeId },
+        })
       );
       setDashboards((prev) =>
         prev.map((d) => {
@@ -7667,7 +7669,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const idSet = new Set(ids);
       ids.forEach((id) =>
         window.dispatchEvent(
-          new CustomEvent('spart-widget-removed', { detail: { id } })
+          new CustomEvent('spart-widget-removed', {
+            detail: { id, boardId: activeId },
+          })
         )
       );
       setDashboards((prev) =>

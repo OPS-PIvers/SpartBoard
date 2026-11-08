@@ -163,6 +163,11 @@ function nextDirtyAt(prev: unknown, now: number): number {
   return typeof prev === 'number' && prev >= now ? prev + 1 : now;
 }
 
+/** A positive mark no recompute has claimed yet already covers this change. */
+export function markIsPending(prev: unknown): boolean {
+  return typeof prev === 'number' && prev > 0;
+}
+
 async function setDirtyAt(
   db: Firestore,
   plcId: string,
@@ -170,6 +175,7 @@ async function setDirtyAt(
   prev: unknown,
   now: number
 ): Promise<void> {
+  if (markIsPending(prev)) return;
   await db
     .collection('plcs')
     .doc(plcId)
@@ -178,7 +184,7 @@ async function setDirtyAt(
     .update({ dirtyAt: nextDirtyAt(prev, now) });
 }
 
-/** Moves `dirtyAt` forward on every call, so a recompute in flight cannot clear a newer mark. */
+/** Writes a fresh mark unless an unclaimed one is pending, so a recompute in flight cannot clear a newer change. */
 export async function markDirty(
   db: Firestore,
   plcId: string,

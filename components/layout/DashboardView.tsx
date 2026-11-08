@@ -952,15 +952,31 @@ export const DashboardView: React.FC = () => {
   // Deleting the live widget ends the session.
   const liveWidgetId =
     liveState.kind === 'live' ? session?.activeWidgetId : null;
+  // Copied boards keep widget ids, so a removal only ends the session when no other board still holds the widget.
+  const liveHostBoardIds = useMemo(
+    () =>
+      liveWidgetId
+        ? dashboards
+            .filter((d) => d.widgets.some((w) => w.id === liveWidgetId))
+            .map((d) => d.id)
+            .join('\n')
+        : '',
+    [dashboards, liveWidgetId]
+  );
   React.useEffect(() => {
     if (!liveWidgetId) return undefined;
+    const hosts = liveHostBoardIds ? liveHostBoardIds.split('\n') : [];
     const onRemoved = (e: Event) => {
-      if ((e as CustomEvent<{ id: string }>).detail.id === liveWidgetId)
-        void endSession();
+      const { id, boardId } = (
+        e as CustomEvent<{ id: string; boardId?: string }>
+      ).detail;
+      if (id !== liveWidgetId) return;
+      if (hosts.some((h) => h !== boardId)) return;
+      void endSession();
     };
     window.addEventListener('spart-widget-removed', onRemoved);
     return () => window.removeEventListener('spart-widget-removed', onRemoved);
-  }, [liveWidgetId, endSession]);
+  }, [liveWidgetId, liveHostBoardIds, endSession]);
 
   const sessions = useMemo<Map<string, LiveSession> | undefined>(() => {
     if (liveState.kind !== 'live' || !session || !activeDashboard)

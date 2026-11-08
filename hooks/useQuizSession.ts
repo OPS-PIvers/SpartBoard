@@ -1752,7 +1752,8 @@ export const useQuizSessionTeacher = (
         target.timeUp,
         timestampMillis(target.attemptStartedAt),
         rawSession?.timeLimitMinutes,
-        Date.now()
+        Date.now(),
+        rawSession?.pauseSpans
       );
       const currentAttempts = target.completedAttempts ?? 0;
       const refundedAttempts = Math.max(0, currentAttempts - 1);
@@ -1793,7 +1794,7 @@ export const useQuizSessionTeacher = (
       }
       await batch.commit();
     },
-    [sessionId, responses, rawSession?.timeLimitMinutes]
+    [sessionId, responses, rawSession?.timeLimitMinutes, rawSession?.pauseSpans]
   );
 
   const submitForStudent = useCallback(

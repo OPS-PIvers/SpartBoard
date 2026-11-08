@@ -218,6 +218,27 @@ export function parseServedLanguages(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** Negates a pending mark before any source read, so a later trigger writes a new mark instead of relying on this run. */
+async function claimDirtyMark(
+  db: Firestore,
+  ref: admin.firestore.DocumentReference
+): Promise<{
+  assessment: admin.firestore.DocumentData;
+  dirtyAtRead: unknown;
+} | null> {
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return null;
+    const assessment = snap.data() ?? {};
+    const current: unknown = assessment.dirtyAt ?? null;
+    if (typeof current === 'number' && current > 0) {
+      tx.update(ref, { dirtyAt: -current });
+      return { assessment, dirtyAtRead: -current };
+    }
+    return { assessment, dirtyAtRead: current };
+  });
+}
+
 async function clearDirtyIfUnchanged(
   db: Firestore,
   ref: admin.firestore.DocumentReference,
@@ -308,13 +329,12 @@ export async function recomputeOnePlcAssessment(
   const assessmentRef = plcRef.collection('assessments').doc(assessmentId);
   const aggregateRef = plcRef.collection('aggregates').doc(assessmentId);
 
-  const assessmentSnap = await assessmentRef.get();
-  if (!assessmentSnap.exists) {
+  const claimed = await claimDirtyMark(db, assessmentRef);
+  if (!claimed) {
     await aggregateRef.delete();
     return;
   }
-  const assessment = assessmentSnap.data() ?? {};
-  const dirtyAtRead: unknown = assessment.dirtyAt ?? null;
+  const { assessment, dirtyAtRead } = claimed;
   const syncGroupId = asString(assessment.syncGroupId);
 
   if (assessment.deletedAt != null || syncGroupId.length === 0) {

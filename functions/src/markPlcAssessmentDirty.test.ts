@@ -206,7 +206,7 @@ describe('ensureAssessment', () => {
 describe('markDirty', () => {
   const session = parseLinkedSession(linkedSession)!;
 
-  it('moves dirtyAt forward on every write so a compare-and-clear misses it', async () => {
+  it('writes one mark while unclaimed, and a newer one after a recompute claims it', async () => {
     stub.store.set('plcs/plc-1/assessments/grp-1', {
       syncGroupId: 'grp-1',
       dirtyAt: null,
@@ -214,6 +214,7 @@ describe('markDirty', () => {
     await markDirty(stub.db as unknown as Db, 'plc-1', 'grp-1', session, NOW);
     expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
 
+    // A pending unclaimed mark already covers the next change: no write.
     await markDirty(
       stub.db as unknown as Db,
       'plc-1',
@@ -221,15 +222,19 @@ describe('markDirty', () => {
       session,
       NOW + 5
     );
-    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW + 5);
+    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
 
-    // A same-millisecond write still changes the value.
+    // A recompute in flight negates the mark; the next change writes a fresh one it can't clear.
+    stub.store.set('plcs/plc-1/assessments/grp-1', {
+      syncGroupId: 'grp-1',
+      dirtyAt: -NOW,
+    });
     await markDirty(
       stub.db as unknown as Db,
       'plc-1',
       'grp-1',
       session,
-      NOW + 5
+      NOW + 6
     );
     expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW + 6);
   });
