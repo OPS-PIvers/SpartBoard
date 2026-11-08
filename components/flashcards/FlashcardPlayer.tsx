@@ -1480,6 +1480,7 @@ const ToggleSetting: React.FC<{
   onChange,
 }) => (
   <label
+    {...anchor}
     className={cx(
       'flex items-center rounded-xl border',
       disabled && 'opacity-50',
@@ -1506,10 +1507,10 @@ const ToggleSetting: React.FC<{
         </span>
       )}
     </span>
+    {/* no-tour-anchor: the anchor sits on the wrapping label so the spotlight covers the visible switch */}
     <input
       type="checkbox"
       className="sr-only"
-      {...anchor}
       checked={checked}
       disabled={disabled}
       onChange={(event) => onChange(event.target.checked)}

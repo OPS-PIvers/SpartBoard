@@ -16855,7 +16855,7 @@ export const TOUR_ANCHORS = {
   'flashcards.present-mode': {
     label: 'Mode button above the cards in the Flashcards widget on the board',
     perField: true,
-    keyPattern: 'flashcards#(flashcards|write|test|speak)',
+    keyPattern: 'flashcards#(flashcards|speak)',
     keyHint: 'flashcards#flashcards is the Flashcards mode button',
   },
   'flashcards.present-settings': {

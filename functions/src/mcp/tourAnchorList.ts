@@ -74478,7 +74478,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "flashcards.present-mode",
     "label": "Mode button above the cards in the Flashcards widget on the board",
     "scope": "field",
-    "key_pattern": "flashcards#(flashcards|write|test|speak)",
+    "key_pattern": "flashcards#(flashcards|speak)",
     "key_hint": "flashcards#flashcards is the Flashcards mode button",
     "routes": [
       {
