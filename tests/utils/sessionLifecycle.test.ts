@@ -278,7 +278,12 @@ describe('assignmentLifecyclePatches', () => {
       {
         assignmentStatus: 'paused',
         assignment: { status: 'paused', updatedAt: NOW },
-        session: { status: 'paused', autoProgressAt: null, endedAt: null },
+        session: {
+          status: 'paused',
+          autoProgressAt: null,
+          pausedAt: NOW,
+          endedAt: null,
+        },
       }
     );
   });

@@ -338,6 +338,99 @@ describe('useQuizAssignments - reopenAssignment', () => {
     expect(sessionPatch).not.toHaveProperty('questionPhase');
   });
 
+  it('keeps the first pausedAt when Pause hits an already-paused run', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+        pausedAt: 1000,
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.pauseAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).not.toHaveProperty('pausedAt');
+  });
+
+  it('keeps the first pausedAt when Reopen hits an already-paused run', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+        pausedAt: 1000,
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.reopenAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).not.toHaveProperty('pausedAt');
+  });
+
+  it('sets pausedAt on a repeat Pause when the paused run has none', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.pauseAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).toHaveProperty('pausedAt');
+  });
+
+  it('keeps a pause left open at End when the run is reopened', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'ended',
+        pausedAt: 1000,
+        endedAt: 3000,
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.reopenAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).not.toHaveProperty('pausedAt');
+  });
+
+  it('records the reopened pause so Resume credits it to the time limit', async () => {
+    const sessionState: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'student',
+      status: 'ended',
+      pausedAt: 1000,
+      pauseSpans: [{ from: 1000, to: 2000 }],
+      endedAt: 3000,
+    };
+    mockGetDoc.mockImplementation(() =>
+      Promise.resolve({ data: () => sessionState })
+    );
+    batchUpdate.mockImplementation(
+      (ref: string, patch: Record<string, unknown>) => {
+        if (ref.startsWith('quiz_sessions/'))
+          Object.assign(sessionState, patch);
+      }
+    );
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.reopenAssignment(ASSIGNMENT_ID);
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+    expect(sessionState.pauseSpans).toHaveLength(2);
+  });
+
   it('leaves the session usable: after reopen+resume, student-side polling at index 0 returns a real question', async () => {
     // End-to-end coverage for the bug: a teacher-paced session that
     // auto-ended used to leave currentQuestionIndex = totalQuestions, so

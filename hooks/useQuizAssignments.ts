@@ -15,6 +15,7 @@ import {
   QUIZ_TIME_LIMIT_FEATURE,
   appendPauseSpan,
   clampQuizTimeLimitMinutes,
+  hasOpenPause,
 } from '@/utils/quizTimeLimit';
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
@@ -229,8 +230,18 @@ async function commitQuizLifecycle(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
       patches.assignment
     );
+    // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
+    const sessionPatch = { ...patches.session };
+    if (
+      session &&
+      hasOpenPause(session.pauseSpans, session.pausedAt) &&
+      (event.type === 'reopen' ||
+        (event.type === 'pause' && session.status === 'paused'))
+    ) {
+      delete sessionPatch.pausedAt;
+    }
     tx.update(sessionRef, {
-      ...patches.session,
+      ...sessionPatch,
       ...(pauseSpans ? { pauseSpans } : {}),
       ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
     });

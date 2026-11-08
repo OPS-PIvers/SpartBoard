@@ -26,6 +26,7 @@ import {
   CONTROLLABLE_KINDS,
   appendPauseSpan,
   controlPatches,
+  hasOpenPause,
   type ControlAction,
   type ControlKind,
   type ControlState,
@@ -215,8 +216,15 @@ export async function handleControlSubAssignment(
       session.closeAt <= now);
   if (over && action !== 'end') denied('That run has already ended.');
   if (over) return { state: 'ended' };
-
   const patches = controlPatches(kind, action, now);
+  // A repeat pause keeps the open pause's start but still repairs the assignment.
+  if (
+    action === 'pause' &&
+    session.status === 'paused' &&
+    hasOpenPause(session.pauseSpans, session.pausedAt)
+  ) {
+    delete patches.session.pausedAt;
+  }
   if (kind === 'quiz' && action === 'resume') {
     await refreshIdleResponses(db, sessionId, now);
     const spans =
