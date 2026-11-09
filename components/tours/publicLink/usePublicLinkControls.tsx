@@ -41,8 +41,11 @@ const linkBtn = `inline-flex min-h-8 items-center gap-1.5 self-start rounded-md 
 export function usePublicLinkControls({
   setId,
   published,
+  menuCopies = false,
 }: {
   setId: string;
+  /** The editor's own Copy link item copies the public link, so the footer doesn't repeat it. */
+  menuCopies?: boolean;
   /** The published copy; undefined while it loads, null when the tour isn't published. */
   published: GuidedLearningSet | null | undefined;
 }): PublicLinkControls {
@@ -198,7 +201,7 @@ export function usePublicLinkControls({
           )}
         </>
       )}
-      {on && (
+      {on && !menuCopies && (
         <button
           type="button"
           onClick={() => void copy()}

@@ -187,6 +187,7 @@ const WebTourEditorBody: React.FC<{
     published.tour && isWebTourSet(published.tour.set) ? published.tour : null;
   const publicLink = usePublicLinkControls({
     setId: initial.id,
+    menuCopies: true,
     published:
       webTourEditorDevSeed()?.publishedSet ??
       (published.loaded ? (live?.set ?? null) : undefined),
