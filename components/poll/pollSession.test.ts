@@ -418,6 +418,23 @@ describe('startPollSession code ownership', () => {
     });
   });
 
+  it('lets a co-teacher resume their own session after the share ends', async () => {
+    const next = await startPollSession(
+      {
+        ...stale,
+        lastPollSessionId: 'OTHER',
+        lastPollSessionOwnerUid: 'teacher-2',
+      },
+      'teacher-2',
+      'resume'
+    );
+    expect(mockMint).not.toHaveBeenCalled();
+    expect(next).toMatchObject({
+      joinCode: 'OTHER',
+      lastPollSessionId: 'OTHER',
+    });
+  });
+
   it('reuses a legacy code with no recorded owner', async () => {
     const { joinCodeOwnerUid: _owner, ...legacy } = stale;
     const next = await startPollSession(legacy, 'teacher-2', 'resume');

@@ -313,7 +313,8 @@ export const startPollSession = async (
   const foreignCode =
     !boardShareId &&
     !!config.joinCodeOwnerUid &&
-    config.joinCodeOwnerUid !== teacherUid;
+    config.joinCodeOwnerUid !== teacherUid &&
+    config.lastPollSessionOwnerUid !== teacherUid;
   const freshState = mode === 'fresh' || foreignCode;
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
   const reuse = !rotate && !foreignCode && !!config.joinCode;
@@ -341,7 +342,6 @@ export const startPollSession = async (
   const previousOwner = config.lastPollSessionOwnerUid ?? teacherUid;
   if (
     rotate &&
-    !foreignCode &&
     previousCode &&
     previousCode !== code &&
     previousOwner === teacherUid

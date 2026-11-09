@@ -534,8 +534,9 @@ export const PollSettings: React.FC<{
       next.joinCode !== config.joinCode &&
       config.joinCode &&
       user &&
-      (config.lastPollSessionOwnerUid ?? user.uid) === user.uid &&
-      (config.joinCodeOwnerUid ?? user.uid) === user.uid
+      (config.lastPollSessionOwnerUid ??
+        config.joinCodeOwnerUid ??
+        user.uid) === user.uid
     ) {
       void retirePollSession(user.uid, config.joinCode);
     }
