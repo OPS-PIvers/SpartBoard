@@ -317,6 +317,7 @@ import {
   commitRosterPinIndexV1,
   pinLoginV1,
   loadTeacherClassIds,
+  loadClassStudentIds,
   PIN_LOGIN_MAX_CALLERS_PER_STUDENT,
   PIN_LOGIN_SESSION_MAX_FAILURES,
   PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
@@ -2598,5 +2599,42 @@ describe('loadTeacherClassIds paging', () => {
     await expect(
       loadTeacherClassIds('teacher@school.org', creds)
     ).rejects.toMatchObject({ code: 'unavailable' });
+  });
+
+  it('fails as unavailable when the users lookup has no list', async () => {
+    h.axiosGet = async () => ({ data: { status: 'maintenance' } });
+    await expect(
+      loadTeacherClassIds('teacher@school.org', creds)
+    ).rejects.toMatchObject({ code: 'unavailable' });
+  });
+
+  it('fails as unavailable when the first class page is not a list', async () => {
+    h.axiosGet = async (url: string) => {
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'T1', role: 'teacher' }] } };
+      return { data: '<html>down</html>' };
+    };
+    await expect(
+      loadTeacherClassIds('teacher@school.org', creds)
+    ).rejects.toMatchObject({ code: 'unavailable' });
+  });
+
+  it('reads exactly one full page when the next page leaves out the key', async () => {
+    h.axiosGet = async (url: string, cfg?: unknown) => {
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'T1', role: 'teacher' }] } };
+      const offset = Number(
+        (cfg as { params?: { offset?: string } }).params?.offset ?? 0
+      );
+      return { data: offset === 0 ? { classes: classes(200) } : {} };
+    };
+    const ids = await loadTeacherClassIds('teacher@school.org', creds);
+    expect(ids?.size).toBe(200);
+  });
+
+  it('reads a class with no students when the key is left out', async () => {
+    h.axiosGet = async () => ({ data: {} });
+    const ids = await loadClassStudentIds('class-1', creds);
+    expect(ids.size).toBe(0);
   });
 });
