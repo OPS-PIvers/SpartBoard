@@ -179,10 +179,9 @@ export const indexedDbCropStore: CropStore = {
     ),
   savePages: (batchId, set) =>
     quiet(
-      run('readwrite', (s) =>
-        set
-          ? s.put(set, pagesStoreKey(batchId))
-          : s.delete(pagesStoreKey(batchId))
+      (set
+        ? run('readwrite', (s) => s.put(set, pagesStoreKey(batchId)))
+        : run('readwrite', (s) => s.delete(pagesStoreKey(batchId)))
       ).then(() => undefined),
       undefined
     ),
