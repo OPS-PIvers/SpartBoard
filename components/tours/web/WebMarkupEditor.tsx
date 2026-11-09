@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { TourMarkupShape } from '@/types';
 import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
+import { nextNumber, removeShape } from './markupShapes';
 import { MARKUP_BADGE } from '@/components/tours/tourPictureMarkupGeometry';
 
 export type MarkupTool = 'arrow' | 'box' | 'number';
@@ -127,8 +128,7 @@ export const WebMarkupEditor: React.FC<{
     const { x, y } = pointOf(e);
     const id = crypto.randomUUID();
     if (tool === 'number') {
-      const n =
-        Math.max(0, ...shapes.map((s) => (s.kind === 'number' ? s.n : 0))) + 1;
+      const n = nextNumber(shapes);
       onCommit([...shapes, { id, kind: 'number', x, y, n }]);
       onSelect(id);
       return;
@@ -172,7 +172,7 @@ export const WebMarkupEditor: React.FC<{
 
   const remove = () => {
     if (!selectedId) return;
-    onCommit(shapes.filter((s) => s.id !== selectedId));
+    onCommit(removeShape(shapes, selectedId));
     onSelect(null);
   };
 

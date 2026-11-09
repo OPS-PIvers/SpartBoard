@@ -309,8 +309,15 @@ export const PublishCheck: React.FC<{
                   : `Pictures changed since the last publish: steps ${listNumbers(changedNumbers)}.`}
               </p>
             )}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {pictured.map((p) => (
+            <div
+              data-testid="publish-check-pictures"
+              className="flex flex-wrap gap-3 pb-1"
+            >
+              {[
+                // Changed pictures first, so the ones to look at lead.
+                ...pictured.filter((p) => changed.includes(p.id)),
+                ...pictured.filter((p) => !changed.includes(p.id)),
+              ].map((p) => (
                 <figure
                   key={p.picture.path}
                   className="flex shrink-0 flex-col gap-1"

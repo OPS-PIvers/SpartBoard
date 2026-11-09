@@ -39,7 +39,14 @@ import {
   imageSize,
   isStepPictureType,
 } from './pictureFiles';
-import { cropBase, recropPicture, type UnitRect } from './pictureCrop';
+import {
+  FULL,
+  cropBase,
+  moveRect,
+  recropPicture,
+  type UnitRect,
+} from './pictureCrop';
+import { removeShape } from './markupShapes';
 import type { StageEditing } from './WebPictureStage';
 import type { WebStep } from './webEditorModel';
 
@@ -335,6 +342,11 @@ export function useWebPictureTools(ctx: Ctx) {
                   }
                   box={box}
                   initial={cropBase(picture)}
+                  target={
+                    picture.target
+                      ? moveRect(picture.target, cropBase(picture), FULL)
+                      : null
+                  }
                   tighterOnly={!picture.original}
                   busy={busy}
                   failed={failed}
@@ -388,9 +400,7 @@ export function useWebPictureTools(ctx: Ctx) {
                         className={`${secondaryBtn} flex items-center gap-1.5 px-2`}
                         onClick={() => {
                           commitMarkup(
-                            (picture.markup ?? []).filter(
-                              (s) => s.id !== shapeId
-                            )
+                            removeShape(picture.markup ?? [], shapeId)
                           );
                           setShapeId(null);
                         }}

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { TourMarkupShape } from '@/types';
+import { Z_INDEX } from '@/config/zIndex';
 import {
   MARKUP_BADGE,
   MARKUP_HEAD,
@@ -14,14 +15,17 @@ export interface TourPictureMarkupProps {
   width: number;
   height: number;
   className?: string;
+  /** With TourSpotlight and TourTip in one stacking context: above the dim, below the ring and tip, full colour. */
+  overDim?: boolean;
 }
 
-/** Markup drawn over a step picture, read-only: fills its positioned parent, which has the picture's shape. */
+/** Markup drawn over a step picture, read-only: fills its positioned parent, which has the picture's shape. With a spotlight, pass `overDim`. */
 export const TourPictureMarkup: React.FC<TourPictureMarkupProps> = ({
   shapes,
   width,
   height,
   className = '',
+  overDim = false,
 }) => {
   if (shapes.length === 0 || width <= 0 || height <= 0) return null;
   const unit = Math.max(width, height);
@@ -34,6 +38,7 @@ export const TourPictureMarkup: React.FC<TourPictureMarkupProps> = ({
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
       className={`pointer-events-none absolute inset-0 h-full w-full overflow-visible ${className}`}
+      style={overDim ? { zIndex: Z_INDEX.tourLift } : undefined}
     >
       {shapes.map((s) => {
         if (s.kind === 'box')

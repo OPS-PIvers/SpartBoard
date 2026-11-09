@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { primaryBtn, secondaryBtn } from '@/components/common/lightChrome';
 import { BlobImage } from './BlurBoxes';
-import { clampCrop, MIN_CROP, type UnitRect } from './pictureCrop';
+import {
+  FULL,
+  clampCrop,
+  MIN_CROP,
+  moveRect,
+  type UnitRect,
+} from './pictureCrop';
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
 
@@ -37,6 +43,8 @@ export const WebCropEditor: React.FC<{
   baseSize: { w: number; h: number };
   box: { w: number; h: number };
   initial: UnitRect;
+  /** Where the step's target sits in the base, so the crop keeps it in. */
+  target?: UnitRect | null;
   /** No capture was kept, so the crop can only get tighter. */
   tighterOnly: boolean;
   busy: boolean;
@@ -48,6 +56,7 @@ export const WebCropEditor: React.FC<{
   baseSize,
   box,
   initial,
+  target,
   tighterOnly,
   busy,
   failed,
@@ -62,6 +71,18 @@ export const WebCropEditor: React.FC<{
     (box.h - INSET * 2) / baseSize.h
   );
   const fit = { w: baseSize.w * scale, h: baseSize.h * scale };
+  // How much of the target the crop keeps: all, part (its ring is cut off) or none (no ring).
+  const kept = target ? moveRect(target, FULL, crop) : null;
+  const targetState = !target
+    ? null
+    : !kept
+      ? 'out'
+      : target.x >= crop.x - 0.0005 &&
+          target.y >= crop.y - 0.0005 &&
+          target.x + target.w <= crop.x + crop.w + 0.0005 &&
+          target.y + target.h <= crop.y + crop.h + 0.0005
+        ? 'in'
+        : 'part';
   const unchanged =
     Math.abs(crop.x - initial.x) < 0.001 &&
     Math.abs(crop.y - initial.y) < 0.001 &&
@@ -153,6 +174,19 @@ export const WebCropEditor: React.FC<{
               style={style}
             />
           ))}
+          {target && (
+            <div
+              aria-hidden="true"
+              data-testid="web-crop-target"
+              className="pointer-events-none absolute rounded-md ring-2 ring-white outline-2 outline-offset-2 outline-slate-900/40"
+              style={{
+                left: pct(target.x),
+                top: pct(target.y),
+                width: pct(target.w),
+                height: pct(target.h),
+              }}
+            />
+          )}
           {/* no-tour-anchor: the crop drawn over one step's picture */}
           <button
             type="button"
@@ -189,10 +223,21 @@ export const WebCropEditor: React.FC<{
         </div>
       </div>
       <div className="absolute -top-3 right-0 flex max-w-full -translate-y-full items-center gap-2 rounded-xl bg-white py-1 pl-3 pr-1 shadow-lg">
-        <span className="min-w-0 text-sm text-slate-700">
-          {tighterOnly
-            ? 'Recorded before whole screens were kept, so this picture can only be cropped tighter.'
-            : 'Drag the corners. The whole screen from the recording is shown.'}
+        <span
+          className={`min-w-0 text-sm ${
+            targetState === 'out' || targetState === 'part'
+              ? 'font-semibold text-amber-800'
+              : 'text-slate-700'
+          }`}
+          data-testid="web-crop-message"
+        >
+          {targetState === 'out'
+            ? "The target is outside this crop, so the ring won't show."
+            : targetState === 'part'
+              ? 'Part of the target is outside this crop, so its ring is cut off.'
+              : tighterOnly
+                ? 'Recorded before whole screens were kept, so this picture can only be cropped tighter.'
+                : 'Drag the corners. The whole screen from the recording is shown.'}
         </span>
         {failed && (
           <span role="alert" className="shrink-0 text-sm text-red-700">

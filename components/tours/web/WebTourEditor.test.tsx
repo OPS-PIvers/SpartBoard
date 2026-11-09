@@ -1237,3 +1237,131 @@ describe('WebTourEditor conditions (E6)', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('WebTourEditor markup and crop guides', () => {
+  beforeEach(() => {
+    let n = 0;
+    storage.uploadWebTourPicture.mockImplementation(() =>
+      Promise.resolve(`web_tour_pictures/t1/up${++n}.jpg`)
+    );
+  });
+
+  it('numbers markers in order, closes the gap on delete, and undo brings the numbers back', async () => {
+    renderEditor(checked(withPicture(tour('Biology 7'))));
+    await openTool('Mark up');
+    fireEvent.click(screen.getByRole('radio', { name: 'Number' }));
+    const surface = screen.getByRole('application', {
+      name: /Markup on the picture/,
+    });
+    sized(surface);
+    for (const [x, id] of [
+      [20, 1],
+      [50, 2],
+      [80, 3],
+    ])
+      fireEvent.pointerDown(surface, {
+        clientX: x,
+        clientY: 50,
+        pointerId: id,
+      });
+    const numbers = () =>
+      screen
+        .getAllByTestId('tour-picture-markup')
+        .flatMap((svg) => Array.from(svg.querySelectorAll('text')))
+        .map((t) => t.textContent);
+    expect(numbers()).toEqual(['1', '2', '3']);
+    // Select the middle marker and delete it.
+    fireEvent.pointerDown(screen.getAllByTestId('web-markup-shape')[1], {
+      clientX: 50,
+      clientY: 50,
+      pointerId: 9,
+    });
+    fireEvent.pointerUp(surface, { clientX: 50, clientY: 50, pointerId: 9 });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(numbers()).toEqual(['1', '2']);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(numbers()).toEqual(['1', '2', '3']);
+    // The next marker after the undo takes the next free number.
+    fireEvent.pointerDown(surface, { clientX: 10, clientY: 10, pointerId: 10 });
+    expect(numbers()).toEqual(['1', '2', '3', '4']);
+  });
+
+  it('shows the ring and a faint tip while marking up, with no dim', async () => {
+    renderEditor(checked(captured(tour('Biology 7'))));
+    await openTool('Mark up');
+    const stage = screen.getByTestId('web-stage');
+    expect(within(stage).getByTestId('web-stage-guide-ring')).toBeTruthy();
+    expect(within(stage).getByTestId('tour-callout')).toBeTruthy();
+    expect(within(stage).queryByTestId('tour-spotlight')).toBeNull();
+  });
+
+  it('shows the target while cropping and warns when the crop leaves it out', async () => {
+    renderEditor(checked(captured(tour('Biology 7'))));
+    await openTool('Crop');
+    expect(screen.getByTestId('web-crop-target')).toBeTruthy();
+    const area = screen.getByRole('group', {
+      name: 'Drag the crop or its corners',
+    });
+    sized(area);
+    // Drag the bottom-right corner up past the target, into the top-left.
+    fireEvent.pointerDown(screen.getByTestId('web-crop-handle-se'), {
+      clientX: 75,
+      clientY: 75,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(area, { clientX: 32, clientY: 32, pointerId: 1 });
+    fireEvent.pointerUp(area, { clientX: 32, clientY: 32, pointerId: 1 });
+    expect(screen.getByTestId('web-crop-message')).toHaveTextContent(
+      "The target is outside this crop, so the ring won't show."
+    );
+  });
+
+  it('draws markup above the dim in the preview', async () => {
+    const set = checked(captured(tour('Biology 7')));
+    const web = set.steps[0].web;
+    if (!web?.picture) throw new Error('no picture');
+    set.steps[0] = {
+      ...set.steps[0],
+      web: {
+        ...web,
+        picture: {
+          ...web.picture,
+          markup: [{ id: 'b', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 }],
+        },
+      },
+    };
+    renderEditor(set);
+    const markup = await within(screen.getByTestId('web-stage')).findByTestId(
+      'tour-picture-markup'
+    );
+    expect(markup.style.zIndex).toBe('13510');
+  });
+
+  it('lists changed pictures first in the publish check, every one in view', async () => {
+    const published = checked(withPicture(tour('Biology 7')));
+    published.steps.push({ ...published.steps[0], id: 's2' });
+    live.tour = { set: published, publishedAt: 5 };
+    const second = published.steps[1].web;
+    if (!second) throw new Error('no web');
+    const draft = checked({
+      ...published,
+      steps: [
+        published.steps[0],
+        {
+          ...published.steps[1],
+          web: {
+            ...second,
+            picture: { path: 'web_tour_pictures/t1/new.jpg', w: 10, h: 10 },
+          },
+        },
+      ],
+    });
+    renderEditor(draft);
+    fireEvent.click(main());
+    const grid = await screen.findByTestId('publish-check-pictures');
+    expect(grid.className).toContain('flex-wrap');
+    expect(
+      Array.from(grid.querySelectorAll('figcaption')).map((c) => c.textContent)
+    ).toEqual(['Step 2, changed', 'Step 1']);
+  });
+});

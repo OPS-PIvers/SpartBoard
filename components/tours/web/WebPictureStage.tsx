@@ -127,7 +127,9 @@ const RingAndTip: React.FC<{
   total: number;
   size: Size;
   frac: FracRect;
-}> = ({ step, index, total, size, frac }) => {
+  /** While marking up: the ring alone (no dim) and a faint tip, to place shapes around. */
+  guide?: boolean;
+}> = ({ step, index, total, size, frac, guide = false }) => {
   const [tipRef, tipSize] = useMeasured<HTMLDivElement>();
   const rect = {
     x: frac.x * size.w,
@@ -148,18 +150,53 @@ const RingAndTip: React.FC<{
   );
   return (
     // inert: the preview is a picture of the tour, never a live one.
-    <div inert data-testid="web-stage-preview" className="absolute inset-0">
-      {/* No breathe loop: a still frame of it reads as a second, wider ring. */}
-      <TourSpotlight rect={rect} clickThrough glide={false} />
-      <PreviewTip
-        step={step}
-        index={index}
-        total={total}
-        boxRef={tipRef}
-        place={place}
-        tether={tether}
-        plain={false}
-      />
+    <div
+      inert
+      data-testid={guide ? 'web-stage-guide' : 'web-stage-preview'}
+      className="pointer-events-none absolute inset-0"
+    >
+      {guide ? (
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full overflow-visible"
+          width={size.w}
+          height={size.h}
+        >
+          <rect
+            data-testid="web-stage-guide-ring"
+            x={rect.x - 6}
+            y={rect.y - 6}
+            width={rect.width + 12}
+            height={rect.height + 12}
+            rx={10}
+            className="fill-none stroke-slate-900/40"
+            strokeWidth={5}
+          />
+          <rect
+            x={rect.x - 6}
+            y={rect.y - 6}
+            width={rect.width + 12}
+            height={rect.height + 12}
+            rx={10}
+            className="fill-none stroke-white"
+            strokeWidth={3}
+          />
+        </svg>
+      ) : (
+        // No breathe loop: a still frame of it reads as a second, wider ring.
+        <TourSpotlight rect={rect} clickThrough glide={false} />
+      )}
+      <div className={guide ? 'opacity-40' : undefined}>
+        <PreviewTip
+          step={step}
+          index={index}
+          total={total}
+          boxRef={tipRef}
+          place={place}
+          tether={tether}
+          plain={false}
+        />
+      </div>
     </div>
   );
 };
@@ -315,15 +352,17 @@ export const WebPictureStage: React.FC<{
                   shapes={picture.markup}
                   width={picture.w}
                   height={picture.h}
+                  overDim
                 />
               )}
-              {!blurring && blob && ring && (
+              {blob && ring && (!editing || editing.kind === 'markup') && (
                 <RingAndTip
                   step={step}
                   index={index}
                   total={total}
                   size={css}
                   frac={ring}
+                  guide={editing?.kind === 'markup'}
                 />
               )}
             </Scaled>
