@@ -237,6 +237,24 @@ describe('web tour states', () => {
     expect(q('tour-take-me-back')).toBeNull();
   });
 
+  it('draws the step picture markup over the picture in Show me where (E5)', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        picture,
+        markup: [{ id: 'm1', kind: 'number', x: 0.5, y: 0.5, n: 1 }],
+      })
+    );
+    const q = (id: string) => shadow?.querySelector(`[data-testid="${id}"]`);
+    act(() => (q('tour-show-me-where') as HTMLButtonElement).click());
+    expect(q('web-tour-picture')).not.toBeNull();
+    expect(q('tour-picture-markup')).not.toBeNull();
+  });
+
   it('draws skipped steps hollow on the step bar (P3)', () => {
     captureShadow();
     handle = mountOverlay(STYLED, vi.fn());

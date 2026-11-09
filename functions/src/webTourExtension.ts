@@ -119,7 +119,7 @@ interface StoredStep {
     urlPattern?: unknown;
     action?: unknown;
     locator?: unknown;
-    picture?: { path?: unknown; w?: unknown; h?: unknown };
+    picture?: { path?: unknown; w?: unknown; h?: unknown; markup?: unknown };
     showWhen?: unknown;
     doneWhen?: unknown;
   };
@@ -215,6 +215,8 @@ export interface LoadedTour {
     string,
     { showWhen?: StepCondition; doneWhen?: StepCondition }
   >;
+  /** Markup drawn on step pictures, by step id, only for pictures sent; the extension checks each shape. */
+  markup?: Record<string, unknown[]>;
 }
 
 /** The published tour as the extension plays it: no notes or questions, pictures within the start message's budget. */
@@ -260,6 +262,13 @@ export async function loadTour(
     if (!data || data.length > MAX_PICTURE_CHARS) return;
     pictures[p.id] = { mime: p.mime, data, w: p.w, h: p.h };
   });
+  const markup: NonNullable<LoadedTour['markup']> = {};
+  for (const step of steps) {
+    const shapes = step.web?.picture?.markup;
+    const id = str(step.id);
+    if (pictures[id] && Array.isArray(shapes) && shapes.length > 0)
+      markup[id] = shapes.slice(0, 40);
+  }
   const conditions: NonNullable<LoadedTour['conditions']> = {};
   for (const step of steps) {
     const showWhen = conditionOf(step.web?.showWhen);
@@ -272,6 +281,7 @@ export async function loadTour(
   }
   return {
     ...(Object.keys(conditions).length > 0 ? { conditions } : {}),
+    ...(Object.keys(markup).length > 0 ? { markup } : {}),
     setId,
     version: Number(snap.publishedAt) || 0,
     title: str(snap.set?.title),

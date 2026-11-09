@@ -12,7 +12,12 @@ import {
   type WebTourPictureBytes,
   type WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
-import type { WebTourCheckResult, WebTourLocator } from '@/types';
+import type {
+  TourMarkupShape,
+  WebTourCheckResult,
+  WebTourLocator,
+} from '@/types';
+import { skipsWhenMissing } from './conditions';
 import {
   checkFixClues,
   fixKey,
@@ -124,6 +129,10 @@ interface TabRecord {
 
 /** How long a step looks for its target before the tip folds into the waiting chip (P4). */
 export const FALLBACK_MS = WAITING_AFTER_MS;
+/** A step that plays only if its target shows up waits as long as every step used to before it is left out (E6); it never shows the chip. */
+export const CONDITION_WAIT_MS = 4000;
+const waitFor = (step: PlaybackStep | undefined) =>
+  step && skipsWhenMissing(step) ? CONDITION_WAIT_MS : FALLBACK_MS;
 /** Addresses kept for Take me back. */
 const VISITED_KEPT = 30;
 /** How long an armed tour waits for its site before it stops (H3). */
@@ -231,6 +240,16 @@ export function createPlaybackController(host: PlaybackHost) {
       await host.save({ [TABS_KEY]: [...tabs] });
     });
 
+  /** The step picture for the overlay, with its markup when it has some (E5). */
+  async function pictureAndMarkup(rec: TabRecord): Promise<{
+    picture: WebTourPictureBytes | null;
+    markup?: TourMarkupShape[];
+  }> {
+    const pic = await picture(rec);
+    const markup = rec.state.tour.steps[rec.state.index]?.markup;
+    return pic && markup?.length ? { picture: pic, markup } : { picture: pic };
+  }
+
   async function picture(rec: TabRecord): Promise<WebTourPictureBytes | null> {
     const step = rec.state.tour.steps[rec.state.index];
     if (!step?.hasPicture) return null;
@@ -282,7 +301,7 @@ export function createPlaybackController(host: PlaybackHost) {
         ...base,
         role: 'top',
         targetHere: shownIn === 0,
-        picture: await picture(rec),
+        ...(await pictureAndMarkup(rec)),
         ...(next ? { ahead: next } : {}),
         skipped: skippedIndices(state, state.tour.steps),
         ...(back ? { takeBack: true } : {}),
@@ -806,7 +825,7 @@ export function createPlaybackController(host: PlaybackHost) {
     const token = rec.token;
     rec.seekAt = host.now();
     host.backstop();
-    host.setTimer(FALLBACK_MS, () => {
+    host.setTimer(waitFor(step), () => {
       void serial(rec.tabId, async () => {
         const now = await load(rec.tabId);
         if (now && now.token === token)
@@ -1182,7 +1201,8 @@ export function createPlaybackController(host: PlaybackHost) {
           if (
             rec.state.status === 'seeking' &&
             rec.seekAt > 0 &&
-            host.now() - rec.seekAt >= FALLBACK_MS
+            host.now() - rec.seekAt >=
+              waitFor(rec.state.tour.steps[rec.state.index])
           ) {
             await dispatch(rec, { type: 'timeout' });
           }

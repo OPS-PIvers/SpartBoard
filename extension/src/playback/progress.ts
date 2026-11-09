@@ -1,4 +1,4 @@
-import type { WebTourAction, WebTourFrame } from '@/types';
+import type { TourMarkupShape, WebTourAction, WebTourFrame } from '@/types';
 import type { WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
 import type { WebStepConditions } from '@/components/tours/web/extensionProtocol';
@@ -34,6 +34,8 @@ export interface PlaybackStep {
   hasPicture: boolean;
   /** When the step plays and when it is done (E6); absent = always, and done at the learner's action. */
   conditions?: WebStepConditions;
+  /** Markup drawn over the step's picture (E5), shown with it by Show me where. */
+  markup?: TourMarkupShape[];
 }
 
 export interface PlaybackTour {
@@ -141,7 +143,20 @@ function caughtUp(
   url: string | null
 ): PlaybackState {
   const run = catchUp(state, state.tour.steps, matched);
-  return enterStep({ ...run, index: state.index }, run.index, url);
+  // A step that plays only when its condition holds is optional: passed over, it is condition-skipped, not a hollow dot.
+  const optional = new Set(
+    state.tour.steps
+      .slice(state.index, matched)
+      .filter((st) => !!st.conditions?.showWhen)
+      .map((st) => st.id)
+  );
+  let next: PlaybackState = {
+    ...run,
+    index: state.index,
+    skipped: run.skipped.filter((id) => !optional.has(id)),
+  };
+  for (const id of optional) next = conditionSkip(next, id);
+  return enterStep(next, run.index, url);
 }
 
 const finished = (s: PlaybackState) =>

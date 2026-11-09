@@ -1,6 +1,9 @@
 // What the service worker asks the overlay to draw; checked like any other message (D3).
-import type { WebTourPictureBytes } from '@/components/tours/web/extensionProtocol';
-import type { WebTourCheckResult } from '@/types';
+import {
+  parseMarkupShapes,
+  type WebTourPictureBytes,
+} from '@/components/tours/web/extensionProtocol';
+import type { TourMarkupShape, WebTourCheckResult } from '@/types';
 
 export interface OverlayRect {
   x: number;
@@ -47,6 +50,8 @@ export interface OverlayState {
   skipped?: number[];
   /** Waiting or on another page: Take me back can open the step's page (P5). */
   takeBack?: boolean;
+  /** Markup drawn over `picture` (E5); only with a picture. */
+  markup?: TourMarkupShape[];
 }
 
 export interface OverlayAhead {
@@ -147,6 +152,7 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   const looking = 'ahead' in raw;
   const skipping = 'skipped' in raw;
   const returning = 'takeBack' in raw;
+  const marked = 'markup' in raw;
   const keys = [
     ...KEYS,
     ...(checking ? ['check'] : []),
@@ -154,6 +160,7 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     ...(looking ? ['ahead'] : []),
     ...(skipping ? ['skipped'] : []),
     ...(returning ? ['takeBack'] : []),
+    ...(marked ? ['markup'] : []),
   ];
   if (!hasExactKeys(raw, keys)) return null;
   const r = raw as Record<string, unknown>;
@@ -174,6 +181,8 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   )
     return null;
   if (returning && typeof r.takeBack !== 'boolean') return null;
+  const markup = marked ? parseMarkupShapes(r.markup) : null;
+  if (marked && (!markup || r.picture === null)) return null;
   const status = STATUSES.find((s) => s === r.status);
   const picture = parsePicture(r.picture);
   if (
@@ -206,5 +215,6 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     ...(ahead ? { ahead } : {}),
     ...(skipping ? { skipped: skipped as number[] } : {}),
     ...(returning ? { takeBack: r.takeBack as boolean } : {}),
+    ...(markup ? { markup } : {}),
   };
 }

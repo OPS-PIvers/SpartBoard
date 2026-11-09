@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CONDITION_WAIT_MS,
+  FALLBACK_MS,
   createPlaybackController,
   type HostFrame,
   type PlaybackHost,
@@ -117,6 +119,7 @@ function fakeHost() {
   const posts: ProgressPost[] = [];
   const timers: (() => void)[] = [];
   const navigated: string[] = [];
+  const waits: number[] = [];
   const host: PlaybackHost = {
     openTab: () => Promise.resolve(7),
     navigate: (_t, url) => {
@@ -138,7 +141,10 @@ function fakeHost() {
       return Promise.resolve();
     },
     post: (_s, msg) => posts.push(msg),
-    setTimer: (_ms, cb) => timers.push(cb),
+    setTimer: (ms, cb) => {
+      waits.push(ms);
+      timers.push(cb);
+    },
     now: () => 1000,
   };
   const seeks = () => sent.filter((s) => s.msg.type === 'wt:seek');
@@ -148,7 +154,17 @@ function fakeHost() {
       .map((s) => s.msg.state as Record<string, unknown>);
   const state = () =>
     (store.get('wt:tab:7') as { state: PlaybackState } | undefined)?.state;
-  return { host, sent, posts, timers, seeks, renders, state, navigated };
+  return {
+    host,
+    sent,
+    posts,
+    timers,
+    seeks,
+    renders,
+    state,
+    navigated,
+    waits,
+  };
 }
 
 const started = (): ParsedStart => ({
@@ -391,5 +407,75 @@ describe('catch-up in the playback controller', () => {
       stepId: 'c',
     });
     expect(h.renders().at(-1)).toMatchObject({ skipped: [0, 1] });
+  });
+
+  it('a step with showWhen target waits the old 4s, is left out, and never shows the chip (E6, P4)', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const start = started();
+    start.tour.steps[2].conditions = { showWhen: { kind: 'target' } };
+    await c.start({ ...start, stepIndex: 2 });
+    await c.committed(7, 0, HOME);
+    expect(h.waits.at(-1)).toBe(CONDITION_WAIT_MS);
+    for (const fire of h.timers.splice(0)) fire();
+    await settle();
+    await c.isPlaying(7);
+    await settle();
+    expect(h.state()).toMatchObject({ index: 3, conditionSkipped: ['c'] });
+    expect(h.state()?.skipped ?? []).toEqual([]);
+    expect(h.renders().some((r) => r.status === 'fallback')).toBe(false);
+    // An ordinary step folds into the chip sooner.
+    expect(h.waits.at(-1)).toBe(FALLBACK_MS);
+  });
+
+  it('a click-ahead past a conditional step leaves it condition-skipped, not a hollow dot (E6, P3)', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const start = started();
+    start.tour.steps[1].conditions = { showWhen: { kind: 'target' } };
+    await c.start(start);
+    await c.committed(7, 0, HOME);
+    const token = h.seeks().at(-1)!.msg.token as string;
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token,
+      weak: false,
+      url: '',
+    });
+    await c.frameReport(7, 0, {
+      type: 'wt:ahead',
+      token: h.seeks().at(-1)!.msg.token as string,
+      index: 2,
+      stepId: 'c',
+    });
+    expect(h.state()).toMatchObject({
+      index: 3,
+      skipped: ['a'],
+      conditionSkipped: ['b'],
+    });
+    expect(h.renders().at(-1)).toMatchObject({ skipped: [0] });
+  });
+
+  it('shows the step picture with its markup in the chip (E5)', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const start = started();
+    const markup = [
+      { id: 'm1', kind: 'box' as const, x: 0.1, y: 0.1, w: 0.4, h: 0.3 },
+    ];
+    start.tour.steps[1].hasPicture = true;
+    start.tour.steps[1].markup = markup;
+    start.pictures = { b: { mime: 'image/png', data: 'AAAA', w: 10, h: 10 } };
+    await c.start({ ...start, stepIndex: 1 });
+    await c.committed(7, 0, HOME);
+    for (const fire of h.timers.splice(0)) fire();
+    await settle();
+    await c.isPlaying(7);
+    await settle();
+    expect(h.renders().at(-1)).toMatchObject({
+      status: 'fallback',
+      picture: { data: 'AAAA' },
+      markup,
+    });
   });
 });

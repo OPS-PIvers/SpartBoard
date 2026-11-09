@@ -25,6 +25,7 @@ import { useStepRhythm } from '@/components/tours/useStepRhythm';
 import { rhythmOf } from '@/components/tours/playbackEngine';
 import { usePrefersReducedMotion } from '@/components/tours/usePrefersReducedMotion';
 import { secondaryBtn } from '@/components/tours/tourButtons';
+import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 
 // The target the frame seeker attached in this frame, which the page settles around.
 const frameTarget = () => globalThis.__sbWebTourFrame?.target?.el ?? null;
@@ -108,19 +109,30 @@ interface Props {
   onAction: (action: OverlayAction) => void;
 }
 
-const Picture: React.FC<{ picture: NonNullable<OverlayState['picture']> }> = ({
-  picture,
-}) => {
+const Picture: React.FC<{
+  picture: NonNullable<OverlayState['picture']>;
+  markup?: OverlayState['markup'];
+}> = ({ picture, markup }) => {
   const { t } = useTranslation();
   return (
-    <img
-      src={`data:${picture.mime};base64,${picture.data}`}
-      width={picture.w}
-      height={picture.h}
-      alt={t('tours.webPictureAlt')}
-      data-testid="web-tour-picture"
-      className="mt-2 h-auto max-h-48 w-full rounded-lg border border-slate-200 object-contain"
-    />
+    // The markup layer fills this box, which takes the picture's shape (E5).
+    <div className="relative mt-2 overflow-hidden rounded-lg border border-slate-200">
+      <img
+        src={`data:${picture.mime};base64,${picture.data}`}
+        width={picture.w}
+        height={picture.h}
+        alt={t('tours.webPictureAlt')}
+        data-testid="web-tour-picture"
+        className="block h-auto max-h-48 w-full object-contain"
+      />
+      {markup && markup.length > 0 && (
+        <TourPictureMarkup
+          shapes={markup}
+          width={picture.w}
+          height={picture.h}
+        />
+      )}
+    </div>
   );
 };
 
@@ -246,7 +258,14 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
               waiting: {
                 step: state.current,
                 ...(state.picture
-                  ? { picture: <Picture picture={state.picture} /> }
+                  ? {
+                      picture: (
+                        <Picture
+                          picture={state.picture}
+                          markup={state.markup}
+                        />
+                      ),
+                    }
                   : {}),
                 ...(state.takeBack
                   ? { onTakeBack: () => onAction('takeBack') }
@@ -309,7 +328,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
           )}
           {state.picture &&
             (state.status === 'fallback' || state.status === 'wrong-page') && (
-              <Picture picture={state.picture} />
+              <Picture picture={state.picture} markup={state.markup} />
             )}
           {state.status === 'wrong-page' && state.takeBack && (
             // no-tour-anchor: tour playback chrome on a website, never a tour's own target

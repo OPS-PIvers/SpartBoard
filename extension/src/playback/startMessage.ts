@@ -47,6 +47,9 @@ export function toPlayback(
       ...(msg.tour.conditions?.[s.id]
         ? { conditions: msg.tour.conditions[s.id] }
         : {}),
+      ...(hasPicture && msg.tour.markup?.[s.id]?.length
+        ? { markup: msg.tour.markup[s.id] }
+        : {}),
     };
   });
   return {
