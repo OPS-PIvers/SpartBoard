@@ -21,9 +21,11 @@ const TEACHER_UID = 'teacher-uid';
 const SESSION_ID = 'quiz-session-1';
 const VA_SESSION_ID = 'va-session-1';
 const STUDENT_UID = 'student-uid';
+const OWN_SESSION_ID = 'quiz-session-own';
 const RESPONSE_KEY = 'pin-period_1-01';
 const PIN_INDEX = `users/${TEACHER_UID}/rosters/roster-1/pin_index/period_1__1234`;
 const RESPONSE = `quiz_sessions/${SESSION_ID}/responses/${RESPONSE_KEY}`;
+const OWN_RESPONSE = `quiz_sessions/${OWN_SESSION_ID}/responses/${RESPONSE_KEY}`;
 const LIVE_STUDENT = `sessions/${TEACHER_UID}/students/${STUDENT_UID}`;
 const LEDGER = `quiz_attempt_ledger/${SESSION_ID}__${STUDENT_UID}`;
 const VA_RESPONSE = `video_activity_sessions/${VA_SESSION_ID}/responses/${STUDENT_UID}`;
@@ -31,6 +33,32 @@ const GL_RESPONSE = `guided_learning_sessions/gl-1/responses/${STUDENT_UID}`;
 const MA_SUBMISSION = `mini_app_sessions/ma-1/submissions/${STUDENT_UID}`;
 const POLL_ANSWER = `poll_sessions/${TEACHER_UID}_poll-1/answers/0_${STUDENT_UID}`;
 const NEXTUP_ENTRY = `nextup_sessions/${TEACHER_UID}_w1/entries/e1`;
+const HISTORY = `${RESPONSE}/history/h1`;
+const ATTEMPT = `${RESPONSE}/attempts/a1`;
+const LIVE_NAMES = `quiz_sessions/${SESSION_ID}/live/leaderboard`;
+const ATTEMPT_SCORES = `quiz_sessions/${SESSION_ID}/attemptScores/${RESPONSE_KEY}`;
+const ARCHIVED = `quiz_sessions/${SESSION_ID}/archived_responses/${RESPONSE_KEY}`;
+const VA_LEDGER = `video_activity_attempt_ledger/${VA_SESSION_ID}__${STUDENT_UID}`;
+const MA_ATTEMPT = `${MA_SUBMISSION}/attempts/a1`;
+const HIDDEN_WORDS = `poll_sessions/${TEACHER_UID}_poll-1/hidden_words/q1`;
+const STUDENT_READS = [
+  HISTORY,
+  ATTEMPT,
+  LIVE_NAMES,
+  ATTEMPT_SCORES,
+  ARCHIVED,
+  VA_LEDGER,
+  MA_ATTEMPT,
+  HIDDEN_WORDS,
+];
+const STUDENT_DELETES = [
+  LEDGER,
+  MA_SUBMISSION,
+  MA_ATTEMPT,
+  HIDDEN_WORDS,
+  NEXTUP_ENTRY,
+  POLL_ANSWER,
+];
 
 const ADMINS = {
   handMade: 'site-admin@orono.k12.mn.us',
@@ -129,6 +157,26 @@ beforeEach(async () => {
   await seed(MA_SUBMISSION, { studentUid: STUDENT_UID });
   await seed(POLL_ANSWER, { questionIndex: 0, text: 'Ada', votedAt: 1 });
   await seed(NEXTUP_ENTRY, { name: 'Ada', joinedAt: 1 });
+  await seed(HISTORY, { questionId: 'q1', answer: 'a', status: 'joined' });
+  await seed(ATTEMPT, { closed: true, answers: [] });
+  await seed(LIVE_NAMES, { names: [] });
+  await seed(ATTEMPT_SCORES, { scores: [] });
+  await seed(ARCHIVED, { studentUid: STUDENT_UID, archivedBy: TEACHER_UID });
+  await seed(VA_LEDGER, {
+    studentUid: STUDENT_UID,
+    teacherUid: TEACHER_UID,
+    completedAttempts: 1,
+  });
+  await seed(MA_ATTEMPT, { score: 1 });
+  await seed(HIDDEN_WORDS, { words: ['x'] });
+  await seed(`quiz_sessions/${OWN_SESSION_ID}`, {
+    teacherUid: `uid-${ADMINS.syncedBuilding}`,
+    status: 'active',
+    code: 'GHIJKL',
+    classId: 'class-1',
+    classIds: ['class-1'],
+  });
+  await seed(OWN_RESPONSE, { studentUid: STUDENT_UID, answers: [] });
 });
 
 describe('synced building admin', () => {
@@ -162,6 +210,24 @@ describe('synced building admin', () => {
     await assertFails(getDoc(doc(db(), NEXTUP_ENTRY)));
   });
 
+  it('cannot read attempts, history, scores, archives or other student records', async () => {
+    for (const path of STUDENT_READS) {
+      await assertFails(getDoc(doc(db(), path)));
+    }
+  });
+
+  it('cannot grade an attempt or delete ledgers, submissions or answers', async () => {
+    await assertFails(updateDoc(doc(db(), ATTEMPT), { grading: { q1: 1 } }));
+    for (const path of STUDENT_DELETES) {
+      await assertFails(deleteDoc(doc(db(), path)));
+    }
+  });
+
+  it('keeps full access to their own session as its teacher', async () => {
+    await assertSucceeds(getDoc(doc(db(), OWN_RESPONSE)));
+    await assertSucceeds(deleteDoc(doc(db(), OWN_RESPONSE)));
+  });
+
   it('still writes ordinary admin settings', async () => {
     await assertSucceeds(
       setDoc(doc(db(), 'admin_settings/app_settings'), { a: 1 })
@@ -190,5 +256,16 @@ describe.each([
       updateDoc(doc(db, LIVE_STUDENT), { status: 'frozen' })
     );
     await assertSucceeds(deleteDoc(doc(db, RESPONSE)));
+  });
+
+  it('keeps read, grade and delete access to the other student records', async () => {
+    const db = as(email);
+    for (const path of STUDENT_READS) {
+      await assertSucceeds(getDoc(doc(db, path)));
+    }
+    await assertSucceeds(updateDoc(doc(db, ATTEMPT), { grading: { q1: 1 } }));
+    for (const path of STUDENT_DELETES) {
+      await assertSucceeds(deleteDoc(doc(db, path)));
+    }
   });
 });

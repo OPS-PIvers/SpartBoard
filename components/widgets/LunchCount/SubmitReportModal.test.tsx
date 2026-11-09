@@ -23,7 +23,13 @@ const allowResend = (allowed: boolean) =>
     canAccessFeature: () => allowed,
   } as unknown as ReturnType<typeof useAuth>);
 
-const modal = (isOpen = true) => (
+const modal = (
+  isOpen = true,
+  sentDetails: { notes: string; extraPizza: number } | null = {
+    notes: '',
+    extraPizza: 0,
+  }
+) => (
   <SubmitReportModal
     isOpen={isOpen}
     onClose={vi.fn()}
@@ -31,6 +37,7 @@ const modal = (isOpen = true) => (
     data={data}
     isSubmitting={false}
     alreadySubmitted
+    sentDetails={sentDetails ?? undefined}
   />
 );
 
@@ -40,6 +47,13 @@ describe('SubmitReportModal resend', () => {
   it('keeps the one-a-day screen when the flag is off', () => {
     allowResend(false);
     render(modal());
+    expect(screen.getByText('Lunch Count Already Submitted')).toBeTruthy();
+    expect(screen.queryByText('Review and Resend')).toBeNull();
+  });
+
+  it('offers no resend for a count sent without the flag', () => {
+    allowResend(true);
+    render(modal(true, null));
     expect(screen.getByText('Lunch Count Already Submitted')).toBeTruthy();
     expect(screen.queryByText('Review and Resend')).toBeNull();
   });

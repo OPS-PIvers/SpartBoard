@@ -812,6 +812,7 @@ const NON_CHOICE_LINE =
 /** Text after a choice that can't be its wrap: a caption, instruction, heading, or a line starting left of the choice. */
 function isNotChoiceText(
   option: DocLine,
+  previous: DocLine,
   line: DocLine,
   text: string
 ): boolean {
@@ -819,7 +820,13 @@ function isNotChoiceText(
   if (line.page === undefined || line.page !== option.page) return false;
   const x = lineSegments(line)[0]?.x;
   const optionX = lineSegments(option)[0]?.x;
-  return x !== undefined && optionX !== undefined && x < optionX - 1;
+  // A line a line-height under is a wrap back to the margin; only a paragraph gap ends the choice.
+  return (
+    x !== undefined &&
+    optionX !== undefined &&
+    x < optionX - 1 &&
+    !isTargetWrap(previous, line)
+  );
 }
 
 /** A continuation after a question's last option that is plainly its wrap (R8). */
@@ -1379,7 +1386,15 @@ export function parseDocument(
     const wrapping = lastOption;
     if (wrapping) {
       // A figure caption, instruction or heading ends the choice; what follows it is not choice text.
-      if (wrapping.closed || isNotChoiceText(wrapping.line, line, text)) {
+      if (
+        wrapping.closed ||
+        isNotChoiceText(
+          wrapping.line,
+          wrapping.wraps.at(-1) ?? wrapping.line,
+          line,
+          text
+        )
+      ) {
         wrapping.closed = true;
         open.imageIds.push(...(line.imageIds ?? []));
         return;

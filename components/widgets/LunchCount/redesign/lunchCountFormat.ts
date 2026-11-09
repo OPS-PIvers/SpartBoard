@@ -79,6 +79,11 @@ export function submittedClassKey(
   return rosterId ? `${base} #${rosterId}` : base;
 }
 
+/** The sheet's row key for a resend: a class with no roster adds the sender, so two teachers never share one row. */
+export function sheetRowKey(classKey: string, uid: string): string {
+  return classKey.includes(' #') ? classKey : `${classKey} #u:${uid}`;
+}
+
 interface SubmittedMarker {
   lastSubmittedDate?: string;
   lastSubmittedWidgetId?: string;
@@ -127,18 +132,28 @@ export function submittedMarker(
   widgetId: string,
   dayKey: string,
   classKey: string,
-  details: SentDetails
-): Required<SubmittedMarker> {
+  details?: SentDetails
+): SubmittedMarker {
   const sameDay =
     config.lastSubmittedDate === dayKey &&
     config.lastSubmittedWidgetId === widgetId;
   const earlier = sameDay ? (config.lastSubmittedClasses ?? []) : [];
-  return {
+  const marker: SubmittedMarker = {
     lastSubmittedDate: dayKey,
     lastSubmittedWidgetId: widgetId,
     lastSubmittedClasses: earlier.includes(classKey)
       ? earlier
       : [...earlier, classKey],
+  };
+  // Without details (resend flag off) the marker keeps its pre-resend shape, dropping any stale entries.
+  if (!details) {
+    if (!config.lastSubmittedDetails) return marker;
+    const kept = { ...(sameDay ? config.lastSubmittedDetails : undefined) };
+    delete kept[classKey];
+    return { ...marker, lastSubmittedDetails: kept };
+  }
+  return {
+    ...marker,
     lastSubmittedDetails: {
       ...(sameDay ? config.lastSubmittedDetails : undefined),
       [classKey]: details,

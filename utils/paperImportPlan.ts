@@ -82,11 +82,7 @@ export interface SkippedSheet {
   reason: SkipReason;
 }
 
-/**
- * The options a sheet's bubbles stand for, in letter order (plan Q36). A stub
- * sheet recorded bare letters; once the quiz was filled in from the teacher's
- * paper, those letters mean the filled options in the order her paper prints.
- */
+/** True when every choice kept its place and only its wording changed. */
 export function isRewordOnly(
   recorded: readonly string[],
   current: readonly string[]
@@ -101,6 +97,11 @@ export function isRewordOnly(
   );
 }
 
+/**
+ * The options a sheet's bubbles stand for, in letter order (plan Q36). A stub
+ * sheet recorded bare letters; once the quiz was filled in from the teacher's
+ * paper, those letters mean the filled options in the order her paper prints.
+ */
 export function printedOptionsFor(
   batch: Pick<PaperBatch, 'choiceOrder'>,
   question: QuizQuestion | undefined,
