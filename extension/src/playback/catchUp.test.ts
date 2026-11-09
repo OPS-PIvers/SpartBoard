@@ -274,6 +274,36 @@ describe('catch-up in the playback controller', () => {
     expect(h.renders().at(-1)).toMatchObject({ status: 'seeking', current: 6 });
   });
 
+  it('never double-advances when the step’s own action and an early report for it race', async () => {
+    // The early report arrives first: the late own action is from an older seek.
+    const first = await playing();
+    const t1 = first.token();
+    await first.c.frameReport(7, 0, {
+      type: 'wt:ahead',
+      token: t1,
+      index: 0,
+      stepId: 'a',
+    });
+    await first.c.frameReport(7, 0, { type: 'wt:acted', token: t1 });
+    expect(first.h.state()?.index).toBe(1);
+
+    // The own action arrives first: the early report, sent under the next seek, is behind the tour.
+    const second = await playing();
+    await second.c.frameReport(7, 0, {
+      type: 'wt:acted',
+      token: second.token(),
+    });
+    expect(second.h.state()?.index).toBe(1);
+    await second.c.frameReport(7, 0, {
+      type: 'wt:ahead',
+      token: second.token(),
+      index: 0,
+      stepId: 'a',
+    });
+    expect(second.h.state()?.index).toBe(1);
+    expect(second.h.state()?.skipped ?? []).toEqual([]);
+  });
+
   it('accepts only well-formed early-action reports from a frame', () => {
     expect(
       isFrameReport({ type: 'wt:ahead', token: 't', index: 2, stepId: 'c' })

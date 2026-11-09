@@ -41,6 +41,7 @@ interface Mark {
   token?: string;
   ms?: number;
   kind?: string;
+  type?: string;
   status?: string;
   current?: number;
   rect?: { x: number; y: number; width: number; height: number } | null;
@@ -267,7 +268,7 @@ async function play(
   sc: BenchScenario,
   msg: WebTourStartMessage,
   throttle: number
-): Promise<Transition[]> {
+): Promise<{ transitions: Transition[]; presses: PressCost[] }> {
   const launcher = await ctx.newPage();
   await launcher.goto(LAUNCHER);
   const marks: Mark[] = [];
@@ -344,6 +345,14 @@ async function play(
       }
     } else {
       await page.waitForTimeout(RUSH_MS);
+    }
+    for (const sel of steps[i].presses ?? []) {
+      phase = `step ${i + 1}: pressing ${sel}`;
+      await frameOf(page, steps[i].frame)
+        .locator(sel)
+        .first()
+        .click({ timeout: 5000 });
+      await page.waitForTimeout(150);
     }
     phase = `step ${i + 1}: clicking`;
     const before = marks.length;
@@ -445,13 +454,42 @@ async function play(
       redrawn: redrawn.has(i + 1),
     });
   }
-  return out;
+  return { transitions: out, presses: pressCosts(marks) };
+}
+
+/** One press event's catch-up handler, timed in the frame (TOURS_10X.md P2). */
+export interface PressCost {
+  type: string;
+  ms: number;
+  /** The handler turned its event's task into a long task. */
+  longTask: boolean;
+}
+
+function pressCosts(marks: Mark[]): PressCost[] {
+  const longTasks = marks.filter((m) => m.name === 'longtask');
+  return marks
+    .filter((m) => m.name === 'press')
+    .map((p) => {
+      const ms = p.ms ?? 0;
+      return {
+        type: p.type ?? '',
+        ms,
+        // Attributable when the task would have stayed under 50ms without the handler.
+        longTask: longTasks.some(
+          (lt) =>
+            lt.t <= p.t &&
+            lt.t + (lt.ms ?? 0) >= p.t - ms &&
+            (lt.ms ?? 0) - ms < 50
+        ),
+      };
+    });
 }
 
 export interface ScenarioResult {
   scenario: string;
   throttle: number;
   transitions: Transition[];
+  presses?: PressCost[];
 }
 
 export function summarize(rows: Transition[]) {
@@ -514,11 +552,15 @@ export const BUDGETS = {
 
 type Budget = Record<keyof typeof BUDGETS, number>;
 
+/** The catch-up handler runs inside the learner's press, so it may never search (TOURS_10X.md P2). */
+const PRESS_BUDGET_MS = 9;
+
 /** Scenarios held to their own limits: late content used to wait 250ms more and blank the spotlight for a second. */
 const SCENARIO_BUDGETS: Record<string, Partial<Budget>> = {
   spa: { readyToLitP95: 120, darkP95: 300 },
   // A click-ahead lands only once the page around it settles (TOURS_10X.md P1).
   ahead: { actToLitP95: 400 },
+  heavyahead: { actToLitP95: 400, readyToLitP95: 400 },
 };
 
 function overBudget(results: ScenarioResult[]): string[] {
@@ -533,6 +575,16 @@ function overBudget(results: ScenarioResult[]): string[] {
       );
     if (s.redrawn > 0)
       out.push(`${r.scenario}: ${s.redrawn} steps drew their tip twice`);
+    for (const p of r.presses ?? []) {
+      if (p.ms > PRESS_BUDGET_MS)
+        out.push(
+          `${r.scenario} ${r.throttle}x: a ${p.type} handler took ${p.ms.toFixed(1)}ms > ${PRESS_BUDGET_MS}ms`
+        );
+      if (p.longTask)
+        out.push(
+          `${r.scenario} ${r.throttle}x: a long task ran during a ${p.type} handler`
+        );
+    }
     const limits: Budget = { ...BUDGETS, ...SCENARIO_BUDGETS[r.scenario] };
     for (const [key, limit] of Object.entries(limits) as [
       keyof Budget,
@@ -614,26 +666,40 @@ async function main() {
       const msg = await record(ctx, sc);
       for (const throttle of throttles) {
         const transitions: Transition[] = [];
+        const presses: PressCost[] = [];
         const attempt = () => {
           const run = play(ctx, extId, sc, msg, throttle);
           // A play abandoned on timeout fails later, once its browser is closed.
           run.catch(() => undefined);
           return withTimeout(run, PLAY_TIMEOUT_MS, 'play timed out');
         };
+        const keep = (played: Awaited<ReturnType<typeof play>>) => {
+          transitions.push(...played.transitions);
+          presses.push(...played.presses);
+        };
         for (let r = 0; r < runs; r++) {
           try {
-            transitions.push(...(await attempt()));
+            keep(await attempt());
           } catch (err) {
             console.warn(
               `${sc.name} ${throttle}x run ${r + 1} failed (${String(err)}, at ${phase}); retrying in a new browser`
             );
             await close(ctx);
             ({ ctx, extId } = await launch(label));
-            transitions.push(...(await attempt()));
+            keep(await attempt());
           }
         }
-        results.push({ scenario: sc.name, throttle, transitions });
+        results.push({ scenario: sc.name, throttle, transitions, presses });
         const s = summarize(transitions);
+        if (presses.length > 0)
+          console.log(
+            `${sc.name.padEnd(7)} ${throttle}x  press handler max ${Math.max(...presses.map((p) => p.ms)).toFixed(1)}ms  p95 ${pct(
+              presses.map((p) => p.ms),
+              95
+            ).toFixed(
+              1
+            )}ms  long tasks during a press ${presses.filter((p) => p.longTask).length}/${presses.length}`
+          );
         console.log(
           `${sc.name.padEnd(7)} ${throttle}x  click->lit median ${s.actToLitMedian.toFixed(0)}ms p95 ${s.actToLitP95.toFixed(0)}ms  ready->lit p95 ${s.readyToLitP95.toFixed(0)}ms  dark p95 ${s.darkP95.toFixed(0)}ms  centred p95 ${s.centredP95.toFixed(0)}ms  search p95 ${s.runMsP95.toFixed(1)}ms  long tasks ${s.longTaskMsTotal.toFixed(0)}ms  frame gap p95 ${s.maxFrameGapP95.toFixed(0)}ms  first step ${s.firstLitMedian.toFixed(0)}ms  fell back ${s.fellBack}/${s.transitions}  fallback shown ${s.fallbacks}  tip redrawn ${s.redrawn}`
         );

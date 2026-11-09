@@ -102,6 +102,10 @@ const RESEEK_COST_RATIO = 4;
 const RESEEK_MAX_MS = 1000;
 // Searches run just before the next frame paints; this backs that up in a tab that isn't painting.
 const RESEEK_FALLBACK_MS = 100;
+// Watched later steps (P2) are looked for this long after a seek begins, and a missing one again after a growing pause.
+const AHEAD_AFTER_SEEK_MS = 200;
+const AHEAD_RETRY_MS = 250;
+const AHEAD_RETRY_MAX_MS = 4000;
 // Shadow roots a page attaches without changing its own tree (a late component upgrade) are picked up by a full rescan this often.
 const ROOTS_RESCAN_MS = 1000;
 
@@ -183,6 +187,22 @@ export function installFrameSeeker(
     el: null,
   };
   let watchingAhead = false;
+  // Watched steps' elements, found ahead of time off the press path; keyed by step index.
+  let aheadEls = new Map<
+    number,
+    {
+      stepId: string;
+      el: Element | null;
+      at: number;
+      misses: number;
+      retryAt: number;
+    }
+  >();
+  let aheadFrom = 0;
+  let domVersion = 0;
+  let aheadTimer: ReturnType<typeof setTimeout> | null = null;
+  let aheadCost = 0;
+  let aheadEnd = -Infinity;
 
   const watchRoot = (root: Document | ShadowRoot) => {
     if (roots.has(root)) return;
@@ -252,6 +272,9 @@ export function installFrameSeeker(
     benchMark('seek', { token: step.token });
     if (later) queue();
     else run();
+    // Watched steps are looked for once the new step has had its turn.
+    aheadFrom = performance.now() + AHEAD_AFTER_SEEK_MS;
+    scheduleAhead();
   };
 
   /** Reports the step done and moves straight on to seeking the next one, which the service worker confirms with the same token. */
@@ -342,6 +365,73 @@ export function installFrameSeeker(
     });
   };
 
+  /** The next watched step whose element is unknown, gone, or not looked for since the page last changed. */
+  const aheadTodo = (): AheadStep | undefined =>
+    seek?.ahead?.find((a) => {
+      const c = aheadEls.get(a.index);
+      if (!c || c.stepId !== a.stepId) return true;
+      if (c.el) return !c.el.isConnected;
+      // A target not on the page yet is looked for again after the page changes, less often each miss.
+      return c.at < domVersion && performance.now() >= c.retryAt;
+    });
+
+  /** Resolves one watched step when the frame is idle, never inside an event, at most a fifth of the time (like the main search). */
+  const scheduleAhead = () => {
+    if (aheadTimer !== null || !watchingAhead || !aheadTodo()) return;
+    const wait = Math.max(
+      0,
+      aheadFrom - performance.now(),
+      Math.min(
+        RESEEK_MAX_MS,
+        aheadEnd + aheadCost * RESEEK_COST_RATIO - performance.now()
+      )
+    );
+    aheadTimer = setTimeout(() => {
+      const view = doc.defaultView;
+      const go = () => {
+        aheadTimer = null;
+        resolveAhead();
+      };
+      if (typeof view?.requestIdleCallback === 'function')
+        view.requestIdleCallback(go, { timeout: 500 });
+      else go();
+    }, wait);
+  };
+
+  const resolveAhead = () => {
+    // The current step's own search goes first.
+    if (timer !== null || frame) {
+      scheduleAhead();
+      return;
+    }
+    const step = aheadTodo();
+    if (!step) return;
+    const began = performance.now();
+    const out = assessTarget(doc, step.clues, [...roots]);
+    aheadEnd = performance.now();
+    aheadCost = aheadEnd - began;
+    if (BENCH)
+      benchMark('aheadrun', {
+        index: step.index,
+        ms: aheadCost,
+        kind: out.kind,
+      });
+    const had = aheadEls.get(step.index);
+    const misses =
+      out.kind === 'match'
+        ? 0
+        : (had?.stepId === step.stepId ? had.misses : 0) + 1;
+    aheadEls.set(step.index, {
+      stepId: step.stepId,
+      el: out.kind === 'match' ? out.match.el : null,
+      at: domVersion,
+      misses,
+      retryAt:
+        aheadEnd + Math.min(AHEAD_RETRY_MAX_MS, AHEAD_RETRY_MS * 2 ** misses),
+    });
+    scheduleAhead();
+  };
+
   const dropAhead = () => {
     aheadWait?.cancel();
     aheadWait = null;
@@ -350,7 +440,7 @@ export function installFrameSeeker(
 
   /** Reports the furthest early action once the page around it has settled. */
   const settleAhead = () => {
-    if (aheadWait) return;
+    if (aheadWait || !aheadHit) return;
     const wait = waitForSettle(
       domSettleHost(doc, { near: () => aheadHit?.el ?? null })
     );
@@ -402,14 +492,16 @@ export function installFrameSeeker(
       ...(seek.ahead ?? []),
     ];
     const found: { el?: Element } = {};
+    // No search here: only the elements found ahead of time are compared.
     const k = matchLookahead(
       watched,
       0,
       (step) => {
         if (!kinds.includes(step.action)) return false;
-        const out = assessTarget(doc, step.clues, [...roots]);
-        if (out.kind !== 'match' || !path.includes(out.match.el)) return false;
-        found.el = out.match.el;
+        const c = aheadEls.get(step.index);
+        const el = c?.stepId === step.stepId ? c.el : null;
+        if (!el?.isConnected || !path.includes(el)) return false;
+        found.el = el;
         return true;
       },
       watched.length
@@ -418,26 +510,41 @@ export function installFrameSeeker(
     const hit = watched[k];
     if (!aheadHit || hit.index > aheadHit.index)
       aheadHit = { index: hit.index, stepId: hit.stepId, el: found.el };
-    settleAhead();
+    // The settle wait reads layout, so it starts after the learner's event, not inside it.
+    setTimeout(settleAhead, 0);
   };
+
+  // The bench times the handler, since it runs inside the learner's own press.
+  const onPress = BENCH
+    ? (e: Event) => {
+        const began = performance.now();
+        onAnyAct(e);
+        if (e.isTrusted)
+          benchMark('press', { type: e.type, ms: performance.now() - began });
+      }
+    : onAnyAct;
 
   const watchAhead = (on: boolean) => {
     if (on === watchingAhead) return;
     watchingAhead = on;
     for (const name of Object.keys(AHEAD_EVENTS)) {
-      if (on) doc.addEventListener(name, onAnyAct, true);
-      else doc.removeEventListener(name, onAnyAct, true);
+      if (on) doc.addEventListener(name, onPress, true);
+      else doc.removeEventListener(name, onPress, true);
     }
   };
 
   const schedule = (records: MutationRecord[]) => {
     addedRoots(records);
+    domVersion += 1;
     queue();
+    scheduleAhead();
   };
 
   const stop = () => {
     dropAhead();
     watchAhead(false);
+    if (aheadTimer !== null) clearTimeout(aheadTimer);
+    aheadTimer = null;
     seek = null;
     toldAmbiguous = false;
     toldCandidate = '';
@@ -452,6 +559,7 @@ export function installFrameSeeker(
     // The step this frame already moved on to by itself: keep what it found.
     if (cmd.type === 'wt:seek' && seek && cmd.token === seek.token) {
       seek = { ...seek, next: cmd.next, ahead: cmd.ahead };
+      scheduleAhead();
       return;
     }
     // An early action still ahead of the new step keeps waiting to be reported under the new seek.
@@ -463,7 +571,10 @@ export function installFrameSeeker(
         ? aheadHit
         : null;
     stop();
-    if (cmd.type === 'wt:stop') return;
+    if (cmd.type === 'wt:stop') {
+      aheadEls = new Map();
+      return;
+    }
     const MO = doc.defaultView?.MutationObserver ?? MutationObserver;
     observer = new MO(schedule);
     rescanRoots();

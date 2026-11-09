@@ -9,6 +9,8 @@ export interface BenchStep {
   frame?: 'ed' | 'wd';
   /** How the learner plays it: `skip` never clicks it, `rush` clicks it right after the last click without waiting for its spotlight (TOURS_10X.md P7). */
   play?: 'skip' | 'rush';
+  /** Off-target controls the learner presses first, while the step is lit; each press is timed. */
+  presses?: string[];
 }
 
 export interface BenchScenario {
@@ -169,6 +171,25 @@ export const SCENARIOS: BenchScenario[] = [
       { target: '#classroom', play: 'rush' },
       { target: '#print' },
       { target: '#publish' },
+    ],
+  },
+  {
+    name: 'heavyahead',
+    about:
+      'the gradebook: presses on cells and headers no step watches, and a click two steps ahead',
+    start: '/heavy.html',
+    steps: [
+      { target: '#filter', presses: ['th >> nth=4', 'td >> nth=300'] },
+      { target: '#filterMenu >> text=Missing' },
+      {
+        target: '[aria-label="Comment on Student 230"]',
+        presses: ['td >> nth=900', '#clock', 'td >> nth=1500'],
+      },
+      { target: '#post' },
+      { target: '#sort', presses: ['th >> nth=9'] },
+      { target: '#sortMenu >> text=Last name', play: 'skip' },
+      { target: '#export' },
+      { target: '#exportMenu >> text=Download CSV' },
     ],
   },
 ];
