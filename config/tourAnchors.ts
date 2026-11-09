@@ -2646,6 +2646,16 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-import.paper-keep-pages': {
+    label: "Keep a copy of each student's pages switch in Quiz import",
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-retry-pages': {
+    label: 'Retry failed page copies in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-import.paper-replace-seat': {
     label: 'Replace seat checkbox in Quiz import, by item',
     perField: true,
@@ -3784,6 +3794,134 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
     persists: true,
+  },
+  'quiz-grading.markup-toolbar': {
+    label: 'Markup toolbar on a handwritten answer in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-select': {
+    label: 'Select and move tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-highlight': {
+    label: 'Highlighter tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-box': {
+    label: 'Box tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-circle': {
+    label: 'Circle tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-stamp': {
+    label: 'Stamp tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-stamp-menu': {
+    label: 'Choose stamp menu on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-pin': {
+    label: 'Comment pin tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-color': {
+    label: 'Mark color menu on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-undo': {
+    label: 'Undo a mark on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-redo': {
+    label: 'Redo a mark on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-delete': {
+    label: 'Delete the selected mark on the handwriting markup toolbar',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.markup-canvas': {
+    label: 'Handwriting image you draw marks on in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-add-comment': {
+    label: 'Add or edit a comment on the selected mark in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-selection-delete': {
+    label: 'Delete button beside the selected mark in the Quiz grader',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment': {
+    label: 'Mark comment textarea in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-snippet': {
+    label: 'Saved comment picker in the mark comment box',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment-cancel': {
+    label: 'Cancel a mark comment in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment-save': {
+    label: 'Save a mark comment in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment-row': {
+    label: 'Numbered comment under the marked handwriting in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-pin-menu': {
+    label: 'Saved comments menu on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-save-comment': {
+    label: 'Save a mark comment for reuse in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan': {
+    label: 'Notice that marks were made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan-keep': {
+    label: 'Keep the marks made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan-clear': {
+    label: 'Clear the marks made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
   },
   'quiz-grading.empty-close': {
     label: 'Close button in the empty Quiz grader',

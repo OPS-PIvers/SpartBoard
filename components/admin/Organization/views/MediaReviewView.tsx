@@ -39,6 +39,9 @@ import {
 // tooling, so it is deliberately NOT gated on the `quiz-media-response`
 // feature flag — it must still clean up media recorded before it was turned off.
 
+/** Row id the server gives a response's kept scan pages (`deleteQuizMediaForOrgAdmin.ts`). */
+const KEPT_PAGES_QUESTION_ID = '__kept-scan-pages__';
+
 const STATUS_COLOR: Record<string, AccentColor> = {
   archived: 'emerald',
   syncing: 'amber',
@@ -84,6 +87,16 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
   // Prompt text where the session still has it; the raw id is the fallback.
   const questionLabel = (row: MediaResponseRow) =>
     row.questionText?.trim() ? row.questionText : row.questionId;
+  const isKeptPages = (row: MediaResponseRow) =>
+    row.questionId === KEPT_PAGES_QUESTION_ID;
+  // Kept pages count as pages; every other row counts attempts.
+  const countLabel = (row: MediaResponseRow, count: number) =>
+    t(
+      isKeptPages(row)
+        ? 'admin.mediaReview.pageCount'
+        : 'admin.mediaReview.takeCount',
+      { count }
+    );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState('');
@@ -413,18 +426,18 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                           <div className="text-sm text-slate-800 max-w-[280px]">
                             {questionLabel(row)}
                           </div>
-                          <div className="text-xs font-mono text-slate-500 truncate max-w-[280px]">
-                            {row.questionId}
-                          </div>
+                          {!isKeptPages(row) && (
+                            <div className="text-xs font-mono text-slate-500 truncate max-w-[280px]">
+                              {row.questionId}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 align-top text-sm text-slate-700 break-all">
                           {row.teacherEmail || '—'}
                         </td>
                         <td className="px-4 py-3 align-top">
                           <Badge color="indigo">
-                            {t('admin.mediaReview.takeCount', {
-                              count: row.takes.length,
-                            })}
+                            {countLabel(row, row.takes.length)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 align-top">
@@ -501,14 +514,14 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                 <span className="block truncate">
                   {row.studentLabel} · {questionLabel(row)} · {row.quizTitle}
                 </span>
-                <span className="block truncate font-mono text-slate-500">
-                  {row.questionId}
-                </span>
+                {!isKeptPages(row) && (
+                  <span className="block truncate font-mono text-slate-500">
+                    {row.questionId}
+                  </span>
+                )}
               </span>
               <span className="font-mono shrink-0 text-slate-500">
-                {t('admin.mediaReview.takeCount', {
-                  count: countDeletableTakes(row),
-                })}
+                {countLabel(row, countDeletableTakes(row))}
               </span>
             </li>
           ))}

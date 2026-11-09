@@ -1913,6 +1913,8 @@
       "rowCount_other": "{{count}} respuestas multimedia",
       "takeCount": "{{count}} toma",
       "takeCount_other": "{{count}} tomas",
+      "pageCount": "{{count}} página",
+      "pageCount_other": "{{count}} páginas",
       "colStudent": "Alumno",
       "colQuestion": "Pregunta",
       "colTeacher": "Profesor",
@@ -2676,7 +2678,90 @@
           "superseded": "Un escaneo más reciente reemplazó esta respuesta.",
           "actionFailed": "No funcionó. Inténtalo de nuevo.",
           "busy": "La transcripción está en curso. Inténtalo en un momento."
+        },
+        "markup": {
+          "toolbar": "Herramientas de marcado",
+          "tools": {
+            "select": "Seleccionar y mover",
+            "highlight": "Resaltador",
+            "rect": "Recuadro",
+            "ellipse": "Círculo",
+            "pin": "Chincheta de comentario",
+            "stampOf": "Sello: {{stamp}}"
+          },
+          "chooseStamp": "Elegir sello",
+          "stamps": {
+            "check": "Visto bueno",
+            "x": "X",
+            "question": "Signo de interrogación",
+            "star": "Estrella"
+          },
+          "color": "Color",
+          "colorOf": "Color: {{color}}",
+          "colors": {
+            "red": "Rojo",
+            "blue": "Azul",
+            "green": "Verde",
+            "pink": "Rosa",
+            "yellow": "Amarillo"
+          },
+          "undo": "Deshacer",
+          "undoKeys": "Deshacer (Ctrl+Z)",
+          "redo": "Rehacer",
+          "redoKeys": "Rehacer (Ctrl+Mayús+Z)",
+          "delete": "Eliminar marca",
+          "deleteKeys": "Eliminar marca (Supr)",
+          "layer": "Marcas sobre la escritura",
+          "cap": "El límite es de {{max}} marcas. Elimina una para añadir otra.",
+          "needsScore": "Pon una puntuación para guardar estas marcas.",
+          "unavailable": "El marcado no está disponible para este escaneo.",
+          "selectedMark": "Marca seleccionada",
+          "addComment": "Añadir comentario",
+          "editComment": "Editar comentario",
+          "comment": "Comentario",
+          "commentNumber": "Comentario {{number}}",
+          "commentPlaceholder": "¿Qué debe leer aquí el estudiante?",
+          "snippets": "Insertar un comentario guardado",
+          "chooseComment": "Elegir un comentario guardado",
+          "savedComments": "Comentarios guardados",
+          "noSaved": "Aún no hay comentarios guardados. Guarda uno desde un cuadro de comentario.",
+          "removeSaved": "Quitar comentario guardado: {{text}}",
+          "remove": "Quitar",
+          "removed": "Comentario quitado.",
+          "armed": "Haz clic en la imagen para añadir: {{comment}}",
+          "saveForReuse": "Guardar para reutilizar",
+          "saveForReuseTitle": "Conservar este comentario para usarlo otra vez",
+          "savedForReuse": "Guardado",
+          "savedTitle": "Guardado. Lo encuentras en el menú junto a la chincheta.",
+          "listFull": "El límite es de {{max}} comentarios guardados. Quita uno primero.",
+          "listFullShort": "Lista llena",
+          "earlierScan": {
+            "text": "Estas marcas se hicieron en un escaneo anterior.",
+            "keep": "Está bien",
+            "clear": "Borrar marcas"
+          },
+          "counter": "{{count}}/{{max}}",
+          "save": "Guardar",
+          "saveKeys": "Guardar (Intro)",
+          "cancel": "Cancelar",
+          "commentList": "Comentarios sobre la escritura",
+          "names": {
+            "highlight": "Resaltado",
+            "rect": "Recuadro",
+            "ellipse": "Círculo",
+            "pin": "Chincheta de comentario",
+            "pinNumber": "Chincheta de comentario {{number}}",
+            "withComment": "{{kind}}, comentario {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Marcas sin guardar",
+        "body_one": "{{count}} respuesta tiene marcas pero no tiene puntuación. Pon una puntuación para conservarlas.",
+        "body_other": "{{count}} respuestas tienen marcas pero no tienen puntuación. Pon una puntuación para conservarlas.",
+        "goBack": "Volver",
+        "closeAnyway": "Cerrar de todos modos",
+        "rail": "Marcas sin guardar"
       }
     },
     "results": {

@@ -8,6 +8,7 @@ import {
 import { DialogProvider } from '@/context/DialogContext';
 import { DialogContainer } from '@/components/common/DialogContainer';
 import { AuthProvider } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import {
   QuizManager,
   type QuizManagerTab,
@@ -195,24 +196,51 @@ const PaperAssign: React.FC = () => (
   />
 );
 
-const VIEWS = {
-  library: () => <Manager tab="library" assignments={IN_PROGRESS} />,
-  assign: () => <PaperAssign />,
-  'in-progress': () => <Manager tab="active" assignments={IN_PROGRESS} />,
-  import: () => (
+// ?drive=0 shows the no-Drive hint; ?uploads=fail makes every upload fail.
+const PaperImport: React.FC = () => {
+  const { canAccessFeature } = useAuth();
+  const params = new URLSearchParams(window.location.search);
+  const failUploads = params.get('uploads') === 'fail';
+  return (
     <PaperImportModal
       quiz={QUIZ}
+      uid="mock-user-id"
       batches={[BATCH]}
       rosters={ROSTERS}
       assignments={[PAPER]}
       lockedAssignmentId="qa-paper"
       onCreateAssignment={() => Promise.resolve('qa-paper')}
-      onImport={() => Promise.reject(new Error('mockup'))}
+      onImport={(_batchId, _assignmentId, sheets) =>
+        Promise.resolve({ written: sheets.map((s) => s.seat), collisions: [] })
+      }
+      onUploadCrop={(path, blob) => {
+        // Lets a screenshot script measure what would upload.
+        window.dispatchEvent(
+          new CustomEvent('paper-test-upload', {
+            detail: { path, size: blob.size, type: blob.type },
+          })
+        );
+        return new Promise((resolve, reject) =>
+          window.setTimeout(
+            failUploads ? () => reject(new Error('mockup')) : resolve,
+            300
+          )
+        );
+      }}
+      canKeepPages={canAccessFeature('paper-kept-pages')}
+      driveConnected={params.get('drive') !== '0'}
       onSaveQuiz={() => Promise.resolve()}
       onClose={noop}
       onError={noop}
     />
-  ),
+  );
+};
+
+const VIEWS = {
+  library: () => <Manager tab="library" assignments={IN_PROGRESS} />,
+  assign: () => <PaperAssign />,
+  'in-progress': () => <Manager tab="active" assignments={IN_PROGRESS} />,
+  import: () => <PaperImport />,
   completed: () => <Manager tab="archive" assignments={COMPLETED} />,
   reprint: () => (
     <PaperReprintModal
