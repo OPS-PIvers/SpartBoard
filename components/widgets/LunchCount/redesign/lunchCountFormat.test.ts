@@ -26,6 +26,18 @@ describe('Lunch Count submitted marker', () => {
     expect(hasSubmittedToday(marker, 'w1', classA)).toBe(true);
   });
 
+  it('drops stale details when a flag-off send follows a flag-on one', () => {
+    const old = submittedMarker({}, 'w1', '2026-01-01', classA, details);
+    const today = submittedMarker(old, 'w1', getCentralDayKey(), classA);
+    expect(
+      sentDetailsToday({ ...old, ...today }, 'w1', classA)
+    ).toBeUndefined();
+    const sameDay = submittedMarker(sentA(), 'w1', getCentralDayKey(), classA);
+    expect(
+      sentDetailsToday({ ...sentA(), ...sameDay }, 'w1', classA)
+    ).toBeUndefined();
+  });
+
   it('blocks the same class from the same widget on the same day', () => {
     expect(hasSubmittedToday(sentA(), 'w1', classA)).toBe(true);
   });

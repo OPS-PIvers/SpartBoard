@@ -145,8 +145,13 @@ export function submittedMarker(
       ? earlier
       : [...earlier, classKey],
   };
-  // Without details (resend flag off) the marker keeps its pre-resend shape.
-  if (!details) return marker;
+  // Without details (resend flag off) the marker keeps its pre-resend shape, dropping any stale entries.
+  if (!details) {
+    if (!config.lastSubmittedDetails) return marker;
+    const kept = { ...(sameDay ? config.lastSubmittedDetails : undefined) };
+    delete kept[classKey];
+    return { ...marker, lastSubmittedDetails: kept };
+  }
   return {
     ...marker,
     lastSubmittedDetails: {
