@@ -3637,6 +3637,8 @@ export interface LunchCountConfig {
   lastSubmittedWidgetId?: string;
   /** Classes (lunch time and grade) it sent that day, so another class can still submit */
   lastSubmittedClasses?: string[];
+  /** Notes and pizza count sent today, by class key, so a resend can prefill them. */
+  lastSubmittedDetails?: Record<string, { notes: string; extraPizza: number }>;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
@@ -11006,6 +11008,8 @@ export type GlobalFeature =
   | 'quiz-ordering-results'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
+  /** Lunch Count: send a corrected count that replaces the day's row for that class. */
+  | 'lunch-count-resend'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */

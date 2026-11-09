@@ -35,6 +35,7 @@ import {
   hasSubmittedToday,
   reportClassKey,
   submittedClassKey,
+  sentDetailsToday,
   submittedMarker,
 } from './redesign/lunchCountFormat';
 import { logError } from '@/utils/logError';
@@ -569,6 +570,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
+        classKey: sentClass,
       };
 
       const response = await fetch(submissionUrl, {
@@ -589,7 +591,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(config, widget.id, dayKey, sentClass),
+        config: submittedMarker(config, widget.id, dayKey, sentClass, {
+          notes,
+          extraPizza: payload.extraPizza,
+        }),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
@@ -1227,6 +1232,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         isSubmitting={isSubmitting}
         alreadySubmitted={hasSubmittedToday(config, widget.id, sentClass)}
+        sentDetails={sentDetailsToday(config, widget.id, sentClass)}
       />
       <Modal
         isOpen={!!peekedItem}

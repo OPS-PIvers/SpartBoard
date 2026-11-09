@@ -4,6 +4,7 @@ import {
   hasSubmittedToday,
   reportClassKey,
   submittedClassKey,
+  sentDetailsToday,
   submittedMarker,
 } from './lunchCountFormat';
 
@@ -14,7 +15,9 @@ describe('Lunch Count submitted marker', () => {
 
   const classA = reportClassKey('11:30', 'GR2');
   const classB = reportClassKey('12:00', 'GR3');
-  const sentA = () => submittedMarker({}, 'w1', getCentralDayKey(), classA);
+  const details = { notes: '2 gluten free', extraPizza: 3 };
+  const sentA = () =>
+    submittedMarker({}, 'w1', getCentralDayKey(), classA, details);
 
   it('blocks the same class from the same widget on the same day', () => {
     expect(hasSubmittedToday(sentA(), 'w1', classA)).toBe(true);
@@ -25,7 +28,13 @@ describe('Lunch Count submitted marker', () => {
   });
 
   it('still blocks the first class after a second one is sent', () => {
-    const both = submittedMarker(sentA(), 'w1', getCentralDayKey(), classB);
+    const both = submittedMarker(
+      sentA(),
+      'w1',
+      getCentralDayKey(),
+      classB,
+      details
+    );
     expect(both.lastSubmittedClasses).toEqual([classA, classB]);
     expect(hasSubmittedToday(both, 'w1', classA)).toBe(true);
     expect(hasSubmittedToday(both, 'w1', classB)).toBe(true);
@@ -42,7 +51,7 @@ describe('Lunch Count submitted marker', () => {
     const day = getCentralDayKey();
     const first = submittedClassKey('11:30', 'GR2', 'roster-a');
     const second = submittedClassKey('11:30', 'GR2', 'roster-b');
-    const sent = submittedMarker({}, 'w1', day, first);
+    const sent = submittedMarker({}, 'w1', day, first, details);
     expect(hasSubmittedToday(sent, 'w1', first)).toBe(true);
     expect(hasSubmittedToday(sent, 'w1', second)).toBe(false);
     expect(submittedClassKey('11:30', 'GR2', null)).toBe('11:30 - GR2');
@@ -66,8 +75,25 @@ describe('Lunch Count submitted marker', () => {
     const yesterday = sentA();
     vi.setSystemTime(new Date('2026-11-06T15:00:00Z'));
     expect(hasSubmittedToday(yesterday, 'w1', classA)).toBe(false);
-    const today = submittedMarker(yesterday, 'w1', getCentralDayKey(), classB);
+    const today = submittedMarker(
+      yesterday,
+      'w1',
+      getCentralDayKey(),
+      classB,
+      details
+    );
     expect(today.lastSubmittedClasses).toEqual([classB]);
+  });
+
+  it('keeps what was sent per class and drops it on a new day', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-05T15:00:00Z'));
+    const sent = sentA();
+    expect(sentDetailsToday(sent, 'w1', classA)).toEqual(details);
+    expect(sentDetailsToday(sent, 'w1', classB)).toBeUndefined();
+    expect(sentDetailsToday(sent, 'w2', classA)).toBeUndefined();
+    vi.setSystemTime(new Date('2026-11-06T15:00:00Z'));
+    expect(sentDetailsToday(sent, 'w1', classA)).toBeUndefined();
   });
 
   it('uses the Central date near UTC midnight', () => {

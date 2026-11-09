@@ -13524,6 +13524,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'lunch-count.report-resend': {
+    label: 'Review and Resend button in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+  },
   'lunch-count.report-cancel': {
     label: 'Cancel button in the Lunch Count report dialog',
     perWidgetType: true,

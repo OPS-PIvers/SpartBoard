@@ -60357,6 +60357,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "lunch-count.report-resend",
+    "label": "Review and Resend button in the Lunch Count report dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.report",
+        "kind": "modal",
+        "widget_type": "lunchCount",
+        "path": [
+          "lunch-count.open-report"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "lunch-count.report-cancel",
     "label": "Cancel button in the Lunch Count report dialog",
     "scope": "widget type",
