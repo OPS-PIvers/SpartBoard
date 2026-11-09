@@ -798,13 +798,16 @@ describe('PollSettings', () => {
           (update as { config: { joinCode?: string } }).config.joinCode
       );
       expect(withCode).toBeDefined();
-      // The mint patches ONLY joinCode, so it carries no stale question to
+      // The mint patches ONLY the code and its owner, so it carries no stale question to
       // write back over the edit that landed while it was in flight.
       const patched = (
         withCode as [string, { config: Record<string, unknown> }]
       )[1].config;
       expect(patched.question).toBeUndefined();
-      expect(Object.keys(patched)).toEqual(['joinCode']);
+      expect(Object.keys(patched).sort()).toEqual([
+        'joinCode',
+        'joinCodeOwnerUid',
+      ]);
     });
   });
 

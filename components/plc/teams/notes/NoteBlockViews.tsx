@@ -313,7 +313,7 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
                   <X className="h-3 w-3" aria-hidden="true" />
                 </button>
               )}
-              <input
+              <input // no-tour-anchor: hidden date input behind its own button
                 ref={dateRef}
                 type="date"
                 tabIndex={-1}

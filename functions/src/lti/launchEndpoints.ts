@@ -42,6 +42,10 @@ import {
   resolveOrgIdForDomain,
 } from '../classlinkShared';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import {
+  addVerifiedLmsClasses,
+  staffEmailFromToken,
+} from '../verifiedClassList';
 import { studentFirstName } from '../studentFirstName';
 import {
   bindingIdFor,
@@ -362,6 +366,52 @@ function launchTeacherUid(
   return typeof uid === 'string' && uid ? uid : null;
 }
 
+/** A signed-in teacher whose address matches the instructor launch gets the section on their verified class list. */
+async function recordTeacherSection(
+  db: admin.firestore.Firestore,
+  auth: { uid: string; token: unknown } | undefined,
+  launch: {
+    role: string;
+    messageType?: string;
+    contextId?: string | null;
+    email?: string | null;
+  }
+): Promise<void> {
+  // Only the deep-link picker creates class-targeted sessions; other teacher launches aren't signed in.
+  if (
+    launch.role !== 'teacher' ||
+    launch.messageType !== MESSAGE_TYPE_DEEP_LINKING ||
+    !launch.contextId
+  )
+    return;
+  const email = auth ? staffEmailFromToken(auth.token) : null;
+  const launchEmail = (launch.email ?? '').trim().toLowerCase();
+  const skip = !auth
+    ? 'signed-out'
+    : !email
+      ? 'not-staff'
+      : !launchEmail
+        ? 'no-launch-email'
+        : email !== launchEmail
+          ? 'email-mismatch'
+          : null;
+  if (skip || !auth) {
+    // PII-free, so the rules release can size how often a teacher section goes unrecorded.
+    console.warn('[ltiExchange] teacher section not recorded:', skip);
+    return;
+  }
+  try {
+    await addVerifiedLmsClasses(db, auth.uid, [
+      `schoology:${launch.contextId}`,
+    ]);
+  } catch (err) {
+    console.error(
+      '[ltiExchange] verified class list write failed:',
+      err instanceof Error ? err.message : 'unexpected'
+    );
+  }
+}
+
 // ── ltiExchange ───────────────────────────────────────────────────────────────
 export const ltiExchange = onCall(
   {
@@ -414,6 +464,7 @@ export const ltiExchange = onCall(
     // instructor resource-link launch needs no server-issued push credential —
     // it just returns the validated context for the diagnostic card.
     if (launch.role !== 'student') {
+      await recordTeacherSection(db, request.auth, launch);
       return { ...context, studentRole: false };
     }
 

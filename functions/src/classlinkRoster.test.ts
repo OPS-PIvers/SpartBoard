@@ -10,6 +10,13 @@ const h: {
 } = { axiosGet: null };
 
 vi.mock('./functionsInit', () => ({}));
+vi.mock('./firebaseAdmin', () => ({ firestore: () => ({}) }));
+const writeVerifiedClasses = vi.fn<(...args: unknown[]) => Promise<void>>(() =>
+  Promise.resolve()
+);
+vi.mock('./verifiedClassList', () => ({
+  writeVerifiedClasses: (...args: unknown[]) => writeVerifiedClasses(...args),
+}));
 
 vi.mock('./secrets', () => ({
   CLASSLINK_CLIENT_ID: { value: () => 'test-client-id' },
@@ -48,7 +55,7 @@ vi.mock('axios', () => ({
 import { getClassLinkRosterV1 } from './classlinkRoster';
 
 const callRoster = getClassLinkRosterV1 as unknown as (req: {
-  auth?: { token: Record<string, unknown> };
+  auth?: { uid?: string; token: Record<string, unknown> };
   data?: unknown;
 }) => Promise<{
   classes: unknown[];
@@ -103,6 +110,35 @@ describe('getClassLinkRosterV1 — caller identity verification', () => {
 
     expect(result).toEqual({ classes: [], studentsByClass: {} });
     expect(h.axiosGet).toHaveBeenCalledTimes(2);
+  });
+
+  it("stores the teacher's ClassLink classes as their verified class list", async () => {
+    writeVerifiedClasses.mockClear();
+    h.axiosGet = vi.fn((url: string) => {
+      if (url.endsWith('/users')) {
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'teacher-1', role: 'teacher' }] },
+        });
+      }
+      if (url.endsWith('/users/teacher-1/classes')) {
+        return Promise.resolve({
+          data: { classes: [{ sourcedId: 'cl-1' }, { sourcedId: 'cl-2' }] },
+        });
+      }
+      return Promise.resolve({ data: { users: [] } });
+    });
+    await callRoster({
+      auth: {
+        uid: 'teacher-uid',
+        token: { email: 'teacher@school.org', email_verified: true },
+      },
+      data: {},
+    });
+    expect(writeVerifiedClasses).toHaveBeenCalledWith({}, 'teacher-uid', {
+      classlink: null,
+      test: null,
+      addClasslink: ['cl-1', 'cl-2'],
+    });
   });
 
   // A student's own Google session shares the staff domain; their record must never list classmates.

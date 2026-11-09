@@ -240,7 +240,7 @@ export const TeamsRedesignDevHarness: React.FC = () => {
         </span>
         <label className="flex items-center gap-2">
           Screen
-          <select
+          <select // no-tour-anchor: dev-only redesign mockup, never on the board
             value={screen}
             onChange={(e) => setScreen(e.target.value as ScreenId)}
             className="rounded-sm border border-slate-300 bg-white px-2 py-1"
@@ -254,7 +254,7 @@ export const TeamsRedesignDevHarness: React.FC = () => {
         </label>
         <label className="flex items-center gap-2">
           View as
-          <select
+          <select // no-tour-anchor: dev-only redesign mockup, never on the board
             value={lead ? 'lead' : 'member'}
             onChange={(e) => setLead(e.target.value === 'lead')}
             className="rounded-sm border border-slate-300 bg-white px-2 py-1"
@@ -264,7 +264,7 @@ export const TeamsRedesignDevHarness: React.FC = () => {
           </select>
         </label>
         <label className="flex items-center gap-1.5">
-          <input
+          <input // no-tour-anchor: dev-only redesign mockup, never on the board
             type="checkbox"
             checked={tagged}
             onChange={(e) => setTagged(e.target.checked)}
@@ -272,7 +272,7 @@ export const TeamsRedesignDevHarness: React.FC = () => {
           Questions tagged
         </label>
         <label className="flex items-center gap-1.5">
-          <input
+          <input // no-tour-anchor: dev-only redesign mockup, never on the board
             type="checkbox"
             checked={live}
             onChange={(e) => setLive(e.target.checked)}

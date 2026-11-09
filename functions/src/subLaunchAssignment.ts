@@ -32,6 +32,7 @@ import {
   type GlKeyStep,
 } from './guidedLearningPublicStep';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { unverifiedClassIds } from './verifiedClassList';
 import { quizJoinCodeOwner } from './quizJoinCodeOwner';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
@@ -671,10 +672,14 @@ export async function resolveTargeting(
       classPeriodByClassId[classId] = data.name;
     }
   }
-  if (classIds.length === 0) {
+  // Roster docs are host-written, so only classes on the host's verified list are kept.
+  const unverified = new Set(await unverifiedClassIds(db, hostUid, classIds));
+  const kept = classIds.filter((id) => !unverified.has(id));
+  for (const id of unverified) delete classPeriodByClassId[id];
+  if (kept.length === 0) {
     denied('Those rosters have no class a student can sign in to.');
   }
-  return { classIds, classPeriodByClassId };
+  return { classIds: kept, classPeriodByClassId };
 }
 
 /**

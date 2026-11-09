@@ -64,3 +64,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-11-06 | claude/tour-anchors-2026-11-06 | Shared pieces (maximized-bar handle, Drive banners, toasts, widget What's New notice) | 0 | 15 | 1 area | 379 in 145 files |
 | 2026-11-07 | claude/tour-anchors-2026-11-07-sweep | Library and assigning (flashcards player and share dialog, Keep apart picker, Schoology banner, Spotify Premium notice, video activity student answers) | 9 | 22 | 0 | 332 in 132 files |
 | 2026-11-08 | claude/tour-anchors-2026-11-08 | Library and assigning (flashcards student player and Write mode) | 6 | 11 | 0 | 315 in 130 files |
+| 2026-11-09 | claude/tour-anchors-2026-11-09 | Teams (PLC redesign mockup, dev harnesses, mobile shell controls, hidden date inputs) | 0 | 41 | 0 | 271 in 110 files |

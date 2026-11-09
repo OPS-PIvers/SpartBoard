@@ -723,6 +723,12 @@
 | 2026-11-08 | State & Data | Quiz pause credit: a repeat Pause overwrote `pausedAt`, and Reopen did not set it, so Resume credited no span. Consolidated with Build & Tooling (same bug in `handleControlSubAssignment`). (contained). | [#5428](https://github.com/OPS-PIvers/SpartBoard/pull/5428) |
 | 2026-11-08 | Admin & Config | Clean: 252 files / 3274 tests green; read config normalizers, FEATURE_DEFAULTS (probe), admin access/Analytics/Organization libs, auth components, locale key and placeholder diff; no reproducible bug. | — |
 | 2026-11-08 | Build & Tooling | Repeat sub `pause` rewrote `pausedAt` (see State & Data row); fixed in the same PR. | [#5428](https://github.com/OPS-PIvers/SpartBoard/pull/5428) |
+| 2026-11-09 | Baseline | `pnpm run validate` green on `dev-paul` at `370f8640` (2257 root files, 227 functions files). Only a unifier log PR open at dispatch. | — |
+| 2026-11-09 | Widgets | RevealGrid `handleShareUrl` put `clipboard.writeText` in the same try as the Drive link call, so a blocked clipboard reported "Failed to get share link" though the link existed. Uses `copyText`; alert shows the URL on copy failure. (contained). | [#5460](https://github.com/OPS-PIvers/SpartBoard/pull/5460) |
+| 2026-11-09 | Dashboard & Layout | `DeepLinkShareImporter` post-import `.then` callbacks closed over the board at import start, so a board change mid-import could add a duplicate Quiz/Video Activity widget. Openers now read through `useLayoutEffect` refs. (contained). | [#5461](https://github.com/OPS-PIvers/SpartBoard/pull/5461) |
+| 2026-11-09 | State & Data | `extractYouTubeId` regex lacked `live/`, so `youtube.com/live/<id>` links were rejected. (contained). | [#5462](https://github.com/OPS-PIvers/SpartBoard/pull/5462) |
+| 2026-11-09 | Admin & Config | Quiz read-aloud monthly cap inputs snapped to 0 on clear (`parseInt` then `0` in `onChange`). Uses `DraftNumberField`. (contained). | [#5463](https://github.com/OPS-PIvers/SpartBoard/pull/5463) |
+| 2026-11-09 | Build & Tooling | Activity Wall archive file names reused the 60-char folder sanitizer, dropping the extension on long names and splitting surrogate pairs. New `sanitizeDriveFileName`, code-point safe. (contained). | [#5464](https://github.com/OPS-PIvers/SpartBoard/pull/5464) |
 
 ## Backlog
 
@@ -1170,6 +1176,11 @@
 | Dashboard & Layout | Unverified: `DeepLinkShareImporter` `.then` callbacks close over the board at import start; `useUnifiedAssignments` guided-learning/mini-app rows drop `periodNames`/`classIds`. `DraggableWindow.tsx` and `DashboardView.tsx` still unread in depth. | 2026-11-08 | open |
 | Build & Tooling | Resume on an already-active quiz still runs `refreshIdleResponses` (up to 400 writes). `resolveOrgForUser.autoEnrollMember` checks `isStudentDomain` only for the matched `hd` domain. Unread: `studentAssignmentTargets`, `quizMediaArchive`, `organizationInvites`, `googleOAuth`, `aiGeneration`. | 2026-11-08 | open |
 | Admin & Config | Low: `isValidManagedAuthIssuer` accepts an explicit `:443`; `normalizeQuizTranslationSettings` does not dedupe languages and allows a cap of 0; `studentsForCategory` filters only on `lastSignInMs` (check server). | 2026-11-08 | open |
+| Build & Tooling | `functions/src/mcp/videoStore.ts:56` has a verbatim copy of the old YouTube id regex, so it rejects `/live/` URLs; share one implementation or add `live\/`. | 2026-11-09 | open |
+| Widgets | Unguarded `navigator.clipboard.writeText` remains at `GuidedLearning/Widget.tsx` ~L938 (assignment already created, then error toast) and `SmartNotebook/Widget.tsx` ~L545 `handleShare`; use `copyText` and show the URL. `videoActivityImportAdapter.parseCsv` NaN guard exists (lead stale); a 0 or negative time limit passes unclamped. Surrogate `.slice` still open at `ArtsLettersAgenda/utils.ts:28`, `VideoActivityWidget/Widget.tsx:345`, `Focus/FocusSetup.tsx:348`. | 2026-11-09 | open |
+| Dashboard & Layout | `DeepLinkShareImporter`: `runAssignmentImport` `.then` and the Import-canceled Retry route through `setPendingAssignmentSetup` without a board-switch check; `peekAndDispatchImportRef`/`runVideoActivityImportRef` still assigned during render under `eslint-disable react-hooks/refs`. Closed: `useUnifiedAssignments` dropping `periodNames`/`classIds` is intentional. `DraggableWindow.tsx`, `DashboardView.tsx` still unread. | 2026-11-09 | open (low) |
+| Admin & Config | Uncleared-number-input class likely remains in `CalendarConfigurationModal` (~397, ~806), `First5ConfigurationPanel:62`, `SmartNotebookConfigurationPanel:112`, `ActivityWallConfigurationPanel:191` (handlers unread). `normalizeQuizTranslationSettings` dedupe/cap 0 and `withoutProtectedMembers` O(n*m) not examined. | 2026-11-09 | open |
+| Build & Tooling | `backfill-live-session-codes.mjs`/`backfill-project-work-links.mjs` take `--apply` as the project id when `--project` has no value; `scripts/checkTourAnchors.ts` `--base` with no value gives `undefined...HEAD`; `refreshIdleResponses`/`finalizeQuizResponses` single `.limit(400)` page. Unread: `studentAssignmentTargets.ts`, `quizMediaArchive.ts` from line 500. | 2026-11-09 | open (low) |
 
 ## Notes & Gotchas
 
@@ -1622,3 +1633,5 @@
 - Run count: **116** | Last run: **2026-11-06**
 - 2026-11-08: one consolidated fix (#5428, client and Cloud Function shared the `pausedAt` root cause) plus one (#5427); three areas clean. The merged-tree gate (`validate` + `build`) on both branches was green; baseline took about 40 min.
 - Run count: **117** | Last run: **2026-11-08**
+- 2026-11-09: five fixes (#5460-#5464). Subagents ran scoped checks only; the first merged-tree gate failed at functions type-check (TS2550, `isWellFormed` again in a subagent test; the note from 2026-11-02 applies to `functions/` tests too), so the full gate was re-run after the fix. `dev-paul` moved during the run (no overlap). Baseline ~1 h, each gate ~1 h.
+- Run count: **118** | Last run: **2026-11-09**

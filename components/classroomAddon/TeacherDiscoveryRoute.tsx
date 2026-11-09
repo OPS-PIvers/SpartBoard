@@ -175,6 +175,8 @@ interface ResolvedTargeting {
   classPeriodByClassId: Record<string, string>;
 }
 
+const TEACHER_TOKEN_REUSE_MS = 45 * 60 * 1000;
+
 export const ClassroomAddonTeacherSpike: React.FC = () => {
   const params =
     typeof window === 'undefined'
@@ -414,76 +416,113 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     }
   }, [append, signInWithGoogle]);
 
-  // Resolve the assignment's targeting. If this Google course is linked to a
-  // ClassLink class, use that real sourcedId so the assignment's classIds
-  // MATCH the token classroomAddonLoginV1 mints for the student (which is also
-  // the linked sourcedId) — that's what lets the class-gate authorize their
-  // responses AND lets the monitor resolve real names. We ALSO surface the
-  // linked roster's id + name as rosterIds/periodNames so the teacher monitor
-  // shows the targeted class (it reads periodNames, not classIds). If unlinked,
-  // classIds falls back to "classroom:<courseId>" (works, but nameless) and the
-  // roster fields stay empty — an unlinked course has no SpartBoard roster.
-  // Shared by both the quiz and video-activity attach paths.
+  // One addons.teacher token for the targeting check and the attachment; Google tokens last an hour.
+  const teacherTokenRef = useRef<{ token: Promise<string>; at: number } | null>(
+    null
+  );
+  const teacherAccessToken = useCallback((): Promise<string> => {
+    const cached = teacherTokenRef.current;
+    if (cached && Date.now() - cached.at < TEACHER_TOKEN_REUSE_MS) {
+      return cached.token;
+    }
+    append('Granting Classroom add-on permission…');
+    const token = (async () => {
+      await ensureGis();
+      return requestAccessToken(ADDON_TEACHER_SCOPES, loginHint);
+    })().catch((err: unknown) => {
+      teacherTokenRef.current = null;
+      throw err;
+    });
+    teacherTokenRef.current = { token, at: Date.now() };
+    return token;
+  }, [append, loginHint]);
+
+  // The server proves the teacher launch and returns the class ids this session may target.
   const resolveClassTargeting =
     // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.uid on purpose
     useCallback(async (): Promise<ResolvedTargeting> => {
+      const accessToken = await teacherAccessToken();
+      const verify = httpsCallable<
+        {
+          accessToken: string;
+          courseId: string;
+          itemId: string;
+          itemType: string;
+          addOnToken: string;
+        },
+        { classIds: string[] }
+      >(functions, 'verifyClassroomTeacherV1');
+      let data: { classIds: string[] };
+      try {
+        ({ data } = await verify({
+          accessToken,
+          courseId,
+          itemId,
+          itemType,
+          addOnToken,
+        }));
+      } catch (err) {
+        // A refused token is not reused on the next try.
+        teacherTokenRef.current = null;
+        throw err;
+      }
       const targeting: ResolvedTargeting = {
-        classIds: [`classroom:${courseId}`],
+        classIds: data.classIds,
         rosterIds: [],
         periodNames: [],
         classPeriodByClassId: {},
       };
+      const linkedClassId = data.classIds.find(
+        (id) => !id.startsWith('classroom:')
+      );
+      if (!linkedClassId) {
+        append(
+          'Course not linked to a ClassLink class — students will be ' +
+            'anonymous in the monitor. Link it from your roster to show names.'
+        );
+        return targeting;
+      }
+      append(`Course is linked to ClassLink class ${linkedClassId}.`);
       try {
         const linkSnap = await getDoc(
           doc(db, 'classroom_course_links', courseId)
         );
-        const linkData = linkSnap.exists() ? linkSnap.data() : undefined;
-        const linkedClassId = linkData?.classlinkClassId as string | undefined;
-        const linkedRosterId = linkData?.rosterId as string | undefined;
-        if (linkedClassId) {
-          // Carry BOTH the linked sourcedId AND the courseId-scoped id. The
-          // student token always includes `classroom:<courseId>` (see
-          // classroomAddonLoginV1), so including it here guarantees the
-          // class-gate finds an overlap for EVERY Classroom-verified course
-          // member — including a student not yet in the synced ClassLink roster,
-          // and the case where the course was linked AFTER this assignment was
-          // attached. The sourcedId stays first so regular-SSO roster-mates match.
-          targeting.classIds = [linkedClassId, `classroom:${courseId}`];
-          append(`Course is linked to ClassLink class ${linkedClassId}.`);
-
-          // Surface the linked roster so the monitor can label the targeted
-          // class. Best-effort: a missing roster doc/name must not break attach —
-          // fall back to a sensible default rather than throwing.
-          if (linkedRosterId && user?.uid) {
-            let rosterName = 'Google Classroom';
-            try {
-              const rosterSnap = await getDoc(
-                doc(db, 'users', user.uid, 'rosters', linkedRosterId)
-              );
-              const name = rosterSnap.exists()
-                ? (rosterSnap.data().name as string | undefined)
-                : undefined;
-              if (name && name.length > 0) {
-                rosterName = name;
-              }
-            } catch {
-              // Keep the default rosterName; targeting is still valid.
+        const linkedRosterId = linkSnap.exists()
+          ? (linkSnap.data().rosterId as string | undefined)
+          : undefined;
+        // Best-effort: a missing roster doc/name must not break attach.
+        if (linkedRosterId && user?.uid) {
+          let rosterName = 'Google Classroom';
+          try {
+            const rosterSnap = await getDoc(
+              doc(db, 'users', user.uid, 'rosters', linkedRosterId)
+            );
+            const name = rosterSnap.exists()
+              ? (rosterSnap.data().name as string | undefined)
+              : undefined;
+            if (name && name.length > 0) {
+              rosterName = name;
             }
-            targeting.rosterIds = [linkedRosterId];
-            targeting.periodNames = [rosterName];
-            targeting.classPeriodByClassId = { [linkedClassId]: rosterName };
+          } catch {
+            // Keep the default rosterName; targeting is still valid.
           }
-        } else {
-          append(
-            'Course not linked to a ClassLink class — students will be ' +
-              'anonymous in the monitor. Link it from your roster to show names.'
-          );
+          targeting.rosterIds = [linkedRosterId];
+          targeting.periodNames = [rosterName];
+          targeting.classPeriodByClassId = { [linkedClassId]: rosterName };
         }
       } catch {
-        // Fall back to the courseId-scoped classId with no roster targeting.
+        // Targeting stands without the roster label.
       }
       return targeting;
-    }, [append, courseId, user?.uid]);
+    }, [
+      append,
+      courseId,
+      itemId,
+      itemType,
+      addOnToken,
+      teacherAccessToken,
+      user?.uid,
+    ]);
 
   // Mint the addons.teacher access token + create the Classroom attachment.
   // `contentParams` carries the quiz-vs-VA discriminator (quizCode vs
@@ -498,12 +537,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       // The addons.teacher grant is what getAddOnContext validates the teacher
       // launch against — a separate, minimal grant from the SpartBoard Drive
       // sign-in above.
-      append('Granting Classroom add-on permission…');
-      await ensureGis();
-      const accessToken = await requestAccessToken(
-        ADDON_TEACHER_SCOPES,
-        loginHint
-      );
+      const accessToken = await teacherAccessToken();
 
       append('Creating the Classroom attachment…');
       const callable = httpsCallable<
@@ -523,7 +557,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       setAttachmentId(data.attachmentId);
       return data.attachmentId;
     },
-    [append, courseId, itemId, itemType, addOnToken, loginHint]
+    [append, courseId, itemId, itemType, addOnToken, teacherAccessToken]
   );
 
   // Build the PLC linkage when the teacher opted into "Share with PLC" and

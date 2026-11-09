@@ -1811,6 +1811,7 @@
       "saveRequiredTitle": "Save required",
       "shareCopied": "Share link copied to clipboard!",
       "shareCopiedTitle": "Copied",
+      "shareLinkTitle": "Share link",
       "shareFailed": "Failed to get share link."
     },
     "numberLine": {

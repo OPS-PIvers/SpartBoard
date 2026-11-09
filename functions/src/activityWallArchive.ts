@@ -211,8 +211,7 @@ const FORBIDDEN_DRIVE_NAME_CHARS = new Set([
   '|',
 ]);
 
-/** Drive names must not carry path separators or leading dots. */
-export function sanitizeDriveNameSegment(raw: string): string {
+function cleanDriveName(raw: string): string {
   return Array.from(raw)
     .filter(
       (ch) => ch.charCodeAt(0) >= 0x20 && !FORBIDDEN_DRIVE_NAME_CHARS.has(ch)
@@ -220,8 +219,28 @@ export function sanitizeDriveNameSegment(raw: string): string {
     .join('')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/^\.+/, '')
-    .slice(0, 60);
+    .replace(/^\.+/, '');
+}
+
+/** Drive names must not carry path separators or leading dots; folder names keep their UTF-16 cap so existing folders still match. */
+export function sanitizeDriveNameSegment(raw: string): string {
+  return cleanDriveName(raw).slice(0, 60);
+}
+
+const capCodePoints = (s: string, max: number): string =>
+  Array.from(s).slice(0, max).join('');
+
+const FILE_EXTENSION_RE = /\.[A-Za-z0-9]{1,8}$/;
+
+/** A file name capped at 60 characters that keeps its extension. */
+function sanitizeDriveFileName(raw: string): string {
+  const ext = FILE_EXTENSION_RE.exec(raw.trim())?.[0] ?? '';
+  if (!ext) return capCodePoints(cleanDriveName(raw), 60);
+  const stem = capCodePoints(
+    cleanDriveName(raw.trim().slice(0, -ext.length)),
+    60 - ext.length
+  );
+  return stem ? `${stem}${ext}` : capCodePoints(cleanDriveName(raw), 60);
 }
 
 /** `SpartBoard / Activity Walls / <title> (<activityId short>)`. */
@@ -253,9 +272,7 @@ export function buildArchiveFileName(
   mimeType: string
 ): string {
   const provided =
-    typeof rawFileName === 'string'
-      ? sanitizeDriveNameSegment(rawFileName)
-      : '';
+    typeof rawFileName === 'string' ? sanitizeDriveFileName(rawFileName) : '';
   if (provided) return provided;
   const extension = EXTENSION_BY_MIME[mimeType] ?? 'bin';
   return `${sanitizeDriveNameSegment(submissionId) || 'submission'}.${extension}`;

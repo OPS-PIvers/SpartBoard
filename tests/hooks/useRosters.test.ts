@@ -26,6 +26,9 @@ import type { ClassRosterMeta, Student } from '@/types';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
+vi.mock('@/utils/verifiedClassesRefresh', () => ({
+  refreshVerifiedClassesIfStale: vi.fn(() => Promise.resolve()),
+}));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),

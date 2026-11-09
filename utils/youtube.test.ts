@@ -31,6 +31,12 @@ describe('extractYouTubeId', () => {
     );
   });
 
+  it('extracts ID from live URL', () => {
+    expect(extractYouTubeId('https://www.youtube.com/live/dQw4w9WgXcQ')).toBe(
+      'dQw4w9WgXcQ'
+    );
+  });
+
   it('extracts ID from watch URL with extra parameters', () => {
     expect(
       extractYouTubeId(

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
@@ -152,23 +152,27 @@ export const DeepLinkShareImporter: React.FC = () => {
     [activeDashboard, updateWidget, addWidget, bringToFront]
   );
 
+  // Async .then callbacks read the latest openers so they see the board as it is when the import resolves.
+  const openQuizRef = React.useRef(openQuizWidgetToTab);
+  const openVaRef = React.useRef(openVideoActivityWidgetToTab);
+  useLayoutEffect(() => {
+    openQuizRef.current = openQuizWidgetToTab;
+    openVaRef.current = openVideoActivityWidgetToTab;
+  });
+
   // Handle pending quiz share import from URL/paste.
   // After a successful import, surface the Quiz widget to the Library tab so
   // the user actually sees where the new quiz landed (fixes the "nothing
   // happened" paste UX).
   useEffect(() => {
     if (!pendingQuizShareId || !user) return;
-    // Clear synchronously BEFORE awaiting so effect re-runs (triggered by
-    // unrelated dep churn like `openQuizWidgetToTab` changing reference when
-    // activeDashboard updates) don't re-invoke the import and spawn duplicate
-    // widgets. Previously this was in .finally() and opened a race window
-    // where the same shareId could be imported 2-3× concurrently.
+    // Clear before awaiting so effect re-runs can't import the same share twice.
     const shareId = pendingQuizShareId;
     clearPendingQuizShare();
     void importSharedQuiz(shareId, saveBank)
       .then(() => {
         addToast('Shared quiz imported to your library!', 'success');
-        openQuizWidgetToTab('library');
+        openQuizRef.current('library');
       })
       .catch((err: unknown) => {
         const msg =
@@ -191,7 +195,6 @@ export const DeepLinkShareImporter: React.FC = () => {
     saveBank,
     addToast,
     clearPendingQuizShare,
-    openQuizWidgetToTab,
   ]);
 
   // Pending rubric share import. Rubrics have no widget surface of their own,
@@ -295,7 +298,7 @@ export const DeepLinkShareImporter: React.FC = () => {
               : 'Shared assignment imported!',
             'success'
           );
-          openQuizWidgetToTab('active');
+          openQuizRef.current('active');
           // Prompt the importer to pick rosters/periods for the new
           // assignment instead of leaving it paused with no targeting.
           setPendingAssignmentSetup(newAssignmentId);
@@ -328,7 +331,6 @@ export const DeepLinkShareImporter: React.FC = () => {
       saveBank,
       saveDriveSnapshot,
       addToast,
-      openQuizWidgetToTab,
       setPendingAssignmentSetup,
       plcs,
     ]
@@ -460,7 +462,7 @@ export const DeepLinkShareImporter: React.FC = () => {
       })
         .then(() => {
           addToast('Shared video activity imported!', 'success');
-          openVideoActivityWidgetToTab('active');
+          openVaRef.current('active');
         })
         .catch((err: unknown) => {
           logError('DeepLinkShareImporter.importSharedVideoActivity', err, {
@@ -492,7 +494,6 @@ export const DeepLinkShareImporter: React.FC = () => {
       saveVideoActivity,
       attachVideoActivitySyncLinkage,
       addToast,
-      openVideoActivityWidgetToTab,
     ]
   );
 

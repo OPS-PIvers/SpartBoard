@@ -31,4 +31,4 @@ The scheduled trigger is not set up yet; Paul turns it on with the loop routine 
 
 6. **Tell Paul** in one short list which criteria were paused and why, or that the check passed. A paused criterion is re-normed with Paul: rewrite the descriptor or measurement with him, bump the rubric version (R26), then remove it from `paused` in the same PR. Never unpause one on your own.
 
-7. **Commit** the scorecards, `calibration/` files, `spot-checks.json` and `supervision.json` on `claude/widget-spot-check-<date>` and open a PR into `dev-paul`.
+7. **Commit** the scorecards, `calibration/` files, `spot-checks.json` and `supervision.json` on `claude/widget-spot-check-<date>` and open a PR into `dev-paul`. Run `pnpm exec prettier --write` on every changed file first: the grader scripts write unformatted JSON, and PR CI skips the format check for these paths.

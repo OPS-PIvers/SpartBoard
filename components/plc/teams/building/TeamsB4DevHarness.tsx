@@ -280,7 +280,7 @@ export const TeamsB4DevHarness: React.FC = () => {
         </span>
         <label className="flex items-center gap-2">
           Screen
-          <select
+          <select // no-tour-anchor: dev-only harness page, never on the board
             value={screen}
             onChange={(e) => setScreen(e.target.value as Screen)}
             className="rounded-sm border border-slate-300 bg-white px-2 py-1"
@@ -291,7 +291,7 @@ export const TeamsB4DevHarness: React.FC = () => {
         </label>
         <label className="flex items-center gap-2">
           View as
-          <select
+          <select // no-tour-anchor: dev-only harness page, never on the board
             value={lead ? 'lead' : 'member'}
             onChange={(e) => setLead(e.target.value === 'lead')}
             className="rounded-sm border border-slate-300 bg-white px-2 py-1"
