@@ -178,7 +178,7 @@ export const DepartmentHubMock: React.FC<{
             ))}
           </RowList>
           <div className="mt-2 flex items-center gap-2">
-            <input
+            <input // no-tour-anchor: dev-only redesign mockup, never on the board
               type="text"
               placeholder="Add an agenda item"
               aria-label="Add an agenda item"

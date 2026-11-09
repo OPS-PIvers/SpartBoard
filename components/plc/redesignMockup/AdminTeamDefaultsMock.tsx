@@ -208,7 +208,7 @@ export const AdminTeamDefaultsMock: React.FC = () => {
               <Settings className="h-4 w-4 shrink-0 text-white/70" />
               Admin Settings
             </span>
-            <button
+            <button // no-tour-anchor: dev-only redesign mockup, never on the board
               type="button"
               className="mx-auto shrink-0 rounded-lg p-2 transition-colors hover:bg-white/20 lg:mx-0"
               aria-label="Close settings"
@@ -233,7 +233,7 @@ export const AdminTeamDefaultsMock: React.FC = () => {
                   {group.tabs.map(([label, Icon]) => {
                     const active = label === ACTIVE_TAB;
                     return (
-                      <button
+                      <button // no-tour-anchor: dev-only redesign mockup, never on the board
                         key={label}
                         type="button"
                         role="tab"
@@ -327,7 +327,7 @@ export const AdminTeamDefaultsMock: React.FC = () => {
               </PanelSection>
 
               <PanelSection title="Hero default">
-                <select
+                <select // no-tour-anchor: dev-only redesign mockup, never on the board
                   aria-label="Hero default"
                   className={`${INPUT} mt-1 py-1.5`}
                 >
@@ -350,13 +350,13 @@ export const AdminTeamDefaultsMock: React.FC = () => {
                         key={heading}
                         className="flex items-center gap-2 py-2"
                       >
-                        <input
+                        <input // no-tour-anchor: dev-only redesign mockup, never on the board
                           type="text"
                           defaultValue={heading}
                           aria-label="Section heading"
                           className={`${INPUT} min-w-0 flex-1 py-1.5`}
                         />
-                        <select
+                        <select // no-tour-anchor: dev-only redesign mockup, never on the board
                           defaultValue={kind}
                           aria-label={`Block for ${heading}`}
                           className={`${INPUT} py-1.5`}
@@ -393,7 +393,7 @@ export const AdminTeamDefaultsMock: React.FC = () => {
                         <span className="w-5 shrink-0 text-xs font-bold tabular-nums text-slate-400">
                           {i + 1}
                         </span>
-                        <input
+                        <input // no-tour-anchor: dev-only redesign mockup, never on the board
                           type="text"
                           defaultValue={r}
                           aria-label={`Criterion ${i + 1}`}

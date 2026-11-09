@@ -33,7 +33,7 @@ const NoteListItem: React.FC<{
   active?: boolean;
   icon?: boolean;
 }> = ({ title, meta, active = false, icon = false }) => (
-  <button
+  <button // no-tour-anchor: dev-only redesign mockup, never on the board
     type="button"
     aria-current={active || undefined}
     className={`flex w-full flex-col rounded-xl px-3 py-2 text-left transition-colors ${

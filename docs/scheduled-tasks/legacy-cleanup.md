@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
-_Last audited: 2026-11-01_
+_Last audited: 2026-11-08_
 _Last action: 2026-08-09 — Deleted the entire `scripts/tools/` directory (9 stale Python/Playwright dev-session scripts, zero references anywhere, including `fix_buttons.py` which auto-edited widget source). Resolves the source-modification-risk portion of the "scripts/tools/\*.py" MEDIUM; the root `scripts/*.js` audit portion remains Open (narrowed)._
+
+_2026-11-08: Sunday Audit D2. 0 `console.log` in components/context/hooks/utils; `migrateLocalStorageToFirestore` still called at `context/DashboardContext.tsx:3080`; no `scripts/tools/`; all 8 listed dead exports still have no production call sites; `imageProcessing.ts:111` console.warn still present. 0 new issues._
 
 _2026-10-22: Thursday Audit D2 (light pass). 0 `console.log` calls in `components/`, `context/`, `hooks/`, `utils/`; `migrateLocalStorageToFirestore` still called at `context/DashboardContext.tsx:2831`. 0 new issues._
 
