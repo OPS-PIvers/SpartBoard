@@ -10948,6 +10948,7 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
+  | 'paper-reword-sync'
   /** AI transcription of scanned handwritten answers; off means teachers grade the crop. */
   | 'paper-handwriting-ai'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */

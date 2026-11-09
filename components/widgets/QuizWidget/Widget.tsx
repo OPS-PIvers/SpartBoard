@@ -200,6 +200,10 @@ import {
   firestoreDocData,
   readPaperImportQuota,
 } from '@/utils/paperImportQuota';
+import {
+  PAPER_REWORD_SYNC_FEATURE,
+  paperRewordQuestions,
+} from '@/utils/paperRewordSync';
 import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
 import { AnswerKeyFillModal } from './components/AnswerKeyFill';
 import { httpsCallable } from 'firebase/functions';
@@ -842,6 +846,57 @@ const TeacherQuizWidget: React.FC<{
   })();
 
   const paperUid = paperSheets.enabled && !isReview ? user?.uid : undefined;
+  const rewordSyncOn =
+    paperSheets.enabled && canAccessFeature(PAPER_REWORD_SYNC_FEATURE);
+  const lastRewordSync = useRef(new Map<string, string>());
+  const lastRewordErrorAt = useRef(0);
+  const rewordSyncRuns = useRef(new Map<string, Promise<void>>());
+  const latestSavedQuiz = useRef<QuizData | null>(null);
+  /** Saved answers are choice text, so scanned tests follow a teacher's rewording. */
+  const syncPaperRewords = async (quiz: QuizData) => {
+    if (
+      !rewordSyncOn ||
+      isSandboxed(quiz.id) ||
+      !assignments.some((a) => a.quizId === quiz.id && a.hasPaperResponses)
+    ) {
+      return;
+    }
+    const questions = paperRewordQuestions(quiz);
+    const payload = JSON.stringify(questions);
+    if (
+      questions.length === 0 ||
+      lastRewordSync.current.get(quiz.id) === payload
+    ) {
+      return;
+    }
+    // One run per quiz at a time; overlapping runs can undo each other.
+    const prev = rewordSyncRuns.current.get(quiz.id) ?? Promise.resolve();
+    const run = prev.then(() => callRewordSync(quiz.id, questions, payload));
+    rewordSyncRuns.current.set(quiz.id, run);
+    await run;
+  };
+  const callRewordSync = async (
+    quizId: string,
+    questions: ReturnType<typeof paperRewordQuestions>,
+    payload: string
+  ) => {
+    if (lastRewordSync.current.get(quizId) === payload) return;
+    try {
+      await httpsCallable(
+        functions,
+        'paperRewordSyncV1'
+      )({ quizId, questions });
+      lastRewordSync.current.set(quizId, payload);
+    } catch {
+      // Autosave retries as a teacher types, so don't repeat the message.
+      if (Date.now() - lastRewordErrorAt.current < 60_000) return;
+      lastRewordErrorAt.current = Date.now();
+      addToast(
+        'Quiz saved, but scanned answers could not be updated. Save again to retry.',
+        'error'
+      );
+    }
+  };
   // Written answers on paper: device quiz, written questions on a printed sheet.
   const writtenOnPaperOn =
     !!paperUid &&
@@ -2856,11 +2911,11 @@ const TeacherQuizWidget: React.FC<{
                 const batches = (
                   await listPaperBatchesForQuiz(user.uid, meta.id)
                 )
-                  // An assignment that took scans before Paper cards has no batch of its own.
-                  .filter(
-                    (b) =>
-                      !assignment.paperBatchId ||
-                      b.id === assignment.paperBatchId
+                  // An assignment that took scans before Paper cards has no batch of its own; never offer another's.
+                  .filter((b) =>
+                    assignment.paperBatchId
+                      ? b.id === assignment.paperBatchId
+                      : !linkedPaperBatchIds.has(b.id)
                   );
                 setPaperImport({ quiz: data, meta, batches, assignment });
               }
@@ -4199,6 +4254,10 @@ const TeacherQuizWidget: React.FC<{
             }
           : {})}
         onClose={() => {
+          // Only finished wording: an autosave can catch a half-typed choice.
+          const finished = latestSavedQuiz.current ?? editingQuiz;
+          latestSavedQuiz.current = null;
+          if (finished) void syncPaperRewords(finished);
           setEditingQuiz(null);
           setEditingMeta(null);
         }}
@@ -4214,6 +4273,7 @@ const TeacherQuizWidget: React.FC<{
             // Adopt what was written. Without this a new quiz keeps saving
             // with no drive file id, so every retitled autosave orphans a file.
             setEditingMeta(saved);
+            latestSavedQuiz.current = updated;
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
               const published = getQuizBehavior(saved);
@@ -4894,6 +4954,7 @@ const TeacherQuizWidget: React.FC<{
           )}
           onSave={async (data) => {
             await saveQuiz(data, paperOcr.meta.driveFileId);
+            void syncPaperRewords(data);
             addToast('Question text updated.', 'success');
           }}
           onPickFromDrive={pickScanFromDrive}

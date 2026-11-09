@@ -228,6 +228,7 @@ Created with a test generator`)
       pdfLine(1, 566, ['b. no', 90]),
     ]);
     expect(first.options[1].text).toBe('hydrogenated');
+    expect(first.text).toBe('What kind is it? (Figure 2) Topic 2: Enzymes');
     expect(second.text).toBe('Next?');
   });
 

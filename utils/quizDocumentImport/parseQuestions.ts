@@ -1385,7 +1385,7 @@ export function parseDocument(
     // question hasn't reached its options yet.
     const wrapping = lastOption;
     if (wrapping) {
-      // A figure caption, instruction or heading ends the choice; what follows it is not choice text.
+      // A figure caption, instruction or heading ends the choice; keep what follows visible on the stem.
       if (
         wrapping.closed ||
         isNotChoiceText(
@@ -1396,6 +1396,7 @@ export function parseDocument(
         )
       ) {
         wrapping.closed = true;
+        open.textParts.push(text);
         open.imageIds.push(...(line.imageIds ?? []));
         return;
       }

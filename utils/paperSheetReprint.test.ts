@@ -118,6 +118,21 @@ describe('planSheetReprint', () => {
     });
   });
 
+  it('finds the bubble of an answer scanned before the choice was reworded', () => {
+    const own = {
+      ...mc('q1', 'lower', ['same', 'higher']),
+      optionOrder: [1, 0, 2],
+      paperOwnTest: true,
+    };
+    const plan = planSheetReprint(
+      response([{ questionId: 'q1', answer: 'a lower' }]),
+      batch({ choiceOrder: { q1: ['same', 'a lower', 'higher'] } }),
+      quiz([own])
+    );
+    expect(plan?.filled).toEqual([1]);
+    expect(plan?.correct).toEqual([1]);
+  });
+
   it('reads a stub batch, which printed bare letters', () => {
     const plan = planSheetReprint(
       response([{ questionId: 'q1', answer: 'C' }]),
