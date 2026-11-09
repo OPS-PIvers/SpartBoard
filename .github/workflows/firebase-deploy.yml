@@ -17,7 +17,7 @@ concurrency:
   group: ${{ github.workflow }}-production
   cancel-in-progress: false
 
-# Deploys authenticate with the service-account secret; GITHUB_TOKEN reads runs and files a rollback issue.
+# Deploy authenticates keylessly (WIF, main only) in the production environment; GITHUB_TOKEN reads runs and files a rollback issue.
 permissions:
   contents: read
   actions: read
@@ -35,6 +35,9 @@ env:
   VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
   VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
   VITE_SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
+  # The provider's attribute condition admits only refs/heads/main of this repo in the production environment.
+  PROD_WIF_PROVIDER: projects/759666600376/locations/global/workloadIdentityPools/github/providers/spartboard-main
+  PROD_DEPLOY_SA: github-deploy@spartboard.iam.gserviceaccount.com
 
 jobs:
   # A release or hotfix merge whose tree is identical to its already-validated PR head skips the
@@ -76,6 +79,11 @@ jobs:
       indexes: ${{ steps.plan.outputs.indexes }}
       functions: ${{ steps.plan.outputs.functions }}
     steps:
+      - name: Refuse any ref but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Production deploys run only from main."
+          exit 1
       - uses: actions/checkout@v6.0.3
         with:
           fetch-depth: 0
@@ -98,8 +106,8 @@ jobs:
       - id: plan
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
-          # A dispatch from any branch other than main, or main's first run after one, deploys every target.
-          FULL: ${{ inputs.full_backend || github.ref != 'refs/heads/main' || steps.base.outputs.other == 'true' }}
+          # Main's first run after another branch's run deploys every target.
+          FULL: ${{ inputs.full_backend || steps.base.outputs.other == 'true' }}
         run: ./.github/scripts/plan-deploy.sh main "$BASE_SHA" "$FULL"
 
   # Same parallel layout as the dev-branch workflow: every check runs on its
@@ -228,6 +236,12 @@ jobs:
     # Skipped checks (reuse) are fine; a failed or cancelled one is not.
     if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
+    # Its deployment-branch policy admits only main.
+    environment: production
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
     steps:
       - uses: actions/checkout@v6.0.3
       - uses: ./.github/actions/setup
@@ -243,8 +257,10 @@ jobs:
             mv "$RUNNER_TEMP/carry-forward.tmp" "$RUNNER_TEMP/carry-forward.exit" ) > "$RUNNER_TEMP/carry-forward.log" 2>&1 &
 
       # Backend before hosting: a new composite index isn't usable until it builds, so hosting waits for it.
-      - name: Create Service Account File
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.PROD_WIF_PROVIDER }}
+          service_account: ${{ env.PROD_DEPLOY_SA }}
 
       # releaseFirestoreRules.mjs proves the minified rules with the compiler in the emulator jar.
       - name: Setup Java
@@ -281,7 +297,6 @@ jobs:
           echo "Deploying: ${FIREBASE_DEPLOY_ONLY:-rules only}" | tee -a "$GITHUB_STEP_SUMMARY"
           ./.github/scripts/firebase-deploy-with-retry.sh spartboard
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
           PLANNED: ${{ needs.plan.outputs.deploy_only }}
           FUNCTIONS_PLANNED: ${{ needs.plan.outputs.functions }}
           PROJECT: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -301,13 +316,9 @@ jobs:
       - name: Wait for Firestore composite indexes to be READY
         if: needs.plan.outputs.indexes == 'true'
         run: ./.github/scripts/wait-for-firestore-indexes.sh spartboard
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
 
       - name: Record the live hosting version for rollback
         id: prev
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
         run: |
           version=$(pnpm exec firebase hosting:channel:list --project spartboard --site spartboard --json \
             | jq -r '.result.channels[] | select(.name | endswith("/channels/live")) | .release.version.name | split("/") | last')
@@ -326,8 +337,6 @@ jobs:
       # An identical bundle is rejected as "the current active version": a no-op success.
       - name: Deploy to Firebase Hosting (Live)
         id: hosting
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
         run: |
           set +e
           OUT=$(pnpm exec firebase deploy --only hosting --project spartboard 2>&1)
@@ -358,7 +367,6 @@ jobs:
       - name: Roll hosting back to the previous release
         if: ${{ always() && steps.hosting.outcome == 'success' && steps.smoke.outcome == 'failure' && steps.prev.outputs.version != '' }}
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
           VERSION: ${{ steps.prev.outputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -367,10 +375,6 @@ jobs:
           gh issue create --repo "$GITHUB_REPOSITORY" --assignee "$GITHUB_ACTOR" \
             --title "Prod smoke test failed for ${GITHUB_SHA::7}; hosting rolled back" \
             --body "The smoke test failed after deploying ${GITHUB_SHA} (${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Hosting is back on version ${VERSION}. Backend changes from this release are still live."
-
-      - name: Cleanup Service Account File
-        if: always()
-        run: rm -f service-account.json
 
       - name: Deployment Summary
         if: success()

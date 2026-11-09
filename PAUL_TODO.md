@@ -13,6 +13,11 @@ Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-8
 
 ## 1. Now: blocking a release or a person
 
+- [ ] **PT-75 You: prod CI keyless setup, before the next release.** `firebase-deploy.yml` and the prod lunch-menu sync now sign in with Workload Identity Federation from `main` only, so the next release's deploy fails until this exists. On project `spartboard` (759666600376):
+  1. `gcloud iam workload-identity-pools create github --project=spartboard --location=global`, then `gcloud iam workload-identity-pools providers create-oidc spartboard-main --project=spartboard --location=global --workload-identity-pool=github --issuer-uri=https://token.actions.githubusercontent.com --attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository --attribute-condition="assertion.repository=='OPS-PIvers/spartboard' && assertion.ref=='refs/heads/main' && assertion.environment=='production'"`.
+  2. Create `github-deploy@spartboard.iam.gserviceaccount.com` with the roles the SA behind the `FIREBASE_SERVICE_ACCOUNT` secret has, and give `principalSet://iam.googleapis.com/projects/759666600376/locations/global/workloadIdentityPools/github/attribute.repository/OPS-PIvers/spartboard` the Workload Identity User role on it.
+  3. GitHub Settings > Environments > New environment `production`; Deployment branches and tags: Selected branches, add `main` only.
+  4. After the first green prod deploy: delete the `FIREBASE_SERVICE_ACCOUNT` repo secret and delete that JSON key in IAM (other-branch runs could read it). If your PC's `scripts/service-account-key.json` is the same key, make a new one for the PC.
 - [ ] **PT-126 🤖 Schoology section owner backfill, now due** (security wave 3, live since release #5189 on 2026-11-05). Until it runs, Schoology sections launched before the release show "Student" instead of names and refuse course linking until a student relaunches. On the PC with the prod key:
   > Run `node scripts/backfill-lti-context-owners.mjs` on prod as a dry run and show me the counts, then re-run with `--apply` after I say go.
 - [ ] **PT-1 🤖 Quiz join code backfill, run 2** (F78). Run 1 and the security release are done; run 2 is what lets the next release drop the old-client rule (AB-47). Turn on the PC with the prod key (OPS-z6wXCDG6PbO), then paste:
@@ -132,8 +137,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 - [ ] **PT-72 You: stale budget.** Delete the $20 "SpartBoard" budget on the personal billing account (01597B); it covers nothing now.
 - [ ] **PT-74 🤖 Daily prod backup schedule** (delete protection and PITR are on; PITR's 7 days is the only recovery path).
   > Propose a daily Firestore backup schedule for prod with a retention and cost estimate, then create it after I say go.
-- [ ] **PT-75 🤖 Prod CI to keyless deploys.**
-  > Plan moving prod CI to Workload Identity Federation like dev, list the console steps I have to click, then delete the prod JSON key once it works.
 - [ ] **PT-76 You: Dependabot alerts** (F85, optional). Settings > Code security > Dependabot alerts > Enable.
 - [ ] **PT-132 You: raise the prod Cloud Run CPU quota.** Every prod release still hits about 10 "Quota Exceeded" waits while it updates ~231 functions, which adds 1-3 min and is the main way a deploy can still fail. In Google Cloud Console on project `spartboard`: IAM & Admin > Quotas & System Limits, filter "Total CPU allocation, per project per region" (service Cloud Run Admin API), tick the `us-central1` row, Edit quota, ask for double the current value, and give the reason "parallel Cloud Functions gen 2 deploys". Free; it only raises the ceiling. Then tell an agent "PT-132 done" and it checks the next prod deploy log for quota waits.
 - [ ] **PT-101 You: dev registrations for ClassLink, Spotify and LTI**, only when a feature needs them on spartboard-dev (they are placeholders there today).

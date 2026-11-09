@@ -3,7 +3,7 @@ name: Sync Lunch Menus
 # Nutrislice refuses requests from Google Cloud IPs, so the Lunch Count menu is
 # fetched here and written to Firestore `lunch_menus/{schoolSite}`.
 # Schedules run from main only and write prod; pushes to dev-* that touch the
-# sync write spartboard-dev; workflow_dispatch writes whichever project is chosen.
+# sync write spartboard-dev; workflow_dispatch writes whichever project is chosen (prod from main only).
 on:
   schedule:
     # 4:17 and 6:47 AM Central (CDT; an hour earlier in CST), plus Sunday evening for Monday.
@@ -39,9 +39,17 @@ jobs:
   sync:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    # Prod runs use the production environment, whose deployment-branch policy admits only main.
+    environment: ${{ github.event_name != 'push' && inputs.project != 'spartboard-dev' && 'production' || '' }}
     env:
       PROJECT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.project || (github.event_name == 'push' && 'spartboard-dev' || 'spartboard') }}
     steps:
+      - name: Refuse a prod write from any ref but main
+        if: env.PROJECT_ID == 'spartboard' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Writing prod runs only from main."
+          exit 1
+
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -53,12 +61,14 @@ jobs:
         with:
           node-version: 24
 
+      # Keyless WIF whose provider admits only main in the production environment.
       - name: Authenticate to prod
         if: env.PROJECT_ID == 'spartboard'
         id: prod-auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          workload_identity_provider: projects/759666600376/locations/global/workloadIdentityPools/github/providers/spartboard-main
+          service_account: github-deploy@spartboard.iam.gserviceaccount.com
           token_format: access_token
 
       # Keyless WIF only trusts dev-* refs, so a dev write must run from a dev-* branch.
