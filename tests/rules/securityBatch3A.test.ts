@@ -376,8 +376,8 @@ describe('building admin status changes stop at higher tiers', () => {
   });
 });
 
-// Poll reads stay open this release so open tabs keep working; AB-113 closes them.
-describe('poll codes and sessions keep working for open tabs', () => {
+// Poll codes resolve only through the server; batch 4B closed the direct reads (AB-113).
+describe('poll codes and sessions resolve only through the server', () => {
   const session = {
     id: 'K3F9Q',
     teacherUid: TEACHER_UID,
@@ -396,14 +396,21 @@ describe('poll codes and sessions keep working for open tabs', () => {
     await seed(`poll_sessions/${POLL_SESSION_ID}`, session);
   });
 
-  it('still lets an old student tab and an old teacher tab read a pointer by code', async () => {
-    await assertSucceeds(getDoc(doc(asAnon(), 'poll_codes/K3F9Q')));
-    await assertSucceeds(getDoc(doc(asTeacher(), 'poll_codes/ZZZZZ')));
+  it('closes pointer reads to every client', async () => {
+    await assertFails(getDoc(doc(asAnon(), 'poll_codes/K3F9Q')));
+    await assertFails(getDoc(doc(asTeacher(), 'poll_codes/ZZZZZ')));
     await assertFails(getDocs(collection(asAnon(), 'poll_codes')));
     await assertFails(getDocs(collection(asTeacher(), 'poll_codes')));
   });
 
-  it('still lets a participant read the session and vote, and the owner read it', async () => {
+  it('lets a joined participant read the session and vote, and the owner read it', async () => {
+    await assertFails(
+      getDoc(doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}`))
+    );
+    await seed(`poll_joins/${POLL_SESSION_ID}__${ANON_UID}`, {
+      sessionId: POLL_SESSION_ID,
+      uid: ANON_UID,
+    });
     await assertSucceeds(
       getDoc(doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}`))
     );

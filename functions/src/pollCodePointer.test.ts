@@ -55,13 +55,84 @@ describe('pollCodePointer', () => {
   it("moves a reserved code to a Synced-board member's live session", async () => {
     const ptr = await run(
       {
-        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_codes/ABCDE': {
+          sessionId: 'tA_ABCDE',
+          teacherUid: 'tA',
+          memberUids: ['tA', 'tB'],
+        },
         'poll_sessions/tA_ABCDE': live('tA', { active: false }),
       },
       'tB_ABCDE',
       live('tB')
     );
-    expect(ptr).toMatchObject({ sessionId: 'tB_ABCDE' });
+    expect(ptr).toMatchObject({
+      sessionId: 'tB_ABCDE',
+      teacherUid: 'tB',
+      memberUids: ['tA', 'tB'],
+    });
+  });
+
+  it('moves the code back to its first holder after a colleague ran it', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': {
+          sessionId: 'tB_ABCDE',
+          teacherUid: 'tB',
+          memberUids: ['tA', 'tB'],
+        },
+        'poll_sessions/tB_ABCDE': live('tB', { active: false }),
+      },
+      'tA_ABCDE',
+      live('tA')
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tA_ABCDE', teacherUid: 'tA' });
+  });
+
+  it("never moves an idle teacher's code to a teacher the server has not checked", async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': {
+          sessionId: 'tA_ABCDE',
+          teacherUid: 'tA',
+          updatedAt: Date.now(),
+        },
+        'poll_sessions/tA_ABCDE': live('tA', { active: false }),
+      },
+      'tX_ABCDE',
+      live('tX', { updatedAt: 99 })
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tA_ABCDE', teacherUid: 'tA' });
+  });
+
+  it("keeps a fresh reservation from another teacher's session", async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': {
+          sessionId: 'tA_ABCDE',
+          teacherUid: 'tA',
+          reservedAt: Date.now(),
+        },
+      },
+      'tX_ABCDE',
+      live('tX')
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tA_ABCDE' });
+  });
+
+  it('lets any teacher take a reservation whose session never appeared', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': {
+          sessionId: 'tA_ABCDE',
+          teacherUid: 'tA',
+          reservedAt: Date.now() - 16 * 60 * 1000,
+        },
+      },
+      'tX_ABCDE',
+      live('tX')
+    );
+    expect(ptr).toMatchObject({ sessionId: 'tX_ABCDE', teacherUid: 'tX' });
+    expect(ptr).not.toHaveProperty('memberUids');
   });
 
   it("never takes a code from another teacher's live session", async () => {
@@ -93,7 +164,11 @@ describe('pollCodePointer', () => {
   it('hands the code to a live rival when the holder retires', async () => {
     const ptr = await run(
       {
-        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_codes/ABCDE': {
+          sessionId: 'tA_ABCDE',
+          teacherUid: 'tA',
+          memberUids: ['tB'],
+        },
         'poll_sessions/tA_ABCDE': live('tA', { active: false, questions: [] }),
         'poll_sessions/tB_ABCDE': live('tB'),
       },
@@ -105,13 +180,29 @@ describe('pollCodePointer', () => {
   it('hands the code to a live rival when the holder goes inactive', async () => {
     const ptr = await run(
       {
-        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_codes/ABCDE': {
+          sessionId: 'tA_ABCDE',
+          teacherUid: 'tA',
+          memberUids: ['tB'],
+        },
         'poll_sessions/tA_ABCDE': live('tA', { active: false }),
         'poll_sessions/tB_ABCDE': live('tB'),
       },
       'tA_ABCDE'
     );
     expect(ptr).toMatchObject({ sessionId: 'tB_ABCDE' });
+  });
+
+  it('never hands the code to a live rival the server has not checked', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': { sessionId: 'tA_ABCDE', teacherUid: 'tA' },
+        'poll_sessions/tA_ABCDE': live('tA', { active: false, questions: [] }),
+        'poll_sessions/tX_ABCDE': live('tX'),
+      },
+      'tA_ABCDE'
+    );
+    expect(ptr).toBeUndefined();
   });
 
   it('keeps the pointer on an active holder', async () => {

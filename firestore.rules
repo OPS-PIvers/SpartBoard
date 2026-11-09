@@ -6,6 +6,22 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
+    // More shorthands; helpers on paths near the 1,000-expression limit keep the raw forms (each call is one more step).
+    function tok() { return request.auth.token; }
+    function nowMs() { return request.time.toMillis(); }
+    function emailVerified() { return tok().get('email_verified', false) == true; }
+    function myEmail() { return tok().email.lower(); }
+    function newKeys() { return incoming().keys(); }
+    function noDoc() { return resource == null; }
+    function mySid(id) { return id.matches(authUid() + '_.*'); }
+    function optListMax(k, n) { return !(k in incoming()) || (isList(k) && incoming()[k].size() <= n); }
+    function optNullStr(k) { return !(k in incoming()) || incoming()[k] == null || isStr(k); }
+    function dbExists(c, id) { return exists(/databases/$(database)/documents/$(c)/$(id)); }
+    function dbExists4(c, id, s, sid) { return exists(/databases/$(database)/documents/$(c)/$(id)/$(s)/$(sid)); }
+    function dbGet(c, id) { return get(/databases/$(database)/documents/$(c)/$(id)); }
+    function dbGet4(c, id, s, sid) { return get(/databases/$(database)/documents/$(c)/$(id)/$(s)/$(sid)); }
+    function dbGetAfter(c, id) { return getAfter(/databases/$(database)/documents/$(c)/$(id)); }
+    function dbGetAfter4(c, id, s, sid) { return getAfter(/databases/$(database)/documents/$(c)/$(id)/$(s)/$(sid)); }
     // A view-as token that may not make this request (read-only write, or past exp)
     // has no uid: the missing-key error denies every owner comparison built on it.
     // A pinLoginV1 token likewise has no uid outside the one session it was proven for.
@@ -217,7 +233,7 @@ service cloud.firestore {
 
     // pinLoginV1 tokens share a student's SSO uid but prove only one class.
     function isPinLoginToken() {
-      return request.auth.token.get('pinLogin', false) == true;
+      return tok().get('pinLogin', false) == true;
     }
 
     // True iff the caller is a studentRole user AND the given classId is in
@@ -310,25 +326,25 @@ service cloud.firestore {
     // Per-period content docs: the caller's seat names their response, whose
     // classId picks the period. `coll`/`sid` locate the session.
     function seatedClassId(coll, sid) {
-      return get(/databases/$(database)/documents/$(coll)/$(sid)/responses/$(get(/databases/$(database)/documents/$(coll)/$(sid)/seats/$(authUid())).data.responseKey)).data.get('classId', null);
+      return dbGet4(coll, sid, 'responses', dbGet4(coll, sid, 'seats', authUid()).data.responseKey).data.get('classId', null);
     }
     function seatWriteOk(coll, sid, uid) {
       return signedIn() && authUid() == uid &&
-             incoming().keys().hasOnly(['responseKey']) &&
-             getAfter(/databases/$(database)/documents/$(coll)/$(sid)/responses/$(incoming().responseKey)).data.studentUid == uid;
+             newKeys().hasOnly(['responseKey']) &&
+             dbGetAfter4(coll, sid, 'responses', incoming().responseKey).data.studentUid == uid;
     }
     function contentWriteOk(coll, sid) {
       return signedIn() &&
-             getAfter(/databases/$(database)/documents/$(coll)/$(sid)).data.teacherUid == authUid();
+             dbGetAfter(coll, sid).data.teacherUid == authUid();
     }
     // Kinds with no response at join keep the student's period on their seat.
     function seatPeriodOk(s, uid) {
       return signedIn() && authUid() == uid &&
-             incoming().keys().hasOnly(['classId']) && periodJoinOk(s, incoming());
+             newKeys().hasOnly(['classId']) && periodJoinOk(s, incoming());
     }
     function seatOpen(coll, sid, s) {
       return s.get('periodAccess', null) == null || studentLetIn(s) ||
-             periodOpen(s, get(/databases/$(database)/documents/$(coll)/$(sid)/seats/$(authUid())).data.get('classId', null));
+             periodOpen(s, dbGet4(coll, sid, 'seats', authUid()).data.get('classId', null));
     }
 
     // A substitute who launched session `s` from a sub share may monitor that one
@@ -396,9 +412,9 @@ service cloud.firestore {
     // either: that makes the clause unprovable, so it can only ever be false.
     function sessionListScoped() {
       return existing().get('teacherUid', '') == authUid() ||
-             (request.auth.token.get('classIds', []) is list &&
-              (existing().get('classIds', []).hasAny(request.auth.token.get('classIds', [])) ||
-               existing().get('classId', '') in request.auth.token.get('classIds', [])));
+             (tok().get('classIds', []) is list &&
+              (existing().get('classIds', []).hasAny(tok().get('classIds', [])) ||
+               existing().get('classId', '') in tok().get('classIds', [])));
     }
 
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
@@ -432,7 +448,7 @@ service cloud.firestore {
     // Returns the caller's /organizations/{orgId}/members/{email} doc data.
     // Callers must guard with isOrgMember(orgId) first; otherwise get() fails.
     function orgMember(orgId) {
-      return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.token.email.lower())).data;
+      return dbGet4('organizations', orgId, 'members', myEmail()).data;
     }
 
     // Maps a legacy long-form building id to its canonical short id. MUST stay in
@@ -490,26 +506,27 @@ service cloud.firestore {
     // The caller's roleId within an org, or empty string when not a member or
     // deactivated (Deactivate keeps roleId, so the admin tier must check status).
     function memberRole(orgId, emailLower) {
-      return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)) &&
-             liveStatus(get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data)
-             ? get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data.get('roleId', '')
+      return dbExists4('organizations', orgId, 'members', emailLower) &&
+             liveStatus(dbGet4('organizations', orgId, 'members', emailLower).data)
+             ? dbGet4('organizations', orgId, 'members', emailLower).data.get('roleId', '')
              : '';
     }
 
     // email_verified is REQUIRED, same reason as isAdmin() above.
+    function orgAdmin(orgId) { return isSuperAdmin() || isDomainAdmin(orgId); }
     function isDomainAdmin(orgId) {
-      return signedIn() && request.auth.token.email != null &&
-             request.auth.token.get('email_verified', false) == true &&
+      return signedIn() && tok().email != null &&
+             emailVerified() &&
              viewAsAdminOk() &&
-             memberRole(orgId, request.auth.token.email.lower()) == 'domain_admin';
+             memberRole(orgId, myEmail()) == 'domain_admin';
     }
 
     // email_verified is REQUIRED, same reason as isAdmin() above.
     function isBuildingAdmin(orgId) {
-      return signedIn() && request.auth.token.email != null &&
-             request.auth.token.get('email_verified', false) == true &&
+      return signedIn() && tok().email != null &&
+             emailVerified() &&
              viewAsAdminOk() &&
-             memberRole(orgId, request.auth.token.email.lower()) == 'building_admin';
+             memberRole(orgId, myEmail()) == 'building_admin';
     }
 
     // True when the caller has a member doc under the given org (any role,
@@ -540,7 +557,7 @@ service cloud.firestore {
     // throw on tokens with no email claim.
     function notDeactivated() {
       return !(signedIn() &&
-               request.auth.token.get('email', '') != '' &&
+               tok().get('email', '') != '' &&
                operatorMember() != null &&
                !liveStatus(operatorMember().data));
     }
@@ -595,15 +612,15 @@ service cloud.firestore {
         // the canonical orgId + matching doc id, pin `users == 0` (derived
         // count, server-managed), and only include the known building fields
         // so clients can't seed unexpected attributes.
-        allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+        allow create: if (orgAdmin(orgId)) &&
           incoming().orgId == orgId &&
           incoming().id == buildingId &&
           incoming().users == 0 &&
-          incoming().keys().hasOnly([
+          newKeys().hasOnly([
             'id', 'orgId', 'name', 'address', 'grades', 'type',
             'adminEmails', 'users'
           ]);
-        allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
+        allow delete: if orgAdmin(orgId);
         // Domain+ admins edit any building in their org; building admins edit
         // only buildings they manage. Both tiers share a field whitelist so
         // neither can touch identity fields (id, orgId) or the server-managed
@@ -627,18 +644,18 @@ service cloud.firestore {
         // create and update: resolveOrgIdForDomain (classlinkShared.ts) resolves a user's
         // org via EXACT-match query and never normalizes the STORED side, so a mismatched
         // value would be accepted here and then fail org resolution forever, silently.
-        allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+        allow create: if (orgAdmin(orgId)) &&
           incoming().orgId == orgId &&
           incoming().id == domainId &&
           incoming().status == 'pending' &&
           incoming().users == 0 &&
           incoming().domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
-          incoming().keys().hasOnly([
+          newKeys().hasOnly([
             'id', 'orgId', 'domain', 'authMethod', 'status', 'role',
             'users', 'addedAt'
           ]);
-        allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
-        allow update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+        allow delete: if orgAdmin(orgId);
+        allow update: if (orgAdmin(orgId)) &&
           incoming().domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
           (isSuperAdmin() ||
            (sameId() &&
@@ -656,11 +673,11 @@ service cloud.firestore {
         // admins may patch `perms` (see update branch). Client-created roles must
         // pin path identity, be system:false, and stay within the schema so
         // clients can't attach unexpected fields.
-        allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+        allow create: if (orgAdmin(orgId)) &&
           incoming().id == roleId &&
           incoming().system == false &&
-          incoming().keys().hasAll(['id', 'name', 'system', 'perms']) &&
-          incoming().keys().hasOnly([
+          newKeys().hasAll(['id', 'name', 'system', 'perms']) &&
+          newKeys().hasOnly([
             'id', 'name', 'blurb', 'color', 'system', 'perms'
           ]);
         // Update pins id + system and blocks unknown fields. Super admins may
@@ -683,7 +700,7 @@ service cloud.firestore {
            changedOnly([
              'name', 'blurb', 'color', 'perms'
            ]));
-        allow delete: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+        allow delete: if (orgAdmin(orgId)) &&
           existing().system != true;
       }
 
@@ -694,10 +711,10 @@ service cloud.firestore {
         // the super-admin lookup. `resource == null` is allowed unconditionally
         // (nothing to leak); email_verified is required once the doc exists.
         allow read: if (signedIn() &&
-                       request.auth.token.email != null &&
-                       request.auth.token.email.lower() == emailLower &&
-                       (resource == null ||
-                        request.auth.token.get('email_verified', false) == true)) ||
+                       tok().email != null &&
+                       myEmail() == emailLower &&
+                       (noDoc() ||
+                        emailVerified())) ||
                     isOrgMember(orgId) ||
                     isSuperAdmin();
         // Domain+ admins manage members via a field whitelist so identity fields (email,
@@ -712,8 +729,8 @@ service cloud.firestore {
           incoming().email == incoming().email.lower() &&
           incoming().email == emailLower &&
           incoming().orgId == orgId &&
-          incoming().keys().hasAll(['email', 'orgId', 'roleId', 'buildingIds', 'status']) &&
-          incoming().keys().hasOnly([
+          newKeys().hasAll(['email', 'orgId', 'roleId', 'buildingIds', 'status']) &&
+          newKeys().hasOnly([
             'email', 'orgId', 'roleId', 'buildingIds', 'status',
             'name', 'invitedAt', 'addedBy', 'addedBySource'
           ]);
@@ -728,7 +745,7 @@ service cloud.firestore {
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ]) &&
            // No self-service role or status change (e.g. undoing a deactivation).
-           (emailLower != request.auth.token.email.lower() ||
+           (emailLower != myEmail() ||
             (incoming().get('roleId', '') == existing().get('roleId', '') &&
              incoming().get('status', '') == existing().get('status', ''))) &&
            // Anti-escalation: roleId=='super_admin' is a live isSuperAdmin() grant
@@ -747,7 +764,7 @@ service cloud.firestore {
           // not editable until a domain admin assigns a building. See
           // config/buildings.ts.
           (isBuildingAdmin(orgId) &&
-           emailLower != request.auth.token.email.lower() &&
+           emailLower != myEmail() &&
            // Never a higher tier, in either direction.
            !(existing().get('roleId', '') in ['super_admin', 'domain_admin']) &&
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
@@ -759,9 +776,9 @@ service cloud.firestore {
           // change, so it can't escalate role/buildingIds/status or touch another
           // user. Powers the admin panel's "Last active" column without a CF.
           (signedIn() &&
-           request.auth.token.email != null &&
-           request.auth.token.get('email_verified', false) == true &&
-           request.auth.token.email.lower() == emailLower &&
+           tok().email != null &&
+           emailVerified() &&
+           myEmail() == emailLower &&
            viewAsOk() &&
            unchanged('email') &&
            unchanged('orgId') &&
@@ -774,10 +791,10 @@ service cloud.firestore {
         // arbitrary config ids, and delete is refused so the org always has
         // a config doc. Payload must carry the canonical orgId and only the
         // known config fields so clients can't seed unexpected attributes.
-        allow create, update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+        allow create, update: if (orgAdmin(orgId)) &&
           configId == 'default' &&
           incoming().orgId == orgId &&
-          incoming().keys().hasOnly([
+          newKeys().hasOnly([
             'orgId', 'showAnnouncements', 'showTeacherDirectory',
             'showLunchMenu', 'accentColor', 'heroText'
           ]);
@@ -786,7 +803,7 @@ service cloud.firestore {
 
       // Remove-from-org tombstone: auto-enroll (Admin SDK) skips these emails.
       match /removedMembers/{emailLower} {
-        allow write: if isSuperAdmin() || isDomainAdmin(orgId);
+        allow write: if orgAdmin(orgId);
       }
 
       match /invitations/{token} {
@@ -801,7 +818,7 @@ service cloud.firestore {
       // assignment class pickers read to expose test targets. Invisible to
       // non-admin teachers.
       match /testClasses/{classId} {
-        allow read, write: if isSuperAdmin() || isDomainAdmin(orgId);
+        allow read, write: if orgAdmin(orgId);
       }
 
       // Cached analytics snapshot, written nightly by recomputeAdminAnalytics
@@ -822,10 +839,10 @@ service cloud.firestore {
       // case-insensitive matching). `resource == null` allowed unconditionally
       // (nothing to leak); email_verified required once the doc exists.
       allow read: if signedIn() &&
-                  request.auth.token.email != null &&
-                  request.auth.token.email.lower() == email.lower() &&
-                  (resource == null ||
-                   request.auth.token.get('email_verified', false) == true);
+                  tok().email != null &&
+                  myEmail() == email.lower() &&
+                  (noDoc() ||
+                   emailVerified());
       // No write rule: created only via Firebase Console or Admin SDK.
     }
 
@@ -930,7 +947,7 @@ service cloud.firestore {
     match /users/{userId}/plc_state/{plcId} {
       allow read, delete: if ownsUser(userId);
       allow create, update: if ownsUser(userId)
-                   && incoming().keys().hasOnly(['lastSeenAt'])
+                   && newKeys().hasOnly(['lastSeenAt'])
                    && (
                         isInt('lastSeenAt')
                         || isTimestamp('lastSeenAt')
@@ -1016,7 +1033,7 @@ service cloud.firestore {
     }
 
     function userRubricKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
       ]);
     }
@@ -1274,16 +1291,16 @@ service cloud.firestore {
       // actions (ADMIN_VIEW_AS.md D16). Every identity field must match the
       // server-minted claim; session lifecycle entries are server-only.
       allow create: if signedIn() &&
-                       request.auth.token.get('viewAs', null) != null &&
+                       tok().get('viewAs', null) != null &&
                        viewAsOk() &&
-                       request.auth.token.viewAs.get('ro', true) == false &&
-                       incoming().keys().hasOnly(['action', 'sid', 'email', 'targetEmail',
+                       tok().viewAs.get('ro', true) == false &&
+                       newKeys().hasOnly(['action', 'sid', 'email', 'targetEmail',
                          'targetUid', 'path', 'before', 'after', 'reason', 'timestamp']) &&
                        incoming().action in ['view_as_save', 'view_as_approve', 'view_as_outward'] &&
-                       incoming().sid == request.auth.token.viewAs.sid &&
-                       incoming().email == request.auth.token.viewAs.by &&
+                       incoming().sid == tok().viewAs.sid &&
+                       incoming().email == tok().viewAs.by &&
                        incoming().targetUid == authUid() &&
-                       incoming().targetEmail == request.auth.token.get('email', '').lower() &&
+                       incoming().targetEmail == tok().get('email', '').lower() &&
                        incoming().get('path', 'users/' + authUid()).matches('users/' + authUid() + '(/.*)?') &&
                        !incoming().get('path', '').matches('users/[^/]+/private(/.*)?') &&
                        incoming().timestamp == request.time;
@@ -1332,8 +1349,8 @@ service cloud.firestore {
         || (changedOnly(['clicks', 'lastClickedAt'])
             && incoming().clicks == existing().get('clicks', 0) + 1
             && isInt('lastClickedAt')
-            && incoming().lastClickedAt <= request.time.toMillis() + 300000
-            && incoming().lastClickedAt >= request.time.toMillis() - 300000);
+            && incoming().lastClickedAt <= nowMs() + 300000
+            && incoming().lastClickedAt >= nowMs() - 300000);
       allow delete: if isAdmin();
     }
 
@@ -1414,15 +1431,15 @@ service cloud.firestore {
     match /rollout_requests/{requestId} {
       allow read, update, delete: if isAdmin();
       allow create: if signedIn()
-        && request.auth.token.get('email', '') != ''
-        && incoming().keys().hasOnly([
+        && tok().get('email', '') != ''
+        && newKeys().hasOnly([
              'kind', 'name', 'email', 'role', 'organization', 'domain',
              'size', 'message', 'status', 'createdAt', 'submittedByUid'
            ])
         && incoming().kind in ['pilot', 'district']
         && incoming().status == 'new'
         && incoming().submittedByUid == authUid()
-        && incoming().email == request.auth.token.email.lower()
+        && incoming().email == myEmail()
         && isStr('name')
         && incoming().name.size() > 0
         && incoming().name.size() <= 200
@@ -1456,7 +1473,7 @@ service cloud.firestore {
 
     match /building_guided_learning/{setId} {
       // A tour draft keeps sample copies (answer keys included) in tourSetup and its steps' saved boards: staff only.
-      allow get: if signedIn() && (resource == null || staffSignedIn() || (existing().get('tourSetup', null) == null && existing().get('hasLiveTour', false) != true && existing().get('mode', '') != 'tour'));
+      allow get: if signedIn() && (noDoc() || staffSignedIn() || (existing().get('tourSetup', null) == null && existing().get('hasLiveTour', false) != true && existing().get('mode', '') != 'tour'));
       allow list: if staffSignedIn();
       allow write: if isAdmin();
       // A live tour's notes for Claude and its last editor playtest (LIVE_TOUR_CONSISTENT_START.md C9, C10): admins only.
@@ -1480,7 +1497,7 @@ service cloud.firestore {
     // A web tour (surface 'web') is district staff only; a missing doc stays readable (_meta, unpublished ids).
     // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
-      allow get: if staffSignedIn() && (resource == null || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin());
+      allow get: if staffSignedIn() && (noDoc() || existing().get('surface', 'spartboard') == 'spartboard' || isDistrictStaff() || isAdmin());
       allow list: if staffSignedIn() && (isDistrictStaff() || isAdmin());
       allow create, delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
@@ -1523,8 +1540,8 @@ service cloud.firestore {
       // email_verified is REQUIRED, same reason as isAdmin() above.
       allow read: if signedIn() &&
                   existing().accessLevel == 'beta' &&
-                  request.auth.token.get('email_verified', false) == true &&
-                  request.auth.token.email.lower() in existing().betaUsers;
+                  emailVerified() &&
+                  myEmail() in existing().betaUsers;
 
       allow write: if isAdmin();
     }
@@ -1569,13 +1586,13 @@ service cloud.firestore {
       // @orono.k12.mn.us address it doesn't own.
       // A missing doc reads as missing, so a fixed-id share can be created only if absent (two tabs).
       allow get: if signedIn() && (
-        resource == null
+        noDoc()
         || existing().get('intendedMode', null) != 'substitute'
         || isOrigAuthor()
         || isAdmin()
         || (
           isDistrictStaff()
-          && existing().get('expiresAt', 0) > request.time.toMillis()
+          && existing().get('expiresAt', 0) > nowMs()
         )
       );
 
@@ -1621,14 +1638,12 @@ service cloud.firestore {
             && isStr('buildingId')
             && incoming().buildingId.size() > 0
             && isNumber('expiresAt')
-            && incoming().expiresAt > request.time.toMillis()
-            && incoming().expiresAt <= request.time.toMillis() + 1209600000
+            && incoming().expiresAt > nowMs()
+            && incoming().expiresAt <= nowMs() + 1209600000
             && isList('initialState')
             // subEmails DoS cap: DashboardContext issues one Drive grant per entry
             // with no bound. Optional; <=20 when set. (Same guard on update below.)
-            && (!('subEmails' in incoming())
-                || (isList('subEmails')
-                    && incoming().subEmails.size() <= 20))
+            && (optListMax('subEmails', 20))
           )
         ) &&
         (
@@ -1680,9 +1695,7 @@ service cloud.firestore {
         ) &&
         // subEmails cap on EVERY owner update (copy/PLC shares too, not just
         // substitute which pins it above) — bounds doc size. Matches create cap.
-        (!('subEmails' in incoming())
-          || (isList('subEmails')
-              && incoming().subEmails.size() <= 20));
+        (optListMax('subEmails', 20));
 
       // Collaborator (Synced): may update content but not participants,
       // originalAuthor, originalAuthorName (host display name — spoofable
@@ -1732,14 +1745,14 @@ service cloud.firestore {
       allow delete: if signedIn() && (
         isOrigAuthor() || isAdmin()
         || (existing().get('linkedCollectionId', null) is string
-            && sbLinkHostOf(get(/databases/$(database)/documents/linked_collections/$(existing().linkedCollectionId)).data))
+            && sbLinkHostOf(dbGet('linked_collections', existing().linkedCollectionId).data))
       );
 
       // Read-only copies of library items for the share's co-teachers (co-teaching plan slices 4-5).
       // Id {kind}_{ownerUid}_{itemId}: only the owner writes it, holding the item in their own library.
       match /items/{itemDocId} {
         function sbItemShare() {
-          return get(/databases/$(database)/documents/shared_boards/$(shareId)).data;
+          return dbGet('shared_boards', shareId).data;
         }
         // Library collection per kind; '' for anything else.
         function sbItemCollection(kind) {
@@ -1759,7 +1772,7 @@ service cloud.firestore {
             && isStr('title') && d.title.size() <= 500
             && isStr('version') && d.version.size() <= 200
             && isMap('payload')
-            && exists(/databases/$(database)/documents/users/$(authUid())/$(sbItemCollection(d.kind))/$(d.itemId));
+            && dbExists4('users', authUid(), sbItemCollection(d.kind), d.itemId);
         }
         function sbItemMember(uid) {
           return sbItemShare().originalAuthor == uid || uid in sbItemShare().get('participants', {});
@@ -1768,7 +1781,7 @@ service cloud.firestore {
         // copies the deleted share left behind.
         allow get: if staffSignedIn() && isDistrictStaff()
           && sbItemMember(authUid())
-          && (resource == null || sbItemMember(existing().get('ownerUid', '')));
+          && (noDoc() || sbItemMember(existing().get('ownerUid', '')));
         allow create: if signedIn() && sbItemWriteOk();
         allow update: if signedIn() && existing().ownerUid == authUid() && sbItemWriteOk();
         allow delete: if signedIn() && (existing().get('ownerUid', null) == authUid()
@@ -1789,12 +1802,8 @@ service cloud.firestore {
           && incoming().boardIds.size() <= 500
           && incoming().collection.name is string
           && incoming().collection.name.size() > 0
-          && (!('sections' in incoming())
-              || (isList('sections')
-                  && incoming().sections.size() <= 500))
-          && (!('boards' in incoming())
-              || (isList('boards')
-                  && incoming().boards.size() <= 500));
+          && (optListMax('sections', 500))
+          && (optListMax('boards', 500));
       }
 
       // GET: any authed user for non-substitute. Substitute shares gated by
@@ -1810,7 +1819,7 @@ service cloud.firestore {
         || isAdmin()
         || (
           isDistrictStaff()
-          && existing().get('expiresAt', 0) > request.time.toMillis()
+          && existing().get('expiresAt', 0) > nowMs()
         )
       );
 
@@ -1846,13 +1855,11 @@ service cloud.firestore {
             && isStr('buildingId')
             && incoming().buildingId.size() > 0
             && isNumber('expiresAt')
-            && incoming().expiresAt > request.time.toMillis()
-            && incoming().expiresAt <= request.time.toMillis() + 1209600000
+            && incoming().expiresAt > nowMs()
+            && incoming().expiresAt <= nowMs() + 1209600000
             // subEmails DoS cap (one Drive grant per entry, unbounded). Optional;
             // a list of <=20 when present.
-            && (!('subEmails' in incoming())
-                || (isList('subEmails')
-                    && incoming().subEmails.size() <= 20))
+            && (optListMax('subEmails', 20))
           )
         );
 
@@ -1877,9 +1884,7 @@ service cloud.firestore {
            == existing().get('intendedMode', null)
         && incoming().get('hostUid', null)
            == existing().get('hostUid', null)
-        && (!('subEmails' in incoming())
-            || (isList('subEmails')
-                && incoming().subEmails.size() <= 20))
+        && (optListMax('subEmails', 20))
         && (
           existing().get('intendedMode', null) == 'copy'
           || (
@@ -1889,7 +1894,7 @@ service cloud.firestore {
               'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt'
             ])
             && isNumber('expiresAt')
-            && incoming().expiresAt <= request.time.toMillis() + 1209600000
+            && incoming().expiresAt <= nowMs() + 1209600000
           )
         );
 
@@ -1902,7 +1907,7 @@ service cloud.firestore {
       // first, so the get() resolves. email_verified is REQUIRED on the @orono
       // branch, same reason as isAdmin() above.
       function shareData() {
-        return get(/databases/$(database)/documents/shared_collections/$(shareId)).data;
+        return dbGet('shared_collections', shareId).data;
       }
       function canReadShared() {
         return signedIn() && (
@@ -1911,7 +1916,7 @@ service cloud.firestore {
           || isAdmin()
           || (
             isDistrictStaff()
-            && shareData().get('expiresAt', 0) > request.time.toMillis()
+            && shareData().get('expiresAt', 0) > nowMs()
           )
         );
       }
@@ -1941,8 +1946,8 @@ service cloud.firestore {
           || isAdmin()
           || (
             isDistrictStaff()
-            && shareData().get('expiresAt', 0) > request.time.toMillis()
-            && request.auth.token.get('email', '').lower()
+            && shareData().get('expiresAt', 0) > nowMs()
+            && tok().get('email', '').lower()
                in shareData().get('subEmails', [])
           )
         );
@@ -1960,8 +1965,7 @@ service cloud.firestore {
         return incoming().mode in ['synced', 'view-only']
           && isStr('name') && incoming().name.size() > 0 && incoming().name.size() <= 200
           && isList('boards') && incoming().boards.size() <= 200
-          && (!('sections' in incoming())
-              || (isList('sections') && incoming().sections.size() <= 200))
+          && (optListMax('sections', 200))
           && incoming().get('deletedSections', []) is list
           && incoming().get('deletedSections', []).size() <= 200
           && isMap('participants') && incoming().participants.size() <= 50
@@ -2040,7 +2044,7 @@ service cloud.firestore {
       allow get: if signedIn();
       allow create: if signedIn()
                     && myOrigAuthor()
-                    && incoming().keys().hasOnly([
+                    && newKeys().hasOnly([
                          'id', 'title', 'description', 'criteria',
                          'createdAt', 'updatedAt', 'originalAuthor', 'sharedAt'
                        ])
@@ -2058,7 +2062,7 @@ service cloud.firestore {
     // A share's syncGroupId is a join invite, so only a group participant may set it, once.
     function shareSyncGroupOk(coll) {
       return !('syncGroupId' in incoming()) ||
-        authUid() in get(/databases/$(database)/documents/$(coll)/$(incoming().syncGroupId)).data.participants;
+        authUid() in dbGet(coll, incoming().syncGroupId).data.participants;
     }
     function shareSyncGroupKept() {
       return incoming().get('syncGroupId', null) == existing().get('syncGroupId', null) &&
@@ -2089,7 +2093,7 @@ service cloud.firestore {
     }
 
     function wallCommentKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'submissionId', 'content', 'participantLabel', 'authorUid', 'createdAt',
         'parentCommentId'
       ]);
@@ -2101,7 +2105,7 @@ service cloud.firestore {
       return n == null || l == n || l == 'Student';
     }
     function wallLikeKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'submissionId', 'authorUid', 'createdAt'
       ]);
     }
@@ -2122,7 +2126,7 @@ service cloud.firestore {
         || (
           existing().get('revoked', false) != true
           && (existing().get('expiresAt', null) == null
-              || existing().get('expiresAt', 0) > request.time.toMillis())
+              || existing().get('expiresAt', 0) > nowMs())
         )
       );
 
@@ -2138,7 +2142,7 @@ service cloud.firestore {
         // No startsWith() in rules — matches() (RE2) is the only prefix primitive.
         // Auth UIDs are alphanumeric (no regex-special chars), so embedding is safe.
         incoming().sessionId.matches(authUid() + '_.*') &&
-        incoming().keys().hasOnly([
+        newKeys().hasOnly([
           'id', 'sessionId', 'originalAuthor', 'title', 'prompt', 'mode',
           'identificationMode', 'allowComments', 'allowCommentResponses',
           'allowLikes', 'createdAt', 'expiresAt', 'revoked'
@@ -2171,7 +2175,7 @@ service cloud.firestore {
       // additionally require allowCommentResponses == true.
       match /comments/{commentId} {
         function parentShare() {
-          return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
+          return dbGet('shared_activity_walls', shareId).data;
         }
         // READ mirrors the parent-doc gate: the share owner and admins can
         // always read (moderation/cleanup), but everyone else only while the
@@ -2185,7 +2189,7 @@ service cloud.firestore {
           || (
             parentShare().get('revoked', false) != true
             && (parentShare().get('expiresAt', null) == null
-                || parentShare().get('expiresAt', 0) > request.time.toMillis())
+                || parentShare().get('expiresAt', 0) > nowMs())
           )
         );
         allow create: if signedIn() &&
@@ -2220,7 +2224,7 @@ service cloud.firestore {
       // each viewer to one like per submission. Toggling off is a delete.
       match /likes/{likeId} {
         function parentShare() {
-          return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
+          return dbGet('shared_activity_walls', shareId).data;
         }
         // Same live-share gate as comments: owner/admin always, everyone else
         // only while the parent share is neither revoked nor past expiresAt.
@@ -2230,7 +2234,7 @@ service cloud.firestore {
           || (
             parentShare().get('revoked', false) != true
             && (parentShare().get('expiresAt', null) == null
-                || parentShare().get('expiresAt', 0) > request.time.toMillis())
+                || parentShare().get('expiresAt', 0) > nowMs())
           )
         );
         allow create: if signedIn() &&
@@ -2252,14 +2256,14 @@ service cloud.firestore {
     }
 
     function syncedQuizKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'version', 'title', 'questions', 'participants', 'plcId', 'createdAt',
         'updatedAt', 'updatedBy', 'behavior', 'stimuli', 'paperSheetStimuli',
         'translations', 'bankSlots', 'order', 'sections'
       ]);
     }
     function versionKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'version', 'content', 'savedBy', 'savedAt'
       ]);
     }
@@ -2281,7 +2285,7 @@ service cloud.firestore {
     // (joins/leaves go through CFs); create is open iff participants carries only the
     // caller's uid.
     match /synced_quizzes/{groupId} {
-      allow get: if staffSignedIn() && (resource == null ||
+      allow get: if staffSignedIn() && (noDoc() ||
         authUid() in existing().get('participants', {}) || isDistrictStaff() ||
         (existing().get('plcId', '') != '' && plcMember(existing().plcId)) || isAdmin());
       // list closed: it would let any authed user enumerate every synced quiz
@@ -2348,11 +2352,11 @@ service cloud.firestore {
         // Participant read (mirrors the parent group's participant gate).
         allow read: if signedIn()
           && authUid() in
-             get(/databases/$(database)/documents/synced_quizzes/$(groupId)).data.participants;
+             dbGet('synced_quizzes', groupId).data.participants;
 
         allow create: if signedIn()
           && authUid() in
-             get(/databases/$(database)/documents/synced_quizzes/$(groupId)).data.participants
+             dbGet('synced_quizzes', groupId).data.participants
           && versionKeysOk()
           && incoming().savedBy == authUid()
           && isInt('version')
@@ -2365,7 +2369,7 @@ service cloud.firestore {
     }
 
     function syncedBankKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'ownerUid', 'plcIds', 'version', 'title', 'questions', 'stimuli', 'targets',
         'language', 'questionCount', 'targetIds', 'targetCounts', 'createdAt', 'updatedAt'
       ]);
@@ -2377,7 +2381,7 @@ service cloud.firestore {
     // get by id (handed out via plcs/{plcId}/question_banks headers).
     // No participants/join function - members never co-edit.
     match /synced_question_banks/{groupId} {
-      allow get: if staffSignedIn() && (resource == null ||
+      allow get: if staffSignedIn() && (noDoc() ||
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
       allow list: if false;
@@ -2437,14 +2441,14 @@ service cloud.firestore {
     }
 
     function syncedVideoKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'version', 'title', 'youtubeUrl', 'questions', 'participants', 'plcId',
         'createdAt', 'updatedAt', 'updatedBy', 'behavior', 'clip', 'notes'
       ]) && optMap(incoming(), 'clip') && optList(incoming(), 'notes');
     }
 
     match /synced_video_activities/{groupId} {
-      allow get: if staffSignedIn() && (resource == null ||
+      allow get: if staffSignedIn() && (noDoc() ||
         authUid() in existing().get('participants', {}) || isDistrictStaff() ||
         (existing().get('plcId', '') != '' && plcMember(existing().plcId)) || isAdmin());
       // list closed (see synced_quizzes): would let any authed user enumerate
@@ -2485,11 +2489,11 @@ service cloud.firestore {
       match /versions/{versionId} {
         allow read: if signedIn()
           && authUid() in
-             get(/databases/$(database)/documents/synced_video_activities/$(groupId)).data.participants;
+             dbGet('synced_video_activities', groupId).data.participants;
 
         allow create: if signedIn()
           && authUid() in
-             get(/databases/$(database)/documents/synced_video_activities/$(groupId)).data.participants
+             dbGet('synced_video_activities', groupId).data.participants
           && versionKeysOk()
           && incoming().savedBy == authUid()
           && isInt('version')
@@ -3092,52 +3096,52 @@ service cloud.firestore {
     }
 
     function assignmentIndexKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail', 'title', 'sheetUrl', 'status',
         'createdAt'
       ]);
     }
     function plcMeetingKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'heldAt', 'facilitatorUid', 'attendeeUids', 'assessmentIds', 'agenda',
         'decisions', 'actionItems', 'notesBody', 'status', 'createdBy', 'updatedAt',
         'deletedAt'
       ]);
     }
     function plcBankKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'title', 'questionCount', 'syncGroupId', 'targetIds', 'sharedBy',
         'sharedByEmail', 'sharedByName', 'sharedAt', 'updatedAt', 'deletedAt'
       ]);
     }
     function plcVideoKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId', 'sharedBy',
         'sharedByEmail', 'sharedByName', 'sharedAt', 'updatedAt', 'deletedAt'
       ]);
     }
     function plcRubricKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt', 'sharedBy',
         'sharedByEmail', 'sharedByName', 'sharedAt', 'deletedAt'
       ]);
     }
     function plcFlashcardSetKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'title', 'description', 'termLanguage', 'definitionLanguage', 'cards',
         'createdAt', 'updatedAt', 'sharedBy', 'sharedByEmail', 'sharedByName', 'sharedAt',
         'deletedAt', 'speak'
       ]) && optMap(incoming(), 'speak');
     }
     function plcAssignmentKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'quizTitle', 'quizId', 'syncGroupId', 'sessionMode', 'sessionOptions',
         'attemptLimit', 'sharedBy', 'sharedByEmail', 'sharedByName', 'sharedAt',
         'updatedAt'
       ]);
     }
     function plcNoteKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'title', 'body', 'kind', 'meetingId', 'actionItems', 'createdBy',
         'createdAt', 'lastEditedBy', 'lastEditedAt', 'version', 'deletedAt', 'yState',
         'blocks', 'meetingAt'
@@ -3145,7 +3149,7 @@ service cloud.firestore {
     }
     // Note blocks (TEAMS_REDESIGN T13, T14) cap at 100; meetingAt is a scheduled time in ms or null.
     function plcNoteBlocksOk() {
-      return (!('blocks' in incoming()) || (isList('blocks') && incoming().blocks.size() <= 100))
+      return (optListMax('blocks', 100))
         && (!('meetingAt' in incoming()) || incoming().meetingAt == null || isInt('meetingAt'));
     }
     // Live recording fields: at most 200 parts and 61 minutes of recorded time.
@@ -3158,24 +3162,25 @@ service cloud.firestore {
         && plcSubTimeFieldOk('lastHeartbeatAt');
     }
     function plcDocKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'title', 'url', 'createdBy', 'createdByName', 'createdAt', 'updatedAt',
         'deletedAt', 'actionItems'
       ]);
     }
     // A linked doc's action items: same 200-item cap as a note's.
     function plcDocActionItemsOk() {
-      return !('actionItems' in incoming())
-        || (isList('actionItems') && incoming().actionItems.size() <= 200);
+      return optListMax('actionItems', 200);
     }
     function plcCommentKeysOk() {
-      return incoming().keys().hasOnly([
+      return newKeys().hasOnly([
         'id', 'targetType', 'targetId', 'authorUid', 'authorName', 'body', 'mentions',
         'createdAt', 'editedAt', 'deletedAt'
       ]);
     }
 
     match /plcs/{plcId} {
+      function plcEd() { return plcEditor(plcId); }
+      function plcRd() { return plcReader(plcId); }
       // Members + same-org admins only. The root doc carries member PII
       // (emails/names), so it's NOT exposed to same-org peers — discovery reads
       // the PII-free /plcIndex mirror instead. The gate is the memberUids index alone:
@@ -3323,7 +3328,7 @@ service cloud.firestore {
       match /assignment_index/{assignmentId} {
         // Any current member can read the index — the dashboard renders
         // the same list for everyone in the PLC.
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Author-only writes; doc id pinned to the source assignment id for join-back.
         // Author must be a current PLC member. hasOnly([...]) locks the shape. sheetUrl is
@@ -3370,7 +3375,7 @@ service cloud.firestore {
 
       // Anonymized norming copies; written only by setPlcNormingFlagV1.
       match /norming/{normingId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
         allow write: if false;
       }
 
@@ -3381,7 +3386,7 @@ service cloud.firestore {
       // raw-contribution PII boundary holds.
       match /aggregates/{aggregateId} {
         function plcRootData() {
-          return get(/databases/$(database)/documents/plcs/$(plcId)).data;
+          return dbGet('plcs', plcId).data;
         }
         allow read: if signedIn() && authUid() in plcRootData().get('memberUids', []);
         // No client writes — server-only (Admin SDK bypasses rules).
@@ -3392,7 +3397,7 @@ service cloud.firestore {
       // Leads and co-leads post, edit, pin and delete; members read and toggle only their own reaction.
       match /updates/{updateId} {
         function updManager() {
-          return isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data);
+          return isPlcMembershipManager(dbGet('plcs', plcId).data);
         }
         function updShapeOk(d) {
           return d.keys().hasOnly(['title', 'body', 'linkUrl', 'attachment', 'requiresAck',
@@ -3411,7 +3416,7 @@ service cloud.firestore {
             && d.authorName is string && d.authorName.size() <= 200
             && d.updatedAt == request.time;
         }
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
         allow create: if signedIn()
           && updManager()
           && myAuthorUid()
@@ -3441,8 +3446,8 @@ service cloud.firestore {
           allow create: if signedIn()
             && ackUid == authUid()
             && plcMember(plcId)
-            && get(/databases/$(database)/documents/plcs/$(plcId)/updates/$(updateId)).data.requiresAck == true
-            && incoming().keys().hasOnly(['uid', 'name', 'ackedAt'])
+            && dbGet4('plcs', plcId, 'updates', updateId).data.requiresAck == true
+            && newKeys().hasOnly(['uid', 'name', 'ackedAt'])
             && incoming().uid == authUid()
             && isStr('name') && incoming().name.size() <= 200
             && incoming().ackedAt == request.time;
@@ -3456,12 +3461,12 @@ service cloud.firestore {
       // post-create so a stale mirror can't retarget the sync group. Shape locked via
       // hasOnly([...]); time fields dual-accept int||timestamp||null.
       match /assessments/{assessmentId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Create: any non-viewer member (plcCanEditContent — viewers denied), doc
         // id pinned, createdBy == caller.
-        allow create: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow create: if plcEd()
+          && newKeys().hasOnly([
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
                'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
@@ -3495,17 +3500,15 @@ service cloud.firestore {
                || isStr('sourceQuizId')
              )
           && (
-               !('folderId' in incoming())
-               || incoming().folderId == null
-               || isStr('folderId')
+               optNullStr('folderId')
              )
           && incoming().get('dirtyAt', null) == null;
 
         // Update: non-viewer member mutates working fields (title/unitLabel/
         // opensAt/dueAt/status/updatedAt) or soft-deletes via deletedAt. Identity,
         // createdBy/createdAt, kind, syncGroupId immutable; viewers denied.
-        allow update: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow update: if plcEd()
+          && newKeys().hasOnly([
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
                'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
@@ -3529,9 +3532,7 @@ service cloud.firestore {
           && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('updatedAt')
           && (
-               !('folderId' in incoming())
-               || incoming().folderId == null
-               || isStr('folderId')
+               optNullStr('folderId')
              )
           && optInt(incoming(), 'order')
           // Server-written dirtyAt and the sourceQuizId pointer must round-trip
@@ -3544,7 +3545,7 @@ service cloud.firestore {
         // Non-viewer member can hard-delete (PLC-owned model). Soft-delete via
         // deletedAt is typical; the orphaned aggregates/{assessmentId} doc is
         // swept by gcPlcOrphans. Viewers denied via plcCanEditContent.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC Meeting records (Decisions 4.0/4.0b) - the archived, exportable record from
@@ -3555,11 +3556,11 @@ service cloud.firestore {
       // CEL can't `.every()` over a list, so the rule validates the list TYPE and leans on
       // the client parser - blast radius is one membership-gated PLC's own record.
       match /meetings/{meetingId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Create: any non-viewer member, doc id pinned, createdBy must equal the
         // caller. A viewer (Decision 3.2) is denied via plcCanEditContent.
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcMeetingKeysOk()
           && incoming().id == meetingId
           && myCreatedBy()
@@ -3583,7 +3584,7 @@ service cloud.firestore {
 
         // Update: non-viewer member mutates working fields or soft-deletes via
         // deletedAt. id/createdBy/heldAt/facilitatorUid immutable; viewers denied.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcMeetingKeysOk()
           && sameId()
           && unchanged('createdBy')
@@ -3607,16 +3608,16 @@ service cloud.firestore {
 
         // Non-viewer member can hard-delete (PLC-owned); soft-delete via deletedAt
         // is typical, tombstone GC is gcPlcOrphans. Viewers denied.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // My Groups goals: members read; non-viewer members write. A practice is an
       // opaque map (routineId or free text) validated by the client parser.
       match /goals/{goalId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
-        allow create, update: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow create, update: if plcEd()
+          && newKeys().hasOnly([
                'id', 'title', 'measure', 'practices', 'order',
                'baseline', 'current', 'target',
                'dueDate', 'students', 'outcome',
@@ -3638,13 +3639,13 @@ service cloud.firestore {
           && incoming().practices.size() <= 20
           && optInt(incoming(), 'order')
           && isStr('createdBy')
-          && (resource == null
+          && (noDoc()
                 ? myCreatedBy()
                 : unchanged('createdBy') && unchanged('createdAt'))
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');
 
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at canonical
@@ -3653,15 +3654,15 @@ service cloud.firestore {
       // stays". Shape locked via hasOnly([...]); identity + attribution
       // (id/syncGroupId/sharedBy*/sharedAt) immutable post-create.
       match /quizzes/{plcQuizId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Create: any non-viewer member (plcCanEditContent), doc id pinned,
         // sharedBy == caller. Questions live in the synced group. Optional
         // deletedAt tombstone (Decision 3.1); shape locked via hasOnly([...]).
         // Optional run-settings (sessionMode/sessionOptions/attemptLimit) are
         // the pickup defaults a teammate inherits; mirrored after each publish.
-        allow create: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow create: if plcEd()
+          && newKeys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt',
@@ -3683,17 +3684,15 @@ service cloud.firestore {
           && isInt('sharedAt')
           && isInt('updatedAt')
           && (
-               !('folderId' in incoming())
-               || incoming().folderId == null
-               || isStr('folderId')
+               optNullStr('folderId')
              )
           && plcSubDeletedAtOk();
 
         // Update: non-viewer member mirrors title/questionCount/run-settings/
         // updatedAt or soft-deletes via deletedAt. Identity + attribution
         // immutable; viewers denied.
-        allow update: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow update: if plcEd()
+          && newKeys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt',
@@ -3714,14 +3713,12 @@ service cloud.firestore {
           && incoming().questionCount >= 0
           && isInt('updatedAt')
           && (
-               !('folderId' in incoming())
-               || incoming().folderId == null
-               || isStr('folderId')
+               optNullStr('folderId')
              )
           && plcSubDeletedAtOk();
 
         // Non-viewer member can unshare (PLC-owned model); viewers denied.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC folders (PLC_ASSESSMENT_DATA §3.4): shared tree for the Assessments list.
@@ -3729,11 +3726,11 @@ service cloud.firestore {
       // any non-viewer member. Cap 1,000 targets; `masteryCutoffs` is PLC-only.
       // Interior target maps are validated by the client; blast radius is one PLC.
       match /meta/{metaId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
         allow create, update: if signedIn()
           && metaId == 'learningTargets'
           && plcCanEditContent(plcId)
-          && incoming().keys().hasOnly([
+          && newKeys().hasOnly([
                'targets', 'masteryCutoffs', 'updatedAt'
              ])
           && isList('targets')
@@ -3757,21 +3754,21 @@ service cloud.firestore {
         // Gradebook shared configuration (GRADEBOOK.md D16): leads and co-leads only.
         allow create, update: if liveStaffSignedIn()
           && metaId == 'gradebookSettings'
-          && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data)
+          && isPlcMembershipManager(dbGet('plcs', plcId).data)
           && gbSettingsOk(incoming(), ['updatedBy'])
           && incoming().updatedBy == authUid();
         allow delete: if liveStaffSignedIn()
           && metaId == 'gradebookSettings'
-          && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data);
+          && isPlcMembershipManager(dbGet('plcs', plcId).data);
       }
 
       // PLC question-bank headers (plan §5): pointer at /synced_question_banks/{groupId}.
       // Any non-viewer member shares; only the sharer or a lead/co-lead changes or
       // removes the row. Identity + attribution immutable post-create.
       match /question_banks/{entryId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcBankKeysOk()
           && entryId == incoming().id
           && mySharedBy()
@@ -3787,11 +3784,11 @@ service cloud.firestore {
           && isInt('updatedAt')
           && plcSubDeletedAtOk();
 
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && (
                existing().sharedBy == authUid()
                || isPlcMembershipManager(
-                    get(/databases/$(database)/documents/plcs/$(plcId)).data
+                    dbGet('plcs', plcId).data
                   )
              )
           && plcBankKeysOk()
@@ -3807,19 +3804,19 @@ service cloud.firestore {
           && isInt('updatedAt')
           && plcSubDeletedAtOk();
 
-        allow delete: if plcEditor(plcId)
+        allow delete: if plcEd()
           && (
                existing().sharedBy == authUid()
                || isPlcMembershipManager(
-                    get(/databases/$(database)/documents/plcs/$(plcId)).data
+                    dbGet('plcs', plcId).data
                   )
              );
       }
 
       match /folders/{folderId} {
-        allow read: if plcReader(plcId);
-        allow create, update: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow read: if plcRd();
+        allow create, update: if plcEd()
+          && newKeys().hasOnly([
                'name', 'parentId', 'order', 'createdAt', 'updatedAt', 'color'
              ])
           && isStr('name')
@@ -3835,7 +3832,7 @@ service cloud.firestore {
           && isInt('order')
           && isInt('createdAt')
           && isInt('updatedAt');
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC Video Activity Library (Phase 4). Mirrors the quiz library —
@@ -3843,12 +3840,12 @@ service cloud.firestore {
       // shares/mirror-edits/unshares; orphan policy "PLC copy stays". Extra field
       // vs quizzes: youtubeUrl (tile thumbnail); other invariants identical.
       match /video_activities/{plcVideoActivityId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Create: non-viewer member (plcCanEditContent), doc id pinned, sharedBy ==
         // caller. Questions live in the synced group. Optional deletedAt tombstone;
         // shape locked via hasOnly([...]).
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcVideoKeysOk()
           && plcVideoActivityId == incoming().id
           && mySharedBy()
@@ -3868,7 +3865,7 @@ service cloud.firestore {
         // Update: non-viewer member mirrors title/questionCount/youtubeUrl/
         // updatedAt or soft-deletes via deletedAt. Identity + attribution
         // immutable; viewers denied.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcVideoKeysOk()
           && sameId()
           && unchanged('syncGroupId')
@@ -3884,7 +3881,7 @@ service cloud.firestore {
           && plcSubDeletedAtOk();
 
         // Non-viewer member can unshare (PLC-owned model); viewers denied.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC Rubric Library (M12 Phase 3-I). The full rubric payload is inlined (rubrics
@@ -3893,9 +3890,9 @@ service cloud.firestore {
       // post-create. `criteria` is a list of complex objects CEL can't deep-validate;
       // shape locked via hasOnly([...]), interior validation is client-enforced.
       match /rubrics/{plcRubricId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcRubricKeysOk()
           && plcRubricId == incoming().id
           && mySharedBy()
@@ -3910,7 +3907,7 @@ service cloud.firestore {
 
         // Update: non-viewer member mirror-edits content fields or soft-deletes
         // via deletedAt. Identity + attribution immutable; viewers denied.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcRubricKeysOk()
           && sameId()
           && unchanged('sharedBy')
@@ -3924,15 +3921,15 @@ service cloud.firestore {
           && plcSubDeletedAtOk();
 
         // Non-viewer member can unshare (PLC-owned model); viewers denied.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC Flashcards library. Inline payload like rubrics: any non-viewer member
       // shares/unshares; identity + attribution immutable post-create.
       match /flashcard_sets/{plcSetId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcFlashcardSetKeysOk()
           && plcSetId == incoming().id
           && mySharedBy()
@@ -3948,7 +3945,7 @@ service cloud.firestore {
           && isInt('updatedAt')
           && plcSubDeletedAtOk();
 
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcFlashcardSetKeysOk()
           && sameId()
           && unchanged('sharedBy')
@@ -3964,16 +3961,16 @@ service cloud.firestore {
           && isInt('updatedAt')
           && plcSubDeletedAtOk();
 
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // Class-level flashcard results a teacher shares with the PLC. No student ids;
       // only the sharing teacher writes, refreshes or removes their own summary.
       match /flashcard_results/{plcResultId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
-        allow create, update: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow create, update: if plcEd()
+          && newKeys().hasOnly([
                'id', 'setId', 'setTitle', 'kind', 'classLabel',
                'students', 'completed', 'averagePercent', 'cards',
                'sharedBy', 'sharedByEmail', 'sharedByName',
@@ -4007,12 +4004,12 @@ service cloud.firestore {
       // policy: deleting a template doesn't cascade to already-imported personal
       // assignments.
       match /assignments/{plcAssignmentId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Create: non-viewer member (plcCanEditContent), doc id pinned, sharedBy ==
         // caller. sessionOptions is an opaque map (keys vary by mode); shape pinned
         // via hasOnly([...]), per-field validation is client-side.
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcAssignmentKeysOk()
           && plcAssignmentId == incoming().id
           && mySharedBy()
@@ -4032,7 +4029,7 @@ service cloud.firestore {
 
         // Update: non-viewer member mirrors title/sessionOptions/updatedAt.
         // Identity + attribution immutable; viewers denied.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcAssignmentKeysOk()
           && sameId()
           && unchanged('quizId')
@@ -4050,19 +4047,19 @@ service cloud.firestore {
 
         // Non-viewer member can unshare; already-imported personal assignments
         // keep running (independent docs). Viewers denied.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC shared notes (Phase 5). Collaborative notebook — any member CRUDs any
       // note; LWW via lastEditedBy/lastEditedAt. Shape locked via hasOnly([...]).
       match /notes/{noteId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Create: non-viewer member (plcCanEditContent). Optional fields: kind
         // ('freeform'|'meeting'), meetingId, version (Decision 2.4), deletedAt
         // tombstone — all OPTIONAL so legacy notes validate; hasOnly([...]) closes
         // the shape.
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcNoteKeysOk()
           && incoming().id == noteId
           && myCreatedBy()
@@ -4074,14 +4071,10 @@ service cloud.firestore {
                || incoming().kind in ['freeform', 'meeting']
              )
           && (
-               !('meetingId' in incoming())
-               || incoming().meetingId == null
-               || isStr('meetingId')
+               optNullStr('meetingId')
              )
           && (
-               !('actionItems' in incoming())
-               || (isList('actionItems')
-                    && incoming().actionItems.size() <= 200)
+               optListMax('actionItems', 200)
              )
           && (
                !('yState' in incoming())
@@ -4103,7 +4096,7 @@ service cloud.firestore {
         // 2.4): incoming version must be old+1 (stale writer is rejected → conflict
         // toast); during rollout both-absent version is also accepted. Viewers
         // denied.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcNoteKeysOk()
           && sameId()
           && unchanged('createdBy')
@@ -4117,14 +4110,10 @@ service cloud.firestore {
                || incoming().kind in ['freeform', 'meeting']
              )
           && (
-               !('meetingId' in incoming())
-               || incoming().meetingId == null
-               || isStr('meetingId')
+               optNullStr('meetingId')
              )
           && (
-               !('actionItems' in incoming())
-               || (isList('actionItems')
-                    && incoming().actionItems.size() <= 200)
+               optListMax('actionItems', 200)
              )
           && (
                !('yState' in incoming())
@@ -4147,7 +4136,7 @@ service cloud.firestore {
 
         // Non-viewer member can delete (PLC-owned, not creator-owned); viewers
         // denied.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
 
         // Yjs CRDT update log — one base64 update per doc, replayed on top of
         // the note's compacted `yState`. Append-only for clients: an update is
@@ -4155,10 +4144,10 @@ service cloud.firestore {
         // snapshot. Shape locked via hasOnly([...]); `uid` is the author so a
         // member can't forge a teammate's update.
         match /yUpdates/{updateId} {
-          allow read: if plcReader(plcId);
+          allow read: if plcRd();
 
-          allow create: if plcEditor(plcId)
-            && incoming().keys().hasOnly(['u', 'uid', 'at'])
+          allow create: if plcEd()
+            && newKeys().hasOnly(['u', 'uid', 'at'])
             && isStr('u')
             && incoming().u.size() <= 200000
             && incoming().uid == authUid()
@@ -4166,7 +4155,7 @@ service cloud.firestore {
 
           allow update: if false;
 
-          allow delete: if plcEditor(plcId);
+          allow delete: if plcEd();
         }
       }
 
@@ -4174,19 +4163,19 @@ service cloud.firestore {
       // recorder writes only the live fields while recording or paused; 'finalizing' is
       // the server's merge lock, and every other change goes through Cloud Functions.
       match /recordings/{recordingId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
-        allow create: if plcEditor(plcId)
-          && incoming().keys().hasAll([
+        allow create: if plcEd()
+          && newKeys().hasAll([
                'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
                'lastHeartbeatAt', 'createdAt'
              ])
-          && incoming().keys().hasOnly([
+          && newKeys().hasOnly([
                'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
                'lastHeartbeatAt', 'createdAt', 'audioExpiresAt'
              ])
           && isStr('noteId')
-          && exists(/databases/$(database)/documents/plcs/$(plcId)/notes/$(incoming().noteId))
+          && dbExists4('plcs', plcId, 'notes', incoming().noteId)
           && incoming().recorderUid == authUid()
           && incoming().status == 'recording'
           && plcRecordingLiveOk()
@@ -4194,10 +4183,10 @@ service cloud.firestore {
           && (
                !('audioExpiresAt' in incoming())
                || (isInt('audioExpiresAt')
-                    && incoming().audioExpiresAt <= request.time.toMillis() + 2592000000)
+                    && incoming().audioExpiresAt <= nowMs() + 2592000000)
              );
 
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && existing().recorderUid == authUid()
           && existing().status in ['recording', 'paused']
           && incoming().status in ['recording', 'paused']
@@ -4210,7 +4199,7 @@ service cloud.firestore {
 
         // Speaker-labelled transcript; only the server writes it.
         match /transcript/{docId} {
-          allow read: if plcReader(plcId);
+          allow read: if plcRd();
           allow write: if false;
         }
       }
@@ -4218,11 +4207,11 @@ service cloud.firestore {
       // PLC shared Google Docs. Lightweight pointers — the doc content
       // lives in Google, not here. Any current member can CRUD.
       match /docs/{docId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Create: non-viewer member (plcCanEditContent). Optional deletedAt
         // tombstone; shape locked via hasOnly([...]).
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcDocKeysOk()
           && incoming().id == docId
           && myCreatedBy()
@@ -4235,7 +4224,7 @@ service cloud.firestore {
           && plcSubTimeFieldOk('updatedAt');
 
         // A viewer (Decision 3.2) is denied via plcCanEditContent.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcDocKeysOk()
           && sameId()
           && unchanged('createdBy')
@@ -4247,29 +4236,29 @@ service cloud.firestore {
           && plcSubTimeFieldOk('updatedAt');
 
         // A viewer (Decision 3.2) is denied via plcCanEditContent.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // A note's Google Doc from "Open in Docs". Create-only, so the first
       // teammate to make it wins and later clicks open that same doc.
       match /noteDocs/{noteId} {
-        allow read: if plcReader(plcId);
-        allow create: if plcEditor(plcId)
-          && incoming().keys().hasOnly(['fileId', 'url', 'createdBy', 'createdAt'])
+        allow read: if plcRd();
+        allow create: if plcEd()
+          && newKeys().hasOnly(['fileId', 'url', 'createdBy', 'createdAt'])
           && isStr('fileId')
           && isStr('url')
           && incoming().url.matches('https://docs[.]google[.]com/.*')
           && myCreatedBy()
           && plcSubTimeFieldOk('createdAt');
         allow update: if false;
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // My Groups resources: links posted by a non-viewer member.
       match /links/{linkId} {
-        allow read: if plcReader(plcId);
-        allow create, update: if plcEditor(plcId)
-          && incoming().keys().hasOnly([
+        allow read: if plcRd();
+        allow create, update: if plcEd()
+          && newKeys().hasOnly([
                'id', 'title', 'url', 'note', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'
              ])
           && incoming().id == linkId
@@ -4283,25 +4272,25 @@ service cloud.firestore {
             : unchanged('createdBy') && unchanged('createdAt'))
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // PLC shared to-do list (Phase 5). One doc per todo (concurrent toggles
       // don't serialize). Any member CRUDs any todo.
       match /todos/{todoId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // Legacy; imported into note action items (§7.4) — no new to-dos.
         allow create: if false;
 
         // Legacy; only the soft-delete tombstone may still be written (§7.4) —
         // used to archive a to-do once it's been imported into a note.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && changedOnly(['deletedAt'])
           && plcSubDeletedAtOk();
 
         // A viewer (Decision 3.2) is denied via plcCanEditContent.
-        allow delete: if plcEditor(plcId);
+        allow delete: if plcEd();
       }
 
       // ---- Mentoring program (TEAMS_REDESIGN T29 to T33) ----
@@ -4317,7 +4306,7 @@ service cloud.firestore {
         return signedIn() && authUid() in ws.get('memberUids', []) && plcMember(id);
       }
       function mentWs(id, wsId) {
-        return get(/databases/$(database)/documents/plcs/$(id)/workspaces/$(wsId)).data;
+        return dbGet4('plcs', id, 'workspaces', wsId).data;
       }
       // A tagged, active member (never a viewer or facilitator) of the program.
       function mentTagged(p, uid, tag) {
@@ -4393,7 +4382,7 @@ service cloud.firestore {
 
       // Tasks: every member reads; facilitators post, edit and remove.
       match /tasks/{taskId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
         allow create, update: if mentFacilitator(plcId) && mentTaskOk(taskId);
         allow delete: if mentFacilitator(plcId);
       }
@@ -4426,8 +4415,8 @@ service cloud.firestore {
           allow read: if mentFacilitator(plcId)
             || mentInPair(plcId, mentWs(plcId, workspaceId));
           allow create, update: if mentInPair(plcId, mentWs(plcId, workspaceId))
-            && plcEditor(plcId)
-            && incoming().keys().hasOnly([
+            && plcEd()
+            && newKeys().hasOnly([
                  'id', 'title', 'body', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'
                ])
             && incoming().id == checkinId
@@ -4440,13 +4429,13 @@ service cloud.firestore {
             && plcSubTimeFieldOk('createdAt')
             && plcSubTimeFieldOk('updatedAt');
           allow delete: if mentFacilitator(plcId)
-            || (mentInPair(plcId, mentWs(plcId, workspaceId)) && plcEditor(plcId));
+            || (mentInPair(plcId, mentWs(plcId, workspaceId)) && plcEd());
         }
 
         // One submission per task per submitter ({taskId}_{uid}), by whoever the task names; facilitators read and clear them.
         match /submissions/{subId} {
           function mentMaySubmit(ws) {
-            let who = get(/databases/$(database)/documents/plcs/$(plcId)/tasks/$(incoming().taskId)).data.submitter;
+            let who = dbGet4('plcs', plcId, 'tasks', incoming().taskId).data.submitter;
             return who == 'both'
               || (who == 'mentor' && authUid() == ws.mentorUid)
               || (who == 'mentee' && authUid() == ws.menteeUid);
@@ -4458,9 +4447,9 @@ service cloud.firestore {
             && incoming().id == subId
             && incoming().submittedBy == authUid()
             && mentInPair(plcId, mentWs(plcId, workspaceId))
-            && plcEditor(plcId)
+            && plcEd()
             && mentMaySubmit(mentWs(plcId, workspaceId))
-            && incoming().keys().hasOnly([
+            && newKeys().hasOnly([
                  'id', 'taskId', 'submittedBy', 'submittedByName', 'submittedAt', 'docUrl'
                ])
             && isStr('submittedByName')
@@ -4477,12 +4466,12 @@ service cloud.firestore {
       // spoofs a teammate. Shape locked via hasOnly([...]); lastActiveAt
       // dual-accepts int||timestamp. Stale-doc GC is gcPlcOrphans, not these rules.
       match /presence/{presenceUid} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         allow create, update: if signedIn()
           && authUid() == presenceUid
           && plcMember(plcId)
-          && incoming().keys().hasOnly([
+          && newKeys().hasOnly([
                'uid', 'displayName', 'section', 'lastActiveAt'
              ])
           && incoming().uid == authUid()
@@ -4504,10 +4493,10 @@ service cloud.firestore {
       // (immutable; ~90d trimming is gcPlcOrphans). Shape locked via hasOnly([...]);
       // type pinned to the PlcActivityType union; optional target* validated.
       match /activity/{eventId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
-        allow create: if plcReader(plcId)
-          && incoming().keys().hasOnly([
+        allow create: if plcRd()
+          && newKeys().hasOnly([
                'id', 'type', 'actorUid', 'actorName',
                'targetType', 'targetId', 'targetTitle', 'createdAt'
              ])
@@ -4545,11 +4534,11 @@ service cloud.firestore {
       // and/or soft-delete; any member may flip deletedAt; identity/attribution/
       // targeting/mentions immutable. Hard-delete is gcPlcOrphans.
       match /comments/{commentId} {
-        allow read: if plcReader(plcId);
+        allow read: if plcRd();
 
         // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
         // (reads stay open above).
-        allow create: if plcEditor(plcId)
+        allow create: if plcEd()
           && plcCommentKeysOk()
           && incoming().id == commentId
           && myAuthorUid()
@@ -4570,7 +4559,7 @@ service cloud.firestore {
         // Update: identity/attribution/targeting/mentions immutable. Author edits
         // body/editedAt and/or soft-deletes; any non-viewer may flip deletedAt (a
         // non-author can only ever change deletedAt). Viewers denied.
-        allow update: if plcEditor(plcId)
+        allow update: if plcEd()
           && plcCommentKeysOk()
           && sameId()
           && unchanged('targetType')
@@ -4610,13 +4599,13 @@ service cloud.firestore {
       // above — otherwise an unverified self-reported email would let an attacker
       // read an invite addressed to someone else's inbox.
       allow read: if signedIn()
-        && request.auth.token.get('email', '') != ''
+        && tok().get('email', '') != ''
         && (
-          (request.auth.token.get('email_verified', false) == true
-            && existing().inviteeEmailLower == request.auth.token.email.lower())
+          (emailVerified()
+            && existing().inviteeEmailLower == myEmail())
           || authUid() == existing().invitedByUid
           // deletePlc lists every invite by plcId to sweep them with the PLC.
-          || canSweepPlcInvites(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
+          || canSweepPlcInvites(dbGet('plcs', existing().plcId).data)
         );
 
       // Lead of the target PLC creates (or re-creates) the invite. The doc
@@ -4630,13 +4619,13 @@ service cloud.firestore {
         // role-change / remove / transfer actions co-leads already perform
         // (Decision 1.2). isPlcMembershipManager reads the members map (falling
         // back to the denormalized leadUid mirror) so it covers both shapes.
-        && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(incoming().plcId)).data)
+        && isPlcMembershipManager(dbGet('plcs', incoming().plcId).data)
         && inviteId == plcInviteDocId(incoming().plcId, incoming().inviteeEmailLower)
         // A send or re-send is always pending; accepted/declined come only from the invitee.
         && incoming().status == 'pending'
         // Schema lock (L-1): pin the invite doc shape so a manager can't inject
         // arbitrary fields future code/rules might trust. `orgId` is optional.
-        && incoming().keys().hasOnly([
+        && newKeys().hasOnly([
              'plcId', 'plcName', 'inviteeEmailLower', 'invitedByUid',
              'invitedByName', 'invitedAt', 'status', 'orgId'
            ]);
@@ -4648,9 +4637,9 @@ service cloud.firestore {
       // unverified self-reported email lets an attacker accept/decline an invite
       // addressed to someone else.
       allow update: if signedIn()
-        && request.auth.token.get('email', '') != ''
-        && request.auth.token.get('email_verified', false) == true
-        && existing().inviteeEmailLower == request.auth.token.email.lower()
+        && tok().get('email', '') != ''
+        && emailVerified()
+        && existing().inviteeEmailLower == myEmail()
         && viewAsOk()
         && existing().status == 'pending'
         && incoming().status in ['accepted', 'declined']
@@ -4664,7 +4653,7 @@ service cloud.firestore {
           // Any membership manager (lead OR co-lead) can revoke an invite, not
           // only the original inviter — mirrors the create gate (Decision 1.2).
           // Lead/co-lead, or an in-org admin dissolving the PLC for recovery.
-          || canSweepPlcInvites(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
+          || canSweepPlcInvites(dbGet('plcs', existing().plcId).data)
         );
     }
 
@@ -4680,7 +4669,7 @@ service cloud.firestore {
       allow get: if signedIn();
       allow create: if liveTeacher() &&
         code.matches('^[A-Z0-9]{6}$') &&
-        incoming().keys().hasOnly(['teacherUid', 'createdAt']) &&
+        newKeys().hasOnly(['teacherUid', 'createdAt']) &&
         myNewTeacher() &&
         isInt('createdAt');
       allow delete: if signedIn() && myOldTeacher();
@@ -4689,7 +4678,7 @@ service cloud.firestore {
     match /sessions/{userId} {
       // No list. The teacher, admins, and a student whose join record holds the current code read it.
       allow get: if signedIn() && (authUid() == userId || isAdmin() ||
-        get(/databases/$(database)/documents/sessions/$(userId)/students/$(authUid())).data.get('code', '') == existing().code);
+        dbGet4('sessions', userId, 'students', authUid()).data.get('code', '') == existing().code);
       // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
       function liveSessionOk(k) {
         return k.hasOnly(['id', 'isActive', 'activeWidgetId', 'activeWidgetType',
@@ -4699,11 +4688,11 @@ service cloud.firestore {
           (!('activeWidgetConfig' in k) || isMap('activeWidgetConfig')) &&
           (!('background' in k) || isStr('background')) &&
           (!('code' in k) || (isStr('code') &&
-            getAfter(/databases/$(database)/documents/live_session_codes/$(incoming().code)).data.teacherUid == userId));
+            dbGetAfter('live_session_codes', incoming().code).data.teacherUid == userId));
       }
       // Teacher-only; a new `code` must be a /live_session_codes pointer this teacher owns (getAfter: same batch).
       allow create, update: if liveTeacher() && authUid() == userId &&
-        liveSessionOk(request.method == 'create' ? incoming().keys() :
+        liveSessionOk(request.method == 'create' ? newKeys() :
           incoming().diff(existing()).addedKeys().union(incoming().diff(existing()).changedKeys()));
       allow delete: if signedIn() && authUid() == userId;
 
@@ -4722,7 +4711,7 @@ service cloud.firestore {
         // in firestore-rules.md.
         // A join carries the live code, which is how a student proves they were given it.
         function isValidLiveStudentPayload(data) {
-          let live = get(/databases/$(database)/documents/sessions/$(userId)).data;
+          let live = dbGet('sessions', userId).data;
           return data.keys().hasOnly(['pin', 'status', 'joinedAt', 'lastActive', 'code']) &&
             live.isActive == true && data.get('code', '') == live.code &&
             data.pin is string && data.pin.size() > 0 && data.pin.size() <= 10 &&
@@ -4820,7 +4809,7 @@ service cloud.firestore {
     // Admin-written, org-scoped docs (district configurations, grading period sets).
     function gbOrgAdminWriteOk() {
       return isAdmin() && isOrgMember(incoming().orgId) &&
-             (resource == null || isOrgMember(existing().orgId)) &&
+             (noDoc() || isOrgMember(existing().orgId)) &&
              isList('buildingIds') && incoming().buildingIds.size() <= 50;
     }
 
@@ -4842,11 +4831,11 @@ service cloud.firestore {
       match /history/{entryId} {
         allow read: if gbOwned();
         allow create: if liveStaffSignedIn() &&
-          incoming().keys().hasOnly(['ownerUid', 'byUid', 'at', 'field', 'before', 'after', 'batchId']) &&
+          newKeys().hasOnly(['ownerUid', 'byUid', 'at', 'field', 'before', 'after', 'batchId']) &&
           incoming().ownerUid == authUid() && incoming().byUid == authUid() &&
           isInt('at') && incoming().field in ['override', 'comment', 'flags', 'publish', 'fill'] &&
           (incoming().get('batchId', null) == null || isStr('batchId')) &&
-          getAfter(/databases/$(database)/documents/gradebook_marks/$(markId)).data.ownerUid == authUid();
+          dbGetAfter('gradebook_marks', markId).data.ownerUid == authUid();
         allow update, delete: if false;
       }
     }
@@ -4871,7 +4860,7 @@ service cloud.firestore {
     match /users/{userId}/gradebook_classes/{rosterId} {
       allow read, delete: if ownsUserTeacher(userId);
       allow create, update: if ownsUserTeacher(userId) &&
-        incoming().keys().hasOnly(['rosterId', 'ownerUid', 'editorUids', 'configRef', 'sort',
+        newKeys().hasOnly(['rosterId', 'ownerUid', 'editorUids', 'configRef', 'sort',
           'nameFormat', 'cellFormat', 'cardLayouts', 'updatedAt']) &&
         incoming().rosterId == rosterId && incoming().ownerUid == userId &&
         incoming().editorUids == [] && isInt('updatedAt');
@@ -4890,7 +4879,7 @@ service cloud.firestore {
       allow read: if signedIn() && (isOrgMember(existing().orgId) || isSuperAdmin());
       allow delete: if isAdmin() && isOrgMember(existing().orgId);
       allow create, update: if gbOrgAdminWriteOk() &&
-        incoming().keys().hasOnly(['name', 'orgId', 'buildingIds', 'periods', 'updatedAt']) &&
+        newKeys().hasOnly(['name', 'orgId', 'buildingIds', 'periods', 'updatedAt']) &&
         isStr('name') && isList('periods') && incoming().periods.size() <= 12 && isInt('updatedAt');
     }
 
@@ -4922,8 +4911,8 @@ service cloud.firestore {
         allow read: if signedIn() &&
           authUid() == studentUid &&
           isStudentRoleUser() &&
-          (!isPinLoginToken() || resource == null ||
-           existing().get('classId', '') in request.auth.token.classIds);
+          (!isPinLoginToken() || noDoc() ||
+           existing().get('classId', '') in tok().classIds);
         // A PIN token reads only its own session's pointer (accommodation override, window).
         // shorthands: off (authUid() has no uid here for a PIN token)
         allow get: if signedIn() && isPinLoginToken() &&
@@ -4943,7 +4932,7 @@ service cloud.firestore {
     match /server_time_probe/{uid} {
       allow read: if signedIn() && authUid() == uid;
       allow create, update: if signedIn() && authUid() == uid &&
-        incoming().keys().hasOnly(['at']) &&
+        newKeys().hasOnly(['at']) &&
         incoming().at == request.time;
     }
 
@@ -4956,7 +4945,7 @@ service cloud.firestore {
     // Only staff (active non-student member doc) claim codes or create sessions.
     function quizStaff() {
       return staffSignedIn() &&
-        request.auth.token.get('email_verified', false) == true &&
+        emailVerified() &&
         staffMemberOk(operatorMember());
     }
     // Student-facing sessions and public pages: staff or an admin, never a student's own district account.
@@ -4967,14 +4956,14 @@ service cloud.firestore {
     // TRANSITIONAL: a still-unclaimed code also passes, so a tab on the client before
     // owner records can assign until it reloads; drop `o == null` the release after.
     function ownsJoinCode(c) {
-      let o = getAfter(/databases/$(database)/documents/quiz_join_codes/$(c));
+      let o = dbGetAfter('quiz_join_codes', c);
       return o == null || o.data.teacherUid == authUid();
     }
     match /quiz_join_codes/{code} {
       allow get: if signedIn();
       allow create: if quizStaff() &&
         code.matches('^[A-Z0-9]{1,16}$') &&
-        incoming().keys().hasOnly(['teacherUid', 'createdAt']) &&
+        newKeys().hasOnly(['teacherUid', 'createdAt']) &&
         myNewTeacher() &&
         isInt('createdAt');
 
@@ -4982,7 +4971,7 @@ service cloud.firestore {
         allow get, list: if signedIn();
         // Owner-only, doc id == session id, and no free-form storage.
         allow create: if quizStaff() &&
-          incoming().keys().hasOnly(['sessionId', 'teacherUid', 'createdAt']) &&
+          newKeys().hasOnly(['sessionId', 'teacherUid', 'createdAt']) &&
           incoming().sessionId == sessionId &&
           myNewTeacher() &&
           isInt('createdAt') &&
@@ -4991,7 +4980,7 @@ service cloud.firestore {
         // `resource == null` keeps deleting a never-written pointer a no-op, so
         // deleteAssignment's batch works for sessions that predate pointers.
         allow delete: if signedIn() && (
-          resource == null ||
+          noDoc() ||
           myOldTeacher()
         );
       }
@@ -5220,10 +5209,6 @@ service cloud.firestore {
           incoming().get('paperWrittenSeat', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
-          // Media archive bookkeeping is server-written; the hourly sweep trusts its Drive ids.
-          incoming().get('artifactArchive', null) == null &&
-          incoming().get('hasStuckArchive', null) == null &&
-          incoming().get('backTranslations', null) == null &&
           (sessionData().get('sessionMode', '') != 'game' ||
            incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class
@@ -5413,7 +5398,7 @@ service cloud.firestore {
         // client; the rule pins the doc shape against arbitrary dumps.
         match /history/{historyId} {
           function parentStudentUid() {
-            return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)).data.studentUid;
+            return dbGet4('quiz_sessions', sessionId, 'responses', responseKey).data.studentUid;
           }
           // Read: teacher, admin, or the owning student.
           allow read: if signedIn() && (
@@ -5425,7 +5410,7 @@ service cloud.firestore {
           // snapshotAt == request.time forces server stamping.
           allow create: if signedIn() &&
             authUid() == parentStudentUid() &&
-            incoming().keys().hasOnly(
+            newKeys().hasOnly(
               ['questionId', 'answer', 'answeredAt', 'status', 'snapshotAt']
             ) &&
             isStr('questionId') &&
@@ -5465,7 +5450,7 @@ service cloud.firestore {
         allow read: if signedIn() && (
           authUid() == sessionTeacherUid() || isAdmin() ||
           isSubMonitor(sessionData()) ||
-          get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(authUid())).data.responseKey)).data.studentUid == authUid()
+          dbGet4('quiz_sessions', sessionId, 'responses', dbGet4('quiz_sessions', sessionId, 'seats', authUid()).data.responseKey).data.studentUid == authUid()
         );
         allow write: if signedIn() && authUid() == sessionTeacherUid();
       }
@@ -5509,7 +5494,7 @@ service cloud.firestore {
       // auto-submit doesn't archive (those stay in /responses, autoSubmitted:true).
       match /archived_responses/{responseKey} {
         function sessionTeacherUidArch() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid;
+          return dbGet('quiz_sessions', sessionId).data.teacherUid;
         }
         allow read: if signedIn() && (
           authUid() == sessionTeacherUidArch() || isAdmin()
@@ -5535,20 +5520,20 @@ service cloud.firestore {
       match /views/{viewId} {
         allow read: if signedIn() && (
           isAdmin() ||
-          get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid == authUid()
+          dbGet('quiz_sessions', sessionId).data.teacherUid == authUid()
         );
         allow create: if signedIn() && viewAsOk() &&
-          incoming().keys().hasOnly(['viewedAt']) &&
+          newKeys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
-          exists(/databases/$(database)/documents/quiz_sessions/$(sessionId)) &&
-          get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('mode', 'submissions') == 'view-only';
+          dbExists('quiz_sessions', sessionId) &&
+          dbGet('quiz_sessions', sessionId).data.get('mode', 'submissions') == 'view-only';
         allow update, delete: if false;
       }
     }
 
     // Attempt ledgers (quiz and video): id `{sessionId}__{uid}`. ledgerS is the session doc.
     function ledgerS(c, id) {
-      return get(/databases/$(database)/documents/$(c)/$(id.split('__')[0])).data;
+      return dbGet(c, id.split('__')[0]).data;
     }
     // The id's uid half is the caller, so a row can't sit at another student's key.
     function ledgerMine(id) {
@@ -5581,7 +5566,7 @@ service cloud.firestore {
       // The student pseudonym uid is an opaque HMAC, so probing another's path
       // isn't realistic without already knowing that uid.
       allow read: if signedIn() && (
-        resource == null ||
+        noDoc() ||
         myOldStudent() ||
         authUid() == existing().teacherUid ||
         isAdmin() ||
@@ -5624,7 +5609,7 @@ service cloud.firestore {
       // delete a row whose stored teacherUid is wrong (pre-fix squats); a stored
       // teacherUid naming the student never lets them undo their own cap.
       allow delete: if signedIn() && (
-        resource == null ||
+        noDoc() ||
         (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isAdmin() ||
         authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid
       );
@@ -5637,7 +5622,7 @@ service cloud.firestore {
       // See `quiz_attempt_ledger` above for the `resource == null`, own-key
       // and session-teacher rationale — same pattern, same threat model.
       allow read: if signedIn() && (
-        resource == null ||
+        noDoc() ||
         myOldStudent() ||
         isAdmin() ||
         (!isStudentRoleUser() &&
@@ -5673,7 +5658,7 @@ service cloud.firestore {
       // deny). VA has no ledger-deleting remove path today, but keeps the two
       // ledgers symmetric.
       allow delete: if signedIn() && (
-        resource == null ||
+        noDoc() ||
         isAdmin() ||
         (!isStudentRoleUser() &&
          ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
@@ -5741,11 +5726,11 @@ service cloud.firestore {
       match /pollVotes/{optionIndex} {
         allow read: if signedIn();
         allow create: if signedIn() &&
-          incoming().keys().hasOnly(['count']) &&
+          newKeys().hasOnly(['count']) &&
           isInt('count') &&
           incoming().count == 1;
         allow update: if signedIn() &&
-          incoming().keys().hasOnly(['count']) &&
+          newKeys().hasOnly(['count']) &&
           isInt('count') &&
           existing().count is int &&
           incoming().count == existing().count + 1;
@@ -5778,7 +5763,7 @@ service cloud.firestore {
       // is a display snapshot validated as a string (not pinned to token.email).
       allow create, update: if isSuperAdmin()
         && incoming().id == resourceId
-        && incoming().keys().hasOnly([
+        && newKeys().hasOnly([
              'id', 'kind', 'title', 'description', 'refId', 'scope', 'plcIds',
              'createdByAdminUid', 'createdByAdminEmail', 'createdAt', 'updatedAt'
            ])
@@ -5802,7 +5787,7 @@ service cloud.firestore {
     match /help_center/config {
       allow read: if signedIn();
       allow write: if isAdmin() && isSuperAdmin()
-        && incoming().keys().hasOnly(['categories', 'updatedAt', 'updatedBy'])
+        && newKeys().hasOnly(['categories', 'updatedAt', 'updatedBy'])
         && isList('categories')
         && myUpdatedBy()
         && isInt('updatedAt');
@@ -5847,7 +5832,7 @@ service cloud.firestore {
       // client's useHelpResources({allOrgs: isSuperAdmin}) assumption.
       function helpReaderOk() {
         return signedIn()
-          && request.auth.token.get('email', '') != ''
+          && tok().get('email', '') != ''
           && (existing().orgId == null || isOrgMember(existing().orgId) || isSuperAdmin());
       }
       allow read: if helpReaderOk();
@@ -5896,9 +5881,9 @@ service cloud.firestore {
            existing().accessLevel == 'public' ||
            // email_verified is REQUIRED, same reason as isAdmin() above.
            (existing().accessLevel == 'beta' &&
-            request.auth.token.email != null &&
-            request.auth.token.get('email_verified', false) == true &&
-            request.auth.token.email.lower() in existing().betaUsers)
+            tok().email != null &&
+            emailVerified() &&
+            myEmail() in existing().betaUsers)
          ));
       allow write: if isAdmin();
     }
@@ -5910,7 +5895,7 @@ service cloud.firestore {
       // Only teacher (session owner) can create/update the session metadata
       // sessionId is formatted as [teacherUid]_[widgetId]
       allow write: if signedIn() && 
-                   (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                   (isAdmin() || mySid(sessionId));
 
       match /entries/{entryId} {
         // Students can submit entries (create). Parent session must exist and
@@ -5920,9 +5905,9 @@ service cloud.firestore {
         // and would accumulate forever; an unbounded name string would bloat
         // the teacher's Drive queue export.
         allow create: if signedIn() &&
-          exists(/databases/$(database)/documents/nextup_sessions/$(sessionId)) &&
-          get(/databases/$(database)/documents/nextup_sessions/$(sessionId)).data.get('isActive', false) == true &&
-          incoming().keys().hasOnly(['name', 'joinedAt']) &&
+          dbExists('nextup_sessions', sessionId) &&
+          dbGet('nextup_sessions', sessionId).data.get('isActive', false) == true &&
+          newKeys().hasOnly(['name', 'joinedAt']) &&
           isStr('name') &&
           incoming().name.size() > 0 &&
           incoming().name.size() <= 100 &&
@@ -5930,7 +5915,7 @@ service cloud.firestore {
         // Only teacher and admin can read/delete entries (buffer processing)
         // Path-based ownership check ensures query safety for the teacher's listener
         allow read, delete: if signedIn() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                            (isAdmin() || mySid(sessionId));
       }
     }
 
@@ -5982,7 +5967,7 @@ service cloud.firestore {
       match /key/{keyId} {
         allow read: if vaOwner(vaS()) || isSubMonitor(vaS());
         allow write: if vaOwner(vaS()) ||
-          vaOwner(getAfter(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data);
+          vaOwner(dbGetAfter('video_activity_sessions', sessionId).data);
       }
 
       // Per-period sessions keep publicQuestions here, readable once the
@@ -6137,7 +6122,7 @@ service cloud.firestore {
       match /views/{viewId} {
         allow read: if vaOwner(vaS());
         allow create: if signedIn() && viewAsOk() &&
-          incoming().keys().hasOnly(['viewedAt']) &&
+          newKeys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           vaS().get('mode', 'submissions') == 'view-only';
         allow update, delete: if false;
@@ -6171,7 +6156,7 @@ service cloud.firestore {
       // is an opaque per-assignment pseudonym (studentRole) or the anonymous auth
       // uid (legacy shared-link). Payload is deliberately opaque — no PII.
       function maSessionData() {
-        return get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data;
+        return dbGet('mini_app_sessions', sessionId).data;
       }
       // Student tokens never count as the owner.
       function maOwner() {
@@ -6226,7 +6211,7 @@ service cloud.firestore {
           passesStudentClassGateList(maSessionClassIds()) &&
           (isStudentRoleUser() || submissionId == authUid()) &&
           incoming().studentUid == authUid() &&
-          incoming().keys().hasOnly(['submittedAt', 'studentUid', 'payload', 'staffEmail', 'staffName']) &&
+          newKeys().hasOnly(['submittedAt', 'studentUid', 'payload', 'staffEmail', 'staffName']) &&
           staffJoinOk(maSessionData(), incoming()) &&
           isInt('submittedAt') &&
           isMap('payload') &&
@@ -6284,10 +6269,10 @@ service cloud.firestore {
           maOwner()
         );
         allow create: if signedIn() &&
-          incoming().keys().hasOnly(['viewedAt']) &&
+          newKeys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
-          exists(/databases/$(database)/documents/mini_app_sessions/$(sessionId)) &&
-          get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data.get('mode', 'submissions') == 'view-only';
+          dbExists('mini_app_sessions', sessionId) &&
+          dbGet('mini_app_sessions', sessionId).data.get('mode', 'submissions') == 'view-only';
         allow update, delete: if false;
       }
     }
@@ -6335,7 +6320,7 @@ service cloud.firestore {
       // The session doc, named once: the full path repeated a dozen times in
       // the sub-collections below is worth real bytes against the cap.
       function glSession() {
-        return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data;
+        return dbGet('guided_learning_sessions', sessionId).data;
       }
       // Shared by responses and progress.
       function glClassGate() {
@@ -6367,7 +6352,7 @@ service cloud.firestore {
           studentUid == authUid() &&
           incoming().studentAnonymousId == authUid() &&
           incoming().sessionId == sessionId &&
-          incoming().keys().hasOnly(['sessionId', 'studentAnonymousId', 'pin', 'answers', 'startedAt', 'completedAt', 'score', 'classPeriod', 'classId', 'staffEmail', 'staffName']) &&
+          newKeys().hasOnly(['sessionId', 'studentAnonymousId', 'pin', 'answers', 'startedAt', 'completedAt', 'score', 'classPeriod', 'classId', 'staffEmail', 'staffName']) &&
           incoming().score == null &&
           staffJoinOk(glSession(), incoming()) &&
           // Per-student publication is teacher-written only.
@@ -6432,7 +6417,7 @@ service cloud.firestore {
         allow create, update: if signedIn() &&
           uid == authUid() &&
           glValidProgress() &&
-          (resource == null || unchanged('startedAt')) &&
+          (noDoc() || unchanged('startedAt')) &&
           beforeClose(glSession()) && glOpen() &&
           (glSessionMode() == 'view-only' || (glClassGate() && afterOpen(glSession())));
       }
@@ -6442,7 +6427,7 @@ service cloud.firestore {
         // A student who finished has seen the steps, so their review can show them.
         allow read: if signedIn() &&
           (glIsTeacher() || isSubMonitor(glSession()) || glOpen() ||
-           exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)/responses/$(authUid())));
+           dbExists4('guided_learning_sessions', sessionId, 'responses', authUid()));
         allow write: if !isStudentRoleUser() && contentWriteOk('guided_learning_sessions', sessionId);
       }
       match /seats/{uid} {
@@ -6455,7 +6440,7 @@ service cloud.firestore {
       match /views/{viewId} {
         allow read: if signedIn() && glIsTeacher();
         allow create: if signedIn() && viewAsOk() &&
-          incoming().keys().hasOnly(['viewedAt']) &&
+          newKeys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           glSessionMode() == 'view-only';
       }
@@ -6474,7 +6459,7 @@ service cloud.firestore {
       // Only a teacher identity (never anonymous, studentRole or deactivated) or a site admin writes the session doc.
       allow create, update: if liveStaffSignedIn() &&
                             sessionStaff() &&
-                            ((sessionId.matches(authUid() + '_.*') &&
+                            ((mySid(sessionId) &&
                                 incoming().get('teacherUid', authUid()) == authUid()) ||
                               awSiteAdmin());
       allow delete: if false;
@@ -6928,18 +6913,17 @@ service cloud.firestore {
       }
     }
 
-    // Poll join-code pointers, written only by the pollCodePointer trigger; a lookup needs the code.
-    match /poll_codes/{code} {
-      allow get: if signedIn();
-      allow list, write: if false;
-    }
+    // poll_codes pointers and poll_joins records are server-only: codes resolve through resolvePollCodeV1.
 
     // Poll Sessions — public, anonymous device-voting for the Poll widget.
     // sessionId is formatted as {teacherUid}_{pollSessionId}. The teacher owns
-    // the session doc (UID prefix); participants write one uid-keyed vote each.
+    // the session doc (UID prefix); joined devices write one vote each, keyed by their voter id.
     match /poll_sessions/{sessionId} {
-      // A participant reaches one session by get, via the poll_codes pointer; list is owner/admin only.
-      allow get: if signedIn();
+      // The poll_joins id resolvePollCodeV1 writes when this caller joins with the code.
+      function pollJid() { return sessionId + '__' + authUid(); }
+      // A joined device reads its one session; list is owner/admin only.
+      allow get: if signedIn() &&
+                 (mySid(sessionId) || dbExists('poll_joins', pollJid()) || isAdmin());
       allow list: if signedIn() &&
                   (isAdmin() || myOldTeacher());
       // Only staff whose uid prefixes the sessionId, or an admin, may create/update the session doc itself.
@@ -6947,20 +6931,19 @@ service cloud.firestore {
                             notAnon() &&
                             (isAdmin() ||
                               (quizStaff() &&
-                                sessionId.matches(authUid() + '_.*') &&
+                                mySid(sessionId) &&
                                 incoming().get('teacherUid', authUid()) == authUid()));
       allow delete: if false;
 
-      // Vote doc id is the composite `{questionIndex}_{uid}` so one listener
+      // Vote doc id is the composite `{questionIndex}_{voterId}` so one listener
       // covers every question in a multi-question poll while still holding the
       // one-vote-per-device-per-question invariant.
       match /votes/{voteId} {
         // Reads the parent session once (let-bound), reused for the active-gate
-        // and the per-question optionIndex range check. Same-path reads are
-        // cached per evaluation, so the preceding exists() isn't double-billed.
+        // and the per-question optionIndex range check; a missing session denies.
         // Invoked only after the allow rule confirmed both indices are ints.
         function voteTargetsActiveInRangeOption() {
-          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          let session = dbGet('poll_sessions', sessionId).data;
           let counts = session.get('optionCounts', []);
           let questionIndex = incoming().questionIndex;
           return session.get('active', false) == true &&
@@ -6971,28 +6954,34 @@ service cloud.firestore {
             incoming().optionIndex < counts[questionIndex];
         }
 
-        // Any authed user (incl. anon) may create/update ONLY the vote doc whose
-        // id == `{questionIndex}_{their uid}`. Exactly the three declared keys;
+        // The vote ids this caller may write; get() fails, denying, when it never joined.
+        function pollVoteIds() {
+          let q = string(incoming().questionIndex) + '_';
+          return [q + dbGet('poll_joins', pollJid()).data.get('voterId', authUid()), q + authUid()];
+        }
+
+        // A joined device may create/update ONLY the vote doc whose id ==
+        // `{questionIndex}_{its voter id}`. Exactly the three declared keys;
         // questionIndex int in [0, optionCounts.size()); optionIndex int in
         // [0, optionCounts[questionIndex]); only while active and the question
         // isn't in lockedQuestions. Re-voting the
         // same question overwrites (one per device per question).
+        // The `_{uid}` id is for tabs still on the previous app; drop it after the next main release (AB-165).
         allow create, update: if signedIn() &&
-          incoming().keys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
+          newKeys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
           isInt('questionIndex') &&
           isInt('optionIndex') &&
           isInt('votedAt') &&
-          voteId == string(incoming().questionIndex) + '_' + authUid() &&
-          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
+          voteId in pollVoteIds() &&
           voteTargetsActiveInRangeOption();
 
-        // Reads open to any authed user — vote docs are anonymous tallies
-        // (no PII), which is what powers the live results on phones + board.
-        allow read: if signedIn();
+        // Vote ids carry voter ids, never accounts. Joined devices read the live tally; so does staff
+        // (co-teachers on a shared board read votes through usePollSessionDocs).
+        allow read: if staffSignedIn() || dbExists('poll_joins', pollJid());
 
         // Delete (reset) is teacher/admin-only.
         allow delete: if signedIn() &&
-          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+          (isAdmin() || mySid(sessionId));
       }
 
       // Word cloud / open response answers, `{questionIndex}_{uid}`: text
@@ -7003,7 +6992,7 @@ service cloud.firestore {
       // owner (or an admin) and the student who wrote it can read it.
       match /answers/{answerId} {
         function answerTargetsOpenTextQuestion() {
-          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          let session = dbGet('poll_sessions', sessionId).data;
           let questionIndex = incoming().questionIndex;
           return session.get('active', false) == true &&
             questionIndex in session.get('textQuestions', []) &&
@@ -7011,25 +7000,25 @@ service cloud.firestore {
         }
 
         allow create, update: if signedIn() &&
-          incoming().keys().hasOnly(['questionIndex', 'text', 'votedAt', 'answeredAt']) &&
+          newKeys().hasOnly(['questionIndex', 'text', 'votedAt', 'answeredAt']) &&
           isInt('questionIndex') &&
           isStr('text') &&
           isInt('votedAt') &&
           incoming().text.size() > 0 &&
           incoming().text.size() <= 280 &&
-          incoming().votedAt <= request.time.toMillis() + 86400000 &&
+          incoming().votedAt <= nowMs() + 86400000 &&
           incoming().get('answeredAt', request.time) == request.time &&
           answerId == string(incoming().questionIndex) + '_' + authUid() &&
-          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
+          dbExists('poll_joins', pollJid()) &&
           answerTargetsOpenTextQuestion();
 
         allow read: if signedIn() &&
           (isAdmin() ||
-            sessionId.matches(authUid() + '_.*') ||
+            mySid(sessionId) ||
             answerId.matches('[0-9]+_' + authUid()));
 
         allow delete: if signedIn() &&
-          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+          (isAdmin() || mySid(sessionId));
       }
 
       // Word cloud words the session owner hid, one doc per question id. They
@@ -7037,11 +7026,11 @@ service cloud.firestore {
       // that every member of a shared board can read.
       match /hidden_words/{questionId} {
         allow read, delete: if signedIn() &&
-          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+          (isAdmin() || mySid(sessionId));
         allow create, update: if signedIn() &&
           notAnon() &&
-          sessionId.matches(authUid() + '_.*') &&
-          incoming().keys().hasOnly(['words']) &&
+          mySid(sessionId) &&
+          newKeys().hasOnly(['words']) &&
           isList('words') &&
           incoming().words.size() <= 500;
       }
@@ -7104,7 +7093,7 @@ service cloud.firestore {
       allow create, update: if ownsUserTeacher(userId) && placements in [
           'guided_learning_placements', 'miniapp_placements', 'question_bank_placements'
         ]
-        && incoming().keys().hasOnly(['folderId', 'order', 'updatedAt'])
+        && newKeys().hasOnly(['folderId', 'order', 'updatedAt'])
         && isStr('folderId') && incoming().folderId.size() > 0
         && optInt(incoming(), 'order')
         && isInt('updatedAt');
@@ -7153,7 +7142,7 @@ service cloud.firestore {
     match /public_flashcard_sets/{shareId} {
       function validPublicFlashcardSnapshot() {
         return myNewTeacher()
-               && incoming().keys().hasOnly([
+               && newKeys().hasOnly([
                  'teacherUid', 'setId', 'title', 'description',
                  'termLanguage', 'definitionLanguage', 'cards',
                  'updatedAt', 'speak'
@@ -7189,7 +7178,7 @@ service cloud.firestore {
     // are written by submitFlashcardCheckV1.
     match /flashcard_sessions/{sessionId} {
       function fcHasPointer() {
-        return exists(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionId));
+        return dbExists4('student_assignments', authUid(), 'items', sessionId);
       }
       // Positive class match. Deliberately NOT passesStudentClassGateList(),
       // which passes on an empty/absent classIds - a roster- or group-targeted
@@ -7201,8 +7190,8 @@ service cloud.firestore {
       // and either guard makes every student list query unprovable and denied.
       function fcInSessionClass(sessionClassIds) {
         return isStudentRoleUser()
-               && request.auth.token.classIds is list
-               && sessionClassIds.hasAny(request.auth.token.classIds);
+               && tok().classIds is list
+               && sessionClassIds.hasAny(tok().classIds);
       }
 
       // Same gate as quiz_sessions: only a member may point a check at a PLC's results.
@@ -7251,7 +7240,7 @@ service cloud.firestore {
       allow delete: if liveStaffSignedIn() && myOldTeacher();
 
       function fcSession() {
-        return get(/databases/$(database)/documents/flashcard_sessions/$(sessionId)).data;
+        return dbGet('flashcard_sessions', sessionId).data;
       }
       function fcIsSessionTeacher() {
         return signedIn() && fcSession().teacherUid == authUid();
@@ -7264,7 +7253,7 @@ service cloud.firestore {
         // A student who submitted a Check keeps the cards for their published review.
         allow read: if signedIn() &&
           (fcIsSessionTeacher() || isSubMonitor(fcSession()) || fcOpen() ||
-           get(/databases/$(database)/documents/flashcard_sessions/$(sessionId)/progress/$(authUid())).data.get('submittedAt', null) != null);
+           dbGet4('flashcard_sessions', sessionId, 'progress', authUid()).data.get('submittedAt', null) != null);
         allow write: if contentWriteOk('flashcard_sessions', sessionId);
       }
       match /seats/{uid} {
@@ -7279,11 +7268,11 @@ service cloud.firestore {
         // Flashcards-mode Checks grade from mastery, so only recordFlashcardCheckRatingsV1 writes cards.
         function fcCardsOk() {
           return fcSession().kind == 'check' && fcSession().get('checkMode', '') == 'flashcards'
-            ? incoming().get('cards', null) == (resource == null ? null : existing().get('cards', null))
+            ? incoming().get('cards', null) == (noDoc() ? null : existing().get('cards', null))
             : incoming().cards is map;
         }
         function fcKept(data, k) {
-          return data.get(k, null) == (resource == null ? null : existing().get(k, null));
+          return data.get(k, null) == (noDoc() ? null : existing().get(k, null));
         }
         function fcValidProgress() {
           let data = incoming();
@@ -7297,18 +7286,18 @@ service cloud.firestore {
                  ])
                  // The card subset is a copy of the student's own pointer, or cleared.
                  && (fcKept(data, 'cardSubset') || data.get('cardSubset', null) == null ||
-                     data.cardSubset == get(/databases/$(database)/documents/student_assignments/$(studentUid)/items/$(sessionId)).data.override.questionIds)
+                     data.cardSubset == dbGet4('student_assignments', studentUid, 'items', sessionId).data.override.questionIds)
                  // The teacher's results setting and the results tab-away guard ride through unchanged.
                  && fcKept(data, 'resultsOverride') && fcKept(data, 'resultsTabWarnings')
                  && fcKept(data, 'resultsLockedOut') && fcKept(data, 'resultsLockedOutAt')
                  && fcKept(data, 'completedAttempts') && fcKept(data, 'forcedSubmit')
                  // The time limit's start is stamped once per attempt, never later than now.
                  && (fcKept(data, 'attemptStartedAt') ||
-                     ((resource == null || existing().get('attemptStartedAt', null) == null)
+                     ((noDoc() || existing().get('attemptStartedAt', null) == null)
                       && data.attemptStartedAt is int
-                      && data.attemptStartedAt <= request.time.toMillis() + 60000))
+                      && data.attemptStartedAt <= nowMs() + 60000))
                  && (data.get('handRaisedAt', null) == null || data.handRaisedAt is int)
-                 && data.get('tabSwitchWarnings', 0) >= (resource == null ? 0 : existing().get('tabSwitchWarnings', 0))
+                 && data.get('tabSwitchWarnings', 0) >= (noDoc() ? 0 : existing().get('tabSwitchWarnings', 0))
                  && data.classId is string
                  && fcCardsOk()
                  && data.starred is list
@@ -7339,9 +7328,9 @@ service cloud.firestore {
                               && (fcSession().get('audience', '') == 'staff' ||
                                   (isStudentRoleUser() &&
                                    (fcInSessionClass(fcSession().get('classIds', [])) ||
-                                    exists(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionId)))))
+                                    dbExists4('student_assignments', authUid(), 'items', sessionId))))
                               && fcWithinWindow() && fcOpen()
-                              && (resource == null || !('submittedAt' in existing()))
+                              && (noDoc() || !('submittedAt' in existing()))
                               && fcValidProgress();
         // A submitted student viewing protected results raises their tab-away count and may lock.
         allow update: if signedIn() && studentUid == authUid()
@@ -7379,15 +7368,15 @@ service cloud.firestore {
     // one-doc design.
     match /project_runs/{runId} {
       function pjRun() {
-        return get(/databases/$(database)/documents/project_runs/$(runId)).data;
+        return dbGet('project_runs', runId).data;
       }
       // Positive student check. passesStudentClassGate*() passes every
       // non-student, so it can never stand as the || alternative to ownership.
       function pjStudentInAnyClass(classIds) {
         return isStudentRoleUser()
-               && request.auth.token.classIds is list
+               && tok().classIds is list
                && classIds is list
-               && classIds.hasAny(request.auth.token.classIds);
+               && classIds.hasAny(tok().classIds);
       }
       // notDeactivated() last: it is a get(), and a student never reaches it.
       function pjIsRunTeacher() {
@@ -7417,9 +7406,9 @@ service cloud.firestore {
       function pjRunListScoped() {
         return (existing().get('teacherUid', '') == authUid()
                 && notDeactivated()) ||
-               (request.auth.token.get('classIds', []) is list &&
+               (tok().get('classIds', []) is list &&
                 existing().get('classIds', [])
-                  .hasAny(request.auth.token.get('classIds', [])));
+                  .hasAny(tok().get('classIds', [])));
       }
       allow list: if signedIn()
                   && notAnon()
@@ -7526,7 +7515,7 @@ service cloud.firestore {
         match /private/{docId} {
           allow read: if pjIsRunTeacher() || pjGroupMember();
           allow create, update: if docId == 'work'
-                                && incoming().keys().hasOnly(['workLinks', 'updatedAt'])
+                                && newKeys().hasOnly(['workLinks', 'updatedAt'])
                                 && isList('workLinks')
                                 && incoming().workLinks.size() <= 20
                                 && isInt('updatedAt')
@@ -7543,7 +7532,7 @@ service cloud.firestore {
         match /uploads/{uploadId} {
           allow read: if pjIsRunTeacher() || pjGroupMember();
           allow create: if signedIn()
-                        && incoming().keys().hasOnly([
+                        && newKeys().hasOnly([
                              'id', 'fileName', 'contentType', 'sizeBytes', 'uploadedByUid',
                              'uploadedAt', 'storagePath', 'archiveStatus', 'stepId'
                            ])
@@ -7573,7 +7562,7 @@ service cloud.firestore {
       // their own group doc can never read an unreleased score.
       match /grades/{groupId} {
         function pjGroupMembers() {
-          return get(/databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId))
+          return dbGet4('project_runs', runId, 'groups', groupId)
                  .data.get('memberUids', []);
         }
         allow read: if pjIsRunTeacher()
@@ -7597,7 +7586,7 @@ service cloud.firestore {
       allow write: if false;
 
       match /students/{studentUid} {
-        allow read: if focusReader(get(/databases/$(database)/documents/focus_sessions/$(sessionId)).data);
+        allow read: if focusReader(dbGet('focus_sessions', sessionId).data);
         allow write: if false;
       }
     }
