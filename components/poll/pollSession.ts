@@ -205,8 +205,9 @@ const writeSessionDoc = async (
  * Reserve the widget's sticky join code, writing an inert (`startedAt: null`)
  * session doc so the link is shareable before voting ever opens. Returns the
  * minted code, or null when one already exists. Deliberately returns only the
- * code rather than a patched config: the caller must merge it onto whatever
- * config is current when this resolves, or a concurrent edit is lost.
+ * code rather than a patched config: the caller must merge it (with
+ * `joinCodeOwnerUid`) onto whatever config is current when this resolves, or a
+ * concurrent edit is lost.
  */
 export const ensurePollJoinCode = async (
   config: PollConfig,
@@ -308,8 +309,15 @@ export const startPollSession = async (
   mode: 'fresh' | 'resume',
   boardShareId?: string | null
 ): Promise<PollConfig> => {
+  // A copied board carries another teacher's code; a live share is vetted by the server instead.
+  const foreignCode =
+    !boardShareId &&
+    !!config.joinCodeOwnerUid &&
+    config.joinCodeOwnerUid !== teacherUid &&
+    config.lastPollSessionOwnerUid !== teacherUid;
+  const freshState = mode === 'fresh' || foreignCode;
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
-  const reuse = !rotate && !!config.joinCode;
+  const reuse = !rotate && !foreignCode && !!config.joinCode;
   const code =
     reuse && config.joinCode ? config.joinCode : await mintUniquePollCode();
   // A shared board's code may have been minted by a colleague.
@@ -317,16 +325,15 @@ export const startPollSession = async (
     await claimSharedPollCode(code, boardShareId);
   }
   // A fresh start hides and unlocks every question again; resume keeps them.
-  const base: PollConfig =
-    mode === 'fresh'
-      ? {
-          ...config,
-          revealedQuestionIds: [],
-          lockedQuestionIds: [],
-          answerShownQuestionIds: [],
-          hiddenResponses: [],
-        }
-      : config;
+  const base: PollConfig = freshState
+    ? {
+        ...config,
+        revealedQuestionIds: [],
+        lockedQuestionIds: [],
+        answerShownQuestionIds: [],
+        hiddenResponses: [],
+      }
+    : config;
   const currentQuestionIndex = await writeSessionDoc(teacherUid, code, base, {
     active: true,
     startedAt: Date.now(),
@@ -344,6 +351,13 @@ export const startPollSession = async (
   return {
     ...base,
     joinCode: code,
+    // A code we minted, or an unstamped one whose last session we ran on our own board, is ours.
+    ...(!reuse ||
+    (!boardShareId &&
+      !config.joinCodeOwnerUid &&
+      config.lastPollSessionOwnerUid === teacherUid)
+      ? { joinCodeOwnerUid: teacherUid }
+      : {}),
     activePollSessionId: code,
     activePollSessionOwnerUid: teacherUid,
     currentQuestionIndex,
@@ -351,8 +365,8 @@ export const startPollSession = async (
     // session. Clear it so the UI doesn't offer to "Resume" the stale session
     // once the teacher stops and then clicks Start again. On 'resume' mode the
     // id matches lastPollSessionId already, so this is always a no-op there.
-    lastPollSessionId:
-      mode === 'fresh' ? null : (config.lastPollSessionId ?? null),
+    lastPollSessionId: freshState ? null : (config.lastPollSessionId ?? null),
+    ...(foreignCode ? { lastPollSessionOwnerUid: null } : {}),
   };
 };
 
@@ -391,6 +405,7 @@ export const withStoppedSessionEnded = (config: PollConfig): PollConfig =>
     : {
         ...config,
         joinCode: null,
+        joinCodeOwnerUid: null,
         lastPollSessionId: null,
         lastPollSessionOwnerUid: null,
       };
