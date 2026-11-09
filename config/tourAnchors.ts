@@ -11595,10 +11595,12 @@ export const TOUR_ANCHORS = {
     label: 'What does your tour explain? field in the web tour editor',
   },
   'web-tour-editor.write-with-claude': {
-    label: 'Write with Claude button in the web tour editor',
+    label:
+      'Main button in the web tour editor header while it says Write text (Write with Claude)',
   },
   'web-tour-editor.rewrite-all': {
-    label: 'Rewrite all button in the web tour editor',
+    label: 'Rewrite all option in the web tour editor More actions menu',
+    panel: true,
   },
   'web-tour-editor.write-asked': {
     label: 'Run again for questions button in the web tour editor',
@@ -11634,22 +11636,59 @@ export const TOUR_ANCHORS = {
     label: 'Play button in the web tour editor header',
   },
   'web-tour-editor.copy-link': {
-    label: 'Copy link button in the web tour editor header',
+    label: 'Copy link option in the web tour editor More actions menu',
+    panel: true,
   },
   'web-tour-editor.check': {
-    label: 'Check tour button in the web tour editor header',
+    label: 'Main button in the web tour editor header while it says Check tour',
   },
   'web-tour-editor.record': {
     label: 'Record steps button in the web tour editor',
   },
   'web-tour-editor.publish': {
-    label: 'Publish tour button in the web tour editor',
+    label:
+      'Main button in the web tour editor header while it says Publish or Published',
     persists: true,
   },
   'web-tour-editor.delete': {
-    label: 'Delete web tour button in the web tour editor',
+    label: 'Delete web tour option in the web tour editor More actions menu',
+    panel: true,
     destructive: true,
     persists: true,
+  },
+  'web-tour-editor.menu': {
+    label: 'More actions menu button in the web tour editor header',
+  },
+  'web-tour-editor.duplicate': {
+    label: 'Duplicate option in the web tour editor More actions menu',
+    panel: true,
+    persists: true,
+  },
+  'web-tour-editor.add-step': {
+    label: 'Add step button under the web tour editor outline',
+  },
+  'web-tour-editor.step-more': {
+    label: "More toggle on the selected web step's card",
+  },
+  'web-tour-editor.tab-steps': {
+    label: 'Steps tab in the web tour editor',
+  },
+  'web-tour-editor.tab-settings': {
+    label: 'Settings tab in the web tour editor',
+  },
+  'web-tour-editor.picture': {
+    label:
+      'Step picture on the web tour editor stage (selects it to show its tools)',
+  },
+  'web-tour-editor.picture-blur': {
+    label: 'Blur tool for the selected picture in the web tour editor',
+    panel: true,
+  },
+  'web-tour-editor.picture-remove': {
+    label:
+      'Remove picture tool for the selected picture in the web tour editor',
+    panel: true,
+    destructive: true,
   },
   'gl-manager.select-mode': {
     label: 'Select mode toggle in the Guided Learning library',
