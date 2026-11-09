@@ -85,7 +85,10 @@ import {
 } from '@/utils/paperScanRaster';
 import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
 import { readPaperPage } from '@/utils/paperSheetReader';
-import { paperCropStoragePath } from '@/utils/paperWritten';
+import {
+  paperCropStoragePath,
+  type PaperKeptPagesRequestField,
+} from '@/utils/paperWritten';
 import { overAnsweredSections, sessionSectionsFor } from '@/utils/quizSections';
 
 const IMPORT_CHUNK = 200;
@@ -93,7 +96,7 @@ const IMPORT_CHUNK = 200;
 const SAVE_DELAY_MS = 600;
 
 /** Callable request fields beyond the sheets: `{ layoutVersion: 2, scanId }` on a v2 batch. */
-export interface PaperImportRequestExtra {
+export interface PaperImportRequestExtra extends PaperKeptPagesRequestField {
   layoutVersion?: 2;
   scanId?: string;
 }
