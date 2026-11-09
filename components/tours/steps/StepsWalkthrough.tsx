@@ -1,4 +1,9 @@
-import React, { useState, useSyncExternalStore } from 'react';
+import React, {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { ImageOff } from 'lucide-react';
 import { TourBar } from '@/components/tours/TourBar';
 import { stageScale } from '@/components/tours/web/pictureTarget';
@@ -39,6 +44,11 @@ export const StepsWalkthrough: React.FC<WalkthroughProps> = ({
   renderMarkup,
 }) => {
   const [asked, setAsked] = useState(0);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  // Opening Walk through puts focus on the stage, so the arrow keys work at once.
+  useLayoutEffect(() => {
+    stageRef.current?.focus({ preventScroll: true });
+  }, []);
   const [hostRef, host] = useMeasured<HTMLDivElement>();
   const [tipRef, tipSize] = useMeasured<HTMLDivElement>();
   const vh = useSyncExternalStore(onResize, viewportHeight, noViewport);
@@ -73,17 +83,26 @@ export const StepsWalkthrough: React.FC<WalkthroughProps> = ({
 
   return (
     <div
-      ref={hostRef}
+      ref={(el) => {
+        hostRef(el);
+        stageRef.current = el;
+      }}
+      role="group"
+      aria-label={labels.walkthrough}
+      tabIndex={-1}
       data-testid="steps-walkthrough"
-      className="flex flex-col items-center gap-3 rounded-2xl bg-slate-800 px-4 pb-6 pt-2"
+      className="flex flex-col items-center gap-3 overflow-hidden rounded-2xl bg-slate-800 px-4 pb-8 pt-2 focus:outline-hidden"
       onKeyDown={(e) => {
         if (e.key === 'ArrowRight') goNext();
         else if (e.key === 'ArrowLeft' && index > 0) setAsked(index - 1);
       }}
     >
-      {/* Fixed chrome sits inside a transformed box, so it lays out here instead of over the page. */}
+      <p role="status" className="sr-only">
+        {`${labels.stepNumber(index + 1)}: ${step.title.trim() || labels.untitledStep}`}
+      </p>
+      {/* Fixed chrome sits inside a transformed box, so it lays out here; the drag grip and the close button have no use on a read-only bar. */}
       <div
-        className="relative w-full [transform:translateZ(0)] [&_[data-testid=tour-bar-grip]]:hidden"
+        className="relative w-full [transform:translateZ(0)] [&_[data-testid=tour-bar-grip]]:hidden [&_[data-testid=tour-bar]>button:last-of-type]:hidden"
         style={{ height: BAR_H }}
       >
         <TourBar
@@ -171,7 +190,8 @@ export const StepsWalkthrough: React.FC<WalkthroughProps> = ({
           step={{
             title: step.title.trim() || labels.untitledStep,
             text: step.text,
-            observe: step.observe,
+            // The bar's Next is the one Next on every step.
+            observe: false,
           }}
           index={index}
           total={total}

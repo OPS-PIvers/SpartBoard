@@ -143,13 +143,21 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
         <>
           <div className="flex items-center gap-3">
             <Toggle
-              checked={draft.visible}
+              checked={draft.visible && !webLinked}
+              disabled={webLinked}
               onChange={(visible) => patch({ visible })}
               label="Visible to teachers"
               anchor={tourAttr('admin.help-center.form-visible')}
               size="sm"
             />
-            <span className="text-sm text-slate-700">Visible to teachers</span>
+            <span className="text-sm text-slate-700">
+              Visible to teachers
+              {webLinked && (
+                <span className="block text-xs text-amber-800">
+                  Off while it links a web tour.
+                </span>
+              )}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Btn

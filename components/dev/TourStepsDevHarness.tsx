@@ -48,7 +48,7 @@ const WEB: Fixture[] = [
   {
     title:
       'Allow pop-ups for this site, then pick the file you want students to open first in a course that already has many materials',
-    text: 'If a banner asks you to allow pop-ups, choose Allow. Chrome remembers this for the site, so you only do it once. Long tips wrap onto as many lines as they need and never push the picture off the page.',
+    text: 'If a banner asks you to allow pop-ups, choose Allow. Chrome remembers this for the site, so you only do it once. Long tips wrap onto as many lines as they need and never push the picture off the page. Paste this address into the box: https://learning.example.org/course/123456789/materials/upload?session=abcdefghijklmnopqrstuvwxyz0123456789',
     action: 'observe',
     name: 'Banner',
     box: { x: 0.2, y: 0.12, w: 0.55, h: 0.07 },

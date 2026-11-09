@@ -157,7 +157,7 @@ describe('StepsView walk through', () => {
     expect(screen.getByText('Step 1 of 3')).toBeTruthy();
   });
 
-  it('goes back to the steps from Done on the last step, and from Exit', () => {
+  it('goes back to the steps from Done on the last step, and from the Steps button', () => {
     open();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -165,7 +165,7 @@ describe('StepsView walk through', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.getByTestId('steps-article')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Walk through' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Steps' }));
     expect(screen.getByTestId('steps-article')).toBeTruthy();
   });
 
@@ -195,6 +195,37 @@ describe('StepsView walk through', () => {
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText("The picture couldn't load")).toBeTruthy();
+  });
+
+  it('keeps a single Next on a step the learner only looks at', () => {
+    render(
+      view({
+        steps: [step(1, { observe: true }), step(2)],
+        initialMode: 'walkthrough',
+      })
+    );
+    expect(screen.getAllByRole('button', { name: 'Next' })).toHaveLength(1);
+  });
+
+  it('takes focus when it opens, so the arrow keys work without a click', () => {
+    open();
+    expect(document.activeElement).toBe(
+      screen.getByTestId('steps-walkthrough')
+    );
+    fireEvent.keyDown(document.activeElement as Element, {
+      key: 'ArrowRight',
+    });
+    expect(screen.getByText('Step 2 of 3')).toBeTruthy();
+  });
+
+  it('announces each step as it changes', () => {
+    open();
+    const live = screen
+      .getByRole('group', { name: 'Walk through' })
+      .querySelector('p.sr-only');
+    expect(live?.textContent).toBe('Step 1: Title 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(live?.textContent).toBe('Step 2: Title 2');
   });
 
   it('moves with the arrow keys', () => {

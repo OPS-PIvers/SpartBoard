@@ -10,14 +10,7 @@ import type {
 /** The widest a picture is drawn: never past its own pixels, nor 1.5 times the width it had on the page. */
 const MAX_MAGNIFY = 1.5;
 
-const Message: React.FC<{ text: string }> = ({ text }) => (
-  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-slate-600">
-    <ImageOff className="h-6 w-6 text-slate-400" aria-hidden="true" />
-    <p>{text}</p>
-  </div>
-);
-
-/** The target as the real tour shows it: the rest of the picture dimmed, the control ringed in white. */
+/** The target as a reader sees it: a ring that shows on any page colour, with the picture left at full brightness. */
 const TargetRing: React.FC<{
   target: NonNullable<StepsViewStep['picture']>['target'];
 }> = ({ target }) =>
@@ -33,11 +26,11 @@ const TargetRing: React.FC<{
         height: `${target.h * 100}%`,
       }}
     >
-      <span className="absolute -inset-1.5 rounded-[10px] border-[3px] border-white shadow-[0_0_0_9999px_rgba(2,6,23,0.55)] print:[print-color-adjust:exact]" />
+      <span className="absolute -inset-1.5 rounded-[10px] border-[3px] border-white shadow-[0_0_0_2px_rgba(15,23,42,0.65)]" />
     </span>
   );
 
-/** One step's picture in the article: loading, ready with its target ringed, or failed. Draws nothing for a step with no picture. */
+/** One step's picture in the article: loading, ready with its target ringed, or a one-line notice when it can't show. Draws nothing for a step with no picture. */
 export const StepPicture: React.FC<{
   step: StepsViewStep;
   index: number;
@@ -51,12 +44,28 @@ export const StepPicture: React.FC<{
   if (!pic) return null;
   const src = state?.status === 'ready' ? state.src : null;
   const failed = state?.status === 'failed' || (!!src && brokenSrc === src);
+  if (failed)
+    return (
+      <p
+        data-testid="step-picture"
+        data-state="failed"
+        className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 print:hidden"
+      >
+        <ImageOff
+          className="h-4 w-4 shrink-0 text-slate-400"
+          aria-hidden="true"
+        />
+        {labels.pictureFailed}
+      </p>
+    );
   const sized = pic.w > 0 && pic.h > 0;
   return (
     <figure
       data-testid="step-picture"
-      data-state={failed ? 'failed' : src ? 'ready' : 'loading'}
-      className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 max-w-[var(--pic-max)] print:max-w-[12cm] print:break-inside-avoid"
+      data-state={src ? 'ready' : 'loading'}
+      className={`relative w-full max-w-[var(--pic-max)] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 print:break-inside-avoid ${
+        src ? '' : 'print:hidden'
+      }`}
       style={
         {
           aspectRatio: sized ? `${pic.w} / ${pic.h}` : '16 / 9',
@@ -66,9 +75,7 @@ export const StepPicture: React.FC<{
         } as React.CSSProperties
       }
     >
-      {failed ? (
-        <Message text={labels.pictureFailed} />
-      ) : src ? (
+      {src ? (
         <>
           <img
             src={src}

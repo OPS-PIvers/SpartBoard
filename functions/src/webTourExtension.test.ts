@@ -271,6 +271,37 @@ describe('loadTour', () => {
     expect(tour.pictures.b.target).toBeUndefined();
   });
 
+  it('serves only the published picture fields, never a kept whole-screen capture', async () => {
+    const kept = {
+      ...pic('a'),
+      target: { x: 0.2, y: 0.3, w: 0.4, h: 0.1 },
+      original: {
+        path: 'web_tour_pictures/set1/original-a.png',
+        w: 2880,
+        h: 1800,
+        crop: { x: 0.1, y: 0.1, w: 0.5, h: 0.5 },
+      },
+    };
+    const store = storeOf(3);
+    const tour = await loadTour(
+      'set1',
+      snapshot([step('a', 'https://app.example.com/', kept)]),
+      store
+    );
+    expect(JSON.stringify(tour)).not.toMatch(/original|2880/);
+    expect(store.meta).toHaveBeenCalledTimes(1);
+    expect(store.meta).toHaveBeenCalledWith('web_tour_pictures/set1/a.jpg');
+    expect(store.download).toHaveBeenCalledTimes(1);
+    expect(store.download).toHaveBeenCalledWith('web_tour_pictures/set1/a.jpg');
+    expect(Object.keys(tour.pictures.a).sort()).toEqual([
+      'data',
+      'h',
+      'mime',
+      'target',
+      'w',
+    ]);
+  });
+
   it('sends the markup drawn on a picture, leaving out shapes that are malformed', async () => {
     const marked = {
       ...pic('a'),

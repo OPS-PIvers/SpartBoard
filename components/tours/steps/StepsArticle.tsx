@@ -18,7 +18,7 @@ export const StepsArticle: React.FC<{
         <li
           key={step.id}
           data-testid="steps-article-step"
-          className="flex min-w-0 flex-col gap-3 print:mb-8 print:break-inside-avoid"
+          className="flex min-w-0 flex-col gap-3 print:mb-8 print:block print:break-inside-avoid"
         >
           <header className="min-w-0">
             <p className="flex flex-wrap items-baseline gap-x-2 text-xs font-semibold uppercase tracking-wide text-slate-500">

@@ -79,7 +79,7 @@ export const PreviewTip: React.FC<{
     }
   >
     {step.text.trim() && (
-      <p className="whitespace-pre-line text-sm text-slate-700">
+      <p className="whitespace-pre-line text-sm text-slate-700 wrap-break-word">
         {renderText ? renderText(step.text.trim()) : step.text.trim()}
       </p>
     )}

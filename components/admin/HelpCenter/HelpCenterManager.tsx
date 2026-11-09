@@ -41,6 +41,9 @@ import {
   watchTours,
 } from '@/components/tours/publishedTours';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useWebTourSites } from '@/components/tours/web/useWebTourSites';
+import { watchWebTourDrafts } from '@/components/tours/webTours';
+import type { GuidedLearningSet } from '@/types';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import {
   SortableList,
@@ -77,7 +80,8 @@ const UNCATEGORIZED: HelpCategory = {
 };
 
 export const HelpCenterManager: React.FC = () => {
-  const { user, userRoles, orgId, roleId, canAccessWidget } = useAuth();
+  const { user, userRoles, orgId, roleId, canAccessWidget, canAccessFeature } =
+    useAuth();
   const { showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
@@ -104,6 +108,12 @@ export const HelpCenterManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [sortByOpens, setSortByOpens] = useState(false);
   const [tourHealthOpen, setTourHealthOpen] = useState(false);
+  const [webDrafts, setWebDrafts] = useState<GuidedLearningSet[] | null>(null);
+  const webToursOn = canAccessFeature('web-tours');
+  useEffect(
+    () => (webToursOn ? watchWebTourDrafts(setWebDrafts) : undefined),
+    [webToursOn]
+  );
 
   // Seed the shared category list once, so the first super admin to open the tab creates the config doc.
   useEffect(() => {
@@ -249,6 +259,22 @@ export const HelpCenterManager: React.FC = () => {
       return next;
     });
 
+  // Web tours left the Help Center, so an item that still links one is hidden from teachers.
+  const webSites = useWebTourSites(
+    items.flatMap((item) =>
+      item.kind === 'guided-learning' &&
+      item.setId &&
+      !tourSetIds.has(item.setId)
+        ? [item.setId]
+        : []
+    )
+  );
+  const linksWebTour = (item: HelpResourceItem): boolean =>
+    item.kind === 'guided-learning' &&
+    !!item.setId &&
+    (webSites.has(item.setId) ||
+      !!webDrafts?.some((set) => set.id === item.setId));
+
   // Undefined while loading or when the item links no live tour.
   const tourStateOf = (
     item: HelpResourceItem
@@ -293,6 +319,7 @@ export const HelpCenterManager: React.FC = () => {
     canWrite: boolean
   ) => {
     const tourState = tourStateOf(item);
+    const webLinked = linksWebTour(item);
     return (
       <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-2">
         {handle ? (
@@ -322,6 +349,35 @@ export const HelpCenterManager: React.FC = () => {
               {item.description}
             </span>
           )}
+          {webLinked && (
+            <span
+              data-testid="help-item-web-linked"
+              className="flex items-center gap-2 text-xs text-amber-800"
+            >
+              Hidden: web tours no longer show in Help.
+              {canWrite && (
+                <>
+                  <button
+                    type="button"
+                    className="font-semibold underline"
+                    onClick={() => {
+                      setEditing(item);
+                      setFormOpen(true);
+                    }}
+                  >
+                    Change
+                  </button>
+                  <button
+                    type="button"
+                    className="font-semibold text-red-700 underline"
+                    onClick={() => void handleDelete(item)}
+                  >
+                    Remove
+                  </button>
+                </>
+              )}
+            </span>
+          )}
           {(tourState === 'draft' || tourState === 'hidden') && (
             <span className="block text-xs text-amber-800">
               {TOUR_NEXT_STEP[tourState]}
@@ -339,14 +395,19 @@ export const HelpCenterManager: React.FC = () => {
         {canWrite ? (
           <>
             <Toggle
-              checked={item.visible}
+              checked={item.visible && !webLinked}
+              disabled={webLinked}
               onChange={() => void handleToggleVisible(item)}
               anchor={tourFieldAttr(
                 'admin.help-center.item-toggle',
                 'help',
                 item.id
               )}
-              label={`Visible: ${item.title}`}
+              label={
+                webLinked
+                  ? `Visible: ${item.title} (off: web tours no longer show in Help)`
+                  : `Visible: ${item.title}`
+              }
               size="sm"
               showLabels={false}
             />
