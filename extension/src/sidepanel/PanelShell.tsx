@@ -30,6 +30,8 @@ export const PanelShell: React.FC = () => {
   const [reply, setReply] = useState<TourListReply | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<PanelTab>('tours');
+  // The tour whose steps are open stays open while the teacher uses the page.
+  const [viewing, setViewing] = useState<string | null>(null);
   const [focus, setFocus] = useState<FocusState>({ kind: 'loading' });
 
   // A refusal hides the tab; a network or sign-in blip keeps what was showing.
@@ -132,6 +134,8 @@ export const PanelShell: React.FC = () => {
         <div className="flex flex-1 flex-col gap-3 p-4">
           <h1 className="text-base font-semibold">Tours</h1>
           <ToursTab
+            viewing={viewing}
+            onView={setViewing}
             reply={reply}
             onRetry={() => {
               setReply(null);

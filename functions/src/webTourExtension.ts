@@ -119,7 +119,14 @@ interface StoredStep {
     urlPattern?: unknown;
     action?: unknown;
     locator?: unknown;
-    picture?: { path?: unknown; w?: unknown; h?: unknown };
+    picture?: {
+      path?: unknown;
+      w?: unknown;
+      h?: unknown;
+      target?: unknown;
+      cssW?: unknown;
+      markup?: unknown;
+    };
     showWhen?: unknown;
     doneWhen?: unknown;
   };
@@ -197,6 +204,86 @@ export interface LoadedTourPicture {
   data: string;
   w: number;
   h: number;
+  /** Where the target sits in the picture, as 0-1 of its width and height. */
+  target?: { x: number; y: number; w: number; h: number };
+  /** The picture's width in CSS pixels when captured. */
+  cssW?: number;
+  /** Arrows, boxes and numbers drawn over the picture, in 0-1 of its size. */
+  markup?: MarkupShape[];
+}
+
+type MarkupShape =
+  | {
+      id: string;
+      kind: 'arrow';
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+    }
+  | { id: string; kind: 'box'; x: number; y: number; w: number; h: number }
+  | { id: string; kind: 'number'; x: number; y: number; n: number };
+
+const MAX_MARKUP = 50;
+const unit = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v) && v >= -0.5 && v <= 1.5;
+
+/** The well-formed markup shapes a picture carries; anything else is left out. */
+function markupOf(v: unknown): MarkupShape[] {
+  if (!Array.isArray(v)) return [];
+  const out: MarkupShape[] = [];
+  for (const raw of v.slice(0, MAX_MARKUP)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const s = raw as Record<string, unknown>;
+    const id = str(s.id).slice(0, 64);
+    if (!id) continue;
+    if (s.kind === 'arrow' && [s.x1, s.y1, s.x2, s.y2].every(unit))
+      out.push({
+        id,
+        kind: 'arrow',
+        x1: s.x1 as number,
+        y1: s.y1 as number,
+        x2: s.x2 as number,
+        y2: s.y2 as number,
+      });
+    else if (s.kind === 'box' && [s.x, s.y, s.w, s.h].every(unit))
+      out.push({
+        id,
+        kind: 'box',
+        x: s.x as number,
+        y: s.y as number,
+        w: s.w as number,
+        h: s.h as number,
+      });
+    else if (
+      s.kind === 'number' &&
+      [s.x, s.y].every(unit) &&
+      Number.isInteger(s.n) &&
+      (s.n as number) >= 1 &&
+      (s.n as number) <= 99
+    )
+      out.push({
+        id,
+        kind: 'number',
+        x: s.x as number,
+        y: s.y as number,
+        n: s.n as number,
+      });
+  }
+  return out;
+}
+
+/** A recorded 0-1 box inside the picture, or nothing. */
+function targetOf(v: unknown): LoadedTourPicture['target'] {
+  const t = v as Record<string, unknown> | null;
+  if (!t || typeof t !== 'object') return undefined;
+  const { x, y, w, h } = t as Record<'x' | 'y' | 'w' | 'h', number>;
+  const ok = [x, y, w, h].every(
+    (n) => typeof n === 'number' && Number.isFinite(n)
+  );
+  return ok && x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1
+    ? { x, y, w, h }
+    : undefined;
 }
 
 export interface LoadedTour {
@@ -226,14 +313,31 @@ export async function loadTour(
   if (!snap || !isWebTourSnapshot(snap) || !startHostOf(snap))
     throw fail(404, 'That tour is no longer published.');
   const steps = webSteps(snap);
-  const wanted: { id: string; path: string; w: number; h: number }[] = [];
+  const wanted: {
+    id: string;
+    path: string;
+    w: number;
+    h: number;
+    target?: LoadedTourPicture['target'];
+    cssW?: number;
+    markup: MarkupShape[];
+  }[] = [];
   for (const step of steps) {
     const pic = step.web?.picture;
     const path = str(pic?.path);
     const w = Number(pic?.w);
     const h = Number(pic?.h);
     if (!isWebTourPicturePath(setId, path) || !(w > 0) || !(h > 0)) continue;
-    wanted.push({ id: str(step.id), path, w, h });
+    const cssW = Number(pic?.cssW);
+    wanted.push({
+      id: str(step.id),
+      path,
+      w,
+      h,
+      target: targetOf(pic?.target),
+      markup: markupOf(pic?.markup),
+      ...(cssW > 0 && cssW <= 10000 ? { cssW } : {}),
+    });
   }
   // Sizes come from metadata in parallel; the budget is spent in step order before any download.
   const metas = await Promise.all(
@@ -258,7 +362,15 @@ export async function loadTour(
   accepted.forEach((p, i) => {
     const data = datas[i];
     if (!data || data.length > MAX_PICTURE_CHARS) return;
-    pictures[p.id] = { mime: p.mime, data, w: p.w, h: p.h };
+    pictures[p.id] = {
+      mime: p.mime,
+      data,
+      w: p.w,
+      h: p.h,
+      ...(p.target ? { target: p.target } : {}),
+      ...(p.cssW ? { cssW: p.cssW } : {}),
+      ...(p.markup.length > 0 ? { markup: p.markup } : {}),
+    };
   });
   const conditions: NonNullable<LoadedTour['conditions']> = {};
   for (const step of steps) {

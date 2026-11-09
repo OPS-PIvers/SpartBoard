@@ -8082,8 +8082,21 @@ export const TOUR_ANCHORS = {
     label: 'Back button in the resource viewer',
     panel: true,
   },
-  'help-center.viewer.open-web-tour': {
-    label: 'Open in a new tab button for a web tour in a Help Center guide',
+  'help-center.viewer.start-live-tour': {
+    label: 'Start Live Tour button at the top of a tour in the resource viewer',
+    panel: true,
+  },
+  'steps-view.mode-steps': {
+    label: 'Steps button in a tour Steps view',
+    panel: true,
+  },
+  'steps-view.mode-walkthrough': {
+    label: 'Walk through button in a tour Steps view',
+    panel: true,
+  },
+  'steps-view.print': {
+    label: 'Print button in a tour Steps view',
+    panel: true,
   },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
@@ -8124,6 +8137,18 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.item-delete': {
     label: 'Delete button on a Help Center admin item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.help-center.item-web-change': {
+    label:
+      'Change link button on a Help Center admin item that links a web tour',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.item-web-remove': {
+    label: 'Remove button on a Help Center admin item that links a web tour',
     perField: true,
     destructive: true,
     panel: true,

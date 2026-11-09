@@ -1,6 +1,6 @@
 // The side panel's help center (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5, H9).
 import React, { useEffect, useState } from 'react';
-import { Play, RefreshCw, Search } from 'lucide-react';
+import { ListOrdered, Play, RefreshCw, Search } from 'lucide-react';
 import {
   chromeMuted,
   focusRing,
@@ -8,7 +8,6 @@ import {
   primaryBtn,
   secondaryBtn,
 } from '@/components/common/lightChrome';
-import type { ApiFailure } from '../spartboardApi';
 import {
   pageHost,
   toursForPanel,
@@ -16,19 +15,13 @@ import {
   type TourListReply,
   type TourStartReply,
 } from '../tourList';
+import { FAILURE_TEXT } from './failureText';
+import { TourStepsPane } from './TourStepsPane';
 
 const send = <T,>(msg: object): Promise<T> => chrome.runtime.sendMessage(msg);
 
 const card = 'rounded-2xl border border-slate-200 bg-white shadow-xs';
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
-
-export const FAILURE_TEXT: Record<ApiFailure, string> = {
-  'signed-out': 'Sign in to Chrome with your Orono account to see tours.',
-  'no-access': "Web tours aren't available for your account yet.",
-  'not-set-up': "Web tours aren't set up yet.",
-  'not-found': 'That tour is no longer published.',
-  offline: "Tours couldn't load. Check your connection and try again.",
-};
 
 /** The active tab in this panel's window, kept current as the person moves between tabs and pages. */
 export function useActiveTab(): chrome.tabs.Tab | null {
@@ -63,9 +56,10 @@ const TourRow: React.FC<{
   busy: boolean;
   disabled: boolean;
   onStart: () => void;
-}> = ({ tour, showHost, busy, disabled, onStart }) => (
-  <li className={`flex items-center gap-3 p-3 ${card}`}>
-    <span className="min-w-0 flex-1">
+  onView: () => void;
+}> = ({ tour, showHost, busy, disabled, onStart, onView }) => (
+  <li className={`flex flex-col gap-3 p-3 ${card}`}>
+    <span className="min-w-0">
       <span className="block font-semibold wrap-anywhere">
         {tour.title || 'Untitled tour'}
       </span>
@@ -74,23 +68,37 @@ const TourRow: React.FC<{
         {tour.steps === 1 ? '1 step' : `${tour.steps} steps`}
       </span>
     </span>
-    <button
-      type="button"
-      className={`${primaryBtn} inline-flex shrink-0 items-center gap-1.5 ${disabledLook}`}
-      disabled={disabled}
-      aria-label={`Start ${tour.title || 'Untitled tour'}`}
-      onClick={onStart}
-    >
-      <Play className="h-4 w-4 fill-current" aria-hidden="true" />
-      {busy ? 'Starting...' : 'Start'}
-    </button>
+    <span className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        className={`${primaryBtn} inline-flex items-center gap-1.5 ${disabledLook}`}
+        disabled={disabled}
+        aria-label={`Start ${tour.title || 'Untitled tour'}`}
+        onClick={onStart}
+      >
+        <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+        {busy ? 'Starting...' : 'Start'}
+      </button>
+      <button
+        type="button"
+        className={`${secondaryBtn} inline-flex items-center gap-1.5 border border-slate-200`}
+        aria-label={`View steps of ${tour.title || 'Untitled tour'}`}
+        onClick={onView}
+      >
+        <ListOrdered className="h-4 w-4" aria-hidden="true" />
+        View steps
+      </button>
+    </span>
   </li>
 );
 
 export const ToursTab: React.FC<{
   reply: TourListReply | null;
   onRetry: () => void;
-}> = ({ reply, onRetry }) => {
+  /** The tour whose steps are open; kept by the shell so it survives tab changes. */
+  viewing: string | null;
+  onView: (setId: string | null) => void;
+}> = ({ reply, onRetry, viewing, onView }) => {
   const tab = useActiveTab();
   const [query, setQuery] = useState('');
   const [starting, setStarting] = useState<string | null>(null);
@@ -141,6 +149,28 @@ export const ToursTab: React.FC<{
     }
   };
 
+  const viewed = viewing
+    ? reply.list.tours.find((t) => t.id === viewing)
+    : undefined;
+  if (viewed) {
+    return (
+      <div className="flex flex-col gap-3">
+        {error && (
+          <p role="alert" className="text-brand-red-primary">
+            {error}
+          </p>
+        )}
+        <TourStepsPane
+          tour={viewed}
+          onBack={() => onView(null)}
+          onStart={() => void start(viewed.id)}
+          starting={starting === viewed.id}
+          disabled={starting !== null}
+        />
+      </div>
+    );
+  }
+
   const rows = (list: ListedTour[], showHost: boolean) => (
     <ul className="flex flex-col gap-2">
       {list.map((t) => (
@@ -151,6 +181,7 @@ export const ToursTab: React.FC<{
           busy={starting === t.id}
           disabled={starting !== null}
           onStart={() => void start(t.id)}
+          onView={() => onView(t.id)}
         />
       ))}
     </ul>

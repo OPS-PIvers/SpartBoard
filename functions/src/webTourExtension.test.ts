@@ -245,6 +245,84 @@ describe('loadTour', () => {
     expect(tour.version).toBe(1700);
   });
 
+  it('hands back where the target sits in the picture, and only a box that fits', async () => {
+    const placed = {
+      ...pic('a'),
+      target: { x: 0.2, y: 0.3, w: 0.4, h: 0.1 },
+      cssW: 1280,
+    };
+    const stray = { ...pic('b'), target: { x: 0.9, y: 0.3, w: 0.4, h: 0.1 } };
+    const tour = await loadTour(
+      'set1',
+      snapshot([
+        step('a', 'https://app.example.com/', placed),
+        step('b', 'https://app.example.com/', stray),
+      ]),
+      storeOf(3)
+    );
+    expect(tour.pictures.a).toEqual({
+      mime: 'image/jpeg',
+      data: 'AAAA',
+      w: 800,
+      h: 600,
+      target: { x: 0.2, y: 0.3, w: 0.4, h: 0.1 },
+      cssW: 1280,
+    });
+    expect(tour.pictures.b.target).toBeUndefined();
+  });
+
+  it('serves only the published picture fields, never a kept whole-screen capture', async () => {
+    const kept = {
+      ...pic('a'),
+      target: { x: 0.2, y: 0.3, w: 0.4, h: 0.1 },
+      original: {
+        path: 'web_tour_pictures/set1/original-a.png',
+        w: 2880,
+        h: 1800,
+        crop: { x: 0.1, y: 0.1, w: 0.5, h: 0.5 },
+      },
+    };
+    const store = storeOf(3);
+    const tour = await loadTour(
+      'set1',
+      snapshot([step('a', 'https://app.example.com/', kept)]),
+      store
+    );
+    expect(JSON.stringify(tour)).not.toMatch(/original|2880/);
+    expect(store.meta).toHaveBeenCalledTimes(1);
+    expect(store.meta).toHaveBeenCalledWith('web_tour_pictures/set1/a.jpg');
+    expect(store.download).toHaveBeenCalledTimes(1);
+    expect(store.download).toHaveBeenCalledWith('web_tour_pictures/set1/a.jpg');
+    expect(Object.keys(tour.pictures.a).sort()).toEqual([
+      'data',
+      'h',
+      'mime',
+      'target',
+      'w',
+    ]);
+  });
+
+  it('sends the markup drawn on a picture, leaving out shapes that are malformed', async () => {
+    const marked = {
+      ...pic('a'),
+      markup: [
+        { id: 'm1', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+        { id: 'm2', kind: 'number', x: 0.5, y: 0.5, n: 2 },
+        { id: 'm3', kind: 'box', x: 'far', y: 0, w: 1, h: 1 },
+        { id: 'm4', kind: 'blob' },
+      ],
+    };
+    const tour = await loadTour(
+      'set1',
+      snapshot([step('a', 'https://app.example.com/', marked)]),
+      storeOf(3)
+    );
+    expect(tour.pictures.a.markup).toEqual([
+      { id: 'm1', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+      { id: 'm2', kind: 'number', x: 0.5, y: 0.5, n: 2 },
+    ]);
+  });
+
   it('sends step conditions beside the steps, never inside them, and drops malformed ones', async () => {
     const a = step('a', 'https://app.example.com/');
     const b = step('b', 'https://app.example.com/');

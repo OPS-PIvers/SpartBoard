@@ -34783,9 +34783,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "help-center.viewer.open-web-tour",
-    "label": "Open in a new tab button for a web tour in a Help Center guide",
+    "id": "help-center.viewer.start-live-tour",
+    "label": "Start Live Tour button at the top of a tour in the resource viewer",
     "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.help-viewer",
@@ -34795,6 +34796,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "help-center.tab:help#guides",
           "help-center.guides.item:help"
         ]
+      }
+    ]
+  },
+  {
+    "id": "steps-view.mode-steps",
+    "label": "Steps button in a tour Steps view",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-steps-view",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "steps-view.mode-walkthrough",
+    "label": "Walk through button in a tour Steps view",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-steps-view",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "steps-view.print",
+    "label": "Print button in a tour Steps view",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-steps-view",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -34949,6 +34989,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.item-delete",
     "label": "Delete button on a Help Center admin item",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.item-web-change",
+    "label": "Change link button on a Help Center admin item that links a web tour",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.item-web-remove",
+    "label": "Remove button on a Help Center admin item that links a web tour",
     "scope": "field",
     "panel": true,
     "destructive": true,

@@ -10,10 +10,12 @@ const h = vi.hoisted(() => ({
   canRunLive: true,
   published: true,
   isAdmin: false,
+  features: new Set<string>(),
   loadBuildingSet: vi.fn(),
 }));
 
 vi.mock('@/components/tours/publishedTours', () => ({
+  usePublishedTour: () => ({ loaded: true, tour: null }),
   watchTours: () => () => undefined,
   getToursVersion: () => 0,
   isTourRunnable: () => h.published,
@@ -36,6 +38,7 @@ vi.mock('@/hooks/useHelpResources', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     isAdmin: h.isAdmin,
+    canAccessFeature: (id: string) => h.features.has(id),
   }),
 }));
 
@@ -68,6 +71,7 @@ beforeEach(() => {
   h.canRunLive = true;
   h.published = true;
   h.isAdmin = false;
+  h.features = new Set();
   h.loadBuildingSet.mockReset();
 });
 
@@ -139,6 +143,86 @@ describe('HelpResourceViewer live tours', () => {
     h.loadBuildingSet.mockResolvedValue(set(false));
     render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
     expect(await screen.findByText('player')).toBeInTheDocument();
+  });
+
+  describe('with the steps view on', () => {
+    const stepsSet = () =>
+      ({
+        id: 'set-1',
+        title: 'Boards tour',
+        mode: 'tour',
+        imageUrls: [],
+        steps: [
+          {
+            id: 'a',
+            label: 'Open Boards',
+            text: 'Click **Boards** in the sidebar.',
+            imageIndex: 0,
+            tour: { anchor: 'sidebar.boards', action: 'click' },
+          },
+          {
+            id: 'b',
+            label: 'Name it',
+            text: 'Type a name.',
+            imageIndex: 0,
+            tour: {
+              anchor: 'sidebar.boards',
+              action: 'type',
+              showWhen: [{ kind: 'widget-open', type: 'timer' }],
+            },
+          },
+        ],
+      }) as unknown as GuidedLearningSet;
+
+    beforeEach(() => {
+      h.features = new Set(['tour-steps-view']);
+    });
+
+    it('opens the steps with Start Live Tour at the top, and starts nothing by itself', async () => {
+      h.loadBuildingSet.mockResolvedValue(stepsSet());
+      const started = vi.fn();
+      window.addEventListener(TOUR_START_EVENT, started);
+      render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+      const start = await screen.findByRole('button', {
+        name: 'Start Live Tour',
+      });
+      expect(started).not.toHaveBeenCalled();
+      expect(screen.getByText('Open Boards')).toBeInTheDocument();
+      expect(screen.getByText('Only if it appears')).toBeInTheDocument();
+      expect(screen.queryByText('player')).not.toBeInTheDocument();
+      fireEvent.click(start);
+      expect(
+        (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
+      ).toEqual({ setId: 'set-1' });
+      window.removeEventListener(TOUR_START_EVENT, started);
+    });
+
+    it('shows the steps without a start button where the tour cannot run', async () => {
+      h.canRunLive = false;
+      h.loadBuildingSet.mockResolvedValue(stepsSet());
+      render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+      expect(await screen.findByText('Open Boards')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Start Live Tour' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('offers Edit tour to an admin for a tour never published', async () => {
+      h.published = false;
+      h.isAdmin = true;
+      h.loadBuildingSet.mockResolvedValue(stepsSet());
+      render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+      expect(
+        await screen.findByRole('button', { name: 'Edit tour' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Open Boards')).toBeInTheDocument();
+    });
+
+    it('keeps the player for a plain activity', async () => {
+      h.loadBuildingSet.mockResolvedValue(set(false));
+      render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+      expect(await screen.findByText('player')).toBeInTheDocument();
+    });
   });
 
   it('never plays a web tour', async () => {

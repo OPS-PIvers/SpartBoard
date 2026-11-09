@@ -3321,8 +3321,7 @@
         "other": "Autres",
         "tours": "Visites guidées"
       },
-      "liveTourBadge": "Visite guidée",
-      "webTourBadge": "Visite web"
+      "liveTourBadge": "Visite guidée"
     },
     "shortcuts": {
       "open-help": "Ouvrir l'aide",
@@ -4721,5 +4720,22 @@
     "leaveFailed": "Impossible de quitter la collection partagée",
     "hostStopped": "{{name}} a arrêté de partager cette collection.",
     "hostStoppedNoName": "L'hôte a arrêté de partager cette collection."
+  },
+  "tourSteps": {
+    "viewLabel": "Affichage",
+    "article": "Étapes",
+    "walkthrough": "Parcourir",
+    "print": "Imprimer",
+    "stepNumber": "Étape {{number}}",
+    "onlyIfAppears": "Seulement s'il apparaît",
+    "untitledStep": "Étape sans titre",
+    "pictureAlt": "Image de l'étape {{number}}",
+    "pictureLoading": "Chargement de l'image",
+    "noPicture": "Aucune image pour cette étape",
+    "pictureFailed": "L'image n'a pas pu se charger",
+    "empty": "Cette visite n'a pas encore d'étapes.",
+    "startLive": "Démarrer la visite en direct",
+    "loading": "Chargement des étapes",
+    "unavailable": "Ces étapes ne sont pas disponibles pour le moment."
   }
 }

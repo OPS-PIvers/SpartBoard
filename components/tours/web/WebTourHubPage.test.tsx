@@ -19,6 +19,7 @@ interface Hoisted {
     canAccessFeature: (id: string) => boolean;
   };
   published: unknown;
+  pictures: Map<string, unknown>;
   ping: ExtensionStatus;
   start: Mock<(...args: unknown[]) => Promise<unknown>>;
   open: Mock<(...args: unknown[]) => Promise<unknown>>;
@@ -36,6 +37,7 @@ const h = vi.hoisted((): Hoisted => ({
     canAccessFeature: () => true,
   },
   published: null,
+  pictures: new Map(),
   ping: { kind: 'none' },
   start: vi.fn(),
   open: vi.fn(),
@@ -67,7 +69,7 @@ vi.mock('@/components/tours/tourRuns', async (orig) => ({
 }));
 vi.mock('./webTourHub', async (orig) => ({
   ...(await orig<typeof import('./webTourHub')>()),
-  loadPictures: () => Promise.resolve(new Map()),
+  loadPictures: () => Promise.resolve(h.pictures),
 }));
 vi.mock('./extensionClient', async (orig) => ({
   ...(await orig<typeof import('./extensionClient')>()),
@@ -117,6 +119,7 @@ beforeEach(() => {
   h.auth.user = { uid: 'u1' };
   h.auth.canAccessFeature = () => true;
   h.published = webTour();
+  h.pictures = new Map();
   h.ping = { kind: 'none' };
   h.start.mockReset();
   h.open.mockReset();
@@ -223,6 +226,49 @@ describe('WebTourHubPage', () => {
       'https://app.schoology.com/home'
     );
     expect(screen.queryByText('Start tour')).toBeNull();
+  });
+
+  it('reads the steps as an article, with a Walk through, in place of the plain list', async () => {
+    h.ping = { kind: 'none' };
+    render(<WebTourHubPage />);
+    expect(await screen.findByTestId('steps-article')).toBeTruthy();
+    expect(screen.getByText('Step 1')).toBeTruthy();
+    expect(screen.getByText('Pick your course.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Walk through' }));
+    expect(screen.getByTestId('steps-walkthrough')).toBeTruthy();
+    expect(screen.getByText('Step 1 of 2')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Steps' }));
+    expect(screen.getByTestId('steps-article')).toBeTruthy();
+  });
+
+  it('shows a step picture it loaded, and says so when one did not load', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:picture');
+    URL.revokeObjectURL = vi.fn();
+    const tour = webTour();
+    tour.set.steps[0].web = {
+      ...tour.set.steps[0].web,
+      picture: { path: 'web_tour_pictures/s1/a.png', w: 800, h: 450 },
+    } as never;
+    tour.set.steps[1].web = {
+      ...tour.set.steps[1].web,
+      picture: { path: 'web_tour_pictures/s1/b.png', w: 800, h: 450 },
+    } as never;
+    h.published = tour;
+    h.pictures = new Map([
+      ['a', { mime: 'image/png', bytes: new Uint8Array([1]), w: 800, h: 450 }],
+    ]);
+    render(<WebTourHubPage />);
+    const img = await screen.findByAltText('Picture of step 1');
+    expect(img.getAttribute('src')).toBe('blob:picture');
+    expect(await screen.findByText("The picture couldn't load")).toBeTruthy();
+  });
+
+  it('keeps the progress list, not the Steps view, once the extension can play the tour', async () => {
+    h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
+    render(<WebTourHubPage />);
+    expect(await screen.findByText('Start tour')).toBeTruthy();
+    expect(screen.queryByTestId('steps-article')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Walk through' })).toBeNull();
   });
 
   it('offers the extension from its store listing when it is missing', async () => {

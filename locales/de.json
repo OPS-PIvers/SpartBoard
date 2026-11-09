@@ -3321,8 +3321,7 @@
         "other": "Sonstiges",
         "tours": "Live-Touren"
       },
-      "liveTourBadge": "Live-Tour",
-      "webTourBadge": "Web-Tour"
+      "liveTourBadge": "Live-Tour"
     },
     "shortcuts": {
       "open-help": "Hilfe öffnen",
@@ -4721,5 +4720,22 @@
     "leaveFailed": "Geteilte Sammlung konnte nicht verlassen werden",
     "hostStopped": "{{name}} teilt diese Sammlung nicht mehr.",
     "hostStoppedNoName": "Der Host teilt diese Sammlung nicht mehr."
+  },
+  "tourSteps": {
+    "viewLabel": "Ansicht",
+    "article": "Schritte",
+    "walkthrough": "Durchgehen",
+    "print": "Drucken",
+    "stepNumber": "Schritt {{number}}",
+    "onlyIfAppears": "Nur wenn es erscheint",
+    "untitledStep": "Schritt ohne Titel",
+    "pictureAlt": "Bild zu Schritt {{number}}",
+    "pictureLoading": "Bild wird geladen",
+    "noPicture": "Kein Bild für diesen Schritt",
+    "pictureFailed": "Das Bild konnte nicht geladen werden",
+    "empty": "Diese Tour hat noch keine Schritte.",
+    "startLive": "Live-Tour starten",
+    "loading": "Schritte werden geladen",
+    "unavailable": "Diese Schritte sind gerade nicht verfügbar."
   }
 }
