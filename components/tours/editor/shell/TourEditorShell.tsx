@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -283,7 +283,37 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
     })
   );
   const { steps, onMove } = adapter;
+  const list = useRef<HTMLOListElement>(null);
+  const dragging = useRef(false);
+  const selectedId = steps[adapter.selected]?.id;
+  // Keeps the selected row in view inside the outline, never while a row drags or a field has focus.
+  useEffect(() => {
+    const ol = list.current;
+    if (!ol || !selectedId || dragging.current) return;
+    const active = document.activeElement;
+    if (
+      active &&
+      ol.contains(active) &&
+      active.matches('input, textarea, select')
+    )
+      return;
+    const row = Array.from(ol.children).find(
+      (el) => el.getAttribute('data-step-id') === selectedId
+    );
+    if (!row) return;
+    const box = ol.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    const top = r.top - box.top;
+    const below = r.bottom - box.bottom;
+    const by = top < 0 ? top : below > 0 ? Math.min(below, top) : 0;
+    if (by === 0) return;
+    const still =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    ol.scrollBy({ top: by, behavior: still ? 'auto' : 'smooth' });
+  }, [selectedId]);
   const onDragEnd = ({ active, over }: DragEndEvent) => {
+    dragging.current = false;
     if (!over || active.id === over.id || !onMove) return;
     const to = steps.findIndex((s) => s.id === over.id);
     if (to >= 0) onMove(String(active.id), to);
@@ -300,6 +330,12 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToVerticalAxis]}
+      onDragStart={() => {
+        dragging.current = true;
+      }}
+      onDragCancel={() => {
+        dragging.current = false;
+      }}
       onDragEnd={onDragEnd}
     >
       <SortableContext
@@ -307,6 +343,7 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
         strategy={verticalListSortingStrategy}
       >
         <ol
+          ref={list}
           data-testid="tour-editor-outline"
           className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 pb-3 pt-1.5"
         >
