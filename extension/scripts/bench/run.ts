@@ -310,6 +310,28 @@ async function play(
   };
   phase = 'start';
   const page = await start().catch(start);
+  // --diagnose: say why a page crashed, with the tab's memory just before, instead of only retrying.
+  let lastHeap = 0;
+  if (flag('diagnose')) {
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Performance.enable');
+    const sample = setInterval(() => {
+      cdp
+        .send('Performance.getMetrics')
+        .then(({ metrics }) => {
+          lastHeap =
+            metrics.find((m) => m.name === 'JSHeapUsedSize')?.value ?? lastHeap;
+        })
+        .catch(() => undefined);
+    }, 500);
+    page.on('close', () => clearInterval(sample));
+    page.on('crash', () => {
+      clearInterval(sample);
+      console.warn(
+        `CRASH ${sc.name} at ${phase}: JS heap ${(lastHeap / 1e6).toFixed(0)} MB, free ${(os.freemem() / 1e6).toFixed(0)} MB`
+      );
+    });
+  }
   page.on('console', (c) => {
     const text = c.text();
     const m = /^\[sb(?:bench|main)\] (.*)$/.exec(text);
@@ -690,6 +712,13 @@ async function launch(label: string) {
       `--load-extension=${EXT}`,
       '--ignore-certificate-errors',
       ...(flag('cold') ? [`--remote-debugging-port=${DEBUG_PORT}`] : []),
+      ...(flag('diagnose')
+        ? [
+            '--enable-logging',
+            `--log-file=${path.join(os.tmpdir(), `sb-bench-chrome-${label}.log`)}`,
+            '--v=0',
+          ]
+        : []),
     ],
   });
   await ctx.addInitScript(INIT);
