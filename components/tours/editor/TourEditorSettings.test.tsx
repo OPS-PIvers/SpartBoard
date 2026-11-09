@@ -6,7 +6,7 @@ import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import type { PublishedTour } from '@/components/tours/tourSnapshot';
 import { TourEditorSettings } from './TourEditorSettings';
 import type { TourEditorSession } from './useTourEditorSession';
-import { clearTourEdit, setTourEdit } from './tourEditStore';
+import { clearTourEdit } from './tourEditStore';
 
 const h = vi.hoisted(() => ({
   published: null as PublishedTour | null,
@@ -92,46 +92,16 @@ beforeEach(() => {
 });
 
 describe('TourEditorSettings', () => {
-  it('saves the draft, then publishes what was saved', async () => {
-    const set = tour();
-    setTourEdit({ set, selected: 0, replay: 0, readAloud: false });
-    const session = sessionFor(set);
-    renderSettings(session);
-    expect(screen.getByRole('status')).toHaveTextContent('Draft');
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Publish tour' }));
-      await Promise.resolve();
-    });
-    expect(session.flush).toHaveBeenCalled();
-    expect(h.publish).toHaveBeenCalledWith(set, 'admin-1');
-  });
-
-  it('publishes nothing when the draft could not be saved', async () => {
-    const set = tour();
-    setTourEdit({ set, selected: 0, replay: 0, readAloud: false });
-    renderSettings(
-      sessionFor(set, { flush: vi.fn(() => Promise.resolve(false)) })
-    );
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Publish tour' }));
-      await Promise.resolve();
-    });
-    expect(h.publish).not.toHaveBeenCalled();
-  });
-
-  it('shows unpublished changes and hides Publish once teachers run the latest', () => {
+  it('shows the publish state; publishing moved to the header', () => {
     h.published = { set: tour(), publishedAt: 5, publishedBy: 'admin-1' };
     const { unmount } = renderSettings(sessionFor(tour({ title: 'Renamed' })));
     expect(screen.getByRole('status')).toHaveTextContent(
       'Changes not published'
     );
-    expect(
-      screen.getByRole('button', { name: 'Publish changes' })
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Publish/ })).toBeNull();
     unmount();
     renderSettings(sessionFor(tour()));
     expect(screen.getByRole('status')).toHaveTextContent('Published');
-    expect(screen.queryByTestId('tour-editor-publish-button')).toBeNull();
   });
 
   it('turns Autopilot on at the start and removes the flag when cleared', () => {

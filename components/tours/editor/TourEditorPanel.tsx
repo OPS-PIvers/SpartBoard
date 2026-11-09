@@ -1,44 +1,19 @@
 import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import { CSS } from '@dnd-kit/utilities';
-import {
   AlertTriangle,
+  ArrowLeftRight,
   Camera,
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
-  Circle,
   ClipboardCopy,
-  GripVertical,
   LayoutDashboard,
-  Loader2,
   MousePointerClick,
-  PanelLeft,
-  PanelRight,
   Pause,
   Play,
-  Plus,
-  Redo2,
   Trash2,
-  Undo2,
   Volume2,
-  VolumeX,
   X,
 } from 'lucide-react';
 import type {
@@ -67,10 +42,7 @@ import {
   chromeMuted,
   chromeSurface,
   focusRing,
-  headerBar,
   headerIconBtn,
-  inputLight,
-  warnChip,
 } from '@/components/common/lightChrome';
 import {
   boardLayoutOf,
@@ -79,6 +51,7 @@ import {
 import { MAX_TYPED_CHARS } from '@/components/widgets/GuidedLearning/components/recorder/useTourCapture';
 import {
   getTourEdit,
+  replayTourEditFromStart,
   resumeTourEdit,
   retakeTourEditThumbnail,
   setTourEditPaused,
@@ -101,11 +74,13 @@ import {
   type Side,
 } from './panelPlacement';
 import type { TourEditorSession } from './useTourEditorSession';
+import type { LiveTourPublish } from './useLiveTourPublish';
 import { TourAnchorPicker } from './TourAnchorPicker';
 import { RecordFromHere } from './RecordFromHere';
 import { TourAnchorList } from './TourAnchorList';
 import { ClaudeNoteField } from './ClaudeNoteField';
 import { TourWidgetFields } from './TourWidgetFields';
+import { TourConditionFields } from './TourConditionFields';
 import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
 import { bindWithStarterText, type ChoiceLabel } from './starterText';
 import { asChoiceStep, nativeSelectOf, selectChoices } from './nativeSelect';
@@ -115,11 +90,24 @@ import {
   tourControlLabel,
   tourStepStatus,
   withAction,
-  type TourStepStatus,
 } from './stepStatus';
-
-const inputClass = `w-full rounded-lg px-2.5 py-1.5 text-sm font-normal ${inputLight}`;
-const labelClass = 'flex flex-col gap-1 text-xs font-semibold text-slate-600';
+import {
+  TourShellHeader,
+  TourShellOutline,
+  TourShellOutlineFoot,
+} from './shell/TourEditorShell';
+import { TourStepCard } from './shell/TourStepCard';
+import {
+  cardInput as inputClass,
+  cardLabel as labelClass,
+  focusStepTitle,
+} from './shell/stepCardParts';
+import { stepNeedsText, tourMainAction } from './shell/tourMainAction';
+import type {
+  TourShellAdapter,
+  TourShellMenuItem,
+  TourShellStep,
+} from './shell/types';
 
 interface TourEditorPanelProps {
   session: TourEditorSession;
@@ -133,9 +121,13 @@ interface TourEditorPanelProps {
   initialSide?: Side;
   /** Copies a Claude connector prompt for the tour, or for one step; shown only when given. */
   onCopyForClaude?: (stepId?: string) => void;
+  /** Publishing for the header's main button; without it the button waits. */
+  publish?: LiveTourPublish;
+  /** Playtest notes are open and the tour hasn't been played through since. */
+  checkNeeded?: boolean;
 }
 
-/** The board editor's docked outline: every step, the selected one open for editing. */
+/** The board editor: the shared tour editor shell docked over the real board. */
 export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
   session,
   playback,
@@ -145,6 +137,8 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
   initialCollapsed,
   initialSide,
   onCopyForClaude,
+  publish,
+  checkNeeded = false,
 }) => {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(
@@ -367,6 +361,107 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     );
   }
 
+  const main = tourMainAction({
+    kind: 'live',
+    stepCount: total,
+    stepsWithoutText: set.steps.filter(stepNeedsText).length,
+    publish: publish?.status ?? null,
+    checkNeeded,
+    busy: !!publish?.publishing,
+  });
+  const menu: TourShellMenuItem[] = [
+    ...(onCopyForClaude
+      ? [
+          {
+            id: 'copy-for-claude' as const,
+            label: t('glStudio.copyForClaude'),
+            icon: ClipboardCopy,
+            onSelect: () => onCopyForClaude(),
+          },
+        ]
+      : []),
+    {
+      id: 'read-aloud',
+      label: t('glPlayer.readAloud'),
+      icon: Volume2,
+      pressed: readAloud.on,
+      onSelect: readAloud.onToggle,
+    },
+    {
+      id: 'swap-side',
+      label: t('tours.editor.swapSide'),
+      icon: ArrowLeftRight,
+      onSelect: swapSide,
+    },
+  ];
+  const adapter: TourShellAdapter = {
+    kind: 'live',
+    title: set.title,
+    saveState: session.saveState,
+    publish: publish?.status ?? null,
+    publishing: publish?.publishing,
+    main,
+    onMain: (state) => {
+      if (state === 'write') {
+        const at = set.steps.findIndex(stepNeedsText);
+        if (at < 0) return;
+        setTab('steps');
+        session.select(at);
+        focusStepTitle(set.steps[at].id);
+      } else if (state === 'check') {
+        setTab('steps');
+        replayTourEditFromStart();
+      } else if (state === 'publish') publish?.publish();
+    },
+    onPlay: () => {
+      setTab('steps');
+      setPicking(null);
+      replayTourEditFromStart();
+    },
+    playDisabled: total === 0 || paused,
+    playHint: t('tours.shell.playLiveHint'),
+    menu,
+    steps: set.steps.map((step, i) =>
+      outlineStep(step, i, session.selected, playback, t)
+    ),
+    selected,
+    onSelect: session.select,
+    onMove: session.moveStep,
+    renderCard: (stepId) => {
+      const step = set.steps.find((s) => s.id === stepId);
+      return step ? (
+        <LiveStepCard
+          step={step}
+          session={session}
+          slots={playback.slots}
+          onPick={() => setPicking({ stepId, from: 'board' })}
+        />
+      ) : null;
+    },
+    rowAction: onCopyForClaude
+      ? (stepId) => (
+          <button
+            type="button"
+            onClick={() => onCopyForClaude(stepId)}
+            aria-label={t('glStudio.copyForClaude')}
+            title={t('glStudio.copyForClaude')}
+            data-testid="tour-editor-step-copy-for-claude"
+            className={`mt-1.5 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 ${focusRing}`}
+          >
+            <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )
+      : undefined,
+    onAddStep: addStep,
+    onRecord: startRecording,
+    undo: {
+      onUndo: session.undo,
+      onRedo: session.redo,
+      canUndo: session.canUndo,
+      canRedo: session.canRedo,
+    },
+  };
+
   return (
     <aside
       aria-label={t('tours.editor.panel')}
@@ -379,98 +474,37 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
       className={shell}
       style={frame}
     >
-      <header className={`flex flex-col gap-0.5 px-3 pb-2 pt-2.5 ${headerBar}`}>
-        <div className="flex items-center gap-1">
-          <div className="min-w-0 flex-1">
-            <SaveLine state={session.saveState} />
-          </div>
-          <button
-            type="button"
-            onClick={session.undo}
-            disabled={!session.canUndo}
-            aria-label={t('glStudio.undo')}
-            title={t('glStudio.undo')}
-            className={`${headerIconBtn} disabled:opacity-40`}
-          >
-            <Undo2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={session.redo}
-            disabled={!session.canRedo}
-            aria-label={t('glStudio.redo')}
-            title={t('glStudio.redo')}
-            className={`${headerIconBtn} disabled:opacity-40`}
-          >
-            <Redo2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-pressed={readAloud.on}
-            onClick={readAloud.onToggle}
-            aria-label={t('glPlayer.readAloud')}
-            title={t('glPlayer.readAloud')}
-            className={headerIconBtn}
-          >
-            {readAloud.on ? (
-              <Volume2 className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <VolumeX className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-          {onCopyForClaude && (
+      <TourShellHeader
+        adapter={adapter}
+        alert={<SaveAlert state={session.saveState} />}
+        chrome={
+          <>
             <button
               type="button"
-              onClick={() => onCopyForClaude()}
-              aria-label={t('glStudio.copyForClaude')}
-              title={t('glStudio.copyForClaude')}
-              data-testid="tour-editor-copy-for-claude"
+              onClick={toggleCollapsed}
+              aria-label={t('tours.editor.collapse')}
+              title={t('tours.editor.collapse')}
               className={headerIconBtn}
             >
-              <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+              {side === 'right' ? (
+                <ChevronsRight className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
+              )}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={swapSide}
-            aria-label={t('tours.editor.swapSide')}
-            title={t('tours.editor.swapSide')}
-            className={headerIconBtn}
-          >
-            {side === 'right' ? (
-              <PanelLeft className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <PanelRight className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            aria-label={t('tours.editor.collapse')}
-            title={t('tours.editor.collapse')}
-            className={headerIconBtn}
-          >
-            {side === 'right' ? (
-              <ChevronsRight className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('tours.editor.close')}
-            title={t('tours.editor.close')}
-            className={headerIconBtn}
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-        <h2 className="mt-1 wrap-break-word text-sm font-semibold text-white">
-          {set.title.trim() || t('tours.welcomeTitle')}
-        </h2>
-        <SaveAlert state={session.saveState} />
-      </header>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('tours.editor.close')}
+              title={t('tours.editor.close')}
+              className={headerIconBtn}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </>
+        }
+      />
+      {publish && <PublishNotice publish={publish} />}
       {settings && (
         <div
           role="tablist"
@@ -530,49 +564,28 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
                   {t('tours.editor.pausedNote')}
                 </p>
               )}
-              <StepOutline
-                session={session}
-                playback={playback}
-                onPick={(stepId) => setPicking({ stepId, from: 'board' })}
-                onCopyForClaude={onCopyForClaude}
+              <TourShellOutline adapter={adapter} />
+              <TourShellOutlineFoot
+                adapter={adapter}
+                extra={
+                  v2 && (
+                    <button
+                      type="button"
+                      onClick={paused ? () => void resume() : pause}
+                      aria-pressed={paused}
+                      title={t('tours.editor.pauseHint')}
+                      className={`${secondaryBtn} ml-auto flex items-center gap-1.5`}
+                    >
+                      {paused ? (
+                        <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                      ) : (
+                        <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      {t(paused ? 'tours.editor.resume' : 'tours.editor.pause')}
+                    </button>
+                  )
+                }
               />
-              <div className="flex items-center gap-1 border-t border-slate-200 bg-slate-50 px-1.5 py-1">
-                <button
-                  type="button"
-                  onClick={addStep}
-                  className={`${secondaryBtn} flex items-center gap-1.5`}
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  {t('tourPicker.addStep')}
-                </button>
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  className={`${secondaryBtn} flex items-center gap-1.5`}
-                >
-                  <Circle
-                    className="h-3.5 w-3.5 fill-current"
-                    aria-hidden="true"
-                  />
-                  {t('tourPicker.recordFromHere')}
-                </button>
-                {v2 && (
-                  <button
-                    type="button"
-                    onClick={paused ? () => void resume() : pause}
-                    aria-pressed={paused}
-                    title={t('tours.editor.pauseHint')}
-                    className={`${secondaryBtn} ml-auto flex items-center gap-1.5`}
-                  >
-                    {paused ? (
-                      <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                    ) : (
-                      <Pause className="h-3.5 w-3.5" aria-hidden="true" />
-                    )}
-                    {t(paused ? 'tours.editor.resume' : 'tours.editor.pause')}
-                  </button>
-                )}
-              </div>
             </>
           )}
           {pickingStep && picking?.from === 'board' && (
@@ -615,25 +628,58 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
   );
 };
 
-const SaveLine: React.FC<{ state: TourEditorSession['saveState'] }> = ({
-  state,
-}) => {
-  const { t } = useTranslation();
-  if (state === 'conflict' || state === 'error') return null;
-  return (
-    <p
-      aria-live="polite"
-      className="flex items-center gap-1.5 text-xs text-[#c3cae6]"
-    >
-      <span
-        aria-hidden="true"
-        className={`h-1.5 w-1.5 rounded-full ${
-          state === 'saving' ? 'bg-[#c3cae6]' : 'bg-green-400'
-        }`}
-      />
-      {t(state === 'saving' ? 'common.saving' : 'common.saved')}
-    </p>
-  );
+/** A Live step's outline row: its title, and what the runner last saw of it. */
+const outlineStep = (
+  step: GuidedLearningStep,
+  index: number,
+  selected: number,
+  playback: TourEditPlayback,
+  t: ReturnType<typeof useTranslation>['t']
+): TourShellStep => {
+  const status = tourStepStatus(step, playback.missing);
+  const jumping = index === selected && playback.jumping;
+  const waiting =
+    index === playback.index && playback.jumping && playback.blocked;
+  const control = tourControlLabel(step.tour);
+  const label = step.label?.trim();
+  const title =
+    [label, control].find((part) => !!part) ?? t('tours.editor.untitled');
+  const red = isRedStatus(status);
+  const warn = status === 'unbound';
+  const text = waiting
+    ? t('tours.editor.youClick')
+    : jumping
+      ? t('tours.editor.jumping')
+      : status === 'missing'
+        ? t('tours.editor.missing')
+        : status === 'unregistered'
+          ? t('tours.editor.unregistered')
+          : status === 'unbound'
+            ? t('tours.editor.unbound')
+            : status === 'board'
+              ? t('tours.editor.wholeBoard')
+              : label
+                ? control
+                : null;
+  return {
+    id: step.id,
+    title,
+    status,
+    subtitle: text
+      ? {
+          text,
+          tone: waiting
+            ? 'action'
+            : jumping
+              ? 'busy'
+              : red
+                ? 'error'
+                : warn
+                  ? 'warn'
+                  : 'muted',
+        }
+      : null,
+  };
 };
 
 const SaveAlert: React.FC<{ state: TourEditorSession['saveState'] }> = ({
@@ -659,238 +705,67 @@ const SaveAlert: React.FC<{ state: TourEditorSession['saveState'] }> = ({
   );
 };
 
-const StepOutline: React.FC<{
-  session: TourEditorSession;
-  playback: TourEditPlayback;
-  onPick: (stepId: string) => void;
-  onCopyForClaude?: (stepId: string) => void;
-}> = ({ session, playback, onPick, onCopyForClaude }) => {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-  const { steps } = session.set;
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    const to = steps.findIndex((s) => s.id === over.id);
-    if (to >= 0) session.moveStep(String(active.id), to);
-  };
+/** Under the header: broken links to confirm before publishing, or a failed publish. */
+const PublishNotice: React.FC<{ publish: LiveTourPublish }> = ({ publish }) => {
   const { t } = useTranslation();
-  if (steps.length === 0) {
+  if (publish.confirming)
     return (
-      <p className="flex-1 px-3 py-4 text-sm text-slate-500">
-        {t('tours.editor.empty')}
-      </p>
-    );
-  }
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      modifiers={[restrictToVerticalAxis]}
-      onDragEnd={onDragEnd}
-    >
-      <SortableContext
-        items={steps.map((s) => s.id)}
-        strategy={verticalListSortingStrategy}
+      <div
+        role="alert"
+        data-testid="tour-editor-publish-confirm"
+        className="flex flex-col gap-2 border-b border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-slate-900"
       >
-        <ol
-          data-testid="tour-editor-outline"
-          className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto pb-3"
-        >
-          {steps.map((step, i) => (
-            <OutlineRow
-              key={step.id}
-              step={step}
-              index={i}
-              selected={i === session.selected}
-              status={tourStepStatus(step, playback.missing)}
-              jumping={i === session.selected && playback.jumping}
-              waiting={
-                i === playback.index && playback.jumping && playback.blocked
-              }
-              session={session}
-              slots={playback.slots}
-              onPick={onPick}
-              onCopyForClaude={onCopyForClaude}
-            />
+        <p className="flex items-start gap-1.5 font-semibold">
+          <AlertTriangle
+            className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600"
+            aria-hidden="true"
+          />
+          {t('glStudio.tourPublish.brokenTitle', {
+            count: publish.broken.length,
+          })}
+        </p>
+        <ul className="flex flex-col gap-0.5 pl-5 text-slate-600">
+          {publish.broken.map(({ step, number, problem }) => (
+            <li key={step.id} className="list-disc">
+              {t('glStudio.tourPublish.brokenStep', {
+                number,
+                reason: t(`glStudio.tourPublish.problem_${problem}`),
+              })}
+            </li>
           ))}
-        </ol>
-      </SortableContext>
-    </DndContext>
-  );
-};
-
-const OutlineRow: React.FC<{
-  step: GuidedLearningStep;
-  index: number;
-  selected: boolean;
-  status: TourStepStatus;
-  jumping: boolean;
-  /** A fast-forward is stopped here for the admin's click. */
-  waiting: boolean;
-  session: TourEditorSession;
-  slots: TourSlots;
-  onPick: (stepId: string) => void;
-  onCopyForClaude?: (stepId: string) => void;
-}> = ({
-  step,
-  index,
-  selected,
-  status,
-  jumping,
-  waiting,
-  session,
-  slots,
-  onPick,
-  onCopyForClaude,
-}) => {
-  const { t } = useTranslation();
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: step.id });
-  const control = tourControlLabel(step.tour);
-  const label = step.label?.trim();
-  const title =
-    [label, control].find((part) => !!part) ?? t('tours.editor.untitled');
-  const red = isRedStatus(status);
-  const warn = status === 'unbound' && !jumping && !waiting;
-  const subtitle = waiting
-    ? t('tours.editor.youClick')
-    : jumping
-      ? t('tours.editor.jumping')
-      : status === 'missing'
-        ? t('tours.editor.missing')
-        : status === 'unregistered'
-          ? t('tours.editor.unregistered')
-          : status === 'unbound'
-            ? t('tours.editor.unbound')
-            : status === 'board'
-              ? t('tours.editor.wholeBoard')
-              : label
-                ? control
-                : null;
-  return (
-    <li
-      ref={setNodeRef}
-      data-testid="tour-editor-step"
-      data-step-id={step.id}
-      data-status={status}
-      aria-current={selected ? 'step' : undefined}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-      className={`group ${
-        selected
-          ? 'border-b border-[#d5daec] bg-brand-blue-lighter shadow-[inset_3px_0_0_#2d3f89]'
-          : ''
-      } ${isDragging ? 'relative z-10 bg-white shadow-lg' : ''}`}
-    >
-      <div className="flex items-start">
-        <button
-          type="button"
-          onClick={() => session.select(index)}
-          className={`flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/50 ${
-            selected ? '' : 'hover:bg-slate-50'
-          }`}
-        >
-          <span
-            className={`w-5 shrink-0 pt-px text-right text-xs font-semibold tabular-nums ${
-              selected ? 'text-brand-blue-primary' : 'text-slate-400'
-            }`}
-          >
-            {index + 1}
-          </span>
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span
-              className={`wrap-break-word text-sm ${
-                selected ? 'font-semibold text-slate-900' : 'text-slate-700'
-              }`}
-            >
-              {title}
-            </span>
-            {subtitle && (
-              <span
-                className={`flex items-start gap-1 text-xs ${
-                  waiting
-                    ? 'font-semibold text-brand-blue-primary'
-                    : red && !jumping
-                      ? 'font-semibold text-brand-red-primary'
-                      : warn
-                        ? `mt-0.5 self-start py-0.5 font-semibold ${warnChip}`
-                        : 'text-slate-500'
-                }`}
-              >
-                {waiting && (
-                  <MousePointerClick
-                    className="mt-0.5 h-3 w-3 shrink-0"
-                    aria-hidden="true"
-                  />
-                )}
-                {jumping && (
-                  <Loader2
-                    className="mt-0.5 h-3 w-3 shrink-0 animate-spin motion-reduce:animate-none"
-                    aria-hidden="true"
-                  />
-                )}
-                {(red || warn) && !jumping && !waiting && (
-                  <AlertTriangle
-                    className="mt-0.5 h-3 w-3 shrink-0"
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="min-w-0 wrap-break-word">{subtitle}</span>
-              </span>
-            )}
-          </span>
-        </button>
-        {selected && onCopyForClaude && (
+        </ul>
+        <div className="flex gap-1">
           <button
             type="button"
-            onClick={() => onCopyForClaude(step.id)}
-            aria-label={t('glStudio.copyForClaude')}
-            title={t('glStudio.copyForClaude')}
-            data-testid="tour-editor-step-copy-for-claude"
-            className={`mt-1.5 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 ${focusRing}`}
+            onClick={publish.publishAnyway}
+            className={primaryBtn}
           >
-            <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+            {t('glStudio.tourPublish.publishAnyway')}
           </button>
-        )}
-        <button
-          type="button"
-          ref={setActivatorNodeRef}
-          {...attributes}
-          {...listeners}
-          aria-label={t('tours.editor.reorder', { n: index + 1 })}
-          title={t('tours.editor.reorder', { n: index + 1 })}
-          className="mr-1 mt-1.5 cursor-grab touch-none rounded-md p-1 text-slate-400 opacity-0 hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 active:cursor-grabbing group-hover:opacity-100"
-        >
-          <GripVertical className="h-4 w-4" aria-hidden="true" />
-        </button>
+          <button
+            type="button"
+            onClick={publish.cancel}
+            className={secondaryBtn}
+          >
+            {t('glStudio.tourPublish.cancel')}
+          </button>
+        </div>
       </div>
-      {selected && (
-        <StepCard
-          step={step}
-          session={session}
-          slots={slots}
-          onPick={() => onPick(step.id)}
-        />
-      )}
-    </li>
-  );
+    );
+  if (publish.failed)
+    return (
+      <p
+        role="alert"
+        className="border-b border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-brand-red-primary"
+      >
+        {t('glStudio.tourPublish.failed')}
+      </p>
+    );
+  return null;
 };
 
-/** The selected step's fields, under its outline row. */
-const StepCard: React.FC<{
+/** The selected Live step in the shared card: Title, Tip, its control and action; rare tools under More. */
+const LiveStepCard: React.FC<{
   step: GuidedLearningStep;
   session: TourEditorSession;
   slots: TourSlots;
@@ -912,57 +787,8 @@ const StepCard: React.FC<{
   const bound = !!tour?.anchor && tour.anchor !== WHOLE_BOARD_ANCHOR;
   // An unbound step can carry a picture from where it came from (a recording or a converted slide).
   const pictured = bound || (!!tour && !tour.anchor);
-  return (
-    <div
-      data-testid="tour-editor-card"
-      className="flex flex-col gap-3 px-3 pb-3 pl-[42px] pt-1"
-    >
-      {tour && pictured && thumb && (
-        <div className="relative">
-          <img
-            src={thumb.url}
-            alt=""
-            data-testid="tour-editor-thumbnail"
-            className={`max-h-32 w-full rounded-lg border border-[#d5daec] bg-white object-contain ${
-              thumb.anchor === tour.anchor ? '' : 'opacity-50'
-            }`}
-          />
-          {bound && (
-            <button
-              type="button"
-              onClick={() => retakeTourEditThumbnail(step.id)}
-              aria-label={t('tours.editor.retake')}
-              title={t('tours.editor.retakeHint')}
-              className={`absolute right-1.5 top-1.5 rounded-lg bg-white p-1.5 text-slate-700 shadow-sm hover:bg-slate-50 ${focusRing}`}
-            >
-              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      )}
-      <label className={labelClass}>
-        {t('glStudio.stepTitle')}
-        <input
-          type="text"
-          value={step.label ?? ''}
-          onChange={(e) => update({ label: e.target.value }, 'label')}
-          className={inputClass}
-        />
-      </label>
-      <label className={labelClass}>
-        {t('glStudio.stepText')}
-        <textarea
-          rows={3}
-          value={step.text ?? ''}
-          onChange={(e) => update({ text: e.target.value }, 'text')}
-          className={`${inputClass} resize-y`}
-        />
-      </label>
-      <ClaudeNoteField
-        setId={session.set.id}
-        target={step.id}
-        testId="tour-editor-step-note"
-      />
+  const type = (
+    <>
       <div className={labelClass}>
         {t('tourPicker.control')}
         <div className="flex items-start gap-2">
@@ -1066,6 +892,10 @@ const StepCard: React.FC<{
           />
         </label>
       )}
+    </>
+  );
+  const more = (
+    <>
       {tour?.action === 'click' && (
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
@@ -1079,6 +909,19 @@ const StepCard: React.FC<{
           {t('glStudio.tourTeacherMustClick')}
         </label>
       )}
+      {tour && (
+        <TourConditionFields
+          tour={tour}
+          onChange={(next) => session.setBinding(step.id, next)}
+          labelClass={labelClass}
+          inputClass={inputClass}
+        />
+      )}
+      <ClaudeNoteField
+        setId={session.set.id}
+        target={step.id}
+        testId="tour-editor-step-note"
+      />
       {tour?.start && (
         <div className="flex items-center gap-2 text-xs text-slate-600">
           <LayoutDashboard
@@ -1098,28 +941,67 @@ const StepCard: React.FC<{
           </button>
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
-        <CaptureLayoutButton
-          onCapture={(layouts) =>
-            session.updateSet({
-              tourSetup: {
-                ...session.set.tourSetup,
-                widgets: session.set.tourSetup?.widgets ?? [],
-                layouts,
-              },
-            })
-          }
-        />
-        <button
-          type="button"
-          onClick={() => session.deleteStep(step.id)}
-          className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-red-primary hover:bg-red-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-red-primary/40"
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          {t('glStudio.deleteStep')}
-        </button>
-      </div>
-    </div>
+      <CaptureLayoutButton
+        onCapture={(layouts) =>
+          session.updateSet({
+            tourSetup: {
+              ...session.set.tourSetup,
+              widgets: session.set.tourSetup?.widgets ?? [],
+              layouts,
+            },
+          })
+        }
+      />
+    </>
+  );
+  return (
+    <TourStepCard
+      stepId={step.id}
+      title={step.label ?? ''}
+      tip={step.text ?? ''}
+      onTitle={(label) => update({ label }, 'label')}
+      onTip={(text) => update({ text }, 'text')}
+      picture={
+        tour && pictured && thumb
+          ? {
+              node: (
+                <img
+                  src={thumb.url}
+                  alt=""
+                  data-testid="tour-editor-thumbnail"
+                  className="max-h-32 w-full rounded-lg border border-[#d5daec] bg-white object-contain"
+                />
+              ),
+              dimmed: thumb.anchor !== tour.anchor,
+              tools: bound ? (
+                <button
+                  type="button"
+                  onClick={() => retakeTourEditThumbnail(step.id)}
+                  aria-label={t('tours.editor.retake')}
+                  title={t('tours.editor.retakeHint')}
+                  className={`rounded-lg bg-white p-1.5 text-slate-700 shadow-sm hover:bg-slate-50 ${focusRing}`}
+                >
+                  <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              ) : undefined,
+            }
+          : null
+      }
+      type={type}
+      more={more}
+      footer={
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => session.deleteStep(step.id)}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-red-primary hover:bg-red-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-red-primary/40"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('glStudio.deleteStep')}
+          </button>
+        </div>
+      }
+    />
   );
 };
 
@@ -1150,7 +1032,7 @@ const CaptureLayoutButton: React.FC<{
       onClick={() => void capture()}
       disabled={board.length === 0}
       title={t('glStudio.tourLayoutHint')}
-      className={`${secondaryBtn} -ml-2 flex items-center gap-1.5 whitespace-nowrap px-2 text-xs disabled:opacity-40`}
+      className={`${secondaryBtn} -ml-2 flex items-center gap-1.5 self-start whitespace-nowrap px-2 text-xs disabled:opacity-40`}
     >
       <LayoutDashboard className="h-3.5 w-3.5" aria-hidden="true" />
       {t('glStudio.tourLayoutCapture')}

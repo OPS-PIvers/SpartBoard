@@ -106,6 +106,13 @@ export const selectTourEditStep = (index: number): void => {
   if (selected !== current.selected) target.set({ ...current, selected });
 };
 
+/** Plays the draft again from step 1. */
+export const replayTourEditFromStart = (): void => {
+  const current = target.get();
+  if (!current) return;
+  target.set({ ...current, selected: 0, replay: current.replay + 1 });
+};
+
 /** Hides the runner's tip and spotlight while Record from here captures real clicks. */
 export const setTourEditRecording = (recording: boolean): void => {
   const current = target.get();

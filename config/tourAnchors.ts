@@ -11606,6 +11606,29 @@ export const TOUR_ANCHORS = {
   'web-tour-editor.undo-writing': {
     label: "Undo button for Claude's writing in the web tour editor",
   },
+  'tour-editor.main': {
+    label:
+      'Main button in the tour editor header (Write text, Check tour or Publish)',
+    persists: true,
+  },
+  'tour-editor.play': { label: 'Play button in the tour editor header' },
+  'tour-editor.menu': {
+    label: 'More actions menu button in the tour editor header',
+  },
+  'tour-editor.menu-item': {
+    label: 'Option in the tour editor More actions menu',
+    perField: true,
+    panel: true,
+  },
+  'tour-editor.add-step': {
+    label: 'Add step button under the tour editor outline',
+  },
+  'tour-editor.record': {
+    label: 'Record button under the tour editor outline',
+  },
+  'tour-editor.step-more': {
+    label: "More toggle on the selected step's card in the tour editor",
+  },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',

@@ -29,6 +29,19 @@ import { useTourEditorSession } from './useTourEditorSession';
 import { TourEditorPanel } from './TourEditorPanel';
 import { TourEditorSettings } from './TourEditorSettings';
 import { useEditorThumbnails } from './useEditorThumbnails';
+import { useLiveTourPublish } from './useLiveTourPublish';
+import { liveCheckNeeded } from './liveCheck';
+import type { TourEditorSession } from './useTourEditorSession';
+
+/** The panel's publishing, once the session exists. */
+const PublishedPanel: React.FC<
+  Omit<React.ComponentProps<typeof TourEditorPanel>, 'publish'> & {
+    session: TourEditorSession;
+  }
+> = (props) => {
+  const publish = useLiveTourPublish(props.session);
+  return <TourEditorPanel {...props} publish={publish} />;
+};
 
 /** The open editor: its session, wired to the docked panel. */
 const TourEditorSessionView: React.FC = () => {
@@ -121,8 +134,9 @@ const TourEditorSessionView: React.FC = () => {
     }
   };
   return (
-    <TourEditorPanel
+    <PublishedPanel
       session={session}
+      checkNeeded={liveCheckNeeded(review, session.set.steps)}
       playback={playback}
       readAloud={{
         on: target.readAloud,
