@@ -2676,6 +2676,55 @@
           "superseded": "Ein neuerer Scan hat diese Antwort ersetzt.",
           "actionFailed": "Das hat nicht geklappt. Bitte erneut versuchen.",
           "busy": "Die Transkription läuft. Bitte gleich erneut versuchen."
+        },
+        "markup": {
+          "toolbar": "Markierungswerkzeuge",
+          "tools": {
+            "select": "Auswählen und verschieben",
+            "highlight": "Textmarker",
+            "rect": "Rahmen",
+            "ellipse": "Kreis",
+            "pin": "Kommentar-Pin",
+            "stampOf": "Stempel: {{stamp}}"
+          },
+          "chooseStamp": "Stempel wählen",
+          "stamps": {
+            "check": "Haken",
+            "x": "X",
+            "question": "Fragezeichen",
+            "star": "Stern"
+          },
+          "color": "Farbe",
+          "colorOf": "Farbe: {{color}}",
+          "colors": {
+            "red": "Rot",
+            "blue": "Blau",
+            "green": "Grün",
+            "pink": "Pink",
+            "yellow": "Gelb"
+          },
+          "undo": "Rückgängig",
+          "undoKeys": "Rückgängig (Strg+Z)",
+          "redo": "Wiederholen",
+          "redoKeys": "Wiederholen (Strg+Umschalt+Z)",
+          "delete": "Markierung löschen",
+          "deleteKeys": "Markierung löschen (Entf)",
+          "layer": "Markierungen auf der Handschrift",
+          "cap": "Höchstens {{max}} Markierungen. Lösche eine, um eine neue hinzuzufügen.",
+          "needsScore": "Markierungen werden gespeichert, sobald du eine Punktzahl eingibst.",
+          "unavailable": "Markieren ist für diesen Scan nicht verfügbar.",
+          "selectedMark": "Ausgewählte Markierung",
+          "addComment": "Kommentar hinzufügen",
+          "editComment": "Kommentar bearbeiten",
+          "comment": "Kommentar",
+          "commentNumber": "Kommentar {{number}}",
+          "commentPlaceholder": "Was soll die Schülerin oder der Schüler hier lesen?",
+          "snippets": "Gespeicherten Kommentar einfügen",
+          "counter": "{{count}}/{{max}}",
+          "save": "Speichern",
+          "saveKeys": "Speichern (Eingabe). Umschalt+Eingabe beginnt eine neue Zeile.",
+          "cancel": "Abbrechen",
+          "commentList": "Kommentare zur Handschrift"
         }
       }
     },

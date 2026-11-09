@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import {
   type ArtifactSlot,
+  type PaperMarkupItem,
   type PaperPrivateAnswer,
   type PaperPrivateStatus,
   type QuizData,
@@ -116,6 +117,16 @@ import {
   type PaperCropResolver,
   type PaperWrittenActions,
 } from '@/utils/paperCropFetch';
+import { getPaperBatch } from '@/utils/paperBatchStore';
+import {
+  paperSeatOf,
+  usePaperAnswerBox,
+  type PaperBatchLoader,
+} from '@/components/quiz/paper/markup/usePaperAnswerBox';
+import {
+  imageMarkupForSave,
+  markupItemsEqual,
+} from '@/components/quiz/paper/markup/markupGeometry';
 
 export const ADVANCE_DELAY_MS = 900;
 export const POINTS_IDLE_MS = 1500;
@@ -146,7 +157,8 @@ type EditSource =
   | 'comment'
   | 'annotations'
   | 'pin'
-  | 'adjudication';
+  | 'adjudication'
+  | 'markup';
 
 export interface FreeResponseGraderProps {
   quiz: QuizData;
@@ -195,6 +207,8 @@ export interface FreeResponseGraderProps {
   paperActions?: PaperWrittenActions;
   onConnectDrive?: () => void;
   sessionId?: string;
+  /** Reads a printed stack for its page maps; defaults to the teacher's Firestore copy. */
+  loadPaperBatch?: PaperBatchLoader;
   onClose: () => void;
 }
 
@@ -452,6 +466,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   paperActions,
   onConnectDrive,
   sessionId,
+  loadPaperBatch,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -618,6 +633,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const [pinnedTakeIndex, setPinnedTakeIndex] = useState<number | null>(null);
   const [adjudication, setAdjudication] = useState<Adjudication>('none');
   const [hydrationKey, setHydrationKey] = useState('');
+  const [draftMarkup, setDraftMarkup] = useState<PaperMarkupItem[]>([]);
+  const [markupHydrationKey, setMarkupHydrationKey] = useState('');
   // The last rubric total we auto-filled, so a manual override is recognizable.
   const lastAutoFilledPointsRef = useRef('');
   const pointsInputRef = useRef('');
@@ -708,6 +725,49 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           )
         : '';
   }
+
+  // Markup belongs to the scan, not the transcript, so a landed transcript never drops unsaved marks.
+  const markupKey = `${targetKey}::${textEntry?.paperScanId ?? ''}`;
+  if (markupKey !== markupHydrationKey) {
+    setMarkupHydrationKey(markupKey);
+    setDraftMarkup(savedGrade?.imageMarkup?.items ?? []);
+  }
+  const markupOn = !!auth?.canAccessFeature('paper-image-markup');
+  const paperSeat = isPaperAnswer && response ? paperSeatOf(response) : null;
+  const loadBatch = useCallback<PaperBatchLoader>(
+    (batchId) =>
+      loadPaperBatch
+        ? loadPaperBatch(batchId)
+        : getPaperBatch(teacherUid, batchId),
+    [loadPaperBatch, teacherUid]
+  );
+  const answerBox = usePaperAnswerBox({
+    enabled:
+      markupOn &&
+      isPaperAnswer &&
+      !!resolvePaperCrop &&
+      !!textEntry &&
+      !!handwritingArtifact(textEntry),
+    batchId: paperSeat?.batchId,
+    seat: paperSeat?.seat,
+    questionId: question?.id ?? '',
+    load: loadBatch,
+  });
+  const markupEditable = answerBox.status === 'ready';
+  const markupDirty =
+    markupEditable &&
+    !markupItemsEqual(draftMarkup, savedGrade?.imageMarkup?.items);
+  const imageMarkup = imageMarkupForSave({
+    editable: markupEditable,
+    saved: savedGrade?.imageMarkup,
+    items: draftMarkup,
+    scanId: textEntry?.paperScanId,
+    page: answerBox.status === 'ready' ? answerBox.box.page : undefined,
+  });
+  const handleMarkupChange = useCallback((next: PaperMarkupItem[]) => {
+    editSourceRef.current = 'markup';
+    setDraftMarkup(next);
+  }, []);
 
   // The audio view remounts per take with a fresh handled-nonce, so a seek
   // from the previous take would replay on this one. Keyed on the take
@@ -845,7 +905,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       comment !== savedComment ||
       (pinnedTakeIndex ?? null) !== (savedGrade?.gradedTakeIndex ?? null) ||
       !annotationListsEqual(draftAnnotations, savedGrade?.annotations) ||
-      !rubricScoreListsEqual(draftRubricScores, savedGrade?.rubricScores);
+      !rubricScoreListsEqual(draftRubricScores, savedGrade?.rubricScores) ||
+      markupDirty;
   const complete = draftCtx ? isGradeComplete(draft, draftCtx) : false;
   const pointsOutOfRange =
     pointsInput.trim() !== '' && parsePoints(pointsInput, maxPoints) === null;
@@ -861,6 +922,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     key: target?.key,
     studentLabel,
     isDirty,
+    imageMarkup,
   });
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   writeInfoRef.current = {
@@ -871,6 +933,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     key: target?.key,
     studentLabel,
     isDirty,
+    imageMarkup,
   };
 
   const writeQueue = useGradeWriteQueue(onSaveGrade);
@@ -889,14 +952,18 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         if (!silent) setSaveError(tg(`errors.${built.error}`));
         return false;
       }
+      const grade =
+        info.ctx.kind === 'text' && info.imageMarkup
+          ? { ...built.grade, imageMarkup: info.imageMarkup }
+          : built.grade;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { gradedAt, ...stable } = built.grade;
+      const { gradedAt, ...stable } = grade;
       const signature = JSON.stringify(stable);
       if (lastWrittenRef.current.get(info.targetKey) === signature)
         return false;
       lastWrittenRef.current.set(info.targetKey, signature);
       setSaveError(null);
-      enqueue(info.responseKey, info.key, built.grade, info.studentLabel);
+      enqueue(info.responseKey, info.key, grade, info.studentLabel);
       return true;
     },
     [enqueue, tg]
@@ -961,6 +1028,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     draftRubricScores,
     pinnedTakeIndex,
     adjudication,
+    draftMarkup,
   ]);
 
   // Banks whatever is on the form before the target changes.
@@ -1017,6 +1085,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const advanceArmedRef = useRef(false);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   advanceArmedRef.current = advanceArmed;
+  // Marking up the scan is more work on this answer, so it holds off auto-advance too.
+  const holdAdvance = useCallback(() => {
+    if (advanceArmedRef.current) setAdvanceArmed(false);
+  }, []);
   useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
@@ -1734,6 +1806,17 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       resolveCrop={resolvePaperCrop}
                       actions={paperActions}
                       onConnectDrive={onConnectDrive}
+                      markup={
+                        answerBox.status === 'off'
+                          ? undefined
+                          : {
+                              items: draftMarkup,
+                              onChange: handleMarkupChange,
+                              box: answerBox,
+                              onActivity: holdAdvance,
+                              needsScore: markupDirty && !complete,
+                            }
+                      }
                     />
                   )}
                 {(studentAnswer || !isPaperAnswer) && (

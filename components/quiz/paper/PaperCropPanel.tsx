@@ -30,6 +30,14 @@ import {
 } from '@/utils/paperCropFetch';
 import { enhancedScanUrl } from '@/utils/scanContrast';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import type { ImageSizePx } from '@/utils/paperMarkupRender';
+import type { PaperMarkupBinding } from './markup/types';
+import { usePaperMarkupEditor } from './markup/usePaperMarkupEditor';
+import { PaperMarkupToolbar } from './markup/PaperMarkupToolbar';
+import { PaperMarkupLayer } from './markup/PaperMarkupLayer';
+import { MarkupPopovers } from './markup/MarkupPopovers';
+import { MarkupCommentList } from './markup/MarkupCommentList';
+import { handleMarkupKey } from './markup/markupKeys';
 
 // Widths relative to the panel; 1 is fit to width.
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3] as const;
@@ -57,6 +65,8 @@ export interface PaperCropPanelProps {
   onConnectDrive?: () => void;
   /** Called after the answer text changed on the server. */
   onAnswerChanged?: () => void;
+  /** Turns on image markup; omitted, the panel is exactly the plain viewer. */
+  markup?: PaperMarkupBinding;
 }
 
 type CropState =
@@ -79,6 +89,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   actions,
   onConnectDrive,
   onAnswerChanged,
+  markup,
 }) => {
   const { t } = useTranslation();
   const tp = (key: string, params?: Record<string, unknown>) =>
@@ -97,6 +108,11 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
+  const [imageSize, setImageSize] = useState<ImageSizePx | null>(null);
+  const sectionRef = React.useRef<HTMLElement | null>(null);
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const markupBox = markup?.box.status === 'ready' ? markup.box.box : null;
+  const markupEditor = usePaperMarkupEditor(markup, markupBox?.boxMm ?? null);
 
   const resolveRef = React.useRef(resolveCrop);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
@@ -254,11 +270,90 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   const button =
     'inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50';
   const zoom = ZOOM_STEPS[zoomIdx];
+  const markupReady = !!markupBox && !!shownUrl && !!imageSize;
+
+  const imageBox = (
+    <div
+      ref={scrollRef}
+      className="max-h-[50vh] overflow-auto rounded-sm border border-slate-200 bg-slate-100 p-3"
+    >
+      {(crop.kind === 'loading' || enhancing) && (
+        <div
+          role="status"
+          className="flex h-32 items-center justify-center gap-2 text-xs font-semibold text-slate-500"
+        >
+          <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
+          {tp('loading')}
+        </div>
+      )}
+      {crop.kind === 'error' && (
+        <div className="flex h-32 flex-col items-center justify-center gap-2 text-xs font-semibold text-slate-600">
+          <span className="inline-flex items-center gap-1">
+            <FileScan aria-hidden className="h-4 w-4" />
+            {tp('unavailable')}
+          </span>
+          {!crop.permanent && (
+            <button /* no-tour-anchor: reloads the scan image */
+              type="button"
+              onClick={() => setReloadNonce((n) => n + 1)}
+              className={button}
+            >
+              <RotateCw aria-hidden className="h-3.5 w-3.5" />
+              {tp('reload')}
+            </button>
+          )}
+        </div>
+      )}
+      {shownUrl && !markup && (
+        <img
+          src={shownUrl}
+          alt={tp('cropAlt', { number: questionNumber })}
+          style={{
+            width: `${zoom * 100}%`,
+            maxWidth: 'none',
+          }}
+          className="mx-auto block h-auto bg-white shadow-xs"
+        />
+      )}
+      {shownUrl && markup && (
+        <div
+          className="relative mx-auto bg-white shadow-xs"
+          style={{ width: `${zoom * 100}%`, maxWidth: 'none' }}
+        >
+          <img
+            src={shownUrl}
+            alt={tp('cropAlt', { number: questionNumber })}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth > 0 && img.naturalHeight > 0)
+                setImageSize({
+                  width: img.naturalWidth,
+                  height: img.naturalHeight,
+                });
+            }}
+            draggable={false}
+            className="block h-auto w-full"
+          />
+          {markupReady && markupBox && imageSize && (
+            <PaperMarkupLayer
+              editor={markupEditor}
+              boxMm={markupBox.boxMm}
+              image={imageSize}
+              onActivity={markup.onActivity}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <section
+      ref={sectionRef}
       aria-label={tp('handwriting')}
-      className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3"
+      className={`flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3${
+        markup ? ' relative' : ''
+      }`}
     >
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -361,46 +456,39 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
         </span>
       </div>
 
-      <div className="max-h-[50vh] overflow-auto rounded-sm border border-slate-200 bg-slate-100 p-3">
-        {(crop.kind === 'loading' || enhancing) && (
+      {markup ? (
+        <>
+          {markup.notice}
           <div
-            role="status"
-            className="flex h-32 items-center justify-center gap-2 text-xs font-semibold text-slate-500"
+            className="flex flex-col gap-2"
+            onKeyDown={(e) => handleMarkupKey(markupEditor, e)}
+            onPointerDownCapture={markup.onActivity}
           >
-            <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
-            {tp('loading')}
+            <PaperMarkupToolbar
+              editor={markupEditor}
+              ready={markupReady}
+              disabledReason={
+                markup.box.status === 'unavailable'
+                  ? tp('markup.unavailable')
+                  : undefined
+              }
+              needsScore={markup.needsScore}
+            />
+            {imageBox}
           </div>
-        )}
-        {crop.kind === 'error' && (
-          <div className="flex h-32 flex-col items-center justify-center gap-2 text-xs font-semibold text-slate-600">
-            <span className="inline-flex items-center gap-1">
-              <FileScan aria-hidden className="h-4 w-4" />
-              {tp('unavailable')}
-            </span>
-            {!crop.permanent && (
-              <button /* no-tour-anchor: reloads the scan image */
-                type="button"
-                onClick={() => setReloadNonce((n) => n + 1)}
-                className={button}
-              >
-                <RotateCw aria-hidden className="h-3.5 w-3.5" />
-                {tp('reload')}
-              </button>
-            )}
-          </div>
-        )}
-        {shownUrl && (
-          <img
-            src={shownUrl}
-            alt={tp('cropAlt', { number: questionNumber })}
-            style={{
-              width: `${zoom * 100}%`,
-              maxWidth: 'none',
-            }}
-            className="mx-auto block h-auto bg-white shadow-xs"
-          />
-        )}
-      </div>
+          {markupBox && <MarkupCommentList editor={markupEditor} />}
+          {markupReady && (
+            <MarkupPopovers
+              editor={markupEditor}
+              containerRef={sectionRef}
+              scrollRef={scrollRef}
+              snippets={markup.snippets}
+            />
+          )}
+        </>
+      ) : (
+        imageBox
+      )}
 
       {archive?.archiveStatus === 'awaiting-drive' && onConnectDrive && (
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">

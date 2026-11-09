@@ -3977,6 +3977,55 @@
           "superseded": "A newer scan replaced this answer.",
           "actionFailed": "That didn't work. Try again.",
           "busy": "Transcription is running. Try again shortly."
+        },
+        "markup": {
+          "toolbar": "Markup tools",
+          "tools": {
+            "select": "Select and move",
+            "highlight": "Highlighter",
+            "rect": "Box",
+            "ellipse": "Circle",
+            "pin": "Comment pin",
+            "stampOf": "{{stamp}} stamp"
+          },
+          "chooseStamp": "Choose stamp",
+          "stamps": {
+            "check": "Check",
+            "x": "X",
+            "question": "Question mark",
+            "star": "Star"
+          },
+          "color": "Color",
+          "colorOf": "Color: {{color}}",
+          "colors": {
+            "red": "Red",
+            "blue": "Blue",
+            "green": "Green",
+            "pink": "Pink",
+            "yellow": "Yellow"
+          },
+          "undo": "Undo",
+          "undoKeys": "Undo (Ctrl+Z)",
+          "redo": "Redo",
+          "redoKeys": "Redo (Ctrl+Shift+Z)",
+          "delete": "Delete mark",
+          "deleteKeys": "Delete mark (Delete)",
+          "layer": "Marks on the handwriting",
+          "cap": "{{max}} marks is the limit. Delete one to add another.",
+          "needsScore": "Marks save once you enter a score.",
+          "unavailable": "Markup isn't available for this scan.",
+          "selectedMark": "Selected mark",
+          "addComment": "Add comment",
+          "editComment": "Edit comment",
+          "comment": "Comment",
+          "commentNumber": "Comment {{number}}",
+          "commentPlaceholder": "What should the student read here?",
+          "snippets": "Insert a saved comment",
+          "counter": "{{count}}/{{max}}",
+          "save": "Save",
+          "saveKeys": "Save (Enter). Shift+Enter starts a new line.",
+          "cancel": "Cancel",
+          "commentList": "Comments on the handwriting"
         }
       }
     },
