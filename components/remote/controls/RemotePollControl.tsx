@@ -129,7 +129,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     if (!user) return;
     setShowResumePopover(false);
     try {
-      applyConfig(await startPollSession(config, user.uid, mode));
+      applyConfig(await startPollSession(config, user.uid, mode, boardShareId));
     } catch (err) {
       // On a flaky phone connection the session write can fail; surface it in
       // logs rather than silently leaving the teacher thinking voting started.

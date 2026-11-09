@@ -1,5 +1,5 @@
 // Poll join codes resolve here, under per-caller and global miss caps, so the short code space can't be swept.
-import { randomInt } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
@@ -9,6 +9,7 @@ import { isTeacherShapedToken, type AiCallerToken } from './aiCallerGate';
 import { OPERATOR_ORG_ID } from './authz';
 import { isStaffMemberData } from './districtStaff';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { pointerMembers } from './pollCodeMembers';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -77,6 +78,36 @@ const recordMissWithIncrements: RecordMiss = async (
 
 let warnedGlobalBucket = -1;
 
+/** The session a code opened and the caller's voter id in it, which keys their votes instead of their uid. */
+export interface PollJoin {
+  sessionId: string;
+  voterId: string;
+}
+
+const newVoterId = (): string => randomBytes(10).toString('hex');
+
+/** Records `uid`'s join, keeping any voter id it already has so a rejoin can't vote twice. */
+async function recordJoin(
+  db: Firestore,
+  sessionId: string,
+  uid: string,
+  now: number
+): Promise<string> {
+  const ref = db.collection(JOINS).doc(pollJoinId(sessionId, uid));
+  return db.runTransaction(async (tx) => {
+    const held: unknown = (await tx.get(ref)).data()?.voterId;
+    const voterId = typeof held === 'string' && held ? held : newVoterId();
+    tx.set(ref, {
+      sessionId,
+      uid,
+      voterId,
+      joinedAt: now,
+      expireAt: expireAt(now + JOIN_TTL_MS),
+    });
+    return voterId;
+  });
+}
+
 /** The session a code opens for `uid` (recording the join), or null on a miss; throws resource-exhausted when capped. */
 export async function resolvePollCode(
   db: Firestore,
@@ -84,7 +115,7 @@ export async function resolvePollCode(
   code: string,
   now: number = Date.now(),
   recordMiss: RecordMiss = recordMissWithIncrements
-): Promise<string | null> {
+): Promise<PollJoin | null> {
   if (!code) return null;
   const globalBucket = Math.floor(now / GLOBAL_WINDOW_MS);
   const callerRef = db
@@ -129,20 +160,13 @@ export async function resolvePollCode(
   }
   const session = await db.collection('poll_sessions').doc(sessionId).get();
   if (!session.exists) return null;
+  // The join is what lets this device read the session and vote, so a failed write fails the call.
   try {
-    await db
-      .collection(JOINS)
-      .doc(pollJoinId(sessionId, uid))
-      .set({
-        sessionId,
-        uid,
-        joinedAt: now,
-        expireAt: expireAt(now + JOIN_TTL_MS),
-      });
+    return { sessionId, voterId: await recordJoin(db, sessionId, uid, now) };
   } catch (err) {
     logger.warn('[resolvePollCodeV1] join write failed', err);
+    throw new HttpsError('unavailable', 'Could not join the poll.');
   }
-  return sessionId;
 }
 
 export const POLL_CODE_MINT_MAX_PER_HOUR = 30;
@@ -219,12 +243,15 @@ export const resolvePollCodeV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const data = (request.data ?? {}) as { code?: unknown };
-    const sessionId = await resolvePollCode(
+    const join = await resolvePollCode(
       admin.firestore(),
       request.auth.uid,
       normalizePollCodeInput(data.code)
     );
-    return { sessionId };
+    return {
+      sessionId: join?.sessionId ?? null,
+      voterId: join?.voterId ?? null,
+    };
   }
 );
 
@@ -258,5 +285,116 @@ export const mintPollCodeV1 = onCall(
       throw new HttpsError('permission-denied', 'Teacher sign-in required.');
     }
     return { code: await mintPollCode(admin.firestore(), request.auth.uid) };
+  }
+);
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+type BoardRole = 'host' | 'collaborator' | 'viewer' | null;
+
+/** `uid`'s role on a shared board, through the share itself or the linked collection it belongs to. */
+function boardRole(
+  share: Record<string, unknown>,
+  link: Record<string, unknown> | null,
+  uid: string
+): BoardRole {
+  if (share.originalAuthor === uid || link?.hostUid === uid) return 'host';
+  const roles = [share.participants, link?.participants].map((p) =>
+    isRecord(p) && isRecord(p[uid]) ? p[uid].role : undefined
+  );
+  if (roles.includes('collaborator')) return 'collaborator';
+  return roles.some((r) => r !== undefined) ? 'viewer' : null;
+}
+
+/** The board's widgets include a poll showing this join code. */
+const boardShowsCode = (share: Record<string, unknown>, code: string) =>
+  Array.isArray(share.widgets) &&
+  share.widgets.some(
+    (w: unknown) =>
+      isRecord(w) &&
+      w.type === 'poll' &&
+      isRecord(w.config) &&
+      w.config.joinCode === code
+  );
+
+/** Lets `uid` take over `code` when both they and its holder are on the shared board that shows it. */
+export async function claimPollCode(
+  db: Firestore,
+  uid: string,
+  code: string,
+  shareId: string
+): Promise<boolean> {
+  if (!code || !shareId || shareId.includes('/') || shareId.length > 128) {
+    throw new HttpsError('invalid-argument', 'A code and board are required.');
+  }
+  const pointerRef = db.collection('poll_codes').doc(code);
+  const shareRef = db.collection('shared_boards').doc(shareId);
+  return db.runTransaction(async (tx) => {
+    const [pointer, shareSnap] = await Promise.all([
+      tx.get(pointerRef),
+      tx.get(shareRef),
+    ]);
+    // No holder yet: the caller's own session write creates the pointer.
+    if (!pointer.exists) return false;
+    const members = pointerMembers(pointer.data());
+    if (members.includes(uid)) return true;
+    const share: Record<string, unknown> = shareSnap.data() ?? {};
+    const mode = share.intendedMode;
+    if (!shareSnap.exists || mode === 'substitute' || mode === 'copy') {
+      throw new HttpsError('permission-denied', 'Not a shared board.');
+    }
+    const linkId = share.linkedCollectionId;
+    const linkSnap =
+      typeof linkId === 'string' && linkId && !linkId.includes('/')
+        ? await tx.get(db.collection('linked_collections').doc(linkId))
+        : null;
+    const linkData = linkSnap?.data();
+    // The collection counts only while it is live and lists this board.
+    const link =
+      linkData &&
+      linkData.ended !== true &&
+      Array.isArray(linkData.boards) &&
+      linkData.boards.some((b: unknown) => isRecord(b) && b.shareId === shareId)
+        ? linkData
+        : null;
+    const role = boardRole(share, link, uid);
+    const holder: unknown = pointer.data()?.teacherUid;
+    if (
+      (role !== 'host' && role !== 'collaborator') ||
+      typeof holder !== 'string' ||
+      !boardRole(share, link, holder) ||
+      !boardShowsCode(share, code)
+    ) {
+      throw new HttpsError('permission-denied', 'Not on this board.');
+    }
+    tx.update(pointerRef, { memberUids: [...members, uid] });
+    return true;
+  });
+}
+
+export const claimPollCodeV1 = onCall(
+  {
+    memory: '256MiB',
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+    maxInstances: 5,
+  },
+  async (request) => {
+    await assertViewAsAllowed(request);
+    if (
+      !request.auth ||
+      !(await isPollStaffCaller(admin.firestore(), request.auth.token))
+    ) {
+      throw new HttpsError('permission-denied', 'Teacher sign-in required.');
+    }
+    const data = (request.data ?? {}) as { code?: unknown; shareId?: unknown };
+    const claimed = await claimPollCode(
+      admin.firestore(),
+      request.auth.uid,
+      normalizePollCodeInput(data.code),
+      typeof data.shareId === 'string' ? data.shareId : ''
+    );
+    return { claimed };
   }
 );

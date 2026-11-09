@@ -23,8 +23,6 @@ import {
 } from '@/utils/pollQuestions';
 
 const POLL_SESSIONS = 'poll_sessions';
-const POLL_CODES = 'poll_codes';
-const CODE_MINT_RETRIES = 5;
 
 /** `poll_sessions` doc id: `{teacherUid}_{pollSessionId}`. */
 export const makePollSessionId = (
@@ -134,58 +132,38 @@ export const toSessionResultsState = (
   };
 };
 
-// The direct-read fallbacks below are deleted together with the AB-113 rules tightening.
 const CALL_TIMEOUT = { timeout: 8000 };
-// Callable failures where the direct path takes over: the server is unreachable, or it capped this caller.
-const FALL_BACK_ON = [
-  'internal',
-  'unavailable',
-  'deadline-exceeded',
-  'resource-exhausted',
-];
-const shouldFallBack = (err: unknown): boolean => {
-  const code = (err as { code?: unknown } | null)?.code;
-  return (
-    typeof code === 'string' &&
-    FALL_BACK_ON.includes(code.replace(/^functions\//, ''))
-  );
-};
-
-/** The pre-callable mint: a local code checked against its pointer. */
-const mintPollCodeDirect = async (): Promise<string> => {
-  for (let attempt = 0; attempt < CODE_MINT_RETRIES; attempt += 1) {
-    const candidate = generatePollCode();
-    const taken = await getDoc(doc(db, POLL_CODES, candidate)).then(
-      (snap) => snap.exists(),
-      // Offline: treat as free; the server never moves a live session's code.
-      (err: unknown) => {
-        if ((err as { code?: string })?.code === 'unavailable') return false;
-        throw err;
-      }
-    );
-    if (!taken) return candidate;
-  }
-  throw new Error('Could not generate a unique poll join code.');
-};
 
 /** Mint a code no other session is already using; the server picks and reserves it. */
 const mintUniquePollCode = async (): Promise<string> => {
   // The auth-bypass harness has no real token or functions backend.
-  if (isAuthBypass) return mintPollCodeDirect();
+  if (isAuthBypass) return generatePollCode();
+  const { data } = await httpsCallable<Record<string, never>, { code: string }>(
+    functions,
+    'mintPollCodeV1',
+    CALL_TIMEOUT
+  )({});
+  return data.code;
+};
+
+/** On a shared board, let this teacher's session take over a colleague's code; the server checks the board. */
+const claimSharedPollCode = async (
+  code: string,
+  boardShareId: string
+): Promise<void> => {
+  if (isAuthBypass) return;
   try {
-    const { data } = await httpsCallable<
-      Record<string, never>,
-      { code: string }
+    await httpsCallable<
+      { code: string; shareId: string },
+      { claimed: boolean }
     >(
       functions,
-      'mintPollCodeV1',
+      'claimPollCodeV1',
       CALL_TIMEOUT
-    )({});
-    return data.code;
+    )({ code, shareId: boardShareId });
   } catch (err: unknown) {
-    if (!shouldFallBack(err)) throw err;
-    console.warn('[pollSession] mint unavailable; checking locally', err);
-    return mintPollCodeDirect();
+    // The session still starts; joiners keep reaching the colleague's session until a claim lands.
+    console.warn('[pollSession] code claim failed', err);
   }
 };
 
@@ -245,58 +223,51 @@ export const ensurePollJoinCode = async (
 
 const POINTER_RETRY_MS = [1500, 3000];
 
-// undefined when the call failed some other way, null when no session was found.
+/** A device's place in a session: the session id and the voter id that keys its votes. */
+export interface PollJoin {
+  sessionId: string;
+  voterId: string;
+}
+
+// undefined when the call failed, null when no session was found.
 const resolveCode = async (
   code: string
-): Promise<string | null | undefined> => {
+): Promise<PollJoin | null | undefined> => {
   try {
-    return (
-      await httpsCallable<{ code: string }, { sessionId: string | null }>(
-        functions,
-        'resolvePollCodeV1',
-        CALL_TIMEOUT
-      )({ code })
-    ).data.sessionId;
+    const { data } = await httpsCallable<
+      { code: string },
+      { sessionId: string | null; voterId?: string | null }
+    >(
+      functions,
+      'resolvePollCodeV1',
+      CALL_TIMEOUT
+    )({ code });
+    return data.sessionId && data.voterId
+      ? { sessionId: data.sessionId, voterId: data.voterId }
+      : null;
   } catch (err: unknown) {
     console.warn('[pollSession] code lookup failed', err);
-    return shouldFallBack(err) ? resolveCodeDirect(code) : undefined;
+    return undefined;
   }
 };
 
-/** The pre-callable lookup, for when the server can't answer. */
-const resolveCodeDirect = async (code: string): Promise<string | null> => {
-  const pointer = await getDoc(doc(db, POLL_CODES, code));
-  if (!pointer.exists()) return null;
-  return (pointer.data() as { sessionId?: string }).sessionId ?? null;
-};
-
-const readSession = async (
-  sessionId: string | null | undefined
-): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
-  if (!sessionId) return null;
-  const snap = await getDoc(doc(db, POLL_SESSIONS, sessionId));
-  if (!snap.exists()) return null;
-  return { sessionId: snap.id, data: snap.data() as PollSessionDoc };
-};
-
-/** Resolve a participant-entered code to its session doc. */
+/** Resolve a participant-entered code to its session doc and this device's voter id. */
 export const lookupPollSessionByCode = async (
   rawCode: string
-): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
+): Promise<(PollJoin & { data: PollSessionDoc }) | null> => {
   const code = normalizePollCode(rawCode);
-  if (!code) return null;
-  if (isAuthBypass) return readSession(await resolveCodeDirect(code));
-  let sessionId = await resolveCode(code);
-  let reached = sessionId !== undefined;
-  // The pointer lands just after Start, so a quick scan can beat it.
+  if (!code || isAuthBypass) return null;
+  let join = await resolveCode(code);
+  // The pointer lands just after Start, so a quick scan can beat it; a failed call gets the same retries.
   for (const wait of POINTER_RETRY_MS) {
-    if (sessionId) break;
+    if (join) break;
     await new Promise((resolve) => setTimeout(resolve, wait));
-    sessionId = await resolveCode(code);
-    if (sessionId !== undefined) reached = true;
+    join = await resolveCode(code);
   }
-  if (!sessionId && !reached) sessionId = await resolveCodeDirect(code);
-  return readSession(sessionId);
+  if (!join) return null;
+  const snap = await getDoc(doc(db, POLL_SESSIONS, join.sessionId));
+  if (!snap.exists()) return null;
+  return { ...join, data: snap.data() as PollSessionDoc };
 };
 
 /** Blank an abandoned session's questions (roster-derived labels); the server then drops its code pointer. */
@@ -333,11 +304,15 @@ export const retirePollSession = async (
 export const startPollSession = async (
   config: PollConfig,
   teacherUid: string,
-  mode: 'fresh' | 'resume'
+  mode: 'fresh' | 'resume',
+  boardShareId?: string | null
 ): Promise<PollConfig> => {
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
+  const reuse = !rotate && !!config.joinCode;
   const code =
-    rotate || !config.joinCode ? await mintUniquePollCode() : config.joinCode;
+    reuse && config.joinCode ? config.joinCode : await mintUniquePollCode();
+  // A shared board's code may have been minted by a colleague.
+  if (reuse && boardShareId) await claimSharedPollCode(code, boardShareId);
   // A fresh start hides and unlocks every question again; resume keeps them.
   const base: PollConfig =
     mode === 'fresh'

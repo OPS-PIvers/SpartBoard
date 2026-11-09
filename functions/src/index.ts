@@ -249,7 +249,11 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // Poll join codes resolve through server-written poll_codes pointers.
 export { pollCodePointer } from './pollCodePointer';
-export { resolvePollCodeV1, mintPollCodeV1 } from './pollCodeResolve';
+export {
+  resolvePollCodeV1,
+  mintPollCodeV1,
+  claimPollCodeV1,
+} from './pollCodeResolve';
 export { guidedLearningLateRevealKey } from './guidedLearningRevealKey';
 
 // Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.

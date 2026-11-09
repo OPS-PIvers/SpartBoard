@@ -173,6 +173,20 @@ beforeEach(async () => {
       },
       { merge: true }
     );
+    // Both devices joined every session (resolvePollCodeV1) before this release, so with no voter id.
+    for (const session of [
+      ACTIVE_SESSION_ID,
+      CLOSED_SESSION_ID,
+      LOCKED_SESSION_ID,
+      TEXT_SESSION_ID,
+    ]) {
+      for (const uid of [VOTER_UID, OTHER_UID]) {
+        await setDoc(doc(db, `poll_joins/${session}__${uid}`), {
+          sessionId: session,
+          uid,
+        });
+      }
+    }
     // A pre-existing vote so read/delete tests have a target.
     await setDoc(
       doc(db, `poll_sessions/${ACTIVE_SESSION_ID}/votes/0_${OTHER_UID}`),
@@ -419,8 +433,12 @@ describe('poll votes — locked questions', () => {
 });
 
 describe('poll votes — read', () => {
-  it('any authed user can read a vote doc (live tally)', async () => {
+  it('a joined device and staff can read a vote doc (live tally)', async () => {
     await assertSucceeds(getDoc(voteRef(asAnonVoter(), `0_${OTHER_UID}`)));
+    await assertSucceeds(getDoc(voteRef(asOtherTeacher(), `0_${OTHER_UID}`)));
+    await assertFails(
+      getDoc(voteRef(asAnonVoter('never-joined'), `0_${OTHER_UID}`))
+    );
   });
 
   it('an unauthenticated caller cannot read a vote doc', async () => {
@@ -756,7 +774,7 @@ describe('poll session discovery', () => {
     await assertFails(getDocs(sessions(asTeacher())));
   });
 
-  it('resolves a session by code pointer but never lists pointers', async () => {
+  it('keeps pointers server-only and lets a joined device read its session', async () => {
     const pointer = {
       sessionId: `${TEACHER_UID}_ABCDE`,
       teacherUid: TEACHER_UID,
@@ -765,8 +783,8 @@ describe('poll session discovery', () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'poll_codes/ABCDE'), pointer);
     });
-    await assertSucceeds(getDoc(doc(asAnonVoter(), 'poll_codes/ABCDE')));
-    await assertSucceeds(getDoc(doc(asTeacher(), 'poll_codes/ABCDE')));
+    await assertFails(getDoc(doc(asAnonVoter(), 'poll_codes/ABCDE')));
+    await assertFails(getDoc(doc(asTeacher(), 'poll_codes/ABCDE')));
     await assertSucceeds(
       getDoc(doc(asAnonVoter(), `poll_sessions/${ACTIVE_SESSION_ID}`))
     );

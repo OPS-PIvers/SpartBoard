@@ -49,13 +49,19 @@ const ready = (
 ): PollPhoneState => ({
   phase: 'ready',
   sessionId: 'teacher-1_K3F9Q',
+  voterId: 'vid',
   session,
   votes,
   vote,
 });
 
 const allEvents: PollPhoneEvent[] = [
-  { type: 'lookupSucceeded', sessionId: 'x', session: makeSession() },
+  {
+    type: 'lookupSucceeded',
+    sessionId: 'x',
+    voterId: 'vid',
+    session: makeSession(),
+  },
   { type: 'lookupFailed' },
   { type: 'sessionSnapshot', session: makeSession() },
   { type: 'votesSnapshot', votes: [] },
@@ -75,11 +81,13 @@ describe('pollPhoneReducer: allowed transitions', () => {
       run(initialPollPhoneState, {
         type: 'lookupSucceeded',
         sessionId: 's1',
+        voterId: 'vid',
         session,
       })
     ).toEqual({
       phase: 'ready',
       sessionId: 's1',
+      voterId: 'vid',
       session,
       votes: [],
       vote: 'idle',
@@ -160,7 +168,12 @@ describe('pollPhoneReducer: disallowed events leave state unchanged', () => {
   });
 
   it.each([
-    { type: 'lookupSucceeded', sessionId: 'x', session: makeSession() },
+    {
+      type: 'lookupSucceeded',
+      sessionId: 'x',
+      voterId: 'vid',
+      session: makeSession(),
+    },
     { type: 'lookupFailed' },
   ] as PollPhoneEvent[])('ready ignores $type', (event) => {
     const state = ready();
@@ -222,6 +235,15 @@ describe('derivePollPhoneView', () => {
         'u'
       )
     ).toEqual({ k: 'waiting' });
+  });
+
+  it('finds my vote by voter id first', () => {
+    const votes = [
+      { id: '0_vid', questionIndex: 0, optionIndex: 0 },
+      { id: '0_u', questionIndex: 0, optionIndex: 1 },
+    ];
+    const view = derivePollPhoneView(ready('idle', makeSession(), votes), 'u');
+    expect(view.k === 'open' && view.ballot.votedIndex).toBe(0);
   });
 
   it('is open with the tally and my vote on the current question', () => {
@@ -338,6 +360,7 @@ describe('teacher and phone disagreement', () => {
     const next = run(initialPollPhoneState, {
       type: 'lookupSucceeded',
       sessionId: 's1',
+      voterId: 'vid',
       session: makeSession({ active: false }),
     });
     expect(derivePollPhoneView(next, 'u')).toMatchObject({

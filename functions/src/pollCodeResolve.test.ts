@@ -29,6 +29,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 
 import {
+  claimPollCode,
   mintPollCode,
   mintPollCodeV1,
   normalizePollCodeInput,
@@ -69,7 +70,9 @@ const setup = (seed: Record<string, StubData> = live) => {
     return Promise.resolve();
   };
   const resolve = (uid: string, code: string, now = NOW) =>
-    resolvePollCode(stub.db as unknown as Db, uid, code, now, recordMiss);
+    resolvePollCode(stub.db as unknown as Db, uid, code, now, recordMiss).then(
+      (join) => join?.sessionId ?? null
+    );
   return { stub, db: stub.db as unknown as Db, resolve };
 };
 
@@ -97,6 +100,48 @@ describe('resolvePollCode', () => {
     expect(stub.get(`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`)).toEqual(
       expect.objectContaining({ sessionId: 't1_K3F9Q', uid: 'anon1' })
     );
+  });
+
+  it('gives each device one voter id per session that is not its uid, kept on a rejoin', async () => {
+    const stub = makeStubFirestore(live);
+    const db = stub.db as unknown as Db;
+    const first = await resolvePollCode(db, 'anon1', 'K3F9Q', NOW);
+    expect(first?.voterId).toMatch(/^[0-9a-f]{20}$/);
+    expect(first?.voterId).not.toContain('anon1');
+    const again = await resolvePollCode(db, 'anon1', 'K3F9Q', NOW + 1000);
+    expect(again?.voterId).toBe(first?.voterId);
+    const other = await resolvePollCode(db, 'anon2', 'K3F9Q', NOW);
+    expect(other?.voterId).not.toBe(first?.voterId);
+    expect(stub.get(`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`)).toEqual(
+      expect.objectContaining({ voterId: first?.voterId, joinedAt: NOW + 1000 })
+    );
+  });
+
+  it('gives an older join without a voter id a new one', async () => {
+    const stub = makeStubFirestore({
+      ...live,
+      [`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`]: {
+        sessionId: 't1_K3F9Q',
+        uid: 'anon1',
+      },
+    });
+    const join = await resolvePollCode(
+      stub.db as unknown as Db,
+      'anon1',
+      'K3F9Q',
+      NOW
+    );
+    expect(join?.voterId).toMatch(/^[0-9a-f]{20}$/);
+  });
+
+  it('fails the call when the join cannot be recorded', async () => {
+    const stub = makeStubFirestore(live);
+    stub.hooks.beforeWrite = (_op, path) => {
+      if (path.startsWith('poll_joins/')) throw new Error('down');
+    };
+    await expect(
+      resolvePollCode(stub.db as unknown as Db, 'anon1', 'K3F9Q', NOW)
+    ).rejects.toMatchObject({ code: 'unavailable' });
   });
 
   it('records no join for a pointer whose session is gone', async () => {
@@ -288,5 +333,127 @@ describe('mintPollCodeV1', () => {
       'admins/boss@example.org': {},
     });
     expect(code).toMatch(/^[A-Z0-9]{5}$/);
+  });
+});
+
+describe('claimPollCode', () => {
+  const pollWidget = (joinCode: string) => ({
+    type: 'poll',
+    config: { joinCode },
+  });
+  const board = (over: StubData = {}): StubData => ({
+    originalAuthor: 'tA',
+    intendedMode: 'synced',
+    participants: { tB: { role: 'collaborator', joinedAt: 1 } },
+    widgets: [pollWidget('K3F9Q')],
+    ...over,
+  });
+  const seed = (share: StubData, extra: Record<string, StubData> = {}) =>
+    makeStubFirestore({
+      'poll_codes/K3F9Q': { sessionId: 'tA_K3F9Q', teacherUid: 'tA' },
+      'shared_boards/sb1': share,
+      ...extra,
+    });
+  const claim = (
+    stub: ReturnType<typeof makeStubFirestore>,
+    uid: string,
+    shareId = 'sb1'
+  ) => claimPollCode(stub.db as unknown as Db, uid, 'K3F9Q', shareId);
+
+  it('adds a Synced collaborator whose board shows the code', async () => {
+    const stub = seed(board());
+    expect(await claim(stub, 'tB')).toBe(true);
+    expect(stub.get('poll_codes/K3F9Q')?.memberUids).toEqual(['tA', 'tB']);
+  });
+
+  it('adds the host when the code belongs to a collaborator', async () => {
+    const stub = seed(board(), {
+      'poll_codes/K3F9Q': { sessionId: 'tB_K3F9Q', teacherUid: 'tB' },
+    });
+    expect(await claim(stub, 'tA')).toBe(true);
+    expect(stub.get('poll_codes/K3F9Q')?.memberUids).toEqual(['tB', 'tA']);
+  });
+
+  it('is a no-op for the holder and when no pointer exists', async () => {
+    expect(await claim(seed(board()), 'tA')).toBe(true);
+    const empty = makeStubFirestore({ 'shared_boards/sb1': board() });
+    expect(await claim(empty, 'tB')).toBe(false);
+    expect(empty.has('poll_codes/K3F9Q')).toBe(false);
+  });
+
+  it('refuses a teacher who is not on the board, or only views it', async () => {
+    await expect(claim(seed(board()), 'tX')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    const viewer = board({
+      participants: { tB: { role: 'viewer', joinedAt: 1 } },
+    });
+    await expect(claim(seed(viewer), 'tB')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it("refuses a board of the caller's own that the holder never joined", async () => {
+    const own = board({ originalAuthor: 'tX', participants: {} });
+    await expect(claim(seed(own), 'tX')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('refuses a board that does not show the code', async () => {
+    const other = board({ widgets: [pollWidget('ZZZZZ')] });
+    await expect(claim(seed(other), 'tB')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('refuses a missing, copy or substitute share', async () => {
+    const missing = makeStubFirestore({
+      'poll_codes/K3F9Q': { sessionId: 'tA_K3F9Q', teacherUid: 'tA' },
+    });
+    await expect(claim(missing, 'tB')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    for (const intendedMode of ['copy', 'substitute']) {
+      await expect(
+        claim(seed(board({ intendedMode })), 'tB')
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+  });
+
+  it('counts linked collection members only when the collection lists the board', async () => {
+    const share = board({
+      originalAuthor: 'tX',
+      participants: {},
+      linkedCollectionId: 'lc1',
+    });
+    const link = (over: StubData = {}): StubData => ({
+      hostUid: 'tA',
+      mode: 'synced',
+      participants: {},
+      boards: [{ shareId: 'sb1', name: 'B', order: 0 }],
+      ...over,
+    });
+    expect(
+      await claim(seed(share, { 'linked_collections/lc1': link() }), 'tX')
+    ).toBe(true);
+    await expect(
+      claim(
+        seed(share, { 'linked_collections/lc1': link({ boards: [] }) }),
+        'tX'
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(
+      claim(
+        seed(share, { 'linked_collections/lc1': link({ ended: true }) }),
+        'tX'
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('rejects a malformed board id', async () => {
+    await expect(claim(seed(board()), 'tB', 'a/b')).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
   });
 });
