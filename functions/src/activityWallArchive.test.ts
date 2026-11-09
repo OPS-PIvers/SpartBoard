@@ -342,7 +342,9 @@ describe('pure helpers', () => {
     );
     expect(name.endsWith('.jpg')).toBe(true);
     expect(Array.from(name).length).toBeLessThanOrEqual(60);
-    expect(name.isWellFormed()).toBe(true);
+    expect(name).not.toMatch(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+    );
   });
 
   it('treats a storagePath with no status as firebase', () => {
