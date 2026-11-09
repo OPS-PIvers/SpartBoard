@@ -216,6 +216,7 @@ git push origin --delete claude/project-thread-qn6ncf claude/project-thread-qn6n
 git push origin --delete claude/project-thread-p02dbq
 git push origin --delete claude/project-thread-lr3mn3 claude/project-thread-lr3mn3-ab112
 git push origin --delete release-fix/poll-vote-keys release-fix/board-item-legacy-picks release-fix/poll-copied-board-code nightly/unifier-log-2026-11-09
+git push origin --delete nightly/build-2026-11-09 nightly/state-2026-11-09 nightly/admin-2026-11-09 nightly/dashboard-2026-11-09 nightly/debugger-log-2026-11-09 claude/tour-anchors-2026-11-09
 ```
 
   </details>
