@@ -89,6 +89,8 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'paper-answer-sheets',
   'paper-handwriting-ai',
   'paper-handwritten-responses',
+  'paper-image-markup',
+  'paper-kept-pages',
   'paper-reword-sync',
   'paper-written-hybrid',
   'personal-spotify',
