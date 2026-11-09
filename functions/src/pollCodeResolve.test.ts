@@ -404,6 +404,25 @@ describe('claimPollCode', () => {
     await expect(claim(asViewer, 'tX')).rejects.toMatchObject({
       code: 'permission-denied',
     });
+    const staleOwner = seed(forged, {
+      'users/tA/dashboards/d1': {
+        linkedShareId: 'sb1',
+        linkedShareRole: 'owner',
+      },
+    });
+    await expect(claim(staleOwner, 'tX')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    const ended = seed(forged, {
+      'users/tA/dashboards/d1': {
+        linkedShareId: 'sb1',
+        linkedShareRole: 'collaborator',
+        linkedShareEnded: true,
+      },
+    });
+    await expect(claim(ended, 'tX')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
     const otherShare = seed(forged, {
       'users/tA/dashboards/d1': {
         linkedShareId: 'sb2',
@@ -484,6 +503,21 @@ describe('claimPollCode', () => {
         'tX'
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
+    const viewOnly = link({
+      hostUid: 'tX',
+      mode: 'view-only',
+      participants: { tA: { role: 'collaborator', joinedAt: 1 } },
+    });
+    await expect(
+      claim(seed(share, { 'linked_collections/lc1': viewOnly }), 'tX')
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    const synced = link({
+      hostUid: 'tX',
+      participants: { tA: { role: 'collaborator', joinedAt: 1 } },
+    });
+    expect(
+      await claim(seed(share, { 'linked_collections/lc1': synced }), 'tX')
+    ).toBe(true);
     await expect(
       claim(
         seed(share, { 'linked_collections/lc1': link({ ended: true }) }),

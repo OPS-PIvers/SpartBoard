@@ -95,24 +95,32 @@ async function recordJoin(
 ): Promise<string> {
   const ref = db.collection(JOINS).doc(pollJoinId(sessionId, uid));
   const saltRef = db.collection(SALTS).doc(sessionId);
-  return db.runTransaction(async (tx) => {
-    const held: unknown = (await tx.get(saltRef)).data()?.salt;
-    const salt =
-      typeof held === 'string' && held ? held : randomBytes(16).toString('hex');
-    if (salt !== held) tx.set(saltRef, { salt, createdAt: now });
-    const voterId = createHmac('sha256', salt)
-      .update(uid)
-      .digest('hex')
-      .slice(0, 20);
-    tx.set(ref, {
-      sessionId,
-      uid,
-      voterId,
-      joinedAt: now,
-      expireAt: expireAt(now + JOIN_TTL_MS),
-    });
-    return voterId;
+  let held: unknown = (await saltRef.get()).data()?.salt;
+  if (typeof held !== 'string' || !held) {
+    // Created once outside any transaction, so a class joining at once doesn't contend on it.
+    try {
+      await saltRef.create({
+        salt: randomBytes(16).toString('hex'),
+        createdAt: now,
+      });
+    } catch {
+      // Another join created it first.
+    }
+    held = (await saltRef.get()).data()?.salt;
+  }
+  if (typeof held !== 'string' || !held) throw new Error('No voter salt.');
+  const voterId = createHmac('sha256', held)
+    .update(uid)
+    .digest('hex')
+    .slice(0, 20);
+  await ref.set({
+    sessionId,
+    uid,
+    voterId,
+    joinedAt: now,
+    expireAt: expireAt(now + JOIN_TTL_MS),
   });
+  return voterId;
 }
 
 /** The session a code opens for `uid` (recording the join), or null on a miss; throws resource-exhausted when capped. */
@@ -378,7 +386,9 @@ export async function claimPollCode(
     const holderLinked =
       share.originalAuthor === holder ||
       link?.hostUid === holder ||
-      (isRecord(link?.participants) &&
+      // Only a Synced collection's self-join makes a collaborator; a View-Only host can relabel viewers.
+      (link?.mode === 'synced' &&
+        isRecord(link.participants) &&
         isRecord(link.participants[holder]) &&
         link.participants[holder].role === 'collaborator');
     const holderBoards = holderLinked
@@ -393,8 +403,11 @@ export async function claimPollCode(
         );
     if (
       !holderLinked &&
-      !holderBoards?.docs.some((d) =>
-        ['owner', 'collaborator'].includes(String(d.data().linkedShareRole))
+      // An owner is the share's host, checked above; an owner row here is stale.
+      !holderBoards?.docs.some(
+        (d) =>
+          d.data().linkedShareRole === 'collaborator' &&
+          d.data().linkedShareEnded !== true
       )
     ) {
       throw new HttpsError('permission-denied', 'Not on this board.');
