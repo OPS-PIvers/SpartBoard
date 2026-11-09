@@ -323,6 +323,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           choiceOrder: batch
             ? printedChoiceOrder(batch, quiz.questions)
             : undefined,
+          recordedChoices: batch?.choiceOrder,
           rubricFor: (q) => rubricFor(r, q),
         }),
         targets: targetsFor(r),
@@ -934,7 +935,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                         className="accent-brand-blue-primary"
                       />
                       <span
-                        className="max-w-[60%] shrink-0 truncate"
+                        className={
+                          student.period
+                            ? 'max-w-[60%] shrink-0 truncate'
+                            : 'min-w-0 flex-1 truncate'
+                        }
                         title={shown}
                       >
                         {shown}
