@@ -73,7 +73,7 @@ export const TeamShell: React.FC<{
           {team.typeLabel}
         </span>
         <span className="flex-1" />
-        <button
+        <button // no-tour-anchor: dev-only redesign mockup, never on the board
           type="button"
           className={HEADER_BTN}
           aria-expanded={overlay === 'whatsnew'}
@@ -83,7 +83,7 @@ export const TeamShell: React.FC<{
           <span className="hidden md:inline">What&apos;s new</span>
           <span className="tabular-nums">· {team.whatsNew}</span>
         </button>
-        <button
+        <button // no-tour-anchor: dev-only redesign mockup, never on the board
           type="button"
           className={HEADER_BTN}
           aria-expanded={overlay === 'myitems'}
@@ -94,7 +94,7 @@ export const TeamShell: React.FC<{
           <span className="tabular-nums">· {team.myItems}</span>
         </button>
         <span className="mx-1 h-6 w-px bg-white/20" aria-hidden="true" />
-        <button
+        <button // no-tour-anchor: dev-only redesign mockup, never on the board
           type="button"
           className={HEADER_ICON}
           aria-label="Search"
@@ -102,7 +102,7 @@ export const TeamShell: React.FC<{
         >
           <Search className="h-5 w-5" aria-hidden="true" />
         </button>
-        <button
+        <button // no-tour-anchor: dev-only redesign mockup, never on the board
           type="button"
           className={`${HEADER_ICON} ${overlay === 'gear' ? 'bg-white/20' : ''}`}
           aria-label="Team menu"
@@ -113,7 +113,7 @@ export const TeamShell: React.FC<{
         >
           <SettingsIcon className="h-5 w-5" aria-hidden="true" />
         </button>
-        <button
+        <button // no-tour-anchor: dev-only redesign mockup, never on the board
           type="button"
           className={HEADER_ICON}
           aria-label="Close"

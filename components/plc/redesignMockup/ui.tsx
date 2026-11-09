@@ -171,7 +171,7 @@ export const ActionItem: React.FC<{
   trailing?: React.ReactNode;
 }> = ({ title, meta, done = false, trailing }) => (
   <li className="flex items-center gap-3 py-2.5">
-    <button
+    <button // no-tour-anchor: dev-only redesign mockup, never on the board
       type="button"
       role="checkbox"
       aria-checked={done}

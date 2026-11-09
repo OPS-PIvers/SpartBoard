@@ -471,7 +471,7 @@ export const PlcDataOverviewMock: React.FC<{
                     (r) => r.assessmentId === t.assessmentId
                   );
                   return [
-                    <button
+                    <button // no-tour-anchor: dev-only redesign mockup, never on the board
                       key={t.assessmentId}
                       type="button"
                       className="text-left font-semibold text-brand-blue-primary hover:text-brand-blue-dark"
