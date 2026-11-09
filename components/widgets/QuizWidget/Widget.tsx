@@ -849,6 +849,7 @@ const TeacherQuizWidget: React.FC<{
   const rewordSyncOn =
     paperSheets.enabled && canAccessFeature(PAPER_REWORD_SYNC_FEATURE);
   const lastRewordSync = useRef(new Map<string, string>());
+  const lastRewordErrorAt = useRef(0);
   /** Saved answers are choice text, so scanned tests follow a teacher's rewording. */
   const syncPaperRewords = async (quiz: QuizData) => {
     if (
@@ -872,6 +873,9 @@ const TeacherQuizWidget: React.FC<{
       )({ quizId: quiz.id, questions });
       lastRewordSync.current.set(quiz.id, payload);
     } catch {
+      // Autosave retries as a teacher types, so don't repeat the message.
+      if (Date.now() - lastRewordErrorAt.current < 60_000) return;
+      lastRewordErrorAt.current = Date.now();
       addToast(
         'Quiz saved, but scanned answers could not be updated. Save again to retry.',
         'error'
@@ -4247,10 +4251,10 @@ const TeacherQuizWidget: React.FC<{
               editingMeta?.driveFileId,
               behavior
             );
-            await syncPaperRewords(updated);
             // Adopt what was written. Without this a new quiz keeps saving
             // with no drive file id, so every retitled autosave orphans a file.
             setEditingMeta(saved);
+            await syncPaperRewords(updated);
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
               const published = getQuizBehavior(saved);
