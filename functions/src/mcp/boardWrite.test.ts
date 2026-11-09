@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { FieldValue } from 'firebase-admin/firestore';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -708,6 +709,65 @@ describe('edit_board', () => {
       canvasWidth: 1600,
     });
     expect(board.linkedShareId).toBe('sh');
+  });
+
+  it('records the quiz it puts on a live shared board as this teacher’s pick, and nothing on a private board', async () => {
+    const s = seed();
+    s[BOARD] = {
+      ...s[BOARD],
+      linkedShareId: 'sh',
+      linkedShareRole: 'owner',
+      linkedShareEnded: false,
+    };
+    s['shared_boards/sh'] = {
+      originalAuthor: 'u1',
+      intendedMode: 'synced',
+      participants: { u2: { role: 'collaborator' } },
+      widgets: s[BOARD].widgets,
+    };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const rename = await call('edit_board', {
+      board_id: 'b1',
+      changes: [{ op: 'rename', name: 'Period 2 (Tue)' }],
+    });
+    expect(rename.error).toBeUndefined();
+    expect(docs.has('users/u1/board_item_picks/sh')).toBe(false);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [
+        {
+          op: 'add_widget',
+          type: 'quiz',
+          zone_id: 'full',
+          layout_id: 'full',
+          library_item_id: 'q1',
+        },
+      ],
+    });
+    expect(out.error).toBeUndefined();
+    const picks = docs.get('users/u1/board_item_picks/sh')?.items as {
+      isEqual: (o: unknown) => boolean;
+    };
+    expect(picks.isEqual(FieldValue.arrayUnion('quiz_q1'))).toBe(true);
+
+    const priv = fakeDb(seed());
+    const privCall = await connect(priv.db);
+    await privCall('edit_board', {
+      board_id: 'b1',
+      changes: [
+        {
+          op: 'add_widget',
+          type: 'quiz',
+          zone_id: 'full',
+          layout_id: 'full',
+          library_item_id: 'q1',
+        },
+      ],
+    });
+    expect(
+      [...priv.docs.keys()].some((k) => k.includes('board_item_picks'))
+    ).toBe(false);
   });
 
   it('renames the board in the synced collection it belongs to', async () => {

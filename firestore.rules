@@ -884,6 +884,11 @@ service cloud.firestore {
       }
     }
 
+    // Library items a teacher put on a live shared board themselves (kind_itemId list); only they publish.
+    match /users/{userId}/board_item_picks/{shareId} {
+      allow read, write: if ownsUserTeacher(userId) && notAnon();
+    }
+
     // Printed paper answer-sheet runs. PII-free by construction: seat numbers map
     // to opaque Student ids and names are resolved from the Drive roster, so this
     // mirrors the owner-only boundary of /rosters above rather than adding one.
@@ -1782,7 +1787,9 @@ service cloud.firestore {
         allow get: if staffSignedIn() && isDistrictStaff()
           && sbItemMember(authUid())
           && (noDoc() || sbItemMember(existing().get('ownerUid', '')));
-        allow create: if signedIn() && sbItemWriteOk();
+        // A first copy needs the owner's own pick, so a co-editor's config edit never publishes it.
+        allow create: if signedIn() && sbItemWriteOk()
+          && (incoming().kind + '_' + incoming().itemId) in get(/databases/$(database)/documents/users/$(authUid())/board_item_picks/$(shareId)).data.get('items', []);
         allow update: if signedIn() && existing().ownerUid == authUid() && sbItemWriteOk();
         allow delete: if signedIn() && (existing().get('ownerUid', null) == authUid()
                                         || sbItemShare().originalAuthor == authUid());

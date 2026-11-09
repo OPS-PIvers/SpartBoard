@@ -98,6 +98,23 @@ const seed = async ({
         title: 'Fractions check',
       });
     }
+    // Every member picked the quiz and every other kind the tests publish (see sharedBoardItemPicks.test.ts).
+    for (const uid of [
+      HOST_UID,
+      COLLAB_UID,
+      VIEWER_UID,
+      OUTSIDER_UID,
+      STUDENT_UID,
+    ]) {
+      await setDoc(doc(db, `users/${uid}/board_item_picks/${SHARE_ID}`), {
+        items: [
+          `quiz_${QUIZ_ID}`,
+          'flashcards_item-1',
+          'notebook_item-1',
+          'project_item-1',
+        ],
+      });
+    }
     if (itemOwner) await setDoc(doc(db, itemPath(itemOwner)), item(itemOwner));
   });
 };

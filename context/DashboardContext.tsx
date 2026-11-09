@@ -68,6 +68,10 @@ import {
 } from '@/utils/snapshotWidgetMerge';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
+import {
+  boardItemPickFromPatch,
+  recordBoardItemPicks,
+} from '@/utils/boardItemPicks';
 import i18n from '@/i18n';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { TOOLS } from '@/config/tools';
@@ -7165,6 +7169,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Puts a new widget on the active board and returns its id; callers guard and record history.
+  // A library item this teacher puts on a live shared board here is theirs to publish to its members.
+  const pickUserUid = user?.uid;
+  const noteBoardItemPick = useCallback(
+    (
+      widgetId: string,
+      type: WidgetType | undefined,
+      patch: Record<string, unknown> | undefined
+    ) => {
+      const board = dashboardsRef.current.find(
+        (d) => d.id === activeIdRef.current
+      );
+      const shareId = board?.linkedShareEnded ? null : board?.linkedShareId;
+      if (!pickUserUid || !board || !shareId) return;
+      const widget = board.widgets.find((w) => w.id === widgetId);
+      const widgetType = type ?? widget?.type;
+      if (!widgetType) return;
+      const pick = boardItemPickFromPatch(
+        widgetType,
+        widget?.config as Record<string, unknown> | undefined,
+        patch
+      );
+      if (pick) void recordBoardItemPicks(pickUserUid, shareId, [pick]);
+    },
+    [pickUserUid]
+  );
+
   const insertWidget = useCallback(
     (
       type: WidgetType,
@@ -7174,6 +7204,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const adminConfig = getNewWidgetBaseConfig(type);
       const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);
+      noteBoardItemPick(newWidgetId, type, overrides?.config);
 
       setDashboards((prev) =>
         prev.map((d) => {
@@ -7280,7 +7311,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       return newWidgetId;
     },
-    [activeId, getNewWidgetBaseConfig, materialsPreferences, savedWidgetConfigs]
+    [
+      activeId,
+      getNewWidgetBaseConfig,
+      materialsPreferences,
+      noteBoardItemPick,
+      savedWidgetConfigs,
+    ]
   );
 
   const addWidget = useCallback(
@@ -7773,6 +7810,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       if (opts?.immediate) pendingImmediateWrite.current = true;
+      noteBoardItemPick(
+        id,
+        undefined,
+        updates.config as Record<string, unknown> | undefined
+      );
       const writes: HistoryWrite[] = [
         { id, configKeys: Object.keys(updates.config ?? {}) },
       ];
@@ -7840,7 +7882,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [joinHistory, recordHistory]
+    [joinHistory, noteBoardItemPick, recordHistory]
   );
 
   // Mirror the latest updateWidget closure into the forward-declared ref

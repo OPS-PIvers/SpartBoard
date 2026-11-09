@@ -186,7 +186,17 @@ interface WriteSession {
   screen: ScreenShape;
   library: Map<string, Promise<Doc | null>>;
   notes: Set<string>;
+  /** Items this call put on widgets, as `users/{uid}/board_item_picks` keys (hooks/useSharedBoardItem.ts). */
+  picks: Set<string>;
 }
+
+/** The shared-board item kind (utils/sharedBoardItems.ts) for each library kind a board copy can carry. */
+const PICK_KINDS: Readonly<Record<string, string>> = {
+  quiz: 'quiz',
+  video_activity: 'videoActivity',
+  flashcard_set: 'flashcards',
+  guided_learning: 'guidedLearning',
+};
 
 async function openSession(
   ctx: ToolContext,
@@ -198,6 +208,7 @@ async function openSession(
     screen,
     library: new Map(),
     notes: new Set(),
+    picks: new Set(),
   };
 }
 
@@ -476,6 +487,8 @@ async function libraryPatch(
   const item = await libraryItem(session, ref.kind, id);
   const title = str(item.title).trim() || 'Untitled';
   const uid = session.ctx.uid;
+  const pickKind = PICK_KINDS[ref.kind];
+  if (pickKind) session.picks.add(`${pickKind}_${id}`);
   switch (type) {
     case 'quiz':
       session.notes.add(NOTE_ASSIGN);
@@ -907,6 +920,8 @@ interface Change {
   board: Doc;
   changes: string[];
   notes?: string[];
+  /** Library items the teacher put on the board in this change, so a live share publishes them. */
+  picks?: string[];
   /** Nothing to save: the board already looks this way. */
   unchanged?: boolean;
 }
@@ -982,6 +997,12 @@ async function commitBoardChange(
       { name, background, widgets: boardWidgets(board) },
       now
     );
+    if (shared.share && next.picks?.length)
+      batch.set(
+        ctx.db.doc(`users/${ctx.uid}/board_item_picks/${shared.share.ref.id}`),
+        { items: admin.firestore.FieldValue.arrayUnion(...next.picks) },
+        { merge: true }
+      );
     logActivity(ctx, batch, {
       action,
       itemType: 'board',
@@ -1035,7 +1056,11 @@ export async function editBoard(
     `Board ${boardId} was not found.`,
     async (before) => {
       const applied = await applyOps(session, before, ops);
-      return { ...applied, notes: [...session.notes] };
+      return {
+        ...applied,
+        notes: [...session.notes],
+        picks: [...session.picks],
+      };
     }
   );
 }

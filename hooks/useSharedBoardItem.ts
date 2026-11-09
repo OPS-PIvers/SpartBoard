@@ -11,6 +11,7 @@ import {
   sharedBoardItemRef,
   type SharedBoardItemDoc,
   type SharedBoardItemKind,
+  type SharedBoardPublishResult,
 } from '@/utils/sharedBoardItems';
 
 /**
@@ -82,7 +83,10 @@ export function useSharedBoardItem<T>(
 }
 
 // Writes in flight per item; settled ones are forgotten, so a later mount rechecks the stored copy.
-const published = new Map<string, string>();
+const published = new Map<
+  string,
+  { version: string; result: Promise<SharedBoardPublishResult | null> }
+>();
 
 export interface SharedBoardItemPublish<T> {
   kind: SharedBoardItemKind;
@@ -117,6 +121,8 @@ export function useSharedBoardItemPublisher<T>({
       ? `${shareId}/${sharedBoardItemDocId(kind, uid, itemId)}`
       : null;
   const needsStamp = enabled && !!uid && stampedOwnerUid !== uid;
+  // The key whose copy the owner may publish; the owner is stamped only then, never for an item they didn't pick.
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
 
   const publish = useEffectEvent(
     (target: string, ownerUid: string, id: string, ver: string) =>
@@ -129,20 +135,29 @@ export function useSharedBoardItemPublisher<T>({
   const stamp = useEffectEvent((ownerUid: string) => stampOwner(ownerUid));
 
   useEffect(() => {
-    if (needsStamp && uid) stamp(uid);
-  }, [needsStamp, uid]);
+    if (needsStamp && uid && key && publishableKey === key) stamp(uid);
+  }, [needsStamp, uid, key, publishableKey]);
 
   useEffect(() => {
     if (!key || !shareId || !uid || !itemId || !version) return;
-    if (published.get(key) === version) return;
-    published.set(key, version);
-    publish(shareId, uid, itemId, version)
-      .catch((err: unknown) => {
+    const allow = (r: SharedBoardPublishResult | null) => {
+      if (r === 'written' || r === 'current') setPublishableKey(key);
+    };
+    const inFlight = published.get(key);
+    if (inFlight?.version === version) {
+      void inFlight.result.then(allow);
+      return;
+    }
+    const result = publish(shareId, uid, itemId, version).catch(
+      (err: unknown) => {
         logError('useSharedBoardItemPublisher', err, { kind, itemId });
-      })
-      .finally(() => {
-        if (published.get(key) === version) published.delete(key);
-      });
+        return null;
+      }
+    );
+    published.set(key, { version, result });
+    void result.then(allow).finally(() => {
+      if (published.get(key)?.result === result) published.delete(key);
+    });
   }, [key, shareId, uid, kind, itemId, version]);
 }
 
