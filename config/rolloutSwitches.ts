@@ -238,6 +238,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Fill verified class lists',
     description:
       'Each night, records the classes ClassLink says each teacher teaches. Substitute launches and shared wall edits then check that list.',
+    superAdminOnly: true,
     normalize: normalizeVerifiedClassesFillSettings,
   },
 ];

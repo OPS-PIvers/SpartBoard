@@ -34,6 +34,7 @@ const PROTECTED_DOCS = [
   'admin_settings/lti_config',
   'admin_settings/sub_launch_as_teacher',
   'admin_settings/classlink_sync',
+  'admin_settings/verified_classes_fill',
   'admin_settings/focus_sessions',
   'admin_settings/claude_managed_auth',
   'admin_settings/claude_connector_cimd',
