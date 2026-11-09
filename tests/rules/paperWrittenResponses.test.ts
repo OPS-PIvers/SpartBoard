@@ -307,7 +307,7 @@ describe('Storage paper_written_crops', () => {
   });
 });
 
-// Kept scanned pages (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.1) mirror the crop contract.
+// Kept scanned pages (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.1) mirror the crop contract.
 const pagePath = (uid = TEACHER_UID, page = 1) =>
   `paper_pages/${uid}/${SCAN_ID}/3/${page}.webp`;
 

@@ -5,6 +5,7 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import type {
+  PaperImageMarkup,
   PaperMarkupItem,
   PaperPageMap,
   PaperRectMm,
@@ -23,9 +24,18 @@ import { formatExportPoints } from './assignmentExportShared';
 import {
   buildFilledSheetHtml,
   SHEET_REPRINT_STYLES,
+  type SheetFill,
   type SheetWrittenFill,
 } from './paperSheetPrint';
-import { sheetFillFor, type SheetReprint } from './paperSheetReprint';
+import {
+  printedPageOf,
+  sheetFillFor,
+  type SheetReprint,
+} from './paperSheetReprint';
+import {
+  buildScanSheetPageHtml,
+  SCAN_SHEET_STYLES,
+} from './paperScanSheetPrint';
 import {
   cropViewportMm,
   markupCommentListHtml,
@@ -195,6 +205,8 @@ export interface ResultsPrintStudent {
   sheet?: SheetReprint;
   /** Handwritten paper answers by question id (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D41). */
   paperWritten?: Readonly<Record<string, PaperWrittenPrint>>;
+  /** Kept scan pages by printed page number (`paper-kept-pages`): an image URL, or null when it could not load. */
+  keptPages?: Readonly<Record<number, string | null>>;
   /** Which attempt this copy shows, when every attempt is printed. */
   attempt?: number;
   /** An earlier attempt's copy: the student's own key, for sorting and counting. */
@@ -747,16 +759,31 @@ export function writtenSheetFill(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-function sheetReprintHtml(
+function sheetReprintFill(
   job: ResultsPrintJob,
   student: ResultsPrintStudent,
   reprint: SheetReprint,
   options: QuizResultsPrintOptions
-): string {
+) {
   const written = writtenSheetFill(student, reprint, {
     ...options,
     imageMarkup: !!job.imageMarkup,
   });
+  return sheetFillFor(reprint, {
+    markAnswers: options.markAnswers,
+    keyMode: options.keyMode,
+    ...(options.showScore ? { score: formatScore(student) } : {}),
+    ...(written ? { written } : {}),
+  });
+}
+
+function sheetReprintHtml(
+  job: ResultsPrintJob,
+  student: ResultsPrintStudent,
+  reprint: SheetReprint,
+  options: QuizResultsPrintOptions,
+  fill: SheetFill = sheetReprintFill(job, student, reprint, options)
+): string {
   return buildFilledSheetHtml(
     {
       seat: reprint.seat,
@@ -779,13 +806,79 @@ function sheetReprintHtml(
         : {}),
     },
     reprint.pageCount,
-    sheetFillFor(reprint, {
-      markAnswers: options.markAnswers,
-      keyMode: options.keyMode,
-      ...(options.showScore ? { score: formatScore(student) } : {}),
-      ...(written ? { written } : {}),
-    })
+    fill
   );
+}
+
+const REDRAWN_PAGE_START = '<div class="sheet">';
+
+/** The redrawn sheet with each page that has a kept scan swapped for the scan (K8). */
+function sheetSetHtml(
+  job: ResultsPrintJob,
+  student: ResultsPrintStudent,
+  reprint: SheetReprint,
+  options: QuizResultsPrintOptions
+): string {
+  const kept = student.keptPages;
+  if (!kept || !Object.values(kept).some(Boolean)) {
+    return sheetReprintHtml(job, student, reprint, options);
+  }
+  const fill = sheetReprintFill(job, student, reprint, options);
+  const redrawn = sheetReprintHtml(job, student, reprint, options, fill)
+    .split(REDRAWN_PAGE_START)
+    .slice(1)
+    .map((page) => `${REDRAWN_PAGE_START}${page}`);
+  const lines = new Map(student.drilldown.lines.map((l) => [l.questionId, l]));
+  const markupOn = !!job.imageMarkup && options.showWrittenFeedback;
+  const markup: Record<string, PaperImageMarkup> = {};
+  if (markupOn) {
+    for (const line of student.drilldown.lines) {
+      const m = line.writtenGrade?.imageMarkup;
+      if (m && Array.isArray(m.items) && m.items.length > 0) {
+        markup[line.questionId] = m;
+      }
+    }
+  }
+  // Missed only: points print on missed answers alone, as the margin marks do.
+  const written =
+    options.questionScope === 'missed' && fill.written
+      ? Object.fromEntries(
+          Object.entries(fill.written).map(([id, w]) => {
+            const line = lines.get(id);
+            if (line && MISSED_MARKS.has(line.mark)) return [id, w];
+            const { points: _drop, ...rest } = w;
+            return [id, rest];
+          })
+        )
+      : fill.written;
+  const scanFill: SheetFill = written ? { ...fill, written } : fill;
+  return redrawn
+    .map((html, index) => {
+      const page = printedPageOf(reprint, index);
+      const src = kept[page];
+      if (!src) return html;
+      return (
+        buildScanSheetPageHtml({
+          pageSrc: src,
+          page,
+          geometry: {
+            batchId: reprint.batchId,
+            seat: reprint.seat,
+            questionCount: reprint.questionCount,
+            choiceCount: reprint.choiceCount,
+            columnsPerPage: reprint.columnsPerPage,
+            ...(reprint.pageMaps?.[index]
+              ? { pageMap: { ...reprint.pageMaps[index], page } }
+              : {}),
+          },
+          fill: scanFill,
+          ...(markupOn ? { markup } : {}),
+          options,
+          reportFollows: options.layout === 'both',
+        }) ?? html
+      );
+    })
+    .join('');
 }
 
 /** The body of the print: a separator before each period when there are several, then one section per student. */
@@ -821,7 +914,7 @@ export function buildResultsPrintHtml(
       const key = escapeHtml(student.key);
       const sheet =
         options.layout !== 'report' && student.sheet
-          ? `<section class="block sheet-set" data-print-block="sheet" data-pages="${student.sheet.pageCount}" data-student="${key}">${sheetReprintHtml(job, student, student.sheet, options)}</section>`
+          ? `<section class="block sheet-set" data-print-block="sheet" data-pages="${student.sheet.pageCount}" data-student="${key}">${sheetSetHtml(job, student, student.sheet, options)}</section>`
           : '';
       const report =
         !sheet || options.layout === 'both'
@@ -953,9 +1046,15 @@ export function padBlocksForDuplex(doc: Document): void {
   });
 }
 
+/** Scan page styles join only a document that prints a scan, so every other print is unchanged. */
+const stylesFor = (body: string): string =>
+  body.includes('class="sheet scan-sheet"')
+    ? `${RESULTS_PRINT_STYLES}${SCAN_SHEET_STYLES}`
+    : RESULTS_PRINT_STYLES;
+
 /** The whole document, for the modal's preview iframe. */
 export function buildResultsPreviewDocument(body: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${RESULTS_PRINT_STYLES}
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${stylesFor(body)}
   body { padding: 12mm 14mm; background: #fff; }
   .pad, .sep + .pad { display: none; }
 </style></head><body>${body}</body></html>`;
@@ -970,7 +1069,7 @@ export function printQuizResults(
   printHtmlDocument(
     {
       title: job.quizTitle,
-      styles: RESULTS_PRINT_STYLES,
+      styles: stylesFor(body),
       body,
       awaitImages: body.includes('<img'),
       beforePrint: options.duplexPadding
