@@ -3743,11 +3743,10 @@ export const useQuizAssignments = (
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
         sections: session?.sections?.length ? session.sections : undefined,
       };
-      // Once an expiring override lapses the student follows the class, so its level counts too.
+      // Clearing or an expiry puts the student back on the class level, so that level counts too.
       const keepVerdicts =
         visibilityShowsResponses(visibility) ||
-        (expiresAt !== null &&
-          visibilityShowsResponses(session?.scoreVisibility));
+        visibilityShowsResponses(session?.scoreVisibility);
       const revealedAnswers =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)

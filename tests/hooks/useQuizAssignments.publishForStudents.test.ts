@@ -206,7 +206,7 @@ describe('useQuizAssignments — per-student results publishing', () => {
       expect(a).not.toHaveProperty('isCorrect');
   });
 
-  it('keeps isCorrect at score-only when an expiring override falls back to a class level that shows responses', async () => {
+  it('keeps isCorrect at score-only while the class level shows responses', async () => {
     responseDocs['pin-a'] = {
       studentUid: 's1',
       status: 'completed',
@@ -235,6 +235,7 @@ describe('useQuizAssignments — per-student results publishing', () => {
           expiresAt
         );
       });
+    // The student returns to the class level when the override is cleared or lapses.
     await publish(5000);
     expect(
       (patchFor('pin-a') as { answers: { isCorrect?: boolean }[] }).answers[0]
@@ -243,8 +244,9 @@ describe('useQuizAssignments — per-student results publishing', () => {
     batchUpdate.mockClear();
     await publish(null);
     expect(
-      (patchFor('pin-a') as { answers: Record<string, unknown>[] }).answers[0]
-    ).not.toHaveProperty('isCorrect');
+      (patchFor('pin-a') as { answers: { isCorrect?: boolean }[] }).answers[0]
+        .isCorrect
+    ).toBe(true);
   });
 
   it('rejects the none level', async () => {
