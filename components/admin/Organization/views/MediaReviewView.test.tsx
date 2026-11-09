@@ -427,3 +427,51 @@ describe('whiteboard takes', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('kept scan pages row', () => {
+  const pagesRow = (count: number): MediaResponseRow => ({
+    ...ROWS[1],
+    responseKey: 'r5',
+    questionId: '__kept-scan-pages__',
+    questionText: 'Scanned pages (paper)',
+    studentLabel: 'Pin 5000',
+    takes: Array.from({ length: count }, (_, i) => ({
+      artifactId: `pg_scan1_${i + 1}`,
+      archiveStatus: 'archived',
+      driveFileId: `dp${i}`,
+      hasStorageObject: false,
+    })),
+  });
+
+  it('counts pages and hides the internal id', () => {
+    renderView({ rows: [pagesRow(2)] });
+    expect(screen.getByText('Scanned pages (paper)')).toBeInTheDocument();
+    expect(screen.getByText('2 pages')).toBeInTheDocument();
+    expect(screen.queryByText(/^\d+ attempts?$/)).toBeNull();
+    expect(screen.queryByText('__kept-scan-pages__')).toBeNull();
+  });
+
+  it('says 1 page for a single page', () => {
+    renderView({ rows: [pagesRow(1)] });
+    expect(screen.getByText('1 page')).toBeInTheDocument();
+  });
+
+  it('keeps the page wording and hides the id in the delete confirmation', () => {
+    renderView({ rows: [pagesRow(3)] });
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: 'Select Pin 5000, question Scanned pages (paper)',
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Delete media \(1\)/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('3 pages')).toBeInTheDocument();
+    expect(within(dialog).queryByText('__kept-scan-pages__')).toBeNull();
+  });
+
+  it('still shows attempts and the id on an ordinary row', () => {
+    renderView();
+    expect(screen.getByText('2 attempts')).toBeInTheDocument();
+    expect(screen.getAllByText('q-1').length).toBeGreaterThan(0);
+  });
+});

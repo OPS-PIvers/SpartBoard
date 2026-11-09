@@ -556,6 +556,13 @@ const PaperTestDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const PaperMarkupDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/PaperMarkupDevHarness').then((module) => ({
+        default: module.PaperMarkupDevHarness,
+      }))
+    )
+  : null;
 const AssignStepperDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/AssignStepperDevHarness').then((module) => ({
@@ -1627,6 +1634,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <PaperTestDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the Quiz grader with handwriting markup on fixture scans, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    PaperMarkupDevHarness &&
+    pathname === '/paper-markup-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PaperMarkupDevHarness />
       </Suspense>
     );
   }

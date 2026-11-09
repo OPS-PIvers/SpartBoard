@@ -1913,6 +1913,8 @@
       "rowCount_other": "{{count}} réponses multimédias",
       "takeCount": "{{count}} prise",
       "takeCount_other": "{{count}} prises",
+      "pageCount": "{{count}} page",
+      "pageCount_other": "{{count}} pages",
       "colStudent": "Élève",
       "colQuestion": "Question",
       "colTeacher": "Enseignant",
@@ -2676,7 +2678,90 @@
           "superseded": "Un scan plus récent a remplacé cette réponse.",
           "actionFailed": "Cela n'a pas fonctionné. Réessayez.",
           "busy": "La transcription est en cours. Réessayez dans un instant."
+        },
+        "markup": {
+          "toolbar": "Outils d'annotation",
+          "tools": {
+            "select": "Sélectionner et déplacer",
+            "highlight": "Surligneur",
+            "rect": "Cadre",
+            "ellipse": "Cercle",
+            "pin": "Épingle de commentaire",
+            "stampOf": "Tampon : {{stamp}}"
+          },
+          "chooseStamp": "Choisir un tampon",
+          "stamps": {
+            "check": "Coche",
+            "x": "X",
+            "question": "Point d'interrogation",
+            "star": "Étoile"
+          },
+          "color": "Couleur",
+          "colorOf": "Couleur : {{color}}",
+          "colors": {
+            "red": "Rouge",
+            "blue": "Bleu",
+            "green": "Vert",
+            "pink": "Rose",
+            "yellow": "Jaune"
+          },
+          "undo": "Annuler",
+          "undoKeys": "Annuler (Ctrl+Z)",
+          "redo": "Rétablir",
+          "redoKeys": "Rétablir (Ctrl+Maj+Z)",
+          "delete": "Supprimer la marque",
+          "deleteKeys": "Supprimer la marque (Suppr)",
+          "layer": "Marques sur l'écriture",
+          "cap": "La limite est de {{max}} marques. Supprimez-en une pour en ajouter une autre.",
+          "needsScore": "Saisissez une note pour enregistrer ces marques.",
+          "unavailable": "L'annotation n'est pas disponible pour ce scan.",
+          "selectedMark": "Marque sélectionnée",
+          "addComment": "Ajouter un commentaire",
+          "editComment": "Modifier le commentaire",
+          "comment": "Commentaire",
+          "commentNumber": "Commentaire {{number}}",
+          "commentPlaceholder": "Que doit lire l'élève ici ?",
+          "snippets": "Insérer un commentaire enregistré",
+          "chooseComment": "Choisir un commentaire enregistré",
+          "savedComments": "Commentaires enregistrés",
+          "noSaved": "Aucun commentaire enregistré pour l'instant. Enregistrez-en un depuis un commentaire.",
+          "removeSaved": "Retirer le commentaire enregistré : {{text}}",
+          "remove": "Retirer",
+          "removed": "Commentaire retiré.",
+          "armed": "Cliquez sur l'image pour ajouter : {{comment}}",
+          "saveForReuse": "Enregistrer pour réutiliser",
+          "saveForReuseTitle": "Garder ce commentaire pour le réutiliser",
+          "savedForReuse": "Enregistré",
+          "savedTitle": "Enregistré. Il est dans le menu à côté de l'épingle.",
+          "listFull": "La limite est de {{max}} commentaires enregistrés. Retirez-en un d’abord.",
+          "listFullShort": "Liste pleine",
+          "earlierScan": {
+            "text": "Ces marques ont été faites sur un scan précédent.",
+            "keep": "Correct",
+            "clear": "Effacer les marques"
+          },
+          "counter": "{{count}}/{{max}}",
+          "save": "Enregistrer",
+          "saveKeys": "Enregistrer (Entrée)",
+          "cancel": "Annuler",
+          "commentList": "Commentaires sur l'écriture",
+          "names": {
+            "highlight": "Surlignage",
+            "rect": "Cadre",
+            "ellipse": "Cercle",
+            "pin": "Épingle de commentaire",
+            "pinNumber": "Épingle de commentaire {{number}}",
+            "withComment": "{{kind}}, commentaire {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Marques non enregistrées",
+        "body_one": "{{count}} réponse a des marques mais pas de note. Saisissez une note pour les garder.",
+        "body_other": "{{count}} réponses ont des marques mais pas de note. Saisissez une note pour les garder.",
+        "goBack": "Revenir",
+        "closeAnyway": "Fermer quand même",
+        "rail": "Marques non enregistrées"
       }
     },
     "results": {

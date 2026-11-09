@@ -28,6 +28,7 @@ import {
   type RectMm,
 } from './paperSheetLayout';
 import { decodePaperMarker, type PaperMarkerPayload } from './paperSheetMarker';
+import { PAPER_KEPT_PAGE_DPI } from './paperWritten';
 
 /** RGBA pixels, the shape of a canvas `ImageData`. */
 export interface RasterPage {
@@ -632,6 +633,42 @@ export interface GrayCrop {
   data: Uint8Array;
 }
 
+/** Resample `rectMm` of the page through `mmToPx` into an upright grayscale image at `dpi`; off-page reads as white. */
+function warpToGray(
+  page: RasterPage,
+  mmToPx: AffineMmToPx,
+  rect: RectMm,
+  dpi: number
+): GrayCrop {
+  const scale = dpi / 25.4;
+  const width = Math.max(1, Math.round(rect.w * scale));
+  const height = Math.max(1, Math.round(rect.h * scale));
+  const data = new Uint8Array(width * height);
+  const src = page.data;
+  const { a, b, c, d, e, f } = mmToPx;
+  const lum = (x: number, y: number): number => {
+    if (x < 0 || y < 0 || x >= page.width || y >= page.height) return 255;
+    const o = (y * page.width + x) * 4;
+    return (src[o] * 299 + src[o + 1] * 587 + src[o + 2] * 114) / 1000;
+  };
+  for (let oy = 0; oy < height; oy += 1) {
+    const my = rect.y + (oy + 0.5) / scale;
+    for (let ox = 0; ox < width; ox += 1) {
+      const mx = rect.x + (ox + 0.5) / scale;
+      const fx = a * mx + b * my + c - 0.5;
+      const fy = d * mx + e * my + f - 0.5;
+      const x0 = Math.floor(fx);
+      const y0 = Math.floor(fy);
+      const tx = fx - x0;
+      const ty = fy - y0;
+      const top = lum(x0, y0) * (1 - tx) + lum(x0 + 1, y0) * tx;
+      const bottom = lum(x0, y0 + 1) * (1 - tx) + lum(x0 + 1, y0 + 1) * tx;
+      data[oy * width + ox] = Math.round(top * (1 - ty) + bottom * ty);
+    }
+  }
+  return { width, height, data };
+}
+
 /**
  * Cut a handwritten box out of the page through the registration transform,
  * so the crop is deskewed and upright whatever way the sheet was fed (D21).
@@ -643,40 +680,30 @@ export function cropWrittenBox(
   boxMm: RectMm
 ): GrayCrop {
   const margin = READER_THRESHOLDS.writtenCropMarginMm;
-  const scale = READER_THRESHOLDS.writtenCropDpi / 25.4;
-  const rect = {
-    x: boxMm.x - margin,
-    y: boxMm.y - margin,
-    w: boxMm.w + margin * 2,
-    h: boxMm.h + margin * 2,
-  };
-  const width = Math.max(1, Math.round(rect.w * scale));
-  const height = Math.max(1, Math.round(rect.h * scale));
-  const data = new Uint8Array(width * height);
-  const src = page.data;
-  const lum = (x: number, y: number): number => {
-    if (x < 0 || y < 0 || x >= page.width || y >= page.height) return 255;
-    const o = (y * page.width + x) * 4;
-    return (src[o] * 299 + src[o + 1] * 587 + src[o + 2] * 114) / 1000;
-  };
-  for (let oy = 0; oy < height; oy += 1) {
-    for (let ox = 0; ox < width; ox += 1) {
-      const p = applyAffine(mmToPx, {
-        x: rect.x + (ox + 0.5) / scale,
-        y: rect.y + (oy + 0.5) / scale,
-      });
-      const fx = p.x - 0.5;
-      const fy = p.y - 0.5;
-      const x0 = Math.floor(fx);
-      const y0 = Math.floor(fy);
-      const tx = fx - x0;
-      const ty = fy - y0;
-      const top = lum(x0, y0) * (1 - tx) + lum(x0 + 1, y0) * tx;
-      const bottom = lum(x0, y0 + 1) * (1 - tx) + lum(x0 + 1, y0 + 1) * tx;
-      data[oy * width + ox] = Math.round(top * (1 - ty) + bottom * ty);
-    }
-  }
-  return { width, height, data };
+  return warpToGray(
+    page,
+    mmToPx,
+    {
+      x: boxMm.x - margin,
+      y: boxMm.y - margin,
+      w: boxMm.w + margin * 2,
+      h: boxMm.h + margin * 2,
+    },
+    READER_THRESHOLDS.writtenCropDpi
+  );
+}
+
+/** The whole sheet page, deskewed and upright, at `PAPER_KEPT_PAGE_DPI`: pixel = mm × 150 / 25.4 (K5, K16). */
+export function straightenPage(
+  page: RasterPage,
+  mmToPx: AffineMmToPx
+): GrayCrop {
+  return warpToGray(
+    page,
+    mmToPx,
+    { x: 0, y: 0, w: PAGE_WIDTH_MM, h: PAGE_HEIGHT_MM },
+    PAPER_KEPT_PAGE_DPI
+  );
 }
 
 export function readPaperPage(
