@@ -43,7 +43,7 @@ export const TourStepCard: React.FC<TourStepCardProps> = ({
   return (
     <div
       data-testid="tour-editor-card"
-      className="flex flex-col gap-3 px-3 pb-3 pl-[42px] pt-1"
+      className="flex flex-col gap-3 pb-3 pl-[36px] pr-2.5 pt-1"
     >
       {picture && (
         <div className="relative">
@@ -120,7 +120,7 @@ export const TourStepCard: React.FC<TourStepCardProps> = ({
             <div
               id={moreId}
               data-testid="tour-step-more-body"
-              className="flex flex-col gap-3 border-l-2 border-slate-100 pl-3"
+              className="flex flex-col gap-3 rounded-lg bg-white/70 p-2.5 ring-1 ring-inset ring-[#d5daec]"
             >
               {more}
             </div>

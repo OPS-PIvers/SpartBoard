@@ -162,12 +162,12 @@ export const TourShellHeader: React.FC<{
   return (
     <header
       data-testid="tour-shell-header"
-      className={`flex flex-col gap-1.5 px-3 pb-2.5 pt-2.5 ${headerBar}`}
+      className={`flex flex-col gap-1 px-3 pb-2.5 pt-2 ${headerBar}`}
     >
-      <div className="flex items-center gap-1">
-        <div className="min-w-0 flex-1">
-          <TourShellStatus adapter={adapter} />
-        </div>
+      <div className="flex items-start gap-1">
+        <h2 className="min-w-0 flex-1 pt-1 wrap-break-word text-sm font-semibold text-white">
+          {adapter.title.trim() || t('tours.welcomeTitle')}
+        </h2>
         {undo && (
           <>
             <button
@@ -194,11 +194,9 @@ export const TourShellHeader: React.FC<{
         )}
         {chrome}
       </div>
-      <h2 className="wrap-break-word text-sm font-semibold text-white">
-        {adapter.title.trim() || t('tours.welcomeTitle')}
-      </h2>
+      <TourShellStatus adapter={adapter} />
       {alert}
-      <div className="mt-0.5 flex items-center gap-1.5">
+      <div className="mt-1 flex items-center gap-1.5">
         {adapter.onPlay && (
           <button
             type="button"
@@ -230,13 +228,13 @@ export const TourShellOutlineFoot: React.FC<{
   return (
     <div
       data-testid="tour-shell-outline-foot"
-      className="flex items-center gap-1 border-t border-slate-200 bg-slate-50 px-1.5 py-1"
+      className="flex flex-wrap items-center gap-0.5 border-t border-slate-200 bg-slate-50 px-1 py-1"
     >
       {adapter.onAddStep && (
         <button
           type="button"
           onClick={adapter.onAddStep}
-          className={`${secondaryBtn} flex items-center gap-1.5`}
+          className={`${secondaryBtn} flex items-center gap-1 whitespace-nowrap px-2`}
           {...tourAttr('tour-editor.add-step')}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -248,7 +246,7 @@ export const TourShellOutlineFoot: React.FC<{
           type="button"
           onClick={adapter.onRecord}
           aria-pressed={adapter.recording}
-          className={`${secondaryBtn} flex items-center gap-1.5`}
+          className={`${secondaryBtn} flex items-center gap-1 whitespace-nowrap px-2`}
           {...tourAttr('tour-editor.record')}
         >
           <Circle className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
@@ -297,7 +295,7 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
       >
         <ol
           data-testid="tour-editor-outline"
-          className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto pb-3"
+          className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 pb-3 pt-1.5"
         >
           {steps.map((step, i) => (
             <OutlineRow
@@ -350,23 +348,21 @@ const OutlineRow: React.FC<{
       data-status={step.status}
       aria-current={selected ? 'step' : undefined}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group ${
-        selected
-          ? 'border-b border-[#d5daec] bg-brand-blue-lighter shadow-[inset_3px_0_0_#2d3f89]'
-          : ''
+      className={`group rounded-xl ${
+        selected ? 'bg-brand-blue-lighter ring-1 ring-inset ring-[#d5daec]' : ''
       } ${isDragging ? 'relative z-10 bg-white shadow-lg' : ''}`}
     >
       <div className="flex items-start">
         <button
           type="button"
           onClick={() => adapter.onSelect(index)}
-          className={`flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/50 ${
+          className={`flex min-w-0 flex-1 items-start gap-2.5 rounded-xl px-1.5 py-2 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/50 ${
             selected ? '' : 'hover:bg-slate-50'
           }`}
         >
           <span
-            className={`w-5 shrink-0 pt-px text-right text-xs font-semibold tabular-nums ${
-              selected ? 'text-brand-blue-primary' : 'text-slate-400'
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums ${
+              selected ? 'bg-brand-blue-primary text-white' : 'text-slate-400'
             }`}
           >
             {index + 1}

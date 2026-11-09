@@ -565,27 +565,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
                 </p>
               )}
               <TourShellOutline adapter={adapter} />
-              <TourShellOutlineFoot
-                adapter={adapter}
-                extra={
-                  v2 && (
-                    <button
-                      type="button"
-                      onClick={paused ? () => void resume() : pause}
-                      aria-pressed={paused}
-                      title={t('tours.editor.pauseHint')}
-                      className={`${secondaryBtn} ml-auto flex items-center gap-1.5`}
-                    >
-                      {paused ? (
-                        <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                      ) : (
-                        <Pause className="h-3.5 w-3.5" aria-hidden="true" />
-                      )}
-                      {t(paused ? 'tours.editor.resume' : 'tours.editor.pause')}
-                    </button>
-                  )
-                }
-              />
+              <TourShellOutlineFoot adapter={adapter} />
             </>
           )}
           {pickingStep && picking?.from === 'board' && (
@@ -599,8 +579,24 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             />
           )}
           <footer className="flex items-center gap-2 border-t border-slate-200 bg-white px-3 py-2">
+            {v2 && (
+              <button
+                type="button"
+                onClick={paused ? () => void resume() : pause}
+                aria-pressed={paused}
+                title={t('tours.editor.pauseHint')}
+                className={`${secondaryBtn} -ml-2 flex items-center gap-1 whitespace-nowrap px-2`}
+              >
+                {paused ? (
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                {t(paused ? 'tours.editor.resume' : 'tours.editor.pause')}
+              </button>
+            )}
             <span
-              className={`flex-1 text-xs font-semibold tabular-nums ${chromeMuted}`}
+              className={`flex-1 whitespace-nowrap text-xs font-semibold tabular-nums ${chromeMuted}`}
             >
               {progress}
             </span>

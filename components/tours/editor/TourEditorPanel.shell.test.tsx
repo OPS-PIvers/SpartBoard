@@ -236,6 +236,10 @@ describe('Live tour editor header', () => {
     fireEvent.click(within(menu).getByText('Copy for Claude'));
     expect(copy).toHaveBeenCalled();
     expect(screen.queryByRole('menu')).toBeNull();
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 
   it('puts Add step and Record from here at the foot of the outline', () => {

@@ -42,7 +42,16 @@ export const TourShellMenu: React.FC<{
   };
 
   return (
-    <div ref={wrapper} className="relative">
+    <div
+      ref={wrapper}
+      className="relative"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation();
+          close();
+        }
+      }}
+    >
       <button
         ref={trigger}
         type="button"
@@ -51,7 +60,14 @@ export const TourShellMenu: React.FC<{
         aria-haspopup="menu"
         aria-expanded={open}
         data-testid="tour-shell-menu"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => !v);
+          requestAnimationFrame(() =>
+            menu.current
+              ?.querySelector<HTMLButtonElement>('[role^="menuitem"]')
+              ?.focus()
+          );
+        }}
         className={`${headerIconBtn} bg-white/10`}
         {...tourAttr('tour-editor.menu')}
       >
