@@ -143,7 +143,7 @@ export const TourShellMainButton: React.FC<{ adapter: TourShellAdapter }> = ({
           ? 'cursor-default bg-white/10 text-white'
           : 'bg-white text-brand-blue-dark hover:bg-brand-blue-lighter disabled:cursor-not-allowed disabled:opacity-50'
       }`}
-      {...tourAttr('tour-editor.main')}
+      {...(adapter.anchors?.main ?? tourAttr('tour-editor.main'))}
     >
       <Icon
         className={`h-4 w-4 shrink-0 ${
@@ -219,13 +219,17 @@ export const TourShellHeader: React.FC<{
             title={adapter.playHint ?? t('tours.shell.play')}
             data-testid="tour-shell-play"
             className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
-            {...tourAttr('tour-editor.play')}
+            {...(adapter.anchors?.play ?? tourAttr('tour-editor.play'))}
           >
             <Play className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
         <TourShellMainButton adapter={adapter} />
-        <TourShellMenu items={adapter.menu} footer={adapter.menuFooter} />
+        <TourShellMenu
+          items={adapter.menu}
+          footer={adapter.menuFooter}
+          anchor={adapter.anchors?.menu}
+        />
       </div>
     </header>
   );
@@ -248,7 +252,8 @@ export const TourShellOutlineFoot: React.FC<{
           type="button"
           onClick={adapter.onAddStep}
           className={`${secondaryBtn} flex items-center gap-1 whitespace-nowrap px-2`}
-          {...tourAttr('tour-editor.add-step')}
+          {...(adapter.anchors?.['add-step'] ??
+            tourAttr('tour-editor.add-step'))}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           {t('tourPicker.addStep')}
@@ -260,7 +265,7 @@ export const TourShellOutlineFoot: React.FC<{
           onClick={adapter.onRecord}
           aria-pressed={adapter.recording}
           className={`${secondaryBtn} flex items-center gap-1 whitespace-nowrap px-2`}
-          {...tourAttr('tour-editor.record')}
+          {...(adapter.anchors?.record ?? tourAttr('tour-editor.record'))}
         >
           <Circle className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
           {adapter.recordLabel ?? t('tourPicker.recordFromHere')}

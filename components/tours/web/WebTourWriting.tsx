@@ -1,180 +1,130 @@
-import React, { useState } from 'react';
-import {
-  Loader2,
-  MessageCircleQuestion,
-  Sparkles,
-  Undo2,
-  X,
-} from 'lucide-react';
+import React from 'react';
+import { Loader2, MessageCircleQuestion, Undo2, X } from 'lucide-react';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
-import { logError } from '@/utils/logError';
+import { focusRing, secondaryBtn } from '@/components/common/lightChrome';
 import {
-  inputLight,
-  primaryBtn,
-  secondaryBtn,
-} from '@/components/common/lightChrome';
+  cardInput,
+  cardLabel,
+} from '@/components/tours/editor/shell/stepCardParts';
 import { MAX_GOAL_CHARS, MAX_NOTE_CHARS } from './recorderProtocol';
 import { scrubCapturedText } from './studentData';
-import {
-  applyWriting,
-  dismissQuestion,
-  requestWebTourWriting,
-  undoWriting,
-  writingRequests,
-  type WritingMode,
-  type WritingUndo,
-} from './writeWithClaude';
+import { dismissQuestion } from './writeWithClaude';
+import type { WebTourWriting } from './useWebTourWriting';
 
 type Change = (update: (s: GuidedLearningSet) => GuidedLearningSet) => void;
 
-const count = (n: number, one: string, many: string) =>
-  `${n} ${n === 1 ? one : many}`;
-
-// "3", "3 and 5", "3, 5 and 9".
-const listNumbers = (ns: number[]) =>
-  ns.length < 2
-    ? ns.join('')
-    : `${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}`;
-
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
-/** The tour's goal and the Write with Claude buttons, with one Undo per run. */
-export const WebTourWriting: React.FC<{
-  set: GuidedLearningSet;
-  change: Change;
-  /** Saves the draft now and returns it, so the server reads what is on screen. */
-  flush: () => Promise<GuidedLearningSet>;
-  onStatus: (status: string) => void;
-}> = ({ set, change, flush, onStatus }) => {
-  const [busy, setBusy] = useState(false);
-  const [undo, setUndo] = useState<WritingUndo | null>(null);
-  const asked = set.steps.some((s) => s.web?.claudeQuestion);
-
-  const run = async (mode: WritingMode) => {
-    setBusy(true);
-    onStatus('');
-    try {
-      const saved = await flush();
-      const requests = writingRequests(saved, mode);
-      if (requests.length === 0) {
-        onStatus('Every title and tip is filled in.');
-        return;
-      }
-      const { steps: written, failed } = await requestWebTourWriting(
-        saved.id,
-        requests
-      );
-      const ran: { r?: ReturnType<typeof applyWriting> } = {};
-      change((cur) => {
-        ran.r = applyWriting(cur, written, mode);
-        return ran.r.set;
-      });
-      const failedNumbers = saved.steps.flatMap((s, i) =>
-        failed.includes(s.id) ? [i + 1] : []
-      );
-      const { r } = ran;
-      if (!r) return;
-      setUndo(Object.keys(r.undo).length ? r.undo : null);
-      const parts = [
-        r.wrote ? `Claude wrote ${count(r.wrote, 'step', 'steps')}.` : '',
-        r.asked ? `Claude asked about ${count(r.asked, 'step', 'steps')}.` : '',
-        failedNumbers.length
-          ? `Claude couldn't write ${failedNumbers.length === 1 ? 'step' : 'steps'} ${listNumbers(failedNumbers)}. Try again.`
-          : '',
-      ].filter(Boolean);
-      onStatus(parts.join(' ') || 'Claude had nothing to add.');
-    } catch (err) {
-      logError('web tour writing', err, { setId: set.id });
-      onStatus("Claude couldn't write the steps. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
+/** Under the header after a run: Run again for questions, and Undo writing. */
+export const WebWritingStrip: React.FC<{ writing: WebTourWriting }> = ({
+  writing,
+}) => {
+  const { busy, asked, canUndo } = writing;
+  if (!busy && !asked && !canUndo) return null;
   return (
-    <div className="flex flex-col gap-2">
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-semibold text-slate-700">
-          What does your tour explain?
+    <div
+      data-testid="web-writing-strip"
+      className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-brand-blue-lighter px-2 py-1.5 text-xs"
+    >
+      {busy && (
+        <span
+          role="status"
+          className="flex flex-1 items-center gap-1.5 px-1 font-semibold text-brand-blue-dark"
+        >
+          <Loader2
+            className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+          Claude is writing...
         </span>
-        <textarea
-          className={`${inputLight} rounded-lg px-2.5 py-1.5`}
-          rows={2}
-          maxLength={MAX_GOAL_CHARS}
-          value={set.webGoal ?? ''}
-          onChange={(e) => {
-            const webGoal = e.target.value;
-            change((cur) => ({ ...cur, webGoal }));
-          }}
-          onBlur={() => {
-            const clean = scrubCapturedText(set.webGoal, MAX_GOAL_CHARS);
-            if (clean === (set.webGoal ?? '')) return;
-            change(({ webGoal: _old, ...cur }) =>
-              clean ? { ...cur, webGoal: clean } : cur
-            );
-          }}
-          {...tourAttr('web-tour-editor.goal')}
-        />
-      </label>
-      <div className="flex flex-wrap items-center gap-2">
+      )}
+      {!busy && <span className="flex-1" />}
+      {asked && (
         <button
           type="button"
-          className={`${primaryBtn} inline-flex items-center gap-1.5 ${disabledLook}`}
-          disabled={busy || set.steps.length === 0}
-          onClick={() => void run('blanks')}
-          {...tourAttr('web-tour-editor.write-with-claude')}
+          className={`${secondaryBtn} px-2 py-1 text-xs ${disabledLook}`}
+          disabled={busy}
+          onClick={() => void writing.run('questions')}
+          {...tourAttr('web-tour-editor.write-asked')}
         >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-          )}
-          {busy ? 'Writing...' : 'Write with Claude'}
+          Run again for questions
         </button>
+      )}
+      {canUndo && (
         <button
           type="button"
-          className={`${secondaryBtn} ${disabledLook}`}
-          disabled={busy || set.steps.length === 0}
-          onClick={() => void run('all')}
-          {...tourAttr('web-tour-editor.rewrite-all')}
+          className={`${secondaryBtn} inline-flex items-center gap-1 px-2 py-1 text-xs ${disabledLook}`}
+          disabled={busy}
+          onClick={writing.undo}
+          {...tourAttr('web-tour-editor.undo-writing')}
         >
-          Rewrite all
+          <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
+          Undo writing
         </button>
-        {asked && (
-          <button
-            type="button"
-            className={`${secondaryBtn} ${disabledLook}`}
-            disabled={busy}
-            onClick={() => void run('questions')}
-            {...tourAttr('web-tour-editor.write-asked')}
-          >
-            Run again for questions
-          </button>
-        )}
-        {undo && (
-          <button
-            type="button"
-            className={`${secondaryBtn} inline-flex items-center gap-1.5 ${disabledLook}`}
-            disabled={busy}
-            onClick={() => {
-              change((cur) => undoWriting(cur, undo));
-              setUndo(null);
-              onStatus('');
-            }}
-            {...tourAttr('web-tour-editor.undo-writing')}
-          >
-            <Undo2 className="h-4 w-4" aria-hidden="true" />
-            Undo
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 };
 
-/** Under a step's tip: Claude's question, and the admin's private note for Claude. */
-export const WebStepClaudeFields: React.FC<{
+/** The tour's goal, which Claude reads before writing. */
+export const WebTourGoalField: React.FC<{
+  set: GuidedLearningSet;
+  change: Change;
+}> = ({ set, change }) => (
+  <label className={cardLabel}>
+    What does your tour explain?
+    <textarea
+      className={`${cardInput} resize-y`}
+      rows={3}
+      maxLength={MAX_GOAL_CHARS}
+      value={set.webGoal ?? ''}
+      onChange={(e) => {
+        const webGoal = e.target.value;
+        change((cur) => ({ ...cur, webGoal }));
+      }}
+      onBlur={() => {
+        const clean = scrubCapturedText(set.webGoal, MAX_GOAL_CHARS);
+        if (clean === (set.webGoal ?? '')) return;
+        change(({ webGoal: _old, ...cur }) =>
+          clean ? { ...cur, webGoal: clean } : cur
+        );
+      }}
+      {...tourAttr('web-tour-editor.goal')}
+    />
+  </label>
+);
+
+/** Claude's question about a step, shown on its card until answered or dismissed. */
+export const WebClaudeQuestion: React.FC<{
+  step: GuidedLearningStep;
+  onChange: (step: GuidedLearningStep) => void;
+}> = ({ step, onChange }) => {
+  const question = step.web?.claudeQuestion;
+  if (!question) return null;
+  return (
+    <p className="flex items-start gap-2 rounded-lg bg-white px-2.5 py-2 text-sm text-slate-800">
+      <MessageCircleQuestion
+        className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-primary"
+        aria-hidden="true"
+      />
+      <span className="min-w-0 flex-1 wrap-break-word">{question}</span>
+      {/* no-tour-anchor: per-step controls repeat on every step */}
+      <button
+        type="button"
+        className={`-m-1 shrink-0 rounded-sm p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 ${focusRing}`}
+        aria-label="Dismiss question"
+        title="Dismiss question"
+        onClick={() => onChange(dismissQuestion(step))}
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </p>
+  );
+};
+
+/** The admin's private note for Claude on a step. */
+export const WebClaudeNote: React.FC<{
   step: GuidedLearningStep;
   onChange: (step: GuidedLearningStep) => void;
 }> = ({ step, onChange }) => {
@@ -185,43 +135,20 @@ export const WebStepClaudeFields: React.FC<{
     onChange({ ...step, web: note ? { ...rest, note } : rest });
   };
   return (
-    <>
-      {web.claudeQuestion && (
-        <p className="flex items-start gap-2 rounded-lg bg-brand-blue-lighter px-3 py-2 text-sm text-slate-800">
-          <MessageCircleQuestion
-            className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-primary"
-            aria-hidden="true"
-          />
-          <span className="min-w-0 flex-1 wrap-break-word">
-            {web.claudeQuestion}
-          </span>
-          {/* no-tour-anchor: per-step controls repeat on every step */}
-          <button
-            type="button"
-            className="-m-1 shrink-0 rounded-sm p-1 text-slate-500 hover:bg-white/60 hover:text-slate-900"
-            aria-label="Dismiss question"
-            title="Dismiss question"
-            onClick={() => onChange(dismissQuestion(step))}
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </p>
-      )}
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-semibold text-slate-700">Note for Claude</span>
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <textarea
-          className={`${inputLight} rounded-lg px-2.5 py-1.5`}
-          rows={2}
-          maxLength={MAX_NOTE_CHARS}
-          value={web.note ?? ''}
-          onChange={(e) => setNote(e.target.value)}
-          onBlur={() => {
-            const clean = scrubCapturedText(web.note, MAX_NOTE_CHARS);
-            if (clean !== (web.note ?? '')) setNote(clean);
-          }}
-        />
-      </label>
-    </>
+    <label className={cardLabel}>
+      Note for Claude
+      {/* no-tour-anchor: per-step controls repeat on every step */}
+      <textarea
+        className={`${cardInput} resize-y`}
+        rows={2}
+        maxLength={MAX_NOTE_CHARS}
+        value={web.note ?? ''}
+        onChange={(e) => setNote(e.target.value)}
+        onBlur={() => {
+          const clean = scrubCapturedText(web.note, MAX_NOTE_CHARS);
+          if (clean !== (web.note ?? '')) setNote(clean);
+        }}
+      />
+    </label>
   );
 };

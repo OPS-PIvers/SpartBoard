@@ -30,7 +30,7 @@ import {
   primaryBtn,
   secondaryBtn,
 } from '@/components/common/lightChrome';
-import { cropRect } from '../recorder/geometry';
+import { cropRect, pictureTarget } from '../recorder/geometry';
 import {
   isRecorderInternal,
   PANEL_PORT,
@@ -77,7 +77,13 @@ const dangerBtn = `rounded-lg bg-brand-red-primary px-3 py-1.5 text-sm font-semi
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
 const toRecorded = async (s: PanelStep): Promise<RecordedWebStep> => {
-  const picture = s.picture ? await finishPicture(s.picture, s.blur) : null;
+  const finished = s.picture ? await finishPicture(s.picture, s.blur) : null;
+  // Where the target sits in the picture, so SpartBoard previews the ring exactly.
+  const placed =
+    finished && s.capture.target
+      ? pictureTarget(s.capture.target, s.capture.viewport)
+      : null;
+  const picture = finished && placed ? { ...finished, ...placed } : finished;
   const tip = s.tip.trim();
   const note = scrubCapturedText(s.note, MAX_NOTE_CHARS);
   return {
