@@ -29,6 +29,8 @@ export interface SheetReprint {
   pageCount: number;
   /** The batch's page maps (layoutVersion 2); the reprint then draws every page from them (D42). */
   pageMaps?: PaperPageMap[];
+  /** Printed page number of each reprint page, only when prompt pages were left out and the numbers moved. */
+  printedPages?: number[];
   /** Stem per written question id, for the headers above its box. */
   writtenTexts?: Record<string, string>;
   /** Bubble the student filled per row; null for a passed or unclear row. */
@@ -82,13 +84,15 @@ export function planSheetReprint(
   quiz: QuizData
 ): SheetReprint | null {
   if (!response.paperBatchId || response.paperSeat === undefined) return null;
-  const pageMaps =
+  const seatMaps =
     batch.layoutVersion === 2 && batch.pageMaps?.length
-      ? pageMapsForSeat(batch, response.paperSeat)
-          // A prompt page holds nothing the student wrote, so a reprint leaves it out.
-          ?.filter((m) => !m.prompt)
-          .map((m, i) => ({ ...m, page: i + 1 }))
+      ? // A prompt page holds nothing the student wrote, so a reprint leaves it out.
+        pageMapsForSeat(batch, response.paperSeat)?.filter((m) => !m.prompt)
       : undefined;
+  const pageMaps = seatMaps?.map((m, i) => ({ ...m, page: i + 1 }));
+  const printedPages = seatMaps?.some((m, i) => m.page !== i + 1)
+    ? seatMaps.map((m) => m.page)
+    : undefined;
   // A v2 batch reads its MC rows off the map, in sheet-row order; older batches recompute them.
   const rows = pageMaps
     ? pageMaps
@@ -144,10 +148,19 @@ export function planSheetReprint(
     ...(pageMaps
       ? { pageMaps, writtenTexts: writtenTextsOf(pageMaps, questions) }
       : {}),
+    ...(printedPages ? { printedPages } : {}),
     filled,
     correct,
     unclear,
   };
+}
+
+/** The page number printed on reprint page `index` (0-based), which is what a kept page is filed under. */
+export function printedPageOf(
+  reprint: Pick<SheetReprint, 'printedPages'>,
+  index: number
+): number {
+  return reprint.printedPages?.[index] ?? index + 1;
 }
 
 export interface SheetReprintMarks {

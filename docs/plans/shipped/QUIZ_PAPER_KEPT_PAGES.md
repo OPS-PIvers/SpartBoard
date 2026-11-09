@@ -1,6 +1,19 @@
 # Quiz paper sheets: kept pages, marks on the student's own work, and image markup
 
-**Status:** plan only; no code has shipped. Settled with Paul 2026-11-09 in a four-round decision interview after a read of the current code.
+**Status:** built 2026-11-09 in seven PRs (#5497, #5499, #5500, #5503, #5504, #5505 and the slice E PR that moved this file). Both flags are admin-only previews; PT-149, PT-150 and PT-151 in `PAUL_TODO.md` track opening them. Settled with Paul 2026-11-09 in a four-round decision interview after a read of the code as it was then.
+
+**Where the build departed from this plan:**
+
+- Saved comments live at `savedWidgetPresets.quiz.markupComments`, because `savedWidgetPresets` is keyed by widget type.
+- Kept pages are recorded in a server-written `QuizResponse.paperPages`, outside `answers[]`. A server-only `users/{uid}/paper_page_scans/{scanId}` doc maps each seat to its response, and every reader proves a page through it.
+- Every paper import leaves a seat's `paperPages` matching that scan. An import with no pages clears older ones, so marks never print on an older scan's page.
+- Pages archive to Drive on the daily sweep, not within minutes as crops do.
+- The 60 days without Drive count from the page's upload.
+- The org-admin media console lists and deletes kept pages and their Drive copies.
+- Marks save with the grade, which needs a score. Unscored marks stay while the grader is open, and closing it asks first.
+- The Drawing widget's undo stack and hit testing were not reused; they are typed to its own objects.
+- On a kept page, points and comments print in the right margin beside each written box, and the score prints inside the patched marker area.
+- Loading pages per period (§4 "Print weight") was not needed: a 30-student, 2-page job opens in about a second. Spooling it takes 10 to 18 seconds; AB-176 tracks that.
 
 **Flags:** two new `GlobalFeature` ids, both `stage: 'preview'`, `defaultAccessLevel: 'admin'`, `missingDocPublic: false`, `afterLaunch: 'keep'`, `category` matching the other paper flags:
 

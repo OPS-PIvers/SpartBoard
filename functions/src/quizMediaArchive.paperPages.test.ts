@@ -1,4 +1,4 @@
-// Kept scan pages through the shared Drive archive core (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.1, K13).
+// Kept scan pages through the shared Drive archive core (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.1, K13).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
