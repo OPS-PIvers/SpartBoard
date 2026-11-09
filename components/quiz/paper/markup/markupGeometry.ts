@@ -152,3 +152,15 @@ export function imageMarkupForSave(args: {
   if (items.length === 0) return undefined;
   return { scanId, page, items: [...items] };
 }
+
+/** Marks in reading order: by row, then left to right. */
+export function readingOrder(items: readonly PaperMarkupItem[]): string[] {
+  return [...items]
+    .map((i) => ({ id: i.id, b: itemBoundsMm(i) }))
+    .sort((a, b) => {
+      const rowA = Math.round((a.b.y + a.b.h / 2) / 6);
+      const rowB = Math.round((b.b.y + b.b.h / 2) / 6);
+      return rowA - rowB || a.b.x - b.b.x;
+    })
+    .map((x) => x.id);
+}

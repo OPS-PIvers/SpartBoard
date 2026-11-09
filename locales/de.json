@@ -2711,7 +2711,7 @@
           "deleteKeys": "Markierung löschen (Entf)",
           "layer": "Markierungen auf der Handschrift",
           "cap": "Höchstens {{max}} Markierungen. Lösche eine, um eine neue hinzuzufügen.",
-          "needsScore": "Markierungen werden gespeichert, sobald du eine Punktzahl eingibst.",
+          "needsScore": "Gib eine Punktzahl ein, um diese Markierungen zu speichern.",
           "unavailable": "Markieren ist für diesen Scan nicht verfügbar.",
           "selectedMark": "Ausgewählte Markierung",
           "addComment": "Kommentar hinzufügen",
@@ -2724,8 +2724,24 @@
           "save": "Speichern",
           "saveKeys": "Speichern (Eingabe)",
           "cancel": "Abbrechen",
-          "commentList": "Kommentare zur Handschrift"
+          "commentList": "Kommentare zur Handschrift",
+          "names": {
+            "highlight": "Markierung",
+            "rect": "Rahmen",
+            "ellipse": "Kreis",
+            "pin": "Kommentar-Pin",
+            "pinNumber": "Kommentar-Pin {{number}}",
+            "withComment": "{{kind}}, Kommentar {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Markierungen nicht gespeichert",
+        "body_one": "{{count}} Antwort hat Markierungen, aber keine Punktzahl. Gib eine Punktzahl ein, um sie zu behalten.",
+        "body_other": "{{count}} Antworten haben Markierungen, aber keine Punktzahl. Gib eine Punktzahl ein, um sie zu behalten.",
+        "goBack": "Zurück",
+        "closeAnyway": "Trotzdem schließen",
+        "rail": "Markierungen nicht gespeichert"
       }
     },
     "results": {

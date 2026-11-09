@@ -120,6 +120,15 @@ const TEXT: Record<string, string[]> = {
     'Im not sure how far they can go before',
     'they rain.',
   ],
+  olive: [
+    'The ocean water evaporates when the sun',
+    'heats it. The vapor rises and cools into',
+    'clouds. Wind blows the clouds to the',
+    'mountains and it rains or snows there.',
+    'The water runs down the mountain into',
+    'streams that end in the lake. That is',
+    'the water cycle.',
+  ],
   priya: [
     'Heat from the sun causes ocean water to',
     'evaporate. The water vapor rises, cools and',
@@ -316,7 +325,17 @@ const STUDENTS: {
     transcribed: false,
     grade: grade(THEO_ITEMS),
   },
+  { key: 'olive', name: 'Olive Brandt', seat: 6, transcribed: false },
 ];
+
+// An older stack whose page maps never recorded the box, so markup cannot place itself.
+const OLD_BATCH = {
+  ...BATCH,
+  id: 'batch-old',
+  pageMaps: undefined,
+} as PaperBatch;
+const batchFor = (id: string) =>
+  Promise.resolve(id === OLD_BATCH.id ? OLD_BATCH : BATCH);
 
 const initialResponses = (): QuizResponse[] =>
   STUDENTS.map((s) => ({
@@ -328,7 +347,7 @@ const initialResponses = (): QuizResponse[] =>
     score: 0,
     tabSwitchWarnings: 0,
     completedAttempts: 1,
-    paperBatchId: BATCH.id,
+    paperBatchId: s.key === 'olive' ? OLD_BATCH.id : BATCH.id,
     paperSeat: s.seat,
     answers: [
       {
@@ -438,7 +457,7 @@ export const PaperMarkupDevHarness: React.FC = () => {
               transcribeBlank: ok({ jobId: 'j' }),
               retry: ok({}),
             }}
-            loadPaperBatch={ok(BATCH)}
+            loadPaperBatch={batchFor}
             autoAdvance={false}
             onSaveGrade={onSaveGrade}
             onClose={noop}

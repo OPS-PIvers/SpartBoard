@@ -2711,7 +2711,7 @@
           "deleteKeys": "Supprimer la marque (Suppr)",
           "layer": "Marques sur l'écriture",
           "cap": "La limite est de {{max}} marques. Supprimez-en une pour en ajouter une autre.",
-          "needsScore": "Les marques sont enregistrées dès que vous saisissez une note.",
+          "needsScore": "Saisissez une note pour enregistrer ces marques.",
           "unavailable": "L'annotation n'est pas disponible pour ce scan.",
           "selectedMark": "Marque sélectionnée",
           "addComment": "Ajouter un commentaire",
@@ -2724,8 +2724,24 @@
           "save": "Enregistrer",
           "saveKeys": "Enregistrer (Entrée)",
           "cancel": "Annuler",
-          "commentList": "Commentaires sur l'écriture"
+          "commentList": "Commentaires sur l'écriture",
+          "names": {
+            "highlight": "Surlignage",
+            "rect": "Cadre",
+            "ellipse": "Cercle",
+            "pin": "Épingle de commentaire",
+            "pinNumber": "Épingle de commentaire {{number}}",
+            "withComment": "{{kind}}, commentaire {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Marques non enregistrées",
+        "body_one": "{{count}} réponse a des marques mais pas de note. Saisissez une note pour les garder.",
+        "body_other": "{{count}} réponses ont des marques mais pas de note. Saisissez une note pour les garder.",
+        "goBack": "Revenir",
+        "closeAnyway": "Fermer quand même",
+        "rail": "Marques non enregistrées"
       }
     },
     "results": {

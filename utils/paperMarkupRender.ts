@@ -247,14 +247,14 @@ const pointOf = (v: unknown): PaperPointMm | null =>
 const clamp = (v: number, lo: number, hi: number): number =>
   hi < lo ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v));
 
-interface Disc {
+export interface Disc {
   x: number;
   y: number;
   r: number;
 }
 
 /** Keeps a numbered disc fully inside the viewport and off any disc already placed, sliding it left along the top edge. */
-function placeDisc(
+export function placeDisc(
   want: PaperPointMm,
   r: number,
   view: PaperRectMm,

@@ -1,7 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Check,
   ChevronDown,
   Circle,
   Highlighter,
@@ -19,12 +18,7 @@ import {
   type PaperMarkupStamp,
 } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import {
-  MARKUP_COLORS,
-  MARKUP_HIGHLIGHT_HEX,
-  MARKUP_INK_HEX,
-  STAMP_ORDER,
-} from './markupStyle';
+import { MARKUP_COLORS, inkOf, washOf, STAMP_ORDER } from './markupStyle';
 import { StampGlyph } from './MarkupShape';
 import type { PaperMarkupEditor } from './usePaperMarkupEditor';
 import type { MarkupTool } from './types';
@@ -37,6 +31,9 @@ const MENU =
   'absolute left-0 top-full z-popover mt-1 flex min-w-40 flex-col rounded-xl border border-slate-200 bg-white p-1 shadow-xl';
 const MENU_ITEM =
   'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-hidden [@media(pointer:coarse)]:py-2.5';
+
+const MENU_ON =
+  'bg-brand-blue-primary/10 text-brand-blue-dark hover:bg-brand-blue-primary/15';
 
 const TOOLS: {
   tool: Exclude<MarkupTool, 'stamp' | 'pin'>;
@@ -82,9 +79,7 @@ const Swatch: React.FC<{ color: PaperMarkupColor; highlight: boolean }> = ({
     aria-hidden
     className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-inset ring-slate-900/20"
     style={{
-      background: highlight
-        ? MARKUP_HIGHLIGHT_HEX[color]
-        : MARKUP_INK_HEX[color],
+      background: highlight ? washOf(color) : inkOf(color),
     }}
   />
 );
@@ -168,18 +163,26 @@ export const PaperMarkupToolbar: React.FC<{
   const capText = tm('cap', { max: PAPER_MARKUP_MAX_ITEMS });
   const drawTitle = (label: string) =>
     !ready ? (disabledReason ?? label) : capped ? capText : label;
+  const status =
+    !ready && disabledReason
+      ? disabledReason
+      : capped && ready
+        ? capText
+        : needsScore
+          ? tm('needsScore')
+          : null;
   const highlightColor =
     editor.selected?.kind === 'highlight' ||
     (!editor.selected && editor.tool === 'highlight');
 
   return (
-    <div className="flex items-center gap-x-3">
+    <div className="flex flex-col gap-1">
       <div
         role="toolbar"
         aria-label={tm('toolbar')}
-        aria-describedby={capped || needsScore ? statusId : undefined}
+        aria-describedby={status ? statusId : undefined}
         {...tourTypeAttr('quiz-grading.markup-toolbar', 'quiz')}
-        className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+        className="flex w-fit max-w-full flex-wrap items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-0.5"
       >
         {TOOLS.map(({ tool, Icon, tour }) => {
           const label = tm(`tools.${tool}`);
@@ -250,18 +253,12 @@ export const PaperMarkupToolbar: React.FC<{
                     editor.setStamp(s);
                     closeMenuAndFocus('stamp');
                   }}
-                  className={MENU_ITEM}
+                  className={`${MENU_ITEM} ${editor.stamp === s ? MENU_ON : ''}`}
                 >
                   <span className="text-brand-red-primary">
                     <StampIcon symbol={s} />
                   </span>
                   <span className="flex-1">{tm(`stamps.${s}`)}</span>
-                  {editor.stamp === s && (
-                    <Check
-                      aria-hidden
-                      className="h-3.5 w-3.5 text-brand-blue-primary"
-                    />
-                  )}
                 </button>
               ))}
             </Menu>
@@ -310,16 +307,10 @@ export const PaperMarkupToolbar: React.FC<{
                     editor.setColor(c);
                     closeMenuAndFocus('color');
                   }}
-                  className={MENU_ITEM}
+                  className={`${MENU_ITEM} ${editor.color === c ? MENU_ON : ''}`}
                 >
                   <Swatch color={c} highlight={highlightColor} />
                   <span className="flex-1">{tm(`colors.${c}`)}</span>
-                  {editor.color === c && (
-                    <Check
-                      aria-hidden
-                      className="h-3.5 w-3.5 text-brand-blue-primary"
-                    />
-                  )}
                 </button>
               ))}
             </Menu>
@@ -363,15 +354,12 @@ export const PaperMarkupToolbar: React.FC<{
       <p
         id={statusId}
         role="status"
-        className="line-clamp-2 min-w-0 flex-1 basis-36 text-xs font-semibold leading-snug text-slate-600"
+        title={status ?? undefined}
+        className={`h-4 truncate text-xs leading-4 ${
+          capped && ready ? 'font-semibold text-amber-700' : 'text-slate-500'
+        }`}
       >
-        {!ready && disabledReason
-          ? disabledReason
-          : capped
-            ? capText
-            : needsScore
-              ? tm('needsScore')
-              : ''}
+        {status}
       </p>
     </div>
   );

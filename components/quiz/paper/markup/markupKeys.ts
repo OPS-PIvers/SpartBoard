@@ -11,6 +11,12 @@ const isTextEntry = (el: EventTarget | null) =>
   el instanceof HTMLSelectElement ||
   (el instanceof HTMLElement && el.isContentEditable);
 
+/** The image area itself or one of its marks, not a toolbar button. */
+const inImage = (el: EventTarget | null) =>
+  el instanceof Element &&
+  (el.getAttribute('data-tour') === 'quiz-grading.markup-canvas' ||
+    el.hasAttribute('data-markup-focus'));
+
 const ARROWS: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
   ArrowRight: [1, 0],
@@ -44,19 +50,13 @@ export function handleMarkupKey(
   } else if (e.key === 'Escape') {
     handled = editor.escape();
   } else if (e.key in ARROWS) {
-    const onLayer =
-      e.target instanceof HTMLElement &&
-      e.target.dataset.tour === 'quiz-grading.markup-canvas';
-    if (onLayer && editor.selectedId) {
+    if (inImage(e.target) && editor.selectedId) {
       const [dx, dy] = ARROWS[e.key];
       const step = e.shiftKey ? NUDGE_FAR_MM : NUDGE_MM;
       handled = editor.nudge(dx * step, dy * step);
     }
   } else if (e.key === 'Enter' || e.key === ' ') {
-    const onLayer =
-      e.target instanceof HTMLElement &&
-      e.target.dataset.tour === 'quiz-grading.markup-canvas';
-    if (onLayer) {
+    if (inImage(e.target)) {
       if (editor.selectedId) {
         editor.openComment(editor.selectedId);
         handled = true;

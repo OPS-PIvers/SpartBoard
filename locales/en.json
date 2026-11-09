@@ -4012,7 +4012,7 @@
           "deleteKeys": "Delete mark (Delete)",
           "layer": "Marks on the handwriting",
           "cap": "{{max}} marks is the limit. Delete one to add another.",
-          "needsScore": "Marks save once you enter a score.",
+          "needsScore": "Enter a score to save these marks.",
           "unavailable": "Markup isn't available for this scan.",
           "selectedMark": "Selected mark",
           "addComment": "Add comment",
@@ -4025,8 +4025,24 @@
           "save": "Save",
           "saveKeys": "Save (Enter)",
           "cancel": "Cancel",
-          "commentList": "Comments on the handwriting"
+          "commentList": "Comments on the handwriting",
+          "names": {
+            "highlight": "Highlight",
+            "rect": "Box",
+            "ellipse": "Circle",
+            "pin": "Comment pin",
+            "pinNumber": "Comment pin {{number}}",
+            "withComment": "{{kind}}, comment {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Marks not saved",
+        "body_one": "{{count}} answer has marks but no score. Enter a score to keep them.",
+        "body_other": "{{count}} answers have marks but no score. Enter a score to keep them.",
+        "goBack": "Go back",
+        "closeAnyway": "Close anyway",
+        "rail": "Marks not saved"
       }
     },
     "results": {

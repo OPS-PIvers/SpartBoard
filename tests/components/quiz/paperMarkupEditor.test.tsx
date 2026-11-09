@@ -41,6 +41,7 @@ const ZERO = {
   x: 0,
   y: 0,
 };
+let canvasWidth = 720;
 const CANVAS = {
   left: 0,
   top: 0,
@@ -64,7 +65,7 @@ beforeAll(() => {
     function (this: Element) {
       return (
         this.getAttribute('data-tour') === 'quiz-grading.markup-canvas'
-          ? CANVAS
+          ? { ...CANVAS, width: canvasWidth, right: canvasWidth }
           : ZERO
       ) as DOMRect;
     }
@@ -151,7 +152,11 @@ const handleEl = (layer: Element, corner: string): Element => {
   return el;
 };
 
-const tool = (name: string | RegExp) => screen.getByRole('button', { name });
+const tool = (name: string | RegExp) =>
+  within(screen.getByRole('toolbar', { name: 'Markup tools' })).getByRole(
+    'button',
+    { name }
+  );
 
 const drag = (
   el: Element,
@@ -488,7 +493,7 @@ describe('paper markup editor', () => {
     await setup([], { notice: <p>Earlier scan</p>, needsScore: true });
     expect(screen.getByText('Earlier scan')).toBeInTheDocument();
     expect(
-      screen.getByText('Marks save once you enter a score.')
+      screen.getByText('Enter a score to save these marks.')
     ).toBeInTheDocument();
   });
 
@@ -519,5 +524,59 @@ describe('paper markup editor', () => {
     expect(
       screen.queryByRole('group', { name: 'Marks on the handwriting' })
     ).toBeNull();
+  });
+
+  it('reaches every mark from the keyboard in reading order', async () => {
+    const { layer, last } = await setup([
+      rectItem(
+        'b',
+        'rect',
+        { x: 100, y: 100, w: 20, h: 10 },
+        { comment: 'Two' }
+      ),
+      { id: 's', kind: 'stamp', atMm: { x: 60, y: 120 }, symbol: 'check' },
+      { id: 'p', kind: 'pin', atMm: { x: 50, y: 80 }, comment: 'One' },
+    ]);
+    const marks = within(layer).getAllByRole('button');
+    expect(marks.map((m) => m.getAttribute('aria-label')).sort()).toEqual([
+      'Box, comment 1',
+      'Check stamp',
+      'Comment pin 2',
+    ]);
+    const first = within(layer).getByRole('button', { name: 'Comment pin 2' });
+    expect(first).toHaveAttribute('tabindex', '0');
+    act(() => first.focus());
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    const box = within(layer).getByRole('button', { name: 'Box, comment 1' });
+    expect(box).toHaveFocus();
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(box).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.keyDown(box, { key: 'ArrowLeft' });
+    expect(last()[0]).toMatchObject({ id: 'b', rectMm: { x: 99.5 } });
+    fireEvent.keyDown(box, { key: 'Delete' });
+    expect(last().map((i) => i.id)).toEqual(['s', 'p']);
+  });
+
+  it('keeps pins and numbers legible on a small image', async () => {
+    canvasWidth = 144;
+    try {
+      const { layer } = await setup([
+        { id: 'p', kind: 'pin', atMm: { x: 100, y: 100 }, comment: 'Hi' },
+      ]);
+      const pin = within(layer).getByRole('button', { name: 'Comment pin 1' });
+      const disc = pin.querySelectorAll('circle')[1];
+      // 1 px per mm here, so an 18 px disc is 18 mm across.
+      expect(Number(disc.getAttribute('r'))).toBeCloseTo(9, 5);
+    } finally {
+      canvasWidth = 720;
+    }
+  });
+
+  it('marks the chosen stamp with the row state, not a second tick', async () => {
+    await setup();
+    fireEvent.click(tool('Choose stamp'));
+    const row = screen.getByRole('menuitemradio', { name: 'Check' });
+    expect(row).toHaveAttribute('aria-checked', 'true');
+    expect(row.querySelectorAll('svg')).toHaveLength(1);
   });
 });

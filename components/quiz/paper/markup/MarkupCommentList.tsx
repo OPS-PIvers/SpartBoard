@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { numberMarkupComments } from '@/utils/paperMarkupRender';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import { MARKUP_INK_HEX, markupColorOf } from './markupStyle';
+import { inkOf, markupColorOf } from './markupStyle';
 import type { PaperMarkupEditor } from './usePaperMarkupEditor';
 
 /** The numbered comments under the image, as they will print (K10); a row opens its comment. */
@@ -34,9 +34,7 @@ export const MarkupCommentList: React.FC<{ editor: PaperMarkupEditor }> = ({
               <span
                 className="mt-px inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white tabular-nums"
                 style={{
-                  background: item
-                    ? MARKUP_INK_HEX[markupColorOf(item)]
-                    : undefined,
+                  background: item ? inkOf(markupColorOf(item)) : undefined,
                 }}
               >
                 {c.number}

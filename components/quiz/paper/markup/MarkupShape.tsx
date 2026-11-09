@@ -1,197 +1,122 @@
 import React from 'react';
 import type { PaperMarkupItem, PaperMarkupStamp } from '@/types';
+import type { DiscPlacement } from './markupDiscs';
 import {
-  COMMENT_BADGE_DIAMETER_MM,
-  COMMENT_BADGE_FONT_MM,
-  HIGHLIGHT_OPACITY,
-  MARKUP_HIGHLIGHT_HEX,
-  MARKUP_INK_HEX,
-  PIN_DIAMETER_MM,
-  PIN_FONT_MM,
-  PIN_OUTLINE_MM,
-  SHAPE_STROKE_MM,
-  STAMP_GLYPHS,
-  STAMP_STROKE_MM,
+  PAPER_MARKUP_STYLE,
+  PAPER_STAMP_GLYPHS,
+  inkOf,
   markupColorOf,
+  washOf,
 } from './markupStyle';
 
+const { stamp: STAMP, shape: SHAPE, highlight: HIGHLIGHT } = PAPER_MARKUP_STYLE;
+
+/** A stamp glyph centred on `x`,`y`, `size` mm across, drawn as the print draws it. */
 export const StampGlyph: React.FC<{
   symbol: PaperMarkupStamp;
   color: string;
   x: number;
   y: number;
-  /** 1 draws the glyph at its sheet size. */
-  scale?: number;
-}> = ({ symbol, color, x, y, scale = 1 }) => {
-  const glyph = STAMP_GLYPHS[symbol];
+  size?: number;
+}> = ({ symbol, color, x, y, size = STAMP.sizeMm }) => {
+  const glyph = PAPER_STAMP_GLYPHS[symbol];
   return (
-    <g transform={`translate(${x} ${y}) scale(${scale})`}>
-      <path
-        d={glyph.d}
-        fill="none"
-        stroke={color}
-        strokeWidth={STAMP_STROKE_MM}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {glyph.dot && (
-        <circle
-          cx={glyph.dot.cx}
-          cy={glyph.dot.cy}
-          r={glyph.dot.r}
-          fill={color}
-        />
-      )}
-    </g>
+    <path
+      transform={`translate(${x - size / 2} ${y - size / 2}) scale(${size})`}
+      d={glyph.d}
+      fill={glyph.solid ? color : 'none'}
+      stroke={color}
+      strokeWidth={STAMP.strokeMm / STAMP.sizeMm}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   );
 };
 
-const Badge: React.FC<{
-  x: number;
-  y: number;
-  diameter: number;
-  font: number;
-  color: string;
-  number?: number;
-}> = ({ x, y, diameter, font, color, number }) => (
-  <g>
-    <circle
-      cx={x}
-      cy={y}
-      r={diameter / 2}
-      fill={color}
-      stroke="white"
-      strokeWidth={PIN_OUTLINE_MM}
-    />
-    {number !== undefined && (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        fontSize={font}
-        fontWeight={700}
-        textAnchor="middle"
-        dominantBaseline="central"
-        style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
-      >
-        {number}
-      </text>
-    )}
-  </g>
-);
-
-/** One saved mark drawn in sheet millimetres; `number` is its comment number. */
-export const MarkupShape: React.FC<{
-  item: PaperMarkupItem;
-  number?: number;
-}> = ({ item, number }) => {
+/** A highlight, box, circle or stamp; numbers and pins are drawn by `MarkupDisc` on top. */
+export const MarkupShape: React.FC<{ item: PaperMarkupItem }> = ({ item }) => {
   const color = markupColorOf(item);
-  const ink = MARKUP_INK_HEX[color];
+  const ink = inkOf(color);
   switch (item.kind) {
     case 'highlight': {
       const r = item.rectMm;
       return (
-        <>
-          <rect
-            x={r.x}
-            y={r.y}
-            width={r.w}
-            height={r.h}
-            fill={MARKUP_HIGHLIGHT_HEX[color]}
-            fillOpacity={HIGHLIGHT_OPACITY}
-            style={{ mixBlendMode: 'multiply' }}
-          />
-          {number !== undefined && (
-            <Badge
-              x={r.x + r.w}
-              y={r.y}
-              diameter={COMMENT_BADGE_DIAMETER_MM}
-              font={COMMENT_BADGE_FONT_MM}
-              color={ink}
-              number={number}
-            />
-          )}
-        </>
+        <rect
+          x={r.x}
+          y={r.y}
+          width={r.w}
+          height={r.h}
+          fill={washOf(color)}
+          fillOpacity={HIGHLIGHT.opacity}
+          style={{ mixBlendMode: HIGHLIGHT.blend }}
+        />
       );
     }
-    case 'rect':
+    case 'rect': {
+      const r = item.rectMm;
+      return (
+        <rect
+          x={r.x}
+          y={r.y}
+          width={r.w}
+          height={r.h}
+          fill="transparent"
+          stroke={ink}
+          strokeWidth={SHAPE.strokeMm}
+          strokeLinejoin="round"
+        />
+      );
+    }
     case 'ellipse': {
       const r = item.rectMm;
       return (
-        <>
-          {item.kind === 'rect' ? (
-            <rect
-              x={r.x}
-              y={r.y}
-              width={r.w}
-              height={r.h}
-              fill="transparent"
-              stroke={ink}
-              strokeWidth={SHAPE_STROKE_MM}
-            />
-          ) : (
-            <ellipse
-              cx={r.x + r.w / 2}
-              cy={r.y + r.h / 2}
-              rx={r.w / 2}
-              ry={r.h / 2}
-              fill="transparent"
-              stroke={ink}
-              strokeWidth={SHAPE_STROKE_MM}
-            />
-          )}
-          {number !== undefined && (
-            <Badge
-              x={
-                item.kind === 'rect'
-                  ? r.x + r.w
-                  : r.x + r.w / 2 + (r.w / 2) * Math.SQRT1_2
-              }
-              y={
-                item.kind === 'rect'
-                  ? r.y
-                  : r.y + r.h / 2 - (r.h / 2) * Math.SQRT1_2
-              }
-              diameter={COMMENT_BADGE_DIAMETER_MM}
-              font={COMMENT_BADGE_FONT_MM}
-              color={ink}
-              number={number}
-            />
-          )}
-        </>
+        <ellipse
+          cx={r.x + r.w / 2}
+          cy={r.y + r.h / 2}
+          rx={r.w / 2}
+          ry={r.h / 2}
+          fill="transparent"
+          stroke={ink}
+          strokeWidth={SHAPE.strokeMm}
+        />
       );
     }
     case 'stamp':
       return (
-        <>
-          <StampGlyph
-            symbol={item.symbol}
-            color={ink}
-            x={item.atMm.x}
-            y={item.atMm.y}
-          />
-          {number !== undefined && (
-            <Badge
-              x={item.atMm.x + 3}
-              y={item.atMm.y - 3}
-              diameter={COMMENT_BADGE_DIAMETER_MM}
-              font={COMMENT_BADGE_FONT_MM}
-              color={ink}
-              number={number}
-            />
-          )}
-        </>
-      );
-    case 'pin':
-      return (
-        <Badge
+        <StampGlyph
+          symbol={item.symbol}
+          color={ink}
           x={item.atMm.x}
           y={item.atMm.y}
-          diameter={PIN_DIAMETER_MM}
-          font={PIN_FONT_MM}
-          color={ink}
-          number={number}
         />
       );
+    case 'pin':
+      return null;
   }
+};
+
+/** A dark disc with a white number and a white halo, as printed. */
+export const MarkupDisc: React.FC<{ disc: DiscPlacement }> = ({ disc }) => {
+  const r = disc.d / 2;
+  const size = disc.label.length > 1 ? disc.d * 0.6 : disc.d * 0.68;
+  return (
+    <>
+      <circle cx={disc.x} cy={disc.y} r={r + disc.halo / 2} fill="#fff" />
+      <circle cx={disc.x} cy={disc.y} r={r} fill={disc.ink} />
+      {disc.label && (
+        <text
+          x={disc.x}
+          y={disc.y}
+          dy="0.35em"
+          textAnchor="middle"
+          fontSize={size}
+          fill="#fff"
+          fontFamily="Arial,Helvetica,sans-serif"
+          fontWeight={700}
+        >
+          {disc.label}
+        </text>
+      )}
+    </>
+  );
 };

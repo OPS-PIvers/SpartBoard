@@ -2711,7 +2711,7 @@
           "deleteKeys": "Eliminar marca (Supr)",
           "layer": "Marcas sobre la escritura",
           "cap": "El límite es de {{max}} marcas. Elimina una para añadir otra.",
-          "needsScore": "Las marcas se guardan cuando pones una puntuación.",
+          "needsScore": "Pon una puntuación para guardar estas marcas.",
           "unavailable": "El marcado no está disponible para este escaneo.",
           "selectedMark": "Marca seleccionada",
           "addComment": "Añadir comentario",
@@ -2724,8 +2724,24 @@
           "save": "Guardar",
           "saveKeys": "Guardar (Intro)",
           "cancel": "Cancelar",
-          "commentList": "Comentarios sobre la escritura"
+          "commentList": "Comentarios sobre la escritura",
+          "names": {
+            "highlight": "Resaltado",
+            "rect": "Recuadro",
+            "ellipse": "Círculo",
+            "pin": "Chincheta de comentario",
+            "pinNumber": "Chincheta de comentario {{number}}",
+            "withComment": "{{kind}}, comentario {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Marcas sin guardar",
+        "body_one": "{{count}} respuesta tiene marcas pero no tiene puntuación. Pon una puntuación para conservarlas.",
+        "body_other": "{{count}} respuestas tienen marcas pero no tienen puntuación. Pon una puntuación para conservarlas.",
+        "goBack": "Volver",
+        "closeAnyway": "Cerrar de todos modos",
+        "rail": "Marcas sin guardar"
       }
     },
     "results": {

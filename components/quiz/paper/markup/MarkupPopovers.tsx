@@ -18,7 +18,15 @@ export const COMMENT_COUNTER_FROM = PAPER_MARKUP_MAX_COMMENT_CHARS - 60;
 
 type Pos = { left: number; top: number };
 
-/** Places its child beside the marked item and keeps it inside `container`, flipping above near the bottom. */
+const scrollParentOf = (el: HTMLElement): HTMLElement | null => {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const y = getComputedStyle(p).overflowY;
+    if (y === 'auto' || y === 'scroll') return p;
+  }
+  return null;
+};
+
+/** Places its child beside the marked item, flipping above or sliding to stay wholly inside the visible grader column. */
 const AnchoredPopover: React.FC<{
   containerRef: React.RefObject<HTMLElement | null>;
   scrollRef: React.RefObject<HTMLElement | null>;
@@ -33,10 +41,13 @@ const AnchoredPopover: React.FC<{
   const [pos, setPos] = useState<Pos | null>(null);
   const [width, setWidth] = useState<number | undefined>(maxWidth);
 
+  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
+
   useLayoutEffect(() => {
     const container = containerRef.current;
     const pop = popRef.current;
     if (!container || !pop) return;
+    const outer = scrollParentOf(container);
     const place = () => {
       const anchor = container.querySelector(
         `[data-markup-anchor="${anchorId}"]`
@@ -45,6 +56,17 @@ const AnchoredPopover: React.FC<{
       const c = container.getBoundingClientRect();
       const ox = c.left + container.clientLeft;
       const oy = c.top + container.clientTop;
+      // Everything the teacher can see: the scrolling column, inside the window.
+      const o = outer?.getBoundingClientRect();
+      const vis = {
+        top: Math.max(o?.top ?? 0, 0) - oy,
+        bottom:
+          Math.min(o?.bottom ?? window.innerHeight, window.innerHeight) - oy,
+        left: Math.max(o?.left ?? 0, 0, c.left) - ox,
+        right:
+          Math.min(o?.right ?? window.innerWidth, window.innerWidth, c.right) -
+          ox,
+      };
       const raw = anchor.getBoundingClientRect();
       const view = scrollRef.current?.getBoundingClientRect();
       const clampY = (y: number) =>
@@ -56,31 +78,42 @@ const AnchoredPopover: React.FC<{
         bottom: clampY(raw.bottom) - oy,
         mid: clampX((raw.left + raw.right) / 2) - ox,
       };
-      const innerW = container.clientWidth;
-      const innerH = container.clientHeight;
-      const w = Math.min(maxWidth ?? pop.offsetWidth, innerW - GAP * 2);
-      const h = pop.offsetHeight;
-      const left = Math.min(Math.max(a.mid - w / 2, GAP), innerW - w - GAP);
-      // Never above the image box, so the toolbar stays usable; past the panel's bottom is fine.
-      const minTop = view ? Math.max(GAP, view.top - oy) : GAP;
+      const room = Math.max(0, vis.right - vis.left - GAP * 2);
+      const w = Math.min(maxWidth ?? pop.offsetWidth, room);
+      const tall = Math.max(0, vis.bottom - vis.top - GAP * 2);
+      const h = Math.min(pop.scrollHeight, tall);
+      const left = Math.min(
+        Math.max(a.mid - w / 2, vis.left + GAP),
+        vis.right - GAP - w
+      );
+      // Below the mark, else above it, else as low as fits: always wholly in view.
       let top = a.bottom + OFFSET;
-      if (top + h > innerH - GAP && a.top - OFFSET - h >= minTop)
-        top = a.top - OFFSET - h;
+      if (top + h > vis.bottom - GAP) {
+        const above = a.top - OFFSET - h;
+        top =
+          above >= vis.top + GAP
+            ? above
+            : Math.max(vis.top + GAP, vis.bottom - GAP - h);
+      }
       if (maxWidth !== undefined) setWidth(w);
+      setMaxHeight(pop.scrollHeight > tall ? tall : undefined);
       setPos((p) =>
         p && p.left === left && p.top === top ? p : { left, top }
       );
     };
     place();
-    const scroller = scrollRef.current;
-    scroller?.addEventListener('scroll', place, { passive: true });
+    const scrollers = [scrollRef.current, outer].filter(
+      (el): el is HTMLElement => !!el
+    );
+    for (const el of scrollers)
+      el.addEventListener('scroll', place, { passive: true });
     window.addEventListener('resize', place);
     const ro =
       typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     ro?.observe(container);
     ro?.observe(pop);
     return () => {
-      scroller?.removeEventListener('scroll', place);
+      for (const el of scrollers) el.removeEventListener('scroll', place);
       window.removeEventListener('resize', place);
       ro?.disconnect();
     };
@@ -94,7 +127,8 @@ const AnchoredPopover: React.FC<{
         left: pos?.left ?? 0,
         top: pos?.top ?? 0,
         width,
-        maxWidth: `calc(100% - ${GAP * 2}px)`,
+        maxHeight,
+        overflowY: maxHeight === undefined ? undefined : 'auto',
         // Opacity, not visibility, so the comment box can take focus before it is placed.
         opacity: pos ? 1 : 0,
       }}

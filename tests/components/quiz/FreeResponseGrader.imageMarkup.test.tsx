@@ -8,14 +8,23 @@ import {
   afterAll,
   beforeEach,
 } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import '@/i18n';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
 }));
+const { showConfirm } = vi.hoisted(() => ({
+  showConfirm: vi.fn(() => Promise.resolve(true)),
+}));
 vi.mock('@/context/useDialog', () => ({
-  useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
+  useDialog: () => ({ showConfirm }),
 }));
 vi.mock('@/utils/scanContrast', () => ({
   enhancedScanUrl: vi.fn(() => Promise.resolve('blob:enhanced')),
@@ -191,6 +200,7 @@ function renderGrader(responses: QuizResponse[], { markup = true } = {}) {
     Promise.resolve()
   );
   const loadPaperBatch = vi.fn(() => Promise.resolve(batch));
+  const onClose = vi.fn();
   const props = {
     quiz,
     displayNameByResponseKey: names,
@@ -201,7 +211,7 @@ function renderGrader(responses: QuizResponse[], { markup = true } = {}) {
     loadPaperBatch,
     graderMode: 'question' as const,
     autoAdvance: false,
-    onClose: vi.fn(),
+    onClose,
   };
   const view = render(
     <AuthContext.Provider value={auth(markup)}>
@@ -214,7 +224,7 @@ function renderGrader(responses: QuizResponse[], { markup = true } = {}) {
         <FreeResponseGrader {...props} responses={next} />
       </AuthContext.Provider>
     );
-  return { onSaveGrade, loadPaperBatch, rerender };
+  return { onSaveGrade, loadPaperBatch, rerender, onClose };
 }
 
 const readyLayer = async () => {
@@ -229,7 +239,9 @@ const drawBox = (
   from: [number, number],
   to: [number, number]
 ) => {
-  fireEvent.click(screen.getByRole('button', { name: 'Box' }));
+  fireEvent.click(
+    within(screen.getByRole('toolbar')).getByRole('button', { name: 'Box' })
+  );
   fireEvent.pointerDown(layer, px(...from));
   fireEvent.pointerMove(layer, px(...to));
   fireEvent.pointerUp(layer, px(...to));
@@ -238,6 +250,8 @@ const drawBox = (
 beforeEach(() => {
   window.localStorage.clear();
   getPaperBatch.mockClear();
+  showConfirm.mockClear();
+  showConfirm.mockImplementation(() => Promise.resolve(true));
 });
 
 describe('FreeResponseGrader image markup', () => {
@@ -271,7 +285,7 @@ describe('FreeResponseGrader image markup', () => {
     const layer = await readyLayer();
     drawBox(layer, [50, 80], [90, 95]);
     expect(
-      screen.getByText('Marks save once you enter a score.')
+      screen.getByText('Enter a score to save these marks.')
     ).toBeInTheDocument();
     fireEvent.change(screen.getByRole('spinbutton'), {
       target: { value: '2' },
@@ -366,7 +380,73 @@ describe('FreeResponseGrader image markup', () => {
     loadPaperBatch.mockResolvedValue(null as unknown as PaperBatch);
     await screen.findByAltText(/Handwritten answer/);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Box' })).toBeDisabled()
+      expect(
+        within(screen.getByRole('toolbar')).getByRole('button', { name: 'Box' })
+      ).toBeDisabled()
     );
+  });
+
+  it('keeps unscored marks across students, flags the row, and saves them with the score', async () => {
+    const { onSaveGrade } = renderGrader([
+      paper('ada', 1),
+      paper('grace', 2, scored()),
+    ]);
+    drawBox(await readyLayer(), [50, 80], [90, 95]);
+    fireEvent.click(screen.getByRole('button', { name: /Grace Hopper/ }));
+    await readyLayer();
+    const adaRow = screen.getByRole('button', { name: /Ada Lovelace/ });
+    expect(within(adaRow).getByText('Marks not saved')).toBeInTheDocument();
+    fireEvent.click(adaRow);
+    expect(
+      (await readyLayer()).querySelectorAll('[data-markup-focus]')
+    ).toHaveLength(1);
+    fireEvent.change(screen.getByRole('spinbutton'), {
+      target: { value: '2' },
+    });
+    await waitFor(
+      () =>
+        expect(
+          onSaveGrade.mock.calls.some(
+            ([k, , g]) => k === 'ada' && g.imageMarkup?.items.length === 1
+          )
+        ).toBe(true),
+      { timeout: 4000 }
+    );
+    await waitFor(() =>
+      expect(
+        within(
+          screen.getByRole('button', { name: /Ada Lovelace/ })
+        ).queryByText('Marks not saved')
+      ).toBeNull()
+    );
+  });
+
+  it('asks before closing with unscored marks, and Go back keeps the grader open', async () => {
+    const { onClose } = renderGrader([paper('ada', 1), paper('grace', 2)]);
+    drawBox(await readyLayer(), [50, 80], [90, 95]);
+    showConfirm.mockImplementation(() => Promise.resolve(false));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
+    expect(showConfirm).toHaveBeenCalledWith(
+      '1 answer has marks but no score. Enter a score to keep them.',
+      expect.objectContaining({
+        title: 'Marks not saved',
+        confirmLabel: 'Close anyway',
+        cancelLabel: 'Go back',
+      })
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onClose).not.toHaveBeenCalled();
+    showConfirm.mockImplementation(() => Promise.resolve(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it('closes without asking when every marked answer has a score', async () => {
+    const { onClose } = renderGrader([paper('ada', 1, scored())]);
+    drawBox(await readyLayer(), [50, 80], [90, 95]);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(showConfirm).not.toHaveBeenCalled();
   });
 });
