@@ -25,6 +25,7 @@ import {
   submittedClassKey,
   sentDetailsToday,
   submittedMarker,
+  sheetRowKey,
 } from './lunchCountFormat';
 
 export interface LunchStudent {
@@ -282,7 +283,9 @@ export function useLunchCountModel(widget: WidgetData) {
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
-        ...(canResend ? { classKey: sentClass } : {}),
+        ...(canResend
+          ? { classKey: sheetRowKey(sentClass, user?.uid ?? 'anon') }
+          : {}),
       };
 
       const response = await fetch(submissionUrl, {

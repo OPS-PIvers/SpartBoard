@@ -79,6 +79,11 @@ export function submittedClassKey(
   return rosterId ? `${base} #${rosterId}` : base;
 }
 
+/** The sheet's row key for a resend: a class with no roster adds the sender, so two teachers never share one row. */
+export function sheetRowKey(classKey: string, uid: string): string {
+  return classKey.includes(' #') ? classKey : `${classKey} #u:${uid}`;
+}
+
 interface SubmittedMarker {
   lastSubmittedDate?: string;
   lastSubmittedWidgetId?: string;

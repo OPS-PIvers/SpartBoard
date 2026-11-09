@@ -37,6 +37,7 @@ import {
   submittedClassKey,
   sentDetailsToday,
   submittedMarker,
+  sheetRowKey,
 } from './redesign/lunchCountFormat';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
@@ -572,7 +573,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
-        ...(canResend ? { classKey: sentClass } : {}),
+        ...(canResend
+          ? { classKey: sheetRowKey(sentClass, user?.uid ?? 'anon') }
+          : {}),
       };
 
       const response = await fetch(submissionUrl, {

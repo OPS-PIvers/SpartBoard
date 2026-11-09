@@ -6,6 +6,7 @@ import {
   submittedClassKey,
   sentDetailsToday,
   submittedMarker,
+  sheetRowKey,
 } from './lunchCountFormat';
 
 describe('Lunch Count submitted marker', () => {
@@ -106,5 +107,20 @@ describe('Lunch Count submitted marker', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-11-06T03:00:00Z'));
     expect(getCentralDayKey()).toBe('2026-11-05');
+  });
+});
+
+describe('Lunch Count sheet row key', () => {
+  it('adds the sender when the class has no roster', () => {
+    expect(sheetRowKey('11:30 - GR3', 'uid-a')).toBe('11:30 - GR3 #u:uid-a');
+    expect(sheetRowKey('11:30 - GR3', 'uid-a')).not.toBe(
+      sheetRowKey('11:30 - GR3', 'uid-b')
+    );
+  });
+
+  it('keeps the roster key so co-teachers on one roster share a row', () => {
+    expect(sheetRowKey('11:30 - GR3 #roster-1', 'uid-a')).toBe(
+      '11:30 - GR3 #roster-1'
+    );
   });
 });
