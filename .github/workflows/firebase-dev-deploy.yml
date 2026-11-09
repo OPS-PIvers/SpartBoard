@@ -411,7 +411,7 @@ jobs:
           status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$GITHUB_REF_NAME" --jq .status) || status=unknown
           if [[ "$status" == ahead ]]; then
             echo "::notice::$GITHUB_REF_NAME has moved past this commit; the newer run deploys it."
-            gh run cancel "$GITHUB_RUN_ID"
+            gh run cancel "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY"
             sleep 120
             exit 1
           fi
