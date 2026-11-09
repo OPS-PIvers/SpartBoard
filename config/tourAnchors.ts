@@ -8141,6 +8141,18 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'admin.help-center.item-web-change': {
+    label:
+      'Change link button on a Help Center admin item that links a web tour',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.item-web-remove': {
+    label: 'Remove button on a Help Center admin item that links a web tour',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'admin.help-center.category-toggle': {
     label: 'Category collapse button in Help Center admin',
     perField: true,

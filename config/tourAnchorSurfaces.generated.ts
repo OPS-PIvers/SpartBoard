@@ -1864,6 +1864,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.help-center.item-toggle': ['admin.help-center'],
     'admin.help-center.item-edit': ['admin.help-center'],
     'admin.help-center.item-delete': ['admin.help-center'],
+    'admin.help-center.item-web-change': ['admin.help-center'],
+    'admin.help-center.item-web-remove': ['admin.help-center'],
     'admin.help-center.category-toggle': ['admin.help-center'],
     'admin.help-center.category-name': ['admin.help-center'],
     'admin.help-center.category-add': ['admin.help-center'],

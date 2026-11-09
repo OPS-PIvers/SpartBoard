@@ -360,6 +360,11 @@ export const HelpCenterManager: React.FC = () => {
                   <button
                     type="button"
                     className="font-semibold underline"
+                    {...tourFieldAttr(
+                      'admin.help-center.item-web-change',
+                      'help',
+                      item.id
+                    )}
                     onClick={() => {
                       setEditing(item);
                       setFormOpen(true);
@@ -370,6 +375,11 @@ export const HelpCenterManager: React.FC = () => {
                   <button
                     type="button"
                     className="font-semibold text-red-700 underline"
+                    {...tourFieldAttr(
+                      'admin.help-center.item-web-remove',
+                      'help',
+                      item.id
+                    )}
                     onClick={() => void handleDelete(item)}
                   >
                     Remove
