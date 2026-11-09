@@ -138,6 +138,19 @@ describe('useFirestore – shareDashboard records the board’s items as the hos
     expect(recordPicks).toHaveBeenLastCalledWith('host', 'L1_b1', ['quiz_q1']);
   });
 
+  it('keeps a never-shared board item whose widget carries a stale stamp', async () => {
+    await share({
+      ...withItems,
+      widgets: [
+        {
+          ...withItems.widgets[0],
+          config: { selectedQuizId: 'q1', selectedQuizOwnerUid: 'old-host' },
+        },
+      ] as Dashboard['widgets'],
+    });
+    expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', ['quiz_q1']);
+  });
+
   it('not for a Copy link, a share another tab already wrote, or a board joined from another teacher', async () => {
     await share(withItems, 'copy');
     mockTx({ originalAuthor: 'host' });

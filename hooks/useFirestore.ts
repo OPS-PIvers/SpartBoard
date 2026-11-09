@@ -26,6 +26,7 @@ import {
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import {
   noteBoardItemPicksSeeding,
+  boardItemPickOf,
   ownBoardItemPicks,
   readBoardItemPicks,
   recordBoardItemPicks,
@@ -764,7 +765,16 @@ export const useFirestore = (userId: string | null) => {
           await recordBoardItemPicks(userId, id, old ?? own());
           return;
         }
-        await recordBoardItemPicks(userId, id, own());
+        // Every item on a never-shared board is this teacher's, whatever stale stamp a widget carries.
+        const all = (dashboard.widgets ?? [])
+          .map((w) =>
+            boardItemPickOf(
+              w.type,
+              w.config as Record<string, unknown> | undefined
+            )
+          )
+          .filter((k): k is string => !!k);
+        await recordBoardItemPicks(userId, id, [...new Set(all)]);
       };
       const startSeed = (id: string) => {
         if (userId) noteBoardItemPicksSeeding(userId, id, seedPicks(id));
