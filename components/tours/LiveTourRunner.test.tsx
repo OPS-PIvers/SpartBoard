@@ -23,6 +23,7 @@ import {
 import { TOUR_DOCK_EVENT, type TourDockRequest } from './tourPrerequisites';
 import { getTourFrame } from './tourFrame';
 import { Z_INDEX } from '@/config/zIndex';
+import { SETTLE_CAP_MS, SETTLE_QUIET_MS } from './playbackEngine';
 // Loaded up front so the lazy picture renders within a test's fake frames.
 import './TourMiniPlayer';
 
@@ -4037,5 +4038,192 @@ describe('LiveTourRunner Sparty on the tip', () => {
     h.sparty = false;
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
     expect(screen.queryByTestId('tour-tip-sparty')).not.toBeInTheDocument();
+  });
+});
+
+// Tour pacing (TOURS_10X.md P2, P7): catch-up for a learner who gets ahead of a Live tour.
+describe('LiveTourRunner with tour pacing', () => {
+  // Each step's tip is mounted once per visit; records the title of every tip that mounts.
+  const watchTips = () => {
+    const mounted: string[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        for (const n of r.addedNodes) {
+          if (!(n instanceof Element)) continue;
+          const tip = n.matches('[data-testid="tour-callout"]')
+            ? n
+            : n.querySelector('[data-testid="tour-callout"]');
+          const title = tip?.querySelector('[data-testid="tour-step-title"]');
+          if (title) mounted.push(title.textContent ?? '');
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return { mounted, stop: () => observer.disconnect() };
+  };
+
+  const settled = () => frames(SETTLE_QUIET_MS + 50);
+
+  // A widget step to look at, then controls inside it, then controls elsewhere.
+  const aheadSet = () =>
+    makeSet(
+      [
+        { anchor: 'widget.window', action: 'observe' },
+        { anchor: 'widget.settings-opener', action: 'click' },
+        { anchor: 'widget.resize-handle', action: 'click' },
+        { anchor: 'widget.close', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ],
+      ['dice']
+    );
+
+  const skipped = () =>
+    screen.getByTestId('live-tour').getAttribute('data-skipped-steps');
+
+  it.each([
+    [1, 'Settings w1', '3 / 6', 's0'],
+    [2, 'Resize w1', '4 / 6', 's0 s1'],
+    [3, 'Close w1', '5 / 6', 's0 s1 s2'],
+  ])(
+    'a click-ahead of %i step(s) ends on the right step, with no fallback or repeated tip',
+    async (_n, control, landed, passed) => {
+      await start(aheadSet());
+      expect(progress()).toBe('1 / 6');
+      const tips = watchTips();
+      fireEvent.click(screen.getByText(control));
+      await settled();
+      tips.stop();
+      expect(progress()).toBe(landed);
+      expect(skipped()).toBe(passed);
+      expect(
+        screen.queryByTestId('tour-anchor-missing')
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
+      // Only the landing step's tip was drawn, once.
+      expect(tips.mounted).toEqual([`Step ${landed.split(' ')[0]}`]);
+      expect(h.runLog.miss).not.toHaveBeenCalled();
+    }
+  );
+
+  it('waits for the board to settle, so a quick burst lands once on the furthest step', async () => {
+    await start(aheadSet());
+    const tips = watchTips();
+    fireEvent.click(screen.getByText('Settings w1'));
+    await frames(SETTLE_QUIET_MS / 2);
+    expect(progress()).toBe('1 / 6');
+    fireEvent.click(screen.getByText('Close w1'));
+    await settled();
+    tips.stop();
+    expect(progress()).toBe('5 / 6');
+    expect(tips.mounted).toEqual(['Step 5']);
+  });
+
+  it('resolves a control used by two steps to the earlier one', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'widget.window', action: 'observe' },
+          { anchor: 'widget.close', action: 'click' },
+          { anchor: 'sidebar.boards', action: 'click' },
+          { anchor: 'widget.close', action: 'click' },
+        ],
+        ['dice']
+      )
+    );
+    fireEvent.click(screen.getByText('Close w1'));
+    await settled();
+    expect(progress()).toBe('3 / 4');
+    expect(skipped()).toBe('s0');
+  });
+
+  it('ignores a step more than three ahead', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'widget.window', action: 'observe' },
+          { anchor: 'sidebar.boards', action: 'observe' },
+          { anchor: 'dock.item:dice', action: 'observe' },
+          { anchor: 'widget.resize-handle', action: 'observe' },
+          { anchor: 'widget.close', action: 'click' },
+        ],
+        ['dice']
+      )
+    );
+    fireEvent.click(screen.getByText('Close w1'));
+    await settled();
+    expect(progress()).toBe('1 / 5');
+    expect(skipped()).toBeNull();
+  });
+
+  it('lands within the cap on a board that never stops changing', async () => {
+    await start(aheadSet());
+    const ticker = screen.getByText('Close w1');
+    let n = 0;
+    const id = setInterval(() => {
+      ticker.dataset.tick = String(++n);
+    }, 40);
+    fireEvent.click(screen.getByText('Resize w1'));
+    await frames(SETTLE_QUIET_MS * 2);
+    expect(progress()).toBe('1 / 6');
+    await frames(SETTLE_CAP_MS);
+    clearInterval(id);
+    expect(progress()).toBe('4 / 6');
+  });
+
+  it('draws a late control’s tip once when catch-up lands on it before it renders', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'widget.window', action: 'observe' },
+          { anchor: 'widget.close', action: 'click' },
+          { anchor: 'sidebar.classes', action: 'click' },
+          { anchor: 'sidebar.boards', action: 'click' },
+        ],
+        ['dice']
+      )
+    );
+    const tips = watchTips();
+    fireEvent.click(screen.getByText('Close w1'));
+    await settled();
+    expect(progress()).toBe('3 / 4');
+    await frames(600);
+    const late = document.createElement('button');
+    late.setAttribute('data-tour', 'sidebar.classes');
+    late.textContent = 'My Classes';
+    act(() => {
+      document.body.appendChild(late);
+    });
+    await frames(300);
+    tips.stop();
+    expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
+    expect(tips.mounted).toEqual(['Step 3']);
+    fireEvent.click(late);
+    await frames();
+    expect(progress()).toBe('4 / 4');
+    late.remove();
+  });
+
+  it('a skipped step visited with Back is no longer skipped', async () => {
+    await start(aheadSet());
+    fireEvent.click(screen.getByText('Resize w1'));
+    await settled();
+    expect(skipped()).toBe('s0 s1');
+    fireEvent.click(barButton('Back'));
+    await frames();
+    expect(progress()).toBe('3 / 6');
+    fireEvent.click(barButton('Back'));
+    await frames();
+    expect(progress()).toBe('2 / 6');
+    expect(skipped()).toBe('s0');
+  });
+
+  it('plays exactly as before with the flag off', async () => {
+    h.canAccess.mockImplementation((id: string) => id !== 'tour-pacing');
+    await start(aheadSet());
+    fireEvent.click(screen.getByText('Close w1'));
+    await settled();
+    await frames(SETTLE_CAP_MS);
+    expect(progress()).toBe('1 / 6');
+    expect(skipped()).toBeNull();
   });
 });
