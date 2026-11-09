@@ -41,10 +41,11 @@ const NAMES: Record<string, string> = { a: 'Maya Okafor', b: 'Jordan Larson' };
 function renderModal(
   responses: QuizResponse[],
   loadKeptPage: KeptPageLoader,
-  extra: Partial<React.ComponentProps<typeof ResultsPrintModal>> = {}
+  extra: Partial<React.ComponentProps<typeof ResultsPrintModal>> = {},
+  wrapper?: React.ComponentType<{ children: React.ReactNode }>
 ) {
   const onError = vi.fn();
-  render(
+  const { unmount } = render(
     <ResultsPrintModal
       quiz={SCAN_QUIZ}
       responses={responses}
@@ -65,9 +66,11 @@ function renderModal(
       onClose={vi.fn()}
       onError={onError}
       {...extra}
-    />
+    />,
+    { wrapper }
   );
   return {
+    unmount,
     onError,
     dialog: screen.getByRole('dialog', { name: 'Print results' }),
   };
@@ -228,5 +231,29 @@ describe('ResultsPrintModal kept pages', () => {
     expect(old && 'keptPages' in old).toBe(false);
     expect(old?.sheet).toBeUndefined();
     expect(Object.keys(live?.keptPages ?? {})).toEqual(['1', '2']);
+  });
+
+  it('keeps loaded pages while open under StrictMode and frees them after closing', async () => {
+    saveLayout('sheet');
+    const timers = vi.spyOn(globalThis, 'setTimeout');
+    const revoked = vi.spyOn(URL, 'revokeObjectURL');
+    const runGrace = () => {
+      for (const [fn, ms] of timers.mock.calls.splice(0)) {
+        if (ms === 60_000 && typeof fn === 'function') (fn as () => void)();
+      }
+    };
+    const { unmount } = renderModal(
+      both(),
+      vi.fn<KeptPageLoader>(blob),
+      {},
+      React.StrictMode
+    );
+    await settle();
+    runGrace();
+    expect(revoked).not.toHaveBeenCalled();
+    unmount();
+    runGrace();
+    expect(revoked).toHaveBeenCalledTimes(4);
+    timers.mockRestore();
   });
 });

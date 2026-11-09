@@ -566,10 +566,15 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   );
   const requestedPages = useRef(new Set<string>());
   const madeUrls = useRef<string[]>([]);
+  const urlsMounted = useRef(false);
   useEffect(() => {
+    urlsMounted.current = true;
     const urls = madeUrls.current;
     return () => {
+      urlsMounted.current = false;
+      // StrictMode remounts at once in dev; only a modal that stayed closed frees its pages.
       setTimeout(() => {
+        if (urlsMounted.current) return;
         for (const url of urls) URL.revokeObjectURL(url);
       }, KEPT_PAGE_URL_GRACE_MS);
     };
