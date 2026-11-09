@@ -185,7 +185,7 @@ export const PollSettings: React.FC<{
         : await mintPromiseRef.current;
       const base =
         reserved && !config.joinCode
-          ? { ...config, joinCode: reserved }
+          ? { ...config, joinCode: reserved, joinCodeOwnerUid: user.uid }
           : config;
       const next = await startPollSession(base, user.uid, mode, boardShareId);
       applyConfig(next);
@@ -270,12 +270,12 @@ export const PollSettings: React.FC<{
     });
     mintPromiseRef.current = pending;
     void pending.then((code) => {
-      // Patch ONLY the minted key. `updateWidget` merges config shallowly, so
+      // Patch ONLY the minted keys. `updateWidget` merges config shallowly, so
       // writing back a whole snapshot captured before this round-trip would
       // revert any edit the teacher made while it was in flight.
       if (!code || mintPromiseRef.current !== pending) return;
       mintAppliedRef.current = true;
-      applyConfig({ joinCode: code });
+      applyConfig({ joinCode: code, joinCodeOwnerUid: user.uid });
     });
   }, [showBehavior, canOfferAnonymousJoin, user, config, applyConfig]);
 
@@ -534,7 +534,8 @@ export const PollSettings: React.FC<{
       next.joinCode !== config.joinCode &&
       config.joinCode &&
       user &&
-      (config.lastPollSessionOwnerUid ?? user.uid) === user.uid
+      (config.lastPollSessionOwnerUid ?? user.uid) === user.uid &&
+      (config.joinCodeOwnerUid ?? user.uid) === user.uid
     ) {
       void retirePollSession(user.uid, config.joinCode);
     }
@@ -555,6 +556,7 @@ export const PollSettings: React.FC<{
           answerShownQuestionIds: [],
           hiddenResponses: [],
           joinCode: null,
+          joinCodeOwnerUid: null,
           lastPollSessionId: null,
           lastPollSessionOwnerUid: null,
         },
