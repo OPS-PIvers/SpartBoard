@@ -74,6 +74,7 @@ function makeDb(docs: Record<string, Doc>) {
   }
   return {
     collection: col,
+    doc: ref,
     runTransaction: (
       fn: (tx: {
         get: (r: { path: string }) => Promise<ReturnType<typeof snap>>;
@@ -99,6 +100,7 @@ const R1 = 'quiz_sessions/s1/responses/r1';
 const BATCH = 'users/u1/paper_batches/b1';
 
 const seed = (over: Record<string, Doc> = {}): Record<string, Doc> => ({
+  'admin_settings/paper_answer_sheets': { enabled: true },
   [BATCH]: {
     quizId: 'quiz',
     choiceOrder: { q1: ['same', 'a lower', 'higher'] },
@@ -263,6 +265,42 @@ describe('handlePaperRewordSync', () => {
         () => Promise.resolve(false)
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('refuses when paper answer sheets are off', async () => {
+    const docs = seed({
+      'admin_settings/paper_answer_sheets': { enabled: false },
+    });
+    await expect(run(docs, ['same', 'lower', 'higher'])).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('a lower');
+  });
+
+  it('skips question ids that are not safe field names', async () => {
+    const docs = seed({
+      [BATCH]: {
+        quizId: 'quiz',
+        choiceOrder: { 'q.1': ['same', 'a lower', 'higher'] },
+      },
+      [R1]: {
+        paperBatchId: 'b1',
+        answers: [{ questionId: 'q.1', answer: 'a lower' }],
+      },
+    });
+    const result = await handlePaperRewordSync(
+      makeDb(docs),
+      caller,
+      {
+        quizId: 'quiz',
+        questions: [
+          { questionId: 'q.1', choices: ['same', 'lower', 'higher'] },
+        ],
+      },
+      1000,
+      granted
+    );
+    expect(result.answersUpdated).toBe(0);
   });
 
   it('refuses students', async () => {

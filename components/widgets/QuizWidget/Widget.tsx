@@ -4940,7 +4940,7 @@ const TeacherQuizWidget: React.FC<{
           )}
           onSave={async (data) => {
             await saveQuiz(data, paperOcr.meta.driveFileId);
-            await syncPaperRewords(data);
+            void syncPaperRewords(data);
             addToast('Question text updated.', 'success');
           }}
           onPickFromDrive={pickScanFromDrive}
