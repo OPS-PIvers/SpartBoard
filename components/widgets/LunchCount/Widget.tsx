@@ -37,6 +37,7 @@ import {
   submittedClassKey,
   sentDetailsToday,
   submittedMarker,
+  sheetRowKey,
 } from './redesign/lunchCountFormat';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
@@ -236,7 +237,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const { t, i18n } = useTranslation();
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
-  const { user, featurePermissions, selectedBuildings } = useAuth();
+  const { user, featurePermissions, selectedBuildings, canAccessFeature } =
+    useAuth();
   // A substitute reports for the teacher whose board this is, not under their own name.
   const subShareHost = useSubShareHost();
   const reportName = subShareHost
@@ -521,6 +523,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const draggingIds = new Set(drags.map((d) => d.id));
 
   const handleSubmitReport = async (notes: string, extraPizza?: number) => {
+    const canResend = canAccessFeature('lunch-count-resend');
     const { submissionUrl, schumannSheetId, intermediateSheetId } =
       lunchGlobalConfig;
 
@@ -570,7 +573,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
-        classKey: sentClass,
+        ...(canResend
+          ? { classKey: sheetRowKey(sentClass, user?.uid ?? 'anon') }
+          : {}),
       };
 
       const response = await fetch(submissionUrl, {
@@ -591,10 +596,13 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(config, widget.id, dayKey, sentClass, {
-          notes,
-          extraPizza: payload.extraPizza,
-        }),
+        config: submittedMarker(
+          config,
+          widget.id,
+          dayKey,
+          sentClass,
+          canResend ? { notes, extraPizza: payload.extraPizza } : undefined
+        ),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);

@@ -2855,7 +2855,13 @@ const TeacherQuizWidget: React.FC<{
                 if (!data) return;
                 const batches = (
                   await listPaperBatchesForQuiz(user.uid, meta.id)
-                ).filter((b) => b.id === assignment.paperBatchId);
+                )
+                  // An assignment that took scans before Paper cards has no batch of its own.
+                  .filter(
+                    (b) =>
+                      !assignment.paperBatchId ||
+                      b.id === assignment.paperBatchId
+                  );
                 setPaperImport({ quiz: data, meta, batches, assignment });
               }
             : undefined
@@ -4153,6 +4159,9 @@ const TeacherQuizWidget: React.FC<{
             ? (quizzes.find((q) => q.id === editingMeta.id) ?? null)
             : null
         }
+        hasScannedResponses={assignments.some(
+          (a) => a.quizId === editingMeta?.id && a.hasPaperResponses
+        )}
         bankApi={bankApi}
         // A synced quiz publishes a new version to its PLC on every save, so
         // that path keeps an explicit Save.
@@ -4880,6 +4889,9 @@ const TeacherQuizWidget: React.FC<{
       {paperOcr && (
         <PaperQuestionTextModal
           quiz={paperOcr.quiz}
+          hasScannedResponses={assignments.some(
+            (a) => a.quizId === paperOcr.quiz.id && a.hasPaperResponses
+          )}
           onSave={async (data) => {
             await saveQuiz(data, paperOcr.meta.driveFileId);
             addToast('Question text updated.', 'success');

@@ -73,7 +73,8 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   if (!isOpen) return null;
 
   if (alreadySubmitted && !isSubmitting && !resending) {
-    const canResend = canAccessFeature('lunch-count-resend');
+    // A send made without the flag has no sheet key, so a resend would add a second row.
+    const canResend = canAccessFeature('lunch-count-resend') && !!sentDetails;
     return (
       <Modal
         isOpen={isOpen}

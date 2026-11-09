@@ -6,6 +6,7 @@ import {
   submittedClassKey,
   sentDetailsToday,
   submittedMarker,
+  sheetRowKey,
 } from './lunchCountFormat';
 
 describe('Lunch Count submitted marker', () => {
@@ -18,6 +19,24 @@ describe('Lunch Count submitted marker', () => {
   const details = { notes: '2 gluten free', extraPizza: 3 };
   const sentA = () =>
     submittedMarker({}, 'w1', getCentralDayKey(), classA, details);
+
+  it('keeps the old marker shape when no details are passed', () => {
+    const marker = submittedMarker({}, 'w1', getCentralDayKey(), classA);
+    expect(marker).not.toHaveProperty('lastSubmittedDetails');
+    expect(hasSubmittedToday(marker, 'w1', classA)).toBe(true);
+  });
+
+  it('drops stale details when a flag-off send follows a flag-on one', () => {
+    const old = submittedMarker({}, 'w1', '2026-01-01', classA, details);
+    const today = submittedMarker(old, 'w1', getCentralDayKey(), classA);
+    expect(
+      sentDetailsToday({ ...old, ...today }, 'w1', classA)
+    ).toBeUndefined();
+    const sameDay = submittedMarker(sentA(), 'w1', getCentralDayKey(), classA);
+    expect(
+      sentDetailsToday({ ...sentA(), ...sameDay }, 'w1', classA)
+    ).toBeUndefined();
+  });
 
   it('blocks the same class from the same widget on the same day', () => {
     expect(hasSubmittedToday(sentA(), 'w1', classA)).toBe(true);
@@ -100,5 +119,20 @@ describe('Lunch Count submitted marker', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-11-06T03:00:00Z'));
     expect(getCentralDayKey()).toBe('2026-11-05');
+  });
+});
+
+describe('Lunch Count sheet row key', () => {
+  it('adds the sender when the class has no roster', () => {
+    expect(sheetRowKey('11:30 - GR3', 'uid-a')).toBe('11:30 - GR3 #u:uid-a');
+    expect(sheetRowKey('11:30 - GR3', 'uid-a')).not.toBe(
+      sheetRowKey('11:30 - GR3', 'uid-b')
+    );
+  });
+
+  it('keeps the roster key so co-teachers on one roster share a row', () => {
+    expect(sheetRowKey('11:30 - GR3 #roster-1', 'uid-a')).toBe(
+      '11:30 - GR3 #roster-1'
+    );
   });
 });
