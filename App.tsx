@@ -515,6 +515,14 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WebTourEditorDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WebTourEditorDevHarness').then((module) => ({
+        default: module.WebTourEditorDevHarness,
+      }))
+    )
+  : null;
+
 const QuizVersionImportDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/QuizVersionImportDevHarness').then((module) => ({
@@ -1552,6 +1560,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LiveTourViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the web tour editor on a seeded tour, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    WebTourEditorDevHarness &&
+    isAuthBypass &&
+    pathname === '/web-tour-editor-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WebTourEditorDevHarness />
       </Suspense>
     );
   }

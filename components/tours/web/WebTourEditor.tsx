@@ -1,83 +1,67 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDown,
-  ArrowUp,
-  Check,
+  AlertTriangle,
+  Copy,
   Droplets,
-  Globe,
   ImageOff,
   Link2,
-  Loader2,
-  MapPin,
-  Play,
-  ScanSearch,
+  RefreshCw,
   Trash2,
-  TriangleAlert,
-  Wrench,
+  X,
 } from 'lucide-react';
 import type {
   GuidedLearningSet,
   GuidedLearningStep,
-  WebTourAction,
   WebTourCheckResult,
-  WebTourLocator,
   WebTourSuggestion,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
 import {
-  inputLight,
-  primaryBtn,
-  secondaryBtn,
+  focusRing,
+  headerIconBtn,
   iconBtn,
-  warnChip,
 } from '@/components/common/lightChrome';
-import {
-  buildNameMatcher,
-  type NameMatcher,
-} from '@/components/widgets/GuidedLearning/components/recorder/redaction';
-import {
-  redactImage,
-  type RedactRect,
-} from '@/components/widgets/GuidedLearning/utils/redactImage';
+import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
   deleteWebTourDraft,
-  loadWebTourPicture,
+  duplicateWebTourDraft,
   publishWebTour,
   saveWebTourDraft,
-  setWebTourCheckRun,
-  setWebTourFixes,
   uploadWebTourPicture,
   type WebTourPictureType,
 } from '@/components/tours/webTours';
 import { usePublishedTour } from '@/components/tours/publishedTours';
 import { loadTourRuns, type TourRun } from '@/components/tours/tourRuns';
-import {
-  tourPublishStatus,
-  type TourPublishStatus,
-} from '@/components/tours/tourSnapshot';
+import { tourPublishStatus } from '@/components/tours/tourSnapshot';
 import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import {
+  TourShellHeader,
+  TourShellOutline,
+  TourShellOutlineFoot,
+} from '@/components/tours/editor/shell/TourEditorShell';
+import {
+  cardInput,
+  cardLabel,
+  focusStepTitle,
+} from '@/components/tours/editor/shell/stepCardParts';
+import { tourMainAction } from '@/components/tours/editor/shell/tourMainAction';
+import type {
+  TourShellAdapter,
+  TourShellMenuItem,
+  TourShellStep,
+} from '@/components/tours/editor/shell/types';
 import { isHardHit, toUrlPattern } from './studentData';
 import { scrubLocator, toWebStep } from './recordedSteps';
 import { uploadRecordedPicture } from './intakeSave';
 import type { RecordedWebStep } from './recorderProtocol';
 import { useWebTourRecorder, type RecorderLink } from './useWebTourRecorder';
-import { BlobImage, BlurBoxes } from './BlurBoxes';
 import { buildTourUrl } from './tourLinks';
 import { useCopyWebTourLink } from './useCopyWebTourLink';
-import { WebStepClaudeFields, WebTourWriting } from './WebTourWriting';
 import { pageUrlOf, type HubStep } from './webTourHub';
 import {
   canCheckWebTours,
@@ -98,83 +82,35 @@ import {
   checkPasses,
   confirmPictures,
   currentCheckResults,
-  hideHits,
   hideStudentData,
   needsFixOnSite,
   picturesNeedConfirm,
   publishBlockers,
   recordCheckResult,
   reviewEntries,
-  setReviewField,
   startCheckRun,
   type HiddenText,
-  type ReviewEntry,
-  type ReviewField,
 } from './webStepReview';
-
-const SAVE_DELAY_MS = 800;
-
-const CHECK_LABEL: Record<WebTourCheckResult, string> = {
-  found: 'Found',
-  weak: 'Weak match',
-  ambiguous: 'Matches more than one',
-  none: 'Not found',
-};
-
-const CHECK_TONE: Record<WebTourCheckResult, string> = {
-  found: 'bg-emerald-100 text-emerald-800',
-  weak: 'bg-amber-100 text-amber-800',
-  ambiguous: 'bg-amber-100 text-amber-800',
-  none: 'bg-red-100 text-red-800',
-};
-
-const FIELD_LABEL: Record<string, string> = {
-  label: 'Step title',
-  text: 'Tip',
-  url: 'Page address',
-  role: 'Control type',
-  name: 'Control name',
-  pageText: 'Text on the control',
-  css: 'Page position',
-  heading: 'Nearby heading',
-  pageTitle: 'Page title',
-  'attr:testId': 'Control id',
-  'attr:ariaLabel': 'Control label',
-  'attr:name': 'Field name',
-  'attr:href': 'Link address',
-};
-
-const fieldLabel = (field: ReviewField) =>
-  field.startsWith('frame:')
-    ? `Frame address ${Number(field.slice(6)) + 1}`
-    : FIELD_LABEL[field];
-
-// Clues playback can do without; the address, title and tip stay.
-const REMOVABLE: ReadonlySet<ReviewField> = new Set([
-  'role',
-  'name',
-  'pageText',
-  'css',
-  'heading',
-  'pageTitle',
-  'attr:testId',
-  'attr:ariaLabel',
-  'attr:name',
-  'attr:href',
-]);
-
-const ACTION_LABEL: Record<WebTourAction, string> = {
-  observe: 'Look',
-  click: 'Click',
-  type: 'Type',
-  select: 'Choose',
-};
+import { PublishCheck } from './webEditorParts';
+import { PictureCache } from './webPictures';
+import {
+  CHECK_LABEL,
+  webStepNeedsText,
+  webTargetLabel,
+  type WebStep,
+} from './webEditorModel';
+import { WebPictureStage } from './WebPictureStage';
+import { WebStepCard } from './WebStepCard';
+import { WebTourGoalField, WebWritingStrip } from './WebTourWriting';
+import { useWebTourWriting } from './useWebTourWriting';
+import { useWebTourDraft } from './useWebTourDraft';
+import { webTourEditorDevSeed } from './webEditorDevSeed';
 
 const LINK_COPY: Record<RecorderLink, string> = {
   off: '',
   connecting: 'Connecting to the SpartBoard extension...',
   connected:
-    'Recorder ready. On the website, open the SpartBoard extension, press Record and click through. Steps you send appear here.',
+    'Recorder ready. On the website, open the SpartBoard extension, press Record and click through. New steps go after the selected one.',
   unavailable:
     "The SpartBoard extension isn't installed, or Chrome isn't signed in with your Orono staff account.",
 };
@@ -185,684 +121,56 @@ const PICTURE_TYPES: readonly string[] = [
   'image/webp',
 ];
 
-type WebStep = GuidedLearningStep & {
-  web?: NonNullable<GuidedLearningStep['web']>;
+/** A blank web step after `after`, on the same page, waiting for Fix on site to pick its target. */
+const newWebStep = (after: WebStep | undefined): WebStep => ({
+  id: crypto.randomUUID(),
+  xPct: 50,
+  yPct: 50,
+  imageIndex: 0,
+  interactionType: 'tooltip',
+  label: '',
+  text: '',
+  web: {
+    urlPattern: after?.web?.urlPattern ?? '*',
+    action: 'click',
+    locator: {},
+  },
+});
+
+/** Inserts `added` after the step with id `afterId`, or at the end when there is none. */
+const insertAfter = (
+  steps: GuidedLearningStep[],
+  afterId: string | null,
+  added: GuidedLearningStep
+): GuidedLearningStep[] => {
+  const at = afterId ? steps.findIndex((s) => s.id === afterId) : -1;
+  const next = [...steps];
+  next.splice(at < 0 ? steps.length : at + 1, 0, added);
+  return next;
 };
 
-// One download per picture while the editor is open, shared by the list, the preview and the publish check.
-const PictureCache = createContext<Map<string, Promise<Blob>> | null>(null);
-
-function usePictureBlob(path: string | undefined): {
-  blob: Blob | null;
-  failed: boolean;
-} {
-  const cache = useContext(PictureCache);
-  const [state, setState] = useState<{
-    path?: string;
-    blob: Blob | null;
-    failed: boolean;
-  }>({ blob: null, failed: false });
-  useEffect(() => {
-    if (!path) return;
-    let cancelled = false;
-    let pending = cache?.get(path);
-    if (!pending) {
-      pending = loadWebTourPicture(path).then((bytes) => new Blob([bytes]));
-      cache?.set(path, pending);
-    }
-    pending
-      .then((blob) => !cancelled && setState({ path, blob, failed: false }))
-      .catch(() => {
-        cache?.delete(path);
-        if (!cancelled) setState({ path, blob: null, failed: true });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [cache, path]);
-  return state.path === path && path ? state : { blob: null, failed: false };
-}
-
-const WebStepPicture: React.FC<{
-  path: string | undefined;
-  label: string;
-  className: string;
-}> = ({ path, label, className }) => {
-  const { blob, failed } = usePictureBlob(path);
-  if (!path || failed)
-    return (
-      <div
-        className={`${className} flex items-center justify-center bg-slate-100 text-slate-400`}
-        role="img"
-        aria-label={failed ? "Picture couldn't load." : 'No picture'}
-      >
-        <ImageOff className="h-5 w-5" aria-hidden="true" />
-      </div>
-    );
-  return blob ? (
-    <BlobImage
-      blob={blob}
-      alt={label}
-      className={`${className} object-contain`}
-    />
-  ) : (
-    <div className={`${className} animate-pulse bg-slate-100`} />
-  );
-};
-
-const Highlighted: React.FC<{ entry: ReviewEntry }> = ({ entry }) => {
-  const parts: React.ReactNode[] = [];
-  let at = 0;
-  entry.hits.forEach((hit, i) => {
-    parts.push(entry.value.slice(at, hit.start));
-    parts.push(
-      <mark
-        key={i}
-        className={isHardHit(hit) ? 'bg-red-100 text-red-900' : 'bg-amber-100'}
-      >
-        {entry.value.slice(hit.start, hit.end)}
-      </mark>
-    );
-    at = hit.end;
-  });
-  parts.push(entry.value.slice(at));
-  return <span className="break-all">{parts}</span>;
-};
-
-/** Whether the list flags the step: a weak target, or student data in its text. */
-const stepWarning = (
-  step: WebStep,
-  matcher: NameMatcher | null
-): string | null =>
-  reviewEntries(step, matcher).some((e) => e.hits.some(isHardHit))
-    ? 'Student data'
-    : needsFixOnSite(step)
-      ? 'Needs checking'
-      : null;
-
-const StepList: React.FC<{
-  steps: WebStep[];
-  selected: string | null;
-  matcher: NameMatcher | null;
-  results: Record<string, WebTourCheckResult> | null;
-  fixed: ReadonlySet<string>;
-  onSelect: (id: string) => void;
-}> = ({ steps, selected, matcher, results, fixed, onSelect }) => (
-  <ol className="flex flex-col gap-1">
-    {steps.map((step, i) => {
-      const warning = stepWarning(step, matcher);
-      const active = step.id === selected;
-      const result = results?.[step.id];
-      return (
-        <li key={step.id}>
-          {/* no-tour-anchor: one row per recorded step */}
-          <button
-            type="button"
-            aria-current={active ? 'step' : undefined}
-            onClick={() => onSelect(step.id)}
-            className={`flex w-full items-center gap-2 rounded-lg p-1.5 text-left ${
-              active
-                ? 'bg-brand-blue-lighter ring-1 ring-brand-blue-primary/40'
-                : 'hover:bg-slate-100'
-            }`}
-          >
-            <span className="w-5 shrink-0 text-right text-xs font-semibold text-slate-500">
-              {i + 1}
-            </span>
-            <WebStepPicture
-              path={step.web?.picture?.path}
-              label=""
-              className="h-10 w-16 shrink-0 rounded-md border border-slate-200"
-            />
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-sm font-semibold text-slate-900">
-                {step.label?.trim() ? step.label : `Step ${i + 1}`}
-              </span>
-              {warning && (
-                <span className={`${warnChip} mt-0.5 w-fit text-[11px]`}>
-                  <TriangleAlert className="h-3 w-3" aria-hidden="true" />
-                  {warning}
-                </span>
-              )}
-              {result && (
-                <span
-                  className={`mt-0.5 w-fit rounded-full px-1.5 text-[11px] font-semibold ${CHECK_TONE[result]}`}
-                >
-                  {CHECK_LABEL[result]}
-                </span>
-              )}
-              {fixed.has(step.id) && (
-                <span className="mt-0.5 w-fit rounded-full bg-sky-100 px-1.5 text-[11px] font-semibold text-sky-800">
-                  Suggested fix
-                </span>
-              )}
-            </span>
-          </button>
-        </li>
-      );
-    })}
-  </ol>
-);
-
-const BlurEditor: React.FC<{
-  path: string;
-  index: number;
-  onApply: (blob: Blob) => Promise<void>;
-  onCancel: () => void;
-}> = ({ path, index, onApply, onCancel }) => {
-  const { blob } = usePictureBlob(path);
-  const [boxes, setBoxes] = useState<RedactRect[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const apply = async () => {
-    if (!blob || boxes.length === 0) return;
-    setBusy(true);
-    setFailed(false);
-    try {
-      await onApply(await redactImage(blob, boxes, { mode: 'blur' }));
-    } catch (err) {
-      logError('web tour blur', err);
-      setFailed(true);
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="flex flex-col gap-2">
-      {blob ? (
-        <BlurBoxes
-          picture={blob}
-          boxes={boxes}
-          onChange={setBoxes}
-          label={`Picture for step ${index + 1}. Drag across what to blur.`}
-        />
-      ) : (
-        <div className="h-48 animate-pulse rounded-lg bg-slate-100" />
-      )}
-      <div className="flex items-center gap-2">
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <button
-          type="button"
-          className={primaryBtn}
-          disabled={busy || boxes.length === 0}
-          onClick={() => void apply()}
-        >
-          {busy ? 'Blurring...' : 'Apply blur'}
-        </button>
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <button type="button" className={secondaryBtn} onClick={onCancel}>
-          Cancel
-        </button>
-        {failed && (
-          <span className="text-sm text-red-700">
-            The blur couldn&apos;t be saved.
-          </span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-type ClueRow = [field: ReviewField, value: (l: WebTourLocator) => string];
-
-const FIX_ROWS: ClueRow[] = [
-  ['role', (l) => l.role ?? ''],
-  ['name', (l) => l.name ?? ''],
-  ['pageText', (l) => l.text ?? ''],
-  ['heading', (l) => l.heading ?? ''],
-  ['attr:testId', (l) => l.attrs?.testId ?? ''],
-  ['attr:ariaLabel', (l) => l.attrs?.ariaLabel ?? ''],
-  ['attr:name', (l) => l.attrs?.name ?? ''],
-  ['attr:href', (l) => l.attrs?.href ?? ''],
-  ['css', (l) => l.css ?? ''],
-];
-
-/** A fix a run found (C14): the step's clues now and the candidate's, to accept, dismiss or redo on the site. */
-const SuggestedFix: React.FC<{
-  before: WebTourLocator;
-  fix: WebTourSuggestion;
-  canFix: boolean;
-  onUse: () => void;
-  onDismiss: () => void;
-  onFix: () => void;
-}> = ({ before, fix, canFix, onUse, onDismiss, onFix }) => {
-  const rows = FIX_ROWS.map(([field, read]) => ({
-    field,
-    was: read(before),
-    now: read(fix.locator),
-  })).filter((r) => r.was || r.now);
-  return (
-    <section
-      aria-label="Suggested fix"
-      className="flex flex-col gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2"
-    >
-      <div className="flex items-center gap-2">
-        <Wrench className="h-4 w-4 shrink-0 text-sky-700" aria-hidden="true" />
-        <h4 className="flex-1 text-sm font-semibold text-slate-900">
-          Suggested fix
-        </h4>
-      </div>
-      <table className="w-full table-fixed text-left text-xs">
-        <thead className="text-slate-500">
-          <tr>
-            <th className="w-32 py-1 font-semibold">
-              <span className="sr-only">Clue</span>
-            </th>
-            <th className="py-1 font-semibold">Before</th>
-            <th className="py-1 font-semibold">After</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.field} className="border-t border-sky-100 align-top">
-              <th scope="row" className="py-1 pr-2 font-normal text-slate-500">
-                {fieldLabel(r.field)}
-              </th>
-              <td className="break-all py-1 pr-2 text-slate-700">{r.was}</td>
-              <td
-                className={`break-all py-1 ${
-                  r.was === r.now
-                    ? 'text-slate-700'
-                    : 'font-semibold text-slate-900'
-                }`}
-              >
-                {r.now}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex flex-wrap items-center gap-2">
-        {/* no-tour-anchor: shows only on a step a run found a fix for */}
-        <button type="button" className={primaryBtn} onClick={onUse}>
-          Use this fix
-        </button>
-        {/* no-tour-anchor: shows only on a step a run found a fix for */}
-        <button type="button" className={secondaryBtn} onClick={onDismiss}>
-          Dismiss
-        </button>
-        {/* no-tour-anchor: shows only on a step a run found a fix for */}
-        <button
-          type="button"
-          className={`${secondaryBtn} disabled:cursor-not-allowed disabled:opacity-50`}
-          disabled={!canFix}
-          title={
-            canFix
-              ? undefined
-              : 'Needs a newer SpartBoard extension in this Chrome profile.'
-          }
-          onClick={onFix}
-        >
-          Fix on site
-        </button>
-      </div>
-    </section>
-  );
-};
-
-const StepDetail: React.FC<{
-  step: WebStep;
-  index: number;
-  count: number;
-  matcher: NameMatcher | null;
-  blurring: boolean;
-  canFix: boolean;
-  fix: WebTourSuggestion | null;
-  onChange: (step: WebStep) => void;
-  onMove: (by: -1 | 1) => void;
-  onDelete: () => void;
-  onBlur: (on: boolean) => void;
-  onBlurred: (blob: Blob) => Promise<void>;
-  onFix: () => void;
-  onUseFix: () => void;
-  onDismissFix: () => void;
-}> = ({
-  step,
-  index,
-  count,
-  matcher,
-  blurring,
-  canFix,
-  fix,
-  onChange,
-  onMove,
-  onDelete,
-  onBlur,
-  onBlurred,
-  onFix,
-  onUseFix,
-  onDismissFix,
-}) => {
-  const entries = reviewEntries(step, matcher);
-  const blocked = entries.some((e) => e.hits.some(isHardHit));
-  const edit = (field: ReviewField, value: string | undefined) =>
-    onChange(setReviewField(step, field, value));
-  const picture = step.web?.picture;
-  const clues = entries.filter(
-    (e) => e.field !== 'label' && e.field !== 'text'
-  );
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-1">
-        <h3 className="flex-1 text-base font-semibold text-slate-900">
-          Step {index + 1}
-        </h3>
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <button
-          type="button"
-          className={iconBtn}
-          aria-label="Move step up"
-          disabled={index === 0}
-          onClick={() => onMove(-1)}
-        >
-          <ArrowUp className="h-4 w-4" />
-        </button>
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <button
-          type="button"
-          className={iconBtn}
-          aria-label="Move step down"
-          disabled={index === count - 1}
-          onClick={() => onMove(1)}
-        >
-          <ArrowDown className="h-4 w-4" />
-        </button>
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <button
-          type="button"
-          className={iconBtn}
-          aria-label="Delete step"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-
-      {blurring && picture ? (
-        <BlurEditor
-          path={picture.path}
-          index={index}
-          onApply={onBlurred}
-          onCancel={() => onBlur(false)}
-        />
-      ) : (
-        <div className="flex flex-col gap-2">
-          <WebStepPicture
-            path={picture?.path}
-            label={`Picture for step ${index + 1}`}
-            className="h-72 w-full rounded-lg border border-slate-200 bg-slate-50"
-          />
-          {picture && (
-            <div className="flex items-center gap-2">
-              {/* no-tour-anchor: per-step controls repeat on every step */}
-              <button
-                type="button"
-                className={secondaryBtn}
-                onClick={() => onBlur(true)}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <Droplets className="h-4 w-4" aria-hidden="true" />
-                  Blur
-                </span>
-              </button>
-              {/* no-tour-anchor: per-step controls repeat on every step */}
-              <button
-                type="button"
-                className={secondaryBtn}
-                onClick={() => {
-                  if (!step.web) return;
-                  const { picture: _picture, ...web } = step.web;
-                  onChange({ ...step, web });
-                }}
-              >
-                Remove picture
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {fix && step.web && (
-        <SuggestedFix
-          before={step.web.locator}
-          fix={fix}
-          canFix={canFix}
-          onUse={onUseFix}
-          onDismiss={onDismissFix}
-          onFix={onFix}
-        />
-      )}
-
-      {needsFixOnSite(step) && (
-        <div className="flex items-center gap-3 rounded-lg bg-amber-50 px-3 py-2">
-          <TriangleAlert
-            className="h-4 w-4 shrink-0 text-amber-700"
-            aria-hidden="true"
-          />
-          <span className="flex-1 text-sm text-amber-900">
-            This step may not find its target on the site.
-          </span>
-          {/* no-tour-anchor: per-step controls repeat on every step */}
-          <button
-            type="button"
-            className={`${primaryBtn} disabled:cursor-not-allowed disabled:opacity-50`}
-            disabled={!canFix}
-            title={
-              canFix
-                ? undefined
-                : 'Needs a newer SpartBoard extension in this Chrome profile.'
-            }
-            onClick={onFix}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-4 w-4" aria-hidden="true" />
-              Fix on site
-            </span>
-          </button>
-        </div>
-      )}
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-semibold text-slate-700">Step title</span>
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <input
-          className={`${inputLight} rounded-lg px-2.5 py-1.5`}
-          value={step.label ?? ''}
-          onChange={(e) => edit('label', e.target.value)}
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-semibold text-slate-700">Tip</span>
-        {/* no-tour-anchor: per-step controls repeat on every step */}
-        <textarea
-          className={`${inputLight} rounded-lg px-2.5 py-1.5`}
-          rows={3}
-          value={step.text ?? ''}
-          onChange={(e) => edit('text', e.target.value)}
-        />
-      </label>
-      <WebStepClaudeFields step={step} onChange={onChange} />
-      {step.web && (
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-semibold text-slate-700">Step type</span>
-          {/* no-tour-anchor: per-step controls repeat on every step */}
-          <select
-            className={`${inputLight} w-48 rounded-lg px-2.5 py-1.5`}
-            value={step.web.action}
-            onChange={(e) =>
-              step.web &&
-              onChange({
-                ...step,
-                web: { ...step.web, action: e.target.value as WebTourAction },
-              })
-            }
-          >
-            {(Object.keys(ACTION_LABEL) as WebTourAction[]).map((a) => (
-              <option key={a} value={a}>
-                {ACTION_LABEL[a]}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {blocked && (
-        <p className="text-sm text-red-800">
-          Publish hides the highlighted student data.
-        </p>
-      )}
-      {clues.length > 0 && (
-        <details className="rounded-lg border border-slate-200 px-3 py-2 text-xs">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-700">
-            How the step finds its target
-          </summary>
-          <dl className="mt-1 flex flex-col divide-y divide-slate-100">
-            {clues.map((entry) => (
-              <div key={entry.field} className="flex items-start gap-2 py-1.5">
-                <dt className="w-32 shrink-0 text-slate-500">
-                  {fieldLabel(entry.field)}
-                </dt>
-                <dd className="min-w-0 flex-1 text-slate-800">
-                  <Highlighted entry={entry} />
-                </dd>
-                {entry.hits.length > 0 && (
-                  // no-tour-anchor: per-field controls repeat on every step
-                  <button
-                    type="button"
-                    className="shrink-0 font-semibold text-brand-blue-primary hover:underline"
-                    onClick={() => edit(entry.field, hideHits(entry))}
-                  >
-                    Hide highlighted
-                  </button>
-                )}
-                {REMOVABLE.has(entry.field) && (
-                  // no-tour-anchor: per-field controls repeat on every step
-                  <button
-                    type="button"
-                    className="shrink-0 font-semibold text-brand-blue-primary hover:underline"
-                    onClick={() => edit(entry.field, undefined)}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-          </dl>
-        </details>
-      )}
-    </div>
-  );
-};
-
-const hiddenWhere = (h: HiddenText) =>
-  h.step === null ? 'Title' : `Step ${h.step + 1}, ${fieldLabel(h.field)}`;
-
-/** The one check before publishing: what the text scan hid, and every picture. */
-const PublishCheck: React.FC<{
-  set: GuidedLearningSet;
-  hidden: HiddenText[];
-  askPictures: boolean;
-  onPublish: () => void;
-  onBlur: () => void;
-  onCancel: () => void;
-}> = ({ set, hidden, askPictures, onPublish, onBlur, onCancel }) => {
-  const pictured = (set.steps as WebStep[]).flatMap((s, i) =>
-    s.web?.picture ? [{ path: s.web.picture.path, index: i }] : []
-  );
-  return (
-    <Modal
-      isOpen
-      onClose={onCancel}
-      title="Before you publish"
-      maxWidth="max-w-3xl"
-      zIndex="z-modal-deep"
-      footer={
-        <div className="flex w-full items-center justify-end gap-2">
-          {askPictures && (
-            // no-tour-anchor: inside the one-off publish check
-            <button type="button" className={secondaryBtn} onClick={onBlur}>
-              Blur
-            </button>
-          )}
-          {/* no-tour-anchor: inside the one-off publish check */}
-          <button type="button" className={primaryBtn} onClick={onPublish}>
-            Publish
-          </button>
-        </div>
-      }
-    >
-      <div className="flex flex-col gap-4 pb-2">
-        {hidden.length > 0 && (
-          <section className="flex flex-col gap-1">
-            <h3 className="text-sm font-semibold text-slate-900">
-              Student data hidden
-            </h3>
-            <ul className="flex flex-col gap-1 text-sm">
-              {hidden.map((h, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="w-40 shrink-0 text-slate-500">
-                    {hiddenWhere(h)}
-                  </span>
-                  <span className="min-w-0 break-all text-slate-800">
-                    {h.after}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-        {askPictures && (
-          <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">
-              Anything private in these pictures?
-            </h3>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {pictured.map((p) => (
-                <WebStepPicture
-                  key={p.path}
-                  path={p.path}
-                  label={`Picture for step ${p.index + 1}`}
-                  className="h-32 w-48 shrink-0 rounded-lg border border-slate-200"
-                />
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
-    </Modal>
-  );
-};
-
-const PublishState: React.FC<{
-  loaded: boolean;
-  status: TourPublishStatus;
-}> = ({ loaded, status }) => {
-  if (!loaded) return null;
-  const label =
-    status === 'draft'
-      ? 'Draft'
-      : status === 'changed'
-        ? 'Changed since publish'
-        : 'Published';
-  const tone =
-    status === 'draft'
-      ? 'bg-slate-100 text-slate-700'
-      : label === 'Published'
-        ? 'bg-emerald-100 text-emerald-800'
-        : 'bg-amber-100 text-amber-800';
-  return (
-    <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}
-    >
-      {label}
-    </span>
-  );
-};
-
-/** Edits a web tour draft: a step list with pictures, each step's wording and target, and one check at publish. */
+/** Edits a web tour in the shared tour editor shell, beside a stage that previews the step as the learner sees it. */
 export const WebTourEditor: React.FC<{
   initial: GuidedLearningSet;
   onClose: () => void;
 }> = ({ initial, onClose }) => {
+  // Duplicate swaps the editor onto the copy.
+  const [current, setCurrent] = useState(initial);
+  return (
+    <WebTourEditorBody
+      key={current.id}
+      initial={current}
+      onClose={onClose}
+      onOpen={setCurrent}
+    />
+  );
+};
+
+const WebTourEditorBody: React.FC<{
+  initial: GuidedLearningSet;
+  onClose: () => void;
+  onOpen: (set: GuidedLearningSet) => void;
+}> = ({ initial, onClose, onOpen }) => {
   const { user } = useAuth();
   const uid = user?.uid ?? '';
   const { showConfirm } = useDialog();
@@ -872,33 +180,30 @@ export const WebTourEditor: React.FC<{
     [rosters]
   );
   const pictureCache = useMemo(() => new Map<string, Promise<Blob>>(), []);
-  const [set, setSet] = useState<GuidedLearningSet>(initial);
+  const draft = useWebTourDraft(initial);
+  const { set, latest, change, saveNow, saveCheck, saveFixes } = draft;
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<'steps' | 'settings'>('steps');
   const [selectedId, setSelectedId] = useState<string | null>(
     initial.steps[0]?.id ?? null
   );
+  const [pictureSelected, setPictureSelected] = useState(false);
   const [blurring, setBlurring] = useState(false);
   const [check, setCheck] = useState<{
     hidden: HiddenText[];
     askPictures: boolean;
   } | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [canFix, setCanFix] = useState(false);
-  const [canCheck, setCanCheck] = useState(false);
+  const [extensionCanFix, setCanFix] = useState(false);
+  const [extensionCanCheck, setCanCheck] = useState(false);
   const copyLink = useCopyWebTourLink();
   const published = usePublishedTour(initial.id);
   const live =
     published.tour && isWebTourSet(published.tour.set) ? published.tour : null;
   const [runs, setRuns] = useState<TourRun[] | null>(null);
-  const latest = useRef(set);
-  const dirty = useRef(false);
   const publishing = useRef(false);
-  const deleted = useRef(false);
-
-  useLayoutEffect(() => {
-    latest.current = set;
-  }, [set]);
+  // The step the next recorded step goes after; null appends.
+  const recordAfter = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -927,61 +232,6 @@ export const WebTourEditor: React.FC<{
     };
   }, [initial.id]);
 
-  // Built on the latest set, so a step the recorder just added is never overwritten.
-  const change = (update: (s: GuidedLearningSet) => GuidedLearningSet) => {
-    const next = update(latest.current);
-    latest.current = next;
-    dirty.current = true;
-    setSet(next);
-  };
-
-  // Debounced draft save while the admin edits.
-  useEffect(() => {
-    if (!dirty.current) return;
-    const timer = setTimeout(() => {
-      if (deleted.current) return;
-      dirty.current = false;
-      void saveWebTourDraft(set).catch((err: unknown) => {
-        logError('web tour draft save', err, { setId: set.id });
-        setStatus("Changes couldn't be saved. Check your connection.");
-      });
-    }, SAVE_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [set]);
-
-  // Closing the editor mid-delay still saves the last change.
-  useEffect(
-    () => () => {
-      if (!dirty.current || deleted.current) return;
-      dirty.current = false;
-      void saveWebTourDraft(latest.current).catch((err: unknown) =>
-        logError('web tour draft save', err, { setId: latest.current.id })
-      );
-    },
-    []
-  );
-
-  // Check results save on their own, so a check never counts as an edit of the published tour.
-  const saveCheck = (update: (s: GuidedLearningSet) => GuidedLearningSet) => {
-    const next = update(latest.current);
-    if (next === latest.current || !next.webTourChecked || deleted.current)
-      return;
-    latest.current = next;
-    setSet(next);
-    void setWebTourCheckRun(next.id, next.webTourChecked).catch(
-      (err: unknown) => logError('web tour check save', err, { setId: next.id })
-    );
-  };
-  // Suggested fixes and dismissals save on their own too; using one is an edit.
-  const saveFixes = (update: (s: GuidedLearningSet) => GuidedLearningSet) => {
-    const next = update(latest.current);
-    if (next === latest.current || deleted.current) return;
-    latest.current = next;
-    setSet(next);
-    void setWebTourFixes(next).catch((err: unknown) =>
-      logError('web tour fixes save', err, { setId: next.id })
-    );
-  };
   const checker = useWebTourCheck({
     onStart: (sig) => saveCheck((s) => startCheckRun(s, uid, sig)),
     onResult: (sig, stepId, result) => {
@@ -996,38 +246,43 @@ export const WebTourEditor: React.FC<{
     onStatus: setStatus,
   });
 
-  const saveNow = async (next: GuidedLearningSet) => {
-    latest.current = next;
-    setSet(next);
-    await saveWebTourDraft(next);
-  };
+  const writing = useWebTourWriting({
+    set,
+    change,
+    flush: draft.flush,
+    onStatus: setStatus,
+  });
 
-  // Write with Claude reads the saved draft, so it saves first.
-  const flushDraft = async () => {
-    if (deleted.current) throw new Error('Tour deleted');
-    if (!dirty.current) return latest.current;
-    dirty.current = false;
-    await saveNow(latest.current);
-    return latest.current;
+  const select = (id: string | null) => {
+    setSelectedId(id);
+    setPictureSelected(false);
+    setBlurring(false);
   };
 
   const onStep = async (recorded: RecordedWebStep) => {
     if (publishing.current) throw new Error('Publishing; the step is re-sent');
-    const current = latest.current;
+    const cur = latest.current;
     // A re-sent step is already here but its save may have failed, so save again before the ack.
-    if (current.steps.some((s) => s.id === recorded.id)) {
-      if (deleted.current) throw new Error('Tour deleted');
-      await saveWebTourDraft(current);
+    if (cur.steps.some((s) => s.id === recorded.id)) {
+      if (draft.deleted.current) throw new Error('Tour deleted');
+      await saveWebTourDraft(cur);
       return;
     }
-    const picture = await uploadRecordedPicture(recorded, current.id);
+    const picture = await uploadRecordedPicture(recorded, cur.id);
     // A step that lands after Delete must not re-create the draft.
-    if (deleted.current) throw new Error('Tour deleted');
+    if (draft.deleted.current) throw new Error('Tour deleted');
+    const after = recordAfter.current;
     await saveNow({
       ...latest.current,
-      steps: [...latest.current.steps, toWebStep(recorded, picture)],
+      steps: insertAfter(
+        latest.current.steps,
+        after,
+        toWebStep(recorded, picture)
+      ),
     });
-    setSelectedId((id) => id ?? recorded.id);
+    // Each recorded step goes after the one before it, so a run keeps its order.
+    if (after) recordAfter.current = recorded.id;
+    select(recorded.id);
   };
 
   // Fix on site: the new target and picture replace the step's; its title and tip stay.
@@ -1037,7 +292,7 @@ export const WebTourEditor: React.FC<{
     const target = latest.current.steps[index];
     if (!target?.web) return;
     const picture = await uploadRecordedPicture(recorded, latest.current.id);
-    if (deleted.current) throw new Error('Tour deleted');
+    if (draft.deleted.current) throw new Error('Tour deleted');
     const web = {
       ...target.web,
       urlPattern: toUrlPattern(recorded.urlPattern) ?? '*',
@@ -1061,12 +316,14 @@ export const WebTourEditor: React.FC<{
   });
 
   const steps = set.steps as WebStep[];
-  const selectedIndex = steps.findIndex((s) => s.id === selectedId);
-  const selected = selectedIndex >= 0 ? steps[selectedIndex] : steps[0];
-  const blockers = publishBlockers(set, matcher).filter(
-    (b) => b.kind !== 'student-data' && b.kind !== 'title-data'
+  const selectedIndex = Math.max(
+    0,
+    steps.findIndex((s) => s.id === selectedId)
   );
+  const selected = steps[selectedIndex] as WebStep | undefined;
+  const blockers = publishBlockers(set, matcher);
   const unchecked = blockers.some((b) => b.kind === 'unchecked');
+  const notWeb = blockers.some((b) => b.kind === 'not-web');
   const checkResults = currentCheckResults(set);
   const fromRuns = useMemo(
     () =>
@@ -1082,32 +339,54 @@ export const WebTourEditor: React.FC<{
     })
   );
 
-  const updateStep = (id: string, step: GuidedLearningStep) =>
-    change((cur) => ({
-      ...cur,
-      steps: cur.steps.map((s) => (s.id === id ? step : s)),
-    }));
+  const updateStep = (id: string, step: GuidedLearningStep, field?: string) =>
+    change(
+      (cur) => ({
+        ...cur,
+        steps: cur.steps.map((s) => (s.id === id ? step : s)),
+      }),
+      field ? `${id}:${field}` : undefined
+    );
 
-  const moveStep = (id: string, by: -1 | 1) =>
+  const moveStep = (id: string, to: number) =>
     change((cur) => {
+      const from = cur.steps.findIndex((s) => s.id === id);
+      const at = Math.min(Math.max(to, 0), cur.steps.length - 1);
+      if (from < 0 || from === at) return cur;
       const next = [...cur.steps];
-      const i = next.findIndex((s) => s.id === id);
-      const to = i + by;
-      if (i < 0 || to < 0 || to >= next.length) return cur;
-      const [moved] = next.splice(i, 1);
-      next.splice(to, 0, moved);
+      const [moved] = next.splice(from, 1);
+      next.splice(at, 0, moved);
       return { ...cur, steps: next };
     });
 
   const deleteStep = (id: string) => {
     const i = steps.findIndex((s) => s.id === id);
-    const nextSelected = steps[i + 1]?.id ?? steps[i - 1]?.id ?? null;
-    setBlurring(false);
-    setSelectedId(nextSelected);
+    select(steps[i + 1]?.id ?? steps[i - 1]?.id ?? null);
     change((cur) => ({
       ...cur,
       steps: cur.steps.filter((s) => s.id !== id),
     }));
+  };
+
+  const addStep = () => {
+    const created = newWebStep(selected);
+    change((cur) => ({
+      ...cur,
+      steps: insertAfter(cur.steps, selected?.id ?? null, created),
+    }));
+    setTab('steps');
+    select(created.id);
+    focusStepTitle(created.id);
+  };
+
+  const record = () => {
+    if (recorder.link === 'connected') {
+      recorder.disconnect();
+      return;
+    }
+    recordAfter.current = selected?.id ?? null;
+    setTab('steps');
+    recorder.connect();
   };
 
   const applyBlur = async (stepId: string, blob: Blob) => {
@@ -1116,7 +395,6 @@ export const WebTourEditor: React.FC<{
     ) as WebTourPictureType;
     const path = await uploadWebTourPicture(latest.current.id, blob, type);
     const cur = latest.current;
-    dirty.current = false;
     await saveNow({
       ...cur,
       steps: cur.steps.map((s) =>
@@ -1126,6 +404,13 @@ export const WebTourEditor: React.FC<{
       ),
     });
     setBlurring(false);
+  };
+
+  const removePicture = (step: WebStep) => {
+    if (!step.web) return;
+    const { picture: _picture, ...web } = step.web;
+    updateStep(step.id, { ...step, web });
+    setPictureSelected(false);
   };
 
   const fixOnSite = (step: WebStep, index: number) => {
@@ -1143,13 +428,17 @@ export const WebTourEditor: React.FC<{
     // Recorded steps wait (unacknowledged) until publishing is done.
     publishing.current = true;
     try {
-      dirty.current = false;
-      await saveNow(toPublish);
+      await saveNow(toPublish, false);
       // The gate runs on the draft publishing reads, so nothing saved since slips through.
-      await publishWebTour(toPublish.id, uid, (draft) =>
-        assertPublishable(draft, matcher)
+      // Pictures undo or redo can bring back stay in Storage.
+      await publishWebTour(
+        toPublish.id,
+        uid,
+        (d) => assertPublishable(d, matcher),
+        draft.historyPicturePaths()
       );
       setStatus('Published.');
+      void draft.sweepAfterPublish();
     } catch (err) {
       logError('web tour publish', err, { setId: toPublish.id });
       setStatus("The tour couldn't be published.");
@@ -1183,12 +472,11 @@ export const WebTourEditor: React.FC<{
     );
     if (!ok) return;
     recorder.disconnect();
-    deleted.current = true;
-    dirty.current = false;
+    draft.drop();
     try {
       await deleteWebTourDraft(set.id);
     } catch (err) {
-      deleted.current = false;
+      draft.undrop();
       logError('web tour delete', err, { setId: set.id });
       setStatus("The tour couldn't be deleted.");
       return;
@@ -1196,205 +484,328 @@ export const WebTourEditor: React.FC<{
     onClose();
   };
 
-  const copy = async () => {
-    if (await copyLink(set.id, set.title)) {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+  const duplicate = async () => {
+    setStatus('Making a copy...');
+    try {
+      const saved = await draft.flush();
+      const copy = await duplicateWebTourDraft(saved);
+      recorder.disconnect();
+      onOpen(copy);
+    } catch (err) {
+      logError('web tour duplicate', err, { setId: set.id });
+      setStatus("The tour couldn't be copied.");
     }
   };
 
-  const header = (
-    <div className="flex min-w-0 shrink-0 items-center gap-3 border-b border-slate-200 px-6 py-4">
-      <Globe className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
-      <input
-        aria-label="Title"
-        className={`${inputLight} min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-base font-semibold`}
-        value={set.title}
-        onChange={(e) => {
-          const title = e.target.value;
-          change((cur) => ({ ...cur, title }));
-        }}
-        {...tourAttr('web-tour-editor.title')}
-      />
-      <PublishState
-        loaded={published.loaded}
-        status={tourPublishStatus(set, live)}
-      />
-      <button
-        type="button"
-        disabled={!live}
-        className={`${secondaryBtn} inline-flex shrink-0 items-center gap-1.5 disabled:opacity-40`}
-        onClick={() =>
-          window.open(buildTourUrl(set.id), '_blank', 'noopener,noreferrer')
-        }
-        {...tourAttr('web-tour-editor.play')}
-      >
-        <Play className="h-4 w-4" aria-hidden="true" />
-        Play
-      </button>
-      <button
-        type="button"
-        disabled={!canCheck || checker.checking || steps.length === 0}
-        title={
-          canCheck
-            ? undefined
-            : 'Needs a newer SpartBoard extension in this Chrome profile.'
-        }
-        className={`${secondaryBtn} inline-flex shrink-0 items-center gap-1.5 disabled:opacity-40`}
-        onClick={() => void checker.start(latest.current)}
-        {...tourAttr('web-tour-editor.check')}
-      >
-        {checker.checking ? (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-        ) : (
-          <ScanSearch className="h-4 w-4" aria-hidden="true" />
-        )}
-        Check tour
-      </button>
-      <button
-        type="button"
-        className={`${secondaryBtn} inline-flex shrink-0 items-center gap-1.5`}
-        onClick={() => void copy()}
-        {...tourAttr('web-tour-editor.copy-link')}
-      >
-        {copied ? (
-          <Check className="h-4 w-4" aria-hidden="true" />
-        ) : (
-          <Link2 className="h-4 w-4" aria-hidden="true" />
-        )}
-        {copied ? 'Link copied' : 'Copy link'}
-      </button>
-    </div>
-  );
+  const copy = async () => {
+    if (await copyLink(set.id, set.title)) setStatus('Link copied.');
+  };
 
-  const footer = (
-    <div className="flex w-full flex-wrap items-center gap-3">
+  const seed = webTourEditorDevSeed();
+  const pub =
+    seed?.publish ?? (published.loaded ? tourPublishStatus(set, live) : null);
+  const canCheck = seed?.canCheck ?? extensionCanCheck;
+  const canFix = seed?.canFix ?? extensionCanFix;
+  const hasLive =
+    !!live || (seed?.publish !== undefined && seed.publish !== 'draft');
+  const checking = seed?.checking ?? checker.checking;
+  const computed = tourMainAction({
+    kind: 'web',
+    stepCount: steps.length,
+    stepsWithoutText: steps.filter(webStepNeedsText).length,
+    publish: pub,
+    checkNeeded: unchecked,
+    checking,
+    canCheck,
+    other: notWeb ? 'A step has no website target' : null,
+    busy: busy || writing.busy,
+  });
+  // A Check tour this browser can't run says why on the status line.
+  const main =
+    computed.state === 'check' && !canCheck && !checking
+      ? {
+          ...computed,
+          blocker: {
+            kind: 'other' as const,
+            label: 'Checking needs the SpartBoard extension',
+          },
+        }
+      : computed;
+  const mainAnchor =
+    main.state === 'write'
+      ? tourAttr('web-tour-editor.write-with-claude')
+      : main.state === 'check'
+        ? tourAttr('web-tour-editor.check')
+        : tourAttr('web-tour-editor.publish');
+
+  const menu: TourShellMenuItem[] = [
+    {
+      id: 'rewrite-all',
+      label: 'Rewrite all with Claude',
+      icon: RefreshCw,
+      disabled: writing.busy || steps.length === 0,
+      onSelect: () => void writing.run('all'),
+      anchor: tourAttr('web-tour-editor.rewrite-all'),
+    },
+    {
+      id: 'copy-link',
+      label: 'Copy link',
+      icon: Link2,
+      onSelect: () => void copy(),
+      anchor: tourAttr('web-tour-editor.copy-link'),
+    },
+    {
+      id: 'duplicate',
+      label: 'Duplicate',
+      icon: Copy,
+      onSelect: () => void duplicate(),
+      anchor: tourAttr('web-tour-editor.duplicate'),
+    },
+    {
+      id: 'delete',
+      label: 'Delete web tour',
+      icon: Trash2,
+      danger: true,
+      onSelect: () => void remove(),
+      anchor: tourAttr('web-tour-editor.delete'),
+    },
+  ];
+
+  const adapter: TourShellAdapter = {
+    kind: 'web',
+    title: set.title,
+    saveState: draft.saveState,
+    publish: pub,
+    publishing: busy,
+    main,
+    onMain: (state) => {
+      if (state === 'write') {
+        setTab('steps');
+        const at = steps.findIndex(webStepNeedsText);
+        if (at >= 0) select(steps[at].id);
+        void writing.run('blanks');
+      } else if (state === 'check') void checker.start(latest.current);
+      else if (state === 'publish') publish();
+    },
+    // Play runs the published tour, so it shows once there is one.
+    onPlay: hasLive
+      ? () => window.open(buildTourUrl(set.id), '_blank', 'noopener,noreferrer')
+      : undefined,
+    playHint: 'Play the published tour on the website',
+    menu,
+    steps: steps.map((step, i) =>
+      outlineStep(step, i, matcher, checkResults?.[step.id], fixes.has(step.id))
+    ),
+    selected: selectedIndex,
+    onSelect: (i) => select(steps[i]?.id ?? null),
+    onMove: moveStep,
+    renderCard: (stepId) => {
+      const step = steps.find((s) => s.id === stepId);
+      if (!step) return null;
+      const index = steps.indexOf(step);
+      return (
+        <WebStepCard
+          key={step.id}
+          step={step}
+          matcher={matcher}
+          canFix={canFix}
+          fix={fixes.get(step.id) ?? null}
+          result={checkResults?.[step.id] ?? null}
+          onChange={(s, field) => updateStep(step.id, s, field)}
+          onDelete={() => deleteStep(step.id)}
+          onFix={() => fixOnSite(step, index)}
+          onUseFix={() => {
+            const fix = fixes.get(step.id);
+            if (fix) change((s) => applyFix(s, step.id, fix));
+          }}
+          onDismissFix={() => {
+            const fix = fixes.get(step.id);
+            if (fix) saveFixes((s) => dismissFix(s, step.id, fix));
+          }}
+        />
+      );
+    },
+    onAddStep: addStep,
+    onRecord: record,
+    recordLabel:
+      recorder.link === 'connected'
+        ? 'Stop receiving steps'
+        : steps.length > 0
+          ? 'Record from here'
+          : 'Record steps',
+    recording: recorder.link === 'connected',
+    anchors: {
+      main: mainAnchor,
+      play: tourAttr('web-tour-editor.play'),
+      menu: tourAttr('web-tour-editor.menu'),
+      'add-step': tourAttr('web-tour-editor.add-step'),
+      record: tourAttr('web-tour-editor.record'),
+    },
+    undo: {
+      onUndo: draft.undo,
+      onRedo: draft.redo,
+      canUndo: draft.canUndo,
+      canRedo: draft.canRedo,
+    },
+  };
+
+  const pictureTools = selected?.web?.picture ? (
+    <>
+      {/* Slice 5 adds Crop, Mark up, Retake and Replace beside Blur. */}
       <button
         type="button"
-        className="text-sm font-semibold text-red-700 hover:underline"
-        onClick={() => void remove()}
-        {...tourAttr('web-tour-editor.delete')}
+        onClick={() => {
+          setPictureSelected(false);
+          setBlurring(true);
+        }}
+        className={`${iconBtn} flex items-center gap-1.5 px-2 text-sm font-semibold text-slate-700`}
+        {...tourAttr('web-tour-editor.picture-blur')}
       >
-        Delete web tour
+        <Droplets className="h-4 w-4" aria-hidden="true" />
+        Blur
       </button>
-      <span className="flex-1 text-sm text-slate-600" role="status">
-        {status}
-      </span>
-      {unchecked && (
-        <span className="text-sm text-amber-800">
-          Check the tour before publishing.
-        </span>
-      )}
       <button
         type="button"
-        disabled={busy || blockers.length > 0}
-        className={`${primaryBtn} inline-flex items-center gap-1.5 disabled:opacity-50`}
-        onClick={publish}
-        {...tourAttr('web-tour-editor.publish')}
+        onClick={() => removePicture(selected)}
+        className={`${iconBtn} flex items-center gap-1.5 px-2 text-sm font-semibold text-slate-700`}
+        {...tourAttr('web-tour-editor.picture-remove')}
       >
-        {busy && (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-        )}
-        Publish tour
+        <ImageOff className="h-4 w-4" aria-hidden="true" />
+        Remove picture
       </button>
-    </div>
-  );
+    </>
+  ) : null;
+
+  const notices = [
+    LINK_COPY[recorder.link],
+    matcher
+      ? ''
+      : "No class rosters are loaded, so student names can't be found automatically.",
+  ].filter(Boolean);
 
   return (
     <PictureCache.Provider value={pictureCache}>
       <Modal
         isOpen
         onClose={onClose}
-        customHeader={header}
+        variant="bare"
+        fullscreen
         ariaLabel="Web tour"
-        maxWidth="max-w-6xl"
-        footer={footer}
-        tourScope="web-tour"
+        className="bg-slate-800"
       >
-        <div className="grid min-h-[60vh] grid-cols-[17rem_minmax(0,1fr)] gap-6 pt-5 pb-4">
-          <aside className="flex min-h-0 flex-col gap-3 border-r border-slate-200 pr-4">
-            <button
-              type="button"
-              className={`${secondaryBtn} border border-slate-300`}
-              onClick={
-                recorder.link === 'connected'
-                  ? recorder.disconnect
-                  : recorder.connect
+        <div data-testid="web-tour-editor" className="flex h-full min-h-0">
+          <WebPictureStage
+            step={selected}
+            index={selectedIndex}
+            total={steps.length}
+            pictureSelected={pictureSelected}
+            onSelectPicture={setPictureSelected}
+            tools={pictureTools}
+            blurring={blurring}
+            onBlurred={(blob) =>
+              selected ? applyBlur(selected.id, blob) : Promise.resolve()
+            }
+            onCancelBlur={() => setBlurring(false)}
+          />
+          <aside
+            aria-label="Web tour editor"
+            className="flex w-[360px] shrink-0 flex-col overflow-hidden border-l border-slate-900/10 bg-white xl:w-[400px]"
+          >
+            <TourShellHeader
+              adapter={adapter}
+              alert={
+                draft.saveState === 'error' ? (
+                  <p
+                    role="alert"
+                    className="flex items-start gap-1 text-xs font-semibold text-red-300"
+                  >
+                    <AlertTriangle
+                      className="mt-px h-3.5 w-3.5 shrink-0"
+                      aria-hidden="true"
+                    />
+                    Changes couldn&apos;t be saved. Check your connection.
+                  </p>
+                ) : null
               }
-              {...tourAttr('web-tour-editor.record')}
-            >
-              {recorder.link === 'connected'
-                ? 'Stop receiving steps'
-                : 'Record steps'}
-            </button>
-            {LINK_COPY[recorder.link] && (
-              <p className="text-xs text-slate-600">
-                {LINK_COPY[recorder.link]}
-              </p>
-            )}
-            {!matcher && (
-              <p role="note" className="text-xs text-amber-800">
-                No class rosters are loaded, so student names can&apos;t be
-                found automatically.
-              </p>
-            )}
-            <WebTourWriting
-              set={set}
-              change={change}
-              flush={flushDraft}
-              onStatus={setStatus}
+              chrome={
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  title="Close"
+                  className={headerIconBtn}
+                  {...tourFieldAttr('modal.close', 'web-tour', 'close')}
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              }
             />
-            <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-              <StepList
-                steps={steps}
-                selected={selected?.id ?? null}
-                matcher={matcher}
-                results={checkResults}
-                fixed={new Set(fixes.keys())}
-                onSelect={(id) => {
-                  setBlurring(false);
-                  setSelectedId(id);
-                }}
-              />
-            </div>
-          </aside>
-          <section className="min-w-0">
-            {selected ? (
-              <StepDetail
-                key={selected.id}
-                step={selected}
-                index={steps.indexOf(selected)}
-                count={steps.length}
-                matcher={matcher}
-                blurring={blurring}
-                canFix={canFix}
-                fix={fixes.get(selected.id) ?? null}
-                onChange={(s) => updateStep(selected.id, s)}
-                onMove={(by) => moveStep(selected.id, by)}
-                onDelete={() => deleteStep(selected.id)}
-                onBlur={setBlurring}
-                onBlurred={(blob) => applyBlur(selected.id, blob)}
-                onFix={() => fixOnSite(selected, steps.indexOf(selected))}
-                onUseFix={() => {
-                  const fix = fixes.get(selected.id);
-                  if (fix) change((s) => applyFix(s, selected.id, fix));
-                }}
-                onDismissFix={() => {
-                  const fix = fixes.get(selected.id);
-                  if (fix) saveFixes((s) => dismissFix(s, selected.id, fix));
-                }}
-              />
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-                <p className="text-base font-semibold text-slate-900">
-                  No steps yet
-                </p>
-                <p className="text-sm text-slate-600">
-                  Record steps on the website to start.
-                </p>
-              </div>
+            <WebWritingStrip writing={writing} />
+            {status && (
+              <p
+                role="status"
+                data-testid="web-tour-status"
+                className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+              >
+                {status}
+              </p>
             )}
-          </section>
+            {notices.map((note) => (
+              <p
+                key={note}
+                role="note"
+                className="border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900"
+              >
+                {note}
+              </p>
+            ))}
+            <div
+              role="tablist"
+              className="flex gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5"
+            >
+              {(['steps', 'settings'] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => setTab(id)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${focusRing} ${
+                    tab === id
+                      ? 'bg-white text-brand-blue-dark shadow-xs'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  }`}
+                  {...(id === 'steps'
+                    ? tourAttr('web-tour-editor.tab-steps')
+                    : tourAttr('web-tour-editor.tab-settings'))}
+                >
+                  {id === 'steps' ? 'Steps' : 'Settings'}
+                </button>
+              ))}
+            </div>
+            {tab === 'settings' ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-4 pt-3">
+                <label className={cardLabel}>
+                  Title
+                  <input
+                    className={cardInput}
+                    value={set.title}
+                    onChange={(e) => {
+                      const title = e.target.value;
+                      change((cur) => ({ ...cur, title }), 'title');
+                    }}
+                    {...tourAttr('web-tour-editor.title')}
+                  />
+                </label>
+                <WebTourGoalField set={set} change={(u) => change(u, 'goal')} />
+              </div>
+            ) : (
+              <>
+                <TourShellOutline adapter={adapter} />
+                <TourShellOutlineFoot adapter={adapter} />
+              </>
+            )}
+          </aside>
         </div>
       </Modal>
       {check && (
@@ -1406,7 +817,7 @@ export const WebTourEditor: React.FC<{
           onBlur={() => {
             setCheck(null);
             const first = steps.find((s) => s.web?.picture);
-            if (first) setSelectedId(first.id);
+            if (first) select(first.id);
             setBlurring(true);
           }}
           onPublish={() =>
@@ -1420,4 +831,44 @@ export const WebTourEditor: React.FC<{
       )}
     </PictureCache.Provider>
   );
+};
+
+/** A web step's outline row: its title, and the one thing about it that needs attention. */
+const outlineStep = (
+  step: WebStep,
+  index: number,
+  matcher: ReturnType<typeof buildNameMatcher>,
+  result: WebTourCheckResult | undefined,
+  hasFix: boolean
+): TourShellStep => {
+  const label = step.label?.trim() ?? '';
+  const target = webTargetLabel(step.web?.locator);
+  const studentData = reviewEntries(step, matcher).some((e) =>
+    e.hits.some(isHardHit)
+  );
+  const subtitle: TourShellStep['subtitle'] = !step.web
+    ? { text: 'No website target', tone: 'error' }
+    : studentData
+      ? { text: 'Student data', tone: 'warn' }
+      : hasFix
+        ? { text: 'Suggested fix', tone: 'warn' }
+        : result === 'none'
+          ? { text: CHECK_LABEL.none, tone: 'error' }
+          : result && result !== 'found'
+            ? { text: CHECK_LABEL[result], tone: 'warn' }
+            : webStepNeedsText(step)
+              ? { text: 'Needs text', tone: 'warn' }
+              : needsFixOnSite(step)
+                ? { text: 'Needs checking', tone: 'warn' }
+                : label
+                  ? { text: target, tone: 'muted' }
+                  : null;
+  return {
+    id: step.id,
+    title:
+      label.length > 0 ? label : studentData ? `Step ${index + 1}` : target,
+    titleIsFallback: label.length === 0,
+    status: result ?? undefined,
+    subtitle,
+  };
 };

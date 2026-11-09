@@ -18,7 +18,15 @@ export interface RecordedWebStep {
   urlPattern: string;
   action: WebTourAction;
   locator: WebTourLocator;
-  picture?: { dataUrl: string; w: number; h: number };
+  picture?: {
+    dataUrl: string;
+    w: number;
+    h: number;
+    /** The target's place in the picture, 0-1; newer extensions only. */
+    target?: { x: number; y: number; w: number; h: number };
+    /** The picture's width in CSS pixels at capture; newer extensions only. */
+    cssW?: number;
+  };
   /** The tip the admin typed in the side panel; older clients ignore it. */
   tip?: string;
   /** The admin's private note for Claude; only to pages on protocol 5 or later. */
@@ -54,6 +62,19 @@ const isFrames = (v: unknown) =>
 const isBox = (v: unknown) =>
   v === undefined ||
   (isObj(v) && isNum(v.x) && isNum(v.y) && isNum(v.w) && isNum(v.h));
+
+const unit = (n: unknown) => isNum(n) && n >= 0 && n <= 1;
+
+/** A box inside a picture, as 0-1 fractions that stay inside it. */
+export const isUnitBox = (v: unknown) =>
+  v === undefined ||
+  (isObj(v) &&
+    unit(v.x) &&
+    unit(v.y) &&
+    unit(v.w) &&
+    unit(v.h) &&
+    (v.x as number) + (v.w as number) <= 1.0001 &&
+    (v.y as number) + (v.h as number) <= 1.0001);
 
 const isAttrs = (v: unknown) =>
   v === undefined ||
@@ -101,7 +122,10 @@ export const isRecordedStep = (v: unknown): v is RecordedWebStep =>
       isStr(v.picture.dataUrl, MAX_PICTURE_CHARS) &&
       v.picture.dataUrl.startsWith('data:image/jpeg;base64,') &&
       isNum(v.picture.w) &&
-      isNum(v.picture.h)));
+      isNum(v.picture.h) &&
+      isUnitBox(v.picture.target) &&
+      (v.picture.cssW === undefined ||
+        (isNum(v.picture.cssW) && v.picture.cssW > 0))));
 
 /** The step as a page speaking `protocol` can review: older pages never get the clues their review can't show. */
 export function stepForPage(

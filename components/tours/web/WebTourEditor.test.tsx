@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
@@ -13,13 +14,18 @@ import { WebTourEditor } from './WebTourEditor';
 import { targetsSignature } from './webStepReview';
 import type { WebTourCheckEvent } from './extensionClient';
 import type { TourRun } from '@/components/tours/tourRuns';
+import type { RecordedWebStep } from './recorderProtocol';
 
 const storage = vi.hoisted(() => ({
   saveWebTourDraft: vi.fn((_set: GuidedLearningSet) => Promise.resolve()),
   loadWebTourDraft: vi.fn(),
   publishWebTour: vi.fn(
-    (_id: string, _uid: string, _check?: (d: GuidedLearningSet) => void) =>
-      Promise.resolve()
+    (
+      _id: string,
+      _uid: string,
+      _check?: (d: GuidedLearningSet) => void,
+      _keep?: Iterable<string>
+    ) => Promise.resolve()
   ),
   deleteWebTourDraft: vi.fn(() => Promise.resolve()),
   setWebTourCheckRun: vi.fn(() => Promise.resolve()),
@@ -28,8 +34,26 @@ const storage = vi.hoisted(() => ({
     Promise.resolve('web_tour_pictures/t1/abc.jpg')
   ),
   loadWebTourPicture: vi.fn(() => Promise.resolve(new ArrayBuffer(4))),
+  sweepWebTourPictures: vi.fn(
+    (
+      _id: string,
+      _opts?: { keep?: Iterable<string>; replaced?: Iterable<string> }
+    ) => Promise.resolve([] as string[])
+  ),
+  duplicateWebTourDraft: vi.fn((set: GuidedLearningSet) =>
+    Promise.resolve({ ...set, id: 't2', title: `${set.title} (Copy)` })
+  ),
 }));
 vi.mock('@/components/tours/webTours', () => storage);
+vi.mock(
+  '@/components/widgets/GuidedLearning/utils/redactImage',
+  async (orig) => ({
+    ...(await orig<
+      typeof import('@/components/widgets/GuidedLearning/utils/redactImage')
+    >()),
+    redactImage: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+  })
+);
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'admin-1' } }),
@@ -66,6 +90,27 @@ vi.mock('@/components/tours/tourRuns', () => ({
 }));
 vi.mock('./useCopyWebTourLink', () => ({
   useCopyWebTourLink: () => () => Promise.resolve(true),
+}));
+
+const rec = vi.hoisted(() => ({
+  link: 'off',
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+  repick: vi.fn(),
+  onStep: null as null | ((step: RecordedWebStep) => Promise<void>),
+}));
+vi.mock('./useWebTourRecorder', () => ({
+  useWebTourRecorder: (opts: {
+    onStep: (step: RecordedWebStep) => Promise<void>;
+  }) => {
+    rec.onStep = opts.onStep;
+    return {
+      link: rec.link,
+      connect: rec.connect,
+      disconnect: rec.disconnect,
+      repick: rec.repick,
+    };
+  },
 }));
 
 vi.mock('@/context/useDialog', () => ({
@@ -122,8 +167,17 @@ const renderEditor = (set: GuidedLearningSet) =>
     </DashboardContext.Provider>
   );
 
-const publishButton = () =>
-  screen.getByRole('button', { name: 'Publish tour' });
+const main = () => screen.getByTestId('tour-shell-main');
+const publishButton = () => {
+  expect(main()).toHaveAttribute('data-state', 'publish');
+  return main();
+};
+const openMore = () => fireEvent.click(screen.getByTestId('tour-step-more'));
+const menuItem = (name: string) => {
+  fireEvent.click(screen.getByTestId('tour-shell-menu'));
+  return screen.getByRole('menuitem', { name });
+};
+const statusLine = () => screen.getByTestId('tour-shell-status');
 
 const withPicture = (set: GuidedLearningSet): GuidedLearningSet => ({
   ...set,
@@ -146,6 +200,8 @@ beforeEach(() => {
   ext.onCheck = null;
   live.tour = null;
   live.runs = [];
+  rec.link = 'off';
+  rec.onStep = null;
 });
 
 describe('WebTourEditor', () => {
@@ -164,7 +220,11 @@ describe('WebTourEditor', () => {
     fireEvent.click(publishButton());
     expect(await screen.findByText('Student data hidden')).toBeInTheDocument();
     expect(screen.queryByText('Alice Nguyen')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    fireEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Before you publish' })
+      ).getByRole('button', { name: 'Publish' })
+    );
     await waitFor(() => expect(storage.publishWebTour).toHaveBeenCalled());
     const saved = storage.saveWebTourDraft.mock.calls.at(-1)?.[0];
     expect(JSON.stringify(saved)).not.toContain('Alice');
@@ -172,7 +232,9 @@ describe('WebTourEditor', () => {
 
   it('asks for a new check when publish hides student data in a target', async () => {
     renderEditor(checked(tour('Alice Nguyen')));
-    expect(screen.getByText('Alice Nguyen').tagName).toBe('MARK');
+    openMore();
+    for (const hit of screen.getAllByText('Alice Nguyen'))
+      expect(hit.tagName).toBe('MARK');
     fireEvent.click(publishButton());
     expect(
       await screen.findByText(
@@ -180,7 +242,7 @@ describe('WebTourEditor', () => {
       )
     ).toBeInTheDocument();
     expect(storage.publishWebTour).not.toHaveBeenCalled();
-    expect(publishButton()).toBeDisabled();
+    expect(main()).toHaveAttribute('data-state', 'check');
   });
 
   it('asks about the pictures once, then publishes without asking again', async () => {
@@ -189,7 +251,11 @@ describe('WebTourEditor', () => {
     expect(
       await screen.findByText('Anything private in these pictures?')
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    fireEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Before you publish' })
+      ).getByRole('button', { name: 'Publish' })
+    );
     await waitFor(() =>
       expect(storage.publishWebTour).toHaveBeenCalledTimes(1)
     );
@@ -244,12 +310,15 @@ describe('WebTourEditor', () => {
     ).toThrow(/unchecked/);
   });
 
-  it('blocks Publish until the tour is checked', () => {
+  it('asks for a check before Publish, and says why it cannot run here', async () => {
     renderEditor(tour('Biology 7'));
-    expect(publishButton()).toBeDisabled();
-    expect(
-      screen.getByText('Check the tour before publishing.')
-    ).toBeInTheDocument();
+    expect(main()).toHaveAttribute('data-state', 'check');
+    expect(main()).toBeDisabled();
+    await waitFor(() =>
+      expect(statusLine()).toHaveTextContent(
+        'Checking needs the SpartBoard extension'
+      )
+    );
   });
 
   it('keeps Check tour off on an extension without check mode', async () => {
@@ -286,8 +355,8 @@ describe('WebTourEditor', () => {
         result: 'weak',
       })
     );
-    expect(screen.getByText('Weak match')).toBeInTheDocument();
-    expect(publishButton()).toBeDisabled();
+    expect(screen.getAllByText('Weak match').length).toBeGreaterThan(0);
+    expect(main()).toHaveAttribute('data-state', 'check');
     act(() =>
       ext.onCheck?.({
         type: 'web-tour/check-step',
@@ -298,7 +367,7 @@ describe('WebTourEditor', () => {
         result: 'found',
       })
     );
-    expect(screen.getByText('Found')).toBeInTheDocument();
+    expect(screen.getAllByText('Found').length).toBeGreaterThan(0);
     expect(publishButton()).toBeEnabled();
     act(() =>
       ext.onCheck?.({
@@ -321,7 +390,7 @@ describe('WebTourEditor', () => {
       target: { value: 'observe' },
     });
     expect(screen.queryByText('Found')).toBeNull();
-    expect(publishButton()).toBeDisabled();
+    expect(main()).toHaveAttribute('data-state', 'check');
   });
 
   it('saves a check run fix, and using it replaces the target and expires the check (C14)', async () => {
@@ -356,7 +425,7 @@ describe('WebTourEditor', () => {
     expect(storage.saveWebTourDraft).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Use this fix' }));
     expect(screen.queryByRole('region', { name: 'Suggested fix' })).toBeNull();
-    expect(publishButton()).toBeDisabled();
+    expect(main()).toHaveAttribute('data-state', 'check');
     await waitFor(() => expect(storage.saveWebTourDraft).toHaveBeenCalled());
     const saved = storage.saveWebTourDraft.mock.calls.at(-1)?.[0];
     expect(saved?.steps[0].web?.locator).toEqual({
@@ -474,6 +543,9 @@ describe('WebTourEditor', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
     renderEditor(weak);
     expect(screen.getByText('Needs checking')).toBeInTheDocument();
+    expect(
+      screen.getByText('This step may not find its target on the site.')
+    ).toBeInTheDocument();
     const fix = screen.getByRole('button', { name: 'Fix on site' });
     await waitFor(() => expect(fix).toBeEnabled());
     fireEvent.click(fix);
@@ -513,10 +585,11 @@ describe('WebTourEditor', () => {
     vi.useFakeTimers();
     try {
       renderEditor(tour('Biology 7'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
       fireEvent.change(screen.getByLabelText('Title'), {
         target: { value: 'Renamed' },
       });
-      fireEvent.click(screen.getByRole('button', { name: 'Delete web tour' }));
+      fireEvent.click(menuItem('Delete web tour'));
       await vi.advanceTimersByTimeAsync(2000);
       expect(storage.deleteWebTourDraft).toHaveBeenCalledWith('t1');
       expect(storage.saveWebTourDraft).not.toHaveBeenCalled();
@@ -530,5 +603,300 @@ describe('WebTourEditor', () => {
       <WebTourEditor initial={tour('Biology 7')} onClose={() => undefined} />
     );
     expect(screen.getByText(/No class rosters are loaded/)).toBeInTheDocument();
+  });
+
+  it('previews the step on its picture with the real ring, tip and bar', async () => {
+    const set = withPicture(checked(tour('Biology 7')));
+    const web = set.steps[0].web;
+    if (!web) throw new Error('no web');
+    set.steps[0] = {
+      ...set.steps[0],
+      text: 'Opens the course page.',
+      web: {
+        ...web,
+        picture: {
+          path: 'web_tour_pictures/t1/a.jpg',
+          w: 1280,
+          h: 900,
+          target: { x: 0.4, y: 0.45, w: 0.2, h: 0.1 },
+          cssW: 640,
+        },
+      },
+    };
+    renderEditor(set);
+    const stage = screen.getByTestId('web-stage');
+    await waitFor(() =>
+      expect(within(stage).getByTestId('tour-spotlight-ring')).toBeTruthy()
+    );
+    // Drawn at the picture's CSS size, so the chrome keeps its real proportions.
+    expect(within(stage).getByTestId('web-stage-frame')).toHaveStyle({
+      width: '640px',
+      height: '450px',
+    });
+    // The ring sits on the stored place, padded as playback pads it.
+    const ring = within(stage).getByTestId('tour-spotlight-ring');
+    expect(ring.getAttribute('x')).toBe(String(0.4 * 640 - 6));
+    expect(ring.getAttribute('width')).toBe(String(0.2 * 640 + 12));
+    expect(within(stage).queryByTestId('web-stage-no-ring')).toBeNull();
+    expect(within(stage).getByTestId('tour-step-title')).toHaveTextContent(
+      'Open the course'
+    );
+    expect(within(stage).getByText('Opens the course page.')).toBeTruthy();
+    // The bar sits above the picture, never over it; the ring and tip stay on it.
+    const frame = within(stage).getByTestId('web-stage-frame');
+    expect(within(stage).getByTestId('tour-bar')).toBeTruthy();
+    expect(within(frame).queryByTestId('tour-bar')).toBeNull();
+    expect(within(frame).getByTestId('tour-callout')).toBeTruthy();
+  });
+
+  it('draws no ring and says why when an older step cannot be placed', async () => {
+    const set = withPicture(checked(tour('Biology 7')));
+    const web = set.steps[0].web;
+    if (!web) throw new Error('no web');
+    set.steps[0] = {
+      ...set.steps[0],
+      web: {
+        ...web,
+        locator: { ...web.locator, box: { x: 0.4, y: 0.4, w: 0.1, h: 0.05 } },
+      },
+    };
+    renderEditor(set);
+    const stage = screen.getByTestId('web-stage');
+    expect(
+      await within(stage).findByTestId('web-stage-no-ring')
+    ).toHaveTextContent('Retake or fix this step on the site');
+    expect(within(stage).queryByTestId('tour-spotlight-ring')).toBeNull();
+    // With no ring the tip docks under the picture, so the whole picture shows.
+    const dock = within(stage).getByTestId('web-stage-dock');
+    expect(within(dock).getByTestId('tour-callout')).toBeTruthy();
+    expect(
+      within(within(stage).getByTestId('web-stage-frame')).queryByTestId(
+        'tour-callout'
+      )
+    ).toBeNull();
+  });
+
+  it('shows Play only once the tour is published', () => {
+    renderEditor(checked(tour('Biology 7')));
+    expect(screen.queryByTestId('tour-shell-play')).toBeNull();
+  });
+
+  // Blurs the only step's picture (a.jpg becomes abc.jpg), then publishes.
+  const blurAndPublish = async () => {
+    const view = renderEditor(withPicture(checked(tour('Biology 7'))));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select picture' })
+    );
+    fireEvent.click(
+      within(screen.getByRole('toolbar', { name: 'Picture tools' })).getByRole(
+        'button',
+        { name: 'Blur' }
+      )
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('web-stage-blur').firstChild).toBeTruthy()
+    );
+    const area = screen.getByRole('img', { name: /Drag across what to blur/ });
+    area.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+    area.setPointerCapture = () => undefined;
+    fireEvent.pointerDown(area, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(area, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.pointerUp(area, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply blur' }));
+    await waitFor(() =>
+      expect(storage.uploadWebTourPicture).toHaveBeenCalled()
+    );
+    await waitFor(() =>
+      expect(
+        storage.saveWebTourDraft.mock.calls.at(-1)?.[0].steps[0].web?.picture
+          ?.path
+      ).toBe('web_tour_pictures/t1/abc.jpg')
+    );
+    fireEvent.click(main());
+    await screen.findByText('Anything private in these pictures?');
+    fireEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Before you publish' })
+      ).getByRole('button', { name: 'Publish' })
+    );
+    await waitFor(() => expect(storage.publishWebTour).toHaveBeenCalled());
+    return view;
+  };
+
+  const sweepCall = (i: number) =>
+    storage.sweepWebTourPictures.mock.calls[i] as [
+      string,
+      { keep?: Iterable<string>; replaced?: Iterable<string> },
+    ];
+
+  it('keeps a blurred-over picture through publish, so undo can bring it back', async () => {
+    await blurAndPublish();
+    const keep = [...(storage.publishWebTour.mock.calls[0][3] ?? [])];
+    expect(keep).toContain('web_tour_pictures/t1/a.jpg');
+    await waitFor(() =>
+      expect(storage.sweepWebTourPictures).toHaveBeenCalledTimes(2)
+    );
+    expect([...(sweepCall(1)[1].keep ?? [])]).toContain(
+      'web_tour_pictures/t1/a.jpg'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() =>
+      expect(
+        storage.saveWebTourDraft.mock.calls.at(-1)?.[0].steps[0].web?.picture
+          ?.path
+      ).toBe('web_tour_pictures/t1/a.jpg')
+    );
+  });
+
+  it('deletes the blurred-over original once the editor closes', async () => {
+    const { unmount } = await blurAndPublish();
+    unmount();
+    await waitFor(() =>
+      expect(storage.sweepWebTourPictures).toHaveBeenCalledTimes(3)
+    );
+    const [id, opts] = sweepCall(2);
+    expect(id).toBe('t1');
+    expect([...(opts.replaced ?? [])]).toContain('web_tour_pictures/t1/a.jpg');
+    expect([...(opts.keep ?? [])]).not.toContain('web_tour_pictures/t1/a.jpg');
+    expect([...(opts.keep ?? [])]).toContain('web_tour_pictures/t1/abc.jpg');
+  });
+
+  it('sweeps pictures an earlier session left behind when it opens', () => {
+    renderEditor(withPicture(checked(tour('Biology 7'))));
+    expect(storage.sweepWebTourPictures).toHaveBeenCalledWith('t1', {
+      keep: ['web_tour_pictures/t1/a.jpg'],
+    });
+  });
+
+  it('shows picture tools only once the stage picture is selected', async () => {
+    renderEditor(withPicture(checked(tour('Biology 7'))));
+    expect(screen.queryByRole('toolbar', { name: 'Picture tools' })).toBeNull();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select picture' })
+    );
+    const tools = screen.getByRole('toolbar', { name: 'Picture tools' });
+    fireEvent.click(within(tools).getByRole('button', { name: 'Blur' }));
+    expect(
+      await screen.findByRole('button', { name: 'Apply blur' })
+    ).toBeDisabled();
+  });
+
+  it('keeps the recorded clues and the note for Claude under More', () => {
+    renderEditor(checked(tour('Biology 7')));
+    expect(screen.getByLabelText('Title')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tip')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Note for Claude')).toBeNull();
+    expect(screen.queryByText('How the step finds its target')).toBeNull();
+    openMore();
+    expect(screen.getByLabelText('Note for Claude')).toBeInTheDocument();
+    expect(
+      screen.getByText('How the step finds its target')
+    ).toBeInTheDocument();
+  });
+
+  it('undoes and redoes edits', () => {
+    renderEditor(checked(tour('Biology 7')));
+    const undo = screen.getByRole('button', { name: 'Undo' });
+    expect(undo).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Open Biology' },
+    });
+    expect(screen.getByLabelText('Title')).toHaveValue('Open Biology');
+    fireEvent.click(undo);
+    expect(screen.getByLabelText('Title')).toHaveValue('Open the course');
+    fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+    expect(screen.getByLabelText('Title')).toHaveValue('Open Biology');
+  });
+
+  it('keeps a check result through an undo', async () => {
+    ext.protocol = 6;
+    renderEditor(tour('Biology 7'));
+    fireEvent.change(screen.getByLabelText('Tip'), {
+      target: { value: 'Opens it.' },
+    });
+    const button = screen.getByRole('button', { name: 'Check tour' });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(ext.startWebTour).toHaveBeenCalled());
+    const runId = (ext.startWebTour.mock.calls[0] as unknown as string[])[3];
+    act(() =>
+      ext.onCheck?.({
+        type: 'web-tour/check-step',
+        setId: 't1',
+        runId,
+        stepIndex: 0,
+        stepId: 's1',
+        result: 'found',
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByLabelText('Tip')).toHaveValue('');
+    expect(main()).toHaveAttribute('data-state', 'publish');
+  });
+
+  it('adds a step after the selected one and selects it', () => {
+    const set = checked(tour('Biology 7'));
+    set.steps.push({ ...set.steps[0], id: 's2', label: 'Second' });
+    renderEditor(set);
+    fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
+    const rows = screen.getAllByTestId('tour-editor-step');
+    expect(rows[0]).toHaveAttribute('data-step-id', 's1');
+    expect(rows[1]).toHaveAttribute('aria-current', 'step');
+    expect(rows[2]).toHaveAttribute('data-step-id', 's2');
+    expect(screen.getByLabelText('Title')).toHaveValue('');
+  });
+
+  it('records from the selected step, keeping the recorded order', async () => {
+    const set = checked(tour('Biology 7'));
+    set.steps.push({ ...set.steps[0], id: 's2', label: 'Second' });
+    renderEditor(set);
+    fireEvent.click(screen.getByRole('button', { name: 'Record from here' }));
+    expect(rec.connect).toHaveBeenCalled();
+    const recorded = (id: string): RecordedWebStep => ({
+      id,
+      urlPattern: 'https://orono.schoology.com/home',
+      action: 'click',
+      locator: { role: 'button', name: id },
+    });
+    await act(() => rec.onStep?.(recorded('r1')) ?? Promise.resolve());
+    await act(() => rec.onStep?.(recorded('r2')) ?? Promise.resolve());
+    const saved = storage.saveWebTourDraft.mock.calls.at(-1)?.[0];
+    expect(saved?.steps.map((st) => st.id)).toEqual(['s1', 'r1', 'r2', 's2']);
+    expect(screen.getAllByTestId('tour-editor-step')[2]).toHaveAttribute(
+      'aria-current',
+      'step'
+    );
+  });
+
+  it('moves the main button from Write text to Check tour', () => {
+    const set = tour('Biology 7');
+    set.steps[0] = { ...set.steps[0], label: '' };
+    renderEditor(set);
+    expect(main()).toHaveAttribute('data-state', 'write');
+    expect(main()).toHaveAttribute(
+      'data-tour',
+      'web-tour-editor.write-with-claude'
+    );
+    expect(statusLine()).toHaveTextContent('1 step needs text');
+    expect(screen.getByText('Needs text')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Open the course' },
+    });
+    expect(main()).toHaveAttribute('data-state', 'check');
+    expect(main()).toHaveAttribute('data-tour', 'web-tour-editor.check');
+  });
+
+  it('copies the link and duplicates from the menu', async () => {
+    renderEditor(checked(tour('Biology 7')));
+    fireEvent.click(menuItem('Copy link'));
+    expect(await screen.findByText('Link copied.')).toBeInTheDocument();
+    fireEvent.click(menuItem('Duplicate'));
+    await waitFor(() =>
+      expect(storage.duplicateWebTourDraft).toHaveBeenCalled()
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Schoology materials (Copy)' })
+    ).toBeInTheDocument();
   });
 });

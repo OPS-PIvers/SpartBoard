@@ -246,7 +246,8 @@ export const SURFACES: TourSurfaceMap = {
   },
   // The shared tour editor shell; Live opens it docked over the board.
   'board.tour-editor': {
-    label: 'Tour editor (header, outline and step card)',
+    label:
+      'Live tour editor (shared tour editor shell docked over the board: header, outline and step card)',
     kind: 'panel',
     files: ['components/tours/editor/'],
     openerMissing:
@@ -256,8 +257,8 @@ export const SURFACES: TourSurfaceMap = {
   },
   'board.web-tour-editor': {
     label:
-      'Web tour editor (Record a tour > Web tour, or Edit on a web tour card)',
-    kind: 'modal',
+      'Web tour editor (the shared tour editor shell beside a picture stage; Record a tour > Web tour, or Edit on a web tour card)',
+    kind: 'editor',
     widgetType: 'guided-learning',
     parent: 'guidedLearning.face',
     opensWith: 'library-shell.secondary-menu-item',
@@ -265,7 +266,19 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/tours/web/WebTourEditor.tsx',
       'components/tours/web/WebTourWriting.tsx',
+      'components/tours/web/WebPictureStage.tsx',
+      'components/tours/web/WebStepCard.tsx',
     ],
+    inner: {
+      'web-tour-editor.rewrite-all': 'web-tour-editor.menu',
+      'web-tour-editor.copy-link': 'web-tour-editor.menu',
+      'web-tour-editor.duplicate': 'web-tour-editor.menu',
+      'web-tour-editor.delete': 'web-tour-editor.menu',
+      'web-tour-editor.title': 'web-tour-editor.tab-settings',
+      'web-tour-editor.goal': 'web-tour-editor.tab-settings',
+      'web-tour-editor.picture-blur': 'web-tour-editor.picture',
+      'web-tour-editor.picture-remove': 'web-tour-editor.picture',
+    },
   },
   'board.absent-students': {
     label: 'Absent students dialog',
