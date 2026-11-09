@@ -150,11 +150,16 @@ function rewrite(
       return entry;
     }
     const given = norm(entry.answer);
-    // A letter saved by an earlier run still holds if that run stopped before the batch moved.
-    const at =
-      typeof entry.paperSlot === 'number' && entry.paperSlot < plan.to.length
-        ? entry.paperSlot
-        : plan.from.findIndex((text) => norm(text) === given);
+    let at = plan.from.findIndex((text) => norm(text) === given);
+    if (at < 0 && plan.to.some((text) => norm(text) === given)) return entry;
+    // Only wording no list knows comes from a stopped run; a teacher's correction never does.
+    if (
+      at < 0 &&
+      typeof entry.paperSlot === 'number' &&
+      entry.paperSlot < plan.to.length
+    ) {
+      at = entry.paperSlot;
+    }
     if (at < 0 || norm(plan.to[at]) === given) return entry;
     changes.push({
       questionId: entry.questionId as string,

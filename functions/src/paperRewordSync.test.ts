@@ -209,6 +209,17 @@ describe('handlePaperRewordSync', () => {
     expect((docs[R1].answers as Doc[])[0].answer).toBe('lower');
   });
 
+  it('keeps a corrected answer whose saved letter is stale', async () => {
+    const docs = seed({
+      [R1]: {
+        paperBatchId: 'b1',
+        answers: [{ questionId: 'q1', answer: 'higher', paperSlot: 1 }],
+      },
+    });
+    await run(docs, ['same', 'lower', 'higher']);
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('higher');
+  });
+
   it('recovers that answer when the wording returns to the record', async () => {
     const docs = seed({
       [R1]: {
