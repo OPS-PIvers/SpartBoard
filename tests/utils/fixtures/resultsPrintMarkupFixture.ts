@@ -154,7 +154,7 @@ export function fixtureJob(opts: FixtureOptions = {}): ResultsPrintJob {
     paperSeat: 7,
     answers: [
       { questionId: 'q1', answer: 'Rome', answeredAt: 1 },
-      { questionId: 'w1', answer: done.answer, answeredAt: 1, ...done },
+      { questionId: 'w1', answeredAt: 1, ...done },
       { questionId: 'q2', answer: 'Blue', answeredAt: 1 },
       { questionId: 'w2', answer: '', answeredAt: 1, paperTranscript: 'blank' },
     ],
