@@ -39,7 +39,8 @@ export const LISTINGS: Record<ListingId, Listing> = {
     functionsBase: 'https://us-central1-spartboard-dev.cloudfunctions.net',
     oauthClientId:
       '258543092004-9mfh4nls8a7edmift5dkh9l93jp7pdk1.apps.googleusercontent.com',
-    vapidPublicKey: '',
+    vapidPublicKey:
+      'BETGCxuhkepM0UtU1vX4Pux0te_7G1CNOT13ilYsf6v3dI-7vTHMkqlpd89EJmpvuKjFrchGrJqlaDjsVznBOjY',
   },
 };
 
