@@ -198,6 +198,45 @@ describe('publishSharedBoardItem picks', () => {
     expect(fs.setDoc).not.toHaveBeenCalled();
   });
 
+  it('seeds a share made before picks existed from the board, then publishes', async () => {
+    stored = {
+      'shared_boards/share-1': {
+        widgets: [{ type: 'quiz', config: { selectedQuizId: 'q1' } }],
+      },
+    };
+    fs.setDoc.mockImplementation((ref: { path: string }) => {
+      if (ref.path === PICKS) stored[PICKS] = { items: ['quiz_q1'] };
+      return Promise.resolve();
+    });
+    await expect(
+      publishSharedBoardItem('share-1', item, () => Promise.resolve({ a: 1 }))
+    ).resolves.toBe('written');
+    expect(fs.setDoc).toHaveBeenCalledWith(
+      { path: PICKS },
+      { items: { arrayUnion: ['quiz_q1'] } },
+      { merge: true }
+    );
+    expect(fs.setDoc).toHaveBeenLastCalledWith(
+      { path: ITEM },
+      expect.objectContaining({ itemId: 'q1', payload: { a: 1 } })
+    );
+  });
+
+  it('never seeds a picks doc that exists, even an empty one', async () => {
+    stored = {
+      [PICKS]: { items: [] },
+      'shared_boards/share-1': {
+        widgets: [{ type: 'quiz', config: { selectedQuizId: 'q1' } }],
+      },
+    };
+    const build = vi.fn();
+    await expect(publishSharedBoardItem('share-1', item, build)).resolves.toBe(
+      'unpicked'
+    );
+    expect(build).not.toHaveBeenCalled();
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+
   it('keeps a copy published before picks existed current', async () => {
     stored = {};
     storeCopy({ ownerUid: 'me', version: '4' });

@@ -13,17 +13,39 @@ import { isViewAsTab } from '@/utils/viewAsTab';
 import type { SharedBoardItemKind } from '@/utils/sharedBoardItems';
 import type { WidgetType } from '@/types';
 
-/** The config key that names each widget's library item, and the item's shared-board kind. */
+/** The config keys that name each widget's library item and its stamped owner, and the item's shared-board kind. */
 const ITEM_KEYS: Partial<
-  Record<WidgetType, { key: string; kind: SharedBoardItemKind }>
+  Record<WidgetType, { key: string; owner: string; kind: SharedBoardItemKind }>
 > = {
-  quiz: { key: 'selectedQuizId', kind: 'quiz' },
-  'video-activity': { key: 'selectedActivityId', kind: 'videoActivity' },
-  'guided-learning': { key: 'playerSetId', kind: 'guidedLearning' },
-  flashcards: { key: 'presentSetId', kind: 'flashcards' },
-  smartNotebook: { key: 'activeNotebookId', kind: 'notebook' },
-  projects: { key: 'projectId', kind: 'project' },
+  quiz: { key: 'selectedQuizId', owner: 'selectedQuizOwnerUid', kind: 'quiz' },
+  'video-activity': {
+    key: 'selectedActivityId',
+    owner: 'selectedActivityOwnerUid',
+    kind: 'videoActivity',
+  },
+  'guided-learning': {
+    key: 'playerSetId',
+    owner: 'playerSetOwnerUid',
+    kind: 'guidedLearning',
+  },
+  flashcards: {
+    key: 'presentSetId',
+    owner: 'presentSetOwnerUid',
+    kind: 'flashcards',
+  },
+  smartNotebook: {
+    key: 'activeNotebookId',
+    owner: 'activeNotebookOwnerUid',
+    kind: 'notebook',
+  },
+  projects: { key: 'projectId', owner: 'projectOwnerUid', kind: 'project' },
 };
+
+/** A widget as a board or share doc stores it, as far as picks need. */
+export interface BoardItemWidget {
+  type: WidgetType;
+  config?: unknown;
+}
 
 /** `users/{uid}/board_item_picks/{shareId}`; firestore.rules lets only `uid` write it. */
 const picksRef = (uid: string, shareId: string) =>
@@ -46,6 +68,26 @@ export function boardItemPickOf(
   return ref && typeof id === 'string' && id
     ? boardItemPickKey(ref.kind, id)
     : null;
+}
+
+/** The items a board's widgets name, less those stamped as another teacher's. */
+export function ownBoardItemPicks(
+  widgets: readonly BoardItemWidget[],
+  uid: string
+): string[] {
+  const picks = new Set<string>();
+  for (const w of widgets) {
+    const config =
+      w.config && typeof w.config === 'object'
+        ? (w.config as Record<string, unknown>)
+        : undefined;
+    const ref = ITEM_KEYS[w.type];
+    const owner = ref ? config?.[ref.owner] : undefined;
+    if (typeof owner === 'string' && owner && owner !== uid) continue;
+    const pick = boardItemPickOf(w.type, config);
+    if (pick) picks.add(pick);
+  }
+  return [...picks];
 }
 
 /** The item a local config patch newly puts on a widget; an unchanged key in a spread config is not a pick. */
@@ -79,14 +121,15 @@ export async function recordBoardItemPicks(
   }
 }
 
-/** The items `uid` put on the share's board themselves; empty when unreadable. */
+/** The items `uid` put on the share's board themselves; null when the share has no picks doc, empty when unreadable. */
 export async function readBoardItemPicks(
   uid: string,
   shareId: string
-): Promise<string[]> {
+): Promise<string[] | null> {
   try {
     const snap = await getDoc(picksRef(uid, shareId));
-    const items: unknown = snap.exists() ? snap.data().items : undefined;
+    if (!snap.exists()) return null;
+    const items: unknown = snap.data().items;
     return Array.isArray(items)
       ? items.filter((k): k is string => typeof k === 'string')
       : [];
@@ -122,4 +165,64 @@ export function watchBoardItemPick(
     },
     (err) => logError('watchBoardItemPick', err, { shareId })
   );
+}
+
+// Per `uid/shareId`, this session's seed of a share's picks: true when picks were written.
+const seeds = new Map<string, Promise<boolean>>();
+
+const isBoardItemWidget = (w: unknown): w is BoardItemWidget =>
+  !!w &&
+  typeof w === 'object' &&
+  typeof (w as { type?: unknown }).type === 'string';
+
+/** Lets publishers on a share just made wait for its share-time picks instead of seeding their own. */
+export function noteBoardItemPicksSeeding(
+  uid: string,
+  shareId: string,
+  seeding: Promise<void>
+): void {
+  seeds.set(
+    `${uid}/${shareId}`,
+    seeding.then(
+      () => true,
+      () => true
+    )
+  );
+}
+
+/** A share made before picks existed has no picks doc: picks the teacher's own items its board names, once a session. */
+export function seedLegacyBoardItemPicks(
+  uid: string,
+  shareId: string
+): Promise<boolean> {
+  const id = `${uid}/${shareId}`;
+  const known = seeds.get(id);
+  if (known) return known;
+  const run = (async () => {
+    if (isViewAsTab) return false;
+    if ((await getDoc(picksRef(uid, shareId))).exists()) return false;
+    const share = await getDoc(doc(db, 'shared_boards', shareId));
+    const widgets: unknown = share.exists() ? share.data().widgets : undefined;
+    const keys = Array.isArray(widgets)
+      ? ownBoardItemPicks(widgets.filter(isBoardItemWidget), uid)
+      : [];
+    if (!keys.length) return false;
+    await setDoc(
+      picksRef(uid, shareId),
+      { items: arrayUnion(...keys) },
+      { merge: true }
+    );
+    return true;
+  })().catch((err: unknown) => {
+    seeds.delete(id);
+    logError('seedLegacyBoardItemPicks', err, { shareId });
+    return false;
+  });
+  seeds.set(id, run);
+  return run;
+}
+
+/** Test hook: forget which shares this tab already seeded. */
+export function resetBoardItemPickSeeds(): void {
+  seeds.clear();
 }

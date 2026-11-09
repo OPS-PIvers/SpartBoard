@@ -171,4 +171,37 @@ describe('useFirestore – shareDashboard records the board’s items as the hos
       );
     }
   });
+
+  it('falls back to the board’s own items when the old share has no picks doc, but not for an empty one', async () => {
+    const dashboard: Dashboard = {
+      ...withItems,
+      widgets: [
+        ...withItems.widgets,
+        {
+          ...withItems.widgets[0],
+          id: 'w3',
+          config: { selectedQuizId: 'theirs', selectedQuizOwnerUid: 'co' },
+        },
+      ] as Dashboard['widgets'],
+      linkedShareId: 'old',
+      linkedShareRole: 'owner',
+    };
+    (firestore.getDoc as unknown as Fn).mockResolvedValue({
+      exists: () => false,
+      data: () => undefined,
+    });
+    await share(dashboard);
+    await vi.waitFor(() =>
+      expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', ['quiz_q1'])
+    );
+    recordPicks.mockClear();
+    (firestore.getDoc as unknown as Fn).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ items: [] }),
+    });
+    await share(dashboard);
+    await vi.waitFor(() =>
+      expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', [])
+    );
+  });
 });
