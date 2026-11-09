@@ -37,6 +37,7 @@ import { PaperMarkupToolbar } from './markup/PaperMarkupToolbar';
 import { PaperMarkupLayer } from './markup/PaperMarkupLayer';
 import { MarkupPopovers } from './markup/MarkupPopovers';
 import { MarkupCommentList } from './markup/MarkupCommentList';
+import { EarlierScanNotice } from './markup/EarlierScanNotice';
 import { handleMarkupKey } from './markup/markupKeys';
 
 // Widths relative to the panel; 1 is fit to width.
@@ -458,6 +459,12 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
 
       {markup ? (
         <>
+          {markup.earlierScan && (
+            <EarlierScanNotice
+              editor={markupEditor}
+              onLooksRight={markup.earlierScan.onLooksRight}
+            />
+          )}
           {markup.notice}
           <div
             className="flex flex-col gap-2"
@@ -466,6 +473,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
           >
             <PaperMarkupToolbar
               editor={markupEditor}
+              saved={markup.savedComments}
               ready={markupReady}
               disabledReason={
                 markup.box.status === 'unavailable'
@@ -482,7 +490,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
               editor={markupEditor}
               containerRef={sectionRef}
               scrollRef={scrollRef}
-              snippets={markup.snippets}
+              saved={markup.savedComments}
             />
           )}
         </>

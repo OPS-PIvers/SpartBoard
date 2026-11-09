@@ -6,10 +6,17 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquarePlus, MessageSquareText, Trash2 } from 'lucide-react';
+import {
+  Bookmark,
+  Check,
+  MessageSquarePlus,
+  MessageSquareText,
+  Trash2,
+} from 'lucide-react';
 import { PAPER_MARKUP_MAX_COMMENT_CHARS } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import type { PaperMarkupEditor } from './usePaperMarkupEditor';
+import type { SavedMarkupComments } from './types';
 
 const GAP = 8;
 const OFFSET = 6;
@@ -189,13 +196,51 @@ const SelectionBar: React.FC<{ editor: PaperMarkupEditor }> = ({ editor }) => {
   );
 };
 
+/** Keeps the comment being written for reuse; saved or full, it says so instead of offering a click. */
+const SaveForReuse: React.FC<{
+  saved: SavedMarkupComments;
+  text: string;
+}> = ({ saved, text }) => {
+  const { t } = useTranslation();
+  const tm = (key: string, params?: Record<string, unknown>) =>
+    t(`quizMediaResponse.grading.paper.markup.${key}`, params);
+  const clean = text.trim();
+  if (clean && saved.list.includes(clean))
+    return (
+      <span
+        role="status"
+        title={tm('savedTitle')}
+        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700"
+      >
+        <Check aria-hidden className="h-3.5 w-3.5" />
+        {tm('savedForReuse')}
+      </span>
+    );
+  const full = saved.list.length >= saved.max;
+  return (
+    <button
+      type="button"
+      onClick={() => saved.add(text)}
+      disabled={!clean || full}
+      title={
+        full ? tm('listFull', { max: saved.max }) : tm('saveForReuseTitle')
+      }
+      {...tourTypeAttr('quiz-grading.markup-save-comment', 'quiz')}
+      className="inline-flex h-8 items-center gap-1 rounded-lg px-1.5 text-xs font-bold text-brand-blue-primary transition-colors hover:bg-brand-blue-primary/10 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:text-slate-500 disabled:hover:bg-transparent [@media(pointer:coarse)]:h-11"
+    >
+      <Bookmark aria-hidden className="h-3.5 w-3.5" />
+      {full ? tm('listFullShort') : tm('saveForReuse')}
+    </button>
+  );
+};
+
 /** Writing a comment on a mark, or the text of a new pin. */
 export const MarkupCommentEditor: React.FC<{
   editor: PaperMarkupEditor;
   heading: string;
-  snippets?: readonly string[];
+  saved?: SavedMarkupComments;
   onClosed?: () => void;
-}> = ({ editor, heading, snippets, onClosed }) => {
+}> = ({ editor, heading, saved, onClosed }) => {
   const { t } = useTranslation();
   const tm = (key: string, params?: Record<string, unknown>) =>
     t(`quizMediaResponse.grading.paper.markup.${key}`, params);
@@ -223,12 +268,29 @@ export const MarkupCommentEditor: React.FC<{
       aria-labelledby={headingId}
       className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
     >
-      <span
-        id={headingId}
-        className="text-xxs font-bold uppercase tracking-wider text-slate-500"
-      >
-        {heading}
-      </span>
+      <div className="flex items-baseline justify-between gap-2">
+        <span
+          id={headingId}
+          className="text-xxs font-bold uppercase tracking-wider text-slate-500"
+        >
+          {heading}
+        </span>
+        {showCounter && (
+          <span
+            id={counterId}
+            className={`font-mono text-xs tabular-nums ${
+              text.length >= PAPER_MARKUP_MAX_COMMENT_CHARS
+                ? 'font-bold text-brand-red-dark'
+                : 'text-slate-500'
+            }`}
+          >
+            {tm('counter', {
+              count: text.length,
+              max: PAPER_MARKUP_MAX_COMMENT_CHARS,
+            })}
+          </span>
+        )}
+      </div>
       <textarea
         ref={textRef}
         autoFocus
@@ -252,7 +314,7 @@ export const MarkupCommentEditor: React.FC<{
         {...tourTypeAttr('quiz-grading.markup-comment', 'quiz')}
         className="max-h-48 min-h-18 w-full resize-none rounded-lg border [field-sizing:content] border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
       />
-      {snippets && snippets.length > 0 && (
+      {saved && saved.list.length > 0 && (
         <select
           value=""
           onChange={(e) => {
@@ -263,7 +325,7 @@ export const MarkupCommentEditor: React.FC<{
           className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
         >
           <option value="">{tm('snippets')}</option>
-          {snippets.map((s) => (
+          {saved.list.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
@@ -271,21 +333,7 @@ export const MarkupCommentEditor: React.FC<{
         </select>
       )}
       <div className="flex items-center gap-2">
-        {showCounter && (
-          <span
-            id={counterId}
-            className={`font-mono text-xs tabular-nums ${
-              text.length >= PAPER_MARKUP_MAX_COMMENT_CHARS
-                ? 'font-bold text-brand-red-dark'
-                : 'text-slate-500'
-            }`}
-          >
-            {tm('counter', {
-              count: text.length,
-              max: PAPER_MARKUP_MAX_COMMENT_CHARS,
-            })}
-          </span>
-        )}
+        {saved && <SaveForReuse saved={saved} text={text} />}
         <span className="ml-auto" />
         <button
           type="button"
@@ -314,8 +362,8 @@ export const MarkupPopovers: React.FC<{
   editor: PaperMarkupEditor;
   containerRef: React.RefObject<HTMLElement | null>;
   scrollRef: React.RefObject<HTMLElement | null>;
-  snippets?: readonly string[];
-}> = ({ editor, containerRef, scrollRef, snippets }) => {
+  saved?: SavedMarkupComments;
+}> = ({ editor, containerRef, scrollRef, saved }) => {
   const { t } = useTranslation();
   const tm = (key: string, params?: Record<string, unknown>) =>
     t(`quizMediaResponse.grading.paper.markup.${key}`, params);
@@ -338,7 +386,7 @@ export const MarkupPopovers: React.FC<{
           key={anchorId}
           editor={editor}
           heading={n ? tm('commentNumber', { number: n }) : tm('comment')}
-          snippets={snippets}
+          saved={saved}
           onClosed={() => {
             const active = document.activeElement;
             if (!active || active === document.body)

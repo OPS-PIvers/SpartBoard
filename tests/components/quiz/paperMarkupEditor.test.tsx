@@ -499,7 +499,15 @@ describe('paper markup editor', () => {
   });
 
   it('offers snippets in the comment box when given', async () => {
-    const { layer } = await setup([], { snippets: ['Cite the text.'] });
+    const { layer } = await setup([], {
+      savedComments: {
+        list: ['Cite the text.'],
+        max: 30,
+        add: () => true,
+        remove: () => undefined,
+        restore: () => undefined,
+      },
+    });
     fireEvent.click(tool('Comment pin'));
     click(layer, [70, 90]);
     const box = await screen.findByRole('textbox', { name: 'Comment' });

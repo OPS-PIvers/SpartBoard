@@ -90,6 +90,12 @@ export interface PaperMarkupEditor {
   numbers: ReadonlyMap<string, number>;
   tool: MarkupTool;
   setTool: (tool: MarkupTool) => void;
+  /** A saved comment the pin tool drops on the next click, or null. */
+  armedComment: string | null;
+  /** Arms the pin tool with a saved comment; the next click drops a pin that carries it. */
+  armComment: (text: string) => void;
+  /** Removes every mark in one step, so undo brings them back. */
+  clearAll: () => void;
   stamp: PaperMarkupStamp;
   setStamp: (stamp: PaperMarkupStamp) => void;
   color: PaperMarkupColor;
@@ -176,12 +182,14 @@ export function usePaperMarkupEditor(
   const [inkColor, setInkColor] = useState<PaperMarkupColor>('red');
   const [highlightColor, setHighlightColor] =
     useState<PaperMarkupColor>('yellow');
+  const [armedPick, setArmedPick] = useState<string | null>(null);
   const [selectedPick, setSelectedId] = useState<string | null>(null);
   const [dragState, setDrag] = useState<Drag | null>(null);
   const [comment, setComment] = useState<CommentEdit | null>(null);
 
   const atCap = items.length >= PAPER_MARKUP_MAX_ITEMS;
   const tool: MarkupTool = atCap ? 'select' : toolPick;
+  const armedComment = tool === 'pin' ? armedPick : null;
   // An undo can remove the selected item out from under the selection.
   const selected = items.find((i) => i.id === selectedPick) ?? null;
   const selectedId = selected?.id ?? null;
@@ -235,9 +243,24 @@ export function usePaperMarkupEditor(
 
   const setTool = useCallback((next: MarkupTool) => {
     setToolPick(next);
+    setArmedPick(null);
     setComment(null);
     if (next !== 'select') setSelectedId(null);
   }, []);
+
+  const armComment = useCallback((text: string) => {
+    setToolPick('pin');
+    setArmedPick(text.trim().slice(0, PAPER_MARKUP_MAX_COMMENT_CHARS) || null);
+    setComment(null);
+    setSelectedId(null);
+  }, []);
+
+  const clearAll = useCallback(() => {
+    if (items.length === 0) return;
+    commit([]);
+    setSelectedId(null);
+    setComment(null);
+  }, [commit, items.length]);
 
   const setStamp = useCallback(
     (next: PaperMarkupStamp) => {
@@ -425,6 +448,19 @@ export function usePaperMarkupEditor(
         }
         case 'tap': {
           const at = placePoint(mm, d.tool, viewport);
+          if (d.tool === 'pin' && armedComment) {
+            const pinned = withColor(
+              {
+                id: newMarkupId(),
+                kind: 'pin',
+                atMm: at,
+                comment: armedComment,
+              },
+              inkColor
+            );
+            add(pinned);
+            return;
+          }
           if (d.tool === 'pin') {
             setSelectedId(null);
             setComment({ target: 'pending-pin', at, text: '' });
@@ -453,7 +489,16 @@ export function usePaperMarkupEditor(
         }
       }
     },
-    [dragState, viewport, add, highlightColor, inkColor, stamp, replaceItem]
+    [
+      dragState,
+      viewport,
+      add,
+      highlightColor,
+      inkColor,
+      stamp,
+      replaceItem,
+      armedComment,
+    ]
   );
 
   const cancelDrag = useCallback(() => {
@@ -469,6 +514,14 @@ export function usePaperMarkupEditor(
       tool,
       viewport
     );
+    if (tool === 'pin' && armedComment) {
+      const pinned = withColor(
+        { id: newMarkupId(), kind: 'pin', atMm: at, comment: armedComment },
+        inkColor
+      );
+      add(pinned);
+      return true;
+    }
     if (tool === 'pin') {
       setComment({ target: 'pending-pin', at, text: '' });
       return true;
@@ -479,7 +532,7 @@ export function usePaperMarkupEditor(
     );
     if (add(item)) setSelectedId(item.id);
     return true;
-  }, [tool, viewport, stamp, inkColor, add]);
+  }, [tool, viewport, stamp, inkColor, add, armedComment]);
 
   const nudge = useCallback(
     (dx: number, dy: number) => {
@@ -499,6 +552,10 @@ export function usePaperMarkupEditor(
       setComment(null);
       return true;
     }
+    if (armedComment) {
+      setArmedPick(null);
+      return true;
+    }
     if (selectedId) {
       setSelectedId(null);
       return true;
@@ -508,7 +565,7 @@ export function usePaperMarkupEditor(
       return true;
     }
     return false;
-  }, [dragState, comment, selectedId, tool]);
+  }, [dragState, comment, armedComment, selectedId, tool]);
 
   return {
     viewport,
@@ -517,6 +574,9 @@ export function usePaperMarkupEditor(
     numbers,
     tool,
     setTool,
+    armedComment,
+    armComment,
+    clearAll,
     stamp,
     setStamp,
     color,
