@@ -393,9 +393,13 @@ export const SmartNotebookWidget: React.FC<{
       addToast(formatImportSummary(summary), 'success');
 
       // Auto-select
-      updateWidget(widget.id, {
-        config: { ...config, activeNotebookId: notebook.id },
-      });
+      updateWidget(
+        widget.id,
+        {
+          config: { ...config, activeNotebookId: notebook.id },
+        },
+        { pickItem: true }
+      );
     } catch (err) {
       console.error(err);
       if (err instanceof NotebookTooLargeError) {
@@ -490,7 +494,11 @@ export const SmartNotebookWidget: React.FC<{
   };
 
   const handleSelect = (id: string) => {
-    updateWidget(widget.id, { config: { ...config, activeNotebookId: id } });
+    updateWidget(
+      widget.id,
+      { config: { ...config, activeNotebookId: id } },
+      { pickItem: true }
+    );
     const selected = notebooks.find((n) => n.id === id);
     setCurrentPage(
       visiblePageIndices(
@@ -1225,9 +1233,13 @@ export const SmartNotebookWidget: React.FC<{
         deleteFile,
       });
       addToast(`Imported ${parsed.pages.length} pages`, 'success');
-      updateWidget(widget.id, {
-        config: { ...config, activeNotebookId: notebook.id },
-      });
+      updateWidget(
+        widget.id,
+        {
+          config: { ...config, activeNotebookId: notebook.id },
+        },
+        { pickItem: true }
+      );
     },
   });
 

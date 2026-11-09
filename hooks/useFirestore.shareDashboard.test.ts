@@ -6,6 +6,11 @@ import type { Dashboard } from '@/types';
 
 vi.mock('firebase/firestore');
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
+const recordPicks = vi.hoisted(() => vi.fn());
+vi.mock('@/utils/boardItemPicks', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/boardItemPicks')>()),
+  recordBoardItemPicks: recordPicks,
+}));
 
 type Fn = ReturnType<typeof vi.fn>;
 
@@ -73,5 +78,97 @@ describe('useFirestore – shareDashboard with a fixed share id', () => {
     await expect(shareFixed('host')).rejects.toMatchObject({
       code: 'permission-denied',
     });
+  });
+});
+
+describe('useFirestore – shareDashboard records the board’s items as the host’s picks', () => {
+  const withItems: Dashboard = {
+    ...board,
+    widgets: [
+      {
+        id: 'w1',
+        type: 'quiz',
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        z: 1,
+        flipped: false,
+        config: { selectedQuizId: 'q1' },
+      },
+      {
+        id: 'w2',
+        type: 'clock',
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        z: 2,
+        flipped: false,
+        config: {},
+      },
+    ] as Dashboard['widgets'],
+  };
+  const share = (
+    dashboard: Dashboard,
+    mode: 'synced' | 'copy' = 'synced',
+    shareId?: string
+  ) =>
+    renderHook(() => useFirestore('host')).result.current.shareDashboard(
+      dashboard,
+      mode,
+      'Host',
+      undefined,
+      shareId ? 'L1' : undefined,
+      shareId
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (firestore.doc as unknown as Fn).mockReturnValue({});
+    (firestore.collection as unknown as Fn).mockReturnValue({});
+    (firestore.addDoc as unknown as Fn).mockResolvedValue({ id: 'new-share' });
+  });
+
+  it('on a new live share', async () => {
+    await expect(share(withItems)).resolves.toBe('new-share');
+    expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', ['quiz_q1']);
+    mockTx(null);
+    await share(withItems, 'synced', 'L1_b1');
+    expect(recordPicks).toHaveBeenLastCalledWith('host', 'L1_b1', ['quiz_q1']);
+  });
+
+  it('not for a Copy link, a share another tab already wrote, or a board joined from another teacher', async () => {
+    await share(withItems, 'copy');
+    mockTx({ originalAuthor: 'host' });
+    await share(withItems, 'synced', 'L1_b1');
+    await share({
+      ...withItems,
+      linkedShareId: 'other',
+      linkedShareRole: 'collaborator',
+    });
+    await Promise.resolve();
+    expect(recordPicks).not.toHaveBeenCalled();
+  });
+
+  it('carries the old share’s picks, not the widgets, when the host shares a live or ended board again', async () => {
+    (firestore.getDoc as unknown as Fn).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ items: ['flashcards_f1'] }),
+    });
+    for (const linkedShareEnded of [false, true]) {
+      recordPicks.mockClear();
+      await share({
+        ...withItems,
+        linkedShareId: 'old',
+        linkedShareRole: 'owner',
+        linkedShareEnded,
+      });
+      await vi.waitFor(() =>
+        expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', [
+          'flashcards_f1',
+        ])
+      );
+    }
   });
 });

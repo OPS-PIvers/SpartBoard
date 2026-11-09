@@ -718,9 +718,13 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const showPresent = (set: FlashcardSet): void => {
-    updateWidget(widget.id, {
-      config: { ...config, view: 'present', presentSetId: set.id },
-    });
+    updateWidget(
+      widget.id,
+      {
+        config: { ...config, view: 'present', presentSetId: set.id },
+      },
+      { pickItem: true }
+    );
   };
 
   if (!user) {

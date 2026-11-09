@@ -24,6 +24,11 @@ import {
   type SaveBaseline,
 } from '@/utils/dashboardSaveMerge';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
+import {
+  boardItemPickOf,
+  readBoardItemPicks,
+  recordBoardItemPicks,
+} from '@/utils/boardItemPicks';
 import { migrateDashboardWidgets } from '@/utils/migrateProportionalLayout';
 import { migrateBoardWidgets } from '@/utils/migration';
 import {
@@ -746,13 +751,33 @@ export const useFirestore = (userId: string | null) => {
         updatedAt: Date.now(),
         updatedBy: userId,
       };
+      // A never-shared board is only this teacher's, so its items are their picks; a re-shared one carries its old share's picks.
+      const seedPicks = async (id: string) => {
+        if (!userId || intendedMode === 'copy') return;
+        const oldShareId = dashboard.linkedShareId;
+        if (oldShareId) {
+          if (dashboard.linkedShareRole !== 'owner') return;
+          const old = await readBoardItemPicks(userId, oldShareId);
+          await recordBoardItemPicks(userId, id, old);
+          return;
+        }
+        const picks = (dashboard.widgets ?? [])
+          .map((w) =>
+            boardItemPickOf(
+              w.type,
+              w.config as Record<string, unknown> | undefined
+            )
+          )
+          .filter((k): k is string => !!k);
+        await recordBoardItemPicks(userId, id, [...new Set(picks)]);
+      };
       if (shareId) {
         const ref = doc(shareRef, shareId);
-        await runTransaction(db, async (tx) => {
+        const created = await runTransaction(db, async (tx) => {
           const existing = await tx.get(ref);
           if (!existing.exists()) {
             tx.set(ref, payload);
-            return;
+            return true;
           }
           // A doc someone else wrote at this id is never adopted as this user's share.
           if (existing.data()?.originalAuthor !== userId) {
@@ -763,10 +788,13 @@ export const useFirestore = (userId: string | null) => {
               }
             );
           }
+          return false;
         });
+        if (created) void seedPicks(shareId);
         return shareId;
       }
       const docRef = await addDoc(shareRef, payload);
+      void seedPicks(docRef.id);
       return docRef.id;
     },
     [userId]

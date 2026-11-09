@@ -125,6 +125,7 @@ const LocalWidgetScope: React.FC<LocalWidgetScopeProps> = ({
           immediate?: boolean;
           skipHistory?: boolean;
           joinHistory?: boolean;
+          pickItem?: boolean;
         }
       ) => {
         if (id !== widgetId) {

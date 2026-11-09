@@ -2,6 +2,7 @@
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { boardItemPickKey, isBoardItemPicked } from '@/utils/boardItemPicks';
 import { quizHasBankSlots } from '@/utils/questionBanks';
 import type {
   QuizData,
@@ -107,19 +108,32 @@ const itemRef = (
     sharedBoardItemDocId(kind, ownerUid, itemId)
   );
 
-/** Writes the owner's copy unless the stored one is already this version. Returns whether it wrote. */
+/** `current`: the stored copy is this version; `unpicked`: no copy yet and the owner never put the item on this board. */
+export type SharedBoardPublishResult = 'written' | 'current' | 'unpicked';
+
+/** Writes the owner's copy unless the stored one is already this version. A first copy needs the owner's own pick. */
 export async function publishSharedBoardItem<T>(
   shareId: string,
   item: Omit<SharedBoardItemDoc<T>, 'publishedAt' | 'payload'>,
   buildPayload: () => Promise<T>
-): Promise<boolean> {
+): Promise<SharedBoardPublishResult> {
   const ref = itemRef(shareId, item.kind, item.ownerUid, item.itemId);
   const existing = await getDoc(ref);
   if (
     existing.exists() &&
     (existing.data() as Partial<SharedBoardItemDoc>).version === item.version
   ) {
-    return false;
+    return 'current';
+  }
+  if (
+    !existing.exists() &&
+    !(await isBoardItemPicked(
+      item.ownerUid,
+      shareId,
+      boardItemPickKey(item.kind, item.itemId)
+    ))
+  ) {
+    return 'unpicked';
   }
   const payload = await buildPayload();
   const next: SharedBoardItemDoc<T> = {
@@ -128,7 +142,7 @@ export async function publishSharedBoardItem<T>(
     payload,
   };
   await setDoc(ref, next);
-  return true;
+  return 'written';
 }
 
 export { itemRef as sharedBoardItemRef };

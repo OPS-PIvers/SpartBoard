@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const fs = vi.hoisted(() => ({
   getDoc: vi.fn(),
   setDoc: vi.fn(),
+  arrayUnion: vi.fn((...items: unknown[]) => ({ arrayUnion: items })),
   onSnapshot: vi.fn(),
   doc: vi.fn((...parts: unknown[]) => ({ path: parts.slice(1).join('/') })),
 }));
@@ -41,8 +42,20 @@ const snap = (data: unknown) => ({
   data: () => data,
 });
 
+const ITEM = 'shared_boards/share-1/items/quiz_me_q1';
+const PICKS = 'users/me/board_item_picks/share-1';
+// Docs by path; the owner picked q1 on share-1 unless a test says otherwise.
+let stored: Record<string, unknown> = {};
+const storeCopy = (data: unknown) => {
+  stored[ITEM] = data;
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  stored = { [PICKS]: { items: ['quiz_q1'] } };
+  fs.getDoc.mockImplementation((ref: { path: string }) =>
+    Promise.resolve(snap(stored[ref.path] ?? null))
+  );
   store.shareId = 'share-1';
   auth.uid = 'me';
   resetSharedBoardItemPublishes();
@@ -141,10 +154,9 @@ describe('publishSharedBoardItem', () => {
   };
 
   it('writes when nothing is there', async () => {
-    fs.getDoc.mockResolvedValue(snap(null));
     const build = vi.fn(() => Promise.resolve({ a: 1 }));
     await expect(publishSharedBoardItem('share-1', item, build)).resolves.toBe(
-      true
+      'written'
     );
     expect(fs.setDoc).toHaveBeenCalledWith(
       expect.anything(),
@@ -153,13 +165,46 @@ describe('publishSharedBoardItem', () => {
   });
 
   it('skips the same version and never builds', async () => {
-    fs.getDoc.mockResolvedValue(snap({ ownerUid: 'me', version: '5' }));
+    storeCopy({ ownerUid: 'me', version: '5' });
     const build = vi.fn();
     await expect(publishSharedBoardItem('share-1', item, build)).resolves.toBe(
-      false
+      'current'
     );
     expect(build).not.toHaveBeenCalled();
     expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+});
+
+describe('publishSharedBoardItem picks', () => {
+  const item = {
+    kind: 'quiz' as const,
+    itemId: 'q1',
+    ownerUid: 'me',
+    title: 'Q',
+    version: '5',
+  };
+
+  it('never writes a first copy of an item the owner did not pick on this board', async () => {
+    stored = { 'users/me/board_item_picks/share-2': { items: ['quiz_q1'] } };
+    const build = vi.fn();
+    await expect(publishSharedBoardItem('share-1', item, build)).resolves.toBe(
+      'unpicked'
+    );
+    stored[PICKS] = { items: ['flashcards_q1', 'quiz_q2'] };
+    await expect(publishSharedBoardItem('share-1', item, build)).resolves.toBe(
+      'unpicked'
+    );
+    expect(build).not.toHaveBeenCalled();
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('keeps a copy published before picks existed current', async () => {
+    stored = {};
+    storeCopy({ ownerUid: 'me', version: '4' });
+    await expect(
+      publishSharedBoardItem('share-1', item, () => Promise.resolve({ a: 1 }))
+    ).resolves.toBe('written');
+    expect(fs.setDoc).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -176,7 +221,6 @@ describe('useSharedBoardItemPublisher', () => {
   const stampOwner = vi.fn();
 
   it('publishes once per version', async () => {
-    fs.getDoc.mockResolvedValue(snap(null));
     const { rerender } = renderHook(
       (v: string) => useSharedBoardItemPublisher(args(v)),
       {
@@ -194,7 +238,6 @@ describe('useSharedBoardItemPublisher', () => {
   });
 
   it('republishes when content reverts to a version published earlier', async () => {
-    fs.getDoc.mockResolvedValue(snap(null));
     const { rerender } = renderHook(
       (v: string) => useSharedBoardItemPublisher(args(v)),
       { initialProps: 'A', wrapper }
@@ -213,7 +256,6 @@ describe('useSharedBoardItemPublisher', () => {
 
   it('keeps a newer version marked when an older write fails late', async () => {
     vi.spyOn(console, 'error').mockImplementation(noop);
-    fs.getDoc.mockResolvedValue(snap(null));
     let failA: (e: Error) => void = noop;
     fs.setDoc.mockImplementationOnce(
       () => new Promise((_res, rej) => (failA = rej))
@@ -230,16 +272,13 @@ describe('useSharedBoardItemPublisher', () => {
       return flush();
     });
     unmount();
-    fs.getDoc.mockResolvedValue(
-      snap({ kind: 'quiz', itemId: 'q1', ownerUid: 'host', version: 'B' })
-    );
+    storeCopy({ kind: 'quiz', itemId: 'q1', ownerUid: 'host', version: 'B' });
     renderHook(() => useSharedBoardItemPublisher(args('B')), { wrapper });
     await act(flush);
     expect(fs.setDoc).toHaveBeenCalledTimes(2);
   });
 
   it('writes again on a later mount when the stored copy was removed', async () => {
-    fs.getDoc.mockResolvedValue(snap(null));
     const first = renderHook(() => useSharedBoardItemPublisher(args('1')), {
       wrapper,
     });
@@ -251,7 +290,6 @@ describe('useSharedBoardItemPublisher', () => {
   });
 
   it('names the owner in the widget config when it doesn’t already', async () => {
-    fs.getDoc.mockResolvedValue(snap(null));
     renderHook(
       () =>
         useSharedBoardItemPublisher({ ...args('1'), stampedOwnerUid: 'host' }),
@@ -261,8 +299,64 @@ describe('useSharedBoardItemPublisher', () => {
     expect(stampOwner).toHaveBeenCalledWith('me');
   });
 
+  it('neither publishes nor names the owner for an item they did not pick', async () => {
+    stored = {};
+    renderHook(
+      () =>
+        useSharedBoardItemPublisher({ ...args('1'), stampedOwnerUid: 'host' }),
+      { wrapper }
+    );
+    await act(flush);
+    expect(fs.setDoc).not.toHaveBeenCalled();
+    expect(stampOwner).not.toHaveBeenCalled();
+  });
+
+  it('publishes once the owner’s pick arrives from another tab or device', async () => {
+    stored = {};
+    let emit: (s: unknown) => void = noop;
+    fs.onSnapshot.mockImplementation(
+      (ref: { path: string }, next: (s: unknown) => void) => {
+        if (ref.path === PICKS) emit = next;
+        return noop;
+      }
+    );
+    renderHook(
+      () =>
+        useSharedBoardItemPublisher({ ...args('1'), stampedOwnerUid: 'host' }),
+      { wrapper }
+    );
+    await act(flush);
+    expect(fs.setDoc).not.toHaveBeenCalled();
+    stored[PICKS] = { items: ['quiz_q1'] };
+    await act(async () => {
+      emit(snap({ items: ['quiz_q1'] }));
+      await flush();
+    });
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(1);
+    expect(stampOwner).toHaveBeenCalledWith('me');
+  });
+
+  it('names the owner in a second widget showing the same item while the first write is in flight', async () => {
+    const a = renderHook(
+      () =>
+        useSharedBoardItemPublisher({ ...args('1'), stampedOwnerUid: 'host' }),
+      { wrapper }
+    );
+    const b = renderHook(
+      () =>
+        useSharedBoardItemPublisher({ ...args('1'), stampedOwnerUid: 'host' }),
+      { wrapper }
+    );
+    await act(flush);
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(1);
+    expect(stampOwner).toHaveBeenCalledTimes(2);
+    a.unmount();
+    b.unmount();
+  });
+
   it('does nothing off a shared board', async () => {
-    fs.getDoc.mockResolvedValue(snap(null));
     store.shareId = null;
     renderHook(() => useSharedBoardItemPublisher(args('1')), { wrapper });
     await act(flush);
