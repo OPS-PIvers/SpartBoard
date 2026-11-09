@@ -16,7 +16,18 @@ import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { useAuth } from '@/context/useAuth';
 import { getPaperBatch } from '@/utils/paperBatchStore';
 import { logError } from '@/utils/logError';
-import { planSheetReprint } from '@/utils/paperSheetReprint';
+import { planSheetReprint, printedPageOf } from '@/utils/paperSheetReprint';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
+import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
+import {
+  createKeptPageLoader,
+  driveBlobReader,
+  fetchKeptPages,
+  keptPageRefs,
+  type KeptPageLoader,
+  type KeptPageRef,
+} from '@/utils/paperPageFetch';
 import { printedChoiceOrder } from '@/utils/paperImportPlan';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
@@ -27,6 +38,9 @@ import {
   DEFAULT_WRITTEN_RETURN_MODE,
   handwritingArtifact,
   isPaperWrittenAnswer,
+  PAPER_PAGE_CALLABLE,
+  type GetPaperPageRequest,
+  type GetPaperPageResponse,
 } from '@/utils/paperWritten';
 import type { QuestionGradeFn } from '@/utils/quizQuestionStats';
 import {
@@ -89,6 +103,10 @@ export interface ResultsPrintModalProps {
   earlierAttempts?: ReadonlyMap<string, readonly QuizResponse[]>;
   /** Switches that don't apply here, hidden and printed off (Flashcards has no targets or written answers). */
   hiddenOptions?: readonly ResultsPrintToggle[];
+  /** Loads a kept scan page; the teacher's Drive and `getPaperPageV1` when absent. */
+  loadKeptPage?: KeptPageLoader;
+  /** Reads a paper stack; the teacher's own store when absent. */
+  loadPaperBatch?: typeof getPaperBatch;
   onClose: () => void;
   onError: (message: string) => void;
 }
@@ -155,7 +173,7 @@ const WRITTEN_MODES: { id: WrittenReturnMode; label: string }[] = [
 const CROP_FETCH_LIMIT = 6;
 
 /** The print window and the sandboxed preview can't read this page's `blob:` URLs. */
-async function toDataUrl(url: string): Promise<string> {
+async function toDataUrl(url: string, keep = false): Promise<string> {
   if (!url.startsWith('blob:')) return url;
   try {
     const blob = await (await fetch(url)).blob();
@@ -166,9 +184,15 @@ async function toDataUrl(url: string): Promise<string> {
       reader.readAsDataURL(blob);
     });
   } finally {
-    URL.revokeObjectURL(url);
+    if (!keep) URL.revokeObjectURL(url);
   }
 }
+
+/** Kept page object URLs outlive the modal this long, so a print window still decoding them keeps its pictures. */
+const KEPT_PAGE_URL_GRACE_MS = 60_000;
+
+const keptPageKey = (responseKey: string, page: number) =>
+  `${responseKey}#${page}`;
 
 const keyOf = (r: QuizResponse) => getResponseDocKey(r) as string;
 
@@ -216,11 +240,14 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   resolvePaperCrop,
   earlierAttempts,
   hiddenOptions = NO_HIDDEN_OPTIONS,
+  loadKeptPage,
+  loadPaperBatch = getPaperBatch,
   onClose,
   onError,
 }) => {
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, googleAccessToken, refreshGoogleToken } = useAuth();
   const imageMarkup = canAccessFeature('paper-image-markup');
+  const keptPagesOn = canAccessFeature('paper-kept-pages') && !!sessionId;
   const [everyAttempt, setEveryAttempt] = useState(false);
   const hasEarlier = !!earlierAttempts && earlierAttempts.size > 0;
   const [choice, setChoice] = useState<SavedResultsPrintChoice>(() => {
@@ -289,7 +316,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     let cancelled = false;
     void Promise.all(
       ids.map((id) =>
-        getPaperBatch(teacherUid, id).catch((err: unknown) => {
+        loadPaperBatch(teacherUid, id).catch((err: unknown) => {
           logError('ResultsPrintModal.getPaperBatch', err);
           return null;
         })
@@ -305,7 +332,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [batchIdsKey, teacherUid]);
+  }, [batchIdsKey, teacherUid, loadPaperBatch]);
   const batchesReady =
     batchIds.length === 0 || !teacherUid || batches?.key === batchIdsKey;
 
@@ -496,9 +523,165 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     (c) => crops.has(c.key) && crops.get(c.key) === null
   ).length;
 
-  const withPaper = (student: ResultsPrintStudent): ResultsPrintStudent => {
+  // Kept scan pages: only the live response's sheet, only with the flag (K8, K19).
+  const neededPages = useMemo(() => {
+    const out: KeptPageRef[] = [];
+    if (!keptPagesOn || !wantsSheets) return out;
+    for (const { student, response } of students) {
+      if (!selected.has(student.key) || !student.sheet) continue;
+      if (!response.paperPages?.length) continue;
+      const sheet = student.sheet;
+      const pages = Array.from({ length: sheet.pageCount }, (_, i) =>
+        printedPageOf(sheet, i)
+      );
+      out.push(...keptPageRefs(response, student.key, pages));
+    }
+    return out;
+  }, [keptPagesOn, wantsSheets, students, selected]);
+
+  const loader = useMemo<KeptPageLoader>(
+    () =>
+      loadKeptPage ??
+      createKeptPageLoader({
+        fetchDriveBlob: driveBlobReader(
+          createDriveTakeUrlResolver({
+            getToken: () => googleAccessToken ?? null,
+            refreshToken: refreshGoogleToken,
+          })
+        ),
+        callPage: async (req) =>
+          (
+            await httpsCallable<GetPaperPageRequest, GetPaperPageResponse>(
+              functions,
+              PAPER_PAGE_CALLABLE
+            )(req)
+          ).data,
+        onFailure: (_ref, err) =>
+          logError('ResultsPrintModal.loadKeptPage', err),
+      }),
+    [loadKeptPage, googleAccessToken, refreshGoogleToken]
+  );
+  const [keptUrls, setKeptUrls] = useState<ReadonlyMap<string, string | null>>(
+    () => new Map()
+  );
+  const requestedPages = useRef(new Set<string>());
+  const madeUrls = useRef<string[]>([]);
+  useEffect(() => {
+    const urls = madeUrls.current;
+    return () => {
+      setTimeout(() => {
+        for (const url of urls) URL.revokeObjectURL(url);
+      }, KEPT_PAGE_URL_GRACE_MS);
+    };
+  }, []);
+  useEffect(() => {
+    if (!sessionId) return;
+    const queue = neededPages.filter(
+      (r) => !requestedPages.current.has(keptPageKey(r.responseKey, r.page))
+    );
+    if (queue.length === 0) return;
+    for (const r of queue) {
+      requestedPages.current.add(keptPageKey(r.responseKey, r.page));
+    }
+    void fetchKeptPages(
+      sessionId,
+      queue,
+      loader,
+      (ref, blob) => {
+        const url = blob ? URL.createObjectURL(blob) : null;
+        if (url) madeUrls.current.push(url);
+        setKeptUrls((prev) =>
+          new Map(prev).set(keptPageKey(ref.responseKey, ref.page), url)
+        );
+      },
+      { cancelled: () => !alive.current }
+    );
+  }, [neededPages, loader, sessionId]);
+  const pagesLoading = neededPages.filter(
+    (r) => !keptUrls.has(keptPageKey(r.responseKey, r.page))
+  ).length;
+
+  const keptPagesFor = (
+    key: string
+  ): Record<number, string | null> | undefined => {
+    let out: Record<number, string | null> | undefined;
+    for (const r of neededPages) {
+      if (r.responseKey !== key) continue;
+      const k = keptPageKey(key, r.page);
+      if (!keptUrls.has(k)) continue;
+      out ??= {};
+      out[r.page] = keptUrls.get(k) ?? null;
+    }
+    return out;
+  };
+
+  // One line under the layout: how many sheets print on the student's own scan.
+  const sheetStudents = neededPages.length
+    ? chosen.filter((s) => s.student.sheet).length
+    : 0;
+  const scanStudents = new Set(
+    neededPages
+      .filter((r) => keptUrls.get(keptPageKey(r.responseKey, r.page)))
+      .map((r) => r.responseKey)
+  ).size;
+  let scanStatus: string | null = null;
+  if (neededPages.length > 0) {
+    if (pagesLoading > 0) {
+      scanStatus = `Loading scanned pages: ${neededPages.length - pagesLoading} of ${neededPages.length}.`;
+    } else if (scanStudents === 0) {
+      scanStatus = 'Scanned pages could not load. Each sheet prints redrawn.';
+    } else if (scanStudents >= sheetStudents) {
+      scanStatus = "Prints on each student's scanned page.";
+    } else {
+      scanStatus = `${scanStudents} of ${plural(sheetStudents)} have a scanned page. The rest print as a redrawn sheet.`;
+    }
+  }
+
+  // The sandboxed preview can't read object URLs, so its one student gets data URLs.
+  const previewKey = printed[0]?.student.key ?? null;
+  const previewUrlsKey = previewKey
+    ? Object.values(keptPagesFor(previewKey) ?? {})
+        .filter((u): u is string => !!u)
+        .join('|')
+    : '';
+  const [previewPages, setPreviewPages] = useState<ReadonlyMap<string, string>>(
+    () => new Map()
+  );
+  useEffect(() => {
+    const urls = previewUrlsKey ? previewUrlsKey.split('|') : [];
+    if (urls.length === 0) return undefined;
+    let cancelled = false;
+    void Promise.all(
+      urls.map((u) => toDataUrl(u, true).catch(() => null))
+    ).then((found) => {
+      if (cancelled) return;
+      const next = new Map<string, string>();
+      found.forEach((d, i) => {
+        if (d) next.set(urls[i], d);
+      });
+      setPreviewPages(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [previewUrlsKey]);
+
+  const withPaper = (
+    student: ResultsPrintStudent,
+    forPreview = false
+  ): ResultsPrintStudent => {
+    const kept = keptPagesFor(student.key);
+    const withKept = (s: ResultsPrintStudent): ResultsPrintStudent => {
+      if (!kept) return s;
+      if (!forPreview) return { ...s, keptPages: kept };
+      const shown: Record<number, string | null> = {};
+      for (const [page, url] of Object.entries(kept)) {
+        shown[Number(page)] = url ? (previewPages.get(url) ?? null) : null;
+      }
+      return { ...s, keptPages: shown };
+    };
     const answers = paperByKey.get(student.key);
-    if (!answers) return student;
+    if (!answers) return withKept(student);
     const paperWritten: Record<string, PaperWrittenPrint> = {};
     for (const [questionId, answer] of answers) {
       const key = paperPrivateKey(student.key, questionId);
@@ -506,7 +689,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
         ? { answer, cropSrc: crops.get(key) ?? null }
         : { answer };
     }
-    return { ...student, paperWritten };
+    return withKept({ ...student, paperWritten });
   };
 
   const job = (rows: typeof chosen): ResultsPrintJob => ({
@@ -529,7 +712,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           ...job([first]),
           students: [
             {
-              ...withPaper(first.student),
+              ...withPaper(first.student, true),
               name: hasRealName(first.response, shown)
                 ? shown
                 : first.student.name,
@@ -663,6 +846,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           </div>
         </div>
       )}
+      {sheetsAvailable && scanStatus && (
+        <p className="text-xs text-slate-600" role="status">
+          {scanStatus}
+        </p>
+      )}
     </div>
   );
 
@@ -694,7 +882,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
       </div>
     </div>
   );
-  const ready = batchesReady && cropsLoading === 0;
+  const ready = batchesReady && cropsLoading === 0 && pagesLoading === 0;
 
   return (
     <Modal
@@ -759,7 +947,9 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                 ? 'Loading paper sheets…'
                 : cropsLoading > 0
                   ? 'Loading handwriting…'
-                  : 'Print'}
+                  : pagesLoading > 0
+                    ? 'Loading scanned pages…'
+                    : 'Print'}
             </button>
           </div>
         </div>
