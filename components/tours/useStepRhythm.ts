@@ -26,8 +26,12 @@ export interface StepRhythm {
   tick: boolean;
   /** The tip may show. */
   tipShown: boolean;
-  /** The learner finished the current step: wait for the page to settle, tick, then call `then`. */
-  act: (near: () => Element | null, then?: () => void) => void;
+  /** The learner finished the current step: wait for the page to settle, tick, then call `then`; `gone` says the control left the page. */
+  act: (
+    near: () => Element | null,
+    then?: () => void,
+    gone?: () => boolean
+  ) => void;
 }
 
 interface Options {
@@ -46,6 +50,8 @@ interface Options {
   ignore?: (el: Element) => boolean;
   /** Called as each phase starts, for the bench. */
   onPhase?: (phase: RhythmPhase) => void;
+  /** The finished step's control left the page (a new page or panel): no ring to hold or tick on. */
+  finishedGone?: () => boolean;
 }
 
 interface State {
@@ -75,6 +81,7 @@ export function useStepRhythm({
   doc = typeof document === 'undefined' ? undefined : document,
   ignore,
   onPhase,
+  finishedGone,
 }: Options): StepRhythm {
   const { tickMs, glideMs } = rhythmOf(reducedMotion);
   const hasRect = rect !== null;
@@ -87,7 +94,8 @@ export function useStepRhythm({
     glideMs > 0 ? { phase: 'glide', held: lastRect } : READY;
   const then = useRef<(() => void) | null>(null);
   const nearRef = useRef<() => Element | null>(() => null);
-  const live = useRef({ ignore, onPhase });
+  const live = useRef({ ignore, onPhase, finishedGone });
+  const goneRef = useRef<(() => boolean) | null>(null);
 
   // A new step glides in, or settles and ticks first when the learner's action brought it (web).
   if (seenKey !== stepKey) {
@@ -106,7 +114,7 @@ export function useStepRhythm({
   }
 
   useLayoutEffect(() => {
-    live.current = { ignore, onPhase };
+    live.current = { ignore, onPhase, finishedGone };
     if (actedChange && near) nearRef.current = near;
   });
 
@@ -116,10 +124,10 @@ export function useStepRhythm({
 
   useEffect(() => {
     if (!enabled) return;
-    const finishTick = () => {
+    const finishTick = (gone = false) => {
       const done = then.current;
       then.current = null;
-      setState(afterTick);
+      setState(gone ? { phase: 'glide', held: null } : afterTick);
       // Live advances here; the step change then glides.
       done?.();
     };
@@ -128,6 +136,12 @@ export function useStepRhythm({
         finishTick();
         return;
       }
+      // A control that left the page (now, or while the page settles) gets no ring and no tick.
+      const goneCheck = goneRef.current ?? live.current.finishedGone;
+      goneRef.current = null;
+      const isGone = () => goneCheck?.() ?? false;
+
+      if (isGone() && state.held) setState({ phase: 'settle', held: null });
       const wait = waitForSettle(
         domSettleHost(doc, {
           near: () => nearRef.current(),
@@ -135,13 +149,15 @@ export function useStepRhythm({
         })
       );
       void wait.done.then(() => {
-        if (tickMs > 0) setState((s) => ({ phase: 'tick', held: s.held }));
-        else finishTick();
+        const gone = isGone();
+        if (tickMs > 0 && !gone)
+          setState((s) => ({ phase: 'tick', held: s.held }));
+        else finishTick(gone);
       });
       return () => wait.cancel();
     }
     if (state.phase === 'tick') {
-      const id = setTimeout(finishTick, tickMs);
+      const id = setTimeout(() => finishTick(), tickMs);
       return () => clearTimeout(id);
     }
     if (state.phase === 'glide') {
@@ -157,13 +173,14 @@ export function useStepRhythm({
   }, [enabled, doc, state.phase, tickMs, glideMs, hasRect]);
 
   const act = useCallback(
-    (find: () => Element | null, next?: () => void) => {
+    (find: () => Element | null, next?: () => void, gone?: () => boolean) => {
       if (!enabled) {
         next?.();
         return;
       }
       then.current = next ?? null;
       nearRef.current = find;
+      goneRef.current = gone ?? null;
       setState({ phase: 'settle', held: lastRect });
     },
     [enabled, lastRect]
@@ -173,7 +190,7 @@ export function useStepRhythm({
   const shown = !enabled
     ? rect
     : holding
-      ? (state.held ?? rect)
+      ? state.held
       : state.phase === 'glide'
         ? (rect ?? state.held)
         : rect;

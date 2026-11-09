@@ -15,7 +15,7 @@ export default {
     `${root}extension/src/overlay/**/*.{ts,tsx}`,
     `${root}extension/src/sidepanel/**/*.{ts,tsx}`,
     `${root}extension/src/focus/**/*.{ts,tsx}`,
-    `${root}components/tours/Tour{Bar,Spotlight,Tip}.tsx`,
+    `${root}components/tours/Tour{Bar,Spotlight,Tip,WaitingChip,PictureMarkup}.tsx`,
     `${root}components/common/lightChrome.ts`,
     `${root}components/tours/web/BlurBoxes.tsx`,
     `${root}components/common/Toggle.tsx`,

@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -200,7 +201,11 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
   const actedChange = state.current === seen.current + 1 && seen.actable;
   if (seen.current !== state.current || seen.actable !== actable)
     setSeen({ current: state.current, actable });
+  // The control the learner just finished, so a page change that removed it skips its tick.
+  const litEl = useRef<Element | null>(null);
+  const finishedGone = useCallback(() => !litEl.current?.isConnected, []);
   const rhythm = useStepRhythm({
+    finishedGone,
     enabled: styled,
     reducedMotion,
     stepKey: String(state.current),
@@ -208,6 +213,15 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
     actedChange,
     near: frameTarget,
     onPhase: (phase) => benchMark('rhythm', { phase, current: state.current }),
+  });
+  // Kept only while a step rests, so the next step's target never stands in for it.
+  const resting = rhythm.phase === 'ready' && lit;
+  const stepIndex = given.current - 1;
+  useLayoutEffect(() => {
+    const target = globalThis.__sbWebTourFrame?.target;
+    // Seek tokens start with the step index; the frame may already hold the next step's target.
+    if (resting && target && target.token.startsWith(`${stepIndex}:`))
+      litEl.current = target.el;
   });
   const shownRect = rhythm.rect;
   const spot = !!shownRect;

@@ -48,6 +48,20 @@ export function fixtureTourStart(origin: string, stepIndex = 0) {
       setId: 'fixture-web-tour',
       version: 1,
       title: 'Fixture web tour',
+      // Markup drawn over the Share picture, which Show me where shows (protocol 12).
+      markup: {
+        share: [
+          { id: 'm1', kind: 'number' as const, x: 0.22, y: 0.5, n: 1 },
+          {
+            id: 'm2',
+            kind: 'arrow' as const,
+            x1: 0.12,
+            y1: 0.2,
+            x2: 0.29,
+            y2: 0.38,
+          },
+        ],
+      },
       steps: [
         step(
           'open',

@@ -539,6 +539,16 @@ export function installFrameSeeker(
   const schedule = (records: MutationRecord[]) => {
     addedRoots(records);
     domVersion += 1;
+    // New elements may be a watched step's control arriving late: look again soon, not after the miss pause.
+    if (
+      records.some(
+        (r) =>
+          r.type === 'childList' &&
+          [...r.addedNodes].some((n) => n.nodeType === 1)
+      )
+    )
+      for (const [i, c] of aheadEls)
+        if (!c.el) aheadEls.set(i, { ...c, misses: 0, retryAt: 0 });
     queue();
     scheduleAhead();
   };

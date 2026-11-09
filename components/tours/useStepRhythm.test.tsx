@@ -27,6 +27,7 @@ type Props = {
   actedChange?: boolean;
   reducedMotion?: boolean;
   enabled?: boolean;
+  gone?: boolean;
 };
 
 const setUp = (initial: Props) => {
@@ -38,6 +39,7 @@ const setUp = (initial: Props) => {
       actedChange = false,
       reducedMotion = false,
       enabled = true,
+      gone = false,
     }: Props) =>
       useStepRhythm({
         enabled,
@@ -47,6 +49,7 @@ const setUp = (initial: Props) => {
         actedChange,
         near: () => null,
         onPhase: (p) => phases.push(p),
+        finishedGone: () => gone,
       }),
     { initialProps: initial }
   );
@@ -150,6 +153,18 @@ describe('useStepRhythm', () => {
     rerender({ stepKey: '2', rect: B });
     expect(result.current.rect).toEqual(B);
     expect(result.current.tipShown).toBe(false);
+    await pass(GLIDE_MS);
+    expect(result.current.tipShown).toBe(true);
+  });
+
+  it('holds no ring and draws no tick when the finished control left the page', async () => {
+    const { result, rerender, phases } = setUp({ stepKey: '1', rect: A });
+    rerender({ stepKey: '2', rect: B, actedChange: true, gone: true });
+    await pass(20);
+    expect(result.current.rect).toBeNull();
+    await pass(SETTLE_QUIET_MS + 20);
+    expect(phases).not.toContain('tick');
+    expect(result.current.rect).toEqual(B);
     await pass(GLIDE_MS);
     expect(result.current.tipShown).toBe(true);
   });

@@ -1557,7 +1557,8 @@ export const LiveTourRunner: React.FC = () => {
     const el = anchor.element;
     rhythmAct(
       () => (el?.isConnected ? el : null),
-      () => advanceRef.current(from + 1)
+      () => advanceRef.current(from + 1),
+      () => !el?.isConnected
     );
   });
   // A pending advance outlives the anchor re-search a click's own widget can cause.

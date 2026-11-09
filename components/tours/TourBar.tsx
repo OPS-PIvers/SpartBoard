@@ -22,7 +22,7 @@ const StepDots: React.FC<{
     <span
       aria-hidden="true"
       data-testid="tour-bar-dots"
-      className="flex h-2 items-center gap-[3px]"
+      className="flex h-2 items-center gap-[3px] max-[440px]:gap-[2px]"
     >
       {Array.from({ length: total }, (_, i) => {
         const now = i === current - 1;
@@ -35,8 +35,8 @@ const StepDots: React.FC<{
               : 'bg-slate-300';
         const size = fixed
           ? now
-            ? 'h-1.5 w-3.5'
-            : 'h-1.5 w-1.5'
+            ? 'h-1.5 w-3.5 max-[440px]:w-3'
+            : 'size-1.5 max-[440px]:size-[5px]'
           : `h-1.5 min-w-[3px] ${now ? 'flex-[3]' : 'flex-1'}`;
         return (
           <span
@@ -157,7 +157,9 @@ export const TourBar: React.FC<TourBarProps> = ({
           className={`${secondaryBtn} flex items-center gap-1 pl-2`}
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          {t('tours.back')}
+          <span className={skipped ? 'max-[440px]:sr-only' : undefined}>
+            {t('tours.back')}
+          </span>
         </button>
       )}
       {onRetry && (
@@ -174,7 +176,7 @@ export const TourBar: React.FC<TourBarProps> = ({
           role="switch"
           aria-checked={autopilot.on}
           onClick={() => autopilot.onChange(!autopilot.on)}
-          className={`ml-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
+          className={`ml-2 flex items-center gap-2 ${skipped ? 'max-[440px]:ml-0' : ''} rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
         >
           {/* With step dots the bar runs out of room on a phone; the switch keeps its name for screen readers. */}
           <span className={skipped ? 'max-[440px]:sr-only' : undefined}>
