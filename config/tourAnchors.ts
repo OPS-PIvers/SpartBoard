@@ -2646,6 +2646,16 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-import.paper-keep-pages': {
+    label: "Keep a copy of each student's pages switch in Quiz import",
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-retry-pages': {
+    label: 'Retry failed page copies in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-import.paper-replace-seat': {
     label: 'Replace seat checkbox in Quiz import, by item',
     perField: true,

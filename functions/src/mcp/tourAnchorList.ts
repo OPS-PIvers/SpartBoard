@@ -10765,6 +10765,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-import.paper-keep-pages",
+    "label": "Keep a copy of each student's pages switch in Quiz import",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.paper-import",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.paper-retry-pages",
+    "label": "Retry failed page copies in Quiz import",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.paper-import",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-import.paper-replace-seat",
     "label": "Replace seat checkbox in Quiz import, by item",
     "scope": "field",

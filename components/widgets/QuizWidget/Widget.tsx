@@ -30,6 +30,7 @@ import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
+  PAPER_KEPT_PAGES_FEATURE,
   withPaperBoxSizes,
   withPaperBoxStyles,
 } from '@/utils/paperWritten';
@@ -4888,6 +4889,8 @@ const TeacherQuizWidget: React.FC<{
               ? `data:${res.data.mimeType ?? 'image/webp'};base64,${res.data.data}`
               : null;
           }}
+          canKeepPages={canAccessFeature(PAPER_KEPT_PAGES_FEATURE)}
+          driveConnected={isDriveConnected}
           checkQuota={async () => {
             const quota = await readPaperImportQuota(firestoreDocData, {
               uid: user.uid,

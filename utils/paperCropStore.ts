@@ -25,18 +25,38 @@ export interface WrittenCropSet {
   crops: WrittenCrop[];
 }
 
+/** One student's straightened sheet page, kept at import (kept-pages K5); `page` is the printed page number. */
+export interface KeptPage {
+  seat: number;
+  page: number;
+  blob: Blob;
+}
+
+export interface KeptPageSet {
+  scanId: string;
+  pages: KeptPage[];
+}
+
 export interface CropStore {
   save: (batchId: string, crops: ReadonlyMap<string, string>) => Promise<void>;
   load: (batchId: string) => Promise<Map<string, string>>;
   saveWritten: (batchId: string, set: WrittenCropSet) => Promise<void>;
   loadWritten: (batchId: string) => Promise<WrittenCropSet | null>;
+  /** null forgets the batch's kept pages. */
+  savePages: (batchId: string, set: KeptPageSet | null) => Promise<void>;
+  loadPages: (batchId: string) => Promise<KeptPageSet | null>;
   clear: (batchId: string) => Promise<void>;
 }
 
 export const writtenCropKey = (seat: number, questionId: string) =>
   `${seat}:${questionId}`;
 
+/** Upload-queue key of a kept page; the prefix keeps it apart from crop keys. */
+export const keptPageKey = (seat: number, page: number) =>
+  `page:${seat}:${page}`;
+
 const writtenStoreKey = (batchId: string) => `written:${batchId}`;
+const pagesStoreKey = (batchId: string) => `pages:${batchId}`;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -99,6 +119,29 @@ export function parseWrittenCropSet(raw: unknown): WrittenCropSet | null {
   return { scanId, crops: out };
 }
 
+/** Drops anything malformed; a page without its blob is useless here, since only this browser holds it. */
+export function parseKeptPageSet(raw: unknown): KeptPageSet | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { scanId, pages } = raw as { scanId?: unknown; pages?: unknown };
+  if (typeof scanId !== 'string' || !scanId || !Array.isArray(pages)) {
+    return null;
+  }
+  const out: KeptPage[] = [];
+  for (const p of pages as unknown[]) {
+    if (!p || typeof p !== 'object') continue;
+    const r = p as Record<string, unknown>;
+    if (
+      typeof r.seat !== 'number' ||
+      typeof r.page !== 'number' ||
+      !(r.blob instanceof Blob)
+    ) {
+      continue;
+    }
+    out.push({ seat: r.seat, page: r.page, blob: r.blob });
+  }
+  return { scanId, pages: out };
+}
+
 export const indexedDbCropStore: CropStore = {
   save: (batchId, crops) =>
     quiet(
@@ -134,11 +177,27 @@ export const indexedDbCropStore: CropStore = {
       ),
       null
     ),
+  savePages: (batchId, set) =>
+    quiet(
+      (set
+        ? run('readwrite', (s) => s.put(set, pagesStoreKey(batchId)))
+        : run('readwrite', (s) => s.delete(pagesStoreKey(batchId)))
+      ).then(() => undefined),
+      undefined
+    ),
+  loadPages: (batchId) =>
+    quiet(
+      run<unknown>('readonly', (s) => s.get(pagesStoreKey(batchId))).then(
+        parseKeptPageSet
+      ),
+      null
+    ),
   clear: (batchId) =>
     quiet(
       Promise.all([
         run('readwrite', (s) => s.delete(batchId)),
         run('readwrite', (s) => s.delete(writtenStoreKey(batchId))),
+        run('readwrite', (s) => s.delete(pagesStoreKey(batchId))),
       ]).then(() => undefined),
       undefined
     ),
@@ -148,6 +207,7 @@ export const indexedDbCropStore: CropStore = {
 export const memoryCropStore = (): CropStore => {
   const byBatch = new Map<string, Map<string, string>>();
   const writtenByBatch = new Map<string, WrittenCropSet>();
+  const pagesByBatch = new Map<string, KeptPageSet>();
   return {
     save: (batchId, crops) => {
       byBatch.set(batchId, new Map(crops));
@@ -167,9 +227,27 @@ export const memoryCropStore = (): CropStore => {
         set ? { scanId: set.scanId, crops: [...set.crops] } : null
       );
     },
+    savePages: (batchId, set) => {
+      if (set) {
+        pagesByBatch.set(batchId, {
+          scanId: set.scanId,
+          pages: [...set.pages],
+        });
+      } else {
+        pagesByBatch.delete(batchId);
+      }
+      return Promise.resolve();
+    },
+    loadPages: (batchId) => {
+      const set = pagesByBatch.get(batchId);
+      return Promise.resolve(
+        set ? { scanId: set.scanId, pages: [...set.pages] } : null
+      );
+    },
     clear: (batchId) => {
       byBatch.delete(batchId);
       writtenByBatch.delete(batchId);
+      pagesByBatch.delete(batchId);
       return Promise.resolve();
     },
   };

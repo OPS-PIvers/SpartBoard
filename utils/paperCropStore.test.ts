@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createCropUploader,
+  keptPageKey,
   memoryCropStore,
+  parseKeptPageSet,
   parseWrittenCropSet,
   writtenCropKey,
   type CropUploadStatus,
@@ -143,5 +145,45 @@ describe('createCropUploader', () => {
     up.enqueue({ key: 'a', path: 'a', blob: blob() });
     await up.whenIdle();
     expect(up.status('a')).toBe('done');
+  });
+});
+
+describe('kept pages in the crop store', () => {
+  it('keeps the page set apart, forgets it on null and clears it with the rest', async () => {
+    const store = memoryCropStore();
+    const page = { seat: 3, page: 2, blob: blob() };
+    await store.savePages('b1', { scanId: 'scan1', pages: [page] });
+    await store.saveWritten('b1', { scanId: 'scan1', crops: [] });
+    expect(await store.loadPages('b1')).toEqual({
+      scanId: 'scan1',
+      pages: [page],
+    });
+    expect(await store.loadPages('b2')).toBeNull();
+    await store.savePages('b1', null);
+    expect(await store.loadPages('b1')).toBeNull();
+    await store.savePages('b1', { scanId: 'scan1', pages: [page] });
+    await store.clear('b1');
+    expect(await store.loadPages('b1')).toBeNull();
+  });
+
+  it('parses only well-formed pages that still carry their blob', () => {
+    expect(parseKeptPageSet(null)).toBeNull();
+    expect(parseKeptPageSet({ scanId: '', pages: [] })).toBeNull();
+    const kept = blob();
+    expect(
+      parseKeptPageSet({
+        scanId: 'scan1',
+        pages: [
+          { seat: 1, page: 1, blob: kept },
+          { seat: 2, page: 1, blob: null },
+          { seat: '3', page: 1, blob: kept },
+          'junk',
+        ],
+      })
+    ).toEqual({ scanId: 'scan1', pages: [{ seat: 1, page: 1, blob: kept }] });
+  });
+
+  it('keys a kept page apart from any crop of the same seat', () => {
+    expect(keptPageKey(4, 1)).not.toBe(writtenCropKey(4, '1'));
   });
 });
