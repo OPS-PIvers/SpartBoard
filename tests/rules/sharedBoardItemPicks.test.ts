@@ -161,6 +161,7 @@ describe('a teacher’s board item picks', () => {
     await assertFails(
       setDoc(doc(asAnonymous('anon-uid'), anonPath), { items: [] })
     );
+    await assertFails(getDoc(doc(asAnonymous('anon-uid'), anonPath)));
   });
 });
 
@@ -183,6 +184,25 @@ describe('publishing the first copy of an item', () => {
   it('a pick of the same id under another kind does not count', async () => {
     await seed({ picks: { [SHARE_ID]: [`flashcards_${QUIZ_ID}`] } });
     await assertFails(setDoc(doc(asTeacher(HOST_UID), ITEM_PATH), item()));
+  });
+
+  it('a collaborator without their own pick cannot publish their own item', async () => {
+    await seed({ picks: { [SHARE_ID]: [`quiz_${QUIZ_ID}`] } });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `users/${COLLAB_UID}/quizzes/${QUIZ_ID}`),
+        { id: QUIZ_ID }
+      );
+    });
+    const path = `shared_boards/${SHARE_ID}/items/quiz_${COLLAB_UID}_${QUIZ_ID}`;
+    const db = asTeacher(COLLAB_UID);
+    await assertFails(setDoc(doc(db, path), item({ ownerUid: COLLAB_UID })));
+    await assertSucceeds(
+      setDoc(doc(db, `users/${COLLAB_UID}/board_item_picks/${SHARE_ID}`), {
+        items: [`quiz_${QUIZ_ID}`],
+      })
+    );
+    await assertSucceeds(setDoc(doc(db, path), item({ ownerUid: COLLAB_UID })));
   });
 
   it('an existing copy keeps updating without a pick', async () => {

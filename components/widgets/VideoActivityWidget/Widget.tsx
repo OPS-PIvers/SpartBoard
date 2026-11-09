@@ -1099,16 +1099,20 @@ const TeacherVideoActivityWidget: React.FC<{
               openLive = true;
             }
           }
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              ...(openLive ? { view: 'monitor' } : {}),
-              selectedActivityId: meta.id,
-              selectedActivityTitle: meta.title,
-              resultsSessionId: sessionId,
-              lastRosterIdsByActivityId: nextMap,
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                ...(openLive ? { view: 'monitor' } : {}),
+                selectedActivityId: meta.id,
+                selectedActivityTitle: meta.title,
+                resultsSessionId: sessionId,
+                lastRosterIdsByActivityId: nextMap,
+              },
             },
-          });
+            { pickItem: true }
+          );
           if (isLive) return sessionId;
 
           const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
@@ -1314,15 +1318,19 @@ const TeacherVideoActivityWidget: React.FC<{
             );
             return;
           }
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'results',
-              selectedActivityId: assignment.activityId,
-              selectedActivityTitle: assignment.activityTitle,
-              resultsSessionId: assignment.id,
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                view: 'results',
+                selectedActivityId: assignment.activityId,
+                selectedActivityTitle: assignment.activityTitle,
+                resultsSessionId: assignment.id,
+              },
             },
-          });
+            { pickItem: true }
+          );
         }}
         onArchiveMonitor={async (assignment) => {
           // Fetch the session doc up-front so we can confirm it exists
@@ -1357,15 +1365,19 @@ const TeacherVideoActivityWidget: React.FC<{
           }
           setSelectedSession(sessionDoc);
           subscribeToSession(assignment.id);
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'monitor',
-              selectedActivityId: assignment.activityId,
-              selectedActivityTitle: assignment.activityTitle,
-              resultsSessionId: assignment.id,
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                view: 'monitor',
+                selectedActivityId: assignment.activityId,
+                selectedActivityTitle: assignment.activityTitle,
+                resultsSessionId: assignment.id,
+              },
             },
-          });
+            { pickItem: true }
+          );
         }}
         onArchivePublishScores={(assignment) =>
           setPublishingAssignment(assignment)

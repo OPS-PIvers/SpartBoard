@@ -70,6 +70,7 @@ import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import {
   boardItemPickFromPatch,
+  boardItemPickOf,
   recordBoardItemPicks,
 } from '@/utils/boardItemPicks';
 import i18n from '@/i18n';
@@ -7175,7 +7176,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (
       widgetId: string,
       type: WidgetType | undefined,
-      patch: Record<string, unknown> | undefined
+      patch: Record<string, unknown> | undefined,
+      explicit = false
     ) => {
       const board = dashboardsRef.current.find(
         (d) => d.id === activeIdRef.current
@@ -7185,11 +7187,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const widget = board.widgets.find((w) => w.id === widgetId);
       const widgetType = type ?? widget?.type;
       if (!widgetType) return;
-      const pick = boardItemPickFromPatch(
-        widgetType,
-        widget?.config as Record<string, unknown> | undefined,
-        patch
-      );
+      // An explicit pick counts even when the widget already names the item, for example after a co-editor set it.
+      const pick = explicit
+        ? boardItemPickOf(widgetType, patch)
+        : boardItemPickFromPatch(
+            widgetType,
+            widget?.config as Record<string, unknown> | undefined,
+            patch
+          );
       if (pick) void recordBoardItemPicks(pickUserUid, shareId, [pick]);
     },
     [pickUserUid]
@@ -7800,6 +7805,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         immediate?: boolean;
         skipHistory?: boolean;
         joinHistory?: boolean;
+        pickItem?: boolean;
       }
     ) => {
       if (!activeIdRef.current) return;
@@ -7813,7 +7819,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       noteBoardItemPick(
         id,
         undefined,
-        updates.config as Record<string, unknown> | undefined
+        updates.config as Record<string, unknown> | undefined,
+        opts?.pickItem
       );
       const writes: HistoryWrite[] = [
         { id, configKeys: Object.keys(updates.config ?? {}) },

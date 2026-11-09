@@ -1,6 +1,12 @@
 // Library items a teacher put on a live shared board themselves; only those are published to its members.
 
-import { arrayUnion, doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  arrayUnion,
+  doc,
+  getDoc,
+  onSnapshot,
+  setDoc,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { isViewAsTab } from '@/utils/viewAsTab';
@@ -73,6 +79,23 @@ export async function recordBoardItemPicks(
   }
 }
 
+/** The items `uid` put on the share's board themselves; empty when unreadable. */
+export async function readBoardItemPicks(
+  uid: string,
+  shareId: string
+): Promise<string[]> {
+  try {
+    const snap = await getDoc(picksRef(uid, shareId));
+    const items: unknown = snap.exists() ? snap.data().items : undefined;
+    return Array.isArray(items)
+      ? items.filter((k): k is string => typeof k === 'string')
+      : [];
+  } catch (err) {
+    logError('readBoardItemPicks', err, { shareId });
+    return [];
+  }
+}
+
 /** Whether `uid` put this item on the share's board themselves. */
 export async function isBoardItemPicked(
   uid: string,
@@ -82,4 +105,21 @@ export async function isBoardItemPicked(
   const snap = await getDoc(picksRef(uid, shareId));
   const items: unknown = snap.exists() ? snap.data().items : undefined;
   return Array.isArray(items) && items.includes(key);
+}
+
+/** Calls `onPicked` once `uid` records this pick, from any tab or device. */
+export function watchBoardItemPick(
+  uid: string,
+  shareId: string,
+  key: string,
+  onPicked: () => void
+): () => void {
+  return onSnapshot(
+    picksRef(uid, shareId),
+    (snap) => {
+      const items: unknown = snap.exists() ? snap.data().items : undefined;
+      if (Array.isArray(items) && items.includes(key)) onPicked();
+    },
+    (err) => logError('watchBoardItemPick', err, { shareId })
+  );
 }

@@ -158,7 +158,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 
 interface ContextSnapshot {
   activeDashboard: Dashboard | null;
-  updateWidget: (id: string, updates: Partial<WidgetData>) => void;
+  updateWidget: DashboardContextValue['updateWidget'];
   addWidget: DashboardContextValue['addWidget'];
 }
 
@@ -275,6 +275,21 @@ describe('DashboardProvider board item picks', () => {
       })
     );
     expect(recordPicks).not.toHaveBeenCalled();
+  });
+
+  it('records an explicit pick of the item a co-editor already put on the widget', async () => {
+    const stateRef = await mount(board('q1'));
+    await push([board('planted')]);
+    act(() =>
+      stateRef.current?.updateWidget(
+        'q',
+        { config: { ...configOf(stateRef), view: 'monitor' } },
+        { pickItem: true }
+      )
+    );
+    expect(recordPicks).toHaveBeenCalledWith('test-user', 'sh', [
+      'quiz_planted',
+    ]);
   });
 
   it('records nothing on a private board or one whose share ended', async () => {

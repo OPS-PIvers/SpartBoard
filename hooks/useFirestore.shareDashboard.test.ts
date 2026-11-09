@@ -138,15 +138,37 @@ describe('useFirestore – shareDashboard records the board’s items as the hos
     expect(recordPicks).toHaveBeenLastCalledWith('host', 'L1_b1', ['quiz_q1']);
   });
 
-  it('not for a Copy link, a share another tab already wrote, or a board already linked to a live share', async () => {
+  it('not for a Copy link, a share another tab already wrote, or a board joined from another teacher', async () => {
     await share(withItems, 'copy');
     mockTx({ originalAuthor: 'host' });
     await share(withItems, 'synced', 'L1_b1');
     await share({
       ...withItems,
       linkedShareId: 'other',
-      linkedShareEnded: false,
+      linkedShareRole: 'collaborator',
     });
+    await Promise.resolve();
     expect(recordPicks).not.toHaveBeenCalled();
+  });
+
+  it('carries the old share’s picks, not the widgets, when the host shares a live or ended board again', async () => {
+    (firestore.getDoc as unknown as Fn).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ items: ['flashcards_f1'] }),
+    });
+    for (const linkedShareEnded of [false, true]) {
+      recordPicks.mockClear();
+      await share({
+        ...withItems,
+        linkedShareId: 'old',
+        linkedShareRole: 'owner',
+        linkedShareEnded,
+      });
+      await vi.waitFor(() =>
+        expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', [
+          'flashcards_f1',
+        ])
+      );
+    }
   });
 });

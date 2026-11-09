@@ -5,6 +5,7 @@ import { onSnapshot } from 'firebase/firestore';
 import { useAuth } from '@/context/useAuth';
 import { BoardLinkedShareContext } from '@/context/boardLinkedShare';
 import { logError } from '@/utils/logError';
+import { boardItemPickKey, watchBoardItemPick } from '@/utils/boardItemPicks';
 import {
   publishSharedBoardItem,
   sharedBoardItemDocId,
@@ -123,6 +124,9 @@ export function useSharedBoardItemPublisher<T>({
   const needsStamp = enabled && !!uid && stampedOwnerUid !== uid;
   // The key whose copy the owner may publish; the owner is stamped only then, never for an item they didn't pick.
   const [publishableKey, setPublishableKey] = useState<string | null>(null);
+  // A key held back for want of a pick, and how many picks arrived for it since.
+  const [unpickedKey, setUnpickedKey] = useState<string | null>(null);
+  const [pickArrivals, setPickArrivals] = useState(0);
 
   const publish = useEffectEvent(
     (target: string, ownerUid: string, id: string, ver: string) =>
@@ -142,6 +146,7 @@ export function useSharedBoardItemPublisher<T>({
     if (!key || !shareId || !uid || !itemId || !version) return;
     const allow = (r: SharedBoardPublishResult | null) => {
       if (r === 'written' || r === 'current') setPublishableKey(key);
+      setUnpickedKey(r === 'unpicked' ? key : null);
     };
     const inFlight = published.get(key);
     if (inFlight?.version === version) {
@@ -158,7 +163,19 @@ export function useSharedBoardItemPublisher<T>({
     void result.then(allow).finally(() => {
       if (published.get(key)?.result === result) published.delete(key);
     });
-  }, [key, shareId, uid, kind, itemId, version]);
+  }, [key, shareId, uid, kind, itemId, version, pickArrivals]);
+
+  // A pick made later, here, on another device or by the board tools, publishes the copy then.
+  useEffect(() => {
+    if (!key || unpickedKey !== key || !shareId || !uid || !itemId)
+      return undefined;
+    return watchBoardItemPick(
+      uid,
+      shareId,
+      boardItemPickKey(kind, itemId),
+      () => setPickArrivals((n) => n + 1)
+    );
+  }, [key, unpickedKey, shareId, uid, kind, itemId]);
 }
 
 /** Test hook: forget which copies this tab already wrote. */

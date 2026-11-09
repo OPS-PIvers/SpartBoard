@@ -311,6 +311,32 @@ describe('useSharedBoardItemPublisher', () => {
     expect(stampOwner).not.toHaveBeenCalled();
   });
 
+  it('publishes once the owner’s pick arrives from another tab or device', async () => {
+    stored = {};
+    let emit: (s: unknown) => void = noop;
+    fs.onSnapshot.mockImplementation(
+      (ref: { path: string }, next: (s: unknown) => void) => {
+        if (ref.path === PICKS) emit = next;
+        return noop;
+      }
+    );
+    renderHook(
+      () =>
+        useSharedBoardItemPublisher({ ...args('1'), stampedOwnerUid: 'host' }),
+      { wrapper }
+    );
+    await act(flush);
+    expect(fs.setDoc).not.toHaveBeenCalled();
+    stored[PICKS] = { items: ['quiz_q1'] };
+    await act(async () => {
+      emit(snap({ items: ['quiz_q1'] }));
+      await flush();
+    });
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(1);
+    expect(stampOwner).toHaveBeenCalledWith('me');
+  });
+
   it('names the owner in a second widget showing the same item while the first write is in flight', async () => {
     const a = renderHook(
       () =>

@@ -24,7 +24,11 @@ import {
   type SaveBaseline,
 } from '@/utils/dashboardSaveMerge';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
-import { boardItemPickOf, recordBoardItemPicks } from '@/utils/boardItemPicks';
+import {
+  boardItemPickOf,
+  readBoardItemPicks,
+  recordBoardItemPicks,
+} from '@/utils/boardItemPicks';
 import { migrateDashboardWidgets } from '@/utils/migrateProportionalLayout';
 import { migrateBoardWidgets } from '@/utils/migration';
 import {
@@ -747,11 +751,16 @@ export const useFirestore = (userId: string | null) => {
         updatedAt: Date.now(),
         updatedBy: userId,
       };
-      // The board is only this teacher's before it goes live, so its items are their own picks.
-      const seedPicks = (id: string) => {
-        if (!userId || intendedMode === 'copy') return Promise.resolve();
-        if (dashboard.linkedShareId && !dashboard.linkedShareEnded)
-          return Promise.resolve();
+      // A never-shared board is only this teacher's, so its items are their picks; a re-shared one carries its old share's picks.
+      const seedPicks = async (id: string) => {
+        if (!userId || intendedMode === 'copy') return;
+        const oldShareId = dashboard.linkedShareId;
+        if (oldShareId) {
+          if (dashboard.linkedShareRole !== 'owner') return;
+          const old = await readBoardItemPicks(userId, oldShareId);
+          await recordBoardItemPicks(userId, id, old);
+          return;
+        }
         const picks = (dashboard.widgets ?? [])
           .map((w) =>
             boardItemPickOf(
@@ -760,7 +769,7 @@ export const useFirestore = (userId: string | null) => {
             )
           )
           .filter((k): k is string => !!k);
-        return recordBoardItemPicks(userId, id, [...new Set(picks)]);
+        await recordBoardItemPicks(userId, id, [...new Set(picks)]);
       };
       if (shareId) {
         const ref = doc(shareRef, shareId);
