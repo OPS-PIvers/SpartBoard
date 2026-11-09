@@ -36,7 +36,8 @@ export function prChecksRan(jobs) {
  * @typedef {{ head_branch: string | null, pull_requests: { number: number, base: { ref: string } }[] }} PrRun
  * @typedef {{ full: boolean, backend: boolean, changedFiles: string[] | null, headTree: string, mergedPrs: MergedPr[],
  *   treeOf: (sha: string) => Promise<string>, baseIsInHead: (head: string) => Promise<boolean>,
- *   successfulRuns: (pr: MergedPr) => Promise<number[]>, jobsOf: (run: number) => Promise<Job[]> }} ModeInput
+ *   successfulRuns: (pr: MergedPr) => Promise<number[]>, jobsOf: (run: number) => Promise<Job[]>,
+ *   queueRuns?: () => Promise<number[]> }} ModeInput
  */
 
 // GitHub lists only the branch's open PRs on a run, so a merged PR's run shows a newer PR or none.
@@ -46,12 +47,15 @@ export function runIsFromPr(run, pr) {
   return run.head_branch === pr.headRef && run.pull_requests.every((p) => p.base.ref === pr.baseRef);
 }
 
-// docs: only docs changed since the last good run. reuse: the merged PR's head held this exact tree and the branch's
-// prior commit, so PR Validation's merge ref was this tree, and that PR's own run passed every check on it.
+// docs: only docs changed since the last good run. reuse: the merge queue checked this exact commit, or the merged
+// PR's head held this exact tree and the branch's prior commit, so its PR Validation run passed every check on it.
 /** @param {ModeInput} input @returns {Promise<'full' | 'reuse' | 'docs'>} */
-export async function decideMode({ full, backend, changedFiles, headTree, mergedPrs, treeOf, baseIsInHead, successfulRuns, jobsOf }) {
+export async function decideMode({ full, backend, changedFiles, headTree, mergedPrs, treeOf, baseIsInHead, successfulRuns, jobsOf, queueRuns }) {
   if (full) return 'full';
   if (changedFiles && changedFiles.length > 0 && changedFiles.every(isDoc) && !backend) return 'docs';
+  for (const run of queueRuns ? await queueRuns() : []) {
+    if (prChecksRan(await jobsOf(run))) return 'reuse';
+  }
   for (const pr of mergedPrs) {
     if ((await treeOf(pr.head)) !== headTree) continue;
     if (!(await baseIsInHead(pr.head))) continue;
@@ -106,6 +110,11 @@ async function main() {
         .filter((/** @type {PrRun} */ run) => runIsFromPr(run, pr))
         .map((run) => run.id),
     jobsOf: async (run) => (await api(`actions/runs/${run}/jobs?per_page=100`)).jobs,
+    // The queue fast-forwards dev-paul to the group commit it checked, so that run is on this exact sha.
+    queueRuns: async () =>
+      (await api(`actions/workflows/pr-validation.yml/runs?head_sha=${sha}&event=merge_group&status=success&per_page=10`)).workflow_runs
+        .filter((run) => run.head_sha === sha)
+        .map((run) => run.id),
   });
   process.stdout.write(`${mode}\n`);
 }

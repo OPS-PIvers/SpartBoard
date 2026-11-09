@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - dev-*
+  # The dev-paul merge queue checks each queued group on top of the latest dev-paul.
+  merge_group:
+    branches:
+      - dev-paul
     # No paths-ignore: `summary` is a required check, so it must report on every PR. Docs-only PRs
     # (the nightly journal PRs) pass in seconds via the `changes` job instead.
 
@@ -46,22 +50,37 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              per_page: 100,
-            });
-            const docsOnly = files.length > 0 && files.every((f) => f.filename.endsWith('.md') || f.filename.startsWith('docs/'));
-            const release = pr.base.ref === 'main' && pr.head.ref === 'dev-paul';
+            const group = context.payload.merge_group;
+            const files = pr
+              ? await github.paginate(github.rest.pulls.listFiles, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  per_page: 100,
+                })
+              : (
+                  await github.rest.repos.compareCommits({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    base: group.base_sha,
+                    head: group.head_sha,
+                    per_page: 300,
+                  })
+                ).data.files ?? [];
+            // The compare API lists at most 300 files, so a bigger group never counts as docs-only.
+            const complete = pr || files.length < 300;
+            const docsOnly = complete && files.length > 0 && files.every((f) => f.filename.endsWith('.md') || f.filename.startsWith('docs/'));
+            const release = Boolean(pr) && pr.base.ref === 'main' && pr.head.ref === 'dev-paul';
             core.info(`${files.length} files; docs only: ${docsOnly}; release PR: ${release}`);
             core.setOutput('docs_only', String(docsOnly));
             core.setOutput('release', String(release));
             require('fs').writeFileSync('changed-files.txt', files.map((f) => f.filename).join('\n'));
+            core.setOutput('complete', String(complete));
       # Rules tests run only when the rules, their tests or app code those tests import changed.
       - id: rules
         run: |
           rules=$(node .github/scripts/needs-job.mjs rules < changed-files.txt) || rules=true
+          [[ "${{ steps.classify.outputs.complete }}" == true ]] || rules=true
           [[ "$rules" == false ]] || rules=true
           echo "Rules tests needed: $rules"
           echo "rules=$rules" >> "$GITHUB_OUTPUT"
@@ -80,6 +99,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // A queued group's commit is new, so no dev-branch run exists for it.
+            if (context.payload.merge_group) {
+              core.setOutput('reuse', 'false');
+              return;
+            }
             const headSha = context.payload.pull_request.head.sha;
             const list = async () =>
               (
@@ -286,7 +310,8 @@ jobs:
   # Fails only on gate failures missing from docs/widget-rubric/gate-baseline.json.
   grader-scope:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.release != 'true'
+    # The queue skips it: each PR's own run already graded the widgets it touches.
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.release != 'true' && github.event_name != 'merge_group'
     runs-on: ubuntu-24.04
     name: Widget Grader Scope
     outputs:
@@ -324,7 +349,7 @@ jobs:
           node-version: '24'
 
       - name: Check tour anchors
-        run: node scripts/checkTourAnchors.ts --base "origin/${{ github.base_ref }}"
+        run: node scripts/checkTourAnchors.ts --base "${{ github.event.merge_group.base_sha || format('origin/{0}', github.base_ref) }}"
 
   widget-grader-gates:
     needs: grader-scope
@@ -489,7 +514,7 @@ jobs:
     if: always()
     steps:
       - name: Add PR Comment
-        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        if: ${{ github.event_name == 'pull_request' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -506,7 +531,7 @@ jobs:
             })
 
       - name: Add PR Comment on Failure
-        if: ${{ contains(needs.*.result, 'failure') }}
+        if: ${{ github.event_name == 'pull_request' && contains(needs.*.result, 'failure') }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:

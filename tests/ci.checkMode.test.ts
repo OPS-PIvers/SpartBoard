@@ -47,6 +47,25 @@ describe('check-mode.mjs', () => {
     expect(await decideMode(input())).toBe('reuse');
   });
 
+  it('reuses the merge queue run on this exact commit, even with no matching PR', async () => {
+    const queued = input({
+      mergedPrs: [],
+      queueRuns: () => Promise.resolve([9]),
+    });
+    expect(await decideMode(queued)).toBe('reuse');
+    // A queue run that skipped a required check never counts.
+    const partial = passedJobs.filter((job) => job.name !== 'Build');
+    expect(
+      await decideMode(
+        input({
+          mergedPrs: [],
+          queueRuns: () => Promise.resolve([9]),
+          jobsOf: () => Promise.resolve(partial),
+        })
+      )
+    ).toBe('full');
+  });
+
   it('runs everything when the trees differ, or no merged PR or passing run exists', async () => {
     expect(
       await decideMode(input({ treeOf: () => Promise.resolve('other') }))
@@ -248,5 +267,21 @@ describe('runIsFromPr', () => {
         pr
       )
     ).toBe(false);
+  });
+});
+
+describe('pr-validation.yml merge queue', () => {
+  const workflow = read('pr-validation.yml');
+
+  it('runs PR Validation, and so the required summary check, for dev-paul queue groups', () => {
+    expect(workflow).toMatch(/merge_group:\n\s+branches:\n\s+- dev-paul/);
+    expect(workflow).toContain('compareCommits');
+    expect(workflow).toContain('if (context.payload.merge_group) {');
+  });
+
+  it('never comments on a queue group, which has no PR to comment on', () => {
+    expect(
+      workflow.match(/github\.event_name == 'pull_request' && /g)
+    ).toHaveLength(2);
   });
 });
