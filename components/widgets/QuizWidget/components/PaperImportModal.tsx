@@ -1208,7 +1208,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                 <p className="text-xs text-slate-500">
                   {driveConnected
                     ? 'Saved to your Google Drive.'
-                    : 'Kept for 60 days. Connect Google Drive to keep them.'}
+                    : 'Kept for 60 days. Connect Google Drive to keep them longer.'}
                 </p>
               </div>
               <Toggle
