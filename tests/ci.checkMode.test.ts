@@ -279,6 +279,12 @@ describe('pr-validation.yml merge queue', () => {
     expect(workflow).toContain('if (context.payload.merge_group) {');
   });
 
+  it('keeps the rules decision a real boolean, so PRs still skip unneeded rules tests', () => {
+    expect(workflow).toContain(
+      'const complete = Boolean(pr) || files.length < 300;'
+    );
+  });
+
   it('never comments on a queue group, which has no PR to comment on', () => {
     expect(
       workflow.match(/github\.event_name == 'pull_request' && /g)
