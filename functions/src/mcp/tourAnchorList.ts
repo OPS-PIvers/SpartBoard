@@ -33757,6 +33757,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": []
       },
       {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      },
+      {
         "surface": "guidedLearning.ai-generator",
         "kind": "modal",
         "widget_type": "guided-learning",
@@ -51581,11 +51593,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.tab-settings"
         ],
+        "reveal": "web-tour-editor.tab-settings",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51595,12 +51609,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.write-with-claude",
-    "label": "Write with Claude button in the web tour editor",
+    "label": "Main button in the web tour editor header while it says Write text (Write with Claude)",
     "scope": "board",
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51614,16 +51628,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.rewrite-all",
-    "label": "Rewrite all button in the web tour editor",
+    "label": "Rewrite all option in the web tour editor More actions menu",
     "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
         ],
+        "reveal": "web-tour-editor.menu",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51638,7 +51655,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51657,7 +51674,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51756,11 +51773,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.tab-settings"
         ],
+        "reveal": "web-tour-editor.tab-settings",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51775,7 +51794,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51789,16 +51808,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.copy-link",
-    "label": "Copy link button in the web tour editor header",
+    "label": "Copy link option in the web tour editor More actions menu",
     "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
         ],
+        "reveal": "web-tour-editor.menu",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51808,12 +51830,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.check",
-    "label": "Check tour button in the web tour editor header",
+    "label": "Main button in the web tour editor header while it says Check tour",
     "scope": "board",
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51832,7 +51854,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51846,13 +51868,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.publish",
-    "label": "Publish tour button in the web tour editor",
+    "label": "Main button in the web tour editor header while it says Publish or Published",
     "scope": "board",
     "persists": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51866,18 +51888,203 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.delete",
-    "label": "Delete web tour button in the web tour editor",
+    "label": "Delete web tour option in the web tour editor More actions menu",
     "scope": "board",
+    "panel": true,
     "destructive": true,
     "persists": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
+        ],
+        "reveal": "web-tour-editor.menu",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.menu",
+    "label": "More actions menu button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
         ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.duplicate",
+    "label": "Duplicate option in the web tour editor More actions menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
+        ],
+        "reveal": "web-tour-editor.menu",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.add-step",
+    "label": "Add step button under the web tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.step-more",
+    "label": "More toggle on the selected web step's card",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.tab-steps",
+    "label": "Steps tab in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.tab-settings",
+    "label": "Settings tab in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture",
+    "label": "Step picture on the web tour editor stage (selects it to show its tools)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-blur",
+    "label": "Blur tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-remove",
+    "label": "Remove picture tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
         "needs": [
           "widget-on-stage",
           "admin"

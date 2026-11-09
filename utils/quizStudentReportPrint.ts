@@ -5,6 +5,9 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import type {
+  PaperMarkupItem,
+  PaperPageMap,
+  PaperRectMm,
   QuizResponseAnswer,
   QuizResponseStatus,
   QuizStimulus,
@@ -23,6 +26,11 @@ import {
   type SheetWrittenFill,
 } from './paperSheetPrint';
 import { sheetFillFor, type SheetReprint } from './paperSheetReprint';
+import {
+  cropViewportMm,
+  markupCommentListHtml,
+  renderPaperMarkup,
+} from './paperMarkupRender';
 import { stimulusMediaUrl } from './quizStimuli';
 import { annotatedSnapshotToHtml } from './writtenAnnotations';
 import {
@@ -208,6 +216,8 @@ export interface ResultsPrintJob {
   students: readonly ResultsPrintStudent[];
   /** How handwritten paper answers print; the handwriting when absent. */
   writtenMode?: WrittenReturnMode;
+  /** The teacher has `paper-image-markup`: image markup prints with the written feedback. */
+  imageMarkup?: boolean;
 }
 
 const NO_PERIOD_LABEL = 'No class period';
@@ -364,9 +374,58 @@ const PLACEHOLDER_LABEL = {
   blank: 'Blank',
 } as const;
 
-function handwritingHtml(line: StudentQuestionLine, cropSrc?: string | null) {
+/** Image markup to print for one written answer; `boxMm` is absent when the sheet's page map is gone. */
+interface MarkupPrint {
+  items: readonly PaperMarkupItem[];
+  boxMm?: PaperRectMm;
+}
+
+/** The written box of a question on the seat's own page maps. */
+function writtenBoxMm(
+  maps: readonly PaperPageMap[] | undefined,
+  questionId: string
+): PaperRectMm | undefined {
+  for (const map of maps ?? []) {
+    for (const item of map.items) {
+      if (item.kind === 'written' && item.questionId === questionId) {
+        return item.boxMm;
+      }
+    }
+  }
+  return undefined;
+}
+
+/** What image markup prints for a line: only with the flag, the feedback on, and markup on the grade. */
+function markupPrintFor(
+  line: StudentQuestionLine,
+  student: ResultsPrintStudent,
+  options: QuizResultsPrintOptions,
+  enabled: boolean
+): MarkupPrint | undefined {
+  if (!enabled || !options.showWrittenFeedback) return undefined;
+  const items = line.writtenGrade?.imageMarkup?.items;
+  if (!Array.isArray(items) || items.length === 0) return undefined;
+  const boxMm = writtenBoxMm(student.sheet?.pageMaps, line.questionId);
+  return { items, ...(boxMm ? { boxMm } : {}) };
+}
+
+function handwritingHtml(
+  line: StudentQuestionLine,
+  cropSrc?: string | null,
+  markup?: MarkupPrint
+) {
   if (cropSrc) {
-    return `<img class="hw" src="${escapeHtml(cropSrc)}" alt="${escapeHtml(`Handwritten answer, question ${line.number}`)}">`;
+    const alt = escapeHtml(`Handwritten answer, question ${line.number}`);
+    if (markup?.boxMm) {
+      // The wrapper hugs the image, so the overlay scales with it at any width.
+      const { svg } = renderPaperMarkup(
+        markup.items,
+        cropViewportMm(markup.boxMm),
+        { overlay: true }
+      );
+      return `<div class="hw-mk" style="position:relative;display:block;width:fit-content;max-width:100%;margin:1mm 0;border:1px solid #bbb"><img class="hw" style="margin:0;border:0" src="${escapeHtml(cropSrc)}" alt="${alt}">${svg}</div>`;
+    }
+    return `<img class="hw" src="${escapeHtml(cropSrc)}" alt="${alt}">`;
   }
   return `<div class="hw-missing">${cropSrc === undefined ? 'Loading handwriting' : 'Handwriting unavailable'}</div>`;
 }
@@ -392,7 +451,8 @@ function writtenBody(
   line: StudentQuestionLine,
   annotations: NonNullable<StudentQuestionLine['writtenGrade']>['annotations'],
   paper: PaperWrittenPrint | undefined,
-  mode: WrittenReturnMode
+  mode: WrittenReturnMode,
+  markup?: MarkupPrint
 ): { body: string; notes: string } {
   const typed = (): { body: string; notes: string } => {
     if (!line.answerHtml) {
@@ -419,13 +479,19 @@ function writtenBody(
   if (!paper || !isPaperWrittenAnswer(paper.answer)) return typed();
 
   const view = paperWrittenView(paper.answer, null, mode);
-  const crop =
-    view.showCrop || view.cropUnavailable
-      ? handwritingHtml(line, view.showCrop ? paper.cropSrc : null)
-      : '';
+  const showsImage = view.showCrop || view.cropUnavailable;
+  const crop = showsImage
+    ? handwritingHtml(line, view.showCrop ? paper.cropSrc : null, markup)
+    : '';
+  // Comments always print, so feedback is never dropped; pins need the image and its box.
+  const comments = markup ? markupCommentListHtml(markup.items) : '';
+  const list =
+    comments && !showsImage
+      ? `<p class="sub" style="margin-top:1mm">Comments on the handwriting</p>${comments}`
+      : comments;
   if (view.placeholder) {
     return {
-      body: `${crop}<div class="answer"><em>${PLACEHOLDER_LABEL[view.placeholder]}</em></div>`,
+      body: `${crop}${list}<div class="answer"><em>${PLACEHOLDER_LABEL[view.placeholder]}</em></div>`,
       notes: '',
     };
   }
@@ -434,17 +500,24 @@ function writtenBody(
     const rendered = line.answerHtml
       ? annotatedSnapshotToHtml(line.answerHtml, annotations ?? [])
       : null;
-    return { body: crop, notes: rendered ? notesHtml(rendered.notes) : '' };
+    return {
+      body: `${crop}${list}`,
+      notes: rendered ? notesHtml(rendered.notes) : '',
+    };
   }
   const text = typed();
-  return { body: `${crop}${text.body}`, notes: text.notes };
+  return {
+    body: showsImage ? `${crop}${list}${text.body}` : `${text.body}${list}`,
+    notes: text.notes,
+  };
 }
 
 function writtenAnswer(
   line: StudentQuestionLine,
   options: QuizResultsPrintOptions,
   paper?: PaperWrittenPrint,
-  mode: WrittenReturnMode = DEFAULT_WRITTEN_RETURN_MODE
+  mode: WrittenReturnMode = DEFAULT_WRITTEN_RETURN_MODE,
+  markup?: MarkupPrint
 ): string {
   const grade = line.writtenGrade;
   const feedback = options.showWrittenFeedback;
@@ -452,7 +525,7 @@ function writtenAnswer(
     feedback && grade?.annotationUnit !== 'ms'
       ? (grade?.annotations ?? [])
       : [];
-  const { body, notes } = writtenBody(line, annotations, paper, mode);
+  const { body, notes } = writtenBody(line, annotations, paper, mode, markup);
   if (!feedback) return body;
   if (!grade) {
     return line.mark === 'noAnswer'
@@ -491,7 +564,8 @@ function answerBlock(
   line: StudentQuestionLine,
   student: ResultsPrintStudent,
   options: QuizResultsPrintOptions,
-  writtenMode?: WrittenReturnMode
+  writtenMode?: WrittenReturnMode,
+  imageMarkup = false
 ): string {
   const showKey = keyApplies(line, options.keyMode);
   const keyLine = (label: string, text: string) =>
@@ -501,7 +575,8 @@ function answerBlock(
       line,
       options,
       student.paperWritten?.[line.questionId],
-      writtenMode
+      writtenMode,
+      markupPrintFor(line, student, options, imageMarkup)
     );
   }
   if (!options.includeQuestions) {
@@ -587,7 +662,7 @@ function studentReport(
       const text = options.includeQuestions
         ? `<div class="text">${escapeHtml(plainPromptText(line.text))}</div>`
         : '';
-      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode)}</div>${markCell(line, options)}</li>`;
+      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup)}</div>${markCell(line, options)}</li>`;
     })
     .join('');
   const questions =
@@ -629,7 +704,14 @@ function separatorPage(
 export function writtenSheetFill(
   student: Pick<ResultsPrintStudent, 'drilldown' | 'paperWritten'>,
   reprint: Pick<SheetReprint, 'writtenTexts'>,
-  options: Pick<QuizResultsPrintOptions, 'markAnswers' | 'showWrittenFeedback'>
+  options: Pick<
+    QuizResultsPrintOptions,
+    'markAnswers' | 'showWrittenFeedback'
+  > &
+    Partial<Pick<QuizResultsPrintOptions, 'layout'>> & {
+      /** The job carries `imageMarkup`; markup then draws in the box and its comments join the strip. */
+      imageMarkup?: boolean;
+    }
 ): Record<string, SheetWrittenFill> | undefined {
   if (!reprint.writtenTexts) return undefined;
   const lines = new Map(
@@ -650,6 +732,16 @@ export function writtenSheetFill(
     }
     const comment = line?.writtenGrade?.overallComment?.trim();
     if (options.showWrittenFeedback && comment) fill.comment = comment;
+    const markup = line?.writtenGrade?.imageMarkup?.items;
+    if (
+      options.imageMarkup &&
+      options.showWrittenFeedback &&
+      Array.isArray(markup) &&
+      markup.length > 0
+    ) {
+      fill.markup = markup;
+      if (options.layout === 'both') fill.markupInReport = true;
+    }
     out[questionId] = fill;
   }
   return Object.keys(out).length > 0 ? out : undefined;
@@ -661,7 +753,10 @@ function sheetReprintHtml(
   reprint: SheetReprint,
   options: QuizResultsPrintOptions
 ): string {
-  const written = writtenSheetFill(student, reprint, options);
+  const written = writtenSheetFill(student, reprint, {
+    ...options,
+    imageMarkup: !!job.imageMarkup,
+  });
   return buildFilledSheetHtml(
     {
       seat: reprint.seat,
