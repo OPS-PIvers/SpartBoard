@@ -5,7 +5,9 @@ import {
   saveWebTourDraft,
   setWebTourCheckRun,
   setWebTourFixes,
+  sweepWebTourPictures,
 } from '@/components/tours/webTours';
+import { webTourEditorDevSeed } from './webEditorDevSeed';
 import {
   newTourHistory,
   pushTourEdit,
@@ -36,6 +38,21 @@ const keepOnUndo = (
   return out;
 };
 
+const picturePaths = (set: GuidedLearningSet): string[] =>
+  set.steps.flatMap((s) => (s.web?.picture ? [s.web.picture.path] : []));
+
+/** Clears out the tour's unused pictures; never in the dev harness, which has no Storage. */
+const sweep = (
+  setId: string,
+  opts: Parameters<typeof sweepWebTourPictures>[1]
+): Promise<void> =>
+  webTourEditorDevSeed()
+    ? Promise.resolve()
+    : sweepWebTourPictures(setId, opts).then(
+        () => undefined,
+        (err: unknown) => logError('web tour picture sweep', err, { setId })
+      );
+
 /** A web tour draft being edited: undoable edits, debounced autosave, and the side saves that never count as edits. */
 export function useWebTourDraft(initial: GuidedLearningSet) {
   const [set, setSet] = useState<GuidedLearningSet>(initial);
@@ -45,6 +62,15 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
   const dirty = useRef(false);
   const deleted = useRef(false);
   const history = useRef<TourHistory<GuidedLearningSet>>(newTourHistory());
+  // Every picture an earlier version in this session used; once the editor closes, undo can't bring them back.
+  const replaced = useRef(new Set<string>());
+
+  const pushHistory = (prev: GuidedLearningSet, coalesce?: string) => {
+    picturePaths(prev).forEach((p) => replaced.current.add(p));
+    const h = pushTourEdit(history.current, prev, coalesce, Date.now());
+    history.current = h;
+    setDepth({ past: h.past.length, future: 0 });
+  };
 
   useLayoutEffect(() => {
     latest.current = set;
@@ -62,9 +88,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     const prev = latest.current;
     const next = update(prev);
     if (next === prev) return;
-    const h = pushTourEdit(history.current, prev, coalesce, Date.now());
-    history.current = h;
-    setDepth({ past: h.past.length, future: 0 });
+    pushHistory(prev, coalesce);
     markDirty(next);
   };
 
@@ -98,13 +122,28 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     return () => clearTimeout(timer);
   }, [set]);
 
-  // Closing the editor mid-delay still saves the last change.
+  // Opening sweeps pictures an earlier session left behind (a tab closed without Close).
+  useEffect(() => {
+    void sweep(initial.id, { keep: picturePaths(initial) });
+  }, [initial]);
+
+  // Closing saves the last change, then deletes pictures only the closed undo history used.
   useEffect(
     () => () => {
-      if (!dirty.current || deleted.current) return;
+      if (deleted.current) return;
+      const last = latest.current;
+      const saving = dirty.current ? saveWebTourDraft(last) : Promise.resolve();
       dirty.current = false;
-      void saveWebTourDraft(latest.current).catch((err: unknown) =>
-        logError('web tour draft save', err, { setId: latest.current.id })
+      saving.then(
+        () =>
+          deleted.current
+            ? undefined
+            : sweep(last.id, {
+                keep: picturePaths(last),
+                replaced: replaced.current,
+              }),
+        (err: unknown) =>
+          logError('web tour draft save', err, { setId: last.id })
       );
     },
     []
@@ -112,16 +151,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
 
   /** Saves `next` now, as an undoable edit unless `edit` is false. */
   const saveNow = async (next: GuidedLearningSet, edit = true) => {
-    if (edit && next !== latest.current) {
-      const h = pushTourEdit(
-        history.current,
-        latest.current,
-        undefined,
-        Date.now()
-      );
-      history.current = h;
-      setDepth({ past: h.past.length, future: 0 });
-    }
+    if (edit && next !== latest.current) pushHistory(latest.current);
     latest.current = next;
     dirty.current = false;
     setSet(next);
@@ -188,9 +218,14 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     /** Every picture a draft in the undo history uses, so publishing never deletes one undo can bring back. */
     historyPicturePaths: (): string[] => {
       const h = history.current;
-      return [...h.past, ...h.future].flatMap((d) =>
-        d.steps.flatMap((s) => (s.web?.picture ? [s.web.picture.path] : []))
-      );
+      return [...h.past, ...h.future].flatMap(picturePaths);
+    },
+    /** After a publish: deletes the tour's pictures nothing uses, keeping what undo can still bring back. */
+    sweepAfterPublish: () => {
+      const h = history.current;
+      return sweep(latest.current.id, {
+        keep: [...h.past, ...h.future, latest.current].flatMap(picturePaths),
+      });
     },
     undo: () => restore('past'),
     redo: () => restore('future'),

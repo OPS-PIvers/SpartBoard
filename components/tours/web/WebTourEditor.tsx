@@ -438,6 +438,7 @@ const WebTourEditorBody: React.FC<{
         draft.historyPicturePaths()
       );
       setStatus('Published.');
+      void draft.sweepAfterPublish();
     } catch (err) {
       logError('web tour publish', err, { setId: toPublish.id });
       setStatus("The tour couldn't be published.");

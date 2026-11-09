@@ -5,6 +5,8 @@ const h = vi.hoisted(() => ({
   writes: [] as { path: string; data: Record<string, unknown> }[],
   deleted: [] as string[],
   afterWrite: null as null | (() => void),
+  files: [] as string[],
+  created: new Map<string, number>(),
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, storage: {} }));
@@ -35,13 +37,25 @@ vi.mock('firebase/storage', () => ({
   uploadBytes: vi.fn(() => Promise.resolve()),
   deleteObject: ({ path }: { path: string }) =>
     Promise.resolve(void h.deleted.push(path)),
+  listAll: ({ path }: { path: string }) =>
+    Promise.resolve({
+      items: h.files
+        .filter((f) => f.startsWith(`${path}/`))
+        .map((fullPath) => ({ fullPath })),
+    }),
+  getMetadata: ({ path }: { path: string }) =>
+    Promise.resolve({
+      timeCreated: new Date(h.created.get(path) ?? 0).toISOString(),
+    }),
 }));
 
 import { getBytes, uploadBytes } from 'firebase/storage';
 import {
   duplicateWebTourDraft,
   isWebTourPicturePath,
+  ORPHAN_GRACE_MS,
   publishWebTour,
+  sweepWebTourPictures,
   uploadWebTourPicture,
   webTourPicturePaths,
 } from './webTours';
@@ -62,6 +76,8 @@ beforeEach(() => {
   h.writes.length = 0;
   h.deleted.length = 0;
   h.afterWrite = null;
+  h.files = [];
+  h.created.clear();
 });
 
 describe('web tour picture paths', () => {
@@ -206,5 +222,57 @@ describe('duplicateWebTourDraft', () => {
     expect(h.deleted).toHaveLength(1);
     expect(h.deleted[0].startsWith('web_tour_pictures/')).toBe(true);
     expect(h.deleted[0]).not.toContain('/w1/');
+  });
+});
+
+describe('sweepWebTourPictures', () => {
+  const NOW = 1_000_000_000_000;
+  const P = (name: string) => `web_tour_pictures/w1/${name}`;
+  beforeEach(() => {
+    h.files = [
+      'draft.png',
+      'live.png',
+      'orphan.png',
+      'fresh.png',
+      'blurred-over.png',
+    ].map(P);
+    h.created.set(P('orphan.png'), NOW - ORPHAN_GRACE_MS - 1);
+    h.created.set(P('fresh.png'), NOW - 1000);
+    h.created.set(P('blurred-over.png'), NOW - 1000);
+    h.docs.set('building_web_tours/w1', draft([pic('draft.png')]));
+    h.docs.set('building_guided_learning_tours/w1', {
+      surface: 'web',
+      set: { steps: [pic('live.png')] },
+    });
+  });
+
+  it('deletes an old picture nothing uses, and keeps the draft, published and young ones', async () => {
+    const gone = await sweepWebTourPictures('w1', {}, NOW);
+    expect(gone).toEqual([P('orphan.png')]);
+    expect(h.deleted).toEqual([P('orphan.png')]);
+  });
+
+  it("deletes the editor's own replaced picture at once, unless something still uses it", async () => {
+    await sweepWebTourPictures(
+      'w1',
+      { replaced: [P('blurred-over.png'), P('draft.png')] },
+      NOW
+    );
+    expect(h.deleted.sort()).toEqual([P('blurred-over.png'), P('orphan.png')]);
+  });
+
+  it('keeps what the caller can still bring back', async () => {
+    await sweepWebTourPictures(
+      'w1',
+      { keep: [P('orphan.png')], replaced: [P('blurred-over.png')] },
+      NOW
+    );
+    expect(h.deleted).toEqual([P('blurred-over.png')]);
+  });
+
+  it('leaves a deleted tour to the server', async () => {
+    h.docs.delete('building_web_tours/w1');
+    expect(await sweepWebTourPictures('w1', {}, NOW)).toEqual([]);
+    expect(h.deleted).toEqual([]);
   });
 });

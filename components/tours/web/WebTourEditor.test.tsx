@@ -34,6 +34,12 @@ const storage = vi.hoisted(() => ({
     Promise.resolve('web_tour_pictures/t1/abc.jpg')
   ),
   loadWebTourPicture: vi.fn(() => Promise.resolve(new ArrayBuffer(4))),
+  sweepWebTourPictures: vi.fn(
+    (
+      _id: string,
+      _opts?: { keep?: Iterable<string>; replaced?: Iterable<string> }
+    ) => Promise.resolve([] as string[])
+  ),
   duplicateWebTourDraft: vi.fn((set: GuidedLearningSet) =>
     Promise.resolve({ ...set, id: 't2', title: `${set.title} (Copy)` })
   ),
@@ -636,7 +642,11 @@ describe('WebTourEditor', () => {
       'Open the course'
     );
     expect(within(stage).getByText('Opens the course page.')).toBeTruthy();
+    // The bar sits above the picture, never over it; the ring and tip stay on it.
+    const frame = within(stage).getByTestId('web-stage-frame');
     expect(within(stage).getByTestId('tour-bar')).toBeTruthy();
+    expect(within(frame).queryByTestId('tour-bar')).toBeNull();
+    expect(within(frame).getByTestId('tour-callout')).toBeTruthy();
   });
 
   it('draws no ring and says why when an older step cannot be placed', async () => {
@@ -656,7 +666,14 @@ describe('WebTourEditor', () => {
       await within(stage).findByTestId('web-stage-no-ring')
     ).toHaveTextContent('Retake or fix this step on the site');
     expect(within(stage).queryByTestId('tour-spotlight-ring')).toBeNull();
-    expect(within(stage).getByTestId('tour-callout')).toBeTruthy();
+    // With no ring the tip docks under the picture, so the whole picture shows.
+    const dock = within(stage).getByTestId('web-stage-dock');
+    expect(within(dock).getByTestId('tour-callout')).toBeTruthy();
+    expect(
+      within(within(stage).getByTestId('web-stage-frame')).queryByTestId(
+        'tour-callout'
+      )
+    ).toBeNull();
   });
 
   it('shows Play only once the tour is published', () => {
@@ -664,8 +681,9 @@ describe('WebTourEditor', () => {
     expect(screen.queryByTestId('tour-shell-play')).toBeNull();
   });
 
-  it('keeps a blurred-over picture through publish, so undo can bring it back', async () => {
-    renderEditor(withPicture(checked(tour('Biology 7'))));
+  // Blurs the only step's picture (a.jpg becomes abc.jpg), then publishes.
+  const blurAndPublish = async () => {
+    const view = renderEditor(withPicture(checked(tour('Biology 7'))));
     fireEvent.click(
       await screen.findByRole('button', { name: 'Select picture' })
     );
@@ -703,8 +721,25 @@ describe('WebTourEditor', () => {
       ).getByRole('button', { name: 'Publish' })
     );
     await waitFor(() => expect(storage.publishWebTour).toHaveBeenCalled());
+    return view;
+  };
+
+  const sweepCall = (i: number) =>
+    storage.sweepWebTourPictures.mock.calls[i] as [
+      string,
+      { keep?: Iterable<string>; replaced?: Iterable<string> },
+    ];
+
+  it('keeps a blurred-over picture through publish, so undo can bring it back', async () => {
+    await blurAndPublish();
     const keep = [...(storage.publishWebTour.mock.calls[0][3] ?? [])];
     expect(keep).toContain('web_tour_pictures/t1/a.jpg');
+    await waitFor(() =>
+      expect(storage.sweepWebTourPictures).toHaveBeenCalledTimes(2)
+    );
+    expect([...(sweepCall(1)[1].keep ?? [])]).toContain(
+      'web_tour_pictures/t1/a.jpg'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() =>
       expect(
@@ -712,6 +747,26 @@ describe('WebTourEditor', () => {
           ?.path
       ).toBe('web_tour_pictures/t1/a.jpg')
     );
+  });
+
+  it('deletes the blurred-over original once the editor closes', async () => {
+    const { unmount } = await blurAndPublish();
+    unmount();
+    await waitFor(() =>
+      expect(storage.sweepWebTourPictures).toHaveBeenCalledTimes(3)
+    );
+    const [id, opts] = sweepCall(2);
+    expect(id).toBe('t1');
+    expect([...(opts.replaced ?? [])]).toContain('web_tour_pictures/t1/a.jpg');
+    expect([...(opts.keep ?? [])]).not.toContain('web_tour_pictures/t1/a.jpg');
+    expect([...(opts.keep ?? [])]).toContain('web_tour_pictures/t1/abc.jpg');
+  });
+
+  it('sweeps pictures an earlier session left behind when it opens', () => {
+    renderEditor(withPicture(checked(tour('Biology 7'))));
+    expect(storage.sweepWebTourPictures).toHaveBeenCalledWith('t1', {
+      keep: ['web_tour_pictures/t1/a.jpg'],
+    });
   });
 
   it('shows picture tools only once the stage picture is selected', async () => {
