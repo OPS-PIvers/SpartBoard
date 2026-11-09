@@ -17,11 +17,16 @@ export const REQUIRED_PR_JOBS = [
   'Build',
 ];
 
+// PR Validation skips rules tests when nothing they read changed (needs-job.mjs).
+const MAY_SKIP = ['Firestore Rules Tests (shard '];
+
 /** @param {Job[]} jobs */
 export function prChecksRan(jobs) {
   return REQUIRED_PR_JOBS.every((prefix) => {
     const matching = jobs.filter((job) => job.name.startsWith(prefix));
-    return matching.length > 0 && matching.every((job) => job.conclusion === 'success');
+    if (matching.length === 0) return false;
+    if (MAY_SKIP.includes(prefix) && matching.every((job) => job.conclusion === 'skipped')) return true;
+    return matching.every((job) => job.conclusion === 'success');
   });
 }
 
