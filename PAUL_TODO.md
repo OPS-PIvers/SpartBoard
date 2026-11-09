@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-149.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-150.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -149,6 +149,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 - [ ] **PT-79 You: counsel, espeak-ng GPL-3** (F14, G19, #2337). `flashcards-speak` stays admin-only until counsel confirms.
 - [ ] **PT-80 You: counsel and family notice for Focus** (G1). Keep "Show each student's current site in Focus" off on prod until then. Before any pilot: 🤖 "Run `node scripts/focus-vapid-keygen.mjs --project prod` and commit the listing." (F59). Then the FS10 student pilot and the web tours pilot.
 - [ ] **PT-84 You: wide distribution (hard to reverse).** Custom domain decision (the `*.web.app` domain can't meet OAuth branding rules), then upload the consent-screen logo (`marketplace-assets/icon-128.png`), then submit sensitive-scope verification (spreadsheets, calendar.readonly). Counsel finalizes `/privacy` and `/terms`; decide Path A vs B; then flip the consent screen Internal to External. 🤖 for the code half: "Broaden SupportPage.tsx for external users per docs/wide-distro-plan.md Phase 4."
+- [ ] **PT-149 You: district privacy review for kept paper pages.** `paper-kept-pages` will store each student's full scanned test page (name header, bubbles, margins) in your Drive, or in Storage for up to 60 days without Drive. This reverses the "scans are never stored" decisions; the flag stays admin-only until the review covers it. Plan: `docs/plans/QUIZ_PAPER_KEPT_PAGES.md` (K5, K13).
 - [ ] **PT-85 You: vanity short domain** for the link shortener ($15-50/yr).
 
 ## 6. Decisions (nothing blocked; pick when convenient)
