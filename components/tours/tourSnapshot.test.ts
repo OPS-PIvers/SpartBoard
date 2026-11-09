@@ -87,6 +87,44 @@ describe('parsePublishedTour', () => {
 });
 
 describe('buildTourContent', () => {
+  it("never publishes a web step's uncropped capture, but keeps its picture and markup", () => {
+    const picture = {
+      path: 'web_tour_pictures/t/a.jpg',
+      w: 10,
+      h: 10,
+      markup: [{ id: 'n', kind: 'number' as const, x: 0.5, y: 0.5, n: 1 }],
+    };
+    const web = set({
+      surface: 'web',
+      steps: [
+        {
+          id: 's1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          web: {
+            urlPattern: 'https://a.example/*',
+            action: 'click',
+            locator: {},
+            picture: {
+              ...picture,
+              original: {
+                path: 'web_tour_pictures/t/full.jpg',
+                w: 20,
+                h: 20,
+                crop: { x: 0, y: 0, w: 0.5, h: 0.5 },
+              },
+            },
+          },
+        },
+      ],
+    });
+    expect(buildTourContent(web).steps[0].web?.picture).toEqual(picture);
+    // The capture alone never makes a published tour look changed.
+    expect(tourPublishStatus(web, stored(web))).toBe('published');
+  });
+
   it("never publishes a web tour's goal, notes or Claude's questions", () => {
     const web = set({
       surface: 'web',

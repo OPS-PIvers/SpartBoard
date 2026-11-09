@@ -1,9 +1,10 @@
 // A published web tour read as steps for the side panel (docs/plans/TOURS_10X.md S4).
-import type { WebTourLocator } from '@/types';
+import type { TourMarkupShape, WebTourLocator } from '@/types';
 import { stagePlacement } from '@/components/tours/web/pictureTarget';
-import type {
-  StepPictures,
-  StepsViewStep,
+import {
+  hasCondition,
+  type StepPictures,
+  type StepsViewStep,
 } from '@/components/tours/steps/stepsModel';
 import type { ApiFailure } from './spartboardApi';
 
@@ -26,6 +27,13 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : 0;
 
+const markupOf = (v: unknown): TourMarkupShape[] =>
+  Array.isArray(v)
+    ? (v.filter(
+        (m) => isObj(m) && ['arrow', 'box', 'number'].includes(str(m.kind))
+      ) as TourMarkupShape[])
+    : [];
+
 const MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 const hostOf = (urlPattern: string): string => {
@@ -42,6 +50,11 @@ export function panelStepsOf(raw: unknown): PanelTourSteps | null {
   const pictures: Record<string, StepPictures[string]> = {};
   const steps: StepsViewStep[] = [];
   const loaded = isObj(raw.pictures) ? raw.pictures : {};
+  const conditions: Record<string, { showWhen?: unknown } | undefined> = isObj(
+    raw.conditions
+  )
+    ? (raw.conditions as Record<string, { showWhen?: unknown }>)
+    : {};
   for (const s of raw.steps.slice(0, MAX_STEPS)) {
     if (!isObj(s) || typeof s.id !== 'string' || !isObj(s.web)) continue;
     const raw = loaded[s.id];
@@ -74,15 +87,22 @@ export function panelStepsOf(raw: unknown): PanelTourSteps | null {
           locator
         )
       : null;
+    const marked = markupOf(pic?.markup);
     steps.push({
       id: s.id,
       title: str(s.label),
       text: str(s.text),
-      onlyIfAppears:
-        Array.isArray((s.web as { showWhen?: unknown }).showWhen) &&
-        (s.web as { showWhen: unknown[] }).showWhen.length > 0,
+      onlyIfAppears: hasCondition(conditions[s.id]?.showWhen),
       observe: s.web.action === 'observe',
-      picture: placed ? { w, h, cssW: placed.cssW, target: placed.rect } : null,
+      picture: placed
+        ? {
+            w,
+            h,
+            cssW: placed.cssW,
+            target: placed.rect,
+            ...(marked.length > 0 ? { markup: marked } : {}),
+          }
+        : null,
     });
     if (placed)
       pictures[s.id] = { status: 'ready', src: `data:${mime};base64,${data}` };

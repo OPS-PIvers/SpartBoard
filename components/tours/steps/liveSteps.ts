@@ -5,9 +5,7 @@ import {
 } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { liveTourStepsOf } from '@/components/tours/tourSession';
 import type { FracRect } from '@/components/tours/web/pictureTarget';
-import type { StepsViewStep } from './stepsModel';
-
-const hasList = (v: unknown): boolean => Array.isArray(v) && v.length > 0;
+import { hasCondition, type StepsViewStep } from './stepsModel';
 
 const targetOf = (thumb: ReturnType<typeof tourThumbnail>): FracRect | null => {
   const t = thumb?.target;
@@ -29,7 +27,7 @@ export function stepsFromLiveTour(set: GuidedLearningSet): {
       id: step.id,
       title: step.label ?? '',
       text: step.text ?? '',
-      onlyIfAppears: hasList(step.tour?.showWhen),
+      onlyIfAppears: hasCondition(step.tour?.showWhen),
       observe: step.tour?.action === 'observe',
       picture: url
         ? {

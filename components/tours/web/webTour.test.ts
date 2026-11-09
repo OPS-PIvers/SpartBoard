@@ -11,6 +11,7 @@ import {
   watchWebTourCheck,
 } from './extensionClient';
 import {
+  EXTENSION_PROTOCOL_VERSION,
   parseWebTourPortMessage,
   parseWebTourStartTour,
   progressForPage,
@@ -423,8 +424,16 @@ describe('hub', () => {
       watchWebTourCheck('s', vi.fn(), vi.fn())();
       expect(posted).toEqual([
         { type: 'web-tour/watch', setId: 's' },
-        { type: 'web-tour/watch', setId: 's', protocol: 11 },
-        { type: 'web-tour/watch', setId: 's', protocol: 11 },
+        {
+          type: 'web-tour/watch',
+          setId: 's',
+          protocol: EXTENSION_PROTOCOL_VERSION,
+        },
+        {
+          type: 'web-tour/watch',
+          setId: 's',
+          protocol: EXTENSION_PROTOCOL_VERSION,
+        },
       ]);
     } finally {
       delete (globalThis as { chrome?: unknown }).chrome;
@@ -627,5 +636,54 @@ describe('web tour health', () => {
     expect(webStepState('b', stats)).toBe('weak');
     expect(webStepState('c', stats)).toBe('missed');
     expect(webStepState('d', stats)).toBe('ok');
+  });
+});
+
+describe('step conditions in the handoff (E6)', () => {
+  const steps: HubStep[] = [
+    {
+      id: 'a',
+      xPct: 0,
+      yPct: 0,
+      imageIndex: 0,
+      interactionType: 'tooltip',
+      web: {
+        urlPattern: 'https://lms.example/home',
+        action: 'click',
+        locator: { role: 'button', name: 'Go' },
+        showWhen: { kind: 'target' },
+        doneWhen: { kind: 'url', pattern: 'https://lms.example/done' },
+      },
+    },
+  ];
+
+  it('sends conditions only to an extension that plays them', () => {
+    const old = buildHandoff('s', 1, 'T', steps, new Map(), true);
+    expect(old.conditions).toBeUndefined();
+    expect(parseWebTourStartTour(old)).not.toBeNull();
+    const now = buildHandoff('s', 1, 'T', steps, new Map(), true, true);
+    expect(now.conditions).toEqual({
+      a: {
+        showWhen: { kind: 'target' },
+        doneWhen: { kind: 'url', pattern: 'https://lms.example/done' },
+      },
+    });
+    expect(parseWebTourStartTour(now)?.conditions).toEqual(now.conditions);
+  });
+
+  it('refuses conditions for a step the tour does not have, or of an unknown kind', () => {
+    const now = buildHandoff('s', 1, 'T', steps, new Map(), true, true);
+    expect(
+      parseWebTourStartTour({
+        ...now,
+        conditions: { z: { showWhen: { kind: 'target' } } },
+      })
+    ).toBeNull();
+    expect(
+      parseWebTourStartTour({
+        ...now,
+        conditions: { a: { showWhen: { kind: 'cookie' } } },
+      })
+    ).toBeNull();
   });
 });

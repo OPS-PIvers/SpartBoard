@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ImageOff } from 'lucide-react';
+import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import type {
   StepPictureState,
   StepsLabels,
@@ -77,6 +78,13 @@ export const StepPicture: React.FC<{
             onError={() => setBrokenSrc(src)}
           />
           <TargetRing target={pic.target} />
+          {pic.markup && (
+            <TourPictureMarkup
+              shapes={pic.markup}
+              width={pic.w}
+              height={pic.h}
+            />
+          )}
           {markup && (
             <div
               data-testid="step-picture-markup"

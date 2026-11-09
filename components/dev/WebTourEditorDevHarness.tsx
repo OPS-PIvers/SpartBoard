@@ -191,10 +191,31 @@ const STATES = [
   'student',
   'pictures',
   'legacy',
+  'tools',
+  'older',
+  'conditions',
 ] as const;
 type State = (typeof STATES)[number];
 
 const pathOf = (f: Fixture) => `web_tour_pictures/dev/${f.id}.png`;
+const fullPathOf = (f: Fixture) => `web_tour_pictures/dev/${f.id}-full.png`;
+const FULL_W = 1600;
+const FULL_H = Math.round((FULL_W * VH) / VW);
+
+/** Each step's whole screen, as the recorder now keeps it beside the crop. */
+const drawFull = async (f: Fixture, all: Fixture[]): Promise<Blob> => {
+  const out = document.createElement('canvas');
+  out.width = FULL_W;
+  out.height = FULL_H;
+  const ctx = out.getContext('2d');
+  if (!ctx) throw new Error('No canvas');
+  ctx.scale(FULL_W / VW, FULL_H / VH);
+  drawPage(ctx);
+  for (const g of all.slice(0, all.indexOf(f) + 1)) drawTarget(ctx, g);
+  return new Promise((resolve, reject) =>
+    out.toBlob((b) => (b ? resolve(b) : reject(new Error('No blob'))))
+  );
+};
 
 /** The target's place in its crop, as the recorder stores it. */
 const placedIn = (box: Box) => {
@@ -236,6 +257,25 @@ const stepOf = (f: Fixture, state: State, i: number): GuidedLearningStep => {
       ...(state === 'question' && i === 2
         ? { claudeQuestion: 'Does the title have to match the file name?' }
         : {}),
+      ...(state === 'conditions' && i === 1
+        ? { showWhen: { kind: 'target' as const } }
+        : {}),
+      ...(state === 'conditions' && i === 2
+        ? {
+            showWhen: {
+              kind: 'url' as const,
+              pattern: 'https://other.example.org/admin/*',
+            },
+          }
+        : {}),
+      ...(state === 'conditions' && i === 3
+        ? {
+            doneWhen: {
+              kind: 'url' as const,
+              pattern: 'https://learning.example.org/course/*/materials/new',
+            },
+          }
+        : {}),
       ...(state === 'pictures' && i === 1
         ? {}
         : {
@@ -247,6 +287,21 @@ const stepOf = (f: Fixture, state: State, i: number): GuidedLearningStep => {
               w: 1280,
               h: odd ? 720 : h,
               ...(legacy ? {} : placedIn(f.box)),
+              ...(state === 'tools' || state === 'conditions'
+                ? {
+                    original: {
+                      path: fullPathOf(f),
+                      w: FULL_W,
+                      h: FULL_H,
+                      crop: {
+                        x: c.x / VW,
+                        y: c.y / VH,
+                        w: c.w / VW,
+                        h: c.h / VH,
+                      },
+                    },
+                  }
+                : {}),
             },
           }),
     },
@@ -286,6 +341,9 @@ const tourFor = (state: State): GuidedLearningSet => {
     case 'student':
     case 'question':
     case 'legacy':
+    case 'tools':
+    case 'older':
+    case 'conditions':
       return checkedRun(set);
     case 'failed':
       return checkedRun(set, { f2: 'none', f3: 'weak' });
@@ -338,6 +396,10 @@ const SEEDS: Record<State, WebTourEditorDevSeed> = {
   student: { ...ready, publish: 'changed' },
   pictures: ready,
   legacy: { ...ready, publish: 'changed' },
+  // Publish state follows the seeded published copy, so edits show as changes.
+  tools: { canCheck: true, canFix: true },
+  older: { canCheck: true, canFix: true },
+  conditions: { ...ready, publish: 'changed' },
 };
 
 // One roster, so the student-name scan runs as it does for a teacher with classes.
@@ -357,17 +419,25 @@ export const WebTourEditorDevHarness: React.FC = () => {
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    void Promise.all(FIXTURES.map((f) => drawPicture(f, FIXTURES))).then(
-      (blobs) => {
-        if (cancelled) return;
-        const pictures: Record<string, Blob> = {};
-        FIXTURES.forEach((f, i) => {
-          pictures[pathOf(f)] = blobs[i];
-        });
-        window.__webTourEditorDevSeed = { ...SEEDS[state], pictures };
-        setLoaded(true);
-      }
-    );
+    void Promise.all([
+      ...FIXTURES.map((f) => drawPicture(f, FIXTURES)),
+      ...FIXTURES.map((f) => drawFull(f, FIXTURES)),
+    ]).then((blobs) => {
+      if (cancelled) return;
+      const pictures: Record<string, Blob> = {};
+      FIXTURES.forEach((f, i) => {
+        pictures[pathOf(f)] = blobs[i];
+        pictures[fullPathOf(f)] = blobs[FIXTURES.length + i];
+      });
+      // Offline: crops, blurs and uploads land in this page's own store.
+      window.__webTourEditorDevSeed = {
+        ...SEEDS[state],
+        pictures,
+        offline: true,
+        publishedSet: tourFor(state),
+      };
+      setLoaded(true);
+    });
     return () => {
       cancelled = true;
     };

@@ -2,6 +2,7 @@ import React, { useState, useSyncExternalStore } from 'react';
 import { ImageOff } from 'lucide-react';
 import { TourBar } from '@/components/tours/TourBar';
 import { stageScale } from '@/components/tours/web/pictureTarget';
+import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import { PreviewTip, RingAndTip } from './picturePreview';
 import { TIP_H, TIP_W, useMeasured } from './previewMeasure';
 import type { WalkthroughProps } from './StepsView';
@@ -135,6 +136,14 @@ export const StepsWalkthrough: React.FC<WalkthroughProps> = ({
                 size={shown}
                 frac={pic.target}
                 withTip={false}
+              />
+            )}
+            {pic.markup && (
+              <TourPictureMarkup
+                shapes={pic.markup}
+                width={pic.w}
+                height={pic.h}
+                overDim
               />
             )}
             {renderMarkup && (

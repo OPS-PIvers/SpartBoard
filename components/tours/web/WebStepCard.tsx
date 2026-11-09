@@ -31,6 +31,7 @@ import {
   type WebStep,
 } from './webEditorModel';
 import { WebClaudeNote, WebClaudeQuestion } from './WebTourWriting';
+import { WebConditionFields } from './WebConditionFields';
 
 // Clues playback can do without; the address, title and tip stay.
 const REMOVABLE: ReadonlySet<ReviewField> = new Set([
@@ -186,6 +187,12 @@ export const WebStepCard: React.FC<{
   );
   const more = (
     <>
+      {step.web && (
+        <WebConditionFields
+          web={step.web}
+          onChange={(web) => onChange({ ...step, web }, 'conditions')}
+        />
+      )}
       {clues.length > 0 && (
         <section
           aria-label="How the step finds its target"

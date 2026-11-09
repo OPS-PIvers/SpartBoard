@@ -2,12 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GuidedLearningSet } from '@/types';
 import { logError } from '@/utils/logError';
 import {
-  saveWebTourDraft,
   setWebTourCheckRun,
   setWebTourFixes,
   sweepWebTourPictures,
 } from '@/components/tours/webTours';
 import { webTourEditorDevSeed } from './webEditorDevSeed';
+import { saveStepDraft } from './webPictures';
 import {
   newTourHistory,
   pushTourEdit,
@@ -38,8 +38,13 @@ const keepOnUndo = (
   return out;
 };
 
+// Every file a version uses, its uncropped capture included, so the sweeps cover captures too.
 const picturePaths = (set: GuidedLearningSet): string[] =>
-  set.steps.flatMap((s) => (s.web?.picture ? [s.web.picture.path] : []));
+  set.steps.flatMap((s) => {
+    const p = s.web?.picture;
+    if (!p) return [];
+    return p.original ? [p.path, p.original.path] : [p.path];
+  });
 
 /** Clears out the tour's unused pictures; never in the dev harness, which has no Storage. */
 const sweep = (
@@ -109,7 +114,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     const timer = setTimeout(() => {
       if (deleted.current) return;
       dirty.current = false;
-      saveWebTourDraft(set).then(
+      saveStepDraft(set).then(
         () => {
           if (!dirty.current) setSaveState('saved');
         },
@@ -132,7 +137,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     () => () => {
       if (deleted.current) return;
       const last = latest.current;
-      const saving = dirty.current ? saveWebTourDraft(last) : Promise.resolve();
+      const saving = dirty.current ? saveStepDraft(last) : Promise.resolve();
       dirty.current = false;
       saving.then(
         () =>
@@ -157,7 +162,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     setSet(next);
     setSaveState('saving');
     try {
-      await saveWebTourDraft(next);
+      await saveStepDraft(next);
       if (!dirty.current) setSaveState('saved');
     } catch (err) {
       setSaveState('error');

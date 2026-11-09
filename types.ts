@@ -8877,7 +8877,36 @@ export interface WebTourPicture {
   target?: { x: number; y: number; w: number; h: number };
   /** The picture's width in CSS pixels when captured, so previews draw the tour to scale. */
   cssW?: number;
+  /** The uncropped capture it was cut from, for re-cropping; editor only, never published or played. */
+  original?: WebTourOriginalPicture;
+  /** Arrows, boxes and numbers drawn over the picture; never baked into the file. */
+  markup?: TourMarkupShape[];
 }
+
+/** A step's uncropped capture and where its picture sits in it, as 0-1 of the capture. */
+export interface WebTourOriginalPicture {
+  path: string;
+  w: number;
+  h: number;
+  crop: { x: number; y: number; w: number; h: number };
+}
+
+/** A markup shape over a step picture; coordinates are 0-1 of the picture. */
+export type TourMarkupShape =
+  | {
+      id: string;
+      kind: 'arrow';
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+    }
+  | { id: string; kind: 'box'; x: number; y: number; w: number; h: number }
+  | { id: string; kind: 'number'; x: number; y: number; n: number };
+
+/** What a web step condition tests: its own target on the page, or the page address. */
+export type WebTourCondition =
+  { kind: 'target' } | { kind: 'url'; pattern: string };
 
 /** A web-tour step's target; the step's `label` and `text` are its tip. */
 export interface WebTourBinding {
@@ -8890,6 +8919,10 @@ export interface WebTourBinding {
   note?: string;
   /** Claude's question when it couldn't tell why the step happens; editor only, never published. */
   claudeQuestion?: string;
+  /** Played only when this holds: its target shows up, or the page address matches; absent = always. */
+  showWhen?: WebTourCondition;
+  /** Moves on when this holds instead of at the learner's action: the target goes away, or the address matches. */
+  doneWhen?: WebTourCondition;
 }
 
 export interface WebTourStudentDataCheck {

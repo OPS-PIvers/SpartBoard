@@ -1,3 +1,4 @@
+import type { TourMarkupShape } from '@/types';
 import type { WebTourStep } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import {
   stagePlacement,
@@ -12,6 +13,8 @@ export interface StepsPicture {
   cssW: number;
   /** The target as 0-1 fractions of the picture, or null when it can't be placed with confidence. */
   target: FracRect | null;
+  /** Arrows, boxes and numbers drawn over the picture, in 0-1 of its size. */
+  markup?: readonly TourMarkupShape[];
 }
 
 /** One step as the Steps view draws it. Nothing here reads Firestore or Storage. */
@@ -67,7 +70,9 @@ export const STEPS_LABELS_EN: StepsLabels = {
   loading: 'Loading steps',
 };
 
-const hasList = (v: unknown): boolean => Array.isArray(v) && v.length > 0;
+/** A step condition: one test, or a list of them. */
+export const hasCondition = (v: unknown): boolean =>
+  Array.isArray(v) ? v.length > 0 : !!v && typeof v === 'object';
 
 /** A web tour's steps as the Steps view draws them; the ring comes from the recorded place, else an estimate that passes its checks. */
 export function stepsFromWebTour(
@@ -80,11 +85,17 @@ export function stepsFromWebTour(
       id: step.id,
       title: step.label ?? '',
       text: step.text ?? '',
-      onlyIfAppears: hasList((step.web as { showWhen?: unknown }).showWhen),
+      onlyIfAppears: hasCondition(step.web.showWhen),
       observe: step.web.action === 'observe',
       picture:
         pic && placed && pic.w > 0 && pic.h > 0
-          ? { w: pic.w, h: pic.h, cssW: placed.cssW, target: placed.rect }
+          ? {
+              w: pic.w,
+              h: pic.h,
+              cssW: placed.cssW,
+              target: placed.rect,
+              ...(pic.markup?.length ? { markup: pic.markup } : {}),
+            }
           : null,
     };
   });

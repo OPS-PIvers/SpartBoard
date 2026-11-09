@@ -52088,6 +52088,205 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tour-editor.picture-crop",
+    "label": "Crop tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-markup",
+    "label": "Mark up tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-retake",
+    "label": "Retake tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-replace",
+    "label": "Replace tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-arrow",
+    "label": "Arrow shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-box",
+    "label": "Box shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-number",
+    "label": "Number shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-delete",
+    "label": "Delete the selected shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-done",
+    "label": "Done button while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.picture-blur",
     "label": "Blur tool for the selected picture in the web tour editor",
     "scope": "board",

@@ -1,18 +1,10 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  AlertTriangle,
-  Copy,
-  Droplets,
-  ImageOff,
-  Link2,
-  RefreshCw,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { AlertTriangle, Copy, Link2, RefreshCw, Trash2, X } from 'lucide-react';
 import type {
   GuidedLearningSet,
   GuidedLearningStep,
   WebTourCheckResult,
+  WebTourPicture,
   WebTourSuggestion,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
@@ -21,19 +13,13 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
-import {
-  focusRing,
-  headerIconBtn,
-  iconBtn,
-} from '@/components/common/lightChrome';
+import { focusRing, headerIconBtn } from '@/components/common/lightChrome';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
   deleteWebTourDraft,
   duplicateWebTourDraft,
   publishWebTour,
   saveWebTourDraft,
-  uploadWebTourPicture,
-  type WebTourPictureType,
 } from '@/components/tours/webTours';
 import { usePublishedTour } from '@/components/tours/publishedTours';
 import { loadTourRuns, type TourRun } from '@/components/tours/tourRuns';
@@ -68,6 +54,7 @@ import {
   pingExtension,
   REPICK_PROTOCOL,
 } from './extensionClient';
+import { CONDITIONS_PROTOCOL } from './extensionProtocol';
 import { useWebTourCheck } from './useWebTourCheck';
 import {
   applyFix,
@@ -95,6 +82,7 @@ import { PublishCheck } from './webEditorParts';
 import { PictureCache } from './webPictures';
 import {
   CHECK_LABEL,
+  showWhenProblem,
   webStepNeedsText,
   webTargetLabel,
   type WebStep,
@@ -104,6 +92,8 @@ import { WebStepCard } from './WebStepCard';
 import { WebTourGoalField, WebWritingStrip } from './WebTourWriting';
 import { useWebTourWriting } from './useWebTourWriting';
 import { useWebTourDraft } from './useWebTourDraft';
+import { useWebPictureTools } from './useWebPictureTools';
+import { changedPictureSteps } from './pictureChange';
 import { webTourEditorDevSeed } from './webEditorDevSeed';
 
 const LINK_COPY: Record<RecorderLink, string> = {
@@ -114,12 +104,6 @@ const LINK_COPY: Record<RecorderLink, string> = {
   unavailable:
     "The SpartBoard extension isn't installed, or Chrome isn't signed in with your Orono staff account.",
 };
-
-const PICTURE_TYPES: readonly string[] = [
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-];
 
 /** A blank web step after `after`, on the same page, waiting for Fix on site to pick its target. */
 const newWebStep = (after: WebStep | undefined): WebStep => ({
@@ -189,13 +173,13 @@ const WebTourEditorBody: React.FC<{
     initial.steps[0]?.id ?? null
   );
   const [pictureSelected, setPictureSelected] = useState(false);
-  const [blurring, setBlurring] = useState(false);
   const [check, setCheck] = useState<{
     hidden: HiddenText[];
     askPictures: boolean;
   } | null>(null);
   const [extensionCanFix, setCanFix] = useState(false);
   const [extensionCanCheck, setCanCheck] = useState(false);
+  const [playsConditions, setPlaysConditions] = useState(false);
   const copyLink = useCopyWebTourLink();
   const published = usePublishedTour(initial.id);
   const live =
@@ -204,6 +188,8 @@ const WebTourEditorBody: React.FC<{
   const publishing = useRef(false);
   // The step the next recorded step goes after; null appends.
   const recordAfter = useRef<string | null>(null);
+  // Steps asked to Retake: the site's answer replaces only their picture, not their target.
+  const retaking = useRef(new Set<string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -211,6 +197,9 @@ const WebTourEditorBody: React.FC<{
       if (cancelled) return;
       setCanFix(s.kind === 'ready' && s.protocol >= REPICK_PROTOCOL);
       setCanCheck(canCheckWebTours(s));
+      setPlaysConditions(
+        s.kind === 'ready' && s.protocol >= CONDITIONS_PROTOCOL
+      );
     });
     return () => {
       cancelled = true;
@@ -256,7 +245,6 @@ const WebTourEditorBody: React.FC<{
   const select = (id: string | null) => {
     setSelectedId(id);
     setPictureSelected(false);
-    setBlurring(false);
   };
 
   const onStep = async (recorded: RecordedWebStep) => {
@@ -293,19 +281,39 @@ const WebTourEditorBody: React.FC<{
     if (!target?.web) return;
     const picture = await uploadRecordedPicture(recorded, latest.current.id);
     if (draft.deleted.current) throw new Error('Tour deleted');
-    const web = {
-      ...target.web,
-      urlPattern: toUrlPattern(recorded.urlPattern) ?? '*',
-      locator: scrubLocator(recorded.locator),
-      ...(picture ? { picture } : {}),
-    };
+    const retake = retaking.current.delete(recorded.id);
+    // Retake keeps the step's target and markup and swaps only the picture; Fix on site replaces both.
+    const web = retake
+      ? {
+          ...target.web,
+          ...(picture
+            ? {
+                picture: {
+                  ...picture,
+                  ...(target.web.picture?.markup
+                    ? { markup: target.web.picture.markup }
+                    : {}),
+                },
+              }
+            : {}),
+        }
+      : {
+          ...target.web,
+          urlPattern: toUrlPattern(recorded.urlPattern) ?? '*',
+          locator: scrubLocator(recorded.locator),
+          ...(picture ? { picture } : {}),
+        };
     await saveNow({
       ...latest.current,
       steps: latest.current.steps.map((s) =>
         s.id === recorded.id ? { ...s, web } : s
       ),
     });
-    setStatus(`Step ${index + 1} was fixed.`);
+    setStatus(
+      retake
+        ? `Step ${index + 1} has a new picture.`
+        : `Step ${index + 1} was fixed.`
+    );
   };
 
   const recorder = useWebTourRecorder({
@@ -389,27 +397,20 @@ const WebTourEditorBody: React.FC<{
     recorder.connect();
   };
 
-  const applyBlur = async (stepId: string, blob: Blob) => {
-    const type = (
-      PICTURE_TYPES.includes(blob.type) ? blob.type : 'image/png'
-    ) as WebTourPictureType;
-    const path = await uploadWebTourPicture(latest.current.id, blob, type);
+  // A picture change saved now, as one undoable edit.
+  const savePicture = async (
+    stepId: string,
+    picture: WebTourPicture | undefined
+  ) => {
     const cur = latest.current;
     await saveNow({
       ...cur,
-      steps: cur.steps.map((s) =>
-        s.id === stepId && s.web?.picture
-          ? { ...s, web: { ...s.web, picture: { ...s.web.picture, path } } }
-          : s
-      ),
+      steps: cur.steps.map((st) => {
+        if (st.id !== stepId || !st.web) return st;
+        const { picture: _old, ...web } = st.web;
+        return { ...st, web: picture ? { ...web, picture } : web };
+      }),
     });
-    setBlurring(false);
-  };
-
-  const removePicture = (step: WebStep) => {
-    if (!step.web) return;
-    const { picture: _picture, ...web } = step.web;
-    updateStep(step.id, { ...step, web });
     setPictureSelected(false);
   };
 
@@ -418,6 +419,16 @@ const WebTourEditorBody: React.FC<{
     recorder.repick(step.id);
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
     setStatus(`Click the right control on the site to fix step ${index + 1}.`);
+  };
+
+  const retakeOnSite = (step: WebStep, index: number) => {
+    retaking.current.add(step.id);
+    const url = step.web ? pageUrlOf([step as HubStep], 0) : null;
+    recorder.repick(step.id);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    setStatus(
+      `Click the same control on the site to retake step ${index + 1}.`
+    );
   };
 
   const doPublish = async (toPublish: GuidedLearningSet) => {
@@ -503,11 +514,23 @@ const WebTourEditorBody: React.FC<{
 
   const seed = webTourEditorDevSeed();
   const pub =
-    seed?.publish ?? (published.loaded ? tourPublishStatus(set, live) : null);
+    seed?.publish ??
+    (seed?.publishedSet
+      ? tourPublishStatus(set, {
+          set: seed.publishedSet,
+          publishedAt: 1,
+          publishedBy: null,
+        })
+      : published.loaded
+        ? tourPublishStatus(set, live)
+        : null);
   const canCheck = seed?.canCheck ?? extensionCanCheck;
   const canFix = seed?.canFix ?? extensionCanFix;
   const hasLive =
-    !!live || (seed?.publish !== undefined && seed.publish !== 'draft');
+    !!live ||
+    (seed?.publish !== undefined
+      ? seed.publish !== 'draft'
+      : !!seed?.publishedSet);
   const checking = seed?.checking ?? checker.checking;
   const computed = tourMainAction({
     kind: 'web',
@@ -584,7 +607,8 @@ const WebTourEditorBody: React.FC<{
         const at = steps.findIndex(webStepNeedsText);
         if (at >= 0) select(steps[at].id);
         void writing.run('blanks');
-      } else if (state === 'check') void checker.start(latest.current);
+      } else if (state === 'check')
+        void checker.start(latest.current, playsConditions);
       else if (state === 'publish') publish();
     },
     // Play runs the published tour, so it shows once there is one.
@@ -649,32 +673,25 @@ const WebTourEditorBody: React.FC<{
     },
   };
 
-  const pictureTools = selected?.web?.picture ? (
-    <>
-      {/* Slice 5 adds Crop, Mark up, Retake and Replace beside Blur. */}
-      <button
-        type="button"
-        onClick={() => {
-          setPictureSelected(false);
-          setBlurring(true);
-        }}
-        className={`${iconBtn} flex items-center gap-1.5 px-2 text-sm font-semibold text-slate-700`}
-        {...tourAttr('web-tour-editor.picture-blur')}
-      >
-        <Droplets className="h-4 w-4" aria-hidden="true" />
-        Blur
-      </button>
-      <button
-        type="button"
-        onClick={() => removePicture(selected)}
-        className={`${iconBtn} flex items-center gap-1.5 px-2 text-sm font-semibold text-slate-700`}
-        {...tourAttr('web-tour-editor.picture-remove')}
-      >
-        <ImageOff className="h-4 w-4" aria-hidden="true" />
-        Remove picture
-      </button>
-    </>
-  ) : null;
+  const tools = useWebPictureTools({
+    setId: set.id,
+    step: selected,
+    index: selectedIndex,
+    savePicture,
+    editPicture: (stepId, picture) =>
+      change((cur) => ({
+        ...cur,
+        steps: cur.steps.map((st) =>
+          st.id === stepId && st.web
+            ? { ...st, web: { ...st.web, picture } }
+            : st
+        ),
+      })),
+    retake: retakeOnSite,
+    canRetake: canFix,
+    onStatus: setStatus,
+    onToolOpened: () => setPictureSelected(false),
+  });
 
   const notices = [
     LINK_COPY[recorder.link],
@@ -700,12 +717,8 @@ const WebTourEditorBody: React.FC<{
             total={steps.length}
             pictureSelected={pictureSelected}
             onSelectPicture={setPictureSelected}
-            tools={pictureTools}
-            blurring={blurring}
-            onBlurred={(blob) =>
-              selected ? applyBlur(selected.id, blob) : Promise.resolve()
-            }
-            onCancelBlur={() => setBlurring(false)}
+            tools={tools.toolbar}
+            editing={tools.editing}
           />
           <aside
             aria-label="Web tour editor"
@@ -813,12 +826,18 @@ const WebTourEditorBody: React.FC<{
           set={set}
           hidden={check.hidden}
           askPictures={check.askPictures}
+          changed={changedPictureSteps(
+            set,
+            webTourEditorDevSeed()?.publishedSet ?? live?.set ?? null
+          )}
           onCancel={() => setCheck(null)}
           onBlur={() => {
             setCheck(null);
             const first = steps.find((s) => s.web?.picture);
-            if (first) select(first.id);
-            setBlurring(true);
+            if (first) {
+              select(first.id);
+              tools.openFor(first.id, 'blur');
+            }
           }}
           onPublish={() =>
             void doPublish(
@@ -846,6 +865,7 @@ const outlineStep = (
   const studentData = reviewEntries(step, matcher).some((e) =>
     e.hits.some(isHardHit)
   );
+  const neverPlays = showWhenProblem(step.web);
   const subtitle: TourShellStep['subtitle'] = !step.web
     ? { text: 'No website target', tone: 'error' }
     : studentData
@@ -856,13 +876,23 @@ const outlineStep = (
           ? { text: CHECK_LABEL.none, tone: 'error' }
           : result && result !== 'found'
             ? { text: CHECK_LABEL[result], tone: 'warn' }
-            : webStepNeedsText(step)
-              ? { text: 'Needs text', tone: 'warn' }
-              : needsFixOnSite(step)
-                ? { text: 'Needs checking', tone: 'warn' }
-                : label
-                  ? { text: target, tone: 'muted' }
-                  : null;
+            : neverPlays
+              ? { text: neverPlays, tone: 'warn' }
+              : webStepNeedsText(step)
+                ? { text: 'Needs text', tone: 'warn' }
+                : needsFixOnSite(step)
+                  ? { text: 'Needs checking', tone: 'warn' }
+                  : step.web.showWhen
+                    ? {
+                        text:
+                          step.web.showWhen.kind === 'target'
+                            ? 'Only if it appears'
+                            : 'Only on a matching page',
+                        tone: 'muted',
+                      }
+                    : label
+                      ? { text: target, tone: 'muted' }
+                      : null;
   return {
     id: step.id,
     title:

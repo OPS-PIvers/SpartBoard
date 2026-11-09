@@ -56,11 +56,19 @@ describe('stepsFromWebTour', () => {
 
   it('notes a step that only shows when a condition holds', () => {
     const steps = stepsFromWebTour([
-      webStep('a', { showWhen: [{ kind: 'present' }] }),
+      webStep('a', { showWhen: { kind: 'target' } }),
       webStep('b', { showWhen: [] }),
       webStep('c', {}),
     ]);
     expect(steps.map((s) => s.onlyIfAppears)).toEqual([true, false, false]);
+  });
+
+  it('carries the markup drawn on a picture so it is drawn over it', () => {
+    const markup = [{ id: 'm', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 }];
+    const [step] = stepsFromWebTour([
+      webStep('a', { picture: { path: 'p', w: 1000, h: 500, markup } }),
+    ]);
+    expect(step.picture?.markup).toEqual(markup);
   });
 });
 

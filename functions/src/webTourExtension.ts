@@ -125,9 +125,29 @@ interface StoredStep {
       h?: unknown;
       target?: unknown;
       cssW?: unknown;
+      markup?: unknown;
     };
+    showWhen?: unknown;
+    doneWhen?: unknown;
   };
 }
+
+type StepCondition = { kind: 'target' } | { kind: 'url'; pattern: string };
+
+/** A step condition (TOURS_10X.md E6) the extension accepts, or null. */
+const conditionOf = (v: unknown): StepCondition | null => {
+  if (!v || typeof v !== 'object') return null;
+  const c = v as { kind?: unknown; pattern?: unknown };
+  if (c.kind === 'target') return { kind: 'target' };
+  if (
+    c.kind === 'url' &&
+    typeof c.pattern === 'string' &&
+    c.pattern.startsWith('https://') &&
+    c.pattern.length <= 2048
+  )
+    return { kind: 'url', pattern: c.pattern };
+  return null;
+};
 
 interface StoredSnapshot {
   publishedAt?: unknown;
@@ -188,6 +208,69 @@ export interface LoadedTourPicture {
   target?: { x: number; y: number; w: number; h: number };
   /** The picture's width in CSS pixels when captured. */
   cssW?: number;
+  /** Arrows, boxes and numbers drawn over the picture, in 0-1 of its size. */
+  markup?: MarkupShape[];
+}
+
+type MarkupShape =
+  | {
+      id: string;
+      kind: 'arrow';
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+    }
+  | { id: string; kind: 'box'; x: number; y: number; w: number; h: number }
+  | { id: string; kind: 'number'; x: number; y: number; n: number };
+
+const MAX_MARKUP = 50;
+const unit = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v) && v >= -0.5 && v <= 1.5;
+
+/** The well-formed markup shapes a picture carries; anything else is left out. */
+function markupOf(v: unknown): MarkupShape[] {
+  if (!Array.isArray(v)) return [];
+  const out: MarkupShape[] = [];
+  for (const raw of v.slice(0, MAX_MARKUP)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const s = raw as Record<string, unknown>;
+    const id = str(s.id).slice(0, 64);
+    if (!id) continue;
+    if (s.kind === 'arrow' && [s.x1, s.y1, s.x2, s.y2].every(unit))
+      out.push({
+        id,
+        kind: 'arrow',
+        x1: s.x1 as number,
+        y1: s.y1 as number,
+        x2: s.x2 as number,
+        y2: s.y2 as number,
+      });
+    else if (s.kind === 'box' && [s.x, s.y, s.w, s.h].every(unit))
+      out.push({
+        id,
+        kind: 'box',
+        x: s.x as number,
+        y: s.y as number,
+        w: s.w as number,
+        h: s.h as number,
+      });
+    else if (
+      s.kind === 'number' &&
+      [s.x, s.y].every(unit) &&
+      Number.isInteger(s.n) &&
+      (s.n as number) >= 1 &&
+      (s.n as number) <= 99
+    )
+      out.push({
+        id,
+        kind: 'number',
+        x: s.x as number,
+        y: s.y as number,
+        n: s.n as number,
+      });
+  }
+  return out;
 }
 
 /** A recorded 0-1 box inside the picture, or nothing. */
@@ -214,6 +297,11 @@ export interface LoadedTour {
     web: { urlPattern: string; action: unknown; locator: unknown };
   }[];
   pictures: Record<string, LoadedTourPicture>;
+  /** Step conditions by id, beside the steps so an extension before protocol 12 never sees them. */
+  conditions?: Record<
+    string,
+    { showWhen?: StepCondition; doneWhen?: StepCondition }
+  >;
 }
 
 /** The published tour as the extension plays it: no notes or questions, pictures within the start message's budget. */
@@ -232,6 +320,7 @@ export async function loadTour(
     h: number;
     target?: LoadedTourPicture['target'];
     cssW?: number;
+    markup: MarkupShape[];
   }[] = [];
   for (const step of steps) {
     const pic = step.web?.picture;
@@ -246,6 +335,7 @@ export async function loadTour(
       w,
       h,
       target: targetOf(pic?.target),
+      markup: markupOf(pic?.markup),
       ...(cssW > 0 && cssW <= 10000 ? { cssW } : {}),
     });
   }
@@ -279,9 +369,21 @@ export async function loadTour(
       h: p.h,
       ...(p.target ? { target: p.target } : {}),
       ...(p.cssW ? { cssW: p.cssW } : {}),
+      ...(p.markup.length > 0 ? { markup: p.markup } : {}),
     };
   });
+  const conditions: NonNullable<LoadedTour['conditions']> = {};
+  for (const step of steps) {
+    const showWhen = conditionOf(step.web?.showWhen);
+    const doneWhen = conditionOf(step.web?.doneWhen);
+    if (showWhen || doneWhen)
+      conditions[str(step.id)] = {
+        ...(showWhen ? { showWhen } : {}),
+        ...(doneWhen ? { doneWhen } : {}),
+      };
+  }
   return {
+    ...(Object.keys(conditions).length > 0 ? { conditions } : {}),
     setId,
     version: Number(snap.publishedAt) || 0,
     title: str(snap.set?.title),

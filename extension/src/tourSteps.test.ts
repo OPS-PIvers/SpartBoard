@@ -62,6 +62,35 @@ describe('panelStepsOf', () => {
     expect(out?.steps[1].picture).toBeNull();
   });
 
+  it('notes a step the tour only shows on some pages, from the conditions sent beside the steps', () => {
+    const out = panelStepsOf(
+      loaded({ conditions: { b: { showWhen: { kind: 'target' } } } })
+    );
+    expect(out?.steps.map((s) => s.onlyIfAppears)).toEqual([false, true]);
+  });
+
+  it('carries the markup on a picture and leaves out shapes it does not know', () => {
+    const out = panelStepsOf(
+      loaded({
+        pictures: {
+          a: {
+            mime: 'image/png',
+            data: 'AAAA',
+            w: 800,
+            h: 400,
+            markup: [
+              { id: 'm', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+              { id: 'z', kind: 'blob' },
+            ],
+          },
+        },
+      })
+    );
+    expect(out?.steps[0].picture?.markup).toEqual([
+      { id: 'm', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+    ]);
+  });
+
   it('draws no ring for a picture sent without its target', () => {
     const out = panelStepsOf(
       loaded({

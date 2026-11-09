@@ -4,10 +4,8 @@ import { TourBar } from '@/components/tours/TourBar';
 import { focusRing } from '@/components/common/lightChrome';
 import { tourAttr } from '@/config/tourAnchors';
 import { BlobImage } from './BlurBoxes';
-import { BlurEditor } from './webEditorParts';
+import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import { usePictureBlob } from './webPictures';
-import type { WebStep } from './webEditorModel';
-import { stagePlacement, stageScale } from './pictureTarget';
 import {
   PreviewTip,
   RingAndTip,
@@ -19,7 +17,16 @@ import {
   TIP_H,
   TIP_W,
   useMeasured,
+  type Size,
 } from '@/components/tours/steps/previewMeasure';
+import type { WebStep } from './webEditorModel';
+import { stagePlacement, stageScale } from './pictureTarget';
+
+/** A picture tool's layer over the stage picture, given the picture's box as shown. */
+export interface StageEditing {
+  kind: 'blur' | 'crop' | 'markup';
+  render: (box: Size) => React.ReactNode;
+}
 
 const PAD_X = 32;
 const GAP = 12;
@@ -55,9 +62,8 @@ export const WebPictureStage: React.FC<{
   onSelectPicture: (on: boolean) => void;
   /** Shown under the picture while it is selected. */
   tools: React.ReactNode;
-  blurring: boolean;
-  onBlurred: (blob: Blob) => Promise<void>;
-  onCancelBlur: () => void;
+  /** A picture tool at work (blur, crop, mark up): drawn in the picture's own box, so the frame never moves. */
+  editing: StageEditing | null;
 }> = ({
   step,
   index,
@@ -65,10 +71,9 @@ export const WebPictureStage: React.FC<{
   pictureSelected,
   onSelectPicture,
   tools,
-  blurring,
-  onBlurred,
-  onCancelBlur,
+  editing,
 }) => {
+  const blurring = !!editing;
   const [stageRef, room] = useMeasured<HTMLElement>();
   const [dockRef, dockSize] = useMeasured<HTMLDivElement>();
   const picture = step?.web?.picture;
@@ -183,25 +188,28 @@ export const WebPictureStage: React.FC<{
               ) : (
                 <div className="absolute inset-0 animate-pulse bg-slate-100 motion-reduce:animate-none" />
               )}
-              {!blurring && blob && ring && (
+              {editing?.kind !== 'markup' && picture.markup && (
+                <TourPictureMarkup
+                  shapes={picture.markup}
+                  width={picture.w}
+                  height={picture.h}
+                  overDim
+                />
+              )}
+              {blob && ring && (!editing || editing.kind === 'markup') && (
                 <RingAndTip
                   step={previewStepOf(step)}
                   index={index}
                   total={total}
                   size={css}
                   frac={ring}
+                  guide={editing?.kind === 'markup'}
                 />
               )}
             </Scaled>
           </div>
-          {blurring ? (
-            <BlurEditor
-              key={picture.path}
-              path={picture.path}
-              index={index}
-              onApply={onBlurred}
-              onCancel={onCancelBlur}
-            />
+          {editing ? (
+            editing.render(shown)
           ) : (
             <>
               <button

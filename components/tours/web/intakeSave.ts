@@ -22,13 +22,28 @@ export async function uploadRecordedPicture(
   const blob = recorded.picture ? pictureBlob(recorded.picture.dataUrl) : null;
   if (!blob || !recorded.picture) return undefined;
   const path = await uploadWebTourPicture(setId, blob, 'image/jpeg');
-  const { w, h, target, cssW } = recorded.picture;
+  const { w, h, target, cssW, original } = recorded.picture;
+  // The uncropped screen goes in its own file, for re-cropping in the editor; a failed upload just leaves it out.
+  const full = original ? pictureBlob(original.dataUrl) : null;
+  const originalPath = full
+    ? await uploadWebTourPicture(setId, full, 'image/jpeg').catch(() => null)
+    : null;
   return {
     path,
     w,
     h,
     ...(target ? { target: { ...target } } : {}),
     ...(cssW ? { cssW } : {}),
+    ...(original && originalPath
+      ? {
+          original: {
+            path: originalPath,
+            w: original.w,
+            h: original.h,
+            crop: { ...original.crop },
+          },
+        }
+      : {}),
   };
 }
 

@@ -6,6 +6,7 @@ import {
   type WebTourCheckResult,
   type WebTourStableAttrs,
 } from '@/types';
+import { markupKey } from './pictureChange';
 import type { NameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
   findStudentData,
@@ -139,10 +140,23 @@ export const tourPicturePaths = (
     s.web?.picture ? [s.web.picture.path] : []
   );
 
-/** Fingerprint of the tour's pictures; reordering steps keeps it, a new or removed picture changes it. */
+/** Fingerprint of the tour's pictures; reordering steps keeps it, a new or removed picture or new markup changes it. */
 export const picturesSignature = (
   set: Pick<GuidedLearningSet, 'steps'>
-): string => fnv(JSON.stringify([...tourPicturePaths(set)].sort()));
+): string =>
+  fnv(
+    JSON.stringify(
+      (set.steps as WebStep[])
+        .flatMap((s) => {
+          const p = s.web?.picture;
+          if (!p) return [];
+          const marks = markupKey(p.markup);
+          // Without markup the entry is the bare path, so earlier confirmations still match.
+          return [marks ? `${p.path}#${marks}` : p.path];
+        })
+        .sort()
+    )
+  );
 
 /** Whether Publish must first ask about the pictures: there are some, and they changed since the last confirm. */
 export const picturesNeedConfirm = (
@@ -170,7 +184,7 @@ const sortedKeys = (_key: string, value: unknown): unknown =>
       )
     : value;
 
-/** Fingerprint of what playback looks for: step ids in order, and each step's page, action and locator (frames included); text, notes and pictures stay out (C13). */
+/** Fingerprint of what playback looks for: step ids in order, and each step's page, action, locator (frames included) and conditions; text, notes and pictures stay out (C13). */
 export const targetsSignature = (
   set: Pick<GuidedLearningSet, 'steps'>
 ): string =>
@@ -181,6 +195,10 @@ export const targetsSignature = (
         s.web?.urlPattern ?? null,
         s.web?.action ?? null,
         s.web?.locator ?? null,
+        // Only a step with conditions adds them, so older check runs stay current (E6).
+        ...(s.web?.showWhen || s.web?.doneWhen
+          ? [s.web.showWhen ?? null, s.web.doneWhen ?? null]
+          : []),
       ]),
       sortedKeys
     )
@@ -202,7 +220,12 @@ export const checkPasses = (
   return (
     !!results &&
     set.steps.length > 0 &&
-    set.steps.every((s) => results[s.id] === 'found')
+    // A conditional step the check skipped because its condition didn't hold has no result.
+    (set.steps as WebStep[]).every(
+      (s) =>
+        results[s.id] === 'found' ||
+        (!!s.web?.showWhen && results[s.id] === undefined)
+    )
   );
 };
 
