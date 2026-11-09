@@ -309,12 +309,7 @@ export const startPollSession = async (
   boardShareId?: string | null
 ): Promise<PollConfig> => {
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
-  // A copied board still carries the original teacher's code; mint our own.
-  const foreignCode =
-    !boardShareId &&
-    !!config.lastPollSessionOwnerUid &&
-    config.lastPollSessionOwnerUid !== teacherUid;
-  const reuse = !rotate && !!config.joinCode && !foreignCode;
+  const reuse = !rotate && !!config.joinCode;
   const code =
     reuse && config.joinCode ? config.joinCode : await mintUniquePollCode();
   // A shared board's code may have been minted by a colleague.
@@ -357,9 +352,7 @@ export const startPollSession = async (
     // once the teacher stops and then clicks Start again. On 'resume' mode the
     // id matches lastPollSessionId already, so this is always a no-op there.
     lastPollSessionId:
-      mode === 'fresh' || foreignCode
-        ? null
-        : (config.lastPollSessionId ?? null),
+      mode === 'fresh' ? null : (config.lastPollSessionId ?? null),
   };
 };
 
