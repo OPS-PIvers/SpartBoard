@@ -12,7 +12,13 @@ vi.mock('./writeWithClaude', async (orig) => ({
 }));
 vi.mock('@/config/firebase', () => ({ functions: {} }));
 
-import { WebStepClaudeFields, WebTourWriting } from './WebTourWriting';
+import {
+  WebClaudeNote,
+  WebClaudeQuestion,
+  WebTourGoalField,
+  WebWritingStrip,
+} from './WebTourWriting';
+import { useWebTourWriting } from './useWebTourWriting';
 
 const initial: GuidedLearningSet = {
   id: 't1',
@@ -50,21 +56,29 @@ const Harness: React.FC<{ onFlush: (s: GuidedLearningSet) => void }> = ({
     latest.current = fn(latest.current);
     setSet(latest.current);
   };
+  const writing = useWebTourWriting({
+    set,
+    change,
+    flush: () => {
+      onFlush(latest.current);
+      return Promise.resolve(latest.current);
+    },
+    onStatus: setStatus,
+  });
+  const onStep = (step: GuidedLearningSet['steps'][number]) =>
+    change((cur) => ({ ...cur, steps: [step] }));
   return (
     <>
-      <WebTourWriting
-        set={set}
-        change={change}
-        flush={() => {
-          onFlush(latest.current);
-          return Promise.resolve(latest.current);
-        }}
-        onStatus={setStatus}
-      />
-      <WebStepClaudeFields
-        step={set.steps[0]}
-        onChange={(step) => change((cur) => ({ ...cur, steps: [step] }))}
-      />
+      <WebTourGoalField set={set} change={change} />
+      <button type="button" onClick={() => void writing.run('blanks')}>
+        Write with Claude
+      </button>
+      <button type="button" onClick={() => void writing.run('all')}>
+        Rewrite all
+      </button>
+      <WebWritingStrip writing={writing} />
+      <WebClaudeQuestion step={set.steps[0]} onChange={onStep} />
+      <WebClaudeNote step={set.steps[0]} onChange={onStep} />
       <output data-testid="label">{set.steps[0].label}</output>
       <output data-testid="tip">{set.steps[0].text}</output>
       <p>{status}</p>
@@ -101,7 +115,7 @@ describe('Write with Claude', () => {
       { id: 's1', fields: ['title', 'tip'] },
     ]);
     expect(screen.getByText('Claude wrote 1 step.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo writing' }));
     expect(screen.getByTestId('label')).toHaveTextContent('Click Gradebook');
     expect(screen.getByTestId('tip')).toBeEmptyDOMElement();
   });

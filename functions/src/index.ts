@@ -71,6 +71,7 @@ export {
 } from './paperTranscriptionSweep';
 export {
   getPaperWrittenCropV1,
+  getPaperPageV1,
   updatePaperTranscriptV1,
   applyPaperNewerScanV1,
   transcribePaperBlankV1,

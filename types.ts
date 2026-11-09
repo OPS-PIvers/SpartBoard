@@ -8873,6 +8873,10 @@ export interface WebTourPicture {
   path: string;
   w: number;
   h: number;
+  /** Where the target sits in this picture, as 0-1 of its width and height; absent on older recordings. */
+  target?: { x: number; y: number; w: number; h: number };
+  /** The picture's width in CSS pixels when captured, so previews draw the tour to scale. */
+  cssW?: number;
 }
 
 /** A web-tour step's target; the step's `label` and `text` are its tip. */

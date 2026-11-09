@@ -4,13 +4,15 @@ import { Check, MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { headerIconBtn } from '@/components/common/lightChrome';
-import type { TourShellMenuItem } from './types';
+import type { TourAnchorAttrs, TourShellMenuItem } from './types';
 
 /** The header's ⋯ menu; drops down inside the panel so it sits above the stage. */
 export const TourShellMenu: React.FC<{
   items: readonly TourShellMenuItem[];
   footer?: React.ReactNode;
-}> = ({ items, footer }) => {
+  /** Replaces the shared trigger anchor. */
+  anchor?: TourAnchorAttrs;
+}> = ({ items, footer, anchor }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -69,7 +71,7 @@ export const TourShellMenu: React.FC<{
           );
         }}
         className={`${headerIconBtn} bg-white/10`}
-        {...tourAttr('tour-editor.menu')}
+        {...(anchor ?? tourAttr('tour-editor.menu'))}
       >
         <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
       </button>
@@ -98,11 +100,12 @@ export const TourShellMenu: React.FC<{
               className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium hover:bg-slate-100 focus:bg-slate-100 focus:outline-hidden aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${
                 item.danger ? 'text-brand-red-primary' : ''
               }`}
-              {...tourFieldAttr(
-                'tour-editor.menu-item',
-                'guided-learning',
-                item.id
-              )}
+              {...(item.anchor ??
+                tourFieldAttr(
+                  'tour-editor.menu-item',
+                  'guided-learning',
+                  item.id
+                ))}
             >
               <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate">{item.label}</span>

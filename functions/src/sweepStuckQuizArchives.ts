@@ -20,11 +20,13 @@ import {
   archiveQuizArtifactCore,
   buildDefaultArchiveDeps,
   isLostArchiveError,
+  parsePaperPageArtifactId,
   retryStorageCleanup,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
 import {
+  KEPT_PAGES_QUESTION_ID,
   buildDefaultOrgMediaDeps,
   finishStuckMediaDelete,
 } from './deleteQuizMediaForOrgAdmin';
@@ -158,6 +160,16 @@ export function findQuestionIdForArtifact(
   return null;
 }
 
+/** The delete target an archive entry belongs to: a kept scan page's sentinel, else its answer's question. */
+export function targetQuestionIdFor(
+  answers: unknown,
+  artifactId: string
+): string | null {
+  return parsePaperPageArtifactId(artifactId)
+    ? KEPT_PAGES_QUESTION_ID
+    : findQuestionIdForArtifact(answers, artifactId);
+}
+
 /** The stored kind of one artifact; absent reads as audio. */
 export function findArtifactKind(
   answers: unknown,
@@ -205,8 +217,10 @@ export function isWhiteboardTakeArtifact(
 }
 
 export interface StragglerItem {
-  /** `'handwriting'` for a paper answer crop; absent for a recording. */
-  kind?: 'handwriting';
+  /** `'handwriting'` for a paper answer crop, `'paper-page'` for a kept scan page; absent for a recording. */
+  kind?: 'handwriting' | 'paper-page';
+  /** Kept scan pages only: the page number the line names instead of a question. */
+  page?: number;
   quizTitle: string;
   questionId: string;
   /** Roster name or `Pin{pin}` — resolved server-side, never a raw uid. */
@@ -224,7 +238,12 @@ export function safeMailToken(value: string, max: number): string {
 function stragglerLines(items: readonly StragglerItem[]): string[] {
   const listed = items.slice(0, MAX_LISTED_STRAGGLERS);
   const lines = listed.map(
-    (i) => `- ${i.quizTitle} — ${i.studentLabel}: question ${i.questionId}`
+    (i) =>
+      `- ${i.quizTitle} — ${i.studentLabel}: ${
+        i.kind === 'paper-page'
+          ? `scanned page ${i.page ?? ''}`.trim()
+          : `question ${i.questionId}`
+      }`
   );
   const overflow = items.length - listed.length;
   if (overflow > 0) lines.push(`- ...and ${overflow} more`);
@@ -237,7 +256,7 @@ export function buildStragglerEmail(items: StragglerItem[]): {
 } {
   const retrying = items.filter((i) => !i.permanent);
   const lost = items.filter((i) => i.permanent);
-  const paper = items.filter((i) => i.kind === 'handwriting').length;
+  const paper = items.filter((i) => i.kind !== undefined).length;
   const noun =
     paper === 0
       ? 'student recordings'
@@ -357,10 +376,7 @@ export async function runSweepStuckQuizArchives(
         // A compliance delete owns this artifact; never re-archive it.
         if (isDeleteOwnedEntry(entry)) {
           if (!needsDeleteCompletion(entry, now)) continue;
-          const questionId = findQuestionIdForArtifact(
-            data.answers,
-            artifactId
-          );
+          const questionId = targetQuestionIdFor(data.answers, artifactId);
           if (!questionId) continue;
           try {
             await deps.finishDelete({ ...target, questionId });
@@ -372,10 +388,7 @@ export async function runSweepStuckQuizArchives(
         }
         // Second pass: archived to Drive, only the transit object is owed.
         if (entry?.storageCleanupPending === true) {
-          const questionId = findQuestionIdForArtifact(
-            data.answers,
-            artifactId
-          );
+          const questionId = targetQuestionIdFor(data.answers, artifactId);
           if (!questionId) continue;
           try {
             await deps.cleanUpStorage({ ...target, questionId });
@@ -386,7 +399,7 @@ export async function runSweepStuckQuizArchives(
           continue;
         }
         if (!isStuckArchiveEntry(entry, now)) continue;
-        const questionId = findQuestionIdForArtifact(data.answers, artifactId);
+        const questionId = targetQuestionIdFor(data.answers, artifactId);
         if (!questionId) continue;
         summary.retried++;
         try {
@@ -409,9 +422,15 @@ export async function runSweepStuckQuizArchives(
             pin
           );
           const list = stragglersByTeacher.get(session.teacherUid) ?? [];
-          const kind = findArtifactKind(data.answers, artifactId);
+          const page = parsePaperPageArtifactId(artifactId)?.page;
+          const kind = page
+            ? 'paper-page'
+            : findArtifactKind(data.answers, artifactId);
           list.push({
-            ...(kind === 'handwriting' ? { kind } : {}),
+            ...(kind === 'handwriting' || kind === 'paper-page'
+              ? { kind }
+              : {}),
+            ...(page ? { page } : {}),
             quizTitle: session.quizTitle,
             questionId: safeMailToken(questionId, 64) || 'unknown',
             studentLabel,

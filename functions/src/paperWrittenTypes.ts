@@ -142,6 +142,8 @@ export const PAPER_KEPT_PAGES_FEATURE = 'paper-kept-pages';
 export const PAPER_IMAGE_MARKUP_FEATURE = 'paper-image-markup';
 export const PAPER_PAGE_PREFIX = 'paper_pages';
 export const PAPER_PAGE_CALLABLE = 'getPaperPageV1';
+/** Server-only `users/{uid}/paper_page_scans/{scanId}`: `seats.{seat}` names the response each kept page was recorded on. */
+export const PAPER_PAGE_SCANS = 'paper_page_scans';
 /** Off: inked boxes import as `image` and teachers grade the crop. */
 export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 export const PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT = 300;
