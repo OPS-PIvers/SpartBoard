@@ -42,11 +42,13 @@ export interface SheetReprint {
 function bubbleFor(
   choiceOrder: Record<string, string[]> | undefined,
   questionId: string,
-  text: string
+  text: string,
+  recorded?: Record<string, string[]>
 ): number | null {
   if (!text) return null;
-  const order = choiceOrder?.[questionId];
-  if (order) {
+  // An answer scanned before a choice was reworded still holds the wording printed then.
+  for (const order of [choiceOrder?.[questionId], recorded?.[questionId]]) {
+    if (!order) continue;
     let i = order.indexOf(text);
     if (i < 0) {
       const wanted = normalizeAnswer(text);
@@ -105,7 +107,12 @@ export function planSheetReprint(
     const entry = answers.get(row.questionId);
     filled.push(
       entry && !entry.unresponded
-        ? bubbleFor(choiceOrder, row.questionId, entry.answer ?? '')
+        ? bubbleFor(
+            choiceOrder,
+            row.questionId,
+            entry.answer ?? '',
+            batch.choiceOrder
+          )
         : null
     );
     unclear.push(entry?.unresponded === 'paper-unclear');
