@@ -44,6 +44,9 @@ export function toPlayback(
       clues,
       action: s.web.action,
       hasPicture,
+      ...(msg.tour.conditions?.[s.id]
+        ? { conditions: msg.tour.conditions[s.id] }
+        : {}),
     };
   });
   return {

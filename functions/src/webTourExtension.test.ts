@@ -245,6 +245,24 @@ describe('loadTour', () => {
     expect(tour.version).toBe(1700);
   });
 
+  it('sends step conditions beside the steps, never inside them, and drops malformed ones', async () => {
+    const a = step('a', 'https://app.example.com/');
+    const b = step('b', 'https://app.example.com/');
+    const tour = await loadTour(
+      'set1',
+      snapshot([
+        { ...a, web: { ...a.web, showWhen: { kind: 'target' } } },
+        {
+          ...b,
+          web: { ...b.web, doneWhen: { kind: 'url', pattern: 'ftp://x' } },
+        },
+      ]),
+      storeOf(3)
+    );
+    expect(tour.conditions).toEqual({ a: { showWhen: { kind: 'target' } } });
+    expect(tour.steps[0].web).not.toHaveProperty('showWhen');
+  });
+
   it("never reads a picture outside the set's folder", async () => {
     const store = storeOf(3);
     const tour = await loadTour(

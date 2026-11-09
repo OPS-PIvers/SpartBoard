@@ -1,6 +1,14 @@
 import type { WebTourAction, WebTourFrame } from '@/types';
 import type { WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
+import type { WebStepConditions } from '@/components/tours/web/extensionProtocol';
+import {
+  doneOnPage,
+  doneWhenLost,
+  skipsOnPage,
+  skipsWhenMissing,
+  waitsForDone,
+} from './conditions';
 import {
   backTarget,
   catchUp,
@@ -24,6 +32,8 @@ export interface PlaybackStep {
   clues: WebLocatorClues;
   action: WebStepAction;
   hasPicture: boolean;
+  /** When the step plays and when it is done (E6); absent = always, and done at the learner's action. */
+  conditions?: WebStepConditions;
 }
 
 export interface PlaybackTour {
@@ -47,6 +57,8 @@ export interface PlaybackState {
   startedAt: number;
   /** Steps a catch-up passed over (TOURS_10X.md P3); absent in records saved before it. */
   skipped?: string[];
+  /** Steps left out because their showWhen didn't hold (E6), apart from catch-up's `skipped`. */
+  conditionSkipped?: string[];
 }
 
 export type PlaybackEvent =
@@ -92,12 +104,21 @@ function enterStep(
     return { ...state, index: state.tour.steps.length - 1, status: 'done' };
   }
   const step = state.tour.steps[index];
+  // Going forward onto a step its showWhen leaves out on this page: on to the next (E6).
+  if (index >= state.index && skipsOnPage(step, url))
+    return enterStep(conditionSkip(state, step.id), index + 1, url);
   return {
     ...enterRun(state, state.tour.steps, index),
     furthest: Math.max(state.furthest, index),
     status: url === null ? 'seeking' : pageStatus(step, url),
   };
 }
+
+/** Records a step a condition left out, once. */
+const conditionSkip = (state: PlaybackState, id: string): PlaybackState =>
+  state.conditionSkipped?.includes(id)
+    ? state
+    : { ...state, conditionSkipped: [...(state.conditionSkipped ?? []), id] };
 
 function record(
   state: PlaybackState,
@@ -148,6 +169,9 @@ export function reducePlayback(
   }
   switch (event.type) {
     case 'page': {
+      // The address its doneWhen names finishes the step (E6).
+      if (state.status !== 'wrong-page' && doneOnPage(step, event.url))
+        return enterStep(state, state.index + 1, event.url);
       if (state.status === 'shown' || state.status === 'fallback') {
         // The learner's action moved them to the next step's page.
         const next = state.tour.steps[state.index + 1];
@@ -176,16 +200,28 @@ export function reducePlayback(
       if (state.status === 'wrong-page') return state;
       return { ...state, status: 'shown', matched: record(state, event.match) };
     case 'lost':
-      return state.status === 'shown' ? { ...state, status: 'seeking' } : state;
+      if (state.status !== 'shown') return state;
+      // A step done when its target goes away (E6).
+      if (doneWhenLost(step)) return enterStep(state, state.index + 1, null);
+      return { ...state, status: 'seeking' };
     case 'timeout':
       if (state.status !== 'seeking') return state;
+      // A step that plays only if its target shows up is left out, not shown as a picture (E6).
+      if (skipsWhenMissing(step))
+        return enterStep(conditionSkip(state, step.id), state.index + 1, null);
       return {
         ...state,
         status: 'fallback',
         matched: record(state, 'picture'),
       };
     case 'acted':
-      if (state.status !== 'shown' || step.action === 'observe') return state;
+      // A step with a doneWhen waits for it, not for the learner's action (E6).
+      if (
+        state.status !== 'shown' ||
+        step.action === 'observe' ||
+        waitsForDone(step)
+      )
+        return state;
       return enterStep(state, state.index + 1, null);
     case 'ahead':
       if (

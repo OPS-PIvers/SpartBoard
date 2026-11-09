@@ -2,12 +2,14 @@
 import {
   WEB_TOUR_ATTR_KEYS,
   type WebTourAction,
+  type WebTourCondition,
   type WebTourLocator,
   type WebTourStableAttrs,
 } from '@/types';
 import {
   MAX_PICTURE_CHARS,
   MAX_PICTURE_TOTAL_CHARS,
+  type WebStepConditions,
   type WebTourPictureBytes,
   type WebTourStartTour,
 } from './extensionProtocol';
@@ -17,7 +19,42 @@ export interface HandoffStep {
   id: string;
   label?: string;
   text?: string;
-  web: { urlPattern: string; action: WebTourAction; locator: WebTourLocator };
+  web: {
+    urlPattern: string;
+    action: WebTourAction;
+    locator: WebTourLocator;
+    showWhen?: WebTourCondition;
+    doneWhen?: WebTourCondition;
+  };
+}
+
+/** A condition the extension accepts, or undefined (a bad address pattern is dropped). */
+const handoffCondition = (
+  c: WebTourCondition | undefined
+): WebTourCondition | undefined =>
+  !c
+    ? undefined
+    : c.kind === 'target'
+      ? { kind: 'target' }
+      : isHandoffPattern(c.pattern)
+        ? { kind: 'url', pattern: c.pattern }
+        : undefined;
+
+/** Step conditions by id, for an extension that plays them (CONDITIONS_PROTOCOL); undefined when there are none. */
+export function handoffConditions(
+  steps: readonly HandoffStep[]
+): Record<string, WebStepConditions> | undefined {
+  const out: Record<string, WebStepConditions> = {};
+  for (const step of steps.slice(0, MAX_STEPS)) {
+    const showWhen = handoffCondition(step.web.showWhen);
+    const doneWhen = handoffCondition(step.web.doneWhen);
+    if (showWhen || doneWhen)
+      out[step.id] = {
+        ...(showWhen ? { showWhen } : {}),
+        ...(doneWhen ? { doneWhen } : {}),
+      };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 // The extension's validator rejects a whole tour over these, so the hub clips first.
@@ -99,10 +136,14 @@ export function buildStartTour(
   title: string,
   steps: readonly HandoffStep[],
   pictures: ReadonlyMap<string, WebTourPictureBytes>,
-  scored = false
+  scored = false,
+  /** Only an extension at CONDITIONS_PROTOCOL accepts them. */
+  withConditions = false
 ): WebTourStartTour {
   let total = 0;
+  const conditions = withConditions ? handoffConditions(steps) : undefined;
   return {
+    ...(conditions ? { conditions } : {}),
     setId,
     version,
     title: title.slice(0, MAX_TITLE),

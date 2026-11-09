@@ -95,6 +95,25 @@ describe('web tour picture paths', () => {
     );
   });
 
+  it("counts a draft step's uncropped capture as one of its pictures", () => {
+    const paths = webTourPicturePaths('w1', {
+      steps: [
+        {
+          web: {
+            picture: {
+              path: 'web_tour_pictures/w1/a.png',
+              original: { path: 'web_tour_pictures/w1/full.png' },
+            },
+          },
+        },
+      ],
+    });
+    expect([...paths]).toEqual([
+      'web_tour_pictures/w1/a.png',
+      'web_tour_pictures/w1/full.png',
+    ]);
+  });
+
   it('collects step pictures and ignores other sets and odd shapes', () => {
     const paths = webTourPicturePaths('w1', {
       steps: [pic('a.png'), pic('b.png', 'w2'), { web: {} }, null, {}],

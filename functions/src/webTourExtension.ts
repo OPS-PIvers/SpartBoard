@@ -120,8 +120,27 @@ interface StoredStep {
     action?: unknown;
     locator?: unknown;
     picture?: { path?: unknown; w?: unknown; h?: unknown };
+    showWhen?: unknown;
+    doneWhen?: unknown;
   };
 }
+
+type StepCondition = { kind: 'target' } | { kind: 'url'; pattern: string };
+
+/** A step condition (TOURS_10X.md E6) the extension accepts, or null. */
+const conditionOf = (v: unknown): StepCondition | null => {
+  if (!v || typeof v !== 'object') return null;
+  const c = v as { kind?: unknown; pattern?: unknown };
+  if (c.kind === 'target') return { kind: 'target' };
+  if (
+    c.kind === 'url' &&
+    typeof c.pattern === 'string' &&
+    c.pattern.startsWith('https://') &&
+    c.pattern.length <= 2048
+  )
+    return { kind: 'url', pattern: c.pattern };
+  return null;
+};
 
 interface StoredSnapshot {
   publishedAt?: unknown;
@@ -191,6 +210,11 @@ export interface LoadedTour {
     web: { urlPattern: string; action: unknown; locator: unknown };
   }[];
   pictures: Record<string, LoadedTourPicture>;
+  /** Step conditions by id, beside the steps so an extension before protocol 12 never sees them. */
+  conditions?: Record<
+    string,
+    { showWhen?: StepCondition; doneWhen?: StepCondition }
+  >;
 }
 
 /** The published tour as the extension plays it: no notes or questions, pictures within the start message's budget. */
@@ -236,7 +260,18 @@ export async function loadTour(
     if (!data || data.length > MAX_PICTURE_CHARS) return;
     pictures[p.id] = { mime: p.mime, data, w: p.w, h: p.h };
   });
+  const conditions: NonNullable<LoadedTour['conditions']> = {};
+  for (const step of steps) {
+    const showWhen = conditionOf(step.web?.showWhen);
+    const doneWhen = conditionOf(step.web?.doneWhen);
+    if (showWhen || doneWhen)
+      conditions[str(step.id)] = {
+        ...(showWhen ? { showWhen } : {}),
+        ...(doneWhen ? { doneWhen } : {}),
+      };
+  }
   return {
+    ...(Object.keys(conditions).length > 0 ? { conditions } : {}),
     setId,
     version: Number(snap.publishedAt) || 0,
     title: str(snap.set?.title),

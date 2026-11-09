@@ -673,6 +673,66 @@ describe('web tour connector tools', () => {
     expect(isWebTourPicturePath('t1', 'web_tour_pictures/t1/../x')).toBe(false);
   });
 
+  it("never serves a step's kept whole screen, and leaves markup out of what Claude reads", async () => {
+    h.files.set('web_tour_pictures/t1/crop.jpg', {
+      bytes: Buffer.from('crop'),
+      contentType: 'image/jpeg',
+    });
+    h.files.set('web_tour_pictures/t1/full.jpg', {
+      bytes: Buffer.from('full'),
+      contentType: 'image/jpeg',
+    });
+    const t = tour() as Data & { steps: Data[] };
+    const original = {
+      path: 'web_tour_pictures/t1/full.jpg',
+      w: 2,
+      h: 2,
+      crop: { x: 0, y: 0, w: 0.5, h: 0.5 },
+    };
+    const markup = [{ id: 'n', kind: 'number', x: 0.5, y: 0.5, n: 1 }];
+    const kept = {
+      ...STEP_B,
+      id: 'k',
+      web: {
+        ...STEP_B.web,
+        picture: {
+          path: 'web_tour_pictures/t1/crop.jpg',
+          w: 1,
+          h: 1,
+          original,
+          markup,
+        },
+      },
+    };
+    // A step whose picture was removed but whose capture somehow stayed.
+    const bare = {
+      ...STEP_B,
+      id: 'z',
+      web: { ...STEP_B.web, picture: { original } },
+    };
+    const call = await connect(
+      seed({
+        'building_web_tours/t1': { ...t, steps: [...t.steps, kept, bare] },
+      }).db
+    );
+    const pic = await call('get_web_tour_step_picture', {
+      set_id: 't1',
+      step_id: 'k',
+    });
+    expect(pic.images).toEqual([
+      containing({ data: Buffer.from('crop').toString('base64') }),
+    ]);
+    expect(JSON.stringify(pic)).not.toContain(
+      Buffer.from('full').toString('base64')
+    );
+    expect(
+      await call('get_web_tour_step_picture', { set_id: 't1', step_id: 'z' })
+    ).toMatchObject({ error: matching(/no recorded picture/) });
+    const listed = JSON.stringify(await call('get_web_tour', { set_id: 't1' }));
+    expect(listed).not.toContain('full.jpg');
+    expect(listed).not.toContain('markup');
+  });
+
   it('restores the old titles and tips from the revision it kept', async () => {
     const call = await connect(seed().db);
     const out = await call('update_web_tour_text', {

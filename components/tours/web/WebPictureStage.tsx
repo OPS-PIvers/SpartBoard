@@ -7,7 +7,7 @@ import { tetherFor } from '@/components/widgets/GuidedLearning/utils/calloutPlac
 import { focusRing } from '@/components/common/lightChrome';
 import { tourAttr } from '@/config/tourAnchors';
 import { BlobImage } from './BlurBoxes';
-import { BlurEditor } from './webEditorParts';
+import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import { usePictureBlob } from './webPictures';
 import type { WebStep } from './webEditorModel';
 import {
@@ -20,6 +20,12 @@ import {
 interface Size {
   w: number;
   h: number;
+}
+
+/** A picture tool's layer over the stage picture, given the picture's box as shown. */
+export interface StageEditing {
+  kind: 'blur' | 'crop' | 'markup';
+  render: (box: Size) => React.ReactNode;
 }
 
 // Callback-ref measuring, so nothing reads a ref during render.
@@ -121,7 +127,9 @@ const RingAndTip: React.FC<{
   total: number;
   size: Size;
   frac: FracRect;
-}> = ({ step, index, total, size, frac }) => {
+  /** While marking up: the ring alone (no dim) and a faint tip, to place shapes around. */
+  guide?: boolean;
+}> = ({ step, index, total, size, frac, guide = false }) => {
   const [tipRef, tipSize] = useMeasured<HTMLDivElement>();
   const rect = {
     x: frac.x * size.w,
@@ -142,18 +150,53 @@ const RingAndTip: React.FC<{
   );
   return (
     // inert: the preview is a picture of the tour, never a live one.
-    <div inert data-testid="web-stage-preview" className="absolute inset-0">
-      {/* No breathe loop: a still frame of it reads as a second, wider ring. */}
-      <TourSpotlight rect={rect} clickThrough glide={false} />
-      <PreviewTip
-        step={step}
-        index={index}
-        total={total}
-        boxRef={tipRef}
-        place={place}
-        tether={tether}
-        plain={false}
-      />
+    <div
+      inert
+      data-testid={guide ? 'web-stage-guide' : 'web-stage-preview'}
+      className="pointer-events-none absolute inset-0"
+    >
+      {guide ? (
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full overflow-visible"
+          width={size.w}
+          height={size.h}
+        >
+          <rect
+            data-testid="web-stage-guide-ring"
+            x={rect.x - 6}
+            y={rect.y - 6}
+            width={rect.width + 12}
+            height={rect.height + 12}
+            rx={10}
+            className="fill-none stroke-slate-900/40"
+            strokeWidth={5}
+          />
+          <rect
+            x={rect.x - 6}
+            y={rect.y - 6}
+            width={rect.width + 12}
+            height={rect.height + 12}
+            rx={10}
+            className="fill-none stroke-white"
+            strokeWidth={3}
+          />
+        </svg>
+      ) : (
+        // No breathe loop: a still frame of it reads as a second, wider ring.
+        <TourSpotlight rect={rect} clickThrough glide={false} />
+      )}
+      <div className={guide ? 'opacity-40' : undefined}>
+        <PreviewTip
+          step={step}
+          index={index}
+          total={total}
+          boxRef={tipRef}
+          place={place}
+          tether={tether}
+          plain={false}
+        />
+      </div>
     </div>
   );
 };
@@ -178,9 +221,8 @@ export const WebPictureStage: React.FC<{
   onSelectPicture: (on: boolean) => void;
   /** Shown under the picture while it is selected. */
   tools: React.ReactNode;
-  blurring: boolean;
-  onBlurred: (blob: Blob) => Promise<void>;
-  onCancelBlur: () => void;
+  /** A picture tool at work (blur, crop, mark up): drawn in the picture's own box, so the frame never moves. */
+  editing: StageEditing | null;
 }> = ({
   step,
   index,
@@ -188,10 +230,9 @@ export const WebPictureStage: React.FC<{
   pictureSelected,
   onSelectPicture,
   tools,
-  blurring,
-  onBlurred,
-  onCancelBlur,
+  editing,
 }) => {
+  const blurring = !!editing;
   const [stageRef, room] = useMeasured<HTMLElement>();
   const [dockRef, dockSize] = useMeasured<HTMLDivElement>();
   const picture = step?.web?.picture;
@@ -306,25 +347,28 @@ export const WebPictureStage: React.FC<{
               ) : (
                 <div className="absolute inset-0 animate-pulse bg-slate-100 motion-reduce:animate-none" />
               )}
-              {!blurring && blob && ring && (
+              {editing?.kind !== 'markup' && picture.markup && (
+                <TourPictureMarkup
+                  shapes={picture.markup}
+                  width={picture.w}
+                  height={picture.h}
+                  overDim
+                />
+              )}
+              {blob && ring && (!editing || editing.kind === 'markup') && (
                 <RingAndTip
                   step={step}
                   index={index}
                   total={total}
                   size={css}
                   frac={ring}
+                  guide={editing?.kind === 'markup'}
                 />
               )}
             </Scaled>
           </div>
-          {blurring ? (
-            <BlurEditor
-              key={picture.path}
-              path={picture.path}
-              index={index}
-              onApply={onBlurred}
-              onCancel={onCancelBlur}
-            />
+          {editing ? (
+            editing.render(shown)
           ) : (
             <>
               <button

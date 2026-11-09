@@ -59,3 +59,16 @@ export const webTargetLabel = (loc: WebTourLocator | undefined): string =>
 /** A web step with nothing a person or Claude wrote: a recording's starter title and no tip. */
 export const webStepNeedsText = (step: GuidedLearningStep): boolean =>
   hasStarterTitle(step) && !step.text?.trim();
+
+/** Why a step's showWhen can never hold, or null: its address is on another site than the step's own page. */
+export function showWhenProblem(web: GuidedLearningStep['web']): string | null {
+  const c = web?.showWhen;
+  if (c?.kind !== 'url') return null;
+  const host = (p: string) =>
+    /^https?:\/\/([^/?#]*)/.exec(p)?.[1]?.toLowerCase();
+  const wanted = host(c.pattern);
+  if (!wanted) return 'Never plays: the address is not a web page';
+  return wanted !== host(web?.urlPattern ?? '')
+    ? 'Never plays: the address is on another site'
+    : null;
+}
