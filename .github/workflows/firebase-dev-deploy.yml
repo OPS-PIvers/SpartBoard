@@ -69,8 +69,15 @@ jobs:
       # tests/ci.eslintConcurrencyMemory.test.ts.
       - if: matrix.check == 'app' && needs.plan.outputs.mode == 'full'
         run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --shard=${{ matrix.shard }}/3
+      # Content-keyed Prettier cache: unchanged files skip formatting checks.
       - if: matrix.check != 'app'
-        run: pnpm run format:check
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.cache/prettier
+          key: prettier-${{ hashFiles('pnpm-lock.yaml', '.prettierrc', '.prettierignore') }}-${{ github.sha }}
+          restore-keys: prettier-${{ hashFiles('pnpm-lock.yaml', '.prettierrc', '.prettierignore') }}-
+      - if: matrix.check != 'app'
+        run: pnpm run format:check --cache --cache-strategy content
       - if: matrix.check != 'app' && !cancelled()
         run: pnpm run lint:functions
       - if: matrix.check != 'app' && !cancelled()
@@ -411,7 +418,7 @@ jobs:
           status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$GITHUB_REF_NAME" --jq .status) || status=unknown
           if [[ "$status" == ahead ]]; then
             echo "::notice::$GITHUB_REF_NAME has moved past this commit; the newer run deploys it."
-            gh run cancel "$GITHUB_RUN_ID"
+            gh run cancel "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY"
             sleep 120
             exit 1
           fi

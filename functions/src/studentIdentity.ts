@@ -1235,7 +1235,9 @@ const ONEROSTER_MAX_PAGES = 10;
 async function fetchOneRosterPages<T>(
   url: string,
   key: string,
-  creds: { classlinkClientId: string; classlinkClientSecret: string }
+  creds: { classlinkClientId: string; classlinkClientSecret: string },
+  // True where an empty first page means "none" (a class with no students), not an outage.
+  firstPageMayOmitKey = false
 ): Promise<T[] | null> {
   const out: T[] = [];
   for (let page = 0; page < ONEROSTER_MAX_PAGES; page += 1) {
@@ -1256,7 +1258,15 @@ async function fetchOneRosterPages<T>(
       headers: { ...headers },
       timeout: CLASSLINK_TIMEOUT_MS,
     });
-    const batch = res.data[key] ?? [];
+    const body: unknown = res.data;
+    // A non-JSON body (maintenance page, proxy) is an outage, never an empty roster.
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      throw new Error('OneRoster page without a list');
+    }
+    const raw = (body as Record<string, T[] | undefined>)[key];
+    if (raw === undefined && (page > 0 || firstPageMayOmitKey)) return out;
+    if (!Array.isArray(raw)) throw new Error('OneRoster page without a list');
+    const batch = raw;
     out.push(...batch);
     if (batch.length < ONEROSTER_PAGE_LIMIT) return out;
   }
@@ -1318,7 +1328,11 @@ export async function loadTeacherClassIds(
         timeout: CLASSLINK_TIMEOUT_MS,
       }
     );
-    const teacher = (userResp.data.users ?? []).find(isOneRosterStaff);
+    const users: unknown = userResp.data?.users;
+    // A lookup without the list is an outage; reading it as "not staff" would empty the class list.
+    if (!Array.isArray(users))
+      throw new Error('OneRoster users lookup without a list');
+    const teacher = (users as OneRosterUserWithRole[]).find(isOneRosterStaff);
     if (!teacher?.sourcedId) return null;
 
     const classes = await fetchOneRosterPages<ClassLinkClass>(
@@ -1348,7 +1362,8 @@ export async function loadClassStudentIds(
     const students = await fetchOneRosterPages<ClassLinkStudent>(
       `${base}/classes/${encodeURIComponent(classId)}/students`,
       'users',
-      creds
+      creds,
+      true
     );
     if (!students) throw new Error('student list truncated');
     return new Set(

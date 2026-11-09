@@ -718,6 +718,7 @@ export function scoreCompletion(
 
 /** Mini App results v2: the best attempt's score, or null when it has none (D13). */
 export function scoreMiniAppBest(
+  session: Doc,
   submission: Doc,
   classId: string | null
 ): RowScore | null {
@@ -733,7 +734,8 @@ export function scoreMiniAppBest(
     return null;
   return {
     classId,
-    published: true,
+    // With answers hidden the student never got this score back (D9), so it waits for the teacher to publish.
+    published: session.showCorrectAnswers !== false,
     targetEvidence: [],
     rawPct: round2((score / maxScore) * 100),
     points: score,

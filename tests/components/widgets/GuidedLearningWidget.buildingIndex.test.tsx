@@ -185,7 +185,8 @@ describe('GuidedLearningWidget building sets from the index', () => {
             view: 'player',
             playerSetId: 'b-1',
           }),
-        })
+        }),
+        { pickItem: true }
       )
     );
     expect(loadBuildingSet).toHaveBeenCalledTimes(1);

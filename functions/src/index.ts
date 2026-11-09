@@ -19,6 +19,7 @@
 // ── ClassLink roster (teacher-side OneRoster import) ───────────────────────
 export { getClassLinkRosterV1 } from './classlinkRoster';
 export { classlinkRosterSync } from './classlinkRosterSync';
+export { refreshMyClassesV1, verifiedClassesFill } from './verifiedClasses';
 
 // ── AI generation (Gemini): quiz / video-activity / guided-learning / etc. ─
 // Includes the test-only validator + cache-introspection re-exports the test
@@ -249,7 +250,11 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // Poll join codes resolve through server-written poll_codes pointers.
 export { pollCodePointer } from './pollCodePointer';
-export { resolvePollCodeV1, mintPollCodeV1 } from './pollCodeResolve';
+export {
+  resolvePollCodeV1,
+  mintPollCodeV1,
+  claimPollCodeV1,
+} from './pollCodeResolve';
 export { guidedLearningLateRevealKey } from './guidedLearningRevealKey';
 
 // Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.
@@ -392,6 +397,7 @@ export {
 export {
   classroomAddonLoginV1,
   createClassroomAttachment,
+  verifyClassroomTeacherV1,
   assignToClassroomV1,
   linkClassroomCourse,
   unlinkClassroomCourse,

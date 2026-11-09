@@ -47,6 +47,25 @@ describe('check-mode.mjs', () => {
     expect(await decideMode(input())).toBe('reuse');
   });
 
+  it('reuses the merge queue run on this exact commit, even with no matching PR', async () => {
+    const queued = input({
+      mergedPrs: [],
+      queueRuns: () => Promise.resolve([9]),
+    });
+    expect(await decideMode(queued)).toBe('reuse');
+    // A queue run that skipped a required check never counts.
+    const partial = passedJobs.filter((job) => job.name !== 'Build');
+    expect(
+      await decideMode(
+        input({
+          mergedPrs: [],
+          queueRuns: () => Promise.resolve([9]),
+          jobsOf: () => Promise.resolve(partial),
+        })
+      )
+    ).toBe('full');
+  });
+
   it('runs everything when the trees differ, or no merged PR or passing run exists', async () => {
     expect(
       await decideMode(input({ treeOf: () => Promise.resolve('other') }))
@@ -61,8 +80,27 @@ describe('check-mode.mjs', () => {
     ).toBe('full');
   });
 
+  it('reuses a PR run that skipped rules tests because nothing they read changed', () => {
+    const skipped = passedJobs.map((job) =>
+      job.name.startsWith('Firestore Rules Tests')
+        ? { ...job, conclusion: 'skipped' }
+        : job
+    );
+    expect(prChecksRan(skipped)).toBe(true);
+    // A rules shard that failed or was cancelled never counts.
+    expect(
+      prChecksRan([
+        ...skipped,
+        { name: 'Firestore Rules Tests (shard 2/4)', conclusion: 'failure' },
+      ])
+    ).toBe(false);
+  });
+
   it('never reuses a PR run that skipped a required check', async () => {
-    for (const prefix of REQUIRED_PR_JOBS) {
+    const mustRun = REQUIRED_PR_JOBS.filter(
+      (prefix) => prefix !== 'Firestore Rules Tests (shard '
+    );
+    for (const prefix of mustRun) {
       const jobs = passedJobs.map((job) =>
         job.name.startsWith(prefix) ? { ...job, conclusion: 'skipped' } : job
       );
@@ -164,7 +202,10 @@ describe('firebase-dev-deploy.yml check modes', () => {
       expect(guard).toBeLessThan(body.indexOf('- uses: actions/checkout@v6'));
       expect(body).toContain('actions: write');
     }
-    expect(job('deploy')).toContain('gh run cancel "$GITHUB_RUN_ID"');
+    // It runs before checkout, so gh needs the repo named.
+    expect(job('deploy')).toContain(
+      'gh run cancel "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY"'
+    );
   });
 
   it('never cancels the run from hosting, so a running backend deploy finishes', () => {
@@ -226,5 +267,27 @@ describe('runIsFromPr', () => {
         pr
       )
     ).toBe(false);
+  });
+});
+
+describe('pr-validation.yml merge queue', () => {
+  const workflow = read('pr-validation.yml');
+
+  it('runs PR Validation, and so the required summary check, for dev-paul queue groups', () => {
+    expect(workflow).toMatch(/merge_group:\n\s+branches:\n\s+- dev-paul/);
+    expect(workflow).toContain('compareCommits');
+    expect(workflow).toContain('if (context.payload.merge_group) {');
+  });
+
+  it('keeps the rules decision a real boolean, so PRs still skip unneeded rules tests', () => {
+    expect(workflow).toContain(
+      'const complete = Boolean(pr) || files.length < 300;'
+    );
+  });
+
+  it('never comments on a queue group, which has no PR to comment on', () => {
+    expect(
+      workflow.match(/github\.event_name == 'pull_request' && /g)
+    ).toHaveLength(2);
   });
 });

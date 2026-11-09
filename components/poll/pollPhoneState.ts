@@ -10,13 +10,20 @@ export type PollPhoneState =
   | {
       phase: 'ready';
       sessionId: string;
+      /** Keys this device's votes, so other devices can't tie a vote to its account. */
+      voterId: string;
       session: PollSessionDoc;
       votes: PollVoteEntry[];
       vote: PollVoteStatus;
     };
 
 export type PollPhoneEvent =
-  | { type: 'lookupSucceeded'; sessionId: string; session: PollSessionDoc }
+  | {
+      type: 'lookupSucceeded';
+      sessionId: string;
+      voterId: string;
+      session: PollSessionDoc;
+    }
   | { type: 'lookupFailed' }
   | { type: 'sessionSnapshot'; session: PollSessionDoc }
   | { type: 'votesSnapshot'; votes: PollVoteEntry[] }
@@ -50,6 +57,7 @@ export const pollPhoneReducer = (
         return {
           phase: 'ready',
           sessionId: event.sessionId,
+          voterId: event.voterId,
           session: event.session,
           votes: [],
           vote: 'idle',
@@ -144,7 +152,10 @@ export const derivePollPhoneView = (
     shown.has(`${question.id}:${o.id}`) ? [i] : []
   );
   const tally = aggregateVotes(votes, questionIndex, options.length);
-  const mine = votes.find((v) => v.id === `${questionIndex}_${uid}`);
+  // A uid-keyed vote is one this device cast on the previous app.
+  const mine =
+    votes.find((v) => v.id === `${questionIndex}_${state.voterId}`) ??
+    votes.find((v) => v.id === `${questionIndex}_${uid}`);
   const ballot: PollBallot = {
     questions,
     questionIndex,

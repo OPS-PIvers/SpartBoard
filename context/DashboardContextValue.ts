@@ -231,6 +231,8 @@ export interface DashboardContextValue {
       skipHistory?: boolean;
       // Part of the gesture recordWidgetSnapshot opened; undo reverts it with that step.
       joinHistory?: boolean;
+      // The teacher chose the library item this patch names, so a live share may publish it.
+      pickItem?: boolean;
     }
   ) => void;
   /**

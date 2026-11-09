@@ -62,11 +62,18 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   const view = inShare ? 'board' : resolveView(config);
   // Landing on the board after editing a class shows that class.
   const openBoard = (projectId: string, classId?: string): void =>
-    update({
-      view: 'board',
-      projectId,
-      ...(classId ? { boardClassId: classId } : {}),
-    });
+    updateWidget(
+      widget.id,
+      {
+        config: {
+          ...config,
+          view: 'board',
+          projectId,
+          ...(classId ? { boardClassId: classId } : {}),
+        },
+      },
+      { pickItem: true }
+    );
   // A Group Maker push still lands through the import dialog; everything else is the group manager.
   const openGroups = (projectId: string): void =>
     config.pendingImport
