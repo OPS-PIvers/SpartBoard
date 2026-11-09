@@ -4,6 +4,10 @@ import { rowsFromQuestion } from './quizChoiceRows';
 
 export const PAPER_REWORD_SYNC_FEATURE = 'paper-reword-sync';
 
+// The callable's limits; one oversized question must not fail the whole sync.
+const MAX_SYNC_CHOICES = 8;
+const MAX_SYNC_QUESTIONS = 500;
+
 export interface PaperRewordQuestion {
   questionId: string;
   choices: string[];
@@ -18,5 +22,7 @@ export function paperRewordQuestions(
     .map((q) => ({
       questionId: q.id,
       choices: rowsFromQuestion(q).map((r) => r.text),
-    }));
+    }))
+    .filter((q) => q.choices.length <= MAX_SYNC_CHOICES)
+    .slice(0, MAX_SYNC_QUESTIONS);
 }
