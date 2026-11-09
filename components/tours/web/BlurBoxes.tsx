@@ -27,7 +27,9 @@ export const BlurBoxes: React.FC<{
   boxes: readonly RedactRect[];
   onChange: (boxes: RedactRect[]) => void;
   label: string;
-}> = ({ picture, boxes, onChange, label }) => {
+  /** Fills its parent with no frame of its own, as on the editor stage. */
+  bare?: boolean;
+}> = ({ picture, boxes, onChange, label, bare = false }) => {
   const [start, setStart] = useState<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<RedactRect | null>(null);
 
@@ -50,7 +52,11 @@ export const BlurBoxes: React.FC<{
 
   return (
     <div
-      className="relative w-full touch-none select-none overflow-hidden rounded-md border border-slate-200"
+      className={`relative touch-none select-none overflow-hidden ${
+        bare
+          ? 'h-full w-full rounded-xl'
+          : 'w-full rounded-md border border-slate-200'
+      }`}
       role="img"
       aria-label={label}
       onPointerDown={(e) => {
@@ -67,7 +73,11 @@ export const BlurBoxes: React.FC<{
           onChange([...boxes, r]);
       }}
     >
-      <BlobImage blob={picture} alt="" className="block w-full" />
+      <BlobImage
+        blob={picture}
+        alt=""
+        className={bare ? 'block h-full w-full' : 'block w-full'}
+      />
 
       {[...boxes, ...(draft ? [draft] : [])].map((b, i) => (
         <button

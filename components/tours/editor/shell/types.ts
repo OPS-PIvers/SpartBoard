@@ -1,5 +1,6 @@
 import type React from 'react';
 import type { LucideIcon } from 'lucide-react';
+import type { tourAttr } from '@/config/tourAnchors';
 import type { TourPublishStatus } from '@/components/tours/tourSnapshot';
 import type { TourKind, TourMainAction, TourMainState } from './tourMainAction';
 
@@ -29,6 +30,13 @@ export type TourShellMenuId =
   | 'read-aloud'
   | 'swap-side';
 
+/** The `data-tour` attributes a control spreads, as `tourAttr` returns them. */
+export type TourAnchorAttrs = ReturnType<typeof tourAttr>;
+
+/** Shell controls whose anchor a kind can replace, so its saved tour ids keep rendering. */
+export type TourShellAnchorSlot =
+  'main' | 'play' | 'menu' | 'add-step' | 'record' | 'step-more';
+
 export interface TourShellMenuItem {
   id: TourShellMenuId;
   label: string;
@@ -38,6 +46,8 @@ export interface TourShellMenuItem {
   danger?: boolean;
   /** A toggle item: shown checked when true. */
   pressed?: boolean;
+  /** Replaces the shared menu-item anchor. */
+  anchor?: TourAnchorAttrs;
 }
 
 /** Everything the shell needs from a tour kind (Live today, web from slice 4). */
@@ -72,6 +82,8 @@ export interface TourShellAdapter {
   /** Overrides the Record button's label, e.g. "Stop receiving steps". */
   recordLabel?: string;
   recording?: boolean;
+  /** Replaces the shared tour-editor anchors on the shell's controls. */
+  anchors?: Partial<Record<TourShellAnchorSlot, TourAnchorAttrs>>;
   undo?: {
     onUndo: () => void;
     onRedo: () => void;

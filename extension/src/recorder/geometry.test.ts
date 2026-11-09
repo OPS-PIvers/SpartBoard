@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cropRect, framePath, toBox } from './geometry';
+import { cropRect, framePath, pictureTarget, toBox } from './geometry';
 
 const viewport = { w: 1000, h: 800 };
 
@@ -27,6 +27,35 @@ describe('cropRect', () => {
       width: 1000,
       height: 800,
     });
+  });
+});
+
+describe('pictureTarget', () => {
+  it('places a centred target in the middle of its crop', () => {
+    const p = pictureTarget(
+      { x: 480, y: 380, width: 40, height: 20 },
+      viewport
+    );
+    expect(p?.cssW).toBe(640);
+    expect(p?.target.x).toBeCloseTo(300 / 640, 3);
+    expect(p?.target.y).toBeCloseTo(200 / 420, 3);
+    expect(p?.target.w).toBeCloseTo(40 / 640, 3);
+    expect(p?.target.h).toBeCloseTo(20 / 420, 3);
+  });
+
+  it('keeps a target near the corner where the clamped crop put it', () => {
+    const p = pictureTarget({ x: 10, y: 0, width: 40, height: 20 }, viewport);
+    expect(p?.target.x).toBeCloseTo(10 / 640, 3);
+    expect(p?.target.y).toBe(0);
+  });
+
+  it('matches the screenshot crop at any pixel ratio', () => {
+    const target = { x: 700, y: 600, width: 120, height: 40 };
+    const crop = cropRect(target, viewport, { w: 2000, h: 1600 });
+    const p = pictureTarget(target, viewport);
+    if (!p) throw new Error('no target');
+    expect(p.target.x * crop.width).toBeCloseTo(target.x * 2 - crop.x, 0);
+    expect(p.target.y * crop.height).toBeCloseTo(target.y * 2 - crop.y, 0);
   });
 });
 

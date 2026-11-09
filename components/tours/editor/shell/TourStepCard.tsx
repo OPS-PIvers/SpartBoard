@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import { tourAttr } from '@/config/tourAnchors';
 import { focusRing } from '@/components/common/lightChrome';
 import { cardInput, cardLabel, stepTitleFieldId } from './stepCardParts';
+import type { TourAnchorAttrs } from './types';
 
 interface TourStepCardProps {
   stepId: string;
@@ -22,6 +23,8 @@ interface TourStepCardProps {
   /** Rare tools, collapsed under More. */
   more?: React.ReactNode;
   footer?: React.ReactNode;
+  /** Replaces the shared More anchor. */
+  moreAnchor?: TourAnchorAttrs;
 }
 
 /** The selected step: Title, Tip and Type, rare tools under a collapsed More. */
@@ -35,6 +38,7 @@ export const TourStepCard: React.FC<TourStepCardProps> = ({
   type,
   more,
   footer,
+  moreAnchor,
 }) => {
   const { t } = useTranslation();
   const [pictureSelected, setPictureSelected] = useState(false);
@@ -106,7 +110,7 @@ export const TourStepCard: React.FC<TourStepCardProps> = ({
             data-testid="tour-step-more"
             onClick={() => setMoreOpen((v) => !v)}
             className={`-ml-1 flex items-center gap-1 self-start rounded-md px-1 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${focusRing}`}
-            {...tourAttr('tour-editor.step-more')}
+            {...(moreAnchor ?? tourAttr('tour-editor.step-more'))}
           >
             <ChevronRight
               className={`h-3.5 w-3.5 transition-transform motion-reduce:transition-none ${

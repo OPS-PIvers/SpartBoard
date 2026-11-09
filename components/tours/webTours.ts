@@ -10,7 +10,14 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage';
+import {
+  deleteObject,
+  getBytes,
+  getMetadata,
+  listAll,
+  ref,
+  uploadBytes,
+} from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
 import type {
   GuidedLearningSet,
@@ -234,11 +241,12 @@ export async function loadWebTourPicture(path: string): Promise<ArrayBuffer> {
   return getBytes(ref(storage, path), WEB_TOUR_PICTURE_MAX_BYTES);
 }
 
-/** Publishes the saved draft as the staff-only snapshot, then deletes pictures only the previous one used. */
+/** Publishes the saved draft as the staff-only snapshot, then deletes pictures only the previous one used, except any in `keep`. */
 export async function publishWebTour(
   setId: string,
   uid: string,
-  check?: (draft: GuidedLearningSet) => void
+  check?: (draft: GuidedLearningSet) => void,
+  keep: Iterable<string> = []
 ): Promise<void> {
   const draft = await loadWebTourDraft(setId);
   if (!draft) throw new Error('Web tour draft not found');
@@ -263,9 +271,10 @@ export async function publishWebTour(
   );
   // Re-read the draft so a picture saved back into it since the publish started is kept.
   const latest = await loadWebTourDraft(setId);
-  const keep = webTourPicturePaths(setId, draft);
-  webTourPicturePaths(setId, latest).forEach((p) => keep.add(p));
-  const stale = [...before].filter((p) => !keep.has(p));
+  const kept = webTourPicturePaths(setId, draft);
+  webTourPicturePaths(setId, latest).forEach((p) => kept.add(p));
+  for (const p of keep) kept.add(p);
+  const stale = [...before].filter((p) => !kept.has(p));
   await Promise.all(
     stale.map((p) =>
       deleteObject(ref(storage, p)).catch((err: unknown) => {
@@ -274,4 +283,53 @@ export async function publishWebTour(
       })
     )
   );
+}
+
+/** Files younger than this may be uploads another session hasn't saved into the draft yet. */
+export const ORPHAN_GRACE_MS = 10 * 60 * 1000;
+
+/** Deletes the tour's stored pictures that neither the draft, the published copy nor `keep` uses; `replaced` (this editor's own past pictures) skip the age wait. */
+export async function sweepWebTourPictures(
+  setId: string,
+  opts: { keep?: Iterable<string>; replaced?: Iterable<string> } = {},
+  now = Date.now()
+): Promise<string[]> {
+  const [listed, draft, snap] = await Promise.all([
+    listAll(ref(storage, `${WEB_TOUR_PICTURES_PREFIX}/${setId}`)),
+    loadWebTourDraft(setId),
+    getDoc(snapshotRef(setId)),
+  ]);
+  // A deleted draft's folder goes with it on the server.
+  if (!draft) return [];
+  const used = webTourPicturePaths(setId, draft);
+  if (snap.exists())
+    webTourPicturePaths(
+      setId,
+      snap.get('set') as { steps?: unknown } | null
+    ).forEach((p) => used.add(p));
+  for (const p of opts.keep ?? []) used.add(p);
+  const replaced = new Set(opts.replaced ?? []);
+  const unused = listed.items
+    .map((item) => item.fullPath)
+    .filter((p) => isWebTourPicturePath(setId, p) && !used.has(p));
+  const stale = await Promise.all(
+    unused.map(async (p) => {
+      if (replaced.has(p)) return p;
+      try {
+        const { timeCreated } = await getMetadata(ref(storage, p));
+        return now - Date.parse(timeCreated) >= ORPHAN_GRACE_MS ? p : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  const doomed = stale.filter((p): p is string => p !== null);
+  await Promise.all(
+    doomed.map((p) =>
+      deleteObject(ref(storage, p)).catch((err: unknown) =>
+        logError('sweepWebTourPictures', err, { path: p })
+      )
+    )
+  );
+  return doomed;
 }
