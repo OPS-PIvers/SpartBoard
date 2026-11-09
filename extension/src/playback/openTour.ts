@@ -1,5 +1,6 @@
 // `web-tour/open` (WEB_TOURS_HELP_PANEL.md H4): the tour webTourLoadV1 returns, checked like a page's handoff.
 import {
+  parseWebTourCondition,
   parseWebTourStartTour,
   type WebTourPictureBytes,
 } from '@/components/tours/web/extensionProtocol';
@@ -25,6 +26,22 @@ function pictureOf(v: unknown): WebTourPictureBytes | null {
   return { mime, data, w, h };
 }
 
+/** The step with the conditions the server sent beside it (E6); anything malformed is left off. */
+function withConditions(step: HandoffStep, raw: unknown): HandoffStep {
+  if (!isObj(raw)) return step;
+  const showWhen = parseWebTourCondition(raw.showWhen);
+  const doneWhen = parseWebTourCondition(raw.doneWhen);
+  if (!showWhen && !doneWhen) return step;
+  return {
+    ...step,
+    web: {
+      ...step.web,
+      ...(showWhen ? { showWhen } : {}),
+      ...(doneWhen ? { doneWhen } : {}),
+    },
+  };
+}
+
 /** Each step's own clues by id, so a run's suggested fixes keep only the site's clues (C15). */
 export type StepLocators = Record<string, WebTourLocator>;
 
@@ -34,15 +51,18 @@ export function openedTour(
   raw: unknown
 ): { start: ParsedStart; locators: StepLocators } | null {
   if (!isObj(raw) || !Array.isArray(raw.steps)) return null;
-  const steps = raw.steps.filter(
-    (s): s is HandoffStep =>
-      isObj(s) &&
-      typeof s.id === 'string' &&
-      isObj(s.web) &&
-      typeof s.web.urlPattern === 'string' &&
-      typeof s.web.action === 'string' &&
-      isObj(s.web.locator)
-  );
+  const conditions = isObj(raw.conditions) ? raw.conditions : {};
+  const steps = raw.steps
+    .filter(
+      (s): s is HandoffStep =>
+        isObj(s) &&
+        typeof s.id === 'string' &&
+        isObj(s.web) &&
+        typeof s.web.urlPattern === 'string' &&
+        typeof s.web.action === 'string' &&
+        isObj(s.web.locator)
+    )
+    .map((s) => withConditions(s, conditions[s.id]));
   const pictures = new Map<string, WebTourPictureBytes>();
   if (isObj(raw.pictures)) {
     for (const [id, v] of Object.entries(raw.pictures)) {
@@ -62,6 +82,7 @@ export function openedTour(
         typeof raw.title === 'string' ? raw.title : '',
         steps,
         pictures,
+        true,
         true
       )
     );

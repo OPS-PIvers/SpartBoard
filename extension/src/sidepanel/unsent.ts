@@ -1,3 +1,4 @@
+import type { CropFraction } from '../recorder/geometry';
 import type { RedactRect } from '@/components/widgets/GuidedLearning/utils/redactImage';
 import { isObj, isStr } from '@/components/tours/web/recorderProtocol';
 import type { RawCapture, RecorderPick } from '../recorder/messages';
@@ -14,6 +15,8 @@ export interface PanelStep {
   pending: boolean;
   /** For a fix: the step SpartBoard asked about when this click was picked. */
   fixFor?: RecorderPick;
+  /** The uncropped screen and where the picture sits in it (0-1); kept in memory only, never in session storage. */
+  original?: { blob: Blob; w: number; h: number; crop: CropFraction };
 }
 
 export interface Unsent {

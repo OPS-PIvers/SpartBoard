@@ -7,11 +7,12 @@ import {
   type WebTourFrame,
   type WebTourLocator,
   type WebTourCheckResult,
+  type WebTourCondition,
   type WebTourStableAttrs,
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 11;
+export const EXTENSION_PROTOCOL_VERSION = 12;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -36,6 +37,9 @@ export const FOCUS_ENFORCE_PROTOCOL = 10;
 
 /** Protocol 11: `schoology/signed-in` and `schoology/connect` let a page get the extension signed in, so its Schoology button can check the flag. */
 export const SCHOOLOGY_CONNECT_PROTOCOL = 11;
+
+/** Protocol 12: a tour may carry step conditions (`conditions`, TOURS_10X.md E6); older extensions get none and play every step. */
+export const CONDITIONS_PROTOCOL = 12;
 
 /** The district Google domain; students share it, so the server checks a staff member doc too. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -64,12 +68,20 @@ export interface WebTourStartStep {
   picture?: WebTourPictureBytes;
 }
 
+/** A step's conditions (E6): when it plays and when it is done. */
+export interface WebStepConditions {
+  showWhen?: WebTourCondition;
+  doneWhen?: WebTourCondition;
+}
+
 export interface WebTourStartTour {
   setId: string;
   /** The snapshot's publishedAt. */
   version: number;
   title: string;
   steps: WebTourStartStep[];
+  /** By step id; sent only to an extension at CONDITIONS_PROTOCOL or later. */
+  conditions?: Record<string, WebStepConditions>;
 }
 
 /** Protocol 2, staff only: open `startUrl` in a new tab and play the tour from `stepIndex`. */
@@ -414,7 +426,7 @@ function parsePicture(v: unknown): WebTourPictureBytes | null {
 export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
   if (
     !isPlainObject(raw) ||
-    !onlyKeys(raw, ['setId', 'version', 'title', 'steps'])
+    !onlyKeys(raw, ['setId', 'version', 'title', 'steps', 'conditions'])
   ) {
     return null;
   }
@@ -459,7 +471,47 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     ids.add(s.id);
     out.push(step);
   }
-  return { setId, version, title, steps: out };
+  if (raw.conditions === undefined)
+    return { setId, version, title, steps: out };
+  const conditions = parseStepConditions(raw.conditions, ids);
+  if (!conditions) return null;
+  return { setId, version, title, steps: out, conditions };
+}
+
+/** One web step condition, or null when it is malformed. */
+export function parseWebTourCondition(v: unknown): WebTourCondition | null {
+  if (!isPlainObject(v)) return null;
+  if (v.kind === 'target' && onlyKeys(v, ['kind'])) return { kind: 'target' };
+  if (
+    v.kind === 'url' &&
+    onlyKeys(v, ['kind', 'pattern']) &&
+    typeof v.pattern === 'string' &&
+    isPattern(v.pattern)
+  )
+    return { kind: 'url', pattern: v.pattern };
+  return null;
+}
+
+/** A tour's conditions by step id, each for a step the tour has; null when anything is off. */
+export function parseStepConditions(
+  v: unknown,
+  stepIds: ReadonlySet<string>
+): Record<string, WebStepConditions> | null {
+  if (!isPlainObject(v)) return null;
+  const out: Record<string, WebStepConditions> = {};
+  for (const [id, raw] of Object.entries(v)) {
+    if (!stepIds.has(id) || !isPlainObject(raw)) return null;
+    if (!onlyKeys(raw, ['showWhen', 'doneWhen'])) return null;
+    const c: WebStepConditions = {};
+    for (const key of ['showWhen', 'doneWhen'] as const) {
+      if (raw[key] === undefined) continue;
+      const cond = parseWebTourCondition(raw[key]);
+      if (!cond) return null;
+      c[key] = cond;
+    }
+    out[id] = c;
+  }
+  return out;
 }
 
 /** A message a page sends on the `web-tour` port, or null. */

@@ -68,6 +68,7 @@ import {
   pingExtension,
   REPICK_PROTOCOL,
 } from './extensionClient';
+import { CONDITIONS_PROTOCOL } from './extensionProtocol';
 import { useWebTourCheck } from './useWebTourCheck';
 import {
   applyFix,
@@ -196,6 +197,7 @@ const WebTourEditorBody: React.FC<{
   } | null>(null);
   const [extensionCanFix, setCanFix] = useState(false);
   const [extensionCanCheck, setCanCheck] = useState(false);
+  const [playsConditions, setPlaysConditions] = useState(false);
   const copyLink = useCopyWebTourLink();
   const published = usePublishedTour(initial.id);
   const live =
@@ -211,6 +213,9 @@ const WebTourEditorBody: React.FC<{
       if (cancelled) return;
       setCanFix(s.kind === 'ready' && s.protocol >= REPICK_PROTOCOL);
       setCanCheck(canCheckWebTours(s));
+      setPlaysConditions(
+        s.kind === 'ready' && s.protocol >= CONDITIONS_PROTOCOL
+      );
     });
     return () => {
       cancelled = true;
@@ -584,7 +589,8 @@ const WebTourEditorBody: React.FC<{
         const at = steps.findIndex(webStepNeedsText);
         if (at >= 0) select(steps[at].id);
         void writing.run('blanks');
-      } else if (state === 'check') void checker.start(latest.current);
+      } else if (state === 'check')
+        void checker.start(latest.current, playsConditions);
       else if (state === 'publish') publish();
     },
     // Play runs the published tour, so it shows once there is one.

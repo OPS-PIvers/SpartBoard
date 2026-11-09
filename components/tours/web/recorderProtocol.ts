@@ -26,6 +26,13 @@ export interface RecordedWebStep {
     target?: { x: number; y: number; w: number; h: number };
     /** The picture's width in CSS pixels at capture; newer extensions only. */
     cssW?: number;
+    /** The uncropped screen, blurred the same, and where the picture sits in it; newer extensions only. */
+    original?: {
+      dataUrl: string;
+      w: number;
+      h: number;
+      crop: { x: number; y: number; w: number; h: number };
+    };
   };
   /** The tip the admin typed in the side panel; older clients ignore it. */
   tip?: string;
@@ -76,6 +83,16 @@ export const isUnitBox = (v: unknown) =>
     (v.x as number) + (v.w as number) <= 1.0001 &&
     (v.y as number) + (v.h as number) <= 1.0001);
 
+const isOriginal = (v: unknown) =>
+  v === undefined ||
+  (isObj(v) &&
+    isStr(v.dataUrl, MAX_PICTURE_CHARS) &&
+    v.dataUrl.startsWith('data:image/jpeg;base64,') &&
+    isNum(v.w) &&
+    isNum(v.h) &&
+    v.crop !== undefined &&
+    isUnitBox(v.crop));
+
 const isAttrs = (v: unknown) =>
   v === undefined ||
   (isObj(v) &&
@@ -124,6 +141,7 @@ export const isRecordedStep = (v: unknown): v is RecordedWebStep =>
       isNum(v.picture.w) &&
       isNum(v.picture.h) &&
       isUnitBox(v.picture.target) &&
+      isOriginal(v.picture.original) &&
       (v.picture.cssW === undefined ||
         (isNum(v.picture.cssW) && v.picture.cssW > 0))));
 

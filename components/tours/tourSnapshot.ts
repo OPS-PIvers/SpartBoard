@@ -32,10 +32,14 @@ const NOT_PUBLISHED = new Set([
   'webFixDismissed',
 ]);
 
-// A web step's note and Claude's question stay in the draft.
+// A web step's note, Claude's question and the uncropped capture stay in the draft.
 const withoutPrivateWeb = (step: GuidedLearningStep): GuidedLearningStep => {
   if (!step.web) return step;
   const { note: _note, claudeQuestion: _question, ...web } = step.web;
+  if (web.picture?.original) {
+    const { original: _original, ...picture } = web.picture;
+    return { ...step, web: { ...web, picture } };
+  }
   return { ...step, web };
 };
 
