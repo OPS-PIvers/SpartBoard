@@ -315,6 +315,28 @@ describe('startPollSession', () => {
     expect(mockClaim).not.toHaveBeenCalled();
   });
 
+  it("mints a fresh code instead of reusing a copied board's foreign one", async () => {
+    mockGeneratePollCode.mockReturnValue('NEWCD');
+    const next = await startPollSession(
+      {
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        lastPollSessionId: 'K3F9Q',
+        lastPollSessionOwnerUid: 'teacher-2',
+      },
+      'teacher-1',
+      'resume'
+    );
+    expect(next.joinCode).toBe('NEWCD');
+    expect(next.activePollSessionId).toBe('NEWCD');
+    expect(next.lastPollSessionId).toBeNull();
+    const paths = mockSetDoc.mock.calls.map(
+      (c) => (c[0] as { __path: string }).__path
+    );
+    expect(paths).toEqual(['poll_sessions/teacher-1_NEWCD']);
+    expect(mockClaim).not.toHaveBeenCalled();
+  });
+
   it('writes one optionCount entry per question', async () => {
     await startPollSession(
       {
