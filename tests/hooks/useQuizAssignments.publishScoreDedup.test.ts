@@ -159,7 +159,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 
@@ -207,7 +207,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 
@@ -244,7 +244,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 
@@ -302,7 +302,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 
@@ -354,7 +354,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 
@@ -392,7 +392,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 
@@ -466,7 +466,7 @@ describe('useQuizAssignments — publishAssignmentScores bounded paging', () => 
       publishResult = await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 

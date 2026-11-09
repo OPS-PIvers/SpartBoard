@@ -201,6 +201,52 @@ describe('useQuizAssignments — per-student results publishing', () => {
       expiresAt: null,
     });
     expect(override).not.toHaveProperty('revealedAnswers');
+    // Score-only keeps right/wrong off the doc the student reads.
+    for (const a of patch.answers as Record<string, unknown>[])
+      expect(a).not.toHaveProperty('isCorrect');
+  });
+
+  it('keeps isCorrect at score-only while the class level shows responses', async () => {
+    responseDocs['pin-a'] = {
+      studentUid: 's1',
+      status: 'completed',
+      answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
+    };
+    (getDoc as Mock).mockImplementation((path: string) => {
+      if (path === `quiz_sessions/${ASSIGNMENT_ID}`)
+        return Promise.resolve({
+          data: () => ({ scoreVisibility: 'score-and-responses' }),
+        });
+      const data = responseDocs[path.slice(RESPONSES.length + 1)];
+      return Promise.resolve({
+        ref: path,
+        exists: () => data != null,
+        data: () => data ?? {},
+      });
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    const publish = (expiresAt: number | null) =>
+      act(async () => {
+        await result.current.publishResultsForStudents(
+          ASSIGNMENT_ID,
+          quizData,
+          ['pin-a'],
+          'score-only',
+          expiresAt
+        );
+      });
+    // The student returns to the class level when the override is cleared or lapses.
+    await publish(5000);
+    expect(
+      (patchFor('pin-a') as { answers: { isCorrect?: boolean }[] }).answers[0]
+        .isCorrect
+    ).toBe(true);
+    batchUpdate.mockClear();
+    await publish(null);
+    expect(
+      (patchFor('pin-a') as { answers: { isCorrect?: boolean }[] }).answers[0]
+        .isCorrect
+    ).toBe(true);
   });
 
   it('rejects the none level', async () => {
