@@ -71,6 +71,7 @@ import {
   collectQuestionArtifacts,
   deleteOrgQuizMediaSets,
   finishStuckMediaDelete,
+  KEPT_PAGES_QUESTION_ID,
   listOrgQuizMedia,
   matchesDateWindow,
   truncateQuestionText,
@@ -1598,5 +1599,121 @@ describe('aggregateTakeStatus', () => {
     );
     expect(aggregateTakeStatus(['deleted', 'deleted'])).toBe('deleted');
     expect(aggregateTakeStatus([])).toBe('syncing');
+  });
+});
+
+describe('kept scan pages', () => {
+  let db: FakeStore;
+  const LIVE = 'paper_pages/teacher-uid/scan-2/4/1.webp';
+  const pagesTarget = {
+    sessionId: 's1',
+    responseKey: 'r1',
+    questionId: KEPT_PAGES_QUESTION_ID,
+  };
+  beforeEach(() => {
+    db = createFakeDb();
+    seedOrg(db);
+    db.set('quiz_sessions/s1', {
+      teacherUid: 'teacher-uid',
+      quizTitle: 'Quiz',
+    });
+    db.set('users/teacher-uid/paper_page_scans/scan-2', {
+      seats: { 4: { sessionId: 's1', responseKey: 'r1' } },
+    });
+    db.set('quiz_sessions/s1/responses/r1', {
+      studentUid: 'pseudo-1',
+      pin: '4',
+      answers: [],
+      paperPages: [
+        {
+          id: 'pg_scan-2_1',
+          slot: 'primary',
+          kind: 'paper-page',
+          storagePath: LIVE,
+          uploadState: 'uploaded',
+        },
+      ],
+      artifactArchive: {
+        'pg_scan-2_1': { archiveStatus: 'awaiting-drive' },
+        // An older scan's page: gone from paperPages, its Drive copy still filed.
+        'pg_scan-1_2': {
+          archiveStatus: 'archived',
+          driveFileId: 'drive-old',
+          archivedAt: 50,
+        },
+      },
+    });
+  });
+
+  it('lists the live page and an older scan’s Drive copy as one pages row', async () => {
+    const { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      questionId: KEPT_PAGES_QUESTION_ID,
+      questionText: 'Scanned pages (paper)',
+      studentLabel: 'Pin 4',
+    });
+    expect(
+      rows[0].takes.map((t) => [t.artifactId, t.kind, t.takeIndex])
+    ).toEqual([
+      ['pg_scan-2_1', 'paper-page', 1],
+      ['pg_scan-1_2', 'paper-page', 2],
+    ]);
+    expect(rows[0].takes[0].hasStorageObject).toBe(true);
+    expect(rows[0].takes[1]).toMatchObject({
+      driveFileId: 'drive-old',
+      hasStorageObject: false,
+    });
+  });
+
+  it('deletes the live page from Storage and the older copy from Drive', async () => {
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      { orgId: ORG, targets: [pagesTarget], deletedBy: 'admin-uid' },
+      deps
+    );
+    expect(results.map((r) => [r.artifactId, r.status])).toEqual([
+      ['pg_scan-2_1', 'deleted'],
+      ['pg_scan-1_2', 'deleted'],
+    ]);
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(LIVE);
+    expect(deps.deleteDriveFile).toHaveBeenCalledWith('token', 'drive-old');
+    const archive = (db.docs.get('quiz_sessions/s1/responses/r1') as Doc)
+      .artifactArchive as Record<string, Doc>;
+    expect(archive['pg_scan-2_1'].archiveStatus).toBe('deleted');
+    expect(archive['pg_scan-1_2'].archiveStatus).toBe('deleted');
+  });
+
+  it('keeps a page the scan lookup does not trace to this response, and says so', async () => {
+    db.set('users/teacher-uid/paper_page_scans/scan-2', {
+      seats: { 4: { sessionId: 's1', responseKey: 'someone-else' } },
+    });
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      { orgId: ORG, targets: [pagesTarget], deletedBy: 'admin-uid' },
+      deps
+    );
+    expect(results[0]).toMatchObject({
+      artifactId: 'pg_scan-2_1',
+      status: 'failed',
+    });
+    expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+  });
+
+  it('finishes a stuck page delete through the sweep path', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    (response.artifactArchive as Record<string, Doc>)['pg_scan-2_1'] = {
+      archiveStatus: 'deleting',
+      deletedAt: 1,
+    };
+    const deps = makeDeps(db);
+    await finishStuckMediaDelete(
+      { ...pagesTarget, artifactId: 'pg_scan-2_1' },
+      deps
+    );
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(LIVE);
   });
 });
