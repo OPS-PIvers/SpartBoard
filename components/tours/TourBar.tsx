@@ -5,6 +5,50 @@ import { Z_INDEX } from '@/config/zIndex';
 import { useDraggablePosition } from './useDraggablePosition';
 import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import { iconBtn, primaryBtn, secondaryBtn } from './tourButtons';
+import { TourWaitingChip, type TourWaiting } from './TourWaitingChip';
+
+// Up to this many steps get a dot each; longer tours share the width.
+const FIXED_DOTS = 24;
+
+/** One dot per step: filled when passed, hollow when catch-up skipped it, a longer pill for the current one (TOURS_10X.md P3). */
+const StepDots: React.FC<{
+  current: number;
+  total: number;
+  skipped: readonly number[];
+}> = ({ current, total, skipped }) => {
+  const skip = new Set(skipped);
+  const fixed = total <= FIXED_DOTS;
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="tour-bar-dots"
+      className="flex h-2 items-center gap-[3px]"
+    >
+      {Array.from({ length: total }, (_, i) => {
+        const now = i === current - 1;
+        const tone = now
+          ? 'bg-brand-blue-primary'
+          : skip.has(i)
+            ? 'bg-transparent ring-1 ring-inset ring-brand-blue-primary'
+            : i < current - 1
+              ? 'bg-brand-blue-primary/70'
+              : 'bg-slate-300';
+        const size = fixed
+          ? now
+            ? 'h-1.5 w-3.5'
+            : 'h-1.5 w-1.5'
+          : `h-1.5 min-w-[3px] ${now ? 'flex-[3]' : 'flex-1'}`;
+        return (
+          <span
+            key={i}
+            data-skipped={skip.has(i) ? '' : undefined}
+            className={`shrink-0 rounded-full transition-colors motion-reduce:transition-none ${size} ${tone}`}
+          />
+        );
+      })}
+    </span>
+  );
+};
 
 export const TOUR_BAR_POS_KEY = 'spart_tour_bar_pos';
 
@@ -23,6 +67,10 @@ interface TourBarProps {
   onPlace?: () => void;
   /** Where the dragged position is remembered; null keeps it for this tour only. */
   positionKey?: string | null;
+  /** Tour pacing: one dot per step, with the steps catch-up passed over (0-based) drawn hollow. */
+  skipped?: readonly number[];
+  /** Tour pacing: the tip folded into a chip under the bar while the step waits for its control. */
+  waiting?: TourWaiting;
 }
 
 /** The tour's controls, in a slim bar at the top that the teacher can drag aside. */
@@ -37,6 +85,8 @@ export const TourBar: React.FC<TourBarProps> = ({
   onExit,
   onPlace,
   positionKey = TOUR_BAR_POS_KEY,
+  skipped,
+  waiting,
 }) => {
   const { t } = useTranslation();
   const { ref, pos, gripProps } =
@@ -80,16 +130,25 @@ export const TourBar: React.FC<TourBarProps> = ({
         <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600">
           {t('tours.progress', { current, total })}
         </span>
-        <span
-          aria-hidden="true"
-          className="h-1 overflow-hidden rounded-full bg-slate-200"
-        >
+        {skipped && skipped.length > 0 && (
+          <span className="sr-only">
+            {t('tours.skippedCount', { count: skipped.length })}
+          </span>
+        )}
+        {skipped ? (
+          <StepDots current={current} total={total} skipped={skipped} />
+        ) : (
           <span
-            data-testid="tour-bar-track"
-            className="block h-full rounded-full bg-brand-blue-primary transition-[width] duration-300 motion-reduce:transition-none"
-            style={{ width: `${(current / Math.max(total, 1)) * 100}%` }}
-          />
-        </span>
+            aria-hidden="true"
+            className="h-1 overflow-hidden rounded-full bg-slate-200"
+          >
+            <span
+              data-testid="tour-bar-track"
+              className="block h-full rounded-full bg-brand-blue-primary transition-[width] duration-300 motion-reduce:transition-none"
+              style={{ width: `${(current / Math.max(total, 1)) * 100}%` }}
+            />
+          </span>
+        )}
       </div>
       {onBack && (
         <button
@@ -157,6 +216,7 @@ export const TourBar: React.FC<TourBarProps> = ({
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
+      {waiting && <TourWaitingChip key={waiting.step} {...waiting} />}
     </div>
   );
 };

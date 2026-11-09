@@ -2,7 +2,13 @@ import type { OverlayAction } from '../overlay/overlayState';
 import type { FrameReport } from './frameScript';
 import { parseWebTourLocator } from '@/components/tours/web/extensionProtocol';
 
-const ACTIONS: readonly OverlayAction[] = ['next', 'back', 'exit', 'start'];
+const ACTIONS: readonly OverlayAction[] = [
+  'next',
+  'back',
+  'exit',
+  'start',
+  'takeBack',
+];
 
 /** A frame's clues for a fix: a valid locator without frames, which the step keeps. */
 const isFix = (v: unknown): boolean =>

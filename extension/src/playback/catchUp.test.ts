@@ -87,10 +87,13 @@ describe('catch-up in the playback reducer (TOURS_10X.md P2, P3)', () => {
   it('a skipped step visited with Back is no longer skipped', () => {
     let s = startPlayback(tour, HOME, 0);
     s = reducePlayback(s, { type: 'ahead', index: 2, url: HOME });
-    s = reducePlayback(s, { type: 'back', url: HOME });
+    // Back returns to the nearest skipped step first (P3).
     s = reducePlayback(s, { type: 'back', url: HOME });
     expect(s.index).toBe(1);
     expect(s.skipped).toEqual(['a']);
+    s = reducePlayback(s, { type: 'back', url: HOME });
+    expect(s.index).toBe(0);
+    expect(s.skipped).toEqual([]);
   });
 
   it('finishes when the last step is done early', () => {
@@ -113,9 +116,13 @@ function fakeHost() {
   const sent: { frameId: number; msg: Record<string, unknown> }[] = [];
   const posts: ProgressPost[] = [];
   const timers: (() => void)[] = [];
+  const navigated: string[] = [];
   const host: PlaybackHost = {
     openTab: () => Promise.resolve(7),
-    navigate: () => Promise.resolve(),
+    navigate: (_t, url) => {
+      navigated.push(url);
+      return Promise.resolve();
+    },
     closeTab: () => Promise.resolve(),
     backstop: () => undefined,
     frames: () => Promise.resolve(frames),
@@ -141,7 +148,7 @@ function fakeHost() {
       .map((s) => s.msg.state as Record<string, unknown>);
   const state = () =>
     (store.get('wt:tab:7') as { state: PlaybackState } | undefined)?.state;
-  return { host, sent, posts, timers, seeks, renders, state };
+  return { host, sent, posts, timers, seeks, renders, state, navigated };
 }
 
 const started = (): ParsedStart => ({
@@ -317,5 +324,72 @@ describe('catch-up in the playback controller', () => {
     expect(isFrameReport({ type: 'wt:ahead', token: 't', index: 2 })).toBe(
       false
     );
+  });
+
+  it('Take me back opens the step’s exact address, once per step (P5)', async () => {
+    const { h, c } = await playing();
+    await c.historyChanged(7, 0, 'https://a.example/elsewhere');
+    expect(h.renders().at(-1)).toMatchObject({
+      status: 'wrong-page',
+      takeBack: true,
+    });
+    const before = h.navigated.length;
+    await c.overlayAction(7, 0, 'takeBack');
+    expect(h.navigated.slice(before)).toEqual([HOME]);
+    expect(h.renders().at(-1)).not.toHaveProperty('takeBack');
+    await c.overlayAction(7, 0, 'takeBack');
+    expect(h.navigated.slice(before)).toEqual([HOME]);
+  });
+
+  it('Take me back opens a matching address already visited, and is absent when none was', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({ ...started(), stepIndex: 5 });
+    await c.committed(7, 0, 'https://a.example/class/3');
+    await c.historyChanged(7, 0, 'https://a.example/elsewhere');
+    expect(h.renders().at(-1)).toMatchObject({ takeBack: true });
+    const before = h.navigated.length;
+    await c.overlayAction(7, 0, 'takeBack');
+    expect(h.navigated.slice(before)).toEqual(['https://a.example/class/3']);
+
+    const fresh = fakeHost();
+    const c2 = createPlaybackController(fresh.host);
+    await c2.start({ ...started(), stepIndex: 5 });
+    await c2.committed(7, 0, HOME);
+    expect(fresh.renders().at(-1)).toMatchObject({ status: 'wrong-page' });
+    expect(fresh.renders().at(-1)).not.toHaveProperty('takeBack');
+    await c2.overlayAction(7, 0, 'takeBack');
+    expect(fresh.navigated.filter((u) => u !== HOME)).toEqual([]);
+  });
+
+  it('waits with the chip instead of the old timed fallback, and reopens when the target appears (P4)', async () => {
+    const { h, c, token } = await playing();
+    await c.frameReport(7, 0, { type: 'wt:acted', token: token() });
+    for (const fire of h.timers.splice(0)) fire();
+    await settle();
+    await c.isPlaying(7);
+    await settle();
+    expect(h.renders().at(-1)).toMatchObject({
+      status: 'fallback',
+      current: 2,
+    });
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: token(),
+      weak: false,
+      url: '',
+    });
+    expect(h.renders().at(-1)).toMatchObject({ status: 'shown', current: 2 });
+  });
+
+  it('sends the skipped steps for the step bar', async () => {
+    const { h, c, token } = await playing();
+    await c.frameReport(7, 0, {
+      type: 'wt:ahead',
+      token: token(),
+      index: 2,
+      stepId: 'c',
+    });
+    expect(h.renders().at(-1)).toMatchObject({ skipped: [0, 1] });
   });
 });

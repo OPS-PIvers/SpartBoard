@@ -15,6 +15,10 @@ interface TourSpotlightProps {
   clickThrough?: boolean;
   /** Eases the cutout to a new rect with CSS; off when the caller animates `rect` itself every frame. */
   glide?: boolean;
+  /** Tour pacing: while set, the cutout and ring ease to their new place over this many ms (TOURS_10X.md P1). */
+  glideFor?: number;
+  /** Tour pacing: a tick on the ring, for the step just finished. */
+  tick?: boolean;
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -77,7 +81,10 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
   breathe = false,
   clickThrough = false,
   glide = true,
+  glideFor = 0,
+  tick = false,
 }) => {
+  const ease = `${glideFor}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
   // Re-render on resize so the dim keeps covering the whole viewport.
   const [vw, vh] = useSyncExternalStore(onResize, viewportKey, noViewport)
     .split('x')
@@ -98,6 +105,19 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
     height: rect.height + padding * 2,
     rx: radius,
   };
+  // The ring's geometry as CSS too, so it can transition with the cutout.
+  const ringStyle: React.CSSProperties | undefined =
+    ringBox && glideFor
+      ? {
+          x: ringBox.x,
+          y: ringBox.y,
+          width: ringBox.width,
+          height: ringBox.height,
+          transition: ['x', 'y', 'width', 'height']
+            .map((p) => `${p} ${ease}`)
+            .join(', '),
+        }
+      : undefined;
   return (
     <>
       <svg
@@ -114,8 +134,11 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
           fillRule="evenodd"
           // Same dim as the class, so a missing stylesheet can't paint the page black.
           fill="rgba(2,6,23,0.55)"
-          className={`fill-slate-950/55 ${glide ? 'motion-safe:transition-[d] motion-safe:duration-300' : ''}`}
-          style={{ pointerEvents: clickThrough ? 'none' : 'auto' }}
+          className={`fill-slate-950/55 ${glide && !glideFor ? 'motion-safe:transition-[d] motion-safe:duration-300' : ''}`}
+          style={{
+            pointerEvents: clickThrough ? 'none' : 'auto',
+            ...(glideFor ? { transition: `d ${ease}` } : {}),
+          }}
           onClick={clickThrough ? undefined : onMisclick}
           onWheel={
             clickThrough
@@ -143,15 +166,40 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
             {...ringBox}
             className="fill-none stroke-white/20"
             strokeWidth={10}
-            style={{ filter: 'drop-shadow(0 0 12px rgba(255,255,255,.45))' }}
+            style={{
+              filter: 'drop-shadow(0 0 12px rgba(255,255,255,.45))',
+              ...ringStyle,
+            }}
           />
           <rect
             data-testid="tour-spotlight-ring"
             {...ringBox}
             className="fill-none stroke-white"
             strokeWidth={3}
+            style={ringStyle}
           />
-          {breathe ? (
+          {tick && (
+            <g
+              data-testid="tour-spotlight-tick"
+              className="transform-fill origin-center motion-safe:animate-tour-tick"
+            >
+              <circle
+                cx={ringBox.x + ringBox.width}
+                cy={ringBox.y}
+                r={11}
+                className="fill-emerald-500 stroke-white"
+                strokeWidth={2}
+              />
+              <path
+                d={`M${ringBox.x + ringBox.width - 4.5},${ringBox.y + 0.5} l3,3 l6,-6.5`}
+                className="fill-none stroke-white"
+                strokeWidth={2.25}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+          )}
+          {glideFor || tick ? null : breathe ? (
             <rect
               data-testid="tour-spotlight-breathe"
               {...ringBox}

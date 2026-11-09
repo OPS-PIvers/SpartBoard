@@ -28,6 +28,9 @@ import { matchesUrlPattern } from './urlPattern';
 import {
   LOOKAHEAD_STEPS,
   lookaheadIndices,
+  skippedIndices,
+  takeBackUrl,
+  WAITING_AFTER_MS,
 } from '@/components/tours/playbackEngine';
 
 export interface HostFrame {
@@ -113,9 +116,16 @@ interface TabRecord {
   fixes?: Record<string, WebTourLocator>;
   /** Set while the tour is armed. */
   arm?: ArmState;
+  /** Top-frame addresses this run loaded, newest last, for Take me back (TOURS_10X.md P5). */
+  visited?: string[];
+  /** Steps whose Take me back was used; it navigates once per step so it can't loop. */
+  tookBack?: string[];
 }
 
-export const FALLBACK_MS = 4000;
+/** How long a step looks for its target before the tip folds into the waiting chip (P4). */
+export const FALLBACK_MS = WAITING_AFTER_MS;
+/** Addresses kept for Take me back. */
+const VISITED_KEPT = 30;
 /** How long an armed tour waits for its site before it stops (H3). */
 export const ARM_MS = 10 * 60 * 1000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
@@ -265,6 +275,7 @@ export function createPlaybackController(host: PlaybackHost) {
         : {}),
     };
     const next = shownIn === 0 && !rec.check ? aheadOf(rec) : undefined;
+    const back = takeBackFor(rec) !== null;
     host.sendToFrame(rec.tabId, 0, {
       type: 'overlay/render',
       state: {
@@ -273,6 +284,8 @@ export function createPlaybackController(host: PlaybackHost) {
         targetHere: shownIn === 0,
         picture: await picture(rec),
         ...(next ? { ahead: next } : {}),
+        skipped: skippedIndices(state, state.tour.steps),
+        ...(back ? { takeBack: true } : {}),
       },
     });
     // While seeking inside one subframe, its overlay mounts early so the spotlight there needn't wait for it.
@@ -298,6 +311,22 @@ export function createPlaybackController(host: PlaybackHost) {
         },
       });
     }
+  }
+
+  /** Where Take me back would go for the current step, or null when it isn't offered (P5). */
+  function takeBackFor(rec: TabRecord): string | null {
+    const { state } = rec;
+    const step = state.tour.steps[state.index];
+    if (!step || rec.check) return null;
+    if (state.status !== 'fallback' && state.status !== 'wrong-page')
+      return null;
+    if (rec.tookBack?.includes(step.id)) return null;
+    return takeBackUrl(
+      step.urlPattern,
+      rec.visited ?? [],
+      rec.url,
+      matchesUrlPattern
+    );
   }
 
   /** The next step's tip, for an overlay whose frame finds it before the worker answers. */
@@ -804,6 +833,11 @@ export function createPlaybackController(host: PlaybackHost) {
   ) {
     if (event.type === 'page' && leavesArm(rec, event.url))
       rec.state = { ...rec.state, status: 'seeking' };
+    if (event.type === 'page' && isWebPage(event.url))
+      rec.visited = [
+        ...(rec.visited ?? []).filter((u) => u !== event.url),
+        event.url,
+      ].slice(-VISITED_KEPT);
     const before = rec.state;
     const withUrl: PlaybackEvent =
       event.type === 'next' || event.type === 'back' || event.type === 'ahead'
@@ -1070,6 +1104,16 @@ export function createPlaybackController(host: PlaybackHost) {
         if (frameId !== 0) return;
         const rec = await load(tabId);
         if (!rec) return;
+        if (action === 'takeBack') {
+          const url = takeBackFor(rec);
+          const step = rec.state.tour.steps[rec.state.index];
+          if (!url || !step) return;
+          rec.tookBack = [...(rec.tookBack ?? []), step.id];
+          await store(rec);
+          await render(rec);
+          await host.navigate(tabId, url);
+          return;
+        }
         if (action === 'start') {
           if (rec.state.status !== 'armed' || !rec.arm) return;
           rec.arm = { ...rec.arm, navigated: true, goStart: false };

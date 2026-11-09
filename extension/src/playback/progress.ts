@@ -2,6 +2,7 @@ import type { WebTourAction, WebTourFrame } from '@/types';
 import type { WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
 import {
+  backTarget,
   catchUp,
   enterRun,
   LOOKAHEAD_STEPS,
@@ -198,9 +199,10 @@ export function reducePlayback(
       return enterStep(state, state.index + 1, event.url ?? null);
     case 'back':
       if (state.index === 0 && !finished(state)) return state;
+      // Back returns to a step catch-up passed over first (P3).
       return enterStep(
         { ...state, status: 'seeking' },
-        finished(state) ? state.index : state.index - 1,
+        finished(state) ? state.index : backTarget(state, state.tour.steps),
         event.url ?? null
       );
     case 'exit':
