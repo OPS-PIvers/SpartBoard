@@ -7,6 +7,7 @@ export const PAPER_REWORD_SYNC_FEATURE = 'paper-reword-sync';
 // The callable's limits; one oversized question must not fail the whole sync.
 const MAX_SYNC_CHOICES = 8;
 const MAX_SYNC_QUESTIONS = 500;
+const MAX_SYNC_CHOICE_LENGTH = 5000;
 
 export interface PaperRewordQuestion {
   questionId: string;
@@ -23,6 +24,11 @@ export function paperRewordQuestions(
       questionId: q.id,
       choices: rowsFromQuestion(q).map((r) => r.text),
     }))
-    .filter((q) => q.choices.length > 0 && q.choices.length <= MAX_SYNC_CHOICES)
+    .filter(
+      (q) =>
+        q.choices.length > 0 &&
+        q.choices.length <= MAX_SYNC_CHOICES &&
+        q.choices.every((c) => c.length <= MAX_SYNC_CHOICE_LENGTH)
+    )
     .slice(0, MAX_SYNC_QUESTIONS);
 }

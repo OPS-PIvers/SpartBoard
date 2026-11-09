@@ -850,11 +850,13 @@ const TeacherQuizWidget: React.FC<{
     paperSheets.enabled && canAccessFeature(PAPER_REWORD_SYNC_FEATURE);
   const lastRewordSync = useRef(new Map<string, string>());
   const lastRewordErrorAt = useRef(0);
+  const rewordSyncRuns = useRef(new Map<string, Promise<void>>());
   const latestSavedQuiz = useRef<QuizData | null>(null);
   /** Saved answers are choice text, so scanned tests follow a teacher's rewording. */
   const syncPaperRewords = async (quiz: QuizData) => {
     if (
       !rewordSyncOn ||
+      isSandboxed(quiz.id) ||
       !assignments.some((a) => a.quizId === quiz.id && a.hasPaperResponses)
     ) {
       return;
@@ -867,12 +869,24 @@ const TeacherQuizWidget: React.FC<{
     ) {
       return;
     }
+    // One run per quiz at a time; overlapping runs can undo each other.
+    const prev = rewordSyncRuns.current.get(quiz.id) ?? Promise.resolve();
+    const run = prev.then(() => callRewordSync(quiz.id, questions, payload));
+    rewordSyncRuns.current.set(quiz.id, run);
+    await run;
+  };
+  const callRewordSync = async (
+    quizId: string,
+    questions: ReturnType<typeof paperRewordQuestions>,
+    payload: string
+  ) => {
+    if (lastRewordSync.current.get(quizId) === payload) return;
     try {
       await httpsCallable(
         functions,
         'paperRewordSyncV1'
-      )({ quizId: quiz.id, questions });
-      lastRewordSync.current.set(quiz.id, payload);
+      )({ quizId, questions });
+      lastRewordSync.current.set(quizId, payload);
     } catch {
       // Autosave retries as a teacher types, so don't repeat the message.
       if (Date.now() - lastRewordErrorAt.current < 60_000) return;
@@ -4940,7 +4954,7 @@ const TeacherQuizWidget: React.FC<{
           )}
           onSave={async (data) => {
             await saveQuiz(data, paperOcr.meta.driveFileId);
-            await syncPaperRewords(data);
+            void syncPaperRewords(data);
             addToast('Question text updated.', 'success');
           }}
           onPickFromDrive={pickScanFromDrive}
