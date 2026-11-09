@@ -444,9 +444,11 @@ export function markupNumberChipHtml(
   num: number,
   ink: string,
   sizeMm = 4.2,
-  fontPt = 8
+  fontPt = 8,
+  inline = true
 ): string {
-  return `<span style="${BADGE_BASE}min-width:${sizeMm}mm;height:${sizeMm}mm;line-height:${sizeMm}mm;padding:0 0.7mm;border-radius:${sizeMm / 2}mm;font-size:${fontPt}pt;background:${ink};margin-right:1.2mm;vertical-align:1px">${num}</span>`;
+  const place = inline ? 'margin-right:1.2mm;vertical-align:1px' : 'margin:0';
+  return `<span style="${BADGE_BASE}min-width:${sizeMm}mm;height:${sizeMm}mm;line-height:${sizeMm}mm;padding:0 0.7mm;border-radius:${sizeMm / 2}mm;font-size:${fontPt}pt;background:${ink};${place}">${num}</span>`;
 }
 
 /** The numbered comment list for under an answer: each number matches its pin or badge. Empty when nothing is commented. */
@@ -458,7 +460,7 @@ export function markupCommentListHtml(
     .filter((item) => commentOf(item))
     .map(
       (item, i) =>
-        `<li style="margin:0 0 1mm;padding-left:6mm;text-indent:-6mm;break-inside:avoid;white-space:pre-wrap;overflow-wrap:anywhere">${markupNumberChipHtml(i + 1, inkOf(item))}${escapeHtml(commentOf(item))}</li>`
+        `<li style="display:flex;align-items:flex-start;margin:0 0 1mm;break-inside:avoid"><span style="flex:none;width:6mm;height:4.4mm;display:flex;align-items:center">${markupNumberChipHtml(i + 1, inkOf(item), 4.2, 8, false)}</span><span style="flex:1;min-width:0;line-height:4.4mm;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(commentOf(item))}</span></li>`
     );
   if (rows.length === 0) return '';
   return `<ol class="notes" style="list-style:none;padding-left:0;margin:1mm 0 1.5mm;${PRINT_EXACT}">${rows.join('')}</ol>`;
