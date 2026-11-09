@@ -334,6 +334,17 @@ describe('pure helpers', () => {
     );
   });
 
+  it('keeps the extension and whole characters when a long student file name is capped', () => {
+    const name = buildArchiveFileName(
+      SUBMISSION_ID,
+      `${'a'.repeat(58)}\u{1F600}${'b'.repeat(20)}.jpg`,
+      'image/jpeg'
+    );
+    expect(name.endsWith('.jpg')).toBe(true);
+    expect(Array.from(name).length).toBeLessThanOrEqual(60);
+    expect(name.isWellFormed()).toBe(true);
+  });
+
   it('treats a storagePath with no status as firebase', () => {
     expect(effectiveArchiveStatus({ storagePath: GOOD_PATH })).toBe('firebase');
     expect(effectiveArchiveStatus({ archiveStatus: 'archived' })).toBe(
