@@ -8,6 +8,7 @@ import { matchQuestionOpening } from '@/utils/questionNumbering';
 import {
   FIGURE_PADDING,
   cropPdfFigures,
+  boxFromKey,
   figureKey,
   type FigureBox,
   type PdfCropperDeps,
@@ -516,6 +517,20 @@ export function picturesOnPage(
   return [...grown, ...tables];
 }
 
+/** Pictures too small to bring in by themselves: an equation or a symbol set as an image. */
+export function inlineImagesOnPage(
+  list: PdfOperatorListLike,
+  ops: PdfPictureOps,
+  viewport: PdfViewportLike
+): PageBox[] {
+  return mergeBoxes(pageDrawings(list, ops, viewport).images).filter(
+    (b) =>
+      b.width >= 0.01 &&
+      b.height >= 0.006 &&
+      (b.width < MIN_PICTURE_WIDTH || b.height < MIN_PICTURE_HEIGHT)
+  );
+}
+
 const roundedKey = (b: PageBox) =>
   [b.x, b.y, b.width, b.height].map((n) => Math.round(n * 100)).join(':');
 
@@ -994,7 +1009,14 @@ export async function attachPdfPictures(
   images: ExtractedImage[];
   warnings: string[];
 }> {
-  const used = usedPictureBoxes(pictures, questions);
+  // A picture of a whole question is boxed by the parser, so only its key says where it is.
+  const known = new Set(pictures.map((box) => figureKey(box)));
+  const wholeQuestions = questions
+    .flatMap((q) => q.imageIds)
+    .filter((id) => !known.has(id))
+    .map(boxFromKey)
+    .filter((box): box is FigureBox => box !== null);
+  const used = usedPictureBoxes([...pictures, ...wholeQuestions], questions);
   if (used.length === 0) {
     return {
       questions: resolvePictureIds(questions, new Map()),

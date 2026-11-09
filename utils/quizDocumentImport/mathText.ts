@@ -85,6 +85,48 @@ const SUBSCRIPT: Record<string, string> = {
 
 const tidy = (s: string): string => s.replace(/\s+/g, ' ').trim();
 
+/** The Symbol font's letters, a–z then A–Z, which are Greek. */
+const SYMBOL_LOWER = 'αβχδεφγηιϕκλμνοπθρστυϖωξψζ';
+const SYMBOL_UPPER = 'ΑΒΧΔΕΦΓΗΙϑΚΛΜΝΟΠΘΡΣΤΥςΩΞΨΖ';
+/** The Symbol font's signs above ASCII, by its own character code. */
+const SYMBOL_SIGNS: Record<number, string> = {
+  0x2d: '−',
+  0x2a: '∗',
+  0xa3: '≤',
+  0xa5: '∞',
+  0xae: '→',
+  0xb0: '°',
+  0xb1: '±',
+  0xb3: '≥',
+  0xb4: '×',
+  0xb5: '∝',
+  0xb8: '÷',
+  0xb9: '≠',
+  0xba: '≡',
+  0xbb: '≈',
+  0xc7: '∩',
+  0xc8: '∪',
+  0xce: '∈',
+  0xd0: '∠',
+  0xd6: '√',
+  0xd7: '⋅',
+  0xde: '⇒',
+  0xe5: '∑',
+  0xf2: '∫',
+};
+
+/** Equation editors set `+`, `−`, `≠` and Greek in the Symbol font, which a PDF reports as private-use characters. */
+export function symbolFontText(text: string): string {
+  return text.replace(/[-]/g, (c) => {
+    const code = c.charCodeAt(0) - 0xf000;
+    const sign = SYMBOL_SIGNS[code];
+    if (sign) return sign;
+    if (code >= 0x61 && code <= 0x7a) return SYMBOL_LOWER[code - 0x61];
+    if (code >= 0x41 && code <= 0x5a) return SYMBOL_UPPER[code - 0x41];
+    return code >= 0x20 && code <= 0x7e ? String.fromCharCode(code) : c;
+  });
+}
+
 /** One number, variable or word, which needs no brackets to stay together. */
 const isAtom = (s: string): boolean => /^[-−]?[\p{L}\p{N}.°%]+$/u.test(s);
 

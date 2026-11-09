@@ -24,6 +24,7 @@ import { figureKey, type FigureBox } from './pdfFigures';
 import {
   isDrawnMarked,
   textMarks,
+  type MarkRect,
   type PdfMarkOps,
   type TextMarks,
 } from './pdfMarks';
@@ -69,17 +70,36 @@ export interface PdfFontPage {
   commonObjs: { get: (id: string) => unknown };
 }
 
-/**
- * Marks the items set in a bold font and, given pdf.js's `OPS`, the ones
- * underlined or highlighted. The document must be opened with `fontExtraProperties`.
- */
+/** The items with their bold, underline and highlight marks. */
 export async function markBoldItems(
   page: PdfFontPage,
   items: PdfTextItem[],
   drawing?: { ops: PdfMarkOps; pageWidth?: number }
 ): Promise<PdfTextItem[]> {
+  return (await readPageText(page, items, drawing)).items;
+}
+
+/**
+ * Marks the items set in a bold font and, given pdf.js's `OPS`, the ones
+ * underlined or highlighted, and returns the page's thin rules for the
+ * layout to find fraction bars among. The document must be opened with
+ * `fontExtraProperties`.
+ */
+export async function readPageText(
+  page: PdfFontPage,
+  items: PdfTextItem[],
+  drawing?: { ops: PdfMarkOps; pageWidth?: number }
+): Promise<{ items: PdfTextItem[]; rules: MarkRect[] }> {
+  return markedItems(page, items, drawing);
+}
+
+async function markedItems(
+  page: PdfFontPage,
+  items: PdfTextItem[],
+  drawing?: { ops: PdfMarkOps; pageWidth?: number }
+): Promise<{ items: PdfTextItem[]; rules: MarkRect[] }> {
   const ids = new Set(items.map((i) => i.fontName).filter(Boolean));
-  if (ids.size === 0 && !drawing) return items;
+  if (ids.size === 0 && !drawing) return { items, rules: [] };
   const bold = new Set<string>();
   let marks: TextMarks | null = null;
   try {
@@ -92,14 +112,15 @@ export async function markBoldItems(
     if (drawing) marks = textMarks(list as PdfOperatorListLike, drawing.ops);
   } catch (err) {
     console.warn('[quizDocumentImport] could not read the fonts', err);
-    return items;
+    return { items, rules: [] };
   }
+  const rules = marks?.underlines ?? [];
   const drawn =
     marks && marks.underlines.length + marks.highlights.length > 0
       ? marks
       : null;
-  if (bold.size === 0 && !drawn) return items;
-  return items.map((i) => {
+  if (bold.size === 0 && !drawn) return { items, rules };
+  const result = items.map((i) => {
     const isBold = Boolean(i.fontName && bold.has(i.fontName));
     const marked =
       drawn !== null && isDrawnMarked(i, drawn, drawing?.pageWidth);
@@ -110,16 +131,21 @@ export async function markBoldItems(
       ...(marked ? { marked: true } : {}),
     };
   });
+  return { items: result, rules };
 }
 
 export interface PdfPageLike {
-  getTextContent: () => Promise<{ items: PdfTextItem[] }>;
+  /** `rules` are the page's thin horizontal lines in points, when the wiring reads them. */
+  getTextContent: () => Promise<{ items: PdfTextItem[]; rules?: MarkRect[] }>;
   /** Page height in points; places the header and footer zones (R4). */
   height?: number;
   /** The page's pictures and its viewport; absent means pictures are skipped. */
-  getPictures?: (
-    items: readonly PdfTextItem[]
-  ) => Promise<{ pictures: PageBox[]; viewport: PdfViewportLike }>;
+  getPictures?: (items: readonly PdfTextItem[]) => Promise<{
+    pictures: PageBox[];
+    viewport: PdfViewportLike;
+    /** Images too small to be pictures of their own. */
+    inline?: PageBox[];
+  }>;
 }
 
 export interface PdfDocumentLike {
@@ -183,6 +209,9 @@ function positionLine(
   };
 }
 
+/** A line's text reaches this far above its baseline, as a share of the page. */
+const INLINE_REACH = 0.02;
+
 /** The line with room for what is stacked over and under it, as fractions of the viewport. */
 function mathBox(line: LayoutLine, viewport: PdfViewportLike): PageBox | null {
   const xs = line.segments.flatMap((s) =>
@@ -242,7 +271,7 @@ export async function readPdf(
   let usedOcr = false;
   const picturesByPage = new Map<
     number,
-    { pictures: PageBox[]; viewport: PdfViewportLike }
+    { pictures: PageBox[]; viewport: PdfViewportLike; inline?: PageBox[] }
   >();
 
   try {
@@ -255,7 +284,14 @@ export async function readPdf(
     for (let n = 1; n <= pageCount; n += 1) {
       const page = await pdf.getPage(n);
       const content = await page.getTextContent();
-      const pageLines = layoutPage(content.items.map(toLayoutItem));
+      const pageLines = layoutPage(
+        content.items.map(toLayoutItem),
+        (content.rules ?? []).map((r) => ({
+          x0: r.x0,
+          x1: r.x1,
+          y: (r.y0 + r.y1) / 2,
+        }))
+      );
       const charCount = pageLines.map((l) => l.text).join('').length;
 
       if (charCount >= MIN_TEXT_LAYER_CHARS) {
@@ -333,6 +369,28 @@ export async function readPdf(
       const onPage = kept.get(n) ?? [];
       const viewport = picturesByPage.get(n)?.viewport;
       if (viewport) {
+        const tops = page.lines.map(
+          (_, i) => positionLine(pageLines[i], viewport).top
+        );
+        tops.forEach((top, i) => {
+          pageLines[i].top = top;
+        });
+        // An equation set as an image belongs to the last line that starts above its middle.
+        for (const box of picturesByPage.get(n)?.inline ?? []) {
+          const middle = box.y + box.height / 2;
+          let at = -1;
+          tops.forEach((top, i) => {
+            if (top - INLINE_REACH <= middle && (at < 0 || top >= tops[at])) {
+              at = i;
+            }
+          });
+          if (at < 0) continue;
+          const had = pageLines[at].inlineImage;
+          pageLines[at].inlineImage = {
+            top: Math.min(had?.top ?? 1, box.y),
+            bottom: Math.max(had?.bottom ?? 0, box.y + box.height),
+          };
+        }
         // Math that plain text gets wrong also comes in as a picture of the line.
         page.lines.forEach((line, i) => {
           const box = hasUnreadableMath(line.text)

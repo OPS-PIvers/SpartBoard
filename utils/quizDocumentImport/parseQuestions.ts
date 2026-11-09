@@ -27,6 +27,7 @@ import {
   isExamView,
 } from './examView';
 import { keyedQuestionIndexes, mergeAnswerKey } from './mergeKey';
+import { boxFromKey, figureKey } from './pdfFigures';
 import { captionLabels } from './pdfPictures';
 import {
   SELECT_ALL_WORDING,
@@ -123,6 +124,10 @@ const PASSAGE_CUE =
 const TEST_DIRECTIONS =
   /\b(?:directions|instructions)\b|\b(?:read|answer|choose|select|circle|show|write)\b[^.?!]*\b(?:each|all|every|your)\b/i;
 
+/** Directions for the part of the test they head: "…solutions to the following problems". */
+const FOLLOWING_DIRECTIONS =
+  /\b(?:the|each\s+of\s+the)\s+following\s+(?:problems|questions|items|exercises)\b/i;
+
 /** A shared lead-in at or under this length is copied into each stem (R25). */
 const SHORT_LEAD_IN = 150;
 
@@ -161,6 +166,18 @@ const FIGURE_ABOVE = new RegExp(
 /** A stem that asks for a label on a picture: "which letter…", "represented by which number?". */
 const LABEL_ASKED =
   /\bwhich\s+(?:number|letter|label|arrow|structure)\b|\b(?:represented|indicated|shown|marked|labell?ed)\s+by\s+(?:which|what)\b/i;
+type Reach = { top: number; bottom: number };
+/** Both reaches as one. */
+const reach = (
+  a: Reach | undefined,
+  b: Reach | undefined
+): Reach | undefined =>
+  a && b
+    ? { top: Math.min(a.top, b.top), bottom: Math.max(a.bottom, b.bottom) }
+    : (a ?? b);
+
+/** How far a question's first line reaches above its baseline, as a share of the page. */
+const QUESTION_ASCENT = 0.02;
 /** A lead-in that points at a picture, "Use the diagram to answer questions 17-20". */
 const PICTURE_LEAD = new RegExp(`\\b(?:fig\\.|(?:${PICTURE_WORDS})s?)\\b`, 'i');
 /** How many lines a Word caption may sit from its picture. */
@@ -418,6 +435,57 @@ function splitSpacedOptions(line: DocLine): DocLine {
   return isOptionRun(letters) ? { ...line, segments: pieces } : line;
 }
 
+/** `K ____/5`: a box for the marks a question earned, printed beside it. */
+const SCORE_BLANK = /^(?:[A-Z]{1,3}\s*)?_{2,}\s*\/\s*\d{1,3}$/;
+/** `A )`: a choice's letter set off from its bracket. */
+const LOOSE_MARKER = /^(\s*[A-Ha-h])\s\)(?=\s|$)/;
+/** A tick box printed before each choice of a select-all question. */
+const TICK_BOX = /^\s*[☐□❑❏◻▢○◯ò](?:\s+|$)/;
+
+/**
+ * Lines as the parser expects them: score boxes dropped, `A )` read as
+ * `A)`, and a run of tick-box choices lettered in order.
+ */
+function normalizeLines(lines: readonly DocLine[]): DocLine[] {
+  let ticks = 0;
+  return lines.map((original) => {
+    let line = original;
+    const kept = line.segments?.filter((s) => !SCORE_BLANK.test(s.text.trim()));
+    if (kept && line.segments && kept.length < line.segments.length) {
+      line = { ...line, segments: kept, text: joinSegmentText(kept) };
+    }
+    if (!line.text.trim()) return line;
+    if (TICK_BOX.test(line.text) && ticks < 8) {
+      const letter = `${String.fromCharCode(65 + ticks)}) `;
+      ticks += 1;
+      const segments = line.segments?.map((s, i) =>
+        i === 0 ? { ...s, text: s.text.replace(TICK_BOX, letter) } : s
+      );
+      return {
+        ...line,
+        text: line.text.replace(TICK_BOX, letter),
+        ...(segments ? { segments } : {}),
+      };
+    }
+    ticks = 0;
+    if (!LOOSE_MARKER.test(line.text) && !line.segments) return line;
+    const segments = line.segments?.map((s) => ({
+      ...s,
+      text: s.text.replace(LOOSE_MARKER, '$1)'),
+    }));
+    return {
+      ...line,
+      text: segments
+        ? joinSegmentText(segments)
+        : line.text.replace(LOOSE_MARKER, '$1)'),
+      ...(segments ? { segments } : {}),
+    };
+  });
+}
+
+const joinSegmentText = (segments: readonly DocSegment[]): string =>
+  segments.map((s) => s.text).join(' ');
+
 /**
  * A column gap that opens an option or a question starts a line of its own
  * (R5), so a table row `A. Rome | B. Paris` reads as two options. A marker
@@ -464,6 +532,8 @@ export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
         ...(line.y !== undefined ? { y: line.y } : {}),
         ...(i === 0 && line.imageIds ? { imageIds: line.imageIds } : {}),
         ...(i === 0 && line.mathPicture ? { mathPicture: true } : {}),
+        ...(line.top !== undefined ? { top: line.top } : {}),
+        ...(line.inlineImage ? { inlineImage: line.inlineImage } : {}),
         ...(i === 0 && line.besideIds ? { besideIds: line.besideIds } : {}),
       };
       columnLines.add(piece);
@@ -520,6 +590,11 @@ interface MatchingGroup {
 }
 
 interface Draft {
+  /** The line that opened it, and the lowest line read into it, on a PDF page. */
+  openLine?: DocLine;
+  lastTop?: number;
+  /** Equations or symbols set as images sit in its text, reaching this far up and down the page. */
+  inlineImage?: { top: number; bottom: number };
   item: number;
   part?: string;
   section: Section;
@@ -977,6 +1052,9 @@ const NON_CHOICE_LINE =
 const PAGE_HEADER_FIELD =
   /^\s*(?:name|class|date|period|hour|block|teacher|student)\b\s*[:_]/i;
 
+const BARE_HEADER_FIELD =
+  /^(?:name|class|date|period|hour|block|teacher|student)[:_ ]*$/i;
+
 /** `Article: Cuba Goes Dark`, `Reading: The Water Cycle`. */
 const LABELLED_TITLE = /^[A-Z][A-Za-z]{2,}\s*:\s+\S/;
 
@@ -1070,7 +1148,7 @@ export function parseDocument(
   keySummary?: KeySummary;
 } {
   const multi = options.multiAnswer === true;
-  const lines = splitAtColumnMarkers(documentLines);
+  const lines = splitAtColumnMarkers(normalizeLines(documentLines));
   const examView = isExamView(lines);
   const headers = runningHeaders(lines);
   /** Where accepted question numbers sit on a PDF page (E1). */
@@ -1198,6 +1276,8 @@ export function parseDocument(
     printed?: number;
     ungraded: boolean;
   }): void => {
+    // A bare "Name:" field is the page's header, never a part of the test.
+    if (heading && BARE_HEADER_FIELD.test(heading.name)) return;
     endQuestion();
     section = {
       ordinal: 0,
@@ -1267,6 +1347,23 @@ export function parseDocument(
       !waiting.range &&
       !PASSAGE_CUE.test(all) &&
       TEST_DIRECTIONS.test(all);
+    // "Full Solution - Write clear solutions to the following problems": a new part of the test.
+    if (
+      !waiting.range &&
+      !PASSAGE_CUE.test(all) &&
+      !INSTRUCTIONS_OPENING.test(all) &&
+      drafts.length > 0 &&
+      FOLLOWING_DIRECTIONS.test(all)
+    ) {
+      const named = /^([^.?!:]{3,40}?)\s*[-–—:]\s+(\S.*)$/.exec(all);
+      if (named) {
+        startSection({ name: named[1], ungraded: false });
+        section.directions = named[2];
+      } else {
+        section.directions ??= all;
+      }
+      return;
+    }
     const found =
       options.passages && !heading ? passageOf(waiting.lines) : null;
     if (found) {
@@ -1416,6 +1513,7 @@ export function parseDocument(
       if (choiceBank.remaining <= 0) choiceBank = null;
     }
     current = {
+      openLine: line,
       item,
       ...(part && part[1].toUpperCase() === 'A' ? { part: 'A' } : {}),
       section,
@@ -1477,6 +1575,11 @@ export function parseDocument(
       return;
     }
     if (headers.has(tidy(text))) return;
+    // A stray full stop or dash on a line of its own says nothing.
+    if (text.length <= 2 && !/[\p{L}\p{N}]/u.test(text)) {
+      current?.imageIds.push(...(line.imageIds ?? []));
+      return;
+    }
 
     const wrappingDirections = directionsOpen;
     directionsOpen = null;
@@ -1494,6 +1597,12 @@ export function parseDocument(
     }
 
     const open = current;
+    if (open && line.page === open.openLine?.page) {
+      if (line.top !== undefined) {
+        open.lastTop = Math.max(open.lastTop ?? 0, line.top);
+      }
+      open.inlineImage = reach(open.inlineImage, line.inlineImage);
+    }
 
     // A written item's parts, and a label like "20 A" naming its own number, stay in its prompt.
     if (
@@ -1732,7 +1841,15 @@ export function parseDocument(
       lines[openedAt]?.y === line.y &&
       lines[openedAt]?.page === line.page &&
       opening.number === section.lastItem + 1;
-    if (opening && (besideLast || atNumberPosition(numberXs, numberX))) {
+    // `____ 2)`: a number after an answer blank is a question wherever the blank puts it.
+    const blankLed =
+      opening !== null &&
+      /^_{2,}\s/.test(text) &&
+      (section.questionCount === 0 || opening.number === section.lastItem + 1);
+    if (
+      opening &&
+      (besideLast || blankLed || atNumberPosition(numberXs, numberX))
+    ) {
       const n = opening.number;
       // ExamView numbers straight through, so only a heading restarts it.
       // A `1.` inside a stem that hasn't reached its options is a list, not a restart.
@@ -1750,6 +1867,8 @@ export function parseDocument(
         if (restart) startSection();
         const opened = openQuestion(n, opening.text, line);
         openedAt = index;
+        opened.inlineImage = reach(opened.inlineImage, line.inlineImage);
+        if (line.top !== undefined) opened.lastTop = line.top;
         const mate = { draft: opened, x: numberX ?? 0 };
         rowMates = besideLast ? [...rowMates, mate] : [mate];
         if (beside?.lead && opened.matching) {
@@ -2070,6 +2189,95 @@ export function parseDocument(
       'This picture is printed beside more than one question, so it was added to each of them. Remove it here if this question doesn’t use it.',
     ];
   }
+
+  // Bold or underlined letters on nearly every choice are how the test is set, not its answers.
+  const lettered = drafts.flatMap((d) => d.options);
+  if (
+    lettered.length >= 8 &&
+    lettered.filter((o) => o.marked).length >= 0.7 * lettered.length
+  ) {
+    for (const option of lettered) option.marked = false;
+  }
+
+  // Lettered parts that each ask something are one written question, not its choices.
+  for (const draft of drafts) {
+    if (
+      draft.options.length >= 2 &&
+      !draft.matching &&
+      !draft.textParts.join(' ').includes('?') &&
+      draft.options.every((o) => o.text.length >= 60) &&
+      draft.options.filter((o) => o.text.includes('?')).length >= 2
+    ) {
+      draft.partLines = [
+        ...(draft.partLines ?? []),
+        ...draft.options.map((o) => `${o.letter}) ${o.text}`),
+      ];
+      draft.options = [];
+    }
+  }
+
+  // Choices or math set as images can't be typed, so the whole question comes in as a picture.
+  drafts.forEach((draft, i) => {
+    const open = draft.openLine;
+    const top = open?.top;
+    const blankChoices =
+      draft.options.length >= 2 && draft.options.every((o) => !o.text.trim());
+    if (
+      !open ||
+      open.page === undefined ||
+      top === undefined ||
+      !(blankChoices || draft.inlineImage)
+    ) {
+      return;
+    }
+    const next = drafts
+      .slice(i + 1)
+      .find((d) => d.openLine?.page === open.page && d.openLine?.top);
+    const own = draft.imageIds
+      .map(boxFromKey)
+      .filter((box) => box?.page === open.page)
+      .map((box) => (box ? box.y + box.height : 0));
+    // A tall equation reaches above its line, into what would be the question before it.
+    const startOf = (d: Draft, at: number): number => {
+      const tops = d.imageIds
+        .map(boxFromKey)
+        .filter((box) => box?.page === open.page)
+        .map((box) => box?.y ?? 1)
+        .filter((y) => y < at && y > at - 0.06);
+      return Math.min(
+        at - QUESTION_ASCENT,
+        Math.min(d.inlineImage?.top ?? 1, ...tops) - 0.004
+      );
+    };
+    const end =
+      next?.openLine?.top !== undefined && next.openLine.top > top
+        ? startOf(next, next.openLine.top) - 0.006
+        : Math.max(
+            draft.lastTop ?? top,
+            draft.inlineImage?.bottom ?? 0,
+            ...own
+          ) + 0.02;
+    const start = startOf(draft, top);
+    if (end - start < 0.02) return;
+    const key = figureKey({
+      page: open.page,
+      x: 0.04,
+      y: start,
+      width: 0.92,
+      height: Math.min(end - start, 0.7),
+    });
+    draft.imageIds = [key];
+    for (const option of draft.options) {
+      if (!option.text.trim()) option.text = option.letter;
+    }
+    draft.pictureNotes = [
+      blankChoices
+        ? 'This question’s choices are pictures or equations the reader can’t type, so the whole question was added as a picture and the choices are named by their letters.'
+        : draft.options.length === 0
+          ? 'Part of this question is an equation or symbol set as a picture, so the whole question was added as a picture. If the picture shows answer choices, add them here.'
+          : 'Part of this question is an equation or symbol set as a picture, so the whole question was added as a picture. Check its text against it.',
+    ];
+  });
 
   const mathPictures = new Set(
     lines.flatMap((line) => (line.mathPicture ? (line.imageIds ?? []) : []))

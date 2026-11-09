@@ -5,8 +5,11 @@ import type {
   PdfReaderDeps,
   PdfTextItem,
 } from '@/utils/quizDocumentImport/pdfReader';
-import { markBoldItems } from '@/utils/quizDocumentImport/pdfReader';
-import { picturesOnPage } from '@/utils/quizDocumentImport/pdfPictures';
+import { readPageText } from '@/utils/quizDocumentImport/pdfReader';
+import {
+  inlineImagesOnPage,
+  picturesOnPage,
+} from '@/utils/quizDocumentImport/pdfPictures';
 
 export async function nodePdfDeps(bytes: Uint8Array): Promise<PdfReaderDeps> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -41,12 +44,10 @@ export async function nodePdfDeps(bytes: Uint8Array): Promise<PdfReaderDeps> {
                     : {}),
                 });
               }
-              return {
-                items: await markBoldItems(page, items, {
-                  ops: pdfjs.OPS,
-                  pageWidth: page.getViewport({ scale: 1 }).width,
-                }),
-              };
+              return readPageText(page, items, {
+                ops: pdfjs.OPS,
+                pageWidth: page.getViewport({ scale: 1 }).width,
+              });
             },
             getPictures: async (items) => {
               const viewport = page.getViewport({ scale: 1 });
@@ -54,6 +55,7 @@ export async function nodePdfDeps(bytes: Uint8Array): Promise<PdfReaderDeps> {
               return {
                 viewport,
                 pictures: picturesOnPage(list, pdfjs.OPS, viewport, items),
+                inline: inlineImagesOnPage(list, pdfjs.OPS, viewport),
               };
             },
           };

@@ -7,11 +7,11 @@
 
 import type { OcrLine, OcrPage } from './pdfLayout';
 import {
-  markBoldItems,
+  readPageText,
   type PdfReaderDeps,
   type PdfTextItem,
 } from './pdfReader';
-import { picturesOnPage } from './pdfPictures';
+import { inlineImagesOnPage, picturesOnPage } from './pdfPictures';
 
 /** pdf.js viewport scale is relative to 72 dpi; 200 dpi is what OCR wants. */
 const OCR_SCALE = 200 / 72;
@@ -124,12 +124,10 @@ export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
                     : {}),
                 });
               }
-              return {
-                items: await markBoldItems(page, items, {
-                  ops,
-                  pageWidth: page.getViewport({ scale: 1 }).width,
-                }),
-              };
+              return readPageText(page, items, {
+                ops,
+                pageWidth: page.getViewport({ scale: 1 }).width,
+              });
             },
             getPictures: async (items) => {
               const viewport = page.getViewport({ scale: 1 });
@@ -137,6 +135,7 @@ export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
               return {
                 viewport,
                 pictures: picturesOnPage(list, ops, viewport, items),
+                inline: inlineImagesOnPage(list, ops, viewport),
               };
             },
           };

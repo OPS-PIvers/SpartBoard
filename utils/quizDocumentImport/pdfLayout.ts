@@ -6,7 +6,7 @@
  */
 
 import { matchQuestionOpening } from '@/utils/questionNumbering';
-import { fraction, isScriptRun, toScript } from './mathText';
+import { fraction, isScriptRun, symbolFontText, toScript } from './mathText';
 import type { DocSegment } from './types';
 
 /** Fragments within this many points of each other sit on the same line. */
@@ -27,6 +27,13 @@ export interface LayoutItem {
   fontSize?: number;
   /** Set in a bold font. */
   bold?: boolean;
+}
+
+/** A thin horizontal rule drawn on the page, in points; it may be a fraction's bar. */
+export interface FractionBar {
+  x0: number;
+  x1: number;
+  y: number;
 }
 
 export interface LayoutLine {
@@ -80,7 +87,7 @@ function toPart(item: LayoutItem): Part {
       ? item.width
       : chars * size * 0.5;
   return {
-    str: plainLetters(item.str),
+    str: symbolFontText(plainLetters(item.str)),
     x: item.x,
     xEnd: item.x + width,
     glyph: width / chars,
@@ -300,6 +307,12 @@ function labelArrow(raised: Part[]): void {
   head.str = '';
 }
 
+/** Fragments this far apart, as a share of the font size, are separate terms. */
+const WORD_GAP = 0.2;
+/** A space is never meant between a term and its exponent or subscript. */
+const SPACE_BEFORE_SCRIPT =
+  /(?<=[\p{L}\p{N})\]])\s+(?=[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿˣʸ₀₁₂₃₄₅₆₇₈₉])/gu;
+
 /** How close a raised letter must sit to the text it is an exponent of, as a share of the font size. */
 const SCRIPT_ABUTS = 0.25;
 
@@ -320,13 +333,96 @@ function scripted(
   return kind ? part.str.replace(text, toScript(text, kind)) : part.str;
 }
 
-function groupRows(items: readonly LayoutItem[]): Row[] {
+/** A fraction's bar is no longer than this, in points. */
+const MAX_BAR = 300;
+/** Text within this many points of a bar is looked at as its fraction. */
+const BAR_REACH = 24;
+
+/** A cluster of fragments as one line of text, its exponents and subscripts written as such. */
+function clusterText(parts: readonly Part[]): string {
+  const sorted = [...parts].sort((a, b) => a.x - b.x);
+  const size = Math.max(...sorted.map((p) => p.size));
+  const baseline = sorted.find((p) => p.size === size)?.y ?? sorted[0].y;
+  let end: number | null = null;
+  let out = '';
+  for (const p of sorted) {
+    const apart = end !== null && p.x - end >= WORD_GAP * size;
+    out += (apart ? ' ' : '') + scripted(p, baseline, size, true);
+    end = p.xEnd;
+  }
+  return tidy(out).replace(SPACE_BEFORE_SCRIPT, '');
+}
+
+/** Text set over and under a drawn bar is a fraction, written into the line beside it as `(x + 1)/2`. */
+function stackFractions(parts: Part[], bars: readonly FractionBar[]): Part[] {
+  let left = parts;
+  const ordered = bars
+    .filter((b) => b.x1 - b.x0 >= 3 && b.x1 - b.x0 <= MAX_BAR)
+    .sort((a, b) => a.x1 - a.x0 - (b.x1 - b.x0));
+  for (const bar of ordered) {
+    const near = left.filter((p) => {
+      const centre = (p.x + p.xEnd) / 2;
+      return (
+        p.str.trim() &&
+        centre >= bar.x0 - 1 &&
+        centre <= bar.x1 + 1 &&
+        Math.abs(p.y - bar.y) <= BAR_REACH
+      );
+    });
+    const size = Math.max(0, ...near.map((p) => p.size));
+    if (size <= 0) continue;
+    const rise = (p: Part) => (p.y - bar.y) / size;
+    // Full-size text sitting right on the rule is underlined, not a numerator.
+    if (
+      near.some(
+        (p) => p.size >= SCRIPT_SIZE * size && rise(p) >= -0.1 && rise(p) < 0.2
+      )
+    ) {
+      continue;
+    }
+    const top = near.filter((p) => rise(p) >= 0.2 && rise(p) <= 1.25);
+    const under = near.filter((p) => rise(p) <= -0.3 && rise(p) >= -1.5);
+    const isTerm = (side: Part[]) =>
+      side.some((p) => /[\p{L}\p{N}]/u.test(p.str));
+    if (!isTerm(top) || !isTerm(under)) continue;
+    const text = ` ${fraction(clusterText(top), clusterText(under))} `;
+    const used = new Set([...top, ...under]);
+    left = left.filter((p) => !used.has(p));
+    // The fraction joins the line whose baseline sits just under its bar.
+    const beside = left
+      .filter(
+        (p) => p.str.trim() && bar.y - p.y >= 0 && bar.y - p.y <= 0.6 * size
+      )
+      .sort(
+        (a, b) =>
+          Math.min(Math.abs(a.x - bar.x1), Math.abs(a.xEnd - bar.x0)) -
+          Math.min(Math.abs(b.x - bar.x1), Math.abs(b.xEnd - bar.x0))
+      )[0];
+    left.push({
+      str: text,
+      x: bar.x0,
+      xEnd: bar.x1,
+      glyph: (bar.x1 - bar.x0) / text.length,
+      y: beside?.y ?? bar.y - 0.3 * size,
+      size: beside?.size ?? size,
+    });
+  }
+  return left;
+}
+
+function groupRows(
+  items: readonly LayoutItem[],
+  bars: readonly FractionBar[]
+): Row[] {
   const rows: Row[] = [];
-  for (const item of items) {
-    if (!item.str) continue;
-    const row = rows.find((r) => Math.abs(r.y - item.y) <= LINE_TOLERANCE_PT);
-    if (row) row.parts.push(toPart(item));
-    else rows.push({ y: item.y, parts: [toPart(item)] });
+  const parts = stackFractions(
+    items.filter((item) => item.str).map(toPart),
+    bars
+  );
+  for (const part of parts) {
+    const row = rows.find((r) => Math.abs(r.y - part.y) <= LINE_TOLERANCE_PT);
+    if (row) row.parts.push(part);
+    else rows.push({ y: part.y, parts: [part] });
   }
   // A PDF's y axis runs up the page, so descending y is reading order.
   rows.sort((a, b) => b.y - a.y);
@@ -346,15 +442,21 @@ function segmentRow(row: Row): SegmentedRow {
   const close = () => {
     if (!open) return;
     let end: number | null = null;
+    let spaced = true;
     const text = tidy(
       open.parts
         .map((p) => {
           const abuts = end !== null && p.x - end <= SCRIPT_ABUTS * size;
+          // An equation's terms are set apart by position, with no space between them.
+          const apart = end !== null && p.x - end >= WORD_GAP * size;
+          const piece = scripted(p, baseline, size, abuts);
+          const lead = apart && !spaced && /^\S/.test(piece) ? ' ' : '';
           if (p.str.trim()) end = p.xEnd;
-          return scripted(p, baseline, size, abuts);
+          if (piece) spaced = /\s$/.test(piece);
+          return lead + piece;
         })
         .join('')
-    );
+    ).replace(SPACE_BEFORE_SCRIPT, '');
     if (text) {
       segments.push({
         text,
@@ -476,8 +578,11 @@ function splitColumns(rows: SegmentedRow[]): SegmentedRow[] | null {
 }
 
 /** Lines of one page in reading order, with segments. */
-export function layoutPage(items: readonly LayoutItem[]): LayoutLine[] {
-  const rows = groupRows(items)
+export function layoutPage(
+  items: readonly LayoutItem[],
+  bars: readonly FractionBar[] = []
+): LayoutLine[] {
+  const rows = groupRows(items, bars)
     .map(segmentRow)
     .filter((r) => r.segments.length > 0);
   return (splitColumns(rows) ?? rows).map(toLine);

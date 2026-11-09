@@ -53,6 +53,8 @@ const MIN_HIGHLIGHT_HEIGHT = 6;
 const MAX_HIGHLIGHT_HEIGHT = 40;
 /** A rule across this share of the page divides sections; it underlines nothing. */
 const DIVIDER_SHARE = 0.6;
+/** An underline sits this close under its text; a fraction's bar sits lower. */
+const UNDERLINE_DROP = 0.22;
 /** How much of a fragment a mark must run under or behind. */
 const COVERAGE = 0.5;
 
@@ -190,7 +192,7 @@ export function isDrawnMarked(
     (r) =>
       (pageWidth === undefined || r.x1 - r.x0 < DIVIDER_SHARE * pageWidth) &&
       r.y1 <= y + 0.1 * height &&
-      r.y0 >= y - 0.35 * height &&
+      r.y0 >= y - UNDERLINE_DROP * height &&
       covers(r)
   );
   if (underlined) return true;

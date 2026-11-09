@@ -45,6 +45,10 @@ export interface DocLine {
   tableRow?: boolean;
   /** Lettering drawn over this line's pictures that the picture files don't hold. */
   lostLabels?: string[];
+  /** Where the line's baseline sits on its PDF page, as a fraction from the top. */
+  top?: number;
+  /** Small pictures, such as equations set as images, printed in this line: how far they reach up and down the page. */
+  inlineImage?: { top: number; bottom: number };
   /** Pictures given to this line only because they are printed beside several questions. */
   besideIds?: string[];
   /** This line's picture is a crop of its own math, which plain text can't hold. */
