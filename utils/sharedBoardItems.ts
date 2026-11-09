@@ -2,7 +2,11 @@
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { boardItemPickKey, isBoardItemPicked } from '@/utils/boardItemPicks';
+import {
+  boardItemPickKey,
+  isBoardItemPicked,
+  seedLegacyBoardItemPicks,
+} from '@/utils/boardItemPicks';
 import { quizHasBankSlots } from '@/utils/questionBanks';
 import type {
   QuizData,
@@ -125,15 +129,14 @@ export async function publishSharedBoardItem<T>(
   ) {
     return 'current';
   }
-  if (
-    !existing.exists() &&
-    !(await isBoardItemPicked(
-      item.ownerUid,
-      shareId,
-      boardItemPickKey(item.kind, item.itemId)
-    ))
-  ) {
-    return 'unpicked';
+  if (!existing.exists()) {
+    const key = boardItemPickKey(item.kind, item.itemId);
+    // A share made before picks existed is seeded once from its board, then asked again.
+    const picked =
+      (await isBoardItemPicked(item.ownerUid, shareId, key)) ||
+      ((await seedLegacyBoardItemPicks(item.ownerUid, shareId)) &&
+        (await isBoardItemPicked(item.ownerUid, shareId, key)));
+    if (!picked) return 'unpicked';
   }
   const payload = await buildPayload();
   const next: SharedBoardItemDoc<T> = {
