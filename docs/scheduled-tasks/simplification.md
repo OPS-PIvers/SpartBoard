@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-11-02_
+_Last audited: 2026-11-09_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-11-09: Weekly audit (Monday). `Object.assign({}, defaults` in `DashboardContext.tsx`: 0. `as WidgetConfig`: 11 non-test; `as unknown as`: 213 non-test (206 last cycle, no new cluster investigated). Top hooks: `useQuizSession` 30, `useVideoActivitySession` 24, `useMeetingRecorder` 24, `useWhiteboardRecording` 23, `useLinkedCollectionSync` 23, `useAudioRecording` 23 — all tracked. Nested-ternary and passthrough scans not re-run. 0 new issues._
 
 _2026-11-02: Weekly audit (Monday). `Object.assign({}, defaults` in `DashboardContext.tsx`: 0. `as WidgetConfig`: 11 non-test sites; `as unknown as`: 206 non-test sites (down from 211 total last cycle, no new cluster). Hooks above 5 state/ref calls led by `useQuizSession` 25, `useMeetingRecorder` 23, `useVideoActivitySession` 22, `useWhiteboardRecording` 21, `useLinkedCollectionSync` 21, `useAudioRecording` 21 — all already tracked. Nested-ternary and passthrough scans not re-run. 0 new issues._
 

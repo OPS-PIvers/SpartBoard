@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-11-02_
+_Last audited: 2026-11-09_
 _Last action: 2026-10-19 — Claude MCP connector: added `functions/src/mcp/tools.test.ts` (34 tests); the HIGH item is resolved and moved to Completed. Prior: 2026-10-12 — `quizTools.test.ts`; 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-11-09: Weekly audit (Monday). `pnpm test`: 2258 files, 24084 passed, 5 skipped, 0 failures. Added one LOW item for six new untested files._
 
 _2026-11-02: Weekly audit (Monday). `pnpm test`: 2150 files, 23087 passed, 5 skipped, 0 failures. Untested (no co-located or tests/ match): 65 `utils/` files and 103 `hooks/` files (mostly tracked clusters: gradebook/view-as, per-period session, paper sheets, PLC, quiz hooks); widget dirs with no test: BlendingBoard, CarRiderPro, MathToolInstance, MathTools, Onboarding, WorkSymbols. Every `functions/src/index.ts` export is referenced by a test under `functions/src`. 0 new issues filed (gaps fall under existing Open families)._
 
@@ -24,6 +26,13 @@ _Nothing currently in progress._
 
 ## Open
 
+### LOW Six recently added helpers/hooks have no test importing them
+- **Detected:** 2026-11-09
+- **File:** `hooks/useCopyShortLink.ts`, `hooks/useConnectionWidgetTitle.ts`, `utils/assignmentWindowEdit.ts`, `utils/windowRadius.ts`, `utils/connectionSignals.ts`, `utils/clipText.ts`
+- **Detail:** Added 2026-11-02 to 11-06 with no co-located or `tests/` suite importing them.
+- **Fix:** Add unit tests for the pure helpers (`assignmentWindowEdit`, `windowRadius`, `connectionSignals`, `clipText`) and hook tests for the two hooks.
+
+
 _2026-10-12: Weekly audit (Monday), after merging `origin/dev-paul` @ `c7605470`. `pnpm test`: 3 files / 4 tests failed of 1786 files / 18700 tests (18691 passed). Two failures in `tests/components/landing/landingIcons.test.tsx` (lucide-react 0.563.0 installed vs pinned 1.55.0) and one in `components/activityWall/render/layouts.test.tsx` (`clamp(...cqmin...)` style not applied; jsdom 27.4 installed vs ^30.1.2) are sandbox dependency drift. One failure, `tests/utils/miniAppResultsExport.test.ts` > 'uses one Score column out of 100…', reproduces in isolation and is filed below. Coverage gaps: new untested files since the last audit are the Mini App results helpers (`utils/miniAppNormalize.ts`, `miniAppSessionContent.ts`; `miniAppResults.ts`/`miniAppGrading.ts` have tests); all other `utils/`/`hooks/` gaps are already tracked in the Open items below._
 
 ### MEDIUM New gradebook and view-as logic untested (13 files, zero test imports)
@@ -32,6 +41,8 @@ _2026-10-12: Weekly audit (Monday), after merging `origin/dev-paul` @ `c7605470`
 - **File:** `hooks/gradebook/useItemAnalysis.ts` (174 lines), `hooks/useStudentGrades.ts` (104), `hooks/gradebook/useMarkHistory.ts` (58), `hooks/useServerNow.ts`, `utils/gradebook/liveRawScores.ts` (90), `utils/gradebook/resultsView.ts`, `utils/answerDistribution.ts` (55), `utils/studentResponseDoc.ts` (114), `utils/viewAsSession.ts` (128), `utils/viewAsFormat.ts`, `utils/quizDocumentImport/readTestDocument.ts` (107), `functions/src/glMediaReferences.ts` (217), `functions/src/plcMeetingRecording.ts` (111)
 - **Detail:** Added since 2026-09-28 or not yet tracked; no test file and no test imports them. Mostly pure derivation (score aggregation, answer distributions, session/format helpers), plus Firestore-reference scanning in `glMediaReferences.ts`.
 - **Fix:** Add table-driven unit tests for the pure utils first, then hook tests with mocked Firestore for `useItemAnalysis`/`useStudentGrades`; test `glMediaReferences` against stub Firestore.
+- **Partial 2026-11-09:** `tests/utils/gradebookViewAsPure.test.ts` now covers `answerDistribution.ts`, `resultsView.ts`, `viewAsFormat.ts` and `guidedLearningLiveRaw`. Still untested: `useItemAnalysis`, `useStudentGrades`, `useMarkHistory`, `useServerNow`, `quizLiveRaw`/`videoActivityLiveRaw`, `studentResponseDoc`, `viewAsSession`, `readTestDocument`, `glMediaReferences`, `plcMeetingRecording`.
+- **Skipped 2026-11-09 (firestore-rules MEDIUM `sessions` list):** `firestore.rules` modified within the last 5 commits (#5442, #5441, #5440, #5416, #5411) and the fix is a Cloud Function redesign; retry once the file settles.
 
 ### MEDIUM Quiz Document Import's parsing trio (`docxNumbering.ts`, `fileKind.ts`, `readTestAndKey.ts`) untested
 
