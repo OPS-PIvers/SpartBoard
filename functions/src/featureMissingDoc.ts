@@ -16,6 +16,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-handwritten-responses',
   'paper-written-hybrid',
   'paper-reword-sync',
+  'paper-kept-pages',
+  'paper-image-markup',
   'claude-connector',
   'web-tours',
   'claude-connector-guided-learning',

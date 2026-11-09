@@ -5804,7 +5804,9 @@ export type ArtifactKind =
   | 'video'
   | 'whiteboard'
   /** A cropped paper answer box, uploaded by the teacher at import. */
-  | 'handwriting';
+  | 'handwriting'
+  /** A whole scanned sheet page, straightened, kept at import (`paper-kept-pages`); id `pg_{scanId}_{page}`. */
+  | 'paper-page';
 /** Upload is its own axis, separate from the student-intent `status` on the answer. */
 export type ArtifactUploadState = 'pending' | 'uploaded' | 'failed';
 
@@ -6265,6 +6267,8 @@ export interface QuizResponse extends StaffResponseFields {
    * array rewrite - and must never appear in the student write whitelist.
    */
   artifactArchive?: Record<string, ArtifactArchiveEntry>;
+  /** Server-written kept scan pages (`kind: 'paper-page'`, id `pg_{scanId}_{page}`), one per sheet page of the live scan; archived through `artifactArchive`. */
+  paperPages?: ResponseArtifact[];
   /**
    * Server-maintained denormalization of "some `artifactArchive` entry is still
    * `'syncing'`/`'failed'`". Firestore cannot query into map values, so this is
@@ -6576,6 +6580,58 @@ export interface WrittenAnswerGrade {
   gradedAt: number;
   /** Video Activity short answer: the marked answer's `answeredAt`, so a retake's new answer starts unmarked. */
   answeredAt?: number;
+  /** Paper written answers: shapes, stamps and pins drawn on the handwriting (`paper-image-markup`). */
+  imageMarkup?: PaperImageMarkup;
+}
+
+/** Most markup items one answer may hold. */
+export const PAPER_MARKUP_MAX_ITEMS = 40;
+/** Longest comment on one markup item. */
+export const PAPER_MARKUP_MAX_COMMENT_CHARS = 500;
+/** Most saved comment snippets in `savedWidgetPresets.quiz.markupComments`. */
+export const QUIZ_MARKUP_COMMENTS_MAX = 30;
+
+export type PaperMarkupKind =
+  'highlight' | 'rect' | 'ellipse' | 'stamp' | 'pin';
+/** Stamp symbols (K11). */
+export type PaperMarkupStamp = 'check' | 'x' | 'question' | 'star';
+/** Absent color means the kind's default: yellow for a highlight, red for everything else. */
+export type PaperMarkupColor = 'yellow' | 'green' | 'pink' | 'blue' | 'red';
+
+interface PaperMarkupItemBase {
+  id: string;
+  color?: PaperMarkupColor;
+  /** Printed as a numbered pin with the text listed under the answer (K10). */
+  comment?: string;
+}
+
+/** One markup mark, in millimetres from the sheet page's top-left (K7, K21). */
+export type PaperMarkupItem =
+  | (PaperMarkupItemBase & {
+      kind: 'highlight' | 'rect' | 'ellipse';
+      rectMm: PaperRectMm;
+    })
+  | (PaperMarkupItemBase & {
+      kind: 'stamp';
+      atMm: PaperPointMm;
+      symbol: PaperMarkupStamp;
+    })
+  | (PaperMarkupItemBase & {
+      kind: 'pin';
+      atMm: PaperPointMm;
+      comment: string;
+    });
+
+/** A written answer's image markup, made on one scan's page (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.3). */
+export interface PaperImageMarkup {
+  /** The scan the markup was drawn on (K12). */
+  scanId: string;
+  /** Sheet page number the answer's box printed on. */
+  page: number;
+  /** Set when the teacher confirmed this markup against a newer scan. */
+  reviewedForScanId?: string;
+  /** At most `PAPER_MARKUP_MAX_ITEMS`. */
+  items: PaperMarkupItem[];
 }
 
 /**
@@ -6856,6 +6912,8 @@ export interface QuizConfig {
   monitorSortBy?: 'first' | 'last' | 'status' | 'score';
   /** Live monitor roster filter. */
   monitorFilterBy?: 'all' | 'hi' | 'mid' | 'low' | 'tabs';
+  /** Saved markup comment snippets, at most `QUIZ_MARKUP_COMMENTS_MAX`; lives only in `savedWidgetPresets.quiz`, never on a widget. */
+  markupComments?: string[];
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -10951,6 +11009,10 @@ export type GlobalFeature =
   | 'paper-reword-sync'
   /** AI transcription of scanned handwritten answers; off means teachers grade the crop. */
   | 'paper-handwriting-ai'
+  /** Each student's scanned pages kept at import and printed with marks (docs/plans/QUIZ_PAPER_KEPT_PAGES.md). */
+  | 'paper-kept-pages'
+  /** Highlights, shapes, stamps and pinned comments on handwritten answers, printed on the work. */
+  | 'paper-image-markup'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
