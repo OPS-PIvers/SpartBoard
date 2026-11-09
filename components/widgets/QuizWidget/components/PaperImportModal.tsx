@@ -931,7 +931,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         </p>
       ) : (
         <>
-          {!lockedAssignmentId && (
+          {(!lockedAssignmentId || batches.length > 1) && (
             <>
               <label className="block">
                 <span className={labelClass}>Printed batch</span>
@@ -959,28 +959,30 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                   </span>
                 )}
               </label>
-              <label className="block">
-                <span className={labelClass}>Administration</span>
-                <select
-                  {...tourTypeAttr('quiz-import.paper-assignment', 'quiz')}
-                  value={assignmentId}
-                  onChange={(e) => setAssignmentId(e.target.value)}
-                  className={fieldClass}
-                >
-                  <option value={NEW_ADMINISTRATION}>
-                    New paper administration
-                  </option>
-                  {assignments.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {formatDate(a.createdAt)} ·{' '}
-                      {a.className?.trim() ? a.className : a.code}
+              {!lockedAssignmentId && (
+                <label className="block">
+                  <span className={labelClass}>Administration</span>
+                  <select
+                    {...tourTypeAttr('quiz-import.paper-assignment', 'quiz')}
+                    value={assignmentId}
+                    onChange={(e) => setAssignmentId(e.target.value)}
+                    className={fieldClass}
+                  >
+                    <option value={NEW_ADMINISTRATION}>
+                      New paper administration
                     </option>
-                  ))}
-                </select>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Pick an existing one to add paper make-ups to it.
-                </span>
-              </label>
+                    {assignments.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {formatDate(a.createdAt)} ·{' '}
+                        {a.className?.trim() ? a.className : a.code}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    Pick an existing one to add paper make-ups to it.
+                  </span>
+                </label>
+              )}
             </>
           )}
           {resumable && (

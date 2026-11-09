@@ -1,7 +1,7 @@
 /**
  * Turns OCR text from a printed test paper into question text for a paper
- * stub (plan §8.3, Increment 3). Pure. A misread here can only mislabel a
- * question: the key comes from the bubbled key sheet and scores from bubbles.
+ * stub (plan §8.3, Increment 3). Pure. Filling choices or a key changes what
+ * saved answers are compared against, so it can change scores already scanned.
  */
 
 import type { QuizData, QuizQuestion } from '@/types';
