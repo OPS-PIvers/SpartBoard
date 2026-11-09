@@ -487,6 +487,8 @@ export const LiveTourRunner: React.FC = () => {
 
   // Steps of this run that self-heal already tried.
   const healTried = useRef(new Set<number>());
+  // Steps whose Take me back was used; it walks the route once per step (P5).
+  const takeBackUsed = useRef(new Set<number>());
 
   // Edit mode: the board editor's draft, with its selection driving playback.
   const editTarget = useTourEditTarget();
@@ -935,6 +937,7 @@ export const LiveTourRunner: React.FC = () => {
         ? stageTour(rawSet, rawSteps)
         : { set: rawSet, steps: rawSteps };
     healTried.current.clear();
+    takeBackUsed.current.clear();
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -2007,7 +2010,7 @@ export const LiveTourRunner: React.FC = () => {
       ? stepKey
       : null;
   useEffect(() => {
-    if (!offerKey || !binding || healTried.current.has(stepIndex)) return;
+    if (!offerKey || !binding || takeBackUsed.current.has(stepIndex)) return;
     let live = true;
     void import('@/config/tourAnchorRoutes')
       .then(({ tourAnchorRoutes }) => {
@@ -2029,8 +2032,8 @@ export const LiveTourRunner: React.FC = () => {
   };
   useEffect(() => {
     if (!takeBackAsked || takeBackAsked !== stepKey || !binding) return;
-    if (healTried.current.has(stepIndex)) return;
-    healTried.current.add(stepIndex);
+    if (takeBackUsed.current.has(stepIndex)) return;
+    takeBackUsed.current.add(stepIndex);
     const ctrl = new AbortController();
     void import('@/config/tourAnchorRoutes')
       .then(({ tourAnchorRoutes }) =>

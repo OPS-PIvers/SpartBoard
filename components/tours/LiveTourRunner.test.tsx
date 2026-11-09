@@ -4455,7 +4455,7 @@ describe('LiveTourRunner pacing feel', () => {
   it('opens a control the tour moves forward to quietly, as today, with no chip', async () => {
     await import('@/config/tourAnchorRoutes');
     await start(panelTour());
-    const { open } = withOpener();
+    const { box, open } = withOpener();
     fireEvent.click(barButton('Next'));
     let chipSeen = false;
     for (let t = 0; t < ANCHOR_SEARCH_MS + 1500; t += 100) {
@@ -4468,6 +4468,14 @@ describe('LiveTourRunner pacing feel', () => {
     expect(progress()).toBe('2 / 3');
     expect(tip()).toBeInTheDocument();
     expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
+    // Closed by the teacher afterwards: now the chip, and Take me back is still theirs to use once.
+    act(() => {
+      box.hidden = true;
+    });
+    await frames(ANCHOR_SEARCH_MS + 100);
+    await frames();
+    expect(chip()).toBeInTheDocument();
+    expect(screen.getByTestId('tour-take-me-back')).toBeInTheDocument();
   });
 
   it('shows the chip with Take me back only for a control that was on screen and then went away', async () => {
