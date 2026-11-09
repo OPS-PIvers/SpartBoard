@@ -350,6 +350,146 @@ describe('startPollSession', () => {
   });
 });
 
+describe('startPollSession code ownership', () => {
+  const stale = {
+    ...baseConfig,
+    joinCode: 'OTHER',
+    joinCodeOwnerUid: 'teacher-1',
+    revealedQuestionIds: ['q1'],
+    lockedQuestionIds: ['q1'],
+    answerShownQuestionIds: ['q1'],
+    hiddenResponses: ['x'],
+  } as unknown as PollConfig;
+
+  it('mints its own code on a copied board and leaves the original session alone', async () => {
+    mockMint.mockResolvedValueOnce({ data: { code: 'MINE1' } });
+    const next = await startPollSession(
+      { ...stale, lastPollSessionId: 'OTHER' },
+      'teacher-2',
+      'resume'
+    );
+    expect(next).toMatchObject({
+      joinCode: 'MINE1',
+      joinCodeOwnerUid: 'teacher-2',
+      activePollSessionId: 'MINE1',
+      lastPollSessionId: null,
+      revealedQuestionIds: [],
+      lockedQuestionIds: [],
+      answerShownQuestionIds: [],
+      hiddenResponses: [],
+    });
+    expect(mockMint).toHaveBeenCalledTimes(1);
+    expect(mockClaim).not.toHaveBeenCalled();
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      { __path: 'poll_sessions/teacher-1_OTHER' },
+      expect.anything(),
+      expect.anything()
+    );
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      { __path: 'poll_sessions/teacher-2_OTHER' },
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('mints its own code on a copy whose code was only reserved', async () => {
+    mockMint.mockResolvedValueOnce({ data: { code: 'MINE1' } });
+    const next = await startPollSession(stale, 'teacher-2', 'resume');
+    expect(next.joinCode).toBe('MINE1');
+    expect(next.joinCodeOwnerUid).toBe('teacher-2');
+  });
+
+  it('keeps the minter on their own ex-shared board even when a co-teacher ran the last session', async () => {
+    const next = await startPollSession(
+      {
+        ...stale,
+        joinCodeOwnerUid: 'teacher-1',
+        lastPollSessionId: 'OTHER',
+        lastPollSessionOwnerUid: 'teacher-2',
+      },
+      'teacher-1',
+      'resume'
+    );
+    expect(mockMint).not.toHaveBeenCalled();
+    expect(next).toMatchObject({
+      joinCode: 'OTHER',
+      joinCodeOwnerUid: 'teacher-1',
+      lastPollSessionId: 'OTHER',
+    });
+  });
+
+  it('lets a co-teacher resume their own session after the share ends', async () => {
+    const next = await startPollSession(
+      {
+        ...stale,
+        lastPollSessionId: 'OTHER',
+        lastPollSessionOwnerUid: 'teacher-2',
+      },
+      'teacher-2',
+      'resume'
+    );
+    expect(mockMint).not.toHaveBeenCalled();
+    expect(next).toMatchObject({
+      joinCode: 'OTHER',
+      lastPollSessionId: 'OTHER',
+    });
+  });
+
+  it('stamps a legacy code its own teacher reuses on their board', async () => {
+    const { joinCodeOwnerUid: _owner, ...legacy } = stale;
+    const next = await startPollSession(
+      {
+        ...legacy,
+        lastPollSessionId: 'OTHER',
+        lastPollSessionOwnerUid: 'teacher-1',
+      },
+      'teacher-1',
+      'resume'
+    );
+    expect(mockMint).not.toHaveBeenCalled();
+    expect(next.joinCodeOwnerUid).toBe('teacher-1');
+  });
+
+  it('reuses a legacy code with no recorded owner', async () => {
+    const { joinCodeOwnerUid: _owner, ...legacy } = stale;
+    const next = await startPollSession(legacy, 'teacher-2', 'resume');
+    expect(mockMint).not.toHaveBeenCalled();
+    expect(next.joinCode).toBe('OTHER');
+    expect(next.joinCodeOwnerUid).toBeUndefined();
+  });
+
+  it("keeps another minter's code on a live shared board", async () => {
+    const next = await startPollSession(
+      stale,
+      'teacher-2',
+      'resume',
+      'share-1'
+    );
+    expect(mockMint).not.toHaveBeenCalled();
+    expect(next.joinCode).toBe('OTHER');
+  });
+
+  it('records the minter when a start mints a code', async () => {
+    const next = await startPollSession(baseConfig, 'teacher-1', 'fresh');
+    expect(next.joinCodeOwnerUid).toBe('teacher-1');
+  });
+
+  it('records the minter when a fresh start rotates the code', async () => {
+    const next = await startPollSession(
+      {
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        joinCodeOwnerUid: 'teacher-1',
+        lastPollSessionId: 'K3F9Q',
+      },
+      'teacher-1',
+      'fresh'
+    );
+    expect(next.joinCode).toBe('AAAAA');
+    expect(next.joinCodeOwnerUid).toBe('teacher-1');
+  });
+});
+
 describe('stopPollSession', () => {
   it('remembers who ran a shared board session after it stops', async () => {
     const next = await stopPollSession(
@@ -689,6 +829,7 @@ describe('withStoppedSessionEnded', () => {
       })
     ).toMatchObject({
       joinCode: null,
+      joinCodeOwnerUid: null,
       lastPollSessionId: null,
       lastPollSessionOwnerUid: null,
     });

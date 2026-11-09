@@ -2414,6 +2414,8 @@ export interface PollConfig {
   currentQuestionIndex?: number;
   /** Sticky participant join code; rotates only on a "Start fresh" session. */
   joinCode?: string | null;
+  /** Uid of the teacher whose client minted `joinCode`, so a copied board mints its own. */
+  joinCodeOwnerUid?: string | null;
   /**
    * Public device-voting session id. When non-null, a public poll session
    * is LIVE: the board shows aggregated tallies from

@@ -47,7 +47,7 @@ const NO_HANDLE: SortableListDragHandleProps = {
   isDragging: false,
 };
 
-/** Parse a `<input type="date">` value into ms at local midnight, or null. */
+/** Parse a date input value into ms at local midnight, or null. */
 function dateInputToMs(value: string): number | null {
   if (!value) return null;
   const [y, m, d] = value.split('-').map(Number);
@@ -55,7 +55,7 @@ function dateInputToMs(value: string): number | null {
   return new Date(y, m - 1, d).getTime();
 }
 
-/** Format ms as a `<input type="date">` value (local date), or ''. */
+/** Format ms as a date input value (local date), or ''. */
 function msToDateInput(ms: number | null | undefined): string {
   if (ms == null) return '';
   const d = new Date(ms);
@@ -117,7 +117,7 @@ const DueDateText: React.FC<{
           >
             {text}
           </button>
-          <input
+          <input // no-tour-anchor: hidden date input behind its own button
             ref={inputRef}
             type="date"
             tabIndex={-1}

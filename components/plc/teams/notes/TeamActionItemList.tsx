@@ -45,7 +45,7 @@ const DueControl: React.FC<{
       >
         {text}
       </button>
-      <input
+      <input // no-tour-anchor: hidden date input behind its own button
         ref={ref}
         type="date"
         tabIndex={-1}

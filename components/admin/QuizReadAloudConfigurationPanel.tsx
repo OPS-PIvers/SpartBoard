@@ -24,6 +24,7 @@ import {
   normalizeQuizReadAloudSettings,
 } from '@/config/quizReadAloud';
 import { ReadAloudPreviewButton } from '@/components/quiz/readAloud/ReadAloudPreviewButton';
+import { DraftNumberField } from './DraftNumberField';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface TranslationUsage {
@@ -44,6 +45,8 @@ const settingsEqual = (
   a: QuizReadAloudAdminSettings,
   b: QuizReadAloudAdminSettings
 ): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+const normalizeCap = (n: number): number => Math.max(0, Math.trunc(n));
 
 const formatChars = (n: number): string => n.toLocaleString();
 
@@ -386,25 +389,22 @@ export const QuizReadAloudConfigurationPanel: React.FC<
               <span className="block text-xs font-bold text-slate-700 mb-1">
                 Premium voice characters per month
               </span>
-              <input
+              <DraftNumberField
                 {...tourFieldAttr(
                   'admin.widget-config.field',
                   'quiz',
                   'neural2MonthlyCapChars'
                 )}
-                type="number"
                 min={0}
                 step={1000}
                 value={draft.neural2MonthlyCapChars}
-                onChange={(e) => {
-                  const n = Number.parseInt(e.target.value, 10);
+                normalize={normalizeCap}
+                onCommit={(n) =>
                   setDraft((d) => ({
                     ...d,
-                    neural2MonthlyCapChars: Number.isFinite(n)
-                      ? Math.max(0, n)
-                      : 0,
-                  }));
-                }}
+                    neural2MonthlyCapChars: normalizeCap(n),
+                  }))
+                }
                 className={selectClass}
               />
               <span className="block text-xs text-slate-500 mt-1">
@@ -447,23 +447,22 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                 <span className="block text-xs font-bold text-slate-700 mb-1">
                   Translations per month
                 </span>
-                <input
+                <DraftNumberField
                   {...tourFieldAttr(
                     'admin.widget-config.field',
                     'quiz',
                     'monthlyCapUnits'
                   )}
-                  type="number"
                   min={0}
                   step={100}
                   value={translationDraft.monthlyCapUnits}
-                  onChange={(e) => {
-                    const n = Number.parseInt(e.target.value, 10);
+                  normalize={normalizeCap}
+                  onCommit={(n) =>
                     setTranslationDraft((d) => ({
                       ...d,
-                      monthlyCapUnits: Number.isFinite(n) ? Math.max(0, n) : 0,
-                    }));
-                  }}
+                      monthlyCapUnits: normalizeCap(n),
+                    }))
+                  }
                   className={selectClass}
                 />
                 <span className="block text-xs text-slate-500 mt-1">
@@ -475,25 +474,22 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                 <span className="block text-xs font-bold text-slate-700 mb-1">
                   Translation output tokens per month
                 </span>
-                <input
+                <DraftNumberField
                   {...tourFieldAttr(
                     'admin.widget-config.field',
                     'quiz',
                     'monthlyCapOutputTokens'
                   )}
-                  type="number"
                   min={0}
                   step={100000}
                   value={translationDraft.monthlyCapOutputTokens}
-                  onChange={(e) => {
-                    const n = Number.parseInt(e.target.value, 10);
+                  normalize={normalizeCap}
+                  onCommit={(n) =>
                     setTranslationDraft((d) => ({
                       ...d,
-                      monthlyCapOutputTokens: Number.isFinite(n)
-                        ? Math.max(0, n)
-                        : 0,
-                    }));
-                  }}
+                      monthlyCapOutputTokens: normalizeCap(n),
+                    }))
+                  }
                   className={selectClass}
                 />
               </label>

@@ -46,7 +46,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Roles a membership manager (lead / co-lead) can assign to a non-lead member
- * via the role `<select>`. `lead` is intentionally excluded — leadership only
+ * via the role dropdown. `lead` is intentionally excluded — leadership only
  * moves through `transferLead` (the exactly-one-lead invariant); the rules
  * reject minting a second lead on the role-change branch.
  */

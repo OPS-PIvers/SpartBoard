@@ -431,7 +431,7 @@ export const TaskTrackerMock: React.FC<{ onWorkspace: () => void }> = ({
           </Button>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <select
+          <select // no-tour-anchor: dev-only redesign mockup, never on the board
             aria-label="Task"
             value={taskId}
             onChange={(e) => setTaskId(e.target.value)}
