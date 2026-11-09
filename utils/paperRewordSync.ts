@@ -23,6 +23,6 @@ export function paperRewordQuestions(
       questionId: q.id,
       choices: rowsFromQuestion(q).map((r) => r.text),
     }))
-    .filter((q) => q.choices.length <= MAX_SYNC_CHOICES)
+    .filter((q) => q.choices.length > 0 && q.choices.length <= MAX_SYNC_CHOICES)
     .slice(0, MAX_SYNC_QUESTIONS);
 }
