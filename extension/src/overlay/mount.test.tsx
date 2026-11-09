@@ -255,6 +255,35 @@ describe('web tour states', () => {
     expect(q('tour-picture-markup')).not.toBeNull();
   });
 
+  it('rings the control in Show me where when the picture knows where it is, and shows the picture alone otherwise', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    const q = (id: string) => shadow?.querySelector(`[data-testid="${id}"]`);
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        picture,
+        target: { x: 0.1, y: 0.2, w: 0.3, h: 0.1 },
+      })
+    );
+    act(() => (q('tour-show-me-where') as HTMLButtonElement).click());
+    expect((q('step-picture-ring') as HTMLElement | null)?.style.left).toBe(
+      '10%'
+    );
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        picture,
+      })
+    );
+    expect(q('web-tour-picture')).not.toBeNull();
+    expect(q('step-picture-ring')).toBeNull();
+  });
+
   it('draws skipped steps hollow on the step bar (P3)', () => {
     captureShadow();
     handle = mountOverlay(STYLED, vi.fn());

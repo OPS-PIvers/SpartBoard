@@ -35,6 +35,28 @@ describe('picture markup in the handoff (TOURS_10X.md E5)', () => {
     expect(parseWebTourStartTour(tour)?.markup).toEqual({ a: [box] });
   });
 
+  it('sends where the control sits in each sent picture, for the ring', () => {
+    const target = { x: 0.1, y: 0.2, w: 0.3, h: 0.1 };
+    const withTarget = (id: string): HandoffStep => ({
+      ...step(id),
+      web: { ...step(id).web, picture: { target } },
+    });
+    const tour = buildStartTour(
+      'set',
+      1,
+      'T',
+      [withTarget('a'), withTarget('b')],
+      pictures,
+      true,
+      true
+    );
+    expect(tour.targets).toEqual({ a: target });
+    expect(parseWebTourStartTour(tour)?.targets).toEqual({ a: target });
+    expect(
+      buildStartTour('set', 1, 'T', [withTarget('a')], pictures)
+    ).not.toHaveProperty('targets');
+  });
+
   it('never goes to an older extension', () => {
     const tour = buildStartTour('set', 1, 'T', [step('a', [box])], pictures);
     expect(tour).not.toHaveProperty('markup');

@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { chromeSurface } from '@/components/common/lightChrome';
+import { chromeSurfaceAttached } from '@/components/common/lightChrome';
 import { secondaryBtn } from './tourButtons';
 
 export interface TourWaiting {
@@ -25,7 +25,7 @@ export const TourWaitingChip: React.FC<TourWaiting> = ({
     <div
       role="status"
       data-testid="tour-waiting-chip"
-      className={`absolute left-1/2 top-full mt-2 w-max max-w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl p-2 ${chromeSurface}`}
+      className={`absolute left-1/2 top-full mt-2 w-max max-w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl p-2 ${chromeSurfaceAttached}`}
     >
       <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
         <p className="px-2 text-sm font-semibold text-slate-700">

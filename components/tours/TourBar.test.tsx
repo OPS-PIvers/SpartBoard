@@ -112,7 +112,10 @@ describe('TourBar', () => {
     expect(
       dots.flatMap((d, i) => (d.hasAttribute('data-skipped') ? [i] : []))
     ).toEqual([1, 2]);
-    expect(dots[1].className).toContain('ring-1');
+    expect(dots[1].className).toContain('ring-[1.5px]');
+    // Upcoming steps are smaller than skipped ones, not just another colour.
+    expect(dots[6].className).toContain('size-1 ');
+    expect(dots[1].className).toContain('size-1.5');
     expect(dots[4].className).toContain('w-3.5');
     expect(screen.getByText('2 skipped')).toBeInTheDocument();
     expect(screen.queryByTestId('tour-bar-track')).toBeNull();

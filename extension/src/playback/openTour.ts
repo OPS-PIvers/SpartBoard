@@ -1,6 +1,7 @@
 // `web-tour/open` (WEB_TOURS_HELP_PANEL.md H4): the tour webTourLoadV1 returns, checked like a page's handoff.
 import {
   parseMarkupShapes,
+  parsePictureTarget,
   parseWebTourCondition,
   parseWebTourStartTour,
   type WebTourPictureBytes,
@@ -43,12 +44,23 @@ function withConditions(step: HandoffStep, raw: unknown): HandoffStep {
   };
 }
 
-/** The step with the picture markup the server sent beside it; malformed markup is left off. */
+/** The step with the markup and target the server sent with its picture; anything malformed is left off. */
 function withMarkup(step: HandoffStep, raw: unknown): HandoffStep {
-  const markup = raw === undefined ? null : parseMarkupShapes(raw);
-  return markup?.length
-    ? { ...step, web: { ...step.web, picture: { markup } } }
-    : step;
+  if (!isObj(raw)) return step;
+  const markup =
+    raw.markup === undefined ? null : parseMarkupShapes(raw.markup);
+  const target = parsePictureTarget(raw.target);
+  if (!markup?.length && !target) return step;
+  return {
+    ...step,
+    web: {
+      ...step.web,
+      picture: {
+        ...(markup?.length ? { markup } : {}),
+        ...(target ? { target } : {}),
+      },
+    },
+  };
 }
 
 /** Each step's own clues by id, so a run's suggested fixes keep only the site's clues (C15). */
@@ -63,9 +75,7 @@ export function openedTour(
   const conditions = isObj(raw.conditions) ? raw.conditions : {};
   // The server sends a picture's markup with the picture (webTourLoadV1).
   const pictureMarkup = (id: string): unknown =>
-    isObj(raw.pictures) && isObj(raw.pictures[id])
-      ? raw.pictures[id].markup
-      : undefined;
+    isObj(raw.pictures) ? raw.pictures[id] : undefined;
   const steps = raw.steps
     .filter(
       (s): s is HandoffStep =>

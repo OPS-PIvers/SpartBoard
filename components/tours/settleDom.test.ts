@@ -218,4 +218,21 @@ describe('domSettleHost', () => {
     }
     expect(wait.reason).toBeNull();
   });
+
+  it('is not quiet while nearby text reflows the target, though the text change itself is ignored', async () => {
+    const label = document.createElement('span');
+    const target = place(document.createElement('button'), 100);
+    document.body.append(label, target);
+    const host = domSettleHost(document, { near: () => target });
+    const wait = track(waitForSettle(host, { quietMs: 100, capMs: 2000 }));
+    // A label growing letter by letter pushes the button along: only text mutates, the button's box moves.
+    for (let i = 1; i <= 15; i++) {
+      label.textContent = 'Loading'.padEnd(i, '.');
+      place(target, 100 + i * 6);
+      await flush(20);
+    }
+    expect(wait.reason).toBeNull();
+    await flush(140);
+    expect(wait.reason).toBe('quiet');
+  });
 });

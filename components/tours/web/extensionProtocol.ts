@@ -91,6 +91,16 @@ export interface WebTourStartTour {
   conditions?: Record<string, WebStepConditions>;
   /** Picture markup by step id; sent only to an extension at MARKUP_PROTOCOL or later. */
   markup?: Record<string, TourMarkupShape[]>;
+  /** Where each step's control sits in its picture, 0-1, by step id; sent with markup, for Show me where's ring. */
+  targets?: Record<string, PictureTarget>;
+}
+
+/** A control's place in its step picture, as 0-1 of the picture. */
+export interface PictureTarget {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 /** Protocol 2, staff only: open `startUrl` in a new tab and play the tour from `stepIndex`. */
@@ -442,6 +452,7 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
       'steps',
       'conditions',
       'markup',
+      'targets',
     ])
   ) {
     return null;
@@ -495,6 +506,9 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
   const markup =
     raw.markup === undefined ? undefined : parseStepMarkup(raw.markup, ids);
   if (markup === null) return null;
+  const targets =
+    raw.targets === undefined ? undefined : parseStepTargets(raw.targets, ids);
+  if (targets === null) return null;
   return {
     setId,
     version,
@@ -502,7 +516,34 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     steps: out,
     ...(conditions ? { conditions } : {}),
     ...(markup ? { markup } : {}),
+    ...(targets ? { targets } : {}),
   };
+}
+
+/** A control's place in a picture, or null when it isn't one. */
+export function parsePictureTarget(v: unknown): PictureTarget | null {
+  if (!isPlainObject(v) || !onlyKeys(v, ['x', 'y', 'w', 'h'])) return null;
+  const { x, y, w, h } = v;
+  const unitNum = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= -1 && n <= 2;
+  if (!unitNum(x) || !unitNum(y) || !unitNum(w) || !unitNum(h)) return null;
+  if (!(w > 0 && h > 0)) return null;
+  return { x, y, w, h };
+}
+
+/** Picture targets by step id, each for a step the tour has; null when anything is off. */
+function parseStepTargets(
+  v: unknown,
+  stepIds: ReadonlySet<string>
+): Record<string, PictureTarget> | null {
+  if (!isPlainObject(v)) return null;
+  const out: Record<string, PictureTarget> = {};
+  for (const [id, raw] of Object.entries(v)) {
+    const t = parsePictureTarget(raw);
+    if (!stepIds.has(id) || !t) return null;
+    out[id] = t;
+  }
+  return out;
 }
 
 /** Most shapes one step picture carries. */

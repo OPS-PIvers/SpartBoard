@@ -244,10 +244,16 @@ export function createPlaybackController(host: PlaybackHost) {
   async function pictureAndMarkup(rec: TabRecord): Promise<{
     picture: WebTourPictureBytes | null;
     markup?: TourMarkupShape[];
+    target?: PlaybackStep['target'];
   }> {
     const pic = await picture(rec);
-    const markup = rec.state.tour.steps[rec.state.index]?.markup;
-    return pic && markup?.length ? { picture: pic, markup } : { picture: pic };
+    const step = rec.state.tour.steps[rec.state.index];
+    if (!pic) return { picture: null };
+    return {
+      picture: pic,
+      ...(step?.markup?.length ? { markup: step.markup } : {}),
+      ...(step?.target ? { target: step.target } : {}),
+    };
   }
 
   async function picture(rec: TabRecord): Promise<WebTourPictureBytes | null> {

@@ -43,6 +43,18 @@ describe('openedTour', () => {
       undefined,
       [box],
     ]);
+    const aimed = openedTour(
+      'set1',
+      reply({
+        pictures: { b: { ...pic, target: { x: 0.1, y: 0.1, w: 0.5, h: 0.2 } } },
+      })
+    );
+    expect(aimed?.start.tour.steps[1].target).toEqual({
+      x: 0.1,
+      y: 0.1,
+      w: 0.5,
+      h: 0.2,
+    });
     const bad = openedTour(
       'set1',
       reply({ pictures: { b: { ...pic, markup: [{ kind: 'x' }] } } })

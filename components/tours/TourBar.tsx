@@ -1,6 +1,13 @@
 import React, { useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, GripVertical, Volume2, VolumeX, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  GripVertical,
+  Play,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { useDraggablePosition } from './useDraggablePosition';
 import { chromeSurface, focusRing } from '@/components/common/lightChrome';
@@ -26,22 +33,27 @@ const StepDots: React.FC<{
     >
       {Array.from({ length: total }, (_, i) => {
         const now = i === current - 1;
+        const skipped = skip.has(i);
+        const upcoming = !now && !skipped && i >= current - 1;
+        // Skipped is a heavier ring at full size; upcoming is a smaller grey dot, so they differ in shape, not colour alone.
         const tone = now
           ? 'bg-brand-blue-primary'
-          : skip.has(i)
-            ? 'bg-transparent ring-1 ring-inset ring-brand-blue-primary'
-            : i < current - 1
-              ? 'bg-brand-blue-primary/70'
-              : 'bg-slate-300';
+          : skipped
+            ? 'bg-transparent ring-[1.5px] ring-inset ring-brand-blue-primary'
+            : upcoming
+              ? 'bg-slate-300'
+              : 'bg-brand-blue-primary/70';
         const size = fixed
           ? now
             ? 'h-1.5 w-3.5 max-[440px]:w-3'
-            : 'size-1.5 max-[440px]:size-[5px]'
-          : `h-1.5 min-w-[3px] ${now ? 'flex-[3]' : 'flex-1'}`;
+            : upcoming
+              ? 'size-1'
+              : 'size-1.5 max-[440px]:size-[5px]'
+          : `${upcoming ? 'h-1' : 'h-1.5'} min-w-[3px] ${now ? 'flex-[3]' : 'flex-1'}`;
         return (
           <span
             key={i}
-            data-skipped={skip.has(i) ? '' : undefined}
+            data-skipped={skipped ? '' : undefined}
             className={`shrink-0 rounded-full transition-colors motion-reduce:transition-none ${size} ${tone}`}
           />
         );
@@ -176,9 +188,16 @@ export const TourBar: React.FC<TourBarProps> = ({
           role="switch"
           aria-checked={autopilot.on}
           onClick={() => autopilot.onChange(!autopilot.on)}
-          className={`ml-2 flex items-center gap-2 ${skipped ? 'max-[440px]:ml-0' : ''} rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
+          title={t('tours.autopilot')}
+          className={`ml-2 flex items-center gap-2 ${skipped ? 'max-[440px]:ml-0 max-[440px]:gap-1 max-[440px]:px-1' : ''} rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
         >
-          {/* With step dots the bar runs out of room on a phone; the switch keeps its name for screen readers. */}
+          {/* With step dots the bar runs out of room on a phone: Autopilot's play icon stands in for its word, which screen readers still hear. */}
+          {skipped && (
+            <Play
+              className="hidden h-4 w-4 text-slate-600 max-[440px]:block"
+              aria-hidden="true"
+            />
+          )}
           <span className={skipped ? 'max-[440px]:sr-only' : undefined}>
             {t('tours.autopilot')}
           </span>

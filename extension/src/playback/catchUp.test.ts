@@ -465,6 +465,7 @@ describe('catch-up in the playback controller', () => {
     ];
     start.tour.steps[1].hasPicture = true;
     start.tour.steps[1].markup = markup;
+    start.tour.steps[1].target = { x: 0.2, y: 0.2, w: 0.1, h: 0.1 };
     start.pictures = { b: { mime: 'image/png', data: 'AAAA', w: 10, h: 10 } };
     await c.start({ ...start, stepIndex: 1 });
     await c.committed(7, 0, HOME);
@@ -476,6 +477,7 @@ describe('catch-up in the playback controller', () => {
       status: 'fallback',
       picture: { data: 'AAAA' },
       markup,
+      target: { x: 0.2, y: 0.2, w: 0.1, h: 0.1 },
     });
   });
 });

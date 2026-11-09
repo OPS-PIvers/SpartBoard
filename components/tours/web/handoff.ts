@@ -11,6 +11,8 @@ import {
   MAX_PICTURE_CHARS,
   MAX_PICTURE_TOTAL_CHARS,
   parseMarkupShapes,
+  parsePictureTarget,
+  type PictureTarget,
   type WebStepConditions,
   type WebTourPictureBytes,
   type WebTourStartTour,
@@ -28,8 +30,22 @@ export interface HandoffStep {
     showWhen?: WebTourCondition;
     doneWhen?: WebTourCondition;
     /** Only its markup is handed over; the picture itself travels as bytes. */
-    picture?: { markup?: readonly TourMarkupShape[] };
+    picture?: { markup?: readonly TourMarkupShape[]; target?: unknown };
   };
+}
+
+/** Where each sent picture's control sits, for Show me where's ring (MARKUP_PROTOCOL). */
+export function handoffTargets(
+  steps: readonly HandoffStep[],
+  sent: ReadonlySet<string>
+): Record<string, PictureTarget> | undefined {
+  const out: Record<string, PictureTarget> = {};
+  for (const step of steps.slice(0, MAX_STEPS)) {
+    if (!sent.has(step.id)) continue;
+    const t = parsePictureTarget(step.web.picture?.target);
+    if (t) out[step.id] = t;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** Picture markup by step id, for an extension that draws it (MARKUP_PROTOCOL); only for steps whose picture is sent. */
@@ -191,5 +207,10 @@ export function buildStartTour(
     }),
   };
   const markup = withConditions ? handoffMarkup(steps, sent) : undefined;
-  return markup ? { ...tour, markup } : tour;
+  const targets = withConditions ? handoffTargets(steps, sent) : undefined;
+  return {
+    ...tour,
+    ...(markup ? { markup } : {}),
+    ...(targets ? { targets } : {}),
+  };
 }

@@ -36,6 +36,8 @@ export interface PlaybackStep {
   conditions?: WebStepConditions;
   /** Markup drawn over the step's picture (E5), shown with it by Show me where. */
   markup?: TourMarkupShape[];
+  /** Where the control sits in the step's picture, 0-1, ringed by Show me where. */
+  target?: { x: number; y: number; w: number; h: number };
 }
 
 export interface PlaybackTour {

@@ -2,6 +2,9 @@
 export const chromeShadow =
   'shadow-[0_1px_2px_rgba(2,6,23,.2),0_12px_24px_-6px_rgba(2,6,23,.45),0_32px_64px_-16px_rgba(2,6,23,.55)]';
 export const chromeSurface = `border border-slate-900/8 bg-white text-slate-900 ${chromeShadow}`;
+/** A surface hanging off another chrome surface (the tour bar's waiting chip): the near shadow layers only, so two don't stack into a smear on a light page. */
+export const chromeSurfaceAttached =
+  'border border-slate-900/8 bg-white text-slate-900 shadow-[0_1px_2px_rgba(2,6,23,.2),0_12px_24px_-6px_rgba(2,6,23,.45)]';
 export const chromeBody = 'text-slate-600';
 export const chromeMuted = 'text-slate-500';
 export const focusRing =

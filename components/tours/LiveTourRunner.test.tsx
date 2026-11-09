@@ -4401,7 +4401,38 @@ describe('LiveTourRunner pacing feel', () => {
     fireEvent.click(screen.getByTestId('tour-show-me-where'));
     await frames();
     expect(screen.getByTestId('tour-where-picture')).toBeInTheDocument();
-    expect(miniPlayerSrc()).toBe('https://example.com/slide.png');
+    expect(screen.getByTestId('tour-where-image').getAttribute('src')).toBe(
+      'https://example.com/slide.png'
+    );
+    // An older picture with no stored target is shown alone.
+    expect(screen.queryByTestId('step-picture-ring')).toBeNull();
+  });
+
+  it('rings the control on a picture that knows where it is', async () => {
+    routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
+    const set = withThumbnails(
+      makeSet([
+        { anchor: 'library.search', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    const target = { x: 0.2, y: 0.3, w: 0.25, h: 0.1 };
+    const steps = set.steps.map((st) =>
+      st.tour?.thumbnail
+        ? {
+            ...st,
+            tour: { ...st.tour, thumbnail: { ...st.tour.thumbnail, target } },
+          }
+        : st
+    );
+    await start({ ...set, steps });
+    await frames(ANCHOR_SEARCH_MS + 100);
+    fireEvent.click(screen.getByTestId('tour-show-me-where'));
+    await frames();
+    const ring = screen.getByTestId('step-picture-ring');
+    expect(ring.style.left).toBe('20%');
+    expect(ring.style.width).toBe('25%');
   });
 
   // A step whose control sits in a panel the previous step didn't leave open.

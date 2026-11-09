@@ -1,6 +1,8 @@
 // What the service worker asks the overlay to draw; checked like any other message (D3).
 import {
   parseMarkupShapes,
+  parsePictureTarget,
+  type PictureTarget,
   type WebTourPictureBytes,
 } from '@/components/tours/web/extensionProtocol';
 import type { TourMarkupShape, WebTourCheckResult } from '@/types';
@@ -52,6 +54,8 @@ export interface OverlayState {
   takeBack?: boolean;
   /** Markup drawn over `picture` (E5); only with a picture. */
   markup?: TourMarkupShape[];
+  /** Where the control sits in `picture`, ringed; only with a picture. */
+  target?: PictureTarget;
 }
 
 export interface OverlayAhead {
@@ -153,6 +157,7 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   const skipping = 'skipped' in raw;
   const returning = 'takeBack' in raw;
   const marked = 'markup' in raw;
+  const aimed = 'target' in raw;
   const keys = [
     ...KEYS,
     ...(checking ? ['check'] : []),
@@ -161,6 +166,7 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     ...(skipping ? ['skipped'] : []),
     ...(returning ? ['takeBack'] : []),
     ...(marked ? ['markup'] : []),
+    ...(aimed ? ['target'] : []),
   ];
   if (!hasExactKeys(raw, keys)) return null;
   const r = raw as Record<string, unknown>;
@@ -183,6 +189,8 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   if (returning && typeof r.takeBack !== 'boolean') return null;
   const markup = marked ? parseMarkupShapes(r.markup) : null;
   if (marked && (!markup || r.picture === null)) return null;
+  const target = aimed ? parsePictureTarget(r.target) : null;
+  if (aimed && (!target || r.picture === null)) return null;
   const status = STATUSES.find((s) => s === r.status);
   const picture = parsePicture(r.picture);
   if (
@@ -216,5 +224,6 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     ...(skipping ? { skipped: skipped as number[] } : {}),
     ...(returning ? { takeBack: r.takeBack as boolean } : {}),
     ...(markup ? { markup } : {}),
+    ...(target ? { target } : {}),
   };
 }

@@ -115,6 +115,11 @@ import { TourSpotlight } from './TourSpotlight';
 import { TourTip, type TourTipStatus } from './TourTip';
 import { TourBar } from './TourBar';
 import type { TourWaiting } from './TourWaitingChip';
+import { TourWherePicture } from './TourWherePicture';
+import {
+  freshTourPictureUrl,
+  freshTourThumbnail,
+} from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { centreTip } from './tipPlacement';
 import { primaryBtn, secondaryBtn } from './tourButtons';
 import {
@@ -2792,20 +2797,23 @@ export const LiveTourRunner: React.FC = () => {
       Math.hypot(cue.to.x - center.x, cue.to.y - center.y) < 8
         ? cue
         : null;
+    // Show me where: the step's own picture, its control ringed when the picture knows where it is.
+    const whereUrl = freshTourPictureUrl(step, tour.set);
+    const thumb = freshTourThumbnail(step);
+    const wherePicture = whereUrl ? (
+      <TourWherePicture
+        src={whereUrl}
+        alt={t('tours.webPictureAlt')}
+        {...(thumb ? { w: thumb.w, h: thumb.h } : {})}
+        {...(thumb?.target ? { target: thumb.target } : {})}
+      />
+    ) : null;
     // Paced: the tip waits for the rhythm, and folds into the chip while the control is away (P1, P4).
     const waitingChip: TourWaiting | null =
       paced && isMissing && binding && chipAllowed
         ? {
             step: tour.index + 1,
-            ...(hasStepSlide(step, tour.set)
-              ? {
-                  picture: (
-                    <Suspense fallback={null}>
-                      <TourMiniPlayer set={tour.set} step={step} />
-                    </Suspense>
-                  ),
-                }
-              : {}),
+            ...(wherePicture ? { picture: wherePicture } : {}),
             ...(takeBackKey === stepKey ? { onTakeBack: takeMeBack } : {}),
           }
         : null;
