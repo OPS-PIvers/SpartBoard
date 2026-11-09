@@ -1,6 +1,6 @@
 // DEV-only: the real Quiz grader on handwritten paper answers with image markup, at /paper-markup-dev.
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -8,6 +8,7 @@ import {
 import { DialogProvider } from '@/context/DialogContext';
 import { DialogContainer } from '@/components/common/DialogContainer';
 import { AuthProvider } from '@/context/AuthContext';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import {
   paperPrivateKey,
@@ -15,6 +16,8 @@ import {
 } from '@/utils/paperCropFetch';
 import type {
   PaperBatch,
+  WidgetConfig,
+  WidgetType,
   PaperMarkupItem,
   PaperPrivateAnswer,
   QuizData,
@@ -119,6 +122,15 @@ const TEXT: Record<string, string[]> = {
     'I think the wind moves the clouds but',
     'Im not sure how far they can go before',
     'they rain.',
+  ],
+  noor: [
+    'The sun warms the ocean and some water turns',
+    'into vapor. The vapor rises and cools, then',
+    'it condenses into clouds. Wind moves the',
+    'clouds over the mountain, where the water',
+    'falls as rain or snow. The melted snow runs',
+    'down the slope into streams and fills the',
+    'lake again.',
   ],
   olive: [
     'The ocean water evaporates when the sun',
@@ -267,6 +279,51 @@ const MIKA_ITEMS: PaperMarkupItem[] = [
   ),
 ];
 
+const SAVED_SEED = [
+  'Cite the text.',
+  'Show your work.',
+  'Good evidence. Now explain why it matters.',
+  'Your answer names the right steps in the right order, which is the hardest part. Next time, say why each step happens. Add one sentence about what powers the cycle, and check your spelling of the vocabulary words before you hand it in.',
+  'Check the spelling.',
+  'Name the winds.',
+];
+
+/** `?saved=N` seeds N saved comments (default 3), so the menu can be shown empty, full or in between. */
+const readSavedSeed = (): string[] => {
+  const raw = new URLSearchParams(window.location.search).get('saved');
+  const n = Math.max(0, Math.min(30, raw === null ? 3 : Number(raw) || 0));
+  return Array.from(
+    { length: n },
+    (_, i) => SAVED_SEED[i] ?? `Saved comment ${i + 1}`
+  );
+};
+
+/** The real profile, with `savedWidgetPresets` seeded and kept in this page only. */
+const SeededProfile: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const auth = useContext(AuthContext);
+  const [presets, setPresets] = useState<AuthContextType['savedWidgetPresets']>(
+    () => ({
+      quiz: { markupComments: readSavedSeed() },
+    })
+  );
+  const saveWidgetPreset = useCallback(
+    (type: WidgetType, preset: Partial<WidgetConfig>) =>
+      setPresets((prev) => ({
+        ...prev,
+        [type]: { ...(prev[type] ?? {}), ...preset },
+      })),
+    []
+  );
+  const value = useMemo(
+    () =>
+      auth ? { ...auth, savedWidgetPresets: presets, saveWidgetPreset } : auth,
+    [auth, presets, saveWidgetPreset]
+  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
 const THEO_ITEMS: PaperMarkupItem[] = Array.from({ length: 40 }, (_, i) =>
   i % 2 === 0
     ? {
@@ -288,11 +345,14 @@ const THEO_ITEMS: PaperMarkupItem[] = Array.from({ length: 40 }, (_, i) =>
       }
 );
 
-const grade = (items?: PaperMarkupItem[]): WrittenAnswerGrade => ({
+const grade = (
+  items?: PaperMarkupItem[],
+  scanId = 'scan-1'
+): WrittenAnswerGrade => ({
   pointsAwarded: 3,
   gradedBy: 'mock-user-id',
   gradedAt: 1,
-  ...(items ? { imageMarkup: { scanId: 'scan-1', page: 1, items } } : {}),
+  ...(items ? { imageMarkup: { scanId, page: 1, items } } : {}),
 });
 
 const STUDENTS: {
@@ -326,6 +386,14 @@ const STUDENTS: {
     grade: grade(THEO_ITEMS),
   },
   { key: 'olive', name: 'Olive Brandt', seat: 6, transcribed: false },
+  // Marked on an earlier scan; the answer was rescanned since.
+  {
+    key: 'noor',
+    name: 'Noor Haddad',
+    seat: 7,
+    transcribed: false,
+    grade: grade(PRIYA_ITEMS, 'scan-0'),
+  },
 ];
 
 // An older stack whose page maps never recorded the box, so markup cannot place itself.
@@ -438,31 +506,33 @@ export const PaperMarkupDevHarness: React.FC = () => {
     <DashboardContext.Provider value={dashboard}>
       <DialogProvider>
         <AuthProvider>
-          <div className="h-screen [height:100dvh] bg-slate-700" />
-          <FreeResponseGrader
-            quiz={QUIZ}
-            responses={responses}
-            displayNameByResponseKey={names}
-            teacherUid="mock-user-id"
-            sessionId="session-water"
-            initialTarget={{ questionId: 'q2', responseKey: student }}
-            paperPrivate={PRIVATE}
-            resolvePaperCrop={resolveCrop}
-            paperActions={{
-              updateTranscript: ok({ answer: '', snapshotRewritten: false }),
-              applyNewerScan: ok({
-                scanId: 'scan-1',
-                paperTranscript: 'pending' as const,
-              }),
-              transcribeBlank: ok({ jobId: 'j' }),
-              retry: ok({}),
-            }}
-            loadPaperBatch={batchFor}
-            autoAdvance={false}
-            onSaveGrade={onSaveGrade}
-            onClose={noop}
-          />
-          <DialogContainer />
+          <SeededProfile>
+            <div className="h-screen [height:100dvh] bg-slate-700" />
+            <FreeResponseGrader
+              quiz={QUIZ}
+              responses={responses}
+              displayNameByResponseKey={names}
+              teacherUid="mock-user-id"
+              sessionId="session-water"
+              initialTarget={{ questionId: 'q2', responseKey: student }}
+              paperPrivate={PRIVATE}
+              resolvePaperCrop={resolveCrop}
+              paperActions={{
+                updateTranscript: ok({ answer: '', snapshotRewritten: false }),
+                applyNewerScan: ok({
+                  scanId: 'scan-1',
+                  paperTranscript: 'pending' as const,
+                }),
+                transcribeBlank: ok({ jobId: 'j' }),
+                retry: ok({}),
+              }}
+              loadPaperBatch={batchFor}
+              autoAdvance={false}
+              onSaveGrade={onSaveGrade}
+              onClose={noop}
+            />
+            <DialogContainer />
+          </SeededProfile>
         </AuthProvider>
       </DialogProvider>
     </DashboardContext.Provider>

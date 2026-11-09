@@ -3897,6 +3897,32 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.markup-pin-menu': {
+    label: 'Saved comments menu on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-save-comment': {
+    label: 'Save a mark comment for reuse in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan': {
+    label: 'Notice that marks were made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan-keep': {
+    label: 'Keep the marks made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan-clear': {
+    label: 'Clear the marks made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-grading.empty-close': {
     label: 'Close button in the empty Quiz grader',
     perWidgetType: true,

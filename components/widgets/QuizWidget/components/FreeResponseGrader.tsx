@@ -129,6 +129,7 @@ import {
   imageMarkupForSave,
   markupItemsEqual,
 } from '@/components/quiz/paper/markup/markupGeometry';
+import { useSavedMarkupComments } from '@/components/quiz/paper/markup/useSavedMarkupComments';
 
 export const ADVANCE_DELAY_MS = 900;
 export const POINTS_IDLE_MS = 1500;
@@ -645,6 +646,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const [hydrationKey, setHydrationKey] = useState('');
   const [draftMarkup, setDraftMarkup] = useState<PaperMarkupItem[]>([]);
   const [markupHydrationKey, setMarkupHydrationKey] = useState('');
+  // Answers whose marks the teacher confirmed against the newer scan, by markup key.
+  const [markupReviewed, setMarkupReviewed] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
   // Marks on answers with no score yet, kept while the grader is open so moving on never drops them.
   const [unsavedMarkup, setUnsavedMarkup] = useState<
     ReadonlyMap<string, UnsavedMarkup>
@@ -782,16 +787,39 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     load: loadBatch,
   });
   const markupEditable = answerBox.status === 'ready';
-  const markupDirty =
-    markupEditable &&
-    !markupItemsEqual(draftMarkup, savedGrade?.imageMarkup?.items);
-  const imageMarkup = imageMarkupForSave({
+  const scanNow = textEntry?.paperScanId;
+  const editedMarkup = imageMarkupForSave({
     editable: markupEditable,
     saved: savedGrade?.imageMarkup,
     items: draftMarkup,
-    scanId: textEntry?.paperScanId,
+    scanId: scanNow,
     page: answerBox.status === 'ready' ? answerBox.box.page : undefined,
   });
+  // Untouched marks keep their old scan; confirming them records the scan they were checked against.
+  const imageMarkup =
+    editedMarkup &&
+    scanNow &&
+    markupReviewed.has(markupKey) &&
+    editedMarkup === savedGrade?.imageMarkup &&
+    editedMarkup.scanId !== scanNow
+      ? { ...editedMarkup, reviewedForScanId: scanNow }
+      : editedMarkup;
+  const markupDirty =
+    markupEditable &&
+    (!markupItemsEqual(draftMarkup, savedGrade?.imageMarkup?.items) ||
+      imageMarkup?.reviewedForScanId !==
+        savedGrade?.imageMarkup?.reviewedForScanId);
+  const earlierScan =
+    markupEditable &&
+    !!imageMarkup &&
+    !!scanNow &&
+    imageMarkup.scanId !== scanNow &&
+    imageMarkup.reviewedForScanId !== scanNow;
+  const handleLooksRight = () => {
+    editSourceRef.current = 'markup';
+    setMarkupReviewed((prev) => new Set(prev).add(markupKey));
+  };
+  const savedComments = useSavedMarkupComments(auth, markupOn);
   const savedMarkupItems = savedGrade?.imageMarkup?.items;
   const markupQuestionId = question?.id ?? '';
   const handleMarkupChange = (next: PaperMarkupItem[]) => {
@@ -1072,6 +1100,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     pinnedTakeIndex,
     adjudication,
     draftMarkup,
+    markupReviewed,
   ]);
 
   // Banks whatever is on the form before the target changes.
@@ -1888,6 +1917,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                               box: answerBox,
                               onActivity: holdAdvance,
                               needsScore: markupDirty && !complete,
+                              savedComments,
+                              earlierScan: earlierScan
+                                ? { onLooksRight: handleLooksRight }
+                                : undefined,
                             }
                       }
                     />

@@ -14,8 +14,21 @@ export interface PaperMarkupBinding {
   needsScore?: boolean;
   /** Shown above the image, for the earlier-scan notice. */
   notice?: ReactNode;
-  /** Quick-insert comments offered in the comment popover. */
-  snippets?: readonly string[];
+  /** The teacher's saved comments; omitted, the editor has no snippets. */
+  savedComments?: SavedMarkupComments;
+  /** Marks made on an earlier scan: the editor shows the notice with these actions. */
+  earlierScan?: { onLooksRight: () => void };
+}
+
+/** The teacher's reusable comments, kept on their profile and never on a grade. */
+export interface SavedMarkupComments {
+  list: readonly string[];
+  max: number;
+  /** False when the text is empty, already saved, or the list is full. */
+  add: (text: string) => boolean;
+  remove: (text: string) => void;
+  /** Puts a removed comment back where it was. */
+  restore: (text: string, index: number) => void;
 }
 
 export type MarkupTool =
