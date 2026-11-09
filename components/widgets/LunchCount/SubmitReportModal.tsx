@@ -36,6 +36,8 @@ interface SubmitReportModalProps {
   isSubmitting: boolean;
   /** True when a report was already submitted today */
   alreadySubmitted?: boolean;
+  /** Notes and pizza sent earlier today, to prefill a resend */
+  sentDetails?: { notes: string; extraPizza: number };
 }
 
 /**
@@ -49,6 +51,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   data,
   isSubmitting,
   alreadySubmitted = false,
+  sentDetails,
 }) => {
   const [notes, setNotes] = useState('');
   const [extraPizza, setExtraPizza] = useState<number | ''>('');
@@ -110,7 +113,11 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
             </Button>
             {canResend && (
               <Button
-                onClick={() => setResending(true)}
+                onClick={() => {
+                  setNotes(sentDetails?.notes ?? '');
+                  setExtraPizza(sentDetails?.extraPizza ?? '');
+                  setResending(true);
+                }}
                 variant="primary"
                 {...tourTypeAttr('lunch-count.report-resend', 'lunchCount')}
                 className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest"

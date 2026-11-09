@@ -53,6 +53,24 @@ describe('SubmitReportModal resend', () => {
     expect(screen.getByText('Confirm & Resend')).toBeTruthy();
   });
 
+  it('prefills what was sent earlier when resending', () => {
+    allowResend(true);
+    render(
+      <SubmitReportModal
+        isOpen
+        onClose={vi.fn()}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+        data={{ ...data, schoolSite: 'orono-intermediate-school' }}
+        isSubmitting={false}
+        alreadySubmitted
+        sentDetails={{ notes: '2 gluten free', extraPizza: 4 }}
+      />
+    );
+    fireEvent.click(screen.getByText('Review and Resend'));
+    expect(screen.getByDisplayValue('2 gluten free')).toBeTruthy();
+    expect(screen.getByDisplayValue('4')).toBeTruthy();
+  });
+
   it('returns to the already-sent screen after the parent closes it', () => {
     allowResend(true);
     const { rerender } = render(modal());

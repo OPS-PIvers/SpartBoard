@@ -3637,6 +3637,8 @@ export interface LunchCountConfig {
   lastSubmittedWidgetId?: string;
   /** Classes (lunch time and grade) it sent that day, so another class can still submit */
   lastSubmittedClasses?: string[];
+  /** Notes and pizza count sent today, by class key, so a resend can prefill them. */
+  lastSubmittedDetails?: Record<string, { notes: string; extraPizza: number }>;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;

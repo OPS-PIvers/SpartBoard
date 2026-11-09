@@ -23,6 +23,7 @@ import {
   hasSubmittedToday,
   reportClassKey,
   submittedClassKey,
+  sentDetailsToday,
   submittedMarker,
 } from './lunchCountFormat';
 
@@ -279,6 +280,7 @@ export function useLunchCountModel(widget: WidgetData) {
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
+        classKey: sentClass,
       };
 
       const response = await fetch(submissionUrl, {
@@ -299,7 +301,10 @@ export function useLunchCountModel(widget: WidgetData) {
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(config, widget.id, dayKey, sentClass),
+        config: submittedMarker(config, widget.id, dayKey, sentClass, {
+          notes,
+          extraPizza: payload.extraPizza,
+        }),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
@@ -406,6 +411,7 @@ export function useLunchCountModel(widget: WidgetData) {
     isSubmitting,
     reportData,
     alreadySubmitted: hasSubmittedToday(config, widget.id, sentClass),
+    sentDetails: sentDetailsToday(config, widget.id, sentClass),
   };
 }
 
