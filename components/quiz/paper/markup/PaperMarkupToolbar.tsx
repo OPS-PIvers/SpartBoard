@@ -173,13 +173,13 @@ export const PaperMarkupToolbar: React.FC<{
     (!editor.selected && editor.tool === 'highlight');
 
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div className="flex items-center gap-x-3">
       <div
         role="toolbar"
         aria-label={tm('toolbar')}
         aria-describedby={capped || needsScore ? statusId : undefined}
         {...tourTypeAttr('quiz-grading.markup-toolbar', 'quiz')}
-        className="flex flex-wrap items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+        className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-0.5"
       >
         {TOOLS.map(({ tool, Icon, tour }) => {
           const label = tm(`tools.${tool}`);
@@ -363,7 +363,7 @@ export const PaperMarkupToolbar: React.FC<{
       <p
         id={statusId}
         role="status"
-        className="min-w-0 text-xs font-semibold text-slate-600"
+        className="line-clamp-2 min-w-0 flex-1 basis-36 text-xs font-semibold leading-snug text-slate-600"
       >
         {!ready && disabledReason
           ? disabledReason

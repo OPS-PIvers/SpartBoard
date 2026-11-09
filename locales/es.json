@@ -2722,7 +2722,7 @@
           "snippets": "Insertar un comentario guardado",
           "counter": "{{count}}/{{max}}",
           "save": "Guardar",
-          "saveKeys": "Guardar (Intro). Mayús+Intro empieza una línea nueva.",
+          "saveKeys": "Guardar (Intro)",
           "cancel": "Cancelar",
           "commentList": "Comentarios sobre la escritura"
         }

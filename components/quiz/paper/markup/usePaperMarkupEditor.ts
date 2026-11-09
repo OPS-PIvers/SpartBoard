@@ -70,6 +70,7 @@ type Drag =
   | {
       kind: 'resize';
       pointerId: number;
+      start: PaperPointMm;
       corner: ResizeCorner;
       item: Extract<PaperMarkupItem, { rectMm: PaperRectMm }>;
       preview: PaperMarkupItem;
@@ -127,6 +128,24 @@ const withColor = <T extends PaperMarkupItem>(
   if (color === defaultMarkupColor(item.kind)) delete next.color;
   else next.color = color;
   return next;
+};
+
+// The corner follows the pointer's travel, so grabbing a handle never makes the shape jump.
+const resizeBy = (
+  d: Extract<Drag, { kind: 'resize' }>,
+  mm: PaperPointMm,
+  view: PaperRectMm
+) => {
+  const r = d.item.rectMm;
+  const west = d.corner === 'nw' || d.corner === 'sw';
+  const north = d.corner === 'nw' || d.corner === 'ne';
+  const corner = { x: west ? r.x : r.x + r.w, y: north ? r.y : r.y + r.h };
+  return resizeItem(
+    d.item,
+    d.corner,
+    { x: corner.x + mm.x - d.start.x, y: corner.y + mm.y - d.start.y },
+    view
+  );
 };
 
 const withComment = (item: PaperMarkupItem, text: string): PaperMarkupItem => {
@@ -308,6 +327,7 @@ export function usePaperMarkupEditor(
         setDrag({
           kind: 'resize',
           pointerId: p.pointerId,
+          start: p.mm,
           corner: p.hitCorner,
           item: selected,
           preview: selected,
@@ -372,7 +392,7 @@ export function usePaperMarkupEditor(
           case 'resize':
             return {
               ...d,
-              preview: resizeItem(d.item, d.corner, mm, viewport),
+              preview: resizeBy(d, mm, viewport),
             };
         }
       });
@@ -426,7 +446,7 @@ export function usePaperMarkupEditor(
           return;
         }
         case 'resize': {
-          const sized = resizeItem(d.item, d.corner, mm, viewport);
+          const sized = resizeBy(d, mm, viewport);
           if (JSON.stringify(sized) !== JSON.stringify(d.item))
             replaceItem(sized);
           return;

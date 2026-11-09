@@ -142,8 +142,16 @@ export const MarkupShape: React.FC<{
           )}
           {number !== undefined && (
             <Badge
-              x={r.x + r.w}
-              y={r.y}
+              x={
+                item.kind === 'rect'
+                  ? r.x + r.w
+                  : r.x + r.w / 2 + (r.w / 2) * Math.SQRT1_2
+              }
+              y={
+                item.kind === 'rect'
+                  ? r.y
+                  : r.y + r.h / 2 - (r.h / 2) * Math.SQRT1_2
+              }
               diameter={COMMENT_BADGE_DIAMETER_MM}
               font={COMMENT_BADGE_FONT_MM}
               color={ink}

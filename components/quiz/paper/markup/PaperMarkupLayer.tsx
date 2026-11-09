@@ -15,6 +15,14 @@ const cornerPoint = (r: PaperRectMm, c: ResizeCorner): PaperPointMm => ({
   y: c === 'nw' || c === 'ne' ? r.y : r.y + r.h,
 });
 
+const SELECTION_PAD_MM = 1;
+const padRect = (r: PaperRectMm): PaperRectMm => ({
+  x: r.x - SELECTION_PAD_MM,
+  y: r.y - SELECTION_PAD_MM,
+  w: r.w + SELECTION_PAD_MM * 2,
+  h: r.h + SELECTION_PAD_MM * 2,
+});
+
 const CORNER_CURSOR: Record<ResizeCorner, string> = {
   nw: 'cursor-nwse-resize',
   se: 'cursor-nwse-resize',
@@ -80,7 +88,8 @@ export const PaperMarkupLayer: React.FC<{
   };
 
   const selected = editor.shown.find((i) => i.id === editor.selectedId);
-  const selectedBounds = selected ? itemBoundsMm(selected) : null;
+  // The outline sits just outside the mark so it never hides the mark's own stroke.
+  const selectedBounds = selected ? padRect(itemBoundsMm(selected)) : null;
   const drawing = editor.tool !== 'select';
   const pending =
     editor.comment?.target === 'pending-pin' ? editor.comment : null;
@@ -159,7 +168,7 @@ export const PaperMarkupLayer: React.FC<{
             data-markup-handle={c}
             aria-hidden
             style={{
-              ...pct(cornerPoint(selected.rectMm, c)),
+              ...pct(cornerPoint(padRect(selected.rectMm), c)),
               touchAction: 'none',
             }}
             className={`absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 ${CORNER_CURSOR[c]}`}

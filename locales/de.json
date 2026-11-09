@@ -2722,7 +2722,7 @@
           "snippets": "Gespeicherten Kommentar einfügen",
           "counter": "{{count}}/{{max}}",
           "save": "Speichern",
-          "saveKeys": "Speichern (Eingabe). Umschalt+Eingabe beginnt eine neue Zeile.",
+          "saveKeys": "Speichern (Eingabe)",
           "cancel": "Abbrechen",
           "commentList": "Kommentare zur Handschrift"
         }

@@ -61,11 +61,11 @@ const AnchoredPopover: React.FC<{
       const w = Math.min(maxWidth ?? pop.offsetWidth, innerW - GAP * 2);
       const h = pop.offsetHeight;
       const left = Math.min(Math.max(a.mid - w / 2, GAP), innerW - w - GAP);
+      // Never above the image box, so the toolbar stays usable; past the panel's bottom is fine.
+      const minTop = view ? Math.max(GAP, view.top - oy) : GAP;
       let top = a.bottom + OFFSET;
-      if (top + h > innerH - GAP) {
-        const above = a.top - OFFSET - h;
-        top = above >= GAP ? above : Math.max(GAP, innerH - h - GAP);
-      }
+      if (top + h > innerH - GAP && a.top - OFFSET - h >= minTop)
+        top = a.top - OFFSET - h;
       if (maxWidth !== undefined) setWidth(w);
       setPos((p) =>
         p && p.left === left && p.top === top ? p : { left, top }
@@ -95,7 +95,8 @@ const AnchoredPopover: React.FC<{
         top: pos?.top ?? 0,
         width,
         maxWidth: `calc(100% - ${GAP * 2}px)`,
-        visibility: pos ? 'visible' : 'hidden',
+        // Opacity, not visibility, so the comment box can take focus before it is placed.
+        opacity: pos ? 1 : 0,
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -215,7 +216,7 @@ export const MarkupCommentEditor: React.FC<{
         aria-describedby={showCounter ? counterId : undefined}
         placeholder={tm('commentPlaceholder')}
         {...tourTypeAttr('quiz-grading.markup-comment', 'quiz')}
-        className="w-full resize-none rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
+        className="max-h-48 min-h-18 w-full resize-none rounded-lg border [field-sizing:content] border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
       />
       {snippets && snippets.length > 0 && (
         <select

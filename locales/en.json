@@ -4023,7 +4023,7 @@
           "snippets": "Insert a saved comment",
           "counter": "{{count}}/{{max}}",
           "save": "Save",
-          "saveKeys": "Save (Enter). Shift+Enter starts a new line.",
+          "saveKeys": "Save (Enter)",
           "cancel": "Cancel",
           "commentList": "Comments on the handwriting"
         }

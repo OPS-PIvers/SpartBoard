@@ -2722,7 +2722,7 @@
           "snippets": "Insérer un commentaire enregistré",
           "counter": "{{count}}/{{max}}",
           "save": "Enregistrer",
-          "saveKeys": "Enregistrer (Entrée). Maj+Entrée commence une nouvelle ligne.",
+          "saveKeys": "Enregistrer (Entrée)",
           "cancel": "Annuler",
           "commentList": "Commentaires sur l'écriture"
         }
