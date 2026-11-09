@@ -90,7 +90,15 @@ function seed(over: Record<string, StubData> = {}): Record<string, StubData> {
 
 function makeDeps(
   store: Record<string, StubData>,
-  { objects = {}, drive = {}, granted = true } = {}
+  {
+    objects = {},
+    drive = {},
+    granted = true,
+  }: {
+    objects?: Record<string, string>;
+    drive?: Record<string, string>;
+    granted?: boolean;
+  } = {}
 ) {
   const stub = makeStubFirestore(store);
   const deps: PaperWrittenDeps = {

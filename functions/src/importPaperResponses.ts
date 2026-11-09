@@ -609,9 +609,6 @@ export async function handleImportPaperResponses(
           keySheetSeat: batch.keySheetSeat,
         })
       : null;
-  const hasStuckArchive = keptPages
-    ? (await import('./quizMediaArchive')).computeHasStuckArchive
-    : null;
   if (keptPages && input.scanId && keptPages.bySeat.size > 0) {
     // Written before the responses, so the sweep and the read callable can trace each page to its response.
     await userRef
@@ -676,13 +673,9 @@ export async function handleImportPaperResponses(
           versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
         hybrid,
         transcribe,
-        keptPages:
-          keptPages && hasStuckArchive
-            ? {
-                pages: keptPages.bySeat.get(r.sheet.seat) ?? [],
-                hasStuckArchive,
-              }
-            : null,
+        keptPages: keptPages
+          ? (keptPages.bySeat.get(r.sheet.seat) ?? [])
+          : null,
         now,
       })
     )
@@ -775,13 +768,8 @@ interface SeatContext {
   hybrid: boolean;
   /** Transcription is on, so inked pages count as queued or over quota. */
   transcribe: boolean;
-  /** Kept pages are on for this import: this seat's pages replace the response's (K12); null leaves them alone. */
-  keptPages: {
-    pages: KeptPage[];
-    hasStuckArchive: (
-      archive: Record<string, Record<string, unknown>>
-    ) => boolean;
-  } | null;
+  /** This seat's kept pages when they are on for this import; null clears any older scan's (K12). */
+  keptPages: KeptPage[] | null;
   now: number;
 }
 
@@ -851,23 +839,27 @@ const keepsArchiveEntry = (entry: Record<string, unknown>): boolean =>
   entry.archiveStatus === 'deleted' ||
   entry.archiveStatus === 'delete-failed';
 
-/** K12: this scan's pages replace the response's; a superseded page's pending archive entry goes with it. */
-function keptPageFields(
+/** K12: every import leaves only this scan's pages; a superseded page's pending archive entry goes with it. */
+async function keptPageFields(
   existing: admin.firestore.DocumentData | null,
-  kept: NonNullable<SeatContext['keptPages']>,
-  scanId: string
-): Record<string, unknown> {
-  // Recorded as a crop is: `uploaded` at import, whether or not the background upload has landed.
-  const next = kept.pages.map((p) => ({
-    id: paperPageArtifactId(scanId, p.page),
-    slot: 'primary',
-    kind: 'paper-page',
-    storagePath: p.storagePath,
-    mimeType: p.mimeType,
-    uploadState: 'uploaded',
-  }));
+  pages: readonly KeptPage[],
+  scanId: string | null
+): Promise<Record<string, unknown>> {
   const prior: Record<string, unknown>[] = Array.isArray(existing?.paperPages)
     ? (existing.paperPages as unknown[]).filter(isRecord)
+    : [];
+  // Today's data has no pages: no fields, and no archive module load.
+  if (prior.length === 0 && (pages.length === 0 || !scanId)) return {};
+  // Recorded as a crop is: `uploaded` at import, whether or not the background upload has landed.
+  const next = scanId
+    ? pages.map((p) => ({
+        id: paperPageArtifactId(scanId, p.page),
+        slot: 'primary',
+        kind: 'paper-page',
+        storagePath: p.storagePath,
+        mimeType: p.mimeType,
+        uploadState: 'uploaded',
+      }))
     : [];
   const nextIds = new Set(next.map((a) => a.id));
   const archive: Record<string, Record<string, unknown>> = {};
@@ -885,18 +877,17 @@ function keptPageFields(
     cleared.push(a.id);
   }
   const deleteField = admin.firestore.FieldValue.delete();
+  const { computeHasStuckArchive } = cleared.length
+    ? await import('./quizMediaArchive')
+    : { computeHasStuckArchive: null };
   return {
-    ...(next.length > 0
-      ? { paperPages: next }
-      : prior.length > 0
-        ? { paperPages: deleteField }
-        : {}),
-    ...(cleared.length > 0
+    paperPages: next.length > 0 ? next : deleteField,
+    ...(computeHasStuckArchive
       ? {
           artifactArchive: Object.fromEntries(
             cleared.map((id) => [id, deleteField])
           ),
-          hasStuckArchive: kept.hasStuckArchive(archive),
+          hasStuckArchive: computeHasStuckArchive(archive),
         }
       : {}),
   };
@@ -1045,12 +1036,13 @@ async function importSeat(
     ),
     ...fresh,
   ];
-  // Same write as the answers, so a page is never recorded on a response that failed to import.
-  const pageFields =
-    ctx.keptPages && scanId
-      ? keptPageFields(existing, ctx.keptPages, scanId)
-      : {};
-  outcome.pagesRecorded = ctx.keptPages?.pages.length ?? 0;
+  // Same write as the answers, so a page is never recorded on a response that failed to import, and never outlives its scan.
+  const pageFields = await keptPageFields(
+    existing,
+    ctx.keptPages ?? [],
+    ctx.keptPages ? scanId : null
+  );
+  outcome.pagesRecorded = ctx.keptPages?.length ?? 0;
   tx.set(
     ctx.ref,
     ctx.hybrid

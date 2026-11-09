@@ -245,6 +245,23 @@ describe('archiving a kept page', () => {
     });
   });
 
+  it('settles a pending entry whose page a rescan dropped, so the hourly retry stops', async () => {
+    const stub = seed({
+      [RESPONSE]: {
+        studentUid: 'p',
+        answers: [],
+        artifactArchive: { [PAGE_ID]: { archiveStatus: 'failed' } },
+        hasStuckArchive: true,
+      },
+    });
+    await expect(archive(deps(stub.db))).rejects.toMatchObject({
+      code: 'not-found',
+      details: { artifactLost: true },
+    });
+    expect(entryOf(stub)).toMatchObject({ archiveStatus: 'lost' });
+    expect(stub.get(RESPONSE)?.hasStuckArchive).toBe(false);
+  });
+
   it('never reads a kept page from student-writable answers', async () => {
     const stub = seed({
       [RESPONSE]: {

@@ -1139,7 +1139,16 @@ export async function archiveQuizArtifactCore(
     ? findPaperPageArtifact(response, artifactId)
     : findStoredArtifact(answers, questionId, artifactId);
   if (!artifact || (artifact.kind === 'paper-page') !== (keptPage !== null)) {
-    throw new HttpsError('not-found', 'Artifact not found on this response.');
+    const missing = new HttpsError(
+      'not-found',
+      'Artifact not found on this response.'
+    );
+    // A rescan dropped this page: its pending entry can never archive, so it settles rather than retrying hourly.
+    if (!keptPage) throw missing;
+    throw toArchiveFailure(
+      missing,
+      await settleRefusedArchive(deps, responseRef, artifactId, missing.message)
+    );
   }
   const kind = artifact.kind;
   if (!isArchivableKind(kind)) {

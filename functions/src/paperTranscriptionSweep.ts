@@ -6,6 +6,7 @@ import './functionsInit';
 import {
   archiveQuizArtifactCore,
   buildDefaultArchiveDeps,
+  computeHasStuckArchive,
   retryStorageCleanup,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   type ArchiveArtifactRequest,
@@ -622,14 +623,12 @@ export async function runPaperCropSweep(
       return;
     }
     const artifactId = paperPageArtifactId(p.scanId, p.page);
-    const data = (
-      await db
-        .collection('quiz_sessions')
-        .doc(target.sessionId)
-        .collection('responses')
-        .doc(target.responseKey)
-        .get()
-    ).data();
+    const responseRef = db
+      .collection('quiz_sessions')
+      .doc(target.sessionId)
+      .collection('responses')
+      .doc(target.responseKey);
+    const data = (await responseRef.get()).data();
     const pages = Array.isArray(data?.paperPages)
       ? (data.paperPages as Array<Record<string, unknown>>)
       : [];
@@ -662,18 +661,78 @@ export async function runPaperCropSweep(
       summary.pagesCleanedUp++;
       return;
     }
-    if (status === 'awaiting-drive' && entry) {
-      const outcome = await holdForDrive(path, p.uid, request, entry, 'page');
-      if (outcome === 'expired') summary.pagesExpired++;
-      if (outcome === 'archived') summary.pagesArchived++;
-      if (outcome === 'warned') summary.pagesWarned++;
-      return;
+    // Never archived, or a failed attempt: one Drive try per teacher per run, not one per page.
+    if (status !== 'awaiting-drive' && !noDrive.has(p.uid)) {
+      const result = await deps.archive(request);
+      if (result.archiveStatus === 'archived') {
+        summary.pagesArchived++;
+        return;
+      }
+      if (result.archiveStatus !== 'awaiting-drive') return;
+      noDrive.add(p.uid);
     }
-    // Never archived, or a failed or abandoned attempt: the hourly archive sweep only reaches answer artifacts.
-    if (noDrive.has(p.uid)) return;
-    const result = await deps.archive(request);
-    if (result.archiveStatus === 'archived') summary.pagesArchived++;
-    if (result.archiveStatus === 'awaiting-drive') noDrive.add(p.uid);
+    if (status !== 'awaiting-drive' && !noDrive.has(p.uid)) return;
+    // K13: every held page is stamped this run, and its 60 days run from the upload.
+    const held = await anchorAwaitingDrive(
+      responseRef,
+      artifactId,
+      createdMs > 0 ? Math.min(createdMs, now) : now
+    );
+    if (!held) return;
+    const outcome = await holdForDrive(path, p.uid, request, held, 'page');
+    if (outcome === 'expired') summary.pagesExpired++;
+    if (outcome === 'archived') summary.pagesArchived++;
+    if (outcome === 'warned') summary.pagesWarned++;
+  }
+
+  /** Marks a never-archived or failed page as held for Drive, moving its clock back to `since`; null when it is not holdable. */
+  async function anchorAwaitingDrive(
+    responseRef: admin.firestore.DocumentReference,
+    artifactId: string,
+    since: number
+  ): Promise<Record<string, unknown> | null> {
+    return db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive: ArchiveMapData = {
+        ...((fresh.data()?.artifactArchive ?? {}) as ArchiveMapData),
+      };
+      const current = archive[artifactId];
+      const status = current?.archiveStatus;
+      if (
+        (status !== undefined &&
+          status !== 'failed' &&
+          status !== 'awaiting-drive') ||
+        typeof current?.driveFileId === 'string'
+      ) {
+        return null;
+      }
+      const previous =
+        typeof current?.awaitingDriveSince === 'number'
+          ? current.awaitingDriveSince
+          : Infinity;
+      const anchored = Math.min(previous, since);
+      const next = {
+        ...(current ?? {}),
+        archiveStatus: 'awaiting-drive',
+        awaitingDriveSince: anchored,
+      };
+      if (status === 'awaiting-drive' && previous === anchored) return next;
+      archive[artifactId] = next;
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [artifactId]: {
+              archiveStatus: 'awaiting-drive',
+              awaitingDriveSince: anchored,
+            },
+          },
+          hasStuckArchive: computeHasStuckArchive(archive),
+        },
+        { merge: true }
+      );
+      return next;
+    });
   }
 
   let pageToken: string | undefined;

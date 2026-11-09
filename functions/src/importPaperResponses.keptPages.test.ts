@@ -313,32 +313,81 @@ describe('kept pages: recording', () => {
     expect(flagOff.writes).toEqual(plain.writes);
   });
 
-  it('takes today’s path for a payload without pages: no gate read, no lookup, no page fields', async () => {
+  it('takes today’s path for a payload without pages on a response that never had any', async () => {
     const docs = baseDocs();
     docs[RESP1] = {
       studentUid: 'pin-period_1-0001',
       paperBatchId: BATCH,
-      paperPages: [artifact(1)],
       answers: [],
+      artifactArchive: { hw_x: { archiveStatus: 'failed' } },
+      hasStuckArchive: true,
     };
     const { result, writes, gate } = await importWith(docs, { scanId: SCAN });
     expect(gate).not.toHaveBeenCalled();
     expect(result).toEqual({ written: [1, 2], collisions: [] });
     expect(writes.some((w) => w.path === LOOKUP)).toBe(false);
-    expect(writes.every((w) => !('paperPages' in w.data))).toBe(true);
-    expect(docs[RESP1].paperPages).toEqual([artifact(1)]);
+    for (const w of writes) {
+      expect(w.data).not.toHaveProperty('paperPages');
+      expect(w.data).not.toHaveProperty('artifactArchive');
+      expect(w.data).not.toHaveProperty('hasStuckArchive');
+    }
   });
 
-  it('records nothing and replaces nothing without a usable scan id', async () => {
+  // A page left behind would print the new answers' marks on an older scan.
+  const priorPages = (): Doc => ({
+    studentUid: 'pin-period_1-0001',
+    paperBatchId: BATCH,
+    answers: [],
+    paperPages: [artifact(1, 1, 'scan-1'), artifact(2, 1, 'scan-1')],
+    artifactArchive: {
+      'pg_scan-1_1': { archiveStatus: 'archived', driveFileId: 'd1' },
+      'pg_scan-1_2': { archiveStatus: 'awaiting-drive' },
+    },
+  });
+  const expectCleared = (doc: Doc) => {
+    expect(doc).not.toHaveProperty('paperPages');
+    expect(doc.artifactArchive).toEqual({
+      'pg_scan-1_1': { archiveStatus: 'archived', driveFileId: 'd1' },
+    });
+    expect(doc.hasStuckArchive).toBe(false);
+  };
+
+  it('clears a seat’s older pages when a rescan arrives without pages', async () => {
     const docs = baseDocs();
-    docs[RESP1] = {
-      paperBatchId: BATCH,
-      paperPages: [artifact(1, 1, 'scan-1')],
-      answers: [],
-    };
+    docs[RESP1] = priorPages();
+    const { gate } = await importWith(docs, { scanId: SCAN });
+    expect(gate).not.toHaveBeenCalled();
+    expectCleared(docs[RESP1]);
+  });
+
+  it('pages-on import, then a pages-off rescan, leaves no page', async () => {
+    const docs = baseDocs();
+    await importWith(docs, {
+      scanId: 'scan-1',
+      pages: [entry(1, 1, { storagePath: pagePath(1, 1, UID, 'scan-1') })],
+    });
+    expect(docs[RESP1].paperPages).toEqual([artifact(1, 1, 'scan-1')]);
+    await importWith(docs, { scanId: SCAN });
+    expect(docs[RESP1]).not.toHaveProperty('paperPages');
+  });
+
+  it('clears a seat’s older pages when the caller lacks the flag', async () => {
+    const docs = baseDocs();
+    docs[RESP1] = priorPages();
+    await importWith(
+      docs,
+      { scanId: SCAN, pages: [entry(1, 1)] },
+      { granted: false }
+    );
+    expectCleared(docs[RESP1]);
+  });
+
+  it('records nothing and clears older pages without a usable scan id', async () => {
+    const docs = baseDocs();
+    docs[RESP1] = priorPages();
     const { result } = await importWith(docs, { pages: [entry(1, 1)] });
     expect(result.keptPages).toEqual({ recorded: 0, dropped: 1 });
-    expect(docs[RESP1].paperPages).toEqual([artifact(1, 1, 'scan-1')]);
+    expectCleared(docs[RESP1]);
     expect(docs[LOOKUP]).toBeUndefined();
   });
 

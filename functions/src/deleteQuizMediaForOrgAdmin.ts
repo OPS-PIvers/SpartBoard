@@ -34,6 +34,7 @@ import {
   deleteQuizArchiveDriveFile,
   isArtifactStoragePathOwned,
   isArtifactStoragePathValid,
+  parsePaperPageArtifactId,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
@@ -59,6 +60,9 @@ export const MEDIA_ADMIN_ROLE_IDS: readonly string[] = [
 export const MAX_SESSIONS_SCANNED = 400;
 export const MAX_RESPONSES_SCANNED = 4000;
 export const MAX_ROWS_RETURNED = 500;
+/** Row and delete-target id for a response's kept scan pages, which belong to no one question. */
+export const KEPT_PAGES_QUESTION_ID = '__kept-scan-pages__';
+const KEPT_PAGES_LABEL = 'Scanned pages (paper)';
 /** Firestore caps an `in` filter at 10 values. */
 const TEACHER_CHUNK = 10;
 /** One batch delete stays a single admin action, not a bulk purge job. */
@@ -83,7 +87,7 @@ export interface MediaTakeRow {
   /** The take's first file id; a stable key for the row. */
   artifactId: string;
   takeIndex: number;
-  /** `'audio'`, `'whiteboard'` or `'handwriting'` (a paper answer crop). */
+  /** `'audio'`, `'whiteboard'`, `'handwriting'` (a paper answer crop) or `'paper-page'` (one kept scan page; `takeIndex` is its page). */
   kind: string;
   /** The take's least-settled file status, so one stuck file keeps the take visible. */
   archiveStatus: string;
@@ -253,6 +257,43 @@ export function collectQuestionArtifacts(
   return out;
 }
 
+/** Kept scan pages: the live ones in `paperPages`, plus any older scan's page whose Drive copy only `artifactArchive` still names. */
+export function collectKeptPageArtifacts(
+  data: Record<string, unknown>
+): QuestionArtifact[] {
+  const out: QuestionArtifact[] = [];
+  const add = (id: string, storagePath: string) => {
+    const parsed = parsePaperPageArtifactId(id);
+    if (!parsed || out.some((a) => a.id === id)) return;
+    out.push({
+      id,
+      kind: 'paper-page',
+      storagePath,
+      takeKey: id,
+      takeIndex: parsed.page,
+    });
+  };
+  const pages = Array.isArray(data.paperPages)
+    ? (data.paperPages as StoredArtifact[])
+    : [];
+  for (const page of pages) {
+    if (page?.kind === 'paper-page')
+      add(asString(page.id), asString(page.storagePath));
+  }
+  for (const id of Object.keys(readArchiveMap(data))) add(id, '');
+  return out;
+}
+
+/** The media set one delete target names: a question's takes, or the response's kept pages. */
+export function collectTargetArtifacts(
+  data: Record<string, unknown>,
+  questionId: string
+): QuestionArtifact[] {
+  return questionId === KEPT_PAGES_QUESTION_ID
+    ? collectKeptPageArtifacts(data)
+    : collectQuestionArtifacts(data.answers, questionId);
+}
+
 /** Least-settled first: a take reads as its most urgent file. */
 const TAKE_STATUS_PRECEDENCE = [
   'delete-failed',
@@ -409,8 +450,8 @@ export function buildRowsForResponse(
   }
 
   const rows: MediaResponseRow[] = [];
-  for (const questionId of questionIds) {
-    const artifacts = collectQuestionArtifacts(answers, questionId);
+  for (const questionId of [...questionIds, KEPT_PAGES_QUESTION_ID]) {
+    const artifacts = collectTargetArtifacts(data, questionId);
     const grouped = new Map<
       string,
       {
@@ -454,7 +495,10 @@ export function buildRowsForResponse(
       buildTakeRow(g.takeIndex, g.files, g.stamps)
     );
     if (takes.length === 0) continue;
-    const questionText = input.questionTextById?.[questionId];
+    const questionText =
+      questionId === KEPT_PAGES_QUESTION_ID
+        ? KEPT_PAGES_LABEL
+        : input.questionTextById?.[questionId];
     rows.push({
       sessionId: input.sessionId,
       responseKey: input.responseKey,
@@ -935,7 +979,10 @@ export async function deleteOrgQuizMediaSets(
       });
       continue;
     }
-    if (deps.deleteNormingAudio) {
+    if (
+      deps.deleteNormingAudio &&
+      target.questionId !== KEPT_PAGES_QUESTION_ID
+    ) {
       await deps
         .deleteNormingAudio(
           target.sessionId,
@@ -951,7 +998,7 @@ export async function deleteOrgQuizMediaSets(
     }
     const data = responseSnap.data() ?? {};
     const studentUid = asString(data.studentUid);
-    const artifacts = collectQuestionArtifacts(data.answers, target.questionId);
+    const artifacts = collectTargetArtifacts(data, target.questionId);
     if (artifacts.length === 0) {
       results.push({
         ...base,
@@ -1000,6 +1047,8 @@ export async function deleteOrgQuizMediaSets(
         ...pathInput,
         responseRef,
         response: data,
+        artifactId: artifact.id,
+        db,
       });
       const storagePath = owned ? artifact.storagePath : '';
       // A crop this response cannot prove is its own is left, so the item must not read as deleted.
@@ -1074,9 +1123,10 @@ export async function finishStuckMediaDelete(
     ? asString(entry.driveFileId) || orphaned
     : orphaned;
   const studentUid = asString(data.studentUid);
-  const artifact = collectQuestionArtifacts(
-    data.answers,
-    input.questionId
+  const artifact = (
+    parsePaperPageArtifactId(input.artifactId)
+      ? collectKeptPageArtifacts(data)
+      : collectQuestionArtifacts(data.answers, input.questionId)
   ).find((a) => a.id === input.artifactId);
   const rawPath = artifact?.storagePath ?? '';
   const storagePath =
@@ -1091,6 +1141,8 @@ export async function finishStuckMediaDelete(
       questionId: input.questionId,
       responseRef,
       response: data,
+      artifactId: input.artifactId,
+      db,
     }))
       ? rawPath
       : '';

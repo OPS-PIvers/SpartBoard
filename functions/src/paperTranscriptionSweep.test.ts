@@ -15,6 +15,9 @@ vi.mock('./quizMediaArchive', () => ({
   archiveQuizArtifactCore: vi.fn(),
   buildDefaultArchiveDeps: vi.fn(),
   retryStorageCleanup: vi.fn(),
+  computeHasStuckArchive: (
+    archive: Record<string, { archiveStatus?: unknown }>
+  ) => Object.values(archive).some((e) => e?.archiveStatus === 'failed'),
   QUIZ_MEDIA_ARCHIVE_SECRETS: [],
 }));
 vi.mock('firebase-functions/v2/scheduler', () => ({
@@ -541,6 +544,66 @@ describe('runPaperCropSweep, kept pages', () => {
       (expire.get(PAGE_RESPONSE)!.artifactArchive as Record<string, StubData>)
         .pg_scan2_1
     ).toMatchObject({ archiveStatus: 'lost' });
+  });
+
+  it('K13: stamps every page of a teacher without Drive on the first run, from its upload', async () => {
+    const uploaded = NOW - 60 * 60 * 1000;
+    const responses: Record<string, StubData> = {};
+    const lookupSeats: Record<string, StubData> = {};
+    for (const seat of [3, 4, 5]) {
+      const key = `pin-period_1-000${seat}`;
+      lookupSeats[seat] = { sessionId: 's1', responseKey: key };
+      responses[`${SESSION}/responses/${key}`] = {
+        studentUid: key,
+        answers: [],
+        paperPages: [
+          {
+            id: 'pg_scan2_1',
+            kind: 'paper-page',
+            storagePath: pagePath('scan2', seat),
+          },
+        ],
+        artifactArchive:
+          seat === 5 ? { pg_scan2_1: { archiveStatus: 'failed' } } : {},
+        ...(seat === 5 ? { hasStuckArchive: true } : {}),
+      };
+    }
+    const s = setup({ [LOOKUP]: { seats: lookupSeats }, ...responses }, [
+      listed(pagePath('scan2', 3), 60 * 60 * 1000),
+      listed(pagePath('scan2', 4), 60 * 60 * 1000),
+      listed(pagePath('scan2', 5), 60 * 60 * 1000),
+    ]);
+    await runPaperCropSweep(s.deps);
+    expect(s.archive).toHaveBeenCalledTimes(1);
+    for (const path of Object.keys(responses)) {
+      const doc = s.get(path)!;
+      expect(
+        (doc.artifactArchive as Record<string, StubData>).pg_scan2_1
+      ).toMatchObject({
+        archiveStatus: 'awaiting-drive',
+        awaitingDriveSince: uploaded,
+      });
+      if (path.endsWith('5')) expect(doc.hasStuckArchive).toBe(false);
+    }
+
+    let clock = uploaded + 54 * DAY;
+    s.deps.now = () => clock;
+    expect(await runPaperCropSweep(s.deps)).toMatchObject({
+      pagesWarned: 3,
+      mailQueued: 1,
+    });
+    expect(s.archive).toHaveBeenCalledTimes(2);
+    const mails = [...s.store.keys()].filter((k) => k.startsWith('mail/'));
+    expect(mails).toHaveLength(1);
+    expect((s.get(mails[0])!.message as { subject: string }).subject).toMatch(
+      /^SpartBoard: 3 scanned pages will be removed on /
+    );
+
+    clock = uploaded + 60 * DAY;
+    expect(await runPaperCropSweep(s.deps)).toMatchObject({ pagesExpired: 3 });
+    expect(s.deleted.sort()).toEqual(
+      [3, 4, 5].map((seat) => pagePath('scan2', seat)).sort()
+    );
   });
 
   it('sends a teacher one email covering held crops and held pages', async () => {
