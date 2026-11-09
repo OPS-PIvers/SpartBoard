@@ -452,7 +452,7 @@ export const PaperMarkupDevHarness: React.FC = () => {
               updateTranscript: ok({ answer: '', snapshotRewritten: false }),
               applyNewerScan: ok({
                 scanId: 'scan-1',
-                paperTranscript: 'done' as const,
+                paperTranscript: 'pending' as const,
               }),
               transcribeBlank: ok({ jobId: 'j' }),
               retry: ok({}),

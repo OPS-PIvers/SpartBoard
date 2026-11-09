@@ -242,7 +242,8 @@ describe('paper markup editor', () => {
     const { layer, last } = await setup();
     fireEvent.click(tool('Box'));
     drag(layer, [150, 120], [400, 300]);
-    expect('rectMm' in last()[0] && last()[0].rectMm).toEqual({
+    const drawn = last()[0];
+    expect('rectMm' in drawn && drawn.rectMm).toEqual({
       x: 150,
       y: 120,
       w: 30,
