@@ -42,6 +42,8 @@ interface Slots {
   to: string[];
   /** The wording differs from the batch's record. */
   changed: boolean;
+  /** Letter stubs keep their record so printing and scans follow the quiz. */
+  stub: boolean;
 }
 
 interface AnswerEntry {
@@ -123,8 +125,9 @@ function slotsFor(
     const recorded = choiceOrder?.[questionId];
     if (!Array.isArray(recorded) || !SAFE_FIELD_ID.test(questionId)) continue;
     // A stub printed bubble letters, and the real question may have fewer choices.
+    const stub = isLetterStub(recorded);
     const from =
-      isLetterStub(recorded) && choices.length < recorded.length
+      stub && choices.length < recorded.length
         ? recorded.slice(0, choices.length)
         : recorded;
     if (!isRewordOnly(from, choices)) continue;
@@ -134,6 +137,7 @@ function slotsFor(
       changed:
         from.length !== recorded.length ||
         from.some((text, i) => norm(text) !== norm(choices[i])),
+      stub,
     });
   }
   return out;
@@ -262,8 +266,8 @@ export async function handlePaperRewordSync(
     const slots = plans.get(batch.id);
     if (!slots) continue;
     const fields: Record<string, string[]> = {};
-    for (const [questionId, { to, changed }] of slots) {
-      if (changed) fields[`choiceOrder.${questionId}`] = to;
+    for (const [questionId, { to, changed, stub }] of slots) {
+      if (changed && !stub) fields[`choiceOrder.${questionId}`] = to;
     }
     if (Object.keys(fields).length === 0) continue;
     await batch.ref.update(fields);

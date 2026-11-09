@@ -194,10 +194,21 @@ describe('handlePaperRewordSync', () => {
     });
     await run(docs, ['Reaction 1', 'Reaction 2']);
     expect((docs[R1].answers as Doc[])[0].answer).toBe('Reaction 2');
-    expect((docs[BATCH].choiceOrder as Doc).q1).toEqual([
-      'Reaction 1',
-      'Reaction 2',
-    ]);
+    // The stub keeps its letters so later scans follow the quiz.
+    expect((docs[BATCH].choiceOrder as Doc).q1).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('follows a second reword on a stub batch by slot', async () => {
+    const docs = seed({
+      [BATCH]: { quizId: 'quiz', choiceOrder: { q1: ['A', 'B', 'C'] } },
+      [R1]: {
+        paperBatchId: 'b1',
+        answers: [{ questionId: 'q1', answer: 'B' }],
+      },
+    });
+    await run(docs, ['liver', 'mouth', 'stomach']);
+    await run(docs, ['liver', 'the mouth', 'stomach']);
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('the mouth');
   });
 
   it('recovers an answer left by a run that stopped before the batch moved', async () => {

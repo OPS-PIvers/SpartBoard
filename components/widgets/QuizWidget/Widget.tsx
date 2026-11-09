@@ -855,6 +855,7 @@ const TeacherQuizWidget: React.FC<{
   const syncPaperRewords = async (quiz: QuizData) => {
     if (
       !rewordSyncOn ||
+      isSandboxed(quiz.id) ||
       !assignments.some((a) => a.quizId === quiz.id && a.hasPaperResponses)
     ) {
       return;
