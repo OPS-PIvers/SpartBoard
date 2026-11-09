@@ -1,4 +1,4 @@
-// Kept scan pages for Results print (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.2, K8, K19).
+// Kept scan pages for Results print (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.2, K8, K19).
 import type {
   ArtifactArchiveEntry,
   QuizResponse,

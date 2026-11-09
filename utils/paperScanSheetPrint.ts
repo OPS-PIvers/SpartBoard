@@ -1,4 +1,4 @@
-// Results print on the student's kept scan page (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.2, K8, K9, K10, K20).
+// Results print on the student's kept scan page (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.2, K8, K9, K10, K20).
 import type {
   PaperGrid,
   PaperImageMarkup,
