@@ -1114,17 +1114,21 @@ const TeacherQuizWidget: React.FC<{
         const nextMap = { ...(config.lastRosterIdsByQuizId ?? {}) };
         if (rosterIds.length > 0) nextMap[meta.id] = rosterIds;
         else delete nextMap[meta.id];
-        updateWidget(widget.id, {
-          config: {
-            ...config,
-            view: 'monitor',
-            selectedQuizId: meta.id,
-            selectedQuizTitle: meta.title,
-            activeAssignmentId: assignmentId,
-            activeLiveSessionCode: code,
-            lastRosterIdsByQuizId: nextMap,
+        updateWidget(
+          widget.id,
+          {
+            config: {
+              ...config,
+              view: 'monitor',
+              selectedQuizId: meta.id,
+              selectedQuizTitle: meta.title,
+              activeAssignmentId: assignmentId,
+              activeLiveSessionCode: code,
+              lastRosterIdsByQuizId: nextMap,
+            },
           },
-        });
+          { pickItem: true }
+        );
       })();
     },
   });
@@ -1426,21 +1430,25 @@ const TeacherQuizWidget: React.FC<{
       // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the quiz the PLC page asked to monitor
       void loadAnswerKeyQuiz(meta, a).then((data) => {
         if (!data) return;
-        updateWidget(widget.id, {
-          config: {
-            ...config,
-            view: 'monitor',
-            selectedQuizId: a.quizId,
-            selectedQuizTitle: a.quizTitle,
-            activeAssignmentId: a.id,
-            activeLiveSessionCode: a.code,
-            periodName: a.periodName ?? '',
-            periodNames: a.periodNames ?? [],
-            teacherName: a.teacherName ?? '',
-            plcMode: !!a.plc,
-            plcSheetUrl: a.plc?.sheetUrl ?? '',
+        updateWidget(
+          widget.id,
+          {
+            config: {
+              ...config,
+              view: 'monitor',
+              selectedQuizId: a.quizId,
+              selectedQuizTitle: a.quizTitle,
+              activeAssignmentId: a.id,
+              activeLiveSessionCode: a.code,
+              periodName: a.periodName ?? '',
+              periodNames: a.periodNames ?? [],
+              teacherName: a.teacherName ?? '',
+              plcMode: !!a.plc,
+              plcSheetUrl: a.plc?.sheetUrl ?? '',
+            },
           },
-        });
+          { pickItem: true }
+        );
       });
       return;
     }
@@ -3411,22 +3419,26 @@ const TeacherQuizWidget: React.FC<{
             } else {
               delete nextMap[meta.id];
             }
-            updateWidget(widget.id, {
-              config: {
-                ...config,
-                view: 'manager',
-                managerTab: 'active',
-                selectedQuizId: meta.id,
-                selectedQuizTitle: meta.title,
-                activeAssignmentId: assignmentId,
-                plcMode: plcOptions.plcMode,
-                teacherName: plcOptions.teacherName ?? '',
-                periodName:
-                  plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
-                periodNames: plcOptions.periodNames ?? [],
-                lastRosterIdsByQuizId: nextMap,
+            updateWidget(
+              widget.id,
+              {
+                config: {
+                  ...config,
+                  view: 'manager',
+                  managerTab: 'active',
+                  selectedQuizId: meta.id,
+                  selectedQuizTitle: meta.title,
+                  activeAssignmentId: assignmentId,
+                  plcMode: plcOptions.plcMode,
+                  teacherName: plcOptions.teacherName ?? '',
+                  periodName:
+                    plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
+                  periodNames: plcOptions.periodNames ?? [],
+                  lastRosterIdsByQuizId: nextMap,
+                },
               },
-            });
+              { pickItem: true }
+            );
             const url = `${window.location.origin}/quiz?code=${code}`;
             if (
               quizAssignmentMode !== 'view-only' &&
@@ -3823,21 +3835,25 @@ const TeacherQuizWidget: React.FC<{
           }
           const data = await loadAnswerKeyQuiz(meta, a);
           if (!data) return;
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'monitor',
-              selectedQuizId: a.quizId,
-              selectedQuizTitle: a.quizTitle,
-              activeAssignmentId: a.id,
-              activeLiveSessionCode: a.code,
-              periodName: a.periodName ?? '',
-              periodNames: a.periodNames ?? [],
-              teacherName: a.teacherName ?? '',
-              plcMode: !!a.plc,
-              plcSheetUrl: a.plc?.sheetUrl ?? '',
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                view: 'monitor',
+                selectedQuizId: a.quizId,
+                selectedQuizTitle: a.quizTitle,
+                activeAssignmentId: a.id,
+                activeLiveSessionCode: a.code,
+                periodName: a.periodName ?? '',
+                periodNames: a.periodNames ?? [],
+                teacherName: a.teacherName ?? '',
+                plcMode: !!a.plc,
+                plcSheetUrl: a.plc?.sheetUrl ?? '',
+              },
             },
-          });
+            { pickItem: true }
+          );
         }}
         onArchiveStart={async (a) => {
           // Block start if no class periods are selected; a Staff assignment has none by design.
@@ -3870,21 +3886,25 @@ const TeacherQuizWidget: React.FC<{
             );
             return;
           }
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'monitor',
-              selectedQuizId: a.quizId,
-              selectedQuizTitle: a.quizTitle,
-              activeAssignmentId: a.id,
-              activeLiveSessionCode: a.code,
-              periodName: a.periodName ?? '',
-              periodNames: a.periodNames ?? [],
-              teacherName: a.teacherName ?? '',
-              plcMode: !!a.plc,
-              plcSheetUrl: a.plc?.sheetUrl ?? '',
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                view: 'monitor',
+                selectedQuizId: a.quizId,
+                selectedQuizTitle: a.quizTitle,
+                activeAssignmentId: a.id,
+                activeLiveSessionCode: a.code,
+                periodName: a.periodName ?? '',
+                periodNames: a.periodNames ?? [],
+                teacherName: a.teacherName ?? '',
+                plcMode: !!a.plc,
+                plcSheetUrl: a.plc?.sheetUrl ?? '',
+              },
             },
-          });
+            { pickItem: true }
+          );
         }}
         onArchiveResults={async (a) => {
           const meta = quizzes.find((q) => q.id === a.quizId);
@@ -3897,18 +3917,22 @@ const TeacherQuizWidget: React.FC<{
           }
           const data = await loadAnswerKeyQuiz(meta, a);
           if (!data) return;
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'results',
-              selectedQuizId: a.quizId,
-              selectedQuizTitle: a.quizTitle,
-              activeAssignmentId: a.id,
-              periodName: a.periodName ?? '',
-              periodNames: a.periodNames ?? [],
-              teacherName: a.teacherName ?? '',
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                view: 'results',
+                selectedQuizId: a.quizId,
+                selectedQuizTitle: a.quizTitle,
+                activeAssignmentId: a.id,
+                periodName: a.periodName ?? '',
+                periodNames: a.periodNames ?? [],
+                teacherName: a.teacherName ?? '',
+              },
             },
-          });
+            { pickItem: true }
+          );
         }}
         onArchiveEditSettings={
           isReview

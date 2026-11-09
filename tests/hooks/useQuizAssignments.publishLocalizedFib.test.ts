@@ -137,7 +137,7 @@ describe('useQuizAssignments — publish grades localized FIB answers', () => {
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
     const call = batchUpdate.mock.calls.find(([r]) => r === responseRef);

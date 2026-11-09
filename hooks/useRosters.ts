@@ -32,6 +32,7 @@ import { collapseTestSuffix } from '@/utils/testClassSuffix';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { parseGroupReminder, parseGroupSymbol } from '@/utils/groupReminders';
 import { syncGroupEmailAlerts } from '@/utils/groupEmailAlerts';
+import { refreshVerifiedClassesIfStale } from '@/utils/verifiedClassesRefresh';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
@@ -863,6 +864,13 @@ export const useRosters = (user: User | null) => {
     },
     [driveService, user, uploadRosterFileToDrive]
   );
+
+  // Keeps the server's verified class list current for class-targeted assigns.
+  const verifiedRefreshUid = user && !isAuthBypass ? user.uid : null;
+  useEffect(() => {
+    if (verifiedRefreshUid)
+      void refreshVerifiedClassesIfStale(verifiedRefreshUid);
+  }, [verifiedRefreshUid]);
 
   // ─── Firestore snapshot listener ──────────────────────────────────────────
 

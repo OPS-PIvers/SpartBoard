@@ -161,32 +161,30 @@ describe('useVideoActivityAssignments — publishAssignmentScores duplicate ques
     expect(q0Answer?.isCorrect).toBe(true);
   });
 
-  it('reveals the answer for the same occurrence the student was graded against', async () => {
-    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+  it.each(['score-only', 'score-responses-and-answers'] as const)(
+    'never puts an answer key on the student-readable session at %s',
+    async (visibility) => {
+      mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
-    const { result } = renderHook(() =>
-      useVideoActivityAssignments(TEACHER_UID)
-    );
-    await act(async () => {
-      await result.current.publishAssignmentScores(
-        ASSIGNMENT_ID,
-        activityData,
-        'score-responses-and-answers'
+      const { result } = renderHook(() =>
+        useVideoActivityAssignments(TEACHER_UID)
       );
-    });
+      await act(async () => {
+        await result.current.publishAssignmentScores(
+          ASSIGNMENT_ID,
+          activityData,
+          visibility
+        );
+      });
 
-    const sessionCall = batchUpdate.mock.calls.find(
-      ([, patch]) =>
-        !!(patch as { revealedAnswers?: unknown }).revealedAnswers &&
-        typeof (patch as { revealedAnswers?: unknown }).revealedAnswers ===
-          'object'
-    );
-    if (!sessionCall) throw new Error('expected batch.update on session ref');
-    const sessionPatch = sessionCall[1] as {
-      revealedAnswers: Record<string, string>;
-    };
-
-    // Revealed answer must match the FIRST occurrence's correctAnswer ('a'), the one the student was actually graded against — not the duplicate's 'b'.
-    expect(sessionPatch.revealedAnswers.q0).toBe('a');
-  });
+      const written = batchUpdate.mock.calls
+        .map(
+          ([, patch]) =>
+            (patch as { revealedAnswers?: unknown }).revealedAnswers
+        )
+        .filter((v) => v !== undefined);
+      // Only the session write touches it, to clear an older publish's key.
+      expect(written).toEqual([{ __deleteFieldSentinel: true }]);
+    }
+  );
 });

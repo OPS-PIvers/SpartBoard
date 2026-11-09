@@ -151,7 +151,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate question id (
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
         quizData,
-        'score-only'
+        'score-and-responses'
       );
     });
 

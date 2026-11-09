@@ -26,7 +26,8 @@ if (named.length > 0 && process.env.DEPLOY_ALL_FUNCTIONS === 'true') {
     const kept = named.filter((t) => exported[t.slice('functions:'.length)]?.__endpoint);
     const dropped = named.filter((t) => !kept.includes(t));
     if (dropped.length > 0) process.stderr.write(`Not Cloud Functions, skipped: ${dropped.join(',')}\n`);
-    result = [...kept, ...others];
+    // None surviving most likely means the marker moved, not that nothing changed.
+    result = kept.length > 0 ? [...kept, ...others] : everyFunction('no named target is a Cloud Function');
   } catch (error) {
     result = everyFunction(`could not load ${libIndex} (${error.message})`);
   }

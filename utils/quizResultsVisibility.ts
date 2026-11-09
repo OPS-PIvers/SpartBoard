@@ -65,6 +65,24 @@ export const classResultsVisibility = (
   return session?.scoreVisibility ?? 'none';
 };
 
+/** True at the levels that show a student their own responses and right/wrong. */
+export const visibilityShowsResponses = (
+  visibility: QuizScoreVisibility | null | undefined
+): boolean =>
+  visibility === 'score-and-responses' ||
+  visibility === 'score-responses-and-answers';
+
+/** The answers without per-question verdicts, for a student who may not see right/wrong. */
+export function answersWithoutVerdicts<T extends { isCorrect?: boolean }>(
+  answers: T[]
+): T[] {
+  return answers.map((a) => {
+    const { isCorrect: _hidden, ...rest } = a;
+    void _hidden;
+    return rest as T;
+  });
+}
+
 /** What one student may see: an unexpired override wins, else the class setting. */
 export const resolveResultsVisibility = (
   session: SessionPublication | null | undefined,

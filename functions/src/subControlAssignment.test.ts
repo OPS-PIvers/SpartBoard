@@ -37,11 +37,14 @@ interface StubState {
   /** What a response reads as inside the transaction, when it changed after the query. */
   raced?: Record<string, Record<string, unknown>>;
   collection?: string;
+  updateTime?: unknown;
+  commitError?: Error & { code?: number };
 }
 
 interface Written {
   path: string;
   data: Record<string, unknown>;
+  precondition?: unknown;
 }
 
 function stubDb(state: StubState = {}) {
@@ -78,6 +81,7 @@ function stubDb(state: StubState = {}) {
         Promise.resolve({
           exists: docs[path] != null,
           data: () => docs[path] ?? undefined,
+          updateTime: state.updateTime,
         }),
     }),
     collection: (path: string) => ({
@@ -107,10 +111,17 @@ function stubDb(state: StubState = {}) {
         },
       }),
     batch: () => ({
-      update: (ref: { path: string }, data: Record<string, unknown>) => {
-        written.push({ path: ref.path, data });
+      update: (
+        ref: { path: string },
+        data: Record<string, unknown>,
+        precondition?: unknown
+      ) => {
+        written.push({ path: ref.path, data, precondition });
       },
-      commit: () => Promise.resolve(),
+      commit: () =>
+        state.commitError
+          ? Promise.reject(state.commitError)
+          : Promise.resolve(),
     }),
   };
   return { db: db as never, written };
@@ -249,6 +260,48 @@ describe('handleControlSubAssignment — pausing', () => {
     );
     expect(await resumed.run()).toEqual({ state: 'active' });
     expect(resumed.written[0].data).toEqual({ status: 'active' });
+  });
+
+  it('keeps the pause start on a repeat pause but still writes the assignment', async () => {
+    const again = control(
+      { session: stamped({ status: 'paused', pausedAt: NOW - 600_000 }) },
+      input({ action: 'pause' })
+    );
+    expect(await again.run()).toEqual({ state: 'paused' });
+    const session = again.written.find((w) =>
+      w.path.startsWith('quiz_sessions/')
+    );
+    expect(session?.data).not.toHaveProperty('pausedAt');
+    expect(again.written.some((w) => w.path.startsWith('users/'))).toBe(true);
+  });
+
+  it('writes a repeat pause only if the session has not changed since the read', async () => {
+    const again = control(
+      {
+        session: stamped({ status: 'paused', pausedAt: NOW - 600_000 }),
+        updateTime: 'T1',
+      },
+      input({ action: 'pause' })
+    );
+    await again.run();
+    const session = again.written.find((w) =>
+      w.path.startsWith('quiz_sessions/')
+    );
+    expect(session?.precondition).toEqual({ lastUpdateTime: 'T1' });
+  });
+
+  it('asks the sub to retry when a Resume lands during a repeat pause', async () => {
+    const raced = control(
+      {
+        session: stamped({ status: 'paused', pausedAt: NOW - 600_000 }),
+        updateTime: 'T1',
+        commitError: Object.assign(new Error('stale'), { code: 9 }),
+      },
+      input({ action: 'pause' })
+    );
+    await expect(raced.run()).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
   });
 
   it('records the pause so the time limit skips it', async () => {

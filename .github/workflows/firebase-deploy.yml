@@ -74,6 +74,7 @@ jobs:
       deploy_only: ${{ steps.plan.outputs.deploy_only }}
       release_rules: ${{ steps.plan.outputs.release_rules }}
       indexes: ${{ steps.plan.outputs.indexes }}
+      functions: ${{ steps.plan.outputs.functions }}
     steps:
       - uses: actions/checkout@v6.0.3
         with:
@@ -84,13 +85,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           WORKFLOW: firebase-deploy.yml
         run: |
-          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=$GITHUB_REF_NAME&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
+          # The run that finished last, so a re-run of an older run that deployed after a newer one becomes the base.
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=$GITHUB_REF_NAME&status=success&per_page=20" --jq '[.workflow_runs[]] | max_by(.updated_at) | .head_sha // empty')
           echo "Last successful deploy: ${sha:-none}"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          # A run from another branch since main's last success may have replaced prod functions, so main redeploys every one.
+          other=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?per_page=50" --jq '
+            ([.workflow_runs[] | select(.head_branch == "main" and .conclusion == "success") | .updated_at] | max // "") as $main
+            | [.workflow_runs[] | select(.head_branch != "main" and .updated_at > $main and .conclusion != "skipped")] | length') || other=1
+          echo "Other-branch prod runs since main's last deploy: ${other:-1}"
+          if [[ "${other:-1}" != 0 ]]; then echo "other=true" >> "$GITHUB_OUTPUT"; fi
       - id: plan
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
-          FULL: ${{ inputs.full_backend || false }}
+          # A dispatch from any branch other than main, or main's first run after one, deploys every target.
+          FULL: ${{ inputs.full_backend || github.ref != 'refs/heads/main' || steps.base.outputs.other == 'true' }}
         run: ./.github/scripts/plan-deploy.sh main "$BASE_SHA" "$FULL"
 
   # Same parallel layout as the dev-branch workflow: every check runs on its
@@ -256,12 +265,26 @@ jobs:
         run: pnpm exec firebase setup:emulators:firestore
 
       # Only changed targets (.github/scripts/plan-deploy.sh), wrapped in a retry for transient Google API blips.
+      # function-targets.mjs drops affected exports that are not Cloud Functions; any doubt deploys every function.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
         if: needs.plan.outputs.backend == 'true'
-        run: ./.github/scripts/firebase-deploy-with-retry.sh spartboard
+        run: |
+          # Loading the functions needs what the CLI sets during discovery (storage triggers read the bucket); only this node call gets it.
+          config="{\"projectId\":\"$PROJECT\",\"storageBucket\":\"$VITE_FIREBASE_STORAGE_BUCKET\"}"
+          # An output holding a secret value arrives empty; never let that turn a functions deploy into none.
+          if [[ "$FUNCTIONS_PLANNED" == true && ",$PLANNED," != *,functions* ]]; then
+            echo "::error::plan chose functions but deploy_only arrived as '$PLANNED'"; exit 1
+          fi
+          FIREBASE_DEPLOY_ONLY="$(FIREBASE_CONFIG="$config" GCLOUD_PROJECT="$PROJECT" node .github/scripts/function-targets.mjs "$PLANNED")" ||
+            { echo "::error::function-targets.mjs failed"; exit 1; }
+          export FIREBASE_DEPLOY_ONLY
+          echo "Deploying: ${FIREBASE_DEPLOY_ONLY:-rules only}" | tee -a "$GITHUB_STEP_SUMMARY"
+          ./.github/scripts/firebase-deploy-with-retry.sh spartboard
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
-          FIREBASE_DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
+          PLANNED: ${{ needs.plan.outputs.deploy_only }}
+          FUNCTIONS_PLANNED: ${{ needs.plan.outputs.functions }}
+          PROJECT: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           RELEASE_FIRESTORE_RULES: ${{ needs.plan.outputs.release_rules }}
           # Incident escape hatch: repo variable RULES_MINIFY=0 releases the unminified rules.
           RULES_MINIFY: ${{ vars.RULES_MINIFY }}

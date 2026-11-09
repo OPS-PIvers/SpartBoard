@@ -247,6 +247,10 @@ describe('function-targets.mjs', () => {
         );
         expect(targets('functions,storage', lib)).toBe('functions,storage');
         expect(targets('', lib)).toBe('');
+        // No named target surviving means the marker moved, so deploy them all rather than none.
+        expect(targets('functions:__helper,storage', lib)).toBe(
+          'functions,storage'
+        );
       }
     );
   });

@@ -15,6 +15,7 @@ import {
   QUIZ_TIME_LIMIT_FEATURE,
   appendPauseSpan,
   clampQuizTimeLimitMinutes,
+  hasOpenPause,
 } from '@/utils/quizTimeLimit';
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
@@ -168,6 +169,11 @@ import {
   SCORE_ON_SUBMIT_KEY_DOC,
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import {
+  activeResultsOverride,
+  answersWithoutVerdicts,
+  visibilityShowsResponses,
+} from '@/utils/quizResultsVisibility';
 import { hasEveryCurrentAnswerKey } from '@/utils/quizAssignBankDraw';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
@@ -229,8 +235,18 @@ async function commitQuizLifecycle(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
       patches.assignment
     );
+    // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
+    const sessionPatch = { ...patches.session };
+    if (
+      session &&
+      hasOpenPause(session.pauseSpans, session.pausedAt) &&
+      (event.type === 'reopen' ||
+        (event.type === 'pause' && session.status === 'paused'))
+    ) {
+      delete sessionPatch.pausedAt;
+    }
     tx.update(sessionRef, {
-      ...patches.session,
+      ...sessionPatch,
       ...(pauseSpans ? { pauseSpans } : {}),
       ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
     });
@@ -590,8 +606,9 @@ export interface UseQuizAssignmentsResult {
    * Publishes scores at the given visibility level:
    *   1. Computes each student's percentage score from the live response
    *      docs using `gradeAnswer` against the canonical `quizData`, and
-   *      writes the resulting `score` + per-answer `isCorrect` flags onto
-   *      every response doc under `/quiz_sessions/{id}/responses/`.
+   *      writes the resulting `score` onto every response doc under
+   *      `/quiz_sessions/{id}/responses/`, with per-answer `isCorrect`
+   *      flags only where that student may see their responses.
    *   2. Mirrors `scoreVisibility` onto both the assignment doc and the
    *      session doc so the `/my-assignments` student view can read it
    *      without a teacher-scoped fetch.
@@ -3538,10 +3555,18 @@ export const useQuizAssignments = (
 
       const buildPublishPatch = (data: QuizResponse) => {
         const graded = gradeResponseForPublish(data, ctx);
+        const override = activeResultsOverride(data.resultsOverride, now);
+        // Right/wrong stays off the student-readable doc unless the class or this student's own publish shows responses.
+        const keepVerdicts =
+          visibilityShowsResponses(visibility) ||
+          (override?.mode === 'shown' &&
+            visibilityShowsResponses(override.visibility));
         return {
           // `deleteField()` so a stale score can't linger once a slot awaits grading.
           score: graded.score ?? deleteField(),
-          answers: graded.answers,
+          answers: keepVerdicts
+            ? graded.answers
+            : answersWithoutVerdicts(graded.answers),
           // The answer key lives on each response, never the session (D4).
           revealedAnswers: answerKey ?? deleteField(),
           revealedRubricExamples: rubricExamples ?? deleteField(),
@@ -3707,16 +3732,21 @@ export const useQuizAssignments = (
       const keys = Array.from(new Set(responseKeys));
       if (keys.length === 0) return { responsesUpdated: 0, skipped: 0 };
       const now = Date.now();
-      const [assignmentSnap, sections] = await Promise.all([
+      const [assignmentSnap, sessionSnap] = await Promise.all([
         getDoc(
           doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
         ),
-        readSessionSections(assignmentId),
+        getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)),
       ]);
+      const session = sessionSnap.data() as QuizSession | undefined;
       const ctx: ResponseGradingContext = {
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
-        sections,
+        sections: session?.sections?.length ? session.sections : undefined,
       };
+      // Clearing or an expiry puts the student back on the class level, so that level counts too.
+      const keepVerdicts =
+        visibilityShowsResponses(visibility) ||
+        visibilityShowsResponses(session?.scoreVisibility);
       const revealedAnswers =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
@@ -3742,7 +3772,9 @@ export const useQuizAssignments = (
         const graded = gradeResponseForPublish(data, ctx);
         return {
           score: graded.score ?? deleteField(),
-          answers: graded.answers,
+          answers: keepVerdicts
+            ? graded.answers
+            : answersWithoutVerdicts(graded.answers),
           resultsOverride: {
             mode: 'shown',
             visibility,

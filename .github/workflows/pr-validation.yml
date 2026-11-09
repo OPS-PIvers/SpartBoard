@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - dev-*
+  # The dev-paul merge queue checks each queued group on top of the latest dev-paul.
+  merge_group:
+    branches:
+      - dev-paul
     # No paths-ignore: `summary` is a required check, so it must report on every PR. Docs-only PRs
     # (the nightly journal PRs) pass in seconds via the `changes` job instead.
 
@@ -38,23 +42,48 @@ jobs:
     outputs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
       release: ${{ steps.classify.outputs.release }}
+      rules: ${{ steps.rules.outputs.rules }}
     steps:
+      - uses: actions/checkout@v6
       - id: classify
         uses: actions/github-script@v7
         with:
           script: |
             const pr = context.payload.pull_request;
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              per_page: 100,
-            });
-            const docsOnly = files.length > 0 && files.every((f) => f.filename.endsWith('.md') || f.filename.startsWith('docs/'));
-            const release = pr.base.ref === 'main' && pr.head.ref === 'dev-paul';
+            const group = context.payload.merge_group;
+            const files = pr
+              ? await github.paginate(github.rest.pulls.listFiles, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  per_page: 100,
+                })
+              : (
+                  await github.rest.repos.compareCommits({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    base: group.base_sha,
+                    head: group.head_sha,
+                    per_page: 300,
+                  })
+                ).data.files ?? [];
+            // The compare API lists at most 300 files, so a bigger group never counts as docs-only.
+            const complete = Boolean(pr) || files.length < 300;
+            const docsOnly = complete && files.length > 0 && files.every((f) => f.filename.endsWith('.md') || f.filename.startsWith('docs/'));
+            const release = Boolean(pr) && pr.base.ref === 'main' && pr.head.ref === 'dev-paul';
             core.info(`${files.length} files; docs only: ${docsOnly}; release PR: ${release}`);
             core.setOutput('docs_only', String(docsOnly));
             core.setOutput('release', String(release));
+            require('fs').writeFileSync('changed-files.txt', files.map((f) => f.filename).join('\n'));
+            core.setOutput('complete', String(complete));
+      # Rules tests run only when the rules, their tests or app code those tests import changed.
+      - id: rules
+        run: |
+          rules=$(node .github/scripts/needs-job.mjs rules < changed-files.txt) || rules=true
+          [[ "${{ steps.classify.outputs.complete }}" == true ]] || rules=true
+          [[ "$rules" == false ]] || rules=true
+          echo "Rules tests needed: $rules"
+          echo "rules=$rules" >> "$GITHUB_OUTPUT"
 
   # A dev-* push already ran lint, type-check, unit tests, rules tests and the build on this exact
   # commit. When that run succeeds (waiting for it if it's still going), only E2E runs here.
@@ -70,6 +99,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // A queued group's commit is new, so no dev-branch run exists for it.
+            if (context.payload.merge_group) {
+              core.setOutput('reuse', 'false');
+              return;
+            }
             const headSha = context.payload.pull_request.head.sha;
             const list = async () =>
               (
@@ -132,8 +166,15 @@ jobs:
         run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --shard=${{ matrix.shard }}/3
       - if: matrix.check != 'lint-app'
         run: pnpm run type-check:all
+      # Content-keyed Prettier cache: unchanged files skip formatting checks.
+      - if: matrix.check != 'lint-app'
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.cache/prettier
+          key: prettier-${{ hashFiles('pnpm-lock.yaml', '.prettierrc', '.prettierignore') }}-${{ github.sha }}
+          restore-keys: prettier-${{ hashFiles('pnpm-lock.yaml', '.prettierrc', '.prettierignore') }}-
       - if: matrix.check != 'lint-app' && !cancelled()
-        run: pnpm run format:check
+        run: pnpm run format:check --cache --cache-strategy content
       - if: matrix.check != 'lint-app' && !cancelled()
         run: pnpm run lint:functions
       - if: matrix.check != 'lint-app' && !cancelled()
@@ -147,11 +188,11 @@ jobs:
     if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    name: Unit Tests (shard ${{ matrix.shard }}/4)
+    name: Unit Tests (shard ${{ matrix.shard }}/6)
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -160,7 +201,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run unit tests
-        run: pnpm run test:shard --shard=${{ matrix.shard }}/4 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
+        run: pnpm run test:shard --shard=${{ matrix.shard }}/6 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -169,12 +210,37 @@ jobs:
           path: .vitest-reports/root-shard-${{ matrix.shard }}.json
           retention-days: 1
 
-  # Functions suite (~5s) plus the merged-shard count guard (root and rules) from scripts/checkTestCounts.mjs.
-  test-counts:
-    needs: [test, rules]
+  # Runs beside the root shards so the count guard below doesn't wait on it.
+  functions-test:
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    name: Unit Tests (functions + count guard)
+    name: Unit Tests (functions)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - run: pnpm -C functions test
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-report-functions
+          path: .vitest-reports/functions.json
+          retention-days: 1
+
+  # The merged-shard count guard (root, functions and rules) from scripts/checkTestCounts.mjs.
+  test-counts:
+    needs: [test, functions-test, rules]
+    # Rules tests skip when nothing they read changed; the root and functions guards still run.
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.functions-test.result == 'success' && (needs.rules.result == 'success' || needs.rules.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    name: Unit Tests (count guard)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -189,14 +255,20 @@ jobs:
           merge-multiple: true
 
       - uses: actions/download-artifact@v4
+        if: needs.rules.result == 'success'
         with:
           pattern: vitest-rules-report-shard-*
           path: .vitest-reports/rules-shards
           merge-multiple: true
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: vitest-report-functions
+          path: .vitest-reports
+
       - run: pnpm run test:merge-reports .vitest-reports/root.json .vitest-reports/shards/root-shard-*.json
-      - run: pnpm run test:merge-reports .vitest-reports/rules.json .vitest-reports/rules-shards/rules-shard-*.json
-      - run: pnpm -C functions test
+      - if: needs.rules.result == 'success'
+        run: pnpm run test:merge-reports .vitest-reports/rules.json .vitest-reports/rules-shards/rules-shard-*.json
       - run: pnpm run test:counts
 
   e2e:
@@ -238,7 +310,8 @@ jobs:
   # Fails only on gate failures missing from docs/widget-rubric/gate-baseline.json.
   grader-scope:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.release != 'true'
+    # The queue skips it: each PR's own run already graded the widgets it touches.
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.release != 'true' && github.event_name != 'merge_group'
     runs-on: ubuntu-24.04
     name: Widget Grader Scope
     outputs:
@@ -276,7 +349,7 @@ jobs:
           node-version: '24'
 
       - name: Check tour anchors
-        run: node scripts/checkTourAnchors.ts --base "origin/${{ github.base_ref }}"
+        run: node scripts/checkTourAnchors.ts --base "${{ github.event.merge_group.base_sha || format('origin/{0}', github.base_ref) }}"
 
   widget-grader-gates:
     needs: grader-scope
@@ -321,15 +394,15 @@ jobs:
 
   # Two shards, each with its own emulator; test-counts merges their reports for the rules count floor.
   rules:
-    needs: preflight
-    if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
+    needs: [changes, preflight]
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true' && needs.changes.outputs.rules == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    name: Firestore Rules Tests (shard ${{ matrix.shard }}/2)
+    name: Firestore Rules Tests (shard ${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -353,7 +426,7 @@ jobs:
           restore-keys: firebase-emulators-${{ runner.os }}-
 
       - name: Run Firestore rules tests
-        run: RULES_SHARD=${{ matrix.shard }}/2 pnpm run test:rules
+        run: RULES_SHARD=${{ matrix.shard }}/4 pnpm run test:rules
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -427,6 +500,7 @@ jobs:
         preflight,
         quality,
         test,
+        functions-test,
         test-counts,
         rules,
         build,
@@ -440,7 +514,7 @@ jobs:
     if: always()
     steps:
       - name: Add PR Comment
-        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        if: ${{ github.event_name == 'pull_request' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -457,7 +531,7 @@ jobs:
             })
 
       - name: Add PR Comment on Failure
-        if: ${{ contains(needs.*.result, 'failure') }}
+        if: ${{ github.event_name == 'pull_request' && contains(needs.*.result, 'failure') }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:

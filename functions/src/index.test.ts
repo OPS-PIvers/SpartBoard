@@ -3782,6 +3782,8 @@ describe('index barrel — deployed export set', () => {
     // ClassLink roster
     'getClassLinkRosterV1',
     'classlinkRosterSync',
+    'refreshMyClassesV1',
+    'verifiedClassesFill',
     // AI generation + test-only validators/introspection
     'generateWithAI',
     'generateVideoActivity',
@@ -3925,6 +3927,7 @@ describe('index barrel — deployed export set', () => {
     'pollCodePointer',
     'resolvePollCodeV1',
     'mintPollCodeV1',
+    'claimPollCodeV1',
     'guidedLearningLateRevealKey',
     // Gradebook grade index + student projection
     'gradeIndexQuizResponse',
@@ -4033,6 +4036,7 @@ describe('index barrel — deployed export set', () => {
     // Classroom add-on
     'classroomAddonLoginV1',
     'createClassroomAttachment',
+    'verifyClassroomTeacherV1',
     'assignToClassroomV1',
     'linkClassroomCourse',
     'unlinkClassroomCourse',

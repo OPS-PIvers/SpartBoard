@@ -589,13 +589,17 @@ const TeacherGuidedLearningWidget: React.FC<{
     const data = await loadSet(setId, driveFileId, buildingEntry);
     if (!data) return;
     setActiveSet(data);
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        view: 'player',
-        playerSetId: setId,
+    updateWidget(
+      widget.id,
+      {
+        config: {
+          ...config,
+          view: 'player',
+          playerSetId: setId,
+        },
       },
-    });
+      { pickItem: true }
+    );
   };
 
   const handleEdit = async (

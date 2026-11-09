@@ -137,12 +137,16 @@ describe('Projects — setting up groups', () => {
   it('opens the board on the project it just set up', async () => {
     await openSetupAndCommit();
     await waitFor(() =>
-      expect(updateWidget).toHaveBeenCalledWith('projects-1', {
-        config: expect.objectContaining({
-          view: 'board',
-          projectId: 'project-a',
-        }) as object,
-      })
+      expect(updateWidget).toHaveBeenCalledWith(
+        'projects-1',
+        {
+          config: expect.objectContaining({
+            view: 'board',
+            projectId: 'project-a',
+          }) as object,
+        },
+        { pickItem: true }
+      )
     );
   });
 

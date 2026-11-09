@@ -6,11 +6,17 @@ import { useAuth } from '@/context/useAuth';
 import { BoardLinkedShareContext } from '@/context/boardLinkedShare';
 import { logError } from '@/utils/logError';
 import {
+  boardItemPickKey,
+  resetBoardItemPickSeeds,
+  watchBoardItemPick,
+} from '@/utils/boardItemPicks';
+import {
   publishSharedBoardItem,
   sharedBoardItemDocId,
   sharedBoardItemRef,
   type SharedBoardItemDoc,
   type SharedBoardItemKind,
+  type SharedBoardPublishResult,
 } from '@/utils/sharedBoardItems';
 
 /**
@@ -82,7 +88,10 @@ export function useSharedBoardItem<T>(
 }
 
 // Writes in flight per item; settled ones are forgotten, so a later mount rechecks the stored copy.
-const published = new Map<string, string>();
+const published = new Map<
+  string,
+  { version: string; result: Promise<SharedBoardPublishResult | null> }
+>();
 
 export interface SharedBoardItemPublish<T> {
   kind: SharedBoardItemKind;
@@ -117,6 +126,11 @@ export function useSharedBoardItemPublisher<T>({
       ? `${shareId}/${sharedBoardItemDocId(kind, uid, itemId)}`
       : null;
   const needsStamp = enabled && !!uid && stampedOwnerUid !== uid;
+  // The key whose copy the owner may publish; the owner is stamped only then, never for an item they didn't pick.
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
+  // A key held back for want of a pick, and how many picks arrived for it since.
+  const [unpickedKey, setUnpickedKey] = useState<string | null>(null);
+  const [pickArrivals, setPickArrivals] = useState(0);
 
   const publish = useEffectEvent(
     (target: string, ownerUid: string, id: string, ver: string) =>
@@ -129,24 +143,47 @@ export function useSharedBoardItemPublisher<T>({
   const stamp = useEffectEvent((ownerUid: string) => stampOwner(ownerUid));
 
   useEffect(() => {
-    if (needsStamp && uid) stamp(uid);
-  }, [needsStamp, uid]);
+    if (needsStamp && uid && key && publishableKey === key) stamp(uid);
+  }, [needsStamp, uid, key, publishableKey]);
 
   useEffect(() => {
     if (!key || !shareId || !uid || !itemId || !version) return;
-    if (published.get(key) === version) return;
-    published.set(key, version);
-    publish(shareId, uid, itemId, version)
-      .catch((err: unknown) => {
+    const allow = (r: SharedBoardPublishResult | null) => {
+      if (r === 'written' || r === 'current') setPublishableKey(key);
+      setUnpickedKey(r === 'unpicked' ? key : null);
+    };
+    const inFlight = published.get(key);
+    if (inFlight?.version === version) {
+      void inFlight.result.then(allow);
+      return;
+    }
+    const result = publish(shareId, uid, itemId, version).catch(
+      (err: unknown) => {
         logError('useSharedBoardItemPublisher', err, { kind, itemId });
-      })
-      .finally(() => {
-        if (published.get(key) === version) published.delete(key);
-      });
-  }, [key, shareId, uid, kind, itemId, version]);
+        return null;
+      }
+    );
+    published.set(key, { version, result });
+    void result.then(allow).finally(() => {
+      if (published.get(key)?.result === result) published.delete(key);
+    });
+  }, [key, shareId, uid, kind, itemId, version, pickArrivals]);
+
+  // A pick made later, here, on another device or by the board tools, publishes the copy then.
+  useEffect(() => {
+    if (!key || unpickedKey !== key || !shareId || !uid || !itemId)
+      return undefined;
+    return watchBoardItemPick(
+      uid,
+      shareId,
+      boardItemPickKey(kind, itemId),
+      () => setPickArrivals((n) => n + 1)
+    );
+  }, [key, unpickedKey, shareId, uid, kind, itemId]);
 }
 
-/** Test hook: forget which copies this tab already wrote. */
+/** Test hook: forget which copies this tab already wrote and which shares it seeded. */
 export function resetSharedBoardItemPublishes(): void {
   published.clear();
+  resetBoardItemPickSeeds();
 }

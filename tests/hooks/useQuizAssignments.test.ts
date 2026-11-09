@@ -338,6 +338,99 @@ describe('useQuizAssignments - reopenAssignment', () => {
     expect(sessionPatch).not.toHaveProperty('questionPhase');
   });
 
+  it('keeps the first pausedAt when Pause hits an already-paused run', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+        pausedAt: 1000,
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.pauseAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).not.toHaveProperty('pausedAt');
+  });
+
+  it('keeps the first pausedAt when Reopen hits an already-paused run', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+        pausedAt: 1000,
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.reopenAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).not.toHaveProperty('pausedAt');
+  });
+
+  it('sets pausedAt on a repeat Pause when the paused run has none', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'paused',
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.pauseAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).toHaveProperty('pausedAt');
+  });
+
+  it('keeps a pause left open at End when the run is reopened', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        sessionMode: 'student',
+        status: 'ended',
+        pausedAt: 1000,
+        endedAt: 3000,
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.reopenAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch()).not.toHaveProperty('pausedAt');
+  });
+
+  it('records the reopened pause so Resume credits it to the time limit', async () => {
+    const sessionState: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'student',
+      status: 'ended',
+      pausedAt: 1000,
+      pauseSpans: [{ from: 1000, to: 2000 }],
+      endedAt: 3000,
+    };
+    mockGetDoc.mockImplementation(() =>
+      Promise.resolve({ data: () => sessionState })
+    );
+    batchUpdate.mockImplementation(
+      (ref: string, patch: Record<string, unknown>) => {
+        if (ref.startsWith('quiz_sessions/'))
+          Object.assign(sessionState, patch);
+      }
+    );
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.reopenAssignment(ASSIGNMENT_ID);
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+    expect(sessionState.pauseSpans).toHaveLength(2);
+  });
+
   it('leaves the session usable: after reopen+resume, student-side polling at index 0 returns a real question', async () => {
     // End-to-end coverage for the bug: a teacher-paced session that
     // auto-ended used to leave currentQuestionIndex = totalQuestions, so
@@ -2750,7 +2843,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
-  it('grades responses and writes per-answer isCorrect on score-only publish', async () => {
+  it('grades responses at score-only without putting right/wrong on the student-readable doc', async () => {
     // Two responses: a perfect 2/2 and a partial 1/2. Score is the percentage.
     const refPerfect = { id: 'r-perfect' };
     const refPartial = { id: 'r-partial' };
@@ -2820,9 +2913,9 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
       (sessionCall[1] as { scorePublishedAt?: unknown }).scorePublishedAt
     ).toBeTypeOf('number');
 
-    // Per-response patches carry the computed score plus answers with
-    // isCorrect tagged. Locate by ref so the order in mock.calls
-    // doesn't matter.
+    // Per-response patches carry the computed score, but score-only keeps
+    // right/wrong off the doc the student reads. Locate by ref so the
+    // order in mock.calls doesn't matter.
     const perfectCall = batchUpdate.mock.calls.find(
       ([ref]) => ref === refPerfect
     );
@@ -2834,20 +2927,91 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
       throw new Error('expected updates on all three response refs');
     }
     expect(perfectCall[1]).toMatchObject({ score: 100 });
-    expect(
-      (perfectCall[1] as { answers: { isCorrect: boolean }[] }).answers
-    ).toEqual([
-      expect.objectContaining({ questionId: 'q0', isCorrect: true }),
-      expect.objectContaining({ questionId: 'q1', isCorrect: true }),
-    ]);
     expect(partialCall[1]).toMatchObject({ score: 50 });
-    expect(
-      (partialCall[1] as { answers: { isCorrect: boolean }[] }).answers
-    ).toEqual([
+    for (const call of [perfectCall, partialCall]) {
+      const answers = (call[1] as { answers: Record<string, unknown>[] })
+        .answers;
+      expect(answers.map((a) => a.questionId)).toEqual(['q0', 'q1']);
+      for (const a of answers) expect(a).not.toHaveProperty('isCorrect');
+    }
+    expect(blankCall[1]).toMatchObject({ score: 0, answers: [] });
+  });
+
+  it('keeps per-answer isCorrect at a level that shows responses', async () => {
+    const ref = { id: 'r1' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-and-responses'
+      );
+    });
+
+    const patch = batchUpdate.mock.calls.find(([r]) => r === ref)?.[1] as {
+      answers: { questionId: string; isCorrect?: boolean }[];
+    };
+    expect(patch.answers).toEqual([
       expect.objectContaining({ questionId: 'q0', isCorrect: true }),
       expect.objectContaining({ questionId: 'q1', isCorrect: false }),
     ]);
-    expect(blankCall[1]).toMatchObject({ score: 0, answers: [] });
+  });
+
+  it('keeps isCorrect at score-only for a student whose own publish shows responses', async () => {
+    const shown = { id: 'r-shown' };
+    const follows = { id: 'r-follows' };
+    const answers = [{ questionId: 'q0', answer: 'a', answeredAt: 1 }];
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: shown,
+          data: () => ({
+            studentUid: 's1',
+            answers,
+            resultsOverride: {
+              mode: 'shown',
+              visibility: 'score-and-responses',
+              publishedAt: 1,
+              expiresAt: null,
+            },
+          }),
+        },
+        { ref: follows, data: () => ({ studentUid: 's2', answers }) },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+    });
+
+    const answersOf = (ref: object) =>
+      (
+        batchUpdate.mock.calls.find(([r]) => r === ref)?.[1] as {
+          answers: Record<string, unknown>[];
+        }
+      ).answers;
+    expect(answersOf(shown)[0]).toMatchObject({ isCorrect: true });
+    expect(answersOf(follows)[0]).not.toHaveProperty('isCorrect');
   });
 
   it('writes the answer key to each response, not the session, on score-responses-and-answers publish', async () => {

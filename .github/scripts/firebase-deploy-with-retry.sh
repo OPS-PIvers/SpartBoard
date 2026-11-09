@@ -46,7 +46,24 @@ if [[ ",$DEPLOY_ONLY," =~ ,firestore(:rules)?, ]]; then
 fi
 
 LOG_FILE="$(mktemp)"
-trap 'rm -f "$LOG_FILE"' EXIT
+RULES_LOG="$(mktemp)"
+RULES_OUT="$(mktemp)"
+rules_pid=""
+# The rules release runs beside the CLI deploy; the script's exit waits for it and fails if either failed.
+on_exit() {
+  local code=$?
+  if [[ -n "$rules_pid" ]]; then
+    wait "$rules_pid"
+    local rules_code=$?
+    cat "$RULES_OUT"
+    if (( code == 0 )); then code=$rules_code; fi
+  fi
+  rm -f "$LOG_FILE" "$RULES_LOG" "$RULES_OUT"
+  exit "$code"
+}
+trap on_exit EXIT
+# A cancelled deploy stops the rules release too, as when it ran after the CLI deploy.
+trap 'if [[ -n "$rules_pid" ]]; then pkill -TERM -P "$rules_pid"; kill "$rules_pid"; fi 2>/dev/null; rules_pid=""; exit 143' INT TERM
 
 # Case-insensitive substrings that mark a transient, retryable failure
 # rather than a real deploy error. `HTTP Error: 5[0-9][0-9]` covers every
@@ -85,8 +102,8 @@ node scripts/stripRulesComments.mjs firestore.rules --write
 # the API rejects the CLI's release call with 400 INVALID_ARGUMENT, and the
 # CLI hides that behind a 409. The script makes the same calls, prints the real
 # status, tries the release request shapes the API might accept, and has its own
-# retry for transient statuses. It runs after the CLI deploy, which is where the
-# rules release sat when the CLI still owned it.
+# retry for transient statuses. It runs beside the CLI deploy, which never touches the
+# Firestore rules, so a firebaserules outage no longer adds to the functions rollout.
 release_firestore_rules() {
   if [[ "$RELEASE_RULES" != "true" ]]; then
     echo "Skipping firestore.rules release (RELEASE_FIRESTORE_RULES=$RELEASE_RULES)."
@@ -96,14 +113,14 @@ release_firestore_rules() {
   # The script retries each call for about 15s; firebaserules outages have outlasted that (prod run 40790168222).
   for wait in 60 120 0; do
     echo "::group::release firestore.rules"
-    node scripts/releaseFirestoreRules.mjs "$PROJECT_ID" 2>&1 | tee "$LOG_FILE"
+    node scripts/releaseFirestoreRules.mjs "$PROJECT_ID" 2>&1 | tee "$RULES_LOG"
     code=${PIPESTATUS[0]}
     echo "::endgroup::"
     if [[ "$code" -eq 0 ]]; then
       return 0
     fi
     # Only the final ERROR counts; earlier lines can show blips the script recovered from.
-    if [[ "$wait" -eq 0 ]] || ! sed -n '/^ERROR: /,$p' "$LOG_FILE" | grep -qE ' -> (429|5[0-9][0-9]|fetch failed)( |$)'; then
+    if [[ "$wait" -eq 0 ]] || ! sed -n '/^ERROR: /,$p' "$RULES_LOG" | grep -qE ' -> (429|5[0-9][0-9]|fetch failed)( |$)'; then
       break
     fi
     echo "::warning::firebaserules API unavailable; retrying the firestore.rules release in ${wait}s."
@@ -117,6 +134,9 @@ if [[ -z "$DEPLOY_ONLY" ]]; then
   release_firestore_rules
   exit $?
 fi
+
+release_firestore_rules >"$RULES_OUT" 2>&1 &
+rules_pid=$!
 
 # Function ids whose Cloud Run rollout failed (CPU quota, container import). The CLI can record
 # their new source hash anyway and skip them as unchanged on a plain re-run, so
@@ -150,8 +170,7 @@ while true; do
   fi
 
   if [[ "$code" -eq 0 ]]; then
-    release_firestore_rules
-    exit $?
+    exit 0
   fi
 
   if (( attempt >= MAX_ATTEMPTS )); then

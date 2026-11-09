@@ -193,7 +193,7 @@ export async function loadSessionContext(
       const classId = meta.classIds.length === 1 ? meta.classIds[0] : null;
       return (
         (s.resultsVersion === 2
-          ? scoreMiniAppBest(submission, classId)
+          ? scoreMiniAppBest(s, submission, classId)
           : null) ?? scoreCompletion(toMillis(submission.submittedAt), classId)
       );
     },
