@@ -33,9 +33,13 @@ import {
 import { withQuizSessionContent } from './quizSessionContent';
 import {
   PAPER_HANDWRITING_AI_FEATURE,
+  PAPER_KEPT_PAGES_FEATURE,
+  PAPER_PAGE_SCANS,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   paperCropStoragePath,
+  paperPageArtifactId,
+  paperPageStoragePath,
   paperTranscriptionJobId,
   type PaperPageMap,
   type PaperPrivateAnswer,
@@ -64,6 +68,8 @@ const SEAT_TX_CONCURRENCY = 10;
 // Keeps a seat's transaction (response, private docs, jobs) far below Firestore's 500 writes.
 const MAX_WRITTEN_PER_SHEET = 100;
 const MAX_PAGE = 63;
+// Runaway guard on one chunk's kept pages; entries past it are dropped.
+const MAX_KEPT_PAGES_PER_CALL = MAX_SHEETS_PER_CALL * 10;
 const SCAN_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 // Mirrors storage.rules for the crop path; older Safari uploads PNG under the same name.
 const CROP_MIMES = ['image/webp', 'image/png'] as const;
@@ -101,6 +107,16 @@ export interface ImportPaperResponsesInput {
   sheets: ImportPaperSheet[];
   layoutVersion?: 2;
   scanId?: string;
+  /** `paper-kept-pages` entries, unvalidated until the batch and caller are known; absent imports as before. */
+  pages?: unknown[];
+}
+
+/** One kept page that passed `selectKeptPages`. */
+export interface KeptPage {
+  seat: number;
+  page: number;
+  storagePath: string;
+  mimeType: CropMime;
 }
 
 export interface ImportPaperCollision {
@@ -114,6 +130,8 @@ export interface ImportPaperCollision {
 export interface ImportPaperResponsesResult extends Partial<PaperWrittenImportResult> {
   written: number[];
   collisions: ImportPaperCollision[];
+  /** Present only when kept pages were sent and the caller has `paper-kept-pages`. */
+  keptPages?: { recorded: number; dropped: number };
 }
 
 export interface ImportPaperCaller {
@@ -239,10 +257,18 @@ export function parseImportPaperResponsesInput(
   if (data.layoutVersion !== undefined && data.layoutVersion !== 2)
     invalid('Unknown layoutVersion.');
   const v2 = data.layoutVersion === 2;
+  const pages = Array.isArray(data.pages) ? (data.pages as unknown[]) : null;
   let scanId: string | undefined;
   if (v2) {
     if (typeof data.scanId !== 'string' || !SCAN_ID_PATTERN.test(data.scanId))
       invalid('scanId is required.');
+    scanId = data.scanId;
+  } else if (
+    pages &&
+    typeof data.scanId === 'string' &&
+    SCAN_ID_PATTERN.test(data.scanId)
+  ) {
+    // Kept pages apply to every batch, so their scan id travels without layoutVersion.
     scanId = data.scanId;
   }
   if (!Array.isArray(data.sheets) || data.sheets.length === 0)
@@ -260,7 +286,54 @@ export function parseImportPaperResponsesInput(
     assignmentId: parseId(data.assignmentId, 'assignmentId'),
     sheets,
     ...(v2 ? { layoutVersion: 2 as const, scanId } : {}),
+    ...(pages ? { pages, ...(scanId ? { scanId } : {}) } : {}),
   };
+}
+
+export interface KeptPageScope {
+  uid: string;
+  scanId: string;
+  /** Seats of this call's sheets. */
+  seats: ReadonlySet<number>;
+  keySheetSeat: unknown;
+}
+
+function parseKeptPage(raw: unknown, scope: KeptPageScope): KeptPage | null {
+  if (!isRecord(raw)) return null;
+  const { seat, page, storagePath } = raw;
+  if (typeof seat !== 'number' || !Number.isInteger(seat)) return null;
+  if (typeof page !== 'number' || !Number.isInteger(page)) return null;
+  if (page < 1 || page > MAX_PAGE) return null;
+  // K17: the key sheet is never a student's page.
+  if (!scope.seats.has(seat) || seat === scope.keySheetSeat) return null;
+  const mimeType = raw.mimeType ?? 'image/webp';
+  if (!(CROP_MIMES as readonly unknown[]).includes(mimeType)) return null;
+  // Compared to the path rebuilt from the caller's uid, never parsed from the client's string.
+  if (storagePath !== paperPageStoragePath(scope.uid, scope.scanId, seat, page))
+    return null;
+  return { seat, page, storagePath, mimeType: mimeType as CropMime };
+}
+
+/** Valid kept pages by seat, sorted by page; anything invalid, repeated or over the cap is dropped and counted. */
+export function selectKeptPages(
+  raw: readonly unknown[],
+  scope: KeptPageScope
+): { bySeat: Map<number, KeptPage[]>; dropped: number } {
+  const bySeat = new Map<number, KeptPage[]>();
+  const seen = new Set<string>();
+  let dropped = Math.max(0, raw.length - MAX_KEPT_PAGES_PER_CALL);
+  for (const entry of raw.slice(0, MAX_KEPT_PAGES_PER_CALL)) {
+    const page = parseKeptPage(entry, scope);
+    const key = page ? `${page.seat}:${page.page}` : '';
+    if (!page || seen.has(key)) {
+      dropped += 1;
+      continue;
+    }
+    seen.add(key);
+    bySeat.set(page.seat, [...(bySeat.get(page.seat) ?? []), page]);
+  }
+  for (const list of bySeat.values()) list.sort((a, b) => a.page - b.page);
+  return { bySeat, dropped };
 }
 
 interface BatchDoc {
@@ -373,7 +446,9 @@ export async function handleImportPaperResponses(
   raw: unknown,
   now: number,
   /** AI transcription (`paper-handwriting-ai`); off, inked pages are neither queued nor over quota. */
-  transcriptionGranted: () => Promise<boolean> = () => Promise.resolve(true)
+  transcriptionGranted: () => Promise<boolean> = () => Promise.resolve(true),
+  /** `paper-kept-pages`; read only when the payload carries `pages`, and off ignores them. */
+  keptPagesGranted: () => Promise<boolean> = () => Promise.resolve(false)
 ): Promise<ImportPaperResponsesResult> {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (caller.studentRole || caller.anonymous)
@@ -522,6 +597,42 @@ export async function handleImportPaperResponses(
     seatByKey.set(r.responseKey, r.sheet.seat);
   }
 
+  // Kept pages are not AI work, so they never touch the handwriting quota below.
+  const keptPagesOn = !!input.pages && (await keptPagesGranted());
+  // Without a usable scan id no page can be proven, so none is recorded and nothing is replaced.
+  const keptPages =
+    keptPagesOn && input.pages && input.scanId
+      ? selectKeptPages(input.pages, {
+          uid: caller.uid,
+          scanId: input.scanId,
+          seats: new Set(input.sheets.map((s) => s.seat)),
+          keySheetSeat: batch.keySheetSeat,
+        })
+      : null;
+  const hasStuckArchive = keptPages
+    ? (await import('./quizMediaArchive')).computeHasStuckArchive
+    : null;
+  if (keptPages && input.scanId && keptPages.bySeat.size > 0) {
+    // Written before the responses, so the sweep and the read callable can trace each page to its response.
+    await userRef
+      .collection(PAPER_PAGE_SCANS)
+      .doc(input.scanId)
+      .set(
+        {
+          seats: Object.fromEntries(
+            resolved
+              .filter((r) => keptPages.bySeat.has(r.sheet.seat))
+              .map((r) => [
+                String(r.sheet.seat),
+                { sessionId: input.assignmentId, responseKey: r.responseKey },
+              ])
+          ),
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+  }
+
   // Read-only quota check (D25), reported back as the page count; nothing is charged here.
   const inkPages = resolved.flatMap(({ sheet }) =>
     [
@@ -565,6 +676,13 @@ export async function handleImportPaperResponses(
           versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
         hybrid,
         transcribe,
+        keptPages:
+          keptPages && hasStuckArchive
+            ? {
+                pages: keptPages.bySeat.get(r.sheet.seat) ?? [],
+                hasStuckArchive,
+              }
+            : null,
         now,
       })
     )
@@ -576,6 +694,7 @@ export async function handleImportPaperResponses(
   let jobsCreated = 0;
   let pagesQueued = 0;
   let pagesOverQuota = 0;
+  let pagesRecorded = 0;
   let anyWritten = false;
   for (const o of outcomes) {
     if (o.collision) {
@@ -589,6 +708,7 @@ export async function handleImportPaperResponses(
     jobsCreated += o.jobs;
     pagesQueued += o.queued;
     pagesOverQuota += o.overQuota;
+    pagesRecorded += o.pagesRecorded;
     anyWritten ||= o.hasWritten;
   }
   if (written.length > 0) {
@@ -615,10 +735,19 @@ export async function handleImportPaperResponses(
       );
   }
 
-  if (input.layoutVersion !== 2) return { written, collisions };
+  const kept = keptPagesOn
+    ? {
+        keptPages: {
+          recorded: pagesRecorded,
+          dropped: keptPages?.dropped ?? input.pages?.length ?? 0,
+        },
+      }
+    : {};
+  if (input.layoutVersion !== 2) return { written, collisions, ...kept };
   return {
     written,
     collisions,
+    ...kept,
     keptWritten,
     jobsCreated,
     pagesQueued,
@@ -646,6 +775,13 @@ interface SeatContext {
   hybrid: boolean;
   /** Transcription is on, so inked pages count as queued or over quota. */
   transcribe: boolean;
+  /** Kept pages are on for this import: this seat's pages replace the response's (K12); null leaves them alone. */
+  keptPages: {
+    pages: KeptPage[];
+    hasStuckArchive: (
+      archive: Record<string, Record<string, unknown>>
+    ) => boolean;
+  } | null;
   now: number;
 }
 
@@ -657,6 +793,7 @@ interface SeatOutcome {
   queued: number;
   overQuota: number;
   hasWritten: boolean;
+  pagesRecorded: number;
 }
 
 type AnswerEntry = Record<string, unknown> & { questionId?: unknown };
@@ -706,6 +843,65 @@ function hybridResponseFields(
   };
 }
 
+// Archive bookkeeping a superseded page keeps: a Drive copy, or a compliance delete in progress.
+const keepsArchiveEntry = (entry: Record<string, unknown>): boolean =>
+  typeof entry.driveFileId === 'string' ||
+  typeof entry.orphanedDriveFileId === 'string' ||
+  entry.archiveStatus === 'deleting' ||
+  entry.archiveStatus === 'deleted' ||
+  entry.archiveStatus === 'delete-failed';
+
+/** K12: this scan's pages replace the response's; a superseded page's pending archive entry goes with it. */
+function keptPageFields(
+  existing: admin.firestore.DocumentData | null,
+  kept: NonNullable<SeatContext['keptPages']>,
+  scanId: string
+): Record<string, unknown> {
+  // Recorded as a crop is: `uploaded` at import, whether or not the background upload has landed.
+  const next = kept.pages.map((p) => ({
+    id: paperPageArtifactId(scanId, p.page),
+    slot: 'primary',
+    kind: 'paper-page',
+    storagePath: p.storagePath,
+    mimeType: p.mimeType,
+    uploadState: 'uploaded',
+  }));
+  const prior: Record<string, unknown>[] = Array.isArray(existing?.paperPages)
+    ? (existing.paperPages as unknown[]).filter(isRecord)
+    : [];
+  const nextIds = new Set(next.map((a) => a.id));
+  const archive: Record<string, Record<string, unknown>> = {};
+  if (isRecord(existing?.artifactArchive)) {
+    for (const [id, entry] of Object.entries(existing.artifactArchive)) {
+      if (isRecord(entry)) archive[id] = entry;
+    }
+  }
+  const cleared: string[] = [];
+  for (const a of prior) {
+    if (typeof a.id !== 'string' || nextIds.has(a.id)) continue;
+    const entry = archive[a.id];
+    if (!entry || keepsArchiveEntry(entry)) continue;
+    delete archive[a.id];
+    cleared.push(a.id);
+  }
+  const deleteField = admin.firestore.FieldValue.delete();
+  return {
+    ...(next.length > 0
+      ? { paperPages: next }
+      : prior.length > 0
+        ? { paperPages: deleteField }
+        : {}),
+    ...(cleared.length > 0
+      ? {
+          artifactArchive: Object.fromEntries(
+            cleared.map((id) => [id, deleteField])
+          ),
+          hasStuckArchive: kept.hasStuckArchive(archive),
+        }
+      : {}),
+  };
+}
+
 // D28: MC answers always replace; a written answer replaces only when ungraded and unedited.
 async function importSeat(
   tx: admin.firestore.Transaction,
@@ -720,6 +916,7 @@ async function importSeat(
     queued: 0,
     overQuota: 0,
     hasWritten: (sheet.written ?? []).length > 0,
+    pagesRecorded: 0,
   };
   const snap = await tx.get(ctx.ref);
   const existing = snap.exists ? (snap.data() ?? {}) : null;
@@ -848,11 +1045,18 @@ async function importSeat(
     ),
     ...fresh,
   ];
+  // Same write as the answers, so a page is never recorded on a response that failed to import.
+  const pageFields =
+    ctx.keptPages && scanId
+      ? keptPageFields(existing, ctx.keptPages, scanId)
+      : {};
+  outcome.pagesRecorded = ctx.keptPages?.pages.length ?? 0;
   tx.set(
     ctx.ref,
     ctx.hybrid
-      ? hybridResponseFields(ctx, existing, answers)
+      ? { ...hybridResponseFields(ctx, existing, answers), ...pageFields }
       : {
+          ...pageFields,
           studentUid,
           pin: sheet.pin,
           ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
@@ -1099,6 +1303,16 @@ export const importPaperResponsesV1 = onCall(
         return isGlobalFeatureGranted(
           admin.firestore(),
           PAPER_HANDWRITING_AI_FEATURE,
+          caller.email ?? null,
+          caller.uid
+        );
+      },
+      async () => {
+        if (!caller) return false;
+        const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+        return isGlobalFeatureGranted(
+          admin.firestore(),
+          PAPER_KEPT_PAGES_FEATURE,
           caller.email ?? null,
           caller.uid
         );

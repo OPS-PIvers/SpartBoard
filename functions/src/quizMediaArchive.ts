@@ -33,9 +33,12 @@ import {
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import { defaultDriveUploader } from './driveUpload';
 import {
+  PAPER_PAGE_PREFIX,
+  PAPER_PAGE_SCANS,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_WRITTEN_CROP_PREFIX,
   paperCropStoragePath,
+  paperPageStoragePath,
 } from './paperWrittenTypes';
 import {
   loadTargetDirectory,
@@ -130,6 +133,8 @@ export const STUCK_ARCHIVE_AGE_MS = 2 * 60 * 60 * 1000;
  */
 export const MAX_ARCHIVE_ATTEMPTS = 5;
 const QUIZ_DRIVE_FOLDER = 'Quiz Responses';
+/** Kept scan pages file one level below the quiz's own folder. */
+const KEPT_PAGES_DRIVE_FOLDER = 'Pages';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -241,12 +246,104 @@ export function hasPaperCropStoragePrefix(
   );
 }
 
+/** `paper_pages/{teacherUid}/{scanId}/{seat}/{page}.webp`, owned by this teacher (PNG keeps the name). */
+export function hasPaperPageStoragePrefix(
+  storagePath: string,
+  teacherUid: string
+): boolean {
+  if (!teacherUid) return false;
+  const parts = storagePath.split('/');
+  if (parts.length !== 5) return false;
+  const [root, uid, scanId, seat, file] = parts;
+  return (
+    root === PAPER_PAGE_PREFIX &&
+    uid === teacherUid &&
+    /^[A-Za-z0-9-]{1,64}$/.test(scanId) &&
+    /^[1-9]\d*$/.test(seat) &&
+    /^[1-9]\d?\.webp$/.test(file)
+  );
+}
+
+/** `pg_{scanId}_{page}` split into its parts; null for any id the import would not mint. */
+export function parsePaperPageArtifactId(
+  artifactId: string
+): { scanId: string; page: number } | null {
+  const m = /^pg_([A-Za-z0-9-]{1,64})_([1-9]\d?)$/.exec(artifactId);
+  return m ? { scanId: m[1], page: Number(m[2]) } : null;
+}
+
+/** The kept page with this id in the response's server-written `paperPages`. */
+export function findPaperPageArtifact(
+  response: Record<string, unknown> | undefined,
+  artifactId: string
+): StoredArtifact | null {
+  const pages = Array.isArray(response?.paperPages)
+    ? (response.paperPages as StoredArtifact[])
+    : [];
+  return (
+    pages.find((a) => a?.id === artifactId && a.kind === 'paper-page') ?? null
+  );
+}
+
+/** True when the import recorded this kept page on this response, per the server-only scan lookup. */
+export async function isOwnPaperPagePath(
+  db: Firestore,
+  input: {
+    teacherUid: string;
+    sessionId: string;
+    responseKey: string;
+    artifactId: string;
+    storagePath: string;
+  }
+): Promise<boolean> {
+  const parsed = parsePaperPageArtifactId(input.artifactId);
+  if (
+    !parsed ||
+    !hasPaperPageStoragePrefix(input.storagePath, input.teacherUid)
+  )
+    return false;
+  const snap = await db
+    .collection('users')
+    .doc(input.teacherUid)
+    .collection(PAPER_PAGE_SCANS)
+    .doc(parsed.scanId)
+    .get();
+  const seats: unknown = snap.data()?.seats;
+  if (typeof seats !== 'object' || seats === null) return false;
+  return Object.entries(seats as Record<string, unknown>).some(
+    ([seatText, target]) => {
+      const t = target as { sessionId?: unknown; responseKey?: unknown } | null;
+      return (
+        /^[1-9]\d*$/.test(seatText) &&
+        t?.sessionId === input.sessionId &&
+        t.responseKey === input.responseKey &&
+        paperPageStoragePath(
+          input.teacherUid,
+          parsed.scanId,
+          Number(seatText),
+          parsed.page
+        ) === input.storagePath
+      );
+    }
+  );
+}
+
 /** Artifact kinds that live in Storage in transit and archive to Drive. */
-export type ArchivableKind = 'audio' | 'handwriting' | 'whiteboard';
+export type ArchivableKind =
+  'audio' | 'handwriting' | 'whiteboard' | 'paper-page';
 
 export function isArchivableKind(kind: unknown): kind is ArchivableKind {
-  return kind === 'audio' || kind === 'handwriting' || kind === 'whiteboard';
+  return (
+    kind === 'audio' ||
+    kind === 'handwriting' ||
+    kind === 'whiteboard' ||
+    kind === 'paper-page'
+  );
 }
+
+/** Teacher-uploaded paper scan images: owned by the session teacher, never flag-gated past import. */
+const isPaperImageKind = (kind: unknown): boolean =>
+  kind === 'handwriting' || kind === 'paper-page';
 
 /** Kind-aware transit-path check shared by the archive, cleanup and delete paths. */
 export function isArtifactStoragePathValid(input: {
@@ -264,6 +361,9 @@ export function isArtifactStoragePathValid(input: {
       input.teacherUid,
       input.questionId
     );
+  }
+  if (input.kind === 'paper-page') {
+    return hasPaperPageStoragePrefix(input.storagePath, input.teacherUid);
   }
   return hasQuizMediaStoragePrefix(
     input.storagePath,
@@ -335,6 +435,18 @@ export function sanitizeDriveNameSegment(raw: string): string {
   return cleaned.slice(0, 60);
 }
 
+/** `{LastName}_{FirstName}`, else the sanitized fallback label; shared by every archive file name. */
+function archivePersonLabel(
+  name: StudentNameParts | null,
+  fallbackLabel: string
+): string {
+  const family = sanitizeDriveNameSegment(name?.familyName ?? '');
+  const given = sanitizeDriveNameSegment(name?.givenName ?? '');
+  return family || given
+    ? [family, given].filter(Boolean).join('_').replace(/ /g, '')
+    : sanitizeDriveNameSegment(fallbackLabel) || 'Student';
+}
+
 /**
  * `{LastName}_{FirstName}__Q{n}_take{k}.m4a`. The real name only exists once
  * the file crosses into Drive; Firebase transit stays pseudonymous.
@@ -346,14 +458,18 @@ export function buildArchiveFileName(
   extension = '.m4a',
   takeNumber: number | null = null
 ): string {
-  const family = sanitizeDriveNameSegment(name?.familyName ?? '');
-  const given = sanitizeDriveNameSegment(name?.givenName ?? '');
-  const person =
-    family || given
-      ? [family, given].filter(Boolean).join('_').replace(/ /g, '')
-      : sanitizeDriveNameSegment(fallbackLabel) || 'Student';
   const take = takeNumber === null ? '' : `_take${takeNumber}`;
-  return `${person}__${questionLabel}${take}${extension}`;
+  return `${archivePersonLabel(name, fallbackLabel)}__${questionLabel}${take}${extension}`;
+}
+
+/** `{LastName}_{FirstName}_p{page}.webp` for a kept scan page. */
+export function buildPaperPageFileName(
+  name: StudentNameParts | null,
+  fallbackLabel: string,
+  page: number,
+  extension: string
+): string {
+  return `${archivePersonLabel(name, fallbackLabel)}_p${page}${extension}`;
 }
 
 const MAX_TAKE_NUMBER = 9999;
@@ -424,14 +540,30 @@ export async function ownPaperCropPath(
   return paperCropStoragePath(teacherUid, scanId, seat, questionId);
 }
 
-/** `isArtifactStoragePathValid`, and a handwriting crop must be this response's own seat and live scan. */
+/** `isArtifactStoragePathValid`, and a crop or kept page must be this response's own seat and scan. */
 export async function isArtifactStoragePathOwned(
   input: Parameters<typeof isArtifactStoragePathValid>[0] & {
     responseRef: admin.firestore.DocumentReference;
     response: Record<string, unknown>;
+    /** Kept pages only: proven through the scan lookup, so both are required. */
+    artifactId?: string;
+    db?: Firestore;
   }
 ): Promise<boolean> {
   if (!isArtifactStoragePathValid(input)) return false;
+  if (input.kind === 'paper-page') {
+    return (
+      !!input.db &&
+      !!input.artifactId &&
+      isOwnPaperPagePath(input.db, {
+        teacherUid: input.teacherUid,
+        sessionId: input.sessionId,
+        responseKey: input.responseKey,
+        artifactId: input.artifactId,
+        storagePath: input.storagePath,
+      })
+    );
+  }
   if (input.kind !== 'handwriting') return true;
   const own = await ownPaperCropPath(
     input.responseRef,
@@ -505,7 +637,9 @@ export const deleteQuizArchiveDriveFile = (
   defaultDriveUploader.deleteFileInAppFolder(
     accessToken,
     fileId,
-    QUIZ_DRIVE_FOLDER
+    QUIZ_DRIVE_FOLDER,
+    // `{quiz}/Pages/` holds kept scan pages, one level below the quiz folder.
+    3
   );
 
 /** webm never survives to Drive; AAC in an M4A container always previews. */
@@ -999,19 +1133,24 @@ export async function archiveQuizArtifactCore(
   const answers: StoredAnswer[] = Array.isArray(response.answers)
     ? (response.answers as StoredAnswer[])
     : [];
-  const artifact = findStoredArtifact(answers, questionId, artifactId);
-  if (!artifact) {
+  // A kept page lives only in the server-written `paperPages`, never in student-writable answers.
+  const keptPage = parsePaperPageArtifactId(artifactId);
+  const artifact = keptPage
+    ? findPaperPageArtifact(response, artifactId)
+    : findStoredArtifact(answers, questionId, artifactId);
+  if (!artifact || (artifact.kind === 'paper-page') !== (keptPage !== null)) {
     throw new HttpsError('not-found', 'Artifact not found on this response.');
   }
   const kind = artifact.kind;
   if (!isArchivableKind(kind)) {
     throw new HttpsError(
       'invalid-argument',
-      'Only recorded takes and paper answer crops are archived.'
+      'Only recorded takes and paper scan images are archived.'
     );
   }
-  // Audio and whiteboard files are the student's own take; a paper crop is the teacher's upload.
-  const owner = kind === 'handwriting' ? teacherUid : studentUid;
+  const paperImage = isPaperImageKind(kind);
+  // Audio and whiteboard files are the student's own take; paper crops and pages are the teacher's upload.
+  const owner = paperImage ? teacherUid : studentUid;
   if (callerUid !== null && callerUid !== owner) denyCaller();
   const whiteboardPart =
     kind === 'whiteboard' && isWhiteboardPart(artifact.part)
@@ -1023,8 +1162,8 @@ export async function archiveQuizArtifactCore(
       'Whiteboard files must be a picture or a drawing log.'
     );
   }
-  // Paper crops are not gated by the media feature: nothing past import checks a flag.
-  if (kind !== 'handwriting' && !(await deps.isFeatureGranted(teacherUid))) {
+  // Paper crops and pages are not gated by a feature: nothing past import checks a flag.
+  if (!paperImage && !(await deps.isFeatureGranted(teacherUid))) {
     throw new HttpsError(
       'permission-denied',
       'Media responses are not enabled for this account.'
@@ -1076,7 +1215,20 @@ export async function archiveQuizArtifactCore(
       storagePath !== input.expectedStoragePath) ||
     (kind === 'handwriting' &&
       storagePath !==
-        (await ownPaperCropPath(responseRef, response, teacherUid, questionId)))
+        (await ownPaperCropPath(
+          responseRef,
+          response,
+          teacherUid,
+          questionId
+        ))) ||
+    (kind === 'paper-page' &&
+      !(await isOwnPaperPagePath(db, {
+        teacherUid,
+        sessionId,
+        responseKey,
+        artifactId,
+        storagePath,
+      })))
   ) {
     const refused = new HttpsError(
       'permission-denied',
@@ -1119,7 +1271,7 @@ export async function archiveQuizArtifactCore(
   const questionConfig = publicQuestions.find((q) => q?.id === questionId);
   const takeLimit = questionConfig?.recording?.takeLimit ?? null;
   const existingTakes = countCommittedTakes(answers, questionId, artifactId);
-  if (kind !== 'handwriting' && exceedsTakeLimit(existingTakes, takeLimit)) {
+  if (!paperImage && exceedsTakeLimit(existingTakes, takeLimit)) {
     throw new HttpsError(
       'resource-exhausted',
       'This question has reached its take limit.'
@@ -1222,7 +1374,7 @@ export async function archiveQuizArtifactCore(
     return outcome.lost;
   };
 
-  /** A crop with no Drive grant is held in Storage, not failed: no attempt is counted. */
+  /** A crop or kept page with no Drive grant is held in Storage, not failed: no attempt is counted. */
   const writeAwaitingDrive = async (): Promise<ArchiveResult> => {
     const tombstoned = await db.runTransaction(async (tx) => {
       const fresh = await tx.get(responseRef);
@@ -1269,9 +1421,12 @@ export async function archiveQuizArtifactCore(
           ? 'Recorded audio is no longer in Storage.'
           : kind === 'whiteboard'
             ? 'The whiteboard file is no longer in Storage.'
-            : 'The answer crop is no longer in Storage.'
+            : kind === 'paper-page'
+              ? 'The kept page is no longer in Storage.'
+              : 'The answer crop is no longer in Storage.'
       );
     }
+    // Kept pages share the crops' 2 MB Storage rule.
     const maxBytes = whiteboardPart
       ? whiteboardPart.maxBytes
       : kind === 'audio'
@@ -1286,7 +1441,9 @@ export async function archiveQuizArtifactCore(
             : 'Recording size unknown; cannot safely archive.'
           : kind === 'whiteboard'
             ? 'Whiteboard file size is unknown or over its limit.'
-            : 'Answer crop size is unknown or over the 2 MB limit.'
+            : kind === 'paper-page'
+              ? 'Kept page size is unknown or over the 2 MB limit.'
+              : 'Answer crop size is unknown or over the 2 MB limit.'
       );
     }
     // Storage rules already pin the type; this catches a part/type mismatch.
@@ -1308,20 +1465,25 @@ export async function archiveQuizArtifactCore(
     ) {
       throw new HttpsError('invalid-argument', 'Uploaded file is not audio.');
     }
-    const cropMimeType =
-      kind === 'handwriting'
-        ? stat.contentType ||
-          (typeof artifact.mimeType === 'string' ? artifact.mimeType : '')
-        : '';
+    const cropMimeType = paperImage
+      ? stat.contentType ||
+        (typeof artifact.mimeType === 'string' ? artifact.mimeType : '')
+      : '';
     const cropExtension = HANDWRITING_MIME_EXTENSIONS[cropMimeType];
-    if (kind === 'handwriting' && !cropExtension) {
+    if (paperImage && !cropExtension) {
       unrecoverable = true;
-      throw new HttpsError('invalid-argument', 'Answer crop is not an image.');
+      throw new HttpsError(
+        'invalid-argument',
+        kind === 'paper-page'
+          ? 'Kept page is not an image.'
+          : 'Answer crop is not an image.'
+      );
     }
 
     // Checked before any download, so a teacher without Drive costs one token read.
-    const accessToken =
-      kind === 'handwriting' ? await deps.getAccessToken(teacherUid) : null;
+    const accessToken = paperImage
+      ? await deps.getAccessToken(teacherUid)
+      : null;
 
     const sourceBytes = await deps.downloadObject(storagePath);
     const archiveBytes =
@@ -1332,15 +1494,24 @@ export async function archiveQuizArtifactCore(
       typeof response.pin === 'string' && response.pin
         ? `Pin${response.pin}`
         : `Student-${studentUid.slice(0, 8)}`;
-    const fileName = buildArchiveFileName(
-      name,
-      fallbackLabel,
-      questionLabelFor(publicQuestions, questionId),
-      kind === 'audio' ? '.m4a' : (whiteboardPart?.extension ?? cropExtension),
-      kind === 'handwriting'
-        ? null
-        : takeNumberFor(answers, questionId, artifactId)
-    );
+    const fileName = keptPage
+      ? buildPaperPageFileName(
+          name,
+          fallbackLabel,
+          keptPage.page,
+          cropExtension
+        )
+      : buildArchiveFileName(
+          name,
+          fallbackLabel,
+          questionLabelFor(publicQuestions, questionId),
+          kind === 'audio'
+            ? '.m4a'
+            : (whiteboardPart?.extension ?? cropExtension),
+          kind === 'handwriting'
+            ? null
+            : takeNumberFor(answers, questionId, artifactId)
+        );
     // A title that sanitizes to empty would land loose in Quiz Responses/, where deletes are refused.
     const quizTitle =
       (typeof session.quizTitle === 'string'
@@ -1354,11 +1525,13 @@ export async function archiveQuizArtifactCore(
         ? 'audio/mp4'
         : (whiteboardPart?.mimeType ?? cropMimeType),
       fileName,
-      `${QUIZ_DRIVE_FOLDER}/${quizTitle}`
+      keptPage
+        ? `${QUIZ_DRIVE_FOLDER}/${quizTitle}/${KEPT_PAGES_DRIVE_FOLDER}`
+        : `${QUIZ_DRIVE_FOLDER}/${quizTitle}`
     );
     driveFileId = driveFile.id;
   } catch (error: unknown) {
-    if (kind === 'handwriting' && !driveFileId && isNeedsConsentError(error)) {
+    if (paperImage && !driveFileId && isNeedsConsentError(error)) {
       return writeAwaitingDrive();
     }
     throw toArchiveFailure(error, await writeFailure(error));
@@ -1576,17 +1749,14 @@ export async function retryStorageCleanup(
   const answers: StoredAnswer[] = Array.isArray(data.answers)
     ? (data.answers as StoredAnswer[])
     : [];
-  const artifact = findStoredArtifact(
-    answers,
-    input.questionId,
-    input.artifactId
-  );
+  const artifact = parsePaperPageArtifactId(input.artifactId)
+    ? findPaperPageArtifact(data, input.artifactId)
+    : findStoredArtifact(answers, input.questionId, input.artifactId);
   const storagePath =
     typeof artifact?.storagePath === 'string' ? artifact.storagePath : '';
-  const teacherUid =
-    artifact?.kind === 'handwriting'
-      ? await loadSessionTeacherUid(db, input.sessionId)
-      : '';
+  const teacherUid = isPaperImageKind(artifact?.kind)
+    ? await loadSessionTeacherUid(db, input.sessionId)
+    : '';
   // Clearing the flag without a confirmed delete would strand the object.
   if (
     !(await isArtifactStoragePathOwned({
@@ -1599,6 +1769,8 @@ export async function retryStorageCleanup(
       questionId: input.questionId,
       responseRef,
       response: data,
+      artifactId: input.artifactId,
+      db,
     }))
   ) {
     // No retry can resolve it: drop the flag so the sweep stops; the object is left in place.

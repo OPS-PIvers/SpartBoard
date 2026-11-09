@@ -14,6 +14,7 @@ vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 vi.mock('./quizMediaArchive', () => ({
   archiveQuizArtifactCore: vi.fn(),
   buildDefaultArchiveDeps: vi.fn(),
+  retryStorageCleanup: vi.fn(),
   QUIZ_MEDIA_ARCHIVE_SECRETS: [],
 }));
 vi.mock('firebase-functions/v2/scheduler', () => ({
@@ -32,6 +33,7 @@ import {
   JOB_QUERY_LIMIT,
   buildExpiryWarningEmail,
   parseCropPath,
+  parsePagePath,
   runPaperCropSweep,
   runPaperJobSweep,
   type CropSweepDeps,
@@ -382,6 +384,211 @@ describe('runPaperCropSweep', () => {
   });
 });
 
+describe('runPaperCropSweep, kept pages', () => {
+  const KEY = 'pin-period_1-0003';
+  const PAGE_RESPONSE = `${SESSION}/responses/${KEY}`;
+  const LOOKUP = 'users/t1/paper_page_scans/scan2';
+  const pagePath = (scan = 'scan2', seat = 3, page = 1) =>
+    `paper_pages/t1/${scan}/${seat}/${page}.webp`;
+  const pageArtifact = (scan = 'scan2', page = 1) => ({
+    id: `pg_${scan}_${page}`,
+    kind: 'paper-page',
+    storagePath: pagePath(scan, 3, page),
+  });
+  const pageResponse = (archive: StubData = {}, scan = 'scan2') => ({
+    studentUid: KEY,
+    answers: [],
+    paperPages: [pageArtifact(scan)],
+    artifactArchive: archive,
+  });
+
+  function setup(
+    extra: Record<string, StubData>,
+    pages: ListedCrop[],
+    archiveStatus: 'awaiting-drive' | 'archived' = 'awaiting-drive'
+  ) {
+    const stub = makeStubFirestore({
+      [SESSION]: { teacherUid: 't1', quizTitle: 'Cells' },
+      [LOOKUP]: { seats: { 3: { sessionId: 's1', responseKey: KEY } } },
+      [PAGE_RESPONSE]: pageResponse(),
+      ...extra,
+    });
+    const deleted: string[] = [];
+    const archive = vi.fn(() => Promise.resolve({ archiveStatus }));
+    const cleanUpStorage = vi.fn(() => Promise.resolve());
+    const deps: CropSweepDeps = {
+      db: stub.db as unknown as Firestore,
+      now: () => NOW,
+      listCrops: () => Promise.resolve({ crops: [] }),
+      listPages: () => Promise.resolve({ crops: pages }),
+      deleteCrop: (path) => {
+        deleted.push(path);
+        return Promise.resolve();
+      },
+      archive,
+      cleanUpStorage,
+      getTeacherEmail: () => Promise.resolve('teacher@example.org'),
+    };
+    return { ...stub, deps, deleted, archive, cleanUpStorage };
+  }
+  const listed = (path: string, age = 8 * DAY): ListedCrop => ({
+    path,
+    createdMs: NOW - age,
+  });
+
+  it('removes pages of a scan nothing imported, and stray names, only after 7 days', async () => {
+    const s = setup({}, [
+      listed(pagePath('scanX')),
+      listed(pagePath('scan2', 5)),
+      listed('paper_pages/t1/scan2/3/notes.png'),
+      listed(pagePath('scanY'), DAY),
+    ]);
+    const summary = await runPaperCropSweep(s.deps);
+    expect(summary.pagesUnimportedDeleted).toBe(3);
+    expect(s.deleted).toEqual([
+      pagePath('scanX'),
+      pagePath('scan2', 5),
+      'paper_pages/t1/scan2/3/notes.png',
+    ]);
+  });
+
+  it('K12: removes a page a rescan replaced once it is 7 days old', async () => {
+    const s = setup(
+      {
+        'users/t1/paper_page_scans/scan1': {
+          seats: { 3: { sessionId: 's1', responseKey: KEY } },
+        },
+      },
+      [listed(pagePath('scan1')), listed(pagePath('scan1', 3, 2), DAY)]
+    );
+    const summary = await runPaperCropSweep(s.deps);
+    expect(summary.pagesStaleDeleted).toBe(1);
+    expect(s.deleted).toEqual([pagePath('scan1')]);
+    expect(s.archive).not.toHaveBeenCalled();
+  });
+
+  it('archives a referenced page on any run, without waiting 7 days', async () => {
+    const s = setup({}, [listed(pagePath(), 60 * 1000)], 'archived');
+    expect(await runPaperCropSweep(s.deps)).toMatchObject({
+      pagesArchived: 1,
+    });
+    expect(s.archive).toHaveBeenCalledWith({
+      sessionId: 's1',
+      responseKey: KEY,
+      questionId: '',
+      artifactId: 'pg_scan2_1',
+    });
+    expect(s.deleted).toEqual([]);
+  });
+
+  it('retries the Storage delete an archived page still owes', async () => {
+    const s = setup(
+      {
+        [PAGE_RESPONSE]: pageResponse({
+          pg_scan2_1: { archiveStatus: 'archived', driveFileId: 'd1' },
+        }),
+      },
+      [listed(pagePath())]
+    );
+    expect(await runPaperCropSweep(s.deps)).toMatchObject({
+      pagesCleanedUp: 1,
+    });
+    expect(s.archive).not.toHaveBeenCalled();
+  });
+
+  it('leaves a page a compliance delete owns, or one already lost', async () => {
+    for (const archiveStatus of ['deleting', 'lost']) {
+      const s = setup(
+        { [PAGE_RESPONSE]: pageResponse({ pg_scan2_1: { archiveStatus } }) },
+        [listed(pagePath(), 70 * DAY)]
+      );
+      await runPaperCropSweep(s.deps);
+      expect(s.archive).not.toHaveBeenCalled();
+      expect(s.deleted).toEqual([]);
+    }
+  });
+
+  it('holds a page awaiting Drive, warns once at 53 days and removes it at 60', async () => {
+    const held = (since: number) => ({
+      [PAGE_RESPONSE]: pageResponse({
+        pg_scan2_1: {
+          archiveStatus: 'awaiting-drive',
+          awaitingDriveSince: since,
+        },
+      }),
+    });
+    const warn = setup(held(NOW - 54 * DAY), [listed(pagePath(), 54 * DAY)]);
+    expect(await runPaperCropSweep(warn.deps)).toMatchObject({
+      pagesWarned: 1,
+      mailQueued: 1,
+    });
+    const mail = warn.get('mail/paper-crops-expiring-t1-2026-09-25');
+    expect((mail!.message as { subject: string }).subject).toBe(
+      'SpartBoard: 1 scanned page will be removed on October 1'
+    );
+    expect(await runPaperCropSweep(warn.deps)).toMatchObject({
+      pagesWarned: 0,
+    });
+
+    const expire = setup(held(NOW - AWAITING_DRIVE_HOLD_MS - DAY), [
+      listed(pagePath(), 61 * DAY),
+    ]);
+    expect(await runPaperCropSweep(expire.deps)).toMatchObject({
+      pagesExpired: 1,
+    });
+    expect(expire.deleted).toEqual([pagePath()]);
+    expect(
+      (expire.get(PAGE_RESPONSE)!.artifactArchive as Record<string, StubData>)
+        .pg_scan2_1
+    ).toMatchObject({ archiveStatus: 'lost' });
+  });
+
+  it('sends a teacher one email covering held crops and held pages', async () => {
+    const since = NOW - 54 * DAY;
+    const s = setup(
+      {
+        [RESPONSE]: response({
+          hw_scan1_q1: {
+            archiveStatus: 'awaiting-drive',
+            awaitingDriveSince: since,
+          },
+        }),
+        ...privateDoc(),
+        [`${JOBS}/scan1_3_1_0`]: job({ status: 'done' }),
+        [PAGE_RESPONSE]: pageResponse({
+          pg_scan2_1: {
+            archiveStatus: 'awaiting-drive',
+            awaitingDriveSince: since,
+          },
+        }),
+      },
+      [listed(pagePath(), 54 * DAY)]
+    );
+    s.deps.listCrops = () =>
+      Promise.resolve({ crops: [listed(crop('q1'), 54 * DAY)] });
+    expect(await runPaperCropSweep(s.deps)).toMatchObject({
+      warned: 1,
+      pagesWarned: 1,
+      mailQueued: 1,
+    });
+    // A teacher without Drive costs one archive attempt per run, not one per object.
+    expect(s.archive).toHaveBeenCalledTimes(1);
+    const mails = [...s.store.keys()].filter((k) => k.startsWith('mail/'));
+    expect(mails).toEqual(['mail/paper-crops-expiring-t1-2026-09-25']);
+    const { subject, text } = s.get(mails[0])!.message as {
+      subject: string;
+      text: string;
+    };
+    expect(subject).toBe(
+      'SpartBoard: 2 scanned images will be removed on October 1'
+    );
+    expect(text).toContain(
+      'holding 1 handwritten answer image and 1 scanned page from paper quizzes'
+    );
+    expect(text).toContain('Scores, typed transcripts and grades are kept.');
+  });
+});
+
 describe('helpers', () => {
   it('parses crop paths', () => {
     expect(parseCropPath('paper_written_crops/t1/scan1/3/q1.webp')).toEqual({
@@ -392,6 +599,43 @@ describe('helpers', () => {
     });
     expect(parseCropPath('paper_written_crops/t1/scan1/q1.webp')).toBeNull();
     expect(parseCropPath('quiz_response_media/a/b/c/d.webm')).toBeNull();
+  });
+
+  it('parses only canonical page paths', () => {
+    expect(parsePagePath('paper_pages/t1/scan1/3/2.webp')).toEqual({
+      uid: 't1',
+      scanId: 'scan1',
+      seat: 3,
+      page: 2,
+    });
+    for (const bad of [
+      'paper_pages/t1/scan1/3/2.png',
+      'paper_pages/t1/scan1/0/2.webp',
+      'paper_pages/t1/scan1/3/02.webp',
+      'paper_written_crops/t1/scan1/3/q1.webp',
+    ])
+      expect(parsePagePath(bad)).toBeNull();
+  });
+
+  it('words the warning for pages alone', () => {
+    const { subject, text } = buildExpiryWarningEmail([
+      {
+        quizTitle: 'Cells',
+        removeOn: Date.parse('2026-10-02T12:00:00Z'),
+        kind: 'page',
+      },
+      {
+        quizTitle: 'Cells',
+        removeOn: Date.parse('2026-10-05T12:00:00Z'),
+        kind: 'page',
+      },
+    ]);
+    expect(subject).toBe(
+      'SpartBoard: 2 scanned pages will be removed on October 2'
+    );
+    expect(text).toContain(
+      "holding 2 scanned pages of students' paper quizzes because Google Drive is not connected. They will be removed starting October 2. Scores and grades are kept."
+    );
   });
 
   it('names the earliest removal date in the warning', () => {
