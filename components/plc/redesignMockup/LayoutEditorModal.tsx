@@ -194,7 +194,7 @@ export const LayoutEditorModal: React.FC<{ onClose: () => void }> = ({
         <div className="mb-2 flex shrink-0 items-center gap-3 p-6 pb-0">
           <h3 className="text-lg font-black text-slate-800">Team layout</h3>
           <span className={META}>Everyone on the team sees this layout.</span>
-          <button
+          <button // no-tour-anchor: dev-only redesign mockup, never on the board
             type="button"
             onClick={onClose}
             className="ml-auto rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100"
@@ -234,7 +234,7 @@ export const LayoutEditorModal: React.FC<{ onClose: () => void }> = ({
       </ul>
       <label className="mt-3 flex items-center gap-3 text-sm text-slate-700">
         <span className="w-28 shrink-0 font-semibold">Landing page</span>
-        <select
+        <select // no-tour-anchor: dev-only redesign mockup, never on the board
           value={landing}
           onChange={(e) => setLanding(e.target.value)}
           className={`${INPUT} py-1.5`}
@@ -265,7 +265,7 @@ export const LayoutEditorModal: React.FC<{ onClose: () => void }> = ({
           <>
             <label className="mt-3 flex items-center gap-3 text-sm text-slate-700">
               <span className="w-28 shrink-0 font-semibold">Pinned item</span>
-              <select
+              <select // no-tour-anchor: dev-only redesign mockup, never on the board
                 defaultValue="u3"
                 className={`${INPUT} min-w-0 flex-1 py-1.5`}
               >

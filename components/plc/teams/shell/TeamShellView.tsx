@@ -104,7 +104,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
     <div className="flex h-full flex-col bg-white">
       <div className="relative flex h-14 shrink-0 items-center gap-2 bg-linear-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-xs md:h-16">
         {!showMobileMenu && onMobileMenu && (
-          <button
+          <button // no-tour-anchor: mobile-only control, tours run on the board
             type="button"
             onClick={onMobileMenu}
             className="-ml-2 shrink-0 rounded-lg p-2 transition-colors hover:bg-white/20 md:hidden"
@@ -202,7 +202,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
         >
           <SettingsIcon className="h-5 w-5" aria-hidden="true" />
         </button>
-        <button
+        <button // no-tour-anchor: mobile-only control, tours run on the board
           type="button"
           className={`${HEADER_ICON} md:hidden`}
           aria-label={t('plcDashboard.close', { defaultValue: 'Close' })}
@@ -264,7 +264,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
         {showMobileMenu && (
           <nav className="flex flex-1 flex-col overflow-y-auto py-2 pb-8 md:hidden">
             {pages.map((page) => (
-              <button
+              <button // no-tour-anchor: mobile-only control, tours run on the board
                 key={page.id}
                 type="button"
                 onClick={() => onPage(page.id)}
