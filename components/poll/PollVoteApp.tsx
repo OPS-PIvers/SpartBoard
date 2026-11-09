@@ -98,7 +98,7 @@ const TextAnswerForm: React.FC<{
  * Anonymous, audience-facing poll voting app served at `/poll?code=XXXXX`.
  * The code resolves to a `poll_sessions` doc; the participant signs in
  * anonymously, then follows the teacher's `currentQuestionIndex` in lockstep,
- * writing one `{questionIndex}_{uid}` vote doc per question. Re-tapping a
+ * writing one `{questionIndex}_{voterId}` vote doc per question. Re-tapping a
  * different option overwrites that question's vote (one per device).
  */
 export const PollVoteApp: React.FC = () => {
@@ -113,6 +113,7 @@ export const PollVoteApp: React.FC = () => {
   const [state, dispatch] = useReducer(pollPhoneReducer, initialPollPhoneState);
   const [uid, setUid] = useState('');
   const sessionId = state.phase === 'ready' ? state.sessionId : '';
+  const voterId = state.phase === 'ready' ? state.voterId : '';
 
   // Sign in anonymously, then resolve the join code to its session doc. Both
   // are external-system calls — the correct use of an effect.
@@ -140,6 +141,7 @@ export const PollVoteApp: React.FC = () => {
         dispatch({
           type: 'lookupSucceeded',
           sessionId: found.sessionId,
+          voterId: found.voterId,
           session: found.data,
         });
       } catch {
@@ -233,14 +235,10 @@ export const PollVoteApp: React.FC = () => {
         voterUid = credential.user.uid;
         setUid(voterUid);
       }
+      // Votes are keyed by the session's voter id, never the account; typed answers stay owner-only.
+      const key = target === 'votes' && voterId ? voterId : voterUid;
       await setDoc(
-        doc(
-          db,
-          'poll_sessions',
-          sessionId,
-          target,
-          `${questionIndex}_${voterUid}`
-        ),
+        doc(db, 'poll_sessions', sessionId, target, `${questionIndex}_${key}`),
         {
           questionIndex,
           ...answer,

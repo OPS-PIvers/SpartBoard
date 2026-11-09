@@ -6913,18 +6913,17 @@ service cloud.firestore {
       }
     }
 
-    // Poll join-code pointers, written only by the pollCodePointer trigger; a lookup needs the code.
-    match /poll_codes/{code} {
-      allow get: if signedIn();
-      allow list, write: if false;
-    }
+    // poll_codes pointers and poll_joins records are server-only: codes resolve through resolvePollCodeV1.
 
     // Poll Sessions — public, anonymous device-voting for the Poll widget.
     // sessionId is formatted as {teacherUid}_{pollSessionId}. The teacher owns
-    // the session doc (UID prefix); participants write one uid-keyed vote each.
+    // the session doc (UID prefix); joined devices write one vote each, keyed by their voter id.
     match /poll_sessions/{sessionId} {
-      // A participant reaches one session by get, via the poll_codes pointer; list is owner/admin only.
-      allow get: if signedIn();
+      // The poll_joins id resolvePollCodeV1 writes when this caller joins with the code.
+      function pollJid() { return sessionId + '__' + authUid(); }
+      // A joined device reads its one session; list is owner/admin only.
+      allow get: if signedIn() &&
+                 (mySid(sessionId) || dbExists('poll_joins', pollJid()) || isAdmin());
       allow list: if signedIn() &&
                   (isAdmin() || myOldTeacher());
       // Only staff whose uid prefixes the sessionId, or an admin, may create/update the session doc itself.
@@ -6936,13 +6935,12 @@ service cloud.firestore {
                                 incoming().get('teacherUid', authUid()) == authUid()));
       allow delete: if false;
 
-      // Vote doc id is the composite `{questionIndex}_{uid}` so one listener
+      // Vote doc id is the composite `{questionIndex}_{voterId}` so one listener
       // covers every question in a multi-question poll while still holding the
       // one-vote-per-device-per-question invariant.
       match /votes/{voteId} {
         // Reads the parent session once (let-bound), reused for the active-gate
-        // and the per-question optionIndex range check. Same-path reads are
-        // cached per evaluation, so the preceding exists() isn't double-billed.
+        // and the per-question optionIndex range check; a missing session denies.
         // Invoked only after the allow rule confirmed both indices are ints.
         function voteTargetsActiveInRangeOption() {
           let session = dbGet('poll_sessions', sessionId).data;
@@ -6956,24 +6954,30 @@ service cloud.firestore {
             incoming().optionIndex < counts[questionIndex];
         }
 
-        // Any authed user (incl. anon) may create/update ONLY the vote doc whose
-        // id == `{questionIndex}_{their uid}`. Exactly the three declared keys;
+        // The vote ids this caller may write; get() fails, denying, when it never joined.
+        function pollVoteIds() {
+          let q = string(incoming().questionIndex) + '_';
+          return [q + dbGet('poll_joins', pollJid()).data.get('voterId', authUid()), q + authUid()];
+        }
+
+        // A joined device may create/update ONLY the vote doc whose id ==
+        // `{questionIndex}_{its voter id}`. Exactly the three declared keys;
         // questionIndex int in [0, optionCounts.size()); optionIndex int in
         // [0, optionCounts[questionIndex]); only while active and the question
         // isn't in lockedQuestions. Re-voting the
         // same question overwrites (one per device per question).
+        // The `_{uid}` id is for tabs still on the previous app; drop it after the next main release (AB-165).
         allow create, update: if signedIn() &&
           newKeys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
           isInt('questionIndex') &&
           isInt('optionIndex') &&
           isInt('votedAt') &&
-          voteId == string(incoming().questionIndex) + '_' + authUid() &&
-          dbExists('poll_sessions', sessionId) &&
+          voteId in pollVoteIds() &&
           voteTargetsActiveInRangeOption();
 
-        // Reads open to any authed user — vote docs are anonymous tallies
-        // (no PII), which is what powers the live results on phones + board.
-        allow read: if signedIn();
+        // Vote ids carry voter ids, never accounts. Joined devices read the live tally; so does staff
+        // (co-teachers on a shared board read votes through usePollSessionDocs).
+        allow read: if staffSignedIn() || dbExists('poll_joins', pollJid());
 
         // Delete (reset) is teacher/admin-only.
         allow delete: if signedIn() &&
@@ -7005,7 +7009,7 @@ service cloud.firestore {
           incoming().votedAt <= nowMs() + 86400000 &&
           incoming().get('answeredAt', request.time) == request.time &&
           answerId == string(incoming().questionIndex) + '_' + authUid() &&
-          dbExists('poll_sessions', sessionId) &&
+          dbExists('poll_joins', pollJid()) &&
           answerTargetsOpenTextQuestion();
 
         allow read: if signedIn() &&

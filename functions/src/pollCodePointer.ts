@@ -2,6 +2,7 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
+import { pointerMembers } from './pollCodeMembers';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
@@ -40,14 +41,40 @@ function outranks(mine: Doc, other: Doc | undefined): boolean {
   return n(mine.updatedAt) > n(other.updatedAt);
 }
 
-function pointerFor(sessionId: string, code: string, data: Doc) {
+// Mirrors RESERVATION_TTL_MS in pollCodeResolve.ts.
+const RESERVATION_TTL_MS = 15 * 60 * 1000;
+
+/** The uid a session id belongs to: everything before `_{code}`. */
+const ownerOf = (sessionId: string, code: string) =>
+  sessionId.slice(0, sessionId.length - code.length - 1);
+
+/** A colleague's session takes the code only once the server has checked they share the board (claimPollCodeV1). */
+function mayHold(
+  pointer: Doc | undefined,
+  sessionId: string,
+  code: string
+): boolean {
+  if (!pointer) return true;
+  return pointerMembers(pointer).includes(ownerOf(sessionId, code));
+}
+
+/** A reservation whose session never appeared, which any teacher may then take, as mintPollCode does. */
+function abandonedReservation(pointer: Doc | undefined, now: number): boolean {
+  const at = pointer?.reservedAt ?? pointer?.updatedAt;
+  return typeof at === 'number' && now - at > RESERVATION_TTL_MS;
+}
+
+function pointerFor(sessionId: string, code: string, previous?: Doc) {
+  const teacherUid = ownerOf(sessionId, code);
+  // Carry the checked colleagues along, so the code can move back to whoever held it before.
+  const members = previous ? pointerMembers(previous) : [];
+  const memberUids =
+    members.includes(teacherUid) && members.length > 1 ? members : null;
   return {
     sessionId,
-    teacherUid:
-      typeof data.teacherUid === 'string'
-        ? data.teacherUid
-        : sessionId.slice(0, sessionId.length - code.length - 1),
+    teacherUid,
     updatedAt: Date.now(),
+    ...(memberUids ? { memberUids } : {}),
   };
 }
 
@@ -63,21 +90,26 @@ export async function handlePollSessionWrite(
   const sessions = db.collection('poll_sessions');
   await db.runTransaction(async (tx) => {
     const pointer = await tx.get(pointerRef);
+    const ptr = pointer.exists ? pointer.data() : undefined;
     // Re-read the session: the event's `after` can be stale on retried or reordered deliveries.
     const snap = await tx.get(sessions.doc(sessionId));
     const mine = snap.exists ? snap.data() : undefined;
     // The doc id, not the writer-controlled `code` field, names the code.
     if (mine && mine.code !== undefined && mine.code !== code) return;
-    const current = pointer.exists
-      ? (pointer.data()?.sessionId as unknown)
-      : null;
+    const current = ptr ? (ptr.sessionId as unknown) : null;
     const holds = current === sessionId;
     if (isJoinable(mine) && !holds && typeof current === 'string') {
       const other = await tx.get(sessions.doc(current));
       if (!outranks(mine, other.exists ? other.data() : undefined)) return;
+      if (
+        !mayHold(ptr, sessionId, code) &&
+        !(!other.exists && abandonedReservation(ptr, Date.now()))
+      ) {
+        return;
+      }
     }
     if (isJoinable(mine) && !holds) {
-      tx.set(pointerRef, pointerFor(sessionId, code, mine));
+      tx.set(pointerRef, pointerFor(sessionId, code, ptr));
       return;
     }
     if (!holds) return;
@@ -92,11 +124,12 @@ export async function handlePollSessionWrite(
       const data = d.data();
       if (d.id === sessionId) continue;
       if (codeOfSessionId(d.id) !== code || !isJoinable(data)) continue;
+      if (!mayHold(ptr, d.id, code)) continue;
       if (!best || outranks(data, best.data)) best = { id: d.id, data };
     }
     if (isJoinable(mine) && (!best || best.id === sessionId)) return;
     if (!best) tx.delete(pointerRef);
-    else tx.set(pointerRef, pointerFor(best.id, code, best.data));
+    else tx.set(pointerRef, pointerFor(best.id, code, ptr));
   });
 }
 

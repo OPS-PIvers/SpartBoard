@@ -92,7 +92,11 @@ beforeEach(() => {
   mockSignInAnonymously.mockResolvedValue(undefined);
   mockSetDoc.mockResolvedValue(undefined);
   mockLookup.mockImplementation(() =>
-    Promise.resolve({ sessionId: 'teacher-1_K3F9Q', data: sessionDoc })
+    Promise.resolve({
+      sessionId: 'teacher-1_K3F9Q',
+      voterId: 'vid-1',
+      data: sessionDoc,
+    })
   );
   // Two listeners: the votes collection (ref === 'votes-col' from
   // mockCollection) and the session doc (a doc ref from mockDoc).
@@ -176,7 +180,7 @@ describe('PollVoteApp', () => {
     expect(screen.getByText('Question 2 of 2')).toBeInTheDocument();
   });
 
-  it('writes a question-keyed vote doc', async () => {
+  it('keys the vote doc by question and voter id, never the uid', async () => {
     mountWith('?code=K3F9Q');
     render(<PollVoteApp />);
     await screen.findByText('Favorite fruit?');
@@ -188,7 +192,7 @@ describe('PollVoteApp', () => {
       'poll_sessions',
       'teacher-1_K3F9Q',
       'votes',
-      '0_voter-1'
+      '0_vid-1'
     );
     expect(mockSetDoc).toHaveBeenCalledWith(
       expect.anything(),
@@ -209,7 +213,7 @@ describe('PollVoteApp', () => {
       'poll_sessions',
       'teacher-1_K3F9Q',
       'votes',
-      '1_voter-1'
+      '1_vid-1'
     );
     expect(mockSetDoc).toHaveBeenCalledWith(
       expect.anything(),
@@ -219,7 +223,7 @@ describe('PollVoteApp', () => {
 
   it('shows this question’s tallies once the voter has voted', async () => {
     snapshotDocs = [
-      { id: '0_voter-1', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '0_vid-1', data: { questionIndex: 0, optionIndex: 0 } },
       { id: '0_voter-2', data: { questionIndex: 0, optionIndex: 0 } },
       { id: '0_voter-3', data: { questionIndex: 0, optionIndex: 1 } },
       { id: '1_voter-9', data: { questionIndex: 1, optionIndex: 1 } },
@@ -318,7 +322,7 @@ describe('PollVoteApp', () => {
     expect(await screen.findByTestId('poll-scale-ballot')).toBeInTheDocument();
     expect(screen.getByText('Not sure')).toBeInTheDocument();
     expect(screen.getByText('Very sure')).toBeInTheDocument();
-    // The voter's uid arrives after sign-in resolves, so wait for the pressed state.
+    // A uid-keyed vote from the previous app still shows as this device's; the uid arrives after sign-in.
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^4/ })).toHaveAttribute(
         'aria-pressed',
