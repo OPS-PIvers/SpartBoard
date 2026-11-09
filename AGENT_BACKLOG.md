@@ -208,6 +208,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   git push origin --delete claude/nice-dirac-tv4ijm claude/kind-johnson-m215i6 claude/amazing-meitner-tc2h9q
   git push origin --delete claude/project-thread-aimuy5
   git push origin --delete claude/project-thread-e2p3nk claude/ab112-e2p3nk
+  git push origin --delete claude/project-thread-qn6ncf claude/project-thread-qn6ncf-docs
   ```
 
   </details>
