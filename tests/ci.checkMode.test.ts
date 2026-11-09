@@ -61,8 +61,27 @@ describe('check-mode.mjs', () => {
     ).toBe('full');
   });
 
+  it('reuses a PR run that skipped rules tests because nothing they read changed', () => {
+    const skipped = passedJobs.map((job) =>
+      job.name.startsWith('Firestore Rules Tests')
+        ? { ...job, conclusion: 'skipped' }
+        : job
+    );
+    expect(prChecksRan(skipped)).toBe(true);
+    // A rules shard that failed or was cancelled never counts.
+    expect(
+      prChecksRan([
+        ...skipped,
+        { name: 'Firestore Rules Tests (shard 2/4)', conclusion: 'failure' },
+      ])
+    ).toBe(false);
+  });
+
   it('never reuses a PR run that skipped a required check', async () => {
-    for (const prefix of REQUIRED_PR_JOBS) {
+    const mustRun = REQUIRED_PR_JOBS.filter(
+      (prefix) => prefix !== 'Firestore Rules Tests (shard '
+    );
+    for (const prefix of mustRun) {
       const jobs = passedJobs.map((job) =>
         job.name.startsWith(prefix) ? { ...job, conclusion: 'skipped' } : job
       );
