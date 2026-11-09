@@ -25,36 +25,39 @@ export const TourWaitingChip: React.FC<TourWaiting> = ({
     <div
       role="status"
       data-testid="tour-waiting-chip"
-      className={`absolute left-1/2 top-full mt-2 w-max max-w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl p-2 ${chromeSurface}`}
+      className={`absolute left-1/2 top-full mt-2 w-max max-w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl p-2 ${chromeSurface}`}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="px-1.5 text-sm font-semibold text-slate-700">
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
+        <p className="px-2 text-sm font-semibold text-slate-700">
           {t('tours.waitingChip', { step })}
         </p>
-        {picture && (
-          // no-tour-anchor: tour playback chrome, never a tour's own target
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls={panelId}
-            data-testid="tour-show-me-where"
-            onClick={() => setOpen((o) => !o)}
-            className={secondaryBtn}
-          >
-            {open ? t('tours.hideWhere') : t('tours.showMeWhere')}
-          </button>
-        )}
-        {onTakeBack && (
-          // no-tour-anchor: tour playback chrome, never a tour's own target
-          <button
-            type="button"
-            data-testid="tour-take-me-back"
-            onClick={onTakeBack}
-            className={secondaryBtn}
-          >
-            {t('tours.takeMeBack')}
-          </button>
-        )}
+        {/* The two ways forward wrap together, never one per line. */}
+        <div className="flex items-center gap-1">
+          {picture && (
+            // no-tour-anchor: tour playback chrome, never a tour's own target
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-controls={panelId}
+              data-testid="tour-show-me-where"
+              onClick={() => setOpen((o) => !o)}
+              className={secondaryBtn}
+            >
+              {open ? t('tours.hideWhere') : t('tours.showMeWhere')}
+            </button>
+          )}
+          {onTakeBack && (
+            // no-tour-anchor: tour playback chrome, never a tour's own target
+            <button
+              type="button"
+              data-testid="tour-take-me-back"
+              onClick={onTakeBack}
+              className={secondaryBtn}
+            >
+              {t('tours.takeMeBack')}
+            </button>
+          )}
+        </div>
       </div>
       {picture && open && (
         <div id={panelId} data-testid="tour-where-picture" className="mt-2">

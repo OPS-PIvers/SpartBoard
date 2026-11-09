@@ -176,7 +176,10 @@ export const TourBar: React.FC<TourBarProps> = ({
           onClick={() => autopilot.onChange(!autopilot.on)}
           className={`ml-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
         >
-          {t('tours.autopilot')}
+          {/* With step dots the bar runs out of room on a phone; the switch keeps its name for screen readers. */}
+          <span className={skipped ? 'max-[440px]:sr-only' : undefined}>
+            {t('tours.autopilot')}
+          </span>
           <span
             aria-hidden="true"
             className={`relative h-4 w-7 rounded-full transition-colors motion-reduce:transition-none ${

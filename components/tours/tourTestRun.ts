@@ -178,6 +178,17 @@ export const sampleHelpItems = (): HelpResourceItem[] =>
     })
   );
 
+// A set to play as a teacher would (no Autopilot, no recording), for screenshots on the dummy backend.
+let pendingPlay: GuidedLearningSet | null = null;
+
+/** Hands the runner a set to play as an ordinary run; dev builds only, one launch. */
+export function takePlayTour(setId: string): GuidedLearningSet | null {
+  if (!pendingPlay || pendingPlay.id !== setId) return null;
+  const set = pendingPlay;
+  pendingPlay = null;
+  return set;
+}
+
 /** Hands the runner this set instead of a Firestore read; one launch only. */
 export function takeTestTour(setId: string): GuidedLearningSet | null {
   if (!pending || pending.id !== setId) return null;
@@ -230,6 +241,8 @@ declare global {
   interface Window {
     __liveTourRun?: {
       start: (view: ConnectorTourView) => void;
+      /** Plays the tour as a teacher would, without Autopilot or a report. */
+      play: (view: ConnectorTourView) => void;
       state: () => TestRunState | null;
       /** The Firebase project the page talks to; a run needs the dummy one. */
       project: string;
@@ -249,6 +262,18 @@ export function installTestRunHook(): void {
           `Live tour browser runs need the ${TEST_RUN_PROJECT} Firebase project (vite-verify).`
         );
       startTestTour(view);
+    },
+    play: (view) => {
+      if (project() !== TEST_RUN_PROJECT)
+        throw new Error(
+          `Live tour browser runs need the ${TEST_RUN_PROJECT} Firebase project (vite-verify).`
+        );
+      const set = setFromConnectorView(view);
+      // A teacher's run starts with Autopilot off unless the tour asks for it.
+      pendingPlay = set.tourSetup
+        ? { ...set, tourSetup: { ...set.tourSetup, autopilot: false } }
+        : set;
+      requestStartTour({ setId: set.id, draft: true });
     },
     state: () => run,
     get project() {

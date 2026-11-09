@@ -152,6 +152,7 @@ import {
   reportTestStep,
   SAMPLE_CLASS_NAME,
   sampleStudents,
+  takePlayTour,
   takeTestTour,
   testStepFound,
 } from './tourTestRun';
@@ -1106,8 +1107,11 @@ export const LiveTourRunner: React.FC = () => {
     };
     void (async () => {
       try {
-        const test = import.meta.env.DEV ? takeTestTour(req.setId) : null;
+        const played = import.meta.env.DEV ? takePlayTour(req.setId) : null;
+        const test =
+          import.meta.env.DEV && !played ? takeTestTour(req.setId) : null;
         const set =
+          played ??
           test ??
           (req.draft
             ? await loadBuildingSet(req.setId)
