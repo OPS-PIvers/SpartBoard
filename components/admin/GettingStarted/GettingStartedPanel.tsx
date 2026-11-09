@@ -39,15 +39,19 @@ export const GettingStartedPanel: React.FC = () => {
   const { user } = useAuth();
   const { tours, loading } = useGettingStartedSettings();
   const { items, loading: itemsLoading } = useHelpResources({
-    includeHidden: false,
+    includeHidden: true,
   });
   const liveSetIds = useLiveTourSetIds();
   const [picked, setPicked] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const titleOf = (itemId: string): string | null =>
-    items.find((item) => item.id === itemId)?.title ?? null;
+  // Hidden guides stay listable so a draft can be lined up; teachers skip them until shown.
+  const titleOf = (itemId: string): string | null => {
+    const item = items.find((other) => other.id === itemId);
+    if (!item) return null;
+    return item.visible === false ? `${item.title} (hidden)` : item.title;
+  };
 
   const persist = async (next: GettingStartedEntry[]) => {
     setSaving(true);
@@ -260,7 +264,7 @@ export const GettingStartedPanel: React.FC = () => {
               <option value="">Choose a live tour</option>
               {options.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.title}
+                  {titleOf(item.id)}
                 </option>
               ))}
             </select>
