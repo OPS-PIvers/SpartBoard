@@ -351,7 +351,13 @@ export const startPollSession = async (
   return {
     ...base,
     joinCode: code,
-    ...(reuse ? {} : { joinCodeOwnerUid: teacherUid }),
+    // A code we minted, or an unstamped one whose last session we ran on our own board, is ours.
+    ...(!reuse ||
+    (!boardShareId &&
+      !config.joinCodeOwnerUid &&
+      config.lastPollSessionOwnerUid === teacherUid)
+      ? { joinCodeOwnerUid: teacherUid }
+      : {}),
     activePollSessionId: code,
     activePollSessionOwnerUid: teacherUid,
     currentQuestionIndex,

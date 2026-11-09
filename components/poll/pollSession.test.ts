@@ -435,6 +435,21 @@ describe('startPollSession code ownership', () => {
     });
   });
 
+  it('stamps a legacy code its own teacher reuses on their board', async () => {
+    const { joinCodeOwnerUid: _owner, ...legacy } = stale;
+    const next = await startPollSession(
+      {
+        ...legacy,
+        lastPollSessionId: 'OTHER',
+        lastPollSessionOwnerUid: 'teacher-1',
+      },
+      'teacher-1',
+      'resume'
+    );
+    expect(mockMint).not.toHaveBeenCalled();
+    expect(next.joinCodeOwnerUid).toBe('teacher-1');
+  });
+
   it('reuses a legacy code with no recorded owner', async () => {
     const { joinCodeOwnerUid: _owner, ...legacy } = stale;
     const next = await startPollSession(legacy, 'teacher-2', 'resume');
