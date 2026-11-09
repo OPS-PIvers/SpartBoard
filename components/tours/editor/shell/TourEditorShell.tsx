@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -35,9 +35,12 @@ import {
 import { tourAttr } from '@/config/tourAnchors';
 import { secondaryBtn } from '@/components/tours/tourButtons';
 import {
+  chromeRing,
   focusRing,
   headerBar,
   headerIconBtn,
+  headerMuted,
+  headerMutedDot,
   warnChip,
 } from '@/components/common/lightChrome';
 import { TourShellMenu } from './TourShellMenu';
@@ -82,14 +85,14 @@ export const TourShellStatus: React.FC<{ adapter: TourShellAdapter }> = ({
     <p
       aria-live="polite"
       data-testid="tour-shell-status"
-      className="flex min-w-0 items-center gap-1.5 text-xs text-[#c3cae6]"
+      className={`flex min-w-0 items-center gap-1.5 text-xs ${headerMuted}`}
     >
       {saveState === 'conflict' || saveState === 'error' ? null : (
         <>
           <span
             aria-hidden="true"
             className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-              saveState === 'saving' ? 'bg-[#c3cae6]' : 'bg-green-400'
+              saveState === 'saving' ? headerMutedDot : 'bg-green-400'
             }`}
           />
           <span className="shrink-0">
@@ -121,6 +124,8 @@ export const TourShellMainButton: React.FC<{ adapter: TourShellAdapter }> = ({
   const { t } = useTranslation();
   const { main, publishing, publish } = adapter;
   const Icon = publishing ? Loader2 : MAIN_ICON[main.state];
+  // Published reads as done: a quiet chip with a green tick, not a greyed-out button.
+  const done = main.state === 'published' && !publishing;
   const label = publishing
     ? t('tours.shell.main_publishing')
     : main.state === 'publish' && publish === 'changed'
@@ -133,17 +138,17 @@ export const TourShellMainButton: React.FC<{ adapter: TourShellAdapter }> = ({
       data-state={main.state}
       disabled={main.disabled || publishing}
       onClick={() => adapter.onMain(main.state)}
-      className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed ${
-        main.state === 'published'
-          ? 'disabled:bg-white/10 disabled:text-[#c3cae6]'
-          : 'disabled:opacity-50'
+      className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60 ${
+        done
+          ? 'cursor-default bg-white/10 text-white'
+          : 'bg-white text-brand-blue-dark hover:bg-brand-blue-lighter disabled:cursor-not-allowed disabled:opacity-50'
       }`}
       {...tourAttr('tour-editor.main')}
     >
       <Icon
         className={`h-4 w-4 shrink-0 ${
           publishing ? 'animate-spin motion-reduce:animate-none' : ''
-        }`}
+        } ${done ? 'text-green-300' : ''}`}
         aria-hidden="true"
       />
       <span className="truncate">{label}</span>
@@ -159,15 +164,25 @@ export const TourShellHeader: React.FC<{
 }> = ({ adapter, chrome, alert }) => {
   const { t } = useTranslation();
   const { undo } = adapter;
+  const title = adapter.title.trim() || t('tours.welcomeTitle');
   return (
     <header
       data-testid="tour-shell-header"
       className={`flex flex-col gap-1 px-3 pb-2.5 pt-2 ${headerBar}`}
     >
       <div className="flex items-start gap-1">
-        <h2 className="min-w-0 flex-1 pt-1 wrap-break-word text-sm font-semibold text-white">
-          {adapter.title.trim() || t('tours.welcomeTitle')}
+        <h2
+          title={title}
+          className="line-clamp-2 min-w-0 flex-1 pt-1 wrap-break-word text-sm font-semibold text-white"
+        >
+          {title}
         </h2>
+        {chrome}
+      </div>
+      <div className="flex min-h-6 items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <TourShellStatus adapter={adapter} />
+        </div>
         {undo && (
           <>
             <button
@@ -176,7 +191,7 @@ export const TourShellHeader: React.FC<{
               disabled={!undo.canUndo}
               aria-label={t('glStudio.undo')}
               title={t('glStudio.undo')}
-              className={`${headerIconBtn} disabled:opacity-40`}
+              className={`${headerIconBtn} -my-1 disabled:opacity-40`}
             >
               <Undo2 className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -186,15 +201,13 @@ export const TourShellHeader: React.FC<{
               disabled={!undo.canRedo}
               aria-label={t('glStudio.redo')}
               title={t('glStudio.redo')}
-              className={`${headerIconBtn} disabled:opacity-40`}
+              className={`${headerIconBtn} -my-1 disabled:opacity-40`}
             >
               <Redo2 className="h-4 w-4" aria-hidden="true" />
             </button>
           </>
         )}
-        {chrome}
       </div>
-      <TourShellStatus adapter={adapter} />
       {alert}
       <div className="mt-1 flex items-center gap-1.5">
         {adapter.onPlay && (
@@ -202,13 +215,13 @@ export const TourShellHeader: React.FC<{
             type="button"
             onClick={adapter.onPlay}
             disabled={adapter.playDisabled}
-            title={adapter.playHint}
+            aria-label={t('tours.shell.play')}
+            title={adapter.playHint ?? t('tours.shell.play')}
             data-testid="tour-shell-play"
-            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-white/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
+            className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40"
             {...tourAttr('tour-editor.play')}
           >
-            <Play className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('tours.shell.play')}
+            <Play className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
         <TourShellMainButton adapter={adapter} />
@@ -270,7 +283,37 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
     })
   );
   const { steps, onMove } = adapter;
+  const list = useRef<HTMLOListElement>(null);
+  const dragging = useRef(false);
+  const selectedId = steps[adapter.selected]?.id;
+  // Keeps the selected row in view inside the outline, never while a row drags or a field has focus.
+  useEffect(() => {
+    const ol = list.current;
+    if (!ol || !selectedId || dragging.current) return;
+    const active = document.activeElement;
+    if (
+      active &&
+      ol.contains(active) &&
+      active.matches('input, textarea, select')
+    )
+      return;
+    const row = Array.from(ol.children).find(
+      (el) => el.getAttribute('data-step-id') === selectedId
+    );
+    if (!row) return;
+    const box = ol.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    const top = r.top - box.top;
+    const below = r.bottom - box.bottom;
+    const by = top < 0 ? top : below > 0 ? Math.min(below, top) : 0;
+    if (by === 0) return;
+    const still =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    ol.scrollBy({ top: by, behavior: still ? 'auto' : 'smooth' });
+  }, [selectedId]);
   const onDragEnd = ({ active, over }: DragEndEvent) => {
+    dragging.current = false;
     if (!over || active.id === over.id || !onMove) return;
     const to = steps.findIndex((s) => s.id === over.id);
     if (to >= 0) onMove(String(active.id), to);
@@ -287,6 +330,12 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToVerticalAxis]}
+      onDragStart={() => {
+        dragging.current = true;
+      }}
+      onDragCancel={() => {
+        dragging.current = false;
+      }}
       onDragEnd={onDragEnd}
     >
       <SortableContext
@@ -294,6 +343,7 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
         strategy={verticalListSortingStrategy}
       >
         <ol
+          ref={list}
           data-testid="tour-editor-outline"
           className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 pb-3 pt-1.5"
         >
@@ -349,7 +399,7 @@ const OutlineRow: React.FC<{
       aria-current={selected ? 'step' : undefined}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group rounded-xl ${
-        selected ? 'bg-brand-blue-lighter ring-1 ring-inset ring-[#d5daec]' : ''
+        selected ? `bg-brand-blue-lighter ring-1 ring-inset ${chromeRing}` : ''
       } ${isDragging ? 'relative z-10 bg-white shadow-lg' : ''}`}
     >
       <div className="flex items-start">
@@ -369,8 +419,13 @@ const OutlineRow: React.FC<{
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span
+              data-fallback={step.titleIsFallback ? '' : undefined}
               className={`wrap-break-word text-sm ${
-                selected ? 'font-semibold text-slate-900' : 'text-slate-700'
+                step.titleIsFallback
+                  ? 'italic text-slate-500'
+                  : selected
+                    ? 'font-semibold text-slate-900'
+                    : 'text-slate-700'
               }`}
             >
               {step.title}

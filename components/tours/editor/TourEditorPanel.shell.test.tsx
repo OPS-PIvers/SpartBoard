@@ -189,6 +189,53 @@ describe('Live tour editor header', () => {
     expect(session.select).toHaveBeenCalledWith(1);
   });
 
+  it('marks each step that needs text in the outline, with its stand-in title muted', () => {
+    renderPanel(
+      sessionFor(
+        tourOf([step('a'), step('b', { label: '', text: '' }), step('c')])
+      )
+    );
+    const rows = screen.getAllByTestId('tour-editor-step');
+    expect(rows[1]).toHaveTextContent('Needs text');
+    expect(rows[1].querySelector('[data-fallback]')).toHaveTextContent(
+      'Open Tools button in the collapsed dock'
+    );
+    expect(rows[0]).not.toHaveTextContent('Needs text');
+    expect(rows[2]).not.toHaveTextContent('Needs text');
+    expect(rows[0].querySelector('[data-fallback]')).toBeNull();
+  });
+
+  it('puts the cursor in the Title of the first step without text', async () => {
+    const set = tourOf([
+      step('a'),
+      step('b', { label: '', text: '' }),
+      step('c', { label: '' }),
+    ]);
+    const Stateful = () => {
+      const [selected, select] = React.useState(0);
+      return <Wired session={sessionFor(set, { selected, select })} />;
+    };
+    render(
+      <AuthContext.Provider
+        value={
+          {
+            user: { uid: 'admin-1', email: 'admin@school.org' },
+            canAccessFeature: () => false,
+          } as unknown as AuthContextType
+        }
+      >
+        <Stateful />
+      </AuthContext.Provider>
+    );
+    fireEvent.click(main());
+    await act(
+      () => new Promise<void>((done) => requestAnimationFrame(() => done()))
+    );
+    const card = screen.getByTestId('tour-editor-card');
+    expect(card.closest('[data-step-id]')).toHaveAttribute('data-step-id', 'b');
+    expect(document.activeElement).toBe(within(card).getByLabelText('Title'));
+  });
+
   it('shows Published, disabled, then Publish changes once something changed', () => {
     const set = tourOf([step('a')]);
     h.published = { set, publishedAt: 5, publishedBy: 'admin-1' };

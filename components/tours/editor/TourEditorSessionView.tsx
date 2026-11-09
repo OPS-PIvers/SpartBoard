@@ -30,6 +30,7 @@ import { TourEditorPanel } from './TourEditorPanel';
 import { TourEditorSettings } from './TourEditorSettings';
 import { useEditorThumbnails } from './useEditorThumbnails';
 import { useLiveTourPublish } from './useLiveTourPublish';
+import { tourEditorDevSeed } from './devSeed';
 import { liveCheckNeeded } from './liveCheck';
 import type { TourEditorSession } from './useTourEditorSession';
 
@@ -39,7 +40,9 @@ const PublishedPanel: React.FC<
     session: TourEditorSession;
   }
 > = (props) => {
-  const publish = useLiveTourPublish(props.session);
+  const live = useLiveTourPublish(props.session);
+  const seeded = tourEditorDevSeed()?.publish;
+  const publish = seeded ? { ...live, status: seeded } : live;
   return <TourEditorPanel {...props} publish={publish} />;
 };
 
@@ -136,7 +139,10 @@ const TourEditorSessionView: React.FC = () => {
   return (
     <PublishedPanel
       session={session}
-      checkNeeded={liveCheckNeeded(review, session.set.steps)}
+      checkNeeded={
+        tourEditorDevSeed()?.checkNeeded ??
+        liveCheckNeeded(review, session.set.steps)
+      }
       playback={playback}
       readAloud={{
         on: target.readAloud,
