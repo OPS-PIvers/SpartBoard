@@ -87,13 +87,34 @@ export interface SkippedSheet {
  * sheet recorded bare letters; once the quiz was filled in from the teacher's
  * paper, those letters mean the filled options in the order her paper prints.
  */
+export function isRewordOnly(
+  recorded: readonly string[],
+  current: readonly string[]
+): boolean {
+  if (recorded.length !== current.length) return false;
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const was = recorded.map(norm);
+  const now = current.map(norm);
+  return now.every(
+    (text, i) =>
+      text === was[i] || (!was.includes(text) && !now.includes(was[i]))
+  );
+}
+
 export function printedOptionsFor(
   batch: Pick<PaperBatch, 'choiceOrder'>,
   question: QuizQuestion | undefined,
   questionId: string
 ): string[] {
   const recorded = batch.choiceOrder?.[questionId];
-  if (recorded && !isPlaceholderLetterChoices(recorded)) return [...recorded];
+  if (recorded && !isPlaceholderLetterChoices(recorded)) {
+    // A teacher's own paper reworded after printing keeps its letters, so new scans use today's wording.
+    if (question?.paperOwnTest && question.type === 'MC') {
+      const current = rowsFromQuestion(question).map((r) => r.text);
+      if (isRewordOnly(recorded, current)) return current;
+    }
+    return [...recorded];
+  }
   // An own-test fill or an editor arrangement keeps the paper's letters; an older document fill stored the answer first.
   if (
     question &&

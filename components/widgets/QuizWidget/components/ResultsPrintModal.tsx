@@ -933,9 +933,17 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                         )}
                         className="accent-brand-blue-primary"
                       />
-                      <span className="min-w-0 flex-1 truncate">{shown}</span>
+                      <span
+                        className="max-w-[60%] shrink-0 truncate"
+                        title={shown}
+                      >
+                        {shown}
+                      </span>
                       {student.period && (
-                        <span className="shrink-0 text-xs text-slate-500">
+                        <span
+                          className="min-w-0 flex-1 truncate text-right text-xs text-slate-500"
+                          title={student.period}
+                        >
                           {student.period}
                         </span>
                       )}
