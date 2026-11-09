@@ -73,6 +73,10 @@ import {
   GETTING_STARTED_SETTINGS_DOC,
   normalizeGettingStartedSidebarSwitch,
 } from '@/config/gettingStarted';
+import {
+  VERIFIED_CLASSES_FILL_SETTINGS_DOC,
+  normalizeVerifiedClassesFillSettings,
+} from '@/config/verifiedClassesFill';
 
 export interface RolloutSwitch {
   docId: string;
@@ -228,5 +232,12 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Getting Started in the sidebar',
     description: "Shows the item below What's New. On by default.",
     normalize: normalizeGettingStartedSidebarSwitch,
+  },
+  {
+    docId: VERIFIED_CLASSES_FILL_SETTINGS_DOC,
+    title: 'Fill verified class lists',
+    description:
+      'Each night, records the classes ClassLink says each teacher teaches. Substitute launches and shared wall edits then check that list.',
+    normalize: normalizeVerifiedClassesFillSettings,
   },
 ];
