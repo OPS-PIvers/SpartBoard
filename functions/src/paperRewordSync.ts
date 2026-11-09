@@ -37,6 +37,8 @@ export interface PaperRewordResult {
 interface Slots {
   from: string[];
   to: string[];
+  /** The wording differs from the batch's record. */
+  changed: boolean;
 }
 
 interface AnswerEntry {
@@ -105,17 +107,31 @@ export function parsePaperRewordInput(raw: unknown): PaperRewordInput {
   return { quizId, questions };
 }
 
-/** The questions on this batch whose wording really changed. */
+const isLetterStub = (order: readonly string[]) =>
+  order.every((text, i) => text.trim().toUpperCase() === 'ABCDEFGH'[i]);
+
+/** The questions on this batch that kept every choice at its letter. */
 function slotsFor(
   choiceOrder: Record<string, string[]> | undefined,
   questions: readonly PaperRewordQuestion[]
 ): Map<string, Slots> {
   const out = new Map<string, Slots>();
   for (const { questionId, choices } of questions) {
-    const from = choiceOrder?.[questionId];
-    if (!from || !isRewordOnly(from, choices)) continue;
-    if (from.every((text, i) => norm(text) === norm(choices[i]))) continue;
-    out.set(questionId, { from, to: choices.map((c) => c.trim()) });
+    const recorded = choiceOrder?.[questionId];
+    if (!recorded) continue;
+    // A stub printed bubble letters, and the real question may have fewer choices.
+    const from =
+      isLetterStub(recorded) && choices.length < recorded.length
+        ? recorded.slice(0, choices.length)
+        : recorded;
+    if (!isRewordOnly(from, choices)) continue;
+    out.set(questionId, {
+      from,
+      to: choices.map((c) => c.trim()),
+      changed:
+        from.length !== recorded.length ||
+        from.some((text, i) => norm(text) !== norm(choices[i])),
+    });
   }
   return out;
 }
@@ -134,14 +150,18 @@ function rewrite(
       return entry;
     }
     const given = norm(entry.answer);
-    const at = plan.from.findIndex((text) => norm(text) === given);
+    // A letter saved by an earlier run still holds if that run stopped before the batch moved.
+    const at =
+      typeof entry.paperSlot === 'number' && entry.paperSlot < plan.to.length
+        ? entry.paperSlot
+        : plan.from.findIndex((text) => norm(text) === given);
     if (at < 0 || norm(plan.to[at]) === given) return entry;
     changes.push({
       questionId: entry.questionId as string,
       from: entry.answer,
       to: plan.to[at],
     });
-    return { ...entry, answer: plan.to[at] };
+    return { ...entry, answer: plan.to[at], paperSlot: at };
   });
   return { answers: next, changes };
 }
@@ -227,9 +247,10 @@ export async function handlePaperRewordSync(
     const slots = plans.get(batch.id);
     if (!slots) continue;
     const fields: Record<string, string[]> = {};
-    for (const [questionId, { to }] of slots) {
-      fields[`choiceOrder.${questionId}`] = to;
+    for (const [questionId, { to, changed }] of slots) {
+      if (changed) fields[`choiceOrder.${questionId}`] = to;
     }
+    if (Object.keys(fields).length === 0) continue;
     await batch.ref.update(fields);
     result.batchesUpdated += 1;
   }

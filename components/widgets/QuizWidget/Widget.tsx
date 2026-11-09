@@ -850,6 +850,7 @@ const TeacherQuizWidget: React.FC<{
     paperSheets.enabled && canAccessFeature(PAPER_REWORD_SYNC_FEATURE);
   const lastRewordSync = useRef(new Map<string, string>());
   const lastRewordErrorAt = useRef(0);
+  const latestSavedQuiz = useRef<QuizData | null>(null);
   /** Saved answers are choice text, so scanned tests follow a teacher's rewording. */
   const syncPaperRewords = async (quiz: QuizData) => {
     if (
@@ -4239,6 +4240,10 @@ const TeacherQuizWidget: React.FC<{
             }
           : {})}
         onClose={() => {
+          // Only finished wording: an autosave can catch a half-typed choice.
+          const finished = latestSavedQuiz.current ?? editingQuiz;
+          latestSavedQuiz.current = null;
+          if (finished) void syncPaperRewords(finished);
           setEditingQuiz(null);
           setEditingMeta(null);
         }}
@@ -4254,7 +4259,7 @@ const TeacherQuizWidget: React.FC<{
             // Adopt what was written. Without this a new quiz keeps saving
             // with no drive file id, so every retitled autosave orphans a file.
             setEditingMeta(saved);
-            await syncPaperRewords(updated);
+            latestSavedQuiz.current = updated;
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
               const published = getQuizBehavior(saved);

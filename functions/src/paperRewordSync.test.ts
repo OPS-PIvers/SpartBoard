@@ -148,6 +148,7 @@ describe('handlePaperRewordSync', () => {
       questionId: 'q1',
       answer: 'lower',
       status: 'submitted',
+      paperSlot: 1,
     });
     expect(docs[`${R1}/paper_reword_log/1000`].changes).toEqual([
       { questionId: 'q1', from: 'a lower', to: 'lower' },
@@ -179,6 +180,44 @@ describe('handlePaperRewordSync', () => {
     });
     await run(docs, ['liver', 'mouth', 'stomach']);
     expect((docs[R1].answers as Doc[])[0].answer).toBe('mouth');
+  });
+
+  it('maps a stub letter when the real question has fewer choices', async () => {
+    const docs = seed({
+      [BATCH]: { quizId: 'quiz', choiceOrder: { q1: ['A', 'B', 'C', 'D'] } },
+      [R1]: {
+        paperBatchId: 'b1',
+        answers: [{ questionId: 'q1', answer: 'B' }],
+      },
+    });
+    await run(docs, ['Reaction 1', 'Reaction 2']);
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('Reaction 2');
+    expect((docs[BATCH].choiceOrder as Doc).q1).toEqual([
+      'Reaction 1',
+      'Reaction 2',
+    ]);
+  });
+
+  it('recovers an answer left by a run that stopped before the batch moved', async () => {
+    const docs = seed({
+      [R1]: {
+        paperBatchId: 'b1',
+        answers: [{ questionId: 'q1', answer: 'interim', paperSlot: 1 }],
+      },
+    });
+    await run(docs, ['same', 'lower', 'higher']);
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('lower');
+  });
+
+  it('recovers that answer when the wording returns to the record', async () => {
+    const docs = seed({
+      [R1]: {
+        paperBatchId: 'b1',
+        answers: [{ questionId: 'q1', answer: 'interim', paperSlot: 1 }],
+      },
+    });
+    await run(docs, ['same', 'a lower', 'higher']);
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('a lower');
   });
 
   it('leaves answers alone when choices moved letters', async () => {
