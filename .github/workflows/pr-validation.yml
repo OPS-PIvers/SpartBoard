@@ -68,7 +68,7 @@ jobs:
                   })
                 ).data.files ?? [];
             // The compare API lists at most 300 files, so a bigger group never counts as docs-only.
-            const complete = pr || files.length < 300;
+            const complete = Boolean(pr) || files.length < 300;
             const docsOnly = complete && files.length > 0 && files.every((f) => f.filename.endsWith('.md') || f.filename.startsWith('docs/'));
             const release = Boolean(pr) && pr.base.ref === 'main' && pr.head.ref === 'dev-paul';
             core.info(`${files.length} files; docs only: ${docsOnly}; release PR: ${release}`);
