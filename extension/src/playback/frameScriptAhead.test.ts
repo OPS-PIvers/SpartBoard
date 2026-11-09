@@ -47,7 +47,7 @@ const seek: Extract<FrameCommand, { type: 'wt:seek' }> = {
     token: 't2',
     index: 1,
     stepId: 'b',
-    ...{ clues: clues('Beta') },
+    clues: clues('Beta'),
     action: 'click',
   },
   ahead: [
