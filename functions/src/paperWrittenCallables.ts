@@ -1,4 +1,4 @@
-// Handwritten paper answers: crop reads, transcript edits, "Use new scan" and "Not blank? Transcribe" (plan D35, D36, D38).
+// Handwritten paper answers: crop and kept-page reads, transcript edits, "Use new scan" and "Not blank? Transcribe" (plan D35, D36, D38; K1, K19).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import type {
@@ -9,17 +9,24 @@ import type {
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
-import { QUIZ_MEDIA_GOOGLE_SECRETS } from './quizMediaArchive';
+import {
+  QUIZ_MEDIA_GOOGLE_SECRETS,
+  isGlobalFeatureGranted,
+  isOwnPaperPagePath,
+  parsePaperPageArtifactId,
+} from './quizMediaArchive';
 import { downloadDriveFileById } from './getQuizArtifactPlaybackUrl';
 import { MAX_TRANSCRIPT_CHARS, transcriptToHtml } from './paperTranscribe';
 import { parseJob } from './paperTranscriptionWorker';
 import { studentMaySeeHandwriting } from './quizResultsVisibilityServer';
 import {
+  PAPER_KEPT_PAGES_FEATURE,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   PAPER_WRITTEN_CROP_PREFIX,
   paperCropStoragePath,
   paperTranscriptionJobId,
+  type GetPaperPageResponse,
   type PaperPrivateAnswer,
   type PaperTranscriptionJob,
 } from './paperWrittenTypes';
@@ -42,10 +49,20 @@ export type CropResult =
     }
   | { status: 'not-available'; reason: CropUnavailableReason };
 
+/** What a stored crop or kept page resolves to once its path is proven: every reason but a missing record. */
+type StoredImageResult =
+  | Extract<CropResult, { status: 'ready' }>
+  | {
+      status: 'not-available';
+      reason: Exclude<CropUnavailableReason, 'no-crop'>;
+    };
+
 export interface Caller {
   uid: string;
   anonymous: boolean;
   studentRole: boolean;
+  /** Lower-cased and verified; read only by the kept-page feature gate. */
+  email?: string | null;
 }
 
 export interface StoredObject {
@@ -64,6 +81,8 @@ export interface PaperWrittenDeps {
   ) => Promise<{ contentType?: string; size: number } | null>;
   getAccessToken: (uid: string) => Promise<string>;
   downloadDriveFile: (accessToken: string, fileId: string) => Promise<Buffer>;
+  /** `paper-kept-pages` for this caller; absent fails closed. */
+  isKeptPagesGranted?: (caller: Caller) => Promise<boolean>;
 }
 
 type Rec = Record<string, unknown>;
@@ -190,7 +209,7 @@ async function requireSessionTeacher(
 async function cropFromStorage(
   deps: PaperWrittenDeps,
   storagePath: string
-): Promise<CropResult | null> {
+): Promise<StoredImageResult | null> {
   const object = await deps.readObject(storagePath);
   if (!object) return null;
   if (object.data.byteLength > MAX_CROP_BYTES) {
@@ -204,7 +223,10 @@ async function cropFromStorage(
   };
 }
 
-const missing: CropResult = { status: 'not-available', reason: 'missing' };
+const missing: StoredImageResult = {
+  status: 'not-available',
+  reason: 'missing',
+};
 
 /** The Storage copy while it exists, else the teacher's archived Drive copy. */
 async function cropForArtifact(
@@ -220,6 +242,17 @@ async function cropForArtifact(
   ) {
     return { status: 'not-available', reason: 'no-crop' };
   }
+  return storedImage(deps, teacherUid, response, artifact, storagePath);
+}
+
+/** A crop or kept page whose path the caller already proved, from Storage or once archived from Drive. */
+async function storedImage(
+  deps: PaperWrittenDeps,
+  teacherUid: string,
+  response: Rec,
+  artifact: Rec,
+  storagePath: string
+): Promise<StoredImageResult> {
   const archive = isRec(response.artifactArchive)
     ? response.artifactArchive
     : {};
@@ -269,6 +302,70 @@ async function cropForArtifact(
     data: bytes.toString('base64'),
     source: 'drive',
   };
+}
+
+const MAX_PAGE_NUMBER = 63;
+
+/** K1, K19: only the session's own teacher reads a kept page; students, teammates and anyone without the flag are refused. */
+export async function handleGetPaperPage(
+  deps: PaperWrittenDeps,
+  rawCaller: Caller | null,
+  raw: unknown
+): Promise<GetPaperPageResponse> {
+  const caller = requireTeacherCaller(rawCaller);
+  const data = isRec(raw) ? raw : {};
+  const sessionId = readId(data, 'sessionId', 200);
+  const responseKey = readId(data, 'responseKey');
+  const page = data.page;
+  if (
+    typeof page !== 'number' ||
+    !Number.isInteger(page) ||
+    page < 1 ||
+    page > MAX_PAGE_NUMBER
+  ) {
+    throw new HttpsError('invalid-argument', 'page is required.');
+  }
+  await requireSessionTeacher(deps.db, sessionId, caller.uid);
+  if (!(await deps.isKeptPagesGranted?.(caller))) {
+    throw new HttpsError(
+      'permission-denied',
+      'Kept pages are not enabled for this account.'
+    );
+  }
+  const response = (
+    await responseRefOf(deps.db, {
+      sessionId,
+      responseKey,
+      questionId: '',
+    }).get()
+  ).data();
+  if (!response) throw new HttpsError('not-found', 'Quiz response not found.');
+  const pages = Array.isArray(response.paperPages)
+    ? (response.paperPages as unknown[]).filter(isRec)
+    : [];
+  // `paperPages` holds one live page per number, so the id's scan is the only one ever served.
+  const artifact = pages.find(
+    (a) =>
+      a.kind === 'paper-page' &&
+      typeof a.id === 'string' &&
+      parsePaperPageArtifactId(a.id)?.page === page
+  );
+  const storagePath = artifact?.storagePath;
+  if (
+    !artifact ||
+    typeof artifact.id !== 'string' ||
+    typeof storagePath !== 'string' ||
+    !(await isOwnPaperPagePath(deps.db, {
+      teacherUid: caller.uid,
+      sessionId,
+      responseKey,
+      artifactId: artifact.id,
+      storagePath,
+    }))
+  ) {
+    return { status: 'not-available', reason: 'no-page' };
+  }
+  return storedImage(deps, caller.uid, response, artifact, storagePath);
 }
 
 export async function handleGetPaperWrittenCrop(
@@ -910,6 +1007,13 @@ export function buildDefaultPaperWrittenDeps(): PaperWrittenDeps {
     getAccessToken: async (uid) =>
       (await refreshGoogleAccessTokenForUid(uid)).accessToken,
     downloadDriveFile: downloadDriveFileById,
+    isKeptPagesGranted: (caller) =>
+      isGlobalFeatureGranted(
+        admin.firestore(),
+        PAPER_KEPT_PAGES_FEATURE,
+        caller.email ?? null,
+        caller.uid
+      ),
   };
 }
 
@@ -920,6 +1024,8 @@ function callerOf(
         token: {
           studentRole?: unknown;
           firebase?: { sign_in_provider?: string };
+          email?: unknown;
+          email_verified?: unknown;
         };
       }
     | undefined
@@ -929,6 +1035,10 @@ function callerOf(
     uid: auth.uid,
     studentRole: auth.token.studentRole === true,
     anonymous: auth.token.firebase?.sign_in_provider === 'anonymous',
+    email:
+      auth.token.email_verified === true && typeof auth.token.email === 'string'
+        ? auth.token.email.toLowerCase()
+        : null,
   };
 }
 
@@ -944,6 +1054,18 @@ export const getPaperWrittenCropV1 = onCall(
   async (request) => {
     await assertViewAsAllowed(request, { read: true });
     return handleGetPaperWrittenCrop(
+      buildDefaultPaperWrittenDeps(),
+      callerOf(request.auth),
+      request.data
+    );
+  }
+);
+
+export const getPaperPageV1 = onCall(
+  { ...CALLABLE_OPTS, memory: '512MiB', secrets: QUIZ_MEDIA_GOOGLE_SECRETS },
+  async (request) => {
+    await assertViewAsAllowed(request, { read: true });
+    return handleGetPaperPage(
       buildDefaultPaperWrittenDeps(),
       callerOf(request.auth),
       request.data
