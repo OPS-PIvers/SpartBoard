@@ -78,6 +78,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'live-session',
   'live-tour-editing-v2',
   'lunch-count-redesign',
+  'lunch-count-resend',
   'magic-layout',
   'mini-app-ai',
   'mini-app-results',
