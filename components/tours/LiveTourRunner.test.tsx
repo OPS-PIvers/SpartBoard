@@ -4357,6 +4357,7 @@ describe('LiveTourRunner pacing feel', () => {
 
   it('folds the tip into a calm waiting chip, and reopens it when the control appears', async () => {
     routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
     await start(
       makeSet([
         { anchor: 'library.search', action: 'click' },
@@ -4386,6 +4387,7 @@ describe('LiveTourRunner pacing feel', () => {
 
   it('shows the step picture behind Show me where', async () => {
     routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
     await start(
       withThumbnails(
         makeSet([
@@ -4402,36 +4404,81 @@ describe('LiveTourRunner pacing feel', () => {
     expect(miniPlayerSrc()).toBe('https://example.com/slide.png');
   });
 
-  it('Take me back walks the route to the control once, and only when there is one', async () => {
-    routes.set('library.search', [{ path: ['sidebar.boards'] }]);
-    // Loaded up front, as the lazy route table would be in a real session by now.
-    await import('@/config/tourAnchorRoutes');
-    await start(
-      makeSet([
-        { anchor: 'library.search', action: 'click' },
-        { anchor: 'dock.item:dice', action: 'click' },
-      ])
-    );
-    const boards = screen.getByText('Boards');
+  // A step whose control sits in a panel the previous step didn't leave open.
+  const panelTour = () =>
+    makeSet([
+      { anchor: 'dock.item:dice', action: 'observe' },
+      { anchor: 'library.search', action: 'click' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+  const withOpener = () => {
+    routes.set('library.search', [{ path: ['dock.item:dice'] }]);
     const box = hiddenBox();
     const open = vi.fn(() => {
       box.hidden = false;
     });
-    boards.addEventListener('click', open);
+    screen.getByText('Dice').addEventListener('click', open);
+    return { box, open };
+  };
+
+  it('opens a control the tour moves forward to quietly, as today, with no chip', async () => {
+    await import('@/config/tourAnchorRoutes');
+    await start(panelTour());
+    const { open } = withOpener();
+    fireEvent.click(barButton('Next'));
+    let chipSeen = false;
+    for (let t = 0; t < ANCHOR_SEARCH_MS + 1500; t += 100) {
+      await frames(100);
+      chipSeen ||= chip() !== null;
+    }
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(chipSeen).toBe(false);
+    expect(screen.queryByTestId('tour-anchor-missing')).toBeNull();
+    expect(progress()).toBe('2 / 3');
+    expect(tip()).toBeInTheDocument();
+    expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
+  });
+
+  it('shows the chip with Take me back only for a control that was on screen and then went away', async () => {
+    await import('@/config/tourAnchorRoutes');
+    await start(panelTour());
+    const { box, open } = withOpener();
+    act(() => {
+      box.hidden = false;
+    });
+    fireEvent.click(barButton('Next'));
+    await steps(GLIDE_MS + 200);
+    expect(tip()).toBeInTheDocument();
+    // The teacher closes the panel.
+    act(() => {
+      box.hidden = true;
+    });
     await frames(ANCHOR_SEARCH_MS + 100);
-    // Paced runs never reopen panels behind the teacher's back.
-    expect(open).not.toHaveBeenCalled();
     await frames();
+    expect(open).not.toHaveBeenCalled();
+    expect(chip()).toHaveTextContent('Step 2 is waiting');
     fireEvent.click(screen.getByTestId('tour-take-me-back'));
     await steps(600);
     expect(open).toHaveBeenCalledTimes(1);
     expect(chip()).toBeNull();
     expect(tip()).toBeInTheDocument();
+    // Once per step: closed again, the chip comes back without Take me back.
     act(() => {
       box.hidden = true;
     });
     await frames(ANCHOR_SEARCH_MS + 100);
     expect(chip()).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-take-me-back')).toBeNull();
+  });
+
+  it('shows the chip when the quiet self-heal could not bring the control back', async () => {
+    routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
+    await start(panelTour());
+    fireEvent.click(barButton('Next'));
+    await frames(ANCHOR_SEARCH_MS + 300);
+    await frames();
+    expect(chip()).toHaveTextContent('Step 2 is waiting');
     expect(screen.queryByTestId('tour-take-me-back')).toBeNull();
   });
 

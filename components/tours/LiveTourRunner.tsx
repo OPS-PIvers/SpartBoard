@@ -1934,9 +1934,17 @@ export const LiveTourRunner: React.FC = () => {
           : null
       : null;
   // A control whose panel closed is reopened along its route, once per step (D4).
+  // Paced (P4): the control was on screen in this visit, so the teacher closed it and Take me back is theirs to press.
+  const visitKey = `${stepIndex}:${visit}`;
+  const [foundIn, setFoundIn] = useState<string | null>(null);
+  if (paced && anchor.status === 'found' && foundIn !== visitKey)
+    setFoundIn(visitKey);
+  const foundThisVisit = foundIn === visitKey;
+  // The visit whose quiet self-heal is over without bringing the control back.
+  const [healOver, setHealOver] = useState<string | null>(null);
   const healKey =
     running &&
-    !paced &&
+    !(paced && foundThisVisit) &&
     !tour?.test &&
     !tour?.edit &&
     anchor.status === 'missing' &&
@@ -1949,7 +1957,11 @@ export const LiveTourRunner: React.FC = () => {
     slots: tour?.slots,
   }));
   useEffect(() => {
-    if (!healKey || !binding || healTried.current.has(stepIndex)) return;
+    if (!healKey || !binding) return;
+    if (healTried.current.has(stepIndex)) {
+      setHealOver(`${stepIndex}:${visit}`);
+      return;
+    }
     const tried = healTried.current;
     tried.add(stepIndex);
     const ctrl = new AbortController();
@@ -1965,10 +1977,13 @@ export const LiveTourRunner: React.FC = () => {
       )
       .then((ok) => {
         settled = true;
-        if (ok && !ctrl.signal.aborted) setAttempt((n) => n + 1);
+        if (ctrl.signal.aborted) return;
+        if (ok) setAttempt((n) => n + 1);
+        else setHealOver(`${stepIndex}:${visit}`);
       })
       .catch((err: unknown) => {
         settled = true;
+        if (!ctrl.signal.aborted) setHealOver(`${stepIndex}:${visit}`);
         console.warn('Live tour self-heal failed', err);
       });
     return () => {
@@ -1976,7 +1991,9 @@ export const LiveTourRunner: React.FC = () => {
       // A heal cut short by a re-render hasn't had its try yet.
       if (!settled) tried.delete(stepIndex);
     };
-  }, [healKey, binding, stepIndex]);
+  }, [healKey, binding, stepIndex, visit]);
+  // The chip is for a control that went away, or one the quiet self-heal couldn't bring back.
+  const chipAllowed = foundThisVisit || healOver === visitKey;
 
   // Paced runs heal only when the teacher asks, with Take me back, once per step (P5).
   const [takeBackKey, setTakeBackKey] = useState<string | null>(null);
@@ -2757,7 +2774,9 @@ export const LiveTourRunner: React.FC = () => {
         : null);
     // A step with no anchor keeps its legacy slide, unless the slide would play media or a question.
     const plainSlide = plain && !PLAIN_SLIDE_SKIP.has(step.interactionType);
-    const preview = (isMissing || plainSlide) && hasStepSlide(step, tour.set);
+    // Paced runs keep the picture for the chip and never word a missing control as an error (P4).
+    const preview =
+      ((isMissing && !paced) || plainSlide) && hasStepSlide(step, tour.set);
     const width = Math.min(
       preview ? PREVIEW_WIDTH : plain ? PLAIN_WIDTH : CALLOUT_WIDTH,
       viewport.w - VIEWPORT_GUTTER * 2
@@ -2775,7 +2794,7 @@ export const LiveTourRunner: React.FC = () => {
         : null;
     // Paced: the tip waits for the rhythm, and folds into the chip while the control is away (P1, P4).
     const waitingChip: TourWaiting | null =
-      paced && isMissing && binding
+      paced && isMissing && binding && chipAllowed
         ? {
             step: tour.index + 1,
             ...(hasStepSlide(step, tour.set)
@@ -2914,7 +2933,7 @@ export const LiveTourRunner: React.FC = () => {
                 {step.question.text}
               </p>
             )}
-            {isMissing && (
+            {isMissing && !paced && (
               <p
                 data-testid="tour-anchor-missing"
                 className="text-xs font-medium text-amber-700"

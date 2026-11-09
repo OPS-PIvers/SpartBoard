@@ -35,7 +35,7 @@ import {
   lookaheadIndices,
   skippedIndices,
   takeBackUrl,
-  WAITING_AFTER_MS,
+  WEB_WAITING_AFTER_MS,
 } from '@/components/tours/playbackEngine';
 
 export interface HostFrame {
@@ -128,9 +128,9 @@ interface TabRecord {
 }
 
 /** How long a step looks for its target before the tip folds into the waiting chip (P4). */
-export const FALLBACK_MS = WAITING_AFTER_MS;
+export const FALLBACK_MS = WEB_WAITING_AFTER_MS;
 /** A step that plays only if its target shows up waits as long as every step used to before it is left out (E6); it never shows the chip. */
-export const CONDITION_WAIT_MS = 4000;
+export const CONDITION_WAIT_MS = FALLBACK_MS;
 const waitFor = (step: PlaybackStep | undefined) =>
   step && skipsWhenMissing(step) ? CONDITION_WAIT_MS : FALLBACK_MS;
 /** Addresses kept for Take me back. */
