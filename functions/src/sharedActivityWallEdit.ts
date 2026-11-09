@@ -6,6 +6,10 @@ import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
+  CLASS_NOT_TAUGHT_MESSAGE,
+  unverifiedClassIds,
+} from './verifiedClassList';
+import {
   effectiveWallClassIds,
   memberClassMap,
   ownerClassIds,
@@ -61,6 +65,11 @@ export interface SharedWallEditDeps {
   now?: () => number;
   /** Staff member doc check; students share the district domain. */
   isStaff: (email: string) => Promise<boolean>;
+  /** The ids not on the caller's verified class list; defaults to verified_classes. */
+  unverifiedClassIds?: (
+    uid: string,
+    ids: readonly string[]
+  ) => Promise<string[]>;
 }
 
 function invalid(message: string): never {
@@ -274,6 +283,14 @@ export async function handleSaveSharedActivityWall(
     throw new HttpsError('failed-precondition', 'This wall is yours.');
 
   const { db } = deps;
+  if (input.myClassIds && input.myClassIds.length > 0) {
+    const check =
+      deps.unverifiedClassIds ??
+      ((uid: string, ids: readonly string[]) =>
+        unverifiedClassIds(db, uid, ids));
+    if ((await check(caller.uid, input.myClassIds)).length > 0)
+      throw new HttpsError('permission-denied', CLASS_NOT_TAUGHT_MESSAGE);
+  }
   const shareRef = db.collection('shared_boards').doc(input.shareId);
   const sessionRef = db
     .collection('activity_wall_sessions')
@@ -328,7 +345,6 @@ export async function handleSaveSharedActivityWall(
           'failed-precondition',
           'Only the owner can turn on class targeting for this wall.'
         );
-      // Not checked against ClassLink: a colleague gets the same class-targeting trust as on their own assignments.
       const members = memberClassMap(entry.memberClassIds);
       if (input.myClassIds.length > 0) members[caller.uid] = input.myClassIds;
       else delete members[caller.uid];

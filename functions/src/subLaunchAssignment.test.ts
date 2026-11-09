@@ -1331,6 +1331,16 @@ describe('resolveTargeting', () => {
       resolveTargeting(stub(DOCS), 'h', SHARED, ['r3'])
     ).rejects.toThrow('no class a student can sign in to');
   });
+
+  it("keeps only classes on the host's verified list", async () => {
+    const docs = { ...DOCS, 'verified_classes/h': { ids: ['test-2'] } };
+    const out = await resolveTargeting(stub(docs), 'h', SHARED, ['r1', 'r2']);
+    expect(out.classIds).toEqual(['test-2']);
+    expect(out.classPeriodByClassId).toEqual({ 'test-2': 'Period 2' });
+    await expect(
+      resolveTargeting(stub(docs), 'h', SHARED, ['r1'])
+    ).rejects.toThrow('no class a student can sign in to');
+  });
 });
 
 describe('allocateJoinCode', () => {

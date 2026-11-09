@@ -202,6 +202,7 @@ vi.mock('firebase-functions/params', () => ({
 import {
   classroomAddonLoginV1,
   createClassroomAttachment,
+  verifyClassroomTeacherV1,
   assignToClassroomV1,
   linkClassroomCourse,
   unlinkClassroomCourse,
@@ -2935,5 +2936,64 @@ describe('pushClassroomFinalGradesForAssignment (final batch)', () => {
       ).rejects.toMatchObject({ code: 'invalid-argument' });
     }
     expect(listSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('verifyClassroomTeacherV1', () => {
+  const callVerify = verifyClassroomTeacherV1 as unknown as (req: {
+    auth?: { uid: string; token: Record<string, unknown> };
+    data: unknown;
+  }) => Promise<{ classIds: string[] }>;
+  const auth = { uid: 'teacher-uid', token: { email: 't@x.org' } };
+  const data = {
+    accessToken: 'teacher-at',
+    courseId: 'C1',
+    itemId: 'I1',
+    itemType: 'courseWork',
+    addOnToken: 'addon-tok',
+  };
+  afterEach(() => {
+    vi.restoreAllMocks();
+    gradeSyncDocs.clear();
+    courseLinkDoc = null;
+  });
+
+  it('records the course for a teacher launch and returns its class id', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    const res = await callVerify({ auth, data });
+    expect(res.classIds).toEqual(['classroom:C1']);
+    const write = firestoreWrites.find(
+      (w) => w.path === 'verified_classes/teacher-uid'
+    );
+    expect(write?.data.lms).toEqual(['classroom:C1']);
+  });
+
+  it("adds the linked ClassLink class only when it is on the caller's list", async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    courseLinkDoc = { classlinkClassId: 'CL-9', teacherUid: 'someone' };
+    expect((await callVerify({ auth, data })).classIds).toEqual([
+      'classroom:C1',
+    ]);
+    gradeSyncDocs.set('verified_classes/teacher-uid', { ids: ['CL-9'] });
+    expect((await callVerify({ auth, data })).classIds).toEqual([
+      'CL-9',
+      'classroom:C1',
+    ]);
+  });
+
+  it('refuses a student launch and a signed-out caller', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      STUDENT_CTX
+    );
+    await expect(callVerify({ auth, data })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(callVerify({ data })).rejects.toMatchObject({
+      code: 'unauthenticated',
+    });
   });
 });

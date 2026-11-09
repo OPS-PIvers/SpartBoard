@@ -62,6 +62,12 @@ function makeDeps(docs: Record<string, Doc>): SharedWallEditDeps {
     now: () => 1000,
     // A student's own Google account shares the domain but holds no staff member doc.
     isStaff: (email: string) => Promise.resolve(email !== STUDENT_EMAIL),
+    unverifiedClassIds: (uid, ids) => {
+      const list = docs[`verified_classes/${uid}`]?.ids;
+      return Promise.resolve(
+        Array.isArray(list) ? ids.filter((id) => !list.includes(id)) : []
+      );
+    },
   };
 }
 
@@ -161,6 +167,26 @@ describe('handleSaveSharedActivityWall', () => {
     });
     expect(docs[SESSION].classIds).toEqual(['class-a', 'class-o', 'class-c']);
     expect(docs[SESSION].classId).toBe('class-a');
+  });
+
+  it("refuses a colleague's class that is not on their verified list", async () => {
+    const docs = seed();
+    docs['verified_classes/colleague-1'] = { ids: ['class-c'] };
+    await expectCode(
+      handleSaveSharedActivityWall(
+        makeDeps(docs),
+        caller(),
+        input({ changes: {}, myClassIds: ['class-c', 'class-x'] })
+      ),
+      'permission-denied'
+    );
+    expect(docs[SESSION].classIds).toEqual(['class-a']);
+    const result = await handleSaveSharedActivityWall(
+      makeDeps(docs),
+      caller(),
+      input({ changes: {}, myClassIds: ['class-c'] })
+    );
+    expect(result.classIds).toEqual(['class-a', 'class-c']);
   });
 
   it("clearing the colleague's classes never touches the owner's", async () => {

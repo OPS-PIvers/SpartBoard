@@ -19,8 +19,13 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
+const verifyCallable = vi.fn(() => ({
+  data: { classIds: ['classroom:course-1'] },
+}));
+
 vi.mock('firebase/functions', () => ({
-  httpsCallable: () => mockCallable,
+  httpsCallable: (_functions: unknown, name: string) =>
+    name === 'verifyClassroomTeacherV1' ? verifyCallable : mockCallable,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -190,6 +195,26 @@ describe('ClassroomAddonTeacherSpike attach flow — maxPoints dedup', () => {
     if (!lastCall) throw new Error('mockCallable was not called');
     // Two entries of the SAME 10-point question id must dedup to 10, not 20.
     expect(lastCall[0].maxPoints).toBe(10);
+  });
+
+  it('targets the class ids the server verified for this launch', async () => {
+    verifyCallable.mockClear();
+    createAssignment.mockClear();
+    render(<ClassroomAddonTeacherSpike />);
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'My Quiz' }));
+    fireEvent.click(screen.getByRole('button', { name: /attach quiz/i }));
+    await waitFor(() => expect(createAssignment).toHaveBeenCalled());
+    expect(verifyCallable).toHaveBeenCalledWith({
+      accessToken: 'addon-access-token',
+      courseId: 'course-1',
+      itemId: 'item-1',
+      itemType: 'courseWork',
+      addOnToken: 'tok-1',
+    });
+    expect(JSON.stringify(createAssignment.mock.calls.at(-1))).toContain(
+      '"classIds":["classroom:course-1"]'
+    );
   });
 
   it('dedupes duplicate question ids when computing the attached video activity maxPoints', async () => {

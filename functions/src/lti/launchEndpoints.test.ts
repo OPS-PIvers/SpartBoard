@@ -155,6 +155,14 @@ vi.mock('./config', async (orig) => ({
   MESSAGE_TYPE_DEEP_LINKING: 'LtiDeepLinkingRequest',
 }));
 
+const addVerifiedLmsClasses = vi.fn<(...args: unknown[]) => Promise<void>>(
+  async () => {}
+);
+vi.mock('../verifiedClassList', async (orig) => ({
+  ...(await orig<typeof import('../verifiedClassList')>()),
+  addVerifiedLmsClasses: (...args: unknown[]) => addVerifiedLmsClasses(...args),
+}));
+
 import { ltiExchange } from './launchEndpoints';
 import { persistLtiLaunchContext } from './nrpsStore';
 
@@ -171,10 +179,12 @@ function makeLaunch(
     contextId: string | null;
     resourceLinkId: string | null;
     ags: unknown;
+    role: 'student' | 'teacher';
+    email: string | null;
   }> = {}
 ) {
   return {
-    role: 'student' as const,
+    role: 'student' as 'student' | 'teacher',
     messageType: 'LtiResourceLinkRequest',
     sub: 'sub-1',
     deploymentId: 'dep-1',
@@ -188,7 +198,7 @@ function makeLaunch(
       string,
       unknown
     > | null,
-    email: null,
+    email: null as string | null,
     name: null,
     ...overrides,
   };
@@ -201,6 +211,43 @@ beforeEach(() => {
   nextBridged = null;
   existingResponses.clear();
   responseLookupFails = false;
+  addVerifiedLmsClasses.mockClear();
+});
+
+describe('ltiExchange — teacher section on the verified class list', () => {
+  const teacher = (email: string, verified = true) => ({
+    uid: 'teacher-uid',
+    token: { email, email_verified: verified },
+  });
+
+  it('records the section when the signed-in address matches the launch', async () => {
+    nextLaunch = makeLaunch({ role: 'teacher', email: 'T@school.edu' });
+    const out = await callExchange({
+      auth: teacher('t@school.edu'),
+      data: { code: 'c' },
+    });
+    expect(out.studentRole).toBe(false);
+    expect(addVerifiedLmsClasses).toHaveBeenCalledWith(
+      expect.anything(),
+      'teacher-uid',
+      ['schoology:ctx-original']
+    );
+  });
+
+  it('records nothing for another address, an unverified address or no launch email', async () => {
+    nextLaunch = makeLaunch({ role: 'teacher', email: 'other@school.edu' });
+    await callExchange({ auth: teacher('t@school.edu'), data: { code: 'c' } });
+    nextLaunch = makeLaunch({ role: 'teacher', email: 't@school.edu' });
+    await callExchange({
+      auth: teacher('t@school.edu', false),
+      data: { code: 'c' },
+    });
+    nextLaunch = makeLaunch({ role: 'teacher', email: null });
+    await callExchange({ auth: teacher('t@school.edu'), data: { code: 'c' } });
+    nextLaunch = makeLaunch({ role: 'teacher', email: 't@school.edu' });
+    await callExchange({ data: { code: 'c' } });
+    expect(addVerifiedLmsClasses).not.toHaveBeenCalled();
+  });
 });
 
 describe('ltiExchange — lti_grade_links null-clobber regression', () => {

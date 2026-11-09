@@ -25,6 +25,8 @@ import {
 } from './secrets';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import * as admin from './firebaseAdmin';
+import { writeVerifiedClasses } from './verifiedClassList';
 
 export const getClassLinkRosterV1 = onCall(
   {
@@ -119,6 +121,20 @@ export const getClassLinkRosterV1 = onCall(
         { headers: { ...classesHeaders } }
       );
       const classes = classesResponse.data.classes;
+      // The dialog can import only these classes, so they become the caller's ClassLink part of the verified list.
+      try {
+        await writeVerifiedClasses(admin.firestore(), request.auth.uid, {
+          classlink: (classes ?? [])
+            .map((c) => c.sourcedId)
+            .filter((id): id is string => typeof id === 'string'),
+          test: null,
+        });
+      } catch (err) {
+        console.error(
+          '[getClassLinkRosterV1] verified class list write failed:',
+          err instanceof Error ? err.message : 'unexpected'
+        );
+      }
 
       const studentsByClass: Record<string, ClassLinkStudent[]> = {};
 
