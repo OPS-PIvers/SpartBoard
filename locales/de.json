@@ -4219,7 +4219,8 @@
       "fact_class_added": "Eine Klasse ist angelegt",
       "fact_org_has_buildings": "Die Organisation hat Gebäude",
       "fact_district_account": "Mit einem Schulkonto angemeldet",
-      "fact_classlink_on": "ClassLink-Import ist an"
+      "fact_classlink_on": "ClassLink-Import ist an",
+      "needsText": "Braucht Text"
     }
   },
   "glPlayer": {
