@@ -164,7 +164,10 @@ describe('firebase-dev-deploy.yml check modes', () => {
       expect(guard).toBeLessThan(body.indexOf('- uses: actions/checkout@v6'));
       expect(body).toContain('actions: write');
     }
-    expect(job('deploy')).toContain('gh run cancel "$GITHUB_RUN_ID"');
+    // It runs before checkout, so gh needs the repo named.
+    expect(job('deploy')).toContain(
+      'gh run cancel "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY"'
+    );
   });
 
   it('never cancels the run from hosting, so a running backend deploy finishes', () => {
