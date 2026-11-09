@@ -72,11 +72,15 @@ export function webTourPicturePaths(
   const out = new Set<string>();
   if (!set || !Array.isArray(set.steps)) return out;
   for (const step of set.steps as unknown[]) {
-    const web = (step as { web?: { picture?: { path?: unknown } } } | null)
-      ?.web;
-    const path = web?.picture?.path;
-    if (typeof path === 'string' && isWebTourPicturePath(setId, path)) {
-      out.add(path);
+    const picture = (
+      step as {
+        web?: { picture?: { path?: unknown; original?: { path?: unknown } } };
+      } | null
+    )?.web?.picture;
+    // A draft's uncropped capture counts too; a published copy never has one.
+    for (const path of [picture?.path, picture?.original?.path]) {
+      if (typeof path === 'string' && isWebTourPicturePath(setId, path))
+        out.add(path);
     }
   }
   return out;

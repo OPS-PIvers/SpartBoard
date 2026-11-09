@@ -14,6 +14,7 @@ import {
 } from '@/components/widgets/GuidedLearning/utils/redactImage';
 import { isHardHit } from './studentData';
 import { BlobImage, BlurBoxes } from './BlurBoxes';
+import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import type { HiddenText, ReviewEntry, ReviewField } from './webStepReview';
 import { usePictureBlob } from './webPictures';
 import {
@@ -72,7 +73,8 @@ export const Highlighted: React.FC<{ entry: ReviewEntry }> = ({ entry }) => {
 export const BlurEditor: React.FC<{
   path: string;
   index: number;
-  onApply: (blob: Blob) => Promise<void>;
+  /** The blurred picture, and the boxes as drawn (percent of the picture). */
+  onApply: (blob: Blob, boxes: RedactRect[]) => Promise<void>;
   onCancel: () => void;
 }> = ({ path, index, onApply, onCancel }) => {
   const { blob } = usePictureBlob(path);
@@ -84,7 +86,7 @@ export const BlurEditor: React.FC<{
     setBusy(true);
     setFailed(false);
     try {
-      await onApply(await redactImage(blob, boxes, { mode: 'blur' }));
+      await onApply(await redactImage(blob, boxes, { mode: 'blur' }), boxes);
     } catch (err) {
       logError('web tour blur', err, { path });
       setFailed(true);
@@ -224,6 +226,12 @@ export const SuggestedFix: React.FC<{
   );
 };
 
+// "3", "3 and 5", "3, 5 and 9".
+const listNumbers = (ns: number[]) =>
+  ns.length < 2
+    ? ns.join('')
+    : `${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}`;
+
 const hiddenWhere = (h: HiddenText) =>
   h.step === null ? 'Title' : `Step ${h.step + 1}, ${fieldLabel(h.field)}`;
 
@@ -232,13 +240,18 @@ export const PublishCheck: React.FC<{
   set: GuidedLearningSet;
   hidden: HiddenText[];
   askPictures: boolean;
+  /** Steps whose picture changed since the last publish (new file or markup). */
+  changed: readonly string[];
   onPublish: () => void;
   onBlur: () => void;
   onCancel: () => void;
-}> = ({ set, hidden, askPictures, onPublish, onBlur, onCancel }) => {
+}> = ({ set, hidden, askPictures, changed, onPublish, onBlur, onCancel }) => {
   const pictured = (set.steps as WebStep[]).flatMap((s, i) =>
-    s.web?.picture ? [{ path: s.web.picture.path, index: i }] : []
+    s.web?.picture ? [{ id: s.id, picture: s.web.picture, index: i }] : []
   );
+  const changedNumbers = pictured
+    .filter((p) => changed.includes(p.id))
+    .map((p) => p.index + 1);
   return (
     <Modal
       isOpen
@@ -286,14 +299,57 @@ export const PublishCheck: React.FC<{
             <h3 className="text-sm font-semibold text-slate-900">
               Anything private in these pictures?
             </h3>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {pictured.map((p) => (
-                <WebStepPicture
-                  key={p.path}
-                  path={p.path}
-                  label={`Picture for step ${p.index + 1}`}
-                  className="h-32 w-48 shrink-0 rounded-lg border border-slate-200"
-                />
+            {changedNumbers.length > 0 && (
+              <p
+                data-testid="publish-check-changed"
+                className="text-sm text-slate-700"
+              >
+                {changedNumbers.length === 1
+                  ? `Step ${changedNumbers[0]}'s picture changed since the last publish.`
+                  : `Pictures changed since the last publish: steps ${listNumbers(changedNumbers)}.`}
+              </p>
+            )}
+            <div
+              data-testid="publish-check-pictures"
+              className="flex flex-wrap gap-3 pb-1"
+            >
+              {[
+                // Changed pictures first, so the ones to look at lead.
+                ...pictured.filter((p) => changed.includes(p.id)),
+                ...pictured.filter((p) => !changed.includes(p.id)),
+              ].map((p) => (
+                <figure
+                  key={p.picture.path}
+                  className="flex shrink-0 flex-col gap-1"
+                >
+                  <div
+                    className="relative h-32 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                    style={{ aspectRatio: `${p.picture.w} / ${p.picture.h}` }}
+                  >
+                    <WebStepPicture
+                      path={p.picture.path}
+                      label={`Picture for step ${p.index + 1}`}
+                      className="absolute inset-0 h-full w-full"
+                    />
+                    {p.picture.markup && (
+                      <TourPictureMarkup
+                        shapes={p.picture.markup}
+                        width={p.picture.w}
+                        height={p.picture.h}
+                      />
+                    )}
+                  </div>
+                  <figcaption
+                    className={`text-xs ${
+                      changed.includes(p.id)
+                        ? 'font-semibold text-amber-800'
+                        : 'text-slate-500'
+                    }`}
+                  >
+                    Step {p.index + 1}
+                    {changed.includes(p.id) ? ', changed' : ''}
+                  </figcaption>
+                </figure>
               ))}
             </div>
           </section>

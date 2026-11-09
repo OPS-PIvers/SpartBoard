@@ -36,7 +36,10 @@ import {
   type ExtensionStatus,
   type WebTourPortEvent,
 } from './extensionClient';
-import { SCORED_MATCH_PROTOCOL } from './extensionProtocol';
+import {
+  CONDITIONS_PROTOCOL,
+  SCORED_MATCH_PROTOCOL,
+} from './extensionProtocol';
 import {
   buildHandoff,
   loadPictures,
@@ -444,7 +447,8 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
       tour.title,
       tour.steps,
       pictures ?? new Map(),
-      extensionProtocol >= SCORED_MATCH_PROTOCOL
+      extensionProtocol >= SCORED_MATCH_PROTOCOL,
+      extensionProtocol >= CONDITIONS_PROTOCOL
     );
     const result = await startWebTour(handoff, url, stepIndex);
     if (!result.ok) {

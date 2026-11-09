@@ -114,6 +114,39 @@ describe('intake saving', () => {
     ).toBe(false);
   });
 
+  it('uploads the uncropped screen beside the picture, with where the picture sits in it', async () => {
+    const set = await intakeDraftFor({ kind: 'new', title: 'T' });
+    if (!set) throw new Error('no draft');
+    const after = await appendRecordedSteps(
+      set,
+      [
+        {
+          ...step('a', true),
+          picture: {
+            dataUrl: 'data:image/jpeg;base64,AAAA',
+            w: 10,
+            h: 10,
+            original: {
+              dataUrl: 'data:image/jpeg;base64,BBBB',
+              w: 40,
+              h: 20,
+              crop: { x: 0.25, y: 0.25, w: 0.25, h: 0.5 },
+            },
+          },
+        },
+      ],
+      () => undefined
+    );
+    expect(after.steps[0].web?.picture?.original).toMatchObject({
+      w: 40,
+      h: 20,
+      crop: { x: 0.25, y: 0.25, w: 0.25, h: 0.5 },
+    });
+    expect(after.steps[0].web?.picture?.original?.path).toEqual(
+      expect.any(String)
+    );
+  });
+
   it('refuses a picture target that falls outside the picture', () => {
     const save = {
       type: 'intake/save',

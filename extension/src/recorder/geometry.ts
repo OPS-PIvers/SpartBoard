@@ -20,6 +20,42 @@ const MIN_CROP: Size = { w: 640, h: 360 };
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v));
 
+/** A crop as 0-1 fractions of the picture it was cut from. */
+export interface CropFraction {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export const FULL_CROP: CropFraction = { x: 0, y: 0, w: 1, h: 1 };
+
+/** A crop in screenshot pixels as fractions of the screenshot. */
+export const cropFraction = (crop: Rect, image: Size): CropFraction => {
+  const r = (n: number) => Math.round(clamp(n, 0, 1) * 10000) / 10000;
+  return {
+    x: r(crop.x / image.w),
+    y: r(crop.y / image.h),
+    w: r(crop.width / image.w),
+    h: r(crop.height / image.h),
+  };
+};
+
+/** Blur boxes drawn on a crop (percent of the crop), moved onto the screen it was cut from. */
+export const blurInOriginal = <
+  T extends { xPct: number; yPct: number; wPct: number; hPct: number },
+>(
+  boxes: readonly T[],
+  crop: CropFraction
+): T[] =>
+  boxes.map((b) => ({
+    ...b,
+    xPct: crop.x * 100 + b.xPct * crop.w,
+    yPct: crop.y * 100 + b.yPct * crop.h,
+    wPct: b.wPct * crop.w,
+    hPct: b.hPct * crop.h,
+  }));
+
 /** The target plus its surroundings, in viewport (CSS) pixels. */
 export function cropCss(target: Rect, viewport: Size): Rect {
   const want = {
