@@ -35,6 +35,14 @@ async function loadPdfDocument(file: Blob) {
   return { doc, task, ops: pdfjs.OPS };
 }
 
+/** How many pages a PDF has, without reading any of them. */
+export async function pdfPageCount(file: Blob): Promise<number> {
+  const { doc, task } = await loadPdfDocument(file);
+  const count = doc.numPages;
+  await task.destroy();
+  return count;
+}
+
 /** Paint one page and hand tesseract a PNG; both are loaded on demand. */
 async function ocrPage(
   doc: LoadedPdf['doc'],

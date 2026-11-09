@@ -131,4 +131,21 @@ describe('passages found by their shape', () => {
     ]);
     expect(questions.flatMap((q) => q.warnings)).toEqual([]);
   });
+
+  it('numbers a second passage "Passage 2"', () => {
+    const { texts } = parseDocument(
+      lines(
+        'Use the case study to answer questions 1–2.',
+        CASE,
+        ...MC(1, 'First?'),
+        ...MC(2, 'Second?'),
+        'Use the case study to answer questions 3–4.',
+        CASE,
+        ...MC(3, 'Third?'),
+        ...MC(4, 'Fourth?')
+      ),
+      { passages: true }
+    );
+    expect(texts.map((t) => t.label)).toEqual(['Passage 1', 'Passage 2']);
+  });
 });

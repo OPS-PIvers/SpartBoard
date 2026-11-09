@@ -234,7 +234,7 @@ function matchingTerms(
 
 /** "Passage 2" counts passages only, not the short texts labelled Directions. */
 const nextPassageLabel = (texts: readonly { label: string }[]): string =>
-  `Passage ${texts.filter((t) => /^Passage d+$/.test(t.label)).length + 1}`;
+  `Passage ${texts.filter((t) => /^Passage \d+$/.test(t.label)).length + 1}`;
 
 /** A block of lines as a passage: its title, prose and any "Read…" instruction; null when it isn't prose. */
 function passageOf(

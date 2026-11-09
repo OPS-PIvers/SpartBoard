@@ -531,6 +531,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Bold, underlined or highlighted choices in a PDF read as answers. Admin-only until Paul has imported with it.
+  'quiz-import-pdf-answer-marks': {
+    label: 'Read marked answers in PDFs',
+    icon: FileText,
+    description:
+      'Takes a bold, underlined or highlighted choice in a PDF test as its answer.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {

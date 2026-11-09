@@ -11025,6 +11025,8 @@ export type GlobalFeature =
   | 'quiz-import-versions-plain'
   /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
   | 'quiz-import-google-doc-pdf'
+  /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
+  | 'quiz-import-pdf-answer-marks'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
   /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/TOURS_10X.md F1). */

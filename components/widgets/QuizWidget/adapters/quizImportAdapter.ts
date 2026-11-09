@@ -141,6 +141,8 @@ export interface QuizImportAdapterDeps {
   importVersions?: boolean;
   /** `quiz-import-versions-plain` is on, so a typed PDF splits into versions without AI. */
   plainVersions?: boolean;
+  /** `quiz-import-pdf-answer-marks` is on, so a PDF's bold, underlined or highlighted choice is its answer. */
+  pdfMarks?: boolean;
   /** The versioned AI call; given only with `importVersions` and AI access. */
   aiExtractVersions?: AiExtractVersionsFn;
   /** Creates the folder, bank and quizzes a version review settled on, pictures already attached (V6). */
@@ -461,6 +463,7 @@ export function createQuizImportAdapter(
             ...(source.useAi === false ? { useAi: false } : {}),
             multiAnswer: true,
             passages: true,
+            ...(deps.pdfMarks ? { pdfMarks: true } : {}),
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }
               : {}),

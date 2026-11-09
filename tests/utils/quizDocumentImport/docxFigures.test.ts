@@ -212,6 +212,33 @@ describe('figures in a Word file', () => {
     );
   });
 
+  it('reads choices typed in boxes beside a picture as choices', async () => {
+    const { questions } = await read(
+      [
+        para(
+          run('1. Which part makes proteins?'),
+          picture('cell'),
+          textBox('A. Nucleus'),
+          textBox('B. Ribosome')
+        ),
+      ].join(''),
+      ['cell']
+    );
+    expect(questions[0].options.map((o) => o.text)).toEqual([
+      'Nucleus',
+      'Ribosome',
+    ]);
+  });
+
+  it('keeps a picture that sits inside a text box', async () => {
+    const boxed = `<wps:wsp><wps:txbx><w:txbxContent>${para(picture('inner'), run('Figure 2'))}</w:txbxContent></wps:txbx></wps:wsp>`;
+    const { lines } = await read(para(picture('outer'), boxed), [
+      'outer',
+      'inner',
+    ]);
+    expect(lines.flatMap((l) => l.imageIds ?? [])).toHaveLength(2);
+  });
+
   it('puts a diagram on every question its lead-in names', async () => {
     const { questions } = await read(
       [

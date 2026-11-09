@@ -89,6 +89,7 @@ import {
   driveStimulusUploader,
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
+import { MAX_DOCUMENT_PAGES } from '@/utils/quizDocumentImport/limits';
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageFetcher';
 import { CartridgeBankImportModal } from './components/CartridgeBankImportModal';
@@ -435,10 +436,23 @@ const TeacherQuizWidget: React.FC<{
     }
     const picked = await openPicker({ mode: 'documents', token });
     if (!picked) return null;
-    const downloaded = await getDriveDocumentAsBlob(
+    let downloaded = await getDriveDocumentAsBlob(
       picked.id,
       googleDocAsPdf ? 'pdf' : 'docx'
     );
+    // A long Doc is past the PDF reader's page limit; its Word export has none.
+    if (
+      googleDocAsPdf &&
+      downloaded?.mimeType === 'application/pdf' &&
+      picked.mimeType !== 'application/pdf'
+    ) {
+      const { pdfPageCount } =
+        await import('@/utils/quizDocumentImport/pdfBrowserDeps');
+      const pages = await pdfPageCount(downloaded.blob).catch(() => 0);
+      if (pages > MAX_DOCUMENT_PAGES) {
+        downloaded = await getDriveDocumentAsBlob(picked.id, 'docx');
+      }
+    }
     if (!downloaded)
       throw new Error('Could not download that file from Drive.');
     return {
@@ -2329,6 +2343,7 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
+      pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportVersions
         ? {

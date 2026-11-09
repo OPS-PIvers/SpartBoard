@@ -72,6 +72,7 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
     fileName: name,
     // The wizard reads with passages on, so the corpus does too.
     passages: true,
+    pdfMarks: true,
     ...(pdf ? { pdf } : {}),
     // Node has no canvas; the BMP stands in for the PNG the browser would make.
     bmpToPng: (bmp) => Promise.resolve(bmp),

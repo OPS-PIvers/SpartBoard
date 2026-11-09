@@ -179,6 +179,8 @@ export interface ReadPdfOptions {
   maxPages?: number;
   /** Find each text page's pictures and place them among its lines. */
   pictures?: boolean;
+  /** Read bold, underlined and highlighted text as emphasis, which marks an answer or a heading. */
+  marks?: boolean;
 }
 
 /** A laid-out line's baseline and horizontal span as fractions of the viewport. */
@@ -244,6 +246,12 @@ const toLayoutItem = (item: PdfTextItem): LayoutItem => ({
   ...(item.bold || item.marked ? { bold: true } : {}),
 });
 
+/** The fragment with its bold, underline and highlight left out. */
+const toUnmarkedItem = (item: PdfTextItem): LayoutItem => {
+  const { bold: _bold, ...plain } = toLayoutItem(item);
+  return plain;
+};
+
 /** How far down a page a version heading may sit. */
 const HEAD_LINES = 3;
 
@@ -285,7 +293,7 @@ export async function readPdf(
       const page = await pdf.getPage(n);
       const content = await page.getTextContent();
       const pageLines = layoutPage(
-        content.items.map(toLayoutItem),
+        content.items.map(options.marks ? toLayoutItem : toUnmarkedItem),
         (content.rules ?? []).map((r) => ({
           x0: r.x0,
           x1: r.x1,

@@ -235,6 +235,45 @@ describe('letters set in bold on nearly every choice', () => {
   });
 });
 
+describe('bold text in a PDF', () => {
+  const bold = (str: string, x: number, y: number, isBold = false) => ({
+    str,
+    transform: [12, 0, 0, 12, x, y],
+    width: str.length * 6,
+    ...(isBold ? { bold: true } : {}),
+  });
+  const read = (marks: boolean) =>
+    readPdf(
+      new Blob([]),
+      {
+        loadPdf: () =>
+          Promise.resolve({
+            numPages: 1,
+            getPage: () =>
+              Promise.resolve({
+                height: 792,
+                getTextContent: () =>
+                  Promise.resolve({
+                    items: [
+                      bold('1. What is 2 + 2?', 36, 700),
+                      bold('a. 3', 54, 680),
+                      bold('b. 4', 54, 660, true),
+                    ],
+                  }),
+              }),
+          }),
+      },
+      marks ? { marks: true } : {}
+    );
+
+  it('marks the answer only when the reader is asked to read marks', async () => {
+    const off = parseDocument((await read(false)).lines);
+    const on = parseDocument((await read(true)).lines);
+    expect(off.questions[0].correctAnswer).toBe('');
+    expect(on.questions[0].correctAnswer).toBe('4');
+  });
+});
+
 describe('a question whose choices are pictures', () => {
   const text = (str: string, x: number, y: number) => ({
     str,

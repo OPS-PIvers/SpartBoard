@@ -23,6 +23,8 @@ const MATH_ARROW = /\uE000([^\uE000\uE001]+)\uE001\s*(?:>|→)/g;
 
 /** Lettering drawn over a picture is at most this long; a text box holding more is the test's own text. */
 const MAX_OVERLAY_WORDS = 4;
+/** `A. Nucleus`, `1) …`: a choice or a question typed in a box, never a picture's lettering. */
+const TEST_LINE_OPENING = /^\(?(?:[A-Ha-h]|\d{1,3})[.)]\s+\S/;
 
 /** `subscript` or `superscript` when the run is set off the baseline. */
 function runScript(run: Element): 'sub' | 'sup' | null {
@@ -278,13 +280,24 @@ export async function readDocx(file: Blob): Promise<DocxContent> {
 
   /** The text of each box when all are a few words: lettering over a picture, not the test's text. */
   const overlayLabels = (boxes: readonly Element[]): string[] | null => {
+    // A box holding a picture of its own is part of the test, so it is read like any other.
+    const holdsPicture = boxes.some((box) =>
+      Array.from(box.getElementsByTagName('*')).some((el) =>
+        ['drawing', 'pict', 'blip', 'imagedata'].includes(localName(el))
+      )
+    );
+    if (holdsPicture) return null;
     const labels = boxes.flatMap((box) =>
       Array.from(box.getElementsByTagName('*'))
         .filter((el) => localName(el) === 'p')
         .map((el) => joinSegments(paragraphSegments(el)).trim())
         .filter(Boolean)
     );
-    return labels.every((t) => t.split(/\s+/).length <= MAX_OVERLAY_WORDS)
+    if (labels.length === 0) return null;
+    return labels.every(
+      (t) =>
+        t.split(/\s+/).length <= MAX_OVERLAY_WORDS && !TEST_LINE_OPENING.test(t)
+    )
       ? labels
       : null;
   };
