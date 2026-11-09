@@ -1886,7 +1886,7 @@ export const generateVideoActivity = onCall(
 
     // Extract video ID from URL
     const videoIdMatch = url.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
     );
     const videoId = videoIdMatch?.[1];
 
@@ -2218,7 +2218,7 @@ export const transcribeVideoWithGemini = onCall(
     const bufferedTotal = bufferedRequestCount(total);
 
     const videoIdMatch = url.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
     );
     const videoId = videoIdMatch?.[1];
 
