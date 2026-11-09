@@ -61,7 +61,7 @@ export const StepsWalkthrough: React.FC<WalkthroughProps> = ({
       : FALLBACK_CSS;
   const room = {
     w: Math.max(0, host.w - PAD_X * 2),
-    h: clamp(vh * 0.52, 220, 620),
+    h: clamp(vh * 0.45, 220, 620),
   };
   const k = stageScale(css, pic && sized ? pic.w : css.w, room);
   const shown = { w: Math.round(css.w * k), h: Math.round(css.h * k) };

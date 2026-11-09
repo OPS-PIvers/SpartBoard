@@ -353,7 +353,8 @@ export const TourStepsDevHarness: React.FC = () => {
     return out;
   }, [view, fixtures, urls, state]);
 
-  const steps = state === 'empty' ? [] : view.steps;
+  const steps =
+    state === 'empty' || state === 'loading-steps' ? [] : view.steps;
   return (
     <main className="h-screen [height:100dvh] overflow-y-auto bg-white px-4 py-10 pb-16">
       <div className="mx-auto max-w-3xl">

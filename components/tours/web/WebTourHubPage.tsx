@@ -347,7 +347,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
   const viewPictures = useMemo<StepPictures>(
     () =>
       Object.fromEntries(
-        (tour?.steps ?? []).flatMap((step) => {
+        (tour?.steps ?? []).flatMap<[string, StepPictures[string]]>((step) => {
           if (!step.web.picture) return [];
           const src = pictureUrls.get(step.id);
           return [

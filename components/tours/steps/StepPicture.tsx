@@ -6,7 +6,7 @@ import type {
   StepsViewStep,
 } from './stepsModel';
 
-/** The widest a picture is drawn, as a multiple of its width in CSS pixels, so a capture never goes soft. */
+/** The widest a picture is drawn: never past its own pixels, nor 1.5 times the width it had on the page. */
 const MAX_MAGNIFY = 1.5;
 
 const Message: React.FC<{ text: string }> = ({ text }) => (
@@ -60,7 +60,7 @@ export const StepPicture: React.FC<{
         {
           aspectRatio: sized ? `${pic.w} / ${pic.h}` : '16 / 9',
           '--pic-max': sized
-            ? `${Math.round(Math.max(pic.cssW || pic.w, 360) * MAX_MAGNIFY)}px`
+            ? `${Math.round(Math.min(pic.w, Math.max(pic.cssW || pic.w, 360) * MAX_MAGNIFY))}px`
             : '100%',
         } as React.CSSProperties
       }

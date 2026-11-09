@@ -83,7 +83,7 @@ describe('TourStepsPane', () => {
     expect(screen.getByRole('status', { name: 'Loading steps' })).toBeTruthy();
     expect(
       await screen.findByText(
-        "Tours couldn't load. Check your connection and try again."
+        "The steps couldn't load. Check your connection and try again."
       )
     ).toBeTruthy();
     send.mockResolvedValueOnce(ok);

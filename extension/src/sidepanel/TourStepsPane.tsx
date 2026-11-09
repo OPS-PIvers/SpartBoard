@@ -15,6 +15,11 @@ import { FAILURE_TEXT } from './failureText';
 
 const send = <T,>(msg: object): Promise<T> => chrome.runtime.sendMessage(msg);
 
+const STEPS_FAILURE_TEXT = {
+  ...FAILURE_TEXT,
+  offline: "The steps couldn't load. Check your connection and try again.",
+};
+
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
 export const TourStepsPane: React.FC<{
@@ -89,11 +94,11 @@ export const TourStepsPane: React.FC<{
       </header>
       {reply && !reply.ok ? (
         <div className="flex flex-col items-start gap-2">
-          <p className="text-slate-700">{FAILURE_TEXT[reply.why]}</p>
+          <p className="text-slate-700">{STEPS_FAILURE_TEXT[reply.why]}</p>
           {reply.why === 'offline' && (
             <button
               type="button"
-              className={`${secondaryBtn} inline-flex items-center gap-1.5`}
+              className={`${secondaryBtn} -ml-3 inline-flex items-center gap-1.5`}
               onClick={() => setAttempt((n) => n + 1)}
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />

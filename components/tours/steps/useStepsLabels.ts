@@ -5,7 +5,7 @@ import type { StepsLabels } from './stepsModel';
 /** The Steps view's words in the app's language. */
 export function useStepsLabels(): StepsLabels {
   const { t } = useTranslation();
-  return useMemo(
+  return useMemo<StepsLabels>(
     () => ({
       article: t('tourSteps.article'),
       walkthrough: t('tourSteps.walkthrough'),
