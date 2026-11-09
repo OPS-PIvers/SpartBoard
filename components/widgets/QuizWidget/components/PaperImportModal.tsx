@@ -307,8 +307,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         : [],
     [assembled, batch, skipPage]
   );
+  // A review parked for another administration is neither resumed nor overwritten from a locked dialog.
+  const parkedElsewhere =
+    !!lockedAssignmentId &&
+    !!batch?.pendingReview?.assignmentId &&
+    batch.pendingReview.assignmentId !== lockedAssignmentId;
   const resumable =
     batch?.pendingReview &&
+    !parkedElsewhere &&
     !discarded.has(batch.id) &&
     pendingReviewMatches(batch, batch.pendingReview)
       ? batch.pendingReview
@@ -338,6 +344,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   // system here; the debounce keeps clicking through rows cheap.
   useEffect(() => {
     if (step !== 'review' || !assembled || !onSavePending || !batchId) return;
+    if (parkedElsewhere) return;
     const timer = window.setTimeout(() => {
       const review = toPendingReview(
         {
@@ -367,6 +374,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     pendingWritten,
     onSavePending,
     batchId,
+    parkedElsewhere,
   ]);
 
   const refreshQuota = async (forBatch: PaperBatch) => {

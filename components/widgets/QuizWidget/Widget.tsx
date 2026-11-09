@@ -2856,11 +2856,11 @@ const TeacherQuizWidget: React.FC<{
                 const batches = (
                   await listPaperBatchesForQuiz(user.uid, meta.id)
                 )
-                  // An assignment that took scans before Paper cards has no batch of its own.
-                  .filter(
-                    (b) =>
-                      !assignment.paperBatchId ||
-                      b.id === assignment.paperBatchId
+                  // An assignment that took scans before Paper cards has no batch of its own; never offer another's.
+                  .filter((b) =>
+                    assignment.paperBatchId
+                      ? b.id === assignment.paperBatchId
+                      : !linkedPaperBatchIds.has(b.id)
                   );
                 setPaperImport({ quiz: data, meta, batches, assignment });
               }
