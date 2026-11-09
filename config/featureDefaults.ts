@@ -704,6 +704,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
+  // Rewording a choice on a scanned paper test also updates the saved answers.
+  'paper-reword-sync': {
+    label: 'Keep scanned answers when rewording',
+    icon: TextCursorInput,
+    description:
+      'When a teacher rewords a choice on a scanned paper test, saved student answers follow the new wording.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Keep scanned answers when rewording',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Device quiz with written answers on paper; also needs paper-handwritten-responses.
   'paper-written-hybrid': {
     label: 'Written answers on paper',

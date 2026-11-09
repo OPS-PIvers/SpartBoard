@@ -200,6 +200,10 @@ import {
   firestoreDocData,
   readPaperImportQuota,
 } from '@/utils/paperImportQuota';
+import {
+  PAPER_REWORD_SYNC_FEATURE,
+  paperRewordQuestions,
+} from '@/utils/paperRewordSync';
 import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
 import { AnswerKeyFillModal } from './components/AnswerKeyFill';
 import { httpsCallable } from 'firebase/functions';
@@ -842,6 +846,38 @@ const TeacherQuizWidget: React.FC<{
   })();
 
   const paperUid = paperSheets.enabled && !isReview ? user?.uid : undefined;
+  const rewordSyncOn =
+    paperSheets.enabled && canAccessFeature(PAPER_REWORD_SYNC_FEATURE);
+  const lastRewordSync = useRef(new Map<string, string>());
+  /** Saved answers are choice text, so scanned tests follow a teacher's rewording. */
+  const syncPaperRewords = async (quiz: QuizData) => {
+    if (
+      !rewordSyncOn ||
+      !assignments.some((a) => a.quizId === quiz.id && a.hasPaperResponses)
+    ) {
+      return;
+    }
+    const questions = paperRewordQuestions(quiz);
+    const payload = JSON.stringify(questions);
+    if (
+      questions.length === 0 ||
+      lastRewordSync.current.get(quiz.id) === payload
+    ) {
+      return;
+    }
+    try {
+      await httpsCallable(
+        functions,
+        'paperRewordSyncV1'
+      )({ quizId: quiz.id, questions });
+      lastRewordSync.current.set(quiz.id, payload);
+    } catch {
+      addToast(
+        'Quiz saved, but scanned answers could not be updated. Save again to retry.',
+        'error'
+      );
+    }
+  };
   // Written answers on paper: device quiz, written questions on a printed sheet.
   const writtenOnPaperOn =
     !!paperUid &&
@@ -4211,6 +4247,7 @@ const TeacherQuizWidget: React.FC<{
               editingMeta?.driveFileId,
               behavior
             );
+            await syncPaperRewords(updated);
             // Adopt what was written. Without this a new quiz keeps saving
             // with no drive file id, so every retitled autosave orphans a file.
             setEditingMeta(saved);
@@ -4894,6 +4931,7 @@ const TeacherQuizWidget: React.FC<{
           )}
           onSave={async (data) => {
             await saveQuiz(data, paperOcr.meta.driveFileId);
+            await syncPaperRewords(data);
             addToast('Question text updated.', 'success');
           }}
           onPickFromDrive={pickScanFromDrive}

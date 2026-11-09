@@ -15,6 +15,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-results-tools',
   'paper-handwritten-responses',
   'paper-written-hybrid',
+  'paper-reword-sync',
   'claude-connector',
   'web-tours',
   'claude-connector-guided-learning',
