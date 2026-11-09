@@ -164,6 +164,7 @@ describe('seedLegacyBoardItemPicks', () => {
   beforeEach(() => {
     stored = {
       [SHARE]: {
+        sharedAt: Date.UTC(2026, 9, 1),
         widgets: [
           { type: 'quiz', config: { selectedQuizId: 'q1' } },
           {
@@ -183,7 +184,7 @@ describe('seedLegacyBoardItemPicks', () => {
     await expect(seedLegacyBoardItemPicks('me', 'share-1')).resolves.toBe(true);
     expect(fs.setDoc).toHaveBeenCalledWith(
       { path: PICKS },
-      { items: { arrayUnion: ['quiz_q1'] } },
+      { items: { arrayUnion: ['quiz_q1'] }, legacySeeded: true },
       { merge: true }
     );
     await expect(seedLegacyBoardItemPicks('me', 'share-1')).resolves.toBe(true);
@@ -191,12 +192,29 @@ describe('seedLegacyBoardItemPicks', () => {
     expect(fs.setDoc).toHaveBeenCalledTimes(1);
   });
 
-  it('never reseeds a picks doc that exists, even an empty one', async () => {
-    stored[PICKS] = { items: [] };
+  it('still seeds a legacy share whose picks doc holds only a later pick', async () => {
+    stored[PICKS] = { items: ['quiz_new'] };
+    await expect(seedLegacyBoardItemPicks('me', 'share-1')).resolves.toBe(true);
+    expect(fs.setDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('never reseeds a share it already seeded', async () => {
+    stored[PICKS] = { items: [], legacySeeded: true };
     await expect(seedLegacyBoardItemPicks('me', 'share-1')).resolves.toBe(
       false
     );
-    expect(fs.getDoc).toHaveBeenCalledTimes(1);
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('never seeds a share made after picks existed, even with no picks doc', async () => {
+    (stored[SHARE] as Record<string, unknown>).sharedAt = Date.UTC(
+      2026,
+      10,
+      11
+    );
+    await expect(seedLegacyBoardItemPicks('me', 'share-1')).resolves.toBe(
+      false
+    );
     expect(fs.setDoc).not.toHaveBeenCalled();
   });
 

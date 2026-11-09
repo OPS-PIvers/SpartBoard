@@ -213,7 +213,7 @@ describe('publishSharedBoardItem picks', () => {
     ).resolves.toBe('written');
     expect(fs.setDoc).toHaveBeenCalledWith(
       { path: PICKS },
-      { items: { arrayUnion: ['quiz_q1'] } },
+      { items: { arrayUnion: ['quiz_q1'] }, legacySeeded: true },
       { merge: true }
     );
     expect(fs.setDoc).toHaveBeenLastCalledWith(
@@ -222,10 +222,10 @@ describe('publishSharedBoardItem picks', () => {
     );
   });
 
-  it('never seeds a picks doc that exists, even an empty one', async () => {
+  it('never seeds a share made after picks existed', async () => {
     stored = {
-      [PICKS]: { items: [] },
       'shared_boards/share-1': {
+        sharedAt: Date.UTC(2026, 10, 11),
         widgets: [{ type: 'quiz', config: { selectedQuizId: 'q1' } }],
       },
     };

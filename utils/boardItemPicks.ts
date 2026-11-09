@@ -190,7 +190,10 @@ export function noteBoardItemPicksSeeding(
   );
 }
 
-/** A share made before picks existed has no picks doc: picks the teacher's own items its board names, once a session. */
+// Shares made before this cutoff predate picks; later ones get their picks at share time.
+export const LEGACY_PICKS_SHARE_CUTOFF_MS = Date.UTC(2026, 10, 9, 12);
+
+/** A share made before picks existed: picks the teacher's own items its board names, once per teacher and share. */
 export function seedLegacyBoardItemPicks(
   uid: string,
   shareId: string
@@ -200,19 +203,29 @@ export function seedLegacyBoardItemPicks(
   if (known) return known;
   const run = (async () => {
     if (isViewAsTab) return false;
-    if ((await getDoc(picksRef(uid, shareId))).exists()) return false;
     const share = await getDoc(doc(db, 'shared_boards', shareId));
-    const widgets: unknown = share.exists() ? share.data().widgets : undefined;
+    if (!share.exists()) return false;
+    const data = share.data();
+    const sharedAt: unknown = data.sharedAt;
+    if (
+      typeof sharedAt === 'number' &&
+      sharedAt >= LEGACY_PICKS_SHARE_CUTOFF_MS
+    )
+      return false;
+    const picks = await getDoc(picksRef(uid, shareId));
+    if (picks.exists() && picks.data().legacySeeded === true) return false;
+    const widgets: unknown = data.widgets;
     const keys = Array.isArray(widgets)
       ? ownBoardItemPicks(widgets.filter(isBoardItemWidget), uid)
       : [];
-    if (!keys.length) return false;
     await setDoc(
       picksRef(uid, shareId),
-      { items: arrayUnion(...keys) },
+      keys.length
+        ? { items: arrayUnion(...keys), legacySeeded: true }
+        : { legacySeeded: true },
       { merge: true }
     );
-    return true;
+    return keys.length > 0;
   })().catch((err: unknown) => {
     seeds.delete(id);
     logError('seedLegacyBoardItemPicks', err, { shareId });
