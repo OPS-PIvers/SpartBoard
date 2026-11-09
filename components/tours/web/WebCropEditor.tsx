@@ -10,6 +10,7 @@ type Drag =
   | { kind: 'corner'; corner: Corner };
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
+const INSET = 16;
 
 /** A crop from a dragged corner, the opposite corner staying put. */
 function fromCorner(
@@ -55,7 +56,11 @@ export const WebCropEditor: React.FC<{
 }) => {
   const [crop, setCrop] = useState<UnitRect>(initial);
   const [drag, setDrag] = useState<Drag | null>(null);
-  const scale = Math.min(box.w / baseSize.w, box.h / baseSize.h);
+  // Inset so the corner handles stay inside the frame even at full size.
+  const scale = Math.min(
+    (box.w - INSET * 2) / baseSize.w,
+    (box.h - INSET * 2) / baseSize.h
+  );
   const fit = { w: baseSize.w * scale, h: baseSize.h * scale };
   const unchanged =
     Math.abs(crop.x - initial.x) < 0.001 &&

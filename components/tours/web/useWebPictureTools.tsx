@@ -23,13 +23,14 @@ import {
   redactImage,
   type RedactRect,
 } from '@/components/widgets/GuidedLearning/utils/redactImage';
-import {
-  loadWebTourPicture,
-  uploadWebTourPicture,
-  WEB_TOUR_PICTURE_MAX_BYTES,
-} from '@/components/tours/webTours';
+import { WEB_TOUR_PICTURE_MAX_BYTES } from '@/components/tours/webTours';
 import { BlurEditor } from './webEditorParts';
-import { PictureCache, usePictureBlob } from './webPictures';
+import {
+  PictureCache,
+  loadStepPicture,
+  uploadStepPicture,
+  usePictureBlob,
+} from './webPictures';
 import { WebCropEditor } from './WebCropEditor';
 import { WebMarkupEditor, type MarkupTool } from './WebMarkupEditor';
 import {
@@ -70,7 +71,7 @@ const useLoad = () => {
   const cache = useContext(PictureCache);
   return (path: string): Promise<Blob> => {
     const hit = cache?.get(path);
-    return hit ?? loadWebTourPicture(path).then((b) => new Blob([b]));
+    return hit ?? loadStepPicture(path);
   };
 };
 
@@ -110,7 +111,7 @@ export function useWebPictureTools(ctx: Ctx) {
   const applyBlur = async (blob: Blob, boxes: RedactRect[]) => {
     if (!step || !picture) return;
     const type = isStepPictureType(blob.type) ? blob.type : 'image/png';
-    const path = await uploadWebTourPicture(ctx.setId, blob, type);
+    const path = await uploadStepPicture(ctx.setId, blob, type);
     let original = picture.original;
     if (original) {
       try {
@@ -122,7 +123,7 @@ export function useWebPictureTools(ctx: Ctx) {
         const fullType = isStepPictureType(full.type) ? full.type : 'image/png';
         original = {
           ...original,
-          path: await uploadWebTourPicture(ctx.setId, full, fullType),
+          path: await uploadStepPicture(ctx.setId, full, fullType),
         };
       } catch (err) {
         // Without a blurred capture there is none: the picture can then only crop tighter.
@@ -145,11 +146,7 @@ export function useWebPictureTools(ctx: Ctx) {
     setFailed(false);
     try {
       const cut = await cropImage(base.blob, rect);
-      const path = await uploadWebTourPicture(
-        ctx.setId,
-        cut.blob,
-        'image/jpeg'
-      );
+      const path = await uploadStepPicture(ctx.setId, cut.blob, 'image/jpeg');
       await ctx.savePicture(
         step.id,
         recropPicture(picture, rect, { path, w: cut.w, h: cut.h })
@@ -175,7 +172,7 @@ export function useWebPictureTools(ctx: Ctx) {
     }
     try {
       const { w, h } = await imageSize(file);
-      const path = await uploadWebTourPicture(ctx.setId, file, file.type);
+      const path = await uploadStepPicture(ctx.setId, file, file.type);
       // An uploaded picture has no known target place, scale or capture behind it.
       await ctx.savePicture(step.id, { path, w, h });
       ctx.onStatus(`Step ${index + 1} has a new picture.`);
@@ -372,9 +369,7 @@ export function useWebPictureTools(ctx: Ctx) {
                           type="button"
                           role="radio"
                           aria-checked={markupTool === t.id}
-                          onClick={() =>
-                            setMarkupTool(markupTool === t.id ? null : t.id)
-                          }
+                          onClick={() => setMarkupTool(t.id)}
                           className={`${toolBtn} ${
                             markupTool === t.id
                               ? 'bg-brand-blue-lighter text-brand-blue-dark'

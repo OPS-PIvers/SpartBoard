@@ -2,12 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GuidedLearningSet } from '@/types';
 import { logError } from '@/utils/logError';
 import {
-  saveWebTourDraft,
   setWebTourCheckRun,
   setWebTourFixes,
   sweepWebTourPictures,
 } from '@/components/tours/webTours';
 import { webTourEditorDevSeed } from './webEditorDevSeed';
+import { saveStepDraft } from './webPictures';
 import {
   newTourHistory,
   pushTourEdit,
@@ -114,7 +114,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     const timer = setTimeout(() => {
       if (deleted.current) return;
       dirty.current = false;
-      saveWebTourDraft(set).then(
+      saveStepDraft(set).then(
         () => {
           if (!dirty.current) setSaveState('saved');
         },
@@ -137,7 +137,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     () => () => {
       if (deleted.current) return;
       const last = latest.current;
-      const saving = dirty.current ? saveWebTourDraft(last) : Promise.resolve();
+      const saving = dirty.current ? saveStepDraft(last) : Promise.resolve();
       dirty.current = false;
       saving.then(
         () =>
@@ -162,7 +162,7 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     setSet(next);
     setSaveState('saving');
     try {
-      await saveWebTourDraft(next);
+      await saveStepDraft(next);
       if (!dirty.current) setSaveState('saved');
     } catch (err) {
       setSaveState('error');

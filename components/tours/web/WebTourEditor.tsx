@@ -514,11 +514,23 @@ const WebTourEditorBody: React.FC<{
 
   const seed = webTourEditorDevSeed();
   const pub =
-    seed?.publish ?? (published.loaded ? tourPublishStatus(set, live) : null);
+    seed?.publish ??
+    (seed?.publishedSet
+      ? tourPublishStatus(set, {
+          set: seed.publishedSet,
+          publishedAt: 1,
+          publishedBy: null,
+        })
+      : published.loaded
+        ? tourPublishStatus(set, live)
+        : null);
   const canCheck = seed?.canCheck ?? extensionCanCheck;
   const canFix = seed?.canFix ?? extensionCanFix;
   const hasLive =
-    !!live || (seed?.publish !== undefined && seed.publish !== 'draft');
+    !!live ||
+    (seed?.publish !== undefined
+      ? seed.publish !== 'draft'
+      : !!seed?.publishedSet);
   const checking = seed?.checking ?? checker.checking;
   const computed = tourMainAction({
     kind: 'web',
@@ -814,7 +826,10 @@ const WebTourEditorBody: React.FC<{
           set={set}
           hidden={check.hidden}
           askPictures={check.askPictures}
-          changed={changedPictureSteps(set, live?.set ?? null)}
+          changed={changedPictureSteps(
+            set,
+            webTourEditorDevSeed()?.publishedSet ?? live?.set ?? null
+          )}
           onCancel={() => setCheck(null)}
           onBlur={() => {
             setCheck(null);
