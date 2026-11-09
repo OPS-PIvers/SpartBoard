@@ -519,6 +519,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Google Docs read as their PDF, not as Word. Admin-only until Paul has imported with it.
+  'quiz-import-google-doc-pdf': {
+    label: 'Read Google Docs as printed',
+    icon: FileText,
+    description:
+      'Imports a Google Doc test from its PDF, keeping figures and their labels.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {

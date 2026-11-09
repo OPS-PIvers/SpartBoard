@@ -20,6 +20,7 @@ import type {
   QuizStimulus,
 } from '@/types';
 import { sectionsForQuestions } from '@/utils/quizSections';
+import { questionFromRows } from '@/utils/quizChoiceRows';
 import { importSections } from './importSections';
 import {
   multiAnswerPart,
@@ -89,12 +90,25 @@ export function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
     ? optionTexts.filter((text) => !rightSet.has(text))
     : optionTexts;
 
+  // The editor lists the choices in the order the test printed them.
+  const printedOrder =
+    q.type === 'MC' && answer
+      ? questionFromRows(
+          optionTexts.map((text, i) => ({
+            text,
+            correct: optionTexts.indexOf(answer) === i,
+          })),
+          false
+        ).optionOrder
+      : undefined;
+
   return {
     id: crypto.randomUUID(),
     timeLimit: 0,
     text: q.text,
     type: q.type,
     correctAnswer: isWritten ? '' : answer,
+    ...(printedOrder ? { optionOrder: printedOrder } : {}),
     incorrectAnswers: isWritten ? [] : incorrectAnswers,
     ...(!isWritten && !answer ? { needsKey: true } : {}),
     ...(q.points !== undefined ? { points: q.points } : {}),
@@ -110,23 +124,15 @@ export function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
   };
 }
 
-/**
- * The per-question notes, numbered so they line up with the review rows.
- * They ride the wizard's own warnings list rather than a parallel channel.
- */
-export function rowWarnings(extracted: ExtractedQuiz): string[] {
-  return extracted.questions.flatMap((q) =>
-    [
-      ...q.warnings,
-      ...(q.type === 'Ordering' && !q.correctAnswer.trim()
-        ? [
-            'This looks like an ordering question, but no order was given, so it came in as a written question with the items listed.',
-          ]
-        : []),
-      ...(q.suggestUntick ? [`${q.suggestUntick} It starts unticked.`] : []),
-    ].map((w) => `Question ${q.number}: ${w}`)
-  );
-}
+/** What the reader was unsure of on one question, shown on its review row. */
+export const readerNotes = (q: ExtractedQuestion): string[] => [
+  ...q.warnings,
+  ...(q.type === 'Ordering' && !q.correctAnswer.trim()
+    ? [
+        'This looks like an ordering question, but no order was given, so it came in as a written question with the items listed.',
+      ]
+    : []),
+];
 
 /** What the review table needs beyond the quiz itself, keyed by the quiz it came with. */
 export interface ReviewExtras {
@@ -134,6 +140,8 @@ export interface ReviewExtras {
   allQuestions: QuizQuestion[];
   /** Question ids that start unticked (R9), with the reason. */
   untick: ReadonlyMap<string, string>;
+  /** What the reader was unsure of, by question id. */
+  notes: ReadonlyMap<string, readonly string[]>;
   /** Learning-target lines by question id (R20). */
   suggestedTargets: ReadonlyMap<string, SuggestedTarget>;
   /** Standard codes a test bank key listed, by question id (QUIZ_EXAMVIEW_IMPORT E10). */
@@ -195,6 +203,7 @@ export function extractedToQuizData(
   );
 
   const untick = new Map<string, string>();
+  const notes = new Map<string, readonly string[]>();
   const suggestedTargets = new Map<string, SuggestedTarget>();
   const standardCodes = new Map<string, readonly string[]>();
   const allQuestions = extracted.questions.map((read, index) => {
@@ -231,6 +240,8 @@ export function extractedToQuizData(
       ? { ...built, stimulusIds: [shared, ...(built.stimulusIds ?? [])] }
       : built;
     if (q.suggestUntick) untick.set(question.id, q.suggestUntick);
+    const unsure = readerNotes(read);
+    if (unsure.length > 0) notes.set(question.id, unsure);
     if (q.suggestedTarget) suggestedTargets.set(question.id, q.suggestedTarget);
     if (q.standardCodes?.length)
       standardCodes.set(question.id, q.standardCodes);
@@ -268,6 +279,7 @@ export function extractedToQuizData(
     allQuestions,
     ...(sections.length > 0 ? { order, sections } : {}),
     untick,
+    notes,
     suggestedTargets,
     standardCodes,
     ...(extracted.keySummary ? { keySummary: extracted.keySummary } : {}),

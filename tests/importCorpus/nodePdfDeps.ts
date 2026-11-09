@@ -5,6 +5,8 @@ import type {
   PdfReaderDeps,
   PdfTextItem,
 } from '@/utils/quizDocumentImport/pdfReader';
+import { markBoldItems } from '@/utils/quizDocumentImport/pdfReader';
+import { picturesOnPage } from '@/utils/quizDocumentImport/pdfPictures';
 
 export async function nodePdfDeps(bytes: Uint8Array): Promise<PdfReaderDeps> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -12,7 +14,7 @@ export async function nodePdfDeps(bytes: Uint8Array): Promise<PdfReaderDeps> {
   pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
     require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
   ).href;
-  const task = pdfjs.getDocument({ data: bytes });
+  const task = pdfjs.getDocument({ data: bytes, fontExtraProperties: true });
   const doc = await task.promise;
   return {
     loadPdf: () =>
@@ -33,9 +35,26 @@ export async function nodePdfDeps(bytes: Uint8Array): Promise<PdfReaderDeps> {
                   str: c.str,
                   transform: c.transform,
                   ...(typeof c.width === 'number' ? { width: c.width } : {}),
+                  ...(typeof c.height === 'number' ? { height: c.height } : {}),
+                  ...(typeof c.fontName === 'string'
+                    ? { fontName: c.fontName }
+                    : {}),
                 });
               }
-              return { items };
+              return {
+                items: await markBoldItems(page, items, {
+                  ops: pdfjs.OPS,
+                  pageWidth: page.getViewport({ scale: 1 }).width,
+                }),
+              };
+            },
+            getPictures: async (items) => {
+              const viewport = page.getViewport({ scale: 1 });
+              const list = await page.getOperatorList();
+              return {
+                viewport,
+                pictures: picturesOnPage(list, pdfjs.OPS, viewport, items),
+              };
             },
           };
         },

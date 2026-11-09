@@ -37,6 +37,18 @@ export interface DocLine {
   y?: number;
   /** Ids of pictures anchored to this line, into `ExtractedQuiz.images`. */
   imageIds?: string[];
+  /** A picture's printed captions by its id, like `figure 2`, for questions that name it. */
+  figureLabels?: Record<string, string[]>;
+  /** A picture-only line heading its page, which belongs to the question under it. */
+  leads?: boolean;
+  /** A row of a Word table, one segment per cell. */
+  tableRow?: boolean;
+  /** Lettering drawn over this line's pictures that the picture files don't hold. */
+  lostLabels?: string[];
+  /** Pictures given to this line only because they are printed beside several questions. */
+  besideIds?: string[];
+  /** This line's picture is a crop of its own math, which plain text can't hold. */
+  mathPicture?: boolean;
 }
 
 /** A line's segments, or the whole line as one segment when it had no gap. */
@@ -101,6 +113,8 @@ export interface KeyItem {
   pointsForItem?: boolean;
   /** The key scores this with a rubric rather than one answer. */
   rubric?: boolean;
+  /** Under a test bank's Short Answer, Essay or Problem heading: a model answer, not a key. */
+  written?: boolean;
   /** The key says the item isn't scored. */
   notScored?: boolean;
   /** A test bank's `OBJ:` and `TOP:` fields (E10). */
@@ -159,6 +173,8 @@ export interface ExtractedQuestion {
   matchingDistractors?: string[];
   /** Matching only: score each pair (E6). */
   allowPartialCredit?: boolean;
+  /** Its choices are bare letters added from the key, for a question answered off a picture. */
+  lettersFromKey?: boolean;
   /** Standard codes a test bank key lists for this item (E10). */
   standardCodes?: string[];
   /** Modified True/False: the key's word that makes a false statement true (E7). */

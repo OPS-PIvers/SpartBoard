@@ -97,7 +97,7 @@ export {
 } from './pdfLayout';
 export {
   extractedToQuizData,
-  rowWarnings,
+  readerNotes,
   reviewExtrasFor,
   type ReviewExtras,
 } from './toQuizData';

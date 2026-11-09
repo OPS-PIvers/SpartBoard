@@ -27,7 +27,6 @@ import {
   extractedToQuizData,
   reviewExtrasFor,
   readByLabel,
-  rowWarnings,
   type AiExtractFn,
   type ExtractedImage,
   type RemoteImageFetcher,
@@ -499,12 +498,10 @@ export function createQuizImportAdapter(
             sections: true,
             ...(standardCodes ? { standardsFromText: standardCodes } : {}),
           }),
-          // Row notes ride the wizard's own warnings list, numbered so they
-          // line up with the review rows (D10).
+          // Notes about one question show on its review row, not here.
           warnings: [
             ...(versionsNeedAi ? [VERSIONS_NEED_AI] : []),
             ...extracted.warnings,
-            ...rowWarnings(extracted),
           ],
           ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
           ...(deps.aiExtract &&

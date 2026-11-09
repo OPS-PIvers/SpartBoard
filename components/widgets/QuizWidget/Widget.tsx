@@ -372,6 +372,8 @@ const TeacherQuizWidget: React.FC<{
     canUseQuizAi;
   const canImportVersions =
     canImportDocuments && canAccessFeature('quiz-import-versions');
+  const googleDocAsPdf =
+    canImportDocuments && canAccessFeature('quiz-import-google-doc-pdf');
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
   // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
@@ -433,14 +435,17 @@ const TeacherQuizWidget: React.FC<{
     }
     const picked = await openPicker({ mode: 'documents', token });
     if (!picked) return null;
-    const downloaded = await getDriveDocumentAsBlob(picked.id);
+    const downloaded = await getDriveDocumentAsBlob(
+      picked.id,
+      googleDocAsPdf ? 'pdf' : 'docx'
+    );
     if (!downloaded)
       throw new Error('Could not download that file from Drive.');
     return {
       file: downloaded.blob,
       fileName: downloaded.name || picked.name,
     };
-  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
+  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob, googleDocAsPdf]);
 
   // Pictures the last read document carried. They wait here rather than in
   // the adapter, which owns no state, until the teacher confirms the import.

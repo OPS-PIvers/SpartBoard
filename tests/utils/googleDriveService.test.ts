@@ -655,6 +655,64 @@ describe('GoogleDriveService', () => {
       expect(result.name).toBe('Unit 3 Test.docx');
     });
 
+    it('exports a Google Doc as a PDF when asked, so figures come in as printed', async () => {
+      const blob = new Blob(['%PDF']);
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: 'doc-1',
+              name: 'Unit 3 Test',
+              mimeType: 'application/vnd.google-apps.document',
+            }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          blob: () => Promise.resolve(blob),
+        } as Response);
+
+      const result = await service.downloadDocumentAsBlob('doc-1', 'pdf');
+
+      expect(fetchSpy.mock.calls[1][0]).toContain(
+        '/files/doc-1/export?mimeType=application%2Fpdf'
+      );
+      expect(result.mimeType).toBe('application/pdf');
+      expect(result.blob).toBe(blob);
+      expect(result.name).toBe('Unit 3 Test.pdf');
+    });
+
+    it('falls back to the Word export when Drive will not make the PDF', async () => {
+      const docx = new Blob(['PK']);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      vi.spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: 'doc-1',
+              name: 'Unit 3 Test',
+              mimeType: 'application/vnd.google-apps.document',
+            }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          text: () => Promise.resolve('exportSizeLimitExceeded'),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          blob: () => Promise.resolve(docx),
+        } as Response);
+
+      const result = await service.downloadDocumentAsBlob('doc-1', 'pdf');
+
+      expect(result.mimeType).toBe(DOCX);
+      expect(result.name).toBe('Unit 3 Test.docx');
+    });
+
     it('does not double up an extension the Doc already has', async () => {
       vi.spyOn(global, 'fetch')
         .mockResolvedValueOnce({

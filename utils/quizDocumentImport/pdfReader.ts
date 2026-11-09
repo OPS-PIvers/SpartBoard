@@ -11,19 +11,29 @@
 
 import { assertWithinPageLimit } from './limits';
 import {
+  hasUnreadableMath,
   layoutPage,
   ocrItems,
   stripRunningLines,
   type LayoutItem,
+  type LayoutLine,
   type OcrPage,
   type PageLines,
 } from './pdfLayout';
-import type { FigureBox } from './pdfFigures';
+import { figureKey, type FigureBox } from './pdfFigures';
+import {
+  isDrawnMarked,
+  textMarks,
+  type PdfMarkOps,
+  type TextMarks,
+} from './pdfMarks';
 import {
   dropRepeatedEdgePictures,
+  growPicturesToLabels,
   placePictureLines,
   sharePicturesAcrossRanges,
   type PageBox,
+  type PdfOperatorListLike,
   type PdfViewportLike,
   type PositionedLine,
 } from './pdfPictures';
@@ -41,6 +51,65 @@ export interface PdfTextItem {
   width?: number;
   /** Glyph height in points, as pdf.js reports it. */
   height?: number;
+  /** pdf.js's id for the font, like `g_d0_f2`. */
+  fontName?: string;
+  /** Set in a bold font, which is one way a teacher marks the answer. */
+  bold?: boolean;
+  /** Underlined or highlighted, which are the other ways. */
+  marked?: boolean;
+}
+
+/** A font's real name says bold: `Arial-BoldMT`, `Calibri,Bold`, `Roboto-Black`. */
+export const isBoldFontName = (name: string | undefined): boolean =>
+  /bold|black|heavy|demi/i.test(name ?? '');
+
+/** What finding a page's bold fonts needs of pdf.js. */
+export interface PdfFontPage {
+  getOperatorList: () => Promise<unknown>;
+  commonObjs: { get: (id: string) => unknown };
+}
+
+/**
+ * Marks the items set in a bold font and, given pdf.js's `OPS`, the ones
+ * underlined or highlighted. The document must be opened with `fontExtraProperties`.
+ */
+export async function markBoldItems(
+  page: PdfFontPage,
+  items: PdfTextItem[],
+  drawing?: { ops: PdfMarkOps; pageWidth?: number }
+): Promise<PdfTextItem[]> {
+  const ids = new Set(items.map((i) => i.fontName).filter(Boolean));
+  if (ids.size === 0 && !drawing) return items;
+  const bold = new Set<string>();
+  let marks: TextMarks | null = null;
+  try {
+    // Fonts resolve as the page's drawing is read.
+    const list = await page.getOperatorList();
+    for (const id of ids) {
+      const font = page.commonObjs.get(id as string) as { name?: string };
+      if (isBoldFontName(font?.name)) bold.add(id as string);
+    }
+    if (drawing) marks = textMarks(list as PdfOperatorListLike, drawing.ops);
+  } catch (err) {
+    console.warn('[quizDocumentImport] could not read the fonts', err);
+    return items;
+  }
+  const drawn =
+    marks && marks.underlines.length + marks.highlights.length > 0
+      ? marks
+      : null;
+  if (bold.size === 0 && !drawn) return items;
+  return items.map((i) => {
+    const isBold = Boolean(i.fontName && bold.has(i.fontName));
+    const marked =
+      drawn !== null && isDrawnMarked(i, drawn, drawing?.pageWidth);
+    if (!isBold && !marked) return i;
+    return {
+      ...i,
+      ...(isBold ? { bold: true } : {}),
+      ...(marked ? { marked: true } : {}),
+    };
+  });
 }
 
 export interface PdfPageLike {
@@ -114,12 +183,36 @@ function positionLine(
   };
 }
 
+/** The line with room for what is stacked over and under it, as fractions of the viewport. */
+function mathBox(line: LayoutLine, viewport: PdfViewportLike): PageBox | null {
+  const xs = line.segments.flatMap((s) =>
+    s.x === undefined ? [] : [s.x, s.xEnd ?? s.x]
+  );
+  if (xs.length === 0) return null;
+  const size = line.size ?? 12;
+  const [a, b, c, d, e, f] = viewport.transform;
+  const at = (x: number, y: number) => ({
+    x: (a * x + c * y + e) / viewport.width,
+    y: (b * x + d * y + f) / viewport.height,
+  });
+  const p = at(Math.min(...xs), line.y + 1.6 * size);
+  const q = at(Math.max(...xs), line.y - size);
+  const box = {
+    x: Math.min(p.x, q.x),
+    y: Math.min(p.y, q.y),
+    width: Math.abs(q.x - p.x),
+    height: Math.abs(q.y - p.y),
+  };
+  return box.width > 0 && box.height > 0 ? box : null;
+}
+
 const toLayoutItem = (item: PdfTextItem): LayoutItem => ({
   str: item.str,
   x: item.transform[4],
   y: item.transform[5],
   ...(item.width !== undefined ? { width: item.width } : {}),
   fontSize: Math.hypot(item.transform[2] ?? 0, item.transform[3] ?? 0),
+  ...(item.bold || item.marked ? { bold: true } : {}),
 });
 
 /** How far down a page a version heading may sit. */
@@ -231,20 +324,33 @@ export async function readPdf(
       const pageLines: DocLine[] = page.lines.map((line) => ({
         text: line.text,
         segments: line.segments,
+        ...(line.segments.some((s) => s.emphasized)
+          ? { emphasized: true }
+          : {}),
         page: n,
         y: line.y,
       }));
       const onPage = kept.get(n) ?? [];
       const viewport = picturesByPage.get(n)?.viewport;
+      if (viewport) {
+        // Math that plain text gets wrong also comes in as a picture of the line.
+        page.lines.forEach((line, i) => {
+          const box = hasUnreadableMath(line.text)
+            ? mathBox(line, viewport)
+            : null;
+          if (!box) return;
+          pageLines[i].imageIds = [figureKey({ page: n, ...box })];
+          pageLines[i].mathPicture = true;
+          pictures.push({ page: n, ...box });
+        });
+      }
       if (viewport && onPage.length > 0) {
-        lines.push(
-          ...placePictureLines(
-            n,
-            pageLines.map((line) => positionLine(line, viewport)),
-            onPage
-          )
+        const positioned = pageLines.map((line) =>
+          positionLine(line, viewport)
         );
-        pictures.push(...onPage.map((box) => ({ page: n, ...box })));
+        const grown = growPicturesToLabels(positioned, onPage);
+        lines.push(...placePictureLines(n, positioned, grown));
+        pictures.push(...grown.map((box) => ({ page: n, ...box })));
       } else {
         lines.push(...pageLines);
       }

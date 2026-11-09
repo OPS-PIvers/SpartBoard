@@ -7,6 +7,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-document-ai-reader',
   'quiz-import-versions',
   'quiz-import-versions-plain',
+  'quiz-import-google-doc-pdf',
   'paper-answer-sheets',
   'roster-groups',
   'quiz-document-import',
