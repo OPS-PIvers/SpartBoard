@@ -124,10 +124,23 @@ import {
 } from './tourResume';
 import { recordTourFinished } from '@/utils/gettingStartedProgress';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
-import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
+import {
+  isInPopup,
+  openPopupBoxes,
+  shieldTourUi,
+  withNearbyPopups,
+} from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
 import { autoStage as stageTour, needsAutoStage } from './tourAutoStage';
 import { healAnchor } from './tourSelfHeal';
+import {
+  catchUp,
+  enterRun,
+  matchLookahead,
+  waitForSettle,
+  type SettleWait,
+} from './playbackEngine';
+import { domSettleHost } from './settleDom';
 import {
   endTestRun,
   installTestRunHook,
@@ -210,6 +223,8 @@ interface ActiveTour {
   test?: boolean;
   /** What the run made, captured when the boards prompt opens. */
   made?: RunMade;
+  /** Steps a catch-up passed over (TOURS_10X.md P3); set only with tour pacing on. */
+  skipped?: readonly string[];
 }
 
 interface RunMade {
@@ -1345,7 +1360,8 @@ export const LiveTourRunner: React.FC = () => {
     closeOut(finished);
   };
 
-  const goTo = (index: number) => {
+  // `caught` is the skipped list a catch-up lands with; a step passed over is skipped, not missed.
+  const goTo = (index: number, caught?: readonly string[]) => {
     if (!tour) return;
     autoWait.current?.abort();
     manualStep.current = null;
@@ -1354,7 +1370,7 @@ export const LiveTourRunner: React.FC = () => {
       if (!tour.edit) finish(true);
       return;
     }
-    noteMiss();
+    if (caught === undefined) noteMiss();
     runLog.current?.update({ furthest: index });
     setAttempt(0);
     setVisit((n) => n + 1);
@@ -1370,10 +1386,14 @@ export const LiveTourRunner: React.FC = () => {
     const boardIds = (
       latest.current.dashboard.activeDashboard?.widgets ?? []
     ).map((w) => w.id);
+    const skipped =
+      caught ??
+      (tour.skipped ? enterRun(tour, tour.steps, next).skipped : undefined);
     setTour({
       ...tour,
       index: next,
       spawnWatch: watchSpawn(tour, next, boardIds),
+      ...(skipped ? { skipped } : {}),
     });
   };
 
@@ -1590,6 +1610,83 @@ export const LiveTourRunner: React.FC = () => {
       el.removeEventListener('input', onInput, true);
     };
   }, [anchor.element, acted, action, stepValue, stepIndex, doneFact]);
+
+  // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
+  const pacing = canAccessFeature('tour-pacing');
+  const lookahead =
+    pacing &&
+    tour?.phase === 'running' &&
+    !tour.edit &&
+    !tour.test &&
+    !editRecording;
+  const pendingCatch = useRef<{
+    from: number;
+    matched: number;
+    el: Element;
+    wait: SettleWait;
+  } | null>(null);
+  const landCatchUp = useEffectEvent(() => {
+    const p = pendingCatch.current;
+    pendingCatch.current = null;
+    if (!p || tour?.phase !== 'running' || tour.index !== p.from) return;
+    const run = catchUp(tour, tour.steps, p.matched);
+    goTo(run.index, run.skipped);
+  });
+  const onAheadAct = useEffectEvent((e: Event) => {
+    if (tour?.phase !== 'running' || autoClicking.current) return;
+    const hit = e.target instanceof Element ? e.target : null;
+    if (!hit || hit.closest('[data-tour-ignore]')) return;
+    const inAnchor = !!anchor.element?.contains(hit);
+    // The current step's own listener handles its control, even when a later step reuses it.
+    if (inAnchor && tour.steps[tour.index]?.tour?.action !== 'observe') return;
+    // While a step is lit the dim swallows clicks outside its control and any menu beside it.
+    if (anchor.status === 'found' && !inAnchor && !isInPopup(hit)) return;
+    const kinds: readonly string[] =
+      e.type === 'change' ? ['type', 'select'] : ['click', 'toggle', 'select'];
+    const scope = { widgetIds: added, slots: tour.slots };
+    const found: { el?: Element } = {};
+    const matched = matchLookahead(tour.steps, tour.index, (s, i) => {
+      const b = s.tour;
+      if (!b || b.doneWhen || !kinds.includes(b.action)) return false;
+      if (i === tour.index && anchor.status === 'found') return false;
+      const at = findTourAnchor(b, scope);
+      if (!at?.contains(hit)) return false;
+      found.el = at;
+      return true;
+    });
+    const el = found.el;
+    if (matched === null || !el) return;
+    const p = pendingCatch.current;
+    if (p && p.from === tour.index) {
+      // A quick burst lands once, on the step after the furthest one done.
+      if (matched > p.matched) pendingCatch.current = { ...p, matched, el };
+      return;
+    }
+    p?.wait.cancel();
+    const near = () => pendingCatch.current?.el ?? null;
+    const wait = waitForSettle(
+      domSettleHost(document, {
+        near,
+        ignore: (n) => n.closest('[data-tour-ignore]') !== null,
+      })
+    );
+    pendingCatch.current = { from: tour.index, matched, el, wait };
+    void wait.done.then(() => {
+      if (pendingCatch.current?.wait === wait) landCatchUp();
+    });
+  });
+  useEffect(() => {
+    if (!lookahead) return;
+    const onEvent = (e: Event) => onAheadAct(e);
+    document.addEventListener('click', onEvent, true);
+    document.addEventListener('change', onEvent, true);
+    return () => {
+      document.removeEventListener('click', onEvent, true);
+      document.removeEventListener('change', onEvent, true);
+      pendingCatch.current?.wait.cancel();
+      pendingCatch.current = null;
+    };
+  }, [lookahead]);
 
   const sandbox = useTourSandbox();
   // A teacher's own picked item takes real writes, so only a run without one autopilots sandboxed saves.
@@ -2738,6 +2835,9 @@ export const LiveTourRunner: React.FC = () => {
       data-click-outside-ignore="true"
       onClick={(e) => e.stopPropagation()}
       data-testid="live-tour"
+      {...(tour?.skipped?.length
+        ? { 'data-skipped-steps': tour.skipped.join(' ') }
+        : {})}
       className="contents pointer-events-none *:pointer-events-auto [&>svg]:pointer-events-none"
     >
       <div

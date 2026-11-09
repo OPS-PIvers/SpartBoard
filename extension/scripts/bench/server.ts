@@ -22,9 +22,21 @@ const TYPES: Record<string, string> = {
   '.js': 'text/javascript',
 };
 
+/** A slow server: the second report page takes this long to answer. */
+const SLOW_PAGE_MS = 1200;
+
 function handler(req: http.IncomingMessage, res: http.ServerResponse) {
   const url = new URL(req.url ?? '/', 'http://x');
-  let file = url.pathname.startsWith('/spa/') ? '/spa.html' : url.pathname;
+  if (url.pathname === '/slow/2' && !req.headers['x-sb-waited']) {
+    req.headers['x-sb-waited'] = '1';
+    setTimeout(() => handler(req, res), SLOW_PAGE_MS);
+    return;
+  }
+  let file = url.pathname.startsWith('/spa/')
+    ? '/spa.html'
+    : url.pathname.startsWith('/slow/')
+      ? '/slow.html'
+      : url.pathname;
   if (file === '/') file = '/launch.html';
   const full = path.join(PAGES, path.normalize(file));
   if (!full.startsWith(PAGES) || !existsSync(full)) {

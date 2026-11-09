@@ -134,6 +134,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'student-keyboards',
   'student-overview-resources',
   'tab-away-timer',
+  'tour-pacing',
   'universal-import',
   'video-activity-ai',
   'video-activity-audio-transcription',

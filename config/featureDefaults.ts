@@ -783,6 +783,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Live tour playback that keeps pace with the learner (TOURS_10X.md P1-P5). Admin-only until Paul has played tours with it.
+  'tour-pacing': {
+    label: 'Tour pacing',
+    icon: Footprints,
+    description:
+      'Live tours keep up when someone clicks ahead and wait calmly for a missing control.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',

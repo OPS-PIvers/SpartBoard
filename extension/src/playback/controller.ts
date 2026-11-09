@@ -1,6 +1,7 @@
-import type { FrameCommand, FrameReport } from './frameScript';
+import type { AheadStep, FrameCommand, FrameReport } from './frameScript';
 import {
   type FoundMatch,
+  type PlaybackStep,
   reducePlayback,
   startPlayback,
   type PlaybackEvent,
@@ -24,6 +25,10 @@ import type {
 } from '../overlay/overlayState';
 import type { ParsedStart } from './startMessage';
 import { matchesUrlPattern } from './urlPattern';
+import {
+  LOOKAHEAD_STEPS,
+  lookaheadIndices,
+} from '@/components/tours/playbackEngine';
 
 export interface HostFrame {
   frameId: number;
@@ -699,23 +704,45 @@ export function createPlaybackController(host: PlaybackHost) {
     if (!step) return null;
     const after = state.tour.steps[state.index + 1];
     // The next seek's token, so a frame that moves on by itself reports what the service worker will be waiting for.
+    const sameFrames = (s: PlaybackStep) =>
+      JSON.stringify(s.frames) === JSON.stringify(step.frames);
     const next =
       after &&
       step.action !== 'observe' &&
-      JSON.stringify(after.frames) === JSON.stringify(step.frames) &&
+      sameFrames(after) &&
       matchesUrlPattern(after.urlPattern, rec.url)
         ? {
             token: `${state.index + 1}:${rec.seq + 1}`,
             clues: after.clues,
             action: after.action,
+            index: state.index + 1,
+            stepId: after.id,
           }
         : undefined;
+    // Later steps on this page and frame, watched for a learner who gets ahead (TOURS_10X.md P2).
+    const ahead: AheadStep[] = lookaheadIndices(
+      state.index,
+      state.tour.steps.length,
+      LOOKAHEAD_STEPS
+    )
+      .slice(1)
+      .flatMap((i) => {
+        const s = state.tour.steps[i];
+        return s.action !== 'observe' &&
+          sameFrames(s) &&
+          matchesUrlPattern(s.urlPattern, rec.url)
+          ? [{ index: i, stepId: s.id, clues: s.clues, action: s.action }]
+          : [];
+      });
     return {
       type: 'wt:seek',
       token: rec.token,
       clues: step.clues,
       action: step.action,
+      index: state.index,
+      stepId: step.id,
       ...(next ? { next } : {}),
+      ...(ahead.length > 0 ? { ahead } : {}),
     };
   }
 
@@ -779,7 +806,7 @@ export function createPlaybackController(host: PlaybackHost) {
       rec.state = { ...rec.state, status: 'seeking' };
     const before = rec.state;
     const withUrl: PlaybackEvent =
-      event.type === 'next' || event.type === 'back'
+      event.type === 'next' || event.type === 'back' || event.type === 'ahead'
         ? { ...event, url: rec.url }
         : event;
     rec.state = reducePlayback(before, withUrl);
@@ -1018,6 +1045,10 @@ export function createPlaybackController(host: PlaybackHost) {
           if (step && rec.posted[step.id] === 'none')
             postSuggest(rec, rec.state.index, fix);
           await store(rec);
+        } else if (report.type === 'wt:ahead') {
+          // The learner did this step, or one after the current, before the tour lit it (P2).
+          if (rec.state.tour.steps[report.index]?.id !== report.stepId) return;
+          await dispatch(rec, { type: 'ahead', index: report.index });
         } else if (report.type === 'wt:ambiguous') {
           if (!rec.check || rec.ambiguousToken === report.token) return;
           rec.ambiguousToken = report.token;

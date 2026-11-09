@@ -12,6 +12,7 @@ import {
   type Worker,
 } from '@playwright/test';
 import { SCENARIOS, type BenchScenario } from './scenarios.ts';
+import { redrawnSteps, waitPlan } from './plan.ts';
 import { LAUNCHER, OTHER_PORT, SITE, startServers } from './server.ts';
 import type { WebTourStartMessage } from '../../../components/tours/web/extensionProtocol.ts';
 
@@ -23,6 +24,8 @@ const RESULTS = path.join(HERE, 'results');
 /** How long the "teacher" reads a lit step before clicking it. */
 const DWELL_MS = 500;
 const STEP_TIMEOUT_MS = 8000;
+/** How soon after the last click a rushing learner clicks the next control. */
+const RUSH_MS = 60;
 const VIEWPORT = { width: 1366, height: 768 };
 /** A step is lit when the overlay commits a spotlight box to the page, in the frame it is then painted. */
 const LIT = 'paint';
@@ -38,6 +41,7 @@ interface Mark {
   token?: string;
   ms?: number;
   kind?: string;
+  type?: string;
   status?: string;
   current?: number;
   rect?: { x: number; y: number; width: number; height: number } | null;
@@ -65,6 +69,10 @@ export interface Transition {
   longTaskMs: number;
   maxFrameGap: number;
   fellBack: boolean;
+  /** The step showed its picture fallback at some point (TOURS_10X.md P7). */
+  fallback?: boolean;
+  /** The step's tip came back after another step's was drawn. */
+  redrawn?: boolean;
 }
 
 const INIT = () => {
@@ -260,7 +268,7 @@ async function play(
   sc: BenchScenario,
   msg: WebTourStartMessage,
   throttle: number
-): Promise<Transition[]> {
+): Promise<{ transitions: Transition[]; presses: PressCost[] }> {
   const launcher = await ctx.newPage();
   await launcher.goto(LAUNCHER);
   const marks: Mark[] = [];
@@ -307,25 +315,44 @@ async function play(
     return undefined;
   };
   const steps = sc.steps;
-  const clicks: number[] = [];
-  const fellBack: boolean[] = [];
+  const plan = waitPlan(steps);
+  // Per waited step: the click before the wait, the click after it, and whether its spotlight never came.
+  const actBefore = new Map<number, number>();
+  const clickAfter = new Map<number, number>();
+  const fellBack = new Map<number, boolean>();
+  let lastClick = 0;
   for (let i = 0; i < steps.length; i++) {
-    phase = `step ${i + 1}: waiting for its spotlight`;
-    const since = clicks[i - 1] ?? 0;
-    const lit = await waitFor(() => {
-      const match = marks.find(
-        (m) =>
-          m.name === 'match' && m.token?.startsWith(`${i}:`) && m.t >= since
-      );
-      if (!match) return undefined;
-      return marks.find((m) => m.name === LIT && m.rect && m.t >= match.t);
-    }, STEP_TIMEOUT_MS);
-    fellBack.push(!lit);
-    await page.waitForTimeout(DWELL_MS);
-    // --cold: Chrome stops an idle extension worker after 30s, so a slow reader's click wakes a fresh one.
-    if (cold) {
-      await cold.stopWorker();
-      await page.waitForTimeout(200);
+    if (steps[i].play === 'skip') continue;
+    const w = plan[i];
+    if (w !== null) {
+      phase = `step ${w + 1}: waiting for its spotlight`;
+      const since = lastClick;
+      actBefore.set(w, since);
+      const lit = await waitFor(() => {
+        const match = marks.find(
+          (m) =>
+            m.name === 'match' && m.token?.startsWith(`${w}:`) && m.t >= since
+        );
+        if (!match) return undefined;
+        return marks.find((m) => m.name === LIT && m.rect && m.t >= match.t);
+      }, STEP_TIMEOUT_MS);
+      fellBack.set(w, !lit);
+      await page.waitForTimeout(DWELL_MS);
+      // --cold: Chrome stops an idle extension worker after 30s, so a slow reader's click wakes a fresh one.
+      if (cold) {
+        await cold.stopWorker();
+        await page.waitForTimeout(200);
+      }
+    } else {
+      await page.waitForTimeout(RUSH_MS);
+    }
+    for (const sel of steps[i].presses ?? []) {
+      phase = `step ${i + 1}: pressing ${sel}`;
+      await frameOf(page, steps[i].frame)
+        .locator(sel)
+        .first()
+        .click({ timeout: 5000 });
+      await page.waitForTimeout(150);
     }
     phase = `step ${i + 1}: clicking`;
     const before = marks.length;
@@ -335,7 +362,8 @@ async function play(
       () => marks.slice(before).find((m) => m.name === 'down'),
       2000
     );
-    clicks.push(down?.t ?? Date.now());
+    lastClick = down?.t ?? Date.now();
+    if (w !== null) clickAfter.set(w, lastClick);
   }
   phase = 'waiting for done';
   await waitFor(
@@ -354,10 +382,16 @@ async function play(
   if (flag('dump'))
     writeFileSync(
       path.join(os.tmpdir(), `sb-bench-marks-${sc.name}-${throttle}x.json`),
-      JSON.stringify({ clicks, marks, gaps }, null, 1)
+      JSON.stringify(
+        { clicks: Object.fromEntries(clickAfter), marks, gaps },
+        null,
+        1
+      )
     );
 
   const out: Transition[] = [];
+  const renders = marks.filter((m) => m.name === 'render');
+  const redrawn = redrawnSteps(renders);
   const nav = marks.find((m) => m.name === 'nav');
   const firstMatch = marks.find(
     (m) => m.name === 'match' && m.token?.startsWith('0:')
@@ -366,15 +400,15 @@ async function play(
     ? marks.find((m) => m.name === LIT && m.rect && m.t >= firstMatch.t)
     : undefined;
   const firstLit = nav && firstPaint ? firstPaint.t - nav.t : null;
-  for (let i = 1; i < steps.length; i++) {
-    const act = clicks[i - 1];
+  for (const i of [...actBefore.keys()].filter((w) => w > 0)) {
+    const act = actBefore.get(i) ?? 0;
     const tok = (m: Mark) => m.token?.startsWith(`${i}:`) && m.t >= act;
     const seek = marks.find((m) => m.name === 'seek' && tok(m));
     const match = marks.find((m) => m.name === 'match' && tok(m));
     const lit = match
       ? marks.find((m) => m.name === LIT && m.rect && m.t >= match.t)
       : undefined;
-    const end = lit?.t ?? clicks[i];
+    const end = lit?.t ?? clickAfter.get(i) ?? act;
     // Time a view flag was true inside [act, end], from the overlay's 'view' marks.
     const during = (key: 'spot' | 'plain', want: boolean) => {
       const views = marks.filter((m) => m.name === 'view');
@@ -413,16 +447,49 @@ async function play(
         0,
         ...gaps.filter(([t]) => t >= act && t <= winEnd).map(([, d]) => d)
       ),
-      fellBack: fellBack[i],
+      fellBack: fellBack.get(i) ?? false,
+      fallback: renders.some(
+        (m) => m.current === i + 1 && m.status === 'fallback'
+      ),
+      redrawn: redrawn.has(i + 1),
     });
   }
-  return out;
+  return { transitions: out, presses: pressCosts(marks) };
+}
+
+/** One press event's catch-up handler, timed in the frame (TOURS_10X.md P2). */
+export interface PressCost {
+  type: string;
+  ms: number;
+  /** The handler turned its event's task into a long task. */
+  longTask: boolean;
+}
+
+function pressCosts(marks: Mark[]): PressCost[] {
+  const longTasks = marks.filter((m) => m.name === 'longtask');
+  return marks
+    .filter((m) => m.name === 'press')
+    .map((p) => {
+      const ms = p.ms ?? 0;
+      return {
+        type: p.type ?? '',
+        ms,
+        // Attributable when the task would have stayed under 50ms without the handler.
+        longTask: longTasks.some(
+          (lt) =>
+            lt.t <= p.t &&
+            lt.t + (lt.ms ?? 0) >= p.t - ms &&
+            (lt.ms ?? 0) - ms < 50
+        ),
+      };
+    });
 }
 
 export interface ScenarioResult {
   scenario: string;
   throttle: number;
   transitions: Transition[];
+  presses?: PressCost[];
 }
 
 export function summarize(rows: Transition[]) {
@@ -432,6 +499,8 @@ export function summarize(rows: Transition[]) {
   return {
     transitions: rows.length,
     fellBack: rows.filter((r) => r.fellBack).length,
+    fallbacks: rows.filter((r) => r.fallback).length,
+    redrawn: rows.filter((r) => r.redrawn).length,
     actToLitMedian: median(lit),
     actToLitP95: pct(lit, 95),
     readyToLitMedian: median(
@@ -483,9 +552,15 @@ export const BUDGETS = {
 
 type Budget = Record<keyof typeof BUDGETS, number>;
 
+/** The catch-up handler runs inside the learner's press, so it may never search (TOURS_10X.md P2). */
+const PRESS_BUDGET_MS = 9;
+
 /** Scenarios held to their own limits: late content used to wait 250ms more and blank the spotlight for a second. */
 const SCENARIO_BUDGETS: Record<string, Partial<Budget>> = {
   spa: { readyToLitP95: 120, darkP95: 300 },
+  // A click-ahead lands only once the page around it settles (TOURS_10X.md P1).
+  ahead: { actToLitP95: 400 },
+  heavyahead: { actToLitP95: 400, readyToLitP95: 400 },
 };
 
 function overBudget(results: ScenarioResult[]): string[] {
@@ -494,13 +569,32 @@ function overBudget(results: ScenarioResult[]): string[] {
     const s = summarize(r.transitions);
     if (s.fellBack > 0)
       out.push(`${r.scenario}: ${s.fellBack} steps fell back to the picture`);
+    if (s.fallbacks > 0)
+      out.push(
+        `${r.scenario}: ${s.fallbacks} steps showed the picture fallback`
+      );
+    if (s.redrawn > 0)
+      out.push(`${r.scenario}: ${s.redrawn} steps drew their tip twice`);
+    for (const p of r.presses ?? []) {
+      if (p.ms > PRESS_BUDGET_MS)
+        out.push(
+          `${r.scenario} ${r.throttle}x: a ${p.type} handler took ${p.ms.toFixed(1)}ms > ${PRESS_BUDGET_MS}ms`
+        );
+      if (p.longTask)
+        out.push(
+          `${r.scenario} ${r.throttle}x: a long task ran during a ${p.type} handler`
+        );
+    }
     const limits: Budget = { ...BUDGETS, ...SCENARIO_BUDGETS[r.scenario] };
     for (const [key, limit] of Object.entries(limits) as [
       keyof Budget,
       number,
     ][]) {
-      // Spa content arrives late on purpose, so its click time is the app's, not ours.
+      // Spa and slow content arrives late on purpose, so its click time is the app's, not ours.
       if (key === 'actToLitP95' && r.scenario === 'spa') continue;
+      // The slow site removes the control while it loads, so the spotlight is out for the site's time.
+      if (r.scenario === 'slow' && (key === 'actToLitP95' || key === 'darkP95'))
+        continue;
       const v = s[key];
       if (v > limit)
         out.push(
@@ -572,28 +666,42 @@ async function main() {
       const msg = await record(ctx, sc);
       for (const throttle of throttles) {
         const transitions: Transition[] = [];
+        const presses: PressCost[] = [];
         const attempt = () => {
           const run = play(ctx, extId, sc, msg, throttle);
           // A play abandoned on timeout fails later, once its browser is closed.
           run.catch(() => undefined);
           return withTimeout(run, PLAY_TIMEOUT_MS, 'play timed out');
         };
+        const keep = (played: Awaited<ReturnType<typeof play>>) => {
+          transitions.push(...played.transitions);
+          presses.push(...played.presses);
+        };
         for (let r = 0; r < runs; r++) {
           try {
-            transitions.push(...(await attempt()));
+            keep(await attempt());
           } catch (err) {
             console.warn(
               `${sc.name} ${throttle}x run ${r + 1} failed (${String(err)}, at ${phase}); retrying in a new browser`
             );
             await close(ctx);
             ({ ctx, extId } = await launch(label));
-            transitions.push(...(await attempt()));
+            keep(await attempt());
           }
         }
-        results.push({ scenario: sc.name, throttle, transitions });
+        results.push({ scenario: sc.name, throttle, transitions, presses });
         const s = summarize(transitions);
+        if (presses.length > 0)
+          console.log(
+            `${sc.name.padEnd(7)} ${throttle}x  press handler max ${Math.max(...presses.map((p) => p.ms)).toFixed(1)}ms  p95 ${pct(
+              presses.map((p) => p.ms),
+              95
+            ).toFixed(
+              1
+            )}ms  long tasks during a press ${presses.filter((p) => p.longTask).length}/${presses.length}`
+          );
         console.log(
-          `${sc.name.padEnd(7)} ${throttle}x  click->lit median ${s.actToLitMedian.toFixed(0)}ms p95 ${s.actToLitP95.toFixed(0)}ms  ready->lit p95 ${s.readyToLitP95.toFixed(0)}ms  dark p95 ${s.darkP95.toFixed(0)}ms  centred p95 ${s.centredP95.toFixed(0)}ms  search p95 ${s.runMsP95.toFixed(1)}ms  long tasks ${s.longTaskMsTotal.toFixed(0)}ms  frame gap p95 ${s.maxFrameGapP95.toFixed(0)}ms  first step ${s.firstLitMedian.toFixed(0)}ms  fell back ${s.fellBack}/${s.transitions}`
+          `${sc.name.padEnd(7)} ${throttle}x  click->lit median ${s.actToLitMedian.toFixed(0)}ms p95 ${s.actToLitP95.toFixed(0)}ms  ready->lit p95 ${s.readyToLitP95.toFixed(0)}ms  dark p95 ${s.darkP95.toFixed(0)}ms  centred p95 ${s.centredP95.toFixed(0)}ms  search p95 ${s.runMsP95.toFixed(1)}ms  long tasks ${s.longTaskMsTotal.toFixed(0)}ms  frame gap p95 ${s.maxFrameGapP95.toFixed(0)}ms  first step ${s.firstLitMedian.toFixed(0)}ms  fell back ${s.fellBack}/${s.transitions}  fallback shown ${s.fallbacks}  tip redrawn ${s.redrawn}`
         );
       }
       await close(ctx);
