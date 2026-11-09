@@ -32,7 +32,7 @@ export const TeamsAdminDefaultsDevHarness: React.FC = () => {
         </span>
         <label className="flex items-center gap-2">
           Type
-          <select
+          <select // no-tour-anchor: dev-only harness page, never on the board
             value={type}
             onChange={(e) => setType(e.target.value as PlcGroupType)}
             className="rounded-sm border border-slate-300 bg-white px-2 py-1"

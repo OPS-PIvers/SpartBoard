@@ -81,7 +81,7 @@ export const ManageTargetsModal: React.FC<{
             className="flex items-center gap-2 text-sm text-slate-700"
           >
             {label}
-            <input
+            <input // no-tour-anchor: dev-only redesign mockup, never on the board
               type="number"
               min={0}
               max={100}
@@ -116,7 +116,7 @@ export const ManageTargetsModal: React.FC<{
               <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
                 {q.text}
               </span>
-              <select
+              <select // no-tour-anchor: dev-only redesign mockup, never on the board
                 aria-label={`Target for Q${i + 1}`}
                 defaultValue={tagged ? U3_TARGET_OF[q.questionId] : ''}
                 className={`${INPUT} py-1.5`}
