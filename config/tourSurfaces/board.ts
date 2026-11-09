@@ -236,6 +236,16 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/tours/'],
   },
+  // The shared tour editor shell; Live opens it docked over the board.
+  'board.tour-editor': {
+    label: 'Tour editor (header, outline and step card)',
+    kind: 'panel',
+    files: ['components/tours/editor/'],
+    openerMissing:
+      'Edit tour in a Help Center item or the Guided Learning studio (requestEditTour)',
+    needs: ['admin'],
+    inner: { 'tour-editor.menu-item': 'tour-editor.menu' },
+  },
   'board.web-tour-editor': {
     label:
       'Web tour editor (Record a tour > Web tour, or Edit on a web tour card)',

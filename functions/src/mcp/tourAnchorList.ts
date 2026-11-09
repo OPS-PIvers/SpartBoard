@@ -51670,6 +51670,86 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "tour-editor.main",
+    "label": "Main button in the tour editor header (Write text, Check tour or Publish)",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.play",
+    "label": "Play button in the tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.menu",
+    "label": "More actions menu button in the tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.menu-item",
+    "label": "Option in the tour editor More actions menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel",
+        "reveal": "tour-editor.menu"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.add-step",
+    "label": "Add step button under the tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.record",
+    "label": "Record button under the tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.step-more",
+    "label": "More toggle on the selected step's card in the tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
     "scope": "board",
