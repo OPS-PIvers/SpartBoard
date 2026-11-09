@@ -19,6 +19,12 @@ describe('Lunch Count submitted marker', () => {
   const sentA = () =>
     submittedMarker({}, 'w1', getCentralDayKey(), classA, details);
 
+  it('keeps the old marker shape when no details are passed', () => {
+    const marker = submittedMarker({}, 'w1', getCentralDayKey(), classA);
+    expect(marker).not.toHaveProperty('lastSubmittedDetails');
+    expect(hasSubmittedToday(marker, 'w1', classA)).toBe(true);
+  });
+
   it('blocks the same class from the same widget on the same day', () => {
     expect(hasSubmittedToday(sentA(), 'w1', classA)).toBe(true);
   });

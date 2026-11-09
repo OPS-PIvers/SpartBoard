@@ -127,18 +127,23 @@ export function submittedMarker(
   widgetId: string,
   dayKey: string,
   classKey: string,
-  details: SentDetails
-): Required<SubmittedMarker> {
+  details?: SentDetails
+): SubmittedMarker {
   const sameDay =
     config.lastSubmittedDate === dayKey &&
     config.lastSubmittedWidgetId === widgetId;
   const earlier = sameDay ? (config.lastSubmittedClasses ?? []) : [];
-  return {
+  const marker: SubmittedMarker = {
     lastSubmittedDate: dayKey,
     lastSubmittedWidgetId: widgetId,
     lastSubmittedClasses: earlier.includes(classKey)
       ? earlier
       : [...earlier, classKey],
+  };
+  // Without details (resend flag off) the marker keeps its pre-resend shape.
+  if (!details) return marker;
+  return {
+    ...marker,
     lastSubmittedDetails: {
       ...(sameDay ? config.lastSubmittedDetails : undefined),
       [classKey]: details,

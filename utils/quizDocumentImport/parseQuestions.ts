@@ -819,7 +819,13 @@ function isNotChoiceText(
   if (line.page === undefined || line.page !== option.page) return false;
   const x = lineSegments(line)[0]?.x;
   const optionX = lineSegments(option)[0]?.x;
-  return x !== undefined && optionX !== undefined && x < optionX - 1;
+  // A lowercase start reads as a wrap back to the margin, so only a new sentence ends the choice.
+  return (
+    x !== undefined &&
+    optionX !== undefined &&
+    x < optionX - 1 &&
+    /^[^a-z]/.test(text.trim())
+  );
 }
 
 /** A continuation after a question's last option that is plainly its wrap (R8). */
