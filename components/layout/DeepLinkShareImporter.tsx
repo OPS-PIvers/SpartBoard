@@ -166,11 +166,7 @@ export const DeepLinkShareImporter: React.FC = () => {
   // happened" paste UX).
   useEffect(() => {
     if (!pendingQuizShareId || !user) return;
-    // Clear synchronously BEFORE awaiting so effect re-runs (triggered by
-    // unrelated dep churn
-    // (e.g. activeDashboard updates) don't re-invoke the import and spawn duplicate
-    // widgets. Previously this was in .finally() and opened a race window
-    // where the same shareId could be imported 2-3× concurrently.
+    // Clear before awaiting so effect re-runs can't import the same share twice.
     const shareId = pendingQuizShareId;
     clearPendingQuizShare();
     void importSharedQuiz(shareId, saveBank)
