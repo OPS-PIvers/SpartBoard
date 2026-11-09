@@ -185,6 +185,11 @@ const WebTourIntakePage = lazy(() =>
     default: module.WebTourIntakePage,
   }))
 );
+const PublicTourPage = lazy(() =>
+  import('./components/tours/publicLink/PublicTourPage').then((module) => ({
+    default: module.PublicTourPage,
+  }))
+);
 const WebTourHubPage = lazy(() =>
   import('./components/tours/web/WebTourHubPage').then((module) => ({
     default: module.WebTourHubPage,
@@ -1134,6 +1139,15 @@ const App: React.FC = () => {
           <WebTourIntakePage />
         </Suspense>
       </AuthProvider>
+    );
+  }
+
+  // A tour an admin made public (TOURS_10X.md S6): anyone, signed out, so no providers at all.
+  if (pathname.startsWith('/tour-steps/')) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PublicTourPage />
+      </Suspense>
     );
   }
 

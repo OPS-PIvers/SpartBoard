@@ -4737,5 +4737,31 @@
     "startLive": "Démarrer la visite en direct",
     "loading": "Chargement des étapes",
     "unavailable": "Ces étapes ne sont pas disponibles pour le moment."
+  },
+  "tourPublicLink": {
+    "label": "Toute personne ayant le lien",
+    "copy": "Copier le lien public",
+    "copied": "Lien public copié.",
+    "notAdmin": "Seuls les administrateurs peuvent partager une visite publiquement.",
+    "unpublished": "Publiez d'abord la visite.",
+    "pausedPictures": "Une image a changé, le lien public est donc désactivé. Vérifiez-la et réactivez-le.",
+    "pausedUnpublished": "La visite n'est plus publiée, le lien public est donc désactivé.",
+    "review": "Vérifier",
+    "statusOn": "Lien public activé",
+    "statusPaused": "Lien public désactivé",
+    "failed": "Le lien public n'a pas pu être modifié.",
+    "turnedOn": "Le lien public est activé.",
+    "turnedOff": "Le lien public est désactivé.",
+    "confirmTitle": "Rendre cette visite publique ?",
+    "confirmIntro": "Toute personne ayant le lien peut lire chaque étape et chaque image ci-dessous sans se connecter.",
+    "confirmAck": "Je comprends qu'un lien public ne peut pas être repris une fois que quelqu'un a enregistré la page.",
+    "confirmButton": "Rendre publique",
+    "confirmNeedsAck": "Cochez d'abord la case",
+    "confirmLoading": "Chargement de la visite publiée",
+    "confirmFailed": "La visite publiée n'a pas pu être chargée.",
+    "pageEyebrow": "Visite SpartBoard",
+    "notFoundTitle": "Cette visite n'est pas disponible",
+    "notFoundBody": "Le lien a peut-être été désactivé ou mal saisi.",
+    "confirmPictureFailed": "Une image n'a pas pu être chargée, la visite ne peut donc pas encore devenir publique."
   }
 }
