@@ -1,6 +1,12 @@
 import type { WebTourAction, WebTourFrame } from '@/types';
 import type { WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
+import {
+  catchUp,
+  enterRun,
+  LOOKAHEAD_STEPS,
+  matchPageAhead,
+} from '@/components/tours/playbackEngine';
 
 export type WebStepAction = WebTourAction;
 
@@ -38,6 +44,8 @@ export interface PlaybackState {
   /** How each step was found, or 'picture' when only the picture was shown. */
   matched: Record<string, FoundMatch | 'picture'>;
   startedAt: number;
+  /** Steps a catch-up passed over (TOURS_10X.md P3); absent in records saved before it. */
+  skipped?: string[];
 }
 
 export type PlaybackEvent =
@@ -46,6 +54,8 @@ export type PlaybackEvent =
   | { type: 'lost' }
   | { type: 'timeout' }
   | { type: 'acted' }
+  /** The learner did step `index` (the current one or up to three after it) before the tour lit it (P2). */
+  | { type: 'ahead'; index: number; url?: string }
   | { type: 'next'; url?: string }
   | { type: 'back'; url?: string }
   | { type: 'exit' };
@@ -82,8 +92,7 @@ function enterStep(
   }
   const step = state.tour.steps[index];
   return {
-    ...state,
-    index,
+    ...enterRun(state, state.tour.steps, index),
     furthest: Math.max(state.furthest, index),
     status: url === null ? 'seeking' : pageStatus(step, url),
   };
@@ -98,6 +107,19 @@ function record(
   // A clue found later beats an earlier picture-only miss for the same step.
   if (state.matched[id] && how === 'picture') return state.matched;
   return { ...state.matched, [id]: how };
+}
+
+/** A step whose action can take the learner to another page. */
+const leadsAway = (s: PlaybackStep) => s.action !== 'observe';
+
+/** Jumps past step `matched`, recording the steps between as skipped. */
+function caughtUp(
+  state: PlaybackState,
+  matched: number,
+  url: string | null
+): PlaybackState {
+  const run = catchUp(state, state.tour.steps, matched);
+  return enterStep({ ...run, index: state.index }, run.index, url);
 }
 
 const finished = (s: PlaybackState) =>
@@ -137,6 +159,16 @@ export function reducePlayback(
           return enterStep(state, state.index + 1, event.url);
         }
       }
+      // A page a later step plays on: the learner got ahead, so the tour catches up (P2).
+      const ahead = matchPageAhead(
+        state.tour.steps,
+        state.index,
+        event.url,
+        (s, url) => matchesUrlPattern(s.urlPattern, url),
+        leadsAway,
+        LOOKAHEAD_STEPS
+      );
+      if (ahead !== null) return caughtUp(state, ahead, event.url);
       return { ...state, status: pageStatus(step, event.url) };
     }
     case 'found':
@@ -154,6 +186,14 @@ export function reducePlayback(
     case 'acted':
       if (state.status !== 'shown' || step.action === 'observe') return state;
       return enterStep(state, state.index + 1, null);
+    case 'ahead':
+      if (
+        event.index < state.index ||
+        event.index > state.index + LOOKAHEAD_STEPS ||
+        !state.tour.steps[event.index]
+      )
+        return state;
+      return caughtUp(state, event.index, event.url ?? null);
     case 'next':
       return enterStep(state, state.index + 1, event.url ?? null);
     case 'back':

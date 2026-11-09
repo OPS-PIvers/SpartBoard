@@ -23,6 +23,13 @@ export function isFrameReport(msg: unknown): msg is FrameReport {
   )
     return true;
   if (m.type === 'wt:candidate') return isFix(m.fix);
+  if (m.type === 'wt:ahead')
+    return (
+      Number.isInteger(m.index) &&
+      (m.index as number) >= 0 &&
+      typeof m.stepId === 'string' &&
+      m.stepId.length <= 200
+    );
   return (
     m.type === 'wt:found' &&
     typeof m.weak === 'boolean' &&

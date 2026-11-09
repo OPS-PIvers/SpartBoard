@@ -5,10 +5,27 @@ import { toBox } from '../recorder/geometry';
 import { fixKey } from '@/components/tours/web/fixClues';
 import { BENCH, benchMark } from '../bench';
 import { overlayLoaded } from '../overlay/loaded';
+import {
+  matchLookahead,
+  waitForSettle,
+  type SettleWait,
+} from '@/components/tours/playbackEngine';
+import { domSettleHost } from '@/components/tours/settleDom';
 
 /** One step's search: its target's clues and how the learner finishes it. */
 export interface SeekStep {
   token: string;
+  clues: WebLocatorClues;
+  action: WebStepAction;
+  /** The step's place in the tour, so a learner who acts on it early can be caught up (TOURS_10X.md P2). */
+  index?: number;
+  stepId?: string;
+}
+
+/** A later step watched for a learner who got ahead of the tour (P2). */
+export interface AheadStep {
+  index: number;
+  stepId: string;
   clues: WebLocatorClues;
   action: WebStepAction;
 }
@@ -19,6 +36,8 @@ export type FrameCommand =
       type: 'wt:seek';
       /** The step that follows when this one is done here, sought at once so the spotlight needn't wait on the service worker. */
       next?: SeekStep;
+      /** Up to three later steps on this page and frame, nearest first. */
+      ahead?: AheadStep[];
     } & SeekStep)
   | { type: 'wt:stop' };
 
@@ -40,7 +59,9 @@ export type FrameReport =
   /** Candidates tie and none is nearest the recorded box; sent once per seek. */
   | { type: 'wt:ambiguous'; token: string }
   | { type: 'wt:lost'; token: string }
-  | { type: 'wt:acted'; token: string };
+  | { type: 'wt:acted'; token: string }
+  /** The learner acted on step `index` before the tour lit it; sent once the page around it settles (P1, P2). */
+  | { type: 'wt:ahead'; token: string; index: number; stepId: string };
 
 /** Shared with the overlay script, which runs in the same isolated world. */
 export interface FrameTarget {
@@ -94,12 +115,32 @@ const OBSERVE: MutationObserverInit = {
 // One press fires pointerdown, mousedown and click within this window.
 const PRESS_MS = 1000;
 
-const isSeekStep = (m: Record<string, unknown>) =>
-  typeof m.token === 'string' &&
+const isStepShape = (m: Record<string, unknown>) =>
   typeof m.clues === 'object' &&
   m.clues !== null &&
   typeof m.action === 'string' &&
   m.action in ACT_EVENTS;
+
+const isSeekStep = (m: Record<string, unknown>) =>
+  typeof m.token === 'string' &&
+  isStepShape(m) &&
+  (m.index === undefined || typeof m.index === 'number') &&
+  (m.stepId === undefined || typeof m.stepId === 'string');
+
+const isAheadStep = (m: unknown) =>
+  !!m &&
+  typeof m === 'object' &&
+  isStepShape(m as Record<string, unknown>) &&
+  typeof (m as Record<string, unknown>).index === 'number' &&
+  typeof (m as Record<string, unknown>).stepId === 'string';
+
+// Events that count as acting on a watched step early; typing counts once the value is committed.
+const AHEAD_EVENTS: Record<string, WebStepAction[]> = {
+  pointerdown: ['click'],
+  mousedown: ['click'],
+  click: ['click'],
+  change: ['type', 'select'],
+};
 
 export function isFrameCommand(msg: unknown): msg is FrameCommand {
   if (!msg || typeof msg !== 'object') return false;
@@ -110,7 +151,9 @@ export function isFrameCommand(msg: unknown): msg is FrameCommand {
     m.type === 'wt:seek' &&
     isSeekStep(m) &&
     (next === undefined ||
-      (typeof next === 'object' && next !== null && isSeekStep(next)))
+      (typeof next === 'object' && next !== null && isSeekStep(next))) &&
+    (m.ahead === undefined ||
+      (Array.isArray(m.ahead) && m.ahead.every(isAheadStep)))
   );
 }
 
@@ -132,6 +175,14 @@ export function installFrameSeeker(
   let rootsAt = 0;
   let lastCost = 0;
   let lastEnd = -Infinity;
+  // Catch-up (P2): the furthest early action in a burst waits for the page to settle before it is reported.
+  let aheadHit: { index: number; stepId: string; el: Element } | null = null;
+  let aheadWait: SettleWait | null = null;
+  let aheadPress: { at: number; el: EventTarget | null } = {
+    at: -Infinity,
+    el: null,
+  };
+  let watchingAhead = false;
 
   const watchRoot = (root: Document | ShadowRoot) => {
     if (roots.has(root)) return;
@@ -209,9 +260,12 @@ export function installFrameSeeker(
     send({ type: 'wt:acted', token });
     const next = seek?.token === token ? seek.next : undefined;
     if (!next) return;
+    const ahead = seek?.ahead?.filter(
+      (a) => next.index === undefined || a.index > next.index
+    );
     clearTarget();
     // After the learner's own event, so the page answers their click before any search runs.
-    begin({ type: 'wt:seek', ...next }, true);
+    begin({ type: 'wt:seek', ...next, ...(ahead ? { ahead } : {}) }, true);
   };
 
   const cancel = () => {
@@ -288,12 +342,102 @@ export function installFrameSeeker(
     });
   };
 
+  const dropAhead = () => {
+    aheadWait?.cancel();
+    aheadWait = null;
+    aheadHit = null;
+  };
+
+  /** Reports the furthest early action once the page around it has settled. */
+  const settleAhead = () => {
+    if (aheadWait) return;
+    const wait = waitForSettle(
+      domSettleHost(doc, { near: () => aheadHit?.el ?? null })
+    );
+    aheadWait = wait;
+    void wait.done.then(() => {
+      if (aheadWait !== wait) return;
+      aheadWait = null;
+      const hit = aheadHit;
+      aheadHit = null;
+      if (!hit || !seek) return;
+      benchMark('ahead', { token: seek.token, index: hit.index });
+      send({
+        type: 'wt:ahead',
+        token: seek.token,
+        index: hit.index,
+        stepId: hit.stepId,
+      });
+    });
+  };
+
+  /** A trusted action anywhere in the frame: did it land on the current step before it was found, or on a later one? */
+  const onAnyAct = (e: Event) => {
+    if (!e.isTrusted || !seek) return;
+    if (e instanceof MouseEvent && e.button !== 0) return;
+    const kinds = AHEAD_EVENTS[e.type];
+    if (!kinds) return;
+    const path = e.composedPath();
+    if (kinds.includes('click')) {
+      // One press fires pointerdown, mousedown and click; the first one decides, even when it was the current step's.
+      const now = performance.now();
+      const el = path[0] ?? null;
+      const same = aheadPress.el === el && now - aheadPress.at < PRESS_MS;
+      aheadPress = { at: now, el };
+      if (same) return;
+    }
+    const current = shared.target?.token === seek.token ? shared.target : null;
+    if (current && path.includes(current.el)) return;
+    const watched: AheadStep[] = [
+      ...(seek.index !== undefined && seek.stepId !== undefined && !current
+        ? [
+            {
+              index: seek.index,
+              stepId: seek.stepId,
+              clues: seek.clues,
+              action: seek.action,
+            },
+          ]
+        : []),
+      ...(seek.ahead ?? []),
+    ];
+    const found: { el?: Element } = {};
+    const k = matchLookahead(
+      watched,
+      0,
+      (step) => {
+        if (!kinds.includes(step.action)) return false;
+        const out = assessTarget(doc, step.clues, [...roots]);
+        if (out.kind !== 'match' || !path.includes(out.match.el)) return false;
+        found.el = out.match.el;
+        return true;
+      },
+      watched.length
+    );
+    if (k === null || !found.el) return;
+    const hit = watched[k];
+    if (!aheadHit || hit.index > aheadHit.index)
+      aheadHit = { index: hit.index, stepId: hit.stepId, el: found.el };
+    settleAhead();
+  };
+
+  const watchAhead = (on: boolean) => {
+    if (on === watchingAhead) return;
+    watchingAhead = on;
+    for (const name of Object.keys(AHEAD_EVENTS)) {
+      if (on) doc.addEventListener(name, onAnyAct, true);
+      else doc.removeEventListener(name, onAnyAct, true);
+    }
+  };
+
   const schedule = (records: MutationRecord[]) => {
     addedRoots(records);
     queue();
   };
 
   const stop = () => {
+    dropAhead();
+    watchAhead(false);
     seek = null;
     toldAmbiguous = false;
     toldCandidate = '';
@@ -307,14 +451,28 @@ export function installFrameSeeker(
   return (cmd) => {
     // The step this frame already moved on to by itself: keep what it found.
     if (cmd.type === 'wt:seek' && seek && cmd.token === seek.token) {
-      seek = { ...seek, next: cmd.next };
+      seek = { ...seek, next: cmd.next, ahead: cmd.ahead };
       return;
     }
+    // An early action still ahead of the new step keeps waiting to be reported under the new seek.
+    const pending =
+      cmd.type === 'wt:seek' &&
+      aheadHit &&
+      cmd.index !== undefined &&
+      aheadHit.index >= cmd.index
+        ? aheadHit
+        : null;
     stop();
     if (cmd.type === 'wt:stop') return;
     const MO = doc.defaultView?.MutationObserver ?? MutationObserver;
     observer = new MO(schedule);
     rescanRoots();
+    // Only a worker that says where each step sits can catch a learner up.
+    watchAhead(cmd.index !== undefined || !!cmd.ahead?.length);
     begin(cmd);
+    if (pending) {
+      aheadHit = pending;
+      settleAhead();
+    }
   };
 }
