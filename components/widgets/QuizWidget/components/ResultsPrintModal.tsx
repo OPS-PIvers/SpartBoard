@@ -13,6 +13,7 @@ import type {
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
+import { useAuth } from '@/context/useAuth';
 import { getPaperBatch } from '@/utils/paperBatchStore';
 import { logError } from '@/utils/logError';
 import { planSheetReprint } from '@/utils/paperSheetReprint';
@@ -218,6 +219,8 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   onClose,
   onError,
 }) => {
+  const { canAccessFeature } = useAuth();
+  const imageMarkup = canAccessFeature('paper-image-markup');
   const [everyAttempt, setEveryAttempt] = useState(false);
   const hasEarlier = !!earlierAttempts && earlierAttempts.size > 0;
   const [choice, setChoice] = useState<SavedResultsPrintChoice>(() => {
@@ -512,6 +515,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     periodOrder,
     students: rows.map((s) => withPaper(s.student)),
     ...(hasPaperWritten ? { writtenMode: printMode } : {}),
+    ...(imageMarkup ? { imageMarkup } : {}),
   });
 
   // The board may be projected, so the preview wears the on-screen name (D10).

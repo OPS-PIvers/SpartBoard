@@ -71,7 +71,18 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
-import type { PaperPageItem, PaperPageMap, PaperSheetStimulus } from '@/types';
+import {
+  cropViewportMm,
+  markupCommentRows,
+  markupNumberChipHtml,
+  renderPaperMarkup,
+} from './paperMarkupRender';
+import type {
+  PaperMarkupItem,
+  PaperPageItem,
+  PaperPageMap,
+  PaperSheetStimulus,
+} from '@/types';
 
 export interface PaperPrintJob {
   batchId: string;
@@ -163,6 +174,10 @@ export interface SheetWrittenFill {
   points?: string;
   /** The teacher's comment, in a strip along the bottom of the box. */
   comment?: string;
+  /** Image markup drawn on the crop; its numbered comments join the strip. */
+  markup?: readonly PaperMarkupItem[];
+  /** The report prints the full comments too, so a cut-off strip says "see the report". */
+  markupInReport?: boolean;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
@@ -509,6 +524,127 @@ function promptHeaderHtml(
   return parts.join('');
 }
 
+/** Strip text size and line height, as `.wr-comment` sets them. */
+const STRIP_PT = 8.5;
+const STRIP_LINE_MM = 3.4;
+/** The strip's top border and padding, as `.wr-comment` sets them. */
+const STRIP_EDGE_MM = 0.8;
+/** Width a number chip takes in the strip, with its gap. */
+const STRIP_CHIP_MM = 5;
+
+/** Most strip lines a box gives up to comments; the crop shrinks to fit the rest. */
+const stripMaxLines = (boxH: number): number =>
+  Math.max(
+    2,
+    Math.min(8, Math.floor((boxH * 0.35 - STRIP_EDGE_MM) / STRIP_LINE_MM))
+  );
+
+const words = (text: string): string[] => text.split(/\s+/).filter(Boolean);
+
+/** Greedy line count at Arial's rough width, deliberately a little wide; chips count as `STRIP_CHIP_MM` of width. */
+function stripLines(
+  parts: readonly { chip?: boolean; text: string }[],
+  widthMm: number
+): number {
+  const char = STRIP_PT * PT_CHAR_MM;
+  let lines = 1;
+  let used = 0;
+  for (const part of parts) {
+    const pieces = part.chip
+      ? [STRIP_CHIP_MM, ...words(part.text).map((w) => w.length * char)]
+      : words(part.text).map((w) => w.length * char);
+    for (const need of pieces) {
+      if (used > 0 && used + need > widthMm) {
+        lines += 1;
+        used = 0;
+      }
+      used += need + char;
+    }
+  }
+  return lines;
+}
+
+/** `text` cut at a word, with an ellipsis, until `fits` says it does. */
+function cutToFit(text: string, fits: (t: string) => boolean): string {
+  const w = words(text);
+  let t = text;
+  while (w.length > 1 && !fits(t)) {
+    w.pop();
+    t = `${w.join(' ')}…`;
+  }
+  return t;
+}
+
+/**
+ * The strip under a marked crop: the overall comment, then each numbered comment.
+ * It grows to fit up to `stripMaxLines`; past that the last comments are cut at a word and the rest counted.
+ */
+function markupStrip(
+  b: RectMm,
+  comment: string | undefined,
+  rows: readonly { number: number; text: string; ink: string }[],
+  fill: Pick<SheetWrittenFill, 'markupInReport'>
+): { html: string; heightMm: number; lines: number } | null {
+  if (rows.length === 0) return null;
+  const maxLines = stripMaxLines(b.h);
+  // The overall comment keeps at most half the lines, so the numbered ones always show.
+  const lead = comment
+    ? cutToFit(
+        comment,
+        (t) => stripLines([{ text: t }], b.w) <= Math.max(1, maxLines >> 1)
+      )
+    : '';
+  const shown = rows.map((r) => ({ ...r }));
+  const count = () =>
+    stripLines(
+      [
+        { text: lead },
+        ...shown.map((r) => ({ chip: true, text: r.text })),
+        ...(shown.length < rows.length ? [{ text: '+99 more' }] : []),
+      ],
+      b.w
+    );
+  while (shown.length > 1 && count() > maxLines) shown.pop();
+  if (shown.length === 1) {
+    shown[0].text = cutToFit(shown[0].text, (t) => {
+      shown[0].text = t;
+      return count() <= maxLines;
+    });
+  }
+  const lines = Math.min(count(), maxLines);
+  const hidden = rows.length - shown.length;
+  const body = shown
+    .map(
+      (r) =>
+        `${markupNumberChipHtml(r.number, r.ink, 3.4, 7)}${escapeHtml(r.text)}`
+    )
+    .join(' <span style="display:inline-block;width:1mm"></span>');
+  const more = hidden
+    ? ` <em>+${hidden} more${fill.markupInReport ? ', see the report' : ''}</em>`
+    : '';
+  return {
+    html: `${lead ? `${escapeHtml(lead)} ` : ''}${body}${more}`,
+    heightMm: lines * STRIP_LINE_MM + STRIP_EDGE_MM + 0.1,
+    lines,
+  };
+}
+
+/** The crop at its contain-fit size inside the box, with the markup over it in the crop's own millimetres. */
+function markedCropHtml(
+  src: string,
+  alt: string,
+  b: RectMm,
+  availH: number,
+  items: readonly PaperMarkupItem[]
+): string {
+  const view = cropViewportMm(b);
+  const scale = Math.min(b.w / view.w, availH / view.h);
+  const w = view.w * scale;
+  const h = view.h * scale;
+  const { svg } = renderPaperMarkup(items, view, { overlay: true, scale });
+  return `<div class="wr-mk" style="position:absolute;left:${mm(b.x)};top:${mm(b.y)};width:${mm(w)};height:${mm(h)}"><img class="wr-crop" style="left:0;top:0;width:100%;height:100%" src="${escapeHtml(src)}" alt="${alt}">${svg}</div>`;
+}
+
 /** A written question: number and stem in its header, then ruled lines to write on (D9, D12). */
 function writtenItemHtml(
   item: WrittenPageItem,
@@ -558,22 +694,36 @@ function writtenItemHtml(
       );
     }
     const comment = fill.comment?.trim();
-    const stripH = comment ? WRITTEN_LINE_PITCH_MM : 0;
+    const strip = fill.markup
+      ? markupStrip(b, comment, markupCommentRows(fill.markup), fill)
+      : null;
+    const stripH = strip ? strip.heightMm : comment ? WRITTEN_LINE_PITCH_MM : 0;
     const cropBox = `left:${mm(b.x)};top:${mm(b.y)};width:${mm(b.w)};height:${mm(
       b.h - stripH
     )}`;
-    parts.push(
-      fill.crop
-        ? `<img class="wr-crop" style="${cropBox}" src="${escapeHtml(
-            fill.crop
-          )}" alt="${escapeHtml(`Handwritten answer, question ${item.label}`)}">`
-        : `<div class="wr-missing" style="${cropBox}">${
-            fill.crop === undefined
-              ? 'Loading handwriting'
-              : 'Handwriting unavailable'
-          }</div>`
-    );
-    if (comment) {
+    const alt = escapeHtml(`Handwritten answer, question ${item.label}`);
+    if (fill.crop && fill.markup?.length) {
+      parts.push(markedCropHtml(fill.crop, alt, b, b.h - stripH, fill.markup));
+    } else {
+      parts.push(
+        fill.crop
+          ? `<img class="wr-crop" style="${cropBox}" src="${escapeHtml(
+              fill.crop
+            )}" alt="${alt}">`
+          : `<div class="wr-missing" style="${cropBox}">${
+              fill.crop === undefined
+                ? 'Loading handwriting'
+                : 'Handwriting unavailable'
+            }</div>`
+      );
+    }
+    if (strip) {
+      parts.push(
+        `<div class="wr-comment" style="left:${mm(b.x)};top:${mm(
+          b.y + b.h - stripH
+        )};width:${mm(b.w)};height:${mm(stripH)};-webkit-line-clamp:${strip.lines}">${strip.html}</div>`
+      );
+    } else if (comment) {
       parts.push(
         `<div class="wr-comment" style="left:${mm(b.x)};top:${mm(
           b.y + b.h - stripH
