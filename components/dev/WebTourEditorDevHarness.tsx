@@ -1,11 +1,16 @@
 // The web tour editor on a seeded tour with drawn pictures, for screenshots. Dev builds with auth bypass only.
 import React, { useEffect, useState } from 'react';
-import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
+import type {
+  GuidedLearningSet,
+  GuidedLearningStep,
+  WebTourCheckResult,
+} from '@/types';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { DialogProvider } from '@/context/DialogContext';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { WebTourEditor } from '@/components/tours/web/WebTourEditor';
 import { targetsSignature } from '@/components/tours/web/webStepReview';
+import { recordCheckSuggestion } from '@/components/tours/web/webTourFixes';
 import { ASSUMED_VIEWPORT } from '@/components/tours/web/pictureTarget';
 import type { WebTourEditorDevSeed } from '@/components/tours/web/webEditorDevSeed';
 
@@ -173,26 +178,93 @@ const drawPicture = async (f: Fixture, all: Fixture[]): Promise<Blob> => {
   );
 };
 
-type State = 'write' | 'check' | 'checking' | 'publish' | 'published';
+const STATES = [
+  'write',
+  'check',
+  'checking',
+  'publish',
+  'published',
+  'noext',
+  'failed',
+  'fix',
+  'question',
+  'student',
+  'pictures',
+  'legacy',
+] as const;
+type State = (typeof STATES)[number];
 
-const stepOf = (f: Fixture, state: State, i: number): GuidedLearningStep => ({
-  id: f.id,
-  xPct: 50,
-  yPct: 50,
-  imageIndex: 0,
-  interactionType: 'tooltip',
-  // Write text: the last steps still have nothing written.
-  label: state === 'write' && i >= 2 ? '' : f.label,
-  text: state === 'write' && i >= 2 ? '' : f.text,
-  web: {
-    urlPattern: 'https://learning.example.org/course/*/materials',
-    action: f.action,
-    locator: { role: f.role, name: f.name, box: f.box },
-    picture: {
-      path: `web_tour_pictures/dev/${f.id}.png`,
-      w: 1280,
-      h: Math.round((1280 * cropOf(f.box).h) / cropOf(f.box).w),
+const pathOf = (f: Fixture) => `web_tour_pictures/dev/${f.id}.png`;
+
+/** The target's place in its crop, as the recorder stores it. */
+const placedIn = (box: Box) => {
+  const c = cropOf(box);
+  return {
+    target: {
+      x: (box.x * VW - c.x) / c.w,
+      y: (box.y * VH - c.y) / c.h,
+      w: (box.w * VW) / c.w,
+      h: (box.h * VH) / c.h,
     },
+    cssW: c.w,
+  };
+};
+
+const stepOf = (f: Fixture, state: State, i: number): GuidedLearningStep => {
+  const c = cropOf(f.box);
+  const h = Math.round((1280 * c.h) / c.w);
+  const legacy = state === 'legacy';
+  // Recorded in a window of another shape: its estimate fails the checks.
+  const odd = legacy && i === 1;
+  const blank = state === 'write' && i >= 2;
+  const text =
+    state === 'student' && i === 0
+      ? 'Ask Avery Lindqvist to open the course first.'
+      : f.text;
+  return {
+    id: f.id,
+    xPct: 50,
+    yPct: 50,
+    imageIndex: 0,
+    interactionType: 'tooltip',
+    label: blank ? '' : f.label,
+    text: blank ? '' : text,
+    web: {
+      urlPattern: 'https://learning.example.org/course/*/materials',
+      action: f.action,
+      locator: { role: f.role, name: f.name, box: f.box },
+      ...(state === 'question' && i === 2
+        ? { claudeQuestion: 'Does the title have to match the file name?' }
+        : {}),
+      ...(state === 'pictures' && i === 1
+        ? {}
+        : {
+            picture: {
+              path:
+                state === 'pictures' && i === 2
+                  ? 'web_tour_pictures/dev/missing.png'
+                  : pathOf(f),
+              w: 1280,
+              h: odd ? 720 : h,
+              ...(legacy ? {} : placedIn(f.box)),
+            },
+          }),
+    },
+  };
+};
+
+const checkedRun = (
+  set: GuidedLearningSet,
+  results: Record<string, WebTourCheckResult> = {}
+): GuidedLearningSet => ({
+  ...set,
+  webTourChecked: {
+    by: 'mock-user-id',
+    at: 1,
+    sig: targetsSignature(set),
+    results: Object.fromEntries(
+      set.steps.map((s) => [s.id, results[s.id] ?? 'found'])
+    ),
   },
 });
 
@@ -208,24 +280,64 @@ const tourFor = (state: State): GuidedLearningSet => {
     webGoal: 'Adding a handout to a course page',
     steps: FIXTURES.map((f, i) => stepOf(f, state, i)),
   };
-  if (state !== 'publish' && state !== 'published') return set;
-  return {
-    ...set,
-    webTourChecked: {
-      by: 'mock-user-id',
-      at: 1,
-      sig: targetsSignature(set),
-      results: Object.fromEntries(set.steps.map((s) => [s.id, 'found'])),
-    },
-  };
+  switch (state) {
+    case 'publish':
+    case 'published':
+    case 'student':
+    case 'question':
+    case 'legacy':
+      return checkedRun(set);
+    case 'failed':
+      return checkedRun(set, { f2: 'none', f3: 'weak' });
+    case 'fix': {
+      const run = checkedRun(set, { f2: 'weak' });
+      return recordCheckSuggestion(
+        run,
+        targetsSignature(run),
+        'f2',
+        { role: 'menuitem', name: 'Add File or Link' },
+        2
+      );
+    }
+    default:
+      return set;
+  }
+};
+
+const ready: WebTourEditorDevSeed = {
+  publish: 'draft',
+  canCheck: true,
+  canFix: true,
 };
 
 const SEEDS: Record<State, WebTourEditorDevSeed> = {
-  write: { publish: 'draft', canCheck: true, canFix: true },
-  check: { publish: 'draft', canCheck: true, canFix: true },
-  checking: { publish: 'draft', canCheck: true, canFix: true, checking: true },
-  publish: { publish: 'changed', canCheck: true, canFix: true },
-  published: { publish: 'published', canCheck: true, canFix: true },
+  write: {
+    ...ready,
+    // Claude fills the blanks and asks about one step.
+    writing: (requests) => ({
+      steps: requests.map((r) =>
+        r.id === 'f4'
+          ? { id: r.id, question: 'Is the newest material always on top?' }
+          : {
+              id: r.id,
+              title: 'Name the material',
+              tip: 'Students see this name in the course list.',
+            }
+      ),
+      failed: [],
+    }),
+  },
+  check: ready,
+  checking: { ...ready, checking: true },
+  publish: { ...ready, publish: 'changed' },
+  published: { ...ready, publish: 'published' },
+  noext: { ...ready, canCheck: false, canFix: false },
+  failed: ready,
+  fix: ready,
+  question: ready,
+  student: { ...ready, publish: 'changed' },
+  pictures: ready,
+  legacy: { ...ready, publish: 'changed' },
 };
 
 // One roster, so the student-name scan runs as it does for a teacher with classes.
@@ -238,9 +350,11 @@ const auth = { user: { uid: 'mock-user-id' } } as unknown as AuthContextType;
 export const WebTourEditorDevHarness: React.FC = () => {
   const [state] = useState<State>(() => {
     const named = new URLSearchParams(window.location.search).get('state');
-    return named && named in SEEDS ? (named as State) : 'check';
+    return (STATES as readonly string[]).includes(named ?? '')
+      ? (named as State)
+      : 'check';
   });
-  const [ready, setReady] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void Promise.all(FIXTURES.map((f) => drawPicture(f, FIXTURES))).then(
@@ -248,17 +362,17 @@ export const WebTourEditorDevHarness: React.FC = () => {
         if (cancelled) return;
         const pictures: Record<string, Blob> = {};
         FIXTURES.forEach((f, i) => {
-          pictures[`web_tour_pictures/dev/${f.id}.png`] = blobs[i];
+          pictures[pathOf(f)] = blobs[i];
         });
         window.__webTourEditorDevSeed = { ...SEEDS[state], pictures };
-        setReady(true);
+        setLoaded(true);
       }
     );
     return () => {
       cancelled = true;
     };
   }, [state]);
-  if (!ready) return null;
+  if (!loaded) return null;
   return (
     <AuthContext.Provider value={auth}>
       <DashboardContext.Provider value={dashboard}>

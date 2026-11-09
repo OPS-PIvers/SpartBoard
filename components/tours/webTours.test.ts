@@ -127,6 +127,18 @@ describe('publishWebTour', () => {
     expect(h.deleted).toEqual(['web_tour_pictures/w1/old.png']);
   });
 
+  it('keeps a picture the caller can still bring back', async () => {
+    h.docs.set('building_guided_learning_tours/w1', {
+      surface: 'web',
+      set: { steps: [pic('old.png'), pic('gone.png')] },
+    });
+    h.docs.set('building_web_tours/w1', draft([pic('new.png')]));
+    await publishWebTour('w1', 'admin-uid', undefined, [
+      'web_tour_pictures/w1/old.png',
+    ]);
+    expect(h.deleted).toEqual(['web_tour_pictures/w1/gone.png']);
+  });
+
   it('keeps a picture a newer draft saved back while publishing', async () => {
     h.docs.set('building_guided_learning_tours/w1', {
       surface: 'web',

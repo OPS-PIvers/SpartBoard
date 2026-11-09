@@ -1,4 +1,5 @@
 import type { TourPublishStatus } from '@/components/tours/tourSnapshot';
+import type { WritingRequestStep, WritingResult } from './writeWithClaude';
 
 /** Web editor states the dummy backend can't reach, set by the `/web-tour-editor-dev` harness. */
 export interface WebTourEditorDevSeed {
@@ -6,6 +7,8 @@ export interface WebTourEditorDevSeed {
   canCheck?: boolean;
   canFix?: boolean;
   checking?: boolean;
+  /** Answers Write with Claude in place of the server. */
+  writing?: (requests: WritingRequestStep[]) => WritingResult;
   /** Step pictures by Storage path, standing in for Storage reads. */
   pictures?: Record<string, Blob>;
 }

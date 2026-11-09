@@ -22,9 +22,12 @@ export function usePictureBlob(path: string | undefined): {
     let cancelled = false;
     let pending = cache?.get(path);
     if (!pending) {
-      const seeded = webTourEditorDevSeed()?.pictures?.[path];
+      // A dev seed answers from its own pictures; a path it lacks fails as a missing file would.
+      const seeded = webTourEditorDevSeed()?.pictures;
       pending = seeded
-        ? Promise.resolve(seeded)
+        ? seeded[path]
+          ? Promise.resolve(seeded[path])
+          : Promise.reject(new Error('No such picture'))
         : loadWebTourPicture(path).then((bytes) => new Blob([bytes]));
       cache?.set(path, pending);
     }

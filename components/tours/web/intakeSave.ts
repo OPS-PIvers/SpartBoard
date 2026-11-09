@@ -22,7 +22,14 @@ export async function uploadRecordedPicture(
   const blob = recorded.picture ? pictureBlob(recorded.picture.dataUrl) : null;
   if (!blob || !recorded.picture) return undefined;
   const path = await uploadWebTourPicture(setId, blob, 'image/jpeg');
-  return { path, w: recorded.picture.w, h: recorded.picture.h };
+  const { w, h, target, cssW } = recorded.picture;
+  return {
+    path,
+    w,
+    h,
+    ...(target ? { target: { ...target } } : {}),
+    ...(cssW ? { cssW } : {}),
+  };
 }
 
 /** The draft a job writes to: a new one with the job's title, or the existing one; null when it is gone. */

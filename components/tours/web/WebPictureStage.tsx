@@ -6,9 +6,16 @@ import { TourBar } from '@/components/tours/TourBar';
 import { tetherFor } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import { focusRing } from '@/components/common/lightChrome';
 import { tourAttr } from '@/config/tourAnchors';
-import { BlurEditor, WebStepPicture } from './webEditorParts';
+import { BlobImage } from './BlurBoxes';
+import { BlurEditor } from './webEditorParts';
+import { usePictureBlob } from './webPictures';
 import type { WebStep } from './webEditorModel';
-import { placePreviewTip, targetInPicture } from './pictureTarget';
+import {
+  placePreviewTip,
+  stagePlacement,
+  stageScale,
+  type FracRect,
+} from './pictureTarget';
 
 interface Size {
   w: number;
@@ -35,32 +42,19 @@ function useMeasured<T extends HTMLElement>(): [(el: T | null) => void, Size] {
   return [setEl, size];
 }
 
-const STAGE_PAD = 56;
+/** Room kept around the picture for its toolbar above and its note below. */
+const STAGE_PAD = { x: 32, y: 72 };
 const TIP_H = 120;
 
-/** The picture at the largest size that fits, keeping its shape. */
-const fit = (picture: Size, room: Size): Size => {
-  const w = Math.max(0, room.w - STAGE_PAD * 2);
-  const h = Math.max(0, room.h - STAGE_PAD * 2);
-  if (!picture.w || !picture.h) return { w: 0, h: 0 };
-  // Not measured yet (or no layout, as in tests): the picture's own size.
-  if (!w || !h) return picture;
-  const scale = Math.min(w / picture.w, h / picture.h);
-  return {
-    w: Math.round(picture.w * scale),
-    h: Math.round(picture.h * scale),
-  };
-};
-
-/** The learner's view of one step: the ring, tip and bar drawn by the real tour chrome. */
+/** The learner's view at the size they see it: ring, tip and bar drawn by the real tour chrome. */
 const LearnerPreview: React.FC<{
   step: WebStep;
   index: number;
   total: number;
   size: Size;
-}> = ({ step, index, total, size }) => {
+  frac: FracRect | null;
+}> = ({ step, index, total, size, frac }) => {
   const [tipRef, tipSize] = useMeasured<HTMLDivElement>();
-  const frac = targetInPicture(step.web?.locator);
   const rect = frac
     ? {
         x: frac.x * size.w,
@@ -88,12 +82,8 @@ const LearnerPreview: React.FC<{
     // inert: the preview is a picture of the tour, never a live one.
     <div inert data-testid="web-stage-preview" className="absolute inset-0">
       {rect && (
-        <TourSpotlight
-          rect={rect}
-          breathe={!observe}
-          clickThrough
-          glide={false}
-        />
+        // No breathe loop: a still frame of it reads as a second, wider ring.
+        <TourSpotlight rect={rect} clickThrough glide={false} />
       )}
       <TourBar
         current={index + 1}
@@ -116,7 +106,11 @@ const LearnerPreview: React.FC<{
         title={step.label?.trim() ?? ''}
         looking={false}
         status={null}
-        next={observe ? { onNext: noop, last: index + 1 === total } : undefined}
+        next={
+          observe || !rect
+            ? { onNext: noop, last: index + 1 === total }
+            : undefined
+        }
       >
         {step.text?.trim() && (
           <p className="whitespace-pre-line text-sm text-slate-700">
@@ -127,6 +121,17 @@ const LearnerPreview: React.FC<{
     </div>
   );
 };
+
+const StageMessage: React.FC<{ title: string; body: string }> = ({
+  title,
+  body,
+}) => (
+  <div className="flex max-w-xs flex-col items-center gap-2 text-center text-slate-200">
+    <ImageOff className="h-8 w-8 text-slate-400" aria-hidden="true" />
+    <p className="text-base font-semibold">{title}</p>
+    <p className="text-sm text-slate-300">{body}</p>
+  </div>
+);
 
 /** The web editor's main area: the selected step's picture with the ring and tip on it as the learner sees them. */
 export const WebPictureStage: React.FC<{
@@ -153,7 +158,24 @@ export const WebPictureStage: React.FC<{
 }) => {
   const [stageRef, room] = useMeasured<HTMLElement>();
   const picture = step?.web?.picture;
-  const size = picture ? fit(picture, room) : { w: 0, h: 0 };
+  const { blob, failed } = usePictureBlob(picture?.path);
+  const placement = picture
+    ? stagePlacement(picture, step?.web?.locator)
+    : null;
+  const css =
+    picture && placement
+      ? {
+          w: placement.cssW,
+          h: Math.round((placement.cssW * picture.h) / picture.w),
+        }
+      : { w: 0, h: 0 };
+  const k = picture
+    ? stageScale(css, picture.w, {
+        w: room.w - STAGE_PAD.x * 2,
+        h: room.h - STAGE_PAD.y * 2,
+      })
+    : 1;
+  const shown = { w: Math.round(css.w * k), h: Math.round(css.h * k) };
   return (
     <section
       ref={stageRef}
@@ -169,26 +191,22 @@ export const WebPictureStage: React.FC<{
             Record steps on the website to start.
           </p>
         </div>
-      ) : blurring && picture ? (
-        <div className="flex h-full w-full items-center justify-center overflow-y-auto p-8">
-          <BlurEditor
-            key={picture.path}
-            path={picture.path}
-            index={index}
-            onApply={onBlurred}
-            onCancel={onCancelBlur}
-          />
-        </div>
       ) : !picture ? (
-        <div className="flex max-w-xs flex-col items-center gap-2 text-center text-slate-200">
-          <ImageOff className="h-8 w-8 text-slate-400" aria-hidden="true" />
-          <p className="text-base font-semibold">No picture for this step</p>
-          <p className="text-sm text-slate-300">Fix on site takes a new one.</p>
-        </div>
-      ) : size.w > 0 ? (
+        <StageMessage
+          title="No picture for this step"
+          body="Fix on site takes a new one."
+        />
+      ) : failed ? (
+        <StageMessage
+          title="The picture couldn't load"
+          body="Check your connection, or retake it with Fix on site."
+        />
+      ) : (
         <div
+          data-testid="web-stage-box"
+          data-scale={k.toFixed(3)}
           className="relative"
-          style={{ width: size.w, height: size.h }}
+          style={{ width: shown.w, height: shown.h }}
           onKeyDown={(e) => {
             if (e.key === 'Escape' && pictureSelected) {
               e.stopPropagation();
@@ -196,48 +214,82 @@ export const WebPictureStage: React.FC<{
             }
           }}
         >
-          <div
-            data-testid="web-stage-frame"
-            // A transform makes the tour chrome's fixed layers sit inside the picture.
-            className="absolute inset-0 overflow-hidden rounded-xl bg-white shadow-2xl [transform:translateZ(0)]"
-          >
-            <WebStepPicture
-              path={picture.path}
-              label={`Picture for step ${index + 1}`}
-              className="absolute inset-0 h-full w-full"
-            />
-            <LearnerPreview
-              step={step}
-              index={index}
-              total={total}
-              size={size}
-            />
-          </div>
-          <button
-            type="button"
-            aria-pressed={pictureSelected}
-            aria-label="Select picture"
-            data-testid="web-stage-picture"
-            {...tourAttr('web-tour-editor.picture')}
-            onClick={() => onSelectPicture(!pictureSelected)}
-            className={`absolute inset-0 rounded-xl ${focusRing} ${
-              pictureSelected
-                ? 'ring-4 ring-brand-blue-primary ring-offset-2 ring-offset-slate-800'
-                : 'hover:ring-2 hover:ring-white/40'
-            }`}
-          />
-          {pictureSelected && (
+          <div className="absolute inset-0 overflow-hidden rounded-xl bg-white shadow-2xl">
             <div
-              role="toolbar"
-              aria-label="Picture tools"
-              data-testid="web-stage-picture-tools"
-              className="absolute -top-3 right-3 flex -translate-y-full gap-1 rounded-xl bg-white p-1 shadow-lg"
+              data-testid="web-stage-frame"
+              // The scale makes the tour chrome's fixed layers sit inside the picture, drawn to the page's scale.
+              className="absolute left-0 top-0 origin-top-left"
+              style={{
+                width: css.w,
+                height: css.h,
+                transform: `scale(${k})`,
+              }}
             >
-              {tools}
+              {blob ? (
+                <BlobImage
+                  blob={blob}
+                  alt={`Picture for step ${index + 1}`}
+                  className="absolute inset-0 h-full w-full"
+                />
+              ) : (
+                <div className="absolute inset-0 animate-pulse bg-slate-100 motion-reduce:animate-none" />
+              )}
+              {!blurring && blob && (
+                <LearnerPreview
+                  step={step}
+                  index={index}
+                  total={total}
+                  size={css}
+                  frac={placement?.rect ?? null}
+                />
+              )}
             </div>
+          </div>
+          {blurring ? (
+            <BlurEditor
+              key={picture.path}
+              path={picture.path}
+              index={index}
+              onApply={onBlurred}
+              onCancel={onCancelBlur}
+            />
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-pressed={pictureSelected}
+                aria-label="Select picture"
+                data-testid="web-stage-picture"
+                onClick={() => onSelectPicture(!pictureSelected)}
+                className={`absolute inset-0 rounded-xl ${focusRing} ${
+                  pictureSelected
+                    ? 'ring-4 ring-brand-blue-primary ring-offset-2 ring-offset-slate-800'
+                    : 'hover:ring-2 hover:ring-white/40'
+                }`}
+                {...tourAttr('web-tour-editor.picture')}
+              />
+              {pictureSelected && (
+                <div
+                  role="toolbar"
+                  aria-label="Picture tools"
+                  data-testid="web-stage-picture-tools"
+                  className="absolute -top-3 right-0 flex -translate-y-full gap-1 rounded-xl bg-white p-1 shadow-lg"
+                >
+                  {tools}
+                </div>
+              )}
+              {placement?.source === 'none' && blob && (
+                <p
+                  data-testid="web-stage-no-ring"
+                  className="absolute left-0 right-0 top-full mt-3 text-center text-xs text-slate-300"
+                >
+                  Retake or fix this step on the site to preview its ring.
+                </p>
+              )}
+            </>
           )}
         </div>
-      ) : null}
+      )}
     </section>
   );
 };

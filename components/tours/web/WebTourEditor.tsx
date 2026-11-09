@@ -106,8 +106,6 @@ import { useWebTourWriting } from './useWebTourWriting';
 import { useWebTourDraft } from './useWebTourDraft';
 import { webTourEditorDevSeed } from './webEditorDevSeed';
 
-const PANEL_WIDTH = 400;
-
 const LINK_COPY: Record<RecorderLink, string> = {
   off: '',
   connecting: 'Connecting to the SpartBoard extension...',
@@ -432,8 +430,12 @@ const WebTourEditorBody: React.FC<{
     try {
       await saveNow(toPublish, false);
       // The gate runs on the draft publishing reads, so nothing saved since slips through.
-      await publishWebTour(toPublish.id, uid, (d) =>
-        assertPublishable(d, matcher)
+      // Pictures undo or redo can bring back stay in Storage.
+      await publishWebTour(
+        toPublish.id,
+        uid,
+        (d) => assertPublishable(d, matcher),
+        draft.historyPicturePaths()
       );
       setStatus('Published.');
     } catch (err) {
@@ -584,12 +586,11 @@ const WebTourEditorBody: React.FC<{
       } else if (state === 'check') void checker.start(latest.current);
       else if (state === 'publish') publish();
     },
-    onPlay: () =>
-      window.open(buildTourUrl(set.id), '_blank', 'noopener,noreferrer'),
-    playDisabled: !hasLive,
-    playHint: hasLive
-      ? 'Play the published tour on the website'
-      : 'Publish the tour to play it',
+    // Play runs the published tour, so it shows once there is one.
+    onPlay: hasLive
+      ? () => window.open(buildTourUrl(set.id), '_blank', 'noopener,noreferrer')
+      : undefined,
+    playHint: 'Play the published tour on the website',
     menu,
     steps: steps.map((step, i) =>
       outlineStep(step, i, matcher, checkResults?.[step.id], fixes.has(step.id))
@@ -707,8 +708,7 @@ const WebTourEditorBody: React.FC<{
           />
           <aside
             aria-label="Web tour editor"
-            className="flex shrink-0 flex-col overflow-hidden border-l border-slate-900/10 bg-white"
-            style={{ width: PANEL_WIDTH }}
+            className="flex w-[360px] shrink-0 flex-col overflow-hidden border-l border-slate-900/10 bg-white xl:w-[400px]"
           >
             <TourShellHeader
               adapter={adapter}
@@ -848,7 +848,7 @@ const outlineStep = (
   const subtitle: TourShellStep['subtitle'] = !step.web
     ? { text: 'No website target', tone: 'error' }
     : studentData
-      ? { text: 'Student data', tone: 'error' }
+      ? { text: 'Student data', tone: 'warn' }
       : hasFix
         ? { text: 'Suggested fix', tone: 'warn' }
         : result === 'none'
@@ -859,11 +859,9 @@ const outlineStep = (
               ? { text: 'Needs text', tone: 'warn' }
               : needsFixOnSite(step)
                 ? { text: 'Needs checking', tone: 'warn' }
-                : result === 'found'
-                  ? { text: CHECK_LABEL.found, tone: 'muted' }
-                  : label
-                    ? { text: target, tone: 'muted' }
-                    : null;
+                : label
+                  ? { text: target, tone: 'muted' }
+                  : null;
   return {
     id: step.id,
     title:

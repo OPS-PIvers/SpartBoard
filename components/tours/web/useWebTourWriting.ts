@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { GuidedLearningSet } from '@/types';
 import { logError } from '@/utils/logError';
+import { webTourEditorDevSeed } from './webEditorDevSeed';
 import {
   applyWriting,
   requestWebTourWriting,
@@ -56,10 +57,10 @@ export function useWebTourWriting({
         onStatus('Every title and tip is filled in.');
         return;
       }
-      const { steps: written, failed } = await requestWebTourWriting(
-        saved.id,
-        requests
-      );
+      const seeded = webTourEditorDevSeed()?.writing;
+      const { steps: written, failed } = seeded
+        ? seeded(requests)
+        : await requestWebTourWriting(saved.id, requests);
       const ran: { r?: ReturnType<typeof applyWriting> } = {};
       change((cur) => {
         ran.r = applyWriting(cur, written, mode);

@@ -68,7 +68,7 @@ export const Highlighted: React.FC<{ entry: ReviewEntry }> = ({ entry }) => {
   return <span className="break-all">{parts}</span>;
 };
 
-/** Draws blur boxes over the picture on the stage, then saves the blurred copy. */
+/** Blur boxes drawn right over the stage picture, with its bar where the picture tools sit. */
 export const BlurEditor: React.FC<{
   path: string;
   index: number;
@@ -92,23 +92,21 @@ export const BlurEditor: React.FC<{
     }
   };
   return (
-    <div
-      data-testid="web-stage-blur"
-      className="flex w-full max-w-5xl flex-col gap-3"
-    >
-      {blob ? (
-        <BlurBoxes
-          picture={blob}
-          boxes={boxes}
-          onChange={setBoxes}
-          label={`Picture for step ${index + 1}. Drag across what to blur.`}
-        />
-      ) : (
-        <div className="h-72 animate-pulse rounded-lg bg-white/10" />
-      )}
-      <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-lg">
-        <span className="flex-1 text-sm text-slate-700">
-          Drag across anything private. Press a box to remove it.
+    <>
+      <div data-testid="web-stage-blur" className="absolute inset-0">
+        {blob && (
+          <BlurBoxes
+            picture={blob}
+            boxes={boxes}
+            onChange={setBoxes}
+            label={`Picture for step ${index + 1}. Drag across what to blur.`}
+            bare
+          />
+        )}
+      </div>
+      <div className="absolute -top-3 right-0 flex -translate-y-full items-center gap-2 rounded-xl bg-white py-1 pl-3 pr-1 shadow-lg">
+        <span className="text-sm text-slate-700">
+          Drag across anything private.
         </span>
         {failed && (
           <span role="alert" className="text-sm text-red-700">
@@ -129,7 +127,7 @@ export const BlurEditor: React.FC<{
           {busy ? 'Blurring...' : 'Apply blur'}
         </button>
       </div>
-    </div>
+    </>
   );
 };
 

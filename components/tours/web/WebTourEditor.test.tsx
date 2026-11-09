@@ -20,8 +20,12 @@ const storage = vi.hoisted(() => ({
   saveWebTourDraft: vi.fn((_set: GuidedLearningSet) => Promise.resolve()),
   loadWebTourDraft: vi.fn(),
   publishWebTour: vi.fn(
-    (_id: string, _uid: string, _check?: (d: GuidedLearningSet) => void) =>
-      Promise.resolve()
+    (
+      _id: string,
+      _uid: string,
+      _check?: (d: GuidedLearningSet) => void,
+      _keep?: Iterable<string>
+    ) => Promise.resolve()
   ),
   deleteWebTourDraft: vi.fn(() => Promise.resolve()),
   setWebTourCheckRun: vi.fn(() => Promise.resolve()),
@@ -35,6 +39,15 @@ const storage = vi.hoisted(() => ({
   ),
 }));
 vi.mock('@/components/tours/webTours', () => storage);
+vi.mock(
+  '@/components/widgets/GuidedLearning/utils/redactImage',
+  async (orig) => ({
+    ...(await orig<
+      typeof import('@/components/widgets/GuidedLearning/utils/redactImage')
+    >()),
+    redactImage: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+  })
+);
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'admin-1' } }),
@@ -595,7 +608,13 @@ describe('WebTourEditor', () => {
       text: 'Opens the course page.',
       web: {
         ...web,
-        locator: { ...web.locator, box: { x: 0.4, y: 0.4, w: 0.1, h: 0.05 } },
+        picture: {
+          path: 'web_tour_pictures/t1/a.jpg',
+          w: 1280,
+          h: 900,
+          target: { x: 0.4, y: 0.45, w: 0.2, h: 0.1 },
+          cssW: 640,
+        },
       },
     };
     renderEditor(set);
@@ -603,11 +622,96 @@ describe('WebTourEditor', () => {
     await waitFor(() =>
       expect(within(stage).getByTestId('tour-spotlight-ring')).toBeTruthy()
     );
+    // Drawn at the picture's CSS size, so the chrome keeps its real proportions.
+    expect(within(stage).getByTestId('web-stage-frame')).toHaveStyle({
+      width: '640px',
+      height: '450px',
+    });
+    // The ring sits on the stored place, padded as playback pads it.
+    const ring = within(stage).getByTestId('tour-spotlight-ring');
+    expect(ring.getAttribute('x')).toBe(String(0.4 * 640 - 6));
+    expect(ring.getAttribute('width')).toBe(String(0.2 * 640 + 12));
+    expect(within(stage).queryByTestId('web-stage-no-ring')).toBeNull();
     expect(within(stage).getByTestId('tour-step-title')).toHaveTextContent(
       'Open the course'
     );
     expect(within(stage).getByText('Opens the course page.')).toBeTruthy();
     expect(within(stage).getByTestId('tour-bar')).toBeTruthy();
+  });
+
+  it('draws no ring and says why when an older step cannot be placed', async () => {
+    const set = withPicture(checked(tour('Biology 7')));
+    const web = set.steps[0].web;
+    if (!web) throw new Error('no web');
+    set.steps[0] = {
+      ...set.steps[0],
+      web: {
+        ...web,
+        locator: { ...web.locator, box: { x: 0.4, y: 0.4, w: 0.1, h: 0.05 } },
+      },
+    };
+    renderEditor(set);
+    const stage = screen.getByTestId('web-stage');
+    expect(
+      await within(stage).findByTestId('web-stage-no-ring')
+    ).toHaveTextContent('Retake or fix this step on the site');
+    expect(within(stage).queryByTestId('tour-spotlight-ring')).toBeNull();
+    expect(within(stage).getByTestId('tour-callout')).toBeTruthy();
+  });
+
+  it('shows Play only once the tour is published', () => {
+    renderEditor(checked(tour('Biology 7')));
+    expect(screen.queryByTestId('tour-shell-play')).toBeNull();
+  });
+
+  it('keeps a blurred-over picture through publish, so undo can bring it back', async () => {
+    renderEditor(withPicture(checked(tour('Biology 7'))));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select picture' })
+    );
+    fireEvent.click(
+      within(screen.getByRole('toolbar', { name: 'Picture tools' })).getByRole(
+        'button',
+        { name: 'Blur' }
+      )
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('web-stage-blur').firstChild).toBeTruthy()
+    );
+    const area = screen.getByRole('img', { name: /Drag across what to blur/ });
+    area.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+    area.setPointerCapture = () => undefined;
+    fireEvent.pointerDown(area, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(area, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.pointerUp(area, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply blur' }));
+    await waitFor(() =>
+      expect(storage.uploadWebTourPicture).toHaveBeenCalled()
+    );
+    await waitFor(() =>
+      expect(
+        storage.saveWebTourDraft.mock.calls.at(-1)?.[0].steps[0].web?.picture
+          ?.path
+      ).toBe('web_tour_pictures/t1/abc.jpg')
+    );
+    fireEvent.click(main());
+    await screen.findByText('Anything private in these pictures?');
+    fireEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Before you publish' })
+      ).getByRole('button', { name: 'Publish' })
+    );
+    await waitFor(() => expect(storage.publishWebTour).toHaveBeenCalled());
+    const keep = [...(storage.publishWebTour.mock.calls[0][3] ?? [])];
+    expect(keep).toContain('web_tour_pictures/t1/a.jpg');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() =>
+      expect(
+        storage.saveWebTourDraft.mock.calls.at(-1)?.[0].steps[0].web?.picture
+          ?.path
+      ).toBe('web_tour_pictures/t1/a.jpg')
+    );
   });
 
   it('shows picture tools only once the stage picture is selected', async () => {

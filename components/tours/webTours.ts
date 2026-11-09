@@ -234,11 +234,12 @@ export async function loadWebTourPicture(path: string): Promise<ArrayBuffer> {
   return getBytes(ref(storage, path), WEB_TOUR_PICTURE_MAX_BYTES);
 }
 
-/** Publishes the saved draft as the staff-only snapshot, then deletes pictures only the previous one used. */
+/** Publishes the saved draft as the staff-only snapshot, then deletes pictures only the previous one used, except any in `keep`. */
 export async function publishWebTour(
   setId: string,
   uid: string,
-  check?: (draft: GuidedLearningSet) => void
+  check?: (draft: GuidedLearningSet) => void,
+  keep: Iterable<string> = []
 ): Promise<void> {
   const draft = await loadWebTourDraft(setId);
   if (!draft) throw new Error('Web tour draft not found');
@@ -263,9 +264,10 @@ export async function publishWebTour(
   );
   // Re-read the draft so a picture saved back into it since the publish started is kept.
   const latest = await loadWebTourDraft(setId);
-  const keep = webTourPicturePaths(setId, draft);
-  webTourPicturePaths(setId, latest).forEach((p) => keep.add(p));
-  const stale = [...before].filter((p) => !keep.has(p));
+  const kept = webTourPicturePaths(setId, draft);
+  webTourPicturePaths(setId, latest).forEach((p) => kept.add(p));
+  for (const p of keep) kept.add(p);
+  const stale = [...before].filter((p) => !kept.has(p));
   await Promise.all(
     stale.map((p) =>
       deleteObject(ref(storage, p)).catch((err: unknown) => {

@@ -185,6 +185,13 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     undrop: () => {
       deleted.current = false;
     },
+    /** Every picture a draft in the undo history uses, so publishing never deletes one undo can bring back. */
+    historyPicturePaths: (): string[] => {
+      const h = history.current;
+      return [...h.past, ...h.future].flatMap((d) =>
+        d.steps.flatMap((s) => (s.web?.picture ? [s.web.picture.path] : []))
+      );
+    },
     undo: () => restore('past'),
     redo: () => restore('future'),
     canUndo: depth.past > 0,
