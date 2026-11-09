@@ -441,9 +441,12 @@ export function installFrameSeeker(
   /** Reports the furthest early action once the page around it has settled. */
   const settleAhead = () => {
     if (aheadWait || !aheadHit) return;
+    const began = BENCH ? performance.now() : 0;
     const wait = waitForSettle(
       domSettleHost(doc, { near: () => aheadHit?.el ?? null })
     );
+    // The one layout read a click-ahead costs, timed for the bench.
+    if (BENCH) benchMark('settlestart', { ms: performance.now() - began });
     aheadWait = wait;
     void wait.done.then(() => {
       if (aheadWait !== wait) return;

@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Report builder</title><link rel="stylesheet" href="/common.css"></head>
+<body>
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Report builder</h1></header>
+<main id="app" style="max-width:900px;margin:0 auto"><div class="panel"><button id="start">Build the term report</button></div></main>
+<script>
+// A control that arrives later than the tour's waiting chip delay, with nothing moving meanwhile.
+const app = document.getElementById('app');
+const ready = () => console.debug(`[sbmain] ${JSON.stringify({ name: 'ready', t: performance.timeOrigin + performance.now() })}`);
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'start') {
+    app.innerHTML = '<div class="panel">Building the report. This takes a few seconds.</div>';
+    setTimeout(() => {
+      app.innerHTML = '<div class="panel"><b>Term report</b> <button id="report">Open the report</button></div>';
+      ready();
+    }, 4500);
+  }
+  if (e.target.id === 'report') {
+    app.innerHTML = '<div class="panel"><b>Term report</b> <button id="close">Close</button></div>';
+    ready();
+  }
+});
+</script></body></html>
