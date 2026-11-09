@@ -1,4 +1,4 @@
-// Image markup drawn in sheet millimetres (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.3); one call serves a crop or a whole page.
+// Image markup drawn in sheet millimetres (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.3); one call serves a crop or a whole page.
 import {
   PAPER_MARKUP_MAX_ITEMS,
   type PaperMarkupColor,
