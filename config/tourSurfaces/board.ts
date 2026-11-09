@@ -772,6 +772,11 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/help/HelpResourceViewer.tsx'],
     opensWith: 'help-center.guides.item:help',
   },
+  'board.tour-steps-view': {
+    label: 'Tour Steps view',
+    kind: 'shared',
+    files: ['components/tours/steps/'],
+  },
   'board.help-copy-link': {
     label: 'Help copy link button',
     kind: 'shared',

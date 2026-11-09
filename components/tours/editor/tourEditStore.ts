@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { GuidedLearningSet, GuidedLearningTourBinding } from '@/types';
 import type { TourSlots } from '@/components/tours/tourSession';
+import type { RecordedPlacement } from '@/components/widgets/GuidedLearning/components/recorder/resolveAnchor';
 
 export interface TourEditRequest {
   setId: string;
@@ -191,6 +192,8 @@ export interface TourEditShot {
   /** The binding the picture was taken of. */
   tour: GuidedLearningTourBinding;
   frame: Blob;
+  /** Where the control sits in the frame (`captureStepSnapshot`'s placement), when the runner reports it. */
+  placement?: RecordedPlacement;
 }
 
 const shotListeners = new Set<(shot: TourEditShot) => void>();

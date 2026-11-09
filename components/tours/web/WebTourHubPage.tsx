@@ -3,6 +3,7 @@ import React, {
   Suspense,
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -51,6 +52,13 @@ import {
 import { parseTourPath } from './tourLinks';
 import { scrubLocator } from './recordedSteps';
 import { runFixClues } from './fixClues';
+import { StepsView } from '@/components/tours/steps/StepsView';
+import { StepsWalkthrough } from '@/components/tours/steps/StepsWalkthrough';
+import {
+  stepsFromWebTour,
+  type StepPictures,
+} from '@/components/tours/steps/stepsModel';
+import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
 import {
   isWebTourSet,
   webTourStepsOf,
@@ -274,6 +282,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
   admin,
 }) => {
   const { t } = useTranslation();
+  const stepsLabels = useStepsLabels();
   const [load, setLoad] = useState<TourLoad>({ kind: 'loading' });
   const [extension, setExtension] = useState<ExtensionStatus | null>(null);
   const [pictures, setPictures] = useState<Map<string, LoadedPicture> | null>(
@@ -331,6 +340,30 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
     extension?.kind === 'ready' ? extension.protocol : 0;
   const storeId = extensionId();
   const tour = load.kind === 'ready' ? load.tour : null;
+  const viewSteps = useMemo(
+    () => (tour ? stepsFromWebTour(tour.steps) : []),
+    [tour]
+  );
+  const viewPictures = useMemo<StepPictures>(
+    () =>
+      Object.fromEntries(
+        (tour?.steps ?? []).flatMap((step) => {
+          if (!step.web.picture) return [];
+          const src = pictureUrls.get(step.id);
+          return [
+            [
+              step.id,
+              src
+                ? { status: 'ready' as const, src }
+                : pictures === null
+                  ? { status: 'loading' as const }
+                  : { status: 'failed' as const },
+            ],
+          ];
+        })
+      ),
+    [tour, pictureUrls, pictures]
+  );
 
   const onPortEvent = useEffectEvent((event: WebTourPortEvent) => {
     if (!tour || !eventFitsTour(event, tour.steps)) return;
@@ -473,11 +506,11 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
 
   return (
     <main className="h-screen h-dvh overflow-y-auto bg-white px-4 py-10 pb-16">
-      <div className="mx-auto max-w-2xl">
+      <div className={`mx-auto ${showPictures ? 'max-w-3xl' : 'max-w-2xl'}`}>
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           {t('webTourHub.eyebrow')}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">
+        <h1 className="mt-1 text-2xl font-semibold text-slate-900 wrap-break-word">
           {tour.title || t('webTourHub.untitled')}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
@@ -534,59 +567,67 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
           )}
         </div>
 
-        <ol className="mt-6 divide-y divide-slate-200 border-t border-slate-200">
-          {tour.steps.map((step, i) => {
-            const done = play.kind === 'done' || i < furthest;
-            const isCurrent = current === i;
-            const url = pictureUrls.get(step.id);
-            return (
-              <li
-                key={step.id}
-                aria-current={isCurrent ? 'step' : undefined}
-                className="flex gap-3 py-3"
-              >
-                <span className="mt-0.5 w-6 shrink-0 text-sm font-semibold text-slate-500">
-                  {done ? (
-                    <CheckCircle2
-                      className="w-4 h-4 text-emerald-600"
-                      aria-label={t('webTourHub.stepDone')}
-                    />
-                  ) : (
-                    `${i + 1}.`
-                  )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`text-sm ${isCurrent ? 'font-semibold text-slate-900' : 'text-slate-800'}`}
-                  >
-                    {step.label?.trim()
-                      ? step.label
-                      : t('webTourHub.untitledStep')}
-                    {isCurrent && (
-                      <span className="ml-2 text-xs font-semibold text-brand-blue-primary">
-                        {t('webTourHub.currentStep')}
-                      </span>
+        {showPictures ? (
+          <div className="mt-8">
+            <StepsView
+              steps={viewSteps}
+              pictures={viewPictures}
+              labels={stepsLabels}
+              walkthrough={StepsWalkthrough}
+              print={{
+                title: tour.title || t('webTourHub.untitled'),
+                subtitle: t('webTourHub.summary', {
+                  site,
+                  count: tour.steps.length,
+                }),
+              }}
+            />
+          </div>
+        ) : (
+          <ol className="mt-6 divide-y divide-slate-200 border-t border-slate-200">
+            {tour.steps.map((step, i) => {
+              const done = play.kind === 'done' || i < furthest;
+              const isCurrent = current === i;
+              return (
+                <li
+                  key={step.id}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  className="flex gap-3 py-3"
+                >
+                  <span className="mt-0.5 w-6 shrink-0 text-sm font-semibold text-slate-500">
+                    {done ? (
+                      <CheckCircle2
+                        className="w-4 h-4 text-emerald-600"
+                        aria-label={t('webTourHub.stepDone')}
+                      />
+                    ) : (
+                      `${i + 1}.`
                     )}
-                  </p>
-                  {step.text?.trim() && (
-                    <p className="mt-0.5 whitespace-pre-line text-sm text-slate-600">
-                      {step.text}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-sm ${isCurrent ? 'font-semibold text-slate-900' : 'text-slate-800'}`}
+                    >
+                      {step.label?.trim()
+                        ? step.label
+                        : t('webTourHub.untitledStep')}
+                      {isCurrent && (
+                        <span className="ml-2 text-xs font-semibold text-brand-blue-primary">
+                          {t('webTourHub.currentStep')}
+                        </span>
+                      )}
                     </p>
-                  )}
-                  {showPictures && url && (
-                    <img
-                      src={url}
-                      alt={t('webTourHub.pictureAlt', { number: i + 1 })}
-                      width={step.web.picture?.w}
-                      height={step.web.picture?.h}
-                      className="mt-2 h-auto max-w-full rounded-sm border border-slate-200"
-                    />
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+                    {step.text?.trim() && (
+                      <p className="mt-0.5 whitespace-pre-line text-sm text-slate-600">
+                        {step.text}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </div>
     </main>
   );

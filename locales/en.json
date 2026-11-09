@@ -4537,8 +4537,7 @@
         "other": "Other",
         "tours": "Live tours"
       },
-      "liveTourBadge": "Live tour",
-      "webTourBadge": "Web tour"
+      "liveTourBadge": "Live tour"
     },
     "shortcuts": {
       "open-help": "Open Help",
@@ -5964,5 +5963,22 @@
       "random": "Use the stations as names"
     },
     "next": "Next"
+  },
+  "tourSteps": {
+    "viewLabel": "View",
+    "article": "Steps",
+    "walkthrough": "Walk through",
+    "print": "Print",
+    "stepNumber": "Step {{number}}",
+    "onlyIfAppears": "Only if it appears",
+    "untitledStep": "Untitled step",
+    "pictureAlt": "Picture of step {{number}}",
+    "pictureLoading": "Loading picture",
+    "noPicture": "No picture for this step",
+    "pictureFailed": "The picture couldn't load",
+    "empty": "This tour has no steps yet.",
+    "startLive": "Start Live Tour",
+    "loading": "Loading steps",
+    "unavailable": "These steps aren't available right now."
   }
 }

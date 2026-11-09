@@ -119,7 +119,13 @@ interface StoredStep {
     urlPattern?: unknown;
     action?: unknown;
     locator?: unknown;
-    picture?: { path?: unknown; w?: unknown; h?: unknown };
+    picture?: {
+      path?: unknown;
+      w?: unknown;
+      h?: unknown;
+      target?: unknown;
+      cssW?: unknown;
+    };
   };
 }
 
@@ -178,6 +184,23 @@ export interface LoadedTourPicture {
   data: string;
   w: number;
   h: number;
+  /** Where the target sits in the picture, as 0-1 of its width and height. */
+  target?: { x: number; y: number; w: number; h: number };
+  /** The picture's width in CSS pixels when captured. */
+  cssW?: number;
+}
+
+/** A recorded 0-1 box inside the picture, or nothing. */
+function targetOf(v: unknown): LoadedTourPicture['target'] {
+  const t = v as Record<string, unknown> | null;
+  if (!t || typeof t !== 'object') return undefined;
+  const { x, y, w, h } = t as Record<'x' | 'y' | 'w' | 'h', number>;
+  const ok = [x, y, w, h].every(
+    (n) => typeof n === 'number' && Number.isFinite(n)
+  );
+  return ok && x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1
+    ? { x, y, w, h }
+    : undefined;
 }
 
 export interface LoadedTour {
@@ -202,14 +225,29 @@ export async function loadTour(
   if (!snap || !isWebTourSnapshot(snap) || !startHostOf(snap))
     throw fail(404, 'That tour is no longer published.');
   const steps = webSteps(snap);
-  const wanted: { id: string; path: string; w: number; h: number }[] = [];
+  const wanted: {
+    id: string;
+    path: string;
+    w: number;
+    h: number;
+    target?: LoadedTourPicture['target'];
+    cssW?: number;
+  }[] = [];
   for (const step of steps) {
     const pic = step.web?.picture;
     const path = str(pic?.path);
     const w = Number(pic?.w);
     const h = Number(pic?.h);
     if (!isWebTourPicturePath(setId, path) || !(w > 0) || !(h > 0)) continue;
-    wanted.push({ id: str(step.id), path, w, h });
+    const cssW = Number(pic?.cssW);
+    wanted.push({
+      id: str(step.id),
+      path,
+      w,
+      h,
+      target: targetOf(pic?.target),
+      ...(cssW > 0 && cssW <= 10000 ? { cssW } : {}),
+    });
   }
   // Sizes come from metadata in parallel; the budget is spent in step order before any download.
   const metas = await Promise.all(
@@ -234,7 +272,14 @@ export async function loadTour(
   accepted.forEach((p, i) => {
     const data = datas[i];
     if (!data || data.length > MAX_PICTURE_CHARS) return;
-    pictures[p.id] = { mime: p.mime, data, w: p.w, h: p.h };
+    pictures[p.id] = {
+      mime: p.mime,
+      data,
+      w: p.w,
+      h: p.h,
+      ...(p.target ? { target: p.target } : {}),
+      ...(p.cssW ? { cssW: p.cssW } : {}),
+    };
   });
   return {
     setId,

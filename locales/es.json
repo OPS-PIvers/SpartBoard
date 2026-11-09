@@ -3236,8 +3236,7 @@
         "other": "Otros",
         "tours": "Recorridos en vivo"
       },
-      "liveTourBadge": "Recorrido en vivo",
-      "webTourBadge": "Recorrido web"
+      "liveTourBadge": "Recorrido en vivo"
     },
     "shortcuts": {
       "open-help": "Abrir la ayuda",
@@ -4636,5 +4635,22 @@
     "leaveFailed": "No se pudo salir de la colección compartida",
     "hostStopped": "{{name}} dejó de compartir esta colección.",
     "hostStoppedNoName": "El anfitrión dejó de compartir esta colección."
+  },
+  "tourSteps": {
+    "viewLabel": "Vista",
+    "article": "Pasos",
+    "walkthrough": "Recorrer",
+    "print": "Imprimir",
+    "stepNumber": "Paso {{number}}",
+    "onlyIfAppears": "Solo si aparece",
+    "untitledStep": "Paso sin título",
+    "pictureAlt": "Imagen del paso {{number}}",
+    "pictureLoading": "Cargando imagen",
+    "noPicture": "Sin imagen para este paso",
+    "pictureFailed": "No se pudo cargar la imagen",
+    "empty": "Este recorrido aún no tiene pasos.",
+    "startLive": "Iniciar recorrido en vivo",
+    "loading": "Cargando pasos",
+    "unavailable": "Estos pasos no están disponibles ahora."
   }
 }

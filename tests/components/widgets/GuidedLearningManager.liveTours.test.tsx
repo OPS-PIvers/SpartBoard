@@ -487,7 +487,7 @@ describe('GuidedLearningManager live tours', () => {
       expect(screen.queryByText('Docs tour')).toBeNull();
     });
 
-    it('copies the link, moves to the Help Center and deletes from the card', async () => {
+    it('copies the link and deletes from the card, with no way to move it into the Help Center', async () => {
       webDrafts.list = [webTour('w-1', 'Docs tour')];
       renderManager(true, { features: ['web-tours'] });
       showTours();
@@ -497,20 +497,34 @@ describe('GuidedLearningManager live tours', () => {
       expect(await screen.findByText('Link copied')).toBeTruthy();
 
       await cardMenu('Docs tour');
+      expect(
+        screen.queryByRole('menuitem', { name: 'Move to Help Center' })
+      ).toBeNull();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+      await vi.waitFor(() =>
+        expect(webTourStore.deleteWebTourDraft).toHaveBeenCalledWith('w-1')
+      );
+      expect(webTourStore.setWebTourHelpCenter).not.toHaveBeenCalled();
+    });
+
+    it('lets a web tour already in the Help Center come back to the library', async () => {
+      webDrafts.list = [webTour('w-1', 'Docs tour', { helpCenter: true })];
+      renderManager(true, { features: ['web-tours'] });
+      fireEvent.change(screen.getByLabelText('Type'), {
+        target: { value: 'tour' },
+      });
+      fireEvent.change(screen.getByLabelText('Source'), {
+        target: { value: 'help' },
+      });
+      await cardMenu('Docs tour');
       fireEvent.click(
-        screen.getByRole('menuitem', { name: 'Move to Help Center' })
+        screen.getByRole('menuitem', { name: 'Move to library' })
       );
       await vi.waitFor(() =>
         expect(webTourStore.setWebTourHelpCenter).toHaveBeenCalledWith(
           'w-1',
-          true
+          false
         )
-      );
-
-      await cardMenu('Docs tour');
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
-      await vi.waitFor(() =>
-        expect(webTourStore.deleteWebTourDraft).toHaveBeenCalledWith('w-1')
       );
     });
 

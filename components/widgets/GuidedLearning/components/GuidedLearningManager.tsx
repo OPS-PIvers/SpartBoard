@@ -1089,23 +1089,20 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         })
       );
     }
-    secondary.push({
-      id: 'help-center',
-      label: entry.helpCenter ? 'Move to library' : 'Move to Help Center',
-      icon: entry.helpCenter ? Library : LifeBuoy,
-      onClick: () =>
-        void runWebTourAction(
-          set.id,
-          "The tour couldn't be moved.",
-          async (m) => {
-            // Unfile first, so a Help Center tour leaves no folder placement behind.
-            if (!entry.helpCenter && placedChip) {
-              await fileBuildingSet(entry.id, null);
-            }
-            await m.setWebTourHelpCenter(set.id, !entry.helpCenter);
-          }
-        ),
-    });
+    // A web tour already in the Help Center can still come back; none can be moved in.
+    if (entry.helpCenter) {
+      secondary.push({
+        id: 'help-center',
+        label: 'Move to library',
+        icon: Library,
+        onClick: () =>
+          void runWebTourAction(
+            set.id,
+            "The tour couldn't be moved.",
+            async (m) => void (await m.setWebTourHelpCenter(set.id, false))
+          ),
+      });
+    }
     if (placedChip) {
       secondary.push({
         id: 'remove-from-folder',

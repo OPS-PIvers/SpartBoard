@@ -245,6 +245,32 @@ describe('loadTour', () => {
     expect(tour.version).toBe(1700);
   });
 
+  it('hands back where the target sits in the picture, and only a box that fits', async () => {
+    const placed = {
+      ...pic('a'),
+      target: { x: 0.2, y: 0.3, w: 0.4, h: 0.1 },
+      cssW: 1280,
+    };
+    const stray = { ...pic('b'), target: { x: 0.9, y: 0.3, w: 0.4, h: 0.1 } };
+    const tour = await loadTour(
+      'set1',
+      snapshot([
+        step('a', 'https://app.example.com/', placed),
+        step('b', 'https://app.example.com/', stray),
+      ]),
+      storeOf(3)
+    );
+    expect(tour.pictures.a).toEqual({
+      mime: 'image/jpeg',
+      data: 'AAAA',
+      w: 800,
+      h: 600,
+      target: { x: 0.2, y: 0.3, w: 0.4, h: 0.1 },
+      cssW: 1280,
+    });
+    expect(tour.pictures.b.target).toBeUndefined();
+  });
+
   it("never reads a picture outside the set's folder", async () => {
     const store = storeOf(3);
     const tour = await loadTour(

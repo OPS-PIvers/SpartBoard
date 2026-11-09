@@ -515,6 +515,14 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const TourStepsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/TourStepsDevHarness').then((module) => ({
+        default: module.TourStepsDevHarness,
+      }))
+    )
+  : null;
+
 const WebTourEditorDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WebTourEditorDevHarness').then((module) => ({
@@ -1553,6 +1561,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LiveTourViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the Steps view on seeded Live and web tours, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    TourStepsDevHarness &&
+    pathname === '/tour-steps-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TourStepsDevHarness />
       </Suspense>
     );
   }

@@ -103,7 +103,8 @@ export function toursForPanel(
 /** The side panel's requests to the worker. */
 export type TourPanelMessage =
   | { type: 'tours/list'; refresh: boolean }
-  | { type: 'tours/start'; setId: string; tabId: number | null };
+  | { type: 'tours/start'; setId: string; tabId: number | null }
+  | { type: 'tours/steps'; setId: string };
 
 export type TourStartReply = { ok: true } | { ok: false; why: ApiFailure };
 
@@ -124,5 +125,11 @@ export function parseTourPanelMessage(msg: unknown): TourPanelMessage | null {
       setId: msg.setId,
       tabId: msg.tabId as number | null,
     };
+  if (
+    msg.type === 'tours/steps' &&
+    typeof msg.setId === 'string' &&
+    SET_ID.test(msg.setId)
+  )
+    return { type: 'tours/steps', setId: msg.setId };
   return null;
 }

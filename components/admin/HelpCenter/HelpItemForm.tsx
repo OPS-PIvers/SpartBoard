@@ -80,6 +80,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
     () => editing?.kind === 'embed' && Boolean(editing.url)
   );
   const [changing, setChanging] = useState(false);
+  const [webLinked, setWebLinked] = useState(false);
   const hasContent = draft.kind === 'embed' ? linkOpen : Boolean(draft.setId);
   const showChoices = changing || !hasContent;
 
@@ -90,7 +91,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   const canSave =
     draft.title.trim().length > 0 &&
     draft.categoryId.length > 0 &&
-    (draft.kind === 'embed' ? urlValid : Boolean(draft.setId));
+    (draft.kind === 'embed' ? urlValid : Boolean(draft.setId) && !webLinked);
 
   const patch = (next: Partial<HelpItemDraft>) =>
     setDraft((prev) => ({ ...prev, ...next }));
@@ -201,6 +202,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
                     : 'hidden'
               }
               onChange={() => setChanging(true)}
+              onWebTourLinked={setWebLinked}
               selectedSetId={
                 draft.kind === 'guided-learning' ? draft.setId : null
               }

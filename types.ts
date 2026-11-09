@@ -8991,6 +8991,8 @@ export interface GuidedLearningTourThumbnail {
   anchor: string;
   w: number;
   h: number;
+  /** Where the control sits in the picture, as 0-1 of its width and height; absent on older pictures. */
+  target?: { x: number; y: number; w: number; h: number };
 }
 
 /** A widget's recorded place on the board; `slot` is its stable index within the tour. */
