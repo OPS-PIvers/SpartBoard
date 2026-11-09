@@ -337,6 +337,21 @@ describe('PollVoteApp', () => {
       expect.anything(),
       expect.objectContaining({ questionIndex: 0, optionIndex: 4 })
     );
+    // The change overwrites the uid-keyed vote instead of adding a second one.
+    expect(mockDoc).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'teacher-1_K3F9Q',
+      'votes',
+      '0_voter-1'
+    );
+    expect(mockDoc).not.toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'teacher-1_K3F9Q',
+      'votes',
+      '0_vid-1'
+    );
   });
 
   it('sends up to three words on a word cloud question', async () => {

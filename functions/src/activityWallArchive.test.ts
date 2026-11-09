@@ -69,6 +69,7 @@ import {
   maxBytesForType,
   resolveArchivableType,
   resolveFailedArchiveStatus,
+  sanitizeDriveNameSegment,
   shouldArchiveSubmission,
   teacherUidFromSessionId,
   MAX_ARCHIVE_ATTEMPTS,
@@ -332,6 +333,24 @@ describe('pure helpers', () => {
     expect(buildArchiveFileName(SUBMISSION_ID, undefined, 'image/png')).toBe(
       'sub-1.png'
     );
+  });
+
+  it('keeps the extension and whole characters when a long student file name is capped', () => {
+    const name = buildArchiveFileName(
+      SUBMISSION_ID,
+      `${'a'.repeat(58)}\u{1F600}${'b'.repeat(20)}.jpg`,
+      'image/jpeg'
+    );
+    expect(name.endsWith('.jpg')).toBe(true);
+    expect(Array.from(name).length).toBeLessThanOrEqual(60);
+    expect(name).not.toMatch(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+    );
+  });
+
+  it('keeps the folder-name cap in UTF-16 units so existing Drive folders still match', () => {
+    const title = `${'\u{1F600}'.repeat(10)}${'a'.repeat(60)}`;
+    expect(sanitizeDriveNameSegment(title)).toBe(title.slice(0, 60));
   });
 
   it('treats a storagePath with no status as firebase', () => {
