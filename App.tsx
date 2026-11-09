@@ -568,6 +568,14 @@ const PaperMarkupDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+
+const ScanSheetPrintDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/ScanSheetPrintDevHarness').then((module) => ({
+        default: module.ScanSheetPrintDevHarness,
+      }))
+    )
+  : null;
 const AssignStepperDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/AssignStepperDevHarness').then((module) => ({
@@ -1661,6 +1669,17 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <PaperMarkupDevHarness />
+      </Suspense>
+    );
+  }
+  if (
+    import.meta.env.DEV &&
+    ScanSheetPrintDevHarness &&
+    pathname === '/scan-sheet-print-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ScanSheetPrintDevHarness />
       </Suspense>
     );
   }

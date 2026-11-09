@@ -6622,7 +6622,7 @@ export type PaperMarkupItem =
       comment: string;
     });
 
-/** A written answer's image markup, made on one scan's page (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.3). */
+/** A written answer's image markup, made on one scan's page (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.3). */
 export interface PaperImageMarkup {
   /** The scan the markup was drawn on (K12). */
   scanId: string;
@@ -11052,7 +11052,7 @@ export type GlobalFeature =
   | 'paper-reword-sync'
   /** AI transcription of scanned handwritten answers; off means teachers grade the crop. */
   | 'paper-handwriting-ai'
-  /** Each student's scanned pages kept at import and printed with marks (docs/plans/QUIZ_PAPER_KEPT_PAGES.md). */
+  /** Each student's scanned pages kept at import and printed with marks (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md). */
   | 'paper-kept-pages'
   /** Highlights, shapes, stamps and pinned comments on handwritten answers, printed on the work. */
   | 'paper-image-markup'

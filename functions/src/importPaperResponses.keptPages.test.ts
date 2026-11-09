@@ -1,4 +1,4 @@
-// Kept scan pages in the paper import (docs/plans/QUIZ_PAPER_KEPT_PAGES.md §3.1, K12, K17).
+// Kept scan pages in the paper import (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.1, K12, K17).
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('./firebaseAdmin', () => ({
