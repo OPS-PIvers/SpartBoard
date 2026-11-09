@@ -269,7 +269,7 @@ export const BuildingUpdatesMock: React.FC<{ isLead: boolean }> = ({
     <div className="mx-auto w-full max-w-3xl px-6 pb-16">
       {isLead && (
         <Section first label="Post an update">
-          <textarea
+          <textarea // no-tour-anchor: dev-only redesign mockup, never on the board
             rows={3}
             placeholder="Post an update"
             aria-label="Post an update"

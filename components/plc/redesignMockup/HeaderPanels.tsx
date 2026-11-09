@@ -28,7 +28,7 @@ export const GearMenu: React.FC<{
     aria-label="Team menu"
     className={`absolute right-14 top-full z-popover mt-1 w-48 text-slate-700 ${MENU_PANEL}`}
   >
-    <button
+    <button // no-tour-anchor: dev-only redesign mockup, never on the board
       type="button"
       role="menuitem"
       className={MENU_ITEM}
@@ -37,12 +37,17 @@ export const GearMenu: React.FC<{
       <Users2 className="h-3.5 w-3.5" aria-hidden="true" />
       Members
     </button>
-    <button type="button" role="menuitem" className={MENU_ITEM}>
+    <button
+      // no-tour-anchor: dev-only redesign mockup, never on the board
+      type="button"
+      role="menuitem"
+      className={MENU_ITEM}
+    >
       <Settings className="h-3.5 w-3.5" aria-hidden="true" />
       Settings
     </button>
     {isLead && (
-      <button
+      <button // no-tour-anchor: dev-only redesign mockup, never on the board
         type="button"
         role="menuitem"
         className={MENU_ITEM}
@@ -133,7 +138,7 @@ export const TeamDrawer: React.FC<{
           ]}
         />
         <span className="flex-1" />
-        <button
+        <button // no-tour-anchor: dev-only redesign mockup, never on the board
           type="button"
           onClick={onClose}
           aria-label="Close"

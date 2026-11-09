@@ -25,7 +25,9 @@ import {
 } from '@/utils/dashboardSaveMerge';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import {
+  noteBoardItemPicksSeeding,
   boardItemPickOf,
+  ownBoardItemPicks,
   readBoardItemPicks,
   recordBoardItemPicks,
 } from '@/utils/boardItemPicks';
@@ -755,13 +757,16 @@ export const useFirestore = (userId: string | null) => {
       const seedPicks = async (id: string) => {
         if (!userId || intendedMode === 'copy') return;
         const oldShareId = dashboard.linkedShareId;
+        const own = () => ownBoardItemPicks(dashboard.widgets ?? [], userId);
         if (oldShareId) {
           if (dashboard.linkedShareRole !== 'owner') return;
+          // A share made before picks existed has none to carry, so the board's own items stand in.
           const old = await readBoardItemPicks(userId, oldShareId);
-          await recordBoardItemPicks(userId, id, old);
+          await recordBoardItemPicks(userId, id, old ?? own());
           return;
         }
-        const picks = (dashboard.widgets ?? [])
+        // Every item on a never-shared board is this teacher's, whatever stale stamp a widget carries.
+        const all = (dashboard.widgets ?? [])
           .map((w) =>
             boardItemPickOf(
               w.type,
@@ -769,7 +774,10 @@ export const useFirestore = (userId: string | null) => {
             )
           )
           .filter((k): k is string => !!k);
-        await recordBoardItemPicks(userId, id, [...new Set(picks)]);
+        await recordBoardItemPicks(userId, id, [...new Set(all)]);
+      };
+      const startSeed = (id: string) => {
+        if (userId) noteBoardItemPicksSeeding(userId, id, seedPicks(id));
       };
       if (shareId) {
         const ref = doc(shareRef, shareId);
@@ -790,11 +798,11 @@ export const useFirestore = (userId: string | null) => {
           }
           return false;
         });
-        if (created) void seedPicks(shareId);
+        if (created) startSeed(shareId);
         return shareId;
       }
       const docRef = await addDoc(shareRef, payload);
-      void seedPicks(docRef.id);
+      startSeed(docRef.id);
       return docRef.id;
     },
     [userId]

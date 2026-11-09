@@ -5,7 +5,11 @@ import { onSnapshot } from 'firebase/firestore';
 import { useAuth } from '@/context/useAuth';
 import { BoardLinkedShareContext } from '@/context/boardLinkedShare';
 import { logError } from '@/utils/logError';
-import { boardItemPickKey, watchBoardItemPick } from '@/utils/boardItemPicks';
+import {
+  boardItemPickKey,
+  resetBoardItemPickSeeds,
+  watchBoardItemPick,
+} from '@/utils/boardItemPicks';
 import {
   publishSharedBoardItem,
   sharedBoardItemDocId,
@@ -178,7 +182,8 @@ export function useSharedBoardItemPublisher<T>({
   }, [key, unpickedKey, shareId, uid, kind, itemId]);
 }
 
-/** Test hook: forget which copies this tab already wrote. */
+/** Test hook: forget which copies this tab already wrote and which shares it seeded. */
 export function resetSharedBoardItemPublishes(): void {
   published.clear();
+  resetBoardItemPickSeeds();
 }

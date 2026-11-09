@@ -5055,3 +5055,13 @@ rather than "no data") is also still open.
   - Ready: #5427, #5429, #5426, #5422.
   - Ready with minor notes: #5428 (the non-quiz arm of the new `reopen` ternary in `sessionPatchFor` can never run) and #5415 (stale base; it will conflict trivially with #5422 in the same AB-112 block).
 - Notes: GitHub access went through MCP. Scoped vitest runs were green on #5428 (188 tests) and #5427 (8 tests). CI had not reported on either head SHA when the reviews were posted.
+
+## 2026-11-09
+
+- PRs reviewed: #5467 test(coverage): gradebook/view-as pure helpers; #5465 docs: debugger run 118 log; #5464 fix(functions): keep file extension when capping Activity Wall archive names; #5463 fix(admin): let Quiz read-aloud cap fields be cleared while typing; #5462 fix(utils): extractYouTubeId accepts youtube.com/live/ URLs; #5461 fix(layout): DeepLinkShareImporter reads the board at import resolve time; #5460 fix(widgets): show RevealGrid share link when clipboard is blocked; #5454 ci(prod): prod deploy and lunch sync reach prod only from main, keylessly
+- Comments processed: 2 total. 1 fixed, 1 explained. #5461 had a claude[bot] nit about a wrapped multi-line comment, which I fixed. #5454 had an optional claude[bot] finding: a refused non-main run still forces a full backend redeploy. I replied that this is a deploy-policy choice for Paul. The only inline thread (#5454) had already been resolved. The other bot summaries were LGTM.
+- Fixes pushed: #5461 `nightly/dashboard-2026-11-09`, bf5ffb30. It collapses the wrapped quiz-import comment to one line.
+- Reviews posted: 8
+  - Ready: #5467, #5465, #5464, #5463, #5462, #5460.
+  - Ready with minor notes: #5461 (video-activity and assignment paths untested) and #5454 (needs PT-75 first; the `other`-run full-redeploy choice is still open).
+- Notes: GitHub access went through MCP. For the #5461 fix, `vitest related` passed (76 tests) and the pre-commit lint and format hook passed. I skipped the full type-check because the fix was a comment-only change.
