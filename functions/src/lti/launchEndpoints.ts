@@ -372,9 +372,23 @@ async function recordTeacherSection(
   auth: { uid: string; token: unknown } | undefined,
   launch: { role: string; contextId?: string | null; email?: string | null }
 ): Promise<void> {
-  if (launch.role !== 'teacher' || !launch.contextId || !auth) return;
-  const email = staffEmailFromToken(auth.token);
-  if (!email || email !== (launch.email ?? '').trim().toLowerCase()) return;
+  if (launch.role !== 'teacher' || !launch.contextId) return;
+  const email = auth ? staffEmailFromToken(auth.token) : null;
+  const launchEmail = (launch.email ?? '').trim().toLowerCase();
+  const skip = !auth
+    ? 'signed-out'
+    : !email
+      ? 'not-staff'
+      : !launchEmail
+        ? 'no-launch-email'
+        : email !== launchEmail
+          ? 'email-mismatch'
+          : null;
+  if (skip || !auth) {
+    // PII-free, so the rules release can size how often a teacher section goes unrecorded.
+    console.warn('[ltiExchange] teacher section not recorded:', skip);
+    return;
+  }
   try {
     await addVerifiedLmsClasses(db, auth.uid, [
       `schoology:${launch.contextId}`,

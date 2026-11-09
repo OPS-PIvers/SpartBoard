@@ -175,6 +175,8 @@ interface ResolvedTargeting {
   classPeriodByClassId: Record<string, string>;
 }
 
+const TEACHER_TOKEN_REUSE_MS = 45 * 60 * 1000;
+
 export const ClassroomAddonTeacherSpike: React.FC = () => {
   const params =
     typeof window === 'undefined'
@@ -414,20 +416,25 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     }
   }, [append, signInWithGoogle]);
 
-  // One addons.teacher token per page: the targeting check and the attachment both validate the launch with it.
-  const teacherTokenRef = useRef<Promise<string> | null>(null);
+  // One addons.teacher token for the targeting check and the attachment; Google tokens last an hour.
+  const teacherTokenRef = useRef<{ token: Promise<string>; at: number } | null>(
+    null
+  );
   const teacherAccessToken = useCallback((): Promise<string> => {
-    if (!teacherTokenRef.current) {
-      append('Granting Classroom add-on permission…');
-      teacherTokenRef.current = (async () => {
-        await ensureGis();
-        return requestAccessToken(ADDON_TEACHER_SCOPES, loginHint);
-      })().catch((err: unknown) => {
-        teacherTokenRef.current = null;
-        throw err;
-      });
+    const cached = teacherTokenRef.current;
+    if (cached && Date.now() - cached.at < TEACHER_TOKEN_REUSE_MS) {
+      return cached.token;
     }
-    return teacherTokenRef.current;
+    append('Granting Classroom add-on permission…');
+    const token = (async () => {
+      await ensureGis();
+      return requestAccessToken(ADDON_TEACHER_SCOPES, loginHint);
+    })().catch((err: unknown) => {
+      teacherTokenRef.current = null;
+      throw err;
+    });
+    teacherTokenRef.current = { token, at: Date.now() };
+    return token;
   }, [append, loginHint]);
 
   // The server proves the teacher launch and returns the class ids this session may target.
@@ -445,13 +452,20 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         },
         { classIds: string[] }
       >(functions, 'verifyClassroomTeacherV1');
-      const { data } = await verify({
-        accessToken,
-        courseId,
-        itemId,
-        itemType,
-        addOnToken,
-      });
+      let data: { classIds: string[] };
+      try {
+        ({ data } = await verify({
+          accessToken,
+          courseId,
+          itemId,
+          itemType,
+          addOnToken,
+        }));
+      } catch (err) {
+        // A refused token is not reused on the next try.
+        teacherTokenRef.current = null;
+        throw err;
+      }
       const targeting: ResolvedTargeting = {
         classIds: data.classIds,
         rosterIds: [],

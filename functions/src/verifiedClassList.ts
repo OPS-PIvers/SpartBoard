@@ -5,6 +5,10 @@ export const VERIFIED_CLASSES_COLLECTION = 'verified_classes';
 
 /** Far above any real teacher; keeps the doc and the rules' list compare small. */
 export const MAX_VERIFIED_CLASS_IDS = 400;
+/** Per-source caps that add up to the list cap, so no source crowds out another. */
+export const MAX_CLASSLINK_IDS = 200;
+export const MAX_TEST_IDS = 100;
+export const MAX_LMS_IDS = 100;
 const MAX_ID_LENGTH = 300;
 
 const LMS_PREFIXES = ['schoology:', 'classroom:'] as const;
@@ -22,6 +26,8 @@ export interface VerifiedClassesDoc {
 export interface VerifiedClassesSources {
   /** null keeps the stored list (ClassLink could not answer). */
   classlink: readonly string[] | null;
+  /** Added to the stored ClassLink part without marking it freshly read. */
+  addClasslink?: readonly string[];
   /** null keeps the stored list. */
   test: readonly string[] | null;
   /** Added to the stored list. */
@@ -46,26 +52,27 @@ export function isLmsClassId(id: string): boolean {
   return LMS_PREFIXES.some((p) => id.startsWith(p) && id.length > p.length);
 }
 
-/** The merged doc for `stored` plus `sources`; LMS ids come last so a cap never drops a ClassLink class. */
+/** The merged doc for `stored` plus `sources`; the newest LMS ids are kept. */
 export function mergeVerifiedClasses(
   stored: Partial<Record<keyof VerifiedClassesDoc, unknown>> | undefined,
   sources: VerifiedClassesSources,
   now: number
 ): VerifiedClassesDoc {
-  const classlink =
-    sources.classlink === null
+  const classlink = cleanIds([
+    ...(sources.classlink === null
       ? cleanIds(stored?.classlink)
-      : cleanIds(sources.classlink);
-  const test =
-    sources.test === null ? cleanIds(stored?.test) : cleanIds(sources.test);
-  const lms = cleanIds([
-    ...cleanIds(stored?.lms),
-    ...(sources.addLms ?? []).filter(isLmsClassId),
-  ]);
-  const ids = [...new Set([...classlink, ...test, ...lms])].slice(
-    0,
-    MAX_VERIFIED_CLASS_IDS
-  );
+      : cleanIds(sources.classlink)),
+    ...cleanIds(sources.addClasslink),
+  ]).slice(0, MAX_CLASSLINK_IDS);
+  const test = (
+    sources.test === null ? cleanIds(stored?.test) : cleanIds(sources.test)
+  ).slice(0, MAX_TEST_IDS);
+  const added = cleanIds(sources.addLms).filter(isLmsClassId);
+  const lms = [
+    ...cleanIds(stored?.lms).filter((id) => !added.includes(id)),
+    ...added,
+  ].slice(-MAX_LMS_IDS);
+  const ids = [...new Set([...classlink, ...test, ...lms])];
   const storedAt = stored?.classlinkAt;
   const classlinkAt =
     sources.classlink !== null
@@ -117,21 +124,24 @@ export async function addVerifiedLmsClasses(
   });
 }
 
-/** The ids on `uid`'s list, or null when the teacher has no list yet. */
+/** Until the rules release, only a list ClassLink has answered for counts; a teacher without one is not narrowed. */
+export const MISSING_LIST_ALLOWS = true;
+
+/** The ids on `uid`'s list, or null when the teacher has no list that counts yet. */
 export async function loadVerifiedClassIds(
   db: admin.firestore.Firestore,
   uid: string
 ): Promise<Set<string> | null> {
   const snap = await db.doc(`${VERIFIED_CLASSES_COLLECTION}/${uid}`).get();
-  return snap.exists ? new Set(cleanIds(snap.data()?.ids)) : null;
+  const data = snap.exists ? snap.data() : undefined;
+  if (!data) return null;
+  if (MISSING_LIST_ALLOWS && typeof data.classlinkAt !== 'number') return null;
+  return new Set(cleanIds(data.ids));
 }
 
 /** Shown when a class is not on the teacher's list. */
 export const CLASS_NOT_TAUGHT_MESSAGE =
   'You can only assign to classes you teach in ClassLink.';
-
-/** Until every teacher has a list (the rules release), a teacher with no list yet is not narrowed. */
-export const MISSING_LIST_ALLOWS = true;
 
 /** The ids in `ids` that are not on `uid`'s verified list. */
 export async function unverifiedClassIds(

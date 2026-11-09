@@ -1333,7 +1333,10 @@ describe('resolveTargeting', () => {
   });
 
   it("keeps only classes on the host's verified list", async () => {
-    const docs = { ...DOCS, 'verified_classes/h': { ids: ['test-2'] } };
+    const docs = {
+      ...DOCS,
+      'verified_classes/h': { ids: ['test-2'], classlinkAt: 1 },
+    };
     const out = await resolveTargeting(stub(docs), 'h', SHARED, ['r1', 'r2']);
     expect(out.classIds).toEqual(['test-2']);
     expect(out.classPeriodByClassId).toEqual({ 'test-2': 'Period 2' });

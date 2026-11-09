@@ -31,7 +31,8 @@ const MAX_TEST_CLASSES = 200;
 /** The fill job re-reads a list whose ClassLink part is this old. */
 export const FILL_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const FILL_MAX_TEACHERS_PER_RUN = 400;
-const FILL_BUDGET_MS = 480_000;
+const FILL_BUDGET_MS = 420_000;
+const FILL_CONCURRENCY = 4;
 const AUTH_GET_USERS_MAX = 100;
 
 /** Test class ids the caller may target: every org test class, for a test-class authority only. */
@@ -83,13 +84,14 @@ export async function refreshVerifiedClasses(
   db: admin.firestore.Firestore,
   uid: string,
   email: string,
-  creds: ClassLinkCreds = readCreds()
+  creds: ClassLinkCreds = readCreds(),
+  now: number = Date.now()
 ): Promise<VerifiedClassesDoc> {
   const [classlink, test] = await Promise.all([
     taughtClassIdsOrNull(email, creds),
     loadAuthorizedTestClassIds(db, email).catch(() => null),
   ]);
-  return writeVerifiedClasses(db, uid, { classlink, test });
+  return writeVerifiedClasses(db, uid, { classlink, test }, now);
 }
 
 export const refreshMyClassesV1 = onCall(
@@ -157,7 +159,13 @@ export async function runVerifiedClassesFill(
   db: admin.firestore.Firestore,
   now: number = Date.now(),
   creds: ClassLinkCreds = readCreds()
-): Promise<{ owners: number; written: number; skipped: number }> {
+): Promise<{
+  owners: number;
+  written: number;
+  skipped: number;
+  remaining: number;
+  attempted: number;
+}> {
   const owners = await rosterOwners(db);
   const started = Date.now();
   let written = 0;
@@ -174,19 +182,32 @@ export async function runVerifiedClassesFill(
       else due.push(group[i]);
     });
   }
-  for (const owner of due.slice(0, FILL_MAX_TEACHERS_PER_RUN)) {
+  const batch = due.slice(0, FILL_MAX_TEACHERS_PER_RUN);
+  let attempted = 0;
+  for (const group of chunk(batch, FILL_CONCURRENCY)) {
     if (Date.now() - started > FILL_BUDGET_MS) break;
-    try {
-      await refreshVerifiedClasses(db, owner.uid, owner.email, creds);
-      written += 1;
-    } catch (err) {
-      console.error(
-        '[verifiedClassesFill] refresh failed:',
-        err instanceof Error ? err.message : 'unexpected'
-      );
+    attempted += group.length;
+    const results = await Promise.allSettled(
+      group.map((o) => refreshVerifiedClasses(db, o.uid, o.email, creds, now))
+    );
+    for (const r of results) {
+      // A list ClassLink didn't answer for stays due for the next run.
+      if (r.status === 'fulfilled' && r.value.classlinkAt === now) written += 1;
+      else if (r.status === 'rejected') {
+        console.error(
+          '[verifiedClassesFill] refresh failed:',
+          r.reason instanceof Error ? r.reason.message : 'unexpected'
+        );
+      }
     }
   }
-  return { owners: owners.length, written, skipped };
+  return {
+    owners: owners.length,
+    written,
+    skipped,
+    remaining: due.length - written,
+    attempted,
+  };
 }
 
 export const verifiedClassesFill = onSchedule(

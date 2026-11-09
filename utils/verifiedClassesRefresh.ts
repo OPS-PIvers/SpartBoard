@@ -2,6 +2,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 
 const REFRESH_EVERY_MS = 20 * 60 * 60 * 1000;
+const RETRY_MS = 60 * 60 * 1000;
 const storageKey = (uid: string) => `spart.verifiedClassesAt.${uid}`;
 const inFlight = new Set<string>();
 
@@ -36,8 +37,11 @@ export async function refreshVerifiedClassesIfStale(
       functions,
       'refreshMyClassesV1'
     )({});
-    // Retry on the next load when ClassLink has never answered for this teacher.
-    if (data.classlinkAt !== null) writeStamp(uid, now);
+    // Retry in about an hour when ClassLink has never answered for this teacher.
+    writeStamp(
+      uid,
+      data.classlinkAt !== null ? now : now - REFRESH_EVERY_MS + RETRY_MS
+    );
   } catch (err) {
     console.warn('[verifiedClasses] refresh failed:', err);
   } finally {

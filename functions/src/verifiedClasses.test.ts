@@ -206,9 +206,24 @@ describe('runVerifiedClassesFill', () => {
     ];
     h.taught = new Set(['cl-1']);
     const out = await runVerifiedClassesFill(db as never, now);
-    expect(out).toEqual({ owners: 3, written: 2, skipped: 1 });
+    expect(out).toEqual({
+      owners: 3,
+      written: 2,
+      skipped: 1,
+      remaining: 0,
+      attempted: 2,
+    });
     expect(docs['verified_classes/a']?.ids).toEqual(['cl-1']);
     expect(docs['verified_classes/c']?.ids).toEqual(['cl-1']);
     expect(docs['verified_classes/kid']).toBeUndefined();
+  });
+
+  it('leaves a teacher due when ClassLink does not answer', async () => {
+    docs['users/a/rosters/r1'] = {};
+    h.users = [{ uid: 'a', email: 'a@orono.k12.mn.us', emailVerified: true }];
+    h.taught = new Error('unavailable');
+    const out = await runVerifiedClassesFill(db as never, 5);
+    expect(out.remaining).toBe(1);
+    expect(docs['verified_classes/a']?.classlinkAt).toBeUndefined();
   });
 });

@@ -135,8 +135,9 @@ describe('getClassLinkRosterV1 — caller identity verification', () => {
       data: {},
     });
     expect(writeVerifiedClasses).toHaveBeenCalledWith({}, 'teacher-uid', {
-      classlink: ['cl-1', 'cl-2'],
+      classlink: null,
       test: null,
+      addClasslink: ['cl-1', 'cl-2'],
     });
   });
 

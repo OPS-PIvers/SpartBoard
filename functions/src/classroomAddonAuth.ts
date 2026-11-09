@@ -46,6 +46,7 @@ import {
 } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
+  MISSING_LIST_ALLOWS,
   addVerifiedLmsClasses,
   loadVerifiedClassIds,
 } from './verifiedClassList';
@@ -1401,9 +1402,12 @@ export const verifyClassroomTeacherV1 = onCall(
     const linked: unknown = linkSnap.exists
       ? (linkSnap.data() as CourseLink | undefined)?.classlinkClassId
       : null;
-    // A linked ClassLink class counts only when it is on the caller's own list.
+    // A linked ClassLink class counts only when it is on the caller's own list, once they have one.
+    const linkedOk = verified
+      ? verified.has(String(linked))
+      : MISSING_LIST_ALLOWS;
     const classIds =
-      typeof linked === 'string' && linked && verified?.has(linked)
+      typeof linked === 'string' && linked && linkedOk
         ? [linked, courseClassId]
         : [courseClassId];
     return { classIds };

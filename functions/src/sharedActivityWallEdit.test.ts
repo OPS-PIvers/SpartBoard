@@ -187,6 +187,14 @@ describe('handleSaveSharedActivityWall', () => {
       input({ changes: {}, myClassIds: ['class-c'] })
     );
     expect(result.classIds).toEqual(['class-a', 'class-c']);
+    // A class the wall already reaches needs no check, so a removal still lands.
+    docs['verified_classes/colleague-1'] = { ids: [] };
+    const kept = await handleSaveSharedActivityWall(
+      makeDeps(docs),
+      caller(),
+      input({ changes: {}, myClassIds: ['class-a'] })
+    );
+    expect(kept.classIds).toEqual(['class-a']);
   });
 
   it("clearing the colleague's classes never touches the owner's", async () => {

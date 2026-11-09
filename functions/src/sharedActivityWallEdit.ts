@@ -283,14 +283,9 @@ export async function handleSaveSharedActivityWall(
     throw new HttpsError('failed-precondition', 'This wall is yours.');
 
   const { db } = deps;
-  if (input.myClassIds && input.myClassIds.length > 0) {
-    const check =
-      deps.unverifiedClassIds ??
-      ((uid: string, ids: readonly string[]) =>
-        unverifiedClassIds(db, uid, ids));
-    if ((await check(caller.uid, input.myClassIds)).length > 0)
-      throw new HttpsError('permission-denied', CLASS_NOT_TAUGHT_MESSAGE);
-  }
+  const checkClasses =
+    deps.unverifiedClassIds ??
+    ((uid: string, ids: readonly string[]) => unverifiedClassIds(db, uid, ids));
   const shareRef = db.collection('shared_boards').doc(input.shareId);
   const sessionRef = db
     .collection('activity_wall_sessions')
@@ -345,6 +340,11 @@ export async function handleSaveSharedActivityWall(
           'failed-precondition',
           'Only the owner can turn on class targeting for this wall.'
         );
+      // Only a class the wall doesn't already reach must be on the colleague's verified list.
+      const reached = new Set(effectiveWallClassIds(entry));
+      const added = input.myClassIds.filter((id) => !reached.has(id));
+      if ((await checkClasses(caller.uid, added)).length > 0)
+        throw new HttpsError('permission-denied', CLASS_NOT_TAUGHT_MESSAGE);
       const members = memberClassMap(entry.memberClassIds);
       if (input.myClassIds.length > 0) members[caller.uid] = input.myClassIds;
       else delete members[caller.uid];

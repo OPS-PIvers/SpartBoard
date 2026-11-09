@@ -4,6 +4,8 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('./firebaseAdmin', () => ({}));
 
 import {
+  MAX_CLASSLINK_IDS,
+  MAX_LMS_IDS,
   MAX_VERIFIED_CLASS_IDS,
   isLmsClassId,
   mergeVerifiedClasses,
@@ -86,18 +88,36 @@ describe('mergeVerifiedClasses', () => {
     expect(out.ids).toEqual(['ok', 'classroom:5']);
   });
 
-  it('caps the merged list with ClassLink classes first', () => {
+  it('caps each source and keeps the newest LMS ids', () => {
     const many = Array.from(
-      { length: MAX_VERIFIED_CLASS_IDS + 5 },
+      { length: MAX_CLASSLINK_IDS + 5 },
       (_, i) => `c${i}`
     );
+    const oldLms = Array.from(
+      { length: MAX_LMS_IDS },
+      (_, i) => `schoology:${i}`
+    );
     const out = mergeVerifiedClasses(
-      undefined,
-      { classlink: many, test: [], addLms: ['schoology:1'] },
+      { lms: oldLms },
+      { classlink: many, test: [], addLms: ['classroom:new', 'schoology:0'] },
       1
     );
-    expect(out.ids).toHaveLength(MAX_VERIFIED_CLASS_IDS);
-    expect(out.ids).not.toContain('schoology:1');
+    expect(out.classlink).toHaveLength(MAX_CLASSLINK_IDS);
+    expect(out.lms).toHaveLength(MAX_LMS_IDS);
+    expect(out.lms.slice(-2)).toEqual(['classroom:new', 'schoology:0']);
+    expect(out.lms).not.toContain('schoology:1');
+    expect(out.ids).toContain('classroom:new');
+    expect(out.ids.length).toBeLessThanOrEqual(MAX_VERIFIED_CLASS_IDS);
+  });
+
+  it('adds dialog classes without marking ClassLink freshly read', () => {
+    const out = mergeVerifiedClasses(
+      { classlink: ['a'], classlinkAt: 2 },
+      { classlink: null, test: null, addClasslink: ['b'] },
+      9
+    );
+    expect(out.classlink).toEqual(['a', 'b']);
+    expect(out.classlinkAt).toBe(2);
   });
 });
 
@@ -141,12 +161,16 @@ describe('staffEmailFromToken', () => {
 
 describe('unverifiedClassIds', () => {
   it('returns the ids missing from the list', async () => {
-    const db = stubDb({ 'verified_classes/u': { ids: ['a', 'b'] } });
+    const db = stubDb({
+      'verified_classes/u': { ids: ['a', 'b'], classlinkAt: 1 },
+    });
     expect(await unverifiedClassIds(db, 'u', ['a', 'c'])).toEqual(['c']);
   });
 
-  it('does not narrow a teacher with no list yet', async () => {
+  it('does not narrow a teacher with no list, or one ClassLink never answered for', async () => {
     expect(await unverifiedClassIds(stubDb({}), 'u', ['a'])).toEqual([]);
+    const db = stubDb({ 'verified_classes/u': { ids: ['schoology:1'] } });
+    expect(await unverifiedClassIds(db, 'u', ['a'])).toEqual([]);
   });
 });
 

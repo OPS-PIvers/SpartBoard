@@ -25,14 +25,16 @@ describe('refreshVerifiedClassesIfStale', () => {
     expect(call).toHaveBeenCalledTimes(2);
   });
 
-  it('tries again next load when ClassLink has never answered or the call fails', async () => {
+  it('retries in about an hour when ClassLink has not answered, and next load after a failure', async () => {
     call.mockResolvedValueOnce({ data: { count: 0, classlinkAt: null } });
     await refreshVerifiedClassesIfStale('u', T);
-    call.mockRejectedValueOnce(new Error('offline'));
     await refreshVerifiedClassesIfStale('u', T + 1);
+    expect(call).toHaveBeenCalledTimes(1);
+    call.mockRejectedValueOnce(new Error('offline'));
+    await refreshVerifiedClassesIfStale('u', T + 61 * 60 * 1000);
     call.mockResolvedValueOnce({ data: { count: 1, classlinkAt: 5 } });
-    await refreshVerifiedClassesIfStale('u', T + 2);
-    await refreshVerifiedClassesIfStale('u', T + 3);
+    await refreshVerifiedClassesIfStale('u', T + 62 * 60 * 1000);
+    await refreshVerifiedClassesIfStale('u', T + 63 * 60 * 1000);
     expect(call).toHaveBeenCalledTimes(3);
   });
 });

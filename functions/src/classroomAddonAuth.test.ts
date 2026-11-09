@@ -2975,10 +2975,28 @@ describe('verifyClassroomTeacherV1', () => {
       TEACHER_CTX
     );
     courseLinkDoc = { classlinkClassId: 'CL-9', teacherUid: 'someone' };
+    gradeSyncDocs.set('verified_classes/teacher-uid', {
+      ids: ['CL-1'],
+      classlinkAt: 1,
+    });
     expect((await callVerify({ auth, data })).classIds).toEqual([
       'classroom:C1',
     ]);
-    gradeSyncDocs.set('verified_classes/teacher-uid', { ids: ['CL-9'] });
+    gradeSyncDocs.set('verified_classes/teacher-uid', {
+      ids: ['CL-9'],
+      classlinkAt: 1,
+    });
+    expect((await callVerify({ auth, data })).classIds).toEqual([
+      'CL-9',
+      'classroom:C1',
+    ]);
+  });
+
+  it('keeps the linked class for a teacher ClassLink has not answered for yet', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    courseLinkDoc = { classlinkClassId: 'CL-9', teacherUid: 'someone' };
     expect((await callVerify({ auth, data })).classIds).toEqual([
       'CL-9',
       'classroom:C1',
