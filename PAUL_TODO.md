@@ -136,7 +136,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > Propose a daily Firestore backup schedule for prod with a retention and cost estimate, then create it after I say go.
 - [ ] **PT-75 🤖 Prod CI to keyless deploys.**
   > Plan moving prod CI to Workload Identity Federation like dev, list the console steps I have to click, then delete the prod JSON key once it works.
-  > PR #5454 has the workflow change and is held until these steps are done. Do it after the repo moves to Orono-Public-Schools, so the provider condition names the new repo.
+  > Parked with the repo move (Paul, 2026-11-09). PR #5454 has the workflow change; it was closed unmerged and its branch kept, so reopen or rebuild it after the repo moves to Orono-Public-Schools and these steps are done. Merging it before then breaks prod deploys.
 - [ ] **PT-76 You: Dependabot alerts** (F85, optional). Settings > Code security > Dependabot alerts > Enable.
 - [ ] **PT-132 You: raise the prod Cloud Run CPU quota.** Every prod release still hits about 10 "Quota Exceeded" waits while it updates ~231 functions, which adds 1-3 min and is the main way a deploy can still fail. In Google Cloud Console on project `spartboard`: IAM & Admin > Quotas & System Limits, filter "Total CPU allocation, per project per region" (service Cloud Run Admin API), tick the `us-central1` row, Edit quota, ask for double the current value, and give the reason "parallel Cloud Functions gen 2 deploys". Free; it only raises the ceiling. Then tell an agent "PT-132 done" and it checks the next prod deploy log for quota waits.
 - [ ] **PT-101 You: dev registrations for ClassLink, Spotify and LTI**, only when a feature needs them on spartboard-dev (they are placeholders there today).
