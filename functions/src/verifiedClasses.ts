@@ -27,7 +27,7 @@ import {
 /** Kill switch for the fill job. Absent doc == off. */
 export const VERIFIED_CLASSES_FILL_PATH =
   'admin_settings/verified_classes_fill';
-const MAX_TEST_CLASSES = 200;
+const MAX_TEST_CLASSES = 50;
 /** The fill job re-reads a list whose ClassLink part is this old. */
 export const FILL_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const FILL_MAX_TEACHERS_PER_RUN = 400;

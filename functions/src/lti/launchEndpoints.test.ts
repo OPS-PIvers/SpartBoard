@@ -181,6 +181,7 @@ function makeLaunch(
     ags: unknown;
     role: 'student' | 'teacher';
     email: string | null;
+    messageType: string;
   }> = {}
 ) {
   return {
@@ -221,7 +222,11 @@ describe('ltiExchange — teacher section on the verified class list', () => {
   });
 
   it('records the section when the signed-in address matches the launch', async () => {
-    nextLaunch = makeLaunch({ role: 'teacher', email: 'T@school.edu' });
+    nextLaunch = makeLaunch({
+      role: 'teacher',
+      email: 'T@school.edu',
+      messageType: 'LtiDeepLinkingRequest',
+    });
     const out = await callExchange({
       auth: teacher('t@school.edu'),
       data: { code: 'c' },
@@ -234,17 +239,39 @@ describe('ltiExchange — teacher section on the verified class list', () => {
     );
   });
 
-  it('records nothing for another address, an unverified address or no launch email', async () => {
-    nextLaunch = makeLaunch({ role: 'teacher', email: 'other@school.edu' });
-    await callExchange({ auth: teacher('t@school.edu'), data: { code: 'c' } });
+  it('records nothing for a resource-link launch', async () => {
     nextLaunch = makeLaunch({ role: 'teacher', email: 't@school.edu' });
+    await callExchange({ auth: teacher('t@school.edu'), data: { code: 'c' } });
+    expect(addVerifiedLmsClasses).not.toHaveBeenCalled();
+  });
+
+  it('records nothing for another address, an unverified address or no launch email', async () => {
+    nextLaunch = makeLaunch({
+      role: 'teacher',
+      messageType: 'LtiDeepLinkingRequest',
+      email: 'other@school.edu',
+    });
+    await callExchange({ auth: teacher('t@school.edu'), data: { code: 'c' } });
+    nextLaunch = makeLaunch({
+      role: 'teacher',
+      messageType: 'LtiDeepLinkingRequest',
+      email: 't@school.edu',
+    });
     await callExchange({
       auth: teacher('t@school.edu', false),
       data: { code: 'c' },
     });
-    nextLaunch = makeLaunch({ role: 'teacher', email: null });
+    nextLaunch = makeLaunch({
+      role: 'teacher',
+      messageType: 'LtiDeepLinkingRequest',
+      email: null,
+    });
     await callExchange({ auth: teacher('t@school.edu'), data: { code: 'c' } });
-    nextLaunch = makeLaunch({ role: 'teacher', email: 't@school.edu' });
+    nextLaunch = makeLaunch({
+      role: 'teacher',
+      messageType: 'LtiDeepLinkingRequest',
+      email: 't@school.edu',
+    });
     await callExchange({ data: { code: 'c' } });
     expect(addVerifiedLmsClasses).not.toHaveBeenCalled();
   });

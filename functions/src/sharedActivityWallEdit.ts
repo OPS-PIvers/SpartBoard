@@ -340,12 +340,12 @@ export async function handleSaveSharedActivityWall(
           'failed-precondition',
           'Only the owner can turn on class targeting for this wall.'
         );
-      // Only a class the wall doesn't already reach must be on the colleague's verified list.
-      const reached = new Set(effectiveWallClassIds(entry));
-      const added = input.myClassIds.filter((id) => !reached.has(id));
+      const members = memberClassMap(entry.memberClassIds);
+      // Only a class the colleague is adding to their own list must be on their verified list.
+      const mine = new Set(members[caller.uid] ?? []);
+      const added = input.myClassIds.filter((id) => !mine.has(id));
       if ((await checkClasses(caller.uid, added)).length > 0)
         throw new HttpsError('permission-denied', CLASS_NOT_TAUGHT_MESSAGE);
-      const members = memberClassMap(entry.memberClassIds);
       if (input.myClassIds.length > 0) members[caller.uid] = input.myClassIds;
       else delete members[caller.uid];
       classIds = effectiveWallClassIds({ ...entry, memberClassIds: members });

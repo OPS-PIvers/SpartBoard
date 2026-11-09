@@ -6,9 +6,9 @@ export const VERIFIED_CLASSES_COLLECTION = 'verified_classes';
 /** Far above any real teacher; keeps the doc and the rules' list compare small. */
 export const MAX_VERIFIED_CLASS_IDS = 400;
 /** Per-source caps that add up to the list cap, so no source crowds out another. */
-export const MAX_CLASSLINK_IDS = 200;
-export const MAX_TEST_IDS = 100;
-export const MAX_LMS_IDS = 100;
+export const MAX_CLASSLINK_IDS = 300;
+export const MAX_TEST_IDS = 50;
+export const MAX_LMS_IDS = 50;
 const MAX_ID_LENGTH = 300;
 
 const LMS_PREFIXES = ['schoology:', 'classroom:'] as const;
@@ -58,20 +58,34 @@ export function mergeVerifiedClasses(
   sources: VerifiedClassesSources,
   now: number
 ): VerifiedClassesDoc {
-  const classlink = cleanIds([
+  // Classes just imported go first, so a cap never drops them.
+  const allClasslink = cleanIds([
+    ...cleanIds(sources.addClasslink),
     ...(sources.classlink === null
       ? cleanIds(stored?.classlink)
       : cleanIds(sources.classlink)),
-    ...cleanIds(sources.addClasslink),
-  ]).slice(0, MAX_CLASSLINK_IDS);
-  const test = (
-    sources.test === null ? cleanIds(stored?.test) : cleanIds(sources.test)
-  ).slice(0, MAX_TEST_IDS);
+  ]);
+  const allTest =
+    sources.test === null ? cleanIds(stored?.test) : cleanIds(sources.test);
   const added = cleanIds(sources.addLms).filter(isLmsClassId);
-  const lms = [
+  const allLms = [
     ...cleanIds(stored?.lms).filter((id) => !added.includes(id)),
     ...added,
-  ].slice(-MAX_LMS_IDS);
+  ];
+  if (
+    allClasslink.length > MAX_CLASSLINK_IDS ||
+    allTest.length > MAX_TEST_IDS ||
+    allLms.length > MAX_LMS_IDS
+  ) {
+    console.warn('[verifiedClasses] a source was cut at its cap', {
+      classlink: allClasslink.length,
+      test: allTest.length,
+      lms: allLms.length,
+    });
+  }
+  const classlink = allClasslink.slice(0, MAX_CLASSLINK_IDS);
+  const test = allTest.slice(0, MAX_TEST_IDS);
+  const lms = allLms.slice(-MAX_LMS_IDS);
   const ids = [...new Set([...classlink, ...test, ...lms])];
   const storedAt = stored?.classlinkAt;
   const classlinkAt =

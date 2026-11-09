@@ -370,9 +370,20 @@ function launchTeacherUid(
 async function recordTeacherSection(
   db: admin.firestore.Firestore,
   auth: { uid: string; token: unknown } | undefined,
-  launch: { role: string; contextId?: string | null; email?: string | null }
+  launch: {
+    role: string;
+    messageType?: string;
+    contextId?: string | null;
+    email?: string | null;
+  }
 ): Promise<void> {
-  if (launch.role !== 'teacher' || !launch.contextId) return;
+  // Only the deep-link picker creates class-targeted sessions; other teacher launches aren't signed in.
+  if (
+    launch.role !== 'teacher' ||
+    launch.messageType !== MESSAGE_TYPE_DEEP_LINKING ||
+    !launch.contextId
+  )
+    return;
   const email = auth ? staffEmailFromToken(auth.token) : null;
   const launchEmail = (launch.email ?? '').trim().toLowerCase();
   const skip = !auth

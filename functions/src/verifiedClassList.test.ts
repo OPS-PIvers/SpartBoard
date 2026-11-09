@@ -116,7 +116,7 @@ describe('mergeVerifiedClasses', () => {
       { classlink: null, test: null, addClasslink: ['b'] },
       9
     );
-    expect(out.classlink).toEqual(['a', 'b']);
+    expect(out.classlink).toEqual(['b', 'a']);
     expect(out.classlinkAt).toBe(2);
   });
 });
