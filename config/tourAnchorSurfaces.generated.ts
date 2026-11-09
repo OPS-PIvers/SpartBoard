@@ -3226,6 +3226,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'lunch-count.reset-assignments': ['widgets.lunch-count.face'],
     'lunch-count.photo-close': ['widgets.lunch-count.face'],
     'lunch-count.report-close': ['widgets.lunch-count.report'],
+    'lunch-count.report-resend': ['widgets.lunch-count.report'],
     'lunch-count.report-cancel': ['widgets.lunch-count.report'],
     'hotspot-image.popover-close': ['widgets.hotspot-image.face'],
     'instructional-routines.blooms-key-words': [
