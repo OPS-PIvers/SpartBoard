@@ -210,6 +210,7 @@ git push origin --delete claude/nice-dirac-tv4ijm claude/kind-johnson-m215i6 cla
 git push origin --delete claude/project-thread-aimuy5
 git push origin --delete claude/project-thread-e2p3nk claude/ab112-e2p3nk
 git push origin --delete claude/project-thread-qn6ncf claude/project-thread-qn6ncf-docs
+git push origin --delete claude/project-thread-p02dbq
 git push origin --delete claude/project-thread-lr3mn3 claude/project-thread-lr3mn3-ab112
 ```
 
