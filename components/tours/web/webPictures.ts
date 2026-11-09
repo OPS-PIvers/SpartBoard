@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { loadWebTourPicture } from '@/components/tours/webTours';
+import { webTourEditorDevSeed } from './webEditorDevSeed';
 
 // One download per picture while the editor is open, shared by the stage, the outline and the publish check.
 export const PictureCache = createContext<Map<string, Promise<Blob>> | null>(
@@ -21,7 +22,10 @@ export function usePictureBlob(path: string | undefined): {
     let cancelled = false;
     let pending = cache?.get(path);
     if (!pending) {
-      pending = loadWebTourPicture(path).then((bytes) => new Blob([bytes]));
+      const seeded = webTourEditorDevSeed()?.pictures?.[path];
+      pending = seeded
+        ? Promise.resolve(seeded)
+        : loadWebTourPicture(path).then((bytes) => new Blob([bytes]));
       cache?.set(path, pending);
     }
     pending

@@ -104,6 +104,7 @@ import { WebStepCard } from './WebStepCard';
 import { WebTourGoalField, WebWritingStrip } from './WebTourWriting';
 import { useWebTourWriting } from './useWebTourWriting';
 import { useWebTourDraft } from './useWebTourDraft';
+import { webTourEditorDevSeed } from './webEditorDevSeed';
 
 const PANEL_WIDTH = 400;
 
@@ -195,8 +196,8 @@ const WebTourEditorBody: React.FC<{
     hidden: HiddenText[];
     askPictures: boolean;
   } | null>(null);
-  const [canFix, setCanFix] = useState(false);
-  const [canCheck, setCanCheck] = useState(false);
+  const [extensionCanFix, setCanFix] = useState(false);
+  const [extensionCanCheck, setCanCheck] = useState(false);
   const copyLink = useCopyWebTourLink();
   const published = usePublishedTour(initial.id);
   const live =
@@ -497,21 +498,28 @@ const WebTourEditorBody: React.FC<{
     if (await copyLink(set.id, set.title)) setStatus('Link copied.');
   };
 
-  const pub = published.loaded ? tourPublishStatus(set, live) : null;
+  const seed = webTourEditorDevSeed();
+  const pub =
+    seed?.publish ?? (published.loaded ? tourPublishStatus(set, live) : null);
+  const canCheck = seed?.canCheck ?? extensionCanCheck;
+  const canFix = seed?.canFix ?? extensionCanFix;
+  const hasLive =
+    !!live || (seed?.publish !== undefined && seed.publish !== 'draft');
+  const checking = seed?.checking ?? checker.checking;
   const computed = tourMainAction({
     kind: 'web',
     stepCount: steps.length,
     stepsWithoutText: steps.filter(webStepNeedsText).length,
     publish: pub,
     checkNeeded: unchecked,
-    checking: checker.checking,
+    checking,
     canCheck,
     other: notWeb ? 'A step has no website target' : null,
     busy: busy || writing.busy,
   });
   // A Check tour this browser can't run says why on the status line.
   const main =
-    computed.state === 'check' && !canCheck && !checker.checking
+    computed.state === 'check' && !canCheck && !checking
       ? {
           ...computed,
           blocker: {
@@ -578,8 +586,8 @@ const WebTourEditorBody: React.FC<{
     },
     onPlay: () =>
       window.open(buildTourUrl(set.id), '_blank', 'noopener,noreferrer'),
-    playDisabled: !live,
-    playHint: live
+    playDisabled: !hasLive,
+    playHint: hasLive
       ? 'Play the published tour on the website'
       : 'Publish the tour to play it',
     menu,
