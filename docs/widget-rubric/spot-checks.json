@@ -71,7 +71,9 @@
           "paul": 2
         }
       ],
-      "drift": ["S5"],
+      "drift": [
+        "S5"
+      ],
       "gaming": []
     },
     {
@@ -135,7 +137,9 @@
           "paul": 2
         }
       ],
-      "drift": ["S3"],
+      "drift": [
+        "S3"
+      ],
       "gaming": []
     },
     {
@@ -193,6 +197,70 @@
         },
         {
           "widgetType": "url",
+          "criterionId": "V6",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        }
+      ],
+      "drift": [],
+      "gaming": []
+    },
+    {
+      "date": "2026-11-09T13:13:30.771Z",
+      "deckId": "widget-2026-11-09T13-01-26-408Z",
+      "cards": [
+        {
+          "widgetType": "countdown",
+          "criterionId": "V1",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "countdown",
+          "criterionId": "V2",
+          "autoBefore": null,
+          "auto": 4,
+          "paul": 4
+        },
+        {
+          "widgetType": "countdown",
+          "criterionId": "V5",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        },
+        {
+          "widgetType": "numberLine",
+          "criterionId": "I4",
+          "autoBefore": null,
+          "auto": 1,
+          "paul": 1
+        },
+        {
+          "widgetType": "numberLine",
+          "criterionId": "I6",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        },
+        {
+          "widgetType": "numberLine",
+          "criterionId": "I7",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "numberLine",
+          "criterionId": "V5",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        },
+        {
+          "widgetType": "numberLine",
           "criterionId": "V6",
           "autoBefore": null,
           "auto": 3,

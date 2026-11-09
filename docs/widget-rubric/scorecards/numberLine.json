@@ -206,56 +206,58 @@
     },
     "I4": {
       "score": 1,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "spot-2026-11-09"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-11-09T13:12:28.250Z",
       "stale": false
     },
     "I6": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "spot-2026-11-09"
       },
-      "note": "The face has no interactive controls that show a state; selected states appear only on the drawer's color swatches and segmented control.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-11-09T13:12:32.438Z",
       "stale": false
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/envelope-min__typical__selected.png",
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical__selected.png",
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/large-1400x900__typical__selected.png",
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/widest-aspect__typical__selected.png",
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/tallest-aspect__typical__selected.png"
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/default__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/tallest-aspect__typical__selected.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "spot-2026-11-09"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-11-09T13:12:39.644Z",
       "stale": false
     },
     "V1": {
@@ -332,36 +334,37 @@
     },
     "V5": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "spot-2026-11-09"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-11-09T13:12:42.388Z",
       "stale": false
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-11-09/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "spot-2026-11-09"
       },
-      "note": "Short, plain labels such as Minimum value, Step (interval), Markers and Add marker, with no copy violations and one icon style.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-11-09T13:12:48.778Z",
       "stale": false
     },
     "C1": {
