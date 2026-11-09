@@ -61,7 +61,11 @@ export function openedTour(
 ): { start: ParsedStart; locators: StepLocators } | null {
   if (!isObj(raw) || !Array.isArray(raw.steps)) return null;
   const conditions = isObj(raw.conditions) ? raw.conditions : {};
-  const markup = isObj(raw.markup) ? raw.markup : {};
+  // The server sends a picture's markup with the picture (webTourLoadV1).
+  const pictureMarkup = (id: string): unknown =>
+    isObj(raw.pictures) && isObj(raw.pictures[id])
+      ? raw.pictures[id].markup
+      : undefined;
   const steps = raw.steps
     .filter(
       (s): s is HandoffStep =>
@@ -72,7 +76,9 @@ export function openedTour(
         typeof s.web.action === 'string' &&
         isObj(s.web.locator)
     )
-    .map((s) => withMarkup(withConditions(s, conditions[s.id]), markup[s.id]));
+    .map((s) =>
+      withMarkup(withConditions(s, conditions[s.id]), pictureMarkup(s.id))
+    );
   const pictures = new Map<string, WebTourPictureBytes>();
   if (isObj(raw.pictures)) {
     for (const [id, v] of Object.entries(raw.pictures)) {

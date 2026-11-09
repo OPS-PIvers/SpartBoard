@@ -4,7 +4,6 @@ import Fuse from 'fuse.js';
 import {
   FileText,
   Footprints,
-  Globe,
   GraduationCap,
   Link2,
   Loader2,
@@ -31,7 +30,6 @@ import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 import { isTourRunnable } from '@/components/tours/publishedTours';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useWebTourSites } from '@/components/tours/web/useWebTourSites';
-import { buildTourUrl } from '@/components/tours/web/tourLinks';
 import { Sparty } from '@/components/sparty/Sparty';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
 
@@ -97,7 +95,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   } = useHelpResources({
     includeHidden: false,
   });
-  // A guide can link a web tour; it opens on its own page, and only for staff with web tours on.
+  // Web tours left the Help Center: a guide that still links one is ignored here.
   const webSites = useWebTourSites(
     allItems.flatMap((item) =>
       item.kind === 'guided-learning' &&
@@ -111,10 +109,11 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     item.kind === 'guided-learning' && item.setId
       ? webSites.get(item.setId)
       : undefined;
-  const webToursOn = canAccessFeature('web-tours');
-  const items = webToursOn
-    ? allItems
-    : allItems.filter((item) => webSiteOf(item) === undefined);
+  const items = allItems.some((item) => webSiteOf(item) !== undefined)
+    ? allItems.filter((item) => webSiteOf(item) === undefined)
+    : allItems;
+  // A Live tour opens its Steps view, with Start Live Tour at the top, instead of starting at once.
+  const stepsViewOn = canAccessFeature('tour-steps-view');
   // A shared link names one resource; open it once the list has loaded.
   const [pendingItemId, setPendingItemId] = useState(itemId);
   const [trackedItemId, setTrackedItemId] = useState(itemId);
@@ -161,10 +160,10 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     ? isTourRunnable(linkedSetId, canAccessWidget)
     : false;
   const linkedTourId =
-    linkedRunnable === true && canRunLive ? linkedSetId : null;
+    linkedRunnable === true && canRunLive && !stepsViewOn ? linkedSetId : null;
   const linkedWaiting =
     linkedRunnable === undefined ||
-    (linkedRunnable && !canRunLive && !isMobile);
+    (linkedRunnable && !canRunLive && !isMobile && !stepsViewOn);
   const [linkStart, setLinkStart] = useState<{
     itemId: string;
     setId: string;
@@ -247,22 +246,14 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     if (
       kinds.length > 0 &&
       !kinds.includes(kindOf(item)) &&
-      !(
-        kinds.includes('tours') &&
-        (isTour(item) || webSiteOf(item) !== undefined)
-      )
+      !(kinds.includes('tours') && isTour(item))
     )
       return false;
     return true;
   });
 
   const openCard = (item: HelpResourceItem) => {
-    if (webSiteOf(item) !== undefined && item.setId) {
-      void incrementHelpOpenCount(item.id);
-      window.open(buildTourUrl(item.setId), '_blank', 'noopener,noreferrer');
-      return;
-    }
-    if (canRunLive && isTour(item) && item.setId) {
+    if (!stepsViewOn && canRunLive && isTour(item) && item.setId) {
       void incrementHelpOpenCount(item.id);
       requestStartTour({ setId: item.setId });
       return;
@@ -295,9 +286,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   }
 
   // The tours chip shows only while some guide in view is a tour.
-  const hasTours = scopedItems.some(
-    (item) => isTour(item) || webSiteOf(item) !== undefined
-  );
+  const hasTours = scopedItems.some((item) => isTour(item));
   const chips = KIND_FILTERS.filter(
     ({ id }) => id !== 'tours' || hasTours || kinds.includes('tours')
   );
@@ -409,9 +398,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
         ) : (
           <ul className="flex flex-col gap-2">
             {filtered.map((item, index) => {
-              const site = webSiteOf(item);
-              const Icon =
-                site !== undefined ? Globe : KIND_ICONS[kindOf(item)];
+              const Icon = KIND_ICONS[kindOf(item)];
               return (
                 <li key={item.id} className="relative">
                   <button
@@ -454,12 +441,6 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-slate-200 text-slate-700 text-[11px] font-semibold shrink-0">
                         <Footprints className="w-3 h-3" aria-hidden="true" />
                         {t('helpCenter.guides.liveTourBadge')}
-                      </span>
-                    )}
-                    {site !== undefined && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-slate-200 text-slate-700 text-[11px] font-semibold shrink-0">
-                        <Globe className="w-3 h-3" aria-hidden="true" />
-                        {site || t('helpCenter.guides.webTourBadge')}
                       </span>
                     )}
                     {item.orgId && (

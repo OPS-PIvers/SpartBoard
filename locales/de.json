@@ -1913,6 +1913,8 @@
       "rowCount_other": "{{count}} Medienantworten",
       "takeCount": "{{count}} Aufnahme",
       "takeCount_other": "{{count}} Aufnahmen",
+      "pageCount": "{{count}} Seite",
+      "pageCount_other": "{{count}} Seiten",
       "colStudent": "Schüler",
       "colQuestion": "Frage",
       "colTeacher": "Lehrkraft",
@@ -2676,7 +2678,90 @@
           "superseded": "Ein neuerer Scan hat diese Antwort ersetzt.",
           "actionFailed": "Das hat nicht geklappt. Bitte erneut versuchen.",
           "busy": "Die Transkription läuft. Bitte gleich erneut versuchen."
+        },
+        "markup": {
+          "toolbar": "Markierungswerkzeuge",
+          "tools": {
+            "select": "Auswählen und verschieben",
+            "highlight": "Textmarker",
+            "rect": "Rahmen",
+            "ellipse": "Kreis",
+            "pin": "Kommentar-Pin",
+            "stampOf": "Stempel: {{stamp}}"
+          },
+          "chooseStamp": "Stempel wählen",
+          "stamps": {
+            "check": "Haken",
+            "x": "X",
+            "question": "Fragezeichen",
+            "star": "Stern"
+          },
+          "color": "Farbe",
+          "colorOf": "Farbe: {{color}}",
+          "colors": {
+            "red": "Rot",
+            "blue": "Blau",
+            "green": "Grün",
+            "pink": "Pink",
+            "yellow": "Gelb"
+          },
+          "undo": "Rückgängig",
+          "undoKeys": "Rückgängig (Strg+Z)",
+          "redo": "Wiederholen",
+          "redoKeys": "Wiederholen (Strg+Umschalt+Z)",
+          "delete": "Markierung löschen",
+          "deleteKeys": "Markierung löschen (Entf)",
+          "layer": "Markierungen auf der Handschrift",
+          "cap": "Höchstens {{max}} Markierungen. Lösche eine, um eine neue hinzuzufügen.",
+          "needsScore": "Gib eine Punktzahl ein, um diese Markierungen zu speichern.",
+          "unavailable": "Markieren ist für diesen Scan nicht verfügbar.",
+          "selectedMark": "Ausgewählte Markierung",
+          "addComment": "Kommentar hinzufügen",
+          "editComment": "Kommentar bearbeiten",
+          "comment": "Kommentar",
+          "commentNumber": "Kommentar {{number}}",
+          "commentPlaceholder": "Was soll die Schülerin oder der Schüler hier lesen?",
+          "snippets": "Gespeicherten Kommentar einfügen",
+          "chooseComment": "Gespeicherten Kommentar wählen",
+          "savedComments": "Gespeicherte Kommentare",
+          "noSaved": "Noch keine gespeicherten Kommentare. Speichere einen im Kommentarfeld.",
+          "removeSaved": "Gespeicherten Kommentar entfernen: {{text}}",
+          "remove": "Entfernen",
+          "removed": "Kommentar entfernt.",
+          "armed": "Klicke auf das Bild, um einzufügen: {{comment}}",
+          "saveForReuse": "Für später speichern",
+          "saveForReuseTitle": "Diesen Kommentar zur Wiederverwendung behalten",
+          "savedForReuse": "Gespeichert",
+          "savedTitle": "Gespeichert. Du findest ihn im Menü neben dem Pin.",
+          "listFull": "Höchstens {{max}} gespeicherte Kommentare. Entferne zuerst einen.",
+          "listFullShort": "Liste ist voll",
+          "earlierScan": {
+            "text": "Diese Markierungen wurden auf einem früheren Scan gemacht.",
+            "keep": "Passt so",
+            "clear": "Markierungen löschen"
+          },
+          "counter": "{{count}}/{{max}}",
+          "save": "Speichern",
+          "saveKeys": "Speichern (Eingabe)",
+          "cancel": "Abbrechen",
+          "commentList": "Kommentare zur Handschrift",
+          "names": {
+            "highlight": "Markierung",
+            "rect": "Rahmen",
+            "ellipse": "Kreis",
+            "pin": "Kommentar-Pin",
+            "pinNumber": "Kommentar-Pin {{number}}",
+            "withComment": "{{kind}}, Kommentar {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Markierungen nicht gespeichert",
+        "body_one": "{{count}} Antwort hat Markierungen, aber keine Punktzahl. Gib eine Punktzahl ein, um sie zu behalten.",
+        "body_other": "{{count}} Antworten haben Markierungen, aber keine Punktzahl. Gib eine Punktzahl ein, um sie zu behalten.",
+        "goBack": "Zurück",
+        "closeAnyway": "Trotzdem schließen",
+        "rail": "Markierungen nicht gespeichert"
       }
     },
     "results": {
@@ -3236,8 +3321,7 @@
         "other": "Sonstiges",
         "tours": "Live-Touren"
       },
-      "liveTourBadge": "Live-Tour",
-      "webTourBadge": "Web-Tour"
+      "liveTourBadge": "Live-Tour"
     },
     "shortcuts": {
       "open-help": "Hilfe öffnen",
@@ -4642,5 +4726,22 @@
     "leaveFailed": "Geteilte Sammlung konnte nicht verlassen werden",
     "hostStopped": "{{name}} teilt diese Sammlung nicht mehr.",
     "hostStoppedNoName": "Der Host teilt diese Sammlung nicht mehr."
+  },
+  "tourSteps": {
+    "viewLabel": "Ansicht",
+    "article": "Schritte",
+    "walkthrough": "Durchgehen",
+    "print": "Drucken",
+    "stepNumber": "Schritt {{number}}",
+    "onlyIfAppears": "Nur wenn es erscheint",
+    "untitledStep": "Schritt ohne Titel",
+    "pictureAlt": "Bild zu Schritt {{number}}",
+    "pictureLoading": "Bild wird geladen",
+    "noPicture": "Kein Bild für diesen Schritt",
+    "pictureFailed": "Das Bild konnte nicht geladen werden",
+    "empty": "Diese Tour hat noch keine Schritte.",
+    "startLive": "Live-Tour starten",
+    "loading": "Schritte werden geladen",
+    "unavailable": "Diese Schritte sind gerade nicht verfügbar."
   }
 }

@@ -510,3 +510,24 @@ body:has([data-testid='live-tour']) [data-max-bar] {
   cursor: default;
   user-select: none;
 }
+
+/* Steps view: the article prints alone, on a layer made only while Print is pressed. */
+@media screen {
+  [data-steps-print] {
+    display: none;
+  }
+}
+@media print {
+  @page {
+    margin: 16mm;
+  }
+  html.steps-printing body > *:not([data-steps-print]) {
+    display: none !important;
+  }
+  html.steps-printing,
+  html.steps-printing body {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+}

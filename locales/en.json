@@ -3135,6 +3135,8 @@
       "rowCount_other": "{{count}} media responses",
       "takeCount": "{{count}} attempt",
       "takeCount_other": "{{count}} attempts",
+      "pageCount": "{{count}} page",
+      "pageCount_other": "{{count}} pages",
       "colStudent": "Student",
       "colQuestion": "Question",
       "colTeacher": "Teacher",
@@ -3977,7 +3979,90 @@
           "superseded": "A newer scan replaced this answer.",
           "actionFailed": "That didn't work. Try again.",
           "busy": "Transcription is running. Try again shortly."
+        },
+        "markup": {
+          "toolbar": "Markup tools",
+          "tools": {
+            "select": "Select and move",
+            "highlight": "Highlighter",
+            "rect": "Box",
+            "ellipse": "Circle",
+            "pin": "Comment pin",
+            "stampOf": "{{stamp}} stamp"
+          },
+          "chooseStamp": "Choose stamp",
+          "stamps": {
+            "check": "Check",
+            "x": "X",
+            "question": "Question mark",
+            "star": "Star"
+          },
+          "color": "Color",
+          "colorOf": "Color: {{color}}",
+          "colors": {
+            "red": "Red",
+            "blue": "Blue",
+            "green": "Green",
+            "pink": "Pink",
+            "yellow": "Yellow"
+          },
+          "undo": "Undo",
+          "undoKeys": "Undo (Ctrl+Z)",
+          "redo": "Redo",
+          "redoKeys": "Redo (Ctrl+Shift+Z)",
+          "delete": "Delete mark",
+          "deleteKeys": "Delete mark (Delete)",
+          "layer": "Marks on the handwriting",
+          "cap": "{{max}} marks is the limit. Delete one to add another.",
+          "needsScore": "Enter a score to save these marks.",
+          "unavailable": "Markup isn't available for this scan.",
+          "selectedMark": "Selected mark",
+          "addComment": "Add comment",
+          "editComment": "Edit comment",
+          "comment": "Comment",
+          "commentNumber": "Comment {{number}}",
+          "commentPlaceholder": "What should the student read here?",
+          "snippets": "Insert a saved comment",
+          "chooseComment": "Choose a saved comment",
+          "savedComments": "Saved comments",
+          "noSaved": "No saved comments yet. Save one from a comment box.",
+          "removeSaved": "Remove saved comment: {{text}}",
+          "remove": "Remove",
+          "removed": "Comment removed.",
+          "armed": "Click the image to add: {{comment}}",
+          "saveForReuse": "Save for reuse",
+          "saveForReuseTitle": "Keep this comment to use again",
+          "savedForReuse": "Saved",
+          "savedTitle": "Saved. Find it in the menu beside the pin tool.",
+          "listFull": "{{max}} saved comments is the limit. Remove one first.",
+          "listFullShort": "List is full",
+          "earlierScan": {
+            "text": "These marks were made on an earlier scan.",
+            "keep": "Looks right",
+            "clear": "Clear marks"
+          },
+          "counter": "{{count}}/{{max}}",
+          "save": "Save",
+          "saveKeys": "Save (Enter)",
+          "cancel": "Cancel",
+          "commentList": "Comments on the handwriting",
+          "names": {
+            "highlight": "Highlight",
+            "rect": "Box",
+            "ellipse": "Circle",
+            "pin": "Comment pin",
+            "pinNumber": "Comment pin {{number}}",
+            "withComment": "{{kind}}, comment {{number}}"
+          }
         }
+      },
+      "unsavedMarks": {
+        "title": "Marks not saved",
+        "body_one": "{{count}} answer has marks but no score. Enter a score to keep them.",
+        "body_other": "{{count}} answers have marks but no score. Enter a score to keep them.",
+        "goBack": "Go back",
+        "closeAnyway": "Close anyway",
+        "rail": "Marks not saved"
       }
     },
     "results": {
@@ -4537,8 +4622,7 @@
         "other": "Other",
         "tours": "Live tours"
       },
-      "liveTourBadge": "Live tour",
-      "webTourBadge": "Web tour"
+      "liveTourBadge": "Live tour"
     },
     "shortcuts": {
       "open-help": "Open Help",
@@ -5970,5 +6054,22 @@
       "random": "Use the stations as names"
     },
     "next": "Next"
+  },
+  "tourSteps": {
+    "viewLabel": "View",
+    "article": "Steps",
+    "walkthrough": "Walk through",
+    "print": "Print",
+    "stepNumber": "Step {{number}}",
+    "onlyIfAppears": "Only if it appears",
+    "untitledStep": "Untitled step",
+    "pictureAlt": "Picture of step {{number}}",
+    "pictureLoading": "Loading picture",
+    "noPicture": "No picture for this step",
+    "pictureFailed": "The picture couldn't load",
+    "empty": "This tour has no steps yet.",
+    "startLive": "Start Live Tour",
+    "loading": "Loading steps",
+    "unavailable": "These steps aren't available right now."
   }
 }

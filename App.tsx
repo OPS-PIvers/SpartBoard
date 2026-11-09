@@ -515,6 +515,14 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const TourStepsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/TourStepsDevHarness').then((module) => ({
+        default: module.TourStepsDevHarness,
+      }))
+    )
+  : null;
+
 const WebTourEditorDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WebTourEditorDevHarness').then((module) => ({
@@ -545,6 +553,13 @@ const PaperTestDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/PaperTestDevHarness').then((module) => ({
         default: module.PaperTestDevHarness,
+      }))
+    )
+  : null;
+const PaperMarkupDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/PaperMarkupDevHarness').then((module) => ({
+        default: module.PaperMarkupDevHarness,
       }))
     )
   : null;
@@ -1557,6 +1572,19 @@ const App: React.FC = () => {
     );
   }
 
+  // DEV-ONLY: the Steps view on seeded Live and web tours, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    TourStepsDevHarness &&
+    pathname === '/tour-steps-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TourStepsDevHarness />
+      </Suspense>
+    );
+  }
+
   // DEV-ONLY: the web tour editor on a seeded tour, for screenshots.
   if (
     import.meta.env.DEV &&
@@ -1606,6 +1634,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <PaperTestDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the Quiz grader with handwriting markup on fixture scans, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    PaperMarkupDevHarness &&
+    pathname === '/paper-markup-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PaperMarkupDevHarness />
       </Suspense>
     );
   }

@@ -21,6 +21,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'claude-connector',
   'web-tours',
   'tour-pacing',
+  'tour-steps-view',
   'claude-connector-guided-learning',
   'video-activity-live',
   'quiz-student-view',

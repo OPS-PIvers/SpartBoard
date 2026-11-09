@@ -34,6 +34,7 @@ const authState = vi.hoisted(() => ({
 const tourState = vi.hoisted(() => ({
   tourSetIds: new Set<string>(),
   runnable: new Map<string, boolean>(),
+  web: new Set<string>(),
   gated: false,
 }));
 
@@ -115,7 +116,17 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
   useLiveTourSetIds: () => tourState.tourSetIds,
 }));
 
+vi.mock('@/components/tours/webTours', () => ({
+  watchWebTourDrafts: () => () => undefined,
+}));
+
 vi.mock('@/components/tours/publishedTours', () => ({
+  readPublishedTour: (id: string) => ({
+    loaded: true,
+    tour: tourState.web.has(id)
+      ? { set: { surface: 'web', steps: [] }, publishedAt: 1 }
+      : null,
+  }),
   watchTours: () => () => undefined,
   getToursVersion: () => 0,
   isTourRunnable: (id: string, canUse?: (type: string) => boolean) =>
@@ -246,6 +257,7 @@ describe('HelpCenterManager', () => {
     glState.buildingSets = [];
     tourState.tourSetIds = new Set();
     tourState.runnable = new Map();
+    tourState.web = new Set();
     tourState.gated = false;
     asSuperAdmin();
   });
@@ -590,6 +602,66 @@ describe('HelpCenterManager', () => {
         expect(screen.queryByText(/turn on Visible|Publish tour/)).toBeNull();
     }
   );
+
+  describe('an item that still links a web tour', () => {
+    const webItem = () =>
+      makeItem({
+        id: 'w1',
+        title: 'Old web guide',
+        kind: 'guided-learning',
+        setId: 'web-set',
+        url: null,
+        embedType: null,
+        visible: true,
+      });
+
+    beforeEach(() => {
+      tourState.web = new Set(['web-set']);
+      helpState.items = [webItem()];
+    });
+
+    it('says it is hidden from teachers and shows Visible off, with no way to switch it on', () => {
+      render(<HelpCenterManager />);
+      expect(
+        screen.getByText(/Hidden: web tours no longer show in Help/)
+      ).toBeTruthy();
+      const visible = screen.getByRole('switch', {
+        name: /Visible: Old web guide/,
+      });
+      expect(visible.getAttribute('aria-checked')).toBe('false');
+      expect((visible as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('removes the item in one click after the existing confirm', async () => {
+      render(<HelpCenterManager />);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      await waitFor(() =>
+        expect(firestoreMocks.deleteDoc).toHaveBeenCalledTimes(1)
+      );
+      expect(firestoreMocks.deleteDoc).toHaveBeenCalledWith(
+        expect.objectContaining({ path: 'help_resources/w1' })
+      );
+    });
+
+    it('writes nothing until the admin acts', () => {
+      render(<HelpCenterManager />);
+      expect(firestoreMocks.deleteDoc).not.toHaveBeenCalled();
+      expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('leaves a normal item alone', () => {
+      helpState.items = [
+        makeItem({ id: 'ok', title: 'Fine guide', visible: true }),
+      ];
+      render(<HelpCenterManager />);
+      expect(screen.queryByText(/Hidden: web tours/)).toBeNull();
+      expect(
+        screen
+          .getByRole('switch', { name: /Visible: Fine guide/ })
+          .getAttribute('aria-checked')
+      ).toBe('true');
+    });
+  });
 
   it('shows no tour label on an activity that is not a live tour', () => {
     tourState.runnable = new Map([['set1', true]]);

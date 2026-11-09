@@ -9024,6 +9024,8 @@ export interface GuidedLearningTourThumbnail {
   anchor: string;
   w: number;
   h: number;
+  /** Where the control sits in the picture, as 0-1 of its width and height; absent on older pictures. */
+  target?: { x: number; y: number; w: number; h: number };
 }
 
 /** A widget's recorded place on the board; `slot` is its stable index within the tour. */
@@ -11027,6 +11029,8 @@ export type GlobalFeature =
   | 'web-tours'
   /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/TOURS_10X.md F1). */
   | 'tour-pacing'
+  /** Steps view for Live tours, and Live tours opening it in the Help Center (docs/plans/TOURS_10X.md F3). */
+  | 'tour-steps-view'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */

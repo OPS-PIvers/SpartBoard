@@ -32,17 +32,21 @@ const reply = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('openedTour', () => {
-  it('carries the markup the server sent for a sent picture, and drops malformed markup (E5)', () => {
+  it('carries the markup the server sent with a picture, and drops malformed markup (E5)', () => {
     const box = { id: 'm1', kind: 'box', x: 0.1, y: 0.1, w: 0.2, h: 0.2 };
+    const pic = { mime: 'image/png', data: 'AAAA', w: 10, h: 10 };
     const opened = openedTour(
       'set1',
-      reply({ markup: { a: [box], b: [box] } })
+      reply({ pictures: { b: { ...pic, markup: [box] } } })
     );
     expect(opened?.start.tour.steps.map((s) => s.markup)).toEqual([
       undefined,
       [box],
     ]);
-    const bad = openedTour('set1', reply({ markup: { b: [{ kind: 'x' }] } }));
+    const bad = openedTour(
+      'set1',
+      reply({ pictures: { b: { ...pic, markup: [{ kind: 'x' }] } } })
+    );
     expect(bad?.start.tour.steps[1].markup).toBeUndefined();
   });
 

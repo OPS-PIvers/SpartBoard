@@ -157,6 +157,24 @@ const ROWS: MediaResponseRow[] = [
       },
     ],
   },
+  {
+    sessionId: 's2',
+    responseKey: 'r5',
+    questionId: '__kept-scan-pages__',
+    questionText: 'Scanned pages (paper)',
+    quizTitle: 'Water cycle check',
+    teacherUid: 't2',
+    teacherEmail: 'j.chen@orono.k12.mn.us',
+    studentLabel: 'Pin 6120',
+    lastActivityAt: BASE - 3 * DAY,
+    takes: [1, 2].map((page) => ({
+      artifactId: `pg_scan1_${page}`,
+      archiveStatus: 'archived',
+      driveFileId: `drive-pg-${page}`,
+      archivedAt: BASE - 3 * DAY,
+      hasStorageObject: false,
+    })),
+  },
 ];
 
 const RESULTS: MediaDeleteResult[] = [

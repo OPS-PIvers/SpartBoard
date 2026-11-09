@@ -231,6 +231,14 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['student-data'],
     files: ['components/quiz/paper/PaperCropPanel.tsx'],
   },
+  // Image markup on a handwritten answer, inside the paper scan panel behind paper-image-markup.
+  'board.paper-markup': {
+    label: 'Handwriting markup in the Quiz grader',
+    kind: 'modal',
+    opensWith: 'quiz-grading.open:quiz',
+    needs: ['student-data'],
+    files: ['components/quiz/paper/markup/'],
+  },
   'board.tours': {
     label: 'Live tour runner',
     kind: 'shared',
@@ -781,6 +789,11 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: ['components/help/HelpResourceViewer.tsx'],
     opensWith: 'help-center.guides.item:help',
+  },
+  'board.tour-steps-view': {
+    label: 'Tour Steps view',
+    kind: 'shared',
+    files: ['components/tours/steps/'],
   },
   'board.help-copy-link': {
     label: 'Help copy link button',

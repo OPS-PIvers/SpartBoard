@@ -769,6 +769,7 @@ export const LiveTourRunner: React.FC = () => {
             stepId: snapStepId,
             tour: binding,
             frame: shot.frame,
+            placement: shot.placement,
           });
           markShot();
         })

@@ -6,7 +6,8 @@
  * doubtful rows with their crops, spares to assign, and anything that could
  * not be read. Clean sheets need no attention. Nothing leaves the browser but
  * seat numbers, PINs, letters and, on `layoutVersion: 2` batches, the
- * handwritten box crops (handwritten plan D20, D21).
+ * handwritten box crops (handwritten plan D20, D21), plus each straightened
+ * page when the teacher keeps pages (kept-pages K5, K6).
  */
 
 import React, {
@@ -28,6 +29,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { Toggle } from '@/components/common/Toggle';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
@@ -44,10 +46,13 @@ import type {
 import {
   createCropUploader,
   indexedDbCropStore,
+  keptPageKey,
   writtenCropKey,
   type CropStore,
   type CropUploader,
   type CropUploadStatus,
+  type KeptPage,
+  type KeptPageSet,
   type WrittenCrop,
 } from '@/utils/paperCropStore';
 import {
@@ -80,13 +85,17 @@ import {
 } from '@/utils/paperReviewState';
 import {
   cropWrittenBlob,
+  keptPageBlob,
   rasterizeScan,
   type RasterizedPage,
 } from '@/utils/paperScanRaster';
 import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
+import { paperBatchTag } from '@/utils/paperSheetMarker';
 import { readPaperPage } from '@/utils/paperSheetReader';
 import {
   paperCropStoragePath,
+  paperPageStoragePath,
+  type PaperKeptPagePayload,
   type PaperKeptPagesRequestField,
 } from '@/utils/paperWritten';
 import { overAnsweredSections, sessionSectionsFor } from '@/utils/quizSections';
@@ -94,6 +103,8 @@ import { overAnsweredSections, sessionSectionsFor } from '@/utils/quizSections';
 const IMPORT_CHUNK = 200;
 /** Debounce for parking the review on the batch doc (plan Q26). */
 const SAVE_DELAY_MS = 600;
+/** Kept-page encodes allowed to overlap the next page's read; each holds one 2 MB straightened page. */
+const KEEP_ENCODES_IN_FLIGHT = 2;
 
 /** Callable request fields beyond the sheets: `{ layoutVersion: 2, scanId }` on a v2 batch. */
 export interface PaperImportRequestExtra extends PaperKeptPagesRequestField {
@@ -135,6 +146,10 @@ interface PaperImportModalProps {
   onUploadCrop?: (path: string, blob: Blob) => Promise<void>;
   /** A crop another device uploaded, as a displayable URL; null when unavailable. */
   loadRemoteCrop?: (path: string) => Promise<string | null>;
+  /** `paper-kept-pages` is on for this teacher: offer to keep each student's pages (K6). */
+  canKeepPages?: boolean;
+  /** Only changes where the keep-pages hint says the copies go. */
+  driveConnected?: boolean;
   /** Read-only transcription quota, shown before import (D25). */
   checkQuota?: () => Promise<PaperImportQuota>;
   /** Persist the quiz after the key sheet fills in its answers. */
@@ -152,6 +167,7 @@ interface PaperImportModalProps {
   rasterize?: (file: Blob) => AsyncGenerator<RasterizedPage>;
   readPage?: typeof readPaperPage;
   cropWritten?: typeof cropWrittenBlob;
+  keepPage?: typeof keptPageBlob;
   cropStore?: CropStore;
 }
 
@@ -181,6 +197,29 @@ const revokeAll = (urls: ReadonlyMap<string, string>) => {
 };
 
 type CropMime = 'image/webp' | 'image/png';
+
+/** A kept page of this scan; its blob lives in the upload queue and the crop store. */
+interface KeptPageRef {
+  seat: number;
+  page: number;
+  mimeType: CropMime;
+}
+
+/** The pages worth keeping: those of sheets that can import, never a blank sheet's. */
+const keptPagesOf = (
+  sheets: readonly AssembledSheet[],
+  set: KeptPageSet
+): KeptPageSet => {
+  const wanted = new Set(
+    sheets
+      .filter((s) => !s.isBlank)
+      .flatMap((s) => s.pagesSeen.map((p) => keptPageKey(s.seat, p)))
+  );
+  return {
+    scanId: set.scanId,
+    pages: set.pages.filter((p) => wanted.has(keptPageKey(p.seat, p.page))),
+  };
+};
 
 const cropMimeOf = (blob: Blob): CropMime =>
   blob.type === 'image/png' ? 'image/png' : 'image/webp';
@@ -218,6 +257,8 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   onUploadCrop,
   loadRemoteCrop,
   checkQuota,
+  canKeepPages = false,
+  driveConnected = true,
   onSaveQuiz,
   onSavePending,
   onPickFromDrive,
@@ -226,6 +267,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   rasterize = rasterizeScan,
   readPage = readPaperPage,
   cropWritten = cropWrittenBlob,
+  keepPage = keptPageBlob,
   cropStore = indexedDbCropStore,
 }) => {
   const [step, setStep] = useState<Step>('setup');
@@ -261,6 +303,12 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   );
   const [quota, setQuota] = useState<PaperImportQuota | null>(null);
   const [skipPage, setSkipPage] = useState<number | null>(null);
+  const [keepPages, setKeepPages] = useState(true);
+  const [pageScan, setPageScan] = useState<{
+    scanId: string;
+    pages: KeptPageRef[];
+  } | null>(null);
+  const [pagesNotKept, setPagesNotKept] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const uploaderRef = useRef<CropUploader | null>(null);
   const thumbsRef = useRef(thumbs);
@@ -279,6 +327,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     [quiz, batch]
   );
   const isV2 = batch?.layoutVersion === 2;
+  const canKeep = canKeepPages && !!uid && !!onUploadCrop;
   // Written answers on paper: the stack holds only written boxes and merges onto device responses.
   const hybrid = assignments.some(
     (a) =>
@@ -390,6 +439,45 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     }
   };
 
+  const startUploader = (): CropUploader => {
+    setUploads(new Map());
+    const upload =
+      onUploadCrop && uid
+        ? onUploadCrop
+        : () => Promise.reject(new Error('Sign in to upload handwriting.'));
+    const uploader: CropUploader = createCropUploader(upload, (k, status) => {
+      if (uploaderRef.current !== uploader) return;
+      setUploads((prev) => new Map(prev).set(k, status));
+    });
+    uploaderRef.current = uploader;
+    return uploader;
+  };
+
+  // Queues each kept page behind the crops (K5); a failed page only goes unkept, it never holds up the answers.
+  const beginPages = (
+    uploader: CropUploader,
+    set: KeptPageSet,
+    resumed: boolean
+  ) => {
+    if (!uid) return;
+    for (const p of set.pages) {
+      uploader.enqueue({
+        key: keptPageKey(p.seat, p.page),
+        path: paperPageStoragePath(uid, set.scanId, p.seat, p.page),
+        blob: p.blob,
+        mayExist: resumed,
+      });
+    }
+    setPageScan({
+      scanId: set.scanId,
+      pages: set.pages.map((p) => ({
+        seat: p.seat,
+        page: p.page,
+        mimeType: cropMimeOf(p.blob),
+      })),
+    });
+  };
+
   // Starts the background upload of every handwriting crop (D21); a crop is keyed by seat and question.
   const beginWritten = (
     next: AssembleResult,
@@ -405,16 +493,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     for (const [k, blob] of blobs) nextMime.set(k, cropMimeOf(blob));
     setCropMime(nextMime);
     setScanId(nextScanId);
-    setUploads(new Map());
-    const upload =
-      onUploadCrop && uid
-        ? onUploadCrop
-        : () => Promise.reject(new Error('Sign in to upload handwriting.'));
-    const uploader: CropUploader = createCropUploader(upload, (k, status) => {
-      if (uploaderRef.current !== uploader) return;
-      setUploads((prev) => new Map(prev).set(k, status));
-    });
-    uploaderRef.current = uploader;
+    const uploader = startUploader();
     for (const sheet of next.sheets) {
       if (sheet.isBlank) continue;
       for (const w of sheet.written ?? []) {
@@ -473,6 +552,8 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const state = fromPendingReview(resumable);
     const pw = batch.layoutVersion === 2 ? resumable.written : undefined;
     let restored = state.assembled;
+    let owner: CropUploader | null = null;
+    setPageScan(null);
     if (pw) {
       // The compact review keeps written states apart from the sheets, so put them back.
       restored = {
@@ -510,15 +591,19 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             : []
         )
       );
-      const owner = beginWritten(
-        restored,
-        blobs,
-        pw.scanId,
-        uploaded,
-        mimes,
-        true
-      );
+      owner = beginWritten(restored, blobs, pw.scanId, uploaded, mimes, true);
       void loadRemoteThumbs(owner, pw.scanId, pw.boxes, blobs);
+    }
+    if (canKeep) {
+      // Only this browser holds the page blobs; another device resumes without them.
+      const set = await cropStore.loadPages(batch.id);
+      if (set && (!pw || set.scanId === pw.scanId)) {
+        beginPages(
+          owner ?? startUploader(),
+          keptPagesOf(restored.sheets, set),
+          true
+        );
+      }
     }
     void refreshQuota(batch);
     setAssembled(restored);
@@ -551,6 +636,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const blobs = new Map<string, Blob>();
     const grid = paperGridOf(batch);
     const byMap = batch.layoutVersion === 2;
+    const keep = canKeep && keepPages;
+    const tag = paperBatchTag(batch.id);
+    const kept = new Map<string, Promise<KeptPage | null>>();
+    const encoding: Promise<unknown>[] = [];
+    setPageScan(null);
     try {
       let scanIndex = 0;
       for await (const page of rasterize(file)) {
@@ -583,10 +673,37 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               else blobs.delete(k);
             }
           }
+          // K17: the key sheet is never kept; a later scan of a page replaces the earlier one, as its answers do.
+          const { marker } = read;
+          if (
+            keep &&
+            marker.batchTag === tag &&
+            !marker.isKeySheet &&
+            marker.seat !== batch.keySheetSeat
+          ) {
+            // Straightening runs now, while the page is live; its encode finishes in the background.
+            if (encoding.length >= KEEP_ENCODES_IN_FLIGHT) {
+              await encoding.shift();
+            }
+            const job = keepPage(page.page, read.mmToPx).then(
+              (blob): KeptPage => ({
+                seat: marker.seat,
+                page: marker.page,
+                blob,
+              }),
+              () => null
+            );
+            kept.set(keptPageKey(marker.seat, marker.page), job);
+            encoding.push(job);
+          }
         }
         pages.push({ scanIndex, read });
         scanIndex += 1;
       }
+      // A page that failed to encode drops out, even when an earlier scan of it worked, as a failed crop does.
+      const keptPages = (await Promise.all(kept.values())).filter(
+        (p): p is KeptPage => p !== null
+      );
       const next = assemblePaperScan(batch, pages);
       setAssembled(next);
       setCrops(nextCrops);
@@ -595,8 +712,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       setSpareAssignments({});
       setSkipPage(null);
       void cropStore.save(batch.id, nextCrops);
+      const nextScanId = byMap || keep ? newScanId() : '';
+      let owner: CropUploader | null = null;
       if (byMap) {
-        const nextScanId = newScanId();
         const written: WrittenCrop[] = next.sheets.flatMap((s) =>
           (s.written ?? []).map((w) => ({
             seat: s.seat,
@@ -610,7 +728,24 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           scanId: nextScanId,
           crops: written,
         });
-        beginWritten(next, blobs, nextScanId, new Set(), new Map(), false);
+        owner = beginWritten(
+          next,
+          blobs,
+          nextScanId,
+          new Set(),
+          new Map(),
+          false
+        );
+      }
+      if (keep) {
+        const set = keptPagesOf(next.sheets, {
+          scanId: nextScanId,
+          pages: keptPages,
+        });
+        void cropStore.savePages(batch.id, set);
+        beginPages(owner ?? startUploader(), set, false);
+      } else if (canKeep) {
+        void cropStore.savePages(batch.id, null);
       }
       void refreshQuota(batch);
       setProgress('');
@@ -682,6 +817,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const extra: PaperImportRequestExtra = batch
       ? paperImportRequestFields(batch, scanId)
       : {};
+    const keptScanId = pageScan?.scanId ?? '';
     const written: number[] = [];
     const collisions: ImportPaperCollision[] = [];
     const keptWritten: { seat: number; questionId: string }[] = [];
@@ -689,11 +825,16 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     let pagesQueued = 0;
     let pagesOverQuota = 0;
     for (let i = 0; i < sheets.length; i += IMPORT_CHUNK) {
+      const chunk = sheets.slice(i, i + IMPORT_CHUNK);
+      const pages = keptPagesFor(chunk).filter(
+        (p) =>
+          uploaderRef.current?.status(keptPageKey(p.seat, p.page)) === 'done'
+      );
       const part = await onImport(
         batchId,
         targetAssignmentId,
-        sheets.slice(i, i + IMPORT_CHUNK),
-        extra
+        chunk,
+        pages.length > 0 ? { ...extra, pages, scanId: keptScanId } : extra
       );
       written.push(...part.written);
       collisions.push(...part.collisions);
@@ -710,6 +851,23 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       pagesQueued,
       pagesOverQuota,
     };
+  };
+
+  // The kept pages of these payload sheets, on pages the import still includes.
+  const keptPagesFor = (
+    sheets: readonly ImportPaperSheetPayload[]
+  ): PaperKeptPagePayload[] => {
+    if (!pageScan || !uid) return [];
+    const seen = new Map(importSheets.map((s) => [s.seat, s.pagesSeen]));
+    const seats = new Set(sheets.map((s) => s.seat));
+    return pageScan.pages
+      .filter((p) => seats.has(p.seat) && !!seen.get(p.seat)?.includes(p.page))
+      .map((p) => ({
+        seat: p.seat,
+        page: p.page,
+        storagePath: paperPageStoragePath(uid, pageScan.scanId, p.seat, p.page),
+        ...(p.mimeType === 'image/png' ? { mimeType: p.mimeType } : {}),
+      }));
   };
 
   const buildPayload = (b: PaperBatch, sheets: readonly AssembledSheet[]) => {
@@ -786,8 +944,13 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     setStep('importing');
     try {
       const { payload } = buildPayload(batch, importSheets);
+      const keeping = (pageScan?.pages.length ?? 0) > 0;
       if (isV2) {
-        setProgress('Uploading handwriting…');
+        setProgress(
+          keeping
+            ? 'Uploading handwriting and page copies…'
+            : 'Uploading handwriting…'
+        );
         await uploaderRef.current?.whenIdle();
         const missing = unuploaded(payload);
         if (missing > 0) {
@@ -795,7 +958,16 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             `${plural(missing, 'handwriting crop')} did not upload. Retry before importing.`
           );
         }
+      } else if (keeping) {
+        setProgress('Uploading page copies…');
+        await uploaderRef.current?.whenIdle();
       }
+      setPagesNotKept(
+        keptPagesFor(payload).filter(
+          (p) =>
+            uploaderRef.current?.status(keptPageKey(p.seat, p.page)) !== 'done'
+        ).length
+      );
       setProgress('');
       // Key first (Q19): grading reads the quiz, so the key must land before
       // any response that will be graded against it. Tags ride the same save.
@@ -1027,6 +1199,27 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               </div>
             </section>
           )}
+          {canKeep && (
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-700">
+                  Keep a copy of each student&apos;s pages
+                </p>
+                <p className="text-xs text-slate-500">
+                  {driveConnected
+                    ? 'Saved to your Google Drive.'
+                    : 'Kept for 60 days. Connect Google Drive to keep them longer.'}
+                </p>
+              </div>
+              <Toggle
+                checked={keepPages}
+                onChange={setKeepPages}
+                label="Keep a copy of each student's pages"
+                anchor={tourTypeAttr('quiz-import.paper-keep-pages', 'quiz')}
+                size="sm"
+              />
+            </div>
+          )}
           {/* no-tour-anchor: hidden file input opened by its visible upload button */}
           <input
             ref={fileRef}
@@ -1067,8 +1260,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             </button>
           )}
           <p className="text-xs text-slate-500">
-            Pages can be in any order or upside down, and the file never leaves
-            this computer.
+            {canKeep && keepPages
+              ? 'Pages can be in any order or upside down.'
+              : 'Pages can be in any order or upside down. The file never leaves this computer.'}
           </p>
         </>
       )}
@@ -1258,8 +1452,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         ))}
         {sheet.flags.includes('duplicate-conflict') && (
           <p className="mt-2 text-xs text-amber-800">
-            This sheet was scanned twice with different answers, so the later
-            scan is shown.
+            This sheet was scanned twice. The latest scan is shown.
           </p>
         )}
         {doubtful.length > 0 && (
@@ -1444,6 +1637,39 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     );
   };
 
+  const renderKeptPages = () => {
+    if (!pageScan || pageScan.pages.length === 0) return null;
+    const keys = pageScan.pages.map((p) => keptPageKey(p.seat, p.page));
+    const done = keys.filter((k) => uploads.get(k) === 'done').length;
+    const failed = keys.filter((k) => uploads.get(k) === 'failed').length;
+    const copies = (n: number) => plural(n, 'page copy', 'page copies');
+    // Failures show once the queue settles, so progress and an error never share the line.
+    const settled = done + failed === keys.length;
+    return (
+      <p
+        className={`flex flex-wrap items-center gap-x-2 text-xs ${
+          settled && failed > 0 ? 'text-amber-800' : 'text-slate-600'
+        }`}
+      >
+        {!settled
+          ? `Saving ${done} of ${copies(keys.length)}`
+          : failed === 0
+            ? `${copies(keys.length)} saved`
+            : `${copies(failed)} did not upload.`}
+        {settled && failed > 0 && (
+          <button
+            type="button"
+            {...tourTypeAttr('quiz-import.paper-retry-pages', 'quiz')}
+            onClick={() => uploaderRef.current?.retryFailed()}
+            className="rounded-sm px-2 py-0.5 font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+          >
+            Retry
+          </button>
+        )}
+      </p>
+    );
+  };
+
   const renderReview = () => {
     if (!assembled || !summary) return null;
     const problems = [
@@ -1521,6 +1747,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         {rowIds.length > 0 && renderTargets()}
         {importSheets.map(renderSheet)}
         {renderWritten()}
+        {renderKeptPages()}
         {problems.length > 0 && (
           <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm font-bold text-amber-900">Pages set aside</p>
@@ -1563,6 +1790,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             {(result.pagesOverQuota ?? 0) > 0 && (
               <p className="mt-1 text-xs text-amber-800">
                 {`${plural(result.pagesOverQuota ?? 0, 'page')} over today's limit will be transcribed later.`}
+              </p>
+            )}
+            {pagesNotKept > 0 && (
+              <p className="mt-1 text-xs text-amber-800">
+                {`${plural(pagesNotKept, 'page copy', 'page copies')} did not upload. Their answers imported.`}
               </p>
             )}
           </div>

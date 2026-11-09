@@ -1,51 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Globe, ImageOff } from 'lucide-react';
-import { TourSpotlight } from '@/components/tours/TourSpotlight';
-import { TourTip } from '@/components/tours/TourTip';
 import { TourBar } from '@/components/tours/TourBar';
-import { tetherFor } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import { focusRing } from '@/components/common/lightChrome';
 import { tourAttr } from '@/config/tourAnchors';
 import { BlobImage } from './BlurBoxes';
 import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import { usePictureBlob } from './webPictures';
-import type { WebStep } from './webEditorModel';
 import {
-  placePreviewTip,
-  stagePlacement,
-  stageScale,
-  type FracRect,
-} from './pictureTarget';
-
-interface Size {
-  w: number;
-  h: number;
-}
+  PreviewTip,
+  RingAndTip,
+  Scaled,
+  type PreviewStep,
+} from '@/components/tours/steps/picturePreview';
+import {
+  noop,
+  TIP_H,
+  TIP_W,
+  useMeasured,
+  type Size,
+} from '@/components/tours/steps/previewMeasure';
+import type { WebStep } from './webEditorModel';
+import { stagePlacement, stageScale } from './pictureTarget';
 
 /** A picture tool's layer over the stage picture, given the picture's box as shown. */
 export interface StageEditing {
   kind: 'blur' | 'crop' | 'markup';
   render: (box: Size) => React.ReactNode;
-}
-
-// Callback-ref measuring, so nothing reads a ref during render.
-function useMeasured<T extends HTMLElement>(): [(el: T | null) => void, Size] {
-  const [el, setEl] = useState<T | null>(null);
-  const [size, setSize] = useState<Size>({ w: 0, h: 0 });
-  useEffect(() => {
-    if (!el) return;
-    const read = () =>
-      setSize((was) =>
-        was.w === el.clientWidth && was.h === el.clientHeight
-          ? was
-          : { w: el.clientWidth, h: el.clientHeight }
-      );
-    read();
-    const observer = new ResizeObserver(read);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [el]);
-  return [setEl, size];
 }
 
 const PAD_X = 32;
@@ -54,152 +34,13 @@ const GAP = 12;
 const BAR_BAND = { w: 380, h: 60 };
 /** Room under the picture for its tools (unscaled). */
 const TOOLS_H = 48;
-const TIP_W = 320;
-const TIP_H = 140;
 const NOTE_H = 28;
 
-const noop = () => undefined;
-
-/** A layer drawn at CSS size and scaled; its transform also holds the tour chrome's fixed layers inside it. */
-const Scaled: React.FC<{
-  css: Size;
-  k: number;
-  className?: string;
-  style?: React.CSSProperties;
-  testId?: string;
-  children: React.ReactNode;
-}> = ({ css, k, className = '', style, testId, children }) => (
-  <div
-    className={`absolute ${className}`}
-    style={{ width: css.w * k, height: css.h * k, ...style }}
-  >
-    <div
-      data-testid={testId}
-      className="absolute left-0 top-0 origin-top-left"
-      style={{ width: css.w, height: css.h, transform: `scale(${k})` }}
-    >
-      {children}
-    </div>
-  </div>
-);
-
-/** The step's tip as the learner reads it. */
-const PreviewTip: React.FC<{
-  step: WebStep;
-  index: number;
-  total: number;
-  boxRef: React.Ref<HTMLDivElement>;
-  place: { left: number; top?: number; bottom?: number; width: number };
-  tether: ReturnType<typeof tetherFor> | null;
-  plain: boolean;
-}> = ({ step, index, total, boxRef, place, tether, plain }) => (
-  <TourTip
-    boxRef={boxRef}
-    headingRef={null}
-    left={place.left}
-    top={place.top}
-    bottom={place.bottom}
-    width={place.width}
-    tether={tether}
-    plain={plain}
-    animate={false}
-    title={step.label?.trim() ?? ''}
-    looking={false}
-    status={null}
-    next={
-      step.web?.action === 'observe' || plain
-        ? { onNext: noop, last: index + 1 === total }
-        : undefined
-    }
-  >
-    {step.text?.trim() && (
-      <p className="whitespace-pre-line text-sm text-slate-700">
-        {step.text.trim()}
-      </p>
-    )}
-  </TourTip>
-);
-
-/** The ring and its tip on the picture, at the page's own scale. */
-const RingAndTip: React.FC<{
-  step: WebStep;
-  index: number;
-  total: number;
-  size: Size;
-  frac: FracRect;
-  /** While marking up: the ring alone (no dim) and a faint tip, to place shapes around. */
-  guide?: boolean;
-}> = ({ step, index, total, size, frac, guide = false }) => {
-  const [tipRef, tipSize] = useMeasured<HTMLDivElement>();
-  const rect = {
-    x: frac.x * size.w,
-    y: frac.y * size.h,
-    width: frac.w * size.w,
-    height: frac.h * size.h,
-  };
-  const tipH = tipSize.h || TIP_H;
-  const place = placePreviewTip(rect, size, tipH);
-  const tether = tetherFor(
-    {
-      x: place.left,
-      y: place.top ?? size.h - (place.bottom ?? 0) - tipH,
-      w: place.width,
-      h: tipH,
-    },
-    { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
-  );
-  return (
-    // inert: the preview is a picture of the tour, never a live one.
-    <div
-      inert
-      data-testid={guide ? 'web-stage-guide' : 'web-stage-preview'}
-      className="pointer-events-none absolute inset-0"
-    >
-      {guide ? (
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full overflow-visible"
-          width={size.w}
-          height={size.h}
-        >
-          <rect
-            data-testid="web-stage-guide-ring"
-            x={rect.x - 6}
-            y={rect.y - 6}
-            width={rect.width + 12}
-            height={rect.height + 12}
-            rx={10}
-            className="fill-none stroke-slate-900/40"
-            strokeWidth={5}
-          />
-          <rect
-            x={rect.x - 6}
-            y={rect.y - 6}
-            width={rect.width + 12}
-            height={rect.height + 12}
-            rx={10}
-            className="fill-none stroke-white"
-            strokeWidth={3}
-          />
-        </svg>
-      ) : (
-        // No breathe loop: a still frame of it reads as a second, wider ring.
-        <TourSpotlight rect={rect} clickThrough glide={false} />
-      )}
-      <div className={guide ? 'opacity-40' : undefined}>
-        <PreviewTip
-          step={step}
-          index={index}
-          total={total}
-          boxRef={tipRef}
-          place={place}
-          tether={tether}
-          plain={false}
-        />
-      </div>
-    </div>
-  );
-};
+const previewStepOf = (step: WebStep): PreviewStep => ({
+  title: step.label ?? '',
+  text: step.text ?? '',
+  observe: step.web?.action === 'observe',
+});
 
 const StageMessage: React.FC<{ title: string; body: string }> = ({
   title,
@@ -357,7 +198,7 @@ export const WebPictureStage: React.FC<{
               )}
               {blob && ring && (!editing || editing.kind === 'markup') && (
                 <RingAndTip
-                  step={step}
+                  step={previewStepOf(step)}
                   index={index}
                   total={total}
                   size={css}
@@ -416,7 +257,7 @@ export const WebPictureStage: React.FC<{
                       }}
                     >
                       <PreviewTip
-                        step={step}
+                        step={previewStepOf(step)}
                         index={index}
                         total={total}
                         boxRef={dockRef}

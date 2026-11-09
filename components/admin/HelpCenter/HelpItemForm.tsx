@@ -80,6 +80,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
     () => editing?.kind === 'embed' && Boolean(editing.url)
   );
   const [changing, setChanging] = useState(false);
+  const [webLinked, setWebLinked] = useState(false);
   const hasContent = draft.kind === 'embed' ? linkOpen : Boolean(draft.setId);
   const showChoices = changing || !hasContent;
 
@@ -90,7 +91,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   const canSave =
     draft.title.trim().length > 0 &&
     draft.categoryId.length > 0 &&
-    (draft.kind === 'embed' ? urlValid : Boolean(draft.setId));
+    (draft.kind === 'embed' ? urlValid : Boolean(draft.setId) && !webLinked);
 
   const patch = (next: Partial<HelpItemDraft>) =>
     setDraft((prev) => ({ ...prev, ...next }));
@@ -142,13 +143,21 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
         <>
           <div className="flex items-center gap-3">
             <Toggle
-              checked={draft.visible}
+              checked={draft.visible && !webLinked}
+              disabled={webLinked}
               onChange={(visible) => patch({ visible })}
               label="Visible to teachers"
               anchor={tourAttr('admin.help-center.form-visible')}
               size="sm"
             />
-            <span className="text-sm text-slate-700">Visible to teachers</span>
+            <span className="text-sm text-slate-700">
+              Visible to teachers
+              {webLinked && (
+                <span className="block text-xs text-amber-800">
+                  Off while it links a web tour.
+                </span>
+              )}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Btn
@@ -201,6 +210,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
                     : 'hidden'
               }
               onChange={() => setChanging(true)}
+              onWebTourLinked={setWebLinked}
               selectedSetId={
                 draft.kind === 'guided-learning' ? draft.setId : null
               }
