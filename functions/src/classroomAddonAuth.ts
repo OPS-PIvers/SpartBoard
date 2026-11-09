@@ -45,6 +45,11 @@ import {
   type ClassLinkStudent,
 } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  MISSING_LIST_ALLOWS,
+  addVerifiedLmsClasses,
+  loadVerifiedClassIds,
+} from './verifiedClassList';
 
 // Same named secrets as index.ts; Firebase params dedupes by name. The
 // CLASSLINK_* secrets power the ClassLink identity bridge: a Classroom student
@@ -1340,6 +1345,72 @@ export const createClassroomAttachment = onCall(
     // composer (→ PERMISSION_DENIED). The teacher sets the due date once, in
     // that composer (the screen this add-on iframe is embedded in).
     return { attachmentId: createResult.id };
+  }
+);
+
+/** Teacher discovery, before a session exists: proves a teacher launch and returns the class ids that session may target. */
+export const verifyClassroomTeacherV1 = onCall(
+  {
+    memory: '256MiB',
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    await assertViewAsAllowed(request, { outward: true });
+    const uid = request.auth?.uid ?? '';
+    if (!uid) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    const data = (request.data ?? {}) as Record<string, unknown>;
+    const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+    const accessToken = str(data.accessToken);
+    const courseId = str(data.courseId);
+    const itemId = str(data.itemId);
+    const addOnToken = str(data.addOnToken);
+    const itemType: ItemType = isItemType(data.itemType)
+      ? data.itemType
+      : 'courseWork';
+    if (!accessToken || !courseId || !itemId || !addOnToken) {
+      throw new HttpsError('invalid-argument', 'Missing launch details.');
+    }
+    const ctxResult = await classroomAddonNet.fetchAddOnContext(
+      accessToken,
+      courseId,
+      itemType,
+      itemId,
+      addOnToken
+    );
+    if (!ctxResult.ok || !ctxResult.context) {
+      throw new HttpsError(
+        'unauthenticated',
+        `Could not validate the Classroom launch (getAddOnContext → ${ctxResult.status}).`
+      );
+    }
+    if (!ctxResult.context.teacherContext) {
+      throw new HttpsError(
+        'permission-denied',
+        'Only a teacher launch can assign to this course.'
+      );
+    }
+    const db = admin.firestore();
+    const courseClassId = `classroom:${courseId}`;
+    await addVerifiedLmsClasses(db, uid, [courseClassId]);
+    const [linkSnap, verified] = await Promise.all([
+      db.doc(`classroom_course_links/${courseId}`).get(),
+      loadVerifiedClassIds(db, uid),
+    ]);
+    const linked: unknown = linkSnap.exists
+      ? (linkSnap.data() as CourseLink | undefined)?.classlinkClassId
+      : null;
+    // A linked ClassLink class counts only when it is on the caller's own list, once they have one.
+    const linkedOk = verified
+      ? verified.has(String(linked))
+      : MISSING_LIST_ALLOWS;
+    const classIds =
+      typeof linked === 'string' && linked && linkedOk
+        ? [linked, courseClassId]
+        : [courseClassId];
+    return { classIds };
   }
 );
 

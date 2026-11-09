@@ -1256,7 +1256,9 @@ async function fetchOneRosterPages<T>(
       headers: { ...headers },
       timeout: CLASSLINK_TIMEOUT_MS,
     });
-    const batch = res.data[key] ?? [];
+    const batch = res.data?.[key];
+    // A body without the list (maintenance page, proxy) is an outage, never an empty roster.
+    if (!Array.isArray(batch)) throw new Error('OneRoster page without a list');
     out.push(...batch);
     if (batch.length < ONEROSTER_PAGE_LIMIT) return out;
   }
