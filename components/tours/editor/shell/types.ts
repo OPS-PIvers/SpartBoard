@@ -10,6 +10,8 @@ export type TourShellSaveState = 'saved' | 'saving' | 'error' | 'conflict';
 export interface TourShellStep {
   id: string;
   title: string;
+  /** The title is a stand-in (no title written yet), shown muted. */
+  titleIsFallback?: boolean;
   /** Exposed as data-status on the row, for tests and tools. */
   status?: string;
   subtitle?: {

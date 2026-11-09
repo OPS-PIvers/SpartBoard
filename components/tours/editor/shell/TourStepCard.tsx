@@ -124,7 +124,7 @@ export const TourStepCard: React.FC<TourStepCardProps> = ({
             <div
               id={moreId}
               data-testid="tour-step-more-body"
-              className="flex flex-col gap-3 rounded-lg bg-white/70 p-2.5 ring-1 ring-inset ring-[#d5daec]"
+              className="flex flex-col gap-3"
             >
               {more}
             </div>

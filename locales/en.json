@@ -5428,7 +5428,8 @@
       "fact_class_added": "A class is added",
       "fact_org_has_buildings": "The organization has buildings",
       "fact_district_account": "Signed in with a district account",
-      "fact_classlink_on": "ClassLink import is on"
+      "fact_classlink_on": "ClassLink import is on",
+      "needsText": "Needs text"
     }
   },
   "glPlayer": {

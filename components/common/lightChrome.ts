@@ -12,6 +12,12 @@ export const secondaryBtn = `rounded-lg px-3 py-1.5 text-sm font-semibold text-b
 export const iconBtn = `rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 ${focusRing}`;
 
 export const headerBar = 'bg-brand-blue-dark text-white';
+/** Secondary text and marks on the dark header bar. */
+export const headerMuted = 'text-[#c3cae6]';
+export const headerMutedDot = 'bg-[#c3cae6]';
+/** Hairline around a selected card or picture on light chrome. */
+export const chromeRing = 'ring-[#d5daec]';
+export const chromeHairline = 'border-[#d5daec]';
 export const headerIconBtn =
   'rounded-lg p-1.5 text-[#c3cae6] hover:bg-white/10 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60';
 

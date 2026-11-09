@@ -860,6 +860,7 @@ const outlineStep = (
     id: step.id,
     title:
       label.length > 0 ? label : studentData ? `Step ${index + 1}` : target,
+    titleIsFallback: label.length === 0,
     status: result ?? undefined,
     subtitle,
   };

@@ -4219,7 +4219,8 @@
       "fact_class_added": "Hay una clase añadida",
       "fact_org_has_buildings": "La organización tiene edificios",
       "fact_district_account": "Sesión con una cuenta del distrito",
-      "fact_classlink_on": "La importación de ClassLink está activada"
+      "fact_classlink_on": "La importación de ClassLink está activada",
+      "needsText": "Necesita texto"
     }
   },
   "glPlayer": {

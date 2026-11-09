@@ -39,6 +39,7 @@ import {
   secondaryBtn,
 } from '@/components/tours/tourButtons';
 import {
+  chromeHairline,
   chromeMuted,
   chromeSurface,
   focusRing,
@@ -51,7 +52,9 @@ import {
 import { MAX_TYPED_CHARS } from '@/components/widgets/GuidedLearning/components/recorder/useTourCapture';
 import {
   getTourEdit,
+  getTourEditPlayback,
   replayTourEditFromStart,
+  subscribeTourEditPlayback,
   resumeTourEdit,
   retakeTourEditThumbnail,
   setTourEditPaused,
@@ -407,7 +410,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
         if (at < 0) return;
         setTab('steps');
         session.select(at);
-        focusStepTitle(set.steps[at].id);
+        focusTitleOnArrival(set.steps[at].id, at);
       } else if (state === 'check') {
         setTab('steps');
         replayTourEditFromStart();
@@ -596,24 +599,29 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
               </button>
             )}
             <span
+              title={progress}
               className={`flex-1 whitespace-nowrap text-xs font-semibold tabular-nums ${chromeMuted}`}
             >
-              {progress}
+              <span aria-hidden="true">
+                {Math.min(selected + 1, total)} / {total}
+              </span>
+              <span className="sr-only">{progress}</span>
             </span>
             <button
               type="button"
               onClick={back}
               disabled={!back}
-              className={`${secondaryBtn} flex items-center gap-1 pl-2 disabled:opacity-40`}
+              aria-label={t('tours.back')}
+              title={t('tours.back')}
+              className={`${secondaryBtn} flex items-center px-2 disabled:opacity-40`}
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              {t('tours.back')}
             </button>
             <button
               type="button"
               onClick={next}
               disabled={!next}
-              className={`${primaryBtn} disabled:opacity-40`}
+              className={`${primaryBtn} whitespace-nowrap disabled:opacity-40`}
             >
               {t('tours.next')}
             </button>
@@ -622,6 +630,20 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
       )}
     </aside>
   );
+};
+
+/** Focuses the step's Title now and again once the runner shows it, since a new step's tip takes focus. */
+const focusTitleOnArrival = (stepId: string, index: number): void => {
+  focusStepTitle(stepId);
+  const timer = { id: 0 };
+  const stop = subscribeTourEditPlayback(() => {
+    const pb = getTourEditPlayback();
+    if (pb.index !== index || pb.jumping || pb.anchor === 'searching') return;
+    stop();
+    window.clearTimeout(timer.id);
+    focusStepTitle(stepId);
+  });
+  timer.id = window.setTimeout(stop, 5000);
 };
 
 /** A Live step's outline row: its title, and what the runner last saw of it. */
@@ -641,7 +663,8 @@ const outlineStep = (
   const title =
     [label, control].find((part) => !!part) ?? t('tours.editor.untitled');
   const red = isRedStatus(status);
-  const warn = status === 'unbound';
+  const needsText = stepNeedsText(step);
+  const warn = status === 'unbound' || needsText;
   const text = waiting
     ? t('tours.editor.youClick')
     : jumping
@@ -650,16 +673,24 @@ const outlineStep = (
         ? t('tours.editor.missing')
         : status === 'unregistered'
           ? t('tours.editor.unregistered')
-          : status === 'unbound'
-            ? t('tours.editor.unbound')
-            : status === 'board'
-              ? t('tours.editor.wholeBoard')
-              : label
-                ? control
-                : null;
+          : needsText
+            ? [
+                status === 'unbound' ? t('tours.editor.unbound') : null,
+                t('tours.shell.needsText'),
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : status === 'unbound'
+              ? t('tours.editor.unbound')
+              : status === 'board'
+                ? t('tours.editor.wholeBoard')
+                : label
+                  ? control
+                  : null;
   return {
     id: step.id,
     title,
+    titleIsFallback: !label,
     status,
     subtitle: text
       ? {
@@ -965,7 +996,7 @@ const LiveStepCard: React.FC<{
                   src={thumb.url}
                   alt=""
                   data-testid="tour-editor-thumbnail"
-                  className="max-h-32 w-full rounded-lg border border-[#d5daec] bg-white object-contain"
+                  className={`max-h-32 w-full rounded-lg border ${chromeHairline} bg-white object-contain`}
                 />
               ),
               dimmed: thumb.anchor !== tour.anchor,
@@ -1001,7 +1032,7 @@ const LiveStepCard: React.FC<{
   );
 };
 
-/** Records the widgets now on the stage as the tour's layout, after a confirm. */
+/** Records the widgets now on the stage as the tour's layout, after a confirm; hidden on an empty board. */
 const CaptureLayoutButton: React.FC<{
   onCapture: (layouts: TourWidgetLayout[]) => void;
 }> = ({ onCapture }) => {
@@ -1022,13 +1053,14 @@ const CaptureLayoutButton: React.FC<{
       : window.confirm(message);
     if (ok) onCapture(buildRecordedLayouts(boardLayoutOf(board), []).layouts);
   };
+  // An empty board has no layout to capture.
+  if (board.length === 0) return null;
   return (
     <button
       type="button"
       onClick={() => void capture()}
-      disabled={board.length === 0}
       title={t('glStudio.tourLayoutHint')}
-      className={`${secondaryBtn} -ml-2 flex items-center gap-1.5 self-start whitespace-nowrap px-2 text-xs disabled:opacity-40`}
+      className={`${secondaryBtn} -ml-2 flex items-center gap-1.5 self-start whitespace-nowrap px-2 text-xs`}
     >
       <LayoutDashboard className="h-3.5 w-3.5" aria-hidden="true" />
       {t('glStudio.tourLayoutCapture')}
