@@ -1,5 +1,5 @@
 // Poll join codes resolve here, under per-caller and global miss caps, so the short code space can't be swept.
-import { randomBytes, randomInt } from 'crypto';
+import { createHmac, randomBytes, randomInt } from 'crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
@@ -84,9 +84,9 @@ export interface PollJoin {
   voterId: string;
 }
 
-const newVoterId = (): string => randomBytes(10).toString('hex');
+const SALTS = 'poll_voter_salts';
 
-/** Records `uid`'s join, keeping any voter id it already has so a rejoin can't vote twice. */
+/** Records `uid`'s join; the voter id comes from a per-session salt, so it survives the join expiring. */
 async function recordJoin(
   db: Firestore,
   sessionId: string,
@@ -94,9 +94,16 @@ async function recordJoin(
   now: number
 ): Promise<string> {
   const ref = db.collection(JOINS).doc(pollJoinId(sessionId, uid));
+  const saltRef = db.collection(SALTS).doc(sessionId);
   return db.runTransaction(async (tx) => {
-    const held: unknown = (await tx.get(ref)).data()?.voterId;
-    const voterId = typeof held === 'string' && held ? held : newVoterId();
+    const held: unknown = (await tx.get(saltRef)).data()?.salt;
+    const salt =
+      typeof held === 'string' && held ? held : randomBytes(16).toString('hex');
+    if (salt !== held) tx.set(saltRef, { salt, createdAt: now });
+    const voterId = createHmac('sha256', salt)
+      .update(uid)
+      .digest('hex')
+      .slice(0, 20);
     tx.set(ref, {
       sessionId,
       uid,
@@ -363,8 +370,32 @@ export async function claimPollCode(
     if (
       (role !== 'host' && role !== 'collaborator') ||
       typeof holder !== 'string' ||
-      !boardRole(share, link, holder) ||
       !boardShowsCode(share, code)
+    ) {
+      throw new HttpsError('permission-denied', 'Not on this board.');
+    }
+    // The share's host can list anyone as a participant, so the holder's place must be one they made.
+    const holderLinked =
+      share.originalAuthor === holder ||
+      link?.hostUid === holder ||
+      (isRecord(link?.participants) &&
+        isRecord(link.participants[holder]) &&
+        link.participants[holder].role === 'collaborator');
+    const holderBoards = holderLinked
+      ? null
+      : await tx.get(
+          db
+            .collection('users')
+            .doc(holder)
+            .collection('dashboards')
+            .where('linkedShareId', '==', shareId)
+            .limit(5)
+        );
+    if (
+      !holderLinked &&
+      !holderBoards?.docs.some((d) =>
+        ['owner', 'collaborator'].includes(String(d.data().linkedShareRole))
+      )
     ) {
       throw new HttpsError('permission-denied', 'Not on this board.');
     }

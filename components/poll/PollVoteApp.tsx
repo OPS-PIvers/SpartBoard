@@ -224,8 +224,7 @@ export const PollVoteApp: React.FC = () => {
     target: 'votes' | 'answers',
     answer: { optionIndex: number } | { text: string }
   ) => {
-    if (!sessionId || !voterId || view.k !== 'open' || view.ballot.submitting)
-      return;
+    if (!sessionId || view.k !== 'open' || view.ballot.submitting) return;
     dispatch({ type: 'voteStarted' });
     try {
       // Prefer the uid from the sign-in credential over reading auth.currentUser
@@ -237,7 +236,7 @@ export const PollVoteApp: React.FC = () => {
         setUid(voterUid);
       }
       // Votes are keyed by the session's voter id, never the account; typed answers stay owner-only.
-      const key = target === 'votes' ? voterId : voterUid;
+      const key = target === 'votes' && voterId ? voterId : voterUid;
       await setDoc(
         doc(db, 'poll_sessions', sessionId, target, `${questionIndex}_${key}`),
         {

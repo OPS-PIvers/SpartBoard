@@ -242,8 +242,9 @@ const resolveCode = async (
       'resolvePollCodeV1',
       CALL_TIMEOUT
     )({ code });
-    return data.sessionId && data.voterId
-      ? { sessionId: data.sessionId, voterId: data.voterId }
+    // A server deployed before voter ids answers without one; votes then fall back to the uid.
+    return data.sessionId
+      ? { sessionId: data.sessionId, voterId: data.voterId ?? '' }
       : null;
   } catch (err: unknown) {
     console.warn('[pollSession] code lookup failed', err);
@@ -312,7 +313,9 @@ export const startPollSession = async (
   const code =
     reuse && config.joinCode ? config.joinCode : await mintUniquePollCode();
   // A shared board's code may have been minted by a colleague.
-  if (reuse && boardShareId) await claimSharedPollCode(code, boardShareId);
+  if (reuse && boardShareId && config.lastPollSessionOwnerUid !== teacherUid) {
+    await claimSharedPollCode(code, boardShareId);
+  }
   // A fresh start hides and unlocks every question again; resume keeps them.
   const base: PollConfig =
     mode === 'fresh'

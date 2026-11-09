@@ -117,6 +117,15 @@ describe('resolvePollCode', () => {
     );
   });
 
+  it('keeps the voter id after the join expires, so a resumed poll does not count a device twice', async () => {
+    const stub = makeStubFirestore(live);
+    const db = stub.db as unknown as Db;
+    const first = await resolvePollCode(db, 'anon1', 'K3F9Q', NOW);
+    stub.store.delete(`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`);
+    const later = await resolvePollCode(db, 'anon1', 'K3F9Q', NOW + 1e9);
+    expect(later?.voterId).toBe(first?.voterId);
+  });
+
   it('gives an older join without a voter id a new one', async () => {
     const stub = makeStubFirestore({
       ...live,
@@ -366,12 +375,44 @@ describe('claimPollCode', () => {
     expect(stub.get('poll_codes/K3F9Q')?.memberUids).toEqual(['tA', 'tB']);
   });
 
-  it('adds the host when the code belongs to a collaborator', async () => {
+  it('adds the host when the code belongs to a collaborator whose own board links the share', async () => {
     const stub = seed(board(), {
       'poll_codes/K3F9Q': { sessionId: 'tB_K3F9Q', teacherUid: 'tB' },
+      'users/tB/dashboards/d1': {
+        linkedShareId: 'sb1',
+        linkedShareRole: 'collaborator',
+      },
     });
     expect(await claim(stub, 'tA')).toBe(true);
     expect(stub.get('poll_codes/K3F9Q')?.memberUids).toEqual(['tB', 'tA']);
+  });
+
+  it("refuses a share that lists the holder without the holder's own board joining it", async () => {
+    const forged = board({
+      originalAuthor: 'tX',
+      participants: { tA: { role: 'collaborator', joinedAt: 1 } },
+    });
+    await expect(claim(seed(forged), 'tX')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    const asViewer = seed(forged, {
+      'users/tA/dashboards/d1': {
+        linkedShareId: 'sb1',
+        linkedShareRole: 'viewer',
+      },
+    });
+    await expect(claim(asViewer, 'tX')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    const otherShare = seed(forged, {
+      'users/tA/dashboards/d1': {
+        linkedShareId: 'sb2',
+        linkedShareRole: 'collaborator',
+      },
+    });
+    await expect(claim(otherShare, 'tX')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
   });
 
   it('is a no-op for the holder and when no pointer exists', async () => {

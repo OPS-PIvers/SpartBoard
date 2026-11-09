@@ -168,6 +168,10 @@ describe('poll joins', () => {
       )
     );
     await assertFails(deleteDoc(doc(asAnon(), own)));
+    await seed(`poll_voter_salts/${SESSION_ID}`, { salt: 'x' });
+    for (const db of [asAnon(), asTeacher(), asAdmin()]) {
+      await assertFails(getDoc(doc(db, `poll_voter_salts/${SESSION_ID}`)));
+    }
   });
 });
 

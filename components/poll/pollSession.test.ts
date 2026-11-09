@@ -290,6 +290,21 @@ describe('startPollSession', () => {
     warn.mockRestore();
   });
 
+  it('skips the claim when this teacher ran the last session', async () => {
+    await startPollSession(
+      {
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        lastPollSessionId: 'K3F9Q',
+        lastPollSessionOwnerUid: 'teacher-1',
+      },
+      'teacher-1',
+      'resume',
+      'share-1'
+    );
+    expect(mockClaim).not.toHaveBeenCalled();
+  });
+
   it('claims nothing for a new code or off a shared board', async () => {
     await startPollSession(baseConfig, 'teacher-1', 'fresh', 'share-1');
     await startPollSession(
@@ -426,6 +441,17 @@ describe('lookupPollSessionByCode', () => {
       warn.mockRestore();
       vi.useRealTimers();
     }
+  });
+
+  it('keeps going without a voter id from an older server', async () => {
+    mockResolve.mockResolvedValueOnce({
+      data: { sessionId: 'teacher-1_K3F9Q' },
+    });
+    mockGetDoc.mockResolvedValueOnce(sessionSnap);
+    expect(await lookupPollSessionByCode('K3F9Q')).toMatchObject({
+      sessionId: 'teacher-1_K3F9Q',
+      voterId: '',
+    });
   });
 
   it('gives up when the server never answers', async () => {
