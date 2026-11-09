@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { copyText } from '@/utils/copyText';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { RevealCard, RevealGridConfig } from '@/types';
 import {
@@ -191,10 +192,10 @@ export const RevealGridCardsField: React.FC<{
     try {
       setIsLoadingDrive(true);
       const url = await driveService.getShareableLink(fileId);
-      await navigator.clipboard.writeText(url);
-      await showAlert(t('shareCopied'), {
+      const copied = await copyText(url);
+      await showAlert(copied ? t('shareCopied') : url, {
         variant: 'info',
-        title: t('shareCopiedTitle'),
+        title: copied ? t('shareCopiedTitle') : t('shareLinkTitle'),
       });
     } catch (error) {
       console.error('[RevealGrid] Share error:', error);
