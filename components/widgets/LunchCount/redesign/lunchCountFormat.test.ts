@@ -4,7 +4,9 @@ import {
   hasSubmittedToday,
   reportClassKey,
   submittedClassKey,
+  sentDetailsToday,
   submittedMarker,
+  sheetRowKey,
 } from './lunchCountFormat';
 
 describe('Lunch Count submitted marker', () => {
@@ -14,7 +16,27 @@ describe('Lunch Count submitted marker', () => {
 
   const classA = reportClassKey('11:30', 'GR2');
   const classB = reportClassKey('12:00', 'GR3');
-  const sentA = () => submittedMarker({}, 'w1', getCentralDayKey(), classA);
+  const details = { notes: '2 gluten free', extraPizza: 3 };
+  const sentA = () =>
+    submittedMarker({}, 'w1', getCentralDayKey(), classA, details);
+
+  it('keeps the old marker shape when no details are passed', () => {
+    const marker = submittedMarker({}, 'w1', getCentralDayKey(), classA);
+    expect(marker).not.toHaveProperty('lastSubmittedDetails');
+    expect(hasSubmittedToday(marker, 'w1', classA)).toBe(true);
+  });
+
+  it('drops stale details when a flag-off send follows a flag-on one', () => {
+    const old = submittedMarker({}, 'w1', '2026-01-01', classA, details);
+    const today = submittedMarker(old, 'w1', getCentralDayKey(), classA);
+    expect(
+      sentDetailsToday({ ...old, ...today }, 'w1', classA)
+    ).toBeUndefined();
+    const sameDay = submittedMarker(sentA(), 'w1', getCentralDayKey(), classA);
+    expect(
+      sentDetailsToday({ ...sentA(), ...sameDay }, 'w1', classA)
+    ).toBeUndefined();
+  });
 
   it('blocks the same class from the same widget on the same day', () => {
     expect(hasSubmittedToday(sentA(), 'w1', classA)).toBe(true);
@@ -25,7 +47,13 @@ describe('Lunch Count submitted marker', () => {
   });
 
   it('still blocks the first class after a second one is sent', () => {
-    const both = submittedMarker(sentA(), 'w1', getCentralDayKey(), classB);
+    const both = submittedMarker(
+      sentA(),
+      'w1',
+      getCentralDayKey(),
+      classB,
+      details
+    );
     expect(both.lastSubmittedClasses).toEqual([classA, classB]);
     expect(hasSubmittedToday(both, 'w1', classA)).toBe(true);
     expect(hasSubmittedToday(both, 'w1', classB)).toBe(true);
@@ -42,7 +70,7 @@ describe('Lunch Count submitted marker', () => {
     const day = getCentralDayKey();
     const first = submittedClassKey('11:30', 'GR2', 'roster-a');
     const second = submittedClassKey('11:30', 'GR2', 'roster-b');
-    const sent = submittedMarker({}, 'w1', day, first);
+    const sent = submittedMarker({}, 'w1', day, first, details);
     expect(hasSubmittedToday(sent, 'w1', first)).toBe(true);
     expect(hasSubmittedToday(sent, 'w1', second)).toBe(false);
     expect(submittedClassKey('11:30', 'GR2', null)).toBe('11:30 - GR2');
@@ -66,13 +94,45 @@ describe('Lunch Count submitted marker', () => {
     const yesterday = sentA();
     vi.setSystemTime(new Date('2026-11-06T15:00:00Z'));
     expect(hasSubmittedToday(yesterday, 'w1', classA)).toBe(false);
-    const today = submittedMarker(yesterday, 'w1', getCentralDayKey(), classB);
+    const today = submittedMarker(
+      yesterday,
+      'w1',
+      getCentralDayKey(),
+      classB,
+      details
+    );
     expect(today.lastSubmittedClasses).toEqual([classB]);
+  });
+
+  it('keeps what was sent per class and drops it on a new day', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-05T15:00:00Z'));
+    const sent = sentA();
+    expect(sentDetailsToday(sent, 'w1', classA)).toEqual(details);
+    expect(sentDetailsToday(sent, 'w1', classB)).toBeUndefined();
+    expect(sentDetailsToday(sent, 'w2', classA)).toBeUndefined();
+    vi.setSystemTime(new Date('2026-11-06T15:00:00Z'));
+    expect(sentDetailsToday(sent, 'w1', classA)).toBeUndefined();
   });
 
   it('uses the Central date near UTC midnight', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-11-06T03:00:00Z'));
     expect(getCentralDayKey()).toBe('2026-11-05');
+  });
+});
+
+describe('Lunch Count sheet row key', () => {
+  it('adds the sender when the class has no roster', () => {
+    expect(sheetRowKey('11:30 - GR3', 'uid-a')).toBe('11:30 - GR3 #u:uid-a');
+    expect(sheetRowKey('11:30 - GR3', 'uid-a')).not.toBe(
+      sheetRowKey('11:30 - GR3', 'uid-b')
+    );
+  });
+
+  it('keeps the roster key so co-teachers on one roster share a row', () => {
+    expect(sheetRowKey('11:30 - GR3 #roster-1', 'uid-a')).toBe(
+      '11:30 - GR3 #roster-1'
+    );
   });
 });

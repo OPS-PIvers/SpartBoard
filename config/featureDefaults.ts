@@ -1113,6 +1113,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'lunch-count-resend': {
+    label: 'Lunch Count resend',
+    icon: Utensils,
+    description:
+      "Send a corrected lunch count that replaces today's count for that class.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'lunchCount',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'weather-details': {
     label: 'Weather details',
     icon: CloudSun,

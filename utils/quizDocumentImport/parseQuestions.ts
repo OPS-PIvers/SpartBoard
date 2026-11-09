@@ -355,6 +355,8 @@ interface OptionDraft extends ExtractedOption {
   line: DocLine;
   /** Lines appended as wraps, which the last question may have to give back (R8). */
   wraps: DocLine[];
+  /** A caption or heading ended this choice; nothing later joins it. */
+  closed?: boolean;
 }
 
 function matchOption(
@@ -802,6 +804,29 @@ function isTargetWrap(previous: DocLine, line: DocLine): boolean {
   if (line.y === undefined || previous.y === undefined) return false;
   const gap = previous.y - line.y;
   return gap > 0 && gap < TARGET_WRAP_GAP;
+}
+
+const NON_CHOICE_LINE =
+  /^(?:\(?(?:figure|fig\.|graph|table|diagram)\s*\d+\)?\.?$|use\s+(?:the\s+)?(?:figure|graph|table|diagram)\b|topic\s+\d+\s*:)/i;
+
+/** Text after a choice that can't be its wrap: a caption, instruction, heading, or a line starting left of the choice. */
+function isNotChoiceText(
+  option: DocLine,
+  previous: DocLine,
+  line: DocLine,
+  text: string
+): boolean {
+  if (NON_CHOICE_LINE.test(text.trim())) return true;
+  if (line.page === undefined || line.page !== option.page) return false;
+  const x = lineSegments(line)[0]?.x;
+  const optionX = lineSegments(option)[0]?.x;
+  // A line a line-height under is a wrap back to the margin; only a paragraph gap ends the choice.
+  return (
+    x !== undefined &&
+    optionX !== undefined &&
+    x < optionX - 1 &&
+    !isTargetWrap(previous, line)
+  );
 }
 
 /** A continuation after a question's last option that is plainly its wrap (R8). */
@@ -1360,6 +1385,20 @@ export function parseDocument(
     // question hasn't reached its options yet.
     const wrapping = lastOption;
     if (wrapping) {
+      // A figure caption, instruction or heading ends the choice; what follows it is not choice text.
+      if (
+        wrapping.closed ||
+        isNotChoiceText(
+          wrapping.line,
+          wrapping.wraps.at(-1) ?? wrapping.line,
+          line,
+          text
+        )
+      ) {
+        wrapping.closed = true;
+        open.imageIds.push(...(line.imageIds ?? []));
+        return;
+      }
       wrapping.text = tidy(`${wrapping.text} ${text}`);
       wrapping.wraps.push(line);
     } else {

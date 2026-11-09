@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-172**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-174**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,6 +19,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
+- **AB-172 Finish moving student data off bare isAdmin() in firestore.rules** (S, Opus, rules). From release 2026.11.09 (3) review of #5485. `isSiteAdmin()` now keeps a synced building admin out of most student data, but these still use `isAdmin()`: `guided_learning_sessions` update and delete, `poll_sessions` get, list and writes, poll `votes` delete, the `nextup_sessions` session write, `sessions/{userId}` get (live code), and `shared_activity_walls` comments and likes read and delete. Also `archived_responses` update and delete have no session-teacher branch (no client path uses them today). Decide each, convert the student-work ones, check `check:rules-size`, and add allowed and denied rules tests.
+- **AB-173 Paper import on an assignment with no paperBatchId picks a batch blind** (S). From the same review of #5484. `components/widgets/QuizWidget/Widget.tsx` now offers every batch of the quiz when the assignment has no `paperBatchId`; with one batch it is chosen silently, and `importPaperResponses` only checks `batch.quizId`, so scans can be graded against another assignment's choice order. Show the batch's assignment or date in the picker even with one batch, or match by assignment, with a test. Before `paper-answer-sheets` opens. Also from the #5486 review: `isRewordOnly` (`utils/paperImportPlan.ts`) accepts a swap plus a reword (recorded ['A1','B1','C'], current ['B2','A2','C']) as reword-only, so new scans grade against today's order; accept a reword only when no moved text could explain it (for example the correct choice keeps its position), with a test.
 - **AB-169 Class list follow-ups from release #5455** (S). (1) `refreshMyClassesV1` has no cooldown, so a teacher can call ClassLink on every click; add a per-user minimum interval. (2) `organizationUserDelete` leaves the user's `verified_classes` doc behind; delete it with the member. Done with functions tests for both.
 - **AB-170 Poll follow-ups from release #5455** (S). (1) `poll_voter_salts` docs never expire; add a TTL field and policy, or delete them when the session ends. (2) On a copied board, the Poll settings panel shows the original teacher's join link until the copier presses Start (Start already mints a fresh code); hide or replace a link whose `joinCodeOwnerUid` is another teacher's.
 - **AB-171 Shared board item picks follow-ups from release #5455** (S). (1) A collaborator who re-shares a board they joined records no picks, so items they added can't be copied from the new share. (2) `users/{uid}/board_item_picks/{shareId}` docs are never deleted when a share ends or is deleted. (3) The comment beside `noteBoardItemPick` in `context/DashboardContext.tsx` describes the wrong function. Done with tests for (1) and (2).
@@ -217,6 +219,7 @@ git push origin --delete claude/project-thread-p02dbq
 git push origin --delete claude/project-thread-lr3mn3 claude/project-thread-lr3mn3-ab112
 git push origin --delete release-fix/poll-vote-keys release-fix/board-item-legacy-picks release-fix/poll-copied-board-code nightly/unifier-log-2026-11-09
 git push origin --delete nightly/build-2026-11-09 nightly/state-2026-11-09 nightly/admin-2026-11-09 nightly/dashboard-2026-11-09 nightly/debugger-log-2026-11-09 claude/tour-anchors-2026-11-09 nightly/widgets-2026-11-09 claude/project-thread-ay1uga
+git push origin --delete claude/project-thread-d17ckk claude/project-thread-d17ckk-ab112
 ```
 
   </details>

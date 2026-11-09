@@ -23,7 +23,9 @@ import {
   hasSubmittedToday,
   reportClassKey,
   submittedClassKey,
+  sentDetailsToday,
   submittedMarker,
+  sheetRowKey,
 } from './lunchCountFormat';
 
 export interface LunchStudent {
@@ -37,7 +39,8 @@ export type LunchZoneId = 'hot' | 'bento' | 'home';
 export function useLunchCountModel(widget: WidgetData) {
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
-  const { user, featurePermissions, selectedBuildings } = useAuth();
+  const { user, featurePermissions, selectedBuildings, canAccessFeature } =
+    useAuth();
   const subShareHost = useSubShareHost();
   const reportName = subShareHost
     ? (subShareHost.teacherName ?? 'Staff')
@@ -237,6 +240,7 @@ export function useLunchCountModel(widget: WidgetData) {
   const { drags, handlers: dragHandlers } = useMultiDrag(handleDrop, handleTap);
 
   const handleSubmitReport = async (notes: string, extraPizza?: number) => {
+    const canResend = canAccessFeature('lunch-count-resend');
     const { submissionUrl, schumannSheetId, intermediateSheetId } =
       lunchGlobalConfig;
 
@@ -279,6 +283,9 @@ export function useLunchCountModel(widget: WidgetData) {
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
+        ...(canResend
+          ? { classKey: sheetRowKey(sentClass, user?.uid ?? 'anon') }
+          : {}),
       };
 
       const response = await fetch(submissionUrl, {
@@ -299,7 +306,13 @@ export function useLunchCountModel(widget: WidgetData) {
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(config, widget.id, dayKey, sentClass),
+        config: submittedMarker(
+          config,
+          widget.id,
+          dayKey,
+          sentClass,
+          canResend ? { notes, extraPizza: payload.extraPizza } : undefined
+        ),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
@@ -406,6 +419,7 @@ export function useLunchCountModel(widget: WidgetData) {
     isSubmitting,
     reportData,
     alreadySubmitted: hasSubmittedToday(config, widget.id, sentClass),
+    sentDetails: sentDetailsToday(config, widget.id, sentClass),
   };
 }
 

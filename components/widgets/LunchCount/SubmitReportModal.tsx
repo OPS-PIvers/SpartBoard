@@ -3,6 +3,7 @@ import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { useAuth } from '@/context/useAuth';
 import { CheckCircle2, FileSpreadsheet, X, Send } from 'lucide-react';
 
 /**
@@ -35,6 +36,8 @@ interface SubmitReportModalProps {
   isSubmitting: boolean;
   /** True when a report was already submitted today */
   alreadySubmitted?: boolean;
+  /** Notes and pizza sent earlier today, to prefill a resend */
+  sentDetails?: { notes: string; extraPizza: number };
 }
 
 /**
@@ -48,21 +51,30 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   data,
   isSubmitting,
   alreadySubmitted = false,
+  sentDetails,
 }) => {
   const [notes, setNotes] = useState('');
   const [extraPizza, setExtraPizza] = useState<number | ''>('');
+  const [resending, setResending] = useState(false);
+  const { canAccessFeature } = useAuth();
+
+  // Parent closes on success without going through handleClose.
+  if (!isOpen && resending) setResending(false);
 
   // Reset form fields and close — ensures a clean slate for each new opening.
   const handleClose = useCallback(() => {
     if (isSubmitting) return;
     setNotes('');
     setExtraPizza('');
+    setResending(false);
     onClose();
   }, [isSubmitting, onClose]);
 
   if (!isOpen) return null;
 
-  if (alreadySubmitted && !isSubmitting) {
+  if (alreadySubmitted && !isSubmitting && !resending) {
+    // A send made without the flag has no sheet key, so a resend would add a second row.
+    const canResend = canAccessFeature('lunch-count-resend') && !!sentDetails;
     return (
       <Modal
         isOpen={isOpen}
@@ -82,20 +94,39 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
             id="report-modal-title"
             className="font-black text-lg uppercase tracking-tight text-slate-800"
           >
-            Lunch Count Already Submitted
+            {canResend
+              ? 'Lunch Count Already Sent'
+              : 'Lunch Count Already Submitted'}
           </h3>
           <p className="mt-2 text-sm font-bold text-slate-500">
-            Today&apos;s lunch count has been sent. You can submit again
-            tomorrow.
+            {canResend
+              ? "Sending again replaces today's count for this class."
+              : "Today's lunch count has been sent. You can submit again tomorrow."}
           </p>
-          <Button
-            onClick={handleClose}
-            variant="secondary"
-            {...tourTypeAttr('lunch-count.report-close', 'lunchCount')}
-            className="mt-6 w-full py-4 rounded-2xl font-black uppercase tracking-widest"
-          >
-            Close
-          </Button>
+          <div className="mt-6 flex gap-3">
+            <Button
+              onClick={handleClose}
+              variant="secondary"
+              {...tourTypeAttr('lunch-count.report-close', 'lunchCount')}
+              className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest"
+            >
+              Close
+            </Button>
+            {canResend && (
+              <Button
+                onClick={() => {
+                  setNotes(sentDetails?.notes ?? '');
+                  setExtraPizza(sentDetails?.extraPizza ?? '');
+                  setResending(true);
+                }}
+                variant="primary"
+                {...tourTypeAttr('lunch-count.report-resend', 'lunchCount')}
+                className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest"
+              >
+                Review and Resend
+              </Button>
+            )}
+          </div>
         </div>
       </Modal>
     );
@@ -125,7 +156,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
                 id="report-modal-title"
                 className="font-black text-lg uppercase tracking-tight"
               >
-                Submit Lunch Report
+                {resending ? 'Resend Lunch Report' : 'Submit Lunch Report'}
               </h3>
               <p className="text-white/70 text-xxs uppercase tracking-widest font-bold">
                 Review and add notes
@@ -271,7 +302,11 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
               isLoading={isSubmitting}
               icon={<Send className="w-4 h-4" />}
             >
-              {isSubmitting ? 'Sending...' : 'Confirm & Submit'}
+              {isSubmitting
+                ? 'Sending...'
+                : resending
+                  ? 'Confirm & Resend'
+                  : 'Confirm & Submit'}
             </Button>
           </div>
         </div>

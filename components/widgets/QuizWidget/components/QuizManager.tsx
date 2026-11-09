@@ -1653,6 +1653,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClick: () => onImportPaperResponses(a),
         });
       }
+      if (a.hasPaperResponses && !a.paper && onImportPaperResponses) {
+        secondaries.push({
+          id: 'import-paper',
+          label: 'Import responses',
+          icon: ScanLine,
+          anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
+          onClick: () => onImportPaperResponses(a),
+        });
+      }
       if (a.writtenOnPaper && a.paperBatchId && onReprintPaperSheets) {
         secondaries.push({
           id: 'reprint-written',
@@ -1797,7 +1806,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       });
     }
     // More scans from the same stack (another class, make-ups) still import here.
-    if (a.paper && onImportPaperResponses) {
+    if ((a.paper || a.hasPaperResponses) && onImportPaperResponses) {
       secondaries.push({
         id: 'import-paper',
         label: 'Import responses',

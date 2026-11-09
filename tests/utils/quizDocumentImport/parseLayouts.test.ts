@@ -215,6 +215,64 @@ Created with a test generator`)
     ]);
     expect(q.options[0].text).toBe('The moon orbits the earth');
   });
+
+  it('keeps a figure caption and heading out of the choice above them', () => {
+    const [first, second] = parseQuestionLines([
+      pdfLine(1, 700, ['1. What kind is it?', 72]),
+      pdfLine(1, 680, ['a. saturated', 90]),
+      pdfLine(1, 666, ['b. hydrogenated', 90]),
+      pdfLine(1, 652, ['(Figure 2)', 300]),
+      pdfLine(1, 638, ['Topic 2: Enzymes', 72]),
+      pdfLine(1, 600, ['2. Next?', 72]),
+      pdfLine(1, 580, ['a. yes', 90]),
+      pdfLine(1, 566, ['b. no', 90]),
+    ]);
+    expect(first.options[1].text).toBe('hydrogenated');
+    expect(second.text).toBe('Next?');
+  });
+
+  it('keeps a paragraph at the left margin out of the choice above it', () => {
+    const questions = parseQuestionLines([
+      pdfLine(1, 700, ['1. Why?', 72]),
+      pdfLine(1, 680, ['a. liver', 90]),
+      pdfLine(1, 666, ['b. enzyme used up', 90]),
+      pdfLine(1, 640, ['The far right column shows the pH.', 72]),
+      pdfLine(1, 600, ['2. Next?', 72]),
+      pdfLine(1, 580, ['a. yes', 90]),
+      pdfLine(1, 566, ['b. no', 90]),
+    ]);
+    expect(questions[0].options[1].text).toBe('enzyme used up');
+  });
+
+  it('keeps a choice that wraps back to the left margin', () => {
+    const questions = parseQuestionLines([
+      pdfLine(1, 700, ['1. Why?', 72]),
+      pdfLine(1, 680, ['a. liver', 90]),
+      pdfLine(1, 666, ['b. the enzyme was used up by the end of', 90]),
+      pdfLine(1, 652, ['the reaction', 72]),
+      pdfLine(1, 600, ['2. Next?', 72]),
+      pdfLine(1, 580, ['a. yes', 90]),
+      pdfLine(1, 566, ['b. no', 90]),
+    ]);
+    expect(questions[0].options[1].text).toBe(
+      'the enzyme was used up by the end of the reaction'
+    );
+  });
+
+  it('keeps a margin wrap that starts with a capital', () => {
+    const questions = parseQuestionLines([
+      pdfLine(1, 700, ['1. Who signed it?', 72]),
+      pdfLine(1, 680, ['a. Congress', 90]),
+      pdfLine(1, 666, ['b. The treaty was signed by', 90]),
+      pdfLine(1, 652, ['President Wilson in 1919', 72]),
+      pdfLine(1, 600, ['2. Next?', 72]),
+      pdfLine(1, 580, ['a. yes', 90]),
+      pdfLine(1, 566, ['b. no', 90]),
+    ]);
+    expect(questions[0].options[1].text).toBe(
+      'The treaty was signed by President Wilson in 1919'
+    );
+  });
 });
 
 describe('item shapes (R9, R25)', () => {
