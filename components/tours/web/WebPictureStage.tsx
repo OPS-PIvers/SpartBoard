@@ -7,7 +7,7 @@ import { tetherFor } from '@/components/widgets/GuidedLearning/utils/calloutPlac
 import { focusRing } from '@/components/common/lightChrome';
 import { tourAttr } from '@/config/tourAnchors';
 import { BlobImage } from './BlurBoxes';
-import { BlurEditor } from './webEditorParts';
+import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import { usePictureBlob } from './webPictures';
 import type { WebStep } from './webEditorModel';
 import {
@@ -20,6 +20,12 @@ import {
 interface Size {
   w: number;
   h: number;
+}
+
+/** A picture tool's layer over the stage picture, given the picture's box as shown. */
+export interface StageEditing {
+  kind: 'blur' | 'crop' | 'markup';
+  render: (box: Size) => React.ReactNode;
 }
 
 // Callback-ref measuring, so nothing reads a ref during render.
@@ -178,9 +184,8 @@ export const WebPictureStage: React.FC<{
   onSelectPicture: (on: boolean) => void;
   /** Shown under the picture while it is selected. */
   tools: React.ReactNode;
-  blurring: boolean;
-  onBlurred: (blob: Blob) => Promise<void>;
-  onCancelBlur: () => void;
+  /** A picture tool at work (blur, crop, mark up): drawn in the picture's own box, so the frame never moves. */
+  editing: StageEditing | null;
 }> = ({
   step,
   index,
@@ -188,10 +193,9 @@ export const WebPictureStage: React.FC<{
   pictureSelected,
   onSelectPicture,
   tools,
-  blurring,
-  onBlurred,
-  onCancelBlur,
+  editing,
 }) => {
+  const blurring = !!editing;
   const [stageRef, room] = useMeasured<HTMLElement>();
   const [dockRef, dockSize] = useMeasured<HTMLDivElement>();
   const picture = step?.web?.picture;
@@ -306,6 +310,13 @@ export const WebPictureStage: React.FC<{
               ) : (
                 <div className="absolute inset-0 animate-pulse bg-slate-100 motion-reduce:animate-none" />
               )}
+              {editing?.kind !== 'markup' && picture.markup && (
+                <TourPictureMarkup
+                  shapes={picture.markup}
+                  width={picture.w}
+                  height={picture.h}
+                />
+              )}
               {!blurring && blob && ring && (
                 <RingAndTip
                   step={step}
@@ -317,14 +328,8 @@ export const WebPictureStage: React.FC<{
               )}
             </Scaled>
           </div>
-          {blurring ? (
-            <BlurEditor
-              key={picture.path}
-              path={picture.path}
-              index={index}
-              onApply={onBlurred}
-              onCancel={onCancelBlur}
-            />
+          {editing ? (
+            editing.render(shown)
           ) : (
             <>
               <button

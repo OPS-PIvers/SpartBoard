@@ -38,8 +38,13 @@ const keepOnUndo = (
   return out;
 };
 
+// Every file a version uses, its uncropped capture included, so the sweeps cover captures too.
 const picturePaths = (set: GuidedLearningSet): string[] =>
-  set.steps.flatMap((s) => (s.web?.picture ? [s.web.picture.path] : []));
+  set.steps.flatMap((s) => {
+    const p = s.web?.picture;
+    if (!p) return [];
+    return p.original ? [p.path, p.original.path] : [p.path];
+  });
 
 /** Clears out the tour's unused pictures; never in the dev harness, which has no Storage. */
 const sweep = (

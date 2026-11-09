@@ -11,12 +11,13 @@ import React from 'react';
 import type { GuidedLearningSet } from '@/types';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { WebTourEditor } from './WebTourEditor';
-import { targetsSignature } from './webStepReview';
+import { picturesSignature, targetsSignature } from './webStepReview';
 import type { WebTourCheckEvent } from './extensionClient';
 import type { TourRun } from '@/components/tours/tourRuns';
 import type { RecordedWebStep } from './recorderProtocol';
 
 const storage = vi.hoisted(() => ({
+  WEB_TOUR_PICTURE_MAX_BYTES: 5 * 1024 * 1024,
   saveWebTourDraft: vi.fn((_set: GuidedLearningSet) => Promise.resolve()),
   loadWebTourDraft: vi.fn(),
   publishWebTour: vi.fn(
@@ -98,12 +99,15 @@ const rec = vi.hoisted(() => ({
   disconnect: vi.fn(),
   repick: vi.fn(),
   onStep: null as null | ((step: RecordedWebStep) => Promise<void>),
+  onRepicked: null as null | ((step: RecordedWebStep) => Promise<void>),
 }));
 vi.mock('./useWebTourRecorder', () => ({
   useWebTourRecorder: (opts: {
     onStep: (step: RecordedWebStep) => Promise<void>;
+    onRepicked?: (step: RecordedWebStep) => Promise<void>;
   }) => {
     rec.onStep = opts.onStep;
+    rec.onRepicked = opts.onRepicked ?? null;
     return {
       link: rec.link,
       connect: rec.connect,
@@ -111,6 +115,18 @@ vi.mock('./useWebTourRecorder', () => ({
       repick: rec.repick,
     };
   },
+}));
+
+vi.mock('./pictureFiles', async (orig) => ({
+  ...(await orig<typeof import('./pictureFiles')>()),
+  cropImage: vi.fn(() =>
+    Promise.resolve({
+      blob: new Blob(['c'], { type: 'image/jpeg' }),
+      w: 40,
+      h: 20,
+    })
+  ),
+  imageSize: vi.fn(() => Promise.resolve({ w: 300, h: 200 })),
 }));
 
 vi.mock('@/context/useDialog', () => ({
@@ -897,6 +913,327 @@ describe('WebTourEditor', () => {
     );
     expect(
       await screen.findByRole('heading', { name: 'Schoology materials (Copy)' })
+    ).toBeInTheDocument();
+  });
+});
+
+// A recorded step with its capture kept: the picture is the middle half of the screen.
+const captured = (set: GuidedLearningSet): GuidedLearningSet => ({
+  ...set,
+  steps: set.steps.map((st) =>
+    st.web
+      ? {
+          ...st,
+          web: {
+            ...st.web,
+            picture: {
+              path: 'web_tour_pictures/t1/a.jpg',
+              w: 800,
+              h: 400,
+              cssW: 640,
+              target: { x: 0.45, y: 0.45, w: 0.1, h: 0.1 },
+              original: {
+                path: 'web_tour_pictures/t1/full.jpg',
+                w: 1600,
+                h: 800,
+                crop: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 },
+              },
+            },
+          },
+        }
+      : st
+  ),
+});
+
+const lastSaved = () => storage.saveWebTourDraft.mock.calls.at(-1)?.[0];
+const savedPicture = () => lastSaved()?.steps[0].web?.picture;
+
+const openTool = async (name: string) => {
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Select picture' })
+  );
+  fireEvent.click(
+    within(screen.getByRole('toolbar', { name: 'Picture tools' })).getByRole(
+      'button',
+      { name }
+    )
+  );
+};
+
+const sized = (el: Element, w = 100, h = 100) => {
+  el.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, width: w, height: h, right: w, bottom: h }) as DOMRect;
+  (el as Element & { setPointerCapture: () => void }).setPointerCapture = () =>
+    undefined;
+};
+
+describe('WebTourEditor picture tools (E5)', () => {
+  beforeEach(() => {
+    let n = 0;
+    storage.uploadWebTourPicture.mockImplementation(() =>
+      Promise.resolve(`web_tour_pictures/t1/up${++n}.jpg`)
+    );
+  });
+
+  it('shows every tool only once the picture is selected', async () => {
+    renderEditor(checked(captured(tour('Biology 7'))));
+    expect(screen.queryByRole('button', { name: 'Crop' })).toBeNull();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select picture' })
+    );
+    const tools = screen.getByRole('toolbar', { name: 'Picture tools' });
+    for (const name of [
+      'Crop',
+      'Mark up',
+      'Blur',
+      'Retake',
+      'Replace',
+      'Remove picture',
+    ])
+      expect(within(tools).getByRole('button', { name })).toBeTruthy();
+  });
+
+  it('re-crops from the capture and keeps the ring on the same spot', async () => {
+    renderEditor(checked(captured(tour('Biology 7'))));
+    await openTool('Crop');
+    expect(
+      screen.getByText(/The whole screen from the recording is shown/)
+    ).toBeInTheDocument();
+    const area = screen.getByRole('group', {
+      name: 'Drag the crop or its corners',
+    });
+    sized(area);
+    // Drag the bottom-right corner out to the screen's corner.
+    fireEvent.pointerDown(screen.getByTestId('web-crop-handle-se'), {
+      clientX: 75,
+      clientY: 75,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(area, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerUp(area, { clientX: 100, clientY: 100, pointerId: 1 });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Apply crop' })).toBeEnabled()
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Apply crop' }));
+    await waitFor(() =>
+      expect(savedPicture()?.path).toBe('web_tour_pictures/t1/up1.jpg')
+    );
+    const pic = savedPicture();
+    expect(pic?.original?.crop).toEqual({ x: 0.25, y: 0.25, w: 0.75, h: 0.75 });
+    // The target's screen spot: 0.25 + 0.45 * 0.5 = 0.475, now (0.475 - 0.25) / 0.75.
+    expect(pic?.target?.x).toBeCloseTo(0.3, 6);
+    expect(pic?.target?.w).toBeCloseTo(0.05 / 0.75, 6);
+  });
+
+  it('explains that an older step can only crop tighter', async () => {
+    renderEditor(checked(withPicture(tour('Biology 7'))));
+    await openTool('Crop');
+    expect(screen.getByText(/can only be cropped tighter/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply crop' })).toBeDisabled();
+  });
+
+  it('blurs the capture too, so a later re-crop never shows what was hidden', async () => {
+    renderEditor(checked(captured(tour('Biology 7'))));
+    await openTool('Blur');
+    await waitFor(() =>
+      expect(screen.getByTestId('web-stage-blur').firstChild).toBeTruthy()
+    );
+    const area = screen.getByRole('img', { name: /Drag across what to blur/ });
+    sized(area);
+    fireEvent.pointerDown(area, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(area, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.pointerUp(area, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply blur' }));
+    await waitFor(() =>
+      expect(storage.uploadWebTourPicture).toHaveBeenCalledTimes(2)
+    );
+    await waitFor(() =>
+      expect(savedPicture()?.original?.path).toBe(
+        'web_tour_pictures/t1/up2.jpg'
+      )
+    );
+    expect(savedPicture()?.path).toBe('web_tour_pictures/t1/up1.jpg');
+    expect(storage.loadWebTourPicture).toHaveBeenCalledWith(
+      'web_tour_pictures/t1/full.jpg'
+    );
+  });
+
+  it('draws a box, undoes and redoes it, and deletes it from the keyboard', async () => {
+    renderEditor(checked(withPicture(tour('Biology 7'))));
+    await openTool('Mark up');
+    fireEvent.click(screen.getByRole('radio', { name: 'Box' }));
+    const surface = screen.getByRole('application', {
+      name: /Markup on the picture/,
+    });
+    sized(surface);
+    fireEvent.pointerDown(surface, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(surface, { clientX: 60, clientY: 40, pointerId: 1 });
+    fireEvent.pointerUp(surface, { clientX: 60, clientY: 40, pointerId: 1 });
+    expect(screen.getAllByTestId('web-markup-shape')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.queryAllByTestId('web-markup-shape')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+    const shape = screen.getByTestId('web-markup-shape');
+    expect(Number(shape.getAttribute('width'))).toBeCloseTo(5);
+    fireEvent.pointerDown(shape, { clientX: 30, clientY: 20, pointerId: 2 });
+    fireEvent.pointerUp(surface, { clientX: 30, clientY: 20, pointerId: 2 });
+    fireEvent.keyDown(surface, { key: 'Delete' });
+    expect(screen.queryAllByTestId('web-markup-shape')).toHaveLength(0);
+    // Markup is shapes on the step, never baked into the file.
+    expect(storage.uploadWebTourPicture).not.toHaveBeenCalled();
+  });
+
+  it('places numbered markers in order', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderEditor(checked(withPicture(tour('Biology 7'))));
+      await openTool('Mark up');
+      fireEvent.click(screen.getByRole('radio', { name: 'Number' }));
+      const surface = screen.getByRole('application', {
+        name: /Markup on the picture/,
+      });
+      sized(surface);
+      fireEvent.pointerDown(surface, {
+        clientX: 20,
+        clientY: 20,
+        pointerId: 1,
+      });
+      fireEvent.pointerDown(surface, {
+        clientX: 60,
+        clientY: 60,
+        pointerId: 2,
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(
+        savedPicture()?.markup?.map((m) => (m.kind === 'number' ? m.n : 0))
+      ).toEqual([1, 2]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retakes only the picture, keeping the target and markup', async () => {
+    ext.protocol = 3;
+    const set = checked(withPicture(tour('Biology 7')));
+    const web = set.steps[0].web;
+    if (!web?.picture) throw new Error('no picture');
+    set.steps[0] = {
+      ...set.steps[0],
+      web: {
+        ...web,
+        picture: {
+          ...web.picture,
+          markup: [{ id: 'n', kind: 'number', x: 0.5, y: 0.5, n: 1 }],
+        },
+      },
+    };
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderEditor(set);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select picture' })
+    );
+    const retake = within(
+      screen.getByRole('toolbar', { name: 'Picture tools' })
+    ).getByRole('button', { name: 'Retake' });
+    await waitFor(() => expect(retake).toBeEnabled());
+    fireEvent.click(retake);
+    expect(rec.repick).toHaveBeenCalledWith('s1');
+    await act(
+      () =>
+        rec.onRepicked?.({
+          id: 's1',
+          urlPattern: 'https://elsewhere.example/x',
+          action: 'click',
+          locator: { role: 'button', name: 'Other' },
+          picture: { dataUrl: 'data:image/jpeg;base64,AAAA', w: 50, h: 40 },
+        }) ?? Promise.resolve()
+    );
+    const saved = lastSaved()?.steps[0].web;
+    expect(saved?.locator).toEqual({ role: 'link', name: 'Biology 7' });
+    expect(saved?.urlPattern).toBe(
+      'https://orono.schoology.com/course/*/materials'
+    );
+    expect(saved?.picture?.w).toBe(50);
+    expect(saved?.picture?.markup).toHaveLength(1);
+    open.mockRestore();
+  });
+
+  it('replaces the picture with an uploaded file, which has no ring place', async () => {
+    renderEditor(checked(captured(tour('Biology 7'))));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Select picture' })
+    );
+    const file = new File(['x'], 'shot.png', { type: 'image/png' });
+    fireEvent.change(screen.getByTestId('web-picture-replace-file'), {
+      target: { files: [file] },
+    });
+    await waitFor(() =>
+      expect(savedPicture()).toEqual({
+        path: 'web_tour_pictures/t1/up1.jpg',
+        w: 300,
+        h: 200,
+      })
+    );
+  });
+
+  it('reports a picture change at publish, against the published copy', async () => {
+    const published = checked(withPicture(tour('Biology 7')));
+    live.tour = { set: published, publishedAt: 5 };
+    const marked = checked(withPicture(tour('Biology 7')));
+    const web = marked.steps[0].web;
+    if (!web?.picture) throw new Error('no picture');
+    marked.steps[0] = {
+      ...marked.steps[0],
+      web: {
+        ...web,
+        picture: {
+          ...web.picture,
+          markup: [{ id: 'b', kind: 'box', x: 0.1, y: 0.1, w: 0.3, h: 0.3 }],
+        },
+      },
+    };
+    marked.webPicturesChecked = {
+      by: 'admin-1',
+      at: 1,
+      sig: picturesSignature(published),
+    };
+    renderEditor(marked);
+    fireEvent.click(main());
+    expect(
+      await screen.findByTestId('publish-check-changed')
+    ).toHaveTextContent("Step 1's picture changed since the last publish.");
+  });
+});
+
+describe('WebTourEditor conditions (E6)', () => {
+  it('edits showWhen and doneWhen under More, and a condition expires the check', () => {
+    renderEditor(checked(tour('Biology 7')));
+    expect(main()).toHaveAttribute('data-state', 'publish');
+    openMore();
+    fireEvent.change(screen.getByLabelText('Show only when'), {
+      target: { value: 'target' },
+    });
+    expect(main()).toHaveAttribute('data-state', 'check');
+    expect(screen.getByText('Only if it appears')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Move on when'), {
+      target: { value: 'url' },
+    });
+    expect(screen.getByLabelText('Page address')).toHaveValue(
+      'https://orono.schoology.com/course/*/materials'
+    );
+  });
+
+  it('flags a page condition that can never hold', () => {
+    renderEditor(checked(tour('Biology 7')));
+    openMore();
+    fireEvent.change(screen.getByLabelText('Show only when'), {
+      target: { value: 'url' },
+    });
+    fireEvent.change(screen.getByLabelText('Page address'), {
+      target: { value: 'https://other.example/*' },
+    });
+    expect(
+      screen.getByText('Never plays: the address is on another site')
     ).toBeInTheDocument();
   });
 });
