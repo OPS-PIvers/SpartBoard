@@ -1,4 +1,5 @@
 import type { FlashcardCard } from '@/types';
+import { stableStringify } from '@/utils/stableStringify';
 
 /** Mirrors isSpeakableCard in functions/src/flashcardCheck.ts. */
 const speakable = (card: FlashcardCard): boolean =>
@@ -7,7 +8,7 @@ const speakable = (card: FlashcardCard): boolean =>
   );
 
 const sameCard = (a: FlashcardCard, b: FlashcardCard): boolean =>
-  JSON.stringify(a) === JSON.stringify(b);
+  stableStringify(a) === stableStringify(b);
 
 /** A Check's cards with the set's fixes applied: same ids and order, null when nothing changed. */
 export const fixedCheckCards = (

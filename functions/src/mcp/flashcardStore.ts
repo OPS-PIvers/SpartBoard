@@ -285,6 +285,18 @@ export async function rewriteOpenStudySessions(
   return snapshot.size;
 }
 
+// Firestore echoes map keys alphabetized, so compare with sorted keys.
+const sortedJson = (value: unknown): string =>
+  JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0
+          )
+        )
+      : v
+  );
+
 const cardSpeakable = (card: FlashcardCard): boolean => {
   const refs = (card.speak as { refs?: unknown } | undefined)?.refs;
   return (
@@ -314,7 +326,7 @@ export function fixedCheckCards(
       if (fixed.term !== old.term) return old;
       card = old.speak ? { ...text, speak: old.speak } : text;
     }
-    if (JSON.stringify(card) === JSON.stringify(old)) return old;
+    if (sortedJson(card) === sortedJson(old)) return old;
     changed = true;
     return card;
   });

@@ -370,6 +370,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     try {
       const rewritten = await flashcardSets.saveSet(set, {
         syncStudy: final || flashcardSetIncompleteReason(set) === null,
+        // Checks are graded, so they take only the finished edit.
+        syncChecks: final,
       });
       if (final && rewritten > 0) {
         const noun = syncsChecks ? 'assignment' : 'Study assignment';

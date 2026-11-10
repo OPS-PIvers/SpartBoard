@@ -105,7 +105,13 @@ const buildQuestions = (
     enabled.length > 0 ? enabled : ['fib'];
   const count =
     testCount === 'all' ? cards.length : Math.min(testCount, cards.length);
-  const selected = stableShuffle(cards, `${seed}:cards`).slice(0, count);
+  // Ordered by id, so a live fix to a card's text never moves it or changes its question type.
+  const selected = stableShuffle(
+    cards.map((card) => card.id),
+    `${seed}:cards`
+  )
+    .slice(0, count)
+    .flatMap((id) => cards.filter((card) => card.id === id).slice(0, 1));
   return selected.map((card, index) => {
     const type = usableTypes[index % usableTypes.length] ?? 'fib';
     const answer = getFlashcardSides(card, showFirst).answer;
@@ -272,6 +278,13 @@ export const TestMode: React.FC<TestModeProps> = ({
       })
     );
   });
+  // A choice that a live card fix took off the list counts as unanswered.
+  const responseFor = (question: TestQuestion): string => {
+    const response = answers[question.id] ?? '';
+    return question.type === 'mc' && !question.options.includes(response)
+      ? ''
+      : response;
+  };
   const answer = (question: TestQuestion, response: string): void => {
     setAnswers((current) => ({ ...current, [question.id]: response }));
     check?.onAnswer?.(question.card.id, response);
@@ -287,10 +300,10 @@ export const TestMode: React.FC<TestModeProps> = ({
     [answerLanguage, cards, showFirst]
   );
   const allAnswered = questions.every(
-    (question) => (answers[question.id] ?? '').trim().length > 0
+    (question) => responseFor(question).trim().length > 0
   );
   const answeredList = questions.map(
-    (question) => (answers[question.id] ?? '').trim().length > 0
+    (question) => responseFor(question).trim().length > 0
   );
   // Tracked by id so a live card edit that reorders questions keeps the student's place.
   const currentIndex = Math.max(
@@ -309,7 +322,7 @@ export const TestMode: React.FC<TestModeProps> = ({
     if (!allAnswered || check?.submitting) return;
     const nextResults = questions.map((question) => {
       const sides = getFlashcardSides(question.card, showFirst);
-      const response = answers[question.id] ?? '';
+      const response = responseFor(question);
       if (question.type === 'mc') {
         return {
           cardId: question.card.id,
@@ -342,7 +355,7 @@ export const TestMode: React.FC<TestModeProps> = ({
         questions.map((question) => ({
           cardId: question.card.id,
           type: question.type,
-          response: answers[question.id] ?? '',
+          response: responseFor(question),
         }))
       );
       return;
@@ -575,7 +588,7 @@ export const TestMode: React.FC<TestModeProps> = ({
               {t('flashcards.modes.test')}
             </span>
             {questions.map((question, index) => {
-              const answered = Boolean(answers[question.id]?.trim());
+              const answered = Boolean(responseFor(question).trim());
               return (
                 <button // no-tour-anchor: student test player
                   key={question.id}
@@ -685,7 +698,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                 ) : (
                   <FibAnswer
                     question={question}
-                    value={answers[question.id] ?? ''}
+                    value={responseFor(question)}
                     characters={characters}
                     dark={dark}
                     disabled={false}

@@ -425,4 +425,14 @@ describe('rewriteOpenCheckSessions', () => {
       )
     ).toBeNull();
   });
+
+  it('treats alphabetized keys as the same card', () => {
+    expect(
+      fixedCheckCards(
+        [{ definition: 'cat', id: 'a', term: 'gato' }],
+        [card('a', 'gato', 'cat')],
+        false
+      )
+    ).toBeNull();
+  });
 });

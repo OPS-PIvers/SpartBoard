@@ -200,4 +200,36 @@ describe('useFlashcardSets open Check sync', () => {
     ).toEqual({ title: 'Animales' });
     expect(rescore).not.toHaveBeenCalled();
   });
+
+  it('skips Checks on an autosave', async () => {
+    sessionsByKind([], [staleCheck]);
+    const { result } = renderHook(() => useFlashcardSets('t1'), {
+      wrapper: wrapper(['flashcards-check-sync']),
+    });
+    await act(async () => {
+      await result.current.saveSet(fixedSet, { syncChecks: false });
+    });
+    expect(ops.some((op) => String(op.ref).includes('check-'))).toBe(false);
+    expect(rescore).not.toHaveBeenCalled();
+  });
+
+  it('treats a Firestore-echoed card with alphabetized keys as unchanged', async () => {
+    sessionsByKind(
+      [],
+      [
+        {
+          title: 'Animales',
+          cards: [{ definition: 'cat', id: 'a', term: 'gato' }],
+        },
+      ]
+    );
+    const { result } = renderHook(() => useFlashcardSets('t1'), {
+      wrapper: wrapper(['flashcards-check-sync']),
+    });
+    let rewritten = -1;
+    await act(async () => {
+      rewritten = await result.current.saveSet(fixedSet);
+    });
+    expect(rewritten).toBe(0);
+  });
 });

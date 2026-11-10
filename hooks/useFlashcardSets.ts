@@ -61,10 +61,10 @@ interface UseFlashcardSetsResult {
   loading: boolean;
   error: string | null;
   /** Resolves with the number of open assignments rewritten with the new cards. */
-  /** `syncStudy: false` skips refreshing open Study assignments and the share link (editor autosave). */
+  /** `syncStudy: false` skips open Study assignments and the share link; `syncChecks: false` skips open Checks (editor autosave). */
   saveSet: (
     set: FlashcardSet,
-    options?: { syncStudy?: boolean }
+    options?: { syncStudy?: boolean; syncChecks?: boolean }
   ) => Promise<number>;
   deleteSet: (setId: string) => Promise<void>;
   publishSet: (set: FlashcardSet) => Promise<string>;
@@ -350,7 +350,8 @@ export function useFlashcardSets(
   const writeSet = useCallback(
     async (
       set: FlashcardSet,
-      syncStudy = true
+      syncStudy = true,
+      checksToo = true
     ): Promise<{ saved: FlashcardSet; rewritten: number }> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
       const normalized = fitSpeakToDoc(
@@ -379,7 +380,7 @@ export function useFlashcardSets(
             userId,
             normalized,
             adminConfig,
-            syncChecks
+            syncChecks && checksToo
           ),
         };
       } catch (syncError) {
@@ -437,13 +438,17 @@ export function useFlashcardSets(
   );
 
   const saveSet = useCallback(
-    (set: FlashcardSet, options?: { syncStudy?: boolean }): Promise<number> =>
+    (
+      set: FlashcardSet,
+      options?: { syncStudy?: boolean; syncChecks?: boolean }
+    ): Promise<number> =>
       oneWriteAtATime(`${userId}/${set.id}`, async () => {
         let result: { saved: FlashcardSet; rewritten: number };
         try {
           result = await writeSet(
             applyVoiceResults(set),
-            options?.syncStudy ?? true
+            options?.syncStudy ?? true,
+            options?.syncChecks ?? true
           );
         } catch (err) {
           if (err instanceof FlashcardStudySyncError && canSpeak) {
