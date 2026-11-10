@@ -575,16 +575,18 @@ export function sliceByChoice(
       .map((p) => p.left ?? 0)
       .sort((a, b) => a - b);
     const xs = row.length > 1 ? row : [box.x];
-    return xs.map((x, c) => {
+    return xs.flatMap((x, c) => {
       const x0 = Math.max(box.x, x);
       const x1 = Math.min(c + 1 < xs.length ? xs[c + 1] : 1, box.x + box.width);
-      return { x: x0, y: y0, width: x1 - x0, height: Math.max(0, y1 - y0) };
+      return x1 > x0 && y1 > y0
+        ? [{ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }]
+        : [];
     });
   });
 }
 
 /** Gives each blank choice the pictures printed beside it, or false when any choice has none (falls back to the whole question). */
-function cropEachChoice(draft: Draft): boolean {
+function cropEachChoice(draft: Draft, stemTop: number, end: number): boolean {
   const options = draft.options;
   const page = options[0]?.line.page;
   if (page === undefined) return false;
@@ -597,8 +599,13 @@ function cropEachChoice(draft: Draft): boolean {
     return false;
   }
   const firstTop = Math.min(...placed.map((p) => p.top ?? 1));
-  // Math set as a picture in the stem still needs the whole question.
-  if ((draft.inlineImage?.top ?? 1) < firstTop - 0.035) return false;
+  const choiceTop = Math.min(
+    firstTop,
+    ...options.flatMap((o) => (o.line.inlineBoxes ?? []).map((b) => b.y))
+  );
+  // Math set as a picture in the stem is kept as a picture of the stem alone.
+  const stemMath = (draft.inlineImage?.top ?? 1) < choiceTop - 0.035;
+  if (stemMath && firstTop - 0.035 - stemTop < 0.02) return false;
   const lines = [
     ...(draft.openLine ? [draft.openLine] : []),
     ...options.flatMap((o) => [o.line, ...o.wraps]),
@@ -612,18 +619,27 @@ function cropEachChoice(draft: Draft): boolean {
     candidates.push({ box });
   }
   const lefts = placed.map((p) => p.left ?? 0);
+  const cut = firstTop - 0.035;
+  // A picture that runs from the stem into the choices keeps its stem part for the question.
+  const stemPart = new Map<string, string>();
   for (const id of draft.imageIds) {
     const box = boxFromKey(id);
     if (box?.page !== page) continue;
     // A diagram above or off to the side of the choices belongs to the stem.
-    if (
-      box.y < firstTop - 0.06 ||
-      !lefts.some((x) => box.x >= x - 0.02 && box.x <= x + 0.15)
-    ) {
-      continue;
+    if (!lefts.some((x) => box.x >= x - 0.02 && box.x <= x + 0.15)) continue;
+    let lower: Box = box;
+    // Only a picture that starts level with the question's own line is part stem.
+    const openTop = draft.openLine?.top ?? 0;
+    if (box.y < firstTop - 0.06 && box.y < openTop + 0.01) {
+      if (box.y + box.height < firstTop + 0.01) continue;
+      stemPart.set(id, figureKey({ ...box, height: cut - box.y }));
+      lower = { ...box, y: cut, height: box.y + box.height - cut };
     }
-    for (const slice of sliceByChoice(box, placed)) {
-      candidates.push({ box: slice, figure: id });
+    for (const slice of sliceByChoice(lower, placed)) {
+      // The next question can share the picture, so the slice stops where it starts.
+      const height = Math.min(slice.height, end - 0.015 - slice.y);
+      if (height > 0)
+        candidates.push({ box: { ...slice, height }, figure: id });
     }
   }
   const sameRow = (a?: number, b?: number) =>
@@ -643,7 +659,8 @@ function cropEachChoice(draft: Draft): boolean {
         .map((x) => x - 0.005)
     );
     const below = placed.map((q) => q.top ?? 0).filter((t) => t > top + 0.005);
-    const bottom = below.length > 0 ? Math.min(...below) - 0.035 : top + 0.15;
+    const reach = below.length > 0 ? Math.min(...below) - 0.035 : end - 0.015;
+    const bottom = Math.min(reach, top + 0.15);
     const mine = candidates.flatMap((c, i) => {
       const { x, y } = boxCenter(c.box);
       return !taken.has(i) &&
@@ -656,9 +673,29 @@ function cropEachChoice(draft: Draft): boolean {
     });
     if (mine.length === 0) return false;
     for (const i of mine) taken.add(i);
-    const boxes = mine.map((i) => candidates[i].box);
+    // A piece of a merged picture can show the row above, the next row or the letter, so it is trimmed.
+    const above = placed.map((q) => q.top ?? 0).filter((t) => t < top - 0.005);
+    const ceiling =
+      above.length > 0
+        ? (Math.max(...above) + top) / 2
+        : stemPart.size > 0
+          ? cut
+          : 0;
+    const afterLetter = (p.left ?? 0) + 0.03;
+    const boxes = mine.flatMap((i): Box[] => {
+      const { box, figure } = candidates[i];
+      if (!figure) return [box];
+      const x0 = Math.max(box.x, afterLetter + 0.004);
+      const y0 = Math.max(box.y, ceiling);
+      const x1 = Math.min(box.x + box.width, right);
+      const y1 = Math.min(box.y + box.height, reach);
+      return x1 > x0 && y1 > y0
+        ? [{ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }]
+        : [];
+    });
+    if (boxes.length === 0) return false;
     const x0 = Math.min(...boxes.map((b) => b.x)) - 0.004;
-    const y0 = Math.min(...boxes.map((b) => b.y)) - 0.004;
+    const y0 = Math.min(top - 0.008, ...boxes.map((b) => b.y - 0.004));
     const x1 = Math.max(...boxes.map((b) => b.x + b.width)) + 0.004;
     const y1 = Math.max(...boxes.map((b) => b.y + b.height)) + 0.004;
     crops.push({
@@ -674,7 +711,24 @@ function cropEachChoice(draft: Draft): boolean {
     option.imageId = figureKey({ page, ...crops[i].box });
   });
   const used = new Set(crops.flatMap((c) => c.figures));
-  draft.imageIds = draft.imageIds.filter((id) => !used.has(id));
+  const rest = draft.imageIds.flatMap((id) =>
+    used.has(id) ? (stemPart.has(id) ? [stemPart.get(id) ?? id] : []) : [id]
+  );
+  draft.imageIds = stemMath
+    ? [
+        figureKey({
+          page,
+          x: 0.04,
+          y: stemTop,
+          width: 0.92,
+          height: cut - stemTop,
+        }),
+        ...rest.filter((id) => {
+          const box = boxFromKey(id);
+          return !box || box.y + box.height > cut;
+        }),
+      ]
+    : rest;
   return true;
 }
 
@@ -2414,7 +2468,7 @@ export function parseDocument(
       !draft.matching &&
       !ORDERING.test(stem) &&
       !SORTING.test(stem) &&
-      cropEachChoice(draft)
+      cropEachChoice(draft, start, end)
     ) {
       // The whole question stays ready in case a choice's own crop fails.
       draft.choiceFallbackId = key;
