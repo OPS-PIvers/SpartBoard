@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 141_
-_Last run: 2026-11-09_
+_Run count: 142_
+_Last run: 2026-11-10_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-10 | `nightly/unifier-log-2026-11-10` | D1/D2/D3/D4/D5 | Aligned (run 142) — light probe of `b3a45e0b..dev-paul` (76 commits, 465 files; mostly tours, paper-quiz, quiz import). Diff-scoped greps over added lines for cross-directory `'../'` imports, `<Toast`/`common/Toast`, `#2d3f89`/`#ad2122`/`#4356a0` and the hand-rolled SettingsLabel class combo found nothing. Two new `text-[10px]`/`text-[11px]` badges (`MarkupCommentList`, `WebStepCard`) match the repo's existing arbitrary-size usage (175 existing sites), not a tracked dimension; a new "No steps yet" block in `WebStepCard` is a tour surface, not a widget front face (D1 out of scope). No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-09 | `nightly/unifier-log-2026-11-09` | D1/D2/D3/D4/D5 | Aligned (run 141) — light probe of `b3a45e0b..dev-paul` (23 commits; 13 non-test client `.tsx` files plus tour-anchor, poll-code and shared-board-item plumbing). Diff-scoped greps over added lines for cross-directory `'../'` imports, `<Toast`/`common/Toast`, `#2d3f89`/`#ad2122`/`#4356a0`, hand-rolled `text-[8-11px]` and the hand-rolled SettingsLabel class combo found nothing. No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-08 | `claude/kind-johnson-m215i6` | D1/D2/D3/D4/D5 | Aligned (run 140) — light probe of `dc14180a..dev-paul` (release 2026.11.08 plus backend/state-machine fixes): only `DashboardView.tsx` and `DashboardContext.tsx` changed on the client (54 insertions); diff-scoped greps over added lines for `'../'` imports, `<Toast`/`common/Toast`, `#2d3f89`/`#ad2122`/`#4356a0` and hand-rolled `text-[8-11px]` found nothing. No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-07 | `claude/kind-johnson-cszz3k` | D3 Settings Labels (+D1/D2/D4/D5 probe) | Shipped (run 139, mechanical/a11y) — new assign-stepper pickers `WrittenAnswersStep` ("Students write answers") and `QuizAttemptsStep` ("Final score") were identical hand-rolled `role="group"` + `aria-pressed` exclusive-choice segmented blocks; extracted `StepSegmented` in `QuizStepRows.tsx` (radiogroup + roving tabindex via `handleRadioGroupKeyDown`, per-option `tourFieldAttr` anchors preserved). Same classes/visuals; `QuizAssignStepper.test` role query `button`→`radio`. `vitest related` 114 files/1311 tests green, `check:tour-anchors` green; full validate skipped (CLAUDE.md). Other probe hits left: `AccentKeys` shift and `AnswerKeyboardControls` are independent toggles, `QuizResults` out-of-order group is a label group. D1/D2/D4/D5 aligned (83 commits probed). | PR below |
