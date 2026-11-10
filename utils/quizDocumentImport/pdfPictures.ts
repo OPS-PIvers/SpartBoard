@@ -992,14 +992,19 @@ export function resolvePictureIds<Q extends { imageIds: string[] }>(
   }));
 }
 
+const CHOICES_AS_LETTERS =
+  'This question’s choices are pictures or equations the reader can’t type, so the whole question was added as a picture and the choices are named by their letters.';
+
 /** Swaps each picture choice's key for its image id; a choice whose picture didn't crop goes back to its letter. */
 export function resolveChoicePictures(
-  q: ExtractedQuestion,
+  question: ExtractedQuestion,
   idByBox: ReadonlyMap<string, string>
 ): ExtractedQuestion {
+  const { choiceFallbackId, ...q } = question;
   if (!q.options.some((o) => o.imageId)) return q;
   const lost = q.options.some((o) => o.imageId && !idByBox.has(o.imageId));
   const letterOf = new Map(q.options.map((o) => [o.text, o.letter]));
+  const whole = choiceFallbackId ? idByBox.get(choiceFallbackId) : undefined;
   return {
     ...q,
     ...(lost
@@ -1008,6 +1013,8 @@ export function resolveChoicePictures(
             .split('|')
             .map((part) => letterOf.get(part) ?? part)
             .join('|'),
+          imageIds: whole ? [...q.imageIds, whole] : q.imageIds,
+          warnings: [...q.warnings, CHOICES_AS_LETTERS],
         }
       : {}),
     options: q.options.map(({ imageId, ...o }) => {
@@ -1037,9 +1044,10 @@ export async function attachPdfPictures(
 }> {
   // A picture of a whole question is boxed by the parser, so only its key says where it is.
   const known = new Set(pictures.map((box) => figureKey(box)));
-  const choiceKeys = questions.map((q) =>
-    q.options.flatMap((o) => (o.imageId ? [o.imageId] : []))
-  );
+  const choiceKeys = questions.map((q) => [
+    ...q.options.flatMap((o) => (o.imageId ? [o.imageId] : [])),
+    ...(q.choiceFallbackId ? [q.choiceFallbackId] : []),
+  ]);
   const wholeQuestions = questions
     .flatMap((q, i) => [...q.imageIds, ...choiceKeys[i]])
     .filter((id) => !known.has(id))

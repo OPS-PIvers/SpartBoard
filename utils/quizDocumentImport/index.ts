@@ -21,7 +21,7 @@ import {
 import { readCartridge } from './cartridgeReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
 import type { PdfCropperDeps } from './pdfFigures';
-import { attachPdfPictures } from './pdfPictures';
+import { attachPdfPictures, resolveChoicePictures } from './pdfPictures';
 import {
   MAX_DOCUMENT_PAGES,
   MAX_VERSIONED_DOCUMENT_PAGES,
@@ -409,7 +409,7 @@ export async function readQuizDocument(
     );
     return {
       title: titleFromFileName(fileName),
-      questions,
+      questions: questions.map((q) => resolveChoicePictures(q, new Map())),
       images: [],
       ...withTexts,
       warnings,

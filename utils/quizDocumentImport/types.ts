@@ -171,6 +171,8 @@ export interface ExtractedQuestion {
   correctAnswer: string;
   /** Pictures this question uses, by `ExtractedImage.id`. */
   imageIds: string[];
+  /** PDFs: the whole-question picture kept until its picture choices are cropped. */
+  choiceFallbackId?: string;
   /** Row notes for the review table; never fatal. */
   warnings: string[];
   /** The ExamView section kind that decides how a key applies (QUIZ_EXAMVIEW_IMPORT E5). */

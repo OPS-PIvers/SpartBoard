@@ -74,6 +74,28 @@ describe('choices printed only as pictures', () => {
     expect(xs[1]).toBeCloseTo(0.546, 2);
   });
 
+  it('leaves an ordering question as one picture', () => {
+    const lines = stacked();
+    lines[0] = line('1. Put the pictures in the correct order.', 0.1, 0.05);
+    const [q] = parseDocument(lines, { answerPictures: true }).questions;
+    expect(q.options.every((o) => !o.imageId)).toBe(true);
+  });
+
+  it('keeps a diagram printed beside the choices with the stem', () => {
+    const lines = stacked().map((l) => ({
+      ...l,
+      inlineBoxes: undefined,
+      inlineImage: undefined,
+    }));
+    lines[0] = {
+      ...lines[0],
+      imageIds: ['1:500:120:400:220'],
+    };
+    const [q] = parseDocument(lines, { answerPictures: true }).questions;
+    expect(q.options.every((o) => !o.imageId)).toBe(true);
+    expect(q.imageIds).toHaveLength(1);
+  });
+
   it('keeps the whole-question picture when the flag is off', () => {
     const [q] = parseDocument(stacked()).questions;
     expect(q.imageIds).toHaveLength(1);
@@ -94,9 +116,13 @@ describe('choices printed only as pictures', () => {
     const ids = new Map(
       q.options.slice(0, 3).map((o, i) => [o.imageId ?? '', `img-${i}`])
     );
+    ids.set(q.choiceFallbackId ?? '', 'whole');
     const back = resolveChoicePictures(keyed, ids);
     expect(back.options.map((o) => o.text)).toEqual(['A', 'B', 'C', 'D']);
     expect(back.correctAnswer).toBe('B');
+    expect(back.imageIds).toEqual(['whole']);
+    expect(back.warnings.join(' ')).toContain('named by their letters');
+    expect(back.choiceFallbackId).toBeUndefined();
   });
 
   it('saves each picture as its choice’s image after upload', async () => {

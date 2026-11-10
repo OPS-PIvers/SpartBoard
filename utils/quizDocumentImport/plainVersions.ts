@@ -363,7 +363,8 @@ export function splitPlainVersions(
   const versions = versionSections.map((s, i): MappedVersion => {
     const own = withoutHeading(linesOf(s.pages), s.printed ?? s.label);
     const lines = [...own, ...linesOf(keyPages.get(i) ?? [])];
-    const parsed = parseDocument(lines, reader);
+    // Versions match choices by text, so picture choices stay whole-question pictures here.
+    const parsed = parseDocument(lines, { ...reader, answerPictures: false });
     const sharedText = new Map(parsed.texts.map((t) => [t.id, t.text]));
     // A version carries no shared passages, so each question keeps its own copy.
     let questions: ExtractedQuestion[] = parsed.questions.map((q) => {

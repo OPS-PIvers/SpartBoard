@@ -596,8 +596,8 @@ function cropEachChoice(draft: Draft): boolean {
   if (placed.some((p) => p.top === undefined || p.option.line.page !== page)) {
     return false;
   }
-  // Math set as a picture in the stem still needs the whole question.
   const firstTop = Math.min(...placed.map((p) => p.top ?? 1));
+  // Math set as a picture in the stem still needs the whole question.
   if ((draft.inlineImage?.top ?? 1) < firstTop - 0.035) return false;
   const lines = [
     ...(draft.openLine ? [draft.openLine] : []),
@@ -611,9 +611,17 @@ function cropEachChoice(draft: Draft): boolean {
     seen.add(key);
     candidates.push({ box });
   }
+  const lefts = placed.map((p) => p.left ?? 0);
   for (const id of draft.imageIds) {
     const box = boxFromKey(id);
     if (box?.page !== page) continue;
+    // A diagram above or off to the side of the choices belongs to the stem.
+    if (
+      box.y < firstTop - 0.06 ||
+      !lefts.some((x) => box.x >= x - 0.02 && box.x <= x + 0.15)
+    ) {
+      continue;
+    }
     for (const slice of sliceByChoice(box, placed)) {
       candidates.push({ box: slice, figure: id });
     }
@@ -746,6 +754,8 @@ interface Draft {
   table?: { at: number; rows: string[] };
   /** Row notes about this question's pictures. */
   pictureNotes?: string[];
+  /** The whole-question picture to use if a picture choice fails to crop. */
+  choiceFallbackId?: string;
   /** "Read paragraph 8." copied into this stem from a shared lead-in. */
   instruction?: string;
   /** The instruction is the section's directions, which a real section takes back (E16). */
@@ -1006,6 +1016,9 @@ function finish(
     options,
     correctAnswer,
     imageIds: [...new Set(draft.imageIds)],
+    ...(draft.choiceFallbackId
+      ? { choiceFallbackId: draft.choiceFallbackId }
+      : {}),
     warnings,
     ...(draft.target ? { suggestedTarget: draft.target } : {}),
     ...(draft.sharedTextId ? { sharedTextId: draft.sharedTextId } : {}),
@@ -2350,9 +2363,6 @@ export function parseDocument(
     const top = open?.top;
     const blankChoices =
       draft.options.length >= 2 && draft.options.every((o) => !o.text.trim());
-    if (blankChoices && options.answerPictures && cropEachChoice(draft)) {
-      return;
-    }
     if (
       !open ||
       open.page === undefined ||
@@ -2397,6 +2407,19 @@ export function parseDocument(
       width: 0.92,
       height: Math.min(end - start, 0.7),
     });
+    const stem = tidy(draft.textParts.join(' '));
+    if (
+      blankChoices &&
+      options.answerPictures &&
+      !draft.matching &&
+      !ORDERING.test(stem) &&
+      !SORTING.test(stem) &&
+      cropEachChoice(draft)
+    ) {
+      // The whole question stays ready in case a choice's own crop fails.
+      draft.choiceFallbackId = key;
+      return;
+    }
     draft.imageIds = [key];
     for (const option of draft.options) {
       if (!option.text.trim()) option.text = option.letter;
