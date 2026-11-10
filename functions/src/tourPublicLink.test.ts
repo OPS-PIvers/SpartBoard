@@ -6,7 +6,9 @@ const fake = vi.hoisted(() => ({
   links: new Map<string, Record<string, unknown>>(),
   tours: new Map<string, Record<string, unknown>>(),
   admins: new Set<string>(),
-  files: new Map<string, Uint8Array>(),
+  files: new Map<string, { bytes: Uint8Array; generation: string }>(),
+  reads: [] as string[],
+  updates: [] as { path: string; patch: Record<string, unknown> }[],
 }));
 
 vi.mock('./firebaseAdmin', () => {
@@ -16,10 +18,12 @@ vi.mock('./firebaseAdmin', () => {
     data: () => data,
     get: (k: string) => data?.[k],
   });
+  const LINKS = 'admin_settings/tour_public_links/tours';
   const linkCol = {
     where: (_f: string, _op: string, token: string) => ({
       limit: () => ({
         get: async () => {
+          fake.reads.push(`${LINKS}?token`);
           const docs = [...fake.links.entries()]
             .filter(([, d]) => d.token === token)
             .map(([id, d]) => docSnap(d, id));
@@ -28,8 +32,12 @@ vi.mock('./firebaseAdmin', () => {
       }),
     }),
     doc: (id: string) => ({
-      get: async () => docSnap(fake.links.get(id), id),
+      get: async () => {
+        fake.reads.push(`${LINKS}/${id}`);
+        return docSnap(fake.links.get(id), id);
+      },
       update: async (patch: Record<string, unknown>) => {
+        fake.updates.push({ path: `${LINKS}/${id}`, patch });
         const d = fake.links.get(id);
         if (!d) throw new Error('missing');
         fake.links.set(id, { ...d, ...patch });
@@ -37,11 +45,17 @@ vi.mock('./firebaseAdmin', () => {
     }),
   };
   const db = {
-    doc: () => ({ collection: () => linkCol }),
+    doc: (path: string) => ({
+      collection: (name: string) => {
+        if (`${path}/${name}` !== LINKS) throw new Error(`unexpected ${path}`);
+        return linkCol;
+      },
+    }),
     collection: (name: string) => ({
       doc: (id: string) => ({
-        get: async () =>
-          docSnap(
+        get: async () => {
+          fake.reads.push(`${name}/${id}`);
+          return docSnap(
             name === 'admins'
               ? fake.admins.has(id)
                 ? {}
@@ -50,7 +64,8 @@ vi.mock('./firebaseAdmin', () => {
                 ? undefined
                 : fake.tours.get(id),
             id
-          ),
+          );
+        },
       }),
     }),
   };
@@ -61,16 +76,22 @@ vi.mock('./firebaseAdmin', () => {
     storage: () => ({
       bucket: () => ({
         name: 'spartboard.appspot.com',
-        file: (path: string) => ({
-          getMetadata: async () => [
-            { size: fake.files.get(path)?.length ?? 0 },
-          ],
-          download: async () => {
+        // A pinned generation that is no longer live is gone, as without object versioning.
+        file: (path: string, opts?: { generation?: string }) => {
+          const live = () => {
             const f = fake.files.get(path);
-            if (!f) throw new Error('no file');
-            return [Buffer.from(f)];
-          },
-        }),
+            if (!f || (opts?.generation && opts.generation !== f.generation))
+              throw Object.assign(new Error('No such object'), { code: 404 });
+            return f;
+          };
+          return {
+            getMetadata: async () => {
+              const f = live();
+              return [{ size: f.bytes.length, generation: f.generation }];
+            },
+            download: async () => [Buffer.from(live().bytes)],
+          };
+        },
       }),
     }),
   };
@@ -94,9 +115,11 @@ import {
   OK_CACHE,
   RATE_PER_CLIENT,
   __resetRateLimitForTests,
+  clientKey,
   guardPublicLink,
   handlePublicRequest,
   rateLimited,
+  tourPublicLinkGuard,
   tourPublicStepsV1,
   type PublicLinkDeps,
 } from './tourPublicLink';
@@ -198,6 +221,8 @@ const liveSet = (url = liveUrl(LIVE_PATH)) => ({
   ],
 });
 
+const WEB_PATH = `web_tour_pictures/${SET}/a.png`;
+
 const record = (
   set: unknown,
   over: Partial<PublicLinkRecord> = {}
@@ -207,6 +232,7 @@ const record = (
   kind: 'web',
   confirmedBy: 'admin@example.com',
   confirmedAt: 1,
+  pictures: { [WEB_PATH]: '1', [LIVE_PATH]: '1' },
   ...over,
 });
 
@@ -218,9 +244,11 @@ const deps = (
   findLink: async (t) =>
     rec && t === rec.token ? { setId: SET, record: rec } : null,
   loadPublished: async () => published,
-  confirmerAllowed: async () => true,
+  isAdmin: async () => true,
+  flagOn: async () => true,
   latchOff: vi.fn(async () => undefined),
   bucket: BUCKET,
+  pictureGeneration: async () => '1',
   readPicture: async () => PNG,
   ...over,
 });
@@ -237,11 +265,36 @@ describe('handlePublicRequest refusals', () => {
       TOKEN,
       deps(set, { ...ok, off: { reason: 'pictures', at: 2 } }),
     ],
+    ['flag off', TOKEN, deps(set, ok, { flagOn: async () => false })],
     [
-      'flag off or confirmer no longer admin',
+      'confirmer no longer an admin',
       TOKEN,
-      deps(set, ok, { confirmerAllowed: async () => false }),
+      deps(set, ok, { isAdmin: async () => false }),
     ],
+    [
+      'picture overwritten in place',
+      TOKEN,
+      deps(set, ok, { pictureGeneration: async () => '2' }),
+    ],
+    [
+      'picture overwritten in place, picture request',
+      TOKEN,
+      deps(set, ok, { pictureGeneration: async () => '2' }),
+      's1',
+    ],
+    [
+      'picture deleted',
+      TOKEN,
+      deps(set, ok, { pictureGeneration: async () => null }),
+    ],
+    [
+      'Storage error while checking',
+      TOKEN,
+      deps(set, ok, {
+        pictureGeneration: () => Promise.reject(new Error('503')),
+      }),
+    ],
+    ['picture never confirmed', TOKEN, deps(set, { ...ok, pictures: {} })],
     ['unpublished', TOKEN, deps(null, ok)],
     ['kind changed', TOKEN, deps(set, { ...ok, kind: 'live' })],
     [
@@ -282,6 +335,51 @@ describe('handlePublicRequest refusals', () => {
     const d = deps(webSet({ path: `web_tour_pictures/${SET}/b.png` }), ok);
     await handlePublicRequest({ t: TOKEN }, d);
     expect(d.latchOff).toHaveBeenCalledWith(SET, 'pictures');
+  });
+
+  it('says why when the confirming admin is no longer an admin, and only then', async () => {
+    const gone = deps(set, ok, { isAdmin: async () => false });
+    await handlePublicRequest({ t: TOKEN }, gone);
+    expect(gone.latchOff).toHaveBeenCalledWith(SET, 'confirmer');
+    const flagOff = deps(set, ok, { flagOn: async () => false });
+    await handlePublicRequest({ t: TOKEN }, flagOff);
+    expect(flagOff.latchOff).not.toHaveBeenCalled();
+  });
+
+  it('refuses repeated or path-like parameters before reading anything', async () => {
+    const findLink = vi.fn(async () => null);
+    for (const q of [
+      { t: [TOKEN, TOKEN] },
+      { t: TOKEN, p: ['s1', 's1'] },
+      { t: TOKEN, p: '../s1' },
+      { t: TOKEN, p: 'a/b' },
+      { t: TOKEN, p: '%2e%2e' },
+      { t: `${TOKEN}/x` },
+    ])
+      expect(await handlePublicRequest(q, deps(set, ok, { findLink }))).toEqual(
+        {
+          status: 404,
+        }
+      );
+    expect(findLink).not.toHaveBeenCalled();
+  });
+
+  it('does not switch the link off over a Storage error', async () => {
+    const d = deps(set, ok, {
+      pictureGeneration: () => Promise.reject(new Error('503')),
+    });
+    await handlePublicRequest({ t: TOKEN }, d).catch(() => null);
+    expect(d.latchOff).not.toHaveBeenCalled();
+  });
+
+  it('checks only the asked-for picture on a picture request', async () => {
+    const pictureGeneration = vi.fn(async () => '1');
+    await handlePublicRequest(
+      { t: TOKEN, p: 's1' },
+      deps(set, ok, { pictureGeneration })
+    );
+    expect(pictureGeneration).toHaveBeenCalledTimes(1);
+    expect(pictureGeneration).toHaveBeenCalledWith(WEB_PATH);
   });
 
   it('serves after a text-only republish', async () => {
@@ -389,7 +487,7 @@ describe('the public response', () => {
       status: 200,
       picture: { bytes: PNG, mime: 'image/png' },
     });
-    expect(read).toHaveBeenCalledWith(LIVE_PATH);
+    expect(read).toHaveBeenCalledWith(LIVE_PATH, '1');
   });
 
   it('never reads a web picture outside the tour folder, or the kept whole screen', async () => {
@@ -474,6 +572,15 @@ describe('guardPublicLink after a publish', () => {
   });
 });
 
+describe('clientKey', () => {
+  it('uses the hop the platform appends, not what the caller sent first', () => {
+    expect(clientKey('6.6.6.6, 1.2.3.4', '10.0.0.1')).toBe('1.2.3.4');
+    expect(clientKey('1.2.3.4', '10.0.0.1')).toBe('1.2.3.4');
+    expect(clientKey(undefined, '10.0.0.1')).toBe('10.0.0.1');
+    expect(clientKey(' , ', undefined)).toBe('unknown');
+  });
+});
+
 describe('rateLimited', () => {
   beforeEach(() => __resetRateLimitForTests());
   it('limits one client per minute and frees it after the window', () => {
@@ -525,12 +632,101 @@ describe('tourPublicStepsV1', () => {
     fake.tours.clear();
     fake.admins.clear();
     fake.files.clear();
+    fake.reads.length = 0;
+    fake.updates.length = 0;
     vi.mocked(isGlobalFeatureGranted).mockResolvedValue(true);
     const set = webSet();
     fake.tours.set(SET, { set, surface: 'web', publishedBy: 'author-uid' });
     fake.links.set(SET, { ...record(set) });
     fake.admins.add('admin@example.com');
-    fake.files.set(`web_tour_pictures/${SET}/a.png`, PNG);
+    fake.files.set(WEB_PATH, { bytes: PNG, generation: '1' });
+  });
+
+  const overwrite = (path: string) =>
+    fake.files.set(path, {
+      bytes: new Uint8Array([...PNG, 1]),
+      generation: '2',
+    });
+
+  it.each([
+    ['tour', {}],
+    ['picture', { p: 's1' }],
+  ])(
+    'refuses a web picture overwritten in place (%s request) and latches the link off',
+    async (_kind, extra) => {
+      overwrite(WEB_PATH);
+      const res = await call({ t: TOKEN, ...extra });
+      expect(res.statusCode).toBe(404);
+      expect(fake.links.get(SET)?.off).toMatchObject({ reason: 'pictures' });
+    }
+  );
+
+  it.each([
+    ['tour', {}],
+    ['picture', { p: 'l1' }],
+  ])(
+    'refuses a Live thumbnail overwritten in place (%s request) and latches the link off',
+    async (_kind, extra) => {
+      const set = liveSet();
+      fake.tours.set(SET, { set });
+      fake.links.set(SET, { ...record(set, { kind: 'live' }) });
+      fake.files.set(LIVE_PATH, { bytes: PNG, generation: '1' });
+      expect((await call({ t: TOKEN })).statusCode).toBe(200);
+      // Same path and the same download URL in the published copy; only the bytes changed.
+      overwrite(LIVE_PATH);
+      const res = await call({ t: TOKEN, ...extra });
+      expect(res.statusCode).toBe(404);
+      expect(fake.links.get(SET)?.off).toMatchObject({ reason: 'pictures' });
+    }
+  );
+
+  it("serves a Live tour without the author's uid, the Storage path or a download token", async () => {
+    const set = liveSet();
+    fake.tours.set(SET, { set, publishedBy: 'author' });
+    fake.links.set(SET, { ...record(set, { kind: 'live' }) });
+    fake.files.set(LIVE_PATH, { bytes: PNG, generation: '1' });
+    const tour = await call({ t: TOKEN });
+    const pic = await call({ t: TOKEN, p: 'l1' });
+    expect(pic.statusCode).toBe(200);
+    const exposed = [
+      JSON.stringify(tour.body),
+      JSON.stringify(tour.headers),
+      JSON.stringify(pic.headers),
+    ].join('\n');
+    for (const leak of [
+      'author',
+      'users/',
+      'hotspot_images',
+      'token=',
+      'secret-token',
+      'firebasestorage',
+    ])
+      expect(exposed).not.toContain(leak);
+    expect(Object.keys(pic.headers).sort()).toEqual([
+      'Cache-Control',
+      'Content-Type',
+      'Referrer-Policy',
+      'X-Content-Type-Options',
+    ]);
+  });
+
+  it('refuses a link whose tour id is not in the tours collection, the same way', async () => {
+    fake.links.set('no-such-tour', {
+      ...record(webSet()),
+      token: 'a'.repeat(32),
+    });
+    const res = await call({ t: 'a'.repeat(32) });
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: 'not-found' });
+    expect(res.headers['Cache-Control']).toBe(NOT_FOUND_CACHE);
+  });
+
+  it('records why when the confirming admin was removed, behind the same not-found', async () => {
+    fake.admins.clear();
+    const res = await call({ t: TOKEN });
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: 'not-found' });
+    expect(fake.links.get(SET)?.off).toMatchObject({ reason: 'confirmer' });
   });
 
   it('serves the tour briefly cacheable by the browser only, with no CORS header', async () => {
@@ -588,5 +784,48 @@ describe('tourPublicStepsV1', () => {
 
   it('refuses anything but GET', async () => {
     expect((await call({ t: TOKEN }, 'POST')).statusCode).toBe(405);
+  });
+});
+
+type Trigger = (event: { params: { setId: string } }) => Promise<void>;
+
+describe('tourPublicLinkGuard', () => {
+  beforeEach(() => {
+    fake.links.clear();
+    fake.tours.clear();
+    fake.reads.length = 0;
+    fake.updates.length = 0;
+  });
+
+  it('costs one read for a tour with no public link, and writes nothing', async () => {
+    fake.tours.set(SET, { set: webSet() });
+    await (tourPublicLinkGuard as unknown as Trigger)({
+      params: { setId: SET },
+    });
+    expect(fake.reads).toEqual([
+      `admin_settings/tour_public_links/tours/${SET}`,
+    ]);
+    expect(fake.updates).toEqual([]);
+  });
+
+  it('writes only under admin_settings, so it never triggers itself', async () => {
+    fake.tours.set(SET, {
+      set: webSet({ path: `web_tour_pictures/${SET}/new.png` }),
+    });
+    fake.links.set(SET, { ...record(webSet()) });
+    await (tourPublicLinkGuard as unknown as Trigger)({
+      params: { setId: SET },
+    });
+    expect(fake.updates.map((u) => u.path)).toEqual([
+      `admin_settings/tour_public_links/tours/${SET}`,
+    ]);
+    expect(fake.updates[0].patch.off).toMatchObject({ reason: 'pictures' });
+  });
+
+  it('skips the collection control docs', async () => {
+    await (tourPublicLinkGuard as unknown as Trigger)({
+      params: { setId: '_meta' },
+    });
+    expect(fake.reads).toEqual([]);
   });
 });

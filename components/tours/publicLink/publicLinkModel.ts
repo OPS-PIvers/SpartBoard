@@ -15,6 +15,7 @@ export const PUBLIC_TOUR_PATH = '/tour-steps/';
 export const PUBLIC_TOUR_API = '/api/tour-steps';
 
 export type PublicTourKind = 'web' | 'live';
+export type PublicLinkOffReason = 'pictures' | 'unpublished' | 'confirmer';
 
 /** The admin-only record that makes one tour public; only admins can write it (admin_settings rule). */
 export interface PublicLinkRecord {
@@ -24,7 +25,9 @@ export interface PublicLinkRecord {
   kind: PublicTourKind;
   confirmedBy: string;
   confirmedAt: number;
-  off?: { reason: 'pictures' | 'unpublished'; at: number };
+  /** Each confirmed picture's Storage generation, by object path; the function serves only these bytes. */
+  pictures: Record<string, string>;
+  off?: { reason: PublicLinkOffReason; at: number };
 }
 
 export const tourKindOf = (
@@ -55,7 +58,7 @@ export type PublicLinkStatus =
   | { kind: 'off' }
   | { kind: 'on'; url: string }
   /** Switched off by a picture change (or an unpublish) since the confirm; it stays off until confirmed again. */
-  | { kind: 'paused'; reason: 'pictures' | 'unpublished' };
+  | { kind: 'paused'; reason: PublicLinkOffReason };
 
 /** The link's state against the tour as published now; a mismatch reads as paused before the server records it. */
 export function publicLinkStatus(

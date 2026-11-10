@@ -184,9 +184,11 @@ export function usePublicLinkControls({
             className="text-xs font-medium text-amber-800"
           >
             {t(
-              status.reason === 'pictures'
-                ? 'tourPublicLink.pausedPictures'
-                : 'tourPublicLink.pausedUnpublished'
+              status.reason === 'confirmer'
+                ? 'tourPublicLink.pausedConfirmer'
+                : status.reason === 'unpublished'
+                  ? 'tourPublicLink.pausedUnpublished'
+                  : 'tourPublicLink.pausedPictures'
             )}
           </p>
           {publishedNow && (

@@ -1,5 +1,6 @@
 import { deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { getBytes, getMetadata, ref } from 'firebase/storage';
+import { db, storage } from '@/config/firebase';
 import type { GuidedLearningSet } from '@/types';
 import { logError } from '@/utils/logError';
 import {
@@ -33,6 +34,43 @@ export const publicLinkDevSeed = (): PublicLinkDevSeed | null =>
   import.meta.env.DEV && typeof window !== 'undefined'
     ? (window.__publicLinkDevSeed ?? null)
     : null;
+
+/** The largest picture the confirm reads, as the serving function does. */
+const MAX_PICTURE_BYTES = 8 * 1024 * 1024;
+
+/** A picture's bytes and the Storage object generation they belong to. */
+export interface ConfirmedPicture {
+  path: string;
+  generation: string;
+  bytes: ArrayBuffer;
+}
+
+/** Reads a picture for the confirm and the generation of exactly those bytes; null when it isn't in this project's Storage. */
+export async function readConfirmedPicture(
+  source: string
+): Promise<ConfirmedPicture | null> {
+  const seed = publicLinkDevSeed();
+  if (seed) {
+    const blob = seed.pictures?.[source];
+    return blob
+      ? { path: source, generation: '1', bytes: await blob.arrayBuffer() }
+      : null;
+  }
+  let file: ReturnType<typeof ref>;
+  try {
+    file = ref(storage, source);
+  } catch {
+    return null;
+  }
+  if (file.bucket !== storage.app.options.storageBucket) return null;
+  const before = await getMetadata(file);
+  const bytes = await getBytes(file, MAX_PICTURE_BYTES);
+  const after = await getMetadata(file);
+  // Replaced while it loaded: what was shown may not be what would be confirmed.
+  if (before.generation !== after.generation)
+    throw new Error('The picture changed while it loaded');
+  return { path: file.fullPath, generation: after.generation, bytes };
+}
 
 const linkRef = (setId: string) =>
   doc(db, PUBLIC_LINKS_DOC, PUBLIC_LINKS_SUBCOLLECTION, setId);
@@ -91,6 +129,7 @@ export async function turnOnPublicLink(
   confirmed: {
     fingerprint: string;
     kind: PublicTourKind;
+    pictures: Record<string, string>;
     email: string;
     previous: PublicLinkRecord | null;
   }
@@ -99,6 +138,7 @@ export async function turnOnPublicLink(
     token: confirmed.previous?.token ?? newPublicToken(),
     fingerprint: confirmed.fingerprint,
     kind: confirmed.kind,
+    pictures: confirmed.pictures,
     confirmedBy: confirmed.email.toLowerCase(),
     confirmedAt: Date.now(),
   };

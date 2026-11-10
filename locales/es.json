@@ -4762,6 +4762,9 @@
     "pageEyebrow": "Recorrido de SpartBoard",
     "notFoundTitle": "Este recorrido no está disponible",
     "notFoundBody": "Puede que el enlace se haya desactivado o esté mal escrito.",
-    "confirmPictureFailed": "No se pudo cargar una imagen, así que el recorrido aún no puede hacerse público."
+    "confirmPictureFailed": "No se pudo cargar una imagen, así que el recorrido aún no puede hacerse público.",
+    "pausedConfirmer": "Quien hizo público este recorrido ya no es administrador. Revísalo y vuelve a activarlo.",
+    "reviewProgress": "Desplázate para revisar los {{count}} pasos ({{seen}} de {{count}} vistos).",
+    "reviewEnd": "Fin del recorrido: {{count}} pasos."
   }
 }

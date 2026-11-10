@@ -15,6 +15,13 @@ const LIVE_PICTURE_PATH =
   /^users\/[A-Za-z0-9_-]{1,128}\/hotspot_images\/[^/]{1,300}$/;
 
 export type PublicTourKind = 'web' | 'live';
+export type PublicLinkOffReason = 'pictures' | 'unpublished' | 'confirmer';
+const OFF_REASONS: readonly PublicLinkOffReason[] = [
+  'pictures',
+  'unpublished',
+  'confirmer',
+];
+export const MAX_CONFIRMED_PICTURES = 400;
 
 export interface PublicLinkRecord {
   token: string;
@@ -22,8 +29,10 @@ export interface PublicLinkRecord {
   kind: PublicTourKind;
   confirmedBy: string;
   confirmedAt: number;
-  /** Set when a picture changed (or the tour was unpublished) after the confirm; the link stays off until confirmed again. */
-  off?: { reason: 'pictures' | 'unpublished'; at: number };
+  /** Each confirmed picture's Storage generation, by object path: the bytes the admin saw. */
+  pictures: Record<string, string>;
+  /** Why the link went off after the confirm; it stays off until confirmed again. */
+  off?: { reason: PublicLinkOffReason; at: number };
 }
 
 export interface UnitRect {
@@ -383,20 +392,21 @@ export function parseLinkRecord(v: unknown): PublicLinkRecord | null {
   )
     return null;
   const off = rec(r.off);
+  const raw = Object.entries(rec(r.pictures) ?? {});
+  if (raw.length > MAX_CONFIRMED_PICTURES) return null;
+  const pictures: Record<string, string> = {};
+  for (const [path, generation] of raw)
+    if (typeof generation === 'string' && generation)
+      pictures[path] = generation;
+  const reason = OFF_REASONS.find((r) => r === off?.reason) ?? 'pictures';
   return {
     token: str(r.token),
     fingerprint: str(r.fingerprint),
     kind,
     confirmedBy: str(r.confirmedBy).toLowerCase(),
     confirmedAt: num(r.confirmedAt) || 0,
-    ...(off
-      ? {
-          off: {
-            reason: off.reason === 'unpublished' ? 'unpublished' : 'pictures',
-            at: num(off.at) || 0,
-          },
-        }
-      : {}),
+    pictures,
+    ...(off ? { off: { reason, at: num(off.at) || 0 } } : {}),
   };
 }
 

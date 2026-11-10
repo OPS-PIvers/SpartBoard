@@ -4762,6 +4762,9 @@
     "pageEyebrow": "Visite SpartBoard",
     "notFoundTitle": "Cette visite n'est pas disponible",
     "notFoundBody": "Le lien a peut-être été désactivé ou mal saisi.",
-    "confirmPictureFailed": "Une image n'a pas pu être chargée, la visite ne peut donc pas encore devenir publique."
+    "confirmPictureFailed": "Une image n'a pas pu être chargée, la visite ne peut donc pas encore devenir publique.",
+    "pausedConfirmer": "La personne qui a rendu cette visite publique n'est plus administratrice. Vérifiez-la et réactivez le lien.",
+    "reviewProgress": "Faites défiler pour vérifier les {{count}} étapes ({{seen}} sur {{count}} vues).",
+    "reviewEnd": "Fin de la visite : {{count}} étapes."
   }
 }

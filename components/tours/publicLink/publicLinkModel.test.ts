@@ -118,6 +118,7 @@ describe('publicLinkStatus', () => {
     kind: 'web',
     confirmedBy: 'admin@x.org',
     confirmedAt: 1,
+    pictures: {},
   };
   it('is on with the public address while the pictures match', () => {
     expect(publicLinkStatus(record, base, 'https://s.app')).toEqual({

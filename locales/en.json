@@ -6090,6 +6090,9 @@
     "pageEyebrow": "SpartBoard tour",
     "notFoundTitle": "This tour isn't available",
     "notFoundBody": "The link may have been turned off, or it may be mistyped.",
-    "confirmPictureFailed": "A picture couldn't load, so the tour can't be made public yet."
+    "confirmPictureFailed": "A picture couldn't load, so the tour can't be made public yet.",
+    "pausedConfirmer": "The admin who made this public is no longer an admin. Review and turn it on again.",
+    "reviewProgress": "Scroll to review all {{count}} steps ({{seen}} of {{count}} seen).",
+    "reviewEnd": "End of the tour: {{count}} steps."
   }
 }

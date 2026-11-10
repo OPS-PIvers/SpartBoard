@@ -40,9 +40,18 @@ vi.mock('./publicLinkStore', () => ({
       kind: c.kind,
       confirmedBy: c.email,
       confirmedAt: 1,
+      pictures: {},
     };
     store.listeners.forEach((fn) => fn(store.record));
     return store.record;
+  },
+  readConfirmedPicture: async (source: string) => {
+    if (source.includes('broken')) throw new Error('gone');
+    return {
+      path: source,
+      generation: '7',
+      bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer,
+    };
   },
   turnOffPublicLink: async () => {
     store.turnOff();
@@ -57,13 +66,48 @@ vi.mock('@/components/tours/publishedTours', () => ({
     publishedBy: null,
   }),
 }));
-vi.mock('@/components/tours/webTours', async (orig) => ({
-  ...(await orig<typeof import('@/components/tours/webTours')>()),
-  loadWebTourPicture: async (path: string) => {
-    if (path.includes('broken')) throw new Error('gone');
-    return new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]).buffer;
-  },
+
+// jsdom has no layout: the test says what scrolled into view.
+const io = vi.hoisted(() => ({
+  observers: [] as {
+    cb: IntersectionObserverCallback;
+    targets: Element[];
+    root: Element | null;
+  }[],
 }));
+class FakeIntersectionObserver {
+  private entry: (typeof io.observers)[number];
+  constructor(
+    cb: IntersectionObserverCallback,
+    opts?: IntersectionObserverInit
+  ) {
+    this.entry = { cb, targets: [], root: (opts?.root as Element) ?? null };
+    io.observers.push(this.entry);
+  }
+  observe(el: Element) {
+    this.entry.targets.push(el);
+  }
+  disconnect() {
+    io.observers = io.observers.filter((o) => o !== this.entry);
+  }
+}
+const scrollIntoView = (el: Element) =>
+  act(() => {
+    for (const o of io.observers)
+      if (o.targets.includes(el))
+        o.cb(
+          [
+            {
+              target: el,
+              isIntersecting: true,
+            } as unknown as IntersectionObserverEntry,
+          ],
+          o as unknown as IntersectionObserver
+        );
+  });
+const reviewSteps = () => screen.getAllByTestId('steps-article-step');
+const reviewEnd = () => screen.getByTestId('public-link-review-end');
+const confirmReason = () => screen.getByTestId('public-link-reason-confirm');
 
 const webTour = (path = 'web_tour_pictures/w1/a.png'): GuidedLearningSet =>
   ({
@@ -143,6 +187,8 @@ beforeEach(() => {
   Object.assign(navigator, { clipboard: { writeText } });
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:pic');
   globalThis.URL.revokeObjectURL = vi.fn();
+  io.observers = [];
+  vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
 });
 
 describe('usePublicLinkControls', () => {
@@ -184,9 +230,23 @@ describe('usePublicLinkControls', () => {
       ).toHaveAttribute('src', 'blob:pic')
     );
     const confirm = screen.getByTestId('public-link-confirm');
+    const ack = screen.getByTestId('public-link-ack');
+    // Not read to the end yet: both stay off, and the reason counts the steps.
     expect(confirm).toBeDisabled();
-    expect(confirm).toHaveAttribute('title', 'Tick the box first');
-    fireEvent.click(screen.getByTestId('public-link-ack'));
+    expect(ack).toBeDisabled();
+    expect(confirmReason()).toHaveTextContent(
+      'Scroll to review all 2 steps (0 of 2 seen).'
+    );
+    scrollIntoView(reviewSteps()[0]);
+    expect(confirmReason()).toHaveTextContent('(1 of 2 seen)');
+    expect(ack).toBeDisabled();
+    scrollIntoView(reviewSteps()[1]);
+    scrollIntoView(reviewEnd());
+    expect(ack).toBeEnabled();
+    expect(confirm).toBeDisabled();
+    expect(confirmReason()).toHaveTextContent('Tick the box first');
+    expect(confirm).toHaveAttribute('aria-describedby', confirmReason().id);
+    fireEvent.click(ack);
     expect(confirm).toBeEnabled();
     await act(async () => {
       fireEvent.click(confirm);
@@ -194,6 +254,7 @@ describe('usePublicLinkControls', () => {
     expect(store.turnOn).toHaveBeenCalledWith({
       fingerprint: pictureFingerprint(webTour()),
       kind: 'web',
+      pictures: { 'web_tour_pictures/w1/a.png': '7' },
       email: 'Admin@School.org',
       previous: null,
     });
@@ -214,11 +275,51 @@ describe('usePublicLinkControls', () => {
     store.published = webTour('web_tour_pictures/w1/broken.png');
     renderWith(store.published);
     fireEvent.click(toggle());
-    await screen.findByText(
+    await screen.findAllByText(
       "A picture couldn't load, so the tour can't be made public yet."
     );
+    scrollIntoView(reviewEnd());
     fireEvent.click(screen.getByTestId('public-link-ack'));
     expect(screen.getByTestId('public-link-confirm')).toBeDisabled();
+  });
+
+  it('lets the keyboard reach the end: the scrolling review takes focus', async () => {
+    renderWith(webTour());
+    fireEvent.click(toggle());
+    await waitFor(() => expect(io.observers.length).toBe(1));
+    const scroller = io.observers[0].root as HTMLElement;
+    expect(scroller).toContainElement(screen.getByTestId('public-link-review'));
+    expect(scroller).toHaveAttribute('tabindex', '0');
+  });
+
+  it('a tour short enough to show whole is reviewed as soon as its end is in view', async () => {
+    renderWith(webTour());
+    fireEvent.click(toggle());
+    await waitFor(() => expect(io.observers.length).toBe(1));
+    scrollIntoView(reviewEnd());
+    expect(screen.getByTestId('public-link-ack')).toBeEnabled();
+  });
+
+  it('says why when the admin who made it public was removed, with Review', async () => {
+    store.record = {
+      token: 'a'.repeat(32),
+      fingerprint: pictureFingerprint(webTour()) ?? '',
+      kind: 'web',
+      confirmedBy: 'former@school.org',
+      confirmedAt: 1,
+      pictures: {},
+      off: { reason: 'confirmer', at: 2 },
+    };
+    renderWith(webTour());
+    expect(toggle()).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('public-link-paused')).toHaveTextContent(
+      'The admin who made this public is no longer an admin. Review and turn it on again.'
+    );
+    expect(screen.getByTestId('note')).toHaveTextContent(
+      'warn:Public link off'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    expect(await screen.findByTestId('public-link-review')).toBeInTheDocument();
   });
 
   it('switches off in one click, with no confirm', async () => {
@@ -228,6 +329,7 @@ describe('usePublicLinkControls', () => {
       kind: 'web',
       confirmedBy: 'a',
       confirmedAt: 1,
+      pictures: {},
     };
     renderWith(webTour());
     expect(toggle()).toHaveAttribute('aria-checked', 'true');
@@ -246,6 +348,7 @@ describe('usePublicLinkControls', () => {
       kind: 'web',
       confirmedBy: 'a',
       confirmedAt: 1,
+      pictures: {},
     };
     store.published = webTour('web_tour_pictures/w1/retaken.png');
     renderWith(store.published);

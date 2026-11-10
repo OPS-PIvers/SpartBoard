@@ -4762,6 +4762,9 @@
     "pageEyebrow": "SpartBoard-Tour",
     "notFoundTitle": "Diese Tour ist nicht verfügbar",
     "notFoundBody": "Der Link wurde vielleicht ausgeschaltet oder ist falsch geschrieben.",
-    "confirmPictureFailed": "Ein Bild konnte nicht geladen werden, deshalb kann die Tour noch nicht öffentlich werden."
+    "confirmPictureFailed": "Ein Bild konnte nicht geladen werden, deshalb kann die Tour noch nicht öffentlich werden.",
+    "pausedConfirmer": "Die Person, die diese Tour öffentlich gemacht hat, ist kein Admin mehr. Prüfe die Tour und schalte den Link wieder ein.",
+    "reviewProgress": "Scrolle durch alle {{count}} Schritte ({{seen}} von {{count}} gesehen).",
+    "reviewEnd": "Ende der Tour: {{count}} Schritte."
   }
 }

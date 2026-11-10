@@ -16,6 +16,7 @@ import {
   pictureFingerprint,
   publicTourOf,
   sniffImage,
+  type PublicLinkOffReason,
   type PublicLinkRecord,
   type PublicTour,
 } from './tourPublicLinkModel';
@@ -29,35 +30,72 @@ export interface PublicLinkDeps {
   ) => Promise<{ setId: string; record: PublicLinkRecord } | null>;
   /** The published copy's `set`, or null when the tour isn't published. */
   loadPublished: (setId: string) => Promise<unknown>;
-  /** The admin who confirmed is still an admin and the steps-view flag is on for them. */
-  confirmerAllowed: (email: string) => Promise<boolean>;
-  latchOff: (
-    setId: string,
-    reason: 'pictures' | 'unpublished'
-  ) => Promise<void>;
+  /** The confirming admin still has an /admins doc. */
+  isAdmin: (email: string) => Promise<boolean>;
+  /** The steps-view flag is on for that admin. */
+  flagOn: (email: string) => Promise<boolean>;
+  latchOff: (setId: string, reason: PublicLinkOffReason) => Promise<void>;
   bucket: string;
-  /** The file's bytes when it exists and fits the size cap; null otherwise. */
-  readPicture: (path: string) => Promise<Uint8Array | null>;
+  /** The Storage object's current generation, or null when it is gone. */
+  pictureGeneration: (path: string) => Promise<string | null>;
+  /** That exact generation's bytes when it exists and fits the size cap; null otherwise. */
+  readPicture: (path: string, generation: string) => Promise<Uint8Array | null>;
 }
 
-/** The tour behind a token when every check passes; null for every refusal, so callers can't tell them apart. */
-export async function resolvePublicTour(token: unknown, deps: PublicLinkDeps) {
+const latch = async (
+  deps: PublicLinkDeps,
+  setId: string,
+  reason: PublicLinkOffReason
+) => {
+  // A failed latch still refuses this request; the next one tries again.
+  await deps.latchOff(setId, reason).catch((err: unknown) => {
+    logger.warn('[tourPublicLink] latch failed', { err: String(err) });
+  });
+};
+
+/** The tour behind a token when every check passes; null for every refusal, so callers can't tell them apart. `only` limits the content check to one step's picture. */
+export async function resolvePublicTour(
+  token: unknown,
+  deps: PublicLinkDeps,
+  only?: string
+) {
   if (typeof token !== 'string' || !PUBLIC_TOKEN_RE.test(token)) return null;
   const link = await deps.findLink(token);
   if (!link || link.record.off) return null;
-  if (!(await deps.confirmerAllowed(link.record.confirmedBy))) return null;
-  const published = await deps.loadPublished(link.setId);
-  if (!published) return null;
-  if (kindOf(published) !== link.record.kind) return null;
-  if (pictureFingerprint(published) !== link.record.fingerprint) {
-    // The pictures are not the ones confirmed: refuse, and keep the link off even if they change back.
-    await deps.latchOff(link.setId, 'pictures').catch((err: unknown) => {
-      logger.warn('[tourPublicLink] latch failed', { err: String(err) });
-    });
+  const { setId, record } = link;
+  if (!(await deps.isAdmin(record.confirmedBy))) {
+    await latch(deps, setId, 'confirmer');
     return null;
   }
-  const served = publicTourOf(link.setId, published, deps.bucket);
-  return served ? { setId: link.setId, ...served } : null;
+  if (!(await deps.flagOn(record.confirmedBy))) return null;
+  const published = await deps.loadPublished(setId);
+  if (!published) return null;
+  if (kindOf(published) !== record.kind) return null;
+  // Not the pictures confirmed: refuse, and keep the link off even if they change back.
+  if (pictureFingerprint(published) !== record.fingerprint) {
+    await latch(deps, setId, 'pictures');
+    return null;
+  }
+  const served = publicTourOf(setId, published, deps.bucket);
+  if (!served) return null;
+  // Same path, new bytes (an overwrite or delete-and-recreate) is a new generation: refused too.
+  const paths =
+    only === undefined
+      ? [...served.sources.values()]
+      : [served.sources.get(only)].filter((p): p is string => !!p);
+  // A Storage error refuses this request without switching the link off; only a real mismatch latches.
+  const current = await Promise.all(
+    paths.map((p) => deps.pictureGeneration(p))
+  );
+  if (
+    paths.some(
+      (p, i) => !record.pictures[p] || current[i] !== record.pictures[p]
+    )
+  ) {
+    await latch(deps, setId, 'pictures');
+    return null;
+  }
+  return { setId, record, ...served };
 }
 
 export type PublicResponse =
@@ -70,14 +108,29 @@ export async function handlePublicRequest(
   query: { t?: unknown; p?: unknown },
   deps: PublicLinkDeps
 ): Promise<PublicResponse> {
-  const resolved = await resolvePublicTour(query.t, deps);
-  if (!resolved) return { status: 404 };
-  if (query.p === undefined) return { status: 200, tour: resolved.tour };
-  if (typeof query.p !== 'string' || !PUBLIC_STEP_ID_RE.test(query.p))
+  // Repeated or malformed parameters are refused before anything is read.
+  if (typeof query.t !== 'string' || !PUBLIC_TOKEN_RE.test(query.t))
     return { status: 404 };
-  const path = resolved.sources.get(query.p);
+  let stepId: string | undefined;
+  if (query.p !== undefined) {
+    if (typeof query.p !== 'string' || !PUBLIC_STEP_ID_RE.test(query.p))
+      return { status: 404 };
+    stepId = query.p;
+  }
+  const resolved = await resolvePublicTour(query.t, deps, stepId).catch(
+    (err: unknown) => {
+      logger.error('[tourPublicLink] check failed', { err: String(err) });
+      return null;
+    }
+  );
+  if (!resolved) return { status: 404 };
+  if (stepId === undefined) return { status: 200, tour: resolved.tour };
+  const path = resolved.sources.get(stepId);
   if (!path) return { status: 404 };
-  const bytes = await deps.readPicture(path).catch(() => null);
+  // Pinned to the confirmed generation, so bytes swapped in after the check above are never sent.
+  const bytes = await deps
+    .readPicture(path, resolved.record.pictures[path] ?? '')
+    .catch(() => null);
   const mime = bytes ? sniffImage(bytes) : null;
   return bytes && mime
     ? { status: 200, picture: { bytes, mime } }
@@ -109,10 +162,19 @@ export async function guardPublicLink(
 
 // Best-effort per-instance limits, as linkPreview.ts: not shared across instances, but enough to blunt scraping.
 export const RATE_WINDOW_MS = 60_000;
-export const RATE_PER_CLIENT = 240;
+export const RATE_PER_CLIENT = 600;
 export const RATE_PER_INSTANCE = 3000;
 const hits = new Map<string, number[]>();
 let instanceHits: number[] = [];
+
+/** The caller as the platform saw it: the last X-Forwarded-For hop is appended by Google's front end; earlier ones are the caller's to forge. */
+export function clientKey(forwarded: unknown, ip: unknown): string {
+  const hops = (typeof forwarded === 'string' ? forwarded : '')
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
+  return hops.at(-1) ?? (typeof ip === 'string' && ip ? ip : 'unknown');
+}
 
 export function rateLimited(client: string, now: number): boolean {
   instanceHits = instanceHits.filter((t) => now - t < RATE_WINDOW_MS);
@@ -159,9 +221,10 @@ export function defaultPublicLinkDeps(
       const snap = await db.collection(GL_TOURS_COLLECTION).doc(setId).get();
       return snap.exists ? ((snap.get('set') as unknown) ?? null) : null;
     },
-    async confirmerAllowed(email) {
-      if (!email || !(await db.collection('admins').doc(email).get()).exists)
-        return false;
+    async isAdmin(email) {
+      return !!email && (await db.collection('admins').doc(email).get()).exists;
+    },
+    async flagOn(email) {
       const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
       return isGlobalFeatureGranted(db, TOUR_STEPS_VIEW_FEATURE_ID, email, '');
     },
@@ -171,8 +234,17 @@ export function defaultPublicLinkDeps(
         .update({ off: { reason, at: Date.now() } });
     },
     bucket: bucket.name,
-    async readPicture(path) {
-      const file = bucket.file(path);
+    async pictureGeneration(path) {
+      try {
+        const [meta] = await bucket.file(path).getMetadata();
+        return meta.generation === undefined ? null : String(meta.generation);
+      } catch (err) {
+        if ((err as { code?: unknown }).code === 404) return null;
+        throw err;
+      }
+    },
+    async readPicture(path, generation) {
+      const file = bucket.file(path, { generation });
       const [meta] = await file.getMetadata();
       if (Number(meta.size ?? 0) > MAX_PUBLIC_PICTURE_BYTES) return null;
       const [data] = await file.download();
@@ -201,8 +273,9 @@ export const tourPublicStepsV1 = onRequest(
       res.set('Allow', 'GET').status(405).end();
       return;
     }
-    const forwarded = String(req.get('x-forwarded-for') ?? '').split(',')[0];
-    if (rateLimited(forwarded.trim() || req.ip || 'unknown', Date.now())) {
+    if (
+      rateLimited(clientKey(req.get('x-forwarded-for'), req.ip), Date.now())
+    ) {
       res.set('Cache-Control', NOT_FOUND_CACHE).set('Retry-After', '60');
       res.status(429).json({ error: 'busy' });
       return;

@@ -443,7 +443,14 @@ const auth = {
   canAccessFeature: () => true,
 } as unknown as AuthContextType;
 
-const PUBLIC_STATES = ['off', 'on', 'paused', 'unpublished', 'author'] as const;
+const PUBLIC_STATES = [
+  'off',
+  'on',
+  'paused',
+  'confirmer',
+  'unpublished',
+  'author',
+] as const;
 const DEV_TOKEN = '5f0c2a9e7b1d4e38a6c09d2b71e4f8a3';
 
 /** `?public=` seeds the public-link switch: off, on, paused (a picture changed after the confirm), unpublished, or author (not an admin). */
@@ -461,6 +468,7 @@ const publicSeed = (
     kind: 'web' as const,
     confirmedBy: 'admin@example.com',
     confirmedAt: 1,
+    pictures: {},
   };
   // A retake published after the confirm: step 1 now points at a new file.
   const retaken: GuidedLearningSet = {
@@ -489,7 +497,9 @@ const publicSeed = (
           ? record
           : mode === 'paused'
             ? { ...record, off: { reason: 'pictures', at: 2 } }
-            : null,
+            : mode === 'confirmer'
+              ? { ...record, off: { reason: 'confirmer', at: 2 } }
+              : null,
     },
     published: {
       [tour.id]:
