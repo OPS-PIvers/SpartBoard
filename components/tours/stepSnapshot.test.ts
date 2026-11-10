@@ -69,4 +69,25 @@ describe('elementsOutsideCrop', () => {
     expect([...out].map((el) => el.id)).toEqual(['deep']);
     expect(out.has(root)).toBe(false);
   });
+
+  it('keeps the defs and gradients of an SVG in the crop', () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<svg id="chart"><defs id="defs"><linearGradient id="grad"><stop id="stop"></stop></linearGradient></defs><rect id="bar"></rect></svg>';
+    const box = (id: string, r: DOMRect) => {
+      const el = root.querySelector(`#${id}`);
+      if (!el) throw new Error(id);
+      el.getBoundingClientRect = () => r;
+    };
+    box('chart', new DOMRect(100, 100, 200, 100));
+    box('bar', new DOMRect(110, 110, 20, 80));
+    for (const id of ['defs', 'grad', 'stop']) box(id, new DOMRect(0, 0, 0, 0));
+    const out = elementsOutsideCrop(root, {
+      x: 50,
+      y: 50,
+      width: 640,
+      height: 360,
+    });
+    expect([...out].map((el) => el.id)).toEqual([]);
+  });
 });

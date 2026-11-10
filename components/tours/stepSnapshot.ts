@@ -85,7 +85,16 @@ export function elementsOutsideCrop(
   }
   const outside = (el: Element | null) =>
     !!el && el !== root && !inside.has(el);
-  return new Set(all.filter((el) => outside(el) && outside(el.parentElement)));
+  // Defs, gradients and clip paths have no box, so an SVG in the crop keeps all of its parts.
+  const inSvgInCrop = (el: Element) => {
+    const svg = el.parentElement?.closest('svg');
+    return !!svg && inside.has(svg);
+  };
+  return new Set(
+    all.filter(
+      (el) => outside(el) && outside(el.parentElement) && !inSvgInCrop(el)
+    )
+  );
 }
 
 const toBlob = (canvas: HTMLCanvasElement) =>
