@@ -2623,6 +2623,24 @@
   ],
   "widgetNotes": [
     {
+      "id": "quiz-library-menu-2026-11-10",
+      "widget": "quiz",
+      "date": "2026-11-10",
+      "text": "The menu on each quiz is shorter. Share and Preview open a side menu, and Assign on paper is now a button in the Assign window."
+    },
+    {
+      "id": "review-library-menu-2026-11-10",
+      "widget": "review",
+      "date": "2026-11-10",
+      "text": "The menu on each quiz is shorter. Share and Preview open a side menu, and Assign on paper is now a button in the Assign window."
+    },
+    {
+      "id": "flashcards-library-menu-2026-11-10",
+      "widget": "flashcards",
+      "date": "2026-11-10",
+      "text": "Share in each set's menu now opens a side menu with Get link and Share with PLC."
+    },
+    {
       "id": "quiz-ordering-one-list-2026-11-06",
       "widget": "quiz",
       "date": "2026-11-06",
