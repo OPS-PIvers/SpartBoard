@@ -231,6 +231,7 @@ git push origin --delete nightly/build-2026-11-09 nightly/state-2026-11-09 night
 git push origin --delete claude/project-thread-d17ckk claude/project-thread-d17ckk-ab112
 git push origin --delete claude/project-thread-aij942 claude/ab112-aij942
 git push origin --delete claude/project-thread-a6wy60 claude/ab112-a6wy60
+git push origin --delete claude/picture-choices-stem-math claude/ab112-stem-math
 ```
 
   </details>
