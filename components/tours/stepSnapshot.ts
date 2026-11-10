@@ -64,6 +64,30 @@ const shift = (r: ViewportRect, by: ViewportRect): ViewportRect => ({
   height: r.height,
 });
 
+const overlaps = (r: DOMRect, crop: ViewportRect) =>
+  r.right > crop.x &&
+  r.bottom > crop.y &&
+  r.left < crop.x + crop.width &&
+  r.top < crop.y + crop.height;
+
+/** Elements inside a box with nothing in the crop; that box stays to hold the layout, its contents are skipped so a picture doesn't freeze the page. */
+export function elementsOutsideCrop(
+  root: Element,
+  crop: ViewportRect
+): Set<Element> {
+  const all = [...root.querySelectorAll('*')];
+  const inside = new Set<Element>();
+  for (const el of all) {
+    if (!overlaps(el.getBoundingClientRect(), crop)) continue;
+    for (let n: Element | null = el; n && !inside.has(n); n = n.parentElement) {
+      inside.add(n);
+    }
+  }
+  const outside = (el: Element | null) =>
+    !!el && el !== root && !inside.has(el);
+  return new Set(all.filter((el) => outside(el) && outside(el.parentElement)));
+}
+
 const toBlob = (canvas: HTMLCanvasElement) =>
   new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
@@ -87,6 +111,7 @@ export async function captureStepSnapshot(
     buildNameMatcher(people),
     viewport
   );
+  const hidden = elementsOutsideCrop(document.body, crop);
   const [{ toCanvas }, fontEmbedCSS] = await Promise.all([
     import('html-to-image'),
     snapshotFontEmbedCss(document),
@@ -99,7 +124,10 @@ export async function captureStepSnapshot(
     fontEmbedCSS,
     imagePlaceholder: BLANK_IMAGE,
     filter: (node) =>
-      !(node instanceof Element && node.hasAttribute('data-tour-ignore')),
+      !(
+        node instanceof Element &&
+        (hidden.has(node) || node.hasAttribute('data-tour-ignore'))
+      ),
   });
   const out = document.createElement('canvas');
   out.width = Math.round(crop.width);

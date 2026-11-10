@@ -4357,6 +4357,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           })
           .catch((err) => {
             console.warn('Mirror to shared board failed:', err);
+            // A refusal won't change until this board does, so only other errors retry on any board change.
+            if ((err as { code?: string }).code === 'permission-denied') return;
             // Drop the cached payload so we retry on the next change.
             lastMirroredRef.current.delete(shareId);
           });
