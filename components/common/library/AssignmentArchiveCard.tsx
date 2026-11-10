@@ -16,25 +16,10 @@
  * shared `LibraryBadgeTone` convention.
  */
 
-import React, {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { createPortal } from 'react-dom';
-import { MoreHorizontal } from 'lucide-react';
-import { useClickOutside } from '@/hooks/useClickOutside';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { Z_INDEX } from '@/config/zIndex';
-import { useCloseOnHostResize } from '../useCloseOnHostResize';
+import React from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
-import type {
-  AssignmentArchiveCardProps,
-  LibraryBadgeTone,
-  LibraryMenuAction,
-} from './types';
+import { OverflowMenu } from './LibraryOverflowMenu';
+import type { AssignmentArchiveCardProps, LibraryBadgeTone } from './types';
 
 /* ─── Tone → styling ──────────────────────────────────────────────────────── */
 
@@ -76,162 +61,6 @@ const TONE_STYLES: Record<LibraryBadgeTone, ToneStyles> = {
     dot: 'bg-red-500',
     activeBorder: 'border-red-200/60 hover:shadow-sm',
   },
-};
-
-/* ─── OverflowMenu (reused pattern from QuizAssignmentArchive) ────────────── */
-
-interface OverflowMenuProps {
-  actions: LibraryMenuAction[];
-  rowKey?: string;
-  widgetType: string;
-}
-
-const OverflowMenu: React.FC<OverflowMenuProps> = ({
-  actions,
-  rowKey,
-  widgetType,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
-    null
-  );
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Dismiss on outside click — covers both the trigger wrapper and the
-  // portalled menu, so clicks inside the menu don't close it. Memoized
-  // so `useClickOutside` doesn't re-subscribe DOM listeners every render.
-  const ignoreRefs = useMemo(() => [menuRef], []);
-  useClickOutside(wrapperRef, () => setOpen(false), ignoreRefs);
-
-  // stopPropagation prevents this portalled menu's Escape from also minimizing the topmost widget.
-  useEffect(() => {
-    if (!open) return undefined;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (isEscapeFromWidgetInput(e)) return;
-      e.stopPropagation();
-      setOpen(false);
-      buttonRef.current?.focus();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open]);
-
-  // Measure trigger position when the menu opens so the portal renders
-  // flush under it. `opacity-70` on archive cards creates a stacking
-  // context that traps absolute-positioned children, hence the portal.
-  useLayoutEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    setMenuPos({
-      top: rect.bottom + 4,
-      right: window.innerWidth - rect.right,
-    });
-  }, [open]);
-
-  // Close the menu if the page scrolls or resizes (portal position is
-  // fixed at open time; staying open after layout shifts looks broken).
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
-  }, [open]);
-
-  useCloseOnHostResize(open, wrapperRef, () => setOpen(false));
-
-  if (actions.length === 0) return null;
-
-  // Sort destructive actions to the bottom while preserving caller order
-  // within each bucket.
-  const normalActions = actions.filter((a) => !a.destructive);
-  const destructiveActions = actions.filter((a) => a.destructive);
-  const orderedActions = [...normalActions, ...destructiveActions];
-
-  return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        {...(rowKey
-          ? tourFieldAttr('library-shell.archive-menu', widgetType, rowKey)
-          : {})}
-        className="flex items-center justify-center rounded-lg text-brand-blue-dark/60 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors"
-        style={{
-          width: 'min(30px, 8cqmin)',
-          height: 'min(30px, 8cqmin)',
-        }}
-        title="More actions"
-        aria-label="More actions"
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <MoreHorizontal
-          style={{
-            width: 'min(16px, 4.5cqmin)',
-            height: 'min(16px, 4.5cqmin)',
-          }}
-        />
-      </button>
-      {open &&
-        menuPos &&
-        createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            style={{
-              position: 'fixed',
-              top: menuPos.top,
-              right: menuPos.right,
-              zIndex: Z_INDEX.dropdown,
-            }}
-            className="min-w-[160px] bg-white rounded-lg shadow-lg border border-brand-blue-primary/15 py-1"
-          >
-            {orderedActions.map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    if (item.disabled) return;
-                    setOpen(false);
-                    item.onClick();
-                  }}
-                  disabled={item.disabled}
-                  title={item.disabled ? item.disabledReason : undefined}
-                  {...(item.anchor ??
-                    (rowKey
-                      ? tourFieldAttr(
-                          'library-shell.archive-menu-item',
-                          widgetType,
-                          `${rowKey}-item-${i + 1}`
-                        )
-                      : {}))}
-                  className={`w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                    item.destructive
-                      ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
-                      : 'text-brand-blue-dark hover:bg-brand-blue-lighter/30'
-                  }`}
-                >
-                  {Icon && <Icon size={12} className="shrink-0" />}
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>,
-          document.body
-        )}
-    </div>
-  );
 };
 
 /* ─── Main component ──────────────────────────────────────────────────────── */
@@ -421,6 +250,7 @@ export function AssignmentArchiveCard<TAssignment>({
             actions={secondaryActions}
             rowKey={tourRowKey}
             widgetType={tourWidgetTypeResolved}
+            archive
           />
         ) : (
           <div

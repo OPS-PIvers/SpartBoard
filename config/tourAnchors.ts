@@ -3448,6 +3448,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     persists: true,
   },
+  'quiz-results.publish': {
+    label: 'Publish results in Quiz results',
+    perWidgetType: true,
+    persists: true,
+  },
   'quiz-results.push-schoology': {
     label: 'Push to Schoology in Quiz results',
     perWidgetType: true,

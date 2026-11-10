@@ -734,6 +734,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-results.drill-students': ['quiz.results'],
     'quiz-grading.open': ['quiz.results'],
     'quiz-results.push-grades': ['quiz.results'],
+    'quiz-results.publish': ['quiz.results'],
     'quiz-results.push-schoology': ['quiz.results'],
     'quiz-results.scoreboard': ['quiz.results'],
     'quiz-results.sheet-refresh': ['quiz.results'],
@@ -1289,8 +1290,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'library-shell.card-menu': ['library.shell'],
     'library-shell.card-menu-item': ['library.shell'],
     'library-shell.archive-primary-action': ['library.assignments'],
-    'library-shell.archive-menu': ['library.assignments'],
-    'library-shell.archive-menu-item': ['library.assignments'],
+    'library-shell.archive-menu': ['library.shell'],
+    'library-shell.archive-menu-item': ['library.shell'],
     'widget-settings.calendar.remove-calendar': ['widgets.calendar.settings'],
     'widget-settings.hotspot-image.load-library-item': [
       'widgets.hotspot-image.settings',

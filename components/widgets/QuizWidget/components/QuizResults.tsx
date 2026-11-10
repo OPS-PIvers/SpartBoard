@@ -369,6 +369,8 @@ interface QuizResultsProps {
   plcView?: boolean;
   /** Paper answer sheets are on for this teacher; the results print offers sheet reprints. */
   paperSheetsEnabled?: boolean;
+  /** Opens the assignment's Publish results dialog; the footer button renders only when provided. */
+  onPublishScores?: () => void;
   /** Per-student publishing handlers; the controls render only when provided. */
   studentResultsActions?: StudentResultsActions;
   /** Review results: points and ranking, with no grading, publishing or grade push (D27). */
@@ -472,6 +474,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   plcView = false,
   paperSheetsEnabled = false,
   studentResultsActions,
+  onPublishScores,
   variant = 'quiz',
 }) => {
   const outward = useViewAsOutward();
@@ -2646,6 +2649,18 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 }}
               />
               {t('quizMediaResponse.results.gradeButton')}
+            </button>
+          )}
+          {onPublishScores && !isReview && (
+            <button
+              type="button"
+              onClick={onPublishScores}
+              {...tourTypeAttr('quiz-results.publish', 'quiz')}
+              className={footerButtonClass}
+              style={footerButtonStyle}
+            >
+              <Eye aria-hidden style={footerIcon} />
+              Publish results
             </button>
           )}
           {/* Admin-managed `google-classroom` gate hides the draft grade-push
