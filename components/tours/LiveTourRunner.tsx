@@ -2911,6 +2911,7 @@ export const LiveTourRunner: React.FC = () => {
               waitingOnFact ? { onSkip: () => goTo(tour.index + 1) } : undefined
             }
             avoid={target}
+            clearOfChrome={paced}
             sparty={
               showSparty
                 ? doneNow || tour.index + 1 === total

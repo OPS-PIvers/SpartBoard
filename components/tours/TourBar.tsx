@@ -1,7 +1,9 @@
 import React, { useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Check,
   ChevronLeft,
+  ChevronRight,
   GripVertical,
   Play,
   Volume2,
@@ -118,7 +120,7 @@ export const TourBar: React.FC<TourBarProps> = ({
       data-tour-obstacle=""
       data-tour-bar=""
       data-testid="tour-bar"
-      className={`fixed flex items-center gap-1 rounded-2xl py-1.5 pl-1 pr-1.5 ${chromeSurface} ${
+      className={`fixed flex items-center gap-1 ${skipped ? 'max-[440px]:gap-[3px]' : ''} rounded-2xl py-1.5 pl-1 pr-1.5 ${chromeSurface} ${
         pos ? '' : 'left-1/2 -translate-x-1/2'
       }`}
       style={{
@@ -138,10 +140,24 @@ export const TourBar: React.FC<TourBarProps> = ({
       >
         <GripVertical className="h-4 w-4" aria-hidden="true" />
       </button>
-      <div className="flex min-w-28 flex-col gap-1 px-1.5">
-        <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600">
+      <div
+        className={`flex min-w-28 flex-col gap-1 px-1.5 ${skipped ? 'max-[440px]:min-w-0 max-[440px]:px-1' : ''}`}
+      >
+        <span
+          className={`whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 ${skipped ? 'max-[440px]:sr-only' : ''}`}
+        >
           {t('tours.progress', { current, total })}
         </span>
+        {/* On a phone the label shortens to "5 / 14", as the editor's bottom bar does. */}
+        {skipped && (
+          <span
+            aria-hidden="true"
+            data-testid="tour-bar-progress-short"
+            className="hidden whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 max-[440px]:inline"
+          >
+            {current} / {total}
+          </span>
+        )}
         {skipped && skipped.length > 0 && (
           <span className="sr-only">
             {t('tours.skippedCount', { count: skipped.length })}
@@ -179,8 +195,34 @@ export const TourBar: React.FC<TourBarProps> = ({
           {t('tours.retry')}
         </button>
       )}
-      <button type="button" onClick={onNext} className={primaryBtn}>
-        {last ? t('tours.done') : t('tours.next')}
+      <button
+        type="button"
+        onClick={onNext}
+        title={skipped ? (last ? t('tours.done') : t('tours.next')) : undefined}
+        className={`${primaryBtn} ${skipped ? 'max-[440px]:px-2.5' : ''}`}
+      >
+        {/* On a phone with dots, Next is an arrow like Back, so the bar fits in any language. */}
+        {skipped &&
+          (last ? (
+            <Check
+              className="hidden h-4 w-4 max-[440px]:block"
+              aria-hidden="true"
+            />
+          ) : (
+            <ChevronRight
+              className="hidden h-4 w-4 max-[440px]:block"
+              aria-hidden="true"
+            />
+          ))}
+        {skipped ? (
+          <span className="max-[440px]:sr-only">
+            {last ? t('tours.done') : t('tours.next')}
+          </span>
+        ) : last ? (
+          t('tours.done')
+        ) : (
+          t('tours.next')
+        )}
       </button>
       {autopilot && (
         <button

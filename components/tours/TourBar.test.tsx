@@ -157,4 +157,23 @@ describe('TourBar', () => {
     expect(screen.queryByRole('button', { name: 'Show me where' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Take me back' })).toBeNull();
   });
+  it('shortens the step label to "5 / 14" on a phone only with dots, keeping the full label for screen readers', () => {
+    renderBar({ current: 5, total: 14, skipped: [] });
+    expect(screen.getByTestId('tour-bar-progress-short')).toHaveTextContent(
+      '5 / 14'
+    );
+    expect(screen.getByTestId('tour-bar-progress-short')).toHaveClass(
+      'hidden',
+      'max-[440px]:inline'
+    );
+    expect(screen.getByText('Step 5 of 14')).toHaveClass('max-[440px]:sr-only');
+  });
+
+  it('keeps the bar without dots exactly as before', () => {
+    renderBar({ current: 5, total: 14 });
+    expect(screen.queryByTestId('tour-bar-progress-short')).toBeNull();
+    expect(screen.getByText('Step 5 of 14')).not.toHaveClass(
+      'max-[440px]:sr-only'
+    );
+  });
 });

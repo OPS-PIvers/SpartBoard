@@ -294,6 +294,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
           tether={tether}
           plain={!rect}
           animate
+          clearOfChrome
           title={done ? t('tours.completeTitle') : state.title}
           looking={looking}
           status={null}
