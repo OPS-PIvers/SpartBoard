@@ -100,6 +100,15 @@ const CALL_OPTS = {
   cors: ALLOWED_ORIGINS,
 };
 
+/** A real calendar date as YYYY-MM-DD, else null. */
+export function parseDueDate(v: unknown): string | null {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v
+    ? v
+    : null;
+}
+
 function sessionCollection(kind: LtiSessionKind): string {
   return kind === 'va'
     ? VIDEO_ACTIVITY_SESSIONS_COLLECTION
@@ -352,6 +361,7 @@ function restOps(): RestOps | null {
       rest.setColumnCategory(creds, s, col, cat),
     getColumnCategory: (s, col) => rest.getColumnCategory(creds, s, col),
     publishColumn: (s, col) => rest.publishColumn(creds, s, col),
+    setColumnDue: (s, col, due) => rest.setColumnDue(creds, s, col, due),
     listColumnGrades: (s, col) => rest.listColumnGrades(creds, s, col),
     setExceptions: (s, rows) => rest.setExceptions(creds, s, rows),
     listEnrollments: (s) => rest.listEnrollments(creds, s),
@@ -660,6 +670,7 @@ export const ltiPushToolColumnV1 = onCall(
       }
     }
     const create = data.create === true;
+    const dueDate = parseDueDate(data.dueDate);
 
     const session = await loadOwnedSession(db, uid, data);
     const targets = await requireTargets(db, uid, session);
@@ -707,6 +718,7 @@ export const ltiPushToolColumnV1 = onCall(
             grades,
             create,
             categoryId: pickedCategories.get(section.contextId) ?? null,
+            dueDate,
           })
         );
       } catch (err) {

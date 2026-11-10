@@ -640,6 +640,7 @@ export const Results: React.FC<ResultsProps> = ({
     sessionId: session.id,
     kind: 'va',
     title: session.assignmentName || session.activityTitle,
+    dueAt: session.dueAt ?? session.closeAt,
     buildPayload: async () => {
       if (keyLoading || keyFailed) {
         addToast(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST, 'info');

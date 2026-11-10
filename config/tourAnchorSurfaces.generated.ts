@@ -240,6 +240,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'schoology-push.confirm': ['board.schoology-push'],
     'schoology-push.add-category': ['board.schoology-push'],
     'schoology-push.create-categories': ['board.schoology-push'],
+    'schoology-push.due-date': ['board.schoology-push'],
     'schoology-push.skip-course': ['board.schoology-push'],
     'assign-step.classes': ['library.assign-stepper'],
     'assign-step.when': ['library.assign-stepper'],

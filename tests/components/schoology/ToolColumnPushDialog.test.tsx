@@ -35,7 +35,11 @@ const data = (
 });
 
 const onConfirm = vi.fn();
-const renderDialog = (d: ToolColumnCategoriesData, missingCount = 0) =>
+const renderDialog = (
+  d: ToolColumnCategoriesData,
+  missingCount = 0,
+  initialDueDate?: string
+) =>
   render(
     <ToolColumnPushDialog
       data={d}
@@ -43,6 +47,7 @@ const renderDialog = (d: ToolColumnCategoriesData, missingCount = 0) =>
       kind="quiz"
       title="Cells quiz"
       missingCount={missingCount}
+      initialDueDate={initialDueDate}
       onCancel={vi.fn()}
       onConfirm={onConfirm}
     />
@@ -67,7 +72,7 @@ describe('ToolColumnPushDialog', () => {
       target: { value: '1' },
     });
     fireEvent.click(push);
-    expect(onConfirm).toHaveBeenCalledWith({ '100': '1', '101': '2' });
+    expect(onConfirm).toHaveBeenCalledWith({ '100': '1', '101': '2' }, null);
   });
 
   it('offers to create categories, then asks for a pick and warns when weighting is off', async () => {
@@ -110,7 +115,7 @@ describe('ToolColumnPushDialog', () => {
       target: { value: '2' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Push' }));
-    expect(onConfirm).toHaveBeenCalledWith({ '100': '2' });
+    expect(onConfirm).toHaveBeenCalledWith({ '100': '2' }, null);
   });
 
   it('lets the teacher skip a course with no categories', () => {
@@ -118,12 +123,41 @@ describe('ToolColumnPushDialog', () => {
     expect(screen.getByRole('button', { name: 'Push' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Skip this course' }));
     fireEvent.click(screen.getByRole('button', { name: 'Push' }));
-    expect(onConfirm).toHaveBeenCalledWith({});
+    expect(onConfirm).toHaveBeenCalledWith({}, null);
   });
 
   it('pushes without a pick when categories could not be read', () => {
     renderDialog(data([{ categories: null, needsCategory: false }]));
     fireEvent.click(screen.getByRole('button', { name: 'Push' }));
-    expect(onConfirm).toHaveBeenCalledWith({});
+    expect(onConfirm).toHaveBeenCalledWith({}, null);
+  });
+
+  it('sends the due date the teacher picks for a new column', () => {
+    renderDialog(
+      data([{ categories: null, needsCategory: false }]),
+      0,
+      '2026-11-10'
+    );
+    const due = screen.getByLabelText('Due date');
+    expect(due).toHaveValue('2026-11-10');
+    fireEvent.change(due, { target: { value: '2026-11-14' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Push' }));
+    expect(onConfirm).toHaveBeenCalledWith({}, '2026-11-14');
+  });
+
+  it('hides the due date when the flag is off or no column is new', () => {
+    const { unmount } = renderDialog(
+      data([{ categories: null, needsCategory: false }])
+    );
+    expect(screen.queryByLabelText('Due date')).toBeNull();
+    unmount();
+    renderDialog(
+      data([{ hasColumn: true, defaultCategoryId: '1' }]),
+      0,
+      '2026-11-10'
+    );
+    expect(screen.queryByLabelText('Due date')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Push' }));
+    expect(onConfirm).toHaveBeenCalledWith({ '100': '1' }, null);
   });
 });

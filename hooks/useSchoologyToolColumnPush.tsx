@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { functions } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
 import { ToolColumnPushDialog } from '@/components/schoology/ToolColumnPushDialog';
 import { logError } from '@/utils/logError';
 import { ltiPushErrorMessage } from '@/utils/ltiGradePush';
@@ -12,6 +13,13 @@ import {
   type ToolColumnKind,
 } from '@/utils/schoologyToolColumns';
 
+/** Epoch ms as the teacher's local YYYY-MM-DD. */
+export const localDateString = (ms: number): string => {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 export interface ToolColumnPayload {
   maxPoints: number;
   grades: ToolColumnGradeEntry[];
@@ -21,6 +29,8 @@ interface Options {
   sessionId: string | null | undefined;
   kind: ToolColumnKind;
   title: string;
+  /** The assignment's due or close time (epoch ms), the starting due date for a new column. */
+  dueAt?: number | null;
   /** Builds the scores (and Missing entries) at click time; null stops quietly after the caller explains why. */
   buildPayload: () => Promise<ToolColumnPayload | null>;
   onDone: (message: string, ok: boolean) => void;
@@ -31,6 +41,7 @@ export function useSchoologyToolColumnPush({
   sessionId,
   kind,
   title,
+  dueAt,
   buildPayload,
   onDone,
 }: Options): {
@@ -38,15 +49,18 @@ export function useSchoologyToolColumnPush({
   busy: boolean;
   dialog: React.ReactNode;
 } {
+  const { canAccessFeature } = useAuth();
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<{
     data: ToolColumnCategoriesData;
     payload: ToolColumnPayload;
+    dueDate?: string;
   } | null>(null);
 
   const run = async (
     payload: ToolColumnPayload,
-    categories: Record<string, string>
+    categories: Record<string, string>,
+    dueDate: string | null = null
   ) => {
     if (!sessionId) return;
     setBusy(true);
@@ -58,6 +72,7 @@ export function useSchoologyToolColumnPush({
         grades: payload.grades,
         create: true,
         categories,
+        ...(dueDate ? { dueDate } : {}),
       });
       const { message, failed } = formatToolColumnPushToast(data);
       onDone(message, failed === 0);
@@ -91,7 +106,13 @@ export function useSchoologyToolColumnPush({
     setBusy(false);
     // Confirm when a column will be created or one needs its category repaired.
     if (data.sections.some((s) => !s.hasColumn || s.needsCategory)) {
-      setPending({ data, payload });
+      setPending({
+        data,
+        payload,
+        dueDate: canAccessFeature('schoology-push-due-date')
+          ? localDateString(dueAt ?? Date.now())
+          : undefined,
+      });
       return;
     }
     await run(payload, {});
@@ -107,11 +128,12 @@ export function useSchoologyToolColumnPush({
         missingCount={
           pending.payload.grades.filter((g) => 'missing' in g).length
         }
+        initialDueDate={pending.dueDate}
         onCancel={() => setPending(null)}
-        onConfirm={(categories) => {
+        onConfirm={(categories, dueDate) => {
           const { payload } = pending;
           setPending(null);
-          void run(payload, categories);
+          void run(payload, categories, dueDate);
         }}
       />
     ) : null;
