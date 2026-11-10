@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PaperMarkupItem, PaperMarkupStamp } from '@/types';
+import { onInk } from '@/utils/paperMarkupRender';
 import type { DiscPlacement } from './markupDiscs';
 import {
   PAPER_MARKUP_STYLE,
@@ -110,7 +111,7 @@ export const MarkupDisc: React.FC<{ disc: DiscPlacement }> = ({ disc }) => {
           dy="0.35em"
           textAnchor="middle"
           fontSize={size}
-          fill="#fff"
+          fill={onInk(disc.ink)}
           fontFamily="Arial,Helvetica,sans-serif"
           fontWeight={700}
         >

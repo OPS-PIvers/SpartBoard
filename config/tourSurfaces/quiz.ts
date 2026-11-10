@@ -238,7 +238,11 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'quiz-library.assign-paper:quiz',
     parent: 'quiz.face',
     needs: ['library-item'],
-    files: [`${C}PaperPrintModal.tsx`, `${C}PaperSheetStimuliSection.tsx`],
+    files: [
+      `${C}PaperPrintModal.tsx`,
+      `${C}PaperSheetStimuliSection.tsx`,
+      `${C}PaperWrittenBoxControls.tsx`,
+    ],
   },
   'quiz.paper-reprint': {
     label: 'Print response sheets again dialog',

@@ -3,6 +3,7 @@ import type {
   PaperBoxStyle,
   PaperSheetStimulus,
   QuizQuestion,
+  QuizStimulus,
   PaperPrivateAnswer,
   PaperPrivateStatus,
   PaperTranscriptState,
@@ -153,6 +154,55 @@ export function withPaperBoxStyles<T extends { questions: QuizQuestion[] }>(
       };
     }),
   };
+}
+
+/** Box sizes and styles that differ from what each question already prints with, on the quiz's own questions. */
+export function changedPaperBoxSetup(
+  questions: readonly QuizQuestion[],
+  sizes: Readonly<Record<string, PaperBoxSize>>,
+  styles: Readonly<Record<string, PaperBoxStylePick>>
+): {
+  boxSizes: Record<string, PaperBoxSize>;
+  boxStyles: Record<string, PaperBoxStylePick>;
+} {
+  const byId = new Map(questions.map((q) => [q.id, q]));
+  return {
+    boxSizes: Object.fromEntries(
+      Object.entries(sizes).filter(([id, size]) => {
+        const q = byId.get(id);
+        return !!q && paperBoxLines(paperBoxSizeOf(q)) !== paperBoxLines(size);
+      })
+    ),
+    boxStyles: Object.fromEntries(
+      Object.entries(styles).filter(([id, pick]) => {
+        const q = byId.get(id);
+        return (
+          !!q &&
+          (paperBoxStyleOf(q) !== pick.style ||
+            (pick.style === 'image' && q.paperBoxImage?.id !== pick.image?.id))
+        );
+      })
+    ),
+  };
+}
+
+/** The quiz's own images, as a custom image box prints them. */
+export function paperBoxImageChoices(
+  stimuli: readonly QuizStimulus[]
+): PaperSheetStimulus[] {
+  return stimuli.flatMap((s) =>
+    s.type === 'image' && (s.driveFileId || s.url)
+      ? [
+          {
+            id: s.id,
+            label: s.label,
+            source: 'image' as const,
+            ...(s.driveFileId ? { driveFileId: s.driveFileId } : {}),
+            ...(s.url ? { url: s.url } : {}),
+          },
+        ]
+      : []
+  );
 }
 
 export function isPaperBoxSize(value: unknown): value is PaperBoxSize {

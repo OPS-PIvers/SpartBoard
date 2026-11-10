@@ -68,8 +68,8 @@ const input = (over: Partial<ScanSheetPageInput> = {}): ScanSheetPageInput => ({
 
 const glyphCount = (html: string, ink: string) =>
   html.split(`stroke="${ink}" stroke-width`).length - 1;
-const CHECK = '#166534';
-const CROSS = '#b91c1c';
+const CHECK = '#00b832';
+const CROSS = '#ff0000';
 
 function paintRect(
   page: { width: number; data: Uint8ClampedArray },
@@ -227,7 +227,7 @@ describe('buildScanSheetPageHtml', () => {
       );
       const cx = b.x + b.w / 2;
       const m = new RegExp(
-        `<circle cx="${cx}" cy="${b.y + b.h / 2}" r="([\\d.]+)" fill="none" stroke="#1d4ed8" stroke-width="([\\d.]+)"`
+        `<circle cx="${cx}" cy="${b.y + b.h / 2}" r="([\\d.]+)" fill="none" stroke="#0066ff" stroke-width="([\\d.]+)"`
       ).exec(html);
       expect(m, `ring on row ${row.label}`).not.toBeNull();
       const r = Number(m?.[1]);
@@ -253,7 +253,7 @@ describe('buildScanSheetPageHtml', () => {
         })
       ) ?? '';
     const m =
-      /<circle cx="[\d.]+" cy="[\d.]+" r="([\d.]+)" fill="none" stroke="#1d4ed8" stroke-width="([\d.]+)"/.exec(
+      /<circle cx="[\d.]+" cy="[\d.]+" r="([\d.]+)" fill="none" stroke="#0066ff" stroke-width="([\d.]+)"/.exec(
         html
       );
     expect(m).not.toBeNull();
@@ -261,7 +261,7 @@ describe('buildScanSheetPageHtml', () => {
     expect(reach).toBeLessThan(
       QUESTION_CHOICE_LINE_MM - BUBBLE_DIAMETER_MM / 2
     );
-    expect(html).toContain('fill="#1d4ed8"/>');
+    expect(html).toContain('fill="#0066ff"/>');
   });
 
   it('draws markup in page millimetres and lists its numbered comments beside the box', () => {

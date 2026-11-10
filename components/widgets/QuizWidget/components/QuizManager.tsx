@@ -76,6 +76,7 @@ import {
   SyncedQuizGroup,
   QuizBehaviorSettings,
   Plc,
+  PaperBoxSize,
   QuestionBankMetadata,
   QuizWidgetKind,
 } from '@/types';
@@ -138,7 +139,16 @@ import {
   DEFAULT_WRITTEN_ANSWERS,
   type WrittenAnswersValue,
 } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
-import { paperWrittenQuestionIds } from '@/utils/paperWrittenHybrid';
+import {
+  paperWrittenBoxRows,
+  paperWrittenQuestionIds,
+} from '@/utils/paperWrittenHybrid';
+import {
+  paperBoxImageChoices,
+  withPaperBoxSizes,
+  withPaperBoxStyles,
+  type PaperBoxStylePick,
+} from '@/utils/paperWritten';
 import { sharingNeedsPlc } from '@/components/common/library/assignStepper/SharingStep.format';
 import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import { useAssignAudience } from '@/components/common/library/assignStepper/assignAudience';
@@ -189,7 +199,11 @@ export interface QuizStepperAssign {
   /** Staff: no classes; the link needs district Google sign-in. */
   audience?: AssignmentAudience;
   /** Written questions go on a printed sheet; spares print unassigned. */
-  writtenOnPaper?: { spares: number };
+  writtenOnPaper?: {
+    spares: number;
+    boxSizes: Record<string, PaperBoxSize>;
+    boxStyles: Record<string, PaperBoxStylePick>;
+  };
 }
 
 interface QuizAssignOptions {
@@ -1992,6 +2006,22 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     writtenOnPaperAvailable && !assignToStaff && assignQuizData
       ? paperWrittenQuestionIds(assignQuizData).length
       : 0;
+  const writtenStepRows = useMemo(
+    () =>
+      writtenStepCount > 0 && assignQuizData
+        ? paperWrittenBoxRows(
+            withPaperBoxStyles(
+              withPaperBoxSizes(assignQuizData, assignWritten.boxSizes),
+              assignWritten.boxStyles
+            )
+          )
+        : [],
+    [writtenStepCount, assignQuizData, assignWritten]
+  );
+  const writtenStepImages = useMemo(
+    () => paperBoxImageChoices(assignQuizData?.stimuli ?? []),
+    [assignQuizData]
+  );
   const handleStepperAssign = (): void => {
     if (!assignTarget || !assignWhen) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
@@ -2055,7 +2085,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         manualStart: assignWhen.mode === 'manual',
         ...(assignToStaff ? { audience: 'staff' as const } : {}),
         ...(writtenStepCount > 0 && assignWritten.where === 'paper'
-          ? { writtenOnPaper: { spares: assignWritten.spares } }
+          ? {
+              writtenOnPaper: {
+                spares: assignWritten.spares,
+                boxSizes: assignWritten.boxSizes,
+                boxStyles: assignWritten.boxStyles,
+              },
+            }
           : {}),
       }
     );
@@ -2787,6 +2823,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   value: assignWritten,
                   onChange: setAssignWritten,
                   count: writtenStepCount,
+                  rows: writtenStepRows,
+                  images: writtenStepImages,
                 },
               }
             : {})}
