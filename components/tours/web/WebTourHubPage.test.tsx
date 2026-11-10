@@ -20,6 +20,7 @@ interface Hoisted {
   };
   published: unknown;
   pictures: Map<string, unknown>;
+  loadPicturesOverride?: () => Promise<Map<string, unknown>>;
   ping: ExtensionStatus;
   start: Mock<(...args: unknown[]) => Promise<unknown>>;
   open: Mock<(...args: unknown[]) => Promise<unknown>>;
@@ -69,7 +70,7 @@ vi.mock('@/components/tours/tourRuns', async (orig) => ({
 }));
 vi.mock('./webTourHub', async (orig) => ({
   ...(await orig<typeof import('./webTourHub')>()),
-  loadPictures: () => Promise.resolve(h.pictures),
+  loadPictures: () => h.loadPicturesOverride?.() ?? Promise.resolve(h.pictures),
 }));
 const link = vi.hoisted(() => ({
   setId: vi.fn<(t: string) => Promise<string | null>>(),
@@ -126,6 +127,7 @@ beforeEach(() => {
   h.auth.canAccessFeature = () => true;
   h.published = webTour();
   h.pictures = new Map();
+  h.loadPicturesOverride = undefined;
   h.ping = { kind: 'none' };
   h.start.mockReset();
   h.open.mockReset();
@@ -584,6 +586,27 @@ describe('WebTourHubPage from a public link', () => {
       0
     );
     expect(window.location.search).toBe('');
+  });
+
+  it('starts over a finished run the extension replays, and a reload never restarts', async () => {
+    window.history.replaceState(null, '', '/tour/s1?start=1');
+    h.ping = staff;
+    let release: (m: Map<string, unknown>) => void = () => undefined;
+    const late = new Promise<Map<string, unknown>>((r) => (release = r));
+    h.pictures = new Map();
+    h.loadPicturesOverride = () => late;
+    h.start.mockResolvedValue({ ok: true, tabId: 7 });
+    render(<WebTourHubPage />);
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
+    expect(window.location.search).toBe('');
+    act(() => {
+      h.onEvent?.({ type: 'web-tour/done', setId: 's1' });
+    });
+    await act(async () => {
+      release(new Map());
+      await late;
+    });
+    await waitFor(() => expect(h.start).toHaveBeenCalledTimes(1));
   });
 
   it('does not start without the ask', async () => {

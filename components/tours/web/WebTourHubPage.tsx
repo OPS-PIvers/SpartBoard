@@ -304,16 +304,10 @@ const SignedInHub: React.FC = () => {
   );
 };
 
-/** Starts the tour once when the link asked for it (`?start=1`, from a public tour page), then drops the ask from the address. */
+/** Fires `onStart` once, when it mounts. */
 const AutoStart: React.FC<{ onStart: () => void }> = ({ onStart }) => {
   const fire = useEffectEvent(onStart);
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get(START_PARAM) !== '1') return;
-    url.searchParams.delete(START_PARAM);
-    window.history.replaceState(window.history.state, '', url);
-    fire();
-  }, []);
+  useEffect(() => fire(), []);
   return null;
 };
 
@@ -333,6 +327,16 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
     new Map()
   );
   const [play, setPlay] = useState<HubPlay>({ kind: 'idle' });
+  // `?start=1` (Start tour on a public tour page): kept here and dropped from the address at once, so a reload never restarts.
+  const [wantsStart, setWantsStart] = useState(
+    () => new URLSearchParams(window.location.search).get(START_PARAM) === '1'
+  );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(START_PARAM)) return;
+    url.searchParams.delete(START_PARAM);
+    window.history.replaceState(window.history.state, '', url);
+  }, []);
   const [reconnects, setReconnects] = useState(0);
   // Bumped by Start and Resume so a new port opens even after the reconnects ran out.
   const [watchEpoch, setWatchEpoch] = useState(0);
@@ -567,9 +571,17 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
             </p>
           ) : playable ? (
             <>
-              {pictures !== null && play.kind === 'idle' && (
-                <AutoStart onStart={() => void start(0, true)} />
-              )}
+              {wantsStart &&
+                pictures !== null &&
+                play.kind !== 'playing' &&
+                play.kind !== 'starting' && (
+                  <AutoStart
+                    onStart={() => {
+                      setWantsStart(false);
+                      void start(0, true);
+                    }}
+                  />
+                )}
               <PlayControls
                 play={play}
                 resumeAt={resumeAt}
