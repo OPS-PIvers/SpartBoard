@@ -238,6 +238,7 @@ git push origin --delete claude/project-thread-a6wy60 claude/ab112-a6wy60
 git push origin --delete claude/picture-choices-stem-math claude/ab112-stem-math
 git push origin --delete nightly/widgets-2026-11-10 nightly/dashboard-2026-11-10 nightly/state-2026-11-10 nightly/debugger-log-2026-11-10 nightly/unifier-log-2026-11-10 claude/tour-anchors-2026-11-10
 git push origin --delete claude/project-thread-227rsn
+git push origin --delete claude/project-thread-9ltdwy claude/ab112-public-tour-branch
 git push origin --delete claude/project-thread-0ybg2w
 ```
 
