@@ -43,6 +43,32 @@ function choiceImageIds(quiz: QuizData): Set<string> {
 }
 
 /** Points picture choices at their uploads; one with no upload loses its picture. */
+/** A picture-only choice whose picture was lost goes back to its printed letter. */
+function lettered(q: QuizQuestion, lost: ReadonlySet<string>): QuizQuestion {
+  if (lost.size === 0 || (q.type !== 'MC' && q.type !== 'MA')) return q;
+  const right =
+    q.type === 'MA' ? q.correctAnswer.split('|') : [q.correctAnswer];
+  const all = [...right, ...q.incorrectAnswers];
+  const order =
+    q.optionOrder?.length === all.length ? q.optionOrder : all.map((_, i) => i);
+  const rename = new Map<string, string>();
+  order.forEach((index, position) => {
+    const text = all[index];
+    if (text !== undefined && lost.has(text))
+      rename.set(text, String.fromCharCode(65 + position));
+  });
+  if (
+    all.some((text) => !lost.has(text) && [...rename.values()].includes(text))
+  )
+    return q;
+  const swap = (text: string) => rename.get(text) ?? text;
+  return {
+    ...q,
+    correctAnswer: right.map(swap).join('|'),
+    incorrectAnswers: q.incorrectAnswers.map(swap),
+  };
+}
+
 function withChoiceUrls(
   quiz: QuizData,
   urlByImageId: ReadonlyMap<string, string>
@@ -59,9 +85,14 @@ function withChoiceUrls(
       });
       const kept = new Set(images.map((image) => image.text));
       const only = (q.imageOnlyAnswers ?? []).filter((e) => kept.has(e.text));
+      const lost = new Set(
+        (q.imageOnlyAnswers ?? [])
+          .filter((e) => !kept.has(e.text))
+          .map((e) => e.text)
+      );
       const { answerImages: _images, imageOnlyAnswers: _only, ...rest } = q;
       return {
-        ...rest,
+        ...lettered(rest, lost),
         ...(images.length > 0 ? { answerImages: images } : {}),
         ...(only.length > 0 ? { imageOnlyAnswers: only } : {}),
       };

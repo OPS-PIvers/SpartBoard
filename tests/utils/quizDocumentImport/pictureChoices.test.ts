@@ -171,6 +171,33 @@ describe('choices printed only as pictures', () => {
     expect(saved.imageOnlyAnswers).toHaveLength(4);
   });
 
+  it('names the choices by letter when their pictures are not saved', async () => {
+    const [q] = parseDocument(stacked(), { answerPictures: true }).questions;
+    const ids = new Map(q.options.map((o, i) => [o.imageId ?? '', `img-${i}`]));
+    const question = toQuizQuestion(
+      resolveChoicePictures({ ...q, correctAnswer: q.options[1].text }, ids)
+    );
+    const quiz = await attachDocumentImages(
+      {
+        id: 'q',
+        title: 'T',
+        questions: [question],
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      [],
+      {
+        upload: () => Promise.reject(new Error('no')),
+        remove: () => Promise.resolve(),
+      }
+    );
+    const saved = quiz.questions[0];
+    expect(saved.answerImages).toBeUndefined();
+    expect(saved.imageOnlyAnswers).toBeUndefined();
+    expect(saved.correctAnswer).toBe('B');
+    expect([...saved.incorrectAnswers].sort()).toEqual(['A', 'C', 'D']);
+  });
+
   it('cuts one merged picture back into a piece per choice', () => {
     const merged = { x: 0.15, y: 0.14, width: 0.15, height: 0.56 };
     const tops = [0.154, 0.305, 0.457, 0.608];
