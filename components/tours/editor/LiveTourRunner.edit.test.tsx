@@ -120,6 +120,12 @@ const clicks = {
   dice: vi.fn(),
   menu: vi.fn(),
   invite: vi.fn(),
+  create: vi.fn(),
+};
+
+const switchBoard = (id: string) => {
+  h.board.id = id;
+  h.emit();
 };
 
 const Fixture: React.FC = () => (
@@ -135,6 +141,15 @@ const Fixture: React.FC = () => (
     </button>
     <button {...tourAttr('plc-edit.send-invite')} onClick={clicks.invite}>
       Invite
+    </button>
+    <button
+      {...tourAttr('prompt-dialog.confirm')}
+      onClick={() => {
+        clicks.create();
+        switchBoard(`board-${clicks.create.mock.calls.length + 1}`);
+      }}
+    >
+      Create
     </button>
   </div>
 );
@@ -173,6 +188,7 @@ beforeEach(() => {
   HTMLElement.prototype.scrollIntoView = vi.fn();
   vi.useFakeTimers();
   h.board.widgets = [];
+  h.board.id = 'board-1';
   Object.values(h.actions).forEach((fn) => fn.mockClear());
   Object.values(clicks).forEach((fn) => fn.mockClear());
   snap.capture.mockReset();
@@ -302,6 +318,49 @@ describe('LiveTourRunner edit mode', () => {
     await run(100);
     expect(screen.queryByText('Step 1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
+  describe('a step that makes a board', () => {
+    const CREATE: Binding[] = [
+      STEPS[0],
+      { anchor: 'prompt-dialog.confirm', action: 'click' },
+      STEPS[1],
+      STEPS[2],
+    ];
+
+    it('follows its own Create to the new board instead of replaying it', async () => {
+      await edit(makeSet(CREATE), 1);
+      await run(3000);
+      expect(clicks.boards).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByText('Create'));
+      await run(6000);
+      expect(clicks.create).toHaveBeenCalledTimes(1);
+      expect(clicks.boards).toHaveBeenCalledTimes(1);
+      expect(getTourEdit()?.selected).toBe(2);
+      expect(screen.getByText('Step 3')).toBeInTheDocument();
+    });
+
+    it('asks before a fast-forward clicks Create, then carries on', async () => {
+      await edit(makeSet(CREATE), 3);
+      await run(3000);
+      expect(clicks.create).not.toHaveBeenCalled();
+      expect(getTourEditPlayback().index).toBe(1);
+      fireEvent.click(screen.getByText('Do it'));
+      await run(6000);
+      expect(clicks.create).toHaveBeenCalledTimes(1);
+      expect(clicks.boards).toHaveBeenCalledTimes(1);
+      expect(clicks.dice).toHaveBeenCalledTimes(1);
+      expect(getTourEditPlayback()).toMatchObject({ index: 3, jumping: false });
+    });
+
+    it('still replays on a board the admin switched to', async () => {
+      await edit(makeSet(STEPS), 1);
+      await run(3000);
+      expect(clicks.boards).toHaveBeenCalledTimes(1);
+      act(() => switchBoard('board-other'));
+      await run(3000);
+      expect(clicks.boards).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('thumbnails', () => {

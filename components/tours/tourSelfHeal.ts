@@ -1,5 +1,9 @@
 // Self-heal (LIVE_TOUR_ONE_SHOT.md D4): reopens a missing step's panel by replaying the clicks on its route.
-import { isDestructiveAnchor, isPersistsAnchor } from '@/config/tourAnchors';
+import {
+  isCreatesAnchor,
+  isDestructiveAnchor,
+  isPersistsAnchor,
+} from '@/config/tourAnchors';
 import { dispatchAutoClick, waitFor } from './autopilot';
 import {
   findTourAnchor,
@@ -21,7 +25,9 @@ export function remainingClicks(
 
 const safeClicks = (clicks: readonly string[] | null): boolean =>
   !!clicks?.length &&
-  !clicks.some((c) => isDestructiveAnchor(c) || isPersistsAnchor(c));
+  !clicks.some(
+    (c) => isDestructiveAnchor(c) || isPersistsAnchor(c) || isCreatesAnchor(c)
+  );
 
 /** Whether some route to the control can be walked from what is on screen now, so Take me back can be offered (TOURS_10X.md P5). */
 export function canHeal(

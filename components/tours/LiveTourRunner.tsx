@@ -96,7 +96,11 @@ import {
   settingsUndoKey,
 } from './tourPrerequisites';
 import { fieldSettingsTab } from './settingsTab';
-import { anchorPrerequisite, WHOLE_BOARD_ANCHOR } from '@/config/tourAnchors';
+import {
+  anchorPrerequisite,
+  isCreatesAnchor,
+  WHOLE_BOARD_ANCHOR,
+} from '@/config/tourAnchors';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { TourDialog } from './TourDialog';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
@@ -1789,8 +1793,12 @@ export const LiveTourRunner: React.FC = () => {
     activeDashboard.id !== tour.boardId;
   const endOnBoardSwitch = useEffectEvent(() => {
     const board = latest.current.dashboard.activeDashboard;
-    // The editor follows the admin to the new board and replays there.
-    if (tour?.edit) {
+    const stepSwitched = Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS;
+    // The editor replays on a board the admin switched to, but follows its own Create, which a replay would click again.
+    if (
+      tour?.edit &&
+      !(tour.phase === 'running' && (stepSwitched || jumping))
+    ) {
       resetEdit();
       return;
     }
@@ -1803,7 +1811,7 @@ export const LiveTourRunner: React.FC = () => {
     if (
       tour?.phase === 'running' &&
       board &&
-      (Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS || tourBoard)
+      (stepSwitched || tourBoard || tour.edit)
     ) {
       setTour({
         ...tour,
@@ -1828,7 +1836,6 @@ export const LiveTourRunner: React.FC = () => {
     endTour();
   });
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ends the tour when the board switches
     if (boardSwitched) endOnBoardSwitch();
   }, [boardSwitched]);
 
@@ -2140,7 +2147,7 @@ export const LiveTourRunner: React.FC = () => {
     // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     // Autopilot can't produce a real result for the teacher, so a step waiting on one is theirs.
-    const gate = doneFact
+    const planned = doneFact
       ? 'teacher'
       : canPerform(binding)
         ? tour.test
@@ -2149,6 +2156,14 @@ export const LiveTourRunner: React.FC = () => {
             ? replayGate(binding, tour.policy, inSandbox)
             : autopilotGate(binding, tour.policy, inSandbox)
         : 'teacher';
+    // An editor fast-forward never makes a real board or collection without the author.
+    const gate =
+      planned === 'perform' &&
+      tour.edit &&
+      jumping &&
+      isCreatesAnchor(binding.anchor)
+        ? 'confirm'
+        : planned;
     if (tour.test && gate === 'teacher') {
       reportTestStep({
         index: tour.index,
