@@ -49,12 +49,9 @@ function lettered(
   printed: readonly string[]
 ): QuizQuestion {
   if (lost.size === 0 || (q.type !== 'MC' && q.type !== 'MA')) return q;
-  const right =
-    q.type === 'MA'
-      ? q.correctAnswer.split('|')
-      : q.correctAnswer
-        ? [q.correctAnswer]
-        : [];
+  const right = (
+    q.type === 'MA' ? q.correctAnswer.split('|') : [q.correctAnswer]
+  ).filter(Boolean);
   const all = [...right, ...q.incorrectAnswers];
   // Without a stored printed order, the pictures' own order is it only when every choice is a picture.
   const fromPictures =

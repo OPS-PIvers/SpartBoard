@@ -305,6 +305,23 @@ describe('choices printed only as pictures', () => {
     expect(saved.incorrectAnswers).toEqual(['A', 'B', 'C', 'D']);
   });
 
+  it('letters lost pictures on a choose-all question with no key yet', async () => {
+    const texts = ['P1', 'P2', 'P3'];
+    const quiz = await lostSave({
+      id: 'x',
+      timeLimit: 0,
+      text: 'Pick all',
+      type: 'MA',
+      correctAnswer: '',
+      incorrectAnswers: texts,
+      needsKey: true,
+      ...pictured(texts),
+    });
+    const saved = quiz.questions[0];
+    expect(saved.correctAnswer).toBe('');
+    expect(saved.incorrectAnswers).toEqual(['A', 'B', 'C']);
+  });
+
   it('cuts one merged picture back into a piece per choice', () => {
     const merged = { x: 0.15, y: 0.14, width: 0.15, height: 0.56 };
     const tops = [0.154, 0.305, 0.457, 0.608];
