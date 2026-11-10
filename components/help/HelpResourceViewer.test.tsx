@@ -10,12 +10,16 @@ const h = vi.hoisted(() => ({
   canRunLive: true,
   published: true,
   isAdmin: false,
+  publishedSet: null as GuidedLearningSet | null,
   features: new Set<string>(),
   loadBuildingSet: vi.fn(),
 }));
 
 vi.mock('@/components/tours/publishedTours', () => ({
-  usePublishedTour: () => ({ loaded: true, tour: null }),
+  usePublishedTour: () => ({
+    loaded: true,
+    tour: h.publishedSet ? { set: h.publishedSet } : null,
+  }),
   watchTours: () => () => undefined,
   getToursVersion: () => 0,
   isTourRunnable: () => h.published,
@@ -71,6 +75,7 @@ beforeEach(() => {
   h.canRunLive = true;
   h.published = true;
   h.isAdmin = false;
+  h.publishedSet = null;
   h.features = new Set();
   h.loadBuildingSet.mockReset();
 });
@@ -176,6 +181,15 @@ describe('HelpResourceViewer live tours', () => {
 
     beforeEach(() => {
       h.features = new Set(['tour-steps-view']);
+      h.publishedSet = stepsSet();
+    });
+
+    it('keeps the player for a teacher when the tour has no published copy', async () => {
+      h.publishedSet = null;
+      h.loadBuildingSet.mockResolvedValue(stepsSet());
+      render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+      expect(await screen.findByText('player')).toBeInTheDocument();
+      expect(screen.queryByText('Open Boards')).not.toBeInTheDocument();
     });
 
     it('opens the steps with Start Live Tour at the top, and starts nothing by itself', async () => {
@@ -209,6 +223,7 @@ describe('HelpResourceViewer live tours', () => {
 
     it('offers Edit tour to an admin for a tour never published', async () => {
       h.published = false;
+      h.publishedSet = null;
       h.isAdmin = true;
       h.loadBuildingSet.mockResolvedValue(stepsSet());
       render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
@@ -219,6 +234,7 @@ describe('HelpResourceViewer live tours', () => {
     });
 
     it('keeps the player for a plain activity', async () => {
+      h.publishedSet = null;
       h.loadBuildingSet.mockResolvedValue(set(false));
       render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
       expect(await screen.findByText('player')).toBeInTheDocument();

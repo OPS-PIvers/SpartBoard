@@ -204,7 +204,9 @@ export async function duplicateWebTourDraft(
           type
         );
         uploaded.push(path);
-        return { ...step, web: { ...step.web, picture: { ...picture, path } } };
+        // The uncropped capture stays with the source tour, so the copy starts without one.
+        const { original: _original, ...kept } = picture;
+        return { ...step, web: { ...step.web, picture: { ...kept, path } } };
       })
     );
     const failed = steps.find((r) => r.status === 'rejected');

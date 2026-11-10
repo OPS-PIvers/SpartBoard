@@ -60,7 +60,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   const { t } = useTranslation();
   const { isAdmin, canAccessFeature } = useAuth();
   const stepsViewOn = canAccessFeature('tour-steps-view');
-  const published = usePublishedTour(setId);
+  const published = usePublishedTour(setId, stepsViewOn);
   const [state, setState] = useState<GlState>({ status: 'loading' });
   const canRunLive = useCanRunLiveTour();
   const hasTour = useFirstRunnableTour([setId], !fill && canRunLive) !== null;
@@ -111,11 +111,19 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
 
   const editDraft = draftOnly && tourStepsOf(state.set).length > 0;
   // The published snapshot is what Start Live Tour plays, so it is what the steps read from.
+  // Only admins read an unpublished draft's steps; teachers keep the player until a snapshot exists.
   const stepsSet =
     published.tour && !isWebTourSet(published.tour.set)
       ? published.tour.set
-      : state.set;
-  if (stepsViewOn && liveTourStepsOf(stepsSet).length > 0) {
+      : isAdmin
+        ? state.set
+        : null;
+  if (
+    stepsViewOn &&
+    published.loaded &&
+    stepsSet &&
+    liveTourStepsOf(stepsSet).length > 0
+  ) {
     const start = hasTour || editDraft;
     return (
       <div
