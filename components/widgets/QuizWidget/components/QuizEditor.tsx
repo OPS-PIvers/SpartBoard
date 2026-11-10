@@ -814,9 +814,17 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     [selectedQuestionId, updateQuestion]
   );
   const handleOrderingChange = useCallback(
-    (correctAnswer: string, orderingImages: string[] | undefined) => {
+    (
+      correctAnswer: string,
+      orderingImages: string[] | undefined,
+      imageOnlyAnswers: QuizQuestion['imageOnlyAnswers']
+    ) => {
       if (selectedQuestionId)
-        updateQuestion(selectedQuestionId, { correctAnswer, orderingImages });
+        updateQuestion(selectedQuestionId, {
+          correctAnswer,
+          orderingImages,
+          imageOnlyAnswers,
+        });
     },
     [selectedQuestionId, updateQuestion]
   );
@@ -1163,6 +1171,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             correctAnswer={q.correctAnswer}
             answerImages={q.answerImages}
             termImages={q.matchingTermImages}
+            imageOnlyAnswers={q.imageOnlyAnswers}
             onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
             matchingDistractors={
               q.matchingDistractors ?? (EMPTY_DISTRACTORS as string[])
@@ -1174,6 +1183,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             key={q.id}
             correctAnswer={q.correctAnswer}
             orderingImages={q.orderingImages}
+            imageOnlyAnswers={q.imageOnlyAnswers}
             onChange={handleOrderingChange}
             onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
           />

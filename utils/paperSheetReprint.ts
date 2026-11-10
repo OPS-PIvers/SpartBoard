@@ -1,3 +1,4 @@
+import { choicePictureFields } from '@/utils/quizAnswerImages';
 import type { PaperBatch, PaperPageMap, QuizData, QuizResponse } from '@/types';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { selectRepresentativeAnswers } from './answerTakeOrdering';
@@ -136,6 +137,10 @@ export function planSheetReprint(
           questionTexts: rows.map((row) => ({
             text: questions.get(row.questionId)?.text ?? '',
             choices: choiceOrder?.[row.questionId] ?? [],
+            ...choicePictureFields(
+              questions.get(row.questionId),
+              choiceOrder?.[row.questionId] ?? []
+            ),
           })),
         }
       : {}),

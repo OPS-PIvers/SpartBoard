@@ -32,7 +32,12 @@ import { fibBlankCount, isMultiBlank } from '@/utils/quizFibBlanks';
 import { NumberedBlanksText } from '@/components/quiz/FibMultiBlankInput';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { resolveStimuli } from '@/utils/quizStimuli';
-import { imageForLabel } from '@/utils/quizAnswerImages';
+import {
+  imageForLabel,
+  imageOnlyFor,
+  imageOnlyPictures,
+} from '@/utils/quizAnswerImages';
+import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
@@ -439,6 +444,17 @@ const PreviewAnswerImage: React.FC<{ src?: string }> = ({ src }) =>
     />
   ) : null;
 
+/** An answer's text, kept for screen readers only when the answer is just a picture. */
+const PreviewLabel: React.FC<{ question: QuizQuestion; text: string }> = ({
+  question,
+  text,
+}) =>
+  imageOnlyFor(question.imageOnlyAnswers, text) ? (
+    <span className="sr-only">{text}</span>
+  ) : (
+    <MathText text={text} />
+  );
+
 const MCAnswerArea: React.FC<{
   options: string[];
   selectedAnswer: string | null;
@@ -488,7 +504,7 @@ const MCAnswerArea: React.FC<{
               src={imageForLabel(question.answerImages, opt)}
             />
             <div className="flex-1 min-w-0">
-              <MathText text={opt} />
+              <PreviewLabel question={question} text={opt} />
             </div>
             {showAnswer && isCorrect && (
               <CheckCircle2
@@ -604,7 +620,7 @@ const MultiAnswerArea: React.FC<{
                 src={imageForLabel(question.answerImages, opt)}
               />
               <div className="flex-1 min-w-0">
-                <MathText text={opt} />
+                <PreviewLabel question={question} text={opt} />
               </div>
               {showAnswer && isCorrect && (
                 <CheckCircle2
@@ -759,7 +775,11 @@ const StructuredAnswerArea: React.FC<{
               />
             )}
             <span className="font-black text-brand-blue-primary w-6 shrink-0">
-              {question.type === 'Ordering' ? `${pair.left}.` : pair.left}
+              {question.type === 'Ordering' ? (
+                `${pair.left}.`
+              ) : (
+                <PreviewLabel question={question} text={pair.left} />
+              )}
             </span>
             <div className="flex-1 flex items-center gap-3">
               <span className="text-brand-blue-primary/30">→</span>
@@ -779,7 +799,7 @@ const StructuredAnswerArea: React.FC<{
                     : 'text-transparent bg-brand-blue-primary/5 rounded-sm blur-xs select-none'
                 }`}
               >
-                {pair.right}
+                <PreviewLabel question={question} text={pair.right} />
               </span>
             </div>
           </div>
@@ -815,7 +835,10 @@ const StructuredAnswerArea: React.FC<{
                     fontSize: 'min(12px, 3.5cqmin)',
                   }}
                 >
-                  {d}
+                  <AnswerPictureText
+                    text={d}
+                    pictures={imageOnlyPictures(question)}
+                  />
                 </span>
               ))}
             </div>

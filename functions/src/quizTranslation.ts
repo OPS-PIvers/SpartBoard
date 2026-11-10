@@ -66,6 +66,64 @@ export interface TranslatableQuestion extends HashableQuestion {
   incorrectAnswers?: string[];
   matchingDistractors?: string[];
   rubricSnapshot?: TranslatableRubric;
+  /** Answers that are only a picture: their generated labels are never sent to the model. */
+  imageOnlyAnswers?: { text?: unknown }[];
+}
+
+/** Stands in for a picture-only answer in the prompt; the label goes back in after. */
+export const PICTURE_TOKEN = '[picture]';
+
+const imageOnlyLabels = (q: TranslatableQuestion | undefined): Set<string> =>
+  new Set(
+    (Array.isArray(q?.imageOnlyAnswers) ? q.imageOnlyAnswers : []).flatMap(
+      (a) =>
+        typeof a?.text === 'string' && a.text.trim() ? [a.text.trim()] : []
+    )
+  );
+
+/** Puts each picture-only label back where the model saw the token, so it is never translated. */
+export function restoreImageOnlyLabels(
+  q: TranslatableQuestion | undefined,
+  t: QuestionTranslation
+): QuestionTranslation {
+  const labels = imageOnlyLabels(q);
+  if (!q || labels.size === 0) return t;
+  const keep = (english: string[], out: string[] | undefined) =>
+    out && out.length === english.length
+      ? out.map((s, i) => (labels.has(english[i].trim()) ? english[i] : s))
+      : out;
+  const pairs = parseMatchingPairs(q.correctAnswer);
+  return {
+    ...t,
+    ...(t.choices ? { choices: keep(filteredChoices(q), t.choices) } : {}),
+    ...(t.matchingLeft
+      ? {
+          matchingLeft: keep(
+            pairs.map((p) => p.left),
+            t.matchingLeft
+          ),
+        }
+      : {}),
+    ...(t.matchingRight
+      ? {
+          matchingRight: keep(
+            pairs.map((p) => p.right),
+            t.matchingRight
+          ),
+        }
+      : {}),
+    ...(t.matchingDistractors
+      ? {
+          matchingDistractors: keep(
+            filteredDistractors(q),
+            t.matchingDistractors
+          ),
+        }
+      : {}),
+    ...(t.orderingItems
+      ? { orderingItems: keep(orderingItems(q), t.orderingItems) }
+      : {}),
+  };
 }
 
 export interface QuestionTranslation {
@@ -689,6 +747,7 @@ export function buildSystemInstruction(
     'Preserve every qualifier and hedge exactly (may, might, probably, appear to, some, many, most, all, only, not). They often decide which answer is correct.',
     'Keep the full meaning of every answer choice; never shorten, merge or generalize a choice.',
     'Copy every equation between ⟦ and ⟧ exactly as written, keeping the ⟦ and ⟧ marks.',
+    `Copy ${PICTURE_TOKEN} exactly as written; it stands for a picture.`,
     'When a question asks what an English word or phrase means, keep that word or phrase in English inside quotation marks and translate everything else, including the answer choices.',
     'Write personal names in the target script with standard transliteration, followed by the original spelling in parentheses the first time each appears in a question; in Latin-script languages keep names unchanged. Brand and product names (for example YouTube, Meta) stay as written.',
     'Use the established name for organizations, laws, places and historical events when that language has one, rather than translating the English words.',
@@ -721,26 +780,37 @@ export function buildTranslationPrompt(
   }));
   const payload = source
     .filter((q) => requestedIds.includes(q.id))
-    .map((q) => ({
-      id: q.id,
-      type: q.type,
-      text: isFillInTheBlank(q.type)
-        ? tokenizeFibStem(q.text ?? '').text
-        : (q.text ?? ''),
-      ...(isFillInTheBlank(q.type) && (q.correctAnswer ?? '').trim() !== ''
-        ? { answer: fibAnswerForPrompt(q.correctAnswer ?? '') }
-        : {}),
-      ...(isMultipleChoice(q.type) ? { choices: filteredChoices(q) } : {}),
-      ...(isMatching(q.type)
-        ? {
-            matchingPairs: parseMatchingPairs(q.correctAnswer),
-            matchingDistractors: filteredDistractors(q),
-          }
-        : {}),
-      ...(isOrdering(q.type) ? { orderingItems: orderingItems(q) } : {}),
-      ...(q.placeholder ? { placeholder: q.placeholder } : {}),
-      ...(q.rubricSnapshot ? { rubric: q.rubricSnapshot } : {}),
-    }));
+    .map((q) => {
+      const labels = imageOnlyLabels(q);
+      const mask = (s: string) => (labels.has(s.trim()) ? PICTURE_TOKEN : s);
+      return {
+        id: q.id,
+        type: q.type,
+        text: isFillInTheBlank(q.type)
+          ? tokenizeFibStem(q.text ?? '').text
+          : (q.text ?? ''),
+        ...(isFillInTheBlank(q.type) && (q.correctAnswer ?? '').trim() !== ''
+          ? { answer: fibAnswerForPrompt(q.correctAnswer ?? '') }
+          : {}),
+        ...(isMultipleChoice(q.type)
+          ? { choices: filteredChoices(q).map(mask) }
+          : {}),
+        ...(isMatching(q.type)
+          ? {
+              matchingPairs: parseMatchingPairs(q.correctAnswer).map((p) => ({
+                left: mask(p.left),
+                right: mask(p.right),
+              })),
+              matchingDistractors: filteredDistractors(q).map(mask),
+            }
+          : {}),
+        ...(isOrdering(q.type)
+          ? { orderingItems: orderingItems(q).map(mask) }
+          : {}),
+        ...(q.placeholder ? { placeholder: q.placeholder } : {}),
+        ...(q.rubricSnapshot ? { rubric: q.rubricSnapshot } : {}),
+      };
+    });
   return [
     `Quiz title: ${JSON.stringify(title)}`,
     'Full quiz for terminology consistency (do not translate entries absent from the list below):',
@@ -806,7 +876,10 @@ function shapeOutput(
   for (const q of parsed.questions ?? []) {
     if (!q || typeof q.id !== 'string') continue;
     // Unknown ids are kept so the validator can reject them by name.
-    questions[q.id] = pickForType(byId.get(q.id)?.type ?? '', q);
+    questions[q.id] = restoreImageOnlyLabels(
+      byId.get(q.id),
+      pickForType(byId.get(q.id)?.type ?? '', q)
+    );
   }
   return {
     ...(typeof parsed.title === 'string' ? { title: parsed.title } : {}),

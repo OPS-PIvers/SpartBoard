@@ -4772,5 +4772,9 @@
     "pausedConfirmer": "Quien hizo público este recorrido ya no es administrador. Revísalo y vuelve a activarlo.",
     "reviewProgress": "Desplázate para revisar los {{count}} pasos ({{seen}} de {{count}} vistos).",
     "reviewEnd": "Fin del recorrido: {{count}} pasos."
+  },
+  "quizAnswerPicture": {
+    "name": "Imagen {{n}}",
+    "nameWithAlt": "Imagen {{n}}: {{alt}}"
   }
 }

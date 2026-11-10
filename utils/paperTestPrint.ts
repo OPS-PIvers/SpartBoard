@@ -14,6 +14,7 @@ import {
 import { CHOICE_LETTERS } from './paperSheetLayout';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
+import type { ChoicePicture } from './quizAnswerImages';
 
 export interface PaperTestQuestion {
   /** Number printed on the answer sheet: the row, or the quiz position on a sheet with written boxes (D11). */
@@ -21,6 +22,8 @@ export interface PaperTestQuestion {
   text: string;
   /** Option text in printed letter order. */
   choices: readonly string[];
+  /** A picture per choice, null where none; a picture-only choice prints without its label. */
+  choicePictures?: readonly (ChoicePicture | null)[];
   /** Answered in a written box on the answer sheet, not bubbled (D18). */
   written?: boolean;
   /** A section heading printed above this question, the first of its section (E15). */
@@ -56,11 +59,18 @@ const STYLES = `
   .text { white-space: pre-wrap; }
   ol.c { list-style: none; padding: 0; margin: 1.5mm 0 0; }
   ol.c > li { display: grid; grid-template-columns: 8mm 1fr; margin-top: 0.8mm; }
+  .cpic { display: block; max-height: 30mm; max-width: 60mm; object-fit: contain; margin: 0.5mm 0; }
   .written { margin: 1.5mm 0 0; font-size: 10pt; font-style: italic; }
   .version { break-before: page; }
   .version:first-child { break-before: auto; }
   .version-label { font-size: 12pt; font-weight: bold; margin: -2mm 0 4mm; }
 `;
+
+function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
+  if (!picture) return escapeHtml(plainPromptText(text));
+  const img = `<img class="cpic" src="${escapeHtml(picture.url)}" alt="${escapeHtml(picture.alt ?? '')}">`;
+  return picture.only ? img : `${img}${escapeHtml(plainPromptText(text))}`;
+}
 
 function questionHtml(q: PaperTestQuestion): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
@@ -71,7 +81,7 @@ function questionHtml(q: PaperTestQuestion): string {
       : `<ol class="c">${q.choices
           .map(
             (c, i) =>
-              `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(plainPromptText(c))}</span></li>`
+              `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${choiceHtml(c, q.choicePictures?.[i])}</span></li>`
           )
           .join('')}</ol>`;
   const section = q.section

@@ -91,6 +91,7 @@ export function questionTypeChangeUpdates(
     orderingImages: undefined,
     answerImages: undefined,
     matchingTermImages: undefined,
+    imageOnlyAnswers: undefined,
     // Reset written-specific fields when switching off written types
     placeholder: isWritten ? q.placeholder : undefined,
     maxWords: isWritten ? q.maxWords : undefined,

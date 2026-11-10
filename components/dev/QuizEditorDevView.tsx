@@ -112,6 +112,70 @@ const quiz = (): QuizData => ({
   ],
 });
 
+const pic = (name: string) => `https://example.invalid/${name}.png`;
+
+/** MC, Matching and Ordering questions whose answers are only pictures. */
+const pictureOnlyQuiz = (): QuizData => ({
+  id: 'dev-quiz-pictures',
+  title: 'Shapes',
+  createdAt: 1,
+  updatedAt: 1,
+  questions: [
+    {
+      id: 'q-pic-mc',
+      type: 'MC',
+      text: 'Which shape has three sides?',
+      correctAnswer: 'Picture ACD',
+      incorrectAnswers: ['Picture CDE', 'Picture EFG', 'A hexagon'],
+      answerImages: [
+        { text: 'Picture ACD', url: pic('triangle') },
+        { text: 'Picture CDE', url: pic('square') },
+        { text: 'Picture EFG', url: pic('circle') },
+      ],
+      imageOnlyAnswers: [
+        { text: 'Picture ACD', alt: 'A red triangle' },
+        { text: 'Picture CDE' },
+        { text: 'Picture EFG' },
+      ],
+      timeLimit: 30,
+    },
+    {
+      id: 'q-pic-match',
+      type: 'Matching',
+      text: 'Match each shape to its number of sides.',
+      correctAnswer:
+        'Picture ACD:3 sides|Picture CDE:4 sides|Picture GHJ:6 sides',
+      incorrectAnswers: [],
+      matchingDistractors: ['0 sides'],
+      matchingTermImages: [
+        { text: 'Picture ACD', url: pic('triangle') },
+        { text: 'Picture CDE', url: pic('square') },
+        { text: 'Picture GHJ', url: pic('hexagon') },
+      ],
+      imageOnlyAnswers: [
+        { text: 'Picture ACD' },
+        { text: 'Picture CDE' },
+        { text: 'Picture GHJ' },
+      ],
+      timeLimit: 0,
+    },
+    {
+      id: 'q-pic-order',
+      type: 'Ordering',
+      text: 'Order the shapes from fewest sides to most.',
+      correctAnswer: 'Picture ACD|Picture CDE|Picture GHJ',
+      incorrectAnswers: [],
+      orderingImages: [pic('triangle'), pic('square'), pic('hexagon')],
+      imageOnlyAnswers: [
+        { text: 'Picture ACD' },
+        { text: 'Picture CDE' },
+        { text: 'Picture GHJ' },
+      ],
+      timeLimit: 0,
+    },
+  ],
+});
+
 const passage: QuizStimulus = {
   id: 'stim-passage',
   type: 'text',
@@ -230,7 +294,13 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
     <QuizEditorModal
       key={state}
       isOpen
-      quiz={state === 'qe-sections' ? sectionQuiz() : quiz()}
+      quiz={
+        state === 'qe-sections'
+          ? sectionQuiz()
+          : state === 'qe-picture-only'
+            ? pictureOnlyQuiz()
+            : quiz()
+      }
       onClose={() => undefined}
       onSave={() => Promise.resolve()}
     />

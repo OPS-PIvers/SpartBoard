@@ -1,3 +1,4 @@
+import { splitPictureLabels } from './quizAnswerImages';
 import { plainPromptText } from './promptMath';
 import {
   escapeHtml,
@@ -81,6 +82,7 @@ const BAND_LABEL: Record<string, string> = {
 };
 
 const STYLES = `
+  .pic img { height: 12mm; max-width: 24mm; object-fit: contain; vertical-align: middle; margin-right: 1mm; border: 0.2mm solid #ccc; }
   @page { size: letter; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 10.5pt; }
@@ -116,11 +118,11 @@ export function buildStudentReportHtml(job: StudentReportJob): string {
           ? ''
           : `<div class="pts">${formatExportPoints(line.pointsEarned)}/${formatExportPoints(line.pointsMax)}</div>`;
       const answer = line.answerText
-        ? `<div class="answer">Answer: ${escapeHtml(plainPromptText(line.answerText))}</div>`
+        ? `<div class="answer">Answer: ${answerTextHtml(line.answerText, line)}</div>`
         : '';
       const key =
         job.includeCorrectAnswers && showsMissedKey(line)
-          ? `<div class="key">Correct answer: ${escapeHtml(plainPromptText(line.correctAnswerText ?? ''))}</div>`
+          ? `<div class="key">Correct answer: ${answerTextHtml(line.correctAnswerText ?? '', line)}</div>`
           : '';
       return `<li><span class="num">Q${line.number}</span><div><div class="text">${escapeHtml(plainPromptText(line.text))}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
     })
@@ -350,12 +352,12 @@ function mcAnswer(
           ? ' <span class="keytag">Correct answer</span>'
           : '';
       const bullet = multi ? (opt.picked ? '☑' : '☐') : opt.picked ? '●' : '○';
-      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${bullet}</span> ${letter}${escapeHtml(plainPromptText(opt.text))}${mark}${key}</li>`;
+      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${bullet}</span> ${letter}${answerTextHtml(opt.text, line)}${mark}${key}</li>`;
     })
     .join('');
   const unmatched =
     line.answerText && !opts.some((o) => o.picked)
-      ? `<div class="answer">Answer: ${escapeHtml(plainPromptText(line.answerText))}</div>`
+      ? `<div class="answer">Answer: ${answerTextHtml(line.answerText, line)}</div>`
       : '';
   return `<ul class="opts">${items}</ul>${unmatched}`;
 }
@@ -370,16 +372,28 @@ function matchingAnswer(
       const mark = options.markAnswers && p.given ? ` ${tick(p.correct)}` : '';
       const key =
         showKey && !p.correct
-          ? ` <span class="key">(correct: ${escapeHtml(p.expected)})</span>`
+          ? ` <span class="key">(correct: ${answerTextHtml(p.expected, line)})</span>`
           : '';
-      return `<li>${escapeHtml(p.term)} → ${p.given ? escapeHtml(p.given) : '<em>no answer</em>'}${mark}${key}</li>`;
+      return `<li>${answerTextHtml(p.term, line)} → ${p.given ? answerTextHtml(p.given, line) : '<em>no answer</em>'}${mark}${key}</li>`;
     })
     .join('');
   return `<ul class="pairs">${rows}</ul>`;
 }
 
-const numbered = (items: readonly string[]) =>
-  items.map((item, i) => `${i + 1}. ${escapeHtml(item)}`).join('; ');
+const numbered = (items: readonly string[], line: StudentQuestionLine) =>
+  items.map((item, i) => `${i + 1}. ${answerTextHtml(item, line)}`).join('; ');
+
+/** Escaped answer text with each picture-only label printed as its picture and label. */
+function answerTextHtml(text: string, line: StudentQuestionLine): string {
+  if (!line.pictures) return escapeHtml(plainPromptText(text));
+  return splitPictureLabels(text, line.pictures)
+    .map((part) =>
+      part.kind === 'text'
+        ? escapeHtml(plainPromptText(part.text))
+        : `<span class="pic"><img src="${escapeHtml(part.picture.url)}" alt="${escapeHtml(part.picture.alt ?? '')}">${escapeHtml(part.label)}</span>`
+    )
+    .join('');
+}
 
 const PLACEHOLDER_LABEL = {
   transcribing: 'Transcribing',
@@ -592,7 +606,7 @@ function answerBlock(
     );
   }
   if (!options.includeQuestions) {
-    return `<div class="answer">${line.answerText ? escapeHtml(plainPromptText(line.answerText)) : '<em>No answer</em>'}</div>${keyLine('Correct answer', escapeHtml(plainPromptText(line.correctAnswerText ?? '')))}`;
+    return `<div class="answer">${line.answerText ? answerTextHtml(line.answerText, line) : '<em>No answer</em>'}</div>${keyLine('Correct answer', answerTextHtml(line.correctAnswerText ?? '', line))}`;
   }
   if (line.type === 'MC' || line.type === 'MA')
     return mcAnswer(line, student, options, showKey);
@@ -600,11 +614,11 @@ function answerBlock(
   if (line.type === 'Ordering' && line.order) {
     const given =
       line.order.given.length > 0
-        ? numbered(line.order.given)
+        ? numbered(line.order.given, line)
         : '<em>No answer</em>';
-    return `<div class="answer">Your order: ${given}</div>${keyLine('Correct order', numbered(line.order.expected))}`;
+    return `<div class="answer">Your order: ${given}</div>${keyLine('Correct order', numbered(line.order.expected, line))}`;
   }
-  return `<div class="answer">Answer: ${line.answerText ? escapeHtml(plainPromptText(line.answerText)) : '<em>No answer</em>'}</div>${keyLine('Accepted answer', escapeHtml(plainPromptText(line.correctAnswerText ?? '')))}`;
+  return `<div class="answer">Answer: ${line.answerText ? answerTextHtml(line.answerText, line) : '<em>No answer</em>'}</div>${keyLine('Accepted answer', answerTextHtml(line.correctAnswerText ?? '', line))}`;
 }
 
 function stimulusRow(stimulus: QuizStimulus): string {
@@ -930,6 +944,7 @@ const PRINT_HEIGHT_MM = 279.4 - 32;
 const PX_PER_MM = 96 / 25.4;
 
 export const RESULTS_PRINT_STYLES = `
+  .pic img { height: 12mm; max-width: 24mm; object-fit: contain; vertical-align: middle; margin-right: 1mm; border: 0.2mm solid #ccc; }
   @page { size: letter; margin: 16mm 18mm; }
   * { box-sizing: border-box; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

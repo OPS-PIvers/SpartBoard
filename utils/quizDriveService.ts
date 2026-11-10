@@ -25,7 +25,7 @@ import { authError } from './driveAuthErrors';
 import {
   buildResultsSheetData as buildResultsSheetDataShared,
   compareExportRowsByStudent,
-  formatQuizAnswerPlain,
+  formatQuizAnswerExport,
   headersHaveAnswerColumns,
 } from '@/utils/assignmentExportShared';
 import {
@@ -712,7 +712,7 @@ export class QuizDriveService {
         ? makeQuizGradeFn(options.fibGrading)
         : quizGradeFnWithManualGrades,
       includeAnswerText
-        ? { ...options, formatAnswer: formatQuizAnswerPlain }
+        ? { ...options, formatAnswer: formatQuizAnswerExport }
         : options
     );
   }
@@ -874,7 +874,7 @@ export class QuizDriveService {
         questions,
         gradeFn,
         withAnswers
-          ? { ...rowOptions, formatAnswer: formatQuizAnswerPlain }
+          ? { ...rowOptions, formatAnswer: formatQuizAnswerExport }
           : rowOptions
       );
     const { headers, dataRows } = buildRows(includeAnswerText);
@@ -965,7 +965,7 @@ export class QuizDriveService {
           {
             ...rowOptions,
             ...(includeAnswerText
-              ? { formatAnswer: formatQuizAnswerPlain }
+              ? { formatAnswer: formatQuizAnswerExport }
               : {}),
             attemptColumn: {
               header: 'Attempt',
