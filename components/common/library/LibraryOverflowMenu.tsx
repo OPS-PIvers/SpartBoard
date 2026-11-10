@@ -48,7 +48,8 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   const [sub, setSub] = useState<{
     id: string;
     top: number;
-    left: number;
+    left?: number;
+    right?: number;
   } | null>(null);
   const activeSub = open ? sub : null;
   const ref = useRef<HTMLDivElement>(null);
@@ -91,15 +92,15 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     const rect = row.getBoundingClientRect();
     const count = item.submenu?.length ?? 0;
     const height = count * MENU_ITEM_HEIGHT + MENU_CHROME_HEIGHT;
-    const left =
-      rect.right + SUBMENU_WIDTH + 8 <= window.innerWidth
-        ? rect.right - 2
-        : Math.max(8, rect.left - SUBMENU_WIDTH + 2);
+    const flip = rect.right + SUBMENU_WIDTH + 8 > window.innerWidth;
+    const edge = flip
+      ? { right: window.innerWidth - rect.left - 2 }
+      : { left: rect.right - 2 };
     const top = Math.max(
       8,
       Math.min(rect.top - 5, window.innerHeight - height - 8)
     );
-    setSub({ id: item.id, top, left });
+    setSub({ id: item.id, top, ...edge });
   };
 
   useLayoutEffect(() => {
@@ -237,7 +238,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                     if (!item.disabled) item.onClick();
                   }}
                   disabled={item.disabled}
-                  title={item.disabled ? item.disabledReason : undefined}
+                  title={item.disabled ? item.disabledReason : item.label}
                   {...anchorAttrs}
                   className={menuRowClass(item.destructive)}
                 >
@@ -269,6 +270,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
               position: 'fixed',
               top: activeSub.top,
               left: activeSub.left,
+              right: activeSub.right,
               minWidth: 176,
               width: 'max-content',
               maxWidth: SUBMENU_WIDTH,
@@ -288,7 +290,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                     if (!child.disabled) child.onClick();
                   }}
                   disabled={child.disabled}
-                  title={child.disabled ? child.disabledReason : undefined}
+                  title={child.disabled ? child.disabledReason : child.label}
                   {...(child.anchor ??
                     (rowKey
                       ? archive

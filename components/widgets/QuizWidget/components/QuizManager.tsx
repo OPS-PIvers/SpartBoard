@@ -3550,7 +3550,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
                   }}
                   title="Sync now"
                   aria-label="Sync now"
-                  className={`${pillClass} cursor-pointer transition-colors hover:bg-amber-200 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`}
+                  className={`${pillClass} touch-target-expand relative cursor-pointer transition-colors hover:bg-amber-200 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`}
                   style={pillStyle}
                 >
                   {pillInner}
