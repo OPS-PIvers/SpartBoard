@@ -285,6 +285,18 @@ export async function rewriteOpenStudySessions(
   return snapshot.size;
 }
 
+const cardSpeakable = (card: FlashcardCard): boolean => {
+  const refs = (card.speak as { refs?: unknown } | undefined)?.refs;
+  return (
+    Array.isArray(refs) &&
+    refs.some(
+      (ref) =>
+        Array.isArray((ref as { tokens?: unknown }).tokens) &&
+        (ref as { tokens: unknown[] }).tokens.length > 0
+    )
+  );
+};
+
 /** Mirrors fixedCheckCards in components/widgets/Flashcards/utils/flashcardCheckSync.ts. */
 export function fixedCheckCards(
   checkCards: FlashcardCard[],
@@ -298,9 +310,9 @@ export function fixedCheckCards(
     if (!fixed) return old;
     const { speak, ...text } = fixed;
     let card: FlashcardCard = speakStamped && speak ? { ...text, speak } : text;
-    if (speakStamped && old.speak && !speak) {
+    if (speakStamped && cardSpeakable(card) !== cardSpeakable(old)) {
       if (fixed.term !== old.term) return old;
-      card = { ...text, speak: old.speak };
+      card = old.speak ? { ...text, speak: old.speak } : text;
     }
     if (JSON.stringify(card) === JSON.stringify(old)) return old;
     changed = true;

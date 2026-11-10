@@ -3,9 +3,10 @@ import type { FlashcardCard } from '@/types';
 import { fixedCheckCards } from './flashcardCheckSync';
 
 const speak = (word: string): NonNullable<FlashcardCard['speak']> =>
-  ({ refs: [{ dialect: 'es-ES', word }] }) as unknown as NonNullable<
-    FlashcardCard['speak']
-  >;
+  ({
+    term: word,
+    refs: [{ dialect: 'es-ES', tokens: [word] }],
+  }) as unknown as NonNullable<FlashcardCard['speak']>;
 
 const card = (id: string, term: string, definition = `${term} def`) => ({
   id,
@@ -63,5 +64,25 @@ describe('fixedCheckCards', () => {
     expect(fixedCheckCards(check, [card('a', 'gato', 'cat')], true)).toEqual([
       { ...card('a', 'gato', 'cat'), speak: speak('gato') },
     ]);
+  });
+
+  it('never changes which cards a Speak check can speak', () => {
+    const unspeakable = {
+      term: 'gato',
+      refs: [],
+    } as unknown as NonNullable<FlashcardCard['speak']>;
+    const check = [{ ...card('a', 'gato'), speak: unspeakable }];
+    const set = [{ ...card('a', 'gato', 'cat'), speak: speak('gato') }];
+    expect(fixedCheckCards(check, set, true)).toEqual([
+      { ...card('a', 'gato', 'cat'), speak: unspeakable },
+    ]);
+    const lost = [{ ...card('a', 'gata', 'cat'), speak: unspeakable }];
+    expect(
+      fixedCheckCards(
+        [{ ...card('a', 'gato'), speak: speak('gato') }],
+        lost,
+        true
+      )
+    ).toBe(null);
   });
 });

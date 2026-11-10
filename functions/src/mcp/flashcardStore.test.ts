@@ -6,6 +6,7 @@ import {
   mergeCards,
   guardPublicShare,
   normalizeSet,
+  fixedCheckCards,
   rewriteOpenCheckSessions,
   rewriteOpenStudySessions,
   stageSetWrite,
@@ -404,5 +405,24 @@ describe('rewriteOpenCheckSessions', () => {
         { cards: [card('a', 'gato', 'cat')] },
       ],
     ]);
+  });
+
+  it('never changes which cards a Speak check can speak', () => {
+    const ready = { term: 'gato', refs: [{ dialect: 'es-ES', tokens: ['g'] }] };
+    const none = { term: 'gato', refs: [] };
+    expect(
+      fixedCheckCards(
+        [{ ...card('a', 'gato', 'dog'), speak: none }],
+        [{ ...card('a', 'gato', 'cat'), speak: ready }],
+        true
+      )
+    ).toEqual([{ ...card('a', 'gato', 'cat'), speak: none }]);
+    expect(
+      fixedCheckCards(
+        [{ ...card('a', 'gata', 'cat'), speak: ready }],
+        [{ ...card('a', 'gato', 'cat'), speak: none }],
+        true
+      )
+    ).toBeNull();
   });
 });

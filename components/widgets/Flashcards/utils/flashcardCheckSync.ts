@@ -1,5 +1,11 @@
 import type { FlashcardCard } from '@/types';
 
+/** Mirrors isSpeakableCard in functions/src/flashcardCheck.ts. */
+const speakable = (card: FlashcardCard): boolean =>
+  (card.speak?.refs ?? []).some(
+    (ref) => Array.isArray(ref.tokens) && ref.tokens.length > 0
+  );
+
 const sameCard = (a: FlashcardCard, b: FlashcardCard): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
 
@@ -17,10 +23,10 @@ export const fixedCheckCards = (
     if (!fixed) return old;
     const { speak, ...text } = fixed;
     let card: FlashcardCard = speakStamped && speak ? { ...text, speak } : text;
-    // Readings for a fixed term are still being made: keep the old card until they land.
-    if (speakStamped && old.speak && !speak) {
+    // Which cards can be spoken is fixed for the attempt, so a fix never changes it.
+    if (speakStamped && speakable(card) !== speakable(old)) {
       if (fixed.term !== old.term) return old;
-      card = { ...text, speak: old.speak };
+      card = old.speak ? { ...text, speak: old.speak } : text;
     }
     if (sameCard(card, old)) return old;
     changed = true;
