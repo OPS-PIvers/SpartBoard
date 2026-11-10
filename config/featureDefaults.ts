@@ -1345,6 +1345,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Admin-only until Paul has saved a sight-word set with it.
+  'flashcards-term-only': {
+    label: 'Flashcards: cards without definitions',
+    icon: Layers,
+    description:
+      'Teachers can save cards with only a term, like sight words. Write and Test are hidden for those sets.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',

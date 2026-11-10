@@ -358,6 +358,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 
   const editorAiEnabled =
     canAccessFeature('gemini-functions') && canAccessFeature('flashcards-ai');
+  const allowTermOnly = canAccessFeature('flashcards-term-only');
   const editingIsNew =
     !!editingSet && !flashcardSets.sets.some((s) => s.id === editingSet.id);
 
@@ -368,7 +369,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   ): Promise<void> => {
     try {
       const rewritten = await flashcardSets.saveSet(set, {
-        syncStudy: final || flashcardSetIncompleteReason(set) === null,
+        syncStudy:
+          final ||
+          flashcardSetIncompleteReason(set, { termOnly: allowTermOnly }) ===
+            null,
       });
       if (final && rewritten > 0) {
         addToast(
@@ -433,7 +437,9 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Add cards to this set before assigning it.', 'error');
       return;
     }
-    const incomplete = flashcardSetIncompleteReason(set);
+    const incomplete = flashcardSetIncompleteReason(set, {
+      termOnly: allowTermOnly,
+    });
     if (incomplete) {
       addToast(`Not ready to use yet: ${incomplete}`, 'error');
       return;

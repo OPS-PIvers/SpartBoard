@@ -75,6 +75,30 @@ describe('FlashcardPlayer', () => {
     expect(screen.getByText('1. Multiple choice')).toBeTruthy();
   });
 
+  it('shows term-only cards without a flip and hides Write and Test', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={[
+          { id: 'said', term: 'said', definition: '' },
+          { id: 'was', term: 'was', definition: '' },
+        ]}
+        termLanguage="en-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('player-term-only')}
+        initialSettings={{ showFirst: 'definition' }}
+      />
+    );
+
+    const card = screen.getByRole('button', { name: 'Term: said' });
+    await user.click(card);
+    expect(card.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Write' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Test' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(screen.getByText('2/2')).toBeTruthy();
+  });
+
   it('keeps keyboard shortcuts working after clicking a card control', async () => {
     const user = userEvent.setup();
     const adapter = new LocalFlashcardAdapter('player-keys');

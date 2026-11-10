@@ -378,4 +378,16 @@ describe('flashcardSetIncompleteReason', () => {
       flashcardSetIncompleteReason({ title: 'A', cards: [card('a', 'b')] })
     ).toBeNull();
   });
+  it('accepts a term with no definition when term-only cards are on', () => {
+    const cards = [card('said', ''), card('was', '')];
+    expect(
+      flashcardSetIncompleteReason({ title: 'A', cards }, { termOnly: true })
+    ).toBeNull();
+    expect(
+      flashcardSetIncompleteReason(
+        { title: 'A', cards: [card('', 'b')] },
+        { termOnly: true }
+      )
+    ).toBe('Card 1: term is required');
+  });
 });

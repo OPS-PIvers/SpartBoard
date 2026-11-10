@@ -248,7 +248,10 @@ export const FlashcardSetEditorModal: React.FC<
     ]
   );
 
-  const incompleteNotice = flashcardSetIncompleteReason({ title, cards });
+  const incompleteNotice = flashcardSetIncompleteReason(
+    { title, cards },
+    { termOnly: state.termOnly }
+  );
 
   const hasContent = title.trim() !== '' || cleanFlashcards(cards).length > 0;
 
@@ -587,6 +590,7 @@ export const FlashcardSetEditorModal: React.FC<
         <PasteImportDrawer
           onClose={() => setPasteOpen(false)}
           onImport={appendCards}
+          termOnly={state.termOnly}
         />
       )}
     </EditorModalShell>

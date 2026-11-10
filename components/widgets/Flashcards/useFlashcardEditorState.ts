@@ -52,14 +52,16 @@ export const cleanFlashcards = (cards: FlashcardCard[]): FlashcardCard[] =>
     .filter((card) => card.term !== '' || card.definition !== '');
 
 /** What still has to be filled in before a set can be used, or null. */
-export const flashcardSetIncompleteReason = ({
-  title,
-  cards,
-}: Pick<FlashcardSet, 'title' | 'cards'>): string | null => {
+export const flashcardSetIncompleteReason = (
+  { title, cards }: Pick<FlashcardSet, 'title' | 'cards'>,
+  { termOnly = false }: { termOnly?: boolean } = {}
+): string | null => {
   if (!title.trim()) return 'Set title is required';
   const filled = cleanFlashcards(cards);
   if (filled.length === 0) return 'Add at least one card';
-  const index = filled.findIndex((card) => !card.term || !card.definition);
+  const index = filled.findIndex(
+    (card) => !card.term || (!termOnly && !card.definition)
+  );
   if (index < 0) return null;
   return filled[index].term
     ? `Card ${index + 1}: definition is required`
@@ -75,6 +77,8 @@ export const useFlashcardEditorState = (
     useContext(AuthContext)?.canAccessFeature('flashcards-speak') ?? false;
   const canSwap =
     useContext(AuthContext)?.canAccessFeature('flashcards-swap-sides') ?? false;
+  const termOnly =
+    useContext(AuthContext)?.canAccessFeature('flashcards-term-only') ?? false;
   const [title, setTitle] = useState(initialSet.title);
   const [description, setDescription] = useState(initialSet.description ?? '');
   const [targets, setTargets] = useState(initialSet.targets);
@@ -279,6 +283,7 @@ export const useFlashcardEditorState = (
   return {
     canSpeak,
     canSwap,
+    termOnly,
     title,
     setTitle,
     description,
