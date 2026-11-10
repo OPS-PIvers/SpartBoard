@@ -206,6 +206,8 @@ claude/project-thread-ylaw63
 claude/project-thread-uhhzb5
 claude/project-thread-uhhzb5-docs
 claude/project-thread-tu7i6d
+claude/project-thread-zsvnns
+claude/project-thread-zsvnns-ab112
 
 ```
 git push origin --delete claude/project-thread-1ylvse
