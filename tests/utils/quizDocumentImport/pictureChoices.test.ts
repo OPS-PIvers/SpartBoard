@@ -8,6 +8,7 @@ import { resolveChoicePictures } from '@/utils/quizDocumentImport/pdfPictures';
 import { toQuizQuestion } from '@/utils/quizDocumentImport/toQuizData';
 import { attachDocumentImages } from '@/utils/quizDocumentImport/attachImages';
 import type { DocLine } from '@/utils/quizDocumentImport/types';
+import type { QuizQuestion } from '@/types';
 
 const line = (
   text: string,
@@ -249,6 +250,59 @@ describe('choices printed only as pictures', () => {
     expect(saved.imageOnlyAnswers).toBeUndefined();
     expect(saved.correctAnswer).toBe('B');
     expect([...saved.incorrectAnswers].sort()).toEqual(['A', 'C', 'D']);
+  });
+
+  const lostSave = (question: QuizQuestion) =>
+    attachDocumentImages(
+      {
+        id: 'q',
+        title: 'T',
+        questions: [question],
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      [],
+      {
+        upload: () => Promise.reject(new Error('no')),
+        remove: () => Promise.resolve(),
+      }
+    );
+  const pictured = (texts: string[]) => ({
+    answerImages: texts.map((text, i) => ({ text, url: `img-${i}` })),
+    imageOnlyAnswers: texts.map((text) => ({ text })),
+  });
+
+  it('letters lost choose-all pictures by their printed order', async () => {
+    const texts = ['P1', 'P2', 'P3', 'P4'];
+    const quiz = await lostSave({
+      id: 'x',
+      timeLimit: 0,
+      text: 'Pick all',
+      type: 'MA',
+      correctAnswer: 'P3|P4',
+      incorrectAnswers: ['P1', 'P2'],
+      ...pictured(texts),
+    });
+    const saved = quiz.questions[0];
+    expect(saved.correctAnswer).toBe('C|D');
+    expect(saved.incorrectAnswers).toEqual(['A', 'B']);
+  });
+
+  it('letters lost pictures on a choice question with no key yet', async () => {
+    const texts = ['P1', 'P2', 'P3', 'P4'];
+    const quiz = await lostSave({
+      id: 'x',
+      timeLimit: 0,
+      text: 'Pick one',
+      type: 'MC',
+      correctAnswer: '',
+      incorrectAnswers: texts,
+      needsKey: true,
+      ...pictured(texts),
+    });
+    const saved = quiz.questions[0];
+    expect(saved.correctAnswer).toBe('');
+    expect(saved.incorrectAnswers).toEqual(['A', 'B', 'C', 'D']);
   });
 
   it('cuts one merged picture back into a piece per choice', () => {
