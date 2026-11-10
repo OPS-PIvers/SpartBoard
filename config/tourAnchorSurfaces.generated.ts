@@ -459,6 +459,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-editor.order-remove': ['quiz.editor'],
     'quiz-editor.option-image': ['quiz.editor'],
     'quiz-editor.option-image-remove': ['quiz.editor'],
+    'quiz-editor.answer-image-description': ['quiz.editor'],
     'quiz-editor.match-term-image': ['quiz.editor'],
     'quiz-editor.match-term-image-remove': ['quiz.editor'],
     'quiz-editor.match-definition-image': ['quiz.editor'],

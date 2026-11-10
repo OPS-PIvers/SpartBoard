@@ -196,6 +196,8 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
         JSON.stringify(qb.answerImages ?? []) ||
       JSON.stringify(qa.matchingTermImages ?? []) !==
         JSON.stringify(qb.matchingTermImages ?? []) ||
+      JSON.stringify(qa.imageOnlyAnswers ?? []) !==
+        JSON.stringify(qb.imageOnlyAnswers ?? []) ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
       (qa.rubricVisibleToStudents === true) !==

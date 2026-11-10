@@ -3,8 +3,13 @@ import type { QuizQuestion } from '@/types';
 import { toPublicQuestion } from '@/hooks/useQuizSession';
 import {
   answerImagesFromRows,
+  choicePicturesFor,
+  describePictureLabels,
+  imageOnlyPictures,
   imagesForLabels,
+  newImageOnlyLabel,
   pastedImage,
+  splitPictureLabels,
 } from './quizAnswerImages';
 import {
   alignToPreviousOrder,
@@ -176,5 +181,83 @@ describe('pastedImage', () => {
   it('ignores other files', () => {
     const pdf = new File(['x'], 'a.pdf', { type: 'application/pdf' });
     expect(paste([pdf], ['Files'])).toBeNull();
+  });
+});
+
+describe('picture-only answers', () => {
+  const pictureMc: QuizQuestion = {
+    ...base,
+    correctAnswer: 'Picture ACD',
+    incorrectAnswers: ['Picture CDE', 'Words'],
+    answerImages: [
+      { text: 'Picture ACD', url: url('a') },
+      { text: 'Picture CDE', url: url('c') },
+      { text: 'Words', url: url('w') },
+    ],
+    imageOnlyAnswers: [
+      { text: 'Picture ACD', alt: 'A red triangle' },
+      { text: 'Picture CDE' },
+    ],
+  };
+
+  it('makes a fresh label that no answer in the question uses', () => {
+    const seq = [0, 0, 0, 0, 0, 1];
+    let i = 0;
+    const label = newImageOnlyLabel(['picture aaa'], () => seq[i++] / 25);
+    expect(label).toBe('Picture AAC');
+  });
+
+  it('sends students the labels with their descriptions, and only those shown with a picture', () => {
+    const pub = toPublicQuestion(pictureMc);
+    expect(pub.choices).toHaveLength(3);
+    expect(pub.imageOnlyAnswers).toEqual([
+      { text: 'Picture ACD', alt: 'A red triangle' },
+      { text: 'Picture CDE' },
+    ]);
+    const noPictures = toPublicQuestion({ ...pictureMc, answerImages: [] });
+    expect(noPictures.imageOnlyAnswers).toBeUndefined();
+  });
+
+  it('maps labels to pictures for teacher views, Ordering by position', () => {
+    expect([...imageOnlyPictures(pictureMc).keys()]).toEqual([
+      'Picture ACD',
+      'Picture CDE',
+    ]);
+    const ordering: QuizQuestion = {
+      ...base,
+      type: 'Ordering',
+      correctAnswer: 'First|Picture QRT',
+      incorrectAnswers: [],
+      orderingImages: ['', url('q')],
+      imageOnlyAnswers: [{ text: 'Picture QRT' }],
+    };
+    expect(imageOnlyPictures(ordering).get('Picture QRT')).toEqual({
+      url: url('q'),
+    });
+  });
+
+  it('splits answer text around labels and describes them for exports', () => {
+    const pictures = imageOnlyPictures(pictureMc);
+    expect(splitPictureLabels('Picture ACD; Words', pictures)).toEqual([
+      {
+        kind: 'picture',
+        label: 'Picture ACD',
+        picture: { url: url('a'), alt: 'A red triangle' },
+      },
+      { kind: 'text', text: '; Words' },
+    ]);
+    expect(describePictureLabels('Picture ACD; Picture CDE', pictures)).toBe(
+      'Picture ACD (A red triangle); Picture CDE'
+    );
+  });
+
+  it('prints pictures per choice, dropping the label only on picture-only ones', () => {
+    expect(
+      choicePicturesFor(pictureMc, ['Words', 'Picture ACD', 'Other'])
+    ).toEqual([
+      { url: url('w') },
+      { url: url('a'), alt: 'A red triangle', only: true },
+      null,
+    ]);
   });
 });

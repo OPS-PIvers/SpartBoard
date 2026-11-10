@@ -13,9 +13,18 @@ import {
 } from '@/utils/quizChoiceRows';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { answerImagesFromRows, imageForLabel } from '@/utils/quizAnswerImages';
+import {
+  answerImagesFromRows,
+  imageForLabel,
+  imageOnlyAnswersFromRows,
+  imageOnlyFor,
+  newImageOnlyLabel,
+} from '@/utils/quizAnswerImages';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
-import { AnswerImageControl } from './AnswerImageControl';
+import {
+  AnswerImageControl,
+  PictureDescriptionInput,
+} from './AnswerImageControl';
 import {
   useAnswerImagePicker,
   type UploadAnswerImage,
@@ -30,6 +39,7 @@ type ChoiceUpdates = Partial<
     | 'optionOrder'
     | 'allowPartialCredit'
     | 'answerImages'
+    | 'imageOnlyAnswers'
   >
 >;
 
@@ -40,9 +50,18 @@ interface ChoiceOptionsEditorProps {
   onUploadImage?: UploadAnswerImage;
 }
 
-type EditorRow = ChoiceRow & { id: string; image?: string };
+/** `label` is the generated name a picture-only row saves under; `text` stays what the teacher typed. */
+type EditorRow = ChoiceRow & {
+  id: string;
+  image?: string;
+  label?: string;
+  alt?: string;
+};
 
 const LETTERS = 'ABCDEFGHIJKL';
+
+/** Text box hint on an answer that is only a picture. */
+export const PICTURE_ONLY_PLACEHOLDER = 'Picture only, or add text';
 
 const signature = (q: QuizQuestion) =>
   JSON.stringify([
@@ -51,17 +70,48 @@ const signature = (q: QuizQuestion) =>
     q.incorrectAnswers,
     q.optionOrder ?? null,
     q.answerImages ?? null,
+    q.imageOnlyAnswers ?? null,
   ]);
 
 const toEditorRows = (
   rows: ChoiceRow[],
-  images: QuizQuestion['answerImages']
+  images: QuizQuestion['answerImages'],
+  imageOnly: QuizQuestion['imageOnlyAnswers']
 ): EditorRow[] =>
-  rows.map((r) => ({
-    ...r,
-    id: crypto.randomUUID(),
-    image: imageForLabel(images, r.text),
-  }));
+  withLabels(
+    rows.map((r) => {
+      const image = imageForLabel(images, r.text);
+      const only = image ? imageOnlyFor(imageOnly, r.text) : undefined;
+      return only
+        ? {
+            ...r,
+            text: '',
+            label: r.text,
+            alt: only.alt ?? '',
+            id: crypto.randomUUID(),
+            image,
+          }
+        : { ...r, id: crypto.randomUUID(), image };
+    })
+  );
+
+// Every row with a picture keeps a label ready, so clearing its text never drops the row.
+function withLabels(rows: EditorRow[]): EditorRow[] {
+  if (rows.every((r) => !r.image || r.label)) return rows;
+  const taken = rows.flatMap((r) => [r.text, r.label ?? '']);
+  return rows.map((r) => {
+    if (!r.image || r.label) return r;
+    const label = newImageOnlyLabel(taken);
+    taken.push(label);
+    return { ...r, label };
+  });
+}
+
+const isImageOnly = (r: EditorRow) => !r.text.trim() && !!r.image && !!r.label;
+
+// A picture-only row saves under its generated label.
+const savedRows = (rows: readonly EditorRow[]): EditorRow[] =>
+  rows.map((r) => (isImageOnly(r) ? { ...r, text: r.label ?? '' } : r));
 
 const blankRow = (): EditorRow => ({
   id: crypto.randomUUID(),
@@ -69,21 +119,32 @@ const blankRow = (): EditorRow => ({
   correct: false,
 });
 
-function fieldsFromRows(rows: readonly EditorRow[], multi: boolean) {
+function fieldsFromRows(editorRows: readonly EditorRow[], multi: boolean) {
+  const rows = savedRows(editorRows);
+  // Keyed by the text as saved, which drops `|` for choose-all.
+  const keyed = multi
+    ? rows.map((r) => ({ ...r, text: r.text.replace(/\|/g, '') }))
+    : rows;
   return {
     ...questionFromRows(rows, multi),
-    // Keyed by the text as saved, which drops `|` for choose-all.
-    answerImages: answerImagesFromRows(
-      multi
-        ? rows.map((r) => ({ ...r, text: r.text.replace(/\|/g, '') }))
-        : rows
+    answerImages: answerImagesFromRows(keyed),
+    imageOnlyAnswers: imageOnlyAnswersFromRows(
+      keyed.map((r, i) => ({
+        text: r.text,
+        imageOnly: isImageOnly(editorRows[i]),
+        alt: r.alt,
+      }))
     ),
   };
 }
 
 // A brand-new blank question opens with four empty options.
 function initialRows(q: QuizQuestion): EditorRow[] {
-  const rows = toEditorRows(rowsFromQuestion(q), q.answerImages);
+  const rows = toEditorRows(
+    rowsFromQuestion(q),
+    q.answerImages,
+    q.imageOnlyAnswers
+  );
   const pristine =
     q.type === 'MC' && rows.every((r) => !r.correct && r.text === '');
   if (!pristine || rows.length >= 4) return rows;
@@ -106,7 +167,13 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
     setLastSig(sig);
     const mine = fieldsFromRows(rows, multi);
     if (signature({ ...question, ...mine }) !== sig) {
-      setRows(toEditorRows(rowsFromQuestion(question), question.answerImages));
+      setRows(
+        toEditorRows(
+          rowsFromQuestion(question),
+          question.answerImages,
+          question.imageOnlyAnswers
+        )
+      );
     }
   }
 
@@ -116,7 +183,8 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
     rowsRef.current = rows;
   }, [rows]);
 
-  const commit = (next: EditorRow[], nextMulti = multi) => {
+  const commit = (edited: EditorRow[], nextMulti = multi) => {
+    const next = withLabels(edited);
     rowsRef.current = next;
     setRows(next);
     const fields = fieldsFromRows(next, nextMulti);
@@ -161,9 +229,12 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
   };
 
   const setRowImage = (id: string, image: string) => {
-    if (rowsRef.current.some((r) => r.id === id))
-      commit(rowsRef.current.map((r) => (r.id === id ? { ...r, image } : r)));
+    const current = rowsRef.current;
+    if (!current.some((r) => r.id === id)) return;
+    commit(current.map((r) => (r.id === id ? { ...r, image } : r)));
   };
+  const setRowAlt = (id: string, alt: string) =>
+    commit(rows.map((r) => (r.id === id ? { ...r, alt } : r)));
   const images = useAnswerImagePicker(onUploadImage, setRowImage);
 
   const canTurnOffMulti = rows.length <= MAX_SINGLE_OPTIONS;
@@ -214,9 +285,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                     aria-label={`Option ${letter}`}
                     onPaste={images.pasteInto(row.id)}
                     placeholder={
-                      row.image && !row.text.trim()
-                        ? 'Add text for this image'
-                        : undefined
+                      isImageOnly(row) ? PICTURE_ONLY_PLACEHOLDER : undefined
                     }
                     {...tourFieldAttr(
                       'quiz-editor.option',
@@ -234,7 +303,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                       row.correct
                         ? 'border-emerald-400 bg-emerald-50 font-bold text-emerald-900'
                         : ''
-                    } ${row.image && !row.text.trim() ? 'border-amber-500' : ''}`}
+                    }`}
                   />
                   {(onUploadImage ?? row.image) && (
                     <AnswerImageControl
@@ -276,6 +345,19 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                   <p className="pl-12 text-sm text-slate-800 wrap-break-word">
                     <MathText text={row.text} />
                   </p>
+                )}
+                {isImageOnly(row) && (
+                  <PictureDescriptionInput
+                    value={row.alt ?? ''}
+                    onChange={(alt) => setRowAlt(row.id, alt)}
+                    name={`option ${letter}`}
+                    attrs={tourFieldAttr(
+                      'quiz-editor.answer-image-description',
+                      'quiz',
+                      letter.toLowerCase()
+                    )}
+                    className="pl-14"
+                  />
                 )}
               </div>
             );

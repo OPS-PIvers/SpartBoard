@@ -4772,5 +4772,9 @@
     "pausedConfirmer": "La personne qui a rendu cette visite publique n'est plus administratrice. Vérifiez-la et réactivez le lien.",
     "reviewProgress": "Faites défiler pour vérifier les {{count}} étapes ({{seen}} sur {{count}} vues).",
     "reviewEnd": "Fin de la visite : {{count}} étapes."
+  },
+  "quizAnswerPicture": {
+    "name": "Image {{n}}",
+    "nameWithAlt": "Image {{n}} : {{alt}}"
   }
 }

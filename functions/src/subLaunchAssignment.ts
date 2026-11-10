@@ -320,6 +320,7 @@ interface KeyQuestion {
   orderingImages?: string[];
   answerImages?: { text?: unknown; url?: unknown }[];
   matchingTermImages?: { text?: unknown; url?: unknown }[];
+  imageOnlyAnswers?: { text?: unknown; alt?: unknown }[];
   points?: number;
   placeholder?: string;
   minWords?: number;
@@ -361,6 +362,43 @@ function imagesForLabels(
     return typeof url === 'string' && url.startsWith('https://') ? url : '';
   });
   return out.some(Boolean) ? out : undefined;
+}
+
+// Mirrors utils/quizAnswerImages publicImageOnlyAnswers: only labels the payload shows with a picture.
+function publicImageOnlyAnswers(
+  q: KeyQuestion,
+  base: Record<string, unknown>
+): { text: string; alt?: string }[] | undefined {
+  if (!Array.isArray(q.imageOnlyAnswers)) return undefined;
+  const pairs: [unknown, unknown][] = [
+    [base.choices, base.choiceImages],
+    [base.matchingLeft, base.matchingLeftImages],
+    [base.matchingRight, base.matchingRightImages],
+    [base.orderingItems, base.orderingImages],
+  ];
+  const shown = (text: string) =>
+    pairs.some(
+      ([labels, images]) =>
+        Array.isArray(labels) &&
+        Array.isArray(images) &&
+        labels.some(
+          (label, i) =>
+            typeof label === 'string' &&
+            label.trim() === text &&
+            typeof images[i] === 'string' &&
+            images[i] !== ''
+        )
+    );
+  const out: { text: string; alt?: string }[] = [];
+  for (const entry of q.imageOnlyAnswers) {
+    if (typeof entry?.text !== 'string' || !shown(entry.text.trim())) continue;
+    out.push(
+      typeof entry.alt === 'string' && entry.alt.trim()
+        ? { text: entry.text, alt: entry.alt.trim() }
+        : { text: entry.text }
+    );
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
@@ -435,6 +473,8 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     ANSWER_KEYBOARDS.has(q.answerKeyboard)
   )
     base.answerKeyboard = q.answerKeyboard;
+  const imageOnly = publicImageOnlyAnswers(q, base);
+  if (imageOnly) base.imageOnlyAnswers = imageOnly;
   if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
   return base;
 }

@@ -10,6 +10,8 @@ import {
   type FibGradingContext,
 } from '@/utils/quizFibAnswers';
 import { buildDistribution } from '@/utils/answerDistribution';
+import { imageOnlyPictures } from '@/utils/quizAnswerImages';
+import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
 import {
   AnswerDistributionBars,
   type DistributionBarRow,
@@ -117,7 +119,16 @@ export const ItemDetailView: React.FC<{
   live: boolean;
   /** Replaces the bars, e.g. for written responses. */
   noDistribution?: React.ReactNode;
-}> = ({ heading, text, totalAnswered, rows, live, noDistribution }) => (
+  renderLabel?: (label: string) => React.ReactNode;
+}> = ({
+  heading,
+  text,
+  totalAnswered,
+  rows,
+  live,
+  noDistribution,
+  renderLabel,
+}) => (
   <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
     <div>
       <p
@@ -140,6 +151,7 @@ export const ItemDetailView: React.FC<{
           rows={rows}
           total={totalAnswered}
           showCorrect={!live}
+          renderLabel={renderLabel}
         />
       ) : (
         <p
@@ -207,6 +219,7 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
         )
       )
   );
+  const pictures = imageOnlyPictures(question);
   const hasDistribution =
     question.type === 'MC' ||
     question.type === 'MA' ||
@@ -220,6 +233,18 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
       totalAnswered={totalAnswered}
       rows={rows}
       live={live}
+      renderLabel={
+        pictures.size > 0
+          ? (label) => (
+              <AnswerPictureText
+                text={label}
+                pictures={pictures}
+                showLabel
+                size="min(32px, 8cqmin)"
+              />
+            )
+          : undefined
+      }
       noDistribution={
         hasDistribution ? undefined : (
           <p

@@ -6100,5 +6100,9 @@
     "pausedConfirmer": "The admin who made this public is no longer an admin. Review and turn it on again.",
     "reviewProgress": "Scroll to review all {{count}} steps ({{seen}} of {{count}} seen).",
     "reviewEnd": "End of the tour: {{count}} steps."
+  },
+  "quizAnswerPicture": {
+    "name": "Picture {{n}}",
+    "nameWithAlt": "Picture {{n}}: {{alt}}"
   }
 }

@@ -2008,3 +2008,23 @@ describe('vaNotesFrom', () => {
     ).toEqual([{ id: 'n1', timestamp: 12, text: 'Watch this' }]);
   });
 });
+
+describe('publicQuestionFromKey picture-only answers', () => {
+  it('sends only the picture-only labels it shows with a picture', () => {
+    const out = publicQuestionFromKey({
+      id: 'q1',
+      type: 'MC',
+      text: 'Pick',
+      correctAnswer: 'Picture ACD',
+      incorrectAnswers: ['Picture CDE'],
+      answerImages: [{ text: 'Picture ACD', url: 'https://example.com/a.png' }],
+      imageOnlyAnswers: [
+        { text: 'Picture ACD', alt: ' A triangle ' },
+        { text: 'Picture CDE' },
+      ],
+    });
+    expect(out.imageOnlyAnswers).toEqual([
+      { text: 'Picture ACD', alt: 'A triangle' },
+    ]);
+  });
+});

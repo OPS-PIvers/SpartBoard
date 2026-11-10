@@ -31,6 +31,10 @@ import { hasStaffRows, staffDisplayName } from '@/utils/staffAudience';
 import { formatTabAwayTotal } from '@/utils/tabExits';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { displayFibAnswer } from '@/utils/quizFibBlanks';
+import {
+  describePictureLabels,
+  imageOnlyPictures,
+} from '@/utils/quizAnswerImages';
 
 const exportNameCollator = new Intl.Collator(undefined, {
   sensitivity: 'base',
@@ -199,6 +203,17 @@ export function formatQuizAnswerText(
   return joined.length > MAX_ANSWER_CELL_CHARS
     ? `${joined.slice(0, MAX_ANSWER_CELL_CHARS)}…`
     : joined;
+}
+
+/** Export cell text: `formatQuizAnswerText` with each picture-only label followed by its description. */
+export function formatQuizAnswerExport(
+  question: Parameters<typeof imageOnlyPictures>[0],
+  answer: Parameters<typeof formatQuizAnswerText>[1]
+): string {
+  return describePictureLabels(
+    formatQuizAnswerPlain(question, answer),
+    imageOnlyPictures(question)
+  );
 }
 
 /**

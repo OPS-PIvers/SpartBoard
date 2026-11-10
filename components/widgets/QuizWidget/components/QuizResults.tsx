@@ -6,6 +6,11 @@
 
 import { MathText } from '@/components/common/MathText';
 import { plainPromptText } from '@/utils/promptMath';
+import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
+import {
+  imageOnlyPictures,
+  type AnswerPicture,
+} from '@/utils/quizAnswerImages';
 import React, {
   useState,
   useRef,
@@ -3070,6 +3075,21 @@ const SelectStudentsButton: React.FC<{
   </button>
 );
 
+/** Picture-only answers of the open question, by label. */
+const PicturesContext = React.createContext<ReadonlyMap<string, AnswerPicture>>(
+  new Map()
+);
+
+/** An answer label with its picture when the answer is only a picture. */
+const ResultLabel: React.FC<{ text: string }> = ({ text }) => (
+  <AnswerPictureText
+    text={text}
+    pictures={React.useContext(PicturesContext)}
+    showLabel
+    size="min(32px, 8cqmin)"
+  />
+);
+
 /** One distribution line; with names shown it toggles its name chips (D16). */
 const DistributionRow: React.FC<{
   label: string;
@@ -3127,7 +3147,7 @@ const DistributionRow: React.FC<{
             />
           )}
           <span className="truncate">
-            <MathText text={label} />
+            <ResultLabel text={label} />
           </span>
         </span>
         <span
@@ -3253,7 +3273,7 @@ const OrderingItemRow: React.FC<{
             className="font-sans text-brand-gray-darkest min-w-0 wrap-break-word"
             style={SMALL_TEXT}
           >
-            {row.label}
+            <ResultLabel text={row.label} />
           </span>
           <span
             className="font-sans text-brand-gray-dark tabular-nums shrink-0"
@@ -3360,7 +3380,9 @@ const QuestionDrilldownPanel: React.FC<{
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
   orderingByItem?: boolean;
+  pictures: ReadonlyMap<string, AnswerPicture>;
 }> = ({
+  pictures,
   id,
   drilldown,
   showStudentNames,
@@ -3395,172 +3417,174 @@ const QuestionDrilldownPanel: React.FC<{
   });
 
   return (
-    <div
-      id={id}
-      className="flex flex-col border-t border-brand-gray-lightest"
-      style={{
-        gap: 'min(10px, 2.5cqmin)',
-        marginTop: 'min(8px, 2cqmin)',
-        paddingTop: 'min(8px, 2cqmin)',
-      }}
-    >
-      {servedCount === 0 && (
-        <p className="font-sans text-brand-gray-primary" style={SMALL_TEXT}>
-          No students have answered this question yet.
-        </p>
-      )}
-
-      {servedCount > 0 &&
-        orderingByItem &&
-        (drilldown.orderingItems?.length ?? 0) > 0 && (
-          <div>
-            <p
-              className="font-sans font-semibold text-brand-gray-primary uppercase tracking-wider"
-              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
-            >
-              Items in the correct order
-            </p>
-            <ol
-              className="flex flex-col"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                marginTop: 'min(4px, 1cqmin)',
-              }}
-            >
-              {drilldown.orderingItems?.map((row) => (
-                <OrderingItemRow
-                  key={row.key}
-                  {...rowProps(`item:${row.key}`)}
-                  row={row}
-                />
-              ))}
-            </ol>
-          </div>
-        )}
-
-      {servedCount > 0 &&
-        !orderingByItem &&
-        distribution.kind !== 'none' &&
-        distribution.rows.length > 0 && (
-          <div>
-            <p
-              className="font-sans font-semibold text-brand-gray-primary uppercase tracking-wider"
-              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
-            >
-              {distribution.kind === 'pairs'
-                ? 'Pairs matched correctly'
-                : distribution.kind === 'orders'
-                  ? 'Most common wrong orders'
-                  : 'Answers'}
-            </p>
-            <ul
-              className="flex flex-col"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                marginTop: 'min(4px, 1cqmin)',
-              }}
-            >
-              {distribution.kind === 'pairs'
-                ? distribution.rows.map((row) => (
-                    <DistributionRow
-                      key={row.key}
-                      {...rowProps(row.key)}
-                      label={`${row.prompt} → ${row.answer}`}
-                      count={row.correctCount}
-                      correct={false}
-                      countLabel={`${row.correctCount} correct`}
-                      students={row.missedBy}
-                      studentsLabel={`Missed ${row.prompt}`}
-                    />
-                  ))
-                : distribution.rows.map((row) => (
-                    <DistributionRow
-                      key={row.key}
-                      {...rowProps(row.key)}
-                      label={row.label || '(blank)'}
-                      count={row.students.length}
-                      correct={row.isCorrect}
-                      countLabel={`${row.students.length}`}
-                      students={row.students}
-                      studentsLabel={`Answered ${plainPromptText(row.label)}`}
-                    />
-                  ))}
-            </ul>
-          </div>
-        )}
-
-      {servedCount > 0 && (
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
-            gap: 'min(8px, 2cqmin)',
-          }}
-        >
-          {columns.map((c) => {
-            const list = outcomes[c.key];
-            const Marker = c.icon;
-            return (
-              <div key={c.key} data-testid={`drilldown-column-${c.key}`}>
-                <p
-                  className="flex items-center font-sans font-semibold text-brand-gray-dark"
-                  style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
-                >
-                  <Marker
-                    aria-hidden
-                    className={`shrink-0 ${c.className}`}
-                    style={SMALL_ICON}
-                  />
-                  {`${c.label} · ${list.length} (${pctOf(list.length, servedCount)}%)`}
-                </p>
-                {showStudentNames && list.length > 0 && (
-                  <DrilldownNameList
-                    students={list}
-                    formatStudentName={formatStudentName}
-                    onOpenStudent={openStudent}
-                  />
-                )}
-                {selectStudents && list.length > 0 && (
-                  <SelectStudentsButton
-                    students={list}
-                    onSelect={selectStudents}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {strips.map((s) => (
-        <div
-          key={s.key}
-          data-testid={`drilldown-strip-${s.key}`}
-          className="border-t border-brand-gray-lightest"
-          style={{ paddingTop: 'min(6px, 1.5cqmin)' }}
-        >
-          <p
-            className="font-sans font-semibold text-brand-gray-dark"
-            style={SMALL_TEXT}
-          >
-            {`${s.label} · ${outcomes[s.key].length}`}
+    <PicturesContext.Provider value={pictures}>
+      <div
+        id={id}
+        className="flex flex-col border-t border-brand-gray-lightest"
+        style={{
+          gap: 'min(10px, 2.5cqmin)',
+          marginTop: 'min(8px, 2cqmin)',
+          paddingTop: 'min(8px, 2cqmin)',
+        }}
+      >
+        {servedCount === 0 && (
+          <p className="font-sans text-brand-gray-primary" style={SMALL_TEXT}>
+            No students have answered this question yet.
           </p>
-          {showStudentNames && (
-            <DrilldownNameList
-              students={outcomes[s.key]}
-              formatStudentName={formatStudentName}
-              onOpenStudent={openStudent}
-            />
+        )}
+
+        {servedCount > 0 &&
+          orderingByItem &&
+          (drilldown.orderingItems?.length ?? 0) > 0 && (
+            <div>
+              <p
+                className="font-sans font-semibold text-brand-gray-primary uppercase tracking-wider"
+                style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+              >
+                Items in the correct order
+              </p>
+              <ol
+                className="flex flex-col"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  marginTop: 'min(4px, 1cqmin)',
+                }}
+              >
+                {drilldown.orderingItems?.map((row) => (
+                  <OrderingItemRow
+                    key={row.key}
+                    {...rowProps(`item:${row.key}`)}
+                    row={row}
+                  />
+                ))}
+              </ol>
+            </div>
           )}
-          {selectStudents && (
-            <SelectStudentsButton
-              students={outcomes[s.key]}
-              onSelect={selectStudents}
-            />
+
+        {servedCount > 0 &&
+          !orderingByItem &&
+          distribution.kind !== 'none' &&
+          distribution.rows.length > 0 && (
+            <div>
+              <p
+                className="font-sans font-semibold text-brand-gray-primary uppercase tracking-wider"
+                style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+              >
+                {distribution.kind === 'pairs'
+                  ? 'Pairs matched correctly'
+                  : distribution.kind === 'orders'
+                    ? 'Most common wrong orders'
+                    : 'Answers'}
+              </p>
+              <ul
+                className="flex flex-col"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  marginTop: 'min(4px, 1cqmin)',
+                }}
+              >
+                {distribution.kind === 'pairs'
+                  ? distribution.rows.map((row) => (
+                      <DistributionRow
+                        key={row.key}
+                        {...rowProps(row.key)}
+                        label={`${row.prompt} → ${row.answer}`}
+                        count={row.correctCount}
+                        correct={false}
+                        countLabel={`${row.correctCount} correct`}
+                        students={row.missedBy}
+                        studentsLabel={`Missed ${row.prompt}`}
+                      />
+                    ))
+                  : distribution.rows.map((row) => (
+                      <DistributionRow
+                        key={row.key}
+                        {...rowProps(row.key)}
+                        label={row.label || '(blank)'}
+                        count={row.students.length}
+                        correct={row.isCorrect}
+                        countLabel={`${row.students.length}`}
+                        students={row.students}
+                        studentsLabel={`Answered ${plainPromptText(row.label)}`}
+                      />
+                    ))}
+              </ul>
+            </div>
           )}
-        </div>
-      ))}
-    </div>
+
+        {servedCount > 0 && (
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+              gap: 'min(8px, 2cqmin)',
+            }}
+          >
+            {columns.map((c) => {
+              const list = outcomes[c.key];
+              const Marker = c.icon;
+              return (
+                <div key={c.key} data-testid={`drilldown-column-${c.key}`}>
+                  <p
+                    className="flex items-center font-sans font-semibold text-brand-gray-dark"
+                    style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
+                  >
+                    <Marker
+                      aria-hidden
+                      className={`shrink-0 ${c.className}`}
+                      style={SMALL_ICON}
+                    />
+                    {`${c.label} · ${list.length} (${pctOf(list.length, servedCount)}%)`}
+                  </p>
+                  {showStudentNames && list.length > 0 && (
+                    <DrilldownNameList
+                      students={list}
+                      formatStudentName={formatStudentName}
+                      onOpenStudent={openStudent}
+                    />
+                  )}
+                  {selectStudents && list.length > 0 && (
+                    <SelectStudentsButton
+                      students={list}
+                      onSelect={selectStudents}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {strips.map((s) => (
+          <div
+            key={s.key}
+            data-testid={`drilldown-strip-${s.key}`}
+            className="border-t border-brand-gray-lightest"
+            style={{ paddingTop: 'min(6px, 1.5cqmin)' }}
+          >
+            <p
+              className="font-sans font-semibold text-brand-gray-dark"
+              style={SMALL_TEXT}
+            >
+              {`${s.label} · ${outcomes[s.key].length}`}
+            </p>
+            {showStudentNames && (
+              <DrilldownNameList
+                students={outcomes[s.key]}
+                formatStudentName={formatStudentName}
+                onOpenStudent={openStudent}
+              />
+            )}
+            {selectStudents && (
+              <SelectStudentsButton
+                students={outcomes[s.key]}
+                onSelect={selectStudents}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </PicturesContext.Provider>
   );
 };
 
@@ -3805,7 +3829,13 @@ const QuestionsScreen: React.FC<{
                   style={{ ...SMALL_ICON, marginTop: 'min(1px, 0.3cqmin)' }}
                 />
                 <span className="min-w-0 wrap-break-word">
-                  {`Often out of order: ${oftenOut.join(', ')}`}
+                  {'Often out of order: '}
+                  <AnswerPictureText
+                    text={oftenOut.join(', ')}
+                    pictures={imageOnlyPictures(q)}
+                    showLabel
+                    size="1.5em"
+                  />
                 </span>
               </p>
             )}
@@ -3915,6 +3945,7 @@ const QuestionsScreen: React.FC<{
                 onSelectStudents={onSelectStudents}
                 onOpenStudent={onOpenStudent}
                 orderingByItem={byItem}
+                pictures={imageOnlyPictures(q)}
               />
             )}
           </div>
