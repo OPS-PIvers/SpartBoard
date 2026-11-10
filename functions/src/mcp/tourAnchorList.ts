@@ -48343,6 +48343,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.swap-sides",
+    "label": "Swap terms and definitions button in the Flashcards editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.language-code",
     "label": "Custom language code box in the Flashcards editor",
     "scope": "field",

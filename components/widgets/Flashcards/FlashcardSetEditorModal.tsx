@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import {
   AlertCircle,
+  ArrowLeftRight,
   ChevronDown,
   ClipboardPaste,
   GripVertical,
@@ -105,6 +106,8 @@ export const FlashcardSetEditorModal: React.FC<
     updateCard,
     insertCardAfter,
     removeCard,
+    canSwap,
+    swapSides,
     appendCards,
     lookupReferences,
     composeSet,
@@ -114,6 +117,7 @@ export const FlashcardSetEditorModal: React.FC<
     term: false,
     definition: false,
   });
+  const [swapCount, setSwapCount] = useState(0);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
@@ -477,17 +481,37 @@ export const FlashcardSetEditorModal: React.FC<
           >
             0
           </span>
+          <div className="flex min-w-0 items-start justify-between">
+            <FlashcardLanguageField
+              key={`term-${swapCount}`}
+              label="Term language"
+              heading="Term"
+              value={termLanguage}
+              onChange={(tag) => {
+                setSettledLanguage((p) => ({ ...p, term: true }));
+                setTermLanguage(tag);
+              }}
+              tourField="term"
+            />
+            {canSwap && (
+              <button
+                type="button"
+                onClick={() => {
+                  swapSides();
+                  setSwapCount((n) => n + 1);
+                }}
+                aria-label="Swap terms and definitions"
+                title="Swap terms and definitions"
+                {...tourTypeAttr('flashcards.swap-sides', 'flashcards')}
+                className="touch-target-expand shrink-0 rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-rose-500/30 outline-hidden"
+                style={{ padding: 'min(4px, 1cqmin)' }}
+              >
+                <ArrowLeftRight style={COLUMN_ICON} />
+              </button>
+            )}
+          </div>
           <FlashcardLanguageField
-            label="Term language"
-            heading="Term"
-            value={termLanguage}
-            onChange={(tag) => {
-              setSettledLanguage((p) => ({ ...p, term: true }));
-              setTermLanguage(tag);
-            }}
-            tourField="term"
-          />
-          <FlashcardLanguageField
+            key={`definition-${swapCount}`}
             label="Definition language"
             heading="Definition"
             value={definitionLanguage}

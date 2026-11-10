@@ -73,6 +73,8 @@ export const useFlashcardEditorState = (
 ) => {
   const canSpeak =
     useContext(AuthContext)?.canAccessFeature('flashcards-speak') ?? false;
+  const canSwap =
+    useContext(AuthContext)?.canAccessFeature('flashcards-swap-sides') ?? false;
   const [title, setTitle] = useState(initialSet.title);
   const [description, setDescription] = useState(initialSet.description ?? '');
   const [targets, setTargets] = useState(initialSet.targets);
@@ -159,6 +161,19 @@ export const useFlashcardEditorState = (
     setCards((current) =>
       current.map((card) => (card.id === id ? { ...card, ...updates } : card))
     );
+  };
+
+  /** Flips terms, definitions and languages; a second click flips back. */
+  const swapSides = (): void => {
+    setCards((current) =>
+      current.map((card) => ({
+        ...card,
+        term: card.definition,
+        definition: card.term,
+      }))
+    );
+    setTermLanguage(definitionLanguage);
+    setDefinitionLanguage(termLanguage);
   };
 
   /** Inserts a blank card after `index`; null when the set is full. */
@@ -263,6 +278,7 @@ export const useFlashcardEditorState = (
 
   return {
     canSpeak,
+    canSwap,
     title,
     setTitle,
     description,
@@ -292,6 +308,7 @@ export const useFlashcardEditorState = (
     updateCard,
     insertCardAfter,
     removeCard,
+    swapSides,
     appendCards,
     needsLookup,
     lookupReferences,

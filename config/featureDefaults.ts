@@ -1,6 +1,7 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  ArrowLeftRight,
   Camera,
   PenLine,
   BarChart,
@@ -501,6 +502,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Layers,
     description:
       'Splits a test with several versions into a bank, rubrics and quizzes.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Swap terms and definitions button in the Flashcards set editor. Admin-only until Paul has tried it in prod.
+  'flashcards-swap-sides': {
+    label: 'Flashcards: swap terms and definitions',
+    icon: ArrowLeftRight,
+    description: 'Adds a swap button above the cards in the set editor.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
