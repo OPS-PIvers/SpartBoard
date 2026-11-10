@@ -599,8 +599,12 @@ function cropEachChoice(draft: Draft, stemTop: number, end: number): boolean {
     return false;
   }
   const firstTop = Math.min(...placed.map((p) => p.top ?? 1));
+  const choiceTop = Math.min(
+    firstTop,
+    ...options.flatMap((o) => (o.line.inlineBoxes ?? []).map((b) => b.y))
+  );
   // Math set as a picture in the stem is kept as a picture of the stem alone.
-  const stemMath = (draft.inlineImage?.top ?? 1) < firstTop - 0.035;
+  const stemMath = (draft.inlineImage?.top ?? 1) < choiceTop - 0.035;
   if (stemMath && firstTop - 0.035 - stemTop < 0.02) return false;
   const lines = [
     ...(draft.openLine ? [draft.openLine] : []),
@@ -624,7 +628,9 @@ function cropEachChoice(draft: Draft, stemTop: number, end: number): boolean {
     // A diagram above or off to the side of the choices belongs to the stem.
     if (!lefts.some((x) => box.x >= x - 0.02 && box.x <= x + 0.15)) continue;
     let lower: Box = box;
-    if (box.y < firstTop - 0.06) {
+    // Only a picture that starts level with the question's own line is part stem.
+    const openTop = draft.openLine?.top ?? 0;
+    if (box.y < firstTop - 0.06 && box.y < openTop + 0.01) {
       if (box.y + box.height < firstTop + 0.01) continue;
       stemPart.set(id, figureKey({ ...box, height: cut - box.y }));
       lower = { ...box, y: cut, height: box.y + box.height - cut };
@@ -667,29 +673,31 @@ function cropEachChoice(draft: Draft, stemTop: number, end: number): boolean {
     });
     if (mine.length === 0) return false;
     for (const i of mine) taken.add(i);
-    const boxes = mine.map((i) => candidates[i].box);
-    // A merged picture can run past this choice, so its crop stops at the choice's edges.
+    // A piece of a merged picture can show the row above, the next row or the letter, so it is trimmed.
     const above = placed.map((q) => q.top ?? 0).filter((t) => t < top - 0.005);
-    const ceiling = above.length > 0 ? (Math.max(...above) + top) / 2 : cut;
-    // Past the printed letter, so a shuffled choice never shows "A)".
+    const ceiling =
+      above.length > 0
+        ? (Math.max(...above) + top) / 2
+        : stemPart.size > 0
+          ? cut
+          : 0;
     const afterLetter = (p.left ?? 0) + 0.03;
-    const x0 = Math.max(
-      left,
-      afterLetter,
-      Math.min(...boxes.map((b) => b.x)) - 0.004
-    );
-    const y0 = Math.max(
-      ceiling,
-      Math.min(top - 0.008, ...boxes.map((b) => b.y - 0.004))
-    );
-    const x1 = Math.min(
-      right,
-      Math.max(...boxes.map((b) => b.x + b.width)) + 0.004
-    );
-    const y1 = Math.min(
-      reach,
-      Math.max(...boxes.map((b) => b.y + b.height)) + 0.004
-    );
+    const boxes = mine.flatMap((i): Box[] => {
+      const { box, figure } = candidates[i];
+      if (!figure) return [box];
+      const x0 = Math.max(box.x, afterLetter + 0.004);
+      const y0 = Math.max(box.y, ceiling);
+      const x1 = Math.min(box.x + box.width, right);
+      const y1 = Math.min(box.y + box.height, reach);
+      return x1 > x0 && y1 > y0
+        ? [{ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }]
+        : [];
+    });
+    if (boxes.length === 0) return false;
+    const x0 = Math.min(...boxes.map((b) => b.x)) - 0.004;
+    const y0 = Math.min(top - 0.008, ...boxes.map((b) => b.y - 0.004));
+    const x1 = Math.max(...boxes.map((b) => b.x + b.width)) + 0.004;
+    const y1 = Math.max(...boxes.map((b) => b.y + b.height)) + 0.004;
     crops.push({
       box: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 },
       figures: mine.flatMap((i) => candidates[i].figure ?? []),
@@ -713,9 +721,12 @@ function cropEachChoice(draft: Draft, stemTop: number, end: number): boolean {
           x: 0.04,
           y: stemTop,
           width: 0.92,
-          height: firstTop - 0.035 - stemTop,
+          height: cut - stemTop,
         }),
-        ...rest.filter((id) => (boxFromKey(id)?.y ?? 0) >= firstTop - 0.035),
+        ...rest.filter((id) => {
+          const box = boxFromKey(id);
+          return !box || box.y + box.height > cut;
+        }),
       ]
     : rest;
   return true;

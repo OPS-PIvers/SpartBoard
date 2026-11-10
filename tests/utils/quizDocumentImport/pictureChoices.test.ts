@@ -126,6 +126,29 @@ describe('choices printed only as pictures', () => {
     expect((last?.y ?? 0) + (last?.height ?? 0)).toBeLessThan(0.39);
   });
 
+  it('keeps a diagram beside the choices whole when the stem has math', () => {
+    const lines = stacked();
+    lines[0] = {
+      ...line('1. Simplify:', 0.1, 0.05, [pic(0.3, 0.09)]),
+      imageIds: ['1:500:90:400:220'],
+    };
+    const [q] = parseDocument(lines, { answerPictures: true }).questions;
+    expect(q.options.every((o) => o.imageId)).toBe(true);
+    expect(q.imageIds).toContain('1:500:90:400:220');
+  });
+
+  it('keeps a tall picture centred on its letter whole', () => {
+    const lines: DocLine[] = [
+      line('1. Which graph has an asymptote?', 0.02, 0.05),
+      { ...line('A.', 0.15, 0.08), imageIds: ['1:110:76:200:120'] },
+      { ...line('B.', 0.3, 0.08), imageIds: ['1:110:226:200:120'] },
+    ];
+    const [q] = parseDocument(lines, { answerPictures: true }).questions;
+    const first = boxFromKey(q.options[0].imageId ?? '');
+    expect(first?.y).toBeLessThan(0.08);
+    expect(q.imageIds).toEqual([]);
+  });
+
   it('keeps the whole-question picture when the flag is off', () => {
     const [q] = parseDocument(stacked()).questions;
     expect(q.imageIds).toHaveLength(1);
