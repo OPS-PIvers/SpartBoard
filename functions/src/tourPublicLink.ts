@@ -1,10 +1,12 @@
 // Public tour links (TOURS_10X.md S6, ADR 0003): serves a public tour's Steps view without sign-in, and turns a link off when its pictures change.
 import './functionsInit';
-import { onRequest } from 'firebase-functions/v2/https';
+import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
+import { isAiTeacherCaller, type AiCallerToken } from './aiCallerGate';
 import { GL_TOURS_COLLECTION } from './glTours';
+import { assertViewAsAllowed } from './viewAsGuard';
 import {
   MAX_PUBLIC_PICTURE_BYTES,
   PUBLIC_LINKS_DOC,
@@ -306,6 +308,37 @@ export const tourPublicStepsV1 = onRequest(
         .status(404)
         .json({ error: 'not-found' });
     }
+  }
+);
+
+/** The web tour behind a live public link, for a staff caller; null for anyone else or any refusal. */
+export async function startSetIdFor(
+  token: unknown,
+  isStaff: () => Promise<boolean>,
+  deps: PublicLinkDeps
+): Promise<string | null> {
+  if (typeof token !== 'string' || !PUBLIC_TOKEN_RE.test(token)) return null;
+  if (!(await isStaff())) return null;
+  const resolved = await resolvePublicTour(token, deps).catch(() => null);
+  return resolved?.record.kind === 'web' ? resolved.setId : null;
+}
+
+// The public response never names the set (ADR 0003), so Start tour on the public page asks for it signed in.
+export const tourPublicLinkStartV1 = onCall(
+  { memory: '256MiB', timeoutSeconds: 30, maxInstances: 10 },
+  async (request) => {
+    await assertViewAsAllowed(request, { read: true });
+    if (!request.auth)
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    const db = admin.firestore();
+    const token = request.auth.token as AiCallerToken;
+    const setId = await startSetIdFor(
+      (request.data as { token?: unknown } | null)?.token,
+      () => isAiTeacherCaller(db, token),
+      defaultPublicLinkDeps(db)
+    );
+    if (!setId) throw new HttpsError('not-found', 'Tour not found.');
+    return { setId };
   }
 );
 

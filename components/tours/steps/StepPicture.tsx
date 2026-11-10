@@ -67,7 +67,7 @@ export const StepPicture: React.FC<{
       ref={frameRef}
       data-testid="step-picture"
       data-state={src ? 'ready' : 'loading'}
-      className={`relative w-full max-w-[var(--pic-max)] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 [transform:translateZ(0)] print:break-inside-avoid ${
+      className={`relative w-full max-w-[var(--pic-max)] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm [transform:translateZ(0)] print:shadow-none print:break-inside-avoid ${
         src ? '' : 'print:hidden'
       }`}
       style={

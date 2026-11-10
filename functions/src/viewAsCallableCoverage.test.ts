@@ -38,6 +38,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   ltiSuggestClassLinkMatchV1: 'read',
   ltiToolColumnCategoriesV1: 'read',
   resolveOrgForUser: 'read',
+  tourPublicLinkStartV1: 'read',
   // Writes: need an unlocked View as session.
   applyPaperNewerScanV1: 'write',
   checkQuizGameAnswerV1: 'write',
