@@ -1,6 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GLIDE_MS, SETTLE_QUIET_MS, TICK_MS } from './playbackEngine';
+import {
+  GLIDE_MS,
+  LIVE_GLIDE_MS,
+  LIVE_TICK_MS,
+  SETTLE_QUIET_MS,
+  TICK_MS,
+} from './playbackEngine';
 import { useStepRhythm, type RhythmPhase } from './useStepRhythm';
 
 const A = { x: 10, y: 10, width: 40, height: 20 };
@@ -167,5 +173,71 @@ describe('useStepRhythm', () => {
     expect(result.current.rect).toEqual(B);
     await pass(GLIDE_MS);
     expect(result.current.tipShown).toBe(true);
+  });
+
+  describe('immediate (Live)', () => {
+    const setUpLive = (initial: { stepKey: string; rect: typeof A | null }) =>
+      renderHook(
+        ({ stepKey, rect }: { stepKey: string; rect: typeof A | null }) =>
+          useStepRhythm({
+            enabled: true,
+            reducedMotion: false,
+            stepKey,
+            rect,
+            immediate: true,
+          }),
+        { initialProps: initial }
+      );
+
+    it('moves on at once, leaves the tick on the finished control and shows the tip with the gliding ring', async () => {
+      const { result, rerender } = setUpLive({ stepKey: '1', rect: A });
+      const next = vi.fn();
+      act(() => result.current.act(() => null, next));
+      expect(next).toHaveBeenCalledTimes(1);
+      rerender({ stepKey: '2', rect: B });
+      expect(result.current.phase).toBe('glide');
+      expect(result.current.tickAt).toEqual(A);
+      expect(result.current.rect).toEqual(B);
+      expect(result.current.tipShown).toBe(true);
+      await pass(LIVE_GLIDE_MS + 40);
+      expect(result.current.phase).toBe('ready');
+      await pass(LIVE_TICK_MS);
+      expect(result.current.tickAt).toBeNull();
+    });
+
+    it('holds the ring, without a tip, until the next control is found', async () => {
+      const { result, rerender } = setUpLive({ stepKey: '1', rect: A });
+      act(() =>
+        result.current.act(
+          () => null,
+          () => undefined
+        )
+      );
+      rerender({ stepKey: '2', rect: null });
+      expect(result.current.rect).toEqual(A);
+      expect(result.current.tipShown).toBe(false);
+      await pass(100);
+      rerender({ stepKey: '2', rect: B });
+      expect(result.current.rect).toEqual(B);
+      expect(result.current.tipShown).toBe(true);
+    });
+
+    it('lets go of the ring and the tick when the finished control leaves the page', async () => {
+      const { result, rerender } = setUpLive({ stepKey: '1', rect: A });
+      let gone = false;
+      act(() =>
+        result.current.act(
+          () => null,
+          () => undefined,
+          () => gone
+        )
+      );
+      rerender({ stepKey: '2', rect: null });
+      expect(result.current.tickAt).toEqual(A);
+      gone = true;
+      await pass(40);
+      expect(result.current.rect).toBeNull();
+      expect(result.current.tickAt).toBeNull();
+    });
   });
 });

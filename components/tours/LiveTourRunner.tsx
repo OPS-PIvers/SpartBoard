@@ -727,6 +727,7 @@ export const LiveTourRunner: React.FC = () => {
     stepKey: `${tour?.index ?? 0}:${visit}`,
     rect: spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h },
     ignore: inTourUi,
+    immediate: true,
   });
   const rhythmAct = rhythm.act;
 
@@ -2835,15 +2836,20 @@ export const LiveTourRunner: React.FC = () => {
                     height: spot.h,
                   }
             }
+            // Clicks reach the step's control the moment it is found, even mid-glide.
+            hole={
+              spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h }
+            }
             onMisclick={misclick}
             pulse={anchor.centred}
             breathe={acted && !isMissing && !autoRunning && !autoBusy}
             {...(paced
               ? {
                   tick: rhythm.tick,
+                  tickAt: rhythm.tickAt,
                   glideFor:
                     rhythm.phase === 'glide'
-                      ? rhythmOf(reducedMotion).glideMs
+                      ? rhythmOf(reducedMotion, true).glideMs
                       : 0,
                 }
               : {})}

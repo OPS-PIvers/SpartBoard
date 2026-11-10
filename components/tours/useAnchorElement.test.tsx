@@ -90,7 +90,7 @@ describe('useAnchorElement', () => {
     expect(result.current.status).toBe('found');
   });
 
-  it('searches at most once per throttle window, and not at all without DOM changes', async () => {
+  it('looks up a data-tour id at most once a frame, and not at all without DOM changes', async () => {
     renderHook(() => useAnchorElement(binding, scope));
     const afterFirst = h.searches;
     await advance(2000);
@@ -103,9 +103,54 @@ describe('useAnchorElement', () => {
       });
       await advance(10);
     }
-    // 200ms of mutations: one immediate search, then one after the throttle gap.
+    await advance(50);
+    // 250ms of mutations at most one search per 16ms frame.
+    expect(h.searches - afterFirst).toBeGreaterThan(0);
+    expect(h.searches - afterFirst).toBeLessThanOrEqual(Math.ceil(250 / 16));
+  });
+
+  it('throttles role-and-name searches to once per throttle window', async () => {
+    renderHook(() =>
+      useAnchorElement(
+        { anchor: 'sidebar.classes', fallback: { role: 'button', name: 'X' } },
+        scope
+      )
+    );
+    const afterFirst = h.searches;
+    const busy = document.createElement('div');
+    document.body.appendChild(busy);
+    for (let i = 0; i < 20; i++) {
+      act(() => {
+        busy.setAttribute('class', `tick-${i}`);
+      });
+      await advance(10);
+    }
+    // 200ms of mutations: one search after the throttle gap from the first, then one more.
     await advance(ANCHOR_SEARCH_THROTTLE_MS);
     expect(h.searches - afterFirst).toBeLessThanOrEqual(2);
+  });
+
+  it('finds a control in a sliding panel mid-slide, once it is fully on screen', async () => {
+    const panel = document.createElement('div');
+    document.body.appendChild(panel);
+    const el = addAnchor(panel);
+    el.dataset.x = '-200';
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(50);
+    expect(result.current.status).toBe('searching');
+    // The panel starts sliding in: no mutation and no transitionend until it lands.
+    act(() => {
+      panel.dispatchEvent(new Event('transitionrun', { bubbles: true }));
+    });
+    await advance(50);
+    expect(result.current.status).toBe('searching');
+    el.dataset.x = '-10';
+    await advance(32);
+    expect(result.current.status).toBe('searching');
+    el.dataset.x = '4';
+    await advance(32);
+    expect(result.current.status).toBe('found');
+    expect(result.current.element).toBe(el);
   });
 
   it('ignores mutations inside the tour UI', async () => {

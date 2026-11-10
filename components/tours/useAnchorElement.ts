@@ -11,7 +11,7 @@ import { WAITING_AFTER_MS } from './playbackEngine';
 
 /** How long a step searches before it reports `missing`; it keeps watching after that. Shared with web tours' waiting chip. */
 export const ANCHOR_SEARCH_MS = WAITING_AFTER_MS;
-/** Minimum gap between DOM searches while the anchor is missing. */
+/** Minimum gap between role-and-name searches while the anchor is missing; a `data-tour` id is looked up every frame. */
 export const ANCHOR_SEARCH_THROTTLE_MS = 250;
 // Longest a transition on an anchor ancestor is followed frame by frame.
 const MAX_MOTION_MS = 2000;
@@ -152,7 +152,12 @@ export function useAnchorElement(
     let raf = 0;
     let searchTimer: ReturnType<typeof setTimeout> | undefined;
     let missTimer: ReturnType<typeof setTimeout> | undefined;
+    let searchRaf = 0;
     let lastSearch = -Infinity;
+    // A data-tour id is a cheap lookup, so it is retried every frame; the role/name fallback scans the page.
+    const throttleMs = target.fallback ? ANCHOR_SEARCH_THROTTLE_MS : 0;
+    // Transitions running anywhere while the anchor is missing: a panel sliding in shows its control mid-way.
+    const opening = new Map<EventTarget, number>();
     let resizeObserver: ResizeObserver | null = null;
     // Transitions running on the anchor or an ancestor, by start time.
     const moving = new Map<EventTarget, number>();
@@ -249,25 +254,48 @@ export function useAnchorElement(
       measure();
     };
 
-    const runSearch = () => {
+    const runSearch = (fullOnly = false) => {
       searchTimer = undefined;
       if (cancelled || element) return;
       lastSearch = Date.now();
       const found = findTourAnchor(target, {
         widgetIds,
         slots,
-        accept: isAnchorReachable,
+        // Mid-transition, only a control already fully on screen counts, so nothing scrolls a moving panel.
+        accept: fullOnly
+          ? (el) => isAnchorReachable(el) && anchorInView(el) === 'full'
+          : isAnchorReachable,
       });
       if (found) track(found);
     };
 
     const requestSearch = () => {
-      if (cancelled || element || searchTimer !== undefined) return;
-      const wait = Math.max(
-        0,
-        lastSearch + ANCHOR_SEARCH_THROTTLE_MS - Date.now()
-      );
-      searchTimer = setTimeout(runSearch, wait);
+      if (cancelled || element || searchTimer !== undefined || searchRaf)
+        return;
+      const wait = lastSearch + throttleMs - Date.now();
+      if (wait > 0) searchTimer = setTimeout(runSearch, wait);
+      else
+        searchRaf = requestAnimationFrame(() => {
+          searchRaf = 0;
+          runSearch();
+        });
+    };
+
+    // While something on the page animates, look every frame (bounded) instead of waiting for it to end.
+    let followRaf = 0;
+    const followOpening = () => {
+      if (followRaf || cancelled || element) return;
+      followRaf = requestAnimationFrame(() => {
+        followRaf = 0;
+        if (cancelled || element) return;
+        const now = Date.now();
+        opening.forEach((at, t) => {
+          if (now - at > MAX_MOTION_MS) opening.delete(t);
+        });
+        if (opening.size === 0) return;
+        runSearch(true);
+        followOpening();
+      });
     };
 
     function stopMissTimer() {
@@ -319,7 +347,17 @@ export function useAnchorElement(
       else requestSearch();
     };
     const onMotionStart = (e: Event) => {
-      if (!element) return;
+      if (!element) {
+        if (
+          throttleMs === 0 &&
+          e.target instanceof Node &&
+          !isTourUi(e.target)
+        ) {
+          opening.set(e.target, Date.now());
+          followOpening();
+        }
+        return;
+      }
       if (e.target instanceof Node && e.target.contains(element)) {
         moving.set(e.target, Date.now());
         schedule();
@@ -327,6 +365,7 @@ export function useAnchorElement(
     };
     const onMotionEnd = (e: Event) => {
       if (!element) {
+        if (e.target) opening.delete(e.target);
         if (e.target instanceof Node && !isTourUi(e.target)) requestSearch();
         return;
       }
@@ -348,6 +387,8 @@ export function useAnchorElement(
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(searchRaf);
+      cancelAnimationFrame(followRaf);
       clearTimeout(searchTimer);
       clearTimeout(missTimer);
       mutations.disconnect();

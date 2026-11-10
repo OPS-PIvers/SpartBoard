@@ -15,11 +15,17 @@ export const WAITING_AFTER_MS = 3000;
 /** On a website the wait stays at the extension's old 4s: a page load is part of ordinary forward flow there. */
 export const WEB_WAITING_AFTER_MS = 4000;
 
+/** Live tours move on the moment the learner acts, so their tick and glide run together and shorter. */
+export const LIVE_TICK_MS = 350;
+export const LIVE_GLIDE_MS = 200;
+
 /** The rhythm from settle to tip; reduced motion keeps the settle wait and drops the tick and the glide. */
-export const rhythmOf = (reducedMotion: boolean) =>
+export const rhythmOf = (reducedMotion: boolean, live = false) =>
   reducedMotion
     ? { tickMs: 0, glideMs: 0 }
-    : { tickMs: TICK_MS, glideMs: GLIDE_MS };
+    : live
+      ? { tickMs: LIVE_TICK_MS, glideMs: LIVE_GLIDE_MS }
+      : { tickMs: TICK_MS, glideMs: GLIDE_MS };
 
 export interface EngineStep {
   id: string;

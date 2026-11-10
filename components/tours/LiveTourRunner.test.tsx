@@ -25,6 +25,7 @@ import { getTourFrame } from './tourFrame';
 import { Z_INDEX } from '@/config/zIndex';
 import {
   GLIDE_MS,
+  LIVE_TICK_MS,
   SETTLE_CAP_MS,
   SETTLE_QUIET_MS,
   TICK_MS,
@@ -1813,11 +1814,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     await frames();
     return view;
   };
-  const dim = () => {
-    const path = screen.getByTestId('tour-spotlight').querySelector('path');
-    if (!path) throw new Error('no dim path');
-    return path;
-  };
+  const hitLayer = () => screen.getByTestId('tour-spotlight-hit');
   const saved = () => {
     const raw = sessionStorage.getItem(SAVED_TOUR_KEY);
     return raw ? (JSON.parse(raw) as unknown) : null;
@@ -1880,7 +1877,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     await launch(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
     await frames();
     expect(screen.queryByTestId('gl-cursor')).not.toBeInTheDocument();
-    fireEvent.click(dim());
+    fireEvent.click(hitLayer());
     await frames();
     const callout = screen.getByTestId('tour-callout');
     const shakes = animate.mock.calls.filter(
@@ -1905,7 +1902,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     );
     const animate = stubAnimate();
     await launch(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
-    fireEvent.click(dim());
+    fireEvent.click(hitLayer());
     const keyframes = (animate.mock.calls[0] as unknown[])[0] as Keyframe[];
     expect(keyframes.every((k) => k.transform === undefined)).toBe(true);
     expect(keyframes.some((k) => k.boxShadow)).toBe(true);
@@ -4278,7 +4275,7 @@ describe('LiveTourRunner pacing feel', () => {
     return box;
   };
 
-  it('waits for the board to settle, ticks the finished step, then glides and brings in the tip', async () => {
+  it('moves on the moment the step is done: the next control takes clicks at once, the tick stays behind and the tip comes with the ring', async () => {
     await start(
       makeSet([
         { anchor: 'dock.item:dice', action: 'click' },
@@ -4286,22 +4283,20 @@ describe('LiveTourRunner pacing feel', () => {
       ])
     );
     fireEvent.click(screen.getByText('Dice'));
-    await steps(SETTLE_QUIET_MS / 2);
-    expect(progress()).toBe('1 / 2');
-    expect(tick()).toBeNull();
-    await steps(SETTLE_QUIET_MS);
-    expect(tick()).toBeInTheDocument();
-    expect(progress()).toBe('1 / 2');
-    await steps(TICK_MS + 25);
-    expect(tick()).toBeNull();
+    await steps(50);
     expect(progress()).toBe('2 / 2');
-    // The ring glides before the tip comes in.
-    expect(tip()).toBeNull();
-    await steps(GLIDE_MS + 50);
+    // The finished control keeps its tick while the ring glides away.
+    expect(tick()).toBeInTheDocument();
+    // Clicks already reach the next control; only the drawn cutout is still moving.
+    expect(screen.getByTestId('tour-spotlight-hit').getAttribute('d')).toMatch(
+      / M/
+    );
     expect(tip()).toBeInTheDocument();
+    await steps(LIVE_TICK_MS + 50);
+    expect(tick()).toBeNull();
   });
 
-  it('keeps the settle wait but drops the tick and glide under reduced motion', async () => {
+  it('drops the tick and glide under reduced motion', async () => {
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => ({
@@ -4317,10 +4312,8 @@ describe('LiveTourRunner pacing feel', () => {
       ])
     );
     fireEvent.click(screen.getByText('Dice'));
-    await steps(SETTLE_QUIET_MS / 2);
-    expect(progress()).toBe('1 / 2');
     let ticked = false;
-    for (let t = 0; t < SETTLE_QUIET_MS + 100; t += 25) {
+    for (let t = 0; t < 200; t += 25) {
       await frames(25);
       ticked ||= tick() !== null;
     }
