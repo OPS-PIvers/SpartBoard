@@ -11,7 +11,7 @@ import type {
 const MAX_MAGNIFY = 1.5;
 
 /** The target as a reader sees it: a ring that shows on any page colour, with the picture left at full brightness. */
-const TargetRing: React.FC<{
+export const TargetRing: React.FC<{
   target: NonNullable<StepsViewStep['picture']>['target'];
 }> = ({ target }) =>
   target && (

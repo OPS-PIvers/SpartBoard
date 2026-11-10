@@ -1,10 +1,68 @@
 import React, { useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, GripVertical, Volume2, VolumeX, X } from 'lucide-react';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
+  Play,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { useDraggablePosition } from './useDraggablePosition';
 import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import { iconBtn, primaryBtn, secondaryBtn } from './tourButtons';
+import { TourWaitingChip, type TourWaiting } from './TourWaitingChip';
+
+// Up to this many steps get a dot each; longer tours share the width.
+const FIXED_DOTS = 24;
+
+/** One dot per step: filled when passed, hollow when catch-up skipped it, a longer pill for the current one (TOURS_10X.md P3). */
+const StepDots: React.FC<{
+  current: number;
+  total: number;
+  skipped: readonly number[];
+}> = ({ current, total, skipped }) => {
+  const skip = new Set(skipped);
+  const fixed = total <= FIXED_DOTS;
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="tour-bar-dots"
+      className="flex h-2 items-center gap-[3px] max-[440px]:gap-[2px]"
+    >
+      {Array.from({ length: total }, (_, i) => {
+        const now = i === current - 1;
+        const skipped = skip.has(i);
+        const upcoming = !now && !skipped && i >= current - 1;
+        // Skipped is a heavier ring at full size; upcoming is a smaller grey dot, so they differ in shape, not colour alone.
+        const tone = now
+          ? 'bg-brand-blue-primary'
+          : skipped
+            ? 'bg-transparent ring-[1.5px] ring-inset ring-brand-blue-primary'
+            : upcoming
+              ? 'bg-slate-300'
+              : 'bg-brand-blue-primary/70';
+        const size = fixed
+          ? now
+            ? 'h-1.5 w-3.5 max-[440px]:w-3'
+            : upcoming
+              ? 'size-1'
+              : 'size-1.5 max-[440px]:size-[5px]'
+          : `${upcoming ? 'h-1' : 'h-1.5'} min-w-[3px] ${now ? 'flex-[3]' : 'flex-1'}`;
+        return (
+          <span
+            key={i}
+            data-skipped={skipped ? '' : undefined}
+            className={`shrink-0 rounded-full transition-colors motion-reduce:transition-none ${size} ${tone}`}
+          />
+        );
+      })}
+    </span>
+  );
+};
 
 export const TOUR_BAR_POS_KEY = 'spart_tour_bar_pos';
 
@@ -23,6 +81,10 @@ interface TourBarProps {
   onPlace?: () => void;
   /** Where the dragged position is remembered; null keeps it for this tour only. */
   positionKey?: string | null;
+  /** Tour pacing: one dot per step, with the steps catch-up passed over (0-based) drawn hollow. */
+  skipped?: readonly number[];
+  /** Tour pacing: the tip folded into a chip under the bar while the step waits for its control. */
+  waiting?: TourWaiting;
 }
 
 /** The tour's controls, in a slim bar at the top that the teacher can drag aside. */
@@ -37,6 +99,8 @@ export const TourBar: React.FC<TourBarProps> = ({
   onExit,
   onPlace,
   positionKey = TOUR_BAR_POS_KEY,
+  skipped,
+  waiting,
 }) => {
   const { t } = useTranslation();
   const { ref, pos, gripProps } =
@@ -56,7 +120,7 @@ export const TourBar: React.FC<TourBarProps> = ({
       data-tour-obstacle=""
       data-tour-bar=""
       data-testid="tour-bar"
-      className={`fixed flex items-center gap-1 rounded-2xl py-1.5 pl-1 pr-1.5 ${chromeSurface} ${
+      className={`fixed flex items-center gap-1 ${skipped ? 'max-[440px]:gap-[3px]' : ''} rounded-2xl py-1.5 pl-1 pr-1.5 ${chromeSurface} ${
         pos ? '' : 'left-1/2 -translate-x-1/2'
       }`}
       style={{
@@ -76,20 +140,43 @@ export const TourBar: React.FC<TourBarProps> = ({
       >
         <GripVertical className="h-4 w-4" aria-hidden="true" />
       </button>
-      <div className="flex min-w-28 flex-col gap-1 px-1.5">
-        <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600">
+      <div
+        className={`flex min-w-28 flex-col gap-1 px-1.5 ${skipped ? 'max-[440px]:min-w-0 max-[440px]:px-1' : ''}`}
+      >
+        <span
+          className={`whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 ${skipped ? 'max-[440px]:sr-only' : ''}`}
+        >
           {t('tours.progress', { current, total })}
         </span>
-        <span
-          aria-hidden="true"
-          className="h-1 overflow-hidden rounded-full bg-slate-200"
-        >
+        {/* On a phone the label shortens to "5 / 14", as the editor's bottom bar does. */}
+        {skipped && (
           <span
-            data-testid="tour-bar-track"
-            className="block h-full rounded-full bg-brand-blue-primary transition-[width] duration-300 motion-reduce:transition-none"
-            style={{ width: `${(current / Math.max(total, 1)) * 100}%` }}
-          />
-        </span>
+            aria-hidden="true"
+            data-testid="tour-bar-progress-short"
+            className="hidden whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 max-[440px]:inline"
+          >
+            {current} / {total}
+          </span>
+        )}
+        {skipped && skipped.length > 0 && (
+          <span className="sr-only">
+            {t('tours.skippedCount', { count: skipped.length })}
+          </span>
+        )}
+        {skipped ? (
+          <StepDots current={current} total={total} skipped={skipped} />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="h-1 overflow-hidden rounded-full bg-slate-200"
+          >
+            <span
+              data-testid="tour-bar-track"
+              className="block h-full rounded-full bg-brand-blue-primary transition-[width] duration-300 motion-reduce:transition-none"
+              style={{ width: `${(current / Math.max(total, 1)) * 100}%` }}
+            />
+          </span>
+        )}
       </div>
       {onBack && (
         <button
@@ -98,7 +185,9 @@ export const TourBar: React.FC<TourBarProps> = ({
           className={`${secondaryBtn} flex items-center gap-1 pl-2`}
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          {t('tours.back')}
+          <span className={skipped ? 'max-[440px]:sr-only' : undefined}>
+            {t('tours.back')}
+          </span>
         </button>
       )}
       {onRetry && (
@@ -106,8 +195,34 @@ export const TourBar: React.FC<TourBarProps> = ({
           {t('tours.retry')}
         </button>
       )}
-      <button type="button" onClick={onNext} className={primaryBtn}>
-        {last ? t('tours.done') : t('tours.next')}
+      <button
+        type="button"
+        onClick={onNext}
+        title={skipped ? (last ? t('tours.done') : t('tours.next')) : undefined}
+        className={`${primaryBtn} ${skipped ? 'max-[440px]:px-2.5' : ''}`}
+      >
+        {/* On a phone with dots, Next is an arrow like Back, so the bar fits in any language. */}
+        {skipped &&
+          (last ? (
+            <Check
+              className="hidden h-4 w-4 max-[440px]:block"
+              aria-hidden="true"
+            />
+          ) : (
+            <ChevronRight
+              className="hidden h-4 w-4 max-[440px]:block"
+              aria-hidden="true"
+            />
+          ))}
+        {skipped ? (
+          <span className="max-[440px]:sr-only">
+            {last ? t('tours.done') : t('tours.next')}
+          </span>
+        ) : last ? (
+          t('tours.done')
+        ) : (
+          t('tours.next')
+        )}
       </button>
       {autopilot && (
         <button
@@ -115,9 +230,19 @@ export const TourBar: React.FC<TourBarProps> = ({
           role="switch"
           aria-checked={autopilot.on}
           onClick={() => autopilot.onChange(!autopilot.on)}
-          className={`ml-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
+          title={t('tours.autopilot')}
+          className={`ml-2 flex items-center gap-2 ${skipped ? 'max-[440px]:ml-0 max-[440px]:gap-1 max-[440px]:px-1' : ''} rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
         >
-          {t('tours.autopilot')}
+          {/* With step dots the bar runs out of room on a phone: Autopilot's play icon stands in for its word, which screen readers still hear. */}
+          {skipped && (
+            <Play
+              className="hidden h-4 w-4 text-slate-600 max-[440px]:block"
+              aria-hidden="true"
+            />
+          )}
+          <span className={skipped ? 'max-[440px]:sr-only' : undefined}>
+            {t('tours.autopilot')}
+          </span>
           <span
             aria-hidden="true"
             className={`relative h-4 w-7 rounded-full transition-colors motion-reduce:transition-none ${
@@ -157,6 +282,7 @@ export const TourBar: React.FC<TourBarProps> = ({
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
+      {waiting && <TourWaitingChip key={waiting.step} {...waiting} />}
     </div>
   );
 };

@@ -255,6 +255,31 @@ describe('frame seeker catch-up (TOURS_10X.md P2)', () => {
     expect(searches.n - before).toBeGreaterThan(0);
   });
 
+  it('catches a press on a watched control soon after it arrives late, despite earlier misses', async () => {
+    vi.useFakeTimers();
+    const { reports, onDoc } = setUp({
+      ...seek,
+      ahead: [{ index: 3, stepId: 'd', clues: clues('Late'), action: 'click' }],
+    });
+    const box = document.createElement('div');
+    document.body.append(box);
+    // A few seconds of a page changing without the control: the frame looks less and less often.
+    for (let i = 0; i < 60; i++) {
+      box.setAttribute('data-tick', String(i));
+      await vi.advanceTimersByTimeAsync(50);
+    }
+    const late = document.createElement('button');
+    late.textContent = 'Late';
+    document.body.append(late);
+    await vi.advanceTimersByTimeAsync(300);
+    for (const type of ['pointerdown', 'mousedown', 'click'])
+      onDoc.get(type)?.(press(type, late));
+    await vi.advanceTimersByTimeAsync(SETTLE_QUIET_MS + 20);
+    expect(aheadReports(reports)).toEqual([
+      { type: 'wt:ahead', token: 't1', index: 3, stepId: 'd' },
+    ]);
+  });
+
   it('validates the watched steps in a seek', () => {
     expect(isFrameCommand(seek)).toBe(true);
     expect(isFrameCommand({ ...seek, ahead: [{ index: 'x' }] })).toBe(false);

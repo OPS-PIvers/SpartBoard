@@ -9,6 +9,7 @@ import {
   type WebTourCheckResult,
   type WebTourCondition,
   type WebTourStableAttrs,
+  type TourMarkupShape,
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
@@ -40,6 +41,12 @@ export const SCHOOLOGY_CONNECT_PROTOCOL = 11;
 
 /** Protocol 12: a tour may carry step conditions (`conditions`, TOURS_10X.md E6); older extensions get none and play every step. */
 export const CONDITIONS_PROTOCOL = 12;
+
+/** Protocol 12 too: a tour may carry the markup drawn on its step pictures (`markup`), shown with Show me where; older extensions get none. */
+export const MARKUP_PROTOCOL = 12;
+
+/** Protocol 12 too: playback keeps pace (TOURS_10X.md P1-P5). Nothing the page sends changes, so no page gates on it. */
+export const PACING_PROTOCOL = 12;
 
 /** The district Google domain; students share it, so the server checks a staff member doc too. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -82,6 +89,18 @@ export interface WebTourStartTour {
   steps: WebTourStartStep[];
   /** By step id; sent only to an extension at CONDITIONS_PROTOCOL or later. */
   conditions?: Record<string, WebStepConditions>;
+  /** Picture markup by step id; sent only to an extension at MARKUP_PROTOCOL or later. */
+  markup?: Record<string, TourMarkupShape[]>;
+  /** Where each step's control sits in its picture, 0-1, by step id; sent with markup, for Show me where's ring. */
+  targets?: Record<string, PictureTarget>;
+}
+
+/** A control's place in its step picture, as 0-1 of the picture. */
+export interface PictureTarget {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 /** Protocol 2, staff only: open `startUrl` in a new tab and play the tour from `stepIndex`. */
@@ -426,7 +445,15 @@ function parsePicture(v: unknown): WebTourPictureBytes | null {
 export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
   if (
     !isPlainObject(raw) ||
-    !onlyKeys(raw, ['setId', 'version', 'title', 'steps', 'conditions'])
+    !onlyKeys(raw, [
+      'setId',
+      'version',
+      'title',
+      'steps',
+      'conditions',
+      'markup',
+      'targets',
+    ])
   ) {
     return null;
   }
@@ -471,11 +498,114 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     ids.add(s.id);
     out.push(step);
   }
-  if (raw.conditions === undefined)
-    return { setId, version, title, steps: out };
-  const conditions = parseStepConditions(raw.conditions, ids);
-  if (!conditions) return null;
-  return { setId, version, title, steps: out, conditions };
+  const conditions =
+    raw.conditions === undefined
+      ? undefined
+      : parseStepConditions(raw.conditions, ids);
+  if (conditions === null) return null;
+  const markup =
+    raw.markup === undefined ? undefined : parseStepMarkup(raw.markup, ids);
+  if (markup === null) return null;
+  const targets =
+    raw.targets === undefined ? undefined : parseStepTargets(raw.targets, ids);
+  if (targets === null) return null;
+  return {
+    setId,
+    version,
+    title,
+    steps: out,
+    ...(conditions ? { conditions } : {}),
+    ...(markup ? { markup } : {}),
+    ...(targets ? { targets } : {}),
+  };
+}
+
+/** A control's place in a picture, or null when it isn't one. */
+export function parsePictureTarget(v: unknown): PictureTarget | null {
+  if (!isPlainObject(v) || !onlyKeys(v, ['x', 'y', 'w', 'h'])) return null;
+  const { x, y, w, h } = v;
+  const unitNum = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= -1 && n <= 2;
+  if (!unitNum(x) || !unitNum(y) || !unitNum(w) || !unitNum(h)) return null;
+  if (!(w > 0 && h > 0)) return null;
+  return { x, y, w, h };
+}
+
+/** Picture targets by step id, each for a step the tour has; null when anything is off. */
+function parseStepTargets(
+  v: unknown,
+  stepIds: ReadonlySet<string>
+): Record<string, PictureTarget> | null {
+  if (!isPlainObject(v)) return null;
+  const out: Record<string, PictureTarget> = {};
+  for (const [id, raw] of Object.entries(v)) {
+    const t = parsePictureTarget(raw);
+    if (!stepIds.has(id) || !t) return null;
+    out[id] = t;
+  }
+  return out;
+}
+
+/** Most shapes one step picture carries. */
+export const MAX_MARKUP_SHAPES = 40;
+const inPicture = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v) && v >= -1 && v <= 2;
+
+/** Markup shapes as a picture draws them, or null when any is malformed. */
+export function parseMarkupShapes(v: unknown): TourMarkupShape[] | null {
+  if (!Array.isArray(v) || v.length > MAX_MARKUP_SHAPES) return null;
+  const out: TourMarkupShape[] = [];
+  for (const s of v) {
+    if (!isPlainObject(s) || typeof s.id !== 'string' || s.id.length > 64)
+      return null;
+    const { id } = s;
+    if (
+      s.kind === 'arrow' &&
+      onlyKeys(s, ['id', 'kind', 'x1', 'y1', 'x2', 'y2']) &&
+      inPicture(s.x1) &&
+      inPicture(s.y1) &&
+      inPicture(s.x2) &&
+      inPicture(s.y2)
+    )
+      out.push({ id, kind: 'arrow', x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2 });
+    else if (
+      s.kind === 'box' &&
+      onlyKeys(s, ['id', 'kind', 'x', 'y', 'w', 'h']) &&
+      inPicture(s.x) &&
+      inPicture(s.y) &&
+      inPicture(s.w) &&
+      inPicture(s.h)
+    )
+      out.push({ id, kind: 'box', x: s.x, y: s.y, w: s.w, h: s.h });
+    else if (
+      s.kind === 'number' &&
+      onlyKeys(s, ['id', 'kind', 'x', 'y', 'n']) &&
+      inPicture(s.x) &&
+      inPicture(s.y) &&
+      Number.isInteger(s.n) &&
+      (s.n as number) >= 1 &&
+      (s.n as number) <= 99
+    )
+      out.push({ id, kind: 'number', x: s.x, y: s.y, n: s.n as number });
+    else return null;
+  }
+  return out;
+}
+
+/** A tour's picture markup by step id, each for a step the tour has; null when anything is off. */
+export function parseStepMarkup(
+  v: unknown,
+  stepIds: ReadonlySet<string>
+): Record<string, TourMarkupShape[]> | null {
+  if (!isPlainObject(v)) return null;
+  const out: Record<string, TourMarkupShape[]> = {};
+  for (const [id, raw] of Object.entries(v)) {
+    if (!stepIds.has(id)) return null;
+    const shapes = parseMarkupShapes(raw);
+    if (!shapes) return null;
+    out[id] = shapes;
+  }
+  return out;
 }
 
 /** One web step condition, or null when it is malformed. */

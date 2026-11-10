@@ -24,6 +24,8 @@ const RESULTS = path.join(HERE, 'results');
 /** How long the "teacher" reads a lit step before clicking it. */
 const DWELL_MS = 500;
 const STEP_TIMEOUT_MS = 8000;
+/** The tick's length plus slack: a control found by then glides in on the rhythm. */
+const TICK_WINDOW_MS = 250;
 /** How soon after the last click a rushing learner clicks the next control. */
 const RUSH_MS = 60;
 const VIEWPORT = { width: 1366, height: 768 };
@@ -42,6 +44,7 @@ interface Mark {
   ms?: number;
   kind?: string;
   type?: string;
+  phase?: string;
   status?: string;
   current?: number;
   rect?: { x: number; y: number; width: number; height: number } | null;
@@ -73,7 +76,18 @@ export interface Transition {
   fallback?: boolean;
   /** The step's tip came back after another step's was drawn. */
   redrawn?: boolean;
+  /** From the page settling (the tick) to the tip coming in, when the step followed the learner's action (P1). */
+  settleToTip?: number | null;
+  /** A `waits` step: its control comes late on purpose, so the chip should show. */
+  waitsByDesign?: boolean;
+  /** The chip showed for a `waits` step and the tip reopened when its control came (P4). */
+  waited?: boolean;
 }
+
+const settleTimes = (rows: Transition[]) =>
+  rows
+    .map((r) => r.settleToTip)
+    .filter((x): x is number => typeof x === 'number');
 
 const INIT = () => {
   const log = (o: Record<string, unknown>) =>
@@ -296,6 +310,28 @@ async function play(
   };
   phase = 'start';
   const page = await start().catch(start);
+  // --diagnose: say why a page crashed, with the tab's memory just before, instead of only retrying.
+  let lastHeap = 0;
+  if (flag('diagnose')) {
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Performance.enable');
+    const sample = setInterval(() => {
+      cdp
+        .send('Performance.getMetrics')
+        .then(({ metrics }) => {
+          lastHeap =
+            metrics.find((m) => m.name === 'JSHeapUsedSize')?.value ?? lastHeap;
+        })
+        .catch(() => undefined);
+    }, 500);
+    page.on('close', () => clearInterval(sample));
+    page.on('crash', () => {
+      clearInterval(sample);
+      console.warn(
+        `CRASH ${sc.name} at ${phase}: JS heap ${(lastHeap / 1e6).toFixed(0)} MB, free ${(os.freemem() / 1e6).toFixed(0)} MB`
+      );
+    });
+  }
   page.on('console', (c) => {
     const text = c.text();
     const m = /^\[sb(?:bench|main)\] (.*)$/.exec(text);
@@ -391,7 +427,12 @@ async function play(
 
   const out: Transition[] = [];
   const renders = marks.filter((m) => m.name === 'render');
-  const redrawn = redrawnSteps(renders);
+  const rhythmMarks = marks.filter((m) => m.name === 'rhythm');
+  // A tip is drawn twice when the worker's renders or the overlay's own tip go back to a step.
+  const redrawn = new Set([
+    ...redrawnSteps(renders),
+    ...redrawnSteps(rhythmMarks.filter((m) => m.phase === 'ready')),
+  ]);
   const nav = marks.find((m) => m.name === 'nav');
   const firstMatch = marks.find(
     (m) => m.name === 'match' && m.token?.startsWith('0:')
@@ -452,6 +493,24 @@ async function play(
         (m) => m.current === i + 1 && m.status === 'fallback'
       ),
       redrawn: redrawn.has(i + 1),
+      settleToTip: (() => {
+        const mine = rhythmMarks.filter(
+          (m) => m.current === i + 1 && m.t >= act
+        );
+        const ticked = mine.find((m) => m.phase === 'tick');
+        const ready = ticked
+          ? mine.find((m) => m.phase === 'ready' && m.t >= ticked.t)
+          : undefined;
+        // Only where the next control was there by the end of the tick; later content is readyToLit's.
+        const inTime =
+          !!match && !!ticked && match.t <= ticked.t + TICK_WINDOW_MS;
+        return ticked && ready && inTime ? ready.t - ticked.t : null;
+      })(),
+      waitsByDesign: !!steps[i].waits,
+      waited:
+        !!steps[i].waits &&
+        renders.some((m) => m.current === i + 1 && m.status === 'fallback') &&
+        !!lit,
     });
   }
   return { transitions: out, presses: pressCosts(marks) };
@@ -467,22 +526,25 @@ export interface PressCost {
 
 function pressCosts(marks: Mark[]): PressCost[] {
   const longTasks = marks.filter((m) => m.name === 'longtask');
-  return marks
-    .filter((m) => m.name === 'press')
-    .map((p) => {
-      const ms = p.ms ?? 0;
-      return {
-        type: p.type ?? '',
-        ms,
-        // Attributable when the task would have stayed under 50ms without the handler.
-        longTask: longTasks.some(
-          (lt) =>
-            lt.t <= p.t &&
-            lt.t + (lt.ms ?? 0) >= p.t - ms &&
-            (lt.ms ?? 0) - ms < 50
-        ),
-      };
-    });
+  return (
+    marks
+      // A click-ahead's settle wait starts in its own task with one layout read; held to the same limit.
+      .filter((m) => m.name === 'press' || m.name === 'settlestart')
+      .map((p) => {
+        const ms = p.ms ?? 0;
+        return {
+          type: p.name === 'settlestart' ? 'settle start' : (p.type ?? ''),
+          ms,
+          // Attributable when the task would have stayed under 50ms without the handler.
+          longTask: longTasks.some(
+            (lt) =>
+              lt.t <= p.t &&
+              lt.t + (lt.ms ?? 0) >= p.t - ms &&
+              (lt.ms ?? 0) - ms < 50
+          ),
+        };
+      })
+  );
 }
 
 export interface ScenarioResult {
@@ -492,14 +554,19 @@ export interface ScenarioResult {
   presses?: PressCost[];
 }
 
-export function summarize(rows: Transition[]) {
+export function summarize(all: Transition[]) {
+  // A step meant to wait is timed by the site, not the tour; it is checked for the chip instead.
+  const rows = all.filter((r) => !r.waitsByDesign);
   const lit = rows
     .map((r) => r.actToLit)
     .filter((x): x is number => x !== null);
   return {
-    transitions: rows.length,
-    fellBack: rows.filter((r) => r.fellBack).length,
+    transitions: all.length,
+    fellBack: all.filter((r) => r.fellBack).length,
     fallbacks: rows.filter((r) => r.fallback).length,
+    waitedMissing: all.filter((r) => r.waitsByDesign && !r.waited).length,
+    settleToTipP95: pct(settleTimes(rows), 95),
+    settleToTipMin: Math.min(...settleTimes(rows)),
     redrawn: rows.filter((r) => r.redrawn).length,
     actToLitMedian: median(lit),
     actToLitP95: pct(lit, 95),
@@ -538,10 +605,10 @@ export function summarize(rows: Transition[]) {
 
 /** CI limits (--budget) at 1x CPU: loose enough for a shared runner, tight enough to catch the old hitches coming back. */
 export const BUDGETS = {
-  /** Click to the next spotlight. */
-  actToLitP95: 200,
-  /** Content arriving to its spotlight. */
-  readyToLitP95: 200,
+  /** Click to the next spotlight: the page's settle (120ms quiet, 1s cap) and the 200ms tick come first (TOURS_10X.md P1). */
+  actToLitP95: 700,
+  /** Content arriving to its spotlight, which also waits for the settle and the tick. */
+  readyToLitP95: 500,
   /** One search, at its worst (the gradebook took 60-90ms before). */
   runMsP95: 60,
   /** Longest frame the page skipped around a step change. */
@@ -557,11 +624,12 @@ const PRESS_BUDGET_MS = 9;
 
 /** Scenarios held to their own limits: late content used to wait 250ms more and blank the spotlight for a second. */
 const SCENARIO_BUDGETS: Record<string, Partial<Budget>> = {
-  spa: { readyToLitP95: 120, darkP95: 300 },
-  // A click-ahead lands only once the page around it settles (TOURS_10X.md P1).
-  ahead: { actToLitP95: 400 },
-  heavyahead: { actToLitP95: 400, readyToLitP95: 400 },
+  spa: { darkP95: 300 },
 };
+
+/** The rhythm from settle to tip (P1): about half a second, never instant, never a long hang. */
+const RHYTHM_MIN_MS = 400;
+const RHYTHM_P95_MS = 650;
 
 function overBudget(results: ScenarioResult[]): string[] {
   const out: string[] = [];
@@ -575,6 +643,18 @@ function overBudget(results: ScenarioResult[]): string[] {
       );
     if (s.redrawn > 0)
       out.push(`${r.scenario}: ${s.redrawn} steps drew their tip twice`);
+    if (s.waitedMissing > 0)
+      out.push(
+        `${r.scenario}: ${s.waitedMissing} late steps never showed the waiting chip and reopened`
+      );
+    if (s.settleToTipMin < RHYTHM_MIN_MS)
+      out.push(
+        `${r.scenario} ${r.throttle}x: a tip came ${s.settleToTipMin.toFixed(0)}ms after the page settled < ${RHYTHM_MIN_MS}ms`
+      );
+    if (s.settleToTipP95 > RHYTHM_P95_MS)
+      out.push(
+        `${r.scenario} ${r.throttle}x: settle to tip p95 ${s.settleToTipP95.toFixed(0)}ms > ${RHYTHM_P95_MS}ms`
+      );
     for (const p of r.presses ?? []) {
       if (p.ms > PRESS_BUDGET_MS)
         out.push(
@@ -632,6 +712,13 @@ async function launch(label: string) {
       `--load-extension=${EXT}`,
       '--ignore-certificate-errors',
       ...(flag('cold') ? [`--remote-debugging-port=${DEBUG_PORT}`] : []),
+      ...(flag('diagnose')
+        ? [
+            '--enable-logging',
+            `--log-file=${path.join(os.tmpdir(), `sb-bench-chrome-${label}.log`)}`,
+            '--v=0',
+          ]
+        : []),
     ],
   });
   await ctx.addInitScript(INIT);
@@ -701,7 +788,7 @@ async function main() {
             )}ms  long tasks during a press ${presses.filter((p) => p.longTask).length}/${presses.length}`
           );
         console.log(
-          `${sc.name.padEnd(7)} ${throttle}x  click->lit median ${s.actToLitMedian.toFixed(0)}ms p95 ${s.actToLitP95.toFixed(0)}ms  ready->lit p95 ${s.readyToLitP95.toFixed(0)}ms  dark p95 ${s.darkP95.toFixed(0)}ms  centred p95 ${s.centredP95.toFixed(0)}ms  search p95 ${s.runMsP95.toFixed(1)}ms  long tasks ${s.longTaskMsTotal.toFixed(0)}ms  frame gap p95 ${s.maxFrameGapP95.toFixed(0)}ms  first step ${s.firstLitMedian.toFixed(0)}ms  fell back ${s.fellBack}/${s.transitions}  fallback shown ${s.fallbacks}  tip redrawn ${s.redrawn}`
+          `${sc.name.padEnd(7)} ${throttle}x  click->lit median ${s.actToLitMedian.toFixed(0)}ms p95 ${s.actToLitP95.toFixed(0)}ms  ready->lit p95 ${s.readyToLitP95.toFixed(0)}ms  dark p95 ${s.darkP95.toFixed(0)}ms  centred p95 ${s.centredP95.toFixed(0)}ms  search p95 ${s.runMsP95.toFixed(1)}ms  long tasks ${s.longTaskMsTotal.toFixed(0)}ms  frame gap p95 ${s.maxFrameGapP95.toFixed(0)}ms  first step ${s.firstLitMedian.toFixed(0)}ms  fell back ${s.fellBack}/${s.transitions}  fallback shown ${s.fallbacks}  tip redrawn ${s.redrawn}  settle->tip p95 ${s.settleToTipP95.toFixed(0)}ms min ${s.settleToTipMin.toFixed(0)}ms`
         );
       }
       await close(ctx);

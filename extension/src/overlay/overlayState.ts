@@ -1,6 +1,11 @@
 // What the service worker asks the overlay to draw; checked like any other message (D3).
-import type { WebTourPictureBytes } from '@/components/tours/web/extensionProtocol';
-import type { WebTourCheckResult } from '@/types';
+import {
+  parseMarkupShapes,
+  parsePictureTarget,
+  type PictureTarget,
+  type WebTourPictureBytes,
+} from '@/components/tours/web/extensionProtocol';
+import type { TourMarkupShape, WebTourCheckResult } from '@/types';
 
 export interface OverlayRect {
   x: number;
@@ -43,6 +48,14 @@ export interface OverlayState {
   goStart?: boolean;
   /** The next step, shown as soon as this frame finds its target under `token`, before the service worker says so. */
   ahead?: OverlayAhead;
+  /** Steps a catch-up passed over, 0-based, drawn hollow on the step bar (TOURS_10X.md P3). */
+  skipped?: number[];
+  /** Waiting or on another page: Take me back can open the step's page (P5). */
+  takeBack?: boolean;
+  /** Markup drawn over `picture` (E5); only with a picture. */
+  markup?: TourMarkupShape[];
+  /** Where the control sits in `picture`, ringed; only with a picture. */
+  target?: PictureTarget;
 }
 
 export interface OverlayAhead {
@@ -52,7 +65,7 @@ export interface OverlayAhead {
   observe: boolean;
 }
 
-export type OverlayAction = 'next' | 'back' | 'exit' | 'start';
+export type OverlayAction = 'next' | 'back' | 'exit' | 'start' | 'takeBack';
 
 const MAX_TEXT = 4000;
 const STATUSES: readonly OverlayStatus[] = [
@@ -141,11 +154,19 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   const checking = 'check' in raw;
   const offering = 'goStart' in raw;
   const looking = 'ahead' in raw;
+  const skipping = 'skipped' in raw;
+  const returning = 'takeBack' in raw;
+  const marked = 'markup' in raw;
+  const aimed = 'target' in raw;
   const keys = [
     ...KEYS,
     ...(checking ? ['check'] : []),
     ...(offering ? ['goStart'] : []),
     ...(looking ? ['ahead'] : []),
+    ...(skipping ? ['skipped'] : []),
+    ...(returning ? ['takeBack'] : []),
+    ...(marked ? ['markup'] : []),
+    ...(aimed ? ['target'] : []),
   ];
   if (!hasExactKeys(raw, keys)) return null;
   const r = raw as Record<string, unknown>;
@@ -155,6 +176,21 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   if (checking && !check) return null;
   const ahead = looking ? parseAhead(r.ahead) : null;
   if (looking && !ahead) return null;
+  const skipped = r.skipped;
+  if (
+    skipping &&
+    !(
+      Array.isArray(skipped) &&
+      skipped.length <= 500 &&
+      skipped.every((i) => isCount(i))
+    )
+  )
+    return null;
+  if (returning && typeof r.takeBack !== 'boolean') return null;
+  const markup = marked ? parseMarkupShapes(r.markup) : null;
+  if (marked && (!markup || r.picture === null)) return null;
+  const target = aimed ? parsePictureTarget(r.target) : null;
+  if (aimed && (!target || r.picture === null)) return null;
   const status = STATUSES.find((s) => s === r.status);
   const picture = parsePicture(r.picture);
   if (
@@ -185,5 +221,9 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     ...(check ? { check } : {}),
     ...(offering ? { goStart: r.goStart as boolean } : {}),
     ...(ahead ? { ahead } : {}),
+    ...(skipping ? { skipped: skipped as number[] } : {}),
+    ...(returning ? { takeBack: r.takeBack as boolean } : {}),
+    ...(markup ? { markup } : {}),
+    ...(target ? { target } : {}),
   };
 }

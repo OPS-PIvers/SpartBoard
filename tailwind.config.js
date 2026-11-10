@@ -206,6 +206,12 @@ export default {
           '0%': { transform: 'scale(1)', opacity: '0.85' },
           '70%, 100%': { transform: 'scale(1.14)', opacity: '0' },
         },
+        // Tour pacing (TOURS_10X.md P1): the tick on a finished step, once.
+        'tour-tick': {
+          from: { transform: 'scale(0.4)', opacity: '0' },
+          '60%': { transform: 'scale(1.08)', opacity: '1' },
+          to: { transform: 'scale(1)', opacity: '1' },
+        },
       },
       animation: {
         'spin-slow': 'spin-slow 12s linear infinite',
@@ -218,6 +224,7 @@ export default {
         'confetti-fall': 'confetti-fall 4s linear both',
         'tour-pulse': 'tour-pulse 700ms ease-out both',
         'tour-breathe': 'tour-breathe 2.2s ease-out infinite',
+        'tour-tick': 'tour-tick 180ms ease-out both',
       },
     },
   },

@@ -49,14 +49,14 @@ describe('domSettleHost', () => {
     const first = track(waitForSettle(host, { quietMs: 100, capMs: 2000 }));
     // A clock ticking across the page doesn't hold the tour.
     for (let i = 0; i < 5; i++) {
-      far.textContent = String(i);
+      far.style.width = `${i}px`;
       await flush(30);
     }
     expect(first.reason).toBe('quiet');
 
     const second = track(waitForSettle(host, { quietMs: 100, capMs: 2000 }));
     for (let i = 0; i < 5; i++) {
-      near.textContent = String(i);
+      near.style.width = `${i}px`;
       await flush(60);
     }
     expect(second.reason).toBeNull();
@@ -186,9 +186,53 @@ describe('domSettleHost', () => {
     // Between frames, so only the batch reads boxes.
     await flush(1);
     rectReads.length = 0;
-    for (const el of far) el.textContent = 'x';
+    for (const el of far) el.style.width = '1px';
     await Promise.resolve();
     await Promise.resolve();
     expect(rectReads.filter((el) => el === target)).toHaveLength(1);
+  });
+
+  it('is not held by text ticking beside the target or by attributes that only repaint', async () => {
+    const target = place(document.createElement('div'), 0);
+    const clock = place(document.createElement('span'), 50);
+    const dot = place(document.createElement('span'), 60);
+    document.body.append(target, clock, dot);
+    const host = domSettleHost(document, { near: () => target });
+    const wait = track(waitForSettle(host, { quietMs: 100, capMs: 2000 }));
+    for (let i = 0; i < 4; i++) {
+      clock.textContent = `12:00:0${i}`;
+      dot.dataset.on = String(i % 2);
+      await flush(30);
+    }
+    expect(wait.reason).toBe('quiet');
+  });
+
+  it('counts text changing inside the target', async () => {
+    const target = place(document.createElement('button'), 0);
+    document.body.append(target);
+    const host = domSettleHost(document, { near: () => target });
+    const wait = track(waitForSettle(host, { quietMs: 100, capMs: 2000 }));
+    for (let i = 0; i < 4; i++) {
+      target.textContent = `Loading ${i}`;
+      await flush(60);
+    }
+    expect(wait.reason).toBeNull();
+  });
+
+  it('is not quiet while nearby text reflows the target, though the text change itself is ignored', async () => {
+    const label = document.createElement('span');
+    const target = place(document.createElement('button'), 100);
+    document.body.append(label, target);
+    const host = domSettleHost(document, { near: () => target });
+    const wait = track(waitForSettle(host, { quietMs: 100, capMs: 2000 }));
+    // A label growing letter by letter pushes the button along: only text mutates, the button's box moves.
+    for (let i = 1; i <= 15; i++) {
+      label.textContent = 'Loading'.padEnd(i, '.');
+      place(target, 100 + i * 6);
+      await flush(20);
+    }
+    expect(wait.reason).toBeNull();
+    await flush(140);
+    expect(wait.reason).toBe('quiet');
   });
 });
