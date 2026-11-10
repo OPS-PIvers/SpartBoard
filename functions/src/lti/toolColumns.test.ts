@@ -107,6 +107,7 @@ function makeRest(overrides: Partial<RestOps> = {}): RestOps {
     setColumnCategory: vi.fn(async () => undefined),
     getColumnCategory: vi.fn(async () => '222'),
     publishColumn: vi.fn(async () => undefined),
+    setColumnDue: vi.fn(async () => undefined),
     listColumnGrades: vi.fn(async () => []),
     setExceptions: vi.fn(async (_s: string, rows: unknown[]) =>
       rows.map(() => true)
@@ -216,6 +217,33 @@ describe('pushSection: creating the column', () => {
       'su-2': 's:10',
       'su-3': 'm',
     });
+  });
+
+  it('sets the due date the teacher picked on a new column only', async () => {
+    await pushSection(deps, { ...input(), dueDate: '2026-11-14' });
+    expect(deps.rest?.setColumnDue).toHaveBeenCalledWith(
+      CTX,
+      '8604205395',
+      '2026-11-14'
+    );
+    await pushSection(deps, { ...input(), dueDate: '2026-11-20' });
+    expect(deps.rest?.setColumnDue).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the due date alone when none is picked', async () => {
+    await pushSection(deps, input());
+    expect(deps.rest?.setColumnDue).not.toHaveBeenCalled();
+  });
+
+  it('still pushes scores when setting the due date fails', async () => {
+    deps.rest = makeRest({
+      setColumnDue: vi.fn(async () => {
+        throw new Error('400');
+      }),
+    });
+    const out = await pushSection(deps, { ...input(), dueDate: '2026-11-14' });
+    expect(out.status).toBe('pushed');
+    expect(out.results.every((r) => r.ok)).toBe(true);
   });
 
   it('reuses the column on the next push instead of creating another', async () => {

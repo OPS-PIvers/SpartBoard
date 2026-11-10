@@ -11177,7 +11177,9 @@ export type GlobalFeature =
   /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
   | 'video-activity-stops'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
-  | 'video-import-ai';
+  | 'video-import-ai'
+  /** Due date picker in the Push to Schoology dialog. */
+  | 'schoology-push-due-date';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -81,6 +81,8 @@ export interface ToolColumnPushRequest {
   create: boolean;
   /** Picked category per section id. */
   categories?: Record<string, string>;
+  /** YYYY-MM-DD due date for a new column. */
+  dueDate?: string;
 }
 
 export async function fetchToolColumnCategories(

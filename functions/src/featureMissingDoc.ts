@@ -83,6 +83,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'video-activity-stops',
   'video-import-ai',
   'embed-mini-app',
+  'schoology-push-due-date',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

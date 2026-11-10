@@ -177,6 +177,7 @@ import {
   ltiDeleteToolColumnsV1,
   ltiPushToolColumnV1,
   ltiToolColumnCategoriesV1,
+  parseDueDate,
 } from './toolColumnEndpoints';
 import { schoologySectionUrls } from './lineItems';
 
@@ -286,6 +287,22 @@ const pushData = {
 };
 
 describe('ltiPushToolColumnV1', () => {
+  it('passes a valid due date through and drops a bad one', async () => {
+    await push({ auth: T, data: { ...pushData, dueDate: '2026-11-14' } });
+    await push({ auth: T, data: { ...pushData, dueDate: '2026-02-30' } });
+    const dues = pushSectionMock.mock.calls.map(
+      (c) => (c[1] as { dueDate: unknown }).dueDate
+    );
+    expect(dues).toEqual(['2026-11-14', '2026-11-14', null, null]);
+  });
+
+  it('parses only real calendar dates', () => {
+    expect(parseDueDate('2028-02-29')).toBe('2028-02-29');
+    expect(parseDueDate('2026-02-29')).toBeNull();
+    expect(parseDueDate('2026-11-14 23:59')).toBeNull();
+    expect(parseDueDate(1763100000000)).toBeNull();
+  });
+
   it('rejects signed-out and student callers', async () => {
     await expect(push({ data: pushData })).rejects.toThrow(/Sign in/);
     await expect(
