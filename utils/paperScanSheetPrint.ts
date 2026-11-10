@@ -281,9 +281,16 @@ function feedbackColumnHtml(
   let room = bottom - top - used - 0.6;
   const linesIn = (mmLeft: number) => Math.floor(mmLeft / NOTE_LINE_MM);
   const lead = comment?.trim() ?? '';
+  const moreText = (n: number) =>
+    reportFollows ? `+${n} more in the report` : `+${n} more`;
+  // Room the "+n more" note takes at its widest count, gap included.
+  const moreMm =
+    NOTE_GAP_MM +
+    wrapLines(moreText(rows.length), width, NOTE_PT) * NOTE_LINE_MM;
   if (lead && linesIn(room) > 0) {
-    // The overall comment keeps at most half the lines when numbered comments follow.
-    const fit = rows.length ? Math.max(1, linesIn(room) >> 1) : linesIn(room);
+    // With comments to follow, it keeps half of what is left after one gap and the "+n more" room.
+    const rest = room - NOTE_GAP_MM - (rows.length > 1 ? moreMm : 0);
+    const fit = rows.length ? Math.max(1, linesIn(rest) >> 1) : linesIn(room);
     const text = cutToLines(lead, width, NOTE_PT, fit);
     const lines = Math.min(fit, wrapLines(text, width, NOTE_PT));
     parts.push(
@@ -291,12 +298,6 @@ function feedbackColumnHtml(
     );
     room -= lines * NOTE_LINE_MM;
   }
-  const moreText = (n: number) =>
-    reportFollows ? `+${n} more in the report` : `+${n} more`;
-  // Room the "+n more" note takes at its widest count, gap included.
-  const moreMm =
-    NOTE_GAP_MM +
-    wrapLines(moreText(rows.length), width, NOTE_PT) * NOTE_LINE_MM;
   let shown = 0;
   for (const row of rows) {
     const left = rows.length - shown;
@@ -313,9 +314,11 @@ function feedbackColumnHtml(
     shown += 1;
   }
   const hidden = rows.length - shown;
-  if (hidden > 0 && linesIn(room - NOTE_GAP_MM) > 0) {
+  // In a tight column the note drops its gap rather than go missing.
+  const noteGap = linesIn(room - NOTE_GAP_MM) > 0 ? NOTE_GAP_MM : 0;
+  if (hidden > 0 && linesIn(room - noteGap) > 0) {
     parts.push(
-      `<div style="margin-top:${mm(NOTE_GAP_MM)};font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)};font-style:italic">${moreText(hidden)}</div>`
+      `<div style="margin-top:${mm(noteGap)};font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)};font-style:italic">${moreText(hidden)}</div>`
     );
   }
   if (parts.length === 0) return '';
