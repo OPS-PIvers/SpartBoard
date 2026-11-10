@@ -43,6 +43,8 @@ interface TestModeProps {
   check?: TestModeCheck;
   /** One question at a time under a Question N of M bar, instead of the number strip. */
   questionBar?: boolean;
+  /** Wrong answer choices come from these cards; defaults to every card passed in. */
+  choiceCards?: FlashcardCard[];
 }
 
 export interface TestModeCheck {
@@ -92,10 +94,13 @@ const buildQuestions = (
   testTypes: FlashcardTestType[],
   testCount: number | 'all',
   seed: string,
-  choices = 4
+  choices = 4,
+  choicePool: FlashcardCard[] = cards
 ): TestQuestion[] => {
   const enabled =
-    cards.length < 4 ? testTypes.filter((type) => type !== 'mc') : testTypes;
+    choicePool.length < 4
+      ? testTypes.filter((type) => type !== 'mc')
+      : testTypes;
   const usableTypes: FlashcardTestType[] =
     enabled.length > 0 ? enabled : ['fib'];
   const count =
@@ -107,7 +112,7 @@ const buildQuestions = (
     const distractors = stableShuffle(
       [
         ...new Set(
-          cards
+          choicePool
             .filter((candidate) => candidate.id !== card.id)
             .map((candidate) => getFlashcardSides(candidate, showFirst).answer)
             .filter((candidate) => candidate !== answer)
@@ -216,6 +221,7 @@ export const TestMode: React.FC<TestModeProps> = ({
   onComplete,
   check,
   questionBar = false,
+  choiceCards,
 }) => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -239,9 +245,12 @@ export const TestMode: React.FC<TestModeProps> = ({
         testTypes,
         retakeIds ? 'all' : testCount,
         isCheck ? seed : `${seed}:${round}:${cycle}`,
-        check?.answerChoices
+        check?.answerChoices,
+        choiceCards ?? cards
       ),
     [
+      cards,
+      choiceCards,
       check?.answerChoices,
       isCheck,
       cycle,

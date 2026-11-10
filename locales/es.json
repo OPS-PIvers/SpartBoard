@@ -3506,6 +3506,12 @@
       "next": "Siguiente ronda",
       "restart": "Reiniciar todo"
     },
+    "missed": {
+      "button": "Falladas: {{count}}",
+      "study_one": "Estudiar {{count}} tarjeta fallada",
+      "study_other": "Estudiar {{count}} tarjetas falladas",
+      "studyAll": "Estudiar todas las tarjetas"
+    },
     "cards": {
       "term": "Término",
       "definition": "Definición",

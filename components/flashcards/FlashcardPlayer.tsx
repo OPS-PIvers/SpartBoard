@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
+  CircleX,
   FileCheck2,
   Layers3,
   Mic,
@@ -24,10 +25,12 @@ import type {
 import {
   DEFAULT_FLASHCARD_MASTERY_THRESHOLD,
   buildFlashcardRoundQueue,
+  buildMissedRoundCards,
   buildSpeakRoundQueue,
   countMasteredFlashcards,
   isFlashcardMastered,
   isSpeakableCard,
+  missedFlashcards,
   type FlashcardSpeakTally,
 } from '@/utils/flashcardSchedule';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
@@ -139,6 +142,8 @@ export interface FlashcardPlayerProps {
   seed?: string;
   /** Test shows one question at a time under a question bar (assigned sessions). */
   testQuestionBar?: boolean;
+  /** Students can study just the cards they missed (stamped on study assignments). */
+  missedCards?: boolean;
   onSettingsChange?: (settings: FlashcardModeSettings) => void;
   onBack?: () => void;
 }
@@ -174,6 +179,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   theme = 'light',
   seed = 'flashcards',
   testQuestionBar,
+  missedCards = false,
   onSettingsChange,
   onBack,
 }) => {
@@ -245,6 +251,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     () => speakCheck && speakCheckIds.length === 0
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Check rounds and Present mode never offer the missed pile.
+  const missedEnabled = missedCards && adapter.showsMarks && !check;
+  const [missedOnly, setMissedOnly] = useState(false);
   const [speakPrefs, setSpeakPrefs] = useState<SpeakPrefs>({});
   const [deckSignature, setDeckSignature] = useState(() =>
     cards.map(deckEntrySignature).join('\u0000')
@@ -290,6 +299,42 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     };
   });
 
+  const missedQueuesFor = (
+    study: FlashcardStudyState,
+    nextSettings: FlashcardModeSettings,
+    fromRound: number,
+    fromSpeakRound: number,
+    nextMissedOnly: boolean,
+    forMode: FlashcardMode
+  ): {
+    useMissed: boolean;
+    missedMain: FlashcardCard[];
+    missedSpeak: FlashcardCard[];
+  } => {
+    const missedMain = nextMissedOnly
+      ? buildMissedRoundCards(
+          cards,
+          study.cards,
+          nextSettings.shuffle,
+          `${seed}:missed:${fromRound}`
+        )
+      : [];
+    const missedSpeak =
+      nextMissedOnly && speakLanguage
+        ? buildMissedRoundCards(
+            cards.filter(isSpeakableCard),
+            study.speak,
+            nextSettings.shuffle,
+            `${seed}:speak:missed:${fromSpeakRound}`
+          )
+        : [];
+    // An empty pile drops back to every card, so a cleared pile never leaves an empty round.
+    const useMissed =
+      nextMissedOnly &&
+      (forMode === 'speak' ? missedSpeak : missedMain).length > 0;
+    return { useMissed, missedMain, missedSpeak };
+  };
+
   const currentDeckSignature = cards.map(deckEntrySignature).join('\u0000');
   if (deckSignature !== currentDeckSignature) {
     setDeckSignature(currentDeckSignature);
@@ -309,12 +354,22 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       settings,
       session.speakRound
     );
+    // A set save mid-round keeps a missed-only round on the missed cards.
+    const missed = missedQueuesFor(
+      session.study,
+      settings,
+      session.round,
+      session.speakRound,
+      missedOnly,
+      mode
+    );
+    if (missed.useMissed !== missedOnly) setMissedOnly(missed.useMissed);
     setSession({
       ...session,
       round: queue.round,
-      roundCards: queue.cards,
+      roundCards: missed.useMissed ? missed.missedMain : queue.cards,
       speakRound: speakQueue.round,
-      speakCards: speakQueue.cards,
+      speakCards: missed.useMissed ? missed.missedSpeak : speakQueue.cards,
     });
   }
 
@@ -339,7 +394,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     study: FlashcardStudyState,
     nextSettings: FlashcardModeSettings,
     fromRound: number,
-    fromSpeakRound: number = session.speakRound
+    fromSpeakRound: number = session.speakRound,
+    nextMissedOnly: boolean = missedOnly,
+    forMode: FlashcardMode = mode
   ): void => {
     const queue = buildFlashcardRoundQueue({
       cards,
@@ -353,6 +410,15 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       seed,
     });
     const speakQueue = speakQueueFor(study, nextSettings, fromSpeakRound);
+    const { useMissed, missedMain, missedSpeak } = missedQueuesFor(
+      study,
+      nextSettings,
+      fromRound,
+      fromSpeakRound,
+      nextMissedOnly,
+      forMode
+    );
+    setMissedOnly(useMissed);
     const nextStudy: FlashcardStudyState = { ...study, round: queue.round };
     // Speak's round is written only once it moves, so a set without Speak keeps today's state.
     if (speakLanguage && speakQueue.round !== (study.speakRound ?? 1)) {
@@ -362,9 +428,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     setSession({
       study: nextStudy,
       round: queue.round,
-      roundCards: queue.cards,
+      roundCards: useMissed ? missedMain : queue.cards,
       speakRound: speakQueue.round,
-      speakCards: speakQueue.cards,
+      speakCards: useMissed ? missedSpeak : speakQueue.cards,
     });
   };
 
@@ -379,7 +445,14 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     if (mode === nextMode) return;
     void adapter.flush(session.study);
     setMode(nextMode);
-    rebuildQueue(session.study, settings, session.round);
+    rebuildQueue(
+      session.study,
+      settings,
+      session.round,
+      session.speakRound,
+      missedOnly,
+      nextMode
+    );
   };
 
   const record = (cardId: string, correct: boolean): void => {
@@ -430,15 +503,36 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     setSession((current) => ({ ...current, study }));
   };
 
-  const nextRound = (): void => {
+  const advanceRound = (nextMissedOnly: boolean): void => {
     if (mode === 'speak') {
       rebuildQueue(
         session.study,
         settings,
         session.round,
-        session.speakRound + 1
+        session.speakRound + 1,
+        nextMissedOnly
       );
-    } else rebuildQueue(session.study, settings, session.round + 1);
+    } else {
+      rebuildQueue(
+        session.study,
+        settings,
+        session.round + 1,
+        session.speakRound,
+        nextMissedOnly
+      );
+    }
+  };
+
+  const nextRound = (): void => advanceRound(missedOnly);
+
+  const toggleMissedOnly = (): void => {
+    rebuildQueue(
+      session.study,
+      settings,
+      session.round,
+      session.speakRound,
+      !missedOnly
+    );
   };
 
   const recordTest = (test: {
@@ -494,12 +588,12 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
 
   const restart = (): void => {
     const study = adapter.reset({ keepStarred: true });
-    rebuildQueue(study, settings, 1, 1);
+    rebuildQueue(study, settings, 1, 1, false);
   };
 
   const resetProgress = (): void => {
     const study = adapter.reset();
-    rebuildQueue(study, settings, 1, 1);
+    rebuildQueue(study, settings, 1, 1, false);
   };
 
   const testPool = useMemo(() => {
@@ -533,6 +627,19 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     masteryThreshold
   );
   const onRestart = adapter.canReset ? restart : undefined;
+  const missedCount = missedEnabled
+    ? speaking
+      ? missedFlashcards(speakableCards, session.study.speak).length
+      : missedFlashcards(cards, session.study.cards).length
+    : 0;
+  const roundMissed = missedEnabled
+    ? {
+        count: missedCount,
+        only: missedOnly,
+        onStudy: () => advanceRound(true),
+        onStudyAll: () => advanceRound(false),
+      }
+    : undefined;
   const checkWriteDone =
     check?.mode === 'write' &&
     cards.length > 0 &&
@@ -546,8 +653,8 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     width: 'min(17px, 4cqmin)',
     height: 'min(17px, 4cqmin)',
   };
-  const modeKey = `${mode}:${session.round}:${session.roundCards.map((card) => card.id).join(',')}:${settings.showFirst}:${settings.strict}:${settings.testTypes.join(',')}:${settings.testCount}`;
-  const speakKey = `speak:${session.speakRound}:${session.speakCards.map((card) => card.id).join(',')}`;
+  const modeKey = `${mode}:${missedOnly}:${session.round}:${session.roundCards.map((card) => card.id).join(',')}:${settings.showFirst}:${settings.strict}:${settings.testTypes.join(',')}:${settings.testCount}`;
+  const speakKey = `speak:${missedOnly}:${session.speakRound}:${session.speakCards.map((card) => card.id).join(',')}`;
 
   const emptyView = (
     <div className="flex h-full items-center justify-center text-center">
@@ -680,12 +787,47 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
           className="ml-auto flex min-w-0 items-center"
           style={{ gap: 'min(9px, 2cqmin)' }}
         >
+          {missedEnabled && (missedCount > 0 || missedOnly) && (
+            // no-tour-anchor: student study page only; Present mode never shows the pile
+            <button
+              type="button"
+              onClick={toggleMissedOnly}
+              aria-pressed={missedOnly}
+              title={
+                missedOnly
+                  ? t('flashcards.missed.studyAll')
+                  : t('flashcards.missed.study', { count: missedCount })
+              }
+              className={cx(
+                'touch-target-expand relative inline-flex shrink-0 items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
+                missedOnly
+                  ? 'bg-rose-600 text-white'
+                  : dark
+                    ? 'bg-white/10 text-white hover:bg-white/20'
+                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
+              )}
+              style={{
+                gap: 'min(5px, 1.1cqmin)',
+                padding: 'min(7px, 1.6cqmin) min(11px, 2.5cqmin)',
+                fontSize: 'min(11px, 2.9cqmin)',
+              }}
+            >
+              <CircleX
+                aria-hidden="true"
+                style={{
+                  width: 'min(15px, 3.5cqmin)',
+                  height: 'min(15px, 3.5cqmin)',
+                }}
+              />
+              {t('flashcards.missed.button', { count: missedCount })}
+            </button>
+          )}
           {adapter.showsMarks && (
             <div className="min-w-[min(130px,28cqmin)]">
               <div
                 className={cx(
                   'flex justify-between font-bold',
-                  speaking && 'gap-2',
+                  'gap-2',
                   dark ? 'text-white/75' : 'text-slate-600'
                 )}
                 style={{ fontSize: 'min(10px, 2.7cqmin)' }}
@@ -925,6 +1067,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   speakCheck ? () => setSpeakCheckFinished(true) : nextRound
                 }
                 onRestart={speakCheck ? undefined : onRestart}
+                missed={roundMissed}
                 onSaveHeard={onSaveHeard}
                 paused={settingsOpen}
                 autoContinue={!onSaveHeard && (speakPrefs.autoContinue ?? true)}
@@ -946,6 +1089,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             onStar={star}
             onNextRound={nextRound}
             onRestart={onRestart}
+            missed={roundMissed}
           />
         ) : mode === 'write' ? (
           <WriteMode
@@ -963,11 +1107,13 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             onStar={star}
             onNextRound={nextRound}
             onRestart={onRestart}
+            missed={roundMissed}
           />
         ) : (
           <TestMode
             key={modeKey}
-            cards={testPool}
+            cards={missedOnly ? session.roundCards : testPool}
+            choiceCards={missedOnly ? cards : undefined}
             round={session.round}
             showFirst={settings.showFirst}
             termLanguage={termLanguage}

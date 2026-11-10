@@ -11,10 +11,12 @@ import {
 } from 'lucide-react';
 import type { FlashcardCard, FlashcardSide } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
-import { RoundSummary } from './PlayerPrimitives';
+import { RoundSummary, type RoundSummaryMissed } from './PlayerPrimitives';
 import { cx, getFlashcardSides } from './playerUtils';
 
 interface FlashcardsModeProps {
+  /** Missed-card pile for the round summary; absent hides it. */
+  missed?: RoundSummaryMissed;
   cards: FlashcardCard[];
   round: number;
   showFirst: FlashcardSide;
@@ -38,6 +40,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
   onStar,
   onNextRound,
   onRestart,
+  missed,
 }) => {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -120,6 +123,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         dark={dark}
         onNextRound={onNextRound}
         onRestart={onRestart}
+        missed={missed}
       />
     );
   }

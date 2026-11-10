@@ -4,9 +4,12 @@ import { describe, expect, it } from 'vitest';
 import type { FlashcardCard } from '@/types';
 import {
   buildFlashcardRoundQueue,
+  buildMissedRoundCards,
   buildSpeakRoundQueue,
   countMasteredFlashcards,
+  isFlashcardMissed,
   mergeSpeakTally,
+  missedFlashcards,
   recordFlashcardAnswer,
   recordSpeakAnswer,
 } from './flashcardSchedule';
@@ -185,5 +188,43 @@ describe('Speak schedule', () => {
         notAToken: { n: 1, m: 1, f: 0 },
       })
     ).toEqual({ r: { n: 1, m: 0, f: 0 } });
+  });
+});
+
+describe('missed pile', () => {
+  const deck: FlashcardCard[] = ['a', 'b', 'c', 'd'].map((id) => ({
+    id,
+    term: id,
+    definition: id.toUpperCase(),
+  }));
+
+  it('holds cards whose latest answer was wrong, in deck order', () => {
+    let progress = {
+      a: recordFlashcardAnswer(undefined, 1, false),
+      b: recordFlashcardAnswer(undefined, 1, true),
+      c: recordFlashcardAnswer(undefined, 1, false),
+    };
+    expect(missedFlashcards(deck, progress).map((card) => card.id)).toEqual([
+      'a',
+      'c',
+    ]);
+    progress = { ...progress, a: recordFlashcardAnswer(progress.a, 2, true) };
+    expect(isFlashcardMissed(progress.a)).toBe(false);
+    expect(isFlashcardMissed(progress.b)).toBe(false);
+    expect(isFlashcardMissed(undefined)).toBe(false);
+    const again = recordFlashcardAnswer(progress.b, 2, false);
+    expect(isFlashcardMissed(again)).toBe(true);
+  });
+
+  it('shuffles a missed round only when asked, the same way each time', () => {
+    const progress = Object.fromEntries(
+      deck.map((card) => [card.id, recordFlashcardAnswer(undefined, 1, false)])
+    );
+    expect(
+      buildMissedRoundCards(deck, progress, false, 's').map((c) => c.id)
+    ).toEqual(['a', 'b', 'c', 'd']);
+    const shuffled = buildMissedRoundCards(deck, progress, true, 's');
+    expect(shuffled.map((c) => c.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(buildMissedRoundCards(deck, progress, true, 's')).toEqual(shuffled);
   });
 });
