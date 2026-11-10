@@ -296,6 +296,16 @@ describe('buildScanSheetPageHtml', () => {
     expect(html).toContain('…');
     expect(html).not.toContain('word299');
     expect(html).toMatch(/\+\d+ more in the report/);
+    // The note wraps at 10 pt, so its two lines fit under the cut comments.
+    const col =
+      /<div class="scan-fb"[^>]*max-height:([\d.]+)mm[^>]*>(.*)<\/div>/.exec(
+        html
+      );
+    const cap = Number(col?.[1]);
+    const used = [...(col?.[2] ?? '').matchAll(/max-height:([\d.]+)mm/g)]
+      .map((m) => Number(m[1]))
+      .reduce((a, v) => a + v, 0);
+    expect(used + 4.8 + 2 * 4.2).toBeLessThanOrEqual(cap);
   });
 
   it('keeps everything it draws inside the strip any printer can reach', () => {

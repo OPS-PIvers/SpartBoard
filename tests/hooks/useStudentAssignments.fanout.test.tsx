@@ -503,6 +503,62 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     });
   });
 
+  it("files a paper session with no classIds under the pointer's class", async () => {
+    const rig = makeSnapshotRig();
+    const getDocRig = makeGetDocRig();
+    rig.setDocs('quiz_sessions', []);
+    getDocRig.setDoc('quiz_sessions/paper-1', {
+      quizTitle: 'Paper test',
+      status: 'ended',
+      endedAt: 200,
+    });
+    rig.setDocs('student_assignments/student-a/items', [
+      {
+        id: 'paper-1',
+        data: {
+          kind: 'quiz',
+          sessionId: 'paper-1',
+          teacherUid: 't1',
+          classId: 'c1',
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      },
+      {
+        id: 'paper-2',
+        data: {
+          kind: 'quiz',
+          sessionId: 'paper-2',
+          teacherUid: 't1',
+          classId: 'c-other',
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      },
+    ]);
+    getDocRig.setDoc('quiz_sessions/paper-2', {
+      quizTitle: 'Other class',
+      status: 'ended',
+    });
+
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
+    );
+
+    await waitFor(() => {
+      const row = result.current.assignments.find(
+        (a) => a.sessionId === 'paper-1'
+      );
+      expect(row?.classIds).toEqual(['c1']);
+      expect(row?.channel).toBe('ended');
+    });
+    // A pointer naming a class the student is not in files nowhere.
+    expect(
+      result.current.assignments.find((a) => a.sessionId === 'paper-2')
+        ?.classIds
+    ).toEqual([]);
+  });
+
   it('drops a pointer whose session doc is missing entirely (deleted assignment)', async () => {
     const rig = makeSnapshotRig();
     makeGetDocRig(); // no docs registered — every getDoc resolves not-exists
