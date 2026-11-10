@@ -1,6 +1,23 @@
 {
   "entries": [
     {
+      "version": "2026.11.10.1",
+      "date": "2026-11-10",
+      "title": "Resources on the student Overview",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Students",
+          "items": [
+            {
+              "text": "When students open My Assignments, the Overview now lists the resources you have shared from every class under Up next. They can open one right there or see all of them."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.03.1",
       "date": "2026-11-03",
       "title": "Import question banks from Schoology",

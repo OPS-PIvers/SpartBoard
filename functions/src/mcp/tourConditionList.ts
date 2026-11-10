@@ -135,7 +135,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'staff-audience',
   'student-gradebook',
   'student-keyboards',
-  'student-overview-resources',
   'tab-away-timer',
   'tour-pacing',
   'tour-steps-view',
