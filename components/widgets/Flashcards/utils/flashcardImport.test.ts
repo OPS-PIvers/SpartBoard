@@ -34,6 +34,12 @@ describe('flashcard import', () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it('keeps the separator error for a heading above tab rows', () => {
+    expect(() =>
+      parseFlashcardText('Unit 4\nhola\thello', { termOnly: true })
+    ).toThrow();
+  });
+
   it('keeps tab rows with a blank definition only when term-only is allowed', () => {
     const source = 'hola\thello\nsaid\t';
     expect(parseFlashcardText(source).cards).toHaveLength(1);

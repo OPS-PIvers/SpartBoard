@@ -92,7 +92,7 @@ describe('FlashcardPlayer', () => {
 
     const card = screen.getByRole('button', { name: 'Term: said' });
     await user.click(card);
-    expect(card.getAttribute('aria-pressed')).toBe('false');
+    expect(card.getAttribute('aria-pressed')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Write' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Test' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Got it' }));

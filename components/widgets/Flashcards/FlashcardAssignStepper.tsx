@@ -306,7 +306,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     };
   })();
 
-  const termOnly = isTermOnlyDeck(set.cards);
+  const termOnly = isTermOnlyDeck(
+    kind === 'work' ? resolveSelectedCards(cards, set.cards) : set.cards
+  );
   const effectiveCheck: FlashcardsCheckValue =
     (check.checkMode === 'speak' && !speakAvailable) ||
     (termOnly && DEFINITION_MODES.includes(check.checkMode))

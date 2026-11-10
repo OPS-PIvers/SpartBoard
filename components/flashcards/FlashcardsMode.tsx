@@ -163,7 +163,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         <button
           type="button"
           {...tourAttr('flashcards.present-flip')}
-          aria-pressed={shown}
+          aria-pressed={canFlip ? shown : undefined}
           aria-label={
             canFlip
               ? `${t(`flashcards.cards.${shown ? answerSide : showFirst}`)}: ${shown ? sides.answer : sides.prompt}. ${t(shown ? 'flashcards.cards.flipToPrompt' : 'flashcards.cards.flipToAnswer')}`

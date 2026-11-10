@@ -219,16 +219,13 @@ export function parseFlashcardText(
     return { cards: [], warnings: [], detectedSeparator: 'none' };
   }
   const termOnly = options.termOnly ?? false;
-  if (termOnly && (options.separator ?? 'auto') === 'auto') {
-    try {
-      separatorValue(source, options);
-    } catch {
-      const lines = source.split(/\r?\n/).map((line) => [line.trim()]);
-      return {
-        ...flashcardsFromRows(lines, { headerless: true, termOnly }),
-        detectedSeparator: 'none',
-      };
-    }
+  const plainList = !/\t|,| - /.test(source);
+  if (termOnly && plainList && (options.separator ?? 'auto') === 'auto') {
+    const lines = source.split(/\r?\n/).map((line) => [line.trim()]);
+    return {
+      ...flashcardsFromRows(lines, { headerless: true, termOnly }),
+      detectedSeparator: 'none',
+    };
   }
   const separator = separatorValue(source, options);
   const parsed = flashcardsFromRows(
@@ -239,10 +236,11 @@ export function parseFlashcardText(
 }
 
 export function parseFlashcardSheetRows(
-  rows: ReadonlyArray<ReadonlyArray<string>>
+  rows: ReadonlyArray<ReadonlyArray<string>>,
+  { termOnly = false }: { termOnly?: boolean } = {}
 ): FlashcardImportResult {
   return {
-    ...flashcardsFromRows(rows),
+    ...flashcardsFromRows(rows, { termOnly }),
     detectedSeparator: 'Google Sheets columns',
   };
 }

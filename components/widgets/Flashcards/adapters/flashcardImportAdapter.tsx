@@ -31,6 +31,8 @@ interface FlashcardImportAdapterDeps {
     input: ConversionInput
   ) => Promise<FlashcardsConversionResult>;
   pickSheet: () => Promise<{ url: string } | null>;
+  /** Keep cards with a term and no definition. */
+  termOnly?: boolean;
   save: (
     data: FlashcardImportData,
     title: string,
@@ -64,11 +66,15 @@ export function createFlashcardImportAdapter(
         };
       }
       if (source.kind === 'cards') {
-        const { warnings, note, ...data } = flashcardsFromCardSet(source.set);
+        const { warnings, note, ...data } = flashcardsFromCardSet(source.set, {
+          termOnly: deps.termOnly,
+        });
         return { data, warnings, note };
       }
       if (source.kind === 'csv') {
-        const parsed = parseFlashcardText(source.text);
+        const parsed = parseFlashcardText(source.text, {
+          termOnly: deps.termOnly,
+        });
         return {
           data: { cards: parsed.cards },
           warnings: parsed.warnings,
@@ -77,7 +83,8 @@ export function createFlashcardImportAdapter(
       }
       if (source.kind === 'sheet') {
         const parsed = parseFlashcardSheetRows(
-          await deps.loadSheet(source.url)
+          await deps.loadSheet(source.url),
+          { termOnly: deps.termOnly }
         );
         return {
           data: { cards: parsed.cards },

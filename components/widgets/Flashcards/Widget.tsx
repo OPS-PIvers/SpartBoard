@@ -346,19 +346,20 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [flashcardSets, importedFrom]
   );
 
+  const allowTermOnly = canAccessFeature('flashcards-term-only');
   const importAdapter = useMemo(
     () =>
       createFlashcardImportAdapter({
         loadSheet,
         pickSheet,
         save: saveImportedSet,
+        termOnly: allowTermOnly,
       }),
-    [loadSheet, pickSheet, saveImportedSet]
+    [loadSheet, pickSheet, saveImportedSet, allowTermOnly]
   );
 
   const editorAiEnabled =
     canAccessFeature('gemini-functions') && canAccessFeature('flashcards-ai');
-  const allowTermOnly = canAccessFeature('flashcards-term-only');
   const editingIsNew =
     !!editingSet && !flashcardSets.sets.some((s) => s.id === editingSet.id);
 
@@ -369,10 +370,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   ): Promise<void> => {
     try {
       const rewritten = await flashcardSets.saveSet(set, {
-        syncStudy:
-          final ||
-          flashcardSetIncompleteReason(set, { termOnly: allowTermOnly }) ===
-            null,
+        // Autosave never pushes a card whose definition may still be mid-typing.
+        syncStudy: final || flashcardSetIncompleteReason(set) === null,
       });
       if (final && rewritten > 0) {
         addToast(
