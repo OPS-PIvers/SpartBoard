@@ -230,6 +230,7 @@ git push origin --delete release-fix/poll-vote-keys release-fix/board-item-legac
 git push origin --delete nightly/build-2026-11-09 nightly/state-2026-11-09 nightly/admin-2026-11-09 nightly/dashboard-2026-11-09 nightly/debugger-log-2026-11-09 claude/tour-anchors-2026-11-09 nightly/widgets-2026-11-09 claude/project-thread-ay1uga
 git push origin --delete claude/project-thread-d17ckk claude/project-thread-d17ckk-ab112
 git push origin --delete claude/project-thread-aij942 claude/ab112-aij942
+git push origin --delete claude/project-thread-a6wy60 claude/ab112-a6wy60
 ```
 
   </details>
