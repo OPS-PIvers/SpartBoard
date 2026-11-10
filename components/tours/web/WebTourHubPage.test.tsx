@@ -71,6 +71,12 @@ vi.mock('./webTourHub', async (orig) => ({
   ...(await orig<typeof import('./webTourHub')>()),
   loadPictures: () => Promise.resolve(h.pictures),
 }));
+const link = vi.hoisted(() => ({
+  setId: vi.fn<(t: string) => Promise<string | null>>(),
+}));
+vi.mock('./publicLinkStart', () => ({
+  setIdForPublicLink: (t: string) => link.setId(t),
+}));
 vi.mock('./extensionClient', async (orig) => ({
   ...(await orig<typeof import('./extensionClient')>()),
   pingExtension: () => Promise.resolve(h.ping),
@@ -555,5 +561,45 @@ describe('WebTourHubPage', () => {
     expect(
       screen.getByRole('button', { name: /Resume at step 2/ })
     ).toBeTruthy();
+  });
+});
+
+describe('WebTourHubPage from a public link', () => {
+  const staff = {
+    kind: 'ready',
+    protocol: 2,
+    version: '1',
+    profile: 'staff',
+  } as const;
+
+  it('starts the tour once when the link asks, then drops the ask', async () => {
+    window.history.replaceState(null, '', '/tour/s1?start=1');
+    h.ping = staff;
+    h.start.mockResolvedValue({ ok: true, tabId: 7 });
+    render(<WebTourHubPage />);
+    await waitFor(() => expect(h.start).toHaveBeenCalledTimes(1));
+    expect(h.start).toHaveBeenCalledWith(
+      expect.objectContaining({ setId: 's1' }),
+      'https://app.schoology.com/home',
+      0
+    );
+    expect(window.location.search).toBe('');
+  });
+
+  it('does not start without the ask', async () => {
+    h.ping = staff;
+    render(<WebTourHubPage />);
+    await screen.findByRole('button', { name: /Start tour/ });
+    expect(h.start).not.toHaveBeenCalled();
+  });
+
+  it('says the tour is unavailable when the link finds no tour', async () => {
+    window.history.replaceState(null, '', '/tour/from-link?t=abc');
+    link.setId.mockResolvedValue(null);
+    render(<WebTourHubPage />);
+    expect(
+      await screen.findByText(/isn.t available|unavailable/i)
+    ).toBeTruthy();
+    expect(link.setId).toHaveBeenCalledWith('abc');
   });
 });

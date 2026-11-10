@@ -7,6 +7,12 @@ export function parseTourPath(pathname: string): string | null {
   return /^[A-Za-z0-9_-]{1,128}$/.test(id) ? id : null;
 }
 
+/** On a `/tour/{setId}` link, starts the tour once the page is ready. */
+export const START_PARAM = 'start';
+
+/** Start tour on a public tour page: `?t=` carries its token, and the page finds the set signed in. */
+export const FROM_PUBLIC_LINK_PATH = '/tour/from-link';
+
 export function buildTourUrl(setId: string): string {
   return `${window.location.origin}${TOUR_PATH}${encodeURIComponent(setId)}`;
 }

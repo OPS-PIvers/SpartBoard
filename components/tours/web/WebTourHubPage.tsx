@@ -52,7 +52,8 @@ import {
   type HubStep,
   type LoadedPicture,
 } from './webTourHub';
-import { parseTourPath } from './tourLinks';
+import { FROM_PUBLIC_LINK_PATH, parseTourPath, START_PARAM } from './tourLinks';
+import { setIdForPublicLink } from './publicLinkStart';
 import { scrubLocator } from './recordedSteps';
 import { runFixClues } from './fixClues';
 import { StepsView } from '@/components/tours/steps/StepsView';
@@ -253,6 +254,27 @@ const OpenedTour: React.FC<{
   );
 };
 
+/** Finds the tour behind a public link's token, then moves to its page with Start asked for. */
+const FromPublicLink: React.FC = () => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('t') ?? '';
+    let cancelled = false;
+    void setIdForPublicLink(token).then((setId) => {
+      if (cancelled) return;
+      if (!setId) setFailed(true);
+      else
+        window.location.replace(
+          `/tour/${encodeURIComponent(setId)}?${START_PARAM}=1`
+        );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return failed ? <Unavailable /> : <Loader />;
+};
+
 /** The page for an extension that can't load tours itself: SpartBoard sign-in, then the handoff or pictures. */
 const SignedInHub: React.FC = () => {
   const { user, loading, globalPermissionsLoaded, isAdmin, canAccessFeature } =
@@ -267,6 +289,9 @@ const SignedInHub: React.FC = () => {
   }
   // Admins pass the flag, so wait for the admin check too.
   if (!globalPermissionsLoaded || isAdmin === null) return <Loader />;
+  if (window.location.pathname === FROM_PUBLIC_LINK_PATH) {
+    return canAccessFeature('web-tours') ? <FromPublicLink /> : <Unavailable />;
+  }
   const setId = parseTourPath(window.location.pathname);
   if (!setId || !canAccessFeature('web-tours')) return <Unavailable />;
   return (
@@ -277,6 +302,19 @@ const SignedInHub: React.FC = () => {
       admin={isAdmin}
     />
   );
+};
+
+/** Starts the tour once when the link asked for it (`?start=1`, from a public tour page), then drops the ask from the address. */
+const AutoStart: React.FC<{ onStart: () => void }> = ({ onStart }) => {
+  const fire = useEffectEvent(onStart);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(START_PARAM) !== '1') return;
+    url.searchParams.delete(START_PARAM);
+    window.history.replaceState(window.history.state, '', url);
+    fire();
+  }, []);
+  return null;
 };
 
 const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
@@ -528,13 +566,18 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
               {t('webTourHub.checking')}
             </p>
           ) : playable ? (
-            <PlayControls
-              play={play}
-              resumeAt={resumeAt}
-              picturesReady={pictures !== null}
-              startFailed={startFailed}
-              onStart={(index, fresh) => void start(index, fresh)}
-            />
+            <>
+              {pictures !== null && play.kind === 'idle' && (
+                <AutoStart onStart={() => void start(0, true)} />
+              )}
+              <PlayControls
+                play={play}
+                resumeAt={resumeAt}
+                picturesReady={pictures !== null}
+                startFailed={startFailed}
+                onStart={(index, fresh) => void start(index, fresh)}
+              />
+            </>
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-slate-700">

@@ -1,9 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Play } from 'lucide-react';
 import { StepsView } from '@/components/tours/steps/StepsView';
 import { StepsWalkthrough } from '@/components/tours/steps/StepsWalkthrough';
 import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
+import {
+  canPlayWebTours,
+  pingExtension,
+} from '@/components/tours/web/extensionClient';
+import { FROM_PUBLIC_LINK_PATH } from '@/components/tours/web/tourLinks';
 import { parsePublicTourPath } from './publicLinkModel';
 import {
   fetchPublicTour,
@@ -60,6 +65,22 @@ export const PublicTourPage: React.FC = () => {
     return () => abort.abort();
   }, [token]);
 
+  const webTour = load.kind === 'ready' && load.tour.kind === 'web';
+  // Staff whose extension can play web tours also get Start tour, which opens the staff tour page.
+  const [canStart, setCanStart] = useState(false);
+  useEffect(() => {
+    if (!webTour) return;
+    let cancelled = false;
+    void pingExtension()
+      .then((status) => {
+        if (!cancelled) setCanStart(canPlayWebTours(status));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [webTour]);
+
   const tour = load.kind === 'ready' ? load.tour : null;
   const pictures = useMemo(
     () => (tour && token ? publicPictures(token, tour.steps) : {}),
@@ -91,6 +112,17 @@ export const PublicTourPage: React.FC = () => {
         <h1 className="mt-1 text-2xl font-semibold text-slate-900 wrap-break-word">
           {title}
         </h1>
+        {canStart && webTour && token && (
+          // no-tour-anchor: the public tour page runs outside the board, where live tours can't run
+          <a
+            data-testid="public-tour-start"
+            href={`${FROM_PUBLIC_LINK_PATH}?t=${token}`}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+          >
+            <Play className="h-4 w-4" aria-hidden="true" />
+            {t('webTourHub.start')}
+          </a>
+        )}
         <div className="mt-8">
           <StepsView
             steps={tour.steps}

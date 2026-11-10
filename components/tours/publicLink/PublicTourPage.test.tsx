@@ -4,6 +4,12 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PublicTourPage } from './PublicTourPage';
 
+const ext = vi.hoisted(() => ({ playable: false }));
+vi.mock('@/components/tours/web/extensionClient', () => ({
+  pingExtension: vi.fn(async () => ({ kind: 'none' })),
+  canPlayWebTours: () => ext.playable,
+}));
+
 const TOKEN = '0123456789abcdef0123456789abcdef';
 
 const tour = {
@@ -48,6 +54,7 @@ const at = (path: string) => window.history.replaceState(null, '', path);
 
 beforeEach(() => at(`/tour-steps/${TOKEN}`));
 afterEach(() => {
+  ext.playable = false;
   vi.unstubAllGlobals();
   at('/');
 });
@@ -76,6 +83,23 @@ describe('PublicTourPage', () => {
     for (const staffOnly of [/get the extension/i, /^start/i, /sign in/i])
       expect(screen.queryByRole('button', { name: staffOnly })).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('offers Start tour to staff whose extension can play web tours', async () => {
+    ext.playable = true;
+    vi.stubGlobal('fetch', respond(200, tour));
+    render(<PublicTourPage />);
+    expect(
+      await screen.findByRole('link', { name: 'Start tour' })
+    ).toHaveAttribute('href', `/tour/from-link?t=${TOKEN}`);
+  });
+
+  it('offers no Start tour on a live tour', async () => {
+    ext.playable = true;
+    vi.stubGlobal('fetch', respond(200, { ...tour, kind: 'live' }));
+    render(<PublicTourPage />);
+    await screen.findByRole('heading', { level: 1, name: 'Post a grade' });
+    expect(screen.queryByRole('link', { name: 'Start tour' })).toBeNull();
   });
 
   it('shows one plain not-found page for any refusal', async () => {

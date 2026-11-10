@@ -98,6 +98,8 @@ vi.mock('./firebaseAdmin', () => {
 });
 vi.mock('firebase-functions/v2/https', () => ({
   onRequest: (_o: unknown, h: unknown) => h,
+  onCall: (_o: unknown, h: unknown) => h,
+  HttpsError: class extends Error {},
 }));
 vi.mock('firebase-functions/v2/firestore', () => ({
   onDocumentWritten: (_o: unknown, h: unknown) => h,
@@ -118,6 +120,7 @@ import {
   clientKey,
   guardPublicLink,
   handlePublicRequest,
+  startSetIdFor,
   rateLimited,
   tourPublicLinkGuard,
   tourPublicStepsV1,
@@ -387,6 +390,42 @@ describe('handlePublicRequest refusals', () => {
     const out = await handlePublicRequest({ t: TOKEN }, d);
     expect(out.status).toBe(200);
     expect(d.latchOff).not.toHaveBeenCalled();
+  });
+});
+
+describe('startSetIdFor', () => {
+  const set = webSet();
+  const staff = vi.fn(async () => true);
+  beforeEach(() => staff.mockClear());
+
+  it('names a web tour for staff', async () => {
+    expect(await startSetIdFor(TOKEN, staff, deps(set, record(set)))).toBe(SET);
+  });
+
+  it('refuses a caller who is not staff', async () => {
+    const no = async () => false;
+    expect(await startSetIdFor(TOKEN, no, deps(set, record(set)))).toBeNull();
+  });
+
+  it('refuses a malformed token before asking who the caller is', async () => {
+    expect(
+      await startSetIdFor(['x'], staff, deps(set, record(set)))
+    ).toBeNull();
+    expect(staff).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unknown token and a live tour', async () => {
+    expect(
+      await startSetIdFor('f'.repeat(32), staff, deps(set, record(set)))
+    ).toBeNull();
+    const live = liveSet();
+    expect(
+      await startSetIdFor(
+        TOKEN,
+        staff,
+        deps(live, record(live, { kind: 'live' }))
+      )
+    ).toBeNull();
   });
 });
 
