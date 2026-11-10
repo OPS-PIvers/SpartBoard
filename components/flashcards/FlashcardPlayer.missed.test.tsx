@@ -107,6 +107,57 @@ describe('FlashcardPlayer missed cards', () => {
     expect(screen.getByText(/^2\. /)).toBeTruthy();
   });
 
+  it('asks only missed cards in Test but draws choices from the whole deck', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('missed-mc', withMissed('three'))}
+        initialSettings={{ testTypes: ['mc'] }}
+        missedCards
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await user.click(screen.getByRole('button', { name: 'Missed: 1' }));
+    expect(screen.getByText('1. Multiple choice')).toBeTruthy();
+    expect(screen.queryByText(/^2\. /)).toBeNull();
+    for (const choice of ['one', 'two', 'three', 'four']) {
+      expect(screen.getByText(choice)).toBeTruthy();
+    }
+  });
+
+  it('stays on missed cards when the set changes mid-round', async () => {
+    const user = userEvent.setup();
+    const adapter = new LocalFlashcardAdapter('missed-deck', withMissed('two'));
+    const view = (deck: FlashcardCard[]) => (
+      <FlashcardPlayer
+        cards={deck}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={adapter}
+        missedCards
+      />
+    );
+    const { rerender } = render(view(cards));
+    await user.click(screen.getByRole('button', { name: 'Missed: 1' }));
+    expect(promptFor('dos')).toBeTruthy();
+    rerender(
+      view(
+        cards.map((card) =>
+          card.id === 'one' ? { ...card, definition: 'One!' } : card
+        )
+      )
+    );
+    expect(promptFor('dos')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Missed: 1' })
+        .getAttribute('aria-pressed')
+    ).toBe('true');
+  });
+
   it('records a wrong Write answer into the pile', async () => {
     const user = userEvent.setup();
     const adapter = new LocalFlashcardAdapter('missed-write');
