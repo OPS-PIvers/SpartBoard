@@ -157,6 +157,18 @@ describe('StepsView walk through', () => {
     expect(screen.getByText('Step 1 of 3')).toBeTruthy();
   });
 
+  it('shows bold in the tip and the article, not the asterisks', () => {
+    render(view({ steps: [step(1, { text: 'Click the **Tools** menu.' })] }));
+    expect(screen.getByTestId('steps-article').textContent).toContain(
+      'Click the Tools menu.'
+    );
+    expect(screen.getByText('Tools').tagName).toBe('STRONG');
+    fireEvent.click(screen.getByRole('button', { name: 'Walk through' }));
+    const tip = screen.getByRole('dialog');
+    expect(tip.textContent).toContain('Click the Tools menu.');
+    expect(tip.querySelector('strong')?.textContent).toBe('Tools');
+  });
+
   it('goes back to the steps from Done on the last step, and from the Steps button', () => {
     open();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
