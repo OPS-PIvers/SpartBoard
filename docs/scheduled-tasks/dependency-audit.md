@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-29_
+_Last audited: 2026-11-10_
 _Last action: 2026-09-15 — HIGH `browserslist`/`baseline-browser-mapping` resolved: added `pnpm.overrides.browserslist: "^4.28.7"` to both `package.json` and `functions/package.json`, clearing two HIGH + one moderate advisory in the Babel/Jest build-toolchain chain. PR opened against dev-paul. Item moved to Completed._
+
+_2026-11-10: Tuesday Audit B2 (read-only). Root: 4 moderate (glob, minimatch); `functions/`: 2 moderate (same). The `zod` and `@hono/node-server` advisories no longer appear and moved to Completed; `qs` also no longer appears (open `qs` items left for a manual check). New: `glob`/`minimatch` item. `pnpm outdated`: patch/minor only for tailwindcss, typescript-eslint, vite 8.3.5→8.3.7, hono, axios; functions `@google/genai` 2.32→3.0.0, `typescript` 6→7, `@anthropic-ai/sdk` 1.3→1.7, vitest 5.0→5.1; `crypto-js`/`fluent-ffmpeg` deprecated. `firebase` and `react` not flagged. 1 new issue._
 
 _2026-10-29: Thursday Audit B2 (read-only). Root: 4 vulnerabilities (1 low | 2 moderate | 1 high) — the `fast-uri` advisories no longer appear. Open: HIGH `zod` via `@imgly/background-removal` (unchanged), moderate `qs` (<6.16.1, root via `@google/genai>@modelcontextprotocol/sdk>express`; `functions/` via `functions-framework>body-parser`; covered by the existing `qs` item, now needs >=6.16.1), and a new moderate `@hono/node-server` item. `functions/`: 2 (1 low | 1 moderate, both `qs`). `pnpm outdated`: patch/minor only for typescript-eslint, i18next family, postcss, lucide-react 1.61→1.63, onnxruntime-web, `@anthropic-ai/sdk` 1.1→1.3; majors behind unchanged (eslint 9→10, `@eslint/js`, tailwindcss 3→4, typescript 6→7, firebase-admin 13→14). `crypto-js`/`fluent-ffmpeg` deprecated in functions (already tracked)._
 
@@ -32,17 +34,11 @@ _2026-10-08: Thursday Audit B2 (read-only). Root `pnpm audit --audit-level=moder
 
 _2026-10-06: Tuesday Audit B2 (read-only). Root `pnpm audit --audit-level=moderate`: **7 vulnerabilities (1 low | 2 moderate | 4 high)**, up from 2 on 2026-10-01; `functions/`: **3 (1 moderate | 2 high)**, up from 0. New advisories: `braces` (high, stack exhaustion, via firebase-functions-test>jest, both), `source-map-js` (high, event-loop DoS; root via @vitest/coverage-v8>magicast, functions via vite>postcss), `basic-ftp` (high, via firebase-tools>proxy-agent), `sprintf-js` (moderate, jest chain, both), `postcss-selector-parser` (moderate, <7.1.6, via tailwindcss), plus the standing `@grpc/grpc-js` (high). All are dev/test-toolchain paths except `@grpc/grpc-js` (via `firebase`). Outdated: >1 major behind — `@google/genai` 1.52→2.27 (both), `firebase-admin` 13→14, `eslint` 9→10, `vite` 6→8 (root), `typescript` 5.9→7.0, `vitest` 4→5, `tailwindcss` 3→4, `lucide-react` 0.563→1.52, `jose` 4→6 (functions), `jsdom` 27→30, `@types/node` 24→26. No new firebase/react drift beyond these. Deprecated: `crypto-js`, `@types/tesseract.js`, `fluent-ffmpeg`.
 
-### MEDIUM `@hono/node-server` moderate advisory GHSA-rmxm-3fg6-px4f (`serveStatic` double-decodes path) — via `@google/genai` MCP SDK
-- **Detected:** 2026-10-29
-- **File:** package.json (transitive `@google/genai>@modelcontextprotocol/sdk>@hono/node-server`, vulnerable `>=1.19.10 <2.1.3`)
-- **Detail:** Root `pnpm audit` reports a moderate middleware-bypass advisory for `serveStatic`. The app does not run a Hono server from this chain, so exposure is likely nil, but the audit stays red.
-- **Fix:** Add `pnpm.overrides["@hono/node-server"]: ">=2.1.3"` after confirming the MCP SDK tolerates v2, or wait for a `@google/genai` bump.
-
-### HIGH `zod` (<4.6.6) memory-exhaustion advisory — production chain via `@imgly/background-removal`
-- **Detected:** 2026-10-27
-- **File:** package.json (direct `@imgly/background-removal@1.7.0` → `zod@3.25.76`)
-- **Detail:** Root `pnpm audit` newly reports a HIGH "Zod can exhaust memory while validating oversized input" (vulnerable `<4.6.6`, patched `>=4.6.6`). Resolves via a production dependency; exposure is likely limited since zod validates the library's own config, not untrusted input.
-- **Fix:** Check for a newer `@imgly/background-removal` that bumps zod, or add a `pnpm.overrides` for `zod` after verifying v3→v4 compatibility; otherwise accept as low-exposure.
+### MEDIUM `glob` (>=9 <=14.0.1) and `minimatch` (>=7 <11.0.1) moderate advisories — via dev toolchain and `firebase-admin`
+- **Detected:** 2026-11-10
+- **File:** package.json, functions/package.json (transitive: `firebase-admin>@google-cloud/firestore>google-gax>rimraf>glob>minimatch`; root also `@typescript-eslint/eslint-plugin>…>typescript-estree>minimatch`)
+- **Detail:** GHSA-3g3m-2fjr-6pw4 (glob AbortSignal cancellation bypass, patched >=14.0.2) and GHSA-g3hv-75wg-m249 (minimatch DoS, patched >=11.0.1). Root reports 4 moderate paths, `functions/` 2. Almost entirely dev/build-time or non-reachable in Cloud Functions, but the audit stays red.
+- **Fix:** Add `pnpm.overrides` for `glob` (>=14.0.2) and `minimatch` (>=11.0.1) after confirming rimraf/typescript-estree tolerate the newer majors, or wait for upstream `firebase-admin`/`typescript-eslint` bumps.
 
 ### MEDIUM New dev-toolchain advisories: `braces`, `source-map-js`, `sprintf-js`, `postcss-selector-parser`, `basic-ftp`
 
@@ -111,6 +107,23 @@ _2026-09-24: `pnpm audit --audit-level=moderate` (read-only) + `pnpm outdated` r
 ---
 
 ## Completed
+
+### MEDIUM `@hono/node-server` moderate advisory GHSA-rmxm-3fg6-px4f (`serveStatic` double-decodes path) — via `@google/genai` MCP SDK
+- **Detected:** 2026-10-29
+- **File:** package.json (transitive `@google/genai>@modelcontextprotocol/sdk>@hono/node-server`, vulnerable `>=1.19.10 <2.1.3`)
+- **Detail:** Root `pnpm audit` reports a moderate middleware-bypass advisory for `serveStatic`. The app does not run a Hono server from this chain, so exposure is likely nil, but the audit stays red.
+- **Fix:** Add `pnpm.overrides["@hono/node-server"]: ">=2.1.3"` after confirming the MCP SDK tolerates v2, or wait for a `@google/genai` bump.
+
+- **Completed:** 2026-11-10 — Resolved outside journal workflow.
+
+### HIGH `zod` (<4.6.6) memory-exhaustion advisory — production chain via `@imgly/background-removal`
+- **Detected:** 2026-10-27
+- **File:** package.json (direct `@imgly/background-removal@1.7.0` → `zod@3.25.76`)
+- **Detail:** Root `pnpm audit` newly reports a HIGH "Zod can exhaust memory while validating oversized input" (vulnerable `<4.6.6`, patched `>=4.6.6`). Resolves via a production dependency; exposure is likely limited since zod validates the library's own config, not untrusted input.
+- **Fix:** Check for a newer `@imgly/background-removal` that bumps zod, or add a `pnpm.overrides` for `zod` after verifying v3→v4 compatibility; otherwise accept as low-exposure.
+
+- **Completed:** 2026-11-10 — Resolved outside journal workflow.
+
 
 - **2026-10-27 — `fast-uri` override raised to `^3.1.9`** in `package.json` and `functions/package.json`; both lockfiles now resolve `fast-uri@3.1.9`. PR opened to `dev-paul`.
 
