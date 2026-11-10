@@ -98,6 +98,8 @@ interface QuizEditorModalProps {
   aiAllowed?: boolean;
   /** Library metadata for this quiz; backs the Languages tab's translation index. */
   metadata?: QuizMetadata | null;
+  /** Scanned paper answers are saved as choice text, so rewording a choice can break them. */
+  hasScannedResponses?: boolean;
   /**
    * Off for flows whose save is a submit that moves on somewhere else — PLC
    * authoring hands the saved quiz to the assignment config modal.
@@ -194,6 +196,8 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
         JSON.stringify(qb.answerImages ?? []) ||
       JSON.stringify(qa.matchingTermImages ?? []) !==
         JSON.stringify(qb.matchingTermImages ?? []) ||
+      JSON.stringify(qa.imageOnlyAnswers ?? []) !==
+        JSON.stringify(qb.imageOnlyAnswers ?? []) ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
       (qa.rubricVisibleToStudents === true) !==
@@ -243,6 +247,7 @@ const orderEqual = (a: QuizOrderEntry[], b: QuizOrderEntry[]): boolean =>
   a.every((e, i) => e.kind === b[i].kind && e.id === b[i].id);
 
 export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
+  hasScannedResponses = false,
   isOpen,
   quiz,
   bankApi,
@@ -480,6 +485,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         <span>
           {servedCount} {servedCount === 1 ? 'question' : 'questions'}
         </span>
+        {hasScannedResponses && (
+          <span
+            role="status"
+            className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+          >
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            Students have scanned answers on this test. Changing a choice can
+            mark correct answers wrong.
+          </span>
+        )}
         {oversized && (
           <span
             role="status"
@@ -491,7 +506,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         )}
       </span>
     ),
-    [servedCount, oversized]
+    [servedCount, oversized, hasScannedResponses]
   );
   const headerExtras = useMemo(
     () =>

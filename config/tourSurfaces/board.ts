@@ -231,15 +231,34 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['student-data'],
     files: ['components/quiz/paper/PaperCropPanel.tsx'],
   },
+  // Image markup on a handwritten answer, inside the paper scan panel behind paper-image-markup.
+  'board.paper-markup': {
+    label: 'Handwriting markup in the Quiz grader',
+    kind: 'modal',
+    opensWith: 'quiz-grading.open:quiz',
+    needs: ['student-data'],
+    files: ['components/quiz/paper/markup/'],
+  },
   'board.tours': {
     label: 'Live tour runner',
     kind: 'shared',
     files: ['components/tours/'],
   },
+  // The shared tour editor shell; Live opens it docked over the board.
+  'board.tour-editor': {
+    label:
+      'Live tour editor (shared tour editor shell docked over the board: header, outline and step card)',
+    kind: 'panel',
+    files: ['components/tours/editor/'],
+    openerMissing:
+      'Edit tour in a Help Center item or the Guided Learning studio (requestEditTour)',
+    needs: ['admin'],
+    inner: { 'tour-editor.menu-item': 'tour-editor.menu' },
+  },
   'board.web-tour-editor': {
     label:
-      'Web tour editor (Record a tour > Web tour, or Edit on a web tour card)',
-    kind: 'modal',
+      'Web tour editor (the shared tour editor shell beside a picture stage; Record a tour > Web tour, or Edit on a web tour card)',
+    kind: 'editor',
     widgetType: 'guided-learning',
     parent: 'guidedLearning.face',
     opensWith: 'library-shell.secondary-menu-item',
@@ -247,7 +266,29 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/tours/web/WebTourEditor.tsx',
       'components/tours/web/WebTourWriting.tsx',
+      'components/tours/web/WebPictureStage.tsx',
+      'components/tours/web/WebStepCard.tsx',
+      'components/tours/web/useWebPictureTools.tsx',
     ],
+    inner: {
+      'web-tour-editor.rewrite-all': 'web-tour-editor.menu',
+      'web-tour-editor.copy-link': 'web-tour-editor.menu',
+      'web-tour-editor.duplicate': 'web-tour-editor.menu',
+      'web-tour-editor.delete': 'web-tour-editor.menu',
+      'web-tour-editor.title': 'web-tour-editor.tab-settings',
+      'web-tour-editor.goal': 'web-tour-editor.tab-settings',
+      'web-tour-editor.picture-blur': 'web-tour-editor.picture',
+      'web-tour-editor.picture-crop': 'web-tour-editor.picture',
+      'web-tour-editor.picture-markup': 'web-tour-editor.picture',
+      'web-tour-editor.picture-retake': 'web-tour-editor.picture',
+      'web-tour-editor.picture-replace': 'web-tour-editor.picture',
+      'web-tour-editor.markup-arrow': 'web-tour-editor.picture-markup',
+      'web-tour-editor.markup-box': 'web-tour-editor.picture-markup',
+      'web-tour-editor.markup-number': 'web-tour-editor.picture-markup',
+      'web-tour-editor.markup-delete': 'web-tour-editor.picture-markup',
+      'web-tour-editor.markup-done': 'web-tour-editor.picture-markup',
+      'web-tour-editor.picture-remove': 'web-tour-editor.picture',
+    },
   },
   'board.absent-students': {
     label: 'Absent students dialog',
@@ -748,6 +789,21 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: ['components/help/HelpResourceViewer.tsx'],
     opensWith: 'help-center.guides.item:help',
+  },
+  'board.tour-steps-view': {
+    label: 'Tour Steps view',
+    kind: 'shared',
+    files: ['components/tours/steps/'],
+  },
+  // The public-link switch sits in both tour editors' More actions menu; its confirm opens from it.
+  'board.tour-public-link': {
+    label: 'Tour public link switch and its confirm',
+    kind: 'shared',
+    files: ['components/tours/publicLink/'],
+    inner: {
+      'tour-public-link.acknowledge': 'tour-public-link.switch',
+      'tour-public-link.confirm': 'tour-public-link.switch',
+    },
   },
   'board.help-copy-link': {
     label: 'Help copy link button',

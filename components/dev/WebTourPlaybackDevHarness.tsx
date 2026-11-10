@@ -141,7 +141,16 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
             className={btn}
             onClick={() => {
               watch();
-              send(fixtureTourStart(siteOrigin(), stepIndex), 'start');
+              send(
+                fixtureTourStart(
+                  siteOrigin(),
+                  stepIndex,
+                  // ?targets=0 plays the tour as an older one, with pictures that don't know where their control is.
+                  new URLSearchParams(window.location.search).get('targets') !==
+                    '0'
+                ),
+                'start'
+              );
             }}
           >
             Play fixture tour

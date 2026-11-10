@@ -12,7 +12,38 @@
 
 import JSZip from 'jszip';
 import { DocxNumbering } from './docxNumbering';
+import { isScriptRun, ommlText, toScript } from './mathText';
 import type { DocLine, DocSegment, ExtractedImage } from './types';
+
+/** Marks around an equation's text while a paragraph is read. */
+const MATH_OPEN = '\uE000';
+const MATH_CLOSE = '\uE001';
+/** A word over a line ending in `>`, which Docs writes as an equation: a labelled arrow. */
+const MATH_ARROW = /\uE000([^\uE000\uE001]+)\uE001\s*(?:>|→)/g;
+
+/** Lettering drawn over a picture is at most this long; a text box holding more is the test's own text. */
+const MAX_OVERLAY_WORDS = 4;
+/** `A. Nucleus`, `1) …`: a choice or a question typed in a box, never a picture's lettering. */
+const TEST_LINE_OPENING = /^\(?(?:[A-Ha-h]|\d{1,3})[.)]\s+\S/;
+
+/** `subscript` or `superscript` when the run is set off the baseline. */
+function runScript(run: Element): 'sub' | 'sup' | null {
+  const props = Array.from(run.children).find((c) => localName(c) === 'rPr');
+  const align = props
+    ? Array.from(props.children).find((c) => localName(c) === 'vertAlign')
+    : undefined;
+  const val = align?.getAttribute('w:val') ?? align?.getAttribute('val');
+  return val === 'subscript' ? 'sub' : val === 'superscript' ? 'sup' : null;
+}
+
+function insideMath(node: Element): boolean {
+  for (let el = node.parentElement; el; el = el.parentElement) {
+    const name = localName(el);
+    if (name === 'oMath') return true;
+    if (name === 'p') return false;
+  }
+  return false;
+}
 
 const DOCUMENT_PATH = 'word/document.xml';
 const RELS_PATH = 'word/_rels/document.xml.rels';
@@ -121,13 +152,28 @@ function paragraphSegments(paragraph: Element): DocSegment[] {
       current.text += '-';
       continue;
     }
-    if (name !== 't') continue;
+    if (name === 'oMath' && !insideMath(node)) {
+      current.text += `${MATH_OPEN}${ommlText(node)}${MATH_CLOSE}`;
+      continue;
+    }
+    if (name !== 't' || insideMath(node)) continue;
     const run = node.parentElement;
     const chunk = node.textContent ?? '';
-    current.text += chunk;
+    const script = run ? runScript(run) : null;
+    current.text +=
+      script && isScriptRun(chunk)
+        ? chunk.replace(chunk.trim(), toScript(chunk, script))
+        : chunk;
     if (run && /[A-Za-z0-9]/.test(chunk) && runIsEmphasized(run)) {
       current.emphasized = true;
     }
+  }
+  for (const segment of segments) {
+    segment.text = segment.text
+      .replaceAll(MATH_CLOSE + MATH_OPEN, '')
+      .replace(MATH_ARROW, ' —$1→ ')
+      .replaceAll(MATH_OPEN, '')
+      .replaceAll(MATH_CLOSE, '');
   }
   return segments;
 }
@@ -215,7 +261,11 @@ export async function readDocx(file: Blob): Promise<DocxContent> {
 
   const lines: DocLine[] = [];
 
-  const pushLine = (segments: DocSegment[], imageIds: string[]): void => {
+  const pushLine = (
+    segments: DocSegment[],
+    imageIds: string[],
+    extra: Pick<DocLine, 'tableRow' | 'lostLabels'> = {}
+  ): void => {
     const text = joinSegments(segments);
     if (!text.trim() && imageIds.length === 0) return;
     const emphasized = segments.some((s) => s.emphasized);
@@ -224,7 +274,32 @@ export async function readDocx(file: Blob): Promise<DocxContent> {
       ...(segments.length > 1 ? { segments } : {}),
       ...(emphasized ? { emphasized: true } : {}),
       ...(imageIds.length > 0 ? { imageIds } : {}),
+      ...extra,
     });
+  };
+
+  /** The text of each box when all are a few words: lettering over a picture, not the test's text. */
+  const overlayLabels = (boxes: readonly Element[]): string[] | null => {
+    // A box holding a picture of its own is part of the test, so it is read like any other.
+    const holdsPicture = boxes.some((box) =>
+      Array.from(box.getElementsByTagName('*')).some((el) =>
+        ['drawing', 'pict', 'blip', 'imagedata'].includes(localName(el))
+      )
+    );
+    if (holdsPicture) return null;
+    const labels = boxes.flatMap((box) =>
+      Array.from(box.getElementsByTagName('*'))
+        .filter((el) => localName(el) === 'p')
+        .map((el) => joinSegments(paragraphSegments(el)).trim())
+        .filter(Boolean)
+    );
+    if (labels.length === 0) return null;
+    return labels.every(
+      (t) =>
+        t.split(/\s+/).length <= MAX_OVERLAY_WORDS && !TEST_LINE_OPENING.test(t)
+    )
+      ? labels
+      : null;
   };
 
   /** Everything inside a cell flattened into one segment, nested tables included. */
@@ -286,7 +361,7 @@ export async function readDocx(file: Blob): Promise<DocxContent> {
       segments.push(read.segment);
       imageIds.push(...read.imageIds);
     }
-    pushLine(segments, imageIds);
+    pushLine(segments, imageIds, { tableRow: true });
   };
 
   const walk = async (el: Element): Promise<void> => {
@@ -294,8 +369,22 @@ export async function readDocx(file: Blob): Promise<DocxContent> {
       const name = localName(c);
       if (name === 'p') {
         const read = await readParagraph(c);
+        const boxes = textBoxesIn(c);
+        // Text boxes drawn with a picture are its lettering, which the picture file doesn't hold.
+        const lost =
+          read.imageIds.length > 0 && boxes.length > 0
+            ? overlayLabels(boxes)
+            : null;
+        if (lost) {
+          pushLine(
+            read.segments,
+            read.imageIds,
+            lost.length > 0 ? { lostLabels: lost } : {}
+          );
+          continue;
+        }
         pushLine(read.segments, read.imageIds);
-        for (const box of textBoxesIn(c)) await walk(box);
+        for (const box of boxes) await walk(box);
       } else if (name === 'tr') {
         await readRow(c);
       } else if (name !== 'sectPr' && name !== 'tblPr' && name !== 'tblGrid') {

@@ -1,4 +1,4 @@
-// Handwritten paper answers: re-queues stuck, failed and over-quota jobs, and clears held crops (plan D27, D31, §3.5).
+// Handwritten paper answers: re-queues stuck, failed and over-quota jobs, and clears held crops and kept pages (plan D27, D31, §3.5; K13).
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from './firebaseAdmin';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -6,6 +6,8 @@ import './functionsInit';
 import {
   archiveQuizArtifactCore,
   buildDefaultArchiveDeps,
+  computeHasStuckArchive,
+  retryStorageCleanup,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   type ArchiveArtifactRequest,
   type ArchiveResult,
@@ -21,9 +23,12 @@ import {
   type RequeueOutcome,
 } from './paperTranscriptionWorker';
 import {
+  PAPER_PAGE_PREFIX,
+  PAPER_PAGE_SCANS,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   PAPER_WRITTEN_CROP_PREFIX,
+  paperPageArtifactId,
   type PaperTranscriptionJobStatus,
 } from './paperWrittenTypes';
 
@@ -43,7 +48,7 @@ export const JOB_QUERY_LIMIT = 200;
 /** Runaway guard on one pass, not an expected volume. */
 export const MAX_JOBS_PER_PASS = 5000;
 
-/** Crops of a scan nothing imported are removed after this. */
+/** Crops and kept pages of a scan nothing imported are removed after this. */
 export const UNIMPORTED_CROP_MS = 7 * DAY;
 /** Crops held for a teacher without Drive are removed after this (D27). */
 export const AWAITING_DRIVE_HOLD_MS = 60 * DAY;
@@ -215,21 +220,28 @@ export async function runPaperJobSweep(
   return summary;
 }
 
-// ── Crop pass ─────────────────────────────────────────────────────────────
+// ── Crop and kept-page pass ───────────────────────────────────────────────
 
 export interface ListedCrop {
   path: string;
   createdMs: number;
 }
 
+type ListObjects = (
+  pageToken?: string
+) => Promise<{ crops: ListedCrop[]; nextPageToken?: string }>;
+
 export interface CropSweepDeps {
   db: Firestore;
   now: () => number;
-  listCrops: (
-    pageToken?: string
-  ) => Promise<{ crops: ListedCrop[]; nextPageToken?: string }>;
+  listCrops: ListObjects;
+  /** Kept scan pages under `paper_pages/` (K13); absent skips the page pass. */
+  listPages?: ListObjects;
+  /** Deletes one crop or kept page object. */
   deleteCrop: (path: string) => Promise<void>;
   archive: (input: ArchiveArtifactRequest) => Promise<ArchiveResult>;
+  /** Deletes the Storage copy an archived kept page still owes. */
+  cleanUpStorage?: (input: ArchiveArtifactRequest) => Promise<void>;
   getTeacherEmail: (uid: string) => Promise<string | null>;
 }
 
@@ -241,6 +253,13 @@ export interface CropSweepSummary {
   expired: number;
   warned: number;
   mailQueued: number;
+  pagesListed: number;
+  pagesUnimportedDeleted: number;
+  pagesStaleDeleted: number;
+  pagesArchived: number;
+  pagesCleanedUp: number;
+  pagesExpired: number;
+  pagesWarned: number;
 }
 
 export interface ParsedCropPath {
@@ -262,10 +281,31 @@ export function parseCropPath(path: string): ParsedCropPath | null {
   return { uid, scanId, seat, questionId };
 }
 
+export interface ParsedPagePath {
+  uid: string;
+  scanId: string;
+  seat: number;
+  page: number;
+}
+
+/** `paper_pages/{uid}/{scanId}/{seat}/{page}.webp`, the only name the import records. */
+export function parsePagePath(path: string): ParsedPagePath | null {
+  const parts = path.split('/');
+  if (parts.length !== 5 || parts[0] !== PAPER_PAGE_PREFIX) return null;
+  const [, uid, scanId, seatText, file] = parts;
+  const page = /^([1-9]\d?)\.webp$/.exec(file);
+  if (!uid || !scanId || !page || !/^[1-9]\d*$/.test(seatText)) return null;
+  return { uid, scanId, seat: Number(seatText), page: Number(page[1]) };
+}
+
 interface ExpiringItem {
   quizTitle: string;
   removeOn: number;
+  /** Absent means a handwriting crop. */
+  kind?: 'page';
 }
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export function buildExpiryWarningEmail(items: readonly ExpiringItem[]): {
   subject: string;
@@ -283,14 +323,32 @@ export function buildExpiryWarningEmail(items: readonly ExpiringItem[]): {
     listed.push(`- ...and ${titles.length - listed.length} more`);
   }
   const n = items.length;
+  const pages = items.filter((i) => i.kind === 'page').length;
+  const crops = n - pages;
+  const subjectNoun =
+    pages === 0
+      ? plural(n, 'handwritten answer')
+      : crops === 0
+        ? plural(n, 'scanned page')
+        : plural(n, 'scanned image');
+  const held =
+    pages === 0
+      ? `${plural(n, 'handwritten answer image')} from scanned quizzes`
+      : crops === 0
+        ? `${plural(n, 'scanned page')} of students' paper quizzes`
+        : `${plural(crops, 'handwritten answer image')} and ${plural(pages, 'scanned page')} from paper quizzes`;
+  const keptNote =
+    pages === 0
+      ? 'Typed transcripts and grades are kept.'
+      : crops === 0
+        ? 'Scores and grades are kept.'
+        : 'Scores, typed transcripts and grades are kept.';
   return {
-    subject: `SpartBoard: ${n} handwritten answer${n === 1 ? '' : 's'} will be removed on ${date}`,
+    subject: `SpartBoard: ${subjectNoun} will be removed on ${date}`,
     text: [
-      `SpartBoard is holding ${n} handwritten answer image${
-        n === 1 ? '' : 's'
-      } from scanned quizzes because Google Drive is not connected. ${
+      `SpartBoard is holding ${held} because Google Drive is not connected. ${
         n === 1 ? 'It' : 'They'
-      } will be removed starting ${date}. Typed transcripts and grades are kept.`,
+      } will be removed starting ${date}. ${keptNote}`,
       '',
       ...listed,
       '',
@@ -299,9 +357,20 @@ export function buildExpiryWarningEmail(items: readonly ExpiringItem[]): {
   };
 }
 
-interface ScanJobs {
+interface ScanTargets {
   bySeat: Map<number, { sessionId: string; responseKey: string }>;
 }
+
+type ArchiveMapData = Record<string, Record<string, unknown>>;
+
+const archiveEntryOf = (
+  data: Record<string, unknown> | undefined,
+  artifactId: string
+): Record<string, unknown> | undefined =>
+  ((data?.artifactArchive ?? {}) as ArchiveMapData)[artifactId];
+
+const isDeleteOwned = (status: unknown): boolean =>
+  status === 'deleting' || status === 'deleted' || status === 'delete-failed';
 
 export async function runPaperCropSweep(
   deps: CropSweepDeps
@@ -316,9 +385,16 @@ export async function runPaperCropSweep(
     expired: 0,
     warned: 0,
     mailQueued: 0,
+    pagesListed: 0,
+    pagesUnimportedDeleted: 0,
+    pagesStaleDeleted: 0,
+    pagesArchived: 0,
+    pagesCleanedUp: 0,
+    pagesExpired: 0,
+    pagesWarned: 0,
   };
 
-  const scanJobs = new Map<string, ScanJobs>();
+  const scanJobs = new Map<string, ScanTargets>();
   const loadScanJobs = async (uid: string, scanId: string) => {
     const key = `${uid}/${scanId}`;
     let found = scanJobs.get(key);
@@ -340,6 +416,34 @@ export async function runPaperCropSweep(
       });
     }
     scanJobs.set(key, found);
+    return found;
+  };
+  const pageScans = new Map<string, ScanTargets>();
+  const loadPageScan = async (uid: string, scanId: string) => {
+    const key = `${uid}/${scanId}`;
+    let found = pageScans.get(key);
+    if (found) return found;
+    const seats: unknown = (
+      await db
+        .collection('users')
+        .doc(uid)
+        .collection(PAPER_PAGE_SCANS)
+        .doc(scanId)
+        .get()
+    ).data()?.seats;
+    found = { bySeat: new Map() };
+    for (const [seat, target] of Object.entries(
+      typeof seats === 'object' && seats !== null ? seats : {}
+    )) {
+      const t = target as { sessionId?: unknown; responseKey?: unknown };
+      if (typeof t?.sessionId !== 'string' || typeof t.responseKey !== 'string')
+        continue;
+      found.bySeat.set(Number(seat), {
+        sessionId: t.sessionId,
+        responseKey: t.responseKey,
+      });
+    }
+    pageScans.set(key, found);
     return found;
   };
   const newerScanQuestions = new Map<string, Set<string>>();
@@ -369,9 +473,82 @@ export async function runPaperCropSweep(
     }
     return title;
   };
-  // A teacher still without Drive gets one archive attempt per run, not one per crop.
+  // A teacher still without Drive gets one archive attempt per run, not one per object.
   const noDrive = new Set<string>();
+  // Crops and pages share one list per teacher, so one run sends one email.
   const expiring = new Map<string, ExpiringItem[]>();
+
+  /** Archives a held object when Drive is back, expires it at 60 days and warns once from day 53. */
+  async function holdForDrive(
+    path: string,
+    uid: string,
+    request: ArchiveArtifactRequest,
+    entry: Record<string, unknown>,
+    kind: ExpiringItem['kind']
+  ): Promise<'expired' | 'archived' | 'warned' | 'held'> {
+    const { artifactId } = request;
+    const responseRef = db
+      .collection('quiz_sessions')
+      .doc(request.sessionId)
+      .collection('responses')
+      .doc(request.responseKey);
+    const since =
+      typeof entry.awaitingDriveSince === 'number'
+        ? entry.awaitingDriveSince
+        : now;
+
+    if (now - since >= AWAITING_DRIVE_HOLD_MS) {
+      const expired = await db.runTransaction(async (tx) => {
+        const fresh = await tx.get(responseRef);
+        const current = archiveEntryOf(fresh.data(), artifactId);
+        if (current?.archiveStatus !== 'awaiting-drive') return false;
+        tx.set(
+          responseRef,
+          {
+            artifactArchive: {
+              [artifactId]: {
+                archiveStatus: 'lost',
+                archiveError:
+                  'Removed after 60 days without Google Drive connected.',
+                lastAttemptAt: now,
+              },
+            },
+          },
+          { merge: true }
+        );
+        return true;
+      });
+      if (!expired) return 'held';
+      await deps.deleteCrop(path);
+      return 'expired';
+    }
+
+    if (!noDrive.has(uid)) {
+      const result = await deps.archive(request);
+      if (result.archiveStatus === 'archived') return 'archived';
+      if (result.archiveStatus !== 'awaiting-drive') return 'held';
+      noDrive.add(uid);
+    }
+
+    if (
+      now - since < AWAITING_DRIVE_WARN_MS ||
+      typeof entry.expiryWarnedAt === 'number'
+    ) {
+      return 'held';
+    }
+    await responseRef.set(
+      { artifactArchive: { [artifactId]: { expiryWarnedAt: now } } },
+      { merge: true }
+    );
+    const list = expiring.get(uid) ?? [];
+    list.push({
+      quizTitle: await quizTitle(request.sessionId),
+      removeOn: since + AWAITING_DRIVE_HOLD_MS,
+      ...(kind ? { kind } : {}),
+    });
+    expiring.set(uid, list);
+    return 'warned';
+  }
 
   async function sweepOneCrop(path: string, c: ParsedCropPath): Promise<void> {
     const jobs = await loadScanJobs(c.uid, c.scanId);
@@ -412,79 +589,150 @@ export async function runPaperCropSweep(
     }
     const artifactId = findCropArtifactId(answers, c.questionId, path);
     if (!artifactId) return;
-    const entry = (
-      (data?.artifactArchive ?? {}) as Record<string, Record<string, unknown>>
-    )[artifactId];
+    const entry = archiveEntryOf(data, artifactId);
     if (entry?.archiveStatus !== 'awaiting-drive') return;
-    const since =
-      typeof entry.awaitingDriveSince === 'number'
-        ? entry.awaitingDriveSince
-        : now;
-
-    if (now - since >= AWAITING_DRIVE_HOLD_MS) {
-      const expired = await db.runTransaction(async (tx) => {
-        const fresh = await tx.get(responseRef);
-        const current = (
-          (fresh.data()?.artifactArchive ?? {}) as Record<
-            string,
-            Record<string, unknown>
-          >
-        )[artifactId];
-        if (current?.archiveStatus !== 'awaiting-drive') return false;
-        tx.set(
-          responseRef,
-          {
-            artifactArchive: {
-              [artifactId]: {
-                archiveStatus: 'lost',
-                archiveError:
-                  'Removed after 60 days without Google Drive connected.',
-                lastAttemptAt: now,
-              },
-            },
-          },
-          { merge: true }
-        );
-        return true;
-      });
-      if (expired) {
-        await deps.deleteCrop(path);
-        summary.expired++;
-      }
-      return;
-    }
-
-    if (!noDrive.has(c.uid)) {
-      const result = await deps.archive({
+    const outcome = await holdForDrive(
+      path,
+      c.uid,
+      {
         sessionId: target.sessionId,
         responseKey: target.responseKey,
         questionId: c.questionId,
         artifactId,
-      });
+      },
+      entry,
+      undefined
+    );
+    if (outcome !== 'held') summary[outcome]++;
+  }
+
+  // Unimported and unreferenced pages wait out the same 7 days as crops; a referenced one archives on any run.
+  async function sweepOnePage(
+    path: string,
+    p: ParsedPagePath | null,
+    createdMs: number
+  ): Promise<void> {
+    const settled = now - createdMs >= UNIMPORTED_CROP_MS;
+    const target = p
+      ? (await loadPageScan(p.uid, p.scanId)).bySeat.get(p.seat)
+      : undefined;
+    if (!p || !target) {
+      if (!settled) return;
+      await deps.deleteCrop(path);
+      summary.pagesUnimportedDeleted++;
+      return;
+    }
+    const artifactId = paperPageArtifactId(p.scanId, p.page);
+    const responseRef = db
+      .collection('quiz_sessions')
+      .doc(target.sessionId)
+      .collection('responses')
+      .doc(target.responseKey);
+    const data = (await responseRef.get()).data();
+    const pages = Array.isArray(data?.paperPages)
+      ? (data.paperPages as Array<Record<string, unknown>>)
+      : [];
+    // K12: only the live scan's page stays referenced; a rescan leaves the older one to this rule.
+    const referenced = pages.some(
+      (a) =>
+        a?.id === artifactId &&
+        a.kind === 'paper-page' &&
+        a.storagePath === path
+    );
+    if (!referenced) {
+      if (!settled) return;
+      await deps.deleteCrop(path);
+      summary.pagesStaleDeleted++;
+      return;
+    }
+    const request: ArchiveArtifactRequest = {
+      sessionId: target.sessionId,
+      responseKey: target.responseKey,
+      questionId: '',
+      artifactId,
+    };
+    const entry = archiveEntryOf(data, artifactId);
+    const status = entry?.archiveStatus;
+    if (isDeleteOwned(status) || status === 'lost') return;
+    if (typeof entry?.driveFileId === 'string') {
+      // Archived, yet the transit copy survived: only its delete is owed.
+      if (!deps.cleanUpStorage) return;
+      await deps.cleanUpStorage(request);
+      summary.pagesCleanedUp++;
+      return;
+    }
+    // Never archived, or a failed attempt: one Drive try per teacher per run, not one per page.
+    if (status !== 'awaiting-drive' && !noDrive.has(p.uid)) {
+      const result = await deps.archive(request);
       if (result.archiveStatus === 'archived') {
-        summary.archived++;
+        summary.pagesArchived++;
         return;
       }
       if (result.archiveStatus !== 'awaiting-drive') return;
-      noDrive.add(c.uid);
+      noDrive.add(p.uid);
     }
+    if (status !== 'awaiting-drive' && !noDrive.has(p.uid)) return;
+    // K13: every held page is stamped this run, and its 60 days run from the upload.
+    const held = await anchorAwaitingDrive(
+      responseRef,
+      artifactId,
+      createdMs > 0 ? Math.min(createdMs, now) : now
+    );
+    if (!held) return;
+    const outcome = await holdForDrive(path, p.uid, request, held, 'page');
+    if (outcome === 'expired') summary.pagesExpired++;
+    if (outcome === 'archived') summary.pagesArchived++;
+    if (outcome === 'warned') summary.pagesWarned++;
+  }
 
-    if (
-      now - since >= AWAITING_DRIVE_WARN_MS &&
-      typeof entry.expiryWarnedAt !== 'number'
-    ) {
-      await responseRef.set(
-        { artifactArchive: { [artifactId]: { expiryWarnedAt: now } } },
+  /** Marks a never-archived or failed page as held for Drive, moving its clock back to `since`; null when it is not holdable. */
+  async function anchorAwaitingDrive(
+    responseRef: admin.firestore.DocumentReference,
+    artifactId: string,
+    since: number
+  ): Promise<Record<string, unknown> | null> {
+    return db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive: ArchiveMapData = {
+        ...((fresh.data()?.artifactArchive ?? {}) as ArchiveMapData),
+      };
+      const current = archive[artifactId];
+      const status = current?.archiveStatus;
+      if (
+        (status !== undefined &&
+          status !== 'failed' &&
+          status !== 'awaiting-drive') ||
+        typeof current?.driveFileId === 'string'
+      ) {
+        return null;
+      }
+      const previous =
+        typeof current?.awaitingDriveSince === 'number'
+          ? current.awaitingDriveSince
+          : Infinity;
+      const anchored = Math.min(previous, since);
+      const next = {
+        ...(current ?? {}),
+        archiveStatus: 'awaiting-drive',
+        awaitingDriveSince: anchored,
+      };
+      if (status === 'awaiting-drive' && previous === anchored) return next;
+      archive[artifactId] = next;
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [artifactId]: {
+              archiveStatus: 'awaiting-drive',
+              awaitingDriveSince: anchored,
+            },
+          },
+          hasStuckArchive: computeHasStuckArchive(archive),
+        },
         { merge: true }
       );
-      const list = expiring.get(c.uid) ?? [];
-      list.push({
-        quizTitle: await quizTitle(target.sessionId),
-        removeOn: since + AWAITING_DRIVE_HOLD_MS,
-      });
-      expiring.set(c.uid, list);
-      summary.warned++;
-    }
+      return next;
+    });
   }
 
   let pageToken: string | undefined;
@@ -504,6 +752,28 @@ export async function runPaperCropSweep(
       }
     }
   } while (pageToken && summary.listed < MAX_CROPS_PER_RUN);
+
+  const listPages = deps.listPages;
+  if (listPages) {
+    let token: string | undefined;
+    do {
+      const page = await listPages(token);
+      token = page.nextPageToken;
+      for (const object of page.crops) {
+        if (summary.pagesListed >= MAX_CROPS_PER_RUN) break;
+        summary.pagesListed++;
+        try {
+          await sweepOnePage(
+            object.path,
+            parsePagePath(object.path),
+            object.createdMs
+          );
+        } catch (error) {
+          console.error('[paperTranscriptionSweep] page', object.path, error);
+        }
+      }
+    } while (token && summary.pagesListed < MAX_CROPS_PER_RUN);
+  }
 
   const day = new Date(now).toISOString().slice(0, 10);
   for (const [uid, items] of expiring) {
@@ -552,29 +822,32 @@ export const sweepPaperWrittenCrops = onSchedule(
   async () => {
     const bucket = admin.storage().bucket();
     const archiveDeps = buildDefaultArchiveDeps();
+    const listUnder = (prefix: string) => async (pageToken?: string) => {
+      const [files, next] = await bucket.getFiles({
+        prefix: `${prefix}/`,
+        maxResults: CROP_LIST_PAGE,
+        autoPaginate: false,
+        ...(pageToken ? { pageToken } : {}),
+      });
+      return {
+        crops: files.map((f) => ({
+          path: f.name,
+          createdMs: Date.parse(String(f.metadata.timeCreated ?? '')) || 0,
+        })),
+        nextPageToken: (next as { pageToken?: string } | null)?.pageToken,
+      };
+    };
     const summary = await runPaperCropSweep({
       db: admin.firestore(),
       now: () => Date.now(),
-      listCrops: async (pageToken) => {
-        const [files, next] = await bucket.getFiles({
-          prefix: `${PAPER_WRITTEN_CROP_PREFIX}/`,
-          maxResults: CROP_LIST_PAGE,
-          autoPaginate: false,
-          ...(pageToken ? { pageToken } : {}),
-        });
-        return {
-          crops: files.map((f) => ({
-            path: f.name,
-            createdMs: Date.parse(String(f.metadata.timeCreated ?? '')) || 0,
-          })),
-          nextPageToken: (next as { pageToken?: string } | null)?.pageToken,
-        };
-      },
+      listCrops: listUnder(PAPER_WRITTEN_CROP_PREFIX),
+      listPages: listUnder(PAPER_PAGE_PREFIX),
       deleteCrop: async (path) => {
         await bucket.file(path).delete({ ignoreNotFound: true });
       },
       archive: (input) =>
         archiveQuizArtifactCore({ ...input, callerUid: null }, archiveDeps),
+      cleanUpStorage: (input) => retryStorageCleanup(input, archiveDeps),
       getTeacherEmail: async (uid) => {
         try {
           return (await admin.auth().getUser(uid)).email ?? null;

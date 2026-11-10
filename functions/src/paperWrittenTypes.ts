@@ -102,7 +102,48 @@ export interface PaperWrittenImportResult {
   pagesOverQuota: number;
 }
 
+/** One kept page in the import payload (`paper-kept-pages`); the path is checked against the caller's prefix and scan. */
+export interface PaperKeptPagePayload {
+  seat: number;
+  /** Printed sheet page number, as read from the page's marker. */
+  page: number;
+  storagePath: string;
+  /** The uploaded page's type; absent means WebP. */
+  mimeType?: 'image/webp' | 'image/png';
+}
+
+/** Request field `importPaperResponsesV1` accepts beside `sheets`; absent imports as before kept pages. */
+export interface PaperKeptPagesRequestField {
+  pages?: PaperKeptPagePayload[];
+}
+
+/** `getPaperPageV1` request: one kept page of one response, session teacher only (K1). */
+export interface GetPaperPageRequest {
+  sessionId: string;
+  responseKey: string;
+  page: number;
+}
+
+export type PaperPageUnavailableReason =
+  'no-page' | 'missing' | 'archiving' | 'deleted' | 'failed' | 'too-large';
+
+export type GetPaperPageResponse =
+  | {
+      status: 'ready';
+      mimeType: 'image/webp' | 'image/png';
+      /** Base64 image bytes. */
+      data: string;
+      source: 'storage' | 'drive';
+    }
+  | { status: 'not-available'; reason: PaperPageUnavailableReason };
+
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
+export const PAPER_KEPT_PAGES_FEATURE = 'paper-kept-pages';
+export const PAPER_IMAGE_MARKUP_FEATURE = 'paper-image-markup';
+export const PAPER_PAGE_PREFIX = 'paper_pages';
+export const PAPER_PAGE_CALLABLE = 'getPaperPageV1';
+/** Server-only `users/{uid}/paper_page_scans/{scanId}`: `seats.{seat}` names the response each kept page was recorded on. */
+export const PAPER_PAGE_SCANS = 'paper_page_scans';
 /** Off: inked boxes import as `image` and teachers grade the crop. */
 export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 export const PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT = 300;
@@ -117,6 +158,24 @@ export function paperCropStoragePath(
   questionId: string
 ): string {
   return `${PAPER_WRITTEN_CROP_PREFIX}/${uid}/${scanId}/${seat}/${questionId}.webp`;
+}
+
+export function paperPageStoragePath(
+  uid: string,
+  scanId: string,
+  seat: number,
+  page: number
+): string {
+  return `${PAPER_PAGE_PREFIX}/${uid}/${scanId}/${seat}/${page}.webp`;
+}
+
+export function paperPageArtifactId(scanId: string, page: number): string {
+  return `pg_${scanId}_${page}`;
+}
+
+export function paperPageNumberOf(artifactId: string): number | null {
+  const m = /^pg_[A-Za-z0-9-]{1,64}_(\d{1,2})$/.exec(artifactId);
+  return m ? Number(m[1]) : null;
 }
 
 export function paperTranscriptionJobId(

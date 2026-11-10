@@ -172,7 +172,7 @@ describe('web tour states', () => {
     }
   });
 
-  it('shows the picture and a Next button when the target can not be found', () => {
+  it('folds the tip into a waiting chip with the picture behind Show me where, when the target can not be found (P4)', () => {
     captureShadow();
     const onAction = vi.fn();
     handle = mountOverlay(STYLED, onAction);
@@ -182,22 +182,122 @@ describe('web tour states', () => {
         status: 'fallback',
         targetHere: false,
         picture,
+        skipped: [],
       })
     );
-    const img = shadow?.querySelector('[data-testid="web-tour-picture"]');
-    expect(img?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
-    expect(
-      shadow?.querySelector('[data-testid="web-tour-find-it"]')
-    ).not.toBeNull();
-    expect(shadow?.querySelector('[data-testid="tour-spotlight"]')).toBeNull();
+    const q = (id: string) => shadow?.querySelector(`[data-testid="${id}"]`);
+    expect(q('tour-waiting-chip')?.textContent).toContain('Step 2 is waiting');
+    expect(q('web-tour-find-it')).toBeNull();
+    expect(q('tour-callout')).toBeNull();
+    expect(q('tour-spotlight')).toBeNull();
+    // No address to go back to: only Show me where.
+    expect(q('tour-take-me-back')).toBeNull();
+    expect(q('web-tour-picture')).toBeNull();
+    act(() => (q('tour-show-me-where') as HTMLButtonElement).click());
+    expect(q('web-tour-picture')?.getAttribute('src')).toBe(
+      'data:image/png;base64,AAAA'
+    );
+    const bar = q('tour-bar') as HTMLElement;
     act(() =>
-      (
-        shadow?.querySelector(
-          '[data-testid="tour-tip-next"]'
-        ) as HTMLButtonElement | null
-      )?.click()
+      [...bar.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Next')
+        ?.click()
     );
     expect(onAction).toHaveBeenCalledWith('next');
+  });
+
+  it('offers Take me back on the chip and on another page only when the worker says it can (P5)', () => {
+    captureShadow();
+    const onAction = vi.fn();
+    handle = mountOverlay(STYLED, onAction);
+    const q = (id: string) => shadow?.querySelector(`[data-testid="${id}"]`);
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        takeBack: true,
+      })
+    );
+    act(() => (q('tour-take-me-back') as HTMLButtonElement).click());
+    expect(onAction).toHaveBeenCalledWith('takeBack');
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'wrong-page',
+        targetHere: false,
+        takeBack: true,
+      })
+    );
+    expect(q('web-tour-other-page')).not.toBeNull();
+    expect(q('tour-take-me-back')).not.toBeNull();
+    act(() =>
+      handle?.render({ ...state, status: 'wrong-page', targetHere: false })
+    );
+    expect(q('tour-take-me-back')).toBeNull();
+  });
+
+  it('draws the step picture markup over the picture in Show me where (E5)', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        picture,
+        markup: [{ id: 'm1', kind: 'number', x: 0.5, y: 0.5, n: 1 }],
+      })
+    );
+    const q = (id: string) => shadow?.querySelector(`[data-testid="${id}"]`);
+    act(() => (q('tour-show-me-where') as HTMLButtonElement).click());
+    expect(q('web-tour-picture')).not.toBeNull();
+    expect(q('tour-picture-markup')).not.toBeNull();
+  });
+
+  it('rings the control in Show me where when the picture knows where it is, and shows the picture alone otherwise', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    const q = (id: string) => shadow?.querySelector(`[data-testid="${id}"]`);
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        picture,
+        target: { x: 0.1, y: 0.2, w: 0.3, h: 0.1 },
+      })
+    );
+    act(() => (q('tour-show-me-where') as HTMLButtonElement).click());
+    expect((q('step-picture-ring') as HTMLElement | null)?.style.left).toBe(
+      '10%'
+    );
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        picture,
+      })
+    );
+    expect(q('web-tour-picture')).not.toBeNull();
+    expect(q('step-picture-ring')).toBeNull();
+  });
+
+  it('draws skipped steps hollow on the step bar (P3)', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    act(() => handle?.render({ ...state, current: 3, total: 4, skipped: [0] }));
+    const dots = [
+      ...(shadow?.querySelector('[data-testid="tour-bar-dots"]')?.children ??
+        []),
+    ];
+    expect(dots.map((d) => d.hasAttribute('data-skipped'))).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
   });
 
   it('shows the check result and a Next button on a found click step in check mode', () => {

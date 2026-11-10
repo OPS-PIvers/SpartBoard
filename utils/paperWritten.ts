@@ -6,6 +6,7 @@ import type {
   PaperPrivateAnswer,
   PaperPrivateStatus,
   PaperTranscriptState,
+  QuizResponse,
   QuizResponseAnswer,
   ResponseArtifact,
   WrittenReturnMode,
@@ -38,6 +39,12 @@ export const PAPER_CUSTOM_MAX_LINES = PAPER_FULL_PAGE_LINES;
 export const PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT = 300;
 export const PAPER_WRITTEN_CROP_PREFIX = 'paper_written_crops';
 export const PAPER_WRITTEN_CROP_MIME = 'image/webp';
+export const PAPER_KEPT_PAGES_FEATURE = 'paper-kept-pages';
+export const PAPER_IMAGE_MARKUP_FEATURE = 'paper-image-markup';
+export const PAPER_PAGE_PREFIX = 'paper_pages';
+export const PAPER_PAGE_CALLABLE = 'getPaperPageV1';
+/** Kept pages are stored straightened at this resolution, so a pixel is `mm * 150 / 25.4` (K16). */
+export const PAPER_KEPT_PAGE_DPI = 150;
 export const DEFAULT_WRITTEN_RETURN_MODE: WrittenReturnMode = 'handwriting';
 
 export function paperBoxLines(size: PaperBoxSize): number {
@@ -167,6 +174,78 @@ export function paperCropStoragePath(
   questionId: string
 ): string {
   return `${PAPER_WRITTEN_CROP_PREFIX}/${uid}/${scanId}/${seat}/${questionId}.webp`;
+}
+
+/** `paper_pages/{uid}/{scanId}/{seat}/{page}.webp` (PNG fallback keeps the name, as crops do). */
+export function paperPageStoragePath(
+  uid: string,
+  scanId: string,
+  seat: number,
+  page: number
+): string {
+  return `${PAPER_PAGE_PREFIX}/${uid}/${scanId}/${seat}/${page}.webp`;
+}
+
+/** Artifact id of a kept page on its response: `pg_{scanId}_{page}`. */
+export function paperPageArtifactId(scanId: string, page: number): string {
+  return `pg_${scanId}_${page}`;
+}
+
+/** Client mirror of `PaperKeptPagePayload` (functions/src/paperWrittenTypes.ts). */
+export interface PaperKeptPagePayload {
+  seat: number;
+  /** Printed sheet page number, as read from the page's marker. */
+  page: number;
+  storagePath: string;
+  /** The uploaded page's type; absent means WebP. */
+  mimeType?: 'image/webp' | 'image/png';
+}
+
+/** Request field `importPaperResponsesV1` accepts beside `sheets`; absent imports as before kept pages. */
+export interface PaperKeptPagesRequestField {
+  pages?: PaperKeptPagePayload[];
+}
+
+/** `getPaperPageV1` request: one kept page of one response, session teacher only (K1). */
+export interface GetPaperPageRequest {
+  sessionId: string;
+  responseKey: string;
+  page: number;
+}
+
+export type PaperPageUnavailableReason =
+  'no-page' | 'missing' | 'archiving' | 'deleted' | 'failed' | 'too-large';
+
+export type GetPaperPageResponse =
+  | {
+      status: 'ready';
+      mimeType: 'image/webp' | 'image/png';
+      /** Base64 image bytes. */
+      data: string;
+      source: 'storage' | 'drive';
+    }
+  | { status: 'not-available'; reason: PaperPageUnavailableReason };
+
+export type GetPaperPageCall = (
+  req: GetPaperPageRequest
+) => Promise<GetPaperPageResponse>;
+
+/** Sheet page number from a kept page's id; null when it is not one. */
+export function paperPageNumberOf(artifactId: string): number | null {
+  const m = /^pg_[A-Za-z0-9-]{1,64}_(\d{1,2})$/.exec(artifactId);
+  return m ? Number(m[1]) : null;
+}
+
+/** The response's kept page for a sheet page, or null; `paperPages` holds only the latest scan's page per number. */
+export function keptPageArtifact(
+  response: Pick<QuizResponse, 'paperPages'>,
+  page: number
+): ResponseArtifact | null {
+  return (
+    (response.paperPages ?? []).find(
+      (a) => a.kind === 'paper-page' && paperPageNumberOf(a.id) === page
+    ) ?? null
+  );
 }
 
 /** `{scanId}_{seat}_{page}_{attempt}`; a retry mints a new id so the create trigger fires. */

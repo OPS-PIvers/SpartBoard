@@ -26,7 +26,6 @@ vi.mock('@/utils/quizDocumentImport', () => ({
     ...SAMPLE_QUIZ,
     title: extracted.title,
   }),
-  rowWarnings: () => ['Question 2: two answers were marked'],
 }));
 const EXTRACTED_IMAGES = [
   {
@@ -404,10 +403,7 @@ describe('createQuizImportAdapter — test document source', () => {
       file: new Blob([new Uint8Array([1])]),
       fileName: 'Unit 3 Test.docx',
     });
-    expect(result.warnings).toEqual([
-      'Pictures in a PDF aren’t brought in',
-      'Question 2: two answers were marked',
-    ]);
+    expect(result.warnings).toEqual(['Pictures in a PDF aren’t brought in']);
   });
 
   it('names the quiz after the document but leaves a sheet import untitled', async () => {

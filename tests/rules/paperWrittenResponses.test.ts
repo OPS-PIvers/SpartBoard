@@ -1,7 +1,7 @@
 // Rules for handwritten paper answers (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3.5):
 //   - quiz_sessions/{sid}/responses/{key}/paperPrivate/{qid}: session teacher reads, server writes.
 //   - users/{uid}/paper_transcription_jobs/{id}: owner reads, server writes.
-//   - Storage paper_written_crops/{uid}/...: owning teacher creates once, nobody reads.
+//   - Storage paper_written_crops/{uid}/... and paper_pages/{uid}/...: owning teacher creates once, nobody reads.
 //
 // Requires the Firestore and Storage emulators. Invoke via:
 //   pnpm run test:rules
@@ -303,6 +303,67 @@ describe('Storage paper_written_crops', () => {
     for (const ctx of [asTeacher(), asAdmin(), asAnon(), asUnauth()]) {
       await assertFails(getMetadata(ref(ctx.storage(), cropPath())));
       await assertFails(getBytes(ref(ctx.storage(), cropPath())));
+    }
+  });
+});
+
+// Kept scanned pages (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.1) mirror the crop contract.
+const pagePath = (uid = TEACHER_UID, page = 1) =>
+  `paper_pages/${uid}/${SCAN_ID}/3/${page}.webp`;
+
+describe('Storage paper_pages', () => {
+  it('lets the owning teacher create a WebP or PNG page', async () => {
+    const ctx = asTeacher();
+    await assertSucceeds(upload(ctx, pagePath()));
+    await assertSucceeds(upload(ctx, pagePath(TEACHER_UID, 2), 'image/png'));
+  });
+
+  it('accepts exactly 2 MB and refuses anything larger', async () => {
+    const ctx = asTeacher();
+    await assertSucceeds(
+      upload(ctx, pagePath(TEACHER_UID, 3), 'image/webp', 2 * 1024 * 1024)
+    );
+    await assertFails(
+      upload(ctx, pagePath(TEACHER_UID, 4), 'image/webp', 2 * 1024 * 1024 + 1)
+    );
+  });
+
+  it('refuses other content types', async () => {
+    const ctx = asTeacher();
+    const path = pagePath(TEACHER_UID, 5);
+    await assertFails(upload(ctx, path, 'image/jpeg'));
+    await assertFails(upload(ctx, path, 'application/pdf'));
+    await assertSucceeds(upload(ctx, path));
+  });
+
+  it('refuses another teacher, a student, an anonymous user and unauthenticated callers', async () => {
+    const path = pagePath(TEACHER_UID, 6);
+    await assertFails(upload(asOtherTeacher(), path));
+    await assertFails(upload(asSsoStudent(), path));
+    await assertFails(upload(asAnon(), path));
+    await assertFails(upload(asUnauth(), path));
+    await assertSucceeds(upload(asTeacher(), path));
+    await assertFails(upload(asSsoStudent(), pagePath(SSO_STUDENT_UID)));
+    await assertFails(upload(asAnon(), pagePath(ANON_UID)));
+  });
+
+  it('is create-only: the owner cannot overwrite or delete', async () => {
+    const ctx = asTeacher();
+    const path = pagePath(TEACHER_UID, 7);
+    await assertSucceeds(upload(ctx, path));
+    await assertFails(upload(ctx, path));
+    await assertFails(deleteObject(ref(ctx.storage(), path)));
+  });
+
+  it('refuses every client read, the owner and admins included', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage(), pagePath()), bytes(), {
+        contentType: 'image/webp',
+      });
+    });
+    for (const ctx of [asTeacher(), asAdmin(), asAnon(), asUnauth()]) {
+      await assertFails(getMetadata(ref(ctx.storage(), pagePath())));
+      await assertFails(getBytes(ref(ctx.storage(), pagePath())));
     }
   });
 });

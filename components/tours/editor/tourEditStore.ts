@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { GuidedLearningSet, GuidedLearningTourBinding } from '@/types';
 import type { TourSlots } from '@/components/tours/tourSession';
+import type { RecordedPlacement } from '@/components/widgets/GuidedLearning/components/recorder/resolveAnchor';
 
 export interface TourEditRequest {
   setId: string;
@@ -106,6 +107,13 @@ export const selectTourEditStep = (index: number): void => {
   if (selected !== current.selected) target.set({ ...current, selected });
 };
 
+/** Plays the draft again from step 1. */
+export const replayTourEditFromStart = (): void => {
+  const current = target.get();
+  if (!current) return;
+  target.set({ ...current, selected: 0, replay: current.replay + 1 });
+};
+
 /** Hides the runner's tip and spotlight while Record from here captures real clicks. */
 export const setTourEditRecording = (recording: boolean): void => {
   const current = target.get();
@@ -184,6 +192,8 @@ export interface TourEditShot {
   /** The binding the picture was taken of. */
   tour: GuidedLearningTourBinding;
   frame: Blob;
+  /** Where the control sits in the frame (`captureStepSnapshot`'s placement), when the runner reports it. */
+  placement?: RecordedPlacement;
 }
 
 const shotListeners = new Set<(shot: TourEditShot) => void>();

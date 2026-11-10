@@ -16,6 +16,8 @@ export interface DocSegment {
   x?: number;
   /** Right edge in the same units as `x`. */
   xEnd?: number;
+  /** Left edge as a fraction of the PDF page width; PDFs only. */
+  left?: number;
   /** Bold, underlined or highlighted somewhere in this segment. */
   emphasized?: boolean;
 }
@@ -37,6 +39,24 @@ export interface DocLine {
   y?: number;
   /** Ids of pictures anchored to this line, into `ExtractedQuiz.images`. */
   imageIds?: string[];
+  /** A picture's printed captions by its id, like `figure 2`, for questions that name it. */
+  figureLabels?: Record<string, string[]>;
+  /** A picture-only line heading its page, which belongs to the question under it. */
+  leads?: boolean;
+  /** A row of a Word table, one segment per cell. */
+  tableRow?: boolean;
+  /** Lettering drawn over this line's pictures that the picture files don't hold. */
+  lostLabels?: string[];
+  /** Where the line's baseline sits on its PDF page, as a fraction from the top. */
+  top?: number;
+  /** Small pictures, such as equations set as images, printed in this line: how far they reach up and down the page. */
+  inlineImage?: { top: number; bottom: number };
+  /** Each of those small pictures, as fractions of the page. */
+  inlineBoxes?: { x: number; y: number; width: number; height: number }[];
+  /** Pictures given to this line only because they are printed beside several questions. */
+  besideIds?: string[];
+  /** This line's picture is a crop of its own math, which plain text can't hold. */
+  mathPicture?: boolean;
 }
 
 /** A line's segments, or the whole line as one segment when it had no gap. */
@@ -53,6 +73,8 @@ export interface ExtractedOption {
   /** The letter as printed, uppercased: A–F. */
   letter: string;
   text: string;
+  /** A choice printed only as a picture: its crop key, then its image id; `text` is its generated label. */
+  imageId?: string;
 }
 
 /** A picture lifted out of the document, not yet uploaded anywhere. */
@@ -101,6 +123,8 @@ export interface KeyItem {
   pointsForItem?: boolean;
   /** The key scores this with a rubric rather than one answer. */
   rubric?: boolean;
+  /** Under a test bank's Short Answer, Essay or Problem heading: a model answer, not a key. */
+  written?: boolean;
   /** The key says the item isn't scored. */
   notScored?: boolean;
   /** A test bank's `OBJ:` and `TOP:` fields (E10). */
@@ -147,6 +171,8 @@ export interface ExtractedQuestion {
   correctAnswer: string;
   /** Pictures this question uses, by `ExtractedImage.id`. */
   imageIds: string[];
+  /** PDFs: the whole-question picture kept until its picture choices are cropped. */
+  choiceFallbackId?: string;
   /** Row notes for the review table; never fatal. */
   warnings: string[];
   /** The ExamView section kind that decides how a key applies (QUIZ_EXAMVIEW_IMPORT E5). */
@@ -159,6 +185,8 @@ export interface ExtractedQuestion {
   matchingDistractors?: string[];
   /** Matching only: score each pair (E6). */
   allowPartialCredit?: boolean;
+  /** Its choices are bare letters added from the key, for a question answered off a picture. */
+  lettersFromKey?: boolean;
   /** Standard codes a test bank key lists for this item (E10). */
   standardCodes?: string[];
   /** Modified True/False: the key's word that makes a false statement true (E7). */
@@ -267,6 +295,8 @@ export type RemoteImageFetcher = (
 /** Reader switches; `multiAnswer` lets a read produce choose-all-that-apply questions. */
 export interface ReaderOptions {
   multiAnswer?: boolean;
+  /** A choice printed only as a picture comes in as that picture, not the whole question. */
+  answerPictures?: boolean;
   /** Long text blocks become passage stimuli without a "read the passage" cue. */
   passages?: boolean;
   /** Lets an LMS export bring in pictures hosted outside the zip. */

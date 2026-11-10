@@ -5,6 +5,7 @@ import {
   WRITTEN_CROP_MAX_BYTES,
   cropWrittenBlob,
   encodeWrittenCrop,
+  keptPageBlob,
   rasterizeScan,
   type PdfDocumentLike,
   type RasterDeps,
@@ -183,5 +184,47 @@ describe('handwriting crops', () => {
       width: Math.round(24 * scale),
       height: Math.round(14 * scale),
     });
+  });
+});
+
+describe('kept pages', () => {
+  const page = {
+    width: 200,
+    height: 260,
+    data: new Uint8ClampedArray(200 * 260 * 4).fill(255),
+  };
+  const identity = { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 };
+
+  it('encodes the whole page at 150 dpi, the crop way', async () => {
+    const encode = vi.fn((crop: { width: number; height: number }) =>
+      Promise.resolve(new Blob([`${crop.width}x${crop.height}`]))
+    );
+    await keptPageBlob(page, identity, encode);
+    expect(encode).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1275, height: 1650 }),
+      0.8
+    );
+  });
+
+  it('halves an oversized page and passes a PNG fallback through', async () => {
+    const widths: number[] = [];
+    const encode = vi.fn((crop: { width: number }) => {
+      widths.push(crop.width);
+      const bytes = crop.width > 1000 ? WRITTEN_CROP_MAX_BYTES + 1 : 10;
+      return Promise.resolve(
+        new Blob([new Uint8Array(bytes)], { type: 'image/png' })
+      );
+    });
+    const blob = await keptPageBlob(page, identity, encode);
+    expect(widths).toEqual([1275, 637]);
+    expect(blob.type).toBe('image/png');
+  });
+
+  it('gives up on a page Storage would refuse', async () => {
+    const encode = () =>
+      Promise.resolve(new Blob([new Uint8Array(WRITTEN_CROP_MAX_BYTES + 1)]));
+    await expect(keptPageBlob(page, identity, encode)).rejects.toThrow(
+      /scanned page is too large/
+    );
   });
 });

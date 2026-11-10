@@ -99,7 +99,40 @@ export interface TeammateTestPaperRow {
   choices: string[];
   /** A handwritten question; only on a layoutVersion 2 batch. */
   written?: true;
+  /** Mirrors utils/paperTestPrint `choicePictures`: a picture per choice, null where none. */
+  choicePictures?: ({ url: string; alt?: string; only?: true } | null)[];
 }
+
+// Mirrors utils/quizAnswerImages choicePicturesFor.
+function choicePicturesFor(
+  q: PaperQuestion,
+  choices: readonly string[]
+): TeammateTestPaperRow['choicePictures'] {
+  const out = choices.map((c) => {
+    const url = q.answerImages?.find((a) => a.text.trim() === c.trim())?.url;
+    if (!url) return null;
+    const only = q.imageOnlyAnswers?.find((a) => a.text.trim() === c.trim());
+    if (!only) return { url };
+    return only.alt
+      ? { url, alt: only.alt, only: true as const }
+      : { url, only: true as const };
+  });
+  return out.some(Boolean) ? out : undefined;
+}
+
+const testPaperRow = (
+  row: number,
+  q: PaperQuestion,
+  choices: string[]
+): TeammateTestPaperRow => {
+  const pictures = choicePicturesFor(q, choices);
+  return {
+    row,
+    text: q.text ?? '',
+    choices,
+    ...(pictures ? { choicePictures: pictures } : {}),
+  };
+};
 
 /** Deferred library copy the owner's client materializes on next sign-in (D20). */
 export interface PendingQuizCopy {
@@ -302,6 +335,31 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
       : {}),
     ...(raw.paperOwnTest === true ? { paperOwnTest: true } : {}),
     ...(raw.recording ? { recording: true } : {}),
+    ...(Array.isArray(raw.answerImages)
+      ? {
+          answerImages: raw.answerImages.flatMap((a) =>
+            isRecord(a) &&
+            typeof a.text === 'string' &&
+            typeof a.url === 'string' &&
+            a.url.startsWith('https://')
+              ? [{ text: a.text, url: a.url }]
+              : []
+          ),
+        }
+      : {}),
+    ...(Array.isArray(raw.imageOnlyAnswers)
+      ? {
+          imageOnlyAnswers: raw.imageOnlyAnswers.flatMap((a) =>
+            isRecord(a) && typeof a.text === 'string'
+              ? [
+                  typeof a.alt === 'string' && a.alt.trim()
+                    ? { text: a.text, alt: a.alt.trim() }
+                    : { text: a.text },
+                ]
+              : []
+          ),
+        }
+      : {}),
     ...(typeof raw.maxWords === 'number' ? { maxWords: raw.maxWords } : {}),
     ...(isPaperBoxSize(raw.paperBoxSize)
       ? { paperBoxSize: raw.paperBoxSize }
@@ -742,13 +800,11 @@ export async function handleCreateTeammatePaperBatch(
         const row = Number(e.label);
         return e.kind === 'written'
           ? [{ row, text: q.text ?? '', choices: [], written: true }]
-          : [{ row, text: q.text ?? '', choices: choicesOf(q) }];
+          : [testPaperRow(row, q, choicesOf(q))];
       })
     : analysis.rows.flatMap((r): TeammateTestPaperRow[] => {
         const q = questionsById.get(r.questionId);
-        return q
-          ? [{ row: r.row, text: q.text ?? '', choices: choicesOf(q) }]
-          : [];
+        return q ? [testPaperRow(r.row, q, choicesOf(q))] : [];
       });
 
   return {

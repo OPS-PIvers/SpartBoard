@@ -80,7 +80,7 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
                       style={{ width: '2.2vw', height: '2.2vw' }}
                     />
                   )}
-                  {row.label}
+                  <MathText text={row.label} />
                 </span>
                 <span
                   className={`font-sans tabular-nums shrink-0 ${t.muted}`}

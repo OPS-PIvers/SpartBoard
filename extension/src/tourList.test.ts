@@ -99,5 +99,12 @@ describe('tour list', () => {
       parseTourPanelMessage({ type: 'tours/start', setId: 'a', tabId: 1.5 })
     ).toBeNull();
     expect(parseTourPanelMessage({ type: 'tours/list' })).toBeNull();
+    expect(
+      parseTourPanelMessage({ type: 'tours/steps', setId: 'set_1' })
+    ).toEqual({ type: 'tours/steps', setId: 'set_1' });
+    expect(
+      parseTourPanelMessage({ type: 'tours/steps', setId: 'a/b' })
+    ).toBeNull();
+    expect(parseTourPanelMessage({ type: 'tours/steps' })).toBeNull();
   });
 });

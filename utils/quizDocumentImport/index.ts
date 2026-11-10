@@ -21,7 +21,7 @@ import {
 import { readCartridge } from './cartridgeReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
 import type { PdfCropperDeps } from './pdfFigures';
-import { attachPdfPictures } from './pdfPictures';
+import { attachPdfPictures, resolveChoicePictures } from './pdfPictures';
 import {
   MAX_DOCUMENT_PAGES,
   MAX_VERSIONED_DOCUMENT_PAGES,
@@ -97,7 +97,7 @@ export {
 } from './pdfLayout';
 export {
   extractedToQuizData,
-  rowWarnings,
+  readerNotes,
   reviewExtrasFor,
   type ReviewExtras,
 } from './toQuizData';
@@ -155,6 +155,10 @@ export interface ReadDocumentOptions {
   fetchRemoteImage?: RemoteImageFetcher;
   /** A typed PDF with version headings splits into versions without AI (QUIZ_IMPORT_VERSIONS V13). */
   versions?: boolean;
+  /** A PDF's bold, underlined or highlighted choice is its answer (`quiz-import-pdf-answer-marks`). */
+  pdfMarks?: boolean;
+  /** A PDF choice printed only as a picture comes in as that picture (`quiz-ordering-images`). */
+  answerPictures?: boolean;
   /** Decodes a cropped picture so versions can share identical ones (V4). */
   decodePixels?: (blob: Blob) => Promise<Pixels | null>;
 }
@@ -194,6 +198,7 @@ export async function readQuizDocument(
   const reader = {
     multiAnswer: options.multiAnswer === true,
     ...(options.passages ? { passages: true } : {}),
+    ...(options.answerPictures ? { answerPictures: true } : {}),
     ...(options.fetchRemoteImage
       ? { fetchRemoteImage: options.fetchRemoteImage }
       : {}),
@@ -335,6 +340,7 @@ export async function readQuizDocument(
         ? MAX_VERSIONED_DOCUMENT_PAGES
         : MAX_DOCUMENT_PAGES,
       pictures: Boolean(options.pdfCropper),
+      ...(options.pdfMarks ? { marks: true } : {}),
     }
   );
   const { lines, pageCount, scannedPages, usedOcr, pictures } = content;
@@ -403,7 +409,7 @@ export async function readQuizDocument(
     );
     return {
       title: titleFromFileName(fileName),
-      questions,
+      questions: questions.map((q) => resolveChoicePictures(q, new Map())),
       images: [],
       ...withTexts,
       warnings,

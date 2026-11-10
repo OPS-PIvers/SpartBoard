@@ -27,6 +27,9 @@ import {
   isExamView,
 } from './examView';
 import { keyedQuestionIndexes, mergeAnswerKey } from './mergeKey';
+import { newImageOnlyLabel } from '@/utils/quizAnswerImages';
+import { boxFromKey, figureKey } from './pdfFigures';
+import { captionLabels } from './pdfPictures';
 import {
   SELECT_ALL_WORDING,
   lineSegments,
@@ -55,7 +58,30 @@ const PART = /^\s*part\s+([a-d])\b\s*[:.)\-–—]?\s*(.*)$/i;
 
 /** `Section 2`, `Part II`, `Unit 3: Reading` (R7). */
 const NUMBERED_SECTION =
-  /^\s*(section|part|unit|chapter)\s+(\d{1,2}|[IVXLC]{1,5}|[A-Z])\b\s*[:.\-–—]?\s*([^?]{0,80})$/i;
+  /^\s*(section|part|unit|chapter|topic)\s+(\d{1,2}|[IVXLC]{1,5}|[A-Z])\b\s*[:.\-–—]?\s*([^?]{0,80})$/i;
+
+/** `II. Multiple Choice: …`, `Part B - True or False: …`: the type, then its directions. */
+const TYPED_SECTION =
+  /^(?:(?:[IVX]{1,4}|[A-D]|(?:part|section)\s+(?:\d|[IVX]{1,4}|[A-D]))[.):\-–—]\s+)([A-Za-z][A-Za-z /-]{3,30}?)\s*[:\-–—]\s+\S.*$/i;
+/** A section of statements to mark true or false. */
+const TRUE_FALSE_SECTION = /^\s*true\s*(?:\/|or|-|and)\s*false\b/i;
+
+/** A statement under a True or False heading is answered True or False. */
+const asTrueFalse = (q: ExtractedQuestion): ExtractedQuestion =>
+  q.type === 'free-response' &&
+  q.options.length === 0 &&
+  TRUE_FALSE_SECTION.test(q.ref?.sectionName ?? '') &&
+  !/_{3,}/.test(q.text) &&
+  !q.text.trim().endsWith('?')
+    ? {
+        ...q,
+        type: 'MC',
+        options: [
+          { letter: 'A', text: 'True' },
+          { letter: 'B', text: 'False' },
+        ],
+      }
+    : q;
 
 /** A short standalone heading naming a kind of question (R7). */
 const NAMED_SECTION =
@@ -71,7 +97,14 @@ const TARGET =
 
 /** "Read the passage and answer questions 3–5", "Questions 6-8 refer to…" (R25). */
 const RANGE_INSTRUCTION =
-  /\b(?:questions?|items?|numbers?)\s+(\d{1,3})\s*(?:-|–|—|to|through|and)\s*(\d{1,3})\b/i;
+  /\b(?:questions?|items?|numbers?)\s*#?\s*(\d{1,3})\s*(?:-|–|—|to|through|and|&)\s*#?\s*(\d{1,3})\b/i;
+
+/** "For 2 – 4, state the form…": a range named without the word "questions". */
+const FOR_RANGE =
+  /^\s*for\s+#?\s*(\d{1,3})\s*(?:-|–|—|to|through|and|&)\s*#?\s*(\d{1,3})\s*[,:]/i;
+/** How a line of directions opens. */
+const DIRECTIONS_START =
+  /^\s*(?:for|use|using|read|refer|look|study|answer|questions?)\b/i;
 
 /** A lead-in sentence that tells students what to read, kept in the stem (R25). */
 const READ_INSTRUCTION =
@@ -87,6 +120,14 @@ const SORTING =
 /** "Read the poem below", which makes an unranged preamble a shared passage. */
 const PASSAGE_CUE =
   /\b(?:read|reread|re-read)\b[^.?!]*\b(?:passage|poem|story|article|excerpt|text|paragraphs?|selection|letter|speech)\b/i;
+
+/** Test-taking directions: "Read each sentence carefully", "show all steps", "General Directions". */
+const TEST_DIRECTIONS =
+  /\b(?:directions|instructions)\b|\b(?:read|answer|choose|select|circle|show|write)\b[^.?!]*\b(?:each|all|every|your)\b/i;
+
+/** Directions for the part of the test they head: "…solutions to the following problems". */
+const FOLLOWING_DIRECTIONS =
+  /\b(?:the|each\s+of\s+the)\s+following\s+(?:problems|questions|items|exercises)\b/i;
 
 /** A shared lead-in at or under this length is copied into each stem (R25). */
 const SHORT_LEAD_IN = 150;
@@ -107,7 +148,66 @@ const TERM = /^\s*\(?([A-Za-z])[.)](?:\s+|$)(.*)$/;
 /** Two or more spaces before the next term's letter. */
 const SPACED_TERM = /(?<!\s)\s{2,}(?=\(?[A-Za-z][.)](?:\s|$))/;
 /** "Match each term…", "Directions: Match the…", which open a term list. */
-const MATCH_DIRECTIONS = /^\s*(?:directions\s*[:.\-–—]\s*)?match\b/i;
+const MATCH_DIRECTIONS =
+  /^\s*(?:(?:directions|matching)\s*[:.\-–—]\s*)?match\b/i;
+
+const PICTURE_WORDS = 'figure|graph|table|diagram|chart|image|picture|map';
+/** "Figure 2", "Graph 1", "Table A": a picture named by its caption. */
+const FIGURE_REF = new RegExp(
+  `\\b(fig\\.?|(?:${PICTURE_WORDS})s?)\\s*#?\\s*(\\d{1,3}|[A-Z])\\b`,
+  'gi'
+);
+/** ", 4", " and 4" after "Figures 3". */
+const FIGURE_REF_MORE = /^\s*(?:,|and|&|or)\s*#?\s*(\d{1,3}|[A-Z])\b/;
+/** "the above figures", "the graph above": the pictures the question before it used. */
+const FIGURE_ABOVE = new RegExp(
+  `\\b(?:above|previous|preceding|same)\\s+(?:${PICTURE_WORDS})s?\\b|\\b(?:${PICTURE_WORDS})s?\\s+(?:shown\\s+)?above\\b`,
+  'i'
+);
+/** A stem that asks for a label on a picture: "which letter…", "represented by which number?". */
+const LABEL_ASKED =
+  /\bwhich\s+(?:number|letter|label|arrow|structure)\b|\b(?:represented|indicated|shown|marked|labell?ed)\s+by\s+(?:which|what)\b/i;
+type Reach = { top: number; bottom: number };
+/** Both reaches as one. */
+const reach = (
+  a: Reach | undefined,
+  b: Reach | undefined
+): Reach | undefined =>
+  a && b
+    ? { top: Math.min(a.top, b.top), bottom: Math.max(a.bottom, b.bottom) }
+    : (a ?? b);
+
+/** How far a question's first line reaches above its baseline, as a share of the page. */
+const QUESTION_ASCENT = 0.02;
+/** A lead-in that points at a picture, "Use the diagram to answer questions 17-20". */
+const PICTURE_LEAD = new RegExp(`\\b(?:fig\\.|(?:${PICTURE_WORDS})s?)\\b`, 'i');
+/** How many lines a Word caption may sit from its picture. */
+const CAPTION_REACH = 8;
+/** A stem that leans on what was printed before it. */
+const REFERS_BACK = new RegExp(
+  `\\b(?:above|passage|data|information|fig\\.|(?:${PICTURE_WORDS})s?)\\b`,
+  'i'
+);
+
+const pictureKind = (word: string): string =>
+  /^fig/i.test(word) ? 'figure' : word.toLowerCase().replace(/s$/, '');
+
+/** Every captioned picture a text names, as `figure 2`. */
+function figureRefs(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const m of text.matchAll(FIGURE_REF)) {
+    const kind = pictureKind(m[1]);
+    found.add(`${kind} ${m[2].toLowerCase()}`);
+    let rest = text.slice((m.index ?? 0) + m[0].length);
+    let more = FIGURE_REF_MORE.exec(rest);
+    while (more) {
+      found.add(`${kind} ${more[1].toLowerCase()}`);
+      rest = rest.slice(more[0].length);
+      more = FIGURE_REF_MORE.exec(rest);
+    }
+  }
+  return found;
+}
 /** A letter written in an item's answer blank, `__C__ definition`. */
 const FILLED_BLANK = /^_+\s*([A-Za-z])\s*_+\s*/;
 
@@ -132,6 +232,10 @@ function matchingTerms(
   if (terms.length === 0) return null;
   return lead.length > 0 ? { lead: tidy(lead.join(' ')), terms } : { terms };
 }
+
+/** "Passage 2" counts passages only, not the short texts labelled Directions. */
+const nextPassageLabel = (texts: readonly { label: string }[]): string =>
+  `Passage ${texts.filter((t) => /^Passage \d+$/.test(t.label)).length + 1}`;
 
 /** A block of lines as a passage: its title, prose and any "Read…" instruction; null when it isn't prose. */
 function passageOf(
@@ -270,6 +374,42 @@ function isOptionRun(letters: readonly string[]): boolean {
   );
 }
 
+/** One space before an option marker: choices typed one after another on a line. */
+const INLINE_OPTION = /(?<=\S)\s(?=(?:\([A-Fa-f]\)|[A-Fa-f][.)])(?:\s|$))/;
+/** A choice never ends on a joining word, so `a. Plan A and b. …` is one choice. */
+const JOINS_ON = /(?:\b(?:and|or|vs|versus|to)|[,;:&])$/i;
+
+/** `A. one B. two C. three`: split when every marker is the next letter in the same style. */
+function splitInlineOptions(line: DocLine): DocLine {
+  if (line.segments && line.segments.length > 1) return line;
+  const pieces = line.text.split(INLINE_OPTION);
+  if (pieces.length < 2) return line;
+  const marks = pieces.map((p) => OPTION_MARKER.exec(p));
+  if (marks.some((m) => m === null)) return line;
+  const letters = marks.map(
+    (m) => (m as RegExpExecArray)[1] ?? (m as RegExpExecArray)[2]
+  );
+  const style = (m: RegExpExecArray) => m[0].trim().replace(/[A-Fa-f]/, 'x');
+  const first = style(marks[0] as RegExpExecArray);
+  const consecutive = letters.every(
+    (l, i) => i === 0 || l.charCodeAt(0) === letters[i - 1].charCodeAt(0) + 1
+  );
+  if (!consecutive) return line;
+  if (marks.some((m) => style(m as RegExpExecArray) !== first)) return line;
+  if (pieces.slice(0, -1).some((p) => JOINS_ON.test(p.trim()))) return line;
+  const emphasized = line.emphasized ? { emphasized: true } : {};
+  return {
+    ...line,
+    segments: pieces.map((text, i) => ({
+      text,
+      ...(i === 0 && line.segments?.[0]?.x !== undefined
+        ? { x: line.segments[0].x }
+        : {}),
+      ...emphasized,
+    })),
+  };
+}
+
 /** Split `a. one    b. two` at its space-bar gaps when the markers form a run (E2). */
 function splitSpacedOptions(line: DocLine): DocLine {
   const pieces: DocSegment[] = [];
@@ -296,6 +436,57 @@ function splitSpacedOptions(line: DocLine): DocLine {
   return isOptionRun(letters) ? { ...line, segments: pieces } : line;
 }
 
+/** `K ____/5`: a box for the marks a question earned, printed beside it. */
+const SCORE_BLANK = /^(?:[A-Z]{1,3}\s*)?_{2,}\s*\/\s*\d{1,3}$/;
+/** `A )`: a choice's letter set off from its bracket. */
+const LOOSE_MARKER = /^(\s*[A-Ha-h])\s\)(?=\s|$)/;
+/** A tick box printed before each choice of a select-all question. */
+const TICK_BOX = /^\s*[☐□❑❏◻▢○◯ò](?:\s+|$)/;
+
+/**
+ * Lines as the parser expects them: score boxes dropped, `A )` read as
+ * `A)`, and a run of tick-box choices lettered in order.
+ */
+function normalizeLines(lines: readonly DocLine[]): DocLine[] {
+  let ticks = 0;
+  return lines.map((original) => {
+    let line = original;
+    const kept = line.segments?.filter((s) => !SCORE_BLANK.test(s.text.trim()));
+    if (kept && line.segments && kept.length < line.segments.length) {
+      line = { ...line, segments: kept, text: joinSegmentText(kept) };
+    }
+    if (!line.text.trim()) return line;
+    if (TICK_BOX.test(line.text) && ticks < 8) {
+      const letter = `${String.fromCharCode(65 + ticks)}) `;
+      ticks += 1;
+      const segments = line.segments?.map((s, i) =>
+        i === 0 ? { ...s, text: s.text.replace(TICK_BOX, letter) } : s
+      );
+      return {
+        ...line,
+        text: line.text.replace(TICK_BOX, letter),
+        ...(segments ? { segments } : {}),
+      };
+    }
+    ticks = 0;
+    if (!LOOSE_MARKER.test(line.text) && !line.segments) return line;
+    const segments = line.segments?.map((s) => ({
+      ...s,
+      text: s.text.replace(LOOSE_MARKER, '$1)'),
+    }));
+    return {
+      ...line,
+      text: segments
+        ? joinSegmentText(segments)
+        : line.text.replace(LOOSE_MARKER, '$1)'),
+      ...(segments ? { segments } : {}),
+    };
+  });
+}
+
+const joinSegmentText = (segments: readonly DocSegment[]): string =>
+  segments.map((s) => s.text).join(' ');
+
 /**
  * A column gap that opens an option or a question starts a line of its own
  * (R5), so a table row `A. Rome | B. Paris` reads as two options. A marker
@@ -304,7 +495,7 @@ function splitSpacedOptions(line: DocLine): DocLine {
 export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
   const out: DocLine[] = [];
   for (const original of lines) {
-    const line = splitSpacedOptions(original);
+    const line = splitInlineOptions(splitSpacedOptions(original));
     const filled = (line.segments ?? []).filter((s) => s.text.trim());
     if (filled.length < 2) {
       out.push(line);
@@ -341,6 +532,11 @@ export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
         ...(line.page !== undefined ? { page: line.page } : {}),
         ...(line.y !== undefined ? { y: line.y } : {}),
         ...(i === 0 && line.imageIds ? { imageIds: line.imageIds } : {}),
+        ...(i === 0 && line.mathPicture ? { mathPicture: true } : {}),
+        ...(line.top !== undefined ? { top: line.top } : {}),
+        ...(line.inlineImage ? { inlineImage: line.inlineImage } : {}),
+        ...(line.inlineBoxes ? { inlineBoxes: line.inlineBoxes } : {}),
+        ...(i === 0 && line.besideIds ? { besideIds: line.besideIds } : {}),
       };
       columnLines.add(piece);
       out.push(piece);
@@ -349,12 +545,147 @@ export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
   return out;
 }
 
+type Box = { x: number; y: number; width: number; height: number };
+
+const boxCenter = (b: Box) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+
+/** A reader merges pictures stacked close together, so one box over several choices is cut back into one piece per choice. */
+export function sliceByChoice(
+  box: Box,
+  placed: readonly { top?: number; left?: number }[]
+): Box[] {
+  const inside = placed.filter(
+    (p) =>
+      p.top !== undefined &&
+      p.top >= box.y - 0.035 &&
+      p.top <= box.y + box.height + 0.035
+  );
+  const tops = [...new Set(inside.map((p) => Math.round((p.top ?? 0) * 200)))]
+    .sort((a, b) => a - b)
+    .map((t) => t / 200);
+  if (inside.length < 2) return [box];
+  // Every choice sits the same way against its picture as the first one does.
+  const lead = Math.max(0, tops[0] - box.y);
+  const bottom = box.y + box.height;
+  return tops.flatMap((top, r) => {
+    const y0 = Math.max(box.y, top - lead);
+    const y1 = r + 1 < tops.length ? tops[r + 1] - lead : bottom;
+    const row = inside
+      .filter((p) => Math.abs((p.top ?? 0) - top) < 0.005)
+      .map((p) => p.left ?? 0)
+      .sort((a, b) => a - b);
+    const xs = row.length > 1 ? row : [box.x];
+    return xs.map((x, c) => {
+      const x0 = Math.max(box.x, x);
+      const x1 = Math.min(c + 1 < xs.length ? xs[c + 1] : 1, box.x + box.width);
+      return { x: x0, y: y0, width: x1 - x0, height: Math.max(0, y1 - y0) };
+    });
+  });
+}
+
+/** Gives each blank choice the pictures printed beside it, or false when any choice has none (falls back to the whole question). */
+function cropEachChoice(draft: Draft): boolean {
+  const options = draft.options;
+  const page = options[0]?.line.page;
+  if (page === undefined) return false;
+  const placed = options.map((o) => ({
+    option: o,
+    top: o.line.top,
+    left: lineSegments(o.line)[0]?.left,
+  }));
+  if (placed.some((p) => p.top === undefined || p.option.line.page !== page)) {
+    return false;
+  }
+  const firstTop = Math.min(...placed.map((p) => p.top ?? 1));
+  // Math set as a picture in the stem still needs the whole question.
+  if ((draft.inlineImage?.top ?? 1) < firstTop - 0.035) return false;
+  const lines = [
+    ...(draft.openLine ? [draft.openLine] : []),
+    ...options.flatMap((o) => [o.line, ...o.wraps]),
+  ];
+  const seen = new Set<string>();
+  const candidates: { box: Box; figure?: string }[] = [];
+  for (const box of lines.flatMap((l) => l.inlineBoxes ?? [])) {
+    const key = figureKey({ page, ...box });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    candidates.push({ box });
+  }
+  const lefts = placed.map((p) => p.left ?? 0);
+  for (const id of draft.imageIds) {
+    const box = boxFromKey(id);
+    if (box?.page !== page) continue;
+    // A diagram above or off to the side of the choices belongs to the stem.
+    if (
+      box.y < firstTop - 0.06 ||
+      !lefts.some((x) => box.x >= x - 0.02 && box.x <= x + 0.15)
+    ) {
+      continue;
+    }
+    for (const slice of sliceByChoice(box, placed)) {
+      candidates.push({ box: slice, figure: id });
+    }
+  }
+  const sameRow = (a?: number, b?: number) =>
+    a !== undefined && b !== undefined && Math.abs(a - b) < 0.005;
+  const taken = new Set<number>();
+  const crops: { box: Box; figures: string[] }[] = [];
+  for (const p of placed) {
+    const top = p.top ?? 0;
+    const row = placed.filter((q) => sameRow(q.top, top));
+    if (row.length > 1 && row.some((q) => q.left === undefined)) return false;
+    const left = row.length > 1 ? (p.left ?? 0) - 0.01 : 0;
+    const right = Math.min(
+      1,
+      ...row
+        .map((q) => q.left ?? 0)
+        .filter((x) => p.left !== undefined && x > p.left)
+        .map((x) => x - 0.005)
+    );
+    const below = placed.map((q) => q.top ?? 0).filter((t) => t > top + 0.005);
+    const bottom = below.length > 0 ? Math.min(...below) - 0.035 : top + 0.15;
+    const mine = candidates.flatMap((c, i) => {
+      const { x, y } = boxCenter(c.box);
+      return !taken.has(i) &&
+        x >= left &&
+        x < right &&
+        y >= top - 0.035 &&
+        y < bottom
+        ? [i]
+        : [];
+    });
+    if (mine.length === 0) return false;
+    for (const i of mine) taken.add(i);
+    const boxes = mine.map((i) => candidates[i].box);
+    const x0 = Math.min(...boxes.map((b) => b.x)) - 0.004;
+    const y0 = Math.min(...boxes.map((b) => b.y)) - 0.004;
+    const x1 = Math.max(...boxes.map((b) => b.x + b.width)) + 0.004;
+    const y1 = Math.max(...boxes.map((b) => b.y + b.height)) + 0.004;
+    crops.push({
+      box: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 },
+      figures: mine.flatMap((i) => candidates[i].figure ?? []),
+    });
+  }
+  const labels: string[] = [];
+  options.forEach((option, i) => {
+    const label = newImageOnlyLabel(labels);
+    labels.push(label);
+    option.text = label;
+    option.imageId = figureKey({ page, ...crops[i].box });
+  });
+  const used = new Set(crops.flatMap((c) => c.figures));
+  draft.imageIds = draft.imageIds.filter((id) => !used.has(id));
+  return true;
+}
+
 interface OptionDraft extends ExtractedOption {
   /** The document marked this one as the answer. */
   marked: boolean;
   line: DocLine;
   /** Lines appended as wraps, which the last question may have to give back (R8). */
   wraps: DocLine[];
+  /** A caption or heading ended this choice; nothing later joins it. */
+  closed?: boolean;
 }
 
 function matchOption(
@@ -394,6 +725,11 @@ interface MatchingGroup {
 }
 
 interface Draft {
+  /** The line that opened it, and the lowest line read into it, on a PDF page. */
+  openLine?: DocLine;
+  lastTop?: number;
+  /** Equations or symbols set as images sit in its text, reaching this far up and down the page. */
+  inlineImage?: { top: number; bottom: number };
   item: number;
   part?: string;
   section: Section;
@@ -412,6 +748,14 @@ interface Draft {
   matching?: MatchingGroup;
   target?: SuggestedTarget;
   sharedTextId?: string;
+  /** The lead-in whose questions all use one picture. */
+  pictureGroup?: object;
+  /** A Word table inside the stem, and where in `textParts` it sat. */
+  table?: { at: number; rows: string[] };
+  /** Row notes about this question's pictures. */
+  pictureNotes?: string[];
+  /** The whole-question picture to use if a picture choice fails to crop. */
+  choiceFallbackId?: string;
   /** "Read paragraph 8." copied into this stem from a shared lead-in. */
   instruction?: string;
   /** The instruction is the section's directions, which a real section takes back (E16). */
@@ -458,6 +802,12 @@ const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 /** The stem as printed, with an I–VIII list sorted onto lines of its own (E3). */
 function stemText(draft: Draft): string {
   const statements = draft.statements;
+  const table = draft.table;
+  if (!statements && table) {
+    const before = tidy(draft.textParts.slice(0, table.at).join(' '));
+    const after = tidy(draft.textParts.slice(table.at).join(' '));
+    return [before, ...table.rows, after].filter(Boolean).join('\n');
+  }
   if (!statements) return tidy(draft.textParts.join(' '));
   const sorted = [...statements.items].sort((a, b) => a.n - b.n);
   const contiguous = sorted.every((s, i) => s.n === i + 1);
@@ -474,6 +824,8 @@ interface Preamble {
   lines: string[];
   range?: [number, number];
   section: Section;
+  /** Printed under a question's choices, so it leads into the questions after it. */
+  midTest?: boolean;
 }
 
 function typeFor(draft: Draft, stem: string, multi: boolean): QuizQuestionType {
@@ -578,6 +930,7 @@ function finish(
   let options: ExtractedOption[] = sortedOptions.map((o) => ({
     letter: o.letter,
     text: o.text,
+    ...(o.imageId ? { imageId: o.imageId } : {}),
   }));
 
   if (SORTING.test(stem)) {
@@ -609,7 +962,13 @@ function finish(
     const marked = sortedOptions.filter((o) => o.marked);
     if (marked.length === 1) {
       correctAnswer = marked[0].text;
-    } else if (marked.length > 1 && !keyed && !draft.inlineAnswer) {
+    } else if (
+      marked.length > 1 &&
+      // Three or more choices all marked is how the test is formatted, not an answer.
+      (marked.length < sortedOptions.length || marked.length < 3) &&
+      !keyed &&
+      !draft.inlineAnswer
+    ) {
       warnings.push(
         'More than one answer choice is marked, so the answer was left blank.'
       );
@@ -629,6 +988,7 @@ function finish(
   }
 
   if (!text) warnings.push('No question text was found.');
+  warnings.push(...(draft.pictureNotes ?? []));
   if (draft.part && draft.part !== 'A') {
     warnings.push(`Part ${draft.part} credit doesn’t depend on Part A here.`);
   }
@@ -655,7 +1015,10 @@ function finish(
     type,
     options,
     correctAnswer,
-    imageIds: draft.imageIds,
+    imageIds: [...new Set(draft.imageIds)],
+    ...(draft.choiceFallbackId
+      ? { choiceFallbackId: draft.choiceFallbackId }
+      : {}),
     warnings,
     ...(draft.target ? { suggestedTarget: draft.target } : {}),
     ...(draft.sharedTextId ? { sharedTextId: draft.sharedTextId } : {}),
@@ -741,6 +1104,11 @@ function sectionHeading(
   if (examView && EXAMVIEW_TYPE_HEADING.test(trimmed)) {
     return { name: trimmed, ungraded: false };
   }
+  // "II. Multiple Choice: Choose the one best answer…": a type heading with its directions.
+  const typed = TYPED_SECTION.exec(trimmed);
+  if (typed && NAMED_SECTION.test(tidy(typed[1]))) {
+    return { name: tidy(typed[1]), ungraded: false };
+  }
   const numbered = NUMBERED_SECTION.exec(trimmed);
   if (numbered) {
     const raw = numbered[2];
@@ -800,8 +1168,96 @@ function splitTargetFromStem(
 function isTargetWrap(previous: DocLine, line: DocLine): boolean {
   if (line.page !== previous.page) return false;
   if (line.y === undefined || previous.y === undefined) return false;
+  // The question under a bold target, or one that asks something, is not its wrap.
+  if (Boolean(previous.emphasized) !== Boolean(line.emphasized)) return false;
+  if (/\?\s*$/.test(line.text)) return false;
   const gap = previous.y - line.y;
   return gap > 0 && gap < TARGET_WRAP_GAP;
+}
+
+/** "Use the following for the next 3 questions": one list of choices for several questions. */
+const SHARED_CHOICES =
+  /\b(?:use|refer\s+to)\b.{0,40}\b(?:for|to\s+answer)\s+(?:the\s+)?next\s+(\d{1,2}|two|three|four|five|six)\s+(?:questions|items)\b/i;
+const COUNT_WORDS: Record<string, number> = {
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+};
+
+const NON_CHOICE_LINE =
+  /^(?:\(?(?:figure|fig\.|graph|table|diagram)\s*\d+\)?\.?$|use\s+(?:the\s+)?(?:figure|graph|table|diagram)\b|topic\s+\d+\s*:)/i;
+
+/** `Name: ____`, `Class:`, `Date`: the fields printed across the top of a page. */
+const PAGE_HEADER_FIELD =
+  /^\s*(?:name|class|date|period|hour|block|teacher|student)\b\s*[:_]/i;
+
+const BARE_HEADER_FIELD =
+  /^(?:name|class|date|period|hour|block|teacher|student)[:_ ]*$/i;
+
+/** `Article: Cuba Goes Dark`, `Reading: The Water Cycle`. */
+const LABELLED_TITLE = /^[A-Z][A-Za-z]{2,}\s*:\s+\S/;
+
+/** How far a wrapped piece may sit from the choice text above it, in points. */
+const COLUMN_WRAP_TOLERANCE = 3;
+
+/** `Name: ____` printed on the same line as a heading. */
+const TRAILING_HEADER_FIELD =
+  /\s*\b(?:name|date|class|period|hour|block)\b\s*:?\s*_{3,}.*$/i;
+
+/** A line telling students what to do, which is a lead-in and never a heading. */
+const DIRECTION_OPENING =
+  /^(?:use|using|refer|read|answer|choose|circle|write|match|for|look|based|according|note|directions?)\b/i;
+
+/** A bold line of a few words that is no question, choice or sentence. */
+function isBoldHeading(line: DocLine, text: string): boolean {
+  const trimmed = tidy(text);
+  return (
+    line.emphasized === true &&
+    // Word marks emphasis far more loosely than a PDF's bold font does.
+    line.page !== undefined &&
+    trimmed.split(' ').length <= 10 &&
+    /^[A-Z0-9]/.test(trimmed) &&
+    /\p{L}{3,}/u.test(trimmed) &&
+    !/[.?!,;)]$/.test(trimmed) &&
+    !DIRECTION_OPENING.test(trimmed) &&
+    !RANGE_INSTRUCTION.test(trimmed) &&
+    captionLabels(trimmed).length === 0 &&
+    !/_{3,}/.test(trimmed) &&
+    !matchQuestionOpening(trimmed) &&
+    !isOptionText(trimmed) &&
+    !targetOf(trimmed)
+  );
+}
+
+/** Text after a choice that can't be its wrap: a caption, instruction, heading, or a line starting left of the choice. */
+function isNotChoiceText(
+  option: DocLine,
+  previous: DocLine,
+  line: DocLine,
+  text: string
+): boolean {
+  if (NON_CHOICE_LINE.test(text.trim())) return true;
+  if (line.page === undefined) return false;
+  // A bold line under a plain choice is a heading.
+  if (line.emphasized && !option.emphasized) return true;
+  if (line.page !== previous.page) {
+    // Over a page break only an unfinished sentence carries on; a header or heading does not.
+    return (
+      /[.?!]["”’)]?\s*$/.test(previous.text) || PAGE_HEADER_FIELD.test(text)
+    );
+  }
+  if (line.page !== option.page) return false;
+  const x = lineSegments(line)[0]?.x;
+  const optionX = lineSegments(option)[0]?.x;
+  // A line a line-height under is a wrap back to the margin; only a paragraph gap ends the choice.
+  return (
+    x !== undefined &&
+    optionX !== undefined &&
+    x < optionX - 1 &&
+    !isTargetWrap(previous, line)
+  );
 }
 
 /** A continuation after a question's last option that is plainly its wrap (R8). */
@@ -833,7 +1289,7 @@ export function parseDocument(
   keySummary?: KeySummary;
 } {
   const multi = options.multiAnswer === true;
-  const lines = splitAtColumnMarkers(documentLines);
+  const lines = splitAtColumnMarkers(normalizeLines(documentLines));
   const examView = isExamView(lines);
   const headers = runningHeaders(lines);
   /** Where accepted question numbers sit on a PDF page (E1). */
@@ -853,6 +1309,16 @@ export function parseDocument(
   let lastOption: OptionDraft | null = null;
   let target: SuggestedTarget | undefined;
   let preamble: Preamble | null = null;
+  /** Choices printed once for the next few questions. */
+  let choiceBank: {
+    remaining: number;
+    options: OptionDraft[];
+    collecting: boolean;
+  } | null = null;
+  /** Questions opened on one printed row, with where each number sits. */
+  let rowMates: Array<{ draft: Draft; x: number }> = [];
+  /** A target line met between questions, for the wrap under it. */
+  let looseTarget: DocLine | null = null;
   /** A preamble already turned into shared text, still covering later items. */
   let covering: {
     range?: [number, number];
@@ -861,7 +1327,85 @@ export function parseDocument(
     instruction?: string;
     /** An instruction with no question range covers only the next question. */
     once?: boolean;
+    /** A lead-in with no range covers the next question, then each one that refers back. */
+    whileReferring?: boolean;
+    used?: boolean;
+    /** The lead-in points at a picture every question in its range uses. */
+    sharesPictures?: boolean;
   } | null = null;
+  /** Pictures waiting for the question printed under them. */
+  let pendingPictures: string[] = [];
+  /** Matching directions that may still wrap onto the next line. */
+  let directionsOpen: MatchingGroup | null = null;
+
+  /** Each picture's printed captions, and lettering printed with it that its file doesn't hold. */
+  const captions = new Map<string, string[]>();
+  const lostLabels = new Map<string, string[]>();
+  for (const line of lines) {
+    for (const [id, labels] of Object.entries(line.figureLabels ?? {})) {
+      captions.set(id, labels);
+    }
+    for (const id of line.lostLabels ? (line.imageIds ?? []) : []) {
+      lostLabels.set(id, line.lostLabels ?? []);
+    }
+  }
+  const hasPicture = (line: DocLine | undefined): boolean =>
+    (line?.imageIds?.length ?? 0) > 0;
+  const uncaptioned = (line: DocLine | undefined): boolean =>
+    (line?.imageIds ?? []).some((id) => !captions.has(id));
+  /** "A", "B": a few words beside a picture that open no question or choice. */
+  const isLettering = (line: DocLine | undefined): boolean => {
+    const text = line?.text.trim() ?? '';
+    return (
+      line !== undefined &&
+      text.length <= 24 &&
+      text.split(/\s+/).length <= 3 &&
+      /[\p{L}\d]/u.test(text) &&
+      !/[.?!:,;]$/.test(text) &&
+      !matchQuestionOpening(text) &&
+      !matchOption(line) &&
+      captionLabels(text).length === 0
+    );
+  };
+  // A Word caption is a line of its own near its picture; a PDF's was read off the page.
+  lines.forEach((line, i) => {
+    if (line.page !== undefined) return;
+    const labels = captionLabels(line.text);
+    if (labels.length === 0) return;
+    const near: number[] = [];
+    for (let d = 1; d <= CAPTION_REACH && near.length < labels.length; d += 1) {
+      for (const at of [i - d, i + d]) {
+        if (near.length < labels.length && uncaptioned(lines[at])) {
+          near.push(at);
+        }
+      }
+    }
+    near.sort((a, b) => a - b);
+    near.forEach((at, n) => {
+      const own = near.length === labels.length ? [labels[n]] : labels;
+      // One caption also names the pictures joined to its own by nothing but lettering.
+      const block = [at];
+      const letters: string[] = [];
+      if (near.length === 1) {
+        for (const step of [-1, 1]) {
+          for (let k = at + step; k !== i && lines[k]; k += step) {
+            const other = lines[k];
+            if (hasPicture(other) && !other.text.trim()) block.push(k);
+            else if (isLettering(other)) letters.push(other.text.trim());
+            else break;
+          }
+        }
+      }
+      for (const k of block) {
+        for (const id of lines[k].imageIds ?? []) {
+          if (!captions.has(id)) captions.set(id, own);
+          if (letters.length > 0 && !lostLabels.has(id)) {
+            lostLabels.set(id, letters);
+          }
+        }
+      }
+    });
+  });
 
   const endQuestion = (): void => {
     current = null;
@@ -873,10 +1417,17 @@ export function parseDocument(
     printed?: number;
     ungraded: boolean;
   }): void => {
+    // A bare "Name:" field is the page's header, never a part of the test.
+    if (heading && BARE_HEADER_FIELD.test(heading.name)) return;
     endQuestion();
     section = {
       ordinal: 0,
-      ...(heading?.name ? { name: heading.name } : {}),
+      ...(heading?.name
+        ? {
+            name:
+              heading.name.replace(TRAILING_HEADER_FIELD, '') || heading.name,
+          }
+        : {}),
       ...(heading?.printed ? { printed: heading.printed } : {}),
       ungraded: heading?.ungraded ?? false,
       questionCount: 0,
@@ -910,28 +1461,71 @@ export function parseDocument(
     return passageOf(block) !== null;
   };
 
-  /** Turn a waiting preamble into shared text for the questions it covers (R25). */
+  /** Settles the preamble, and notes when its question range shares a picture. */
   const settlePreamble = (): void => {
+    const waiting = preamble;
+    settleText();
+    const range = waiting?.range;
+    if (!waiting || !range || !PICTURE_LEAD.test(waiting.lines.join(' '))) {
+      return;
+    }
+    if (covering?.range !== range) {
+      covering = { range, section: waiting.section };
+    }
+    covering.sharesPictures = true;
+  };
+
+  /** Turn a waiting preamble into shared text for the questions it covers (R25). */
+  const settleText = (): void => {
     const waiting = preamble;
     preamble = null;
     if (!waiting) return;
     const all = tidy(waiting.lines.join(' '));
     if (!all) return;
-    const found = options.passages ? passageOf(waiting.lines) : null;
+    // Directions heading the test tell students how to take it; they are no passage.
+    const heading =
+      drafts.length === 0 &&
+      !waiting.range &&
+      !PASSAGE_CUE.test(all) &&
+      TEST_DIRECTIONS.test(all);
+    // "Full Solution - Write clear solutions to the following problems": a new part of the test.
+    if (
+      !waiting.range &&
+      !PASSAGE_CUE.test(all) &&
+      !INSTRUCTIONS_OPENING.test(all) &&
+      drafts.length > 0 &&
+      FOLLOWING_DIRECTIONS.test(all)
+    ) {
+      const named = /^([^.?!:]{3,40}?)\s*[-–—:]\s+(\S.*)$/.exec(all);
+      if (named) {
+        startSection({ name: named[1], ungraded: false });
+        section.directions = named[2];
+      } else {
+        section.directions ??= all;
+      }
+      return;
+    }
+    const found =
+      options.passages && !heading ? passageOf(waiting.lines) : null;
     if (found) {
       const id = `text-${texts.length + 1}`;
       texts.push({
         id,
         text: found.text,
-        label: found.label ?? `Passage ${texts.length + 1}`,
+        label: found.label ?? nextPassageLabel(texts),
       });
       // Found by length alone, so the review asks the teacher to check the link.
-      if (!waiting.range && !PASSAGE_CUE.test(all)) guessedTexts.add(id);
+      const guessed = !waiting.range && !PASSAGE_CUE.test(all);
+      if (guessed) guessedTexts.add(id);
       covering = {
         ...(waiting.range ? { range: waiting.range } : {}),
         section: waiting.section,
         textId: id,
         ...(found.instruction ? { instruction: found.instruction } : {}),
+        // A note about the figures stays with the questions that keep pointing at them.
+        ...(guessed && PICTURE_LEAD.test(found.text)
+          ? { whileReferring: true }
+          : {}),
       };
       return;
     }
@@ -943,12 +1537,39 @@ export function parseDocument(
     const passage = sentences
       .filter((s) => s !== instruction && !RANGE_INSTRUCTION.test(s))
       .join(' ');
+    /** A paragraph under a question's choices goes with what follows, never nowhere. */
+    const leadIn = (): void => {
+      const lead = sentences
+        .filter((s) => !RANGE_INSTRUCTION.test(s))
+        .join(' ');
+      if (!lead) return;
+      if (lead.length <= SHORT_LEAD_IN) {
+        covering = { once: true, section: waiting.section, instruction: lead };
+        return;
+      }
+      const id = `text-${texts.length + 1}`;
+      texts.push({ id, text: lead, label: nextPassageLabel(texts) });
+      guessedTexts.add(id);
+      covering = { section: waiting.section, textId: id, whileReferring: true };
+    };
     if (passage.length > SHORT_LEAD_IN || (!instruction && passage)) {
       // Without a question range, only a "read the passage" cue makes it shared text.
-      if (!waiting.range && !PASSAGE_CUE.test(all)) return;
-      if (passage.length <= SHORT_LEAD_IN && !waiting.range) return;
+      if (
+        !waiting.range &&
+        (!PASSAGE_CUE.test(all) || passage.length <= SHORT_LEAD_IN)
+      ) {
+        if (waiting.midTest) leadIn();
+        return;
+      }
       const id = `text-${texts.length + 1}`;
-      texts.push({ id, text: passage, label: `Passage ${texts.length + 1}` });
+      texts.push({
+        id,
+        text: passage,
+        label:
+          passage.length <= SHORT_LEAD_IN
+            ? 'Directions'
+            : nextPassageLabel(texts),
+      });
       covering = {
         ...(waiting.range ? { range: waiting.range } : {}),
         section: waiting.section,
@@ -1005,12 +1626,35 @@ export function parseDocument(
     }
     const part = PART.exec(stem);
     const cover = covering;
+    const lapsed =
+      cover?.whileReferring === true &&
+      cover.used === true &&
+      !REFERS_BACK.test(stem);
     const covered =
       cover &&
+      !lapsed &&
       cover.section === section &&
       (!cover.range || (item >= cover.range[0] && item <= cover.range[1]));
-    if (cover && ((!covered && cover.range) || cover.once)) covering = null;
+    if (cover && ((!covered && cover.range) || cover.once || lapsed)) {
+      covering = null;
+    }
+    if (cover && covered) cover.used = true;
+    const waitingPictures = pendingPictures;
+    pendingPictures = [];
+    // The next question under a shared list of choices takes a copy of it.
+    const banked =
+      choiceBank && choiceBank.options.length >= 2
+        ? [...choiceBank.options]
+            .sort((p, q) => p.letter.localeCompare(q.letter))
+            .map((o) => ({ ...o, wraps: [], closed: true }))
+        : [];
+    if (choiceBank) {
+      choiceBank.collecting = false;
+      choiceBank.remaining -= 1;
+      if (choiceBank.remaining <= 0) choiceBank = null;
+    }
     current = {
+      openLine: line,
       item,
       ...(part && part[1].toUpperCase() === 'A' ? { part: 'A' } : {}),
       section,
@@ -1018,11 +1662,12 @@ export function parseDocument(
       ...(part && part[1].toUpperCase() === 'A'
         ? { leadIn: { parts: [] } }
         : {}),
-      options: [],
+      options: banked,
       gridded: false,
-      imageIds: [...(line.imageIds ?? [])],
+      imageIds: [...waitingPictures, ...(line.imageIds ?? [])],
       ...(target ? { target } : {}),
       ...(covered && cover?.textId ? { sharedTextId: cover.textId } : {}),
+      ...(covered && cover?.sharesPictures ? { pictureGroup: cover } : {}),
       ...(covered && cover?.instruction
         ? {
             instruction: cover.instruction,
@@ -1061,14 +1706,44 @@ export function parseDocument(
       // A paragraph holding nothing but a picture still belongs to the
       // question it sits under.
       const open = current;
-      if (open && line.imageIds?.length) {
+      if (!line.imageIds?.length) return;
+      // A picture heading its page, or set in a lead-in, belongs to the question under it.
+      if (line.leads || (!open && drafts.length > 0)) {
+        pendingPictures.push(...line.imageIds);
+      } else if (open) {
         open.imageIds.push(...line.imageIds);
       }
       return;
     }
     if (headers.has(tidy(text))) return;
+    // A stray full stop or dash on a line of its own says nothing.
+    if (text.length <= 2 && !/[\p{L}\p{N}]/u.test(text)) {
+      current?.imageIds.push(...(line.imageIds ?? []));
+      return;
+    }
+
+    const wrappingDirections = directionsOpen;
+    directionsOpen = null;
+    if (
+      wrappingDirections &&
+      !/[.!?:]$/.test(wrappingDirections.directions ?? '') &&
+      !matchQuestionOpening(text) &&
+      !matchingTerms(line)
+    ) {
+      wrappingDirections.directions = tidy(
+        `${wrappingDirections.directions ?? ''} ${text}`
+      );
+      directionsOpen = wrappingDirections;
+      return;
+    }
 
     const open = current;
+    if (open && line.page === open.openLine?.page) {
+      if (line.top !== undefined) {
+        open.lastTop = Math.max(open.lastTop ?? 0, line.top);
+      }
+      open.inlineImage = reach(open.inlineImage, line.inlineImage);
+    }
 
     // A written item's parts, and a label like "20 A" naming its own number, stay in its prompt.
     if (
@@ -1136,12 +1811,49 @@ export function parseDocument(
       }
     }
 
+    // One list of choices printed above the questions that share it.
+    const shared = matchQuestionOpening(text)
+      ? null
+      : SHARED_CHOICES.exec(text);
+    if (shared) {
+      endQuestion();
+      const count = COUNT_WORDS[shared[1].toLowerCase()] ?? Number(shared[1]);
+      choiceBank = { remaining: count, options: [], collecting: true };
+      return;
+    }
+    if (choiceBank?.collecting && !open) {
+      const banked = matchOption(line);
+      if (banked) {
+        choiceBank.options.push({ ...banked, marked: false, line, wraps: [] });
+        return;
+      }
+      if (!matchQuestionOpening(text)) choiceBank = null;
+    }
+
+    // A target that wrapped, when it stands between questions.
+    if (
+      looseTarget &&
+      target &&
+      !/[.!?]$/.test(target.label) &&
+      isTargetWrap(looseTarget, line)
+    ) {
+      target = { ...target, label: tidy(`${target.label} ${text}`) };
+      looseTarget = line;
+      return;
+    }
+    looseTarget = null;
+
     const lineTarget = targetOf(text);
     if (lineTarget) {
       target = lineTarget;
       // Inside a stem it belongs to this question; after the options, to the next.
-      if (open && open.options.length === 0) open.target = lineTarget;
-      else endQuestion();
+      if (open && open.options.length === 0) {
+        open.target = lineTarget;
+        open.targetLine = line;
+      } else {
+        endQuestion();
+        looseTarget = line;
+      }
       return;
     }
 
@@ -1224,6 +1936,25 @@ export function parseDocument(
       startSection(heading);
       return;
     }
+    const betweenQuestions = !open || open.options.length > 0;
+    // The name and date fields across the top of a page are not part of any question.
+    if (
+      betweenQuestions &&
+      line.page !== undefined &&
+      PAGE_HEADER_FIELD.test(text)
+    ) {
+      return;
+    }
+    // A short bold line between questions heads the ones under it: "Article: Cuba Goes Dark".
+    if (
+      betweenQuestions &&
+      isBoldHeading(line, text) &&
+      !lastOption?.line.emphasized &&
+      (drafts.length > 0 || Boolean(open) || LABELLED_TITLE.test(text))
+    ) {
+      startSection({ name: tidy(text), ungraded: false });
+      return;
+    }
 
     // "Match each term…" opens a term list, under a Matching heading or not.
     if (
@@ -1233,6 +1964,7 @@ export function parseDocument(
     ) {
       endQuestion();
       section.matching = newGroup(tidy(text));
+      directionsOpen = section.matching;
       return;
     }
 
@@ -1242,7 +1974,23 @@ export function parseDocument(
     const opening = matchQuestionOpening(beside?.lead ?? text);
     const numberX =
       opening && !opening.labelled ? numberPosition(line) : undefined;
-    if (opening && atNumberPosition(numberXs, numberX)) {
+    // `5. …    6. …`: the next number printed beside the last one is a question, however far across.
+    const besideLast =
+      opening !== null &&
+      columnLines.has(line) &&
+      line.y !== undefined &&
+      lines[openedAt]?.y === line.y &&
+      lines[openedAt]?.page === line.page &&
+      opening.number === section.lastItem + 1;
+    // `____ 2)`: a number after an answer blank is a question wherever the blank puts it.
+    const blankLed =
+      opening !== null &&
+      /^_{2,}\s/.test(text) &&
+      (section.questionCount === 0 || opening.number === section.lastItem + 1);
+    if (
+      opening &&
+      (besideLast || blankLed || atNumberPosition(numberXs, numberX))
+    ) {
       const n = opening.number;
       // ExamView numbers straight through, so only a heading restarts it.
       // A `1.` inside a stem that hasn't reached its options is a list, not a restart.
@@ -1260,6 +2008,10 @@ export function parseDocument(
         if (restart) startSection();
         const opened = openQuestion(n, opening.text, line);
         openedAt = index;
+        opened.inlineImage = reach(opened.inlineImage, line.inlineImage);
+        if (line.top !== undefined) opened.lastTop = line.top;
+        const mate = { draft: opened, x: numberX ?? 0 };
+        rowMates = besideLast ? [...rowMates, mate] : [mate];
         if (beside?.lead && opened.matching) {
           opened.matching.terms.push(...beside.terms);
         }
@@ -1272,10 +2024,21 @@ export function parseDocument(
         }
         return;
       }
+      // `5. ______`: the answer blank for a question already read.
+      if (n <= section.lastItem && /^_{3,}$/.test(opening.text.trim())) return;
     }
 
-    const range = RANGE_INSTRUCTION.exec(text);
-    if (range && (!open || open.matching || open.options.length > 0)) {
+    const range = RANGE_INSTRUCTION.exec(text) ?? FOR_RANGE.exec(text);
+    // Directions for the questions that come next end a written question above them.
+    const leadsNext =
+      range !== null &&
+      Number(range[1]) === section.lastItem + 1 &&
+      Number(range[2]) > Number(range[1]) &&
+      DIRECTIONS_START.test(text);
+    if (
+      range &&
+      (!open || open.matching || open.options.length > 0 || leadsNext)
+    ) {
       endQuestion();
       settlePreamble();
       preamble = {
@@ -1287,8 +2050,58 @@ export function parseDocument(
     }
 
     if (!open) {
-      if (preamble) preamble.lines.push(text);
-      else preamble = { lines: [text], section };
+      // A caption names its picture; it isn't part of a lead-in.
+      if (captionLabels(text).length > 0) return;
+      // The name and hour blanks beside a title are not part of the lead-in.
+      const kept =
+        line.page === undefined
+          ? text
+          : text.replace(TRAILING_HEADER_FIELD, '').trim();
+      if (!/[\p{L}\d]/u.test(kept)) return;
+      if (preamble) preamble.lines.push(kept);
+      else preamble = { lines: [kept], section };
+      return;
+    }
+
+    // Under questions printed side by side, each column's next line returns to its own question.
+    if (rowMates.length > 1) {
+      const mates = rowMates;
+      const pieces = lineSegments(line).filter((p) => p.text.trim());
+      const owners = pieces.map((p) => {
+        const x = p.x;
+        if (x === undefined) return undefined;
+        let at = -1;
+        mates.forEach((m, i) => {
+          if (x >= m.x - NUMBER_X_TOLERANCE) at = i;
+        });
+        const next = mates[at + 1];
+        const fits = !next || p.xEnd === undefined || p.xEnd <= next.x;
+        return at >= 0 && fits ? mates[at] : undefined;
+      });
+      if (
+        line.page === lines[openedAt]?.page &&
+        mates.every((m) => m.draft.options.length === 0) &&
+        !matchOption(line) &&
+        owners.every(Boolean)
+      ) {
+        pieces.forEach((p, i) => {
+          owners[i]?.draft.textParts.push(tidy(p.text));
+        });
+        return;
+      }
+      rowMates = [];
+    }
+
+    // A starred bold note under a written question is the teacher's, not the question's.
+    if (
+      open.options.length === 0 &&
+      line.page !== undefined &&
+      line.emphasized &&
+      !lines[openedAt]?.emphasized &&
+      text.startsWith('*')
+    ) {
+      endQuestion();
+      preamble = { lines: [text], section };
       return;
     }
     open.rawLines.push(line);
@@ -1352,7 +2165,8 @@ export function parseDocument(
     if (options.passages && afterChoice && passageStartsAt(index)) {
       open.rawLines.pop();
       endQuestion();
-      preamble = { lines: [text], section };
+      // A ruled line above the passage is not part of it.
+      preamble = { lines: /[\p{L}\d]/u.test(text) ? [text] : [], section };
       return;
     }
 
@@ -1360,13 +2174,286 @@ export function parseDocument(
     // question hasn't reached its options yet.
     const wrapping = lastOption;
     if (wrapping) {
-      wrapping.text = tidy(`${wrapping.text} ${text}`);
+      // A caption, a rule or a paragraph under the choices ends them; a paragraph leads into the next question.
+      if (
+        wrapping.closed ||
+        !/[\p{L}\d]/u.test(text) ||
+        isNotChoiceText(
+          wrapping.line,
+          wrapping.wraps.at(-1) ?? wrapping.line,
+          line,
+          text
+        )
+      ) {
+        wrapping.closed = true;
+        open.rawLines.pop();
+        open.imageIds.push(...(line.imageIds ?? []));
+        if (captionLabels(text).length > 0 || !/[\p{L}\d]/u.test(text)) {
+          return;
+        }
+        endQuestion();
+        preamble = { lines: [text], section, midTest: true };
+        return;
+      }
+      const pieces = lineSegments(line).filter((p) => p.text.trim());
+      const owners = pieces.map((p) =>
+        [...open.options]
+          .reverse()
+          .find((o) =>
+            lineSegments(o.line).some(
+              (g) =>
+                p.x !== undefined &&
+                g.x !== undefined &&
+                Math.abs(g.x - p.x) <= COLUMN_WRAP_TOLERANCE
+            )
+          )
+      );
+      if (
+        pieces.length > 1 &&
+        owners.every(Boolean) &&
+        new Set(owners).size === pieces.length
+      ) {
+        // Choices in two columns wrap side by side; each piece returns to the choice above it.
+        pieces.forEach((p, i) => {
+          const owner = owners[i] as OptionDraft;
+          owner.text = tidy(`${owner.text} ${p.text}`);
+        });
+      } else {
+        wrapping.text = tidy(`${wrapping.text} ${text}`);
+      }
       wrapping.wraps.push(line);
+    } else if (
+      line.tableRow &&
+      !open.statements &&
+      !SORTING.test(open.textParts.join(' '))
+    ) {
+      // A Word table in the stem keeps its rows, one to a line.
+      open.table ??= { at: open.textParts.length, rows: [] };
+      open.table.rows.push(
+        lineSegments(line)
+          .map((cell) => tidy(cell.text))
+          .filter(Boolean)
+          .join(' | ')
+      );
     } else {
       open.textParts.push(text);
     }
     open.imageIds.push(...(line.imageIds ?? []));
   });
+
+  // A picture a question names by its caption goes to that question, wherever it was printed.
+  const namedIn = (draft: Draft): Set<string> =>
+    figureRefs(
+      [
+        draft.instruction ?? '',
+        ...(draft.leadIn?.parts ?? []),
+        ...draft.textParts,
+        texts.find((t) => t.id === draft.sharedTextId)?.text ?? '',
+      ].join(' ')
+    );
+  for (const [id, labels] of captions) {
+    const naming = new Set(
+      drafts.filter((d) => labels.some((label) => namedIn(d).has(label)))
+    );
+    if (naming.size === 0) continue;
+    const kinds = [...new Set(labels.map((label) => label.split(' ')[0]))];
+    // "the graph to the right" keeps the picture printed beside it.
+    const unnamed = new RegExp(
+      `\\b(?:the|this|that)\\s+(?:${kinds.join('|')})s?\\b(?!\\s*#?\\s*\\d)`,
+      'i'
+    );
+    for (const draft of drafts) {
+      const has = draft.imageIds.includes(id);
+      if (naming.has(draft)) {
+        if (!has) draft.imageIds.push(id);
+      } else if (has && !unnamed.test(draft.textParts.join(' '))) {
+        draft.imageIds = draft.imageIds.filter((other) => other !== id);
+      }
+    }
+    // "the graph" in the question next to one that names Graph 1 is the same graph.
+    const holders = drafts.map((d) => d.imageIds.includes(id));
+    drafts.forEach((draft, i) => {
+      if (
+        !holders[i] &&
+        (holders[i - 1] || holders[i + 1]) &&
+        unnamed.test(draft.textParts.join(' '))
+      ) {
+        draft.imageIds.push(id);
+      }
+    });
+  }
+  // "Use the diagram to answer questions 17-20" puts the diagram on all four.
+  const groups = new Map<object, Draft[]>();
+  for (const draft of drafts) {
+    if (!draft.pictureGroup) continue;
+    groups.set(draft.pictureGroup, [
+      ...(groups.get(draft.pictureGroup) ?? []),
+      draft,
+    ]);
+  }
+  for (const members of groups.values()) {
+    const shared = [...new Set(members.flatMap((d) => d.imageIds))];
+    for (const draft of members) draft.imageIds = [...shared];
+  }
+  drafts.forEach((draft, i) => {
+    const before = drafts[i - 1];
+    if (
+      draft.imageIds.length === 0 &&
+      before &&
+      before.section === draft.section &&
+      before.imageIds.length > 0
+    ) {
+      const stem = draft.textParts.join(' ');
+      if (FIGURE_ABOVE.test(stem)) draft.imageIds = [...before.imageIds];
+      else if (LABEL_ASKED.test(stem)) {
+        // "…represented by which number?" needs the diagram the question before it used.
+        draft.imageIds = [...before.imageIds];
+        draft.pictureNotes = [
+          'This question asks about a label on a picture, so it was given the picture from the question before it. Check that it is the right one.',
+        ];
+      }
+    }
+  });
+
+  const besideIds = new Set(lines.flatMap((line) => line.besideIds ?? []));
+  for (const draft of drafts) {
+    const stem = draft.textParts.join(' ');
+    if (
+      !draft.imageIds.some((id) => besideIds.has(id)) ||
+      REFERS_BACK.test(stem) ||
+      LABEL_ASKED.test(stem)
+    ) {
+      continue;
+    }
+    draft.pictureNotes = [
+      ...(draft.pictureNotes ?? []),
+      'This picture is printed beside more than one question, so it was added to each of them. Remove it here if this question doesn’t use it.',
+    ];
+  }
+
+  // Bold or underlined letters on nearly every choice are how the test is set, not its answers.
+  const lettered = drafts.flatMap((d) => d.options);
+  if (
+    lettered.length >= 8 &&
+    lettered.filter((o) => o.marked).length >= 0.7 * lettered.length
+  ) {
+    for (const option of lettered) option.marked = false;
+  }
+
+  // Lettered parts that each ask something are one written question, not its choices.
+  for (const draft of drafts) {
+    if (
+      draft.options.length >= 2 &&
+      !draft.matching &&
+      !draft.textParts.join(' ').includes('?') &&
+      draft.options.every((o) => o.text.length >= 60) &&
+      draft.options.filter((o) => o.text.includes('?')).length >= 2
+    ) {
+      draft.partLines = [
+        ...(draft.partLines ?? []),
+        ...draft.options.map((o) => `${o.letter}) ${o.text}`),
+      ];
+      draft.options = [];
+    }
+  }
+
+  // Choices or math set as images can't be typed, so the whole question comes in as a picture.
+  drafts.forEach((draft, i) => {
+    const open = draft.openLine;
+    const top = open?.top;
+    const blankChoices =
+      draft.options.length >= 2 && draft.options.every((o) => !o.text.trim());
+    if (
+      !open ||
+      open.page === undefined ||
+      top === undefined ||
+      !(blankChoices || draft.inlineImage)
+    ) {
+      return;
+    }
+    const next = drafts
+      .slice(i + 1)
+      .find((d) => d.openLine?.page === open.page && d.openLine?.top);
+    const own = draft.imageIds
+      .map(boxFromKey)
+      .filter((box) => box?.page === open.page)
+      .map((box) => (box ? box.y + box.height : 0));
+    // A tall equation reaches above its line, into what would be the question before it.
+    const startOf = (d: Draft, at: number): number => {
+      const tops = d.imageIds
+        .map(boxFromKey)
+        .filter((box) => box?.page === open.page)
+        .map((box) => box?.y ?? 1)
+        .filter((y) => y < at && y > at - 0.06);
+      return Math.min(
+        at - QUESTION_ASCENT,
+        Math.min(d.inlineImage?.top ?? 1, ...tops) - 0.004
+      );
+    };
+    const end =
+      next?.openLine?.top !== undefined && next.openLine.top > top
+        ? startOf(next, next.openLine.top) - 0.006
+        : Math.max(
+            draft.lastTop ?? top,
+            draft.inlineImage?.bottom ?? 0,
+            ...own
+          ) + 0.02;
+    const start = startOf(draft, top);
+    if (end - start < 0.02) return;
+    const key = figureKey({
+      page: open.page,
+      x: 0.04,
+      y: start,
+      width: 0.92,
+      height: Math.min(end - start, 0.7),
+    });
+    const stem = tidy(draft.textParts.join(' '));
+    if (
+      blankChoices &&
+      options.answerPictures &&
+      !draft.matching &&
+      !ORDERING.test(stem) &&
+      !SORTING.test(stem) &&
+      cropEachChoice(draft)
+    ) {
+      // The whole question stays ready in case a choice's own crop fails.
+      draft.choiceFallbackId = key;
+      return;
+    }
+    draft.imageIds = [key];
+    for (const option of draft.options) {
+      if (!option.text.trim()) option.text = option.letter;
+    }
+    draft.pictureNotes = [
+      blankChoices
+        ? 'This question’s choices are pictures or equations the reader can’t type, so the whole question was added as a picture and the choices are named by their letters.'
+        : draft.options.length === 0
+          ? 'Part of this question is an equation or symbol set as a picture, so the whole question was added as a picture. If the picture shows answer choices, add them here.'
+          : 'Part of this question is an equation or symbol set as a picture, so the whole question was added as a picture. Check its text against it.',
+    ];
+  });
+
+  const mathPictures = new Set(
+    lines.flatMap((line) => (line.mathPicture ? (line.imageIds ?? []) : []))
+  );
+  for (const draft of drafts) {
+    if (!draft.imageIds.some((id) => mathPictures.has(id))) continue;
+    draft.pictureNotes = [
+      ...(draft.pictureNotes ?? []),
+      'This question has math that plain text can’t show in full, so that line was also added as a picture. Check the question’s text against it.',
+    ];
+  }
+
+  for (const draft of drafts) {
+    const lost = [
+      ...new Set(draft.imageIds.flatMap((id) => lostLabels.get(id) ?? [])),
+    ];
+    if (lost.length === 0) continue;
+    draft.pictureNotes = [
+      ...(draft.pictureNotes ?? []),
+      `The lettering printed with this question’s picture (${lost.join(', ')}) isn’t part of the picture in a Word file or Google Doc. Add it to the picture, or import the test as a PDF.`,
+    ];
+  }
 
   // Every item in a set answers from its whole term list, wherever that was printed.
   for (const draft of drafts) {
@@ -1421,7 +2508,7 @@ export function parseDocument(
     if (!passage) continue;
     if (!id) {
       id = `text-${texts.length + 1}`;
-      texts.push({ id, text: passage, label: `Passage ${texts.length + 1}` });
+      texts.push({ id, text: passage, label: nextPassageLabel(texts) });
       leadIns.set(draft.leadIn, id);
     }
     draft.sharedTextId = id;
@@ -1469,7 +2556,9 @@ export function parseDocument(
           : []
       )
     : [];
-  const typed = examView ? applyExamViewTypes(finished) : finished;
+  const typed = (examView ? applyExamViewTypes(finished) : finished).map(
+    asTrueFalse
+  );
   const inlineKeyed = mergeAnswerKey(
     { title: '', questions: typed, images: [], warnings: [] },
     inlineItems,
@@ -1487,17 +2576,16 @@ export function parseDocument(
     if (!text || !guessedTexts.has(text.id)) return q;
     const linked = questions.filter((o) => o.sharedTextId === text.id);
     if (linked[0] !== q) return q;
-    const label = (o: ExtractedQuestion) =>
-      o.sourceLabel ?? String(o.ref?.item ?? o.number);
+    // No question numbers: combining and unticking renumber the rows.
     const span =
       linked.length > 1
-        ? `questions ${label(q)}–${label(linked[linked.length - 1])}`
-        : `question ${label(q)}`;
+        ? `${linked.length} questions, starting with this one,`
+        : 'this question';
     return {
       ...q,
       warnings: [
         ...q.warnings,
-        `“${text.label}” was attached to ${span} as a passage. Check that it belongs with them.`,
+        `“${text.label}” was attached to ${span} as a passage. Check that it belongs there.`,
       ],
     };
   });

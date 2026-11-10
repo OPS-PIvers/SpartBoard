@@ -201,5 +201,25 @@ describe('RevealGridCardsField', () => {
       await waitFor(() => expect(drive.updateFileContent).toHaveBeenCalled());
       expect(drive.uploadFile).not.toHaveBeenCalled();
     });
+
+    it('shows the link instead of a failure when the clipboard is blocked', async () => {
+      const drive = makeDrive(true);
+      vi.mocked(useGoogleDrive).mockReturnValue({
+        driveService: drive,
+      } as never);
+      const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText },
+        configurable: true,
+      });
+      render(<RevealGridCardsField ctx={makeCtx(importedWidget)} />);
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: /share url/i }));
+      await waitFor(() => expect(showAlert).toHaveBeenCalled());
+      expect(showAlert).toHaveBeenCalledWith(
+        'https://drive/link',
+        expect.objectContaining({ variant: 'info' })
+      );
+    });
   });
 });

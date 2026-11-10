@@ -1,3 +1,4 @@
+import { choicePictureFields } from '@/utils/quizAnswerImages';
 import type { PaperBatch, PaperPageMap, QuizData, QuizResponse } from '@/types';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { selectRepresentativeAnswers } from './answerTakeOrdering';
@@ -29,6 +30,8 @@ export interface SheetReprint {
   pageCount: number;
   /** The batch's page maps (layoutVersion 2); the reprint then draws every page from them (D42). */
   pageMaps?: PaperPageMap[];
+  /** Printed page number of each reprint page, only when prompt pages were left out and the numbers moved. */
+  printedPages?: number[];
   /** Stem per written question id, for the headers above its box. */
   writtenTexts?: Record<string, string>;
   /** Bubble the student filled per row; null for a passed or unclear row. */
@@ -42,11 +45,13 @@ export interface SheetReprint {
 function bubbleFor(
   choiceOrder: Record<string, string[]> | undefined,
   questionId: string,
-  text: string
+  text: string,
+  recorded?: Record<string, string[]>
 ): number | null {
   if (!text) return null;
-  const order = choiceOrder?.[questionId];
-  if (order) {
+  // An answer scanned before a choice was reworded still holds the wording printed then.
+  for (const order of [choiceOrder?.[questionId], recorded?.[questionId]]) {
+    if (!order) continue;
     let i = order.indexOf(text);
     if (i < 0) {
       const wanted = normalizeAnswer(text);
@@ -80,13 +85,15 @@ export function planSheetReprint(
   quiz: QuizData
 ): SheetReprint | null {
   if (!response.paperBatchId || response.paperSeat === undefined) return null;
-  const pageMaps =
+  const seatMaps =
     batch.layoutVersion === 2 && batch.pageMaps?.length
-      ? pageMapsForSeat(batch, response.paperSeat)
-          // A prompt page holds nothing the student wrote, so a reprint leaves it out.
-          ?.filter((m) => !m.prompt)
-          .map((m, i) => ({ ...m, page: i + 1 }))
+      ? // A prompt page holds nothing the student wrote, so a reprint leaves it out.
+        pageMapsForSeat(batch, response.paperSeat)?.filter((m) => !m.prompt)
       : undefined;
+  const pageMaps = seatMaps?.map((m, i) => ({ ...m, page: i + 1 }));
+  const printedPages = seatMaps?.some((m, i) => m.page !== i + 1)
+    ? seatMaps.map((m) => m.page)
+    : undefined;
   // A v2 batch reads its MC rows off the map, in sheet-row order; older batches recompute them.
   const rows = pageMaps
     ? pageMaps
@@ -105,7 +112,12 @@ export function planSheetReprint(
     const entry = answers.get(row.questionId);
     filled.push(
       entry && !entry.unresponded
-        ? bubbleFor(choiceOrder, row.questionId, entry.answer ?? '')
+        ? bubbleFor(
+            choiceOrder,
+            row.questionId,
+            entry.answer ?? '',
+            batch.choiceOrder
+          )
         : null
     );
     unclear.push(entry?.unresponded === 'paper-unclear');
@@ -125,6 +137,10 @@ export function planSheetReprint(
           questionTexts: rows.map((row) => ({
             text: questions.get(row.questionId)?.text ?? '',
             choices: choiceOrder?.[row.questionId] ?? [],
+            ...choicePictureFields(
+              questions.get(row.questionId),
+              choiceOrder?.[row.questionId] ?? []
+            ),
           })),
         }
       : {}),
@@ -137,10 +153,19 @@ export function planSheetReprint(
     ...(pageMaps
       ? { pageMaps, writtenTexts: writtenTextsOf(pageMaps, questions) }
       : {}),
+    ...(printedPages ? { printedPages } : {}),
     filled,
     correct,
     unclear,
   };
+}
+
+/** The page number printed on reprint page `index` (0-based), which is what a kept page is filed under. */
+export function printedPageOf(
+  reprint: Pick<SheetReprint, 'printedPages'>,
+  index: number
+): number {
+  return reprint.printedPages?.[index] ?? index + 1;
 }
 
 export interface SheetReprintMarks {

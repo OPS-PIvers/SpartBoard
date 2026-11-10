@@ -14,15 +14,17 @@ import {
   selectTourEditStep,
   type TourEditTarget,
 } from './tourEditStore';
+import {
+  newTourHistory,
+  pushTourEdit,
+  stepTourHistory,
+  type TourHistory,
+} from './shell/tourHistory';
 
 export type TourEditorSaveState = 'saved' | 'saving' | 'error' | 'conflict';
 
 /** Delay after the last edit before the draft is written. */
 export const AUTOSAVE_MS = 800;
-/** Edits to the same field this close together undo as one. */
-const COALESCE_MS = 1000;
-const HISTORY_LIMIT = 50;
-
 export interface TourEditorSession {
   set: GuidedLearningSet;
   selected: number;
@@ -121,11 +123,7 @@ const applyEdit = (
 /** The board editor's draft: edits, undo, and debounced autosave to the set doc. */
 export function useTourEditorSession(): TourEditorSession | null {
   const target = useTourEditTarget();
-  const history = useRef({
-    past: [] as GuidedLearningSet[],
-    future: [] as GuidedLearningSet[],
-    last: null as { key: string; at: number } | null,
-  });
+  const history = useRef<TourHistory<GuidedLearningSet>>(newTourHistory());
   const [depth, setDepth] = useState({ past: 0, future: 0 });
   const [saveState, setSaveState] = useState<TourEditorSaveState>('saved');
 
@@ -151,15 +149,13 @@ export function useTourEditorSession(): TourEditorSession | null {
         setTourEdit(applyEdit(cur, next, opts.selectId));
         return;
       }
-      const h = history.current;
-      const now = Date.now();
-      const merge =
-        !!opts.coalesce &&
-        h.last?.key === opts.coalesce &&
-        now - h.last.at < COALESCE_MS;
-      if (!merge) h.past = [...h.past, cur.set].slice(-HISTORY_LIMIT);
-      h.last = opts.coalesce ? { key: opts.coalesce, at: now } : null;
-      h.future = [];
+      const h = pushTourEdit(
+        history.current,
+        cur.set,
+        opts.coalesce,
+        Date.now()
+      );
+      history.current = h;
       setTourEdit(applyEdit(cur, next, opts.selectId));
       setDepth({ past: h.past.length, future: 0 });
     },
@@ -243,15 +239,11 @@ export function useTourEditorSession(): TourEditorSession | null {
 
   const restore = (from: 'past' | 'future') => {
     const cur = getTourEdit();
-    const h = history.current;
-    const stack = h[from];
-    const prev = stack[stack.length - 1];
-    if (!cur || !prev) return;
-    h[from] = stack.slice(0, -1);
-    const other = from === 'past' ? 'future' : 'past';
-    h[other] = [...h[other], cur.set];
-    h.last = null;
-    setTourEdit(applyEdit(cur, prev));
+    const stepped = cur && stepTourHistory(history.current, from, cur.set);
+    if (!cur || !stepped) return;
+    const h = stepped.history;
+    history.current = h;
+    setTourEdit(applyEdit(cur, stepped.value));
     setDepth({ past: h.past.length, future: h.future.length });
   };
 

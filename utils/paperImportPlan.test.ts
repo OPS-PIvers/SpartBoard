@@ -3,6 +3,7 @@ import type { ClassRoster, PaperBatch, QuizData, QuizQuestion } from '@/types';
 import type { AssembledSheet, SheetAnswer } from './paperImportAssemble';
 import {
   answerTextFor,
+  printedOptionsFor,
   applyKeyToQuiz,
   buildImportPayload,
   keySheetChoices,
@@ -52,6 +53,52 @@ const batch: PaperBatch = {
   choiceOrder: { q1: ['Nice', 'Paris', 'Lyon'], q2: ['True', 'False'] },
   createdAt: 0,
 };
+
+describe('printedOptionsFor after a teacher rewords their own paper', () => {
+  const ownTest = (correct: string, wrong: string[], order: number[]) =>
+    ({
+      id: 'q1',
+      type: 'MC',
+      text: 'Q',
+      timeLimit: 0,
+      correctAnswer: correct,
+      incorrectAnswers: wrong,
+      optionOrder: order,
+      paperOwnTest: true,
+    }) as unknown as QuizQuestion;
+  const printed = {
+    choiceOrder: {
+      q1: ['the same activity', 'a lower activity', 'a higher activity'],
+    },
+  };
+
+  it('reads new scans with the current wording at the printed letter', () => {
+    const q = ownTest(
+      'lower activity',
+      ['the same activity', 'higher activity'],
+      [1, 0, 2]
+    );
+    expect(printedOptionsFor(printed, q, 'q1')).toEqual([
+      'the same activity',
+      'lower activity',
+      'higher activity',
+    ]);
+  });
+
+  it('keeps the printed order when choices moved to other letters', () => {
+    const q = ownTest(
+      'a lower activity',
+      ['a higher activity', 'the same activity'],
+      [1, 0, 2]
+    );
+    expect(printedOptionsFor(printed, q, 'q1')).toEqual(printed.choiceOrder.q1);
+  });
+
+  it('keeps the printed order when the choice count changed', () => {
+    const q = ownTest('lower activity', ['the same activity'], [1, 0]);
+    expect(printedOptionsFor(printed, q, 'q1')).toEqual(printed.choiceOrder.q1);
+  });
+});
 
 const rosters: ClassRoster[] = [
   {

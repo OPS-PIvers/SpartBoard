@@ -185,6 +185,11 @@ const WebTourIntakePage = lazy(() =>
     default: module.WebTourIntakePage,
   }))
 );
+const PublicTourPage = lazy(() =>
+  import('./components/tours/publicLink/PublicTourPage').then((module) => ({
+    default: module.PublicTourPage,
+  }))
+);
 const WebTourHubPage = lazy(() =>
   import('./components/tours/web/WebTourHubPage').then((module) => ({
     default: module.WebTourHubPage,
@@ -515,6 +520,22 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const TourStepsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/TourStepsDevHarness').then((module) => ({
+        default: module.TourStepsDevHarness,
+      }))
+    )
+  : null;
+
+const WebTourEditorDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WebTourEditorDevHarness').then((module) => ({
+        default: module.WebTourEditorDevHarness,
+      }))
+    )
+  : null;
+
 const QuizVersionImportDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/QuizVersionImportDevHarness').then((module) => ({
@@ -537,6 +558,21 @@ const PaperTestDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/PaperTestDevHarness').then((module) => ({
         default: module.PaperTestDevHarness,
+      }))
+    )
+  : null;
+const PaperMarkupDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/PaperMarkupDevHarness').then((module) => ({
+        default: module.PaperMarkupDevHarness,
+      }))
+    )
+  : null;
+
+const ScanSheetPrintDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/ScanSheetPrintDevHarness').then((module) => ({
+        default: module.ScanSheetPrintDevHarness,
       }))
     )
   : null;
@@ -1114,6 +1150,15 @@ const App: React.FC = () => {
     );
   }
 
+  // A tour an admin made public (TOURS_10X.md S6): anyone, signed out, so no providers at all.
+  if (pathname.startsWith('/tour-steps/')) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PublicTourPage />
+      </Suspense>
+    );
+  }
+
   // Web tour links (CHROME_EXTENSION.md T9): auth and the published tour only, no dashboard.
   if (pathname.startsWith('/tour/')) {
     return (
@@ -1549,6 +1594,33 @@ const App: React.FC = () => {
     );
   }
 
+  // DEV-ONLY: the Steps view on seeded Live and web tours, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    TourStepsDevHarness &&
+    pathname === '/tour-steps-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TourStepsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the web tour editor on a seeded tour, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    WebTourEditorDevHarness &&
+    isAuthBypass &&
+    pathname === '/web-tour-editor-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WebTourEditorDevHarness />
+      </Suspense>
+    );
+  }
+
   // DEV-ONLY: quiz import version review on fixture reads, for screenshots.
   if (
     import.meta.env.DEV &&
@@ -1584,6 +1656,30 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <PaperTestDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the Quiz grader with handwriting markup on fixture scans, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    PaperMarkupDevHarness &&
+    pathname === '/paper-markup-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PaperMarkupDevHarness />
+      </Suspense>
+    );
+  }
+  if (
+    import.meta.env.DEV &&
+    ScanSheetPrintDevHarness &&
+    pathname === '/scan-sheet-print-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ScanSheetPrintDevHarness />
       </Suspense>
     );
   }

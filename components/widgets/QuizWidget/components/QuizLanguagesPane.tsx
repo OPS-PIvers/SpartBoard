@@ -3,6 +3,7 @@
  * question, mark reviewed. Only reviewed + hash-fresh questions ever publish.
  */
 
+import { imageOnlyPictures } from '@/utils/quizAnswerImages';
 import { MathText } from '@/components/common/MathText';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { isMultiBlank, joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
@@ -365,25 +366,51 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
       ? multiAnswerOptions(question)
       : [question.correctAnswer, ...question.incorrectAnswers.filter(Boolean)];
 
+  const pictures = imageOnlyPictures(question);
   const row = (
     key: string,
     english: string,
     translated: string,
     onChange: (value: string) => void
-  ) => (
-    <div key={key} className="grid grid-cols-2 gap-3">
-      <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        {english}
-      </p>
-      <textarea
-        value={translated}
-        onChange={(e) => onChange(e.target.value)}
-        rows={2}
-        {...tourFieldAttr('quiz-library.language-translated-text', 'quiz', key)}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
-      />
-    </div>
-  );
+  ) => {
+    // A picture-only answer has nothing to translate; both sides show the picture.
+    const picture = pictures.get(english.trim());
+    if (picture) {
+      const cell = (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <img
+            src={picture.url}
+            alt={picture.alt ?? ''}
+            className="h-12 max-w-full rounded-sm object-contain"
+          />
+        </p>
+      );
+      return (
+        <div key={key} className="grid grid-cols-2 gap-3">
+          {cell}
+          {cell}
+        </div>
+      );
+    }
+    return (
+      <div key={key} className="grid grid-cols-2 gap-3">
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <MathText text={english} />
+        </p>
+        <textarea
+          value={translated}
+          onChange={(e) => onChange(e.target.value)}
+          rows={2}
+          {...tourFieldAttr(
+            'quiz-library.language-translated-text',
+            'quiz',
+            key
+          )}
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="custom-scrollbar h-full overflow-y-auto bg-white px-6 py-5">

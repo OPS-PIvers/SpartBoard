@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, MousePointerClick, Play } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
@@ -12,7 +12,9 @@ import {
   SPARTY_LEAN,
   SPARTY_RISE,
   SPARTY_SIZE,
+  spartyHitsChrome,
   spartyPerch,
+  TOUR_CHROME_SELECTOR,
   type Box,
 } from './spartyPerch';
 
@@ -53,6 +55,8 @@ interface TourTipProps {
   sparty?: SpartyPose;
   /** The step's target, which Sparty never covers. */
   avoid?: Box | null;
+  /** Sits Sparty beside the title whenever, floating, he would touch the bar or chip or leave the screen. */
+  clearOfChrome?: boolean;
 }
 
 const ARROW_W = 18;
@@ -101,13 +105,32 @@ export const TourTip: React.FC<TourTipProps> = ({
   skip,
   sparty,
   avoid,
+  clearOfChrome = false,
 }) => {
   const { t } = useTranslation();
+  const floatRef = useRef<HTMLDivElement>(null);
+  // Once he'd have touched the bar or chip he stays beside the title, so the tip never flips back and forth.
+  const [hitChrome, setHitChrome] = useState(false);
   // Near the screen's left edge he leans out less, so he's never cut off.
   const lean = Math.min(SPARTY_LEAN, Math.max(0, left - 4));
-  const perch = sparty
+  const perched = sparty
     ? spartyPerch({ x: left, y: top, w: width }, avoid, tether, lean)
     : null;
+  const perch = perched && hitChrome ? 'inline' : perched;
+  // No deps on purpose: the bar can move or a chip appear without the tip's props changing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sets state once, after which he is inline and this returns early
+  useLayoutEffect(() => {
+    const el = floatRef.current;
+    if (!clearOfChrome || !el) return;
+    const toBox = (r: DOMRect) => ({ x: r.x, y: r.y, w: r.width, h: r.height });
+    const chrome = Array.from(
+      document.querySelectorAll(TOUR_CHROME_SELECTOR),
+      (c) => toBox(c.getBoundingClientRect())
+    );
+    const viewport = { w: window.innerWidth, h: window.innerHeight };
+    if (spartyHitsChrome(toBox(el.getBoundingClientRect()), chrome, viewport))
+      setHitChrome(true);
+  });
   return (
     <div
       ref={boxRef}
@@ -144,6 +167,7 @@ export const TourTip: React.FC<TourTipProps> = ({
       )}
       {sparty && perch !== 'inline' && (
         <div
+          ref={floatRef}
           aria-hidden="true"
           data-testid="tour-tip-sparty"
           data-perch={perch}

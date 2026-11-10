@@ -3825,6 +3825,7 @@ describe('index barrel — deployed export set', () => {
     'sweepPaperTranscriptionJobs',
     'sweepPaperWrittenCrops',
     'getPaperWrittenCropV1',
+    'getPaperPageV1',
     'updatePaperTranscriptV1',
     'applyPaperNewerScanV1',
     'transcribePaperBlankV1',
@@ -3852,6 +3853,7 @@ describe('index barrel — deployed export set', () => {
     // Paper answer sheets (Increment 2 + Q34 pointers)
     'importPaperResponsesV1',
     'publishPaperResultsV1',
+    'paperRewordSyncV1',
     // Paper answer sheets, delegated to a PLC teammate (read path)
     'getTeammatePrintContextV1',
     'createTeammatePaperBatchV1',
@@ -3982,6 +3984,8 @@ describe('index barrel — deployed export set', () => {
     'webToursListV1',
     'webTourLoadV1',
     'webTourRunV1',
+    'tourPublicStepsV1',
+    'tourPublicLinkGuard',
     'schoologyImportStatusV1',
     'schoologyImportInboxV1',
     'schoologyImportInboxCleanup',

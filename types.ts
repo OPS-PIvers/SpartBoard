@@ -3637,6 +3637,8 @@ export interface LunchCountConfig {
   lastSubmittedWidgetId?: string;
   /** Classes (lunch time and grade) it sent that day, so another class can still submit */
   lastSubmittedClasses?: string[];
+  /** Notes and pizza count sent today, by class key, so a resend can prefill them. */
+  lastSubmittedDetails?: Record<string, { notes: string; extraPizza: number }>;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
@@ -4383,6 +4385,13 @@ export interface QuizAnswerImage {
   url: string;
 }
 
+/** An answer that is only a picture: `text` is its generated label ("Picture 7KQ"), hidden from students. */
+export interface QuizImageOnlyAnswer {
+  text: string;
+  /** Teacher's description of the picture for screen readers and read aloud. */
+  alt?: string;
+}
+
 export type QuizQuestionType =
   'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA' | 'free-response';
 
@@ -4490,6 +4499,8 @@ export interface QuizQuestion {
   answerImages?: QuizAnswerImage[];
   /** Matching only: pictures on the terms. */
   matchingTermImages?: QuizAnswerImage[];
+  /** Answers saved with a picture and no typed text, keyed by their generated label. */
+  imageOnlyAnswers?: QuizImageOnlyAnswer[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering/MA. Ignored
    * for MC/FIB/free-response. Defaults to false.
@@ -5254,6 +5265,8 @@ export interface QuizPublicQuestion {
   matchingLeftImages?: string[];
   /** Matching only: image URL per match, index-aligned with `matchingRight`; '' = no image. */
   matchingRightImages?: string[];
+  /** Labels of answers that are only a picture, with their descriptions; students see the picture instead. */
+  imageOnlyAnswers?: QuizImageOnlyAnswer[];
   /** Free Response only: optional editor placeholder */
   placeholder?: string;
   /** Free Response only: optional lower word bound shown in the editor */
@@ -5802,7 +5815,9 @@ export type ArtifactKind =
   | 'video'
   | 'whiteboard'
   /** A cropped paper answer box, uploaded by the teacher at import. */
-  | 'handwriting';
+  | 'handwriting'
+  /** A whole scanned sheet page, straightened, kept at import (`paper-kept-pages`); id `pg_{scanId}_{page}`. */
+  | 'paper-page';
 /** Upload is its own axis, separate from the student-intent `status` on the answer. */
 export type ArtifactUploadState = 'pending' | 'uploaded' | 'failed';
 
@@ -6263,6 +6278,8 @@ export interface QuizResponse extends StaffResponseFields {
    * array rewrite - and must never appear in the student write whitelist.
    */
   artifactArchive?: Record<string, ArtifactArchiveEntry>;
+  /** Server-written kept scan pages (`kind: 'paper-page'`, id `pg_{scanId}_{page}`), one per sheet page of the live scan; archived through `artifactArchive`. */
+  paperPages?: ResponseArtifact[];
   /**
    * Server-maintained denormalization of "some `artifactArchive` entry is still
    * `'syncing'`/`'failed'`". Firestore cannot query into map values, so this is
@@ -6574,6 +6591,58 @@ export interface WrittenAnswerGrade {
   gradedAt: number;
   /** Video Activity short answer: the marked answer's `answeredAt`, so a retake's new answer starts unmarked. */
   answeredAt?: number;
+  /** Paper written answers: shapes, stamps and pins drawn on the handwriting (`paper-image-markup`). */
+  imageMarkup?: PaperImageMarkup;
+}
+
+/** Most markup items one answer may hold. */
+export const PAPER_MARKUP_MAX_ITEMS = 40;
+/** Longest comment on one markup item. */
+export const PAPER_MARKUP_MAX_COMMENT_CHARS = 500;
+/** Most saved comment snippets in `savedWidgetPresets.quiz.markupComments`. */
+export const QUIZ_MARKUP_COMMENTS_MAX = 30;
+
+export type PaperMarkupKind =
+  'highlight' | 'rect' | 'ellipse' | 'stamp' | 'pin';
+/** Stamp symbols (K11). */
+export type PaperMarkupStamp = 'check' | 'x' | 'question' | 'star';
+/** Absent color means the kind's default: yellow for a highlight, red for everything else. */
+export type PaperMarkupColor = 'yellow' | 'green' | 'pink' | 'blue' | 'red';
+
+interface PaperMarkupItemBase {
+  id: string;
+  color?: PaperMarkupColor;
+  /** Printed as a numbered pin with the text listed under the answer (K10). */
+  comment?: string;
+}
+
+/** One markup mark, in millimetres from the sheet page's top-left (K7, K21). */
+export type PaperMarkupItem =
+  | (PaperMarkupItemBase & {
+      kind: 'highlight' | 'rect' | 'ellipse';
+      rectMm: PaperRectMm;
+    })
+  | (PaperMarkupItemBase & {
+      kind: 'stamp';
+      atMm: PaperPointMm;
+      symbol: PaperMarkupStamp;
+    })
+  | (PaperMarkupItemBase & {
+      kind: 'pin';
+      atMm: PaperPointMm;
+      comment: string;
+    });
+
+/** A written answer's image markup, made on one scan's page (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md §3.3). */
+export interface PaperImageMarkup {
+  /** The scan the markup was drawn on (K12). */
+  scanId: string;
+  /** Sheet page number the answer's box printed on. */
+  page: number;
+  /** Set when the teacher confirmed this markup against a newer scan. */
+  reviewedForScanId?: string;
+  /** At most `PAPER_MARKUP_MAX_ITEMS`. */
+  items: PaperMarkupItem[];
 }
 
 /**
@@ -6854,6 +6923,8 @@ export interface QuizConfig {
   monitorSortBy?: 'first' | 'last' | 'status' | 'score';
   /** Live monitor roster filter. */
   monitorFilterBy?: 'all' | 'hi' | 'mid' | 'low' | 'tabs';
+  /** Saved markup comment snippets, at most `QUIZ_MARKUP_COMMENTS_MAX`; lives only in `savedWidgetPresets.quiz`, never on a widget. */
+  markupComments?: string[];
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -8813,7 +8884,40 @@ export interface WebTourPicture {
   path: string;
   w: number;
   h: number;
+  /** Where the target sits in this picture, as 0-1 of its width and height; absent on older recordings. */
+  target?: { x: number; y: number; w: number; h: number };
+  /** The picture's width in CSS pixels when captured, so previews draw the tour to scale. */
+  cssW?: number;
+  /** The uncropped capture it was cut from, for re-cropping; editor only, never published or played. */
+  original?: WebTourOriginalPicture;
+  /** Arrows, boxes and numbers drawn over the picture; never baked into the file. */
+  markup?: TourMarkupShape[];
 }
+
+/** A step's uncropped capture and where its picture sits in it, as 0-1 of the capture. */
+export interface WebTourOriginalPicture {
+  path: string;
+  w: number;
+  h: number;
+  crop: { x: number; y: number; w: number; h: number };
+}
+
+/** A markup shape over a step picture; coordinates are 0-1 of the picture. */
+export type TourMarkupShape =
+  | {
+      id: string;
+      kind: 'arrow';
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+    }
+  | { id: string; kind: 'box'; x: number; y: number; w: number; h: number }
+  | { id: string; kind: 'number'; x: number; y: number; n: number };
+
+/** What a web step condition tests: its own target on the page, or the page address. */
+export type WebTourCondition =
+  { kind: 'target' } | { kind: 'url'; pattern: string };
 
 /** A web-tour step's target; the step's `label` and `text` are its tip. */
 export interface WebTourBinding {
@@ -8826,6 +8930,10 @@ export interface WebTourBinding {
   note?: string;
   /** Claude's question when it couldn't tell why the step happens; editor only, never published. */
   claudeQuestion?: string;
+  /** Played only when this holds: its target shows up, or the page address matches; absent = always. */
+  showWhen?: WebTourCondition;
+  /** Moves on when this holds instead of at the learner's action: the target goes away, or the address matches. */
+  doneWhen?: WebTourCondition;
 }
 
 export interface WebTourStudentDataCheck {
@@ -8927,6 +9035,8 @@ export interface GuidedLearningTourThumbnail {
   anchor: string;
   w: number;
   h: number;
+  /** Where the control sits in the picture, as 0-1 of its width and height; absent on older pictures. */
+  target?: { x: number; y: number; w: number; h: number };
 }
 
 /** A widget's recorded place on the board; `slot` is its stable index within the tour. */
@@ -10926,8 +11036,18 @@ export type GlobalFeature =
   | 'quiz-import-versions'
   /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
   | 'quiz-import-versions-plain'
+  /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
+  | 'quiz-import-google-doc-pdf'
+  /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
+  | 'quiz-import-pdf-answer-marks'
+  /** Math in an imported question's text becomes drawn equations; AND-ed with `student-keyboards`. */
+  | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
+  /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/shipped/TOURS_10X.md F1). */
+  | 'tour-pacing'
+  /** Steps view for Live tours, and Live tours opening it in the Help Center (docs/plans/shipped/TOURS_10X.md F3). */
+  | 'tour-steps-view'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -10946,8 +11066,13 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
+  | 'paper-reword-sync'
   /** AI transcription of scanned handwritten answers; off means teachers grade the crop. */
   | 'paper-handwriting-ai'
+  /** Each student's scanned pages kept at import and printed with marks (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md). */
+  | 'paper-kept-pages'
+  /** Highlights, shapes, stamps and pinned comments on handwritten answers, printed on the work. */
+  | 'paper-image-markup'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
@@ -11006,6 +11131,8 @@ export type GlobalFeature =
   | 'quiz-ordering-results'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
+  /** Lunch Count: send a corrected count that replaces the day's row for that class. */
+  | 'lunch-count-resend'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */

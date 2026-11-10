@@ -1,3 +1,4 @@
+import { imageOnlyPictures, type AnswerPicture } from './quizAnswerImages';
 import {
   isFreeResponseType,
   type QuizQuestion,
@@ -59,6 +60,8 @@ export interface StudentQuestionLine {
   /** The answer is a recording rather than text. */
   recorded?: 'audio' | 'video';
   stimulusIds?: string[];
+  /** Picture-only answers by label, so a view can draw each one; absent when the question has none. */
+  pictures?: ReadonlyMap<string, AnswerPicture>;
 }
 
 export interface StudentOptionLine {
@@ -85,6 +88,8 @@ export function showsMissedKey(line: StudentQuestionLine): boolean {
 export interface StudentDrilldownOptions {
   /** A paper batch's lettered option order per question; absent for online work. */
   choiceOrder?: Record<string, string[]>;
+  /** The batch's wording when printed, which answers scanned before a reword still hold. */
+  recordedChoices?: Record<string, string[]>;
   /** The rubric after per-student overrides; defaults to the question's snapshot. */
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
 }
@@ -122,7 +127,8 @@ const same = (a: string, b: string) =>
 function mcOptions(
   q: QuizQuestion,
   answer: string,
-  choiceOrder: string[] | undefined
+  choiceOrder: string[] | undefined,
+  recorded?: string[]
 ): StudentOptionLine[] {
   const order =
     choiceOrder && choiceOrder.length > 0
@@ -131,9 +137,12 @@ function mcOptions(
           ...q,
           incorrectAnswers: q.incorrectAnswers.filter(Boolean),
         });
-  return order.map((text) => ({
+  return order.map((text, i) => ({
     text,
-    picked: answer !== '' && same(text, answer),
+    picked:
+      answer !== '' &&
+      (same(text, answer) ||
+        (recorded?.[i] !== undefined && same(recorded[i], answer))),
     correct: q.correctAnswer.trim() !== '' && same(text, q.correctAnswer),
   }));
 }
@@ -234,6 +243,7 @@ export function computeStudentDrilldown(
       | 'rubric'
       | 'recorded'
       | 'stimulusIds'
+      | 'pictures'
     > = {
       questionId: q.id,
       number: index + 1,
@@ -247,8 +257,15 @@ export function computeStudentDrilldown(
         : null,
     };
     if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
+    const pictures = imageOnlyPictures(q);
+    if (pictures.size > 0) base.pictures = pictures;
     if (q.type === 'MC') {
-      base.options = mcOptions(q, answer, options.choiceOrder?.[q.id]);
+      base.options = mcOptions(
+        q,
+        answer,
+        options.choiceOrder?.[q.id],
+        options.recordedChoices?.[q.id]
+      );
     } else if (q.type === 'MA') {
       base.options = multiAnswerOptionLines(q, answer);
     } else if (q.type === 'Matching') {

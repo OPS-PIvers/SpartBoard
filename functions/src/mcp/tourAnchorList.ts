@@ -8350,6 +8350,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.answer-image-description",
+    "label": "Describe a picture-only answer for screen readers in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.match-term-image",
     "label": "Add image to matching term in the Quiz editor",
     "scope": "field",
@@ -10744,6 +10763,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-import.paper-retry-upload",
     "label": "Retry failed uploads in Quiz import",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.paper-import",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.paper-keep-pages",
+    "label": "Keep a copy of each student's pages switch in Quiz import",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.paper-import",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.paper-retry-pages",
+    "label": "Retry failed page copies in Quiz import",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -15794,6 +15859,631 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.paper-scan-panel",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-toolbar",
+    "label": "Markup toolbar on a handwritten answer in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-select",
+    "label": "Select and move tool on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-highlight",
+    "label": "Highlighter tool on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-box",
+    "label": "Box tool on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-circle",
+    "label": "Circle tool on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-stamp",
+    "label": "Stamp tool on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-stamp-menu",
+    "label": "Choose stamp menu on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-pin",
+    "label": "Comment pin tool on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-color",
+    "label": "Mark color menu on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-undo",
+    "label": "Undo a mark on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-redo",
+    "label": "Redo a mark on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-delete",
+    "label": "Delete the selected mark on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-canvas",
+    "label": "Handwriting image you draw marks on in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-add-comment",
+    "label": "Add or edit a comment on the selected mark in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-selection-delete",
+    "label": "Delete button beside the selected mark in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-comment",
+    "label": "Mark comment textarea in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-snippet",
+    "label": "Saved comment picker in the mark comment box",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-comment-cancel",
+    "label": "Cancel a mark comment in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-comment-save",
+    "label": "Save a mark comment in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-comment-row",
+    "label": "Numbered comment under the marked handwriting in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-pin-menu",
+    "label": "Saved comments menu on the handwriting markup toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-save-comment",
+    "label": "Save a mark comment for reuse in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-earlier-scan",
+    "label": "Notice that marks were made on an earlier scan in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-earlier-scan-keep",
+    "label": "Keep the marks made on an earlier scan in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.markup-earlier-scan-clear",
+    "label": "Clear the marks made on an earlier scan in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.paper-markup",
         "kind": "modal",
         "path": [
           "library-shell.tab:quiz#archive",
@@ -33757,6 +34447,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": []
       },
       {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      },
+      {
         "surface": "guidedLearning.ai-generator",
         "kind": "modal",
         "widget_type": "guided-learning",
@@ -34100,9 +34802,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "help-center.viewer.open-web-tour",
-    "label": "Open in a new tab button for a web tour in a Help Center guide",
+    "id": "help-center.viewer.start-live-tour",
+    "label": "Start Live Tour button at the top of a tour in the resource viewer",
     "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.help-viewer",
@@ -34112,6 +34815,116 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "help-center.tab:help#guides",
           "help-center.guides.item:help"
         ]
+      }
+    ]
+  },
+  {
+    "id": "steps-view.mode-steps",
+    "label": "Steps button in a tour Steps view",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-steps-view",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "steps-view.mode-walkthrough",
+    "label": "Walk through button in a tour Steps view",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-steps-view",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "steps-view.print",
+    "label": "Print button in a tour Steps view",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-steps-view",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.switch",
+    "label": "Anyone with the link switch at the foot of the tour editor More actions menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.review",
+    "label": "Review button under the public link switch after a picture change turned the link off",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.copy",
+    "label": "Copy public link button under the public link switch",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.acknowledge",
+    "label": "Checkbox in the make-public confirm acknowledging a public link can't be taken back",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": [
+          "tour-public-link.switch"
+        ],
+        "reveal": "tour-public-link.switch"
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.confirm",
+    "label": "Make public button in the make-public confirm",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": [
+          "tour-public-link.switch"
+        ],
+        "reveal": "tour-public-link.switch"
       }
     ]
   },
@@ -34266,6 +35079,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.item-delete",
     "label": "Delete button on a Help Center admin item",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.item-web-change",
+    "label": "Change link button on a Help Center admin item that links a web tour",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.item-web-remove",
+    "label": "Remove button on a Help Center admin item that links a web tour",
     "scope": "field",
     "panel": true,
     "destructive": true,
@@ -51581,11 +52433,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.tab-settings"
         ],
+        "reveal": "web-tour-editor.tab-settings",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51595,12 +52449,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.write-with-claude",
-    "label": "Write with Claude button in the web tour editor",
+    "label": "Main button in the web tour editor header while it says Write text (Write with Claude)",
     "scope": "board",
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51614,16 +52468,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.rewrite-all",
-    "label": "Rewrite all button in the web tour editor",
+    "label": "Rewrite all option in the web tour editor More actions menu",
     "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
         ],
+        "reveal": "web-tour-editor.menu",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51638,7 +52495,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51657,7 +52514,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51670,17 +52527,99 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "tour-editor.main",
+    "label": "Main button in the tour editor header (Write text, Check tour or Publish)",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.play",
+    "label": "Play button in the tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.menu",
+    "label": "More actions menu button in the tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.menu-item",
+    "label": "Option in the tour editor More actions menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel",
+        "reveal": "tour-editor.menu"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.add-step",
+    "label": "Add step button under the tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.record",
+    "label": "Record button under the tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
+    "id": "tour-editor.step-more",
+    "label": "More toggle on the selected step's card in the tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.tour-editor",
+        "kind": "panel"
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
     "scope": "board",
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.tab-settings"
         ],
+        "reveal": "web-tour-editor.tab-settings",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51695,7 +52634,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51709,16 +52648,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.copy-link",
-    "label": "Copy link button in the web tour editor header",
+    "label": "Copy link option in the web tour editor More actions menu",
     "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
         ],
+        "reveal": "web-tour-editor.menu",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -51728,12 +52670,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.check",
-    "label": "Check tour button in the web tour editor header",
+    "label": "Main button in the web tour editor header while it says Check tour",
     "scope": "board",
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51752,7 +52694,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51766,13 +52708,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.publish",
-    "label": "Publish tour button in the web tour editor",
+    "label": "Main button in the web tour editor header while it says Publish or Published",
     "scope": "board",
     "persists": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
@@ -51786,18 +52728,402 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tour-editor.delete",
-    "label": "Delete web tour button in the web tour editor",
+    "label": "Delete web tour option in the web tour editor More actions menu",
     "scope": "board",
+    "panel": true,
     "destructive": true,
     "persists": true,
     "routes": [
       {
         "surface": "board.web-tour-editor",
-        "kind": "modal",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
+        ],
+        "reveal": "web-tour-editor.menu",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.menu",
+    "label": "More actions menu button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
         "widget_type": "guided-learning",
         "path": [
           "library-shell.secondary-menu-item"
         ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.duplicate",
+    "label": "Duplicate option in the web tour editor More actions menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.menu"
+        ],
+        "reveal": "web-tour-editor.menu",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.add-step",
+    "label": "Add step button under the web tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.step-more",
+    "label": "More toggle on the selected web step's card",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.tab-steps",
+    "label": "Steps tab in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.tab-settings",
+    "label": "Settings tab in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture",
+    "label": "Step picture on the web tour editor stage (selects it to show its tools)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-crop",
+    "label": "Crop tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-markup",
+    "label": "Mark up tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-retake",
+    "label": "Retake tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-replace",
+    "label": "Replace tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-arrow",
+    "label": "Arrow shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-box",
+    "label": "Box shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-number",
+    "label": "Number shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-delete",
+    "label": "Delete the selected shape while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.markup-done",
+    "label": "Done button while marking up a web tour picture",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture-markup"
+        ],
+        "reveal": "web-tour-editor.picture-markup",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-blur",
+    "label": "Blur tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.picture-remove",
+    "label": "Remove picture tool for the selected picture in the web tour editor",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item",
+          "web-tour-editor.picture"
+        ],
+        "reveal": "web-tour-editor.picture",
         "needs": [
           "widget-on-stage",
           "admin"
@@ -60337,6 +61663,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "lunch-count.report-close",
     "label": "Close button in the Lunch Count report dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.report",
+        "kind": "modal",
+        "widget_type": "lunchCount",
+        "path": [
+          "lunch-count.open-report"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.report-resend",
+    "label": "Review and Resend button in the Lunch Count report dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [

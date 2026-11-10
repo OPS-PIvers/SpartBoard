@@ -79,10 +79,22 @@ export function submittedClassKey(
   return rosterId ? `${base} #${rosterId}` : base;
 }
 
+/** The sheet's row key for a resend: a class with no roster adds the sender, so two teachers never share one row. */
+export function sheetRowKey(classKey: string, uid: string): string {
+  return classKey.includes(' #') ? classKey : `${classKey} #u:${uid}`;
+}
+
 interface SubmittedMarker {
   lastSubmittedDate?: string;
   lastSubmittedWidgetId?: string;
   lastSubmittedClasses?: string[];
+  lastSubmittedDetails?: Record<string, SentDetails>;
+}
+
+/** What a resend has to carry over, because it replaces the whole sheet row. */
+export interface SentDetails {
+  notes: string;
+  extraPizza: number;
 }
 
 /** True when this widget already sent this class today, so other classes and copies can still submit. */
@@ -99,23 +111,53 @@ export function hasSubmittedToday(
   );
 }
 
+/** The notes and pizza count sent today for this class on this widget, if any. */
+export function sentDetailsToday(
+  config: SubmittedMarker,
+  widgetId: string,
+  classKey: string
+): SentDetails | undefined {
+  if (
+    config.lastSubmittedDate !== getCentralDayKey() ||
+    config.lastSubmittedWidgetId !== widgetId
+  ) {
+    return undefined;
+  }
+  return config.lastSubmittedDetails?.[classKey];
+}
+
 /** The marker to save after a successful submit; it keeps today's earlier classes. */
 export function submittedMarker(
   config: SubmittedMarker,
   widgetId: string,
   dayKey: string,
-  classKey: string
-): Required<SubmittedMarker> {
+  classKey: string,
+  details?: SentDetails
+): SubmittedMarker {
   const sameDay =
     config.lastSubmittedDate === dayKey &&
     config.lastSubmittedWidgetId === widgetId;
   const earlier = sameDay ? (config.lastSubmittedClasses ?? []) : [];
-  return {
+  const marker: SubmittedMarker = {
     lastSubmittedDate: dayKey,
     lastSubmittedWidgetId: widgetId,
     lastSubmittedClasses: earlier.includes(classKey)
       ? earlier
       : [...earlier, classKey],
+  };
+  // Without details (resend flag off) the marker keeps its pre-resend shape, dropping any stale entries.
+  if (!details) {
+    if (!config.lastSubmittedDetails) return marker;
+    const kept = { ...(sameDay ? config.lastSubmittedDetails : undefined) };
+    delete kept[classKey];
+    return { ...marker, lastSubmittedDetails: kept };
+  }
+  return {
+    ...marker,
+    lastSubmittedDetails: {
+      ...(sameDay ? config.lastSubmittedDetails : undefined),
+      [classKey]: details,
+    },
   };
 }
 

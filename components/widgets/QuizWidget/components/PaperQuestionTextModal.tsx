@@ -8,6 +8,7 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
+import { plainPromptText } from '@/utils/promptMath';
 import { CloudDownload, FileUp, Loader2, ScanText, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -38,6 +39,8 @@ import type { RasterPage } from '@/utils/paperSheetReader';
 
 interface PaperQuestionTextModalProps {
   quiz: QuizData;
+  /** Filling in new choices can mark already scanned answers wrong. */
+  hasScannedResponses?: boolean;
   onSave: (quiz: QuizData) => Promise<void>;
   onPickFromDrive?: () => Promise<File | null>;
   onClose: () => void;
@@ -60,6 +63,7 @@ interface PaperQuestionTextModalProps {
 type Step = 'setup' | 'reading' | 'review' | 'saving';
 
 export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
+  hasScannedResponses = false,
   quiz,
   onSave,
   onPickFromDrive,
@@ -347,6 +351,15 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
           if (file) void readFile(file);
         }}
       />
+      {hasScannedResponses && (
+        <p
+          role="status"
+          className="rounded-lg bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800"
+        >
+          Students have scanned answers on this test. Changing a choice can mark
+          correct answers wrong.
+        </p>
+      )}
       <button
         type="button"
         {...tourTypeAttr('quiz-import.paper-text-upload', 'quiz')}
@@ -471,7 +484,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
                               : undefined
                           }
                         >
-                          {choice}
+                          {plainPromptText(choice)}
                           {choice === fills[row].correctAnswer && ' (answer)'}
                         </span>
                       </React.Fragment>

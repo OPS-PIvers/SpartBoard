@@ -18,6 +18,11 @@ import { MARK_LABEL } from '@/utils/quizStudentReportPrint';
 import { formatExportPoints } from '@/utils/assignmentExportShared';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { placeOrderingAnswer } from '@/utils/quizOrderingPlacement';
+import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
+import type { AnswerPicture } from '@/utils/quizAnswerImages';
+
+const NO_PICTURES: ReadonlyMap<string, AnswerPicture> = new Map();
+const PICTURE_SIZE = 'min(40px, 10cqmin)';
 
 const SMALL_TEXT = { fontSize: 'min(11px, 3.8cqmin)' } as const;
 const BODY_TEXT = { fontSize: 'min(12px, 4cqmin)' } as const;
@@ -63,10 +68,11 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({
 );
 
 /** The student's order, one item per line, with the items out of order marked. */
-const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
-  given,
-  expected,
-}) => {
+const OrderingAnswer: React.FC<{
+  given: string[];
+  expected: string[];
+  pictures: ReadonlyMap<string, AnswerPicture>;
+}> = ({ given, expected, pictures }) => {
   const { spots, placedAt } = placeOrderingAnswer(expected, given);
   const leftOut = expected.filter(
     (text, i) => text.trim() !== '' && placedAt[i] === null
@@ -108,7 +114,14 @@ const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
               <span
                 className={`min-w-0 flex-1 wrap-break-word ${out ? 'font-semibold text-brand-red-dark' : ''}`}
               >
-                {spot.text || (
+                {spot.text ? (
+                  <AnswerPictureText
+                    text={spot.text}
+                    pictures={pictures}
+                    showLabel
+                    size={PICTURE_SIZE}
+                  />
+                ) : (
                   <span className="italic font-normal text-brand-gray-primary">
                     Empty
                   </span>
@@ -136,7 +149,12 @@ const OrderingAnswer: React.FC<{ given: string[]; expected: string[] }> = ({
       </ol>
       {leftOut.length > 0 && (
         <p className="text-brand-red-dark" style={SMALL_TEXT}>
-          {`Left out: ${leftOut.map((t) => t.trim()).join(', ')}`}
+          <AnswerPictureText
+            text={`Left out: ${leftOut.map((t) => t.trim()).join(', ')}`}
+            pictures={pictures}
+            showLabel
+            size={PICTURE_SIZE}
+          />
         </p>
       )}
     </>
@@ -255,17 +273,30 @@ export const StudentAnswerLine: React.FC<{
             <OrderingAnswer
               given={orderSpots.given}
               expected={orderSpots.expected}
+              pictures={line.pictures ?? NO_PICTURES}
+            />
+          ) : answer ? (
+            <AnswerPictureText
+              text={answer}
+              pictures={line.pictures ?? NO_PICTURES}
+              showLabel
+              size={PICTURE_SIZE}
             />
           ) : (
-            answer || (
-              <span className="italic text-brand-gray-primary">
-                {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
-              </span>
-            )
+            <span className="italic text-brand-gray-primary">
+              {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
+            </span>
           )}
         </Field>
         {!orderSpots && showsMissedKey(line) && (
-          <Field label="Correct answer">{line.correctAnswerText}</Field>
+          <Field label="Correct answer">
+            <AnswerPictureText
+              text={line.correctAnswerText ?? ''}
+              pictures={line.pictures ?? NO_PICTURES}
+              showLabel
+              size={PICTURE_SIZE}
+            />
+          </Field>
         )}
         {comment && <Field label="Comment">{comment}</Field>}
         {rubricRows.map((row) => (

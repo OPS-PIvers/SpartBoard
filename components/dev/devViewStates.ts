@@ -47,6 +47,7 @@ export const QUIZ_EDITOR_STATES = [
   'qe-bank',
   'qe-bank-slot',
   'qe-sections',
+  'qe-picture-only',
 ] as const;
 export type QuizEditorStateKey = (typeof QUIZ_EDITOR_STATES)[number];
 
@@ -95,6 +96,9 @@ export const STUDENT_QUIZ_STATES = [
   'sq-images-matching',
   'sq-images-mc',
   'sq-ordering-list',
+  'sq-picture-only-mc',
+  'sq-picture-only-matching',
+  'sq-picture-only-ordering',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];
 

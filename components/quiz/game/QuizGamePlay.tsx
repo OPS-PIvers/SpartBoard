@@ -65,6 +65,9 @@ import {
 import { CollapsibleStimuli } from '../QuizStimulusView';
 import { FibMultiBlankInput, NumberedBlanksText } from '../FibMultiBlankInput';
 import { AnswerImageZoomButton, AnswerLabel } from '../AnswerImage';
+import { pictureOnlyName } from '../pictureOnlyName';
+import { AnswerPictureText } from '../AnswerPictureText';
+import { publicImageOnlyPictures } from '@/utils/quizAnswerImages';
 import { MatchingResponseInput } from '../MatchingResponseInput';
 import { OrderingResponseInput } from '../OrderingResponseInput';
 import { loadGamePicks, saveGamePicks } from './gamePicks';
@@ -531,6 +534,7 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
               )
             : null
         }
+        pictures={publicImageOnlyPictures(feedback.question)}
         streakOn={session.streakBonusEnabled === true}
         onNext={() => setFeedback(null)}
       />
@@ -712,6 +716,8 @@ const GameQuestion: React.FC<{
       ? question.choiceImages
       : undefined;
   const picked = new Set(parseMultiAnswer(draft));
+  const choiceName = (i: number) =>
+    pictureOnlyName(t, question, choices[i], choiceImages?.[i], i + 1);
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pt-4">
@@ -749,15 +755,16 @@ const GameQuestion: React.FC<{
                 className="min-h-14 flex-1 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-left font-bold text-slate-800 transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-60"
               >
                 <AnswerLabel
-                  label={choice}
+                  label={choiceName(i) ?? <MathText text={choice} />}
                   image={choiceImages?.[i]}
                   layout="tile"
+                  pictureOnly={!!choiceName(i)}
                 />
               </button>
               {choiceImages?.[i] && (
                 <AnswerImageZoomButton
                   src={choiceImages[i]}
-                  label={choice}
+                  label={choiceName(i) ?? choice}
                   className="absolute right-5 top-4"
                 />
               )}
@@ -802,16 +809,17 @@ const GameQuestion: React.FC<{
                   </span>
                   <span className="min-w-0 flex-1">
                     <AnswerLabel
-                      label={choice}
+                      label={choiceName(i) ?? <MathText text={choice} />}
                       image={choiceImages?.[i]}
                       layout="tile"
+                      pictureOnly={!!choiceName(i)}
                     />
                   </span>
                 </button>
                 {choiceImages?.[i] && (
                   <AnswerImageZoomButton
                     src={choiceImages[i]}
-                    label={choice}
+                    label={choiceName(i) ?? choice}
                     className="absolute right-5 top-4"
                   />
                 )}
@@ -906,9 +914,10 @@ const GameQuestion: React.FC<{
 const GameFeedback: React.FC<{
   result: GameAnswerResult;
   correctAnswer: string | null;
+  pictures: ReturnType<typeof publicImageOnlyPictures>;
   streakOn: boolean;
   onNext: () => void;
-}> = ({ result, correctAnswer, streakOn, onNext }) => {
+}> = ({ result, correctAnswer, pictures, streakOn, onNext }) => {
   const { t } = useTranslation();
   const nextRef = useRef<HTMLButtonElement>(null);
   useEffect(() => nextRef.current?.focus(), []);
@@ -970,7 +979,13 @@ const GameFeedback: React.FC<{
           <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
             {t('quizGame.answerWas', 'Answer')}
           </span>
-          <span className="font-bold">{correctAnswer}</span>
+          <span className="font-bold">
+            <AnswerPictureText
+              text={correctAnswer}
+              pictures={pictures}
+              size="4rem"
+            />
+          </span>
         </p>
       )}
       <button

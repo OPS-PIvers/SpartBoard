@@ -30,6 +30,7 @@ import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
+  PAPER_KEPT_PAGES_FEATURE,
   withPaperBoxSizes,
   withPaperBoxStyles,
 } from '@/utils/paperWritten';
@@ -88,6 +89,7 @@ import {
   driveStimulusUploader,
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
+import { MAX_DOCUMENT_PAGES } from '@/utils/quizDocumentImport/limits';
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageFetcher';
 import { CartridgeBankImportModal } from './components/CartridgeBankImportModal';
@@ -200,6 +202,10 @@ import {
   firestoreDocData,
   readPaperImportQuota,
 } from '@/utils/paperImportQuota';
+import {
+  PAPER_REWORD_SYNC_FEATURE,
+  paperRewordQuestions,
+} from '@/utils/paperRewordSync';
 import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
 import { AnswerKeyFillModal } from './components/AnswerKeyFill';
 import { httpsCallable } from 'firebase/functions';
@@ -226,6 +232,7 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { Loader2, AlertTriangle, LogIn, Gamepad2 } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { STUDENT_KEYBOARDS_FEATURE } from '@/config/studentKeyboards';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
@@ -367,6 +374,8 @@ const TeacherQuizWidget: React.FC<{
     canUseQuizAi;
   const canImportVersions =
     canImportDocuments && canAccessFeature('quiz-import-versions');
+  const googleDocAsPdf =
+    canImportDocuments && canAccessFeature('quiz-import-google-doc-pdf');
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
   // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
@@ -428,14 +437,30 @@ const TeacherQuizWidget: React.FC<{
     }
     const picked = await openPicker({ mode: 'documents', token });
     if (!picked) return null;
-    const downloaded = await getDriveDocumentAsBlob(picked.id);
+    let downloaded = await getDriveDocumentAsBlob(
+      picked.id,
+      googleDocAsPdf ? 'pdf' : 'docx'
+    );
+    // A long Doc is past the PDF reader's page limit; its Word export has none.
+    if (
+      googleDocAsPdf &&
+      downloaded?.mimeType === 'application/pdf' &&
+      picked.mimeType !== 'application/pdf'
+    ) {
+      const { pdfPageCount } =
+        await import('@/utils/quizDocumentImport/pdfBrowserDeps');
+      const pages = await pdfPageCount(downloaded.blob).catch(() => 0);
+      if (pages > MAX_DOCUMENT_PAGES) {
+        downloaded = await getDriveDocumentAsBlob(picked.id, 'docx');
+      }
+    }
     if (!downloaded)
       throw new Error('Could not download that file from Drive.');
     return {
       file: downloaded.blob,
       fileName: downloaded.name || picked.name,
     };
-  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
+  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob, googleDocAsPdf]);
 
   // Pictures the last read document carried. They wait here rather than in
   // the adapter, which owns no state, until the teacher confirms the import.
@@ -842,6 +867,57 @@ const TeacherQuizWidget: React.FC<{
   })();
 
   const paperUid = paperSheets.enabled && !isReview ? user?.uid : undefined;
+  const rewordSyncOn =
+    paperSheets.enabled && canAccessFeature(PAPER_REWORD_SYNC_FEATURE);
+  const lastRewordSync = useRef(new Map<string, string>());
+  const lastRewordErrorAt = useRef(0);
+  const rewordSyncRuns = useRef(new Map<string, Promise<void>>());
+  const latestSavedQuiz = useRef<QuizData | null>(null);
+  /** Saved answers are choice text, so scanned tests follow a teacher's rewording. */
+  const syncPaperRewords = async (quiz: QuizData) => {
+    if (
+      !rewordSyncOn ||
+      isSandboxed(quiz.id) ||
+      !assignments.some((a) => a.quizId === quiz.id && a.hasPaperResponses)
+    ) {
+      return;
+    }
+    const questions = paperRewordQuestions(quiz);
+    const payload = JSON.stringify(questions);
+    if (
+      questions.length === 0 ||
+      lastRewordSync.current.get(quiz.id) === payload
+    ) {
+      return;
+    }
+    // One run per quiz at a time; overlapping runs can undo each other.
+    const prev = rewordSyncRuns.current.get(quiz.id) ?? Promise.resolve();
+    const run = prev.then(() => callRewordSync(quiz.id, questions, payload));
+    rewordSyncRuns.current.set(quiz.id, run);
+    await run;
+  };
+  const callRewordSync = async (
+    quizId: string,
+    questions: ReturnType<typeof paperRewordQuestions>,
+    payload: string
+  ) => {
+    if (lastRewordSync.current.get(quizId) === payload) return;
+    try {
+      await httpsCallable(
+        functions,
+        'paperRewordSyncV1'
+      )({ quizId, questions });
+      lastRewordSync.current.set(quizId, payload);
+    } catch {
+      // Autosave retries as a teacher types, so don't repeat the message.
+      if (Date.now() - lastRewordErrorAt.current < 60_000) return;
+      lastRewordErrorAt.current = Date.now();
+      addToast(
+        'Quiz saved, but scanned answers could not be updated. Save again to retry.',
+        'error'
+      );
+    }
+  };
   // Written answers on paper: device quiz, written questions on a printed sheet.
   const writtenOnPaperOn =
     !!paperUid &&
@@ -2268,6 +2344,11 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
+      pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
+      answerPictures: canAccessFeature('quiz-ordering-images'),
+      equations:
+        canAccessFeature('quiz-import-equations') &&
+        canAccessFeature(STUDENT_KEYBOARDS_FEATURE),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportVersions
         ? {
@@ -2855,7 +2936,13 @@ const TeacherQuizWidget: React.FC<{
                 if (!data) return;
                 const batches = (
                   await listPaperBatchesForQuiz(user.uid, meta.id)
-                ).filter((b) => b.id === assignment.paperBatchId);
+                )
+                  // An assignment that took scans before Paper cards has no batch of its own; never offer another's.
+                  .filter((b) =>
+                    assignment.paperBatchId
+                      ? b.id === assignment.paperBatchId
+                      : !linkedPaperBatchIds.has(b.id)
+                  );
                 setPaperImport({ quiz: data, meta, batches, assignment });
               }
             : undefined
@@ -4153,6 +4240,9 @@ const TeacherQuizWidget: React.FC<{
             ? (quizzes.find((q) => q.id === editingMeta.id) ?? null)
             : null
         }
+        hasScannedResponses={assignments.some(
+          (a) => a.quizId === editingMeta?.id && a.hasPaperResponses
+        )}
         bankApi={bankApi}
         // A synced quiz publishes a new version to its PLC on every save, so
         // that path keeps an explicit Save.
@@ -4190,6 +4280,10 @@ const TeacherQuizWidget: React.FC<{
             }
           : {})}
         onClose={() => {
+          // Only finished wording: an autosave can catch a half-typed choice.
+          const finished = latestSavedQuiz.current ?? editingQuiz;
+          latestSavedQuiz.current = null;
+          if (finished) void syncPaperRewords(finished);
           setEditingQuiz(null);
           setEditingMeta(null);
         }}
@@ -4205,6 +4299,7 @@ const TeacherQuizWidget: React.FC<{
             // Adopt what was written. Without this a new quiz keeps saving
             // with no drive file id, so every retitled autosave orphans a file.
             setEditingMeta(saved);
+            latestSavedQuiz.current = updated;
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
               const published = getQuizBehavior(saved);
@@ -4819,6 +4914,8 @@ const TeacherQuizWidget: React.FC<{
               ? `data:${res.data.mimeType ?? 'image/webp'};base64,${res.data.data}`
               : null;
           }}
+          canKeepPages={canAccessFeature(PAPER_KEPT_PAGES_FEATURE)}
+          driveConnected={isDriveConnected}
           checkQuota={async () => {
             const quota = await readPaperImportQuota(firestoreDocData, {
               uid: user.uid,
@@ -4880,8 +4977,12 @@ const TeacherQuizWidget: React.FC<{
       {paperOcr && (
         <PaperQuestionTextModal
           quiz={paperOcr.quiz}
+          hasScannedResponses={assignments.some(
+            (a) => a.quizId === paperOcr.quiz.id && a.hasPaperResponses
+          )}
           onSave={async (data) => {
             await saveQuiz(data, paperOcr.meta.driveFileId);
+            void syncPaperRewords(data);
             addToast('Question text updated.', 'success');
           }}
           onPickFromDrive={pickScanFromDrive}

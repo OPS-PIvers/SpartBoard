@@ -58,6 +58,7 @@ const mockAuthContext = {
   user: { displayName: 'Teacher' },
   featurePermissions: [],
   selectedBuildings: ['schumann'],
+  canAccessFeature: () => false,
 };
 
 const mockNutrisliceData = {
@@ -407,6 +408,7 @@ describe('LunchCountRedesign — class group pool', () => {
       (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         user: { displayName: 'Sam Substitute' },
         selectedBuildings: ['schumann'],
+        canAccessFeature: () => false,
         featurePermissions: [
           {
             widgetType: 'lunchCount',
@@ -508,6 +510,7 @@ describe('LunchCountRedesign — missing lunch time or grade', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { displayName: 'Kristan Nalezny' },
       selectedBuildings: auth.buildings,
+      canAccessFeature: () => false,
       featurePermissions: [
         {
           widgetType: 'lunchCount',
@@ -608,6 +611,7 @@ describe('LunchCountRedesign — missing lunch time or grade', () => {
       ).body
     ) as { label: string };
     expect(body.label).toBe('10:00 - K - P. Awes');
+    expect(body).not.toHaveProperty('classKey');
   });
 
   it('asks for the school when the profile has no building', () => {

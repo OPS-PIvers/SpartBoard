@@ -1,4 +1,5 @@
 import React from 'react';
+import { MathText } from '@/components/common/MathText';
 import { Check } from 'lucide-react';
 
 export interface DistributionBarRow {
@@ -23,6 +24,8 @@ interface AnswerDistributionBarsProps {
   countSize?: string;
   barHeight?: string;
   gap?: string;
+  /** Draws a row's label, e.g. with a picture; defaults to the text. */
+  renderLabel?: (label: string) => React.ReactNode;
 }
 
 /** Labelled horizontal bars for an answer distribution (Quiz monitor, VA live board). */
@@ -35,6 +38,7 @@ export const AnswerDistributionBars: React.FC<AnswerDistributionBarsProps> = ({
   countSize = 'min(11px, 3.8cqmin)',
   barHeight = 'min(8px, 2cqmin)',
   gap = 'min(6px, 1.5cqmin)',
+  renderLabel,
 }) => (
   <div className="flex flex-col" style={{ gap }}>
     {rows.map((row) => {
@@ -64,7 +68,13 @@ export const AnswerDistributionBars: React.FC<AnswerDistributionBarsProps> = ({
                   style={{ width: labelSize, height: labelSize }}
                 />
               )}
-              <span className="truncate">{row.label}</span>
+              <span className="truncate">
+                {renderLabel ? (
+                  renderLabel(row.label)
+                ) : (
+                  <MathText text={row.label} />
+                )}
+              </span>
               {correct && correctLabel && (
                 <span className="shrink-0 font-bold uppercase tracking-wide">
                   {correctLabel}

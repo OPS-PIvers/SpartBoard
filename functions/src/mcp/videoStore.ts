@@ -53,7 +53,7 @@ export interface VideoContent {
 /** Mirrors extractYouTubeId in utils/youtube.ts. */
 export const extractYouTubeId = (url: string): string | null => {
   const m = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
   );
   return m ? m[1] : null;
 };

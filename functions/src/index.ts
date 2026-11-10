@@ -71,6 +71,7 @@ export {
 } from './paperTranscriptionSweep';
 export {
   getPaperWrittenCropV1,
+  getPaperPageV1,
   updatePaperTranscriptV1,
   applyPaperNewerScanV1,
   transcribePaperBlankV1,
@@ -142,6 +143,8 @@ export {
   importPaperResponsesV1,
   publishPaperResultsV1,
 } from './importPaperResponses';
+// Keeps scanned paper answers matching a teacher's reworded choices.
+export { paperRewordSyncV1 } from './paperRewordSync';
 // Paper answer sheets, delegated: printing a PLC teammate's stack while they
 // are out. The context read is separate from the two writes.
 export { getTeammatePrintContextV1 } from './getTeammatePrintContext';
@@ -331,6 +334,9 @@ export {
   webTourLoadV1,
   webTourRunV1,
 } from './webTourExtension';
+
+// Public tour links: the Steps view for anyone with the link, and auto-off on a picture change (docs/plans/shipped/TOURS_10X.md S6).
+export { tourPublicStepsV1, tourPublicLinkGuard } from './tourPublicLink';
 
 // Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 export {

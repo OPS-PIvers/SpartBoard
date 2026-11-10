@@ -30,7 +30,13 @@ import {
   primaryBtn,
   secondaryBtn,
 } from '@/components/common/lightChrome';
-import { cropRect } from '../recorder/geometry';
+import {
+  FULL_CROP,
+  blurInOriginal,
+  cropFraction,
+  cropRect,
+  pictureTarget,
+} from '../recorder/geometry';
 import {
   isRecorderInternal,
   PANEL_PORT,
@@ -77,7 +83,29 @@ const dangerBtn = `rounded-lg bg-brand-red-primary px-3 py-1.5 text-sm font-semi
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
 const toRecorded = async (s: PanelStep): Promise<RecordedWebStep> => {
-  const picture = s.picture ? await finishPicture(s.picture, s.blur) : null;
+  const finished = s.picture ? await finishPicture(s.picture, s.blur) : null;
+  // Where the target sits in the picture, so SpartBoard previews the ring exactly.
+  const placed =
+    finished && s.capture.target
+      ? pictureTarget(s.capture.target, s.capture.viewport)
+      : null;
+  // The uncropped screen carries the same blur, moved into its own coordinates.
+  const original =
+    finished && s.original
+      ? await finishPicture(
+          s.original.blob,
+          blurInOriginal(s.blur, s.original.crop)
+        )
+          .then((o) => ({ ...o, crop: s.original?.crop ?? FULL_CROP }))
+          .catch(() => null)
+      : null;
+  const picture = finished
+    ? {
+        ...finished,
+        ...(placed ?? {}),
+        ...(original ? { original } : {}),
+      }
+    : null;
   const tip = s.tip.trim();
   const note = scrubCapturedText(s.note, MAX_NOTE_CHARS);
   return {
@@ -415,8 +443,13 @@ export const SidePanel: React.FC = () => {
       // Placed now so steps keep their order while pictures decode.
       if (asFix) setFix(placed);
       else setSteps((all) => [...(all ?? []), placed]);
-      const done = (picture: Blob | null) =>
-        update((x) => ({ ...x, picture, pending: false }));
+      const done = (picture: Blob | null, original?: PanelStep['original']) =>
+        update((x) => ({
+          ...x,
+          picture,
+          pending: false,
+          ...(picture && original ? { original } : {}),
+        }));
       // No picture when the click couldn't be placed: an uncropped screen shows too much.
       if (!screenshot || !capture.target) {
         done(null);
@@ -429,9 +462,25 @@ export const SidePanel: React.FC = () => {
           w: image.naturalWidth,
           h: image.naturalHeight,
         });
-        void cropScreenshot(screenshot, crop)
-          .catch(() => null)
-          .then(done);
+        // The whole screen is kept beside the crop so SpartBoard can re-crop it later.
+        const full = {
+          w: image.naturalWidth,
+          h: image.naturalHeight,
+          crop: cropFraction(crop, {
+            w: image.naturalWidth,
+            h: image.naturalHeight,
+          }),
+        };
+        void Promise.all([
+          cropScreenshot(screenshot, crop),
+          fetch(screenshot).then((r) => r.blob()),
+        ])
+          .then(([picture, blob]) => done(picture, { blob, ...full }))
+          .catch(() =>
+            cropScreenshot(screenshot, crop)
+              .catch(() => null)
+              .then((picture) => done(picture))
+          );
       };
       image.onerror = () => done(null);
       image.src = screenshot;

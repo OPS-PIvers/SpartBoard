@@ -170,6 +170,8 @@ const romanValue = (text: string): number => {
   return total;
 };
 
+const WRITTEN_SECTION = /^\s*(?:short\s+answer|essay|problem)\s*$/i;
+
 /** A key's section heading, with the number it printed; null when the line isn't one. */
 export function keySectionHeading(text: string): { printed?: number } | null {
   if (isHeading(text)) return null;
@@ -334,6 +336,7 @@ function findTestBankKey(
           item: open.number,
           answer,
           ...(open.points !== undefined ? { points: open.points } : {}),
+          ...(written ? { written: true } : {}),
           ...metadataOf(open.fields.join(' ')),
         });
       }
@@ -341,9 +344,17 @@ function findTestBankKey(
     open = null;
   };
 
+  // The type heading the first entry sits under.
+  let above = first - 1;
+  while (above >= 0 && !lines[above].text.trim()) above -= 1;
+  let written = above >= 0 && WRITTEN_SECTION.test(lines[above].text);
   let collecting = false;
   for (let i = first; i < lines.length; i += 1) {
     const text = lines[i].text;
+    if (TEST_BANK_SECTION.test(text)) {
+      close();
+      written = WRITTEN_SECTION.test(text);
+    }
     const points = TEST_BANK_POINTS.exec(text);
     const entry = TEST_BANK_ENTRY.exec(text);
     if (entry) {
@@ -641,6 +652,12 @@ function choiceFor(
   question: ExtractedQuestion,
   answer: string
 ): ExtractedQuestion['options'][number] | undefined {
+  // A test bank keys a false statement as `F, word`: the word is the correction.
+  const corrected = /^(t|f|true|false)\s*,/i.exec(answer);
+  if (corrected && question.options.length === 2) {
+    const plain = choiceFor(question, corrected[1]);
+    if (plain && /^(?:true|false)$/i.test(plain.text.trim())) return plain;
+  }
   const letter = /^[a-z]$/i.test(answer) ? answer.toUpperCase() : answer;
   const byLetter = question.options.find((o) => o.letter === letter);
   if (byLetter) return byLetter;
@@ -661,6 +678,63 @@ const note = (
   ...question,
   warnings: [...question.warnings, text],
 });
+
+/** A question answered with a letter read off a picture, with no choices printed. */
+const ASKS_FOR_LETTER =
+  /\b(?:which|what)\s+letter\b|\bchoose\s+(?:a|the)\s+letter\b|\bletter\s+(?:of|from|in|on)\s+the\s+(?:figure|graph|diagram|picture|image|map|model)\b/i;
+
+const letterChoices = (last: string): ExtractedQuestion['options'] =>
+  Array.from({ length: Math.max(last.charCodeAt(0) - 64, 2) }, (_, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return { letter, text: letter };
+  });
+
+/**
+ * Questions answered with a letter off one picture share its letters, so each
+ * run gets A through the furthest letter its key uses, and a note to check.
+ */
+export function settleLetterChoices(
+  questions: readonly ExtractedQuestion[]
+): ExtractedQuestion[] {
+  const out = [...questions];
+  const sharesPicture = (a: ExtractedQuestion, b: ExtractedQuestion) =>
+    a.imageIds.length === 0 ||
+    b.imageIds.length === 0 ||
+    a.imageIds.some((id) => b.imageIds.includes(id));
+  let i = 0;
+  while (i < out.length) {
+    if (!out[i].lettersFromKey) {
+      i += 1;
+      continue;
+    }
+    let end = i + 1;
+    while (
+      end < out.length &&
+      out[end].lettersFromKey &&
+      sharesPicture(out[end - 1], out[end])
+    ) {
+      end += 1;
+    }
+    const last = out
+      .slice(i, end)
+      .map((q) => q.correctAnswer)
+      .sort()
+      .at(-1) as string;
+    const options = letterChoices(last);
+    const text = `The test printed no choices for this question, so the letters A–${options[options.length - 1].letter} were added from the answer key. Check that they match the letters in its picture.`;
+    for (let n = i; n < end; n += 1) {
+      const { lettersFromKey: _built, ...q } = out[n];
+      out[n] = {
+        ...q,
+        options,
+        warnings: [...q.warnings.filter((w) => !LETTERS_NOTE.test(w)), text],
+      };
+    }
+    i = end;
+  }
+  return out;
+}
+const LETTERS_NOTE = /^The test printed no choices for this question/;
 
 /** Put one key answer on one question, or say why it couldn't be. */
 export function applyKeyAnswer(
@@ -753,6 +827,16 @@ export function applyKeyAnswer(
         question,
         `This question has ${blanks} blanks and fill in the blank takes one answer, so it stays a written response. The key’s answer: ${said}`
       );
+    }
+    // "Which letter shows the enzyme?" is answered from a picture's own lettering.
+    if (/^[A-Z]$/i.test(answer) && ASKS_FOR_LETTER.test(question.text)) {
+      return {
+        ...question,
+        type: 'MC',
+        options: letterChoices(answer.toUpperCase()),
+        correctAnswer: answer.toUpperCase(),
+        lettersFromKey: true,
+      };
     }
     if (
       isLetter(answer) ||

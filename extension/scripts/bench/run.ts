@@ -12,6 +12,7 @@ import {
   type Worker,
 } from '@playwright/test';
 import { SCENARIOS, type BenchScenario } from './scenarios.ts';
+import { redrawnSteps, waitPlan } from './plan.ts';
 import { LAUNCHER, OTHER_PORT, SITE, startServers } from './server.ts';
 import type { WebTourStartMessage } from '../../../components/tours/web/extensionProtocol.ts';
 
@@ -23,6 +24,10 @@ const RESULTS = path.join(HERE, 'results');
 /** How long the "teacher" reads a lit step before clicking it. */
 const DWELL_MS = 500;
 const STEP_TIMEOUT_MS = 8000;
+/** The tick's length plus slack: a control found by then glides in on the rhythm. */
+const TICK_WINDOW_MS = 250;
+/** How soon after the last click a rushing learner clicks the next control. */
+const RUSH_MS = 60;
 const VIEWPORT = { width: 1366, height: 768 };
 /** A step is lit when the overlay commits a spotlight box to the page, in the frame it is then painted. */
 const LIT = 'paint';
@@ -38,6 +43,8 @@ interface Mark {
   token?: string;
   ms?: number;
   kind?: string;
+  type?: string;
+  phase?: string;
   status?: string;
   current?: number;
   rect?: { x: number; y: number; width: number; height: number } | null;
@@ -65,7 +72,22 @@ export interface Transition {
   longTaskMs: number;
   maxFrameGap: number;
   fellBack: boolean;
+  /** The step showed its picture fallback at some point (TOURS_10X.md P7). */
+  fallback?: boolean;
+  /** The step's tip came back after another step's was drawn. */
+  redrawn?: boolean;
+  /** From the page settling (the tick) to the tip coming in, when the step followed the learner's action (P1). */
+  settleToTip?: number | null;
+  /** A `waits` step: its control comes late on purpose, so the chip should show. */
+  waitsByDesign?: boolean;
+  /** The chip showed for a `waits` step and the tip reopened when its control came (P4). */
+  waited?: boolean;
 }
+
+const settleTimes = (rows: Transition[]) =>
+  rows
+    .map((r) => r.settleToTip)
+    .filter((x): x is number => typeof x === 'number');
 
 const INIT = () => {
   const log = (o: Record<string, unknown>) =>
@@ -260,7 +282,7 @@ async function play(
   sc: BenchScenario,
   msg: WebTourStartMessage,
   throttle: number
-): Promise<Transition[]> {
+): Promise<{ transitions: Transition[]; presses: PressCost[] }> {
   const launcher = await ctx.newPage();
   await launcher.goto(LAUNCHER);
   const marks: Mark[] = [];
@@ -288,6 +310,28 @@ async function play(
   };
   phase = 'start';
   const page = await start().catch(start);
+  // --diagnose: say why a page crashed, with the tab's memory just before, instead of only retrying.
+  let lastHeap = 0;
+  if (flag('diagnose')) {
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Performance.enable');
+    const sample = setInterval(() => {
+      cdp
+        .send('Performance.getMetrics')
+        .then(({ metrics }) => {
+          lastHeap =
+            metrics.find((m) => m.name === 'JSHeapUsedSize')?.value ?? lastHeap;
+        })
+        .catch(() => undefined);
+    }, 500);
+    page.on('close', () => clearInterval(sample));
+    page.on('crash', () => {
+      clearInterval(sample);
+      console.warn(
+        `CRASH ${sc.name} at ${phase}: JS heap ${(lastHeap / 1e6).toFixed(0)} MB, free ${(os.freemem() / 1e6).toFixed(0)} MB`
+      );
+    });
+  }
   page.on('console', (c) => {
     const text = c.text();
     const m = /^\[sb(?:bench|main)\] (.*)$/.exec(text);
@@ -307,25 +351,44 @@ async function play(
     return undefined;
   };
   const steps = sc.steps;
-  const clicks: number[] = [];
-  const fellBack: boolean[] = [];
+  const plan = waitPlan(steps);
+  // Per waited step: the click before the wait, the click after it, and whether its spotlight never came.
+  const actBefore = new Map<number, number>();
+  const clickAfter = new Map<number, number>();
+  const fellBack = new Map<number, boolean>();
+  let lastClick = 0;
   for (let i = 0; i < steps.length; i++) {
-    phase = `step ${i + 1}: waiting for its spotlight`;
-    const since = clicks[i - 1] ?? 0;
-    const lit = await waitFor(() => {
-      const match = marks.find(
-        (m) =>
-          m.name === 'match' && m.token?.startsWith(`${i}:`) && m.t >= since
-      );
-      if (!match) return undefined;
-      return marks.find((m) => m.name === LIT && m.rect && m.t >= match.t);
-    }, STEP_TIMEOUT_MS);
-    fellBack.push(!lit);
-    await page.waitForTimeout(DWELL_MS);
-    // --cold: Chrome stops an idle extension worker after 30s, so a slow reader's click wakes a fresh one.
-    if (cold) {
-      await cold.stopWorker();
-      await page.waitForTimeout(200);
+    if (steps[i].play === 'skip') continue;
+    const w = plan[i];
+    if (w !== null) {
+      phase = `step ${w + 1}: waiting for its spotlight`;
+      const since = lastClick;
+      actBefore.set(w, since);
+      const lit = await waitFor(() => {
+        const match = marks.find(
+          (m) =>
+            m.name === 'match' && m.token?.startsWith(`${w}:`) && m.t >= since
+        );
+        if (!match) return undefined;
+        return marks.find((m) => m.name === LIT && m.rect && m.t >= match.t);
+      }, STEP_TIMEOUT_MS);
+      fellBack.set(w, !lit);
+      await page.waitForTimeout(DWELL_MS);
+      // --cold: Chrome stops an idle extension worker after 30s, so a slow reader's click wakes a fresh one.
+      if (cold) {
+        await cold.stopWorker();
+        await page.waitForTimeout(200);
+      }
+    } else {
+      await page.waitForTimeout(RUSH_MS);
+    }
+    for (const sel of steps[i].presses ?? []) {
+      phase = `step ${i + 1}: pressing ${sel}`;
+      await frameOf(page, steps[i].frame)
+        .locator(sel)
+        .first()
+        .click({ timeout: 5000 });
+      await page.waitForTimeout(150);
     }
     phase = `step ${i + 1}: clicking`;
     const before = marks.length;
@@ -335,7 +398,8 @@ async function play(
       () => marks.slice(before).find((m) => m.name === 'down'),
       2000
     );
-    clicks.push(down?.t ?? Date.now());
+    lastClick = down?.t ?? Date.now();
+    if (w !== null) clickAfter.set(w, lastClick);
   }
   phase = 'waiting for done';
   await waitFor(
@@ -354,10 +418,21 @@ async function play(
   if (flag('dump'))
     writeFileSync(
       path.join(os.tmpdir(), `sb-bench-marks-${sc.name}-${throttle}x.json`),
-      JSON.stringify({ clicks, marks, gaps }, null, 1)
+      JSON.stringify(
+        { clicks: Object.fromEntries(clickAfter), marks, gaps },
+        null,
+        1
+      )
     );
 
   const out: Transition[] = [];
+  const renders = marks.filter((m) => m.name === 'render');
+  const rhythmMarks = marks.filter((m) => m.name === 'rhythm');
+  // A tip is drawn twice when the worker's renders or the overlay's own tip go back to a step.
+  const redrawn = new Set([
+    ...redrawnSteps(renders),
+    ...redrawnSteps(rhythmMarks.filter((m) => m.phase === 'ready')),
+  ]);
   const nav = marks.find((m) => m.name === 'nav');
   const firstMatch = marks.find(
     (m) => m.name === 'match' && m.token?.startsWith('0:')
@@ -366,15 +441,15 @@ async function play(
     ? marks.find((m) => m.name === LIT && m.rect && m.t >= firstMatch.t)
     : undefined;
   const firstLit = nav && firstPaint ? firstPaint.t - nav.t : null;
-  for (let i = 1; i < steps.length; i++) {
-    const act = clicks[i - 1];
+  for (const i of [...actBefore.keys()].filter((w) => w > 0)) {
+    const act = actBefore.get(i) ?? 0;
     const tok = (m: Mark) => m.token?.startsWith(`${i}:`) && m.t >= act;
     const seek = marks.find((m) => m.name === 'seek' && tok(m));
     const match = marks.find((m) => m.name === 'match' && tok(m));
     const lit = match
       ? marks.find((m) => m.name === LIT && m.rect && m.t >= match.t)
       : undefined;
-    const end = lit?.t ?? clicks[i];
+    const end = lit?.t ?? clickAfter.get(i) ?? act;
     // Time a view flag was true inside [act, end], from the overlay's 'view' marks.
     const during = (key: 'spot' | 'plain', want: boolean) => {
       const views = marks.filter((m) => m.name === 'view');
@@ -413,25 +488,86 @@ async function play(
         0,
         ...gaps.filter(([t]) => t >= act && t <= winEnd).map(([, d]) => d)
       ),
-      fellBack: fellBack[i],
+      fellBack: fellBack.get(i) ?? false,
+      fallback: renders.some(
+        (m) => m.current === i + 1 && m.status === 'fallback'
+      ),
+      redrawn: redrawn.has(i + 1),
+      settleToTip: (() => {
+        const mine = rhythmMarks.filter(
+          (m) => m.current === i + 1 && m.t >= act
+        );
+        const ticked = mine.find((m) => m.phase === 'tick');
+        const ready = ticked
+          ? mine.find((m) => m.phase === 'ready' && m.t >= ticked.t)
+          : undefined;
+        // Only where the next control was there by the end of the tick; later content is readyToLit's.
+        const inTime =
+          !!match && !!ticked && match.t <= ticked.t + TICK_WINDOW_MS;
+        return ticked && ready && inTime ? ready.t - ticked.t : null;
+      })(),
+      waitsByDesign: !!steps[i].waits,
+      waited:
+        !!steps[i].waits &&
+        renders.some((m) => m.current === i + 1 && m.status === 'fallback') &&
+        !!lit,
     });
   }
-  return out;
+  return { transitions: out, presses: pressCosts(marks) };
+}
+
+/** One press event's catch-up handler, timed in the frame (TOURS_10X.md P2). */
+export interface PressCost {
+  type: string;
+  ms: number;
+  /** The handler turned its event's task into a long task. */
+  longTask: boolean;
+}
+
+function pressCosts(marks: Mark[]): PressCost[] {
+  const longTasks = marks.filter((m) => m.name === 'longtask');
+  return (
+    marks
+      // A click-ahead's settle wait starts in its own task with one layout read; held to the same limit.
+      .filter((m) => m.name === 'press' || m.name === 'settlestart')
+      .map((p) => {
+        const ms = p.ms ?? 0;
+        return {
+          type: p.name === 'settlestart' ? 'settle start' : (p.type ?? ''),
+          ms,
+          // Attributable when the task would have stayed under 50ms without the handler.
+          longTask: longTasks.some(
+            (lt) =>
+              lt.t <= p.t &&
+              lt.t + (lt.ms ?? 0) >= p.t - ms &&
+              (lt.ms ?? 0) - ms < 50
+          ),
+        };
+      })
+  );
 }
 
 export interface ScenarioResult {
   scenario: string;
   throttle: number;
   transitions: Transition[];
+  presses?: PressCost[];
 }
 
-export function summarize(rows: Transition[]) {
+export function summarize(all: Transition[]) {
+  // A step meant to wait is timed by the site, not the tour; it is checked for the chip instead.
+  const rows = all.filter((r) => !r.waitsByDesign);
   const lit = rows
     .map((r) => r.actToLit)
     .filter((x): x is number => x !== null);
   return {
-    transitions: rows.length,
-    fellBack: rows.filter((r) => r.fellBack).length,
+    transitions: all.length,
+    fellBack: all.filter((r) => r.fellBack).length,
+    fallbacks: rows.filter((r) => r.fallback).length,
+    waitedMissing: all.filter((r) => r.waitsByDesign && !r.waited).length,
+    settleToTipP95: pct(settleTimes(rows), 95),
+    settleToTipMin: Math.min(...settleTimes(rows)),
+    redrawn: rows.filter((r) => r.redrawn).length,
     actToLitMedian: median(lit),
     actToLitP95: pct(lit, 95),
     readyToLitMedian: median(
@@ -469,10 +605,10 @@ export function summarize(rows: Transition[]) {
 
 /** CI limits (--budget) at 1x CPU: loose enough for a shared runner, tight enough to catch the old hitches coming back. */
 export const BUDGETS = {
-  /** Click to the next spotlight. */
-  actToLitP95: 200,
-  /** Content arriving to its spotlight. */
-  readyToLitP95: 200,
+  /** Click to the next spotlight: the page's settle (120ms quiet, 1s cap) and the 200ms tick come first (TOURS_10X.md P1). */
+  actToLitP95: 700,
+  /** Content arriving to its spotlight, which also waits for the settle and the tick. */
+  readyToLitP95: 500,
   /** One search, at its worst (the gradebook took 60-90ms before). */
   runMsP95: 60,
   /** Longest frame the page skipped around a step change. */
@@ -483,10 +619,17 @@ export const BUDGETS = {
 
 type Budget = Record<keyof typeof BUDGETS, number>;
 
+/** The catch-up handler runs inside the learner's press, so it may never search (TOURS_10X.md P2). */
+const PRESS_BUDGET_MS = 9;
+
 /** Scenarios held to their own limits: late content used to wait 250ms more and blank the spotlight for a second. */
 const SCENARIO_BUDGETS: Record<string, Partial<Budget>> = {
-  spa: { readyToLitP95: 120, darkP95: 300 },
+  spa: { darkP95: 300 },
 };
+
+/** The rhythm from settle to tip (P1): about half a second, never instant, never a long hang. */
+const RHYTHM_MIN_MS = 400;
+const RHYTHM_P95_MS = 650;
 
 function overBudget(results: ScenarioResult[]): string[] {
   const out: string[] = [];
@@ -494,13 +637,44 @@ function overBudget(results: ScenarioResult[]): string[] {
     const s = summarize(r.transitions);
     if (s.fellBack > 0)
       out.push(`${r.scenario}: ${s.fellBack} steps fell back to the picture`);
+    if (s.fallbacks > 0)
+      out.push(
+        `${r.scenario}: ${s.fallbacks} steps showed the picture fallback`
+      );
+    if (s.redrawn > 0)
+      out.push(`${r.scenario}: ${s.redrawn} steps drew their tip twice`);
+    if (s.waitedMissing > 0)
+      out.push(
+        `${r.scenario}: ${s.waitedMissing} late steps never showed the waiting chip and reopened`
+      );
+    if (s.settleToTipMin < RHYTHM_MIN_MS)
+      out.push(
+        `${r.scenario} ${r.throttle}x: a tip came ${s.settleToTipMin.toFixed(0)}ms after the page settled < ${RHYTHM_MIN_MS}ms`
+      );
+    if (s.settleToTipP95 > RHYTHM_P95_MS)
+      out.push(
+        `${r.scenario} ${r.throttle}x: settle to tip p95 ${s.settleToTipP95.toFixed(0)}ms > ${RHYTHM_P95_MS}ms`
+      );
+    for (const p of r.presses ?? []) {
+      if (p.ms > PRESS_BUDGET_MS)
+        out.push(
+          `${r.scenario} ${r.throttle}x: a ${p.type} handler took ${p.ms.toFixed(1)}ms > ${PRESS_BUDGET_MS}ms`
+        );
+      if (p.longTask)
+        out.push(
+          `${r.scenario} ${r.throttle}x: a long task ran during a ${p.type} handler`
+        );
+    }
     const limits: Budget = { ...BUDGETS, ...SCENARIO_BUDGETS[r.scenario] };
     for (const [key, limit] of Object.entries(limits) as [
       keyof Budget,
       number,
     ][]) {
-      // Spa content arrives late on purpose, so its click time is the app's, not ours.
+      // Spa and slow content arrives late on purpose, so its click time is the app's, not ours.
       if (key === 'actToLitP95' && r.scenario === 'spa') continue;
+      // The slow site removes the control while it loads, so the spotlight is out for the site's time.
+      if (r.scenario === 'slow' && (key === 'actToLitP95' || key === 'darkP95'))
+        continue;
       const v = s[key];
       if (v > limit)
         out.push(
@@ -538,6 +712,13 @@ async function launch(label: string) {
       `--load-extension=${EXT}`,
       '--ignore-certificate-errors',
       ...(flag('cold') ? [`--remote-debugging-port=${DEBUG_PORT}`] : []),
+      ...(flag('diagnose')
+        ? [
+            '--enable-logging',
+            `--log-file=${path.join(os.tmpdir(), `sb-bench-chrome-${label}.log`)}`,
+            '--v=0',
+          ]
+        : []),
     ],
   });
   await ctx.addInitScript(INIT);
@@ -572,28 +753,42 @@ async function main() {
       const msg = await record(ctx, sc);
       for (const throttle of throttles) {
         const transitions: Transition[] = [];
+        const presses: PressCost[] = [];
         const attempt = () => {
           const run = play(ctx, extId, sc, msg, throttle);
           // A play abandoned on timeout fails later, once its browser is closed.
           run.catch(() => undefined);
           return withTimeout(run, PLAY_TIMEOUT_MS, 'play timed out');
         };
+        const keep = (played: Awaited<ReturnType<typeof play>>) => {
+          transitions.push(...played.transitions);
+          presses.push(...played.presses);
+        };
         for (let r = 0; r < runs; r++) {
           try {
-            transitions.push(...(await attempt()));
+            keep(await attempt());
           } catch (err) {
             console.warn(
               `${sc.name} ${throttle}x run ${r + 1} failed (${String(err)}, at ${phase}); retrying in a new browser`
             );
             await close(ctx);
             ({ ctx, extId } = await launch(label));
-            transitions.push(...(await attempt()));
+            keep(await attempt());
           }
         }
-        results.push({ scenario: sc.name, throttle, transitions });
+        results.push({ scenario: sc.name, throttle, transitions, presses });
         const s = summarize(transitions);
+        if (presses.length > 0)
+          console.log(
+            `${sc.name.padEnd(7)} ${throttle}x  press handler max ${Math.max(...presses.map((p) => p.ms)).toFixed(1)}ms  p95 ${pct(
+              presses.map((p) => p.ms),
+              95
+            ).toFixed(
+              1
+            )}ms  long tasks during a press ${presses.filter((p) => p.longTask).length}/${presses.length}`
+          );
         console.log(
-          `${sc.name.padEnd(7)} ${throttle}x  click->lit median ${s.actToLitMedian.toFixed(0)}ms p95 ${s.actToLitP95.toFixed(0)}ms  ready->lit p95 ${s.readyToLitP95.toFixed(0)}ms  dark p95 ${s.darkP95.toFixed(0)}ms  centred p95 ${s.centredP95.toFixed(0)}ms  search p95 ${s.runMsP95.toFixed(1)}ms  long tasks ${s.longTaskMsTotal.toFixed(0)}ms  frame gap p95 ${s.maxFrameGapP95.toFixed(0)}ms  first step ${s.firstLitMedian.toFixed(0)}ms  fell back ${s.fellBack}/${s.transitions}`
+          `${sc.name.padEnd(7)} ${throttle}x  click->lit median ${s.actToLitMedian.toFixed(0)}ms p95 ${s.actToLitP95.toFixed(0)}ms  ready->lit p95 ${s.readyToLitP95.toFixed(0)}ms  dark p95 ${s.darkP95.toFixed(0)}ms  centred p95 ${s.centredP95.toFixed(0)}ms  search p95 ${s.runMsP95.toFixed(1)}ms  long tasks ${s.longTaskMsTotal.toFixed(0)}ms  frame gap p95 ${s.maxFrameGapP95.toFixed(0)}ms  first step ${s.firstLitMedian.toFixed(0)}ms  fell back ${s.fellBack}/${s.transitions}  fallback shown ${s.fallbacks}  tip redrawn ${s.redrawn}  settle->tip p95 ${s.settleToTipP95.toFixed(0)}ms min ${s.settleToTipMin.toFixed(0)}ms`
         );
       }
       await close(ctx);

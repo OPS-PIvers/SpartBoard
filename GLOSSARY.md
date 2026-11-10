@@ -56,6 +56,18 @@ _Avoid_: Team (unqualified, when talking about students)
 A walkthrough that runs on the real app, pointing at real controls while the teacher uses them.
 _Avoid_: walkthrough (for the object), guide (Sparty is the guide), Guided Learning (the tour's authoring format, not what a teacher sees)
 
+**Web tour**:
+A walkthrough that runs on another website through the SpartBoard Chrome extension, pointing at that site's real controls while the teacher uses them.
+_Avoid_: extension tour, site guide
+
+**Target**:
+The control a tour step points at, in a Live tour or a Web tour.
+_Avoid_: anchor (in anything an author reads; it is the developer word for a Live tour's registered control), element, hotspot
+
+**Steps view**:
+The read-only version of a Live tour or Web tour: every step with its picture and words, opened with "View steps" and readable without running the tour.
+_Avoid_: reader, guide, article
+
 **Getting Started**:
 The set of Live tours that sets up a new teacher, plus the page in the sidebar that lists them with that teacher's progress. It can always be reopened.
 _Avoid_: onboarding (in anything a teacher reads), setup wizard
