@@ -11085,6 +11085,7 @@ export type GlobalFeature =
   | 'paper-handwriting-ai'
   /** Each student's scanned pages kept at import and printed with marks (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md). */
   | 'paper-kept-pages'
+  | 'paper-pages-student-view'
   /** Highlights, shapes, stamps and pinned comments on handwritten answers, printed on the work. */
   | 'paper-image-markup'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */

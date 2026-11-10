@@ -256,7 +256,7 @@ export interface PaperKeptPagesRequestField {
   pages?: PaperKeptPagePayload[];
 }
 
-/** `getPaperPageV1` request: one kept page of one response, session teacher only (K1). */
+/** `getPaperPageV1` request: one kept page of one response, for the session teacher or the student it belongs to. */
 export interface GetPaperPageRequest {
   sessionId: string;
   responseKey: string;

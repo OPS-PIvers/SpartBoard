@@ -2475,6 +2475,10 @@
       }
     },
     "paperReview": {
+      "sheetHeading": "Ta feuille de réponses",
+      "sheetAlt": "Page {{number}} de ta feuille de réponses",
+      "sheetLoading": "Chargement de ta feuille de réponses",
+      "sheetUnavailable": "La page {{number}} n'a pas pu se charger.",
       "handwriting": "Ton écriture",
       "cropAlt": "Ta réponse manuscrite, question {{number}}",
       "loading": "Chargement de l'écriture",

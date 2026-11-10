@@ -21,6 +21,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',
+  'paper-pages-student-view',
   'paper-image-markup',
   'claude-connector',
   'web-tours',

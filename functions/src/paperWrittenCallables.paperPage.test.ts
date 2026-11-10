@@ -1,4 +1,4 @@
-// getPaperPageV1: the session's own teacher reads a kept page; nobody else does (K1, K19).
+// getPaperPageV1: the session's teacher reads a kept page; its own student may once results are returned (K1, K19).
 import { describe, it, expect, vi } from 'vitest';
 import type { Firestore } from 'firebase-admin/firestore';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
@@ -94,10 +94,12 @@ function makeDeps(
     objects = {},
     drive = {},
     granted = true,
+    studentGranted = true,
   }: {
     objects?: Record<string, string>;
     drive?: Record<string, string>;
     granted?: boolean;
+    studentGranted?: boolean;
   } = {}
 ) {
   const stub = makeStubFirestore(store);
@@ -119,6 +121,7 @@ function makeDeps(
         : Promise.reject(new Error('404'))
     ),
     isKeptPagesGranted: vi.fn(() => Promise.resolve(granted)),
+    isStudentPagesGranted: vi.fn(() => Promise.resolve(studentGranted)),
   };
   return deps;
 }
@@ -160,13 +163,74 @@ describe('getPaperPageV1', () => {
   it.each([
     ['a student', STUDENT],
     ['an anonymous caller', ANONYMOUS],
-  ])('refuses %s before reading anything', async (_label, caller) => {
+  ])('refuses %s while results are hidden', async (_label, caller) => {
     const deps = makeDeps(seed(), { objects: { [PATH]: 'page' } });
     await expect(
       handleGetPaperPage(deps, caller, request)
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(deps.readObject).not.toHaveBeenCalled();
     expect(deps.isKeptPagesGranted).not.toHaveBeenCalled();
+  });
+
+  const published = (over: Record<string, StubData> = {}) =>
+    seed({
+      [SESSION]: {
+        teacherUid: 't1',
+        scoreVisibility: 'score-and-responses',
+      },
+      ...over,
+    });
+
+  it('serves the owning student once responses are returned', async () => {
+    const deps = makeDeps(published(), { objects: { [PATH]: 'page' } });
+    await expect(handleGetPaperPage(deps, STUDENT, request)).resolves.toEqual({
+      status: 'ready',
+      mimeType: 'image/webp',
+      data: b64('page'),
+      source: 'storage',
+    });
+    expect(deps.isStudentPagesGranted).toHaveBeenCalledWith('t1');
+    expect(deps.isKeptPagesGranted).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['another student', { ...STUDENT, uid: 'p2' }, {}, {}],
+    ['an anonymous caller', ANONYMOUS, {}, {}],
+    [
+      'the student when only the score is returned',
+      STUDENT,
+      {
+        [SESSION]: { teacherUid: 't1', scoreVisibility: 'score-only' },
+      },
+      {},
+    ],
+    [
+      'the student when written answers come back typed',
+      STUDENT,
+      {
+        [SESSION]: {
+          teacherUid: 't1',
+          scoreVisibility: 'score-and-responses',
+          writtenReturnMode: 'typed',
+        },
+      },
+      {},
+    ],
+    [
+      'the student when the teacher lacks the student view',
+      STUDENT,
+      {},
+      { studentGranted: false },
+    ],
+  ])('refuses %s', async (_label, caller, over, opts) => {
+    const deps = makeDeps(published(over), {
+      objects: { [PATH]: 'page' },
+      ...opts,
+    });
+    await expect(
+      handleGetPaperPage(deps, caller, request)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(deps.readObject).not.toHaveBeenCalled();
   });
 
   it('refuses a teacher who does not own the session, such as a PLC teammate', async () => {

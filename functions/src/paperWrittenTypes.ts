@@ -117,7 +117,7 @@ export interface PaperKeptPagesRequestField {
   pages?: PaperKeptPagePayload[];
 }
 
-/** `getPaperPageV1` request: one kept page of one response, session teacher only (K1). */
+/** `getPaperPageV1` request: one kept page of one response, for the session teacher or the student it belongs to. */
 export interface GetPaperPageRequest {
   sessionId: string;
   responseKey: string;
@@ -139,6 +139,8 @@ export type GetPaperPageResponse =
 
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
 export const PAPER_KEPT_PAGES_FEATURE = 'paper-kept-pages';
+/** Students see their own kept pages with their results (K1 lifted behind this flag). */
+export const PAPER_PAGES_STUDENT_VIEW_FEATURE = 'paper-pages-student-view';
 export const PAPER_IMAGE_MARKUP_FEATURE = 'paper-image-markup';
 export const PAPER_PAGE_PREFIX = 'paper_pages';
 export const PAPER_PAGE_CALLABLE = 'getPaperPageV1';
