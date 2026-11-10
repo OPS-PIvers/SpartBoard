@@ -6,7 +6,7 @@ import {
   useAnchorElement,
 } from './useAnchorElement';
 
-const h = vi.hoisted(() => ({ searches: 0 }));
+const h = vi.hoisted(() => ({ searches: 0, fallbackScans: 0 }));
 
 vi.mock('./resolveTourAnchor', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./resolveTourAnchor')>();
@@ -14,6 +14,7 @@ vi.mock('./resolveTourAnchor', async (importOriginal) => {
     ...actual,
     findTourAnchor: (...args: Parameters<typeof actual.findTourAnchor>) => {
       h.searches++;
+      if (args[0].fallback) h.fallbackScans++;
       return actual.findTourAnchor(...args);
     },
   };
@@ -43,6 +44,7 @@ let rectReads = 0;
 beforeEach(() => {
   vi.useFakeTimers();
   h.searches = 0;
+  h.fallbackScans = 0;
   rectReads = 0;
   // jsdom has no layout: anything under [hidden] is zero-size, the rest is a 40px box.
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
@@ -109,14 +111,14 @@ describe('useAnchorElement', () => {
     expect(h.searches - afterFirst).toBeLessThanOrEqual(Math.ceil(250 / 16));
   });
 
-  it('throttles role-and-name searches to once per throttle window', async () => {
-    renderHook(() =>
+  it('looks up the data-tour id every frame but scans for the role-and-name fallback once per throttle window', async () => {
+    const { result } = renderHook(() =>
       useAnchorElement(
         { anchor: 'sidebar.classes', fallback: { role: 'button', name: 'X' } },
         scope
       )
     );
-    const afterFirst = h.searches;
+    const afterFirst = h.fallbackScans;
     const busy = document.createElement('div');
     document.body.appendChild(busy);
     for (let i = 0; i < 20; i++) {
@@ -125,9 +127,34 @@ describe('useAnchorElement', () => {
       });
       await advance(10);
     }
-    // 200ms of mutations: one search after the throttle gap from the first, then one more.
+    // 200ms of mutations: one scan after the throttle gap from the first, then one more.
     await advance(ANCHOR_SEARCH_THROTTLE_MS);
-    expect(h.searches - afterFirst).toBeLessThanOrEqual(2);
+    expect(h.fallbackScans - afterFirst).toBeLessThanOrEqual(2);
+    // A recorded tour still finds its tagged control within a frame or two.
+    addAnchor();
+    await advance(40);
+    expect(result.current.status).toBe('found');
+  });
+
+  it('follows a sliding panel for a recorded tour that also has a fallback', async () => {
+    const panel = document.createElement('div');
+    document.body.appendChild(panel);
+    const el = addAnchor(panel);
+    el.dataset.x = '-200';
+    const { result } = renderHook(() =>
+      useAnchorElement(
+        { anchor: 'sidebar.classes', fallback: { role: 'button', name: 'X' } },
+        scope
+      )
+    );
+    await advance(50);
+    expect(result.current.status).toBe('searching');
+    act(() => {
+      panel.dispatchEvent(new Event('transitionrun', { bubbles: true }));
+    });
+    el.dataset.x = '4';
+    await advance(32);
+    expect(result.current.status).toBe('found');
   });
 
   it('finds a control in a sliding panel mid-slide, once it is fully on screen', async () => {

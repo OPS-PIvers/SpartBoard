@@ -61,6 +61,8 @@ interface Options {
 interface State {
   phase: RhythmPhase;
   held: RhythmRect | null;
+  /** Immediate: set by `act`, so the step change it causes keeps this glide. */
+  acted?: boolean;
 }
 
 const sameRect = (a: RhythmRect | null, b: RhythmRect | null) =>
@@ -114,6 +116,7 @@ export function useStepRhythm({
   if (seenKey !== stepKey) {
     setSeenKey(stepKey);
     if (!enabled) setState(READY);
+    else if (state.acted) setState({ phase: state.phase, held: state.held });
     else if (actedChange && state.phase === 'ready')
       setState({ phase: 'settle', held: lastRect });
     else if (state.phase === 'ready' || state.phase === 'glide')
@@ -245,8 +248,8 @@ export function useStepRhythm({
           setTickAt({ rect: lastRect, n: ++tickN.current });
         setState(
           glideMs > 0
-            ? { phase: 'glide', held: isGone ? null : lastRect }
-            : READY
+            ? { phase: 'glide', held: isGone ? null : lastRect, acted: true }
+            : { ...READY, acted: true }
         );
         next?.();
         return;

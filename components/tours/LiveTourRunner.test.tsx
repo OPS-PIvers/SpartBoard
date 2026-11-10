@@ -4296,6 +4296,22 @@ describe('LiveTourRunner pacing feel', () => {
     expect(tick()).toBeNull();
   });
 
+  it('does not let the second click of a double-click finish the step it opened', async () => {
+    await start(
+      makeSet([
+        { anchor: 'dock.item:dice', action: 'click' },
+        { anchor: 'dock.item:dice', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Dice'), { detail: 1 });
+    await steps(50);
+    expect(progress()).toBe('2 / 3');
+    fireEvent.click(screen.getByText('Dice'), { detail: 2 });
+    await steps(50);
+    expect(progress()).toBe('2 / 3');
+  });
+
   it('drops the tick and glide under reduced motion', async () => {
     vi.stubGlobal(
       'matchMedia',

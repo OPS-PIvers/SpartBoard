@@ -153,9 +153,9 @@ export function useAnchorElement(
     let searchTimer: ReturnType<typeof setTimeout> | undefined;
     let missTimer: ReturnType<typeof setTimeout> | undefined;
     let searchRaf = 0;
-    let lastSearch = -Infinity;
-    // A data-tour id is a cheap lookup, so it is retried every frame; the role/name fallback scans the page.
-    const throttleMs = target.fallback ? ANCHOR_SEARCH_THROTTLE_MS : 0;
+    // The role/name fallback scans the page, so it runs at most once per throttle window; the data-tour id is looked up every frame.
+    let lastFallback = -Infinity;
+    const idOnly = target.anchor ? { ...target, fallback: undefined } : null;
     // Transitions running anywhere while the anchor is missing: a panel sliding in shows its control mid-way.
     const opening = new Map<EventTarget, number>();
     let resizeObserver: ResizeObserver | null = null;
@@ -255,30 +255,34 @@ export function useAnchorElement(
     };
 
     const runSearch = (fullOnly = false) => {
+      clearTimeout(searchTimer);
       searchTimer = undefined;
       if (cancelled || element) return;
-      lastSearch = Date.now();
-      const found = findTourAnchor(target, {
-        widgetIds,
-        slots,
-        // Mid-transition, only a control already fully on screen counts, so nothing scrolls a moving panel.
-        accept: fullOnly
-          ? (el) => isAnchorReachable(el) && anchorInView(el) === 'full'
-          : isAnchorReachable,
-      });
+      // Mid-transition, only a control already fully on screen counts, so nothing scrolls a moving panel.
+      const accept = fullOnly
+        ? (el: HTMLElement) =>
+            isAnchorReachable(el) && anchorInView(el) === 'full'
+        : isAnchorReachable;
+      const opts = { widgetIds, slots, accept };
+      let found = idOnly ? findTourAnchor(idOnly, opts) : null;
+      if (!found && target.fallback) {
+        const wait = lastFallback + ANCHOR_SEARCH_THROTTLE_MS - Date.now();
+        if (wait <= 0) {
+          lastFallback = Date.now();
+          found = findTourAnchor(target, opts);
+        } else if (!fullOnly) {
+          searchTimer = setTimeout(() => runSearch(), wait);
+        }
+      }
       if (found) track(found);
     };
 
     const requestSearch = () => {
-      if (cancelled || element || searchTimer !== undefined || searchRaf)
-        return;
-      const wait = lastSearch + throttleMs - Date.now();
-      if (wait > 0) searchTimer = setTimeout(runSearch, wait);
-      else
-        searchRaf = requestAnimationFrame(() => {
-          searchRaf = 0;
-          runSearch();
-        });
+      if (cancelled || element || searchRaf) return;
+      searchRaf = requestAnimationFrame(() => {
+        searchRaf = 0;
+        runSearch();
+      });
     };
 
     // While something on the page animates, look every frame (bounded) instead of waiting for it to end.
@@ -348,11 +352,7 @@ export function useAnchorElement(
     };
     const onMotionStart = (e: Event) => {
       if (!element) {
-        if (
-          throttleMs === 0 &&
-          e.target instanceof Node &&
-          !isTourUi(e.target)
-        ) {
+        if (idOnly && e.target instanceof Node && !isTourUi(e.target)) {
           opening.set(e.target, Date.now());
           followOpening();
         }

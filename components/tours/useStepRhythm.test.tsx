@@ -222,6 +222,20 @@ describe('useStepRhythm', () => {
       expect(result.current.tipShown).toBe(true);
     });
 
+    it('never draws the ring on a control that was already gone when the step was done', () => {
+      const { result, rerender } = setUpLive({ stepKey: '1', rect: A });
+      act(() =>
+        result.current.act(
+          () => null,
+          () => undefined,
+          () => true
+        )
+      );
+      rerender({ stepKey: '2', rect: null });
+      expect(result.current.rect).toBeNull();
+      expect(result.current.tickAt).toBeNull();
+    });
+
     it('lets go of the ring and the tick when the finished control leaves the page', async () => {
       const { result, rerender } = setUpLive({ stepKey: '1', rect: A });
       let gone = false;
