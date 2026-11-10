@@ -17,7 +17,7 @@ import { usePublicLinkControls } from './usePublicLinkControls';
 const store = vi.hoisted(() => ({
   record: null as PublicLinkRecord | null,
   listeners: new Set<(r: PublicLinkRecord | null) => void>(),
-  published: null,
+  published: null as GuidedLearningSet | null,
   turnOn: vi.fn(),
   turnOff: vi.fn(),
 }));
