@@ -101,7 +101,7 @@ export function scanSheetPatchRectsMm(): RectMm[] {
 const MARK_MM = 3.8;
 const MARK_GAP_MM = 2.6;
 const MARK_STROKE_MM = 0.55;
-const MARK_INK = { correct: '#166534', incorrect: '#b91c1c', unclear: '#000' };
+const MARK_INK = { correct: '#00b832', incorrect: '#ff0000', unclear: '#000' };
 const MARK_GLYPH = {
   correct: PAPER_STAMP_GLYPHS.check.d,
   incorrect: PAPER_STAMP_GLYPHS.x.d,
@@ -109,7 +109,7 @@ const MARK_GLYPH = {
 } as const;
 
 /** Key ring ink: a printed blue that reads dark gray in black and white, unlike pencil. */
-const KEY_INK = '#1d4ed8';
+const KEY_INK = '#0066ff';
 const KEY_STROKE_MM = 0.45;
 /** Clear of a filled bubble's pencil, and 1 mm short of the question number beside bubble A. */
 const KEY_RINGS_MM = [3.3];

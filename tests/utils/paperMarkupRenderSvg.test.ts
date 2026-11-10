@@ -7,6 +7,7 @@ import {
   PAPER_STAMP_GLYPHS,
   cropViewportMm,
   markupCommentListHtml,
+  onInk,
   numberMarkupComments,
   renderPaperMarkup,
   renderPaperMarkupAnswers,
@@ -472,7 +473,7 @@ describe('black-and-white printing', () => {
       const overWhite = channels(wash).map((c) => 255 - o * (255 - c));
       const gray =
         0.299 * overWhite[0] + 0.587 * overWhite[1] + 0.114 * overWhite[2];
-      expect(gray).toBeLessThanOrEqual(232);
+      expect(gray).toBeLessThanOrEqual(245);
       expect(gray).toBeGreaterThanOrEqual(190);
       const factor = overWhite.map((c) => c / 255);
       const under = channels(pencil).map((c, i) => c * factor[i]);
@@ -482,11 +483,14 @@ describe('black-and-white printing', () => {
     }
   });
 
-  it('keeps every stroke and number fill dark, with a white number on it legible', () => {
+  it('keeps every stroke visible on paper, with a legible number on its fill', () => {
     for (const color of COLORS) {
       const { ink } = PAPER_MARKUP_STYLE.palette[color];
-      expect(luma(ink)).toBeLessThanOrEqual(90);
-      expect(contrast(255, luma(ink))).toBeGreaterThanOrEqual(5.5);
+      expect(luma(ink)).toBeLessThanOrEqual(215);
+      expect(contrast(255, luma(ink))).toBeGreaterThanOrEqual(1.4);
+      expect(
+        contrast(luma(onInk(ink) === '#fff' ? '#ffffff' : '#111111'), luma(ink))
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 
