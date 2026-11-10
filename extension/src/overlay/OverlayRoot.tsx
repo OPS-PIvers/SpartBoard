@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -21,6 +22,14 @@ import type {
 } from './overlayState';
 import { useTargetRect } from './targetRect';
 import { benchMark } from '../bench';
+import { useStepRhythm } from '@/components/tours/useStepRhythm';
+import { rhythmOf } from '@/components/tours/playbackEngine';
+import { usePrefersReducedMotion } from '@/components/tours/usePrefersReducedMotion';
+import { secondaryBtn } from '@/components/tours/tourButtons';
+import { TourWherePicture } from '@/components/tours/TourWherePicture';
+
+// The target the frame seeker attached in this frame, which the page settles around.
+const frameTarget = () => globalThis.__sbWebTourFrame?.target?.el ?? null;
 
 const TIP_W = 320;
 const GUTTER = 12;
@@ -101,19 +110,24 @@ interface Props {
   onAction: (action: OverlayAction) => void;
 }
 
-const Picture: React.FC<{ picture: NonNullable<OverlayState['picture']> }> = ({
-  picture,
-}) => {
+const Picture: React.FC<{
+  picture: NonNullable<OverlayState['picture']>;
+  markup?: OverlayState['markup'];
+  target?: OverlayState['target'];
+}> = ({ picture, markup, target }) => {
   const { t } = useTranslation();
   return (
-    <img
-      src={`data:${picture.mime};base64,${picture.data}`}
-      width={picture.w}
-      height={picture.h}
-      alt={t('tours.webPictureAlt')}
-      data-testid="web-tour-picture"
-      className="mt-2 h-auto max-h-48 w-full rounded-lg border border-slate-200 object-contain"
-    />
+    <div className="mt-2">
+      <TourWherePicture
+        src={`data:${picture.mime};base64,${picture.data}`}
+        alt={t('tours.webPictureAlt')}
+        w={picture.w}
+        h={picture.h}
+        {...(target ? { target } : {})}
+        {...(markup ? { markup } : {})}
+        testId="web-tour-picture"
+      />
+    </div>
   );
 };
 
@@ -148,8 +162,9 @@ export const aheadState = (
   };
 };
 
-const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
+const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
   state: given,
+  styled,
   onAction,
 }) => {
   const { t } = useTranslation();
@@ -173,10 +188,42 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
     : placed;
   const done = state.status === 'done';
   const looking = useAfter(state.status === 'seeking', LOOKING_DELAY_MS);
-  const spot = !!rect;
-  const plain = !rect && !away;
+  // Settle, tick, glide, tip after the learner acts (TOURS_10X.md P1).
+  const reducedMotion = usePrefersReducedMotion();
+  const actable = state.status === 'shown' && !state.observe;
+  const [seen, setSeen] = useState({ current: state.current, actable });
+  const actedChange = state.current === seen.current + 1 && seen.actable;
+  if (seen.current !== state.current || seen.actable !== actable)
+    setSeen({ current: state.current, actable });
+  // The control the learner just finished, so a page change that removed it skips its tick.
+  const litEl = useRef<Element | null>(null);
+  const finishedGone = useCallback(() => !litEl.current?.isConnected, []);
+  const rhythm = useStepRhythm({
+    finishedGone,
+    enabled: styled,
+    reducedMotion,
+    stepKey: String(state.current),
+    rect,
+    actedChange,
+    near: frameTarget,
+    onPhase: (phase) => benchMark('rhythm', { phase, current: state.current }),
+  });
+  // Kept only while a step rests, so the next step's target never stands in for it.
+  const resting = rhythm.phase === 'ready' && lit;
+  const stepIndex = given.current - 1;
+  useLayoutEffect(() => {
+    const target = globalThis.__sbWebTourFrame?.target;
+    // Seek tokens start with the step index; the frame may already hold the next step's target.
+    if (resting && target && target.token.startsWith(`${stepIndex}:`))
+      litEl.current = target.el;
+  });
+  const shownRect = rhythm.rect;
+  const spot = !!shownRect;
+  const plain = !shownRect && !away;
   useEffect(() => benchMark('view', { spot, plain }), [spot, plain]);
-  useLayoutEffect(() => benchMark('paint', { rect }), [rect]);
+  useLayoutEffect(() => benchMark('paint', { rect: shownRect }), [shownRect]);
+  // A step whose control isn't on the page folds its tip into the chip on the bar (P4).
+  const waiting = styled && state.status === 'fallback';
   const tether = rect
     ? tetherFor(
         {
@@ -194,12 +241,16 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   const result = state.check && state.check !== 'pending' ? state.check : null;
   return (
     <>
-      {(lit || rect) && (
+      {(lit || shownRect) && (
         <TourSpotlight
-          rect={rect}
+          rect={shownRect}
           breathe={lit && !state.observe}
           clickThrough
           glide={false}
+          tick={rhythm.tick}
+          glideFor={
+            rhythm.phase === 'glide' ? rhythmOf(reducedMotion).glideMs : 0
+          }
         />
       )}
       <TourBar
@@ -209,63 +260,103 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
         onNext={() => onAction(done ? 'exit' : 'next')}
         onExit={() => onAction('exit')}
         positionKey={null}
+        skipped={state.skipped ?? []}
+        {...(waiting
+          ? {
+              waiting: {
+                step: state.current,
+                ...(state.picture
+                  ? {
+                      picture: (
+                        <Picture
+                          picture={state.picture}
+                          markup={state.markup}
+                          target={state.target}
+                        />
+                      ),
+                    }
+                  : {}),
+                ...(state.takeBack
+                  ? { onTakeBack: () => onAction('takeBack') }
+                  : {}),
+              },
+            }
+          : {})}
       />
-      <TourTip
-        boxRef={boxRef}
-        headingRef={headingRef}
-        left={tip.left}
-        top={tip.top}
-        bottom={tip.bottom}
-        width={tip.width}
-        tether={tether}
-        plain={!rect}
-        animate
-        title={done ? t('tours.completeTitle') : state.title}
-        looking={looking}
-        status={null}
-        next={
-          done
-            ? { onNext: () => onAction('exit'), last: true }
-            : checking || state.observe || state.status === 'fallback'
-              ? { onNext: () => onAction('next'), last }
-              : undefined
-        }
-      >
-        {result && !done && (
-          <p
-            role="status"
-            data-testid="web-tour-check-result"
-            className={`mb-2 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${CHECK_TONE[result]}`}
-          >
-            {t(CHECK_KEYS[result])}
-          </p>
-        )}
-        {!done && (
-          <p className="whitespace-pre-line text-sm text-slate-700">
-            {state.text.trim()}
-          </p>
-        )}
-        {state.status === 'wrong-page' && (
-          <p
-            data-testid="web-tour-other-page"
-            className="mt-2 text-sm font-semibold text-slate-700"
-          >
-            {t('tours.webOtherPage')}
-          </p>
-        )}
-        {state.status === 'fallback' && (
-          <p
-            data-testid="web-tour-find-it"
-            className="mt-2 text-sm font-semibold text-slate-700"
-          >
-            {t('tours.webFindIt')}
-          </p>
-        )}
-        {state.picture &&
-          (state.status === 'fallback' || state.status === 'wrong-page') && (
-            <Picture picture={state.picture} />
+      {(rhythm.tipShown || done) && !waiting && (
+        <TourTip
+          boxRef={boxRef}
+          headingRef={headingRef}
+          left={tip.left}
+          top={tip.top}
+          bottom={tip.bottom}
+          width={tip.width}
+          tether={tether}
+          plain={!rect}
+          animate
+          clearOfChrome
+          title={done ? t('tours.completeTitle') : state.title}
+          looking={looking}
+          status={null}
+          next={
+            done
+              ? { onNext: () => onAction('exit'), last: true }
+              : checking || state.observe || state.status === 'fallback'
+                ? { onNext: () => onAction('next'), last }
+                : undefined
+          }
+        >
+          {result && !done && (
+            <p
+              role="status"
+              data-testid="web-tour-check-result"
+              className={`mb-2 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${CHECK_TONE[result]}`}
+            >
+              {t(CHECK_KEYS[result])}
+            </p>
           )}
-      </TourTip>
+          {!done && (
+            <p className="whitespace-pre-line text-sm text-slate-700">
+              {state.text.trim()}
+            </p>
+          )}
+          {state.status === 'wrong-page' && (
+            <p
+              data-testid="web-tour-other-page"
+              className="mt-2 text-sm font-semibold text-slate-700"
+            >
+              {t('tours.webOtherPage')}
+            </p>
+          )}
+          {state.status === 'fallback' && (
+            <p
+              data-testid="web-tour-find-it"
+              className="mt-2 text-sm font-semibold text-slate-700"
+            >
+              {t('tours.webFindIt')}
+            </p>
+          )}
+          {state.picture &&
+            (state.status === 'fallback' || state.status === 'wrong-page') && (
+              <Picture
+                picture={state.picture}
+                markup={state.markup}
+                target={state.target}
+              />
+            )}
+          {state.status === 'wrong-page' && state.takeBack && (
+            // no-tour-anchor: tour playback chrome on a website, never a tour's own target
+            <button
+              type="button"
+              data-testid="tour-take-me-back"
+              onClick={() => onAction('takeBack')}
+              className={`${secondaryBtn} mt-2 -ml-3`}
+            >
+              {t('tours.takeMeBack')}
+            </button>
+          )}
+        </TourTip>
+      )}
     </>
   );
 };
@@ -356,7 +447,7 @@ export const OverlayRoot: React.FC<Props> = ({
           />
         )
       ) : state.role === 'top' ? (
-        <TopOverlay state={state} onAction={onAction} />
+        <TopOverlay state={state} styled={styled} onAction={onAction} />
       ) : (
         <TargetOverlay state={state} />
       )}

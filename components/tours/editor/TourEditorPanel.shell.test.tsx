@@ -10,6 +10,7 @@ import {
   clearTourEdit,
   getTourEdit,
   setTourEdit,
+  setTourEditPaused,
 } from './tourEditStore';
 import { useLiveTourPublish } from './useLiveTourPublish';
 import type { TourEditorSession } from './useTourEditorSession';
@@ -385,5 +386,39 @@ describe('Live step card', () => {
     expect(
       screen.getByRole('button', { name: 'Retake picture' })
     ).toBeInTheDocument();
+  });
+});
+
+describe('Live tour editor while paused', () => {
+  const renderPlaying = (session: TourEditorSession) =>
+    render(
+      <AuthContext.Provider
+        value={
+          {
+            user: { uid: 'admin-1', email: 'admin@school.org' },
+            canAccessFeature: () => false,
+          } as unknown as AuthContextType
+        }
+      >
+        <TourEditorPanel
+          session={session}
+          playback={{ ...IDLE_PLAYBACK, index: 0, jumping: true }}
+          readAloud={{ on: false, onToggle: vi.fn() }}
+          onClose={vi.fn()}
+          initialCollapsed={false}
+          initialSide="right"
+        />
+      </AuthContext.Provider>
+    );
+
+  it('says the steps before the selection are playing only while they are', () => {
+    const set = tourOf([step('a'), step('b'), step('c')]);
+    setTourEdit({ set, selected: 2, replay: 0, readAloud: false, v2: true });
+    renderPlaying(sessionFor(set, { selected: 2 }));
+    expect(
+      screen.getByText('Playing the steps before this one')
+    ).toBeInTheDocument();
+    act(() => setTourEditPaused(true));
+    expect(screen.queryByText('Playing the steps before this one')).toBeNull();
   });
 });

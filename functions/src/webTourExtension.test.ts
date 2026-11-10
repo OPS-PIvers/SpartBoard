@@ -341,6 +341,23 @@ describe('loadTour', () => {
     expect(tour.steps[0].web).not.toHaveProperty('showWhen');
   });
 
+  it('sends picture markup with the pictures it sends, never on the steps (TOURS_10X.md E5)', async () => {
+    const shapes = [{ id: 'm1', kind: 'box', x: 0.1, y: 0.1, w: 0.3, h: 0.2 }];
+    const a = step('a', 'https://app.example.com/', {
+      ...pic('a'),
+      markup: shapes,
+    });
+    const b = step('b', 'https://app.example.com/');
+    const tour = await loadTour(
+      'set1',
+      snapshot([a, { ...b, web: { ...b.web, picture: { markup: shapes } } }]),
+      storeOf(3)
+    );
+    expect(tour.pictures.a.markup).toEqual(shapes);
+    expect(tour.pictures).not.toHaveProperty('b');
+    expect(tour.steps[0].web).not.toHaveProperty('picture');
+  });
+
   it("never reads a picture outside the set's folder", async () => {
     const store = storeOf(3);
     const tour = await loadTour(

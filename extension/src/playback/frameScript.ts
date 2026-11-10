@@ -441,9 +441,12 @@ export function installFrameSeeker(
   /** Reports the furthest early action once the page around it has settled. */
   const settleAhead = () => {
     if (aheadWait || !aheadHit) return;
+    const began = BENCH ? performance.now() : 0;
     const wait = waitForSettle(
       domSettleHost(doc, { near: () => aheadHit?.el ?? null })
     );
+    // The one layout read a click-ahead costs, timed for the bench.
+    if (BENCH) benchMark('settlestart', { ms: performance.now() - began });
     aheadWait = wait;
     void wait.done.then(() => {
       if (aheadWait !== wait) return;
@@ -536,6 +539,16 @@ export function installFrameSeeker(
   const schedule = (records: MutationRecord[]) => {
     addedRoots(records);
     domVersion += 1;
+    // New elements may be a watched step's control arriving late: look again soon, not after the miss pause.
+    if (
+      records.some(
+        (r) =>
+          r.type === 'childList' &&
+          [...r.addedNodes].some((n) => n.nodeType === 1)
+      )
+    )
+      for (const [i, c] of aheadEls)
+        if (!c.el) aheadEls.set(i, { ...c, misses: 0, retryAt: 0 });
     queue();
     scheduleAhead();
   };

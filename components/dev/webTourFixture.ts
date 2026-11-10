@@ -23,7 +23,11 @@ export function fixturePicture(label: string): Picture | undefined {
   return data ? { mime: 'image/png', data, w: 320, h: 120 } : undefined;
 }
 
-export function fixtureTourStart(origin: string, stepIndex = 0) {
+export function fixtureTourStart(
+  origin: string,
+  stepIndex = 0,
+  withTargets = true
+) {
   const base = `${origin}${WEB_TOUR_FIXTURE_PATH}`;
   const step = (
     id: string,
@@ -48,6 +52,24 @@ export function fixtureTourStart(origin: string, stepIndex = 0) {
       setId: 'fixture-web-tour',
       version: 1,
       title: 'Fixture web tour',
+      // Where Share sits in its picture (the drawn box), for Show me where's ring (protocol 12).
+      ...(withTargets
+        ? { targets: { share: { x: 0.3125, y: 0.3333, w: 0.375, h: 0.3333 } } }
+        : {}),
+      // Markup drawn over the Share picture, which Show me where shows (protocol 12).
+      markup: {
+        share: [
+          { id: 'm1', kind: 'number' as const, x: 0.22, y: 0.5, n: 1 },
+          {
+            id: 'm2',
+            kind: 'arrow' as const,
+            x1: 0.12,
+            y1: 0.2,
+            x2: 0.29,
+            y2: 0.38,
+          },
+        ],
+      },
       steps: [
         step(
           'open',

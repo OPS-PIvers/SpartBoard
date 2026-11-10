@@ -23,7 +23,12 @@ import {
 import { TOUR_DOCK_EVENT, type TourDockRequest } from './tourPrerequisites';
 import { getTourFrame } from './tourFrame';
 import { Z_INDEX } from '@/config/zIndex';
-import { SETTLE_CAP_MS, SETTLE_QUIET_MS } from './playbackEngine';
+import {
+  GLIDE_MS,
+  SETTLE_CAP_MS,
+  SETTLE_QUIET_MS,
+  TICK_MS,
+} from './playbackEngine';
 // Loaded up front so the lazy picture renders within a test's fake frames.
 import './TourMiniPlayer';
 
@@ -179,6 +184,8 @@ const h = vi.hoisted(() => {
     emit,
     reset,
     canAccess: vi.fn((_id: string) => true),
+    // Tour pacing is its own switch, so tests written for today's pace keep it (TOURS_10X.md F1).
+    pacing: false,
     loadTour: vi.fn(),
     loadDraft: vi.fn(),
     user: null as { uid: string } | null,
@@ -213,7 +220,8 @@ vi.mock('@/utils/gettingStartedProgress', () => ({
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    canAccessFeature: h.canAccess,
+    canAccessFeature: (id: string) =>
+      id === 'tour-pacing' ? h.pacing && h.canAccess(id) : h.canAccess(id),
     user: h.user,
     featurePermissions: h.permissions,
   }),
@@ -305,6 +313,18 @@ vi.mock('./publishedTours', () => ({
 vi.mock('./stepSnapshot', () => ({
   captureStepSnapshot: () => Promise.resolve(null),
 }));
+
+// Routes the tests can override, so Take me back has a path to walk; real routes otherwise.
+const routes = vi.hoisted(() => new Map<string, { path: string[] }[]>());
+vi.mock('@/config/tourAnchorRoutes', async (importOriginal) => {
+  const real =
+    await importOriginal<typeof import('@/config/tourAnchorRoutes')>();
+  return {
+    ...real,
+    tourAnchorRoutes: (ref: string) =>
+      routes.get(ref) ?? real.tourAnchorRoutes(ref),
+  };
+});
 
 vi.mock('./settingsTab', () => ({
   fieldSettingsTab: (_type: string, key: string) =>
@@ -439,12 +459,14 @@ beforeEach(() => {
   vi.useFakeTimers();
   h.reset();
   h.canAccess.mockImplementation(() => true);
+  h.pacing = false;
   h.user = null;
   h.permissions = [];
   h.dockOpens = false;
   h.startRunLog.mockClear();
   Object.values(h.runLog).forEach((fn) => fn.mockClear());
   conds.facts.clear();
+  routes.clear();
   sessionStorage.clear();
 });
 
@@ -4043,6 +4065,10 @@ describe('LiveTourRunner Sparty on the tip', () => {
 
 // Tour pacing (TOURS_10X.md P2, P7): catch-up for a learner who gets ahead of a Live tour.
 describe('LiveTourRunner with tour pacing', () => {
+  beforeEach(() => {
+    h.pacing = true;
+  });
+
   // Each step's tip is mounted once per visit; records the title of every tip that mounts.
   const watchTips = () => {
     const mounted: string[] = [];
@@ -4061,7 +4087,11 @@ describe('LiveTourRunner with tour pacing', () => {
     return { mounted, stop: () => observer.disconnect() };
   };
 
-  const settled = () => frames(SETTLE_QUIET_MS + 50);
+  // Catch-up lands once the board settles, then the ring glides and the tip comes in.
+  // Stepped, so each phase's timer, set by an effect, gets its turn.
+  const settled = async (ms = SETTLE_QUIET_MS + GLIDE_MS + 150) => {
+    for (let t = 0; t < ms; t += 50) await frames(50);
+  };
 
   // A widget step to look at, then controls inside it, then controls elsewhere.
   const aheadSet = () =>
@@ -4160,7 +4190,7 @@ describe('LiveTourRunner with tour pacing', () => {
     const ticker = screen.getByText('Close w1');
     let n = 0;
     const id = setInterval(() => {
-      ticker.dataset.tick = String(++n);
+      ticker.style.width = `${++n}px`;
     }, 40);
     fireEvent.click(screen.getByText('Resize w1'));
     await frames(SETTLE_QUIET_MS * 2);
@@ -4198,7 +4228,7 @@ describe('LiveTourRunner with tour pacing', () => {
     expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
     expect(tips.mounted).toEqual(['Step 3']);
     fireEvent.click(late);
-    await frames();
+    await settled(SETTLE_QUIET_MS + TICK_MS + 150);
     expect(progress()).toBe('4 / 4');
     late.remove();
   });
@@ -4208,13 +4238,15 @@ describe('LiveTourRunner with tour pacing', () => {
     fireEvent.click(screen.getByText('Resize w1'));
     await settled();
     expect(skipped()).toBe('s0 s1');
-    fireEvent.click(barButton('Back'));
-    await frames();
-    expect(progress()).toBe('3 / 6');
+    // Back returns to the nearest skipped step first (P3).
     fireEvent.click(barButton('Back'));
     await frames();
     expect(progress()).toBe('2 / 6');
     expect(skipped()).toBe('s0');
+    fireEvent.click(barButton('Back'));
+    await frames();
+    expect(progress()).toBe('1 / 6');
+    expect(skipped()).toBeNull();
   });
 
   it('plays exactly as before with the flag off', async () => {
@@ -4225,5 +4257,283 @@ describe('LiveTourRunner with tour pacing', () => {
     await frames(SETTLE_CAP_MS);
     expect(progress()).toBe('1 / 6');
     expect(skipped()).toBeNull();
+  });
+});
+
+// Tour pacing (TOURS_10X.md P1, P3, P4, P5): the rhythm, the step dots and the waiting chip.
+describe('LiveTourRunner pacing feel', () => {
+  beforeEach(() => {
+    h.pacing = true;
+  });
+
+  const steps = async (ms: number) => {
+    for (let t = 0; t < ms; t += 25) await frames(25);
+  };
+  const tick = () => screen.queryByTestId('tour-spotlight-tick');
+  const tip = () => screen.queryByTestId('tour-callout');
+  const chip = () => screen.queryByTestId('tour-waiting-chip');
+  const hiddenBox = () => {
+    const box = document.querySelector<HTMLElement>('div[hidden]');
+    if (!box) throw new Error('no hidden box');
+    return box;
+  };
+
+  it('waits for the board to settle, ticks the finished step, then glides and brings in the tip', async () => {
+    await start(
+      makeSet([
+        { anchor: 'dock.item:dice', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Dice'));
+    await steps(SETTLE_QUIET_MS / 2);
+    expect(progress()).toBe('1 / 2');
+    expect(tick()).toBeNull();
+    await steps(SETTLE_QUIET_MS);
+    expect(tick()).toBeInTheDocument();
+    expect(progress()).toBe('1 / 2');
+    await steps(TICK_MS + 25);
+    expect(tick()).toBeNull();
+    expect(progress()).toBe('2 / 2');
+    // The ring glides before the tip comes in.
+    expect(tip()).toBeNull();
+    await steps(GLIDE_MS + 50);
+    expect(tip()).toBeInTheDocument();
+  });
+
+  it('keeps the settle wait but drops the tick and glide under reduced motion', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+    await start(
+      makeSet([
+        { anchor: 'dock.item:dice', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Dice'));
+    await steps(SETTLE_QUIET_MS / 2);
+    expect(progress()).toBe('1 / 2');
+    let ticked = false;
+    for (let t = 0; t < SETTLE_QUIET_MS + 100; t += 25) {
+      await frames(25);
+      ticked ||= tick() !== null;
+    }
+    expect(ticked).toBe(false);
+    expect(progress()).toBe('2 / 2');
+    expect(tip()).toBeInTheDocument();
+  });
+
+  it('draws skipped steps as hollow dots after a two-step click-ahead', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'widget.window', action: 'observe' },
+          { anchor: 'widget.settings-opener', action: 'click' },
+          { anchor: 'widget.resize-handle', action: 'click' },
+          { anchor: 'sidebar.boards', action: 'click' },
+        ],
+        ['dice']
+      )
+    );
+    expect(screen.getByTestId('tour-bar-dots').children).toHaveLength(4);
+    fireEvent.click(screen.getByText('Resize w1'));
+    await steps(SETTLE_QUIET_MS + GLIDE_MS + 100);
+    expect(progress()).toBe('4 / 4');
+    const dots = [...screen.getByTestId('tour-bar-dots').children];
+    expect(dots.map((d) => d.hasAttribute('data-skipped'))).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+    expect(screen.getByText('2 skipped')).toBeInTheDocument();
+  });
+
+  it('folds the tip into a calm waiting chip, and reopens it when the control appears', async () => {
+    routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
+    await start(
+      makeSet([
+        { anchor: 'library.search', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    await frames(ANCHOR_SEARCH_MS + 100);
+    expect(chip()).toHaveTextContent('Step 1 is waiting');
+    expect(tip()).toBeNull();
+    expect(screen.queryByTestId('tour-anchor-missing')).toBeNull();
+    expect(
+      within(screen.getByTestId('tour-bar')).queryByRole('button', {
+        name: 'Try again',
+      })
+    ).toBeNull();
+    // No picture and no known way back: nothing but the note.
+    expect(screen.queryByTestId('tour-show-me-where')).toBeNull();
+    expect(screen.queryByTestId('tour-take-me-back')).toBeNull();
+    act(() => {
+      hiddenBox().hidden = false;
+    });
+    await steps(600);
+    expect(chip()).toBeNull();
+    expect(tip()).toBeInTheDocument();
+    expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
+  });
+
+  it('shows the step picture behind Show me where', async () => {
+    routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
+    await start(
+      withThumbnails(
+        makeSet([
+          { anchor: 'library.search', action: 'click' },
+          { anchor: 'sidebar.boards', action: 'click' },
+        ])
+      )
+    );
+    await frames(ANCHOR_SEARCH_MS + 100);
+    expect(screen.queryByTestId('tour-where-picture')).toBeNull();
+    fireEvent.click(screen.getByTestId('tour-show-me-where'));
+    await frames();
+    expect(screen.getByTestId('tour-where-picture')).toBeInTheDocument();
+    expect(screen.getByTestId('tour-where-image').getAttribute('src')).toBe(
+      'https://example.com/slide.png'
+    );
+    // An older picture with no stored target is shown alone.
+    expect(screen.queryByTestId('step-picture-ring')).toBeNull();
+  });
+
+  it('rings the control on a picture that knows where it is', async () => {
+    routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
+    const set = withThumbnails(
+      makeSet([
+        { anchor: 'library.search', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    const target = { x: 0.2, y: 0.3, w: 0.25, h: 0.1 };
+    const steps = set.steps.map((st) =>
+      st.tour?.thumbnail
+        ? {
+            ...st,
+            tour: { ...st.tour, thumbnail: { ...st.tour.thumbnail, target } },
+          }
+        : st
+    );
+    await start({ ...set, steps });
+    await frames(ANCHOR_SEARCH_MS + 100);
+    fireEvent.click(screen.getByTestId('tour-show-me-where'));
+    await frames();
+    const ring = screen.getByTestId('step-picture-ring');
+    expect(ring.style.left).toBe('20%');
+    expect(ring.style.width).toBe('25%');
+  });
+
+  // A step whose control sits in a panel the previous step didn't leave open.
+  const panelTour = () =>
+    makeSet([
+      { anchor: 'dock.item:dice', action: 'observe' },
+      { anchor: 'library.search', action: 'click' },
+      { anchor: 'sidebar.boards', action: 'observe' },
+    ]);
+  const withOpener = () => {
+    routes.set('library.search', [{ path: ['dock.item:dice'] }]);
+    const box = hiddenBox();
+    const open = vi.fn(() => {
+      box.hidden = false;
+    });
+    screen.getByText('Dice').addEventListener('click', open);
+    return { box, open };
+  };
+
+  it('opens a control the tour moves forward to quietly, as today, with no chip', async () => {
+    await import('@/config/tourAnchorRoutes');
+    await start(panelTour());
+    const { box, open } = withOpener();
+    fireEvent.click(barButton('Next'));
+    let chipSeen = false;
+    for (let t = 0; t < ANCHOR_SEARCH_MS + 1500; t += 100) {
+      await frames(100);
+      chipSeen ||= chip() !== null;
+    }
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(chipSeen).toBe(false);
+    expect(screen.queryByTestId('tour-anchor-missing')).toBeNull();
+    expect(progress()).toBe('2 / 3');
+    expect(tip()).toBeInTheDocument();
+    expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
+    // Closed by the teacher afterwards: now the chip, and Take me back is still theirs to use once.
+    act(() => {
+      box.hidden = true;
+    });
+    await frames(ANCHOR_SEARCH_MS + 100);
+    await frames();
+    expect(chip()).toBeInTheDocument();
+    expect(screen.getByTestId('tour-take-me-back')).toBeInTheDocument();
+  });
+
+  it('shows the chip with Take me back only for a control that was on screen and then went away', async () => {
+    await import('@/config/tourAnchorRoutes');
+    await start(panelTour());
+    const { box, open } = withOpener();
+    act(() => {
+      box.hidden = false;
+    });
+    fireEvent.click(barButton('Next'));
+    await steps(GLIDE_MS + 200);
+    expect(tip()).toBeInTheDocument();
+    // The teacher closes the panel.
+    act(() => {
+      box.hidden = true;
+    });
+    await frames(ANCHOR_SEARCH_MS + 100);
+    await frames();
+    expect(open).not.toHaveBeenCalled();
+    expect(chip()).toHaveTextContent('Step 2 is waiting');
+    fireEvent.click(screen.getByTestId('tour-take-me-back'));
+    await steps(600);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(chip()).toBeNull();
+    expect(tip()).toBeInTheDocument();
+    // Once per step: closed again, the chip comes back without Take me back.
+    act(() => {
+      box.hidden = true;
+    });
+    await frames(ANCHOR_SEARCH_MS + 100);
+    expect(chip()).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-take-me-back')).toBeNull();
+  });
+
+  it('shows the chip when the quiet self-heal could not bring the control back', async () => {
+    routes.set('library.search', []);
+    await import('@/config/tourAnchorRoutes');
+    await start(panelTour());
+    fireEvent.click(barButton('Next'));
+    await frames(ANCHOR_SEARCH_MS + 300);
+    await frames();
+    expect(chip()).toHaveTextContent('Step 2 is waiting');
+    expect(screen.queryByTestId('tour-take-me-back')).toBeNull();
+  });
+
+  it('keeps today’s missing-control note and Retry with the flag off', async () => {
+    h.pacing = false;
+    routes.set('library.search', []);
+    await start(
+      makeSet([
+        { anchor: 'library.search', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    await frames(ANCHOR_SEARCH_MS + 100);
+    expect(chip()).toBeNull();
+    expect(screen.getByTestId('tour-anchor-missing')).toBeInTheDocument();
+    expect(barButton('Try again')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-bar-dots')).toBeNull();
   });
 });
