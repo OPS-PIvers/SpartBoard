@@ -609,7 +609,11 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         ...(lastSpeak ? { speak: lastSpeak } : {}),
         ...(lastStudy ? { study: lastStudy } : {}),
       });
-    } else if (ok !== false && ((speakChoice && lastSpeak) || lastStudy)) {
+    } else if (
+      ok !== false &&
+      lastUsed.loaded &&
+      ((speakChoice && lastSpeak) || lastStudy)
+    ) {
       const { collectSubmission: _kind, ...defaults } =
         getFlashcardAssignPrefill(null, cardCount);
       lastUsed.save({
