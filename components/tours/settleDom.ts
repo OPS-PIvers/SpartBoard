@@ -15,6 +15,25 @@ export interface DomSettleOptions {
   ignore?: (el: Element) => boolean;
 }
 
+// Attributes that can open, close or move something; others (a presence dot's data-on) only repaint.
+const LAYOUT_ATTRS = new Set([
+  'class',
+  'style',
+  'hidden',
+  'open',
+  'aria-expanded',
+  'aria-hidden',
+  'data-state',
+]);
+
+/** Only text changed (a ticking clock), which moves nothing around it. */
+const textOnly = (r: MutationRecord) =>
+  r.type === 'characterData' ||
+  (r.type === 'childList' &&
+    [...r.addedNodes, ...r.removedNodes].every(
+      (n) => n.nodeType === 3 /* Node.TEXT_NODE */
+    ));
+
 const elementOf = (node: Node): Element | null =>
   node instanceof Element ? node : node.parentElement;
 
@@ -52,18 +71,27 @@ export function domSettleHost(
       const counts = (records: MutationRecord[]) => {
         if (records.length > SETTLE_MAX_RECORDS) return true;
         const target = near();
+        const layout = records.filter(
+          (r) =>
+            r.type !== 'attributes' || LAYOUT_ATTRS.has(r.attributeName ?? '')
+        );
         if (!target?.isConnected)
-          return records.some((r) => {
+          return layout.some((r) => {
             const el = elementOf(r.target);
-            return !!el && !ignore?.(el);
+            return !!el && !ignore?.(el) && !textOnly(r);
           });
         let box: DOMRect | null = null;
         const seen = new Set<Element>();
-        for (const r of records) {
+        for (const r of layout) {
           const el = elementOf(r.target);
-          if (!el || seen.has(el)) continue;
+          if (!el || ignore?.(el)) continue;
+          // Text inside the target changes it; text elsewhere moves nothing.
+          if (textOnly(r)) {
+            if (target.contains(el)) return true;
+            continue;
+          }
+          if (seen.has(el)) continue;
           seen.add(el);
-          if (ignore?.(el)) continue;
           // Inside the target, or an ancestor whose layout carries it.
           if (target.contains(el) || el.contains(target)) return true;
           // A removed node's parent stays connected, so its box still says where the change was.

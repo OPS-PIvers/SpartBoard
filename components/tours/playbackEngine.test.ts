@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  backTarget,
+  GLIDE_MS,
+  rhythmOf,
+  takeBackUrl,
+  TICK_MS,
   catchUp,
   createSettle,
   enterRun,
@@ -192,5 +197,57 @@ describe('settle', () => {
     await Promise.resolve();
     expect(reason).toBeNull();
     expect(f.watching()).toBe(false);
+  });
+});
+
+describe('Back, Take me back and the rhythm', () => {
+  it('Back returns to the nearest skipped step, else the step before', () => {
+    expect(backTarget({ index: 4, skipped: ['b', 'c'] }, steps)).toBe(2);
+    expect(backTarget({ index: 4 }, steps)).toBe(3);
+    expect(backTarget({ index: 0 }, steps)).toBe(0);
+  });
+
+  const matches = (pattern: string, url: string) =>
+    new RegExp(`^${pattern.replace(/\*/g, '.*')}$`).test(url);
+
+  it('Take me back uses an exact address, else one already visited that matches', () => {
+    expect(
+      takeBackUrl('https://a.example/home', [], 'https://a.example/x', matches)
+    ).toBe('https://a.example/home');
+    expect(
+      takeBackUrl(
+        'https://a.example/class/*',
+        ['https://a.example/class/1', 'https://a.example/class/7'],
+        'https://a.example/x',
+        matches
+      )
+    ).toBe('https://a.example/class/7');
+  });
+
+  it('Take me back is not offered without a known address, or to where the learner is', () => {
+    expect(
+      takeBackUrl(
+        'https://a.example/class/*',
+        [],
+        'https://a.example/x',
+        matches
+      )
+    ).toBeNull();
+    expect(
+      takeBackUrl(
+        'https://a.example/home',
+        [],
+        'https://a.example/home/',
+        matches
+      )
+    ).toBeNull();
+  });
+
+  it('reduced motion drops the tick and the glide', () => {
+    expect(rhythmOf(false)).toEqual({ tickMs: TICK_MS, glideMs: GLIDE_MS });
+    expect(rhythmOf(true)).toEqual({ tickMs: 0, glideMs: 0 });
+    // About half a second from settle to tip.
+    expect(TICK_MS + GLIDE_MS).toBeGreaterThanOrEqual(400);
+    expect(TICK_MS + GLIDE_MS).toBeLessThanOrEqual(600);
   });
 });

@@ -114,6 +114,12 @@ import {
 import { TourSpotlight } from './TourSpotlight';
 import { TourTip, type TourTipStatus } from './TourTip';
 import { TourBar } from './TourBar';
+import type { TourWaiting } from './TourWaitingChip';
+import { TourWherePicture } from './TourWherePicture';
+import {
+  freshTourPictureUrl,
+  freshTourThumbnail,
+} from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { centreTip } from './tipPlacement';
 import { primaryBtn, secondaryBtn } from './tourButtons';
 import {
@@ -132,21 +138,26 @@ import {
 } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
 import { autoStage as stageTour, needsAutoStage } from './tourAutoStage';
-import { healAnchor } from './tourSelfHeal';
+import { canHeal, healAnchor } from './tourSelfHeal';
 import {
+  backTarget,
   catchUp,
   enterRun,
+  rhythmOf,
+  skippedIndices,
   matchLookahead,
   waitForSettle,
   type SettleWait,
 } from './playbackEngine';
 import { domSettleHost } from './settleDom';
+import { useStepRhythm } from './useStepRhythm';
 import {
   endTestRun,
   installTestRunHook,
   reportTestStep,
   SAMPLE_CLASS_NAME,
   sampleStudents,
+  takePlayTour,
   takeTestTour,
   testStepFound,
 } from './tourTestRun';
@@ -361,6 +372,9 @@ function watchNativePopups(onOpen: (el: HTMLElement | null) => void) {
   };
 }
 
+// The tour's own bar, tip and chip never count as the page moving.
+const inTourUi = (el: Element) => el.closest('[data-tour-ignore]') !== null;
+
 const readViewport = () =>
   typeof window === 'undefined'
     ? { w: 0, h: 0 }
@@ -444,6 +458,8 @@ export const LiveTourRunner: React.FC = () => {
   const startingRef = useRef(false);
   const lastStepClickAt = useRef(0);
   const reducedMotion = usePrefersReducedMotion();
+  // Tour pacing (TOURS_10X.md F1): catch-up, the settle-tick-glide rhythm and the waiting chip.
+  const pacing = canAccessFeature('tour-pacing');
   const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
     readSavedTour
   );
@@ -471,6 +487,8 @@ export const LiveTourRunner: React.FC = () => {
 
   // Steps of this run that self-heal already tried.
   const healTried = useRef(new Set<number>());
+  // Steps whose Take me back was used; it walks the route once per step (P5).
+  const takeBackUsed = useRef(new Set<number>());
 
   // Edit mode: the board editor's draft, with its selection driving playback.
   const editTarget = useTourEditTarget();
@@ -693,6 +711,25 @@ export const LiveTourRunner: React.FC = () => {
 
   const binding = step?.tour ?? null;
 
+  const rect = anchor.status === 'found' ? anchor.rect : null;
+  const target = rect
+    ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
+    : null;
+  // A menu the step's control opened is lit and kept clear along with it.
+  const spot = target
+    ? withNearbyPopups(target, tour ? openPopupBoxes() : [])
+    : null;
+  // Settle, tick, glide, tip on a paced run (P1); editor and test runs keep their own pace.
+  const paced = pacing && tour?.phase === 'running' && !tour.edit && !tour.test;
+  const rhythm = useStepRhythm({
+    enabled: paced,
+    reducedMotion,
+    stepKey: `${tour?.index ?? 0}:${visit}`,
+    rect: spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h },
+    ignore: inTourUi,
+  });
+  const rhythmAct = rhythm.act;
+
   // The editor pictures the step it stops on when it has no current picture or a Retake was asked.
   const [shotIds, setShotIds] = useState<ReadonlySet<string>>(() => new Set());
   const editRetake =
@@ -900,6 +937,7 @@ export const LiveTourRunner: React.FC = () => {
         ? stageTour(rawSet, rawSteps)
         : { set: rawSet, steps: rawSteps };
     healTried.current.clear();
+    takeBackUsed.current.clear();
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -1078,8 +1116,11 @@ export const LiveTourRunner: React.FC = () => {
     };
     void (async () => {
       try {
-        const test = import.meta.env.DEV ? takeTestTour(req.setId) : null;
+        const played = import.meta.env.DEV ? takePlayTour(req.setId) : null;
+        const test =
+          import.meta.env.DEV && !played ? takeTestTour(req.setId) : null;
         const set =
+          played ??
           test ??
           (req.draft
             ? await loadBuildingSet(req.setId)
@@ -1516,7 +1557,18 @@ export const LiveTourRunner: React.FC = () => {
   const stepValue = step?.tour?.value;
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   const advanceFrom = useEffectEvent((from: number) => {
-    if (tour?.phase === 'running' && tour.index === from) goTo(from + 1);
+    if (tour?.phase !== 'running' || tour.index !== from) return;
+    if (!paced) {
+      goTo(from + 1);
+      return;
+    }
+    // Settle, tick, then move on; the step change glides (P1).
+    const el = anchor.element;
+    rhythmAct(
+      () => (el?.isConnected ? el : null),
+      () => advanceRef.current(from + 1),
+      () => !el?.isConnected
+    );
   });
   // A pending advance outlives the anchor re-search a click's own widget can cause.
   const clickWait = useRef<AbortController | null>(null);
@@ -1613,7 +1665,6 @@ export const LiveTourRunner: React.FC = () => {
   }, [anchor.element, acted, action, stepValue, stepIndex, doneFact]);
 
   // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
-  const pacing = canAccessFeature('tour-pacing');
   const lookahead =
     pacing &&
     tour?.phase === 'running' &&
@@ -1847,15 +1898,7 @@ export const LiveTourRunner: React.FC = () => {
   // Re-places the tip after the bar is dragged.
   const [, setBarMoves] = useState(0);
   const onBarPlace = useCallback(() => setBarMoves((n) => n + 1), []);
-  const rect = anchor.status === 'found' ? anchor.rect : null;
-  const target = rect
-    ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
-    : null;
   const obstacles = tour ? tourObstacles() : [];
-  // A menu the step's control opened is lit and kept clear along with it.
-  const spot = target
-    ? withNearbyPopups(target, tour ? openPopupBoxes() : [])
-    : null;
   const placement = spot
     ? placeCallout({ box, target: spot, container: viewport, obstacles })
     : null;
@@ -1899,8 +1942,17 @@ export const LiveTourRunner: React.FC = () => {
           : null
       : null;
   // A control whose panel closed is reopened along its route, once per step (D4).
+  // Paced (P4): the control was on screen in this visit, so the teacher closed it and Take me back is theirs to press.
+  const visitKey = `${stepIndex}:${visit}`;
+  const [foundIn, setFoundIn] = useState<string | null>(null);
+  if (paced && anchor.status === 'found' && foundIn !== visitKey)
+    setFoundIn(visitKey);
+  const foundThisVisit = foundIn === visitKey;
+  // The visit whose quiet self-heal is over without bringing the control back.
+  const [healOver, setHealOver] = useState<string | null>(null);
   const healKey =
     running &&
+    !(paced && foundThisVisit) &&
     !tour?.test &&
     !tour?.edit &&
     anchor.status === 'missing' &&
@@ -1913,7 +1965,11 @@ export const LiveTourRunner: React.FC = () => {
     slots: tour?.slots,
   }));
   useEffect(() => {
-    if (!healKey || !binding || healTried.current.has(stepIndex)) return;
+    if (!healKey || !binding) return;
+    if (healTried.current.has(stepIndex)) {
+      setHealOver(`${stepIndex}:${visit}`);
+      return;
+    }
     const tried = healTried.current;
     tried.add(stepIndex);
     const ctrl = new AbortController();
@@ -1929,10 +1985,13 @@ export const LiveTourRunner: React.FC = () => {
       )
       .then((ok) => {
         settled = true;
-        if (ok && !ctrl.signal.aborted) setAttempt((n) => n + 1);
+        if (ctrl.signal.aborted) return;
+        if (ok) setAttempt((n) => n + 1);
+        else setHealOver(`${stepIndex}:${visit}`);
       })
       .catch((err: unknown) => {
         settled = true;
+        if (!ctrl.signal.aborted) setHealOver(`${stepIndex}:${visit}`);
         console.warn('Live tour self-heal failed', err);
       });
     return () => {
@@ -1940,7 +1999,61 @@ export const LiveTourRunner: React.FC = () => {
       // A heal cut short by a re-render hasn't had its try yet.
       if (!settled) tried.delete(stepIndex);
     };
-  }, [healKey, binding, stepIndex]);
+  }, [healKey, binding, stepIndex, visit]);
+  // The chip is for a control that went away, or one the quiet self-heal couldn't bring back.
+  const chipAllowed = foundThisVisit || healOver === visitKey;
+
+  // Paced runs heal only when the teacher asks, with Take me back, once per step (P5).
+  const [takeBackKey, setTakeBackKey] = useState<string | null>(null);
+  const offerKey =
+    paced && anchor.status === 'missing' && !doneNow && !!binding?.anchor
+      ? stepKey
+      : null;
+  useEffect(() => {
+    if (!offerKey || !binding || takeBackUsed.current.has(stepIndex)) return;
+    let live = true;
+    void import('@/config/tourAnchorRoutes')
+      .then(({ tourAnchorRoutes }) => {
+        if (
+          live &&
+          canHeal(binding.anchor, tourAnchorRoutes, healAnchorScope())
+        )
+          setTakeBackKey(offerKey);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [offerKey, binding, stepIndex]);
+  const [takeBackAsked, setTakeBackAsked] = useState<string | null>(null);
+  const takeMeBack = () => {
+    setTakeBackKey(null);
+    setTakeBackAsked(stepKey);
+  };
+  useEffect(() => {
+    if (!takeBackAsked || takeBackAsked !== stepKey || !binding) return;
+    if (takeBackUsed.current.has(stepIndex)) return;
+    takeBackUsed.current.add(stepIndex);
+    const ctrl = new AbortController();
+    void import('@/config/tourAnchorRoutes')
+      .then(({ tourAnchorRoutes }) =>
+        healAnchor(
+          binding.anchor,
+          tourAnchorRoutes,
+          healAnchorScope(),
+          ctrl.signal
+        )
+      )
+      .then((ok) => {
+        if (ok && !ctrl.signal.aborted) setAttempt((n) => n + 1);
+      })
+      .catch((err: unknown) => {
+        console.warn('Live tour Take me back failed', err);
+      });
+    return () => ctrl.abort();
+    // stepKey changes when the heal succeeds; only the ask and the step start or stop it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [takeBackAsked, stepIndex]);
 
   useEffect(() => {
     if (!testStatus || !step) return;
@@ -2669,7 +2782,9 @@ export const LiveTourRunner: React.FC = () => {
         : null);
     // A step with no anchor keeps its legacy slide, unless the slide would play media or a question.
     const plainSlide = plain && !PLAIN_SLIDE_SKIP.has(step.interactionType);
-    const preview = (isMissing || plainSlide) && hasStepSlide(step, tour.set);
+    // Paced runs keep the picture for the chip and never word a missing control as an error (P4).
+    const preview =
+      ((isMissing && !paced) || plainSlide) && hasStepSlide(step, tour.set);
     const width = Math.min(
       preview ? PREVIEW_WIDTH : plain ? PLAIN_WIDTH : CALLOUT_WIDTH,
       viewport.w - VIEWPORT_GUTTER * 2
@@ -2685,16 +2800,53 @@ export const LiveTourRunner: React.FC = () => {
       Math.hypot(cue.to.x - center.x, cue.to.y - center.y) < 8
         ? cue
         : null;
+    // Show me where: the step's own picture, its control ringed when the picture knows where it is.
+    const whereUrl = freshTourPictureUrl(step, tour.set);
+    const thumb = freshTourThumbnail(step);
+    const wherePicture = whereUrl ? (
+      <TourWherePicture
+        src={whereUrl}
+        alt={t('tours.webPictureAlt')}
+        {...(thumb ? { w: thumb.w, h: thumb.h } : {})}
+        {...(thumb?.target ? { target: thumb.target } : {})}
+      />
+    ) : null;
+    // Paced: the tip waits for the rhythm, and folds into the chip while the control is away (P1, P4).
+    const waitingChip: TourWaiting | null =
+      paced && isMissing && binding && chipAllowed
+        ? {
+            step: tour.index + 1,
+            ...(wherePicture ? { picture: wherePicture } : {}),
+            ...(takeBackKey === stepKey ? { onTakeBack: takeMeBack } : {}),
+          }
+        : null;
+    const tipVisible = !paced || (rhythm.tipShown && !waitingChip);
     content = (
       <>
         {showDim && (
           <TourSpotlight
             rect={
-              spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h }
+              paced
+                ? rhythm.rect
+                : spot && {
+                    x: spot.x,
+                    y: spot.y,
+                    width: spot.w,
+                    height: spot.h,
+                  }
             }
             onMisclick={misclick}
             pulse={anchor.centred}
             breathe={acted && !isMissing && !autoRunning && !autoBusy}
+            {...(paced
+              ? {
+                  tick: rhythm.tick,
+                  glideFor:
+                    rhythm.phase === 'glide'
+                      ? rhythmOf(reducedMotion).glideMs
+                      : 0,
+                }
+              : {})}
           />
         )}
         {!tour.edit && (
@@ -2706,12 +2858,21 @@ export const LiveTourRunner: React.FC = () => {
                 ? () => {
                     // Autopilot never replays a click the teacher went back to see.
                     if (autoOn) stopAutopilot();
-                    goTo(tour.index - 1);
+                    // Back returns to a step catch-up passed over first (P3).
+                    goTo(paced ? backTarget(tour, tour.steps) : tour.index - 1);
                   }
                 : undefined
             }
             onNext={() => goTo(tour.index + 1)}
-            onRetry={isMissing ? () => setAttempt((n) => n + 1) : undefined}
+            onRetry={
+              isMissing && !paced ? () => setAttempt((n) => n + 1) : undefined
+            }
+            {...(paced
+              ? {
+                  skipped: skippedIndices(tour, tour.steps),
+                  ...(waitingChip ? { waiting: waitingChip } : {}),
+                }
+              : {})}
             autopilot={{ on: autoOn, onChange: setAutopilot }}
             readAloud={
               canRead
@@ -2722,77 +2883,80 @@ export const LiveTourRunner: React.FC = () => {
             onPlace={onBarPlace}
           />
         )}
-        <TourTip
-          key={tour.index}
-          boxRef={measureBox}
-          headingRef={headingRef}
-          left={placement ? placement.left : (centred?.left ?? 0)}
-          top={placement ? placement.top : (centred?.top ?? 0)}
-          width={placement ? placement.width : width}
-          tether={tether}
-          plain={plain}
-          animate={!reducedMotion}
-          title={title}
-          looking={anchor.status === 'searching'}
-          status={status}
-          onShowMe={hintOn && !autoBusy ? showMe : undefined}
-          autopilotStep={offerAutoStep ? { onRun: runStep } : undefined}
-          next={
-            showTipNext
-              ? {
-                  onNext: () => goTo(tour.index + 1),
-                  last: tour.index + 1 === total,
-                }
-              : undefined
-          }
-          skip={
-            waitingOnFact ? { onSkip: () => goTo(tour.index + 1) } : undefined
-          }
-          avoid={target}
-          sparty={
-            showSparty
-              ? doneNow || tour.index + 1 === total
-                ? 'cheer'
-                : acted
-                  ? 'point'
-                  : 'think'
-              : undefined
-          }
-          confirm={
-            autoStage === 'confirm'
-              ? {
-                  onYes: () => autoClickRef.current(true),
-                  onNo: () => setAuto({ key: stepKey, stage: 'blocked' }),
-                }
-              : undefined
-          }
-        >
-          {preview && (
-            <Suspense fallback={null}>
-              <TourMiniPlayer set={tour.set} step={step} />
-            </Suspense>
-          )}
-          {step.text?.trim() && (
-            <p className="whitespace-pre-line text-sm text-slate-600">
-              {renderStepText(step.text.trim())}
-            </p>
-          )}
-          {!isMissing && plain && step.question?.text.trim() && (
-            <p className="text-sm font-semibold text-slate-900">
-              {step.question.text}
-            </p>
-          )}
-          {isMissing && (
-            <p
-              data-testid="tour-anchor-missing"
-              className="text-xs font-medium text-amber-700"
-            >
-              {t(
-                preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
-              )}
-            </p>
-          )}
-        </TourTip>
+        {tipVisible && (
+          <TourTip
+            key={tour.index}
+            boxRef={measureBox}
+            headingRef={headingRef}
+            left={placement ? placement.left : (centred?.left ?? 0)}
+            top={placement ? placement.top : (centred?.top ?? 0)}
+            width={placement ? placement.width : width}
+            tether={tether}
+            plain={plain}
+            animate={!reducedMotion}
+            title={title}
+            looking={anchor.status === 'searching'}
+            status={status}
+            onShowMe={hintOn && !autoBusy ? showMe : undefined}
+            autopilotStep={offerAutoStep ? { onRun: runStep } : undefined}
+            next={
+              showTipNext
+                ? {
+                    onNext: () => goTo(tour.index + 1),
+                    last: tour.index + 1 === total,
+                  }
+                : undefined
+            }
+            skip={
+              waitingOnFact ? { onSkip: () => goTo(tour.index + 1) } : undefined
+            }
+            avoid={target}
+            clearOfChrome={paced}
+            sparty={
+              showSparty
+                ? doneNow || tour.index + 1 === total
+                  ? 'cheer'
+                  : acted
+                    ? 'point'
+                    : 'think'
+                : undefined
+            }
+            confirm={
+              autoStage === 'confirm'
+                ? {
+                    onYes: () => autoClickRef.current(true),
+                    onNo: () => setAuto({ key: stepKey, stage: 'blocked' }),
+                  }
+                : undefined
+            }
+          >
+            {preview && (
+              <Suspense fallback={null}>
+                <TourMiniPlayer set={tour.set} step={step} />
+              </Suspense>
+            )}
+            {step.text?.trim() && (
+              <p className="whitespace-pre-line text-sm text-slate-600">
+                {renderStepText(step.text.trim())}
+              </p>
+            )}
+            {!isMissing && plain && step.question?.text.trim() && (
+              <p className="text-sm font-semibold text-slate-900">
+                {step.question.text}
+              </p>
+            )}
+            {isMissing && !paced && (
+              <p
+                data-testid="tour-anchor-missing"
+                className="text-xs font-medium text-amber-700"
+              >
+                {t(
+                  preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
+                )}
+              </p>
+            )}
+          </TourTip>
+        )}
         {cueShown && (
           <div
             className="fixed inset-0"

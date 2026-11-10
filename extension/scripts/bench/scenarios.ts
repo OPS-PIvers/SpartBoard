@@ -11,6 +11,8 @@ export interface BenchStep {
   play?: 'skip' | 'rush';
   /** Off-target controls the learner presses first, while the step is lit; each press is timed. */
   presses?: string[];
+  /** The control comes later than the waiting chip's delay, so the chip shows and then reopens (TOURS_10X.md P4). */
+  waits?: boolean;
 }
 
 export interface BenchScenario {
@@ -190,6 +192,17 @@ export const SCENARIOS: BenchScenario[] = [
       { target: '#sortMenu >> text=Last name', play: 'skip' },
       { target: '#export' },
       { target: '#exportMenu >> text=Download CSV' },
+    ],
+  },
+  {
+    name: 'waiting',
+    about:
+      'a control that arrives 4.5s after the click, past the waiting chip delay, then reopens',
+    start: '/wait.html',
+    steps: [
+      { target: '#start' },
+      { target: '#report', waits: true },
+      { target: '#close' },
     ],
   },
 ];

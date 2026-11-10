@@ -433,7 +433,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     menuFooter: publicLink.footer,
     statusNote: publicLink.statusNote,
     steps: set.steps.map((step, i) =>
-      outlineStep(step, i, session.selected, playback, t)
+      outlineStep(step, i, session.selected, playback, t, paused)
     ),
     selected,
     onSelect: session.select,
@@ -661,12 +661,14 @@ const outlineStep = (
   index: number,
   selected: number,
   playback: TourEditPlayback,
-  t: ReturnType<typeof useTranslation>['t']
+  t: ReturnType<typeof useTranslation>['t'],
+  paused = false
 ): TourShellStep => {
   const status = tourStepStatus(step, playback.missing);
-  const jumping = index === selected && playback.jumping;
+  // A paused stage plays nothing, so the steps before the selection aren't "playing".
+  const jumping = index === selected && playback.jumping && !paused;
   const waiting =
-    index === playback.index && playback.jumping && playback.blocked;
+    index === playback.index && playback.jumping && playback.blocked && !paused;
   const control = tourControlLabel(step.tour);
   const label = step.label?.trim();
   const title =
