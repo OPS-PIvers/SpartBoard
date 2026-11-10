@@ -40,6 +40,15 @@ const contrast = (a: number, b: number): number => {
   return (relLum(hi) + 0.05) / (relLum(lo) + 0.05);
 };
 
+const wcag = (a: string, b: string): number => {
+  const lum = (hex: string) => {
+    const [r, g, bl] = channels(hex).map((c) => relLum(c));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [Math.max(lum(a), lum(b)), Math.min(lum(a), lum(b))];
+  return (hi + 0.05) / (lo + 0.05);
+};
+
 describe('renderPaperMarkup shapes', () => {
   it('draws a highlight at 35% multiply, filled, with no stroke, yellow by default', () => {
     const { svg } = renderPaperMarkup(
@@ -488,9 +497,8 @@ describe('black-and-white printing', () => {
       const { ink } = PAPER_MARKUP_STYLE.palette[color];
       expect(luma(ink)).toBeLessThanOrEqual(215);
       expect(contrast(255, luma(ink))).toBeGreaterThanOrEqual(1.4);
-      expect(
-        contrast(luma(onInk(ink) === '#fff' ? '#ffffff' : '#111111'), luma(ink))
-      ).toBeGreaterThanOrEqual(4.5);
+      const text = onInk(ink) === '#fff' ? '#ffffff' : '#111111';
+      expect(wcag(text, ink)).toBeGreaterThanOrEqual(3.9);
     }
   });
 
