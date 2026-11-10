@@ -169,7 +169,7 @@ export const StepsView: React.FC<{
       {loading && !ready ? (
         <Skeleton label={labels.loading} />
       ) : !ready ? (
-        <p className="py-10 text-center text-sm text-slate-500">
+        <p className="py-10 text-center text-sm text-slate-600">
           {labels.empty}
         </p>
       ) : Walkthrough && mode === 'walkthrough' ? (

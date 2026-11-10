@@ -28,7 +28,7 @@ const NotFound: React.FC = () => {
       className="h-screen h-dvh overflow-y-auto bg-slate-100 print:bg-white px-4 py-16 pb-16"
     >
       <div className="mx-auto max-w-xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
           {t('tourPublicLink.pageEyebrow')}
         </p>
         <h1 className="mt-1 text-2xl font-semibold text-slate-900">
@@ -105,7 +105,7 @@ export const PublicTourPage: React.FC = () => {
       className="h-screen h-dvh overflow-y-auto bg-slate-100 print:bg-white px-4 py-10 pb-16"
     >
       <div className="mx-auto max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
           {t('tourPublicLink.pageEyebrow')}
         </p>
         <h1 className="mt-1 text-2xl font-semibold text-slate-900 wrap-break-word">
