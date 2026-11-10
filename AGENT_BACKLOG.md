@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-187**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-188**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -137,6 +137,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Tours and extension
 
+- **AB-187 Tour routes for assignment-row side menus** (S). #5576 moved Share, PLC results, Publish/Unpublish scores and paper import/print rows on In Progress and Completed into side menus (Paper, Share, Published scores). Give each group row a registered `tourAttr` anchor, point the inner routes in `config/tourSurfaces/quiz.ts` (and VA, Mini App, Flashcards where they share the menu) at it, regenerate `functions/src/mcp/tourAnchorList.ts`, and rebind the prod tour steps that click these rows by position (prod edit needs Paul's OK). Done when `tests/tourAnchorRoutes.test.ts` shows each moved anchor's path through its side-menu row.
 - **AB-183 Links in web tour tips look like plain text in the extension** (S, release #5550 review). `extension/src/overlay/OverlayRoot.tsx` now renders tips with `renderStepText` (`components/widgets/GuidedLearning/utils/richText.tsx`), but `extension/scripts/tailwind.overlay.config.ts` content globs don't include `richText.tsx`, so its `underline underline-offset-2` classes are never generated and a `[label](https://...)` link shows with no underline or color. Add the file to the overlay content list, check a link in a tip, and bump the extension version.
 - **AB-184 Print the tour Steps article with the new spotlight** (S, release #5550 review). `components/tours/steps/StepPicture.tsx` now draws `RingAndTip` sized by `useMeasured`, and `TourSpotlight` paints a 55% dim. `PrintCopy` in `StepsView.tsx` prints 150ms after portaling the article, so a picture may print with no ring (unmeasured) or with the dim over it. Print a Live tour and a web tour with targets on spartboard-dev; if either is wrong, hide the dim and draw the ring from percentages in print.
 - **AB-182 Tour anchors for library side-menu rows** (S, from #5539 review). Library card menus now have side menus (Quiz Preview › and Share ›, Flashcards Share ›). Their rows reuse `library-shell.card-menu-item` with fields like `row-1-item-1-2`, but that anchor's surface opener is `library-shell.card-menu` (`config/tourSurfaces/library.ts`), and the side menu mounts only after its parent row is clicked (`components/common/library/LibraryItemCard.tsx` `openSub`). So a tour step on Get link, Share with PLC, Check answers or Student view can't be reached. Give side-menu rows their own anchor id with the parent row as opener, register it, regenerate the anchor maps, and add a `tourDryRun` test. While there, key library menu rows by action id instead of position (`LibraryItemCard.tsx` `${rowKey}-item-${i + 1}`), keeping the old positional keys working for saved tours (release #5550 review: removing Stats shifted every row after it).
@@ -203,6 +204,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
 claude/project-thread-ylaw63
+claude/project-thread-tc5drw
+claude/project-thread-tc5drw-docs
 claude/project-thread-uhhzb5
 claude/project-thread-uhhzb5-docs
 claude/project-thread-tu7i6d
