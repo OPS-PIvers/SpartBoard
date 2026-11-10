@@ -558,13 +558,12 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         : undefined;
     if (speakChoice) submission.input.speakChoice = speakChoice;
     if (studyOn && kind === 'resource') {
-      // Multiple choice can't run under 4 cards, so a stamp never asks for it alone.
-      const testTypes = isMcAvailable(cardCount)
-        ? study.testTypes
-        : study.testTypes.filter((type) => type !== 'mc');
+      // Multiple choice alone can't run under 4 cards; Test drops it until the deck grows.
+      const mcOnly = study.testTypes.every((type) => type === 'mc');
       submission.input.studySettings = {
         ...study,
-        testTypes: testTypes.length > 0 ? testTypes : ['fib'],
+        testTypes:
+          mcOnly && !isMcAvailable(cardCount) ? ['mc', 'fib'] : study.testTypes,
       };
     }
     const sharePlc =

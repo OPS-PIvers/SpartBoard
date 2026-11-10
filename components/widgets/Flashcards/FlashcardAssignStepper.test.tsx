@@ -201,7 +201,7 @@ describe('FlashcardAssignStepper', () => {
     expect(saved.study?.locked).toBe(true);
   });
 
-  it('never stamps multiple choice alone on a deck under 4 cards', async () => {
+  it('adds fill in the blank to multiple choice alone on a deck under 4 cards', async () => {
     lastUsed.value = {
       ...DEFAULT_FLASHCARD_ASSIGN_FORM,
       study: {
@@ -216,6 +216,7 @@ describe('FlashcardAssignStepper', () => {
     assign();
     await waitFor(() => expect(onAssign).toHaveBeenCalled());
     expect(lastSubmission(onAssign).input.studySettings?.testTypes).toEqual([
+      'mc',
       'fib',
     ]);
     expect(lastSubmission(onAssign).input.studySettings?.shuffle).toBe(true);
