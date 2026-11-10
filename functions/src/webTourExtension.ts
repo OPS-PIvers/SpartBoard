@@ -583,7 +583,7 @@ export const webTourLoadV1 = extensionEndpoint(async (body, caller, db) => {
     await import('./tourPublicLink');
   const link = await workingLinkTokenFor(
     setId,
-    caller.email,
+    caller,
     defaultPublicLinkDeps(db)
   ).catch(() => null);
   return link ? { ...loaded, link } : loaded;

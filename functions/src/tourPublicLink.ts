@@ -198,14 +198,18 @@ export const __resetRateLimitForTests = () => {
   instanceHits = [];
 };
 
+interface WorkingLinkDeps {
+  getLink: (setId: string) => Promise<PublicLinkRecord | null>;
+  /** The steps-view flag is on for the caller, building limits included. */
+  callerFlagOn: (email: string, uid: string | null) => Promise<boolean>;
+}
+
 const linksOf = (db: admin.firestore.Firestore) =>
   db.doc(PUBLIC_LINKS_DOC).collection(PUBLIC_LINKS_SUBCOLLECTION);
 
 export function defaultPublicLinkDeps(
   db: admin.firestore.Firestore
-): PublicLinkDeps & {
-  getLink: (setId: string) => Promise<PublicLinkRecord | null>;
-} {
+): PublicLinkDeps & WorkingLinkDeps {
   const bucket = admin.storage().bucket();
   return {
     async findLink(token) {
@@ -229,6 +233,16 @@ export function defaultPublicLinkDeps(
     async flagOn(email) {
       const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
       return isGlobalFeatureGranted(db, TOUR_STEPS_VIEW_FEATURE_ID, email, '');
+    },
+    async callerFlagOn(email, uid) {
+      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      // The uid lets a building-limited preview match the caller's buildings.
+      return isGlobalFeatureGranted(
+        db,
+        TOUR_STEPS_VIEW_FEATURE_ID,
+        email,
+        uid ?? ''
+      );
     },
     async latchOff(setId, reason) {
       await linksOf(db)
@@ -326,12 +340,10 @@ export async function startSetIdFor(
 /** A tour's public link token when the link would be served now and the caller has the preview, so they can copy it; null otherwise. */
 export async function workingLinkTokenFor(
   setId: string,
-  callerEmail: string,
-  deps: PublicLinkDeps & {
-    getLink: (setId: string) => Promise<PublicLinkRecord | null>;
-  }
+  caller: { email: string; uid: string | null },
+  deps: PublicLinkDeps & WorkingLinkDeps
 ): Promise<string | null> {
-  if (!(await deps.flagOn(callerEmail))) return null;
+  if (!(await deps.callerFlagOn(caller.email, caller.uid))) return null;
   const record = await deps.getLink(setId);
   if (!record || record.off || record.kind !== 'web') return null;
   const resolved = await resolvePublicTour(record.token, deps);

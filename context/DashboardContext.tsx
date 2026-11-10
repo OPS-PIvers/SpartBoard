@@ -4264,6 +4264,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Last serialized payload we mirrored per shareId — skip duplicate writes. */
   const lastMirroredRef = useRef<Map<string, string>>(new Map());
+  // Payload the share refused per shareId: not resent, and never used as the merge baseline.
+  const refusedMirrorRef = useRef<Map<string, string>>(new Map());
   // Per-share ink present when we first subscribed — the fallback merge
   // baseline before this device has mirrored or received anything.
   const mountInkBaselineRef = useRef<Map<string, DrawableObject[]>>(new Map());
@@ -4328,7 +4330,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Cheap dedupe based on the same fields the saveDashboard path uses.
       const payload = serializeForShare(scrubbed);
       const existing = mirrorTimersRef.current.get(shareId);
-      if (lastMirroredRef.current.get(shareId) === payload) {
+      if (
+        lastMirroredRef.current.get(shareId) === payload ||
+        refusedMirrorRef.current.get(shareId) === payload
+      ) {
         // A queued write now holds stale content (e.g. ink a snapshot just
         // erased) — drop it rather than let it echo back to the share.
         if (existing) {
@@ -4347,6 +4352,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const gen = sharedSnapshotGenRef.current.get(shareId);
         void mirrorSharedBoard(shareId, scrubbed, baseline)
           .then((written) => {
+            refusedMirrorRef.current.delete(shareId);
             // What we sent is the newest base until a snapshot says otherwise, so an undo before the echo stays.
             if (written && sharedSnapshotGenRef.current.get(shareId) === gen) {
               sharedBaselineRef.current.set(
@@ -4357,10 +4363,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           })
           .catch((err) => {
             console.warn('Mirror to shared board failed:', err);
-            // A refusal won't change until this board does, so only other errors retry on any board change.
-            if ((err as { code?: string }).code === 'permission-denied') return;
-            // Drop the cached payload so we retry on the next change.
+            // Drop the cached payload so it isn't the merge baseline and we retry on the next change.
             lastMirroredRef.current.delete(shareId);
+            // A refusal won't change until this board does, so don't resend the same payload.
+            if ((err as { code?: string }).code === 'permission-denied') {
+              refusedMirrorRef.current.set(shareId, payload);
+            }
           });
       }, 500);
       mirrorTimersRef.current.set(shareId, timer);
@@ -4373,6 +4381,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(timer);
         mirrorTimersRef.current.delete(shareId);
         lastMirroredRef.current.delete(shareId);
+        refusedMirrorRef.current.delete(shareId);
       }
     }
     for (const shareId of sharedBaselineRef.current.keys()) {
@@ -4759,7 +4768,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   // device, or after a mirror failure/unlink cleared it)
                   // every local object would look like a local add and
                   // resurrect ink a collaborator just erased. Fall back to
-                  // the ink we had at subscribe time as the baseline.
+                  // the copy we last received, else the ink at subscribe time.
                   objects: mergeAnnotationObjects(
                     x.annotationOverlay?.objects ?? [],
                     remote.annotationOverlay.objects ?? [],
@@ -4767,7 +4776,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                       ? mirroredAnnotationBaseline(
                           lastMirroredRef.current.get(shareId)
                         )
-                      : (mountInkBaselineRef.current.get(shareId) ?? [])
+                      : (baseline?.annotationObjects ??
+                          mountInkBaselineRef.current.get(shareId) ??
+                          [])
                   ),
                 }
               : x.annotationOverlay,

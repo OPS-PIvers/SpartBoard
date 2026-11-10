@@ -136,6 +136,43 @@ const loadSheet = (href: string): Promise<string> => {
   return pending;
 };
 
+/** A block with each relative `url()` made absolute against its sheet, so it still resolves inside the picture. */
+export const absoluteUrls = (block: string, base: string): string =>
+  block.replace(
+    /url\(\s*(['"]?)([^'")]+)\1\s*\)/g,
+    (whole: string, q: string, url: string) => {
+      if (/^(data|blob):/i.test(url)) return whole;
+      try {
+        return `url(${q}${new URL(url, base).href}${q})`;
+      } catch {
+        return whole;
+      }
+    }
+  );
+
+/** @font-face blocks from the page's own readable sheets (MathLive and other same-origin fonts), read without touching them. */
+const sameOriginFontBlocks = (doc: Document): string[] => {
+  const out: string[] = [];
+  for (const sheet of Array.from(doc.styleSheets)) {
+    let rules: CSSRuleList;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    }
+    const base = sheet.href ?? doc.baseURI;
+    for (const rule of Array.from(rules)) {
+      if (
+        typeof CSSFontFaceRule !== 'undefined' &&
+        rule instanceof CSSFontFaceRule
+      ) {
+        out.push(absoluteUrls(rule.cssText, base));
+      }
+    }
+  }
+  return out;
+};
+
 /** Embed CSS for the web fonts in use; empty when none can be read, so a picture falls back to system fonts. */
 export async function snapshotFontEmbedCss(doc: Document): Promise<string> {
   try {
@@ -146,7 +183,15 @@ export async function snapshotFontEmbedCss(doc: Document): Promise<string> {
       .filter((h) => /^https:\/\/fonts\.googleapis\.com\//.test(h));
     const texts = await Promise.all(hrefs.map(loadSheet));
     const loaded = loadedFaceKeys(doc.fonts);
-    const used = usedFontFaceBlocks(texts.flatMap(fontFaceBlocks), loaded);
+    const used = usedFontFaceBlocks(
+      [
+        ...texts.flatMap((t, i) =>
+          fontFaceBlocks(t).map((b) => absoluteUrls(b, hrefs[i]))
+        ),
+        ...sameOriginFontBlocks(doc),
+      ],
+      loaded
+    );
     return await inlineFontBlocks(used);
   } catch {
     return '';

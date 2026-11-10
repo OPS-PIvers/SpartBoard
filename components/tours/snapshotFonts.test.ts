@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  absoluteUrls,
   fontFaceBlocks,
   inlineFontBlocks,
   loadedFaceKeys,
@@ -78,5 +79,23 @@ describe('snapshotFonts', () => {
     expect(
       fetchMock.mock.calls.filter(([u]) => u.includes('lexend'))
     ).toHaveLength(1);
+  });
+});
+
+describe('absoluteUrls', () => {
+  it("resolves a same-origin sheet's relative font files against the sheet", () => {
+    const block =
+      "@font-face { font-family: KaTeX_Main; src: url(fonts/KaTeX_Main-Regular.woff2) format('woff2'), url('data:font/woff2;base64,AA'); }";
+    expect(
+      absoluteUrls(
+        block,
+        'https://spartboard.web.app/mathlive/mathlive-fonts.css'
+      )
+    ).toContain(
+      'url(https://spartboard.web.app/mathlive/fonts/KaTeX_Main-Regular.woff2)'
+    );
+    expect(absoluteUrls(block, 'https://x.test/a.css')).toContain(
+      "url('data:font/woff2;base64,AA')"
+    );
   });
 });
