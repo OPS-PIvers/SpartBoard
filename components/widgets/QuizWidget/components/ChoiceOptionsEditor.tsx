@@ -1,6 +1,8 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import type { QuizQuestion } from '@/types';
+import { MathText } from '@/components/common/MathText';
+import { hasPromptMath } from '@/utils/promptMath';
 import {
   ChoiceRow,
   MAX_MULTI_PER_LIST,
@@ -181,92 +183,99 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
           {rows.map((row, idx) => {
             const letter = LETTERS[idx] ?? String(idx + 1);
             return (
-              <div key={row.id} className="flex items-center gap-2">
-                <span className="w-3 text-xs font-bold text-slate-500 text-center shrink-0">
-                  {letter}
-                </span>
-                <button
-                  type="button"
-                  role={multi ? 'checkbox' : 'radio'}
-                  aria-checked={row.correct}
-                  tabIndex={multi || idx === tabStop ? 0 : -1}
-                  aria-label={`Option ${letter} is correct`}
-                  onClick={() => toggleCorrect(idx)}
-                  {...tourFieldAttr(
-                    'quiz-editor.correct',
-                    'quiz',
-                    letter.toLowerCase()
-                  )}
-                  className={`shrink-0 w-7 h-7 flex items-center justify-center border-2 ${Marker} transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
-                    row.correct
-                      ? 'bg-emerald-600 border-emerald-600 text-white'
-                      : 'bg-white border-slate-300 text-transparent hover:border-emerald-500'
-                  }`}
-                >
-                  <Check className="w-4 h-4" strokeWidth={3} aria-hidden />
-                </button>
-                <input
-                  type="text"
-                  value={row.text}
-                  aria-label={`Option ${letter}`}
-                  onPaste={images.pasteInto(row.id)}
-                  placeholder={
-                    row.image && !row.text.trim()
-                      ? 'Add text for this image'
-                      : undefined
-                  }
-                  {...tourFieldAttr(
-                    'quiz-editor.option',
-                    'quiz',
-                    letter.toLowerCase()
-                  )}
-                  onChange={(e) =>
-                    commit(
-                      rows.map((r, i) =>
-                        i === idx ? { ...r, text: e.target.value } : r
-                      )
-                    )
-                  }
-                  className={`${inputClass} ${
-                    row.correct
-                      ? 'border-emerald-400 bg-emerald-50 font-bold text-emerald-900'
-                      : ''
-                  } ${row.image && !row.text.trim() ? 'border-amber-500' : ''}`}
-                />
-                {(onUploadImage ?? row.image) && (
-                  <AnswerImageControl
-                    image={row.image}
-                    uploading={images.uploadingKey === row.id}
-                    disabled={images.uploadingKey !== null}
-                    onPick={() => images.pick(row.id)}
-                    onRemove={() => setRowImage(row.id, '')}
-                    name={`option ${letter}`}
-                    addAttrs={tourFieldAttr(
-                      'quiz-editor.option-image',
-                      'quiz',
-                      letter.toLowerCase()
-                    )}
-                    removeAttrs={tourFieldAttr(
-                      'quiz-editor.option-image-remove',
-                      'quiz',
-                      letter.toLowerCase()
-                    )}
-                  />
-                )}
-                {rows.length > 2 && (
+              <div key={row.id} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 text-xs font-bold text-slate-500 text-center shrink-0">
+                    {letter}
+                  </span>
                   <button
                     type="button"
-                    onClick={() => commit(rows.filter((_, i) => i !== idx))}
-                    className="px-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    aria-label={`Remove option ${letter}`}
+                    role={multi ? 'checkbox' : 'radio'}
+                    aria-checked={row.correct}
+                    tabIndex={multi || idx === tabStop ? 0 : -1}
+                    aria-label={`Option ${letter} is correct`}
+                    onClick={() => toggleCorrect(idx)}
                     {...tourFieldAttr(
-                      'quiz-editor.option-remove',
+                      'quiz-editor.correct',
                       'quiz',
                       letter.toLowerCase()
                     )}
+                    className={`shrink-0 w-7 h-7 flex items-center justify-center border-2 ${Marker} transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                      row.correct
+                        ? 'bg-emerald-600 border-emerald-600 text-white'
+                        : 'bg-white border-slate-300 text-transparent hover:border-emerald-500'
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Check className="w-4 h-4" strokeWidth={3} aria-hidden />
                   </button>
+                  <input
+                    type="text"
+                    value={row.text}
+                    aria-label={`Option ${letter}`}
+                    onPaste={images.pasteInto(row.id)}
+                    placeholder={
+                      row.image && !row.text.trim()
+                        ? 'Add text for this image'
+                        : undefined
+                    }
+                    {...tourFieldAttr(
+                      'quiz-editor.option',
+                      'quiz',
+                      letter.toLowerCase()
+                    )}
+                    onChange={(e) =>
+                      commit(
+                        rows.map((r, i) =>
+                          i === idx ? { ...r, text: e.target.value } : r
+                        )
+                      )
+                    }
+                    className={`${inputClass} ${
+                      row.correct
+                        ? 'border-emerald-400 bg-emerald-50 font-bold text-emerald-900'
+                        : ''
+                    } ${row.image && !row.text.trim() ? 'border-amber-500' : ''}`}
+                  />
+                  {(onUploadImage ?? row.image) && (
+                    <AnswerImageControl
+                      image={row.image}
+                      uploading={images.uploadingKey === row.id}
+                      disabled={images.uploadingKey !== null}
+                      onPick={() => images.pick(row.id)}
+                      onRemove={() => setRowImage(row.id, '')}
+                      name={`option ${letter}`}
+                      addAttrs={tourFieldAttr(
+                        'quiz-editor.option-image',
+                        'quiz',
+                        letter.toLowerCase()
+                      )}
+                      removeAttrs={tourFieldAttr(
+                        'quiz-editor.option-image-remove',
+                        'quiz',
+                        letter.toLowerCase()
+                      )}
+                    />
+                  )}
+                  {rows.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => commit(rows.filter((_, i) => i !== idx))}
+                      className="px-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      aria-label={`Remove option ${letter}`}
+                      {...tourFieldAttr(
+                        'quiz-editor.option-remove',
+                        'quiz',
+                        letter.toLowerCase()
+                      )}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {hasPromptMath(row.text) && (
+                  <p className="pl-12 text-sm text-slate-800 wrap-break-word">
+                    <MathText text={row.text} />
+                  </p>
                 )}
               </div>
             );

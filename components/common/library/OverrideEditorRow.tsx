@@ -13,6 +13,7 @@
  */
 
 import React, { useContext, useId, useMemo, useState } from 'react';
+import { MathText } from '@/components/common/MathText';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
@@ -721,7 +722,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                               {...tourAttr('override-row.hidden-option')}
                               onChange={() => toggleHiddenOption(q, opt)}
                             />
-                            {opt.text}
+                            <MathText text={opt.text} />
                           </label>
                         );
                       })}

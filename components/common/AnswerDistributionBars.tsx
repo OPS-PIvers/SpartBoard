@@ -1,4 +1,5 @@
 import React from 'react';
+import { MathText } from '@/components/common/MathText';
 import { Check } from 'lucide-react';
 
 export interface DistributionBarRow {
@@ -64,7 +65,9 @@ export const AnswerDistributionBars: React.FC<AnswerDistributionBarsProps> = ({
                   style={{ width: labelSize, height: labelSize }}
                 />
               )}
-              <span className="truncate">{row.label}</span>
+              <span className="truncate">
+                <MathText text={row.label} />
+              </span>
               {correct && correctLabel && (
                 <span className="shrink-0 font-bold uppercase tracking-wide">
                   {correctLabel}

@@ -360,7 +360,7 @@ function questionTextHtml(
       parts.push(
         `<div class="qt-choice" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(
           r.w
-        )};height:${mm(r.h)}">${escapeHtml(choice)}</div>`
+        )};height:${mm(r.h)}">${escapeHtml(plainPromptText(choice))}</div>`
       );
     });
   }

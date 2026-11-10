@@ -142,12 +142,39 @@ describe('math across a test', () => {
     warnings: [],
   };
 
-  it('marks question text only when the import asks for equations', () => {
+  it('marks a question and its choices only when the import asks for equations', () => {
     const off = extractedToQuizData(quiz);
     const on = extractedToQuizData(quiz, { equations: true });
     expect(off.questions[0].text).toBe('What is 1/2 + 1/4?');
+    expect(off.questions[0].correctAnswer).toBe('3/4');
     expect(on.questions[0].text).toBe('What is ⟦1/2 + 1/4⟧?');
-    expect(on.questions[0].correctAnswer).toBe('3/4');
-    expect(on.questions[0].incorrectAnswers).toEqual(['(x + 1)/2']);
+    expect(on.questions[0].correctAnswer).toBe('⟦3/4⟧');
+    expect(on.questions[0].incorrectAnswers).toEqual(['⟦(x + 1)/2⟧']);
+    expect(on.questions[0].needsKey).toBeUndefined();
+  });
+
+  it('keeps a choose-all key matched to its marked choices', () => {
+    const many = {
+      ...quiz,
+      questions: [
+        {
+          ...question('Which equal x^2/2?', ['x^2/2', '(x^2)/4', '2x']),
+          type: 'MA' as const,
+          correctAnswer: 'x^2/2|2x',
+        },
+      ],
+    };
+    const q = extractedToQuizData(many, { equations: true }).questions[0];
+    expect(q.correctAnswer).toBe('⟦(x^2)/2⟧|2x');
+    expect(q.incorrectAnswers).toEqual(['⟦(x^2)/4⟧']);
+  });
+
+  it('leaves a choice with an absolute value as text', () => {
+    const bars = {
+      ...quiz,
+      questions: [question('Solve x^2 = 4.', ['|x + 1|/2', 'x/2 + 1'])],
+    };
+    const q = extractedToQuizData(bars, { equations: true }).questions[0];
+    expect(q.correctAnswer).toBe('|x + 1|/2');
   });
 });

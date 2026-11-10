@@ -12,7 +12,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, FileWarning, X } from 'lucide-react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { MathText } from '@/components/common/MathText';
-import { hasPromptMath } from '@/utils/promptMath';
+import { hasPromptMath, plainPromptText } from '@/utils/promptMath';
 import type {
   QuestionTargetTag,
   QuizData,
@@ -500,12 +500,12 @@ const ReviewTable: React.FC<
                                   })
                                 }
                                 className="shrink-0 accent-brand-blue-primary"
-                                aria-label={`Question ${index + 1}, correct answer: ${choice}`}
+                                aria-label={`Question ${index + 1}, correct answer: ${plainPromptText(choice)}`}
                               />
                               <span
                                 className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}
                               >
-                                {choice}
+                                <MathText text={choice} />
                               </span>
                               {choiceSpill(choiceIndex) && (
                                 <SpillNote warning={choiceSpill(choiceIndex)} />
@@ -565,12 +565,12 @@ const ReviewTable: React.FC<
                                 })
                               }
                               className="shrink-0 accent-brand-blue-primary"
-                              aria-label={`Question ${index + 1}, answer: ${choice}`}
+                              aria-label={`Question ${index + 1}, answer: ${plainPromptText(choice)}`}
                             />
                             <span
                               className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}
                             >
-                              {choice}
+                              <MathText text={choice} />
                             </span>
                             {choiceSpill(choiceIndex) && (
                               <SpillNote warning={choiceSpill(choiceIndex)} />

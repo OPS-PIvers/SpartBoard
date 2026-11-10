@@ -431,3 +431,7 @@ export function buildResultsSheetData<
 
   return { headers, dataRows };
 }
+
+/** `formatQuizAnswerText` with equations as their plain math, for CSV and Sheets cells. */
+export const formatQuizAnswerPlain: typeof formatQuizAnswerText = (...args) =>
+  plainPromptText(formatQuizAnswerText(...args)).replace(/[⟦⟧]/g, '');

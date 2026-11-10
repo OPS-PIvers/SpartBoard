@@ -749,7 +749,7 @@ const GameQuestion: React.FC<{
                 className="min-h-14 flex-1 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-left font-bold text-slate-800 transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-60"
               >
                 <AnswerLabel
-                  label={choice}
+                  label={<MathText text={choice} />}
                   image={choiceImages?.[i]}
                   layout="tile"
                 />
@@ -802,7 +802,7 @@ const GameQuestion: React.FC<{
                   </span>
                   <span className="min-w-0 flex-1">
                     <AnswerLabel
-                      label={choice}
+                      label={<MathText text={choice} />}
                       image={choiceImages?.[i]}
                       layout="tile"
                     />
@@ -970,7 +970,9 @@ const GameFeedback: React.FC<{
           <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
             {t('quizGame.answerWas', 'Answer')}
           </span>
-          <span className="font-bold">{correctAnswer}</span>
+          <span className="font-bold">
+            <MathText text={correctAnswer} />
+          </span>
         </p>
       )}
       <button
