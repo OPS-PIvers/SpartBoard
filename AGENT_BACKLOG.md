@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-182**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-183**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -135,6 +135,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Tours and extension
 
+- **AB-182 Tour anchors for library side-menu rows** (S, from #5539 review). Library card menus now have side menus (Quiz Preview › and Share ›, Flashcards Share ›). Their rows reuse `library-shell.card-menu-item` with fields like `row-1-item-1-2`, but that anchor's surface opener is `library-shell.card-menu` (`config/tourSurfaces/library.ts`), and the side menu mounts only after its parent row is clicked (`components/common/library/LibraryItemCard.tsx` `openSub`). So a tour step on Get link, Share with PLC, Check answers or Student view can't be reached. Give side-menu rows their own anchor id with the parent row as opener, register it, regenerate the anchor maps, and add a `tourDryRun` test.
 - **AB-179 Public tour link and editor follow-ups** (S, release 2026.11.10 review). `functions/src/tourPublicLink.ts` `clientKey` keys the 600/min limit on the last `X-Forwarded-For` hop, which behind the Hosting rewrite may be the edge, so a class opening one tour could share a bucket; log the header on spartboard-dev and key on the right hop. Step title and text edits go live on a public link without re-confirming (only pictures are fingerprinted); confirm with Paul whether that's intended. `components/admin/HelpCenter/GuidedLearningPicker.tsx` copies derived `linkedToWeb` into `HelpItemForm` state from an effect; derive it in the form instead. `utils/paperPageFetch.ts` `driveBlobReader` fetch has no timeout, so Print can stay on "Loading scanned pages".
 - **AB-180 Quiz import reader without its own flag** (S, decide before `quiz-document-import` opens; release 2026.11.10 review). The plain reader rewrite in #5509 (figures, unicode sub/superscripts, math pictures, key answers as notes, `optionOrder`) ships under the existing `quiz-document-import` preview with no separate switch, and `pdfReader.ts` now runs `getOperatorList` on every page even with answer marks off. Skip that work when `marks` is unset, and with the Google-Doc-as-PDF flag on a failed `pdfPageCount` should fall back to the Word export (`QuizWidget/Widget.tsx` ~447).
 - **AB-163 Flashcards Speak opt-outs that render for admins** (S, 2026-11-08 sweep of #5431). `components/flashcards/SpeakMode.tsx` has `no-tour-anchor: student player` opt-outs on controls that also render in Admin Settings' Words to check practice (`components/admin/FlashcardsSpeakWordsToCheck.tsx`, `allowedModes={['speak']}`): the `SelectSetting` select, the auto-continue and example toggles, Hear it and Speak. Give the ones an admin tour could point at real anchors (follow the `flashcards.present-*` ids from #5431) or correct the reasons. Also fix `FlashcardPlayer.tsx`'s remaining `no-tour-anchor: student player` line. Done when `check:tour-anchors` passes and every reason is true.
@@ -213,6 +214,7 @@ git push origin --delete claude/project-thread-ispilm claude/project-thread-ta7n
 git push origin --delete claude/project-thread-v022ec
 git push origin --delete claude/project-thread-dkv28p
 git push origin --delete claude/project-thread-mpuaai claude/a2-backlog
+git push origin --delete claude/project-thread-4hqkck claude/kebab-backlog
 git push origin --delete claude/project-thread-g7gl9c
 git push origin --delete claude/project-thread-xa560h claude/project-thread-xa560h-ab112
 git push origin --delete claude/project-thread-kof3cp
