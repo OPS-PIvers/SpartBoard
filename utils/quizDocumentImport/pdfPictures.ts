@@ -1013,7 +1013,7 @@ export function resolveChoicePictures(
             .split('|')
             .map((part) => letterOf.get(part) ?? part)
             .join('|'),
-          imageIds: whole ? [...q.imageIds, whole] : q.imageIds,
+          imageIds: whole ? [whole] : q.imageIds,
           warnings: [...q.warnings, CHOICES_AS_LETTERS],
         }
       : {}),

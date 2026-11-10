@@ -96,6 +96,36 @@ describe('choices printed only as pictures', () => {
     expect(q.imageIds).toHaveLength(1);
   });
 
+  it('keeps math printed in the stem as a picture of the stem alone', () => {
+    const lines = stacked();
+    lines[0] = line('1. Simplify:', 0.1, 0.05, [pic(0.3, 0.09)]);
+    const [q] = parseDocument(lines, { answerPictures: true }).questions;
+    expect(q.options.every((o) => o.imageId)).toBe(true);
+    expect(q.imageIds).toHaveLength(1);
+    const stem = boxFromKey(q.imageIds[0]);
+    expect((stem?.y ?? 0) + (stem?.height ?? 0)).toBeCloseTo(0.115, 2);
+  });
+
+  it('splits a picture that runs from the stem into the choices', () => {
+    const lines = stacked();
+    lines[0] = { ...lines[0], imageIds: ['1:110:60:300:150'] };
+    const [q] = parseDocument(lines, { answerPictures: true }).questions;
+    expect(q.options.every((o) => o.imageId)).toBe(true);
+    const stem = boxFromKey(q.imageIds[0] ?? '');
+    expect(stem?.y).toBeCloseTo(0.06, 2);
+    expect((stem?.y ?? 0) + (stem?.height ?? 0)).toBeCloseTo(0.115, 2);
+  });
+
+  it('stops the last choice where the next question starts', () => {
+    const lines = stacked().map((l, i) =>
+      i < 5 ? { ...l, inlineBoxes: undefined, inlineImage: undefined } : l
+    );
+    lines[0] = { ...lines[0], imageIds: ['1:110:130:300:300'] };
+    const [q] = parseDocument(lines, { answerPictures: true }).questions;
+    const last = boxFromKey(q.options[3].imageId ?? '');
+    expect((last?.y ?? 0) + (last?.height ?? 0)).toBeLessThan(0.39);
+  });
+
   it('keeps the whole-question picture when the flag is off', () => {
     const [q] = parseDocument(stacked()).questions;
     expect(q.imageIds).toHaveLength(1);
