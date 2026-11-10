@@ -1,3 +1,4 @@
+import { splitPictureLabels } from './quizAnswerImages';
 import { plainPromptText } from './promptMath';
 import {
   escapeHtml,
@@ -5,6 +6,10 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import type {
+  PaperImageMarkup,
+  PaperMarkupItem,
+  PaperPageMap,
+  PaperRectMm,
   QuizResponseAnswer,
   QuizResponseStatus,
   QuizStimulus,
@@ -20,9 +25,23 @@ import { formatExportPoints } from './assignmentExportShared';
 import {
   buildFilledSheetHtml,
   SHEET_REPRINT_STYLES,
+  type SheetFill,
   type SheetWrittenFill,
 } from './paperSheetPrint';
-import { sheetFillFor, type SheetReprint } from './paperSheetReprint';
+import {
+  printedPageOf,
+  sheetFillFor,
+  type SheetReprint,
+} from './paperSheetReprint';
+import {
+  buildScanSheetPageHtml,
+  SCAN_SHEET_STYLES,
+} from './paperScanSheetPrint';
+import {
+  cropViewportMm,
+  markupCommentListHtml,
+  renderPaperMarkup,
+} from './paperMarkupRender';
 import { stimulusMediaUrl } from './quizStimuli';
 import { annotatedSnapshotToHtml } from './writtenAnnotations';
 import {
@@ -63,6 +82,7 @@ const BAND_LABEL: Record<string, string> = {
 };
 
 const STYLES = `
+  .pic img { height: 12mm; max-width: 24mm; object-fit: contain; vertical-align: middle; margin-right: 1mm; border: 0.2mm solid #ccc; }
   @page { size: letter; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 10.5pt; }
@@ -98,11 +118,11 @@ export function buildStudentReportHtml(job: StudentReportJob): string {
           ? ''
           : `<div class="pts">${formatExportPoints(line.pointsEarned)}/${formatExportPoints(line.pointsMax)}</div>`;
       const answer = line.answerText
-        ? `<div class="answer">Answer: ${escapeHtml(line.answerText)}</div>`
+        ? `<div class="answer">Answer: ${answerTextHtml(line.answerText, line)}</div>`
         : '';
       const key =
         job.includeCorrectAnswers && showsMissedKey(line)
-          ? `<div class="key">Correct answer: ${escapeHtml(line.correctAnswerText ?? '')}</div>`
+          ? `<div class="key">Correct answer: ${answerTextHtml(line.correctAnswerText ?? '', line)}</div>`
           : '';
       return `<li><span class="num">Q${line.number}</span><div><div class="text">${escapeHtml(plainPromptText(line.text))}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
     })
@@ -187,6 +207,8 @@ export interface ResultsPrintStudent {
   sheet?: SheetReprint;
   /** Handwritten paper answers by question id (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D41). */
   paperWritten?: Readonly<Record<string, PaperWrittenPrint>>;
+  /** Kept scan pages by printed page number (`paper-kept-pages`): an image URL, or null when it could not load. */
+  keptPages?: Readonly<Record<number, string | null>>;
   /** Which attempt this copy shows, when every attempt is printed. */
   attempt?: number;
   /** An earlier attempt's copy: the student's own key, for sorting and counting. */
@@ -208,6 +230,8 @@ export interface ResultsPrintJob {
   students: readonly ResultsPrintStudent[];
   /** How handwritten paper answers print; the handwriting when absent. */
   writtenMode?: WrittenReturnMode;
+  /** The teacher has `paper-image-markup`: image markup prints with the written feedback. */
+  imageMarkup?: boolean;
 }
 
 const NO_PERIOD_LABEL = 'No class period';
@@ -328,12 +352,12 @@ function mcAnswer(
           ? ' <span class="keytag">Correct answer</span>'
           : '';
       const bullet = multi ? (opt.picked ? '☑' : '☐') : opt.picked ? '●' : '○';
-      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${bullet}</span> ${letter}${escapeHtml(opt.text)}${mark}${key}</li>`;
+      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${bullet}</span> ${letter}${answerTextHtml(opt.text, line)}${mark}${key}</li>`;
     })
     .join('');
   const unmatched =
     line.answerText && !opts.some((o) => o.picked)
-      ? `<div class="answer">Answer: ${escapeHtml(line.answerText)}</div>`
+      ? `<div class="answer">Answer: ${answerTextHtml(line.answerText, line)}</div>`
       : '';
   return `<ul class="opts">${items}</ul>${unmatched}`;
 }
@@ -348,25 +372,86 @@ function matchingAnswer(
       const mark = options.markAnswers && p.given ? ` ${tick(p.correct)}` : '';
       const key =
         showKey && !p.correct
-          ? ` <span class="key">(correct: ${escapeHtml(p.expected)})</span>`
+          ? ` <span class="key">(correct: ${answerTextHtml(p.expected, line)})</span>`
           : '';
-      return `<li>${escapeHtml(p.term)} → ${p.given ? escapeHtml(p.given) : '<em>no answer</em>'}${mark}${key}</li>`;
+      return `<li>${answerTextHtml(p.term, line)} → ${p.given ? answerTextHtml(p.given, line) : '<em>no answer</em>'}${mark}${key}</li>`;
     })
     .join('');
   return `<ul class="pairs">${rows}</ul>`;
 }
 
-const numbered = (items: readonly string[]) =>
-  items.map((item, i) => `${i + 1}. ${escapeHtml(item)}`).join('; ');
+const numbered = (items: readonly string[], line: StudentQuestionLine) =>
+  items.map((item, i) => `${i + 1}. ${answerTextHtml(item, line)}`).join('; ');
+
+/** Escaped answer text with each picture-only label printed as its picture and label. */
+function answerTextHtml(text: string, line: StudentQuestionLine): string {
+  if (!line.pictures) return escapeHtml(plainPromptText(text));
+  return splitPictureLabels(text, line.pictures)
+    .map((part) =>
+      part.kind === 'text'
+        ? escapeHtml(plainPromptText(part.text))
+        : `<span class="pic"><img src="${escapeHtml(part.picture.url)}" alt="${escapeHtml(part.picture.alt ?? '')}">${escapeHtml(part.label)}</span>`
+    )
+    .join('');
+}
 
 const PLACEHOLDER_LABEL = {
   transcribing: 'Transcribing',
   blank: 'Blank',
 } as const;
 
-function handwritingHtml(line: StudentQuestionLine, cropSrc?: string | null) {
+/** Image markup to print for one written answer; `boxMm` is absent when the sheet's page map is gone. */
+interface MarkupPrint {
+  items: readonly PaperMarkupItem[];
+  boxMm?: PaperRectMm;
+}
+
+/** The written box of a question on the seat's own page maps. */
+function writtenBoxMm(
+  maps: readonly PaperPageMap[] | undefined,
+  questionId: string
+): PaperRectMm | undefined {
+  for (const map of maps ?? []) {
+    for (const item of map.items) {
+      if (item.kind === 'written' && item.questionId === questionId) {
+        return item.boxMm;
+      }
+    }
+  }
+  return undefined;
+}
+
+/** What image markup prints for a line: only with the flag, the feedback on, and markup on the grade. */
+function markupPrintFor(
+  line: StudentQuestionLine,
+  student: ResultsPrintStudent,
+  options: QuizResultsPrintOptions,
+  enabled: boolean
+): MarkupPrint | undefined {
+  if (!enabled || !options.showWrittenFeedback) return undefined;
+  const items = line.writtenGrade?.imageMarkup?.items;
+  if (!Array.isArray(items) || items.length === 0) return undefined;
+  const boxMm = writtenBoxMm(student.sheet?.pageMaps, line.questionId);
+  return { items, ...(boxMm ? { boxMm } : {}) };
+}
+
+function handwritingHtml(
+  line: StudentQuestionLine,
+  cropSrc?: string | null,
+  markup?: MarkupPrint
+) {
   if (cropSrc) {
-    return `<img class="hw" src="${escapeHtml(cropSrc)}" alt="${escapeHtml(`Handwritten answer, question ${line.number}`)}">`;
+    const alt = escapeHtml(`Handwritten answer, question ${line.number}`);
+    if (markup?.boxMm) {
+      // The wrapper hugs the image, so the overlay scales with it at any width.
+      const { svg } = renderPaperMarkup(
+        markup.items,
+        cropViewportMm(markup.boxMm),
+        { overlay: true }
+      );
+      return `<div class="hw-mk" style="position:relative;display:block;width:fit-content;max-width:100%;margin:1mm 0;border:1px solid #bbb"><img class="hw" style="margin:0;border:0" src="${escapeHtml(cropSrc)}" alt="${alt}">${svg}</div>`;
+    }
+    return `<img class="hw" src="${escapeHtml(cropSrc)}" alt="${alt}">`;
   }
   return `<div class="hw-missing">${cropSrc === undefined ? 'Loading handwriting' : 'Handwriting unavailable'}</div>`;
 }
@@ -392,7 +477,8 @@ function writtenBody(
   line: StudentQuestionLine,
   annotations: NonNullable<StudentQuestionLine['writtenGrade']>['annotations'],
   paper: PaperWrittenPrint | undefined,
-  mode: WrittenReturnMode
+  mode: WrittenReturnMode,
+  markup?: MarkupPrint
 ): { body: string; notes: string } {
   const typed = (): { body: string; notes: string } => {
     if (!line.answerHtml) {
@@ -419,13 +505,19 @@ function writtenBody(
   if (!paper || !isPaperWrittenAnswer(paper.answer)) return typed();
 
   const view = paperWrittenView(paper.answer, null, mode);
-  const crop =
-    view.showCrop || view.cropUnavailable
-      ? handwritingHtml(line, view.showCrop ? paper.cropSrc : null)
-      : '';
+  const showsImage = view.showCrop || view.cropUnavailable;
+  const crop = showsImage
+    ? handwritingHtml(line, view.showCrop ? paper.cropSrc : null, markup)
+    : '';
+  // Comments always print, so feedback is never dropped; pins need the image and its box.
+  const comments = markup ? markupCommentListHtml(markup.items) : '';
+  const list =
+    comments && !showsImage
+      ? `<p class="sub" style="margin-top:1mm">Comments on the handwriting</p>${comments}`
+      : comments;
   if (view.placeholder) {
     return {
-      body: `${crop}<div class="answer"><em>${PLACEHOLDER_LABEL[view.placeholder]}</em></div>`,
+      body: `${crop}${list}<div class="answer"><em>${PLACEHOLDER_LABEL[view.placeholder]}</em></div>`,
       notes: '',
     };
   }
@@ -434,17 +526,24 @@ function writtenBody(
     const rendered = line.answerHtml
       ? annotatedSnapshotToHtml(line.answerHtml, annotations ?? [])
       : null;
-    return { body: crop, notes: rendered ? notesHtml(rendered.notes) : '' };
+    return {
+      body: `${crop}${list}`,
+      notes: rendered ? notesHtml(rendered.notes) : '',
+    };
   }
   const text = typed();
-  return { body: `${crop}${text.body}`, notes: text.notes };
+  return {
+    body: showsImage ? `${crop}${list}${text.body}` : `${text.body}${list}`,
+    notes: text.notes,
+  };
 }
 
 function writtenAnswer(
   line: StudentQuestionLine,
   options: QuizResultsPrintOptions,
   paper?: PaperWrittenPrint,
-  mode: WrittenReturnMode = DEFAULT_WRITTEN_RETURN_MODE
+  mode: WrittenReturnMode = DEFAULT_WRITTEN_RETURN_MODE,
+  markup?: MarkupPrint
 ): string {
   const grade = line.writtenGrade;
   const feedback = options.showWrittenFeedback;
@@ -452,7 +551,7 @@ function writtenAnswer(
     feedback && grade?.annotationUnit !== 'ms'
       ? (grade?.annotations ?? [])
       : [];
-  const { body, notes } = writtenBody(line, annotations, paper, mode);
+  const { body, notes } = writtenBody(line, annotations, paper, mode, markup);
   if (!feedback) return body;
   if (!grade) {
     return line.mark === 'noAnswer'
@@ -491,7 +590,8 @@ function answerBlock(
   line: StudentQuestionLine,
   student: ResultsPrintStudent,
   options: QuizResultsPrintOptions,
-  writtenMode?: WrittenReturnMode
+  writtenMode?: WrittenReturnMode,
+  imageMarkup = false
 ): string {
   const showKey = keyApplies(line, options.keyMode);
   const keyLine = (label: string, text: string) =>
@@ -501,11 +601,12 @@ function answerBlock(
       line,
       options,
       student.paperWritten?.[line.questionId],
-      writtenMode
+      writtenMode,
+      markupPrintFor(line, student, options, imageMarkup)
     );
   }
   if (!options.includeQuestions) {
-    return `<div class="answer">${line.answerText ? escapeHtml(line.answerText) : '<em>No answer</em>'}</div>${keyLine('Correct answer', escapeHtml(line.correctAnswerText ?? ''))}`;
+    return `<div class="answer">${line.answerText ? answerTextHtml(line.answerText, line) : '<em>No answer</em>'}</div>${keyLine('Correct answer', answerTextHtml(line.correctAnswerText ?? '', line))}`;
   }
   if (line.type === 'MC' || line.type === 'MA')
     return mcAnswer(line, student, options, showKey);
@@ -513,11 +614,11 @@ function answerBlock(
   if (line.type === 'Ordering' && line.order) {
     const given =
       line.order.given.length > 0
-        ? numbered(line.order.given)
+        ? numbered(line.order.given, line)
         : '<em>No answer</em>';
-    return `<div class="answer">Your order: ${given}</div>${keyLine('Correct order', numbered(line.order.expected))}`;
+    return `<div class="answer">Your order: ${given}</div>${keyLine('Correct order', numbered(line.order.expected, line))}`;
   }
-  return `<div class="answer">Answer: ${line.answerText ? escapeHtml(line.answerText) : '<em>No answer</em>'}</div>${keyLine('Accepted answer', escapeHtml(line.correctAnswerText ?? ''))}`;
+  return `<div class="answer">Answer: ${line.answerText ? answerTextHtml(line.answerText, line) : '<em>No answer</em>'}</div>${keyLine('Accepted answer', answerTextHtml(line.correctAnswerText ?? '', line))}`;
 }
 
 function stimulusRow(stimulus: QuizStimulus): string {
@@ -587,7 +688,7 @@ function studentReport(
       const text = options.includeQuestions
         ? `<div class="text">${escapeHtml(plainPromptText(line.text))}</div>`
         : '';
-      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode)}</div>${markCell(line, options)}</li>`;
+      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup)}</div>${markCell(line, options)}</li>`;
     })
     .join('');
   const questions =
@@ -629,7 +730,14 @@ function separatorPage(
 export function writtenSheetFill(
   student: Pick<ResultsPrintStudent, 'drilldown' | 'paperWritten'>,
   reprint: Pick<SheetReprint, 'writtenTexts'>,
-  options: Pick<QuizResultsPrintOptions, 'markAnswers' | 'showWrittenFeedback'>
+  options: Pick<
+    QuizResultsPrintOptions,
+    'markAnswers' | 'showWrittenFeedback'
+  > &
+    Partial<Pick<QuizResultsPrintOptions, 'layout'>> & {
+      /** The job carries `imageMarkup`; markup then draws in the box and its comments join the strip. */
+      imageMarkup?: boolean;
+    }
 ): Record<string, SheetWrittenFill> | undefined {
   if (!reprint.writtenTexts) return undefined;
   const lines = new Map(
@@ -650,18 +758,46 @@ export function writtenSheetFill(
     }
     const comment = line?.writtenGrade?.overallComment?.trim();
     if (options.showWrittenFeedback && comment) fill.comment = comment;
+    const markup = line?.writtenGrade?.imageMarkup?.items;
+    if (
+      options.imageMarkup &&
+      options.showWrittenFeedback &&
+      Array.isArray(markup) &&
+      markup.length > 0
+    ) {
+      fill.markup = markup;
+      if (options.layout === 'both') fill.markupInReport = true;
+    }
     out[questionId] = fill;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function sheetReprintFill(
+  job: ResultsPrintJob,
+  student: ResultsPrintStudent,
+  reprint: SheetReprint,
+  options: QuizResultsPrintOptions
+) {
+  const written = writtenSheetFill(student, reprint, {
+    ...options,
+    imageMarkup: !!job.imageMarkup,
+  });
+  return sheetFillFor(reprint, {
+    markAnswers: options.markAnswers,
+    keyMode: options.keyMode,
+    ...(options.showScore ? { score: formatScore(student) } : {}),
+    ...(written ? { written } : {}),
+  });
 }
 
 function sheetReprintHtml(
   job: ResultsPrintJob,
   student: ResultsPrintStudent,
   reprint: SheetReprint,
-  options: QuizResultsPrintOptions
+  options: QuizResultsPrintOptions,
+  fill: SheetFill = sheetReprintFill(job, student, reprint, options)
 ): string {
-  const written = writtenSheetFill(student, reprint, options);
   return buildFilledSheetHtml(
     {
       seat: reprint.seat,
@@ -684,13 +820,79 @@ function sheetReprintHtml(
         : {}),
     },
     reprint.pageCount,
-    sheetFillFor(reprint, {
-      markAnswers: options.markAnswers,
-      keyMode: options.keyMode,
-      ...(options.showScore ? { score: formatScore(student) } : {}),
-      ...(written ? { written } : {}),
-    })
+    fill
   );
+}
+
+const REDRAWN_PAGE_START = '<div class="sheet">';
+
+/** The redrawn sheet with each page that has a kept scan swapped for the scan (K8). */
+function sheetSetHtml(
+  job: ResultsPrintJob,
+  student: ResultsPrintStudent,
+  reprint: SheetReprint,
+  options: QuizResultsPrintOptions
+): string {
+  const kept = student.keptPages;
+  if (!kept || !Object.values(kept).some(Boolean)) {
+    return sheetReprintHtml(job, student, reprint, options);
+  }
+  const fill = sheetReprintFill(job, student, reprint, options);
+  const redrawn = sheetReprintHtml(job, student, reprint, options, fill)
+    .split(REDRAWN_PAGE_START)
+    .slice(1)
+    .map((page) => `${REDRAWN_PAGE_START}${page}`);
+  const lines = new Map(student.drilldown.lines.map((l) => [l.questionId, l]));
+  const markupOn = !!job.imageMarkup && options.showWrittenFeedback;
+  const markup: Record<string, PaperImageMarkup> = {};
+  if (markupOn) {
+    for (const line of student.drilldown.lines) {
+      const m = line.writtenGrade?.imageMarkup;
+      if (m && Array.isArray(m.items) && m.items.length > 0) {
+        markup[line.questionId] = m;
+      }
+    }
+  }
+  // Missed only: points print on missed answers alone, as the margin marks do.
+  const written =
+    options.questionScope === 'missed' && fill.written
+      ? Object.fromEntries(
+          Object.entries(fill.written).map(([id, w]) => {
+            const line = lines.get(id);
+            if (line && MISSED_MARKS.has(line.mark)) return [id, w];
+            const { points: _drop, ...rest } = w;
+            return [id, rest];
+          })
+        )
+      : fill.written;
+  const scanFill: SheetFill = written ? { ...fill, written } : fill;
+  return redrawn
+    .map((html, index) => {
+      const page = printedPageOf(reprint, index);
+      const src = kept[page];
+      if (!src) return html;
+      return (
+        buildScanSheetPageHtml({
+          pageSrc: src,
+          page,
+          geometry: {
+            batchId: reprint.batchId,
+            seat: reprint.seat,
+            questionCount: reprint.questionCount,
+            choiceCount: reprint.choiceCount,
+            columnsPerPage: reprint.columnsPerPage,
+            ...(reprint.pageMaps?.[index]
+              ? { pageMap: { ...reprint.pageMaps[index], page } }
+              : {}),
+          },
+          fill: scanFill,
+          ...(markupOn ? { markup } : {}),
+          options,
+          reportFollows: options.layout === 'both',
+        }) ?? html
+      );
+    })
+    .join('');
 }
 
 /** The body of the print: a separator before each period when there are several, then one section per student. */
@@ -726,7 +928,7 @@ export function buildResultsPrintHtml(
       const key = escapeHtml(student.key);
       const sheet =
         options.layout !== 'report' && student.sheet
-          ? `<section class="block sheet-set" data-print-block="sheet" data-pages="${student.sheet.pageCount}" data-student="${key}">${sheetReprintHtml(job, student, student.sheet, options)}</section>`
+          ? `<section class="block sheet-set" data-print-block="sheet" data-pages="${student.sheet.pageCount}" data-student="${key}">${sheetSetHtml(job, student, student.sheet, options)}</section>`
           : '';
       const report =
         !sheet || options.layout === 'both'
@@ -742,6 +944,7 @@ const PRINT_HEIGHT_MM = 279.4 - 32;
 const PX_PER_MM = 96 / 25.4;
 
 export const RESULTS_PRINT_STYLES = `
+  .pic img { height: 12mm; max-width: 24mm; object-fit: contain; vertical-align: middle; margin-right: 1mm; border: 0.2mm solid #ccc; }
   @page { size: letter; margin: 16mm 18mm; }
   * { box-sizing: border-box; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -858,9 +1061,15 @@ export function padBlocksForDuplex(doc: Document): void {
   });
 }
 
+/** Scan page styles join only a document that prints a scan, so every other print is unchanged. */
+const stylesFor = (body: string): string =>
+  body.includes('class="sheet scan-sheet"')
+    ? `${RESULTS_PRINT_STYLES}${SCAN_SHEET_STYLES}`
+    : RESULTS_PRINT_STYLES;
+
 /** The whole document, for the modal's preview iframe. */
 export function buildResultsPreviewDocument(body: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${RESULTS_PRINT_STYLES}
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${stylesFor(body)}
   body { padding: 12mm 14mm; background: #fff; }
   .pad, .sep + .pad { display: none; }
 </style></head><body>${body}</body></html>`;
@@ -875,7 +1084,7 @@ export function printQuizResults(
   printHtmlDocument(
     {
       title: job.quizTitle,
-      styles: RESULTS_PRINT_STYLES,
+      styles: stylesFor(body),
       body,
       awaitImages: body.includes('<img'),
       beforePrint: options.duplexPadding

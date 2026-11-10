@@ -212,6 +212,9 @@ import {
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { CrossOutChoiceButton } from './CrossOutChoiceButton';
 import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
+import { pictureOnlyName } from './pictureOnlyName';
+import { AnswerPictureText } from './AnswerPictureText';
+import { publicImageOnlyPictures } from '@/utils/quizAnswerImages';
 import { hasSideBank } from './structuredLayout';
 import { OrderingListInput } from './OrderingListInput';
 import { orderFromSaved, startingOrder } from './orderingListOrder';
@@ -4416,9 +4419,21 @@ export const ActiveQuiz: React.FC<{
                         currentQuestion.choiceImages?.length === options.length
                           ? currentQuestion.choiceImages[options.indexOf(opt)]
                           : '';
+                      const pictureName = pictureOnlyName(
+                        t,
+                        currentQuestion,
+                        canonicalOpt,
+                        choiceImage,
+                        options.indexOf(opt) + 1
+                      );
                       const picture = choiceImage ? (
                         <AnswerImage src={choiceImage} />
                       ) : null;
+                      const shownText = pictureName ? (
+                        <span className="sr-only">{pictureName}</span>
+                      ) : (
+                        <MathText text={opt} />
+                      );
                       const content = multiPicked ? (
                         <span className="flex items-center gap-3">
                           <span
@@ -4440,7 +4455,7 @@ export const ActiveQuiz: React.FC<{
                           <span
                             className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
                           >
-                            {opt}
+                            {shownText}
                           </span>
                         </span>
                       ) : picture ? (
@@ -4449,13 +4464,15 @@ export const ActiveQuiz: React.FC<{
                           <span
                             className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
                           >
-                            {opt}
+                            {shownText}
                           </span>
                         </span>
                       ) : isCrossedOut ? (
-                        <span className="line-through decoration-2">{opt}</span>
+                        <span className="line-through decoration-2">
+                          <MathText text={opt} />
+                        </span>
                       ) : (
-                        opt
+                        <MathText text={opt} />
                       );
                       const crossOutLabel = isCrossedOut && (
                         <span className="sr-only">
@@ -4513,7 +4530,7 @@ export const ActiveQuiz: React.FC<{
                           {choiceImage && (
                             <AnswerImageZoomButton
                               src={choiceImage}
-                              label={opt}
+                              label={pictureName ?? opt}
                               className="self-center"
                             />
                           )}
@@ -4603,6 +4620,7 @@ export const ActiveQuiz: React.FC<{
                           <AnswerFeedbackBanner
                             feedback={answerFeedback}
                             revealedAnswer={revealedAnswer}
+                            pictures={publicImageOnlyPictures(currentQuestion)}
                             speedBonus={speedBonusEarned}
                             streakCount={streakCount}
                             streakEnabled={session.streakBonusEnabled}
@@ -4762,6 +4780,7 @@ export const ActiveQuiz: React.FC<{
                         <AnswerFeedbackBanner
                           feedback={answerFeedback}
                           revealedAnswer={revealedAnswer}
+                          pictures={publicImageOnlyPictures(currentQuestion)}
                           speedBonus={speedBonusEarned}
                           streakCount={streakCount}
                           streakEnabled={session.streakBonusEnabled}
@@ -5348,10 +5367,18 @@ const ReturnToAssignmentsButton: React.FC<{
 const AnswerFeedbackBanner: React.FC<{
   feedback: 'correct' | 'incorrect' | null;
   revealedAnswer: string | null;
+  pictures?: ReturnType<typeof publicImageOnlyPictures>;
   speedBonus: number | null;
   streakCount: number;
   streakEnabled?: boolean;
-}> = ({ feedback, revealedAnswer, speedBonus, streakCount, streakEnabled }) => {
+}> = ({
+  feedback,
+  revealedAnswer,
+  pictures,
+  speedBonus,
+  streakCount,
+  streakEnabled,
+}) => {
   if (!feedback && !speedBonus && !(streakEnabled && streakCount >= 2))
     return null;
 
@@ -5373,7 +5400,14 @@ const AnswerFeedbackBanner: React.FC<{
             <p className="text-slate-400 text-xs mt-2 ml-9">
               Correct answer:{' '}
               <span className="text-emerald-400 font-semibold">
-                {revealedAnswer}
+                {pictures ? (
+                  <AnswerPictureText
+                    text={revealedAnswer}
+                    pictures={pictures}
+                  />
+                ) : (
+                  <MathText text={revealedAnswer} />
+                )}
               </span>
             </p>
           )}
@@ -5453,7 +5487,9 @@ const ReviewPhase: React.FC<{
           <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl mb-4 max-w-sm w-full">
             <p className="text-emerald-400 font-bold text-sm">
               <Check className="w-4 h-4 inline-block mr-1 -mt-0.5" />
-              {revealedForDisplay(currentQuestion.type, revealed)}
+              <MathText
+                text={revealedForDisplay(currentQuestion.type, revealed)}
+              />
             </p>
           </div>
         )}
@@ -6239,16 +6275,21 @@ export const PublishedScoreReview: React.FC<{
                                           : answerNeutralText
                                     }`}
                                   >
-                                    {studentAnswer
-                                      ? formatAnswerForDisplay(
+                                    {studentAnswer ? (
+                                      <AnswerPictureText
+                                        text={formatAnswerForDisplay(
                                           toDisplayAnswer(
                                             q,
                                             recapLocale,
                                             studentAnswer
                                           ),
                                           q.type
-                                        )
-                                      : '— no response'}
+                                        )}
+                                        pictures={publicImageOnlyPictures(q)}
+                                      />
+                                    ) : (
+                                      '— no response'
+                                    )}
                                   </span>
                                 </p>
                               )}
@@ -6258,14 +6299,17 @@ export const PublishedScoreReview: React.FC<{
                                   <span
                                     className={`font-mono ${answerCorrectText}`}
                                   >
-                                    {formatAnswerForDisplay(
-                                      toDisplayAnswer(
-                                        q,
-                                        recapLocale,
-                                        correctAnswer
-                                      ),
-                                      q.type
-                                    )}
+                                    <AnswerPictureText
+                                      text={formatAnswerForDisplay(
+                                        toDisplayAnswer(
+                                          q,
+                                          recapLocale,
+                                          correctAnswer
+                                        ),
+                                        q.type
+                                      )}
+                                      pictures={publicImageOnlyPictures(q)}
+                                    />
                                   </span>
                                 </p>
                               )}

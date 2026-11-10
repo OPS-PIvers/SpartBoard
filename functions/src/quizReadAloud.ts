@@ -186,6 +186,7 @@ interface SessionQuestion {
   placeholder?: unknown;
   rubricSnapshot?: unknown;
   localized?: unknown;
+  imageOnlyAnswers?: unknown;
 }
 
 // ── Pure helpers (exported for tests) ──────────────────────────────────────
@@ -365,6 +366,24 @@ const strings = (v: unknown): string[] =>
 const capText = (text: string): string =>
   text.length > MAX_PART_CHARS ? text.slice(0, MAX_PART_CHARS) : text;
 
+/** What an answer speaks: a picture-only answer says its description, or "Picture" and its number, never its label. */
+export function spokenAnswer(
+  question: SessionQuestion,
+  text: string,
+  index: number
+): string {
+  const list = Array.isArray(question.imageOnlyAnswers)
+    ? (question.imageOnlyAnswers as { text?: unknown; alt?: unknown }[])
+    : [];
+  const hit = list.find(
+    (e) => typeof e?.text === 'string' && e.text.trim() === text.trim()
+  );
+  if (!hit) return text;
+  return typeof hit.alt === 'string' && hit.alt.trim()
+    ? hit.alt.trim()
+    : `Picture ${index + 1}`;
+}
+
 // D9: prompt, pause, then each choice / left then right / items in order. Choices are
 // unlettered: answer order is shuffled per student, so the row highlight carries the order.
 export function wholeSubParts(question: SessionQuestion): SubPart[] {
@@ -375,7 +394,7 @@ export function wholeSubParts(question: SessionQuestion): SubPart[] {
   if (prompt) out.push({ mark: 'question', text: capText(prompt) });
   const add = (kind: string, items: string[]) => {
     items.forEach((item, index) => {
-      const text = normalizeReadAloudText(item);
+      const text = normalizeReadAloudText(spokenAnswer(question, item, index));
       if (!text) return;
       out.push({ mark: `${kind}:${index}`, text: capText(text) });
     });
@@ -399,7 +418,9 @@ export function resolvePartText(
     const list = strings(items);
     if (!Number.isInteger(index) || index < 0 || index >= list.length)
       return null;
-    const text = normalizeReadAloudText(list[index]);
+    const text = normalizeReadAloudText(
+      spokenAnswer(question, list[index], index)
+    );
     return text ? [{ text: capText(text) }] : null;
   };
   switch (part.kind) {
@@ -464,6 +485,7 @@ export function localizedSessionQuestion(
     type: question.type,
     text,
     stimulusIds: question.stimulusIds,
+    imageOnlyAnswers: question.imageOnlyAnswers,
   };
   for (const field of LOCALIZED_ARRAY_FIELDS) {
     if (strings(question[field]).length === 0) continue;

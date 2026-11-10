@@ -87,6 +87,98 @@ describe('intake saving', () => {
     expect(acks.at(-1)).toBe('b');
   });
 
+  it("keeps the target's place in the picture and its CSS width when the extension sends them", async () => {
+    const set = await intakeDraftFor({ kind: 'new', title: 'T' });
+    if (!set) throw new Error('no draft');
+    const placed: RecordedWebStep = {
+      ...step('a', true),
+      picture: {
+        dataUrl: 'data:image/jpeg;base64,AAAA',
+        w: 10,
+        h: 10,
+        target: { x: 0.25, y: 0.4, w: 0.2, h: 0.1 },
+        cssW: 640,
+      },
+    };
+    const after = await appendRecordedSteps(
+      set,
+      [placed, step('b', true)],
+      () => undefined
+    );
+    expect(after.steps[0].web?.picture).toMatchObject({
+      target: { x: 0.25, y: 0.4, w: 0.2, h: 0.1 },
+      cssW: 640,
+    });
+    expect(
+      after.steps[1].web?.picture && 'target' in after.steps[1].web.picture
+    ).toBe(false);
+  });
+
+  it('uploads the uncropped screen beside the picture, with where the picture sits in it', async () => {
+    const set = await intakeDraftFor({ kind: 'new', title: 'T' });
+    if (!set) throw new Error('no draft');
+    const after = await appendRecordedSteps(
+      set,
+      [
+        {
+          ...step('a', true),
+          picture: {
+            dataUrl: 'data:image/jpeg;base64,AAAA',
+            w: 10,
+            h: 10,
+            original: {
+              dataUrl: 'data:image/jpeg;base64,BBBB',
+              w: 40,
+              h: 20,
+              crop: { x: 0.25, y: 0.25, w: 0.25, h: 0.5 },
+            },
+          },
+        },
+      ],
+      () => undefined
+    );
+    expect(after.steps[0].web?.picture?.original).toMatchObject({
+      w: 40,
+      h: 20,
+      crop: { x: 0.25, y: 0.25, w: 0.25, h: 0.5 },
+    });
+    expect(after.steps[0].web?.picture?.original?.path).toEqual(
+      expect.any(String)
+    );
+  });
+
+  it('refuses a picture target that falls outside the picture', () => {
+    const save = {
+      type: 'intake/save',
+      jobId: 'job-1',
+      target: { kind: 'new', title: 'T' },
+      steps: [step('a', true)],
+    };
+    const withTarget = (target: unknown) => ({
+      ...save,
+      steps: [
+        {
+          ...step('a', true),
+          picture: {
+            dataUrl: 'data:image/jpeg;base64,AAAA',
+            w: 10,
+            h: 10,
+            target,
+          },
+        },
+      ],
+    });
+    expect(parseIntakePortMessage(save)).toEqual(save);
+    const inside = withTarget({ x: 0.1, y: 0.1, w: 0.5, h: 0.5 });
+    expect(parseIntakePortMessage(inside)).toEqual(inside);
+    expect(
+      parseIntakePortMessage(withTarget({ x: 0.8, y: 0.1, w: 0.5, h: 0.5 }))
+    ).toBeNull();
+    expect(
+      parseIntakePortMessage(withTarget({ x: -1, y: 0, w: 0.1, h: 0.1 }))
+    ).toBeNull();
+  });
+
   it('lists drafts newest first', async () => {
     expect(await intakeDrafts()).toEqual([
       { setId: 'new', title: 'New' },

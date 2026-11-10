@@ -23,6 +23,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   getGradebookRosterV1: 'read',
   getOrgUserActivity: 'read',
   getPaperWrittenCropV1: 'read',
+  getPaperPageV1: 'read',
   getPseudonymsForAssignmentV1: 'read',
   getQuizArtifactPlaybackUrl: 'read',
   getStudentClassDirectoryV1: 'read',

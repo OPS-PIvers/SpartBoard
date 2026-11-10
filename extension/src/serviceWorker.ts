@@ -59,6 +59,7 @@ import {
   type TourStartReply,
 } from './tourList';
 import { createTourListWorker } from './tourListWorker';
+import { panelStepsOf, type TourStepsReply } from './tourSteps';
 import { createSchoologyWorker, STATUS_KEY } from './schoology/worker';
 import { SCHOOLOGY_CONTENT_FILE } from './schoology/messages';
 import { SCHOOLOGY_REVIEW_EVENT } from '@/utils/schoologyReviewProtocol';
@@ -539,9 +540,23 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || sender.tab) return false;
   const msg = parseTourPanelMessage(message);
   if (!msg) return false;
-  const answer = async (): Promise<TourListReply | TourStartReply> => {
+  const answer = async (): Promise<
+    TourListReply | TourStartReply | TourStepsReply
+  > => {
     if ((await getChromeProfile()) !== 'staff')
       return { ok: false, why: 'signed-out' };
+    if (msg.type === 'tours/steps') {
+      // Interactive, since a click asked for it and Chrome may need to ask once.
+      const loaded = await callSpartBoard(
+        api,
+        'webTourLoadV1',
+        { setId: msg.setId },
+        true
+      );
+      if (!loaded.ok) return loaded;
+      const tour = panelStepsOf(loaded.value);
+      return tour ? { ok: true, tour } : { ok: false, why: 'not-found' };
+    }
     if (msg.type === 'tours/list') {
       const cached = msg.refresh ? undefined : await loadList();
       return cached ? { ok: true, list: cached } : tourList.refresh(true);

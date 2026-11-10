@@ -50,6 +50,8 @@ export interface ReadTestDocumentOptions {
   multiAnswer?: boolean;
   /** Long text blocks become passage stimuli without a "read the passage" cue. */
   passages?: boolean;
+  /** A PDF's bold, underlined or highlighted choice is its answer (`quiz-import-pdf-answer-marks`). */
+  pdfMarks?: boolean;
   /** Photos of the test, one per page in order; `file` is the first (R30). */
   pages?: readonly Blob[];
   /** Copies pictures an LMS export links to on another site. */
@@ -75,6 +77,7 @@ export async function readTestDocument(
       ...(kind === 'image' ? { pdf: browserImageDeps(pages), pages } : {}),
       ...(options.multiAnswer ? { multiAnswer: true } : {}),
       ...(options.passages ? { passages: true } : {}),
+      ...(options.pdfMarks ? { pdfMarks: true } : {}),
       ...(options.fetchRemoteImage
         ? { fetchRemoteImage: options.fetchRemoteImage }
         : {}),

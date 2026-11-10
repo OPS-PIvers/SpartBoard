@@ -20,6 +20,60 @@ const MIN_CROP: Size = { w: 640, h: 360 };
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v));
 
+/** A crop as 0-1 fractions of the picture it was cut from. */
+export interface CropFraction {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export const FULL_CROP: CropFraction = { x: 0, y: 0, w: 1, h: 1 };
+
+/** A crop in screenshot pixels as fractions of the screenshot. */
+export const cropFraction = (crop: Rect, image: Size): CropFraction => {
+  const r = (n: number) => Math.round(clamp(n, 0, 1) * 10000) / 10000;
+  return {
+    x: r(crop.x / image.w),
+    y: r(crop.y / image.h),
+    w: r(crop.width / image.w),
+    h: r(crop.height / image.h),
+  };
+};
+
+/** Blur boxes drawn on a crop (percent of the crop), moved onto the screen it was cut from. */
+export const blurInOriginal = <
+  T extends { xPct: number; yPct: number; wPct: number; hPct: number },
+>(
+  boxes: readonly T[],
+  crop: CropFraction
+): T[] =>
+  boxes.map((b) => ({
+    ...b,
+    xPct: crop.x * 100 + b.xPct * crop.w,
+    yPct: crop.y * 100 + b.yPct * crop.h,
+    wPct: b.wPct * crop.w,
+    hPct: b.hPct * crop.h,
+  }));
+
+/** The target plus its surroundings, in viewport (CSS) pixels. */
+export function cropCss(target: Rect, viewport: Size): Rect {
+  const want = {
+    w: Math.max(target.width + 2 * MARGIN_PX, MIN_CROP.w),
+    h: Math.max(target.height + 2 * MARGIN_PX, MIN_CROP.h),
+  };
+  const cx = target.x + target.width / 2;
+  const cy = target.y + target.height / 2;
+  const w = Math.min(want.w, viewport.w);
+  const h = Math.min(want.h, viewport.h);
+  return {
+    x: clamp(cx - w / 2, 0, viewport.w - w),
+    y: clamp(cy - h / 2, 0, viewport.h - h),
+    width: w,
+    height: h,
+  };
+}
+
 /** The target plus its surroundings, in screenshot pixels; the whole picture when the target is unknown. */
 export function cropRect(
   target: Rect | null,
@@ -30,21 +84,37 @@ export function cropRect(
   if (!target || viewport.w <= 0 || viewport.h <= 0) return full;
   const sx = image.w / viewport.w;
   const sy = image.h / viewport.h;
-  const want = {
-    w: Math.max(target.width + 2 * MARGIN_PX, MIN_CROP.w),
-    h: Math.max(target.height + 2 * MARGIN_PX, MIN_CROP.h),
-  };
-  const cx = target.x + target.width / 2;
-  const cy = target.y + target.height / 2;
-  const w = Math.min(want.w, viewport.w);
-  const h = Math.min(want.h, viewport.h);
-  const x = clamp(cx - w / 2, 0, viewport.w - w);
-  const y = clamp(cy - h / 2, 0, viewport.h - h);
+  const c = cropCss(target, viewport);
   return {
-    x: Math.round(x * sx),
-    y: Math.round(y * sy),
-    width: Math.round(w * sx),
-    height: Math.round(h * sy),
+    x: Math.round(c.x * sx),
+    y: Math.round(c.y * sy),
+    width: Math.round(c.width * sx),
+    height: Math.round(c.height * sy),
+  };
+}
+
+/** Where the target sits in its cropped picture (0-1 of the picture) and the picture's CSS width, for previews drawn to scale. */
+export function pictureTarget(
+  target: Rect,
+  viewport: Size
+): {
+  target: { x: number; y: number; w: number; h: number };
+  cssW: number;
+} | null {
+  if (viewport.w <= 0 || viewport.h <= 0) return null;
+  const c = cropCss(target, viewport);
+  if (c.width <= 0 || c.height <= 0) return null;
+  const r = (n: number) => Math.round(clamp(n, 0, 1) * 10000) / 10000;
+  const x = r((target.x - c.x) / c.width);
+  const y = r((target.y - c.y) / c.height);
+  return {
+    target: {
+      x,
+      y,
+      w: Math.min(r(target.width / c.width), r(1 - x)),
+      h: Math.min(r(target.height / c.height), r(1 - y)),
+    },
+    cssW: Math.round(c.width),
   };
 }
 

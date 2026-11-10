@@ -25,7 +25,7 @@ import { authError } from './driveAuthErrors';
 import {
   buildResultsSheetData as buildResultsSheetDataShared,
   compareExportRowsByStudent,
-  formatQuizAnswerText,
+  formatQuizAnswerExport,
   headersHaveAnswerColumns,
 } from '@/utils/assignmentExportShared';
 import {
@@ -712,7 +712,7 @@ export class QuizDriveService {
         ? makeQuizGradeFn(options.fibGrading)
         : quizGradeFnWithManualGrades,
       includeAnswerText
-        ? { ...options, formatAnswer: formatQuizAnswerText }
+        ? { ...options, formatAnswer: formatQuizAnswerExport }
         : options
     );
   }
@@ -874,7 +874,7 @@ export class QuizDriveService {
         questions,
         gradeFn,
         withAnswers
-          ? { ...rowOptions, formatAnswer: formatQuizAnswerText }
+          ? { ...rowOptions, formatAnswer: formatQuizAnswerExport }
           : rowOptions
       );
     const { headers, dataRows } = buildRows(includeAnswerText);
@@ -942,7 +942,7 @@ export class QuizDriveService {
         plainPromptText(q.text).substring(0, 60),
         q.type,
         String(q.points ?? 1),
-        displayFibAnswer(q.correctAnswer).substring(0, 40),
+        plainPromptText(displayFibAnswer(q.correctAnswer)).substring(0, 40),
         isAuto ? String(stats?.correct ?? 0) : '',
         String(stats?.answered ?? 0),
         isAuto ? `${correctPct}%` : '',
@@ -965,7 +965,7 @@ export class QuizDriveService {
           {
             ...rowOptions,
             ...(includeAnswerText
-              ? { formatAnswer: formatQuizAnswerText }
+              ? { formatAnswer: formatQuizAnswerExport }
               : {}),
             attemptColumn: {
               header: 'Attempt',

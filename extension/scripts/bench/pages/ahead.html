@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Lesson builder</title><link rel="stylesheet" href="/common.css"></head>
+<body>
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Lesson builder</h1><button id="save">Save</button></header>
+<main style="max-width:900px;margin:0 auto">
+  <div class="panel row" id="a"><b>Text</b> <button id="bold">Bold</button> <button id="italic">Italic</button> <button id="underline">Underline</button></div>
+  <div class="panel row" id="b"><b>Align</b> <button id="left">Left</button> <button id="center">Center</button> <button id="right">Right</button> <button id="justify">Justify</button></div>
+  <div class="panel row" id="c"><b>Insert</b> <button id="image">Image</button> <button id="video">Video</button> <button id="table">Table</button> <button id="link">Link</button> <button id="quiz">Quiz</button></div>
+  <div class="panel row" id="d"><b>Share</b> <button id="copy">Copy link</button> <button id="email">Email</button> <button id="classroom">Classroom</button> <button id="print">Print</button> <button id="publish">Publish</button></div>
+  <div id="log" class="panel"></div>
+</main>
+<script>
+// Every control stays on screen, so a learner can click ahead of the tour; each click answers in place.
+const log = document.getElementById('log');
+document.querySelector('main').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  e.target.setAttribute('aria-pressed', 'true');
+  const line = document.createElement('div');
+  line.textContent = `${e.target.textContent} done`;
+  log.prepend(line);
+});
+</script></body></html>

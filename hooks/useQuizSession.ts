@@ -9,7 +9,10 @@
 
 import { isAnswerKeyboard } from '@/config/studentKeyboards';
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
-import { imagesForLabels } from '@/utils/quizAnswerImages';
+import {
+  imagesForLabels,
+  publicImageOnlyAnswers,
+} from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
 import {
   useState,
@@ -703,6 +706,13 @@ export function toPublicQuestion(
     }
   }
   if (isMultiBlank(q)) base.blankCount = fibBlankCount(q);
+  const imageOnly = publicImageOnlyAnswers(q.imageOnlyAnswers, [
+    { labels: base.choices ?? [], images: base.choiceImages },
+    { labels: base.matchingLeft ?? [], images: base.matchingLeftImages },
+    { labels: base.matchingRight ?? [], images: base.matchingRightImages },
+    { labels: base.orderingItems ?? [], images: base.orderingImages },
+  ]);
+  if (imageOnly) base.imageOnlyAnswers = imageOnly;
   // Stimulus pointers are student-safe (the referenced entries carry no
   // answer data) and are needed to render/group stimuli client-side.
   if (q.stimulusIds && q.stimulusIds.length > 0) {

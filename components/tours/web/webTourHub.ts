@@ -100,7 +100,8 @@ export function buildHandoff(
   title: string,
   steps: readonly HubStep[],
   pictures: ReadonlyMap<string, LoadedPicture>,
-  scored = false
+  scored = false,
+  withConditions = false
 ): WebTourStartTour {
   const encoded = new Map<string, WebTourPictureBytes>();
   pictures.forEach((pic, id) => {
@@ -112,7 +113,15 @@ export function buildHandoff(
         h: pic.h,
       });
   });
-  return buildStartTour(setId, version, title, steps, encoded, scored);
+  return buildStartTour(
+    setId,
+    version,
+    title,
+    steps,
+    encoded,
+    scored,
+    withConditions
+  );
 }
 
 export type HubPlay =

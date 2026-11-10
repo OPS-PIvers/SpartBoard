@@ -96,7 +96,8 @@ export function useWebTourCheck(handlers: WebTourCheckHandlers) {
     );
   };
 
-  const start = async (set: GuidedLearningSet) => {
+  /** `withConditions`: the extension plays step conditions (CONDITIONS_PROTOCOL). */
+  const start = async (set: GuidedLearningSet, withConditions = false) => {
     const hub = hubStepsOf(set.steps);
     const url = startUrlOf(hub);
     if (hub.length === 0 || !url) {
@@ -120,7 +121,8 @@ export function useWebTourCheck(handlers: WebTourCheckHandlers) {
       set.title,
       hub,
       new Map(),
-      true
+      true,
+      withConditions
     );
     const result = await startWebTour(handoff, url, 0, runId);
     if (!result.ok && runRef.current === runId)

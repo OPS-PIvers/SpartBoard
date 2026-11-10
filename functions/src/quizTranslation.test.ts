@@ -70,6 +70,8 @@ import {
   restoreFibStem,
   buildTranslationPrompt,
   buildSystemInstruction,
+  restoreImageOnlyLabels,
+  PICTURE_TOKEN,
   type QuestionTranslation,
   type TranslatableQuestion,
   type TranslationDeps,
@@ -1220,5 +1222,65 @@ describe('FIB blank tokens', () => {
     expect(result.questions.q5.answer).toBe('París');
     // The model sees tokens, never raw underscore runs.
     expect(vi.mocked(generate).mock.calls[0][0].prompt).toContain('[[1]]');
+  });
+});
+
+describe('picture-only answers in translation', () => {
+  const q: TranslatableQuestion = {
+    id: 'p1',
+    type: 'MC',
+    text: 'Which shape has three sides?',
+    correctAnswer: 'Picture ACD',
+    incorrectAnswers: ['Picture CDE', 'A square'],
+    imageOnlyAnswers: [{ text: 'Picture ACD' }, { text: 'Picture CDE' }],
+  };
+
+  it('never sends a generated label to the model', () => {
+    const prompt = buildTranslationPrompt('Shapes', [q], ['p1']);
+    expect(prompt).not.toContain('Picture ACD');
+    expect(prompt).not.toContain('Picture CDE');
+    expect(prompt).toContain(PICTURE_TOKEN);
+    expect(prompt).toContain('A square');
+  });
+
+  it('puts the labels back where the model returned the token', () => {
+    const out = restoreImageOnlyLabels(q, {
+      text: '¿Qué figura tiene tres lados?',
+      choices: ['[imagen]', '[imagen]', 'Un cuadrado'],
+    });
+    expect(out.choices).toEqual(['Picture ACD', 'Picture CDE', 'Un cuadrado']);
+  });
+
+  it('restores Ordering and Matching labels too', () => {
+    const ordering: TranslatableQuestion = {
+      id: 'p2',
+      type: 'Ordering',
+      text: 'Order',
+      correctAnswer: 'Picture QRT|Last',
+      imageOnlyAnswers: [{ text: 'Picture QRT' }],
+    };
+    expect(
+      restoreImageOnlyLabels(ordering, {
+        text: 'Ordena',
+        orderingItems: ['x', 'Último'],
+      }).orderingItems
+    ).toEqual(['Picture QRT', 'Último']);
+    const matching: TranslatableQuestion = {
+      id: 'p3',
+      type: 'Matching',
+      text: 'Match',
+      correctAnswer: 'Dog:Picture TUV',
+      matchingDistractors: ['Picture VWX'],
+      imageOnlyAnswers: [{ text: 'Picture TUV' }, { text: 'Picture VWX' }],
+    };
+    const out = restoreImageOnlyLabels(matching, {
+      text: 'Une',
+      matchingLeft: ['Perro'],
+      matchingRight: ['x'],
+      matchingDistractors: ['y'],
+    });
+    expect(out.matchingLeft).toEqual(['Perro']);
+    expect(out.matchingRight).toEqual(['Picture TUV']);
+    expect(out.matchingDistractors).toEqual(['Picture VWX']);
   });
 });

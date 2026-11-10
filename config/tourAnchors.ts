@@ -2055,6 +2055,12 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-editor.answer-image-description': {
+    label:
+      'Describe a picture-only answer for screen readers in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
   'quiz-editor.match-term-image': {
     label: 'Add image to matching term in the Quiz editor',
     perField: true,
@@ -2643,6 +2649,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-import.paper-retry-upload': {
     label: 'Retry failed uploads in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-keep-pages': {
+    label: "Keep a copy of each student's pages switch in Quiz import",
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-retry-pages': {
+    label: 'Retry failed page copies in Quiz import',
     perWidgetType: true,
     panel: true,
   },
@@ -3784,6 +3800,134 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
     persists: true,
+  },
+  'quiz-grading.markup-toolbar': {
+    label: 'Markup toolbar on a handwritten answer in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-select': {
+    label: 'Select and move tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-highlight': {
+    label: 'Highlighter tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-box': {
+    label: 'Box tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-circle': {
+    label: 'Circle tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-stamp': {
+    label: 'Stamp tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-stamp-menu': {
+    label: 'Choose stamp menu on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-pin': {
+    label: 'Comment pin tool on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-color': {
+    label: 'Mark color menu on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-undo': {
+    label: 'Undo a mark on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-redo': {
+    label: 'Redo a mark on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-delete': {
+    label: 'Delete the selected mark on the handwriting markup toolbar',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.markup-canvas': {
+    label: 'Handwriting image you draw marks on in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-add-comment': {
+    label: 'Add or edit a comment on the selected mark in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-selection-delete': {
+    label: 'Delete button beside the selected mark in the Quiz grader',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment': {
+    label: 'Mark comment textarea in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-snippet': {
+    label: 'Saved comment picker in the mark comment box',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment-cancel': {
+    label: 'Cancel a mark comment in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment-save': {
+    label: 'Save a mark comment in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-comment-row': {
+    label: 'Numbered comment under the marked handwriting in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-pin-menu': {
+    label: 'Saved comments menu on the handwriting markup toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-save-comment': {
+    label: 'Save a mark comment for reuse in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan': {
+    label: 'Notice that marks were made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan-keep': {
+    label: 'Keep the marks made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.markup-earlier-scan-clear': {
+    label: 'Clear the marks made on an earlier scan in the Quiz grader',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
   },
   'quiz-grading.empty-close': {
     label: 'Close button in the empty Quiz grader',
@@ -7944,8 +8088,44 @@ export const TOUR_ANCHORS = {
     label: 'Back button in the resource viewer',
     panel: true,
   },
-  'help-center.viewer.open-web-tour': {
-    label: 'Open in a new tab button for a web tour in a Help Center guide',
+  'help-center.viewer.start-live-tour': {
+    label: 'Start Live Tour button at the top of a tour in the resource viewer',
+    panel: true,
+  },
+  'steps-view.mode-steps': {
+    label: 'Steps button in a tour Steps view',
+    panel: true,
+  },
+  'steps-view.mode-walkthrough': {
+    label: 'Walk through button in a tour Steps view',
+    panel: true,
+  },
+  'steps-view.print': {
+    label: 'Print button in a tour Steps view',
+    panel: true,
+  },
+  'tour-public-link.switch': {
+    label:
+      'Anyone with the link switch at the foot of the tour editor More actions menu',
+    panel: true,
+  },
+  'tour-public-link.review': {
+    label:
+      'Review button under the public link switch after a picture change turned the link off',
+    panel: true,
+  },
+  'tour-public-link.copy': {
+    label: 'Copy public link button under the public link switch',
+    panel: true,
+  },
+  'tour-public-link.acknowledge': {
+    label:
+      "Checkbox in the make-public confirm acknowledging a public link can't be taken back",
+    panel: true,
+  },
+  'tour-public-link.confirm': {
+    label: 'Make public button in the make-public confirm',
+    panel: true,
   },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
@@ -7986,6 +8166,18 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.item-delete': {
     label: 'Delete button on a Help Center admin item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.help-center.item-web-change': {
+    label:
+      'Change link button on a Help Center admin item that links a web tour',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.item-web-remove': {
+    label: 'Remove button on a Help Center admin item that links a web tour',
     perField: true,
     destructive: true,
     panel: true,
@@ -11595,10 +11787,12 @@ export const TOUR_ANCHORS = {
     label: 'What does your tour explain? field in the web tour editor',
   },
   'web-tour-editor.write-with-claude': {
-    label: 'Write with Claude button in the web tour editor',
+    label:
+      'Main button in the web tour editor header while it says Write text (Write with Claude)',
   },
   'web-tour-editor.rewrite-all': {
-    label: 'Rewrite all button in the web tour editor',
+    label: 'Rewrite all option in the web tour editor More actions menu',
+    panel: true,
   },
   'web-tour-editor.write-asked': {
     label: 'Run again for questions button in the web tour editor',
@@ -11606,27 +11800,124 @@ export const TOUR_ANCHORS = {
   'web-tour-editor.undo-writing': {
     label: "Undo button for Claude's writing in the web tour editor",
   },
+  'tour-editor.main': {
+    label:
+      'Main button in the tour editor header (Write text, Check tour or Publish)',
+    persists: true,
+  },
+  'tour-editor.play': { label: 'Play button in the tour editor header' },
+  'tour-editor.menu': {
+    label: 'More actions menu button in the tour editor header',
+  },
+  'tour-editor.menu-item': {
+    label: 'Option in the tour editor More actions menu',
+    perField: true,
+    panel: true,
+  },
+  'tour-editor.add-step': {
+    label: 'Add step button under the tour editor outline',
+  },
+  'tour-editor.record': {
+    label: 'Record button under the tour editor outline',
+  },
+  'tour-editor.step-more': {
+    label: "More toggle on the selected step's card in the tour editor",
+  },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',
   },
   'web-tour-editor.copy-link': {
-    label: 'Copy link button in the web tour editor header',
+    label: 'Copy link option in the web tour editor More actions menu',
+    panel: true,
   },
   'web-tour-editor.check': {
-    label: 'Check tour button in the web tour editor header',
+    label: 'Main button in the web tour editor header while it says Check tour',
   },
   'web-tour-editor.record': {
     label: 'Record steps button in the web tour editor',
   },
   'web-tour-editor.publish': {
-    label: 'Publish tour button in the web tour editor',
+    label:
+      'Main button in the web tour editor header while it says Publish or Published',
     persists: true,
   },
   'web-tour-editor.delete': {
-    label: 'Delete web tour button in the web tour editor',
+    label: 'Delete web tour option in the web tour editor More actions menu',
+    panel: true,
     destructive: true,
     persists: true,
+  },
+  'web-tour-editor.menu': {
+    label: 'More actions menu button in the web tour editor header',
+  },
+  'web-tour-editor.duplicate': {
+    label: 'Duplicate option in the web tour editor More actions menu',
+    panel: true,
+    persists: true,
+  },
+  'web-tour-editor.add-step': {
+    label: 'Add step button under the web tour editor outline',
+  },
+  'web-tour-editor.step-more': {
+    label: "More toggle on the selected web step's card",
+  },
+  'web-tour-editor.tab-steps': {
+    label: 'Steps tab in the web tour editor',
+  },
+  'web-tour-editor.tab-settings': {
+    label: 'Settings tab in the web tour editor',
+  },
+  'web-tour-editor.picture': {
+    label:
+      'Step picture on the web tour editor stage (selects it to show its tools)',
+  },
+  'web-tour-editor.picture-crop': {
+    label: 'Crop tool for the selected picture in the web tour editor',
+    panel: true,
+  },
+  'web-tour-editor.picture-markup': {
+    label: 'Mark up tool for the selected picture in the web tour editor',
+    panel: true,
+  },
+  'web-tour-editor.picture-retake': {
+    label: 'Retake tool for the selected picture in the web tour editor',
+    panel: true,
+  },
+  'web-tour-editor.picture-replace': {
+    label: 'Replace tool for the selected picture in the web tour editor',
+    panel: true,
+  },
+  'web-tour-editor.markup-arrow': {
+    label: 'Arrow shape while marking up a web tour picture',
+    panel: true,
+  },
+  'web-tour-editor.markup-box': {
+    label: 'Box shape while marking up a web tour picture',
+    panel: true,
+  },
+  'web-tour-editor.markup-number': {
+    label: 'Number shape while marking up a web tour picture',
+    panel: true,
+  },
+  'web-tour-editor.markup-delete': {
+    label: 'Delete the selected shape while marking up a web tour picture',
+    destructive: true,
+    panel: true,
+  },
+  'web-tour-editor.markup-done': {
+    label: 'Done button while marking up a web tour picture',
+    panel: true,
+  },
+  'web-tour-editor.picture-blur': {
+    label: 'Blur tool for the selected picture in the web tour editor',
+    panel: true,
+  },
+  'web-tour-editor.picture-remove': {
+    label:
+      'Remove picture tool for the selected picture in the web tour editor',
+    panel: true,
+    destructive: true,
   },
   'gl-manager.select-mode': {
     label: 'Select mode toggle in the Guided Learning library',

@@ -57,6 +57,7 @@ import {
   partKey,
   prepareQuizReadAloud,
   resolvePartText,
+  spokenAnswer,
   synthesizeQuizAudio,
   teacherDailyDocId,
   wholeSubParts,
@@ -1060,5 +1061,29 @@ describe('synthesizeQuizAudioV1 caller gate', () => {
       });
     }
     expect(isGlobalFeatureGranted).not.toHaveBeenCalled();
+  });
+});
+
+describe('picture-only answers in read aloud', () => {
+  const q = {
+    id: 'q1',
+    type: 'MC',
+    text: 'Which one?',
+    choices: ['Words', 'Picture ACD', 'Picture CDE'],
+    imageOnlyAnswers: [
+      { text: 'Picture ACD', alt: 'A red triangle' },
+      { text: 'Picture CDE' },
+    ],
+  };
+
+  it('speaks the description, or "Picture" and its number, never the label', () => {
+    expect(spokenAnswer(q, 'Words', 0)).toBe('Words');
+    expect(spokenAnswer(q, 'Picture ACD', 1)).toBe('A red triangle');
+    expect(spokenAnswer(q, 'Picture CDE', 2)).toBe('Picture 3');
+    expect(resolvePartText(q, { kind: 'choice', index: 2 })).toEqual([
+      { text: 'Picture 3' },
+    ]);
+    const whole = wholeSubParts(q).map((p) => p.text);
+    expect(whole.join(' ')).not.toContain('Picture ACD');
   });
 });

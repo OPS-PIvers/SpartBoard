@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ZoomIn } from 'lucide-react';
 import { ImageLightbox } from '@/components/common/ImageLightbox';
+import { plainPromptText } from '@/utils/promptMath';
 
 /** Tile: picture across the top of a word-bank chip. Row: beside an answer row. Compact: smaller row for placed items and terms. */
 export type AnswerImageLayout = 'tile' | 'row' | 'compact';
@@ -24,14 +25,24 @@ export const AnswerImage: React.FC<{
   />
 );
 
-/** An answer's text, with its picture when it has one. */
+/** An answer's text, with its picture when it has one; `pictureOnly` shows the picture and speaks the label. */
 export const AnswerLabel: React.FC<{
   label: React.ReactNode;
   image?: string;
   layout?: AnswerImageLayout;
-}> = ({ label, image, layout = 'row' }) =>
+  pictureOnly?: boolean;
+}> = ({ label, image, layout = 'row', pictureOnly = false }) =>
   !image ? (
     <>{label}</>
+  ) : pictureOnly ? (
+    <span
+      className={
+        layout === 'tile' ? 'flex w-full flex-col' : 'flex items-center'
+      }
+    >
+      <AnswerImage src={image} layout={layout} />
+      <span className="sr-only">{label}</span>
+    </span>
   ) : layout === 'tile' ? (
     <span className="flex w-full flex-col gap-2">
       <AnswerImage src={image} layout="tile" />
@@ -52,7 +63,8 @@ export const AnswerImageZoomButton: React.FC<{
   src: string;
   label: string;
   className?: string;
-}> = ({ src, label, className = '' }) => {
+}> = ({ src, label: raw, className = '' }) => {
+  const label = plainPromptText(raw);
   const [open, setOpen] = useState(false);
   return (
     <>

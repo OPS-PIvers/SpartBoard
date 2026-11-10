@@ -30,6 +30,7 @@ import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
+  PAPER_KEPT_PAGES_FEATURE,
   withPaperBoxSizes,
   withPaperBoxStyles,
 } from '@/utils/paperWritten';
@@ -88,6 +89,7 @@ import {
   driveStimulusUploader,
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
+import { MAX_DOCUMENT_PAGES } from '@/utils/quizDocumentImport/limits';
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageFetcher';
 import { CartridgeBankImportModal } from './components/CartridgeBankImportModal';
@@ -230,6 +232,7 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { Loader2, AlertTriangle, LogIn, Gamepad2 } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { STUDENT_KEYBOARDS_FEATURE } from '@/config/studentKeyboards';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
@@ -371,6 +374,8 @@ const TeacherQuizWidget: React.FC<{
     canUseQuizAi;
   const canImportVersions =
     canImportDocuments && canAccessFeature('quiz-import-versions');
+  const googleDocAsPdf =
+    canImportDocuments && canAccessFeature('quiz-import-google-doc-pdf');
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
   // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
@@ -432,14 +437,30 @@ const TeacherQuizWidget: React.FC<{
     }
     const picked = await openPicker({ mode: 'documents', token });
     if (!picked) return null;
-    const downloaded = await getDriveDocumentAsBlob(picked.id);
+    let downloaded = await getDriveDocumentAsBlob(
+      picked.id,
+      googleDocAsPdf ? 'pdf' : 'docx'
+    );
+    // A long Doc is past the PDF reader's page limit; its Word export has none.
+    if (
+      googleDocAsPdf &&
+      downloaded?.mimeType === 'application/pdf' &&
+      picked.mimeType !== 'application/pdf'
+    ) {
+      const { pdfPageCount } =
+        await import('@/utils/quizDocumentImport/pdfBrowserDeps');
+      const pages = await pdfPageCount(downloaded.blob).catch(() => 0);
+      if (pages > MAX_DOCUMENT_PAGES) {
+        downloaded = await getDriveDocumentAsBlob(picked.id, 'docx');
+      }
+    }
     if (!downloaded)
       throw new Error('Could not download that file from Drive.');
     return {
       file: downloaded.blob,
       fileName: downloaded.name || picked.name,
     };
-  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
+  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob, googleDocAsPdf]);
 
   // Pictures the last read document carried. They wait here rather than in
   // the adapter, which owns no state, until the teacher confirms the import.
@@ -2323,6 +2344,10 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
+      pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
+      equations:
+        canAccessFeature('quiz-import-equations') &&
+        canAccessFeature(STUDENT_KEYBOARDS_FEATURE),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportVersions
         ? {
@@ -4888,6 +4913,8 @@ const TeacherQuizWidget: React.FC<{
               ? `data:${res.data.mimeType ?? 'image/webp'};base64,${res.data.data}`
               : null;
           }}
+          canKeepPages={canAccessFeature(PAPER_KEPT_PAGES_FEATURE)}
+          driveConnected={isDriveConnected}
           checkQuota={async () => {
             const quota = await readPaperImportQuota(firestoreDocData, {
               uid: user.uid,

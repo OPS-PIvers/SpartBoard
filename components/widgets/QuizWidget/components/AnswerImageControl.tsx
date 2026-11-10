@@ -60,3 +60,29 @@ export const AnswerImageControl: React.FC<{
       )}
     </button>
   );
+
+/** Optional screen reader description under an answer that is only a picture. */
+export const PictureDescriptionInput: React.FC<{
+  value: string;
+  onChange: (alt: string) => void;
+  /** Screen reader name of the answer, such as "option B". */
+  name: string;
+  attrs: TourAnchorAttrs;
+  /** Wrapper classes, such as an indent that lines the box up with the text box above. */
+  className?: string;
+}> = ({ value, onChange, name, attrs, className = '' }) => (
+  <div className={`min-w-0 ${className}`}>
+    <input
+      // no-tour-anchor: anchor comes from the caller in attrs
+      type="text"
+      value={value}
+      maxLength={150}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Describe the picture (optional)"
+      title="Read to students who use a screen reader"
+      aria-label={`Describe the picture in ${name}`}
+      className="w-full min-w-0 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-hidden focus:border-brand-blue-primary"
+      {...attrs}
+    />
+  </div>
+);

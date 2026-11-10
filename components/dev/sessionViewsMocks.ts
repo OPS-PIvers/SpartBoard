@@ -855,6 +855,176 @@ export function makeOptionImagesQuizSession(
   };
 }
 
+/** Shape pictures for picture-only answers. */
+function shapeImageDataUrl(shape: string, hue: number): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 400;
+  canvas.height = 300;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 400, 300);
+  ctx.fillStyle = `hsl(${hue} 70% 50%)`;
+  ctx.beginPath();
+  if (shape === 'triangle') {
+    ctx.moveTo(200, 40);
+    ctx.lineTo(330, 260);
+    ctx.lineTo(70, 260);
+  } else if (shape === 'square') {
+    ctx.rect(90, 40, 220, 220);
+  } else if (shape === 'circle') {
+    ctx.arc(200, 150, 115, 0, Math.PI * 2);
+  } else {
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      ctx.lineTo(200 + 120 * Math.cos(a), 150 + 120 * Math.sin(a));
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+  return canvas.toDataURL('image/png');
+}
+
+const SHAPES = ['triangle', 'square', 'circle', 'hexagon'] as const;
+const SHAPE_LABELS = [
+  'Picture ACD',
+  'Picture CDE',
+  'Picture EFG',
+  'Picture GHJ',
+];
+const SHAPE_SIDES = ['Picture KMN', 'Picture MNP', 'Picture PQR'];
+
+/** Multiple choice, Matching and Ordering questions whose answers are only pictures. */
+export function makePictureOnlyQuizSession(
+  first: 'Ordering' | 'Matching' | 'MC'
+): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const pics = SHAPES.map((s, i) => shapeImageDataUrl(s, i * 70));
+  const imageOnlyAnswers = [
+    { text: SHAPE_LABELS[0], alt: 'A red triangle' },
+    ...SHAPE_LABELS.slice(1).map((text) => ({ text })),
+    ...SHAPE_SIDES.map((text) => ({ text })),
+  ];
+  const mc = {
+    id: 'pic-mc',
+    type: 'MC' as const,
+    text: 'Which shape has three sides?',
+    timeLimit: 0,
+    choices: [
+      SHAPE_LABELS[1],
+      SHAPE_LABELS[0],
+      SHAPE_LABELS[3],
+      SHAPE_LABELS[2],
+    ],
+    choiceImages: [pics[1], pics[0], pics[3], pics[2]],
+    imageOnlyAnswers,
+  };
+  const ordering = {
+    id: 'pic-ordering',
+    type: 'Ordering' as const,
+    text: 'Order the shapes from fewest sides to most.',
+    timeLimit: 0,
+    orderingItems: [SHAPE_LABELS[3], SHAPE_LABELS[0], SHAPE_LABELS[1]],
+    orderingImages: [pics[3], pics[0], pics[1]],
+    imageOnlyAnswers,
+  };
+  const matching = {
+    id: 'pic-matching',
+    type: 'Matching' as const,
+    text: 'Match each shape to its number of sides.',
+    timeLimit: 0,
+    matchingLeft: SHAPE_LABELS.slice(0, 3),
+    matchingLeftImages: pics.slice(0, 3),
+    matchingRight: ['4 sides', '0 sides', '3 sides', '6 sides'],
+    matchingRightImages: ['', '', '', ''],
+    imageOnlyAnswers,
+  };
+  const order =
+    first === 'Ordering'
+      ? [ordering, matching, mc]
+      : first === 'Matching'
+        ? [matching, ordering, mc]
+        : [mc, ordering, matching];
+  return { ...base, totalQuestions: 3, publicQuestions: order };
+}
+
+/** A quiz with picture-only answers, for the results views. */
+export function makePictureOnlyQuizData(): QuizData {
+  // Teacher views accept only https pictures; a screenshot script serves these.
+  const https = SHAPES.map((s) => `https://example.invalid/${s}.png`);
+  return {
+    id: QUIZ_ID,
+    title: 'Shapes',
+    createdAt: NOW - 86_400_000,
+    updatedAt: NOW - 3_600_000,
+    questions: [
+      {
+        id: 'pic-mc',
+        type: 'MC',
+        text: 'Which shape has three sides?',
+        timeLimit: 0,
+        correctAnswer: SHAPE_LABELS[0],
+        incorrectAnswers: SHAPE_LABELS.slice(1),
+        answerImages: SHAPE_LABELS.map((text, i) => ({ text, url: https[i] })),
+        imageOnlyAnswers: [
+          { text: SHAPE_LABELS[0], alt: 'A red triangle' },
+          ...SHAPE_LABELS.slice(1).map((text) => ({ text })),
+        ],
+      },
+      {
+        id: 'pic-ordering',
+        type: 'Ordering',
+        text: 'Order the shapes from fewest sides to most.',
+        timeLimit: 0,
+        correctAnswer: [SHAPE_LABELS[0], SHAPE_LABELS[1], SHAPE_LABELS[3]].join(
+          '|'
+        ),
+        incorrectAnswers: [],
+        orderingImages: [https[0], https[1], https[3]],
+        imageOnlyAnswers: [
+          SHAPE_LABELS[0],
+          SHAPE_LABELS[1],
+          SHAPE_LABELS[3],
+        ].map((text) => ({ text })),
+        allowPartialCredit: true,
+        points: 3,
+      },
+    ],
+  };
+}
+
+export function makePictureOnlyResponses(): QuizResponse[] {
+  const [tri, sq, , hex] = SHAPE_LABELS;
+  const people: [string, string, string][] = [
+    ['Ada', tri, `${tri}|${sq}|${hex}`],
+    ['Ben', sq, `${sq}|${tri}|${hex}`],
+    ['Cal', tri, `${tri}|${sq}|${hex}`],
+    ['Dee', hex, `${hex}|${sq}|${tri}`],
+  ];
+  return people.map(([, mc, order], i) => {
+    const key = `pin-Period 3-30${i + 1}`;
+    return {
+      _responseKey: key,
+      studentUid: key,
+      pin: `30${i + 1}`,
+      joinedAt: NOW - 600_000,
+      status: 'completed',
+      answers: [
+        { questionId: 'pic-mc', answer: mc, answeredAt: NOW - 500_000 },
+        {
+          questionId: 'pic-ordering',
+          answer: order,
+          answeredAt: NOW - 400_000,
+        },
+      ],
+      score: null,
+      submittedAt: NOW - 300_000,
+      classPeriod: 'Period 3',
+      completedAttempts: 1,
+    };
+  });
+}
+
 /* ─── Ordering results ───────────────────────────────────────────────────── */
 
 const ORDERING_KEY = [

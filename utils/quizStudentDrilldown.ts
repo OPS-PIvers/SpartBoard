@@ -1,3 +1,4 @@
+import { imageOnlyPictures, type AnswerPicture } from './quizAnswerImages';
 import {
   isFreeResponseType,
   type QuizQuestion,
@@ -59,6 +60,8 @@ export interface StudentQuestionLine {
   /** The answer is a recording rather than text. */
   recorded?: 'audio' | 'video';
   stimulusIds?: string[];
+  /** Picture-only answers by label, so a view can draw each one; absent when the question has none. */
+  pictures?: ReadonlyMap<string, AnswerPicture>;
 }
 
 export interface StudentOptionLine {
@@ -240,6 +243,7 @@ export function computeStudentDrilldown(
       | 'rubric'
       | 'recorded'
       | 'stimulusIds'
+      | 'pictures'
     > = {
       questionId: q.id,
       number: index + 1,
@@ -253,6 +257,8 @@ export function computeStudentDrilldown(
         : null,
     };
     if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
+    const pictures = imageOnlyPictures(q);
+    if (pictures.size > 0) base.pictures = pictures;
     if (q.type === 'MC') {
       base.options = mcOptions(
         q,

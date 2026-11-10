@@ -38,11 +38,12 @@ export interface DriveUploader {
     ownerKey?: string
   ) => Promise<{ id: string }>;
   deleteFile: (accessToken: string, fileId: string) => Promise<void>;
-  /** Deletes only a file filed in a folder inside `SpartBoard/{folderName}`; throws for any other file. */
+  /** Deletes only a file filed at most `levels` folders inside `SpartBoard/{folderName}` (default 2); throws for any other file. */
   deleteFileInAppFolder: (
     accessToken: string,
     fileId: string,
-    folderName: string
+    folderName: string,
+    levels?: number
   ) => Promise<void>;
 }
 
@@ -223,7 +224,8 @@ export function createDriveUploader(
   const deleteFileInAppFolder: DriveUploader['deleteFileInAppFolder'] = async (
     accessToken,
     fileId,
-    folderName
+    folderName,
+    levels = 2
   ) => {
     const file = await getMetadata(accessToken, fileId);
     // Already gone: the obligation is satisfied.
@@ -238,22 +240,20 @@ export function createDriveUploader(
       return false;
     };
     let filed = false;
-    if (file.mimeType !== FOLDER_MIME) {
-      outer: for (const parentId of file.parents ?? []) {
-        const parent = await getMetadata(accessToken, parentId);
-        if (parent?.mimeType !== FOLDER_MIME) continue;
-        // Older uploads with an empty sanitized title sit loose in the archive folder.
-        if (await isArchive(parentId)) {
+    // Walks up one folder level at a time; older uploads with an empty sanitized title sit loose in the archive folder.
+    let ancestors = file.mimeType === FOLDER_MIME ? [] : (file.parents ?? []);
+    for (let depth = 0; depth < levels && !filed; depth++) {
+      const next: string[] = [];
+      for (const id of ancestors) {
+        const folder = await getMetadata(accessToken, id);
+        if (folder?.mimeType !== FOLDER_MIME) continue;
+        if (await isArchive(id)) {
           filed = true;
           break;
         }
-        for (const archiveId of parent.parents ?? []) {
-          if (await isArchive(archiveId)) {
-            filed = true;
-            break outer;
-          }
-        }
+        next.push(...(folder.parents ?? []));
       }
+      ancestors = next;
     }
     if (!filed) {
       throw new Error(

@@ -24,11 +24,16 @@ vi.mock('./quizMediaArchive', () => ({
   archiveQuizArtifactCore: vi.fn(),
   buildDefaultArchiveDeps: vi.fn(),
   isLostArchiveError: vi.fn(() => false),
+  parsePaperPageArtifactId: (id: string) => {
+    const m = /^pg_([A-Za-z0-9-]{1,64})_([1-9]\d?)$/.exec(id);
+    return m ? { scanId: m[1], page: Number(m[2]) } : null;
+  },
   retryStorageCleanup: vi.fn(),
   QUIZ_MEDIA_ARCHIVE_SECRETS: [],
   STUCK_ARCHIVE_AGE_MS: 2 * 60 * 60 * 1000,
 }));
 vi.mock('./deleteQuizMediaForOrgAdmin', () => ({
+  KEPT_PAGES_QUESTION_ID: '__kept-scan-pages__',
   buildDefaultOrgMediaDeps: vi.fn(),
   finishStuckMediaDelete: vi.fn(),
 }));
@@ -622,6 +627,85 @@ describe('handwriting crops', () => {
       'SpartBoard: 1 paper answer could not be saved to Drive'
     );
     expect(message.text).toContain('the following paper answers');
+  });
+
+  it('retries a stuck kept page through the core and names its page in the email', async () => {
+    const { db, mailWrites } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            pin: '7',
+            answers: [],
+            paperPages: [{ id: 'pg_scan-2_3', kind: 'paper-page' }],
+            artifactArchive: {
+              'pg_scan-2_3': { archiveStatus: 'failed', lastAttemptAt: OLD },
+            },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Essay' } }
+    );
+    const deps = makeDeps({
+      archiveOne: vi.fn(() => Promise.reject(new Error('Drive 503'))),
+    });
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(summary).toMatchObject({ retried: 1, stillStuck: 1 });
+    expect(deps.archiveOne).toHaveBeenCalledWith({
+      sessionId: 's1',
+      responseKey: 'r1',
+      questionId: '__kept-scan-pages__',
+      artifactId: 'pg_scan-2_3',
+    });
+    const message = mailWrites[0]?.data.message as { text: string };
+    expect(message.text).toContain('- Essay — Pin7: scanned page 3');
+  });
+
+  it('routes a kept page’s Storage cleanup and stuck delete to their passes', async () => {
+    const { db } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            answers: [],
+            artifactArchive: {
+              'pg_scan-2_1': {
+                archiveStatus: 'archived',
+                driveFileId: 'd1',
+                storageCleanupPending: true,
+              },
+              'pg_scan-1_2': { archiveStatus: 'deleting', deletedAt: OLD },
+            },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Essay' } }
+    );
+    const deps = makeDeps();
+    await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    const target = {
+      sessionId: 's1',
+      responseKey: 'r1',
+      questionId: '__kept-scan-pages__',
+    };
+    expect(deps.cleanUpStorage).toHaveBeenCalledWith({
+      ...target,
+      artifactId: 'pg_scan-2_1',
+    });
+    expect(deps.finishDelete).toHaveBeenCalledWith({
+      ...target,
+      artifactId: 'pg_scan-1_2',
+    });
   });
 
   it('leaves a crop awaiting Drive to its own sweep', async () => {

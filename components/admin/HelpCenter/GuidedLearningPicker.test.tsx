@@ -22,6 +22,17 @@ const glState = vi.hoisted(() => ({
   openAssignmentIdsForSet: vi.fn<
     (uid: string, setId: string) => Promise<string[]>
   >(() => Promise.resolve([])),
+  webToursOn: false,
+  webTours: [] as { id: string; title: string }[],
+}));
+
+vi.mock('@/components/tours/webTours', () => ({
+  watchWebTourDrafts: (
+    cb: (sets: { id: string; title: string }[]) => void
+  ): (() => void) => {
+    cb(glState.webTours);
+    return () => undefined;
+  },
 }));
 
 vi.mock('@/utils/guidedLearningFileRelease', () => ({
@@ -31,7 +42,8 @@ vi.mock('@/utils/guidedLearningFileRelease', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'admin-1' },
-    canAccessFeature: () => false,
+    isAdmin: glState.webToursOn,
+    canAccessFeature: () => glState.webToursOn,
   }),
 }));
 
@@ -135,6 +147,8 @@ const renderPicker = (
 
 describe('GuidedLearningPicker', () => {
   beforeEach(() => {
+    glState.webToursOn = false;
+    glState.webTours = [];
     glState.saveBuildingSet.mockReset();
     glState.saveBuildingSet.mockResolvedValue(undefined);
     glState.deleteSet.mockClear();
@@ -154,6 +168,26 @@ describe('GuidedLearningPicker', () => {
     const library = screen.getByRole('region', { name: 'Building library' });
     expect(within(help).getByText('Help Guide')).toBeTruthy();
     expect(within(library).getByText('Building Lesson')).toBeTruthy();
+  });
+
+  it('no longer lists web tours to pick, even for admins with web tours', () => {
+    glState.webToursOn = true;
+    glState.webTours = [{ id: 'w-1', title: 'Docs web tour' }];
+    renderPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
+    expect(screen.queryByRole('region', { name: 'Web tours' })).toBeNull();
+    expect(screen.queryByText('Docs web tour')).toBeNull();
+  });
+
+  it('tells the form when the linked activity is a web tour, and says why', () => {
+    glState.webToursOn = true;
+    glState.webTours = [{ id: 'w-1', title: 'Docs web tour' }];
+    const onWebTourLinked = vi.fn();
+    renderPicker({ selectedSetId: 'w-1', onWebTourLinked });
+    expect(onWebTourLinked).toHaveBeenLastCalledWith(true);
+    expect(
+      screen.getByText(/web tours no longer show in the Help Center/)
+    ).toBeTruthy();
   });
 
   it('reuses the existing Help Center copy and removes the personal original', async () => {

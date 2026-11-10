@@ -51,3 +51,18 @@ export const spartyPerch = (
   if (clear('right')) return 'right';
   return 'inline';
 };
+
+/** True when a floating Sparty at `sparty` would touch the tour's bar or chip, or leave the screen. */
+export const spartyHitsChrome = (
+  sparty: Box,
+  chrome: readonly Box[],
+  viewport: { w: number; h: number }
+): boolean =>
+  sparty.x < 0 ||
+  sparty.y < 0 ||
+  sparty.x + sparty.w > viewport.w ||
+  sparty.y + sparty.h > viewport.h ||
+  chrome.some((c) => c.w > 0 && c.h > 0 && overlaps(sparty, c));
+
+/** The bar and the waiting chip, which a floating Sparty keeps clear of. */
+export const TOUR_CHROME_SELECTOR = '[data-tour-bar], [data-tour-waiting-chip]';

@@ -7,9 +7,10 @@ import {
   scrollParent,
   type TourAnchorScope,
 } from './resolveTourAnchor';
+import { WAITING_AFTER_MS } from './playbackEngine';
 
-/** How long a step searches before it reports `missing`; it keeps watching after that. */
-export const ANCHOR_SEARCH_MS = 3000;
+/** How long a step searches before it reports `missing`; it keeps watching after that. Shared with web tours' waiting chip. */
+export const ANCHOR_SEARCH_MS = WAITING_AFTER_MS;
 /** Minimum gap between DOM searches while the anchor is missing. */
 export const ANCHOR_SEARCH_THROTTLE_MS = 250;
 // Longest a transition on an anchor ancestor is followed frame by frame.

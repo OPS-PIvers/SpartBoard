@@ -1,7 +1,7 @@
 import type { QuizQuestion, QuizResponse } from '@/types';
 import {
   buildResultsSheetData,
-  formatQuizAnswerText,
+  formatQuizAnswerExport,
 } from './assignmentExportShared';
 import { makeQuizGradeFn } from './quizDriveService';
 import type { FibGradingContext } from './quizFibAnswers';
@@ -28,7 +28,7 @@ export function buildQuizResultsCsv(
     QuizResponse
   >(responses, questions, makeQuizGradeFn(options.fibGrading), {
     ...options,
-    formatAnswer: formatQuizAnswerText,
+    formatAnswer: formatQuizAnswerExport,
     extraColumn: options.finalScore
       ? { header: 'Final score', cell: options.finalScore }
       : undefined,

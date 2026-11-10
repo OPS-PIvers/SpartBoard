@@ -45,6 +45,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('@/components/tours/publishedTours', () => ({
+  usePublishedTour: () => ({ loaded: true, tour: null }),
   watchTours: () => () => undefined,
   getToursVersion: () => 0,
   isTourRunnable: (id: string) => glMocks.published.has(id),
@@ -231,8 +232,7 @@ describe('HelpGuidesTab', () => {
     expect(screen.queryByText('Welcome video')).toBeNull();
   });
 
-  it('lists a web tour with its site and opens its page', async () => {
-    const user = userEvent.setup();
+  it('ignores a guide that still links a web tour, even for staff with web tours', () => {
     glMocks.features = new Set(['web-tours']);
     glMocks.webTours = new Map([['web-set', 'docs.google.com']]);
     helpState.items.push(
@@ -245,17 +245,9 @@ describe('HelpGuidesTab', () => {
         setId: 'web-set',
       })
     );
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
     render(<HelpGuidesTab query="" />);
-    expect(screen.getByText('docs.google.com')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Live tours' }));
-    await user.click(screen.getByText('Apps Script in Docs'));
-    expect(open).toHaveBeenCalledWith(
-      `${window.location.origin}/tour/web-set`,
-      '_blank',
-      'noopener,noreferrer'
-    );
-    open.mockRestore();
+    expect(screen.queryByText('Apps Script in Docs')).toBeNull();
+    expect(screen.queryByText('docs.google.com')).toBeNull();
   });
 
   it('hides a web tour from staff without web tours', () => {
@@ -311,6 +303,35 @@ describe('HelpGuidesTab', () => {
     window.addEventListener(TOUR_START_EVENT, started);
     render(<HelpGuidesTab query="" />);
     await user.click(screen.getByText('Boards walkthrough'));
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(started).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('opens a live tour as its steps instead of starting it when the steps view is on', async () => {
+    const user = userEvent.setup();
+    glMocks.features = new Set(['tour-steps-view']);
+    glMocks.tourSetIds = new Set(['tour-set']);
+    glMocks.published = new Set(['tour-set']);
+    glMocks.loadBuildingSet.mockResolvedValue(null);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" />);
+    await user.click(screen.getByText('Boards walkthrough'));
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(started).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('opens a shared link to a live tour as its steps when the steps view is on', () => {
+    glMocks.features = new Set(['tour-steps-view']);
+    glMocks.published = new Set(['tour-set']);
+    glMocks.loadBuildingSet.mockResolvedValue(null);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" itemId="g1" />);
     window.removeEventListener(TOUR_START_EVENT, started);
     expect(started).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();

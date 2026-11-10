@@ -10,6 +10,7 @@ import type { PageViewport } from 'pdfjs-dist';
 import type { RectMm } from './paperSheetLayout';
 import {
   cropWrittenBox,
+  straightenPage,
   type AffineMmToPx,
   type GrayCrop,
   type RasterPage,
@@ -167,7 +168,7 @@ function domEncodeGray(crop: GrayCrop, quality: number): Promise<Blob> {
         canvas.width = 0;
         canvas.height = 0;
         if (blob) resolve(blob);
-        else reject(new Error('Could not encode the handwriting crop.'));
+        else reject(new Error('Could not encode the scanned image.'));
       },
       'image/webp',
       quality
@@ -193,18 +194,31 @@ function halve(crop: GrayCrop): GrayCrop {
   return { width, height, data };
 }
 
-/** Encode a crop under `WRITTEN_CROP_MAX_BYTES`, halving its resolution until it fits. */
-export async function encodeWrittenCrop(
-  crop: GrayCrop,
-  encode: GrayEncoder = domEncodeGray
+/** Encode a grayscale image under `WRITTEN_CROP_MAX_BYTES`, halving its resolution until it fits. */
+async function encodeUnderCap(
+  image: GrayCrop,
+  encode: GrayEncoder,
+  tooLarge: string
 ): Promise<Blob> {
-  let current = crop;
+  let current = image;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const blob = await encode(current, WRITTEN_CROP_QUALITY);
     if (blob.size <= WRITTEN_CROP_MAX_BYTES) return blob;
     current = halve(current);
   }
-  throw new Error('The handwriting crop is too large to upload.');
+  throw new Error(tooLarge);
+}
+
+/** Encode a crop under `WRITTEN_CROP_MAX_BYTES`, halving its resolution until it fits. */
+export function encodeWrittenCrop(
+  crop: GrayCrop,
+  encode: GrayEncoder = domEncodeGray
+): Promise<Blob> {
+  return encodeUnderCap(
+    crop,
+    encode,
+    'The handwriting crop is too large to upload.'
+  );
 }
 
 /**
@@ -219,6 +233,19 @@ export function cropWrittenBlob(
   encode: GrayEncoder = domEncodeGray
 ): Promise<Blob> {
   return encodeWrittenCrop(cropWrittenBox(page, mmToPx, boxMm), encode);
+}
+
+/** A whole sheet page, straightened and encoded like a crop, ready to keep (K5, K16). */
+export function keptPageBlob(
+  page: RasterPage,
+  mmToPx: AffineMmToPx,
+  encode: GrayEncoder = domEncodeGray
+): Promise<Blob> {
+  return encodeUnderCap(
+    straightenPage(page, mmToPx),
+    encode,
+    'The scanned page is too large to upload.'
+  );
 }
 
 export const domRasterDeps: RasterDeps = {

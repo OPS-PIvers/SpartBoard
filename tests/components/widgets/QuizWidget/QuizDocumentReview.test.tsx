@@ -7,6 +7,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { QuizDocumentReview } from '@/components/widgets/QuizWidget/components/QuizDocumentReview';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { ExtractedImage } from '@/utils/quizDocumentImport';
@@ -360,5 +361,63 @@ describe('QuizDocumentReview answer-key banner (R19)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Answer key: 1 of 1 question matched · key lists 3 entries (2–3 matched no question) · 1 conflict'
     );
+  });
+});
+
+describe('QuizDocumentReview reader notes', () => {
+  const read = () =>
+    extractedToQuizData({
+      title: 'Test',
+      images: [],
+      warnings: [],
+      questions: [
+        {
+          number: 1,
+          text: 'Which letter is the monomer?',
+          type: 'MC',
+          options: [
+            { letter: 'A', text: 'A' },
+            { letter: 'B', text: 'B' },
+          ],
+          correctAnswer: 'B',
+          imageIds: [],
+          warnings: ['The letters A–B were added from the answer key.'],
+        },
+        {
+          number: 2,
+          text: 'Sky?',
+          type: 'MC',
+          options: [
+            { letter: 'A', text: 'Blue' },
+            { letter: 'B', text: 'Red' },
+          ],
+          correctAnswer: 'Blue',
+          imageIds: [],
+          warnings: [],
+        },
+      ],
+    });
+
+  it('shows a note on its own row and counts the row as flagged', () => {
+    setup(read());
+    expect(
+      screen.getByText('The letters A–B were added from the answer key.')
+    ).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Show only flagged rows \(1\)/));
+    expect(screen.queryByLabelText('Question 2 text')).toBeNull();
+  });
+
+  it('lists the choices as printed and keeps that order when the answer changes', () => {
+    const { latest } = setup(read());
+    const radios = screen.getAllByRole('radio', {
+      name: /^Question 1, answer/,
+    });
+    expect(radios.map((r) => r.getAttribute('aria-label'))).toEqual([
+      'Question 1, answer: A',
+      'Question 1, answer: B',
+    ]);
+    fireEvent.click(radios[0]);
+    expect(latest().questions[0].correctAnswer).toBe('A');
+    expect(latest().questions[0].optionOrder).toBeUndefined();
   });
 });

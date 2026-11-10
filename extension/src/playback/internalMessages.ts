@@ -2,7 +2,13 @@ import type { OverlayAction } from '../overlay/overlayState';
 import type { FrameReport } from './frameScript';
 import { parseWebTourLocator } from '@/components/tours/web/extensionProtocol';
 
-const ACTIONS: readonly OverlayAction[] = ['next', 'back', 'exit', 'start'];
+const ACTIONS: readonly OverlayAction[] = [
+  'next',
+  'back',
+  'exit',
+  'start',
+  'takeBack',
+];
 
 /** A frame's clues for a fix: a valid locator without frames, which the step keeps. */
 const isFix = (v: unknown): boolean =>
@@ -23,6 +29,13 @@ export function isFrameReport(msg: unknown): msg is FrameReport {
   )
     return true;
   if (m.type === 'wt:candidate') return isFix(m.fix);
+  if (m.type === 'wt:ahead')
+    return (
+      Number.isInteger(m.index) &&
+      (m.index as number) >= 0 &&
+      typeof m.stepId === 'string' &&
+      m.stepId.length <= 200
+    );
   return (
     m.type === 'wt:found' &&
     typeof m.weak === 'boolean' &&

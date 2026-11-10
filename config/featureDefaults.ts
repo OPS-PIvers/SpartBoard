@@ -11,6 +11,8 @@ import {
   Cast,
   Keyboard,
   ClipboardCheck,
+  Highlighter,
+  ScanLine,
   Download,
   Eye,
   SpellCheck,
@@ -517,6 +519,42 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Google Docs read as their PDF, not as Word. Admin-only until Paul has imported with it.
+  'quiz-import-google-doc-pdf': {
+    label: 'Read Google Docs as printed',
+    icon: FileText,
+    description:
+      'Imports a Google Doc test from its PDF, keeping figures and their labels.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Bold, underlined or highlighted choices in a PDF read as answers. Admin-only until Paul has imported with it.
+  'quiz-import-pdf-answer-marks': {
+    label: 'Read marked answers in PDFs',
+    icon: FileText,
+    description:
+      'Takes a bold, underlined or highlighted choice in a PDF test as its answer.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Fractions, powers and roots in imported question text become drawn equations. Admin-only until Paul has imported with it.
+  'quiz-import-equations': {
+    label: 'Draw math in imported tests',
+    icon: FileText,
+    description:
+      'Turns fractions, powers and roots in an imported question into drawn equations.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
@@ -736,6 +774,38 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Kept scanned pages (QUIZ_PAPER_KEPT_PAGES.md K5); admin-only until the privacy review (PT-149).
+  'paper-kept-pages': {
+    label: "Keep students' scanned pages",
+    icon: ScanLine,
+    description:
+      "Saves a copy of each student's scanned pages and prints results on them.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Keep scanned pages',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Markup on handwritten answer images (QUIZ_PAPER_KEPT_PAGES.md §3.3).
+  'paper-image-markup': {
+    label: 'Mark up handwritten answers',
+    icon: Highlighter,
+    description:
+      'Teachers add highlights, shapes, stamps and comments on handwritten answers, and they print on the work.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Mark up handwritten answers',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Web tours played on other websites by the Chrome extension (CHROME_EXTENSION.md T12); will gate authoring and /tour/{setId}.
   'web-tours': {
     label: 'Web tours',
@@ -745,6 +815,30 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Live tour playback that keeps pace with the learner (TOURS_10X.md P1-P5). Admin-only until Paul has played tours with it.
+  'tour-pacing': {
+    label: 'Tour pacing',
+    icon: Footprints,
+    description:
+      'Live tours keep up when someone clicks ahead and wait calmly for a missing control.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // The read-only Steps view for Live tours, opened from the Help Center (TOURS_10X.md S1-S2). Admin-only until Paul has read tours with it.
+  'tour-steps-view': {
+    label: 'Tour steps view',
+    icon: ListOrdered,
+    description:
+      'Live tours open as a readable list of steps in the Help Center, with Start Live Tour at the top.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

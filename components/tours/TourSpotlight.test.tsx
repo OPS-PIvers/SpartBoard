@@ -98,4 +98,32 @@ describe('TourSpotlight', () => {
     expect(screen.queryByTestId('tour-spotlight-breathe')).toBeNull();
     expect(screen.getByTestId('tour-spotlight-pulse')).toBeTruthy();
   });
+
+  it('ticks the finished step and holds the breathing ring while it does (P1)', () => {
+    render(
+      <TourSpotlight
+        rect={{ x: 10, y: 10, width: 50, height: 20 }}
+        breathe
+        tick
+      />
+    );
+    expect(
+      screen.getByTestId('tour-spotlight-tick').getAttribute('class')
+    ).toContain('motion-safe:animate-tour-tick');
+    expect(screen.queryByTestId('tour-spotlight-breathe')).toBeNull();
+  });
+
+  it('glides the cutout and the ring together only while asked to (P1)', () => {
+    const rect = { x: 10, y: 10, width: 50, height: 20 };
+    const { rerender } = render(
+      <TourSpotlight rect={rect} glide={false} glideFor={300} />
+    );
+    expect(dimPath().style.transition).toContain('300ms');
+    expect(
+      screen.getByTestId('tour-spotlight-ring').style.transition
+    ).toContain('x 300ms');
+    rerender(<TourSpotlight rect={rect} glide={false} />);
+    expect(dimPath().style.transition).toBe('');
+    expect(screen.getByTestId('tour-spotlight-ring').style.transition).toBe('');
+  });
 });

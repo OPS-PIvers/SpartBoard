@@ -2,6 +2,9 @@
 export const chromeShadow =
   'shadow-[0_1px_2px_rgba(2,6,23,.2),0_12px_24px_-6px_rgba(2,6,23,.45),0_32px_64px_-16px_rgba(2,6,23,.55)]';
 export const chromeSurface = `border border-slate-900/8 bg-white text-slate-900 ${chromeShadow}`;
+/** A surface hanging off another chrome surface (the tour bar's waiting chip): the near shadow layers only, so two don't stack into a smear on a light page. */
+export const chromeSurfaceAttached =
+  'border border-slate-900/8 bg-white text-slate-900 shadow-[0_1px_2px_rgba(2,6,23,.2),0_12px_24px_-6px_rgba(2,6,23,.45)]';
 export const chromeBody = 'text-slate-600';
 export const chromeMuted = 'text-slate-500';
 export const focusRing =
@@ -12,6 +15,12 @@ export const secondaryBtn = `rounded-lg px-3 py-1.5 text-sm font-semibold text-b
 export const iconBtn = `rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 ${focusRing}`;
 
 export const headerBar = 'bg-brand-blue-dark text-white';
+/** Secondary text and marks on the dark header bar. */
+export const headerMuted = 'text-[#c3cae6]';
+export const headerMutedDot = 'bg-[#c3cae6]';
+/** Hairline around a selected card or picture on light chrome. */
+export const chromeRing = 'ring-[#d5daec]';
+export const chromeHairline = 'border-[#d5daec]';
 export const headerIconBtn =
   'rounded-lg p-1.5 text-[#c3cae6] hover:bg-white/10 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60';
 

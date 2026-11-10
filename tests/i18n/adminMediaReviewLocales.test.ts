@@ -41,6 +41,8 @@ const TRANSLATABLE_KEYS: (keyof Omit<MediaReview, 'status'>)[] = [
   'rowCount_other',
   'takeCount',
   'takeCount_other',
+  'pageCount',
+  'pageCount_other',
   'colStudent',
   'colQuestion',
   'colTeacher',
@@ -67,7 +69,7 @@ const TRANSLATABLE_KEYS: (keyof Omit<MediaReview, 'status'>)[] = [
 // Legitimate cognates: the real word in that language is spelled the same as EN.
 const SAME_AS_EN_EXCEPTIONS: Record<string, readonly string[]> = {
   de: ['colStatus'], // "Status" is the German word too
-  fr: ['colQuestion'], // "Question" is the French word too
+  fr: ['colQuestion', 'pageCount', 'pageCount_other'], // "Question" and "page" are the French words too
   es: [],
 };
 

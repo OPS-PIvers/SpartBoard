@@ -6,6 +6,7 @@
  */
 
 import { matchQuestionOpening } from '@/utils/questionNumbering';
+import { fraction, isScriptRun, symbolFontText, toScript } from './mathText';
 import type { DocSegment } from './types';
 
 /** Fragments within this many points of each other sit on the same line. */
@@ -24,12 +25,23 @@ export interface LayoutItem {
   /** Advance width in points; estimated from the font size when missing. */
   width?: number;
   fontSize?: number;
+  /** Set in a bold font. */
+  bold?: boolean;
+}
+
+/** A thin horizontal rule drawn on the page, in points; it may be a fraction's bar. */
+export interface FractionBar {
+  x0: number;
+  x1: number;
+  y: number;
 }
 
 export interface LayoutLine {
   text: string;
   segments: DocSegment[];
   y: number;
+  /** The line's font size in points. */
+  size?: number;
 }
 
 interface Part {
@@ -37,6 +49,11 @@ interface Part {
   x: number;
   xEnd: number;
   glyph: number;
+  y: number;
+  size: number;
+  /** Taken in from a baseline just above or below the line's own. */
+  raised?: boolean;
+  bold?: boolean;
 }
 
 interface Row {
@@ -44,8 +61,19 @@ interface Row {
   parts: Part[];
 }
 
+/** A raised or lowered fragment joins the line within this share of its font size. */
+const RAISED_REACH = 0.5;
+/** Digits this much smaller than the line, off its baseline, are a subscript or superscript. */
+const SCRIPT_SIZE = 0.8;
+const SCRIPT_DIGITS = /^(?=.*\d)[\d+\-−]+$/;
+
+/** Equation-editor letters (𝑝𝑒𝑟…) as the plain letters they stand for. */
+const plainLetters = (s: string): string =>
+  s.replace(/[\u{1D400}-\u{1D7FF}]/gu, (c) => c.normalize('NFKC'));
+
 interface SegmentedRow {
   y: number;
+  size?: number;
   segments: Array<DocSegment & { x: number; xEnd: number }>;
 }
 
@@ -59,25 +87,31 @@ function toPart(item: LayoutItem): Part {
       ? item.width
       : chars * size * 0.5;
   return {
-    str: item.str,
+    str: symbolFontText(plainLetters(item.str)),
     x: item.x,
     xEnd: item.x + width,
     glyph: width / chars,
+    y: item.y,
+    size,
+    ...(item.bold ? { bold: true } : {}),
   };
 }
 
-function groupRows(items: readonly LayoutItem[]): Row[] {
-  const rows: Row[] = [];
-  for (const item of items) {
-    if (!item.str) continue;
-    const row = rows.find((r) => Math.abs(r.y - item.y) <= LINE_TOLERANCE_PT);
-    if (row) row.parts.push(toPart(item));
-    else rows.push({ y: item.y, parts: [toPart(item)] });
-  }
-  // A PDF's y axis runs up the page, so descending y is reading order.
-  rows.sort((a, b) => b.y - a.y);
-  for (const row of rows) row.parts.sort((a, b) => a.x - b.x);
-  return rows;
+/** A choice's own letter, like `b.` or `(B)`, when it is a fragment by itself. */
+const CHOICE_MARKER = /^\(?[A-Ha-h][.)]$/;
+
+/** Bold the way a teacher marks an answer: its letter, or most of its words. */
+function isMarkedBold(parts: readonly Part[]): boolean {
+  const shown = parts.filter((p) => p.str.trim());
+  if (shown.length === 0) return false;
+  const [first, ...rest] = shown;
+  const marker = CHOICE_MARKER.test(first.str.trim());
+  if (marker && first.bold) return true;
+  const letters = (p: Part) => p.str.replace(/[^\p{L}\p{N}]/gu, '').length;
+  const body = marker ? rest : shown;
+  const all = body.reduce((sum, p) => sum + letters(p), 0);
+  const bold = body.reduce((sum, p) => sum + (p.bold ? letters(p) : 0), 0);
+  return all > 0 && bold * 2 >= all;
 }
 
 const median = (values: number[]): number => {
@@ -86,16 +120,351 @@ const median = (values: number[]): number => {
   return sorted[Math.floor(sorted.length / 2)];
 };
 
+const printing = (row: Row): Part[] => row.parts.filter((p) => p.str.trim());
+/** The line's own font size; a fragment taken in from another baseline doesn't set it. */
+const rowSize = (row: Row): number =>
+  Math.max(
+    0,
+    ...printing(row)
+      .filter((p) => !p.raised)
+      .map((p) => p.size)
+  );
+const rowWidth = (row: Row): number =>
+  printing(row).reduce((sum, p) => sum + (p.xEnd - p.x), 0);
+
+/** Can `raised` sit in `base`'s line: close above or below it, inside its span, over none of its text? */
+function sitsIn(raised: Row, base: Row): boolean {
+  const size = rowSize(base);
+  // An arrowhead is often set a size up from its line.
+  if (size <= 0 || rowSize(raised) > 1.5 * size) return false;
+  if (Math.abs(raised.y - base.y) > RAISED_REACH * size) return false;
+  if (rowWidth(raised) >= rowWidth(base)) return false;
+  const own = printing(raised);
+  const theirs = printing(base);
+  if (own.length === 0 || theirs.length === 0) return false;
+  const reach = 2 * median(theirs.map((p) => p.glyph));
+  const left = Math.min(...theirs.map((p) => p.x)) - reach;
+  const right = Math.max(...theirs.map((p) => p.xEnd)) + reach;
+  return own.every(
+    (p) =>
+      p.x >= left &&
+      p.xEnd <= right &&
+      !theirs.some((t) => p.x < t.xEnd - 1 && p.xEnd > t.x + 1)
+  );
+}
+
+/** A numerator sits at least this share of the font size above its line; an exponent sits lower. */
+const NUMERATOR_RISE = 0.4;
+/** A denominator sits at least this far below its line; a subscript sits higher. */
+const DENOMINATOR_DROP = 0.35;
+const FRACTION_REACH = 0.9;
+const MAX_FRACTION_CHARS = 24;
+
+interface Cluster {
+  row: Row;
+  parts: Part[];
+  x: number;
+  xEnd: number;
+  text: string;
+  used?: boolean;
+}
+
+/** A row's fragments grouped at its column gaps. */
+function clustersOf(row: Row): Cluster[] {
+  const shown = printing(row).sort((a, b) => a.x - b.x);
+  const glyph = median(shown.map((p) => p.glyph));
+  const out: Cluster[] = [];
+  for (const part of shown) {
+    const last = out[out.length - 1];
+    if (last && part.x - last.xEnd <= GAP_GLYPHS * glyph) {
+      last.text += part.x - last.xEnd > 0.3 * glyph ? ` ${part.str}` : part.str;
+      last.parts.push(part);
+      last.xEnd = Math.max(last.xEnd, part.xEnd);
+    } else {
+      out.push({
+        row,
+        parts: [part],
+        x: part.x,
+        xEnd: part.xEnd,
+        text: part.str,
+      });
+    }
+  }
+  return out;
+}
+
+/** A stacked fraction, set on baselines above and below its line, is written into the line as `2/3`. */
+function absorbFractions(rows: Row[]): Row[] {
+  for (const base of rows) {
+    const size = rowSize(base);
+    const theirs = printing(base);
+    if (size <= 0 || theirs.length === 0) continue;
+    const baseline = theirs.find((p) => p.size === size)?.y ?? base.y;
+    const stacked = (min: number, sign: 1 | -1): Cluster[] =>
+      rows
+        .filter((row) => {
+          const offset = (row.y - baseline) * sign;
+          return (
+            row !== base &&
+            offset >= min * size &&
+            offset <= FRACTION_REACH * size
+          );
+        })
+        .flatMap(clustersOf)
+        .filter(
+          (c) =>
+            tidy(c.text).length <= MAX_FRACTION_CHARS &&
+            /[\p{L}\p{N}]/u.test(c.text) &&
+            !theirs.some((t) => c.x < t.xEnd - 1 && c.xEnd > t.x + 1)
+        );
+    const tops = stacked(NUMERATOR_RISE, 1);
+    const bottoms = tops.length > 0 ? stacked(DENOMINATOR_DROP, -1) : [];
+    const left = Math.min(...theirs.map((p) => p.x)) - size;
+    const right = Math.max(...theirs.map((p) => p.xEnd)) + 3 * size;
+    for (const top of tops) {
+      const centre = (c: Cluster) => (c.x + c.xEnd) / 2;
+      const width = (c: Cluster) => c.xEnd - c.x;
+      const under = bottoms.find(
+        (b) =>
+          !b.used &&
+          Math.abs(centre(b) - centre(top)) <=
+            2 + 0.25 * Math.max(width(b), width(top))
+      );
+      const x = Math.min(top.x, under?.x ?? top.x);
+      const xEnd = Math.max(top.xEnd, under?.xEnd ?? top.xEnd);
+      if (!under || x < left || xEnd > right) continue;
+      under.used = true;
+      const str = ` ${fraction(top.text, under.text)} `;
+      base.parts.push({
+        str,
+        x,
+        xEnd,
+        glyph: (xEnd - x) / str.length,
+        y: baseline,
+        size,
+      });
+      for (const c of [top, under]) {
+        c.row.parts = c.row.parts.filter((p) => !c.parts.includes(p));
+      }
+    }
+  }
+  return rows.filter((row) => printing(row).length > 0);
+}
+
+/** A label over an arrow, an exponent or a subscript set on its own baseline joins the line it belongs to. */
+function absorbRaised(rows: Row[]): Row[] {
+  const baseOf = new Map<Row, Row>();
+  for (const row of rows) {
+    const bases = rows
+      .filter((other) => other !== row && sitsIn(row, other))
+      .sort((a, b) => Math.abs(a.y - row.y) - Math.abs(b.y - row.y));
+    if (bases[0]) baseOf.set(row, bases[0]);
+  }
+  const taken = new Map<Row, Part[]>();
+  for (const [row, base] of baseOf) {
+    // A line that itself joins another can't take one in.
+    if (baseOf.has(base)) continue;
+    const size = rowSize(base);
+    for (const part of row.parts) {
+      const text = part.str.trim();
+      // A raised letter is an exponent only when it is small and touches the text before it.
+      const script =
+        SCRIPT_DIGITS.test(text) ||
+        (part.size <= SCRIPT_SIZE * size &&
+          printing(base).some(
+            (t) =>
+              part.x >= t.xEnd - 1 && part.x - t.xEnd <= SCRIPT_ABUTS * size
+          ));
+      const joined: Part = {
+        ...part,
+        raised: true,
+        ...(script ? {} : { str: ` ${part.str} ` }),
+      };
+      base.parts.push(joined);
+      if (!script) taken.set(base, [...(taken.get(base) ?? []), joined]);
+    }
+    row.parts = [];
+  }
+  for (const parts of taken.values()) labelArrow(parts);
+  return rows.filter((row) => row.parts.length > 0);
+}
+
+/** A word set over a line ending in `>` is a labelled arrow: `—enzyme→`. */
+function labelArrow(raised: Part[]): void {
+  const head = raised.find((p) => /^(?:>|→)$/.test(p.str.trim()));
+  if (!head) return;
+  const label = raised
+    .filter((p) => p !== head && p.str.trim() && p.x < head.xEnd)
+    .sort((a, b) => a.x - b.x);
+  if (label.length === 0) {
+    head.str = ' → ';
+    return;
+  }
+  const words = label.map((p) => p.str.trim()).join(' ');
+  label.forEach((p, i) => {
+    p.str = i === 0 ? ` —${words}→ ` : '';
+  });
+  head.str = '';
+}
+
+/** Fragments this far apart, as a share of the font size, are separate terms. */
+const WORD_GAP = 0.2;
+/** A space is never meant between a term and its exponent or subscript. */
+const SPACE_BEFORE_SCRIPT =
+  /(?<=[\p{L}\p{N})\]])\s+(?=[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿˣʸ₀₁₂₃₄₅₆₇₈₉])/gu;
+
+/** How close a raised letter must sit to the text it is an exponent of, as a share of the font size. */
+const SCRIPT_ABUTS = 0.25;
+
+/** A part's text, with small digits (or a short term touching the text before it) off the baseline written as ₂ or ². */
+function scripted(
+  part: Part,
+  baseline: number,
+  size: number,
+  abuts: boolean
+): string {
+  const text = part.str.trim();
+  if (part.size > SCRIPT_SIZE * size) return part.str;
+  if (!SCRIPT_DIGITS.test(text) && !(abuts && isScriptRun(text))) {
+    return part.str;
+  }
+  const offset = part.y - baseline;
+  const kind = offset <= -1 ? 'sub' : offset >= 1.5 ? 'sup' : null;
+  return kind ? part.str.replace(text, toScript(text, kind)) : part.str;
+}
+
+/** A fraction's bar is no longer than this, in points. */
+const MAX_BAR = 300;
+/** Text within this many points of a bar is looked at as its fraction. */
+const BAR_REACH = 24;
+
+/** A cluster of fragments as one line of text, its exponents and subscripts written as such. */
+function clusterText(parts: readonly Part[]): string {
+  const sorted = [...parts].sort((a, b) => a.x - b.x);
+  const size = Math.max(...sorted.map((p) => p.size));
+  const baseline = sorted.find((p) => p.size === size)?.y ?? sorted[0].y;
+  let end: number | null = null;
+  let out = '';
+  for (const p of sorted) {
+    const apart = end !== null && p.x - end >= WORD_GAP * size;
+    out += (apart ? ' ' : '') + scripted(p, baseline, size, true);
+    end = p.xEnd;
+  }
+  return tidy(out).replace(SPACE_BEFORE_SCRIPT, '');
+}
+
+/** Text set over and under a drawn bar is a fraction, written into the line beside it as `(x + 1)/2`. */
+function stackFractions(parts: Part[], bars: readonly FractionBar[]): Part[] {
+  let left = parts;
+  const ordered = bars
+    .filter((b) => b.x1 - b.x0 >= 3 && b.x1 - b.x0 <= MAX_BAR)
+    .sort((a, b) => a.x1 - a.x0 - (b.x1 - b.x0));
+  for (const bar of ordered) {
+    const near = left.filter((p) => {
+      const centre = (p.x + p.xEnd) / 2;
+      return (
+        p.str.trim() &&
+        centre >= bar.x0 - 1 &&
+        centre <= bar.x1 + 1 &&
+        Math.abs(p.y - bar.y) <= BAR_REACH
+      );
+    });
+    const size = Math.max(0, ...near.map((p) => p.size));
+    if (size <= 0) continue;
+    const rise = (p: Part) => (p.y - bar.y) / size;
+    // Full-size text sitting right on the rule is underlined, not a numerator.
+    if (
+      near.some(
+        (p) => p.size >= SCRIPT_SIZE * size && rise(p) >= -0.1 && rise(p) < 0.2
+      )
+    ) {
+      continue;
+    }
+    const top = near.filter((p) => rise(p) >= 0.2 && rise(p) <= 1.25);
+    const under = near.filter((p) => rise(p) <= -0.3 && rise(p) >= -1.5);
+    const isTerm = (side: Part[]) =>
+      side.some((p) => /[\p{L}\p{N}]/u.test(p.str));
+    if (!isTerm(top) || !isTerm(under)) continue;
+    const text = ` ${fraction(clusterText(top), clusterText(under))} `;
+    const used = new Set([...top, ...under]);
+    left = left.filter((p) => !used.has(p));
+    // The fraction joins the line whose baseline sits just under its bar.
+    const beside = left
+      .filter(
+        (p) => p.str.trim() && bar.y - p.y >= 0 && bar.y - p.y <= 0.6 * size
+      )
+      .sort(
+        (a, b) =>
+          Math.min(Math.abs(a.x - bar.x1), Math.abs(a.xEnd - bar.x0)) -
+          Math.min(Math.abs(b.x - bar.x1), Math.abs(b.xEnd - bar.x0))
+      )[0];
+    left.push({
+      str: text,
+      x: bar.x0,
+      xEnd: bar.x1,
+      glyph: (bar.x1 - bar.x0) / text.length,
+      y: beside?.y ?? bar.y - 0.3 * size,
+      size: beside?.size ?? size,
+    });
+  }
+  return left;
+}
+
+function groupRows(
+  items: readonly LayoutItem[],
+  bars: readonly FractionBar[]
+): Row[] {
+  const rows: Row[] = [];
+  const parts = stackFractions(
+    items.filter((item) => item.str).map(toPart),
+    bars
+  );
+  for (const part of parts) {
+    const row = rows.find((r) => Math.abs(r.y - part.y) <= LINE_TOLERANCE_PT);
+    if (row) row.parts.push(part);
+    else rows.push({ y: part.y, parts: [part] });
+  }
+  // A PDF's y axis runs up the page, so descending y is reading order.
+  rows.sort((a, b) => b.y - a.y);
+  const joined = absorbRaised(absorbFractions(rows));
+  for (const row of joined) row.parts.sort((a, b) => a.x - b.x);
+  return joined;
+}
+
 /** Split one row at every gap wider than 1.5× its median glyph width (R2). */
 function segmentRow(row: Row): SegmentedRow {
-  const printing = row.parts.filter((p) => p.str.trim());
-  const glyph = median(printing.map((p) => p.glyph));
+  const shown = printing(row);
+  const glyph = median(shown.map((p) => p.glyph));
+  const size = rowSize(row);
+  const baseline = shown.find((p) => !p.raised && p.size === size)?.y ?? row.y;
   const segments: SegmentedRow['segments'] = [];
   let open: { parts: Part[]; x: number; xEnd: number } | null = null;
   const close = () => {
     if (!open) return;
-    const text = tidy(open.parts.map((p) => p.str).join(''));
-    if (text) segments.push({ text, x: open.x, xEnd: open.xEnd });
+    let end: number | null = null;
+    let spaced = true;
+    const text = tidy(
+      open.parts
+        .map((p) => {
+          const abuts = end !== null && p.x - end <= SCRIPT_ABUTS * size;
+          // An equation's terms are set apart by position, with no space between them.
+          const apart = end !== null && p.x - end >= WORD_GAP * size;
+          const piece = scripted(p, baseline, size, abuts);
+          const lead = apart && !spaced && /^\S/.test(piece) ? ' ' : '';
+          if (p.str.trim()) end = p.xEnd;
+          if (piece) spaced = /\s$/.test(piece);
+          return lead + piece;
+        })
+        .join('')
+    ).replace(SPACE_BEFORE_SCRIPT, '');
+    if (text) {
+      segments.push({
+        text,
+        x: open.x,
+        xEnd: open.xEnd,
+        ...(isMarkedBold(open.parts) ? { emphasized: true } : {}),
+      });
+    }
     open = null;
   };
   for (const part of row.parts) {
@@ -109,12 +478,25 @@ function segmentRow(row: Row): SegmentedRow {
     open.xEnd = Math.max(open.xEnd, part.xEnd);
   }
   close();
-  return { y: row.y, segments };
+  return { y: baseline, size, segments };
 }
 
+/** A root over more than one term, or a sum or integral with limits: plain text can't say what is under or over it. */
+const UNREADABLE_MATH = /[√∛∜]\s*[^\s,.;:?!)]+\s*[+\-−–·*/^(]|[∑∫∏∬∮]/u;
+
+/** Does this line hold math that reads wrongly as plain text? */
+export const hasUnreadableMath = (text: string): boolean =>
+  UNREADABLE_MATH.test(text);
+
 const toLine = (row: SegmentedRow): LayoutLine => ({
+  ...(row.size ? { size: row.size } : {}),
   text: row.segments.map((s) => s.text).join(' '),
-  segments: row.segments.map(({ text, x, xEnd }) => ({ text, x, xEnd })),
+  segments: row.segments.map(({ text, x, xEnd, emphasized }) => ({
+    text,
+    x,
+    xEnd,
+    ...(emphasized ? { emphasized: true } : {}),
+  })),
   y: row.y,
 });
 
@@ -196,8 +578,11 @@ function splitColumns(rows: SegmentedRow[]): SegmentedRow[] | null {
 }
 
 /** Lines of one page in reading order, with segments. */
-export function layoutPage(items: readonly LayoutItem[]): LayoutLine[] {
-  const rows = groupRows(items)
+export function layoutPage(
+  items: readonly LayoutItem[],
+  bars: readonly FractionBar[] = []
+): LayoutLine[] {
+  const rows = groupRows(items, bars)
     .map(segmentRow)
     .filter((r) => r.segments.length > 0);
   return (splitColumns(rows) ?? rows).map(toLine);

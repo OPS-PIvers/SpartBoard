@@ -35,6 +35,9 @@ export interface Box {
   h: number;
 }
 
+/** Inside an open menu or popover, which a step's spotlight lights along with its control. */
+export const isInPopup = (el: Element): boolean => el.closest(POPUP) !== null;
+
 /** Open menus and popovers on screen, which the tour's own UI keeps clear of. */
 export function openPopupBoxes(): Box[] {
   if (typeof document === 'undefined') return [];

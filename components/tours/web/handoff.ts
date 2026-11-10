@@ -2,12 +2,18 @@
 import {
   WEB_TOUR_ATTR_KEYS,
   type WebTourAction,
+  type WebTourCondition,
   type WebTourLocator,
   type WebTourStableAttrs,
+  type TourMarkupShape,
 } from '@/types';
 import {
   MAX_PICTURE_CHARS,
   MAX_PICTURE_TOTAL_CHARS,
+  parseMarkupShapes,
+  parsePictureTarget,
+  type PictureTarget,
+  type WebStepConditions,
   type WebTourPictureBytes,
   type WebTourStartTour,
 } from './extensionProtocol';
@@ -17,7 +23,72 @@ export interface HandoffStep {
   id: string;
   label?: string;
   text?: string;
-  web: { urlPattern: string; action: WebTourAction; locator: WebTourLocator };
+  web: {
+    urlPattern: string;
+    action: WebTourAction;
+    locator: WebTourLocator;
+    showWhen?: WebTourCondition;
+    doneWhen?: WebTourCondition;
+    /** Only its markup is handed over; the picture itself travels as bytes. */
+    picture?: { markup?: readonly TourMarkupShape[]; target?: unknown };
+  };
+}
+
+/** Where each sent picture's control sits, for Show me where's ring (MARKUP_PROTOCOL). */
+export function handoffTargets(
+  steps: readonly HandoffStep[],
+  sent: ReadonlySet<string>
+): Record<string, PictureTarget> | undefined {
+  const out: Record<string, PictureTarget> = {};
+  for (const step of steps.slice(0, MAX_STEPS)) {
+    if (!sent.has(step.id)) continue;
+    const t = parsePictureTarget(step.web.picture?.target);
+    if (t) out[step.id] = t;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Picture markup by step id, for an extension that draws it (MARKUP_PROTOCOL); only for steps whose picture is sent. */
+export function handoffMarkup(
+  steps: readonly HandoffStep[],
+  sent: ReadonlySet<string>
+): Record<string, TourMarkupShape[]> | undefined {
+  const out: Record<string, TourMarkupShape[]> = {};
+  for (const step of steps.slice(0, MAX_STEPS)) {
+    if (!sent.has(step.id)) continue;
+    const shapes = parseMarkupShapes(step.web.picture?.markup ?? []);
+    if (shapes?.length) out[step.id] = shapes;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** A condition the extension accepts, or undefined (a bad address pattern is dropped). */
+const handoffCondition = (
+  c: WebTourCondition | undefined
+): WebTourCondition | undefined =>
+  !c
+    ? undefined
+    : c.kind === 'target'
+      ? { kind: 'target' }
+      : isHandoffPattern(c.pattern)
+        ? { kind: 'url', pattern: c.pattern }
+        : undefined;
+
+/** Step conditions by id, for an extension that plays them (CONDITIONS_PROTOCOL); undefined when there are none. */
+export function handoffConditions(
+  steps: readonly HandoffStep[]
+): Record<string, WebStepConditions> | undefined {
+  const out: Record<string, WebStepConditions> = {};
+  for (const step of steps.slice(0, MAX_STEPS)) {
+    const showWhen = handoffCondition(step.web.showWhen);
+    const doneWhen = handoffCondition(step.web.doneWhen);
+    if (showWhen || doneWhen)
+      out[step.id] = {
+        ...(showWhen ? { showWhen } : {}),
+        ...(doneWhen ? { doneWhen } : {}),
+      };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 // The extension's validator rejects a whole tour over these, so the hub clips first.
@@ -99,10 +170,15 @@ export function buildStartTour(
   title: string,
   steps: readonly HandoffStep[],
   pictures: ReadonlyMap<string, WebTourPictureBytes>,
-  scored = false
+  scored = false,
+  /** Only an extension at protocol 12 (CONDITIONS_PROTOCOL, MARKUP_PROTOCOL) accepts conditions and markup. */
+  withConditions = false
 ): WebTourStartTour {
   let total = 0;
-  return {
+  const sent = new Set<string>();
+  const conditions = withConditions ? handoffConditions(steps) : undefined;
+  const tour: WebTourStartTour = {
+    ...(conditions ? { conditions } : {}),
     setId,
     version,
     title: title.slice(0, MAX_TITLE),
@@ -115,7 +191,10 @@ export function buildStartTour(
         sized &&
         data.length <= MAX_PICTURE_CHARS &&
         total + data.length <= MAX_PICTURE_TOTAL_CHARS;
-      if (fits) total += data.length;
+      if (fits) {
+        total += data.length;
+        sent.add(step.id);
+      }
       return {
         id: step.id,
         label: (step.label ?? '').slice(0, MAX_TEXT),
@@ -126,5 +205,12 @@ export function buildStartTour(
           : {}),
       };
     }),
+  };
+  const markup = withConditions ? handoffMarkup(steps, sent) : undefined;
+  const targets = withConditions ? handoffTargets(steps, sent) : undefined;
+  return {
+    ...tour,
+    ...(markup ? { markup } : {}),
+    ...(targets ? { targets } : {}),
   };
 }

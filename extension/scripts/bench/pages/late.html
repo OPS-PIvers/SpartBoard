@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Gradebook settings</title><link rel="stylesheet" href="/common.css"></head>
+<body>
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Settings</h1><nav id="tabs"><button data-tab="general">General</button> <button data-tab="grading">Grading</button> <button data-tab="sharing">Sharing</button></nav></header>
+<main style="max-width:900px;margin:0 auto">
+  <div id="banner"></div>
+  <div id="panel" class="panel"></div>
+</main>
+<script>
+// Late rendering: each tab draws its controls, then a banner pushes them down and a re-render replaces them.
+const panel = document.getElementById('panel');
+const banner = document.getElementById('banner');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const ready = () => console.debug(`[sbmain] ${JSON.stringify({ name: 'ready', t: performance.timeOrigin + performance.now() })}`);
+const TABS = {
+  general: '<button id="rename">Rename class</button> <button id="archive">Archive</button>',
+  grading: '<button id="weights">Edit weights</button> <button id="scale">Grading scale</button>',
+  sharing: '<button id="invite">Invite co-teacher</button>',
+};
+let seq = 0;
+async function show(tab) {
+  const n = ++seq;
+  banner.innerHTML = '';
+  panel.innerHTML = '<p>Loading…</p>';
+  await wait(150);
+  if (n !== seq) return;
+  panel.innerHTML = TABS[tab];
+  ready();
+  await wait(250);
+  if (n !== seq) return;
+  banner.innerHTML = '<div class="panel" style="height:120px">Your district updated grading periods.</div>';
+  await wait(200);
+  if (n !== seq) return;
+  // A framework re-render: same controls, new nodes.
+  panel.innerHTML = TABS[tab];
+}
+document.getElementById('tabs').addEventListener('click', (e) => {
+  const tab = e.target.dataset?.tab;
+  if (tab) show(tab);
+});
+panel.addEventListener('click', (e) => {
+  if (e.target.id === 'weights' || e.target.id === 'rename') e.target.textContent += ' ✓';
+});
+</script></body></html>

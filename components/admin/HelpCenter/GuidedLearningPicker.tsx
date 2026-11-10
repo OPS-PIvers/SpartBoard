@@ -38,6 +38,8 @@ interface GuidedLearningPickerProps {
   /** 'choose' renders the Choose and New buttons; 'chosen' the picked activity. */
   mode: 'choose' | 'chosen' | 'hidden';
   onChange: () => void;
+  /** Tells the form its picked activity is a web tour, which the Help Center no longer shows. */
+  onWebTourLinked?: (linked: boolean) => void;
 }
 
 const helpCopyId = (personalSetId: string): string => `help-${personalSetId}`;
@@ -53,6 +55,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   onEditingChange,
   mode,
   onChange,
+  onWebTourLinked,
 }) => {
   const { user, isAdmin, canAccessFeature } = useAuth();
   const webToursOn = isAdmin === true && canAccessFeature('web-tours');
@@ -61,6 +64,11 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     () => (webToursOn ? watchWebTourDrafts(setWebTours) : undefined),
     [webToursOn]
   );
+  const linkedToWeb =
+    !!selectedSetId && !!webTours?.some((set) => set.id === selectedSetId);
+  useEffect(() => {
+    onWebTourLinked?.(webToursOn && linkedToWeb);
+  }, [webToursOn, linkedToWeb, onWebTourLinked]);
   const {
     sets,
     buildingSets,
@@ -85,9 +93,6 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   const helpCenter = visible.filter(isHelpCenterSet);
   const building = visible.filter((set) => !isHelpCenterSet(set));
   const personal = sets.filter((set) => matches(set.title, search));
-  const web = webToursOn
-    ? (webTours ?? []).filter((set) => matches(set.title, search))
-    : [];
 
   const openEditor = (set: GuidedLearningSet) => {
     setEditing(set);
@@ -210,19 +215,6 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
         onPick: () => pick(set.id, set.title),
       })),
     },
-    ...(webToursOn
-      ? [
-          {
-            heading: 'Web tours',
-            empty: 'No web tours.',
-            rows: web.map((set) => ({
-              id: set.id,
-              title: set.title || 'Untitled web tour',
-              onPick: () => pick(set.id, set.title),
-            })),
-          },
-        ]
-      : []),
     {
       heading: 'My library',
       empty: 'No personal activities.',
@@ -242,7 +234,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   const selectedLabel = selected
     ? selected.title || 'Untitled activity'
     : selectedWeb
-      ? selectedWeb.title || 'Untitled web tour'
+      ? `${selectedWeb.title || 'Untitled web tour'}: web tours no longer show in the Help Center. Pick another activity.`
       : buildingLoading || (webToursOn && webTours === null)
         ? 'Loading...'
         : 'This activity was deleted. Pick another one.';
@@ -263,7 +255,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
             />
           )}
           <span
-            className={`flex-1 wrap-break-word text-sm ${selected || selectedWeb ? 'text-slate-800' : 'text-slate-500'}`}
+            className={`flex-1 wrap-break-word text-sm ${selected ? 'text-slate-800' : 'text-slate-500'}`}
           >
             {selectedLabel}
           </span>

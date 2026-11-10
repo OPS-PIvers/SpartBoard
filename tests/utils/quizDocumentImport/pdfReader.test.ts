@@ -208,7 +208,7 @@ describe('readPdf — column gaps (R2)', () => {
         text12('Which planet', 72, 700),
         text12('is closest?', 72 + 12 * 6 + 3, 700),
       ])
-    ).toEqual(['Which planetis closest?']);
+    ).toEqual(['Which planet is closest?']);
   });
 });
 
