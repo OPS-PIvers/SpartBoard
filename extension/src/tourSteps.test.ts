@@ -41,6 +41,15 @@ const loaded = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('panelStepsOf', () => {
+  it('keeps a well-formed public link token and drops anything else', () => {
+    const token = 'a'.repeat(32);
+    expect(panelStepsOf({ ...loaded(), link: token })?.link).toBe(token);
+    expect(panelStepsOf(loaded())?.link).toBeUndefined();
+    expect(
+      panelStepsOf({ ...loaded(), link: 'https://evil.example' })?.link
+    ).toBeUndefined();
+  });
+
   it('turns a loaded tour into steps and data-URL pictures', () => {
     const out = panelStepsOf(loaded());
     expect(out?.title).toBe('Post a grade');

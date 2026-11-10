@@ -121,6 +121,7 @@ import {
   guardPublicLink,
   handlePublicRequest,
   startSetIdFor,
+  workingLinkTokenFor,
   rateLimited,
   tourPublicLinkGuard,
   tourPublicStepsV1,
@@ -425,6 +426,53 @@ describe('startSetIdFor', () => {
         staff,
         deps(live, record(live, { kind: 'live' }))
       )
+    ).toBeNull();
+  });
+});
+
+describe('workingLinkTokenFor', () => {
+  const set = webSet();
+  const withLink = (rec: PublicLinkRecord | null, over = {}) => ({
+    ...deps(set, rec, over),
+    getLink: async (id: string) => (id === SET ? rec : null),
+  });
+
+  it('gives the token of a link that is served now', async () => {
+    expect(await workingLinkTokenFor(SET, withLink(record(set)))).toBe(TOKEN);
+  });
+
+  it('gives nothing for a tour with no link or another tour', async () => {
+    expect(await workingLinkTokenFor(SET, withLink(null))).toBeNull();
+    expect(
+      await workingLinkTokenFor('other', withLink(record(set)))
+    ).toBeNull();
+  });
+
+  it('gives nothing for a link that is off or would be refused', async () => {
+    const off = { ...record(set), off: { reason: 'pictures' as const, at: 2 } };
+    expect(await workingLinkTokenFor(SET, withLink(off))).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        withLink(record(set), { flagOn: async () => false })
+      )
+    ).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        withLink(record(set), { pictureGeneration: async () => '2' })
+      )
+    ).toBeNull();
+  });
+
+  it('gives nothing for a live tour', async () => {
+    const live = liveSet();
+    const rec = record(live, { kind: 'live' });
+    expect(
+      await workingLinkTokenFor(SET, {
+        ...deps(live, rec),
+        getLink: async () => rec,
+      })
     ).toBeNull();
   });
 });

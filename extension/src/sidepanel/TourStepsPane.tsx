@@ -1,6 +1,6 @@
 // A published tour read as steps beside the website (docs/plans/shipped/TOURS_10X.md S4).
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Play, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Check, Link2, Pencil, Play, RefreshCw } from 'lucide-react';
 import {
   chromeMuted,
   focusRing,
@@ -9,6 +9,7 @@ import {
 } from '@/components/common/lightChrome';
 import { StepsView } from '@/components/tours/steps/StepsView';
 import { STEPS_LABELS_EN } from '@/components/tours/steps/stepsModel';
+import { editTourLink, publicTourLink } from '../appOrigin';
 import type { ListedTour } from '../tourList';
 import type { TourStepsReply } from '../tourSteps';
 import { FAILURE_TEXT } from './failureText';
@@ -29,7 +30,10 @@ export const TourStepsPane: React.FC<{
   starting: boolean;
   /** Another tour is starting, so this one waits. */
   disabled: boolean;
-}> = ({ tour, onBack, onStart, starting, disabled }) => {
+  /** Admins can open the tour in the editor. */
+  admin?: boolean;
+}> = ({ tour, onBack, onStart, starting, disabled, admin = false }) => {
+  const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
   const [read, setRead] = useState<{
     id: string;
     attempt: number;
@@ -64,6 +68,23 @@ export const TourStepsPane: React.FC<{
     read?.id === tour.id && read.attempt === attempt ? read.reply : null;
   const steps = reply?.ok ? reply.tour : null;
   const title = steps?.title || tour.title || 'Untitled tour';
+  const link = steps?.link ? publicTourLink(steps.link) : null;
+
+  useEffect(() => {
+    if (copied === 'idle') return;
+    const timer = window.setTimeout(() => setCopied('idle'), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const copyLink = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied('done');
+    } catch {
+      setCopied('failed');
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5 pb-8" data-testid="tour-steps-pane">
@@ -82,15 +103,51 @@ export const TourStepsPane: React.FC<{
             {tour.host} · {tour.steps === 1 ? '1 step' : `${tour.steps} steps`}
           </p>
         </div>
-        <button
-          type="button"
-          className={`${primaryBtn} inline-flex items-center justify-center gap-1.5 self-start ${disabledLook}`}
-          disabled={disabled}
-          onClick={onStart}
-        >
-          <Play className="h-4 w-4 fill-current" aria-hidden="true" />
-          {starting ? 'Starting...' : 'Start tour'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`${primaryBtn} inline-flex items-center justify-center gap-1.5 ${disabledLook}`}
+            disabled={disabled}
+            onClick={onStart}
+          >
+            <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+            {starting ? 'Starting...' : 'Start tour'}
+          </button>
+          {link && (
+            <button
+              type="button"
+              className={`${secondaryBtn} inline-flex items-center gap-1.5 border border-slate-200`}
+              onClick={() => void copyLink()}
+            >
+              {copied === 'done' ? (
+                <Check className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Link2 className="h-4 w-4" aria-hidden="true" />
+              )}
+              {copied === 'done' ? 'Link copied' : 'Copy link'}
+            </button>
+          )}
+          {admin && (
+            <button
+              type="button"
+              className={`${secondaryBtn} inline-flex items-center gap-1.5 border border-slate-200`}
+              onClick={() =>
+                void chrome.tabs.create({ url: editTourLink(tour.id) })
+              }
+            >
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              Edit tour
+            </button>
+          )}
+        </div>
+        {copied === 'failed' && (
+          <p role="alert" className="text-brand-red-primary">
+            {"The link couldn't be copied. Try again."}
+          </p>
+        )}
+        <span className="sr-only" aria-live="polite">
+          {copied === 'done' ? 'Link copied' : ''}
+        </span>
       </header>
       {reply && !reply.ok ? (
         <div className="flex flex-col items-start gap-2">

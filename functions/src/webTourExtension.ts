@@ -572,11 +572,20 @@ export const webToursListV1 = extensionEndpoint(
 export const webTourLoadV1 = extensionEndpoint(async (body, _caller, db) => {
   const setId = parseSetId(body);
   const snap = await db.collection(GL_TOURS_COLLECTION).doc(setId).get();
-  return loadTour(
+  const loaded = await loadTour(
     setId,
     snap.exists ? (snap.data() as StoredSnapshot) : null,
     pictureStore
   );
+  // The side panel's steps view asks for the public link too; playback doesn't.
+  if ((body as { link?: unknown }).link !== true) return loaded;
+  const { defaultPublicLinkDeps, workingLinkTokenFor } =
+    await import('./tourPublicLink');
+  const link = await workingLinkTokenFor(
+    setId,
+    defaultPublicLinkDeps(db)
+  ).catch(() => null);
+  return link ? { ...loaded, link } : loaded;
 }, '512MiB');
 
 export const webTourRunV1 = extensionEndpoint(
