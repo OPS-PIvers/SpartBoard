@@ -1199,6 +1199,31 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['blooms-ai']).toBe(3);
   });
 
+  it('splits read-aloud scans out of ocr usage docs', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-06-02', data: { count: 6 } },
+      { id: 'uid1_ocr_2026-06-02', data: { count: 5, readAloudCount: 2 } },
+      { id: 'uid1_ocr_2026-06-01', data: { count: 1 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.totalCalls).toBe(6);
+    expect(result.api.byFeature['ocr']).toBe(4);
+    expect(result.api.byFeature['ocr-read-aloud']).toBe(2);
+  });
+
   it('counts video-activity-recommend usage docs toward byFeature without corrupting uid parsing', async () => {
     // Regression for: video-activity-recommend was missing from
     // GEMINI_SPECIFIC_FEATURES in adminAnalyticsCompute.ts AND had no
@@ -3986,6 +4011,7 @@ describe('index barrel — deployed export set', () => {
     'webTourRunV1',
     'tourPublicStepsV1',
     'tourPublicLinkGuard',
+    'tourPublicLinkStartV1',
     'schoologyImportStatusV1',
     'schoologyImportInboxV1',
     'schoologyImportInboxCleanup',

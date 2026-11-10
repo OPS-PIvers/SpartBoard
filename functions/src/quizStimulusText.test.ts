@@ -499,7 +499,10 @@ describe('chargeOcrQuota', () => {
     const { db, docs } = makeDb();
     await chargeOcrQuota(db, 't1', 't@school.org', NOW);
     await chargeOcrQuota(db, 't1', 't@school.org', NOW);
-    expect(docs.get('ai_usage/t1_ocr_2026-09-08')).toMatchObject({ count: 2 });
+    expect(docs.get('ai_usage/t1_ocr_2026-09-08')).toMatchObject({
+      count: 2,
+      readAloudCount: 2,
+    });
     expect(docs.get('ai_usage/t1_2026-09-08')).toMatchObject({ count: 2 });
   });
   it('refuses and charges nothing when Gemini functions are switched off', async () => {

@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { AssignStep } from './AssignStep';
 import type { AssignStepDef } from './assignSteps';
 
@@ -26,6 +26,13 @@ export interface AssignStepperProps {
   zIndex?: string;
   /** Renders the steps and footer in place, without the dialog or its Cancel. */
   inline?: boolean;
+  /** A text button left of Assign that leaves the stepper for another flow, e.g. Assign on paper. */
+  altAction?: {
+    label: string;
+    icon?: React.ElementType;
+    onClick: () => void;
+    anchor?: TourAnchorAttrs;
+  };
 }
 
 export const AssignStepper: React.FC<AssignStepperProps> = ({
@@ -43,6 +50,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   overlayView,
   zIndex,
   inline = false,
+  altAction,
 }) => {
   const titleId = useId();
   const outward = useViewAsOutward();
@@ -154,8 +162,21 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
     </button>
   );
 
+  const AltIcon = altAction?.icon;
   const footer = (
     <div className="flex items-center justify-end gap-2 px-6 py-3">
+      {altAction && (
+        <button
+          {...altAction.anchor}
+          type="button"
+          onClick={altAction.onClick}
+          disabled={submitting}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold text-brand-blue-primary transition-colors hover:bg-brand-blue-lighter disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {AltIcon && <AltIcon className="h-4 w-4" aria-hidden="true" />}
+          {altAction.label}
+        </button>
+      )}
       {submitButton}
     </div>
   );

@@ -9,9 +9,13 @@ const readServerFeatureIds = (): string[] => {
     resolve(__dirname, '../../../../functions/src/adminAnalyticsCompute.ts'),
     'utf8'
   );
-  const block = /const GEMINI_SPECIFIC_FEATURES = \[([\s\S]*?)\];/.exec(source);
-  if (!block) throw new Error('GEMINI_SPECIFIC_FEATURES not found');
-  return [...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  return ['GEMINI_SPECIFIC_FEATURES', 'DERIVED_AI_FEATURES'].flatMap((name) => {
+    const block = new RegExp(`const ${name} = \\[([\\s\\S]*?)\\];`).exec(
+      source
+    );
+    if (!block) throw new Error(`${name} not found`);
+    return [...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  });
 };
 
 describe('AI_FEATURE_LABELS', () => {

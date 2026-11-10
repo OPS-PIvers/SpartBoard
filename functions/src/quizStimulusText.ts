@@ -397,7 +397,12 @@ export async function chargeOcrQuota(
     const stamp = admin.firestore.FieldValue.serverTimestamp();
     tx.set(
       specificRef,
-      { count: inc(1), lastUsed: stamp, featureId: OCR_FEATURE_ID },
+      {
+        count: inc(1),
+        readAloudCount: inc(1),
+        lastUsed: stamp,
+        featureId: OCR_FEATURE_ID,
+      },
       { merge: true }
     );
     tx.set(overallRef, { count: inc(1), lastUsed: stamp }, { merge: true });

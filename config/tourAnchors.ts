@@ -14,6 +14,8 @@ export interface TourAnchorDef {
   persists?: true;
   /** Its persists effect goes through the tour sandbox, so a tour with materials can autopilot it. */
   sandboxed?: true;
+  /** Can make a real board, collection or item, so an editor fast-forward stops before it. */
+  creates?: true;
   /** Shown only once a menu, the dock or another panel is open. */
   panel?: true;
   /** State the runner sets up before it looks for the anchor. */
@@ -12750,6 +12752,7 @@ export const TOUR_ANCHORS = {
   'prompt-dialog.confirm': {
     label: 'Confirm button in the shared prompt dialog (Create, Save, OK)',
     panel: true,
+    creates: true,
   },
   'prompt-dialog.cancel': {
     label: 'X (cancel) button in the shared prompt dialog',
@@ -12812,6 +12815,7 @@ export const TOUR_ANCHORS = {
     label: 'Duplicate button on a board card',
     panel: true,
     persists: true,
+    creates: true,
   },
   'boards-modal.board-pin': {
     label: 'Pin button on a board card',
@@ -12847,6 +12851,7 @@ export const TOUR_ANCHORS = {
     label: 'Duplicate button on a collection card',
     panel: true,
     persists: true,
+    creates: true,
   },
   'boards-modal.collection-delete': {
     label: 'Delete item in the collection card menu',
@@ -12877,6 +12882,7 @@ export const TOUR_ANCHORS = {
   'boards-modal.template-pick': {
     label: 'Template name in the create from template dialog',
     panel: true,
+    creates: true,
   },
   'boards-modal.move-close': {
     label: 'Close button in the move to collection dialog',
@@ -16405,6 +16411,7 @@ export const TOUR_ANCHORS = {
       'Put these links on a new board button in the Schoology course import',
     panel: true,
     persists: true,
+    creates: true,
   },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).
   'import-wizard.close': {
@@ -16501,6 +16508,7 @@ export const TOUR_ANCHORS = {
   'import-review.board-create': {
     label: 'Create board button when reviewing an imported board',
     panel: true,
+    creates: true,
   },
   'import-wizard.cancel': {
     label: 'Cancel button in the Import wizard',
@@ -16678,7 +16686,7 @@ export const TOUR_ANCHORS = {
   },
   // Quiz library kebab items that open dialogs.
   'quiz-library.assign-paper': {
-    label: 'Assign on paper item in a quiz card menu',
+    label: 'Assign on paper button in the quiz assign dialog',
     perWidgetType: true,
     panel: true,
   },
@@ -17045,6 +17053,7 @@ export const TOUR_ANCHORS = {
     label: 'Duplicate item in the board card menu',
     persists: true,
     panel: true,
+    creates: true,
   },
   'boards-modal.board-menu-set-default': {
     label: 'Set as default in this Collection item in the board card menu',
@@ -17279,6 +17288,14 @@ export const isPersistsAnchor = (ref: string): boolean => {
   if (!isTourAnchorId(id)) return false;
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   return !!def.persists;
+};
+
+/** Whether a step's anchor makes a real board or collection. */
+export const isCreatesAnchor = (ref: string): boolean => {
+  const { id } = parseTourAnchorRef(ref);
+  if (!isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.creates;
 };
 
 /** Whether a step's anchor is a persists click that the tour sandbox absorbs. */

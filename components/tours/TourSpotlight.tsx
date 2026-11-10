@@ -2,7 +2,7 @@ import React, { useSyncExternalStore } from 'react';
 import { Z_INDEX } from '@/config/zIndex';
 
 interface TourSpotlightProps {
-  rect: { x: number; y: number; width: number; height: number } | null;
+  rect: Rect | null;
   padding?: number;
   radius?: number;
   /** A click on the dim, outside the cutout. */
@@ -19,9 +19,35 @@ interface TourSpotlightProps {
   glideFor?: number;
   /** Tour pacing: a tick on the ring, for the step just finished. */
   tick?: boolean;
+  /** Where clicks pass through, when it differs from the drawn cutout: the live target, clickable before the cutout lands on it. */
+  hole?: Rect | null;
+  /** A tick left on the finished step's control while the ring glides on to the next one. */
+  tickAt?: Rect | null;
 }
 
+type Rect = { x: number; y: number; width: number; height: number };
+
 const round = (n: number) => Math.round(n * 10) / 10;
+
+/** The dim's path: the viewport, with a rounded cutout around `rect`. */
+function dimPath(
+  vw: number,
+  vh: number,
+  rect: Rect | null,
+  padding: number,
+  radius: number
+): string {
+  let d = `M0,0 H${vw} V${vh} H0 Z`;
+  if (rect) {
+    const x = round(rect.x - padding);
+    const y = round(rect.y - padding);
+    const w = round(rect.width + padding * 2);
+    const h = round(rect.height + padding * 2);
+    const r = Math.min(radius, w / 2, h / 2);
+    d += ` M${x + r},${y} H${x + w - r} A${r},${r} 0 0,1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0,1 ${x + w - r},${y + h} H${x + r} A${r},${r} 0 0,1 ${x},${y + h - r} V${y + r} A${r},${r} 0 0,1 ${x + r},${y} Z`;
+  }
+  return d;
+}
 
 const onResize = (cb: () => void) => {
   window.addEventListener('resize', cb);
@@ -83,21 +109,20 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
   glide = true,
   glideFor = 0,
   tick = false,
+  hole,
+  tickAt = null,
 }) => {
   const ease = `${glideFor}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
   // Re-render on resize so the dim keeps covering the whole viewport.
   const [vw, vh] = useSyncExternalStore(onResize, viewportKey, noViewport)
     .split('x')
     .map(Number);
-  let d = `M0,0 H${vw} V${vh} H0 Z`;
-  if (rect) {
-    const x = round(rect.x - padding);
-    const y = round(rect.y - padding);
-    const w = round(rect.width + padding * 2);
-    const h = round(rect.height + padding * 2);
-    const r = Math.min(radius, w / 2, h / 2);
-    d += ` M${x + r},${y} H${x + w - r} A${r},${r} 0 0,1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0,1 ${x + w - r},${y + h} H${x + r} A${r},${r} 0 0,1 ${x},${y + h - r} V${y + r} A${r},${r} 0 0,1 ${x + r},${y} Z`;
-  }
+  const d = dimPath(vw, vh, rect, padding, radius);
+  // A separate, undrawn layer takes the clicks, so the target works before the cutout lands on it.
+  const splitHit = hole !== undefined && !clickThrough;
+  const blocks = !clickThrough && !splitHit;
+  const onWheel = (e: React.WheelEvent<SVGPathElement>) =>
+    passWheelThrough(e.nativeEvent, e.currentTarget.ownerSVGElement);
   const ringBox = rect && {
     x: rect.x - padding,
     y: rect.y - padding,
@@ -136,20 +161,23 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
           fill="rgba(2,6,23,0.55)"
           className={`fill-slate-950/55 ${glide && !glideFor ? 'motion-safe:transition-[d] motion-safe:duration-300' : ''}`}
           style={{
-            pointerEvents: clickThrough ? 'none' : 'auto',
+            pointerEvents: blocks ? 'auto' : 'none',
             ...(glideFor ? { transition: `d ${ease}` } : {}),
           }}
-          onClick={clickThrough ? undefined : onMisclick}
-          onWheel={
-            clickThrough
-              ? undefined
-              : (e) =>
-                  passWheelThrough(
-                    e.nativeEvent,
-                    e.currentTarget.ownerSVGElement
-                  )
-          }
+          onClick={blocks ? onMisclick : undefined}
+          onWheel={blocks ? onWheel : undefined}
         />
+        {splitHit && (
+          <path
+            data-testid="tour-spotlight-hit"
+            d={dimPath(vw, vh, hole, padding, radius)}
+            fillRule="evenodd"
+            fill="transparent"
+            style={{ pointerEvents: 'fill' }}
+            onClick={onMisclick}
+            onWheel={onWheel}
+          />
+        )}
       </svg>
       {ringBox && (
         // The ring sits above a lifted dock so the target stays outlined.
@@ -178,27 +206,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
             strokeWidth={3}
             style={ringStyle}
           />
-          {tick && (
-            <g
-              data-testid="tour-spotlight-tick"
-              className="transform-fill origin-center motion-safe:animate-tour-tick"
-            >
-              <circle
-                cx={ringBox.x + ringBox.width}
-                cy={ringBox.y}
-                r={11}
-                className="fill-emerald-500 stroke-white"
-                strokeWidth={2}
-              />
-              <path
-                d={`M${ringBox.x + ringBox.width - 4.5},${ringBox.y + 0.5} l3,3 l6,-6.5`}
-                className="fill-none stroke-white"
-                strokeWidth={2.25}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </g>
-          )}
+          {tick && <TickMark box={ringBox} />}
           {glideFor || tick ? null : breathe ? (
             <rect
               data-testid="tour-spotlight-breathe"
@@ -218,6 +226,49 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
           )}
         </svg>
       )}
+      {tickAt && (
+        <svg
+          aria-hidden="true"
+          data-tour-overlay=""
+          className="fixed inset-0 pointer-events-none"
+          style={{ zIndex: Z_INDEX.tourCallout }}
+          width={vw}
+          height={vh}
+        >
+          <TickMark
+            box={{
+              x: tickAt.x - padding,
+              y: tickAt.y - padding,
+              width: tickAt.width + padding * 2,
+            }}
+          />
+        </svg>
+      )}
     </>
   );
 };
+
+/** The green tick on a ring's top-right corner. */
+const TickMark: React.FC<{ box: { x: number; y: number; width: number } }> = ({
+  box,
+}) => (
+  <g
+    data-testid="tour-spotlight-tick"
+    className="transform-fill origin-center motion-safe:animate-tour-tick"
+  >
+    <circle
+      cx={box.x + box.width}
+      cy={box.y}
+      r={11}
+      className="fill-emerald-500 stroke-white"
+      strokeWidth={2}
+    />
+    <path
+      d={`M${box.x + box.width - 4.5},${box.y + 0.5} l3,3 l6,-6.5`}
+      className="fill-none stroke-white"
+      strokeWidth={2.25}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </g>
+);
