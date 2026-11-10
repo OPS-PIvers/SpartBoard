@@ -324,6 +324,19 @@ describe('QuizManager — row menu', () => {
     );
   });
 
+  it('keeps Assign on paper in the menu for a quiz missing answers', () => {
+    const onAssignOnPaper = vi.fn();
+    renderLibrary({
+      onAssignOnPaper,
+      quizzes: [{ ...QUIZ, needsKeyCount: 2 }],
+    });
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Assign on paper' }));
+    expect(onAssignOnPaper).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
   it('has no Stats row', () => {
     renderLibrary();
     openRowMenu();
