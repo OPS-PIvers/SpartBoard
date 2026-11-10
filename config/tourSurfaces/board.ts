@@ -795,6 +795,16 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/tours/steps/'],
   },
+  // The public-link switch sits in both tour editors' More actions menu; its confirm opens from it.
+  'board.tour-public-link': {
+    label: 'Tour public link switch and its confirm',
+    kind: 'shared',
+    files: ['components/tours/publicLink/'],
+    inner: {
+      'tour-public-link.acknowledge': 'tour-public-link.switch',
+      'tour-public-link.confirm': 'tour-public-link.switch',
+    },
+  },
   'board.help-copy-link': {
     label: 'Help copy link button',
     kind: 'shared',

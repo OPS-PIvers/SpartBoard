@@ -79,6 +79,7 @@ import {
   type HiddenText,
 } from './webStepReview';
 import { PublishCheck } from './webEditorParts';
+import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLinkControls';
 import { PictureCache } from './webPictures';
 import {
   CHECK_LABEL,
@@ -184,6 +185,13 @@ const WebTourEditorBody: React.FC<{
   const published = usePublishedTour(initial.id);
   const live =
     published.tour && isWebTourSet(published.tour.set) ? published.tour : null;
+  const publicLink = usePublicLinkControls({
+    setId: initial.id,
+    menuCopies: true,
+    published:
+      webTourEditorDevSeed()?.publishedSet ??
+      (published.loaded ? (live?.set ?? null) : undefined),
+  });
   const [runs, setRuns] = useState<TourRun[] | null>(null);
   const publishing = useRef(false);
   // The step the next recorded step goes after; null appends.
@@ -509,6 +517,15 @@ const WebTourEditorBody: React.FC<{
   };
 
   const copy = async () => {
+    if (publicLink.publicUrl) {
+      try {
+        await navigator.clipboard.writeText(publicLink.publicUrl);
+        setStatus('Public link copied.');
+      } catch (err) {
+        logError('web tour public link copy', err, { setId: set.id });
+      }
+      return;
+    }
     if (await copyLink(set.id, set.title)) setStatus('Link copied.');
   };
 
@@ -572,7 +589,7 @@ const WebTourEditorBody: React.FC<{
     },
     {
       id: 'copy-link',
-      label: 'Copy link',
+      label: publicLink.publicUrl ? 'Copy public link' : 'Copy link',
       icon: Link2,
       onSelect: () => void copy(),
       anchor: tourAttr('web-tour-editor.copy-link'),
@@ -617,6 +634,8 @@ const WebTourEditorBody: React.FC<{
       : undefined,
     playHint: 'Play the published tour on the website',
     menu,
+    menuFooter: publicLink.footer,
+    statusNote: publicLink.statusNote,
     steps: steps.map((step, i) =>
       outlineStep(step, i, matcher, checkResults?.[step.id], fixes.has(step.id))
     ),
@@ -830,6 +849,7 @@ const WebTourEditorBody: React.FC<{
             set,
             webTourEditorDevSeed()?.publishedSet ?? live?.set ?? null
           )}
+          publicLinkOn={publicLink.status.kind === 'on'}
           onCancel={() => setCheck(null)}
           onBlur={() => {
             setCheck(null);
@@ -848,6 +868,7 @@ const WebTourEditorBody: React.FC<{
           }
         />
       )}
+      {publicLink.dialog}
     </PictureCache.Provider>
   );
 };

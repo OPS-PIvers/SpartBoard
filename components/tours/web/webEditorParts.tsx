@@ -242,10 +242,21 @@ export const PublishCheck: React.FC<{
   askPictures: boolean;
   /** Steps whose picture changed since the last publish (new file or markup). */
   changed: readonly string[];
+  /** The tour has a public link, which a changed picture turns off. */
+  publicLinkOn?: boolean;
   onPublish: () => void;
   onBlur: () => void;
   onCancel: () => void;
-}> = ({ set, hidden, askPictures, changed, onPublish, onBlur, onCancel }) => {
+}> = ({
+  set,
+  hidden,
+  askPictures,
+  changed,
+  publicLinkOn = false,
+  onPublish,
+  onBlur,
+  onCancel,
+}) => {
   const pictured = (set.steps as WebStep[]).flatMap((s, i) =>
     s.web?.picture ? [{ id: s.id, picture: s.web.picture, index: i }] : []
   );
@@ -307,6 +318,8 @@ export const PublishCheck: React.FC<{
                 {changedNumbers.length === 1
                   ? `Step ${changedNumbers[0]}'s picture changed since the last publish.`
                   : `Pictures changed since the last publish: steps ${listNumbers(changedNumbers)}.`}
+                {publicLinkOn &&
+                  ' Publishing turns the public link off until you review it again.'}
               </p>
             )}
             <div

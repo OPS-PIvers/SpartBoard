@@ -1,4 +1,5 @@
 import { useContext, useState } from 'react';
+import type { GuidedLearningSet } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import { logError } from '@/utils/logError';
 import {
@@ -20,6 +21,8 @@ export interface LiveTourPublish {
   /** null while the published copy loads. */
   status: TourPublishStatus | null;
   publishedAt: number | null;
+  /** The published copy; undefined while it loads, null when never published. */
+  publishedSet: GuidedLearningSet | null | undefined;
   publishing: boolean;
   failed: boolean;
   /** Steps with broken links, listed before an admin publishes anyway. */
@@ -64,6 +67,7 @@ export function useLiveTourPublish(
   return {
     status: loaded && uid ? tourPublishStatus(set, tour) : null,
     publishedAt: tour && tour.publishedAt > 0 ? tour.publishedAt : null,
+    publishedSet: loaded ? (tour?.set ?? null) : undefined,
     publishing,
     failed,
     broken,

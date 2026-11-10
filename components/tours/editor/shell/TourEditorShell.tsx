@@ -78,9 +78,16 @@ export const TourShellStatus: React.FC<{ adapter: TourShellAdapter }> = ({
 }) => {
   const { t } = useTranslation();
   const { saveState, publish, main } = adapter;
-  const parts: string[] = [];
-  if (publish) parts.push(t(`tours.shell.status_${publish}`));
-  if (main.blocker) parts.push(blockerText(main.blocker, t));
+  const parts: { text: string; warn: boolean }[] = [];
+  if (publish)
+    parts.push({ text: t(`tours.shell.status_${publish}`), warn: false });
+  if (adapter.statusNote)
+    parts.push({
+      text: adapter.statusNote.text,
+      warn: adapter.statusNote.tone === 'warn',
+    });
+  if (main.blocker)
+    parts.push({ text: blockerText(main.blocker, t), warn: true });
   return (
     <p
       aria-live="polite"
@@ -100,17 +107,15 @@ export const TourShellStatus: React.FC<{ adapter: TourShellAdapter }> = ({
           </span>
         </>
       )}
-      {parts.map((part, i) => (
+      {parts.map((part) => (
         <span
-          key={part}
-          className={`min-w-0 truncate ${
-            i === parts.length - 1 && main.blocker ? 'text-amber-200' : ''
-          }`}
+          key={part.text}
+          className={`min-w-0 truncate ${part.warn ? 'text-amber-200' : ''}`}
         >
           <span aria-hidden="true" className="mr-1.5">
             ·
           </span>
-          {part}
+          {part.text}
         </span>
       ))}
     </p>

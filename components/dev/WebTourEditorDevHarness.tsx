@@ -13,6 +13,8 @@ import { targetsSignature } from '@/components/tours/web/webStepReview';
 import { recordCheckSuggestion } from '@/components/tours/web/webTourFixes';
 import { ASSUMED_VIEWPORT } from '@/components/tours/web/pictureTarget';
 import type { WebTourEditorDevSeed } from '@/components/tours/web/webEditorDevSeed';
+import { pictureFingerprint } from '@/components/tours/publicLink/publicLinkModel';
+import type { PublicLinkDevSeed } from '@/components/tours/publicLink/publicLinkStore';
 
 type Box = { x: number; y: number; w: number; h: number };
 
@@ -197,8 +199,10 @@ const STATES = [
 ] as const;
 type State = (typeof STATES)[number];
 
-const pathOf = (f: Fixture) => `web_tour_pictures/dev/${f.id}.png`;
-const fullPathOf = (f: Fixture) => `web_tour_pictures/dev/${f.id}-full.png`;
+const pathOf = (f: Fixture) =>
+  `web_tour_pictures/web-tour-editor-dev/${f.id}.png`;
+const fullPathOf = (f: Fixture) =>
+  `web_tour_pictures/web-tour-editor-dev/${f.id}-full.png`;
 const FULL_W = 1600;
 const FULL_H = Math.round((FULL_W * VH) / VW);
 
@@ -282,7 +286,7 @@ const stepOf = (f: Fixture, state: State, i: number): GuidedLearningStep => {
             picture: {
               path:
                 state === 'pictures' && i === 2
-                  ? 'web_tour_pictures/dev/missing.png'
+                  ? 'web_tour_pictures/web-tour-editor-dev/missing.png'
                   : pathOf(f),
               w: 1280,
               h: odd ? 720 : h,
@@ -323,6 +327,32 @@ const checkedRun = (
   },
 });
 
+// With `?public=`, two steps carry markup so the confirm shows it at full size.
+const withMarkup = (
+  step: GuidedLearningStep,
+  i: number
+): GuidedLearningStep => {
+  const pic = step.web?.picture;
+  if (
+    !step.web ||
+    !pic ||
+    !new URLSearchParams(window.location.search).has('public')
+  )
+    return step;
+  const shapes: NonNullable<typeof pic.markup> =
+    i === 0
+      ? [
+          { id: 'a1', kind: 'arrow', x1: 0.2, y1: 0.75, x2: 0.36, y2: 0.62 },
+          { id: 'n1', kind: 'number', x: 0.16, y: 0.8, n: 1 },
+        ]
+      : i === 2
+        ? [{ id: 'b1', kind: 'box', x: 0.33, y: 0.42, w: 0.36, h: 0.2 }]
+        : [];
+  return shapes.length
+    ? { ...step, web: { ...step.web, picture: { ...pic, markup: shapes } } }
+    : step;
+};
+
 const tourFor = (state: State): GuidedLearningSet => {
   const set: GuidedLearningSet = {
     id: 'web-tour-editor-dev',
@@ -333,7 +363,7 @@ const tourFor = (state: State): GuidedLearningSet => {
     createdAt: 1,
     updatedAt: 1,
     webGoal: 'Adding a handout to a course page',
-    steps: FIXTURES.map((f, i) => stepOf(f, state, i)),
+    steps: FIXTURES.map((f, i) => withMarkup(stepOf(f, state, i), i)),
   };
   switch (state) {
     case 'publish':
@@ -407,7 +437,77 @@ const dashboard = {
   rosters: [{ students: [{ firstName: 'Avery', lastName: 'Lindqvist' }] }],
 } as unknown as React.ContextType<typeof DashboardContext>;
 
-const auth = { user: { uid: 'mock-user-id' } } as unknown as AuthContextType;
+const auth = {
+  user: { uid: 'mock-user-id', email: 'admin@example.com' },
+  isAdmin: true,
+  canAccessFeature: () => true,
+} as unknown as AuthContextType;
+
+const PUBLIC_STATES = [
+  'off',
+  'on',
+  'paused',
+  'confirmer',
+  'unpublished',
+  'author',
+] as const;
+const DEV_TOKEN = '5f0c2a9e7b1d4e38a6c09d2b71e4f8a3';
+
+/** `?public=` seeds the public-link switch: off, on, paused (a picture changed after the confirm), unpublished, or author (not an admin). */
+const publicSeed = (
+  tour: GuidedLearningSet,
+  pictures: Record<string, Blob>
+): PublicLinkDevSeed => {
+  const named = new URLSearchParams(window.location.search).get('public');
+  const mode = (PUBLIC_STATES as readonly string[]).includes(named ?? '')
+    ? (named as (typeof PUBLIC_STATES)[number])
+    : 'off';
+  const record = {
+    token: DEV_TOKEN,
+    fingerprint: pictureFingerprint(tour) ?? '',
+    kind: 'web' as const,
+    confirmedBy: 'admin@example.com',
+    confirmedAt: 1,
+    pictures: {},
+  };
+  // A retake published after the confirm: step 1 now points at a new file.
+  const retaken: GuidedLearningSet = {
+    ...tour,
+    steps: tour.steps.map((s, i) =>
+      i === 0 && s.web?.picture
+        ? {
+            ...s,
+            web: {
+              ...s.web,
+              picture: {
+                ...s.web.picture,
+                path: `${s.web.picture.path}-retake`,
+              },
+            },
+          }
+        : s
+    ),
+  };
+  const firstPath = tour.steps[0]?.web?.picture?.path ?? '';
+  return {
+    admin: mode !== 'author',
+    records: {
+      [tour.id]:
+        mode === 'on'
+          ? record
+          : mode === 'paused'
+            ? { ...record, off: { reason: 'pictures', at: 2 } }
+            : mode === 'confirmer'
+              ? { ...record, off: { reason: 'confirmer', at: 2 } }
+              : null,
+    },
+    published: {
+      [tour.id]:
+        mode === 'unpublished' ? null : mode === 'paused' ? retaken : tour,
+    },
+    pictures: { ...pictures, [`${firstPath}-retake`]: pictures[firstPath] },
+  };
+};
 
 export const WebTourEditorDevHarness: React.FC = () => {
   const [state] = useState<State>(() => {
@@ -436,6 +536,7 @@ export const WebTourEditorDevHarness: React.FC = () => {
         offline: true,
         publishedSet: tourFor(state),
       };
+      window.__publicLinkDevSeed = publicSeed(tourFor(state), pictures);
       setLoaded(true);
     });
     return () => {
