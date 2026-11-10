@@ -575,6 +575,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                   </span>
                 </div>
                 <input
+                  // no-tour-anchor: hidden file input opened by its upload button
                   type="file"
                   ref={fileInputRef}
                   accept="application/pdf"

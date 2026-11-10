@@ -33,6 +33,7 @@ export const AdminSearchField: React.FC<{
         />
         {query && (
           <button
+            // no-tour-anchor: clear control inside the anchored search box
             type="button"
             onClick={() => setQuery('')}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600"

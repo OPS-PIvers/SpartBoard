@@ -165,6 +165,7 @@ const IntegrationRow: React.FC<{
         <UsageCell usage={usage} />
       </div>
       <select
+        {...tourFieldAttr('admin.gemini.model', 'admin', integration.id)}
         aria-label={`Model for ${integration.label}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}

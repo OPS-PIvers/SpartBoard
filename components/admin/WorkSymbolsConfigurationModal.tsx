@@ -257,6 +257,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
               </>
             )}
             <input
+              // no-tour-anchor: hidden file input opened by its upload button
               ref={fileInputRef}
               type="file"
               accept="image/*"

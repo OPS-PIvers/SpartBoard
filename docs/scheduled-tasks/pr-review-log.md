@@ -5065,3 +5065,13 @@ rather than "no data") is also still open.
   - Ready: #5467, #5465, #5464, #5463, #5462, #5460.
   - Ready with minor notes: #5461 (video-activity and assignment paths untested) and #5454 (needs PT-75 first; the `other`-run full-redeploy choice is still open).
 - Notes: GitHub access went through MCP. For the #5461 fix, `vitest related` passed (76 tests) and the pre-commit lint and format hook passed. I skipped the full type-check because the fix was a comment-only change.
+
+## 2026-11-10
+
+- PRs reviewed: #5527 deps: override glob and minimatch to patched versions; #5526 Nightly debugger run log 2026-11-10; #5525 Pasted youtube-nocookie.com links are recognized as YouTube; #5524 Drive attachment text and paste/URL previews no longer split an emoji; #5523 Arts & Letters Agenda: part labels no longer split an emoji at the length cap; #5515 Unifier run 142: aligned, log update
+- Comments processed: 3 total. 0 fixed, 3 explained. None of the PRs had inline review threads. The claude[bot] comment on #5527 asked us to confirm CI was green before merging. I checked: every gate on `0b14a4fc` passed, and I answered in that PR's review. The bot summaries on #5523 and #5524 found no issues and needed no reply.
+- Fixes pushed: none.
+- Reviews posted: 6
+  - Ready: #5527, #5525, #5523, #5515.
+  - Ready with minor notes: #5524 (an import sits apart from the others after a blank line, there's a no-op `toBeTruthy` assertion, and the UrlPickerModal call site has no test) and #5526 (the four new debugger Backlog rows have 2 columns instead of 4).
+- Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.
