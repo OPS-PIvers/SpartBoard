@@ -13,6 +13,7 @@ import {
   redactImage,
   type RedactRect,
 } from '@/components/widgets/GuidedLearning/utils/redactImage';
+import { snapshotFontEmbedCss } from './snapshotFonts';
 
 interface Size {
   w: number;
@@ -29,6 +30,10 @@ export interface StepSnapshot {
   boxes: RedactRect[];
   placement: RecordedPlacement;
 }
+
+// Stands in for a picture another site won't share, like a Google profile photo.
+const BLANK_IMAGE =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 const clamp = (n: number, lo: number, hi: number) =>
   Math.min(Math.max(n, lo), Math.max(lo, hi));
@@ -82,11 +87,17 @@ export async function captureStepSnapshot(
     buildNameMatcher(people),
     viewport
   );
-  const { toCanvas } = await import('html-to-image');
+  const [{ toCanvas }, fontEmbedCSS] = await Promise.all([
+    import('html-to-image'),
+    snapshotFontEmbedCss(document),
+  ]);
   const full = await toCanvas(document.body, {
     width: viewport.w,
     height: viewport.h,
     pixelRatio: 1,
+    // Never let the library read web-font sheets itself: it writes every rule into the live page, which flashes it white.
+    fontEmbedCSS,
+    imagePlaceholder: BLANK_IMAGE,
     filter: (node) =>
       !(node instanceof Element && node.hasAttribute('data-tour-ignore')),
   });
