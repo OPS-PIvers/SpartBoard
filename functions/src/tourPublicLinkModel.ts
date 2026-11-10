@@ -15,11 +15,13 @@ const LIVE_PICTURE_PATH =
   /^users\/[A-Za-z0-9_-]{1,128}\/hotspot_images\/[^/]{1,300}$/;
 
 export type PublicTourKind = 'web' | 'live';
-export type PublicLinkOffReason = 'pictures' | 'unpublished' | 'confirmer';
+export type PublicLinkOffReason =
+  'pictures' | 'unpublished' | 'confirmer' | 'admin';
 const OFF_REASONS: readonly PublicLinkOffReason[] = [
   'pictures',
   'unpublished',
   'confirmer',
+  'admin',
 ];
 export const MAX_CONFIRMED_PICTURES = 400;
 

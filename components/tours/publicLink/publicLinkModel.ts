@@ -15,7 +15,12 @@ export const PUBLIC_TOUR_PATH = '/tour-steps/';
 export const PUBLIC_TOUR_API = '/api/tour-steps';
 
 export type PublicTourKind = 'web' | 'live';
-export type PublicLinkOffReason = 'pictures' | 'unpublished' | 'confirmer';
+export type PublicLinkOffReason =
+  | 'pictures'
+  | 'unpublished'
+  | 'confirmer'
+  /** An admin switched it off; the record stays so turning it on again keeps the address. */
+  | 'admin';
 
 /** The admin-only record that makes one tour public; only admins can write it (admin_settings rule). */
 export interface PublicLinkRecord {
@@ -58,7 +63,7 @@ export type PublicLinkStatus =
   | { kind: 'off' }
   | { kind: 'on'; url: string }
   /** Switched off by a picture change (or an unpublish) since the confirm; it stays off until confirmed again. */
-  | { kind: 'paused'; reason: PublicLinkOffReason };
+  | { kind: 'paused'; reason: Exclude<PublicLinkOffReason, 'admin'> };
 
 /** The link's state against the tour as published now; a mismatch reads as paused before the server records it. */
 export function publicLinkStatus(
@@ -66,7 +71,7 @@ export function publicLinkStatus(
   published: GuidedLearningSet | null,
   origin: string
 ): PublicLinkStatus {
-  if (!record) return { kind: 'off' };
+  if (!record || record.off?.reason === 'admin') return { kind: 'off' };
   if (record.off) return { kind: 'paused', reason: record.off.reason };
   if (!published) return { kind: 'paused', reason: 'unpublished' };
   if (
