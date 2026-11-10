@@ -1809,7 +1809,9 @@ export const LiveTourRunner: React.FC = () => {
     const sinceClick = Date.now() - lastStepClickAt.current;
     const stepSwitched =
       sinceClick < FOLLOW_BOARD_MS ||
-      (lastStepCreated.current && sinceClick < FOLLOW_CREATE_MS);
+      (!!tour?.edit &&
+        lastStepCreated.current &&
+        sinceClick < FOLLOW_CREATE_MS);
     // The editor replays on a board the admin switched to, but follows its own Create, which a replay would click again.
     if (
       tour?.edit &&

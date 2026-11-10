@@ -12815,6 +12815,7 @@ export const TOUR_ANCHORS = {
     label: 'Duplicate button on a board card',
     panel: true,
     persists: true,
+    creates: true,
   },
   'boards-modal.board-pin': {
     label: 'Pin button on a board card',
@@ -12850,6 +12851,7 @@ export const TOUR_ANCHORS = {
     label: 'Duplicate button on a collection card',
     panel: true,
     persists: true,
+    creates: true,
   },
   'boards-modal.collection-delete': {
     label: 'Delete item in the collection card menu',
@@ -16409,6 +16411,7 @@ export const TOUR_ANCHORS = {
       'Put these links on a new board button in the Schoology course import',
     panel: true,
     persists: true,
+    creates: true,
   },
   // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).
   'import-wizard.close': {
@@ -17050,6 +17053,7 @@ export const TOUR_ANCHORS = {
     label: 'Duplicate item in the board card menu',
     persists: true,
     panel: true,
+    creates: true,
   },
   'boards-modal.board-menu-set-default': {
     label: 'Set as default in this Collection item in the board card menu',
