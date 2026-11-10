@@ -1574,6 +1574,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'schoology-push-due-date': {
+    label: 'Schoology push: due date',
+    icon: Send,
+    description:
+      'Lets teachers pick the Schoology due date when a push makes a new gradebook column.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

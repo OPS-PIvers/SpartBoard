@@ -290,6 +290,26 @@ export async function publishColumn(
   );
 }
 
+/** Set a column's due date (YYYY-MM-DD, due at 11:59 PM). */
+export async function setColumnDue(
+  creds: SchoologyApiCredentials,
+  sectionId: string,
+  columnId: string,
+  dueDate: string
+): Promise<void> {
+  assertId(sectionId, 'section id');
+  assertId(columnId, 'column id');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    throw new Error('Invalid due date.');
+  }
+  await sgyFetch(
+    creds,
+    'PUT',
+    `/sections/${sectionId}/assignments/${columnId}`,
+    { due: `${dueDate} 23:59:00` }
+  );
+}
+
 /** A column's category id ('0' for none), or null when the column isn't in the section. */
 export async function getColumnCategory(
   creds: SchoologyApiCredentials,

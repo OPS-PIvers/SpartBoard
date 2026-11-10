@@ -121,6 +121,7 @@ import {
   guardPublicLink,
   handlePublicRequest,
   startSetIdFor,
+  workingLinkTokenFor,
   rateLimited,
   tourPublicLinkGuard,
   tourPublicStepsV1,
@@ -425,6 +426,97 @@ describe('startSetIdFor', () => {
         staff,
         deps(live, record(live, { kind: 'live' }))
       )
+    ).toBeNull();
+  });
+});
+
+describe('workingLinkTokenFor', () => {
+  const set = webSet();
+  const withLink = (
+    rec: PublicLinkRecord | null,
+    over: Partial<PublicLinkDeps> = {},
+    callerFlagOn: (
+      email: string,
+      uid: string | null
+    ) => Promise<boolean> = () => Promise.resolve(true)
+  ) => ({
+    ...deps(set, rec, over),
+    getLink: async (id: string) => (id === SET ? rec : null),
+    callerFlagOn,
+  });
+  const teacher = { email: 'teacher@x.org', uid: 'teacher-uid' };
+
+  it('gives the token of a link that is served now', async () => {
+    expect(await workingLinkTokenFor(SET, teacher, withLink(record(set)))).toBe(
+      TOKEN
+    );
+  });
+
+  it('gives nothing for a tour with no link or another tour', async () => {
+    expect(await workingLinkTokenFor(SET, teacher, withLink(null))).toBeNull();
+    expect(
+      await workingLinkTokenFor('other', teacher, withLink(record(set)))
+    ).toBeNull();
+  });
+
+  it('gives nothing for a link that is off or would be refused', async () => {
+    const off = { ...record(set), off: { reason: 'pictures' as const, at: 2 } };
+    expect(await workingLinkTokenFor(SET, teacher, withLink(off))).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        teacher,
+        withLink(record(set), { flagOn: async () => false })
+      )
+    ).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        teacher,
+        withLink(record(set), { pictureGeneration: async () => '2' })
+      )
+    ).toBeNull();
+  });
+
+  it('gives nothing to a caller without the preview', async () => {
+    const callerFlagOn = vi.fn((email: string): Promise<boolean> =>
+      Promise.resolve(email !== 'teacher@x.org')
+    );
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        teacher,
+        withLink(record(set), {}, callerFlagOn)
+      )
+    ).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        { email: 'admin@x.org', uid: 'admin-uid' },
+        withLink(record(set), {}, callerFlagOn)
+      )
+    ).toBe(TOKEN);
+  });
+
+  it('checks the caller with their uid so building limits apply', async () => {
+    const callerFlagOn = vi.fn(async () => true);
+    await workingLinkTokenFor(
+      SET,
+      teacher,
+      withLink(record(set), {}, callerFlagOn)
+    );
+    expect(callerFlagOn).toHaveBeenCalledWith('teacher@x.org', 'teacher-uid');
+  });
+
+  it('gives nothing for a live tour', async () => {
+    const live = liveSet();
+    const rec = record(live, { kind: 'live' });
+    expect(
+      await workingLinkTokenFor(SET, teacher, {
+        ...deps(live, rec),
+        getLink: async () => rec,
+        callerFlagOn: async () => true,
+      })
     ).toBeNull();
   });
 });

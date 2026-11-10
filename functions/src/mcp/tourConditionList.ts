@@ -124,6 +124,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'remote-control',
   'roster-groups',
   'routine-guide',
+  'schoology-push-due-date',
   'schoology-quiz-import',
   'screen-recording',
   'seating-chart-plans',

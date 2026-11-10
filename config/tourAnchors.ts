@@ -1051,6 +1051,10 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'schoology-push.due-date': {
+    label: 'Due date field in the Push to Schoology dialog',
+    panel: true,
+  },
   'schoology-push.skip-course': {
     label: 'Skip this course button in the Push to Schoology dialog',
     panel: true,

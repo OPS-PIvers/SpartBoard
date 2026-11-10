@@ -18,8 +18,13 @@ interface ToolColumnPushDialogProps {
   title: string;
   /** How many students with no submission the push marks Missing. */
   missingCount: number;
+  /** YYYY-MM-DD to start the due date picker on; omitted hides the picker. */
+  initialDueDate?: string;
   onCancel: () => void;
-  onConfirm: (categories: Record<string, string>) => void;
+  onConfirm: (
+    categories: Record<string, string>,
+    dueDate: string | null
+  ) => void;
 }
 
 type DraftRow = { key: number; title: string; weight: number };
@@ -45,10 +50,12 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
   kind,
   title,
   missingCount,
+  initialDueDate,
   onCancel,
   onConfirm,
 }) => {
   const [sections, setSections] = useState(data.sections);
+  const [dueDate, setDueDate] = useState(initialDueDate ?? '');
   const [picks, setPicks] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const s of data.sections) {
@@ -75,6 +82,7 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
   const [weightingOff, setWeightingOff] = useState<Set<string>>(new Set());
 
   const newColumns = sections.filter((s) => !s.hasColumn).length;
+  const showDueDate = initialDueDate !== undefined && newColumns > 0;
   const needsPick = (s: ToolColumnSectionInfo) =>
     s.needsCategory && !!s.categories && s.categories.length > 0;
   const undecided = sections.some((s) => {
@@ -136,7 +144,9 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
       <button
         type="button"
         disabled={undecided}
-        onClick={() => onConfirm(picks)}
+        onClick={() =>
+          onConfirm(picks, showDueDate && dueDate ? dueDate : null)
+        }
         {...tourAttr('schoology-push.confirm')}
         className="text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -159,6 +169,18 @@ export const ToolColumnPushDialog: React.FC<ToolColumnPushDialogProps> = ({
             This adds a “{title}” column to {newColumns} Schoology section
             {newColumns === 1 ? '' : 's'} in the current grading period.
           </p>
+        )}
+        {showDueDate && (
+          <label className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-slate-800">Due date</span>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(ev) => setDueDate(ev.target.value)}
+              {...tourAttr('schoology-push.due-date')}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
+            />
+          </label>
         )}
         {sections
           .filter((s) => s.needsCategory || weightingOff.has(s.contextId))

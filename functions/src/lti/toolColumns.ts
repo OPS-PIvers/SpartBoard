@@ -94,6 +94,11 @@ export interface RestOps {
     columnId: string
   ): Promise<string | null>;
   publishColumn(sectionId: string, columnId: string): Promise<void>;
+  setColumnDue(
+    sectionId: string,
+    columnId: string,
+    dueDate: string
+  ): Promise<void>;
   listColumnGrades(sectionId: string, columnId: string): Promise<ColumnGrade[]>;
   setExceptions(sectionId: string, rows: ExceptionWrite[]): Promise<boolean[]>;
   listEnrollments(sectionId: string): Promise<Enrollment[]>;
@@ -182,6 +187,8 @@ export interface PushSectionInput {
   create: boolean;
   /** The category the teacher picked for a new column, or to repair one in no category. */
   categoryId: string | null;
+  /** Due date (YYYY-MM-DD) for a new column; null leaves Schoology's default. */
+  dueDate?: string | null;
 }
 
 /** `spartboard:{kind}:{sessionId}`, the line item's resource id. */
@@ -327,6 +334,13 @@ async function ensureColumn(
         savedCategory = categoryId;
       } catch (err) {
         console.warn('[toolColumns] setting the column category failed:', err);
+      }
+    }
+    if (deps.rest && input.dueDate && columnId) {
+      try {
+        await deps.rest.setColumnDue(contextId, columnId, input.dueDate);
+      } catch (err) {
+        console.warn('[toolColumns] setting the due date failed:', err);
       }
     }
     const published = await publishLinkedColumn(deps, contextId, item.id);

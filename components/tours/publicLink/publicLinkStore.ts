@@ -1,4 +1,4 @@
-import { deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { getBytes, getMetadata, ref } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
 import type { GuidedLearningSet } from '@/types';
@@ -148,9 +148,12 @@ export async function turnOnPublicLink(
   return record;
 }
 
-/** Switches the link off at once; turning it on again later gives a new address. */
+/** Switches the link off at once; the record keeps its token, so turning it on again keeps the address. */
 export async function turnOffPublicLink(setId: string): Promise<void> {
+  const off = { reason: 'admin' as const, at: Date.now() };
   const seed = publicLinkDevSeed();
-  if (seed) seedWrite(seed, setId, null);
-  else await deleteDoc(linkRef(setId));
+  if (seed) {
+    const current = seed.records?.[setId];
+    if (current) seedWrite(seed, setId, { ...current, off });
+  } else await updateDoc(linkRef(setId), { off });
 }
