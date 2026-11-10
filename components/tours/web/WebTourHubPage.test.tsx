@@ -593,6 +593,20 @@ describe('WebTourHubPage from a public link', () => {
     expect(h.start).not.toHaveBeenCalled();
   });
 
+  it('never asks an extension that opens tours itself to open the link path', async () => {
+    window.history.replaceState(null, '', '/tour/from-link?t=abc');
+    h.ping = {
+      kind: 'ready',
+      protocol: 8,
+      version: '0.1.13',
+      profile: 'staff',
+    };
+    link.setId.mockResolvedValue(null);
+    render(<WebTourHubPage />);
+    await waitFor(() => expect(link.setId).toHaveBeenCalledWith('abc'));
+    expect(h.open).not.toHaveBeenCalled();
+  });
+
   it('says the tour is unavailable when the link finds no tour', async () => {
     window.history.replaceState(null, '', '/tour/from-link?t=abc');
     link.setId.mockResolvedValue(null);
