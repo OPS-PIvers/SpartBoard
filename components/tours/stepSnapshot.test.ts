@@ -47,7 +47,7 @@ describe('snapshotCrop', () => {
 });
 
 describe('elementsOutsideCrop', () => {
-  it('leaves out only what has nothing in the crop', () => {
+  it('keeps the outer box of an area with nothing in the crop and skips its contents', () => {
     const root = document.createElement('div');
     root.innerHTML =
       '<section id="wrap"><button id="in"></button></section><aside id="out"><i id="deep"></i></aside>';
@@ -66,7 +66,7 @@ describe('elementsOutsideCrop', () => {
       width: 640,
       height: 360,
     });
-    expect([...out].map((el) => el.id).sort()).toEqual(['deep', 'out']);
+    expect([...out].map((el) => el.id)).toEqual(['deep']);
     expect(out.has(root)).toBe(false);
   });
 });

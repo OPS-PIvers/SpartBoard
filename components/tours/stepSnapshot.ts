@@ -70,7 +70,7 @@ const overlaps = (r: DOMRect, crop: ViewportRect) =>
   r.left < crop.x + crop.width &&
   r.top < crop.y + crop.height;
 
-/** Elements with nothing inside the crop; leaving them out keeps a picture from freezing the page, and anything added later is kept. */
+/** Elements inside a box with nothing in the crop; that box stays to hold the layout, its contents are skipped so a picture doesn't freeze the page. */
 export function elementsOutsideCrop(
   root: Element,
   crop: ViewportRect
@@ -83,7 +83,9 @@ export function elementsOutsideCrop(
       inside.add(n);
     }
   }
-  return new Set(all.filter((el) => !inside.has(el)));
+  const outside = (el: Element | null) =>
+    !!el && el !== root && !inside.has(el);
+  return new Set(all.filter((el) => outside(el) && outside(el.parentElement)));
 }
 
 const toBlob = (canvas: HTMLCanvasElement) =>
