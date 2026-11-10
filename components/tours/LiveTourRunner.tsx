@@ -321,6 +321,8 @@ const DONE_PAUSE_MS = 1200;
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
 const FOLLOW_BOARD_MS = 3000;
+/** A new board waits on its first save before the app opens it, so a Create step follows for longer. */
+const FOLLOW_CREATE_MS = 20_000;
 const CALLOUT_WIDTH = 320;
 /** Lets a scrolled or opened control settle before its picture is taken. */
 const SNAPSHOT_SETTLE_MS = 300;
@@ -461,6 +463,7 @@ export const LiveTourRunner: React.FC = () => {
   const cueSeq = useRef(0);
   const startingRef = useRef(false);
   const lastStepClickAt = useRef(0);
+  const lastStepCreated = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   // Tour pacing (TOURS_10X.md F1): catch-up, the settle-tick-glide rhythm and the waiting chip.
   const pacing = canAccessFeature('tour-pacing');
@@ -1559,6 +1562,7 @@ export const LiveTourRunner: React.FC = () => {
   const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
+  const stepCreates = isCreatesAnchor(step?.tour?.anchor ?? '');
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   const advanceFrom = useEffectEvent((from: number) => {
     if (tour?.phase !== 'running' || tour.index !== from) return;
@@ -1628,6 +1632,7 @@ export const LiveTourRunner: React.FC = () => {
     const binding = { action, value: stepValue };
     const onClick = () => {
       lastStepClickAt.current = Date.now();
+      lastStepCreated.current = stepCreates;
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
       const signal = clickWait.current?.signal;
@@ -1666,7 +1671,15 @@ export const LiveTourRunner: React.FC = () => {
       el.removeEventListener(eventName, onClick, true);
       el.removeEventListener('input', onInput, true);
     };
-  }, [anchor.element, acted, action, stepValue, stepIndex, doneFact]);
+  }, [
+    anchor.element,
+    acted,
+    action,
+    stepValue,
+    stepIndex,
+    doneFact,
+    stepCreates,
+  ]);
 
   // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
   const lookahead =
@@ -1793,7 +1806,10 @@ export const LiveTourRunner: React.FC = () => {
     activeDashboard.id !== tour.boardId;
   const endOnBoardSwitch = useEffectEvent(() => {
     const board = latest.current.dashboard.activeDashboard;
-    const stepSwitched = Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS;
+    const sinceClick = Date.now() - lastStepClickAt.current;
+    const stepSwitched =
+      sinceClick < FOLLOW_BOARD_MS ||
+      (lastStepCreated.current && sinceClick < FOLLOW_CREATE_MS);
     // The editor replays on a board the admin switched to, but follows its own Create, which a replay would click again.
     if (
       tour?.edit &&
@@ -2147,7 +2163,13 @@ export const LiveTourRunner: React.FC = () => {
     // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     // Autopilot can't produce a real result for the teacher, so a step waiting on one is theirs.
-    const planned = doneFact
+    // An editor fast-forward stops before a real board or collection; the author clicks it or not.
+    if (tour.edit && jumping && isCreatesAnchor(binding.anchor)) {
+      setAuto(null);
+      stopJump();
+      return;
+    }
+    const gate = doneFact
       ? 'teacher'
       : canPerform(binding)
         ? tour.test
@@ -2156,14 +2178,6 @@ export const LiveTourRunner: React.FC = () => {
             ? replayGate(binding, tour.policy, inSandbox)
             : autopilotGate(binding, tour.policy, inSandbox)
         : 'teacher';
-    // An editor fast-forward never makes a real board or collection without the author.
-    const gate =
-      planned === 'perform' &&
-      tour.edit &&
-      jumping &&
-      isCreatesAnchor(binding.anchor)
-        ? 'confirm'
-        : planned;
     if (tour.test && gate === 'teacher') {
       reportTestStep({
         index: tour.index,

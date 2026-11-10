@@ -14,7 +14,7 @@ export interface TourAnchorDef {
   persists?: true;
   /** Its persists effect goes through the tour sandbox, so a tour with materials can autopilot it. */
   sandboxed?: true;
-  /** Makes a real board or collection, so an editor fast-forward asks before clicking it. */
+  /** Can make a real board, collection or item, so an editor fast-forward stops before it. */
   creates?: true;
   /** Shown only once a menu, the dock or another panel is open. */
   panel?: true;

@@ -123,6 +123,8 @@ const clicks = {
   create: vi.fn(),
 };
 
+let slowCreate = false;
+
 const switchBoard = (id: string) => {
   h.board.id = id;
   h.emit();
@@ -146,7 +148,9 @@ const Fixture: React.FC = () => (
       {...tourAttr('prompt-dialog.confirm')}
       onClick={() => {
         clicks.create();
-        switchBoard(`board-${clicks.create.mock.calls.length + 1}`);
+        const id = `board-${clicks.create.mock.calls.length + 1}`;
+        if (slowCreate) setTimeout(() => switchBoard(id), 5000);
+        else switchBoard(id);
       }}
     >
       Create
@@ -189,6 +193,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   h.board.widgets = [];
   h.board.id = 'board-1';
+  slowCreate = false;
   Object.values(h.actions).forEach((fn) => fn.mockClear());
   Object.values(clicks).forEach((fn) => fn.mockClear());
   snap.capture.mockReset();
@@ -340,22 +345,33 @@ describe('LiveTourRunner edit mode', () => {
       expect(screen.getByText('Step 3')).toBeInTheDocument();
     });
 
-    it('asks before a fast-forward clicks Create, then carries on', async () => {
+    it('stops a fast-forward before Create, then follows the author click', async () => {
       await edit(makeSet(CREATE), 3);
       await run(3000);
       expect(clicks.create).not.toHaveBeenCalled();
-      expect(getTourEditPlayback().index).toBe(1);
-      fireEvent.click(screen.getByText('Do it'));
+      expect(getTourEditPlayback()).toMatchObject({ index: 1, jumping: false });
+      expect(getTourEdit()?.selected).toBe(1);
+      fireEvent.click(screen.getByText('Create'));
       await run(6000);
       expect(clicks.create).toHaveBeenCalledTimes(1);
       expect(clicks.boards).toHaveBeenCalledTimes(1);
-      expect(clicks.dice).toHaveBeenCalledTimes(1);
-      expect(getTourEditPlayback()).toMatchObject({ index: 3, jumping: false });
+      expect(getTourEdit()?.selected).toBe(2);
+    });
+
+    it('follows a Create whose board opens after a slow save', async () => {
+      slowCreate = true;
+      await edit(makeSet(CREATE), 1);
+      await run(3000);
+      fireEvent.click(screen.getByText('Create'));
+      await run(12000);
+      expect(h.board.id).toBe('board-2');
+      expect(clicks.create).toHaveBeenCalledTimes(1);
+      expect(clicks.boards).toHaveBeenCalledTimes(1);
     });
 
     it('still replays on a board the admin switched to', async () => {
       await edit(makeSet(STEPS), 1);
-      await run(3000);
+      await run(5000);
       expect(clicks.boards).toHaveBeenCalledTimes(1);
       act(() => switchBoard('board-other'));
       await run(3000);
