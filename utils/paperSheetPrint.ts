@@ -629,7 +629,7 @@ function markupStrip(
   const body = shown
     .map(
       (r) =>
-        `${markupNumberChipHtml(r.number, r.ink, 3.8, 8)}${escapeHtml(r.text)}`
+        `${markupNumberChipHtml(r.number, r.ink, 3.6, 8)}${escapeHtml(r.text)}`
     )
     .join(' <span style="display:inline-block;width:1mm"></span>');
   const more = hidden

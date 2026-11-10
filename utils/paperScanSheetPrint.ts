@@ -287,11 +287,15 @@ function feedbackColumnHtml(
     );
     budget -= lines;
   }
+  const moreText = (n: number) =>
+    reportFollows ? `+${n} more in the report` : `+${n} more`;
+  // Lines the "+n more" note takes at its widest count.
+  const moreLines = wrapLines(moreText(rows.length), width, NOTE_PT);
   let shown = 0;
   for (const row of rows) {
     const left = rows.length - shown;
-    // Keep a line for "+n more" whenever a later comment would not fit.
-    const reserve = left > 1 ? 1 : 0;
+    // Keep room for "+n more" whenever a later comment would not fit.
+    const reserve = left > 1 ? moreLines : 0;
     const room = budget - reserve;
     if (room < 1) break;
     const text = cutToLines(row.text, width - CHIP_MM, NOTE_PT, room);
@@ -306,9 +310,7 @@ function feedbackColumnHtml(
   const hidden = rows.length - shown;
   if (hidden > 0 && budget > 0) {
     parts.push(
-      `<div style="font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)};font-style:italic">${
-        reportFollows ? `+${hidden} more in the report` : `+${hidden} more`
-      }</div>`
+      `<div style="font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)};font-style:italic">${moreText(hidden)}</div>`
     );
   }
   if (parts.length === 0) return '';
