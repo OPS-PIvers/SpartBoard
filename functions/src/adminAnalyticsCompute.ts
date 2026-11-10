@@ -600,6 +600,10 @@ export async function computeAnalyticsForOrg(
     'universal-import',
   ];
 
+  // byFeature keys that are not doc ids: the read-aloud share of `ocr` docs (readAloudCount).
+  const DERIVED_AI_FEATURES = ['ocr-read-aloud'];
+  const OCR_READ_ALOUD = DERIVED_AI_FEATURES[0];
+
   // Sub-limit counters beside a feature counter; skipped so they never double count.
   const AI_SUB_LIMIT_COUNTERS = [
     'plc-meeting-transcribe',
@@ -618,7 +622,7 @@ export async function computeAnalyticsForOrg(
 
   const aiUsageStream = db
     .collection('ai_usage')
-    .select('count', 'backCount')
+    .select('count', 'backCount', 'readAloudCount')
     .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
 
   for await (const usageDoc of aiUsageStream) {
@@ -648,8 +652,16 @@ export async function computeAnalyticsForOrg(
       const backCount =
         typeof usageData.backCount === 'number' ? usageData.backCount : 0;
       featureCalls = count + backCount;
+      // Read-aloud scans share the ocr daily limit doc; split them onto their own line.
+      const readAloud =
+        secondToLast === 'ocr' && typeof usageData.readAloudCount === 'number'
+          ? Math.min(usageData.readAloudCount, featureCalls)
+          : 0;
+      if (readAloud > 0)
+        aiCallsByFeature[OCR_READ_ALOUD] =
+          (aiCallsByFeature[OCR_READ_ALOUD] ?? 0) + readAloud;
       aiCallsByFeature[secondToLast] =
-        (aiCallsByFeature[secondToLast] ?? 0) + featureCalls;
+        (aiCallsByFeature[secondToLast] ?? 0) + featureCalls - readAloud;
     }
 
     // Totals come from overall docs, plus features that never write one, so nothing is counted twice.
