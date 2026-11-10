@@ -325,7 +325,7 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
               paper: true,
               paperBatchId: 'batch-1',
               hasPaperResponses: true,
-              scoreVisibility: 'all' as const,
+              scoreVisibility: 'score-only' as const,
             }
           : i === 2
             ? { ...a, sync: { groupId: 'g1', syncedVersion: 1 } }
