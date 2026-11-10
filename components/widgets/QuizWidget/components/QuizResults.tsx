@@ -2207,7 +2207,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     sessionId: session?.id,
     kind: 'quiz',
     title: quiz.title,
-    dueAt: session?.dueAt ?? session?.closeAt,
+    closeAt: session?.closeAt,
+    dueAt: session?.dueAt,
     buildPayload: async () => {
       const maxPoints = quizMaxPoints(
         quiz.questions,

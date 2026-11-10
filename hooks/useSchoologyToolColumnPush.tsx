@@ -20,6 +20,20 @@ export const localDateString = (ms: number): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+/** Close time read locally; a date-only due date (UTC midnight) read as its UTC date; else today. */
+export const startingDueDate = (
+  closeAt: number | null | undefined,
+  dueAt: number | null | undefined
+): string => {
+  if (closeAt) return localDateString(closeAt);
+  if (dueAt) {
+    return dueAt % 86_400_000 === 0
+      ? new Date(dueAt).toISOString().slice(0, 10)
+      : localDateString(dueAt);
+  }
+  return localDateString(Date.now());
+};
+
 export interface ToolColumnPayload {
   maxPoints: number;
   grades: ToolColumnGradeEntry[];
@@ -29,7 +43,8 @@ interface Options {
   sessionId: string | null | undefined;
   kind: ToolColumnKind;
   title: string;
-  /** The assignment's due or close time (epoch ms), the starting due date for a new column. */
+  /** The assignment's close and due times (epoch ms), the starting due date for a new column. */
+  closeAt?: number | null;
   dueAt?: number | null;
   /** Builds the scores (and Missing entries) at click time; null stops quietly after the caller explains why. */
   buildPayload: () => Promise<ToolColumnPayload | null>;
@@ -41,6 +56,7 @@ export function useSchoologyToolColumnPush({
   sessionId,
   kind,
   title,
+  closeAt,
   dueAt,
   buildPayload,
   onDone,
@@ -110,7 +126,7 @@ export function useSchoologyToolColumnPush({
         data,
         payload,
         dueDate: canAccessFeature('schoology-push-due-date')
-          ? localDateString(dueAt ?? Date.now())
+          ? startingDueDate(closeAt, dueAt)
           : undefined,
       });
       return;
