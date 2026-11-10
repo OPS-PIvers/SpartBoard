@@ -81,7 +81,7 @@ export const TourShellMenu: React.FC<{
           role="menu"
           aria-label={t('tours.shell.menu')}
           onKeyDown={onKeyDown}
-          className="absolute right-0 top-full z-10 mt-1.5 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm text-slate-700 shadow-lg"
+          className={`absolute right-0 top-full z-10 mt-1.5 ${footer ? 'w-64' : 'w-56'} overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm text-slate-700 shadow-lg`}
         >
           {items.map((item) => (
             <button

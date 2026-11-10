@@ -8098,6 +8098,29 @@ export const TOUR_ANCHORS = {
     label: 'Print button in a tour Steps view',
     panel: true,
   },
+  'tour-public-link.switch': {
+    label:
+      'Anyone with the link switch at the foot of the tour editor More actions menu',
+    panel: true,
+  },
+  'tour-public-link.review': {
+    label:
+      'Review button under the public link switch after a picture change turned the link off',
+    panel: true,
+  },
+  'tour-public-link.copy': {
+    label: 'Copy public link button under the public link switch',
+    panel: true,
+  },
+  'tour-public-link.acknowledge': {
+    label:
+      "Checkbox in the make-public confirm acknowledging a public link can't be taken back",
+    panel: true,
+  },
+  'tour-public-link.confirm': {
+    label: 'Make public button in the make-public confirm',
+    panel: true,
+  },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
     panel: true,

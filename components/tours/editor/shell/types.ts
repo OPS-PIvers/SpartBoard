@@ -66,8 +66,10 @@ export interface TourShellAdapter {
   /** Tooltip naming what Play does for this kind. */
   playHint?: string;
   menu: readonly TourShellMenuItem[];
-  /** Slot at the foot of the ⋯ menu for the public-link switch (S6, slice 7). */
+  /** Slot at the foot of the ⋯ menu for the public-link switch (S6). */
   menuFooter?: React.ReactNode;
+  /** An extra part of the status line, e.g. the public link's state. */
+  statusNote?: { text: string; tone: 'public' | 'warn' } | null;
   steps: readonly TourShellStep[];
   selected: number;
   onSelect: (index: number) => void;

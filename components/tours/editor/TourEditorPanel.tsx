@@ -78,6 +78,7 @@ import {
 } from './panelPlacement';
 import type { TourEditorSession } from './useTourEditorSession';
 import type { LiveTourPublish } from './useLiveTourPublish';
+import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLinkControls';
 import { TourAnchorPicker } from './TourAnchorPicker';
 import { RecordFromHere } from './RecordFromHere';
 import { TourAnchorList } from './TourAnchorList';
@@ -272,6 +273,11 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     writeStored(TOUR_EDITOR_SIDE_KEY, next);
   };
 
+  const publicLink = usePublicLinkControls({
+    setId: set.id,
+    published: publish?.publishedSet,
+  });
+
   const back = selected > 0 ? () => session.select(selected - 1) : undefined;
   const next =
     selected + 1 < total ? () => session.select(selected + 1) : undefined;
@@ -424,6 +430,8 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     playDisabled: total === 0 || paused,
     playHint: t('tours.shell.playLiveHint'),
     menu,
+    menuFooter: publicLink.footer,
+    statusNote: publicLink.statusNote,
     steps: set.steps.map((step, i) =>
       outlineStep(step, i, session.selected, playback, t, paused)
     ),
@@ -508,6 +516,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
         }
       />
       {publish && <PublishNotice publish={publish} />}
+      {publicLink.dialog}
       {settings && (
         <div
           role="tablist"

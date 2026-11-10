@@ -34839,6 +34839,77 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "tour-public-link.switch",
+    "label": "Anyone with the link switch at the foot of the tour editor More actions menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.review",
+    "label": "Review button under the public link switch after a picture change turned the link off",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.copy",
+    "label": "Copy public link button under the public link switch",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.acknowledge",
+    "label": "Checkbox in the make-public confirm acknowledging a public link can't be taken back",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": [
+          "tour-public-link.switch"
+        ],
+        "reveal": "tour-public-link.switch"
+      }
+    ]
+  },
+  {
+    "id": "tour-public-link.confirm",
+    "label": "Make public button in the make-public confirm",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tour-public-link",
+        "kind": "shared",
+        "path": [
+          "tour-public-link.switch"
+        ],
+        "reveal": "tour-public-link.switch"
+      }
+    ]
+  },
+  {
     "id": "help-center.viewer.fullscreen",
     "label": "Fullscreen toggle button in the resource viewer",
     "scope": "board",
