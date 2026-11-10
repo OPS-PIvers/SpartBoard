@@ -4468,6 +4468,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "schoology-push.due-date",
+    "label": "Due date field in the Push to Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-push",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
     "id": "schoology-push.skip-course",
     "label": "Skip this course button in the Push to Schoology dialog",
     "scope": "board",
