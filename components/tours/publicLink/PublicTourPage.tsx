@@ -111,23 +111,25 @@ export const PublicTourPage: React.FC = () => {
         <h1 className="mt-1 text-2xl font-semibold text-slate-900 wrap-break-word">
           {title}
         </h1>
-        {canStart && webTour && token && (
-          // no-tour-anchor: the public tour page runs outside the board, where live tours can't run
-          <a
-            data-testid="public-tour-start"
-            href={`${FROM_PUBLIC_LINK_PATH}?t=${token}`}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
-          >
-            <Play className="h-4 w-4" aria-hidden="true" />
-            {t('webTourHub.start')}
-          </a>
-        )}
-        <div className="mt-8">
+        <div className="mt-6">
           <StepsView
             steps={tour.steps}
             pictures={pictures}
             labels={labels}
             print={{ title }}
+            barStart={
+              canStart && webTour && token ? (
+                // no-tour-anchor: the public tour page runs outside the board, where live tours can't run
+                <a
+                  data-testid="public-tour-start"
+                  href={`${FROM_PUBLIC_LINK_PATH}?t=${token}`}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-brand-blue-primary sm:min-h-9 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+                >
+                  <Play className="h-4 w-4" aria-hidden="true" />
+                  {t('webTourHub.start')}
+                </a>
+              ) : undefined
+            }
           />
         </div>
       </div>

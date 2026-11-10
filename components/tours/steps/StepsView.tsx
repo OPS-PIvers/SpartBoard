@@ -90,6 +90,8 @@ export const StepsView: React.FC<{
   renderText?: (text: string) => React.ReactNode;
   /** Picture markup drawn over each step's picture. */
   renderMarkup?: (step: StepsViewStep) => React.ReactNode;
+  /** Shown at the start of the bar, where the mode switch sits when there is one. */
+  barStart?: React.ReactNode;
 }> = ({
   steps,
   pictures,
@@ -100,6 +102,7 @@ export const StepsView: React.FC<{
   initialMode = 'steps',
   renderText,
   renderMarkup,
+  barStart,
 }) => {
   const [asked, setMode] = useState<StepsMode>(initialMode);
   const [printing, setPrinting] = useState(false);
@@ -117,49 +120,52 @@ export const StepsView: React.FC<{
 
   return (
     <div data-testid="steps-view" className="flex min-w-0 flex-col gap-5">
-      {ready && (Walkthrough !== undefined || print !== undefined) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-          {Walkthrough ? (
-            <div
-              role="group"
-              aria-label={labels.viewLabel}
-              className="inline-flex rounded-lg bg-slate-900/5 p-1"
-            >
+      {ready &&
+        (Walkthrough !== undefined ||
+          print !== undefined ||
+          barStart !== undefined) && (
+          <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+            {Walkthrough ? (
+              <div
+                role="group"
+                aria-label={labels.viewLabel}
+                className="inline-flex rounded-lg bg-slate-900/5 p-1"
+              >
+                <button
+                  type="button"
+                  aria-pressed={mode === 'steps'}
+                  onClick={() => setMode('steps')}
+                  className={segment(mode === 'steps')}
+                  {...tourAttr('steps-view.mode-steps')}
+                >
+                  {labels.article}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={mode === 'walkthrough'}
+                  onClick={() => setMode('walkthrough')}
+                  className={segment(mode === 'walkthrough')}
+                  {...tourAttr('steps-view.mode-walkthrough')}
+                >
+                  {labels.walkthrough}
+                </button>
+              </div>
+            ) : (
+              (barStart ?? <span />)
+            )}
+            {print && (
               <button
                 type="button"
-                aria-pressed={mode === 'steps'}
-                onClick={() => setMode('steps')}
-                className={segment(mode === 'steps')}
-                {...tourAttr('steps-view.mode-steps')}
+                onClick={() => setPrinting(true)}
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter sm:min-h-9 ${focusRing}`}
+                {...tourAttr('steps-view.print')}
               >
-                {labels.article}
+                <Printer className="h-4 w-4" aria-hidden="true" />
+                {labels.print}
               </button>
-              <button
-                type="button"
-                aria-pressed={mode === 'walkthrough'}
-                onClick={() => setMode('walkthrough')}
-                className={segment(mode === 'walkthrough')}
-                {...tourAttr('steps-view.mode-walkthrough')}
-              >
-                {labels.walkthrough}
-              </button>
-            </div>
-          ) : (
-            <span />
-          )}
-          {print && (
-            <button
-              type="button"
-              onClick={() => setPrinting(true)}
-              className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter sm:min-h-9 ${focusRing}`}
-              {...tourAttr('steps-view.print')}
-            >
-              <Printer className="h-4 w-4" aria-hidden="true" />
-              {labels.print}
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
       {loading && !ready ? (
         <Skeleton label={labels.loading} />
       ) : !ready ? (
