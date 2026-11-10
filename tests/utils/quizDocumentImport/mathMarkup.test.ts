@@ -127,6 +127,7 @@ describe('math across a test', () => {
   });
 
   const question = (text: string, options: string[]): ExtractedQuestion => ({
+    number: 1,
     text,
     type: 'MC',
     options: options.map((o, i) => ({ letter: 'ABCD'[i], text: o })),
