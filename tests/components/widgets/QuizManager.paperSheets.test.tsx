@@ -314,6 +314,16 @@ describe('QuizManager — written answers on paper card', () => {
 });
 
 describe('QuizManager — row menu', () => {
+  it('keeps Assign on paper in the menu for view-only libraries', () => {
+    const onAssignOnPaper = vi.fn();
+    renderLibrary({ onAssignOnPaper, assignmentMode: 'view-only' });
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Assign on paper' }));
+    expect(onAssignOnPaper).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
   it('has no Stats row', () => {
     renderLibrary();
     openRowMenu();

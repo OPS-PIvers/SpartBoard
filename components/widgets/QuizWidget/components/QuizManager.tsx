@@ -1239,6 +1239,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             }),
           ]
         : []),
+      // View-only libraries have no assign dialog, so paper printing stays in the menu there.
+      ...(onAssignOnPaper && isViewOnly
+        ? [
+            {
+              id: 'assign-paper',
+              label: 'Assign on paper',
+              icon: Printer,
+              onClick: () => onAssignOnPaper(quiz),
+            },
+          ]
+        : []),
       ...(onImportLooseStack && hasLooseStack?.(quiz.id)
         ? [
             {

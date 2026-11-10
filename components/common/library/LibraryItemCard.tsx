@@ -145,6 +145,16 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
   const activeSub = open ? sub : null;
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const subRef = useRef<HTMLDivElement>(null);
+  const subParentRef = useRef<HTMLElement | null>(null);
+  const subCloseTimer = useRef<number | undefined>(undefined);
+  const cancelSubClose = () => window.clearTimeout(subCloseTimer.current);
+  // A short grace lets the mouse cross a row on its way into the side menu.
+  const closeSubSoon = () => {
+    cancelSubClose();
+    subCloseTimer.current = window.setTimeout(() => setSub(null), 200);
+  };
+  useEffect(() => cancelSubClose, []);
 
   useClickOutside(ref, () => setOpen(false));
 
@@ -157,6 +167,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
       e.stopPropagation();
       if (sub) {
         setSub(null);
+        subParentRef.current?.focus();
         return;
       }
       setOpen(false);
@@ -168,6 +179,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
 
   // Side menu opens to the right of its row, or to the left when the right runs off screen.
   const openSub = (item: LibraryMenuAction, row: HTMLElement) => {
+    subParentRef.current = row;
     const rect = row.getBoundingClientRect();
     const count = item.submenu?.length ?? 0;
     const height = count * MENU_ITEM_HEIGHT + MENU_CHROME_HEIGHT;
@@ -262,12 +274,23 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
                     aria-haspopup="menu"
                     aria-expanded={expanded}
                     onPointerEnter={(e) => {
+                      cancelSubClose();
                       if (e.pointerType === 'mouse')
                         openSub(item, e.currentTarget);
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!item.disabled) openSub(item, e.currentTarget);
+                      if (item.disabled) return;
+                      openSub(item, e.currentTarget);
+                      // Keyboard activation (no pointer) moves focus into the side menu.
+                      if (e.detail === 0)
+                        requestAnimationFrame(() =>
+                          subRef.current
+                            ?.querySelector<HTMLButtonElement>(
+                              '[role="menuitem"]'
+                            )
+                            ?.focus()
+                        );
                     }}
                     disabled={item.disabled}
                     title={item.disabled ? item.disabledReason : undefined}
@@ -292,7 +315,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
                   role="menuitem"
                   type="button"
                   onPointerEnter={(e) => {
-                    if (e.pointerType === 'mouse') setSub(null);
+                    if (e.pointerType === 'mouse') closeSubSoon();
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -322,8 +345,10 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
     activeSub && subParent?.submenu
       ? createPortal(
           <div
+            ref={subRef}
             role="menu"
             aria-label={subParent.label}
+            onPointerEnter={cancelSubClose}
             data-click-outside-ignore="true"
             className={MENU_PANEL_CLASS}
             style={{
