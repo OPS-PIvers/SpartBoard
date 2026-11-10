@@ -9769,6 +9769,15 @@ export interface FlashcardStudyState {
 }
 
 export type FlashcardAssignmentKind = 'check' | 'study';
+
+/** Study resource: the settings students start with, and whether they can change them. */
+export interface FlashcardStudySettings {
+  showFirst: FlashcardSide;
+  shuffle: boolean;
+  strict: boolean;
+  testTypes: FlashcardTestType[];
+  locked: boolean;
+}
 /** Which cards a Check uses; `random` is drawn once at assign time. */
 export type FlashcardCardSelection =
   | { mode: 'all' }
@@ -9856,6 +9865,8 @@ export interface FlashcardSession
   missedCards?: true;
   /** Speak rules picked when assigning; a set save re-stamps with these instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
+  /** Study: the teacher's starting settings; absent means the player defaults, unlocked. */
+  studySettings?: FlashcardStudySettings;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
   /** Check: attempts, time limit, shuffle, integrity and What students see. */
@@ -11105,6 +11116,8 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'flashcards-ai'
+  /** Flashcards study resources: the teacher's starting settings, and Study resource as the default. */
+  | 'flashcards-study-settings'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'

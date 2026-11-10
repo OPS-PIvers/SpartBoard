@@ -53,6 +53,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'flashcards-ai',
   'flashcards-missed-cards',
   'flashcards-speak',
+  'flashcards-study-settings',
   'flashcards-swap-sides',
   'focus-sessions',
   'gemini-functions',

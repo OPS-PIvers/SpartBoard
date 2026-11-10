@@ -309,6 +309,62 @@ describe('FlashcardPlayer Check assignments', () => {
     expect(onSubmit).toHaveBeenCalledWith({ answerLog: [], flags: [] });
   });
 
+  it('starts a study resource on the teacher settings and locks them', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('study-locked')}
+        studySettings={{
+          showFirst: 'definition',
+          shuffle: false,
+          strict: true,
+          testTypes: ['fib'],
+          locked: true,
+        }}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: /^Definition: one\. Showing prompt/ })
+    ).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    expect(screen.getByText('Your teacher set these options.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Term' })).toHaveProperty(
+      'disabled',
+      true
+    );
+    expect(
+      screen.getByRole('button', { name: 'Favorites only' })
+    ).toHaveProperty('disabled', false);
+  });
+
+  it('lets students change unlocked study settings', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('study-open')}
+        studySettings={{
+          showFirst: 'definition',
+          shuffle: false,
+          strict: false,
+          testTypes: ['mc', 'fib'],
+          locked: false,
+        }}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    expect(screen.queryByText('Your teacher set these options.')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Term' }));
+    expect(
+      screen.getByRole('button', { name: /^Term: uno\. Showing prompt/ })
+    ).toBeTruthy();
+  });
+
   it('sends Test answers to the server instead of reviewing them locally', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

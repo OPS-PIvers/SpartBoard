@@ -20,4 +20,23 @@ describe('parseLastFlashcardAssignSettings speak', () => {
     });
     expect(parsed).not.toHaveProperty('speak');
   });
+
+  it('keeps study settings and drops unknown question types', () => {
+    const parsed = parseLastFlashcardAssignSettings({
+      study: {
+        showFirst: 'definition',
+        shuffle: true,
+        strict: 'yes',
+        testTypes: ['essay'],
+        locked: true,
+      },
+    });
+    expect(parsed?.study).toEqual({
+      showFirst: 'definition',
+      shuffle: true,
+      strict: false,
+      testTypes: ['mc', 'fib'],
+      locked: true,
+    });
+  });
 });

@@ -1095,6 +1095,10 @@ export const TOUR_ANCHORS = {
     label: 'Speak step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.study': {
+    label: 'Study settings step header in the Flashcards Assign dialog',
+    panel: true,
+  },
   'assign-step.sheets': {
     label: 'Answer sheets step header in the Assign on paper dialog',
     panel: true,
@@ -1267,6 +1271,30 @@ export const TOUR_ANCHORS = {
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-study.show-first': {
+    label:
+      'Show first switch in the Flashcards Assign dialog Study settings step',
+    panel: true,
+  },
+  'flashcards-study.shuffle': {
+    label: 'Shuffle switch in the Flashcards Assign dialog Study settings step',
+    panel: true,
+  },
+  'flashcards-study.strict': {
+    label:
+      'Strict mode switch in the Flashcards Assign dialog Study settings step',
+    panel: true,
+  },
+  'flashcards-study.test-type': {
+    label:
+      'Test question type switch in the Flashcards Assign dialog Study settings step',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-study.lock': {
+    label: 'Lock study settings switch in the Flashcards Assign dialog',
     panel: true,
   },
   'flashcards-speak.show': {

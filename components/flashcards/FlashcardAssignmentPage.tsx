@@ -395,6 +395,7 @@ export const TrackedPlayer: React.FC<{
       speakFixes={speakFixes}
       framed={framed}
       lockedSettings={isCheck ? session.lockedSettings : undefined}
+      studySettings={isCheck ? undefined : session.studySettings}
       check={
         isCheck && session.checkMode
           ? {
@@ -529,6 +530,9 @@ const UntrackedPlayer: React.FC<{
       testQuestionBar
       missedCards={session.missedCards === true}
       speak={session.kind === 'check' ? undefined : session.speak}
+      studySettings={
+        session.kind === 'check' ? undefined : session.studySettings
+      }
       speakFixes={speakFixes}
       framed={framed}
     />

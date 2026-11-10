@@ -251,6 +251,32 @@ describe('useFlashcardAssignments', () => {
     expect('plcId' in (batches[0][1].data as object)).toBe(false);
   });
 
+  it('stamps study settings on a study session only', async () => {
+    const { result } = renderHook(() => useFlashcardAssignments(TEACHER));
+    const studySettings = {
+      showFirst: 'definition' as const,
+      shuffle: true,
+      strict: true,
+      testTypes: ['fib' as const],
+      locked: true,
+    };
+    await act(async () => {
+      await result.current.createAssignment({
+        ...baseInput,
+        kind: 'study',
+        studySettings,
+      });
+      await result.current.createAssignment({
+        ...baseInput,
+        kind: 'check',
+        checkMode: 'write',
+        studySettings,
+      });
+    });
+    expect(batches[0][0].data).toMatchObject({ studySettings });
+    expect('studySettings' in (batches[1][0].data as object)).toBe(false);
+  });
+
   it('rejects without a user or with an empty set', async () => {
     const { result: noUser } = renderHook(() =>
       useFlashcardAssignments(undefined)

@@ -3496,7 +3496,8 @@
       "questions": "Fragen",
       "allCount": "Alle ({{count}})",
       "reset": "Fortschritt zurücksetzen",
-      "lockedNote": "Deine Lehrkraft hat diese Optionen für diese Überprüfung festgelegt."
+      "lockedNote": "Deine Lehrkraft hat diese Optionen für diese Überprüfung festgelegt.",
+      "studyLockedNote": "Deine Lehrkraft hat diese Optionen festgelegt."
     },
     "summary": {
       "complete": "Runde {{round}} abgeschlossen",

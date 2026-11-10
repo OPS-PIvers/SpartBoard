@@ -4609,6 +4609,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.study",
+    "label": "Study settings step header in the Flashcards Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sheets",
     "label": "Answer sheets step header in the Assign on paper dialog",
     "scope": "board",
@@ -5246,6 +5259,116 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-step.check"
         ],
         "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.show-first",
+    "label": "Show first switch in the Flashcards Assign dialog Study settings step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.shuffle",
+    "label": "Shuffle switch in the Flashcards Assign dialog Study settings step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.strict",
+    "label": "Strict mode switch in the Flashcards Assign dialog Study settings step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.test-type",
+    "label": "Test question type switch in the Flashcards Assign dialog Study settings step",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.lock",
+    "label": "Lock study settings switch in the Flashcards Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
         "needs": [
           "library-item",
           "class",

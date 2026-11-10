@@ -238,6 +238,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     video: () => ruleDefs.get('video') ?? null,
     check: () => null,
     speak: () => null,
+    study: () => null,
     sheets: () => null,
     written: () => null,
     cards: () => null,
