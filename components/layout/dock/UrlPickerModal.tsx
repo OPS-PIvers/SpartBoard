@@ -14,6 +14,7 @@ import {
   getUrlIcon,
 } from '@/components/widgets/UrlWidget/icons';
 import { LinkBackgroundInput } from '@/components/widgets/UrlWidget/LinkBackgroundInput';
+import { clipText } from '@/utils/clipText';
 import {
   LinkShapePicker,
   type LinkShape,
@@ -81,7 +82,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
 
   const preview =
     url.length > PREVIEW_MAX_LENGTH
-      ? url.slice(0, PREVIEW_MAX_LENGTH).trimEnd() + '…'
+      ? clipText(url, PREVIEW_MAX_LENGTH).trimEnd() + '…'
       : url;
 
   const handleConfirm = () => {
