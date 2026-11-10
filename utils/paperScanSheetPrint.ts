@@ -108,7 +108,7 @@ const MARK_GLYPH = {
   unclear: PAPER_STAMP_GLYPHS.question.d,
 } as const;
 
-/** Key ring ink: a printed blue that reads dark gray in black and white, unlike pencil. */
+/** Key ring ink: a bright printed blue, distinct from pencil. */
 const KEY_INK = '#0066ff';
 const KEY_STROKE_MM = 0.45;
 /** Clear of a filled bubble's pencil, and 1 mm short of the question number beside bubble A. */

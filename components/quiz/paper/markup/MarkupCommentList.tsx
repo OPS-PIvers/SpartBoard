@@ -1,8 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { numberMarkupComments } from '@/utils/paperMarkupRender';
+import { numberMarkupComments, onInk } from '@/utils/paperMarkupRender';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import { onInk } from '@/utils/paperMarkupRender';
 import { inkOf, markupColorOf } from './markupStyle';
 import type { PaperMarkupEditor } from './usePaperMarkupEditor';
 
