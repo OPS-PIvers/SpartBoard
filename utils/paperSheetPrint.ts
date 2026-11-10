@@ -538,12 +538,12 @@ function promptHeaderHtml(
 }
 
 /** Strip text size and line height, as `.wr-comment` sets them. */
-const STRIP_PT = 8.5;
-const STRIP_LINE_MM = 3.4;
+const STRIP_PT = 9.5;
+const STRIP_LINE_MM = 3.6;
 /** The strip's top border and padding, as `.wr-comment` sets them. */
 const STRIP_EDGE_MM = 0.8;
 /** Width a number chip takes in the strip, with its gap. */
-const STRIP_CHIP_MM = 5;
+const STRIP_CHIP_MM = 5.4;
 
 /** Most strip lines a box gives up to comments; the crop shrinks to fit the rest. */
 const stripMaxLines = (boxH: number): number =>
@@ -629,7 +629,7 @@ function markupStrip(
   const body = shown
     .map(
       (r) =>
-        `${markupNumberChipHtml(r.number, r.ink, 3.4, 7)}${escapeHtml(r.text)}`
+        `${markupNumberChipHtml(r.number, r.ink, 3.8, 8)}${escapeHtml(r.text)}`
     )
     .join(' <span style="display:inline-block;width:1mm"></span>');
   const more = hidden
@@ -1113,7 +1113,7 @@ export const SHEET_REPRINT_STYLES = `
   .wr-crop { object-fit: contain; object-position: left top; }
   .wr-missing { border: 0.3mm dashed #666; display: flex; align-items: center; justify-content: center; font-size: 10pt; font-style: italic; color: #333; }
   .wr-pts { font-size: 10pt; font-weight: 700; text-align: right; line-height: 3.6mm; }
-  .wr-comment { border-top: 0.3mm solid #000; font-size: 8.5pt; line-height: 3.4mm; padding-top: 0.4mm; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .wr-comment { border-top: 0.3mm solid #000; font-size: 9.5pt; line-height: 3.6mm; padding-top: 0.4mm; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 `;
 
 /** One graded sheet's pages, for a reprint. */

@@ -125,12 +125,12 @@ const FEEDBACK_BOTTOM_MM =
   REGISTRATION_MARK_SIZE_MM / 2 -
   PATCH_PAD_REG_MM -
   1.5;
-const POINTS_PT = 10;
-const POINTS_LINE_MM = 4.4;
-const NOTE_PT = 7.5;
-const NOTE_LINE_MM = 3.2;
+const POINTS_PT = 11;
+const POINTS_LINE_MM = 4.8;
+const NOTE_PT = 10;
+const NOTE_LINE_MM = 4.2;
 /** Width a number chip takes before its comment. */
-const CHIP_MM = 4.4;
+const CHIP_MM = 5.4;
 
 /** The score sits in the patched marker area, which is clear by construction. */
 const SCORE_PT = 10;
@@ -298,7 +298,7 @@ function feedbackColumnHtml(
     const lines = Math.min(room, wrapLines(text, width - CHIP_MM, NOTE_PT));
     if (lines > room) break;
     parts.push(
-      `<div style="display:flex;align-items:flex-start;margin-top:0.4mm;font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)}"><span style="flex:none;width:${mm(CHIP_MM)}">${markupNumberChipHtml(row.number, row.ink, 3.2, 6.5, false)}</span><span style="flex:1;min-width:0;max-height:${mm(lines * NOTE_LINE_MM)};overflow:hidden;overflow-wrap:anywhere">${escapeHtml(text)}</span></div>`
+      `<div style="display:flex;align-items:flex-start;margin-top:0.4mm;font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)}"><span style="flex:none;width:${mm(CHIP_MM)}">${markupNumberChipHtml(row.number, row.ink, 4, 8, false)}</span><span style="flex:1;min-width:0;max-height:${mm(lines * NOTE_LINE_MM)};overflow:hidden;overflow-wrap:anywhere">${escapeHtml(text)}</span></div>`
     );
     budget -= lines;
     shown += 1;
