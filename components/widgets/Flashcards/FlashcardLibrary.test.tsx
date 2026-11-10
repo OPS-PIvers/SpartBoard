@@ -269,7 +269,22 @@ describe('FlashcardLibrary PLC sharing', () => {
     const onShareWithPlc = vi.fn();
     renderLibrary({ tab: 'library', sets: [set], onShareWithPlc });
     fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Share' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Share with PLC' }));
     expect(onShareWithPlc).toHaveBeenCalledWith(set);
+  });
+
+  it('opens the share link from Get link under Share', () => {
+    const onShare = vi.fn();
+    renderLibrary({
+      tab: 'library',
+      sets: [set],
+      onShare,
+      onShareWithPlc: vi.fn(),
+    });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Share' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Get link' }));
+    expect(onShare).toHaveBeenCalledWith(set);
   });
 });

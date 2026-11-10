@@ -10,7 +10,10 @@ import {
   type WrittenAnswersValue,
 } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 
-const Harness: React.FC<{ staff?: boolean }> = ({ staff = false }) => {
+const Harness: React.FC<{ staff?: boolean; onAssignOnPaper?: () => void }> = ({
+  staff = false,
+  onAssignOnPaper,
+}) => {
   const [when, setWhen] = useState(() =>
     defaultWhenValue({
       activity: 'quiz',
@@ -36,11 +39,28 @@ const Harness: React.FC<{ staff?: boolean }> = ({ staff = false }) => {
       hasManualGrading={false}
       handRaiseMode="teacher-choice"
       submitLabel="Assign"
+      onAssignOnPaper={onAssignOnPaper}
       onClose={vi.fn()}
       onSubmit={vi.fn()}
     />
   );
 };
+
+describe('QuizAssignStepper Assign on paper', () => {
+  it('is left out unless offered', () => {
+    render(<Harness />);
+    expect(
+      screen.queryByRole('button', { name: 'Assign on paper' })
+    ).toBeNull();
+  });
+
+  it('leaves for the paper flow from beside Assign', () => {
+    const onAssignOnPaper = vi.fn();
+    render(<Harness onAssignOnPaper={onAssignOnPaper} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Assign on paper' }));
+    expect(onAssignOnPaper).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('QuizAssignStepper When step without bell periods', () => {
   it('offers a due date per class with one shared Opens', () => {

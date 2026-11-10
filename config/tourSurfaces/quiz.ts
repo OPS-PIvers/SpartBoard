@@ -19,7 +19,8 @@ export const SURFACES: TourSurfaceMap = {
         'library-shell.card-open:quiz#row-1',
       'library-shell.new-menu-item': 'library-shell.new:quiz',
       'library-shell.archive-primary-action': 'library-shell.tab:quiz#archive',
-      'quiz-library.assign-paper': 'library-shell.card-menu:quiz#row-1',
+      'quiz-library.assign-paper':
+        'library-shell.card-primary-action:quiz#row-1',
       'quiz-library.import-stack': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.import-responses': 'library-shell.tab:quiz#active',
       'quiz-library.reprint-sheets': 'library-shell.archive-menu:quiz#row-1',

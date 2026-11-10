@@ -102,16 +102,12 @@ describe('QuizManager — paper answer sheets', () => {
     expect(screen.queryByText('Import questions')).toBeNull();
   });
 
-  it('offers Assign on paper in the row menu when the feature is on', () => {
-    const onAssignOnPaper = vi.fn();
-    renderLibrary({ onAssignOnPaper });
+  it('keeps Assign on paper out of the row menu (it lives in the assign dialog)', () => {
+    renderLibrary({ onAssignOnPaper: vi.fn() });
     openRowMenu();
     expect(screen.queryByText('Print response sheets')).toBeNull();
     expect(screen.queryByText('Import responses')).toBeNull();
-    fireEvent.click(screen.getByText('Assign on paper'));
-    expect(onAssignOnPaper).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'quiz-1' })
-    );
+    expect(screen.queryByText('Assign on paper')).toBeNull();
   });
 
   it('offers Import responses on a quiz with a stack no Paper card owns', () => {
@@ -314,5 +310,66 @@ describe('QuizManager — written answers on paper card', () => {
     renderTab('active', HYBRID);
     openRowMenu();
     expect(screen.queryByText('Import written answers')).toBeNull();
+  });
+});
+
+describe('QuizManager — row menu', () => {
+  it('has no Stats row', () => {
+    renderLibrary();
+    openRowMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Stats' })).toBeNull();
+  });
+
+  it('keeps a plain Share row without PLC sharing', () => {
+    const onShare = vi.fn();
+    renderLibrary({ onShare });
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Share' }));
+    expect(onShare).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
+  it('groups Get link and Share with PLC under Share', () => {
+    const onShare = vi.fn();
+    const onShareWithPlc = vi.fn();
+    renderLibrary({ onShare, onShareWithPlc });
+    openRowMenu();
+    expect(
+      screen.queryByRole('menuitem', { name: 'Share with PLC' })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Share' }));
+    expect(onShare).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Share with PLC' }));
+    expect(onShareWithPlc).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Share' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Get link' }));
+    expect(onShare).toHaveBeenCalledTimes(1);
+  });
+
+  it('groups Check answers and Student view under Preview', () => {
+    const onPreview = vi.fn();
+    const onStudentView = vi.fn();
+    renderLibrary({ onPreview, onStudentView });
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Student view' }));
+    expect(onStudentView).toHaveBeenCalledTimes(1);
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Check answers' }));
+    expect(onPreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Check answers as its own row without Student view', () => {
+    const onPreview = vi.fn();
+    renderLibrary({ onPreview });
+    openRowMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Preview' })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Check answers' }));
+    expect(onPreview).toHaveBeenCalledTimes(1);
   });
 });

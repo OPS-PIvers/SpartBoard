@@ -33,6 +33,7 @@ import {
   Edit2,
   Trash2,
   BarChart3,
+  CheckCircle2,
   Eye,
   EyeOff,
   Link2,
@@ -1183,22 +1184,33 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const isStale =
       !!group && group.version > (quiz.sync?.lastSyncedVersion ?? 0);
     const actions: LibraryMenuAction[] = [
-      {
-        id: 'preview',
-        label: 'Check answers',
-        icon: Eye,
-        onClick: () => onPreview(quiz),
-      },
-      ...(onStudentView
-        ? [
-            {
-              id: 'student-view',
-              label: 'Student view',
-              icon: Eye,
-              onClick: () => onStudentView(quiz),
-            },
-          ]
-        : []),
+      onStudentView
+        ? {
+            id: 'preview',
+            label: 'Preview',
+            icon: Eye,
+            onClick: () => onPreview(quiz),
+            submenu: [
+              {
+                id: 'check-answers',
+                label: 'Check answers',
+                icon: CheckCircle2,
+                onClick: () => onPreview(quiz),
+              },
+              {
+                id: 'student-view',
+                label: 'Student view',
+                icon: Eye,
+                onClick: () => onStudentView(quiz),
+              },
+            ],
+          }
+        : {
+            id: 'preview',
+            label: 'Check answers',
+            icon: Eye,
+            onClick: () => onPreview(quiz),
+          },
       {
         id: 'edit',
         label: 'Edit',
@@ -1227,23 +1239,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             }),
           ]
         : []),
-      {
-        id: 'stats',
-        label: 'Stats',
-        icon: BarChart3,
-        onClick: () => onResults(quiz),
-      },
-      ...(onAssignOnPaper
-        ? [
-            {
-              id: 'assign-paper',
-              label: 'Assign on paper',
-              icon: Printer,
-              onClick: () => onAssignOnPaper(quiz),
-              anchor: tourTypeAttr('quiz-library.assign-paper', 'quiz'),
-            },
-          ]
-        : []),
       ...(onImportLooseStack && hasLooseStack?.(quiz.id)
         ? [
             {
@@ -1266,12 +1261,33 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             },
           ]
         : []),
-      {
-        id: 'share',
-        label: 'Share',
-        icon: Link2,
-        onClick: () => onShare(quiz),
-      },
+      onShareWithPlc
+        ? {
+            id: 'share',
+            label: 'Share',
+            icon: Share2,
+            onClick: () => onShare(quiz),
+            submenu: [
+              {
+                id: 'get-link',
+                label: 'Get link',
+                icon: Link2,
+                onClick: () => onShare(quiz),
+              },
+              {
+                id: 'share-with-plc',
+                label: 'Share with PLC',
+                icon: Users2,
+                onClick: () => onShareWithPlc(quiz),
+              },
+            ],
+          }
+        : {
+            id: 'share',
+            label: 'Share',
+            icon: Link2,
+            onClick: () => onShare(quiz),
+          },
     ];
     if (isStale && onPullSyncedQuiz) {
       const isSyncing = syncingQuizIds.has(quiz.id);
@@ -1307,14 +1323,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         disabled: !userId,
       })
     );
-    if (onShareWithPlc) {
-      actions.push({
-        id: 'share-with-plc',
-        label: 'Share with PLC',
-        icon: Users2,
-        onClick: () => onShareWithPlc(quiz),
-      });
-    }
     actions.push({
       id: 'delete',
       label: 'Delete',
@@ -2768,6 +2776,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   value: assignWritten,
                   onChange: setAssignWritten,
                   count: writtenStepCount,
+                },
+              }
+            : {})}
+          {...(onAssignOnPaper
+            ? {
+                onAssignOnPaper: () => {
+                  const quiz = assignTarget;
+                  resetAssign();
+                  onAssignOnPaper(quiz);
                 },
               }
             : {})}

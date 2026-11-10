@@ -295,6 +295,11 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       onImport={noop}
       onEdit={noop}
       onPreview={noop}
+      onStudentView={noop}
+      onDuplicate={noop}
+      onAssignOnPaper={noop}
+      onReadPaperQuestions={noop}
+      onShareWithPlc={noop}
       onAssign={noop}
       onResults={noop}
       onDelete={noop}
@@ -358,6 +363,8 @@ const VideoActivityManagerView: React.FC<{
     onNew={noop}
     onImport={noop}
     onEdit={noop}
+    onDuplicate={noop}
+    onShareWithPlc={noop}
     onDelete={noop}
     onAssign={() => Promise.resolve('')}
     rosters={ROSTERS}
