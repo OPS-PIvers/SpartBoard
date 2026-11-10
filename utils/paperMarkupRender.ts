@@ -471,7 +471,7 @@ export function markupCommentListHtml(
     .filter((item) => commentOf(item))
     .map(
       (item, i) =>
-        `<li style="display:flex;align-items:flex-start;margin:0 0 1mm;break-inside:avoid"><span style="flex:none;width:6mm;height:4.4mm;display:flex;align-items:center">${markupNumberChipHtml(i + 1, inkOf(item), 4.2, 8, false)}</span><span style="flex:1;min-width:0;line-height:4.4mm;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(commentOf(item))}</span></li>`
+        `<li style="display:flex;align-items:flex-start;margin:0 0 2mm;break-inside:avoid"><span style="flex:none;width:6mm;height:4.4mm;display:flex;align-items:center">${markupNumberChipHtml(i + 1, inkOf(item), 4.2, 8, false)}</span><span style="flex:1;min-width:0;line-height:4.4mm;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(commentOf(item))}</span></li>`
     );
   if (rows.length === 0) return '';
   return `<ol class="notes" style="list-style:none;padding-left:0;margin:1mm 0 1.5mm;${PRINT_EXACT}">${rows.join('')}</ol>`;

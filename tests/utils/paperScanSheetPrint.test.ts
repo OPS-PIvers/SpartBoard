@@ -305,7 +305,47 @@ describe('buildScanSheetPageHtml', () => {
     const used = [...(col?.[2] ?? '').matchAll(/max-height:([\d.]+)mm/g)]
       .map((m) => Number(m[1]))
       .reduce((a, v) => a + v, 0);
-    expect(used + 4.8 + 2 * 4.2).toBeLessThanOrEqual(cap);
+    const gaps = [...(col?.[2] ?? '').matchAll(/margin-top:([\d.]+)mm/g)]
+      .map((m) => Number(m[1]))
+      .reduce((a, v) => a + v, 0);
+    expect(gaps).toBeGreaterThan(0);
+    expect(used + gaps + 4.8 + 2 * 4.2).toBeLessThanOrEqual(cap);
+  });
+
+  it('still prints a numbered comment beside a short box with an overall comment', () => {
+    const base = scanPageMaps()[0];
+    const w1 = base.items.find((i) => i.questionId === 'w1');
+    if (!w1 || w1.kind !== 'written') throw new Error('fixture');
+    // A second written box 28 mm below leaves the column about five lines.
+    const next = {
+      ...w1,
+      questionId: 'w-next',
+      label: '8',
+      headerMm: { ...w1.headerMm, y: w1.headerMm.y + 28 },
+      boxMm: { ...w1.boxMm, y: w1.boxMm.y + 28 },
+    };
+    const items = [
+      'Intro sentence.',
+      'Cut off for writing outside the box.',
+    ].map((comment, i) => ({
+      id: `p${i}`,
+      kind: 'pin' as const,
+      atMm: { x: 60 + i * 20, y: 110 },
+      comment,
+    }));
+    const long = Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ');
+    const html =
+      buildScanSheetPageHtml(
+        input({
+          geometry: {
+            ...input().geometry,
+            pageMap: { ...base, items: [...base.items, next] },
+          },
+          fill: fillOf({ written: { w1: { points: '3/4', comment: long } } }),
+          markup: { w1: { scanId: 'scan-A', page: 1, items } },
+        })
+      ) ?? '';
+    expect(html).toMatch(/Intro/);
   });
 
   it('keeps everything it draws inside the strip any printer can reach', () => {

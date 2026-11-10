@@ -543,7 +543,7 @@ const STRIP_LINE_MM = 3.6;
 /** The strip's top border and padding, as `.wr-comment` sets them. */
 const STRIP_EDGE_MM = 0.8;
 /** Width a number chip takes in the strip, with its gap. */
-const STRIP_CHIP_MM = 5.4;
+const STRIP_CHIP_MM = 7.4;
 
 /** Most strip lines a box gives up to comments; the crop shrinks to fit the rest. */
 const stripMaxLines = (boxH: number): number =>
@@ -631,7 +631,7 @@ function markupStrip(
       (r) =>
         `${markupNumberChipHtml(r.number, r.ink, 3.6, 8)}${escapeHtml(r.text)}`
     )
-    .join(' <span style="display:inline-block;width:1mm"></span>');
+    .join(' <span style="display:inline-block;width:3mm"></span>');
   const more = hidden
     ? ` <em>+${hidden} more${fill.markupInReport ? ', see the report' : ''}</em>`
     : '';
