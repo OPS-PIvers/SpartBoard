@@ -402,6 +402,7 @@ const SessionView: React.FC<{
           onBack={() => undefined}
           onSubmitStudent={noop}
           studentResultsActions={HARNESS_RESULTS_ACTIONS}
+          onPublishScores={() => undefined}
         />
       </QuizAttemptSourceContext.Provider>
     );
