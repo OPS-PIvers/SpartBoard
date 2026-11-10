@@ -4283,6 +4283,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   /** Per share, a count of snapshots received, so a finished write never replaces a newer base. */
   const sharedSnapshotGenRef = useRef<Map<string, number>>(new Map());
 
+  /** Shares the server refused a write to this session; retrying them on every board change only spams failed writes. */
+  const refusedSharesRef = useRef<Set<string>>(new Set());
+
   /** Pending debounced mirror timers per shareId. */
   const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map()
@@ -4309,6 +4312,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const shareId = d.linkedShareId;
+      if (refusedSharesRef.current.has(shareId)) return;
       liveShareIds.add(shareId);
       // A board in a shared collection mirrors only while open and after its share has been read (D3).
       if (
@@ -4357,6 +4361,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           })
           .catch((err) => {
             console.warn('Mirror to shared board failed:', err);
+            if ((err as { code?: string }).code === 'permission-denied') {
+              refusedSharesRef.current.add(shareId);
+              return;
+            }
             // Drop the cached payload so we retry on the next change.
             lastMirroredRef.current.delete(shareId);
           });
@@ -4653,6 +4661,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           shareId,
           (sharedSnapshotGenRef.current.get(shareId) ?? 0) + 1
         );
+        // A fresh copy may mean our access changed, so a refused share gets one more go.
+        refusedSharesRef.current.delete(shareId);
         const remoteWith = remote as Dashboard & {
           updatedBy?: string;
         };

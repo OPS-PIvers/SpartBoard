@@ -349,4 +349,52 @@ describe('Synced board concurrent edits', () => {
       { timeout: 2000 }
     );
   });
+
+  it('stops writing to a share the server refused until a fresh copy arrives', async () => {
+    mockMirrorSharedBoard.mockRejectedValue(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    const linked = linkedBoard([widget('w1')]);
+    await mount(linked);
+    act(() => {
+      emit?.({ ...linked, updatedBy: 'other-user' } as unknown as Dashboard);
+    });
+    act(() => {
+      ctx?.updateWidget('w1', { z: 2 });
+    });
+    await waitFor(
+      () => expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(1),
+      {
+        timeout: 2000,
+      }
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => {
+      ctx?.updateWidget('w1', { z: 3 });
+    });
+    await new Promise((r) => setTimeout(r, 800));
+    expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(1);
+
+    mockMirrorSharedBoard.mockImplementation((_id: string, d: Dashboard) =>
+      Promise.resolve(d)
+    );
+    act(() => {
+      emit?.({
+        ...linked,
+        widgets: [widget('w1', { z: 3, xProp: 0.4 })],
+        updatedBy: 'other-user',
+      } as unknown as Dashboard);
+    });
+    act(() => {
+      ctx?.updateWidget('w1', { z: 4 });
+    });
+    await waitFor(
+      () => expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(2),
+      {
+        timeout: 2000,
+      }
+    );
+  });
 });
