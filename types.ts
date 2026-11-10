@@ -9852,6 +9852,8 @@ export interface FlashcardSession
   speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
+  /** Study: students can study just the cards they missed (flag `flashcards-missed-cards`). */
+  missedCards?: true;
   /** Speak rules picked when assigning; a set save re-stamps with these instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
@@ -11145,6 +11147,8 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
+  /** Flashcards study: students study just the cards they missed, in every mode. */
+  | 'flashcards-missed-cards'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */

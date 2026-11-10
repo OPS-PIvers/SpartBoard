@@ -7,10 +7,16 @@ import {
   type FlashcardMatch,
 } from '@/utils/flashcardMatch';
 import { getFlashcardAnswerCharacters } from '@/config/flashcardCharBars';
-import { CharacterBar, RoundSummary } from './PlayerPrimitives';
+import {
+  CharacterBar,
+  RoundSummary,
+  type RoundSummaryMissed,
+} from './PlayerPrimitives';
 import { cx, getFlashcardSides } from './playerUtils';
 
 interface WriteModeProps {
+  /** Missed-card pile for the round summary; absent hides it. */
+  missed?: RoundSummaryMissed;
   cards: FlashcardCard[];
   round: number;
   showFirst: FlashcardSide;
@@ -53,6 +59,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
   onStar,
   onNextRound,
   onRestart,
+  missed,
   check,
 }) => {
   const { t } = useTranslation();
@@ -161,6 +168,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
         dark={dark}
         onNextRound={onNextRound}
         onRestart={onRestart}
+        missed={missed}
       />
     );
   }

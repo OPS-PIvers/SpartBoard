@@ -3506,6 +3506,12 @@
       "next": "Nächste Runde",
       "restart": "Alles neu starten"
     },
+    "missed": {
+      "button": "Falsch: {{count}}",
+      "study_one": "{{count}} falsche Karte üben",
+      "study_other": "{{count}} falsche Karten üben",
+      "studyAll": "Alle Karten üben"
+    },
     "cards": {
       "term": "Begriff",
       "definition": "Definition",

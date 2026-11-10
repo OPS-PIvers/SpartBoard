@@ -3506,6 +3506,12 @@
       "next": "Série suivante",
       "restart": "Tout recommencer"
     },
+    "missed": {
+      "button": "Ratées : {{count}}",
+      "study_one": "Réviser {{count}} carte ratée",
+      "study_other": "Réviser {{count}} cartes ratées",
+      "studyAll": "Réviser toutes les cartes"
+    },
     "cards": {
       "term": "Terme",
       "definition": "Définition",

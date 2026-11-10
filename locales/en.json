@@ -4814,6 +4814,12 @@
       "next": "Next round",
       "restart": "Restart all"
     },
+    "missed": {
+      "button": "Missed: {{count}}",
+      "study_one": "Study {{count}} missed card",
+      "study_other": "Study {{count}} missed cards",
+      "studyAll": "Study all cards"
+    },
     "cards": {
       "term": "Term",
       "definition": "Definition",

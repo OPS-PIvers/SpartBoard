@@ -1307,6 +1307,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
+  // Stamped on study assignments at assign time; students can't read flags.
+  'flashcards-missed-cards': {
+    label: 'Flashcards: study missed cards',
+    icon: Layers,
+    description:
+      'Students in a study assignment can study just the cards they missed, in every mode.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',
