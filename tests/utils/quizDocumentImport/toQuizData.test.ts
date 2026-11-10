@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractedToQuizData,
   reviewExtrasFor,
-  rowWarnings,
+  readerNotes,
 } from '@/utils/quizDocumentImport/toQuizData';
 import { FIB_BLANK_SEP } from '@/utils/quizFibBlanks';
 import type {
@@ -164,25 +164,15 @@ describe('extractedToQuizData — fill-in-the-blank alternates', () => {
   });
 });
 
-describe('rowWarnings', () => {
-  it('numbers each note so it lines up with its review row', () => {
+describe('readerNotes', () => {
+  it('gives a question its own notes', () => {
     expect(
-      rowWarnings(
-        quiz({
-          questions: [
-            question({ number: 4, warnings: ['couldn’t read this type'] }),
-            question({ number: 7, warnings: ['two answers were marked'] }),
-          ],
-        })
-      )
-    ).toEqual([
-      'Question 4: couldn’t read this type',
-      'Question 7: two answers were marked',
-    ]);
+      readerNotes(question({ warnings: ['two answers were marked'] }))
+    ).toEqual(['two answers were marked']);
   });
 
   it('is empty when nothing needs saying', () => {
-    expect(rowWarnings(quiz())).toEqual([]);
+    expect(readerNotes(question())).toEqual([]);
   });
 });
 
@@ -237,7 +227,9 @@ describe('extractedToQuizData — reliability fields (R9, R23, R25)', () => {
     expect(data.questions[0].text).toBe(
       'Put them in order. A. second / B. first'
     );
-    expect(rowWarnings(extracted).join(' ')).toMatch(/ordering question/i);
+    expect(readerNotes(extracted.questions[0]).join(' ')).toMatch(
+      /ordering question/i
+    );
   });
 
   it('turns shared text into one passage both questions point at', () => {
@@ -316,5 +308,29 @@ describe('extractedToQuizData — standards in the stem', () => {
   it('touches nothing without the catalog', () => {
     const data = extractedToQuizData(stems);
     expect(data.questions[0].text).toContain('(MN 7.4.1.1)');
+  });
+});
+
+describe('what the review rows are given', () => {
+  it('keeps the printed choice order for the editor when the answer is not first', () => {
+    const data = extractedToQuizData(
+      quiz({ questions: [question({ correctAnswer: 'Green' })] })
+    );
+    expect(data.questions[0].correctAnswer).toBe('Green');
+    expect(data.questions[0].optionOrder).toEqual([1, 0]);
+  });
+
+  it('keeps each question’s reader notes by its id', () => {
+    const data = extractedToQuizData(
+      quiz({
+        questions: [
+          question({ warnings: ['Check the picture.'] }),
+          question({ number: 2 }),
+        ],
+      })
+    );
+    const notes = reviewExtrasFor(data)?.notes;
+    expect(notes?.get(data.questions[0].id)).toEqual(['Check the picture.']);
+    expect(notes?.has(data.questions[1].id)).toBe(false);
   });
 });

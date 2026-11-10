@@ -307,18 +307,19 @@ describe('key forms', () => {
       ),
       'file'
     );
+    // Items after a split or a combined set keep their printed numbers.
     expect(keyed.questions.map((q) => q.sourceLabel ?? q.ref?.item)).toEqual([
       1,
       2,
       3,
       '4A',
       '4B',
-      5,
-      6,
+      '5',
+      '6',
       '7–9',
-      10,
-      11,
-      12,
+      '10',
+      '11',
+      '12',
     ]);
   });
 

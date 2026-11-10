@@ -228,8 +228,29 @@ Created with a test generator`)
       pdfLine(1, 566, ['b. no', 90]),
     ]);
     expect(first.options[1].text).toBe('hydrogenated');
-    expect(first.text).toBe('What kind is it? (Figure 2) Topic 2: Enzymes');
+    expect(first.text).toBe('What kind is it?');
     expect(second.text).toBe('Next?');
+    expect(second.ref?.sectionName).toBe('Topic 2: Enzymes');
+  });
+
+  it('gives a paragraph under the choices to the question after it', () => {
+    const [first, second, third] = parseQuestionLines([
+      pdfLine(1, 700, ['1. Why?', 72]),
+      pdfLine(1, 680, ['a. liver', 90]),
+      pdfLine(1, 666, ['b. enzyme used up', 90]),
+      pdfLine(1, 650, ['______________________________', 36]),
+      pdfLine(1, 620, ['Figure 3 shows the pH each enzyme prefers.', 36]),
+      pdfLine(1, 600, ['2. Using the figure, which is acidic?', 72]),
+      pdfLine(1, 580, ['a. yes', 90]),
+      pdfLine(1, 566, ['b. no', 90]),
+      pdfLine(1, 540, ['3. Next?', 72]),
+    ]);
+    expect(first.text).toBe('Why?');
+    expect(first.options[1].text).toBe('enzyme used up');
+    expect(second.text).toBe(
+      'Figure 3 shows the pH each enzyme prefers. Using the figure, which is acidic?'
+    );
+    expect(third.text).toBe('Next?');
   });
 
   it('keeps a paragraph at the left margin out of the choice above it', () => {

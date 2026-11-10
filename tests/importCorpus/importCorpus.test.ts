@@ -70,9 +70,23 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
   }
   const quiz = await readQuizDocument(file, {
     fileName: name,
+    // The wizard reads with passages on, so the corpus does too.
+    passages: true,
+    pdfMarks: true,
     ...(pdf ? { pdf } : {}),
     // Node has no canvas; the BMP stands in for the PNG the browser would make.
     bmpToPng: (bmp) => Promise.resolve(bmp),
+    // Likewise each crop is an empty file, which is enough to count where pictures land.
+    ...(pdf
+      ? {
+          pdfCropper: () =>
+            Promise.resolve({
+              pageCount: Number.MAX_SAFE_INTEGER,
+              pageSize: () => Promise.resolve({ width: 1000, height: 1294 }),
+              crop: () => Promise.resolve(new Blob([], { type: 'image/png' })),
+            }),
+        }
+      : {}),
   });
   const picturesOn = quiz.questions
     .filter((q) => q.imageIds.length > 0)

@@ -9,7 +9,11 @@
  * can't carry, each becomes a row note or a quiz note.
  */
 
-import { applyKeyAnswer, type KeySource } from './answerKey';
+import {
+  applyKeyAnswer,
+  settleLetterChoices,
+  type KeySource,
+} from './answerKey';
 import { applyExamViewAfterKey, objectiveTarget } from './examView';
 import type {
   ExtractedQuestion,
@@ -21,6 +25,12 @@ import type {
 const RUBRIC_NOTE =
   'The key has a scoring rubric for this item — add it in the editor.';
 const NOT_SCORED_NOTE = 'The answer key says this item isn’t scored.';
+
+/** A prompt a student answers in sentences, so a short key under it is a placeholder or a sample. */
+const asksForWriting = (stem: string): boolean =>
+  /\b(?:explain|compare|contrast|describe|discuss|justify|predict|evidence|why)\b/i.test(
+    stem
+  ) || stem.split(/\s+/).length > 30;
 
 const note = (q: ExtractedQuestion, text: string): ExtractedQuestion => ({
   ...q,
@@ -250,6 +260,16 @@ export function mergeAnswerKey(
       let q = questions[t];
       if (targets.length === 1 && item.ordering?.length) {
         q = applyOrdering(q, item.ordering);
+      } else if (
+        targets.length === 1 &&
+        item.answer &&
+        item.written &&
+        q.type === 'free-response' &&
+        q.examView !== 'written' &&
+        asksForWriting(q.text)
+      ) {
+        // A model answer for a written question is not a key to mark against.
+        q = note(q, `Key’s sample answer: ${item.answer}`);
       } else if (targets.length === 1 && item.answer) {
         const before = q.correctAnswer.trim();
         q = applyKeyAnswer(q, item.answer, source, multi);
@@ -289,7 +309,7 @@ export function mergeAnswerKey(
   }
   return {
     ...quiz,
-    questions: applyExamViewAfterKey(questions),
+    questions: applyExamViewAfterKey(settleLetterChoices(questions)),
     warnings,
     keySummary: {
       source,

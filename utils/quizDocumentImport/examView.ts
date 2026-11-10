@@ -364,10 +364,17 @@ export function applyExamViewAfterKey(
     combined.push(...combineMatching(split.slice(i, end)));
     i = end;
   }
-  return (examView ? applyHeadingPoints(combined) : combined).map((q, n) => ({
-    ...q,
-    number: n + 1,
-  }));
+  return (examView ? applyHeadingPoints(combined) : combined).map((q, n) => {
+    const printed = labelOf(q);
+    return {
+      ...q,
+      number: n + 1,
+      // A question that moved up keeps the number the test printed.
+      ...(q.sourceLabel || printed === String(n + 1)
+        ? {}
+        : { sourceLabel: printed }),
+    };
+  });
 }
 
 /** `OBJ: 1.2 Describe the cycling of…` as a suggested target (E10). */
