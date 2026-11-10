@@ -6,6 +6,24 @@ import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { defaultWhenValue, type AssignWhenValue } from './assignWhenValue';
 import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
 import type { WrittenAnswersValue } from './WrittenAnswersStep.format';
+import type { PaperWrittenBoxRow } from '@/utils/paperWrittenHybrid';
+
+const SAMPLE_WRITTEN: PaperWrittenBoxRow[] = [
+  {
+    questionId: 'w1',
+    label: '3',
+    text: 'Explain why the Moon stays in orbit around the Earth.',
+    size: 'M',
+    style: 'lines',
+  },
+  {
+    questionId: 'w2',
+    label: '5',
+    text: 'Use the provided resources and write an argumentative essay clearly arguing one side. Use details from the sources to support your argument.',
+    size: 'full',
+    style: 'lines',
+  },
+];
 
 const Preview: React.FC = () => {
   const paper = new URLSearchParams(window.location.search).get('where');
@@ -24,6 +42,8 @@ const Preview: React.FC = () => {
   const [written, setWritten] = useState<WrittenAnswersValue>({
     where: paper === 'device' ? 'device' : 'paper',
     spares: 2,
+    boxSizes: {},
+    boxStyles: {},
   });
 
   return (
@@ -39,7 +59,16 @@ const Preview: React.FC = () => {
       hasManualGrading
       handRaiseMode="teacher-choice"
       submitLabel="Assign"
-      written={{ value: written, onChange: setWritten, count: 3 }}
+      written={{
+        value: written,
+        onChange: setWritten,
+        count: 2,
+        rows: SAMPLE_WRITTEN.map((row) => ({
+          ...row,
+          size: written.boxSizes[row.questionId] ?? row.size,
+          style: written.boxStyles[row.questionId]?.style ?? row.style,
+        })),
+      }}
       onClose={() => undefined}
       onSubmit={() => undefined}
     />
