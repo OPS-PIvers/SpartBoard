@@ -335,7 +335,7 @@ export {
   webTourRunV1,
 } from './webTourExtension';
 
-// Public tour links: the Steps view for anyone with the link, and auto-off on a picture change (docs/plans/TOURS_10X.md S6).
+// Public tour links: the Steps view for anyone with the link, and auto-off on a picture change (docs/plans/shipped/TOURS_10X.md S6).
 export { tourPublicStepsV1, tourPublicLinkGuard } from './tourPublicLink';
 
 // Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).

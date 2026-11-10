@@ -11031,9 +11031,9 @@ export type GlobalFeature =
   | 'quiz-import-pdf-answer-marks'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
-  /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/TOURS_10X.md F1). */
+  /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/shipped/TOURS_10X.md F1). */
   | 'tour-pacing'
-  /** Steps view for Live tours, and Live tours opening it in the Help Center (docs/plans/TOURS_10X.md F3). */
+  /** Steps view for Live tours, and Live tours opening it in the Help Center (docs/plans/shipped/TOURS_10X.md F3). */
   | 'tour-steps-view'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'

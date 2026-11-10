@@ -2,7 +2,7 @@
 
 Goal: a tour keeps pace with the person taking it and never looks broken when they get ahead; Live tours and web tours are edited in one tool whose header shows one thing to do next; and every tour can be read without running it.
 
-Settled in a design interview with Paul on 2026-11-09. It covers **Live tours and web tours together**. It builds on [LIVE_TOURS_V3.md](shipped/LIVE_TOURS_V3.md), [LIVE_TOUR_EDITOR.md](shipped/LIVE_TOUR_EDITOR.md), [WEB_TOURS_UX.md](shipped/WEB_TOURS_UX.md), [WEB_TOURS_CLAUDE.md](shipped/WEB_TOURS_CLAUDE.md) and [WEB_TOURS_HELP_PANEL.md](shipped/WEB_TOURS_HELP_PANEL.md), and revises parts of them (see "What this overrides"). Terms are in [GLOSSARY.md](../../GLOSSARY.md): Web tour, Target, Steps view.
+Settled in a design interview with Paul on 2026-11-09. It covers **Live tours and web tours together**. It builds on [LIVE_TOURS_V3.md](LIVE_TOURS_V3.md), [LIVE_TOUR_EDITOR.md](LIVE_TOUR_EDITOR.md), [WEB_TOURS_UX.md](WEB_TOURS_UX.md), [WEB_TOURS_CLAUDE.md](WEB_TOURS_CLAUDE.md) and [WEB_TOURS_HELP_PANEL.md](WEB_TOURS_HELP_PANEL.md), and revises parts of them (see "What this overrides"). Terms are in [GLOSSARY.md](../../../GLOSSARY.md): Web tour, Target, Steps view.
 
 **Code references** were taken at `dev-paul` `94d037a2b`. Symbol names are authoritative; line numbers are hints.
 
@@ -50,7 +50,7 @@ Settled in a design interview with Paul on 2026-11-09. It covers **Live tours an
 - **S3. Web tours leave the Help Center.** Web tours are no longer linkable from Help items; "Move to Help Center" is removed from web tour cards, and existing Help items that link a web tour are unlinked in the same PR. Web tours are reached from the extension side panel and from shared links only.
 - **S4. Web tours in the side panel.** Each tour in the extension's Tours tab has **Start** and **View steps**. View steps shows the article inside the panel, beside the website, so a teacher can follow by hand. The panel stays on the article while the teacher uses the page.
 - **S5. The link without the extension.** `/tour/{setId}` without the extension shows the Steps view (article and Walk through) in place of today's plain list, with "Get the extension" above it.
-- **S6. Anyone with the link, per tour.** An admin can switch a published tour to "Anyone with the link" (see [ADR 0003](../adr/0003-tour-steps-view-can-be-public-per-tour.md)).
+- **S6. Anyone with the link, per tour.** An admin can switch a published tour to "Anyone with the link" (see [ADR 0003](../../adr/0003-tour-steps-view-can-be-public-per-tour.md)).
   - Only admins can switch it on, also after teachers can author.
   - Switching it on shows every picture and all text again for a second confirm.
   - Any later picture change, including markup, crop and retake, turns the public link off until it is confirmed again. Text edits pass through the existing student-data scan and don't turn it off.

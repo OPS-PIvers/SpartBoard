@@ -1,4 +1,4 @@
-// A published web tour read as steps for the side panel (docs/plans/TOURS_10X.md S4).
+// A published web tour read as steps for the side panel (docs/plans/shipped/TOURS_10X.md S4).
 import type { TourMarkupShape, WebTourLocator } from '@/types';
 import { stagePlacement } from '@/components/tours/web/pictureTarget';
 import {
