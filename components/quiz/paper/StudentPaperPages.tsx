@@ -23,7 +23,7 @@ type PageState =
   | { kind: 'ready'; url: string }
   | { kind: 'error'; permanent: boolean };
 
-/** A refusal means the teacher has not turned this on, so the whole section stays hidden. */
+/** A refusal means the teacher has not turned this on, so the section never shows. */
 function isRefusal(err: unknown): boolean {
   const code = (err as { code?: unknown } | null)?.code;
   return code === 'functions/permission-denied' || code === 'permission-denied';
@@ -51,59 +51,65 @@ export const StudentPaperPages: React.FC<StudentPaperPagesProps> = ({
     t(`quizMediaResponse.paperReview.${key}`, params);
   const [reloadNonce, setReloadNonce] = useState(0);
   const pageKey = pages.map((p) => `${p.page}:${p.artifactId}`).join(',');
-  const reqKey = [sessionId, responseKey, pageKey, reloadNonce].join('|');
+  const baseKey = [sessionId, responseKey, pageKey].join('|');
+  const reqKey = `${baseKey}|${reloadNonce}`;
   const [result, setResult] = useState<{
     key: string;
-    refused: boolean;
     byPage: Record<number, PageState>;
   }>();
+  // Set once the server answers without refusing; until then nothing shows, so a refusal never flashes.
+  const [shownFor, setShownFor] = useState<string>();
   const current = result?.key === reqKey ? result : undefined;
-  const refused = current?.refused ?? false;
 
   useEffect(() => {
     let cancelled = false;
     const pageNumbers = pageKey
       ? pageKey.split(',').map((entry) => Number(entry.split(':')[0]))
       : [];
-    const set = (page: number, next: PageState, refusal = false) => {
+    const set = (page: number, next: PageState) => {
       if (cancelled) return;
-      setResult((prev) => {
-        const base =
-          prev?.key === reqKey
-            ? prev
-            : { key: reqKey, refused: false, byPage: {} };
-        return {
-          key: reqKey,
-          refused: base.refused || refusal,
-          byPage: { ...base.byPage, [page]: next },
-        };
-      });
+      setShownFor(baseKey);
+      setResult((prev) => ({
+        key: reqKey,
+        byPage: { ...(prev?.key === reqKey ? prev.byPage : {}), [page]: next },
+      }));
     };
-    for (const page of pageNumbers) {
+    const load = (page: number): Promise<boolean> =>
       loadPage({ sessionId, responseKey, page })
         .then((res) => {
-          if (res.status === 'ready') {
-            set(page, {
-              kind: 'ready',
-              url: `data:${res.mimeType};base64,${res.data}`,
-            });
-          } else {
-            set(page, {
-              kind: 'error',
-              permanent: res.reason === 'deleted' || res.reason === 'no-page',
-            });
-          }
+          set(
+            page,
+            res.status === 'ready'
+              ? {
+                  kind: 'ready',
+                  url: `data:${res.mimeType};base64,${res.data}`,
+                }
+              : {
+                  kind: 'error',
+                  permanent:
+                    res.reason === 'deleted' || res.reason === 'no-page',
+                }
+          );
+          return true;
         })
-        .catch((err: unknown) =>
-          set(page, { kind: 'error', permanent: true }, isRefusal(err))
-        );
+        .catch((err: unknown) => {
+          if (isRefusal(err)) return false;
+          set(page, { kind: 'error', permanent: false });
+          return true;
+        });
+    // One page first, so a teacher without the preview costs one refused call.
+    const [first, ...rest] = pageNumbers;
+    if (first !== undefined) {
+      void load(first).then((ok) => {
+        if (ok && !cancelled) for (const page of rest) void load(page);
+      });
     }
     return () => {
       cancelled = true;
     };
-  }, [loadPage, reqKey, pageKey, sessionId, responseKey]);
+  }, [loadPage, reqKey, baseKey, pageKey, sessionId, responseKey]);
 
-  if (pages.length === 0 || refused) return null;
+  if (pages.length === 0 || shownFor !== baseKey) return null;
 
   const frame = light
     ? 'border-slate-200 bg-white'

@@ -309,6 +309,17 @@ async function storedImage(
 
 const MAX_PAGE_NUMBER = 63;
 
+/** Mirrors the client's `keptPageRefs`: the page's scan must be the one scan the answers came from. */
+function isGradedScanPage(response: Rec, artifactId: string): boolean {
+  const scans = new Set<string>();
+  for (const a of Array.isArray(response.answers) ? response.answers : []) {
+    if (isRec(a) && typeof a.paperScanId === 'string') scans.add(a.paperScanId);
+  }
+  if (scans.size === 0) return true;
+  const scan = parsePaperPageArtifactId(artifactId)?.scanId;
+  return scans.size === 1 && !!scan && scans.has(scan);
+}
+
 /** K1, K19: the session's own teacher reads a kept page; the student it belongs to may too once handwriting is returned and the teacher has `paper-pages-student-view`. */
 export async function handleGetPaperPage(
   deps: PaperWrittenDeps,
@@ -391,6 +402,10 @@ export async function handleGetPaperPage(
       storagePath,
     }))
   ) {
+    return { status: 'not-available', reason: 'no-page' };
+  }
+  // A student sees only the scan their graded answers came from, never a rescan held for review.
+  if (!isTeacher && !isGradedScanPage(response, artifact.id)) {
     return { status: 'not-available', reason: 'no-page' };
   }
   return storedImage(deps, teacherUid, response, artifact, storagePath);
@@ -1043,7 +1058,13 @@ export function buildDefaultPaperWrittenDeps(): PaperWrittenDeps {
         caller.uid
       ),
     isStudentPagesGranted: async (teacherUid) => {
-      const email = (await admin.auth().getUser(teacherUid)).email ?? null;
+      // A deleted teacher account fails closed, so students get a refusal rather than an error.
+      const email = await admin
+        .auth()
+        .getUser(teacherUid)
+        .then((u) => u.email ?? null)
+        .catch(() => undefined);
+      if (email === undefined) return false;
       const [kept, student] = await Promise.all([
         isGlobalFeatureGranted(
           admin.firestore(),

@@ -193,6 +193,23 @@ describe('getPaperPageV1', () => {
     expect(deps.isKeptPagesGranted).not.toHaveBeenCalled();
   });
 
+  it('does not serve the student a rescan held for review', async () => {
+    const store = published();
+    store[RESPONSE] = {
+      ...store[RESPONSE],
+      answers: [{ questionId: 'q1', paperScanId: 'scan-1' }],
+    };
+    const deps = makeDeps(store, { objects: { [PATH]: 'page' } });
+    await expect(handleGetPaperPage(deps, STUDENT, request)).resolves.toEqual({
+      status: 'not-available',
+      reason: 'no-page',
+    });
+    expect(deps.readObject).not.toHaveBeenCalled();
+    await expect(handleGetPaperPage(deps, TEACHER, request)).resolves.toEqual(
+      expect.objectContaining({ status: 'ready' })
+    );
+  });
+
   it.each([
     ['another student', { ...STUDENT, uid: 'p2' }, {}, {}],
     ['an anonymous caller', ANONYMOUS, {}, {}],

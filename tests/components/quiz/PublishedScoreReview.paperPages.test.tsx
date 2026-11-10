@@ -164,12 +164,29 @@ describe('PublishedScoreReview scanned answer sheet', () => {
       )
     );
     renderReview({ loadPaperPage });
-    await waitFor(() => expect(loadPaperPage).toHaveBeenCalledTimes(2));
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('heading', { name: 'Your answer sheet' })
-      ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Your answer sheet' })
+    ).not.toBeInTheDocument();
+    await waitFor(() => expect(loadPaperPage).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(loadPaperPage).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole('heading', { name: 'Your answer sheet' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers Try again after a network failure', async () => {
+    let fail = true;
+    const loadPaperPage = vi.fn((req: Parameters<GetPaperPageCall>[0]) =>
+      fail ? Promise.reject(new Error('offline')) : pageReady(req)
     );
+    renderReview({ loadPaperPage });
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    fail = false;
+    retry.click();
+    expect(
+      await screen.findByRole('img', { name: 'Page 2 of your answer sheet' })
+    ).toBeInTheDocument();
   });
 
   it.each([
