@@ -161,7 +161,7 @@ export const useFlashcardEditorState = (
     );
   };
 
-  /** Flips every card's term and definition and the two languages; a second click undoes it. */
+  /** Flips terms, definitions and languages; a second click flips back, but pronunciation data is reset. */
   const swapSides = (): void => {
     setCards((current) =>
       current.map(({ speak: _speak, ...card }) => ({
