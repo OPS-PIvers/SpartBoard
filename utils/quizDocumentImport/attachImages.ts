@@ -42,7 +42,6 @@ function choiceImageIds(quiz: QuizData): Set<string> {
   return ids;
 }
 
-/** Points picture choices at their uploads; one with no upload loses its picture. */
 /** A picture-only choice whose picture was lost goes back to its printed letter. */
 function lettered(q: QuizQuestion, lost: ReadonlySet<string>): QuizQuestion {
   if (lost.size === 0 || (q.type !== 'MC' && q.type !== 'MA')) return q;
@@ -69,6 +68,7 @@ function lettered(q: QuizQuestion, lost: ReadonlySet<string>): QuizQuestion {
   };
 }
 
+/** Points picture choices at their uploads; one with no upload loses its picture. */
 function withChoiceUrls(
   quiz: QuizData,
   urlByImageId: ReadonlyMap<string, string>
