@@ -25,6 +25,7 @@ import { importSections } from './importSections';
 import { mathMarker } from './mathMarkup';
 import {
   multiAnswerPart,
+  type ExtractedOption,
   type ExtractedQuestion,
   type ExtractedQuiz,
   type SuggestedTarget,
@@ -118,10 +119,26 @@ export function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
       ? { matchingDistractors: [...q.matchingDistractors] }
       : {}),
     ...(q.allowPartialCredit ? { allowPartialCredit: true } : {}),
+    ...(isWritten ? {} : choicePictures(q.options, optionTexts)),
     ...fibAlternates(q),
     // The reader's own image ids. `attachDocumentImages` swaps them for real
     // stimulus ids at save; nothing persists a quiz before that runs.
     ...(q.imageIds.length > 0 ? { stimulusIds: [...q.imageIds] } : {}),
+  };
+}
+
+/** Choices printed only as pictures; each `url` holds the reader's image id until `attachDocumentImages` uploads it. */
+function choicePictures(
+  options: readonly ExtractedOption[],
+  texts: readonly string[]
+): Pick<QuizQuestion, 'answerImages' | 'imageOnlyAnswers'> {
+  const pictured = options.flatMap((o, i) =>
+    o.imageId ? [{ text: texts[i], url: o.imageId }] : []
+  );
+  if (pictured.length === 0) return {};
+  return {
+    answerImages: pictured,
+    imageOnlyAnswers: pictured.map(({ text }) => ({ text })),
   };
 }
 

@@ -143,6 +143,8 @@ export interface QuizImportAdapterDeps {
   plainVersions?: boolean;
   /** `quiz-import-pdf-answer-marks` is on, so a PDF's bold, underlined or highlighted choice is its answer. */
   pdfMarks?: boolean;
+  /** `quiz-ordering-images` is on, so a PDF choice printed only as a picture comes in as that picture. */
+  answerPictures?: boolean;
   /** `quiz-import-equations` is on, so math in a question's text comes in as drawn equations. */
   equations?: boolean;
   /** The versioned AI call; given only with `importVersions` and AI access. */
@@ -466,6 +468,7 @@ export function createQuizImportAdapter(
             multiAnswer: true,
             passages: true,
             ...(deps.pdfMarks ? { pdfMarks: true } : {}),
+            ...(deps.answerPictures ? { answerPictures: true } : {}),
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }
               : {}),

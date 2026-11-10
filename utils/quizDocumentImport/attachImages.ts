@@ -9,6 +9,7 @@
  */
 
 import type { QuizData, QuizQuestion, QuizStimulus } from '@/types';
+import { driveImageUrl } from '@/utils/quizStimuli';
 import type { ExtractedImage } from './types';
 
 /** Puts one picture somewhere students can open it, and takes it back. */
@@ -28,6 +29,44 @@ function referencedImageIds(quiz: QuizData): Set<string> {
     for (const id of q.stimulusIds ?? []) ids.add(id);
   }
   return ids;
+}
+
+/** The reader's image ids that picture choices still point at. */
+function choiceImageIds(quiz: QuizData): Set<string> {
+  const ids = new Set<string>();
+  for (const q of quiz.questions) {
+    for (const image of q.answerImages ?? []) {
+      if (!image.url.startsWith('https://')) ids.add(image.url);
+    }
+  }
+  return ids;
+}
+
+/** Points picture choices at their uploads; one with no upload loses its picture. */
+function withChoiceUrls(
+  quiz: QuizData,
+  urlByImageId: ReadonlyMap<string, string>
+): QuizData {
+  return {
+    ...quiz,
+    questions: quiz.questions.map((q): QuizQuestion => {
+      if (!q.answerImages?.length) return q;
+      const images = q.answerImages.flatMap((image) => {
+        const url = image.url.startsWith('https://')
+          ? image.url
+          : urlByImageId.get(image.url);
+        return url ? [{ ...image, url }] : [];
+      });
+      const kept = new Set(images.map((image) => image.text));
+      const only = (q.imageOnlyAnswers ?? []).filter((e) => kept.has(e.text));
+      const { answerImages: _images, imageOnlyAnswers: _only, ...rest } = q;
+      return {
+        ...rest,
+        ...(images.length > 0 ? { answerImages: images } : {}),
+        ...(only.length > 0 ? { imageOnlyAnswers: only } : {}),
+      };
+    }),
+  };
 }
 
 /** Stimuli already on the quiz (a shared passage), which no upload replaces. */
@@ -76,10 +115,16 @@ export async function attachDocumentImages(
   uploader: StimulusUploader
 ): Promise<QuizData> {
   const wanted = referencedImageIds(quiz);
-  const toUpload = images.filter((img) => wanted.has(img.id));
-  if (toUpload.length === 0) return withoutStimulusIds(quiz);
+  const forChoices = choiceImageIds(quiz);
+  const toUpload = images.filter(
+    (img) => wanted.has(img.id) || forChoices.has(img.id)
+  );
+  if (toUpload.length === 0) {
+    return withoutStimulusIds(withChoiceUrls(quiz, new Map()));
+  }
 
   const stimulusIdByImageId = new Map<string, string>();
+  const urlByImageId = new Map<string, string>();
   const stimuli: QuizStimulus[] = [];
   const uploaded: string[] = [];
 
@@ -87,6 +132,8 @@ export async function attachDocumentImages(
     for (const image of toUpload) {
       const { driveFileId, url } = await uploader.upload(image);
       uploaded.push(driveFileId);
+      urlByImageId.set(image.id, driveImageUrl(driveFileId));
+      if (!wanted.has(image.id)) continue;
       const stimulus: QuizStimulus = {
         id: crypto.randomUUID(),
         type: 'image',
@@ -105,10 +152,11 @@ export async function attachDocumentImages(
   }
 
   const keep = existingIds(quiz);
+  const withChoices = withChoiceUrls(quiz, urlByImageId);
   const withUploads: QuizData = {
-    ...quiz,
+    ...withChoices,
     stimuli: [...(quiz.stimuli ?? []), ...stimuli],
-    questions: quiz.questions.map((q) => ({
+    questions: withChoices.questions.map((q) => ({
       ...q,
       stimulusIds: (q.stimulusIds ?? []).map(
         (id) => stimulusIdByImageId.get(id) ?? id
