@@ -550,7 +550,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
       const loaded = await callSpartBoard(
         api,
         'webTourLoadV1',
-        { setId: msg.setId },
+        { setId: msg.setId, link: true },
         true
       );
       if (!loaded.ok) return loaded;

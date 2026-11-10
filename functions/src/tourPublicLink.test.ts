@@ -121,6 +121,7 @@ import {
   guardPublicLink,
   handlePublicRequest,
   startSetIdFor,
+  workingLinkTokenFor,
   rateLimited,
   tourPublicLinkGuard,
   tourPublicStepsV1,
@@ -425,6 +426,79 @@ describe('startSetIdFor', () => {
         staff,
         deps(live, record(live, { kind: 'live' }))
       )
+    ).toBeNull();
+  });
+});
+
+describe('workingLinkTokenFor', () => {
+  const set = webSet();
+  const withLink = (rec: PublicLinkRecord | null, over = {}) => ({
+    ...deps(set, rec, over),
+    getLink: async (id: string) => (id === SET ? rec : null),
+  });
+
+  it('gives the token of a link that is served now', async () => {
+    expect(
+      await workingLinkTokenFor(SET, 'teacher@x.org', withLink(record(set)))
+    ).toBe(TOKEN);
+  });
+
+  it('gives nothing for a tour with no link or another tour', async () => {
+    expect(
+      await workingLinkTokenFor(SET, 'teacher@x.org', withLink(null))
+    ).toBeNull();
+    expect(
+      await workingLinkTokenFor('other', 'teacher@x.org', withLink(record(set)))
+    ).toBeNull();
+  });
+
+  it('gives nothing for a link that is off or would be refused', async () => {
+    const off = { ...record(set), off: { reason: 'pictures' as const, at: 2 } };
+    expect(
+      await workingLinkTokenFor(SET, 'teacher@x.org', withLink(off))
+    ).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        'teacher@x.org',
+        withLink(record(set), { flagOn: async () => false })
+      )
+    ).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        'teacher@x.org',
+        withLink(record(set), { pictureGeneration: async () => '2' })
+      )
+    ).toBeNull();
+  });
+
+  it('gives nothing to a caller without the preview', async () => {
+    const flagOn = vi.fn(async (email: string) => email !== 'teacher@x.org');
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        'teacher@x.org',
+        withLink(record(set), { flagOn })
+      )
+    ).toBeNull();
+    expect(
+      await workingLinkTokenFor(
+        SET,
+        'admin@x.org',
+        withLink(record(set), { flagOn })
+      )
+    ).toBe(TOKEN);
+  });
+
+  it('gives nothing for a live tour', async () => {
+    const live = liveSet();
+    const rec = record(live, { kind: 'live' });
+    expect(
+      await workingLinkTokenFor(SET, 'teacher@x.org', {
+        ...deps(live, rec),
+        getLink: async () => rec,
+      })
     ).toBeNull();
   });
 });
