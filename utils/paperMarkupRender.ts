@@ -273,14 +273,15 @@ export function placeDisc(
   return at(0);
 }
 
-/** Number colour on an ink fill: whichever of white or near-black has the higher WCAG contrast. */
+/** Number colour on an ink fill: white when it reads (WCAG 3.9+ for a bold chip), else near-black. */
 export const onInk = (ink: string): string => {
   const lin = (i: number): number => {
     const c = parseInt(ink.slice(i, i + 2), 16) / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   };
   const l = 0.2126 * lin(1) + 0.7152 * lin(3) + 0.0722 * lin(5);
-  return 1.05 / (l + 0.05) > (l + 0.05) / 0.0556 ? '#fff' : '#111';
+  const white = 1.05 / (l + 0.05);
+  return white >= 3.9 || white > (l + 0.05) / 0.0556 ? '#fff' : '#111';
 };
 
 const FONT = 'font-family="Arial,Helvetica,sans-serif" font-weight="700"';
