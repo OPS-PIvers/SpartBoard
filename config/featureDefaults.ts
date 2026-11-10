@@ -1623,6 +1623,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'flashcards-check-sync': {
+    label: 'Flashcards: set fixes reach Checks',
+    icon: Layers,
+    description:
+      'Saving a set updates the cards in its open Checks. Cards added or deleted stay as assigned.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

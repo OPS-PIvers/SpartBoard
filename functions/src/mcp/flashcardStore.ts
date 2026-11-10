@@ -284,3 +284,72 @@ export async function rewriteOpenStudySessions(
   await batch.commit();
   return snapshot.size;
 }
+
+/** Mirrors fixedCheckCards in components/widgets/Flashcards/utils/flashcardCheckSync.ts. */
+export function fixedCheckCards(
+  checkCards: FlashcardCard[],
+  setCards: FlashcardCard[],
+  speakStamped: boolean
+): FlashcardCard[] | null {
+  const byId = new Map(setCards.map((card) => [card.id, card]));
+  let changed = false;
+  const next = checkCards.map((old) => {
+    const fixed = byId.get(old.id);
+    if (!fixed) return old;
+    const { speak, ...text } = fixed;
+    let card: FlashcardCard = speakStamped && speak ? { ...text, speak } : text;
+    if (speakStamped && old.speak && !speak) {
+      if (fixed.term !== old.term) return old;
+      card = { ...text, speak: old.speak };
+    }
+    if (JSON.stringify(card) === JSON.stringify(old)) return old;
+    changed = true;
+    return card;
+  });
+  return changed ? next : null;
+}
+
+/** Mirrors rewriteOpenCheckSessions in hooks/useFlashcardSets.ts: fixes only, the card list stays as assigned. */
+export async function rewriteOpenCheckSessions(
+  db: Firestore,
+  uid: string,
+  set: FlashcardSet
+): Promise<{ updated: number; cardsChanged: string[] }> {
+  const snapshot = await db
+    .collection('flashcard_sessions')
+    .where('teacherUid', '==', uid)
+    .where('setId', '==', set.id)
+    .where('kind', '==', 'check')
+    .where('status', '==', 'active')
+    .get();
+  if (snapshot.empty) return { updated: 0, cardsChanged: [] };
+  const batch = db.batch();
+  let updated = 0;
+  const cardsChanged: string[] = [];
+  for (const sessionDoc of snapshot.docs) {
+    const inContent = sessionDoc.get('cardsInContent') === true;
+    const contentRef = db.doc(
+      `flashcard_sessions/${sessionDoc.id}/content/cards`
+    );
+    const raw: unknown = inContent
+      ? (await contentRef.get()).get('cards')
+      : sessionDoc.get('cards');
+    if (!Array.isArray(raw)) continue;
+    const cards = fixedCheckCards(
+      raw as FlashcardCard[],
+      set.cards,
+      sessionDoc.get('speak') !== undefined
+    );
+    const retitled = sessionDoc.get('title') !== set.title;
+    if (!cards && !retitled) continue;
+    updated += 1;
+    if (cards) cardsChanged.push(sessionDoc.id);
+    batch.update(sessionDoc.ref, {
+      ...(retitled ? { title: set.title } : {}),
+      ...(cards && !inContent ? { cards } : {}),
+    });
+    if (cards && inContent) batch.set(contentRef, { cards }, { merge: true });
+  }
+  if (updated > 0) await batch.commit();
+  return { updated, cardsChanged };
+}

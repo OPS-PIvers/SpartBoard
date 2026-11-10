@@ -13,7 +13,8 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, functions } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
 import type {
   FlashcardSpeakStudentSettings,
   FlashcardsSpeakAdminConfig,
@@ -45,6 +46,7 @@ import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
 } from '@/utils/flashcardSessionContent';
+import { fixedCheckCards } from '@/components/widgets/Flashcards/utils/flashcardCheckSync';
 
 /** Thrown when the set saved but its open Study assignments could not be rewritten. */
 export class FlashcardStudySyncError extends Error {
@@ -58,7 +60,7 @@ interface UseFlashcardSetsResult {
   sets: FlashcardSet[];
   loading: boolean;
   error: string | null;
-  /** Resolves with the number of open Study assignments rewritten with the new cards. */
+  /** Resolves with the number of open assignments rewritten with the new cards. */
   /** `syncStudy: false` skips refreshing open Study assignments and the share link (editor autosave). */
   saveSet: (
     set: FlashcardSet,
@@ -184,6 +186,73 @@ const rewriteOpenStudySessions = async (
   return snapshot.size;
 };
 
+// Open Checks take fixes to the cards they already have; their card list stays as assigned.
+const rewriteOpenCheckSessions = async (
+  userId: string,
+  set: FlashcardSet
+): Promise<number> => {
+  const openChecks = query(
+    collection(db, 'flashcard_sessions'),
+    where('teacherUid', '==', userId),
+    where('setId', '==', set.id),
+    where('kind', '==', 'check'),
+    where('status', '==', 'active')
+  );
+  const snapshot = await getDocs(openChecks);
+  if (snapshot.empty) return 0;
+  const batch = writeBatch(db);
+  let updated = 0;
+  const rescore: string[] = [];
+  for (const sessionDoc of snapshot.docs) {
+    const inContent = sessionDoc.get('cardsInContent') === true;
+    const contentRef = doc(
+      db,
+      'flashcard_sessions',
+      sessionDoc.id,
+      FC_CONTENT_COLLECTION,
+      FC_CONTENT_DOC
+    );
+    const raw: unknown = inContent
+      ? (await getDoc(contentRef)).get('cards')
+      : sessionDoc.get('cards');
+    if (!Array.isArray(raw)) continue;
+    const cards = fixedCheckCards(
+      raw as FlashcardSet['cards'],
+      set.cards,
+      sessionDoc.get('speak') !== undefined
+    );
+    const retitled = sessionDoc.get('title') !== set.title;
+    if (!cards && !retitled) continue;
+    updated += 1;
+    if (cards) rescore.push(sessionDoc.id);
+    batch.update(sessionDoc.ref, {
+      ...(retitled ? { title: set.title } : {}),
+      ...(cards && !inContent ? { cards } : {}),
+    });
+    if (cards && inContent) batch.set(contentRef, { cards }, { merge: true });
+  }
+  if (updated > 0) await batch.commit();
+  // Submitted Write and Test answers are re-graded on the server against the fixed cards.
+  const rescoreCheck = httpsCallable(functions, 'rescoreFlashcardCheckV1');
+  await Promise.all(
+    rescore.map((assignmentId) =>
+      rescoreCheck({ assignmentId }).catch((err: unknown) =>
+        logError('useFlashcardSets.rescoreCheck', err, { assignmentId })
+      )
+    )
+  );
+  return updated;
+};
+
+const rewriteOpenSessions = async (
+  userId: string,
+  set: FlashcardSet,
+  adminConfig: FlashcardsSpeakAdminConfig | null,
+  syncChecks: boolean
+): Promise<number> =>
+  (await rewriteOpenStudySessions(userId, set, adminConfig)) +
+  (syncChecks ? await rewriteOpenCheckSessions(userId, set) : 0);
+
 /** References are per language; a changed term language drops the old ones (they hold another language's dialects). */
 const speakFitsLanguage = (
   speak: NonNullable<FlashcardSet['cards'][number]['speak']>,
@@ -237,8 +306,9 @@ export function useFlashcardSets(
   const [sets, setSets] = useState<FlashcardSet[]>([]);
   const [loading, setLoading] = useState(Boolean(userId));
   const [error, setError] = useState<string | null>(null);
-  const canSpeak =
-    useContext(AuthContext)?.canAccessFeature('flashcards-speak') ?? false;
+  const auth = useContext(AuthContext);
+  const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
+  const syncChecks = auth?.canAccessFeature('flashcards-check-sync') ?? false;
 
   const [previousUserId, setPreviousUserId] = useState(userId);
   if (previousUserId !== userId) {
@@ -305,10 +375,11 @@ export function useFlashcardSets(
       try {
         return {
           saved: normalized,
-          rewritten: await rewriteOpenStudySessions(
+          rewritten: await rewriteOpenSessions(
             userId,
             normalized,
-            adminConfig
+            adminConfig,
+            syncChecks
           ),
         };
       } catch (syncError) {
@@ -319,7 +390,7 @@ export function useFlashcardSets(
         throw new FlashcardStudySyncError();
       }
     },
-    [canSpeak, userId]
+    [canSpeak, syncChecks, userId]
   );
 
   const patchVoices = useCallback(
@@ -352,16 +423,17 @@ export function useFlashcardSets(
           // Open Study assignments get the readings once, at the end.
           if (!patched || !final) return;
           try {
-            await rewriteOpenStudySessions(
+            await rewriteOpenSessions(
               userId,
               patched,
-              await speakAdminConfigFor(patched, canSpeak)
+              await speakAdminConfigFor(patched, canSpeak),
+              syncChecks
             );
           } catch (err) {
             logError('useFlashcardSets.patchVoices', err, { userId, setId });
           }
         }),
-    [canSpeak, userId]
+    [canSpeak, syncChecks, userId]
   );
 
   const saveSet = useCallback(

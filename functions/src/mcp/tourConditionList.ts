@@ -51,6 +51,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'embed-mini-app',
   'embed-reload',
   'flashcards-ai',
+  'flashcards-check-sync',
   'flashcards-missed-cards',
   'flashcards-speak',
   'flashcards-study-settings',

@@ -6,6 +6,7 @@ import {
   mergeCards,
   guardPublicShare,
   normalizeSet,
+  rewriteOpenCheckSessions,
   rewriteOpenStudySessions,
   stageSetWrite,
   type ShareGuard,
@@ -331,5 +332,77 @@ describe('Speak carry-through', () => {
     expect(
       (byId['s-off'].cards as FlashcardSet['cards'])[0]
     ).not.toHaveProperty('speak');
+  });
+});
+
+describe('rewriteOpenCheckSessions', () => {
+  const card = (id: string, term: string, definition: string) => ({
+    id,
+    term,
+    definition,
+  });
+
+  it('fixes cards an open Check has, keeps its card list and skips current ones', async () => {
+    const updates: Array<[string, Record<string, unknown>]> = [];
+    const sets: Array<[string, Record<string, unknown>]> = [];
+    const sessions: Array<Record<string, unknown>> = [
+      {
+        id: 'stale',
+        title: 'Animales',
+        cards: [card('a', 'gato', 'dog'), card('b', 'perro', 'dog')],
+      },
+      { id: 'current', title: 'Animales', cards: [card('a', 'gato', 'cat')] },
+      { id: 'period', title: 'Old', cardsInContent: true, cards: [] },
+    ];
+    const query = {
+      where: () => query,
+      get: () =>
+        Promise.resolve({
+          empty: false,
+          size: sessions.length,
+          docs: sessions.map((data) => ({
+            id: data.id,
+            ref: data.id,
+            get: (key: string) => data[key],
+          })),
+        }),
+    };
+    const db = {
+      collection: () => query,
+      doc: (path: string) => ({
+        path,
+        get: () => Promise.resolve({ get: () => [card('a', 'gato', 'dog')] }),
+      }),
+      batch: () => ({
+        update: (ref: string, data: Record<string, unknown>) =>
+          updates.push([ref, data]),
+        set: (ref: { path: string }, data: Record<string, unknown>) =>
+          sets.push([ref.path, data]),
+        commit: () => Promise.resolve(),
+      }),
+    } as unknown as Parameters<typeof rewriteOpenCheckSessions>[0];
+    const { updated, cardsChanged } = await rewriteOpenCheckSessions(
+      db,
+      'uid',
+      {
+        ...base,
+        title: 'Animales',
+        cards: [card('a', 'gato', 'cat'), card('c', 'pez', 'fish')],
+      }
+    );
+    expect(updated).toBe(2);
+    expect(cardsChanged).toEqual(['stale', 'period']);
+    const byId = Object.fromEntries(updates);
+    expect(byId.stale).toEqual({
+      cards: [card('a', 'gato', 'cat'), card('b', 'perro', 'dog')],
+    });
+    expect(byId).not.toHaveProperty('current');
+    expect(byId.period).toEqual({ title: 'Animales' });
+    expect(sets).toEqual([
+      [
+        'flashcard_sessions/period/content/cards',
+        { cards: [card('a', 'gato', 'cat')] },
+      ],
+    ]);
   });
 });
