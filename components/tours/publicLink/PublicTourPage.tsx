@@ -26,7 +26,7 @@ const NotFound: React.FC = () => {
   return (
     <main
       data-testid="public-tour-missing"
-      className="h-screen h-dvh overflow-y-auto bg-white px-4 py-16 pb-16"
+      className="h-screen h-dvh overflow-y-auto bg-slate-100 print:bg-white px-4 py-16 pb-16"
     >
       <div className="mx-auto max-w-xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -90,7 +90,7 @@ export const PublicTourPage: React.FC = () => {
   if (load.kind === 'missing') return <NotFound />;
   if (!tour)
     return (
-      <div className="flex h-screen h-dvh w-full items-center justify-center bg-white">
+      <div className="flex h-screen h-dvh w-full items-center justify-center bg-slate-100 print:bg-white">
         <Loader2
           role="status"
           aria-label={labels.loading}
@@ -103,7 +103,7 @@ export const PublicTourPage: React.FC = () => {
   return (
     <main
       data-testid="public-tour"
-      className="h-screen h-dvh overflow-y-auto bg-white px-4 py-10 pb-16"
+      className="h-screen h-dvh overflow-y-auto bg-slate-100 print:bg-white px-4 py-10 pb-16"
     >
       <div className="mx-auto max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">

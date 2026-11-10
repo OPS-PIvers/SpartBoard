@@ -123,7 +123,7 @@ export const StepsView: React.FC<{
             <div
               role="group"
               aria-label={labels.viewLabel}
-              className="inline-flex rounded-lg bg-slate-100 p-1"
+              className="inline-flex rounded-lg bg-slate-900/5 p-1"
             >
               <button
                 type="button"
