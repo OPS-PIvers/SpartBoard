@@ -110,10 +110,13 @@ export function publicImageOnlyAnswers(
       )
     )
   );
+  // Sorted by label so the list never gives away the key order.
   return out.length > 0
-    ? out.map((e) =>
-        e.alt?.trim() ? { text: e.text, alt: e.alt.trim() } : { text: e.text }
-      )
+    ? [...out]
+        .sort((a, b) => (a.text < b.text ? -1 : a.text > b.text ? 1 : 0))
+        .map((e) =>
+          e.alt?.trim() ? { text: e.text, alt: e.alt.trim() } : { text: e.text }
+        )
     : undefined;
 }
 

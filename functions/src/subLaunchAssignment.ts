@@ -398,6 +398,8 @@ function publicImageOnlyAnswers(
         : { text: entry.text }
     );
   }
+  // Sorted by label so the list never gives away the key order.
+  out.sort((a, b) => (a.text < b.text ? -1 : a.text > b.text ? 1 : 0));
   return out.length > 0 ? out : undefined;
 }
 

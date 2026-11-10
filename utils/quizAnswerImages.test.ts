@@ -218,6 +218,26 @@ describe('picture-only answers', () => {
     expect(noPictures.imageOnlyAnswers).toBeUndefined();
   });
 
+  it('lists the labels by name, not in the order of the key', () => {
+    const pub = toPublicQuestion({
+      ...base,
+      type: 'Ordering',
+      correctAnswer: 'Picture XYZ|Picture CDE|Picture MNP',
+      incorrectAnswers: [],
+      orderingImages: [url('x'), url('c'), url('m')],
+      imageOnlyAnswers: [
+        { text: 'Picture XYZ' },
+        { text: 'Picture CDE' },
+        { text: 'Picture MNP' },
+      ],
+    });
+    expect(pub.imageOnlyAnswers?.map((e) => e.text)).toEqual([
+      'Picture CDE',
+      'Picture MNP',
+      'Picture XYZ',
+    ]);
+  });
+
   it('maps labels to pictures for teacher views, Ordering by position', () => {
     expect([...imageOnlyPictures(pictureMc).keys()]).toEqual([
       'Picture ACD',
