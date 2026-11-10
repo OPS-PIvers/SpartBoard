@@ -73,6 +73,8 @@ export const useFlashcardEditorState = (
 ) => {
   const canSpeak =
     useContext(AuthContext)?.canAccessFeature('flashcards-speak') ?? false;
+  const canSwap =
+    useContext(AuthContext)?.canAccessFeature('flashcards-swap-sides') ?? false;
   const [title, setTitle] = useState(initialSet.title);
   const [description, setDescription] = useState(initialSet.description ?? '');
   const [targets, setTargets] = useState(initialSet.targets);
@@ -161,16 +163,15 @@ export const useFlashcardEditorState = (
     );
   };
 
-  /** Flips terms, definitions and languages; a second click flips back, but pronunciation data is reset. */
+  /** Flips terms, definitions and languages; a second click flips back. */
   const swapSides = (): void => {
     setCards((current) =>
-      current.map(({ speak: _speak, ...card }) => ({
+      current.map((card) => ({
         ...card,
         term: card.definition,
         definition: card.term,
       }))
     );
-    setIpaDrafts({});
     setTermLanguage(definitionLanguage);
     setDefinitionLanguage(termLanguage);
   };
@@ -277,6 +278,7 @@ export const useFlashcardEditorState = (
 
   return {
     canSpeak,
+    canSwap,
     title,
     setTitle,
     description,

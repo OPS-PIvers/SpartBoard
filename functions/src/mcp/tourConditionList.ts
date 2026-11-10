@@ -52,6 +52,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'embed-reload',
   'flashcards-ai',
   'flashcards-speak',
+  'flashcards-swap-sides',
   'focus-sessions',
   'gemini-functions',
   'getting-started',

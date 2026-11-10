@@ -106,6 +106,7 @@ export const FlashcardSetEditorModal: React.FC<
     updateCard,
     insertCardAfter,
     removeCard,
+    canSwap,
     swapSides,
     appendCards,
     lookupReferences,
@@ -492,20 +493,22 @@ export const FlashcardSetEditorModal: React.FC<
               }}
               tourField="term"
             />
-            <button
-              type="button"
-              onClick={() => {
-                swapSides();
-                setSwapCount((n) => n + 1);
-              }}
-              aria-label="Swap terms and definitions"
-              title="Swap terms and definitions"
-              {...tourTypeAttr('flashcards.swap-sides', 'flashcards')}
-              className="touch-target-expand shrink-0 rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-rose-500/30 outline-hidden"
-              style={{ padding: 'min(4px, 1cqmin)' }}
-            >
-              <ArrowLeftRight style={COLUMN_ICON} />
-            </button>
+            {canSwap && (
+              <button
+                type="button"
+                onClick={() => {
+                  swapSides();
+                  setSwapCount((n) => n + 1);
+                }}
+                aria-label="Swap terms and definitions"
+                title="Swap terms and definitions"
+                {...tourTypeAttr('flashcards.swap-sides', 'flashcards')}
+                className="touch-target-expand shrink-0 rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-rose-500/30 outline-hidden"
+                style={{ padding: 'min(4px, 1cqmin)' }}
+              >
+                <ArrowLeftRight style={COLUMN_ICON} />
+              </button>
+            )}
           </div>
           <FlashcardLanguageField
             key={`definition-${swapCount}`}

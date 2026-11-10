@@ -11036,6 +11036,7 @@ export type GlobalFeature =
   | 'quiz-import-versions'
   /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
   | 'quiz-import-versions-plain'
+  | 'flashcards-swap-sides'
   /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
   | 'quiz-import-google-doc-pdf'
   /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
