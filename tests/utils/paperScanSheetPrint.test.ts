@@ -305,7 +305,11 @@ describe('buildScanSheetPageHtml', () => {
     const used = [...(col?.[2] ?? '').matchAll(/max-height:([\d.]+)mm/g)]
       .map((m) => Number(m[1]))
       .reduce((a, v) => a + v, 0);
-    expect(used + 4.8 + 2 * 4.2).toBeLessThanOrEqual(cap);
+    const gaps = [...(col?.[2] ?? '').matchAll(/margin-top:([\d.]+)mm/g)]
+      .map((m) => Number(m[1]))
+      .reduce((a, v) => a + v, 0);
+    expect(gaps).toBeGreaterThan(0);
+    expect(used + gaps + 4.8 + 2 * 4.2).toBeLessThanOrEqual(cap);
   });
 
   it('keeps everything it draws inside the strip any printer can reach', () => {
