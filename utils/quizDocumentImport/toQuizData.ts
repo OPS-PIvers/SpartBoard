@@ -237,10 +237,10 @@ export function extractedToQuizData(
   const standardCodes = new Map<string, readonly string[]>();
   const markMath = options.equations
     ? mathMarker(
-        extracted.questions.flatMap((q) => [
-          q.text,
-          ...q.options.map((o) => o.text),
-        ])
+        // One text per question, so one question's date choices can't make a math test.
+        extracted.questions.map((q) =>
+          [q.text, ...q.options.map((o) => o.text)].join('\n')
+        )
       )
     : null;
   const allQuestions = extracted.questions.map((read, index) => {

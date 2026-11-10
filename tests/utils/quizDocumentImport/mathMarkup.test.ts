@@ -21,7 +21,9 @@ describe('math in a line of text', () => {
   });
 
   it('brackets a fraction’s parts the way the equation box reads them', () => {
-    expect(markMath('Simplify (x + 1)/2x .')).toBe('Simplify ⟦(x + 1)/(2x)⟧ .');
+    expect(markMath('Simplify (x + 1)/(2x) .')).toBe(
+      'Simplify ⟦(x + 1)/(2x)⟧ .'
+    );
     expect(markMath('What is 3x/4 = 6?')).toBe('What is ⟦(3x)/4 = 6⟧?');
     expect(markMath('Evaluate x²/3 when x = 3.')).toBe(
       'Evaluate ⟦(x^2)/3⟧ when x = 3.'
@@ -76,6 +78,24 @@ describe('math in a line of text', () => {
     }
   });
 
+  it('leaves a fraction alone when its bottom could be read two ways', () => {
+    for (const text of [
+      'Solve 1/2x = 8.',
+      'Graph y − 3 = 3/4(x + 1).',
+      'Simplify (x + 1)/2x .',
+      'Graph y = 2/3x² + 1.',
+    ]) {
+      expect(all(text)).toBe(text);
+    }
+  });
+
+  it('never carries an equation over a line break', () => {
+    expect(all('Solve the system.\nx/2 + y = 4\n−x + 3y = 9')).toBe(
+      'Solve the system.\n⟦(x)/2 + y = 4⟧\n−x + 3y = 9'
+    );
+    expect(all('Find 3/4\n(of the total)')).toBe('Find ⟦3/4⟧\n(of the total)');
+  });
+
   it('never reads a date as a fraction', () => {
     expect(all('What happened on 11/9/2026?')).toBe(
       'What happened on 11/9/2026?'
@@ -105,7 +125,7 @@ describe('math in a line of text', () => {
       splitPromptMath(all(text)).flatMap((p) =>
         p.kind === 'math' ? [convertAsciiMathToLatex(p.math)] : []
       );
-    expect(drawn('Simplify (x + 1)/2x .')).toEqual(['\\frac{x+1}{2x}']);
+    expect(drawn('Simplify 3x/(2y) .')).toEqual(['\\frac{3x}{2y}']);
     expect(drawn('Simplify √x/2.')).toEqual(['\\frac{\\sqrt{x}}{2}']);
     expect(drawn('Simplify 2^10/2^8.')).toEqual(['\\frac{2^{10}}{2^{8}}']);
     expect(drawn('Add 2 1/2.')).toEqual(['2\\frac{1}{2}']);
@@ -167,6 +187,19 @@ describe('math across a test', () => {
     const q = extractedToQuizData(many, { equations: true }).questions[0];
     expect(q.correctAnswer).toBe('⟦(x^2)/2⟧|2x');
     expect(q.incorrectAnswers).toEqual(['⟦(x^2)/4⟧']);
+  });
+
+  it('does not call a test math because one question has date choices', () => {
+    const civics = {
+      ...quiz,
+      questions: [
+        question('When is Independence Day?', ['7/4', '12/25', '1/1', '11/11']),
+        question('What happened on 9/11?', ['An attack', 'An election']),
+      ],
+    };
+    const made = extractedToQuizData(civics, { equations: true }).questions;
+    expect(made[0].correctAnswer).toBe('7/4');
+    expect(made[1].text).toBe('What happened on 9/11?');
   });
 
   it('leaves a choice with an absolute value as text', () => {

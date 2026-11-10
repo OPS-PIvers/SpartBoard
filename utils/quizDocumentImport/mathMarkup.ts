@@ -50,6 +50,7 @@ const scriptRun = (table: Record<string, string>): RegExp =>
   new RegExp(`[${[...new Set(Object.values(table))].join('')}]+`, 'y');
 
 const SPACE = /\s+/y;
+const LINE_BREAK = /[\n\r]/;
 const NUMBER = /\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/y;
 const SUP_RUN = scriptRun(SUPERSCRIPT);
 const SUB_RUN = scriptRun(SUBSCRIPT);
@@ -150,6 +151,8 @@ function runsOf(toks: readonly Tok[]): Tok[][] {
   };
   toks.forEach((tok, i) => {
     if (tok.kind === 'stop') return close();
+    // An equation never runs from one printed line onto the next.
+    if (tok.kind === 'space' && LINE_BREAK.test(tok.text)) return close();
     const prev = toks[i - 1]?.kind;
     const next = toks[i + 1]?.kind;
     if (
@@ -274,6 +277,30 @@ function termEnd(toks: readonly Tok[], pair: number[], start: number): number {
   return j - 1;
 }
 
+/** Where the single factor that starts at `start` ends: `2`, `x²`, `x^(n+1)`, `(x + 1)`, `√x`; -1 for none. */
+function factorEnd(
+  toks: readonly Tok[],
+  pair: number[],
+  start: number
+): number {
+  const lead = toks[start]?.kind;
+  let j = lead === 'root' || lead === 'func' ? start + 1 : start;
+  const base = toks[j]?.kind;
+  if (base === 'open') j = pair[j];
+  else if (base !== 'num' && base !== 'var') return -1;
+  for (;;) {
+    const next = toks[j + 1]?.kind;
+    if (next === 'sup' || next === 'sub' || next === 'unit') j += 1;
+    else if (next === 'caret' || next === 'under') {
+      const at = isSign(toks[j + 2]) ? j + 3 : j + 2;
+      const power = toks[at]?.kind;
+      if (power === 'open') j = pair[at];
+      else if (power === 'num' || power === 'var') j = at;
+      else return -1;
+    } else return j;
+  }
+}
+
 const mark = (kind: 'open' | 'close'): Tok => ({
   kind,
   text: kind === 'open' ? '(' : ')',
@@ -323,6 +350,8 @@ function readRun(
     const from = termStart(run, pair, k - 1);
     const to = termEnd(run, pair, k + 1);
     if (from < 0 || to < 0) return null;
+    // `1/2x` could be half of x or one over 2x, so it stays as typed.
+    if (factorEnd(run, pair, k + 1) !== to) return null;
     // `11/9/2026` and `a/b/c` are not one fraction.
     if (run[from - 1]?.kind === 'slash' || run[to + 1]?.kind === 'slash')
       return null;
@@ -406,7 +435,7 @@ export function markMath(
 /** How many texts with a bare `3/4` make a test a math test with no other sign of it. */
 const NUMERIC_TEXTS = 3;
 
-/** A marker for one test: bare number fractions are equations only when the test's `texts` show it is math. */
+/** A marker for one test: bare number fractions are equations only when its `texts`, one per question, show it is math. */
 export function mathMarker(texts: readonly string[]): (text: string) => string {
   const found = texts.map(mathStrength);
   const numericFractions =
