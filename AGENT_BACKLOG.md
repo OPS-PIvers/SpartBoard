@@ -255,6 +255,7 @@ git push origin --delete claude/project-thread-8c5xjf
 git push origin --delete claude/project-thread-ejijbp claude/project-thread-ejijbp-docs
 git push origin --delete claude/project-thread-ttggwa claude/ab112-paper-written-step3
 git push origin --delete claude/project-thread-4u3dz9 claude/project-thread-4u3dz9-docs
+git push origin --delete claude/project-thread-dkc08c claude/project-thread-dkc08c-docs
 ```
 
   </details>
