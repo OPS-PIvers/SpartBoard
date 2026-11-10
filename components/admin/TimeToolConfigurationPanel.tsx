@@ -130,7 +130,7 @@ export const TimeToolConfigurationPanel: React.FC<
   const durationRemainingSeconds = durationSeconds % 60;
 
   const handleDurationChange = (minutes: number, seconds: number) => {
-    // Clamp to the shared ceiling: the minutes <input> only advises max via
+    // Clamp to the shared ceiling: the minutes field only advises max via
     // HTML, so keyboard entry above it would otherwise persist a value the
     // validator later clamps — making the saved field re-display differently.
     const total = Math.min(

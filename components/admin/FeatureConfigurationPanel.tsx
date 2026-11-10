@@ -661,6 +661,7 @@ export const FeatureConfigurationPanel: React.FC<
                                   : 'Upload Image'}
                               </span>
                               <input
+                                // no-tour-anchor: hidden file input opened by its upload button
                                 type="file"
                                 className="hidden"
                                 accept="image/*"

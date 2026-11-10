@@ -218,6 +218,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
         </div>
       </div>
       <button
+        // no-tour-anchor: header X duplicates the anchored footer Close
         onClick={onClose}
         className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
       >

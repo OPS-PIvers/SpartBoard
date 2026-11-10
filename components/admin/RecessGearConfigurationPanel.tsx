@@ -477,6 +477,7 @@ export const RecessGearConfigurationPanel: React.FC<
                       {range.imageUrl ? 'Change Image' : 'Upload Image'}
                     </span>
                     <input
+                      // no-tour-anchor: hidden file input opened by its upload button
                       type="file"
                       className="hidden"
                       accept="image/*"

@@ -122,6 +122,7 @@ export const AiModelSpendPanel: React.FC = () => {
     <div className="flex gap-0.5 text-sm font-semibold" role="group">
       {RANGES.map((r) => (
         <button
+          // no-tour-anchor: spend range toggle in the analytics view, nothing a tour walks to
           key={r.days}
           type="button"
           aria-pressed={range === r.days}
