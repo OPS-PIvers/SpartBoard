@@ -3772,6 +3772,10 @@
       }
     },
     "paperReview": {
+      "sheetHeading": "Your answer sheet",
+      "sheetAlt": "Page {{number}} of your answer sheet",
+      "sheetLoading": "Loading your answer sheet",
+      "sheetUnavailable": "Page {{number}} could not load.",
       "handwriting": "Your handwriting",
       "cropAlt": "Your handwritten answer, question {{number}}",
       "loading": "Loading handwriting",

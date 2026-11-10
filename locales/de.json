@@ -2475,6 +2475,10 @@
       }
     },
     "paperReview": {
+      "sheetHeading": "Dein Antwortbogen",
+      "sheetAlt": "Seite {{number}} deines Antwortbogens",
+      "sheetLoading": "Dein Antwortbogen wird geladen",
+      "sheetUnavailable": "Seite {{number}} konnte nicht geladen werden.",
       "handwriting": "Deine Handschrift",
       "cropAlt": "Deine handschriftliche Antwort, Frage {{number}}",
       "loading": "Handschrift wird geladen",
