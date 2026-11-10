@@ -14,6 +14,8 @@ const log = document.getElementById('log');
 document.querySelector('main').addEventListener('click', (e) => {
   if (e.target.tagName !== 'BUTTON') return;
   e.target.setAttribute('aria-pressed', 'true');
-  log.insertAdjacentHTML('afterbegin', `<div>${e.target.textContent} done</div>`);
+  const line = document.createElement('div');
+  line.textContent = `${e.target.textContent} done`;
+  log.prepend(line);
 });
 </script></body></html>
