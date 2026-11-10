@@ -801,6 +801,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Students see their own kept pages with their returned results (lifts K1).
+  'paper-pages-student-view': {
+    label: 'Students see their scanned pages',
+    icon: ScanLine,
+    description:
+      'Students see their own scanned pages with their results once you return written answers.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Students see scanned pages',
+    group: 'questions',
+    requires: 'paper-kept-pages',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Markup on handwritten answer images (QUIZ_PAPER_KEPT_PAGES.md §3.3).
   'paper-image-markup': {
     label: 'Mark up handwritten answers',
@@ -1630,6 +1646,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Send,
     description:
       'Lets teachers pick the Schoology due date when a push makes a new gradebook column.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'flashcards-check-sync': {
+    label: 'Flashcards: set fixes reach Checks',
+    icon: Layers,
+    description:
+      'Saving a set updates the cards in its open Checks. Cards added or deleted stay as assigned.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

@@ -363,7 +363,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const editingIsNew =
     !!editingSet && !flashcardSets.sets.some((s) => s.id === editingSet.id);
 
-  // Autosave also refreshes share links and Study assignments once the set is complete.
+  const syncsChecks = canAccessFeature('flashcards-check-sync');
+  // Autosave also refreshes share links and open assignments once the set is complete.
   const persistSet = async (
     set: FlashcardSet,
     { final }: { final: boolean }
@@ -372,17 +373,20 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       const rewritten = await flashcardSets.saveSet(set, {
         // Autosave never pushes a card whose definition may still be mid-typing.
         syncStudy: final || flashcardSetIncompleteReason(set) === null,
+        // Checks are graded, so they take only the finished edit.
+        syncChecks: final,
       });
       if (final && rewritten > 0) {
+        const noun = syncsChecks ? 'assignment' : 'Study assignment';
         addToast(
-          `“${set.title}” saved. ${rewritten} open Study assignment${rewritten === 1 ? '' : 's'} updated.`,
+          `“${set.title}” saved. ${rewritten} open ${noun}${rewritten === 1 ? '' : 's'} updated.`,
           'success'
         );
       }
     } catch (error) {
       if (!(error instanceof FlashcardStudySyncError)) throw error;
       addToast(
-        `“${set.title}” saved, but open Study assignments still show the old cards.`,
+        `“${set.title}” saved, but open ${syncsChecks ? 'assignments' : 'Study assignments'} still show the old cards.`,
         'error'
       );
     }

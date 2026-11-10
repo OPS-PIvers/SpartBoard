@@ -3896,6 +3896,7 @@ describe('index barrel — deployed export set', () => {
     'reopenFlashcardCheckV1',
     'submitMiniAppResultV1',
     'resolveFlashcardFlagV1',
+    'rescoreFlashcardCheckV1',
     // Shared board Activity Wall editing
     'saveSharedActivityWallV1',
     // Video Activity answer key

@@ -215,6 +215,7 @@ describe('QuizManager — paper assignment card', () => {
       { onImportPaperResponses, onReprintPaperSheets }
     );
     openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
     expect(screen.getByText('Print response sheets')).toBeTruthy();
     fireEvent.click(screen.getByText('Import responses'));
     expect(onImportPaperResponses).toHaveBeenCalledWith(
@@ -286,6 +287,7 @@ describe('QuizManager — written answers on paper card', () => {
     });
     expect(screen.getByText('Paper 18/26 scanned')).toBeTruthy();
     openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
     expect(screen.getByText('Print written answer sheets')).toBeTruthy();
     fireEvent.click(screen.getByText('Import written answers'));
     expect(onImportPaperResponses).toHaveBeenCalledWith(

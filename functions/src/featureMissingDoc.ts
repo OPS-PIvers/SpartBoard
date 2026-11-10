@@ -21,6 +21,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',
+  'paper-pages-student-view',
   'paper-image-markup',
   'claude-connector',
   'web-tours',
@@ -88,6 +89,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'embed-mini-app',
   'schoology-push-due-date',
   'flashcards-missed-cards',
+  'flashcards-check-sync',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

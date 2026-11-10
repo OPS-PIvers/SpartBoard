@@ -283,10 +283,14 @@ import { useQuizScoreOnSubmit } from '@/hooks/useQuizScoreOnSubmit';
 import {
   DEFAULT_WRITTEN_RETURN_MODE,
   isPaperWrittenAnswer,
+  paperPageNumberOf,
   paperWrittenView,
+  type GetPaperPageCall,
   type PaperWrittenPlaceholder,
   type PaperWrittenView,
 } from '@/utils/paperWritten';
+import { keptPageRefs } from '@/utils/paperPageFetch';
+import { StudentPaperPages } from './paper/StudentPaperPages';
 import {
   StudentPaperCrop,
   type StudentPaperCropProps,
@@ -5682,6 +5686,8 @@ export const PublishedScoreReview: React.FC<{
   drawIds?: string[];
   /** Test seam for the handwriting crop callable. */
   loadPaperCrop?: GetPaperWrittenCropCall;
+  /** Test seam for the scanned page callable. */
+  loadPaperPage?: GetPaperPageCall;
 }> = ({
   session,
   myResponse: liveResponse,
@@ -5696,6 +5702,7 @@ export const PublishedScoreReview: React.FC<{
   override,
   drawIds: liveDrawIds,
   loadPaperCrop,
+  loadPaperPage,
 }) => {
   const protection = protectionProp ?? session.protection;
   const { t } = useTranslation();
@@ -5849,6 +5856,18 @@ export const PublishedScoreReview: React.FC<{
   const writtenMode = session.writtenReturnMode ?? DEFAULT_WRITTEN_RETURN_MODE;
   // Client mirror of the callable's D38 check, so a denied request is never sent.
   const mayRequestCrop = showResponses && writtenMode !== 'typed' && !picked;
+  // The server also checks the teacher's flag; a refusal hides the section.
+  const keptPages =
+    mayRequestCrop && myResponse._responseKey
+      ? keptPageRefs(
+          myResponse,
+          myResponse._responseKey,
+          (myResponse.paperPages ?? [])
+            .map((a) => paperPageNumberOf(a.id))
+            .filter((n): n is number => n !== null)
+            .sort((a, b) => a - b)
+        ).map((ref) => ({ page: ref.page, artifactId: ref.artifact.id }))
+      : [];
   const paperReviewFor = (
     ans: (typeof myResponse.answers)[number] | undefined,
     questionNumber: number
@@ -6343,6 +6362,16 @@ export const PublishedScoreReview: React.FC<{
               ))}
             </div>
           </section>
+        )}
+
+        {keptPages.length > 0 && myResponse._responseKey && (
+          <StudentPaperPages
+            sessionId={session.id}
+            responseKey={myResponse._responseKey}
+            pages={keptPages}
+            light={light}
+            {...(loadPaperPage ? { loadPage: loadPaperPage } : {})}
+          />
         )}
 
         {!showResponses && (

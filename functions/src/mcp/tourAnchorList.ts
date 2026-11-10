@@ -14393,6 +14393,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-results.publish",
+    "label": "Publish results in Quiz results",
+    "scope": "widget type",
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-results.push-schoology",
     "label": "Push to Schoology in Quiz results",
     "scope": "widget type",
@@ -24242,7 +24269,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "library.assignments",
+        "surface": "library.shell",
         "kind": "shared",
         "path": []
       }
@@ -24256,7 +24283,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "library.assignments",
+        "surface": "library.shell",
         "kind": "shared",
         "path": []
       }

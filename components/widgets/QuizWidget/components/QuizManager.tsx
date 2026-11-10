@@ -568,6 +568,62 @@ interface QuizManagerProps {
 
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
 
+/** Folds related In Progress and Completed menu rows into side menus; a group of one stays a plain row. */
+function groupArchiveSecondaries(
+  rows: LibraryMenuAction[]
+): LibraryMenuAction[] {
+  const groups: Array<{
+    ids: string[];
+    id: string;
+    label: string;
+    icon: LibraryMenuAction['icon'];
+    rename?: Record<string, string>;
+  }> = [
+    {
+      ids: [
+        'import-paper',
+        'import-written',
+        'reprint-paper',
+        'reprint-written',
+      ],
+      id: 'paper',
+      label: 'Paper',
+      icon: Printer,
+    },
+    {
+      ids: ['share', 'share-plc-results', 'stop-sharing-plc'],
+      id: 'share-menu',
+      label: 'Share',
+      icon: Share2,
+      rename: { share: 'Get link' },
+    },
+    {
+      ids: ['publish-scores', 'unpublish-scores'],
+      id: 'published-results',
+      label: 'Published scores',
+      icon: Send,
+    },
+  ];
+  const out = [...rows];
+  for (const g of groups) {
+    const members = out.filter((r) => g.ids.includes(r.id));
+    if (members.length < 2) continue;
+    const first = out.indexOf(members[0]);
+    const folded: LibraryMenuAction = {
+      id: g.id,
+      label: g.label,
+      icon: g.icon,
+      onClick: members[0].onClick,
+      submenu: members.map((m) =>
+        g.rename?.[m.id] ? { ...m, label: g.rename[m.id] } : m
+      ),
+    };
+    out.splice(first, 1, folded);
+    for (const m of members.slice(1)) out.splice(out.indexOf(m), 1);
+  }
+  return out;
+}
+
 function resolveStatus(
   status: QuizAssignment['status'],
   isViewOnly: boolean,
@@ -1491,7 +1547,25 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
   };
 
-  const buildArchiveActions = (
+  // Confirmation copy avoids promising "answers stay": students mid-attempt see the new questions on their next interaction.
+  const confirmSyncAssignment = async (a: QuizAssignment): Promise<void> => {
+    if (!onSyncAssignment) return;
+    const liveWarning =
+      a.status === 'active'
+        ? ' Students currently taking the quiz will see the new questions on their next interaction.'
+        : '';
+    const ok = await showConfirm(
+      `Update this assignment to the latest version of "${a.quizTitle}"?${liveWarning} Existing responses are kept and any answers submitted before this update will be tagged in results.`,
+      {
+        title: 'Sync Assignment',
+        variant: 'warning',
+        confirmLabel: 'Sync',
+      }
+    );
+    if (ok) await onSyncAssignment(a);
+  };
+
+  const buildArchiveActionsRaw = (
     a: QuizAssignment,
     mode: 'active' | 'archive'
   ): {
@@ -1744,28 +1818,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             id: 'sync-assignment',
             label: 'Sync now',
             icon: Cloud,
-            onClick: async () => {
-              // Confirmation copy avoids promising "answers stay" because
-              // students currently mid-attempt will see the new questions
-              // appear on their next interaction (the session's
-              // publicQuestions is replaced server-side). Their previously-
-              // typed answers persist on the response doc but the question
-              // each answer points at may have changed text — surfacing
-              // that explicitly is more honest than implying continuity.
-              const isLive = a.status === 'active';
-              const liveWarning = isLive
-                ? ' Students currently taking the quiz will see the new questions on their next interaction.'
-                : '';
-              const ok = await showConfirm(
-                `Update this assignment to the latest version of "${a.quizTitle}"?${liveWarning} Existing responses are kept and any answers submitted before this update will be tagged in results.`,
-                {
-                  title: 'Sync Assignment',
-                  variant: 'warning',
-                  confirmLabel: 'Sync',
-                }
-              );
-              if (ok) await onSyncAssignment(a);
-            },
+            onClick: () => confirmSyncAssignment(a),
           });
         }
       }
@@ -1948,6 +2001,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     return {
       primary,
       secondaries: secondaries.filter((m) => m.label !== primary.label),
+    };
+  };
+
+  const buildArchiveActions = (
+    a: QuizAssignment,
+    mode: 'active' | 'archive'
+  ): ReturnType<typeof buildArchiveActionsRaw> => {
+    const built = buildArchiveActionsRaw(a, mode);
+    return {
+      ...built,
+      secondaries: groupArchiveSecondaries(built.secondaries),
     };
   };
 
@@ -2690,6 +2754,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           mode="active"
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
+          onSyncNow={onSyncAssignment ? confirmSyncAssignment : undefined}
           skippedTargetsByAssignmentId={skippedTargetsByAssignmentId}
           emptyTitle={
             isViewOnly ? 'No active shares' : 'No quizzes in progress'
@@ -3218,6 +3283,7 @@ const AssignmentsList: React.FC<{
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
   skippedTargetsByAssignmentId?: Record<
     string,
     { ref: StudentTargetRef; reason: string }[]
@@ -3231,6 +3297,7 @@ const AssignmentsList: React.FC<{
   mode,
   buildActions,
   syncedGroups,
+  onSyncNow,
   skippedTargetsByAssignmentId,
   emptyTitle,
   emptySub,
@@ -3267,6 +3334,7 @@ const AssignmentsList: React.FC<{
           mode={mode}
           buildActions={buildActions}
           syncedGroups={syncedGroups}
+          onSyncNow={onSyncNow}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
           tourIndex={index}
           tourWidgetType={tourWidgetType}
@@ -3301,6 +3369,8 @@ interface QuizArchiveRowProps {
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  /** Makes the Sync available pill a button that starts the sync. */
+  onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
   skippedTargets?: { ref: StudentTargetRef; reason: string }[];
   tourIndex?: number;
@@ -3318,6 +3388,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   mode,
   buildActions,
   syncedGroups,
+  onSyncNow,
   skippedTargets,
   tourIndex,
   tourWidgetType,
@@ -3445,28 +3516,53 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
             />
           </span>
         )}
-        {syncBadge && (
-          <span
-            className={`inline-flex items-center rounded-full font-bold uppercase tracking-wider ${
+        {syncBadge &&
+          (() => {
+            const pillClass = `inline-flex items-center rounded-full font-bold uppercase tracking-wider ${
               syncBadge.tone === 'warn'
                 ? 'bg-amber-100 text-amber-700'
                 : 'bg-blue-100 text-blue-700'
-            }`}
-            style={{
+            }`;
+            const pillStyle = {
               gap: 'min(4px, 1cqmin)',
               padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
               fontSize: 'min(10px, 3.5cqmin)',
-            }}
-          >
-            <Cloud
-              style={{
-                width: 'min(10px, 2.5cqmin)',
-                height: 'min(10px, 2.5cqmin)',
-              }}
-            />
-            {syncBadge.label}
-          </span>
-        )}
+            };
+            const pillInner = (
+              <>
+                <Cloud
+                  style={{
+                    width: 'min(10px, 2.5cqmin)',
+                    height: 'min(10px, 2.5cqmin)',
+                  }}
+                />
+                {syncBadge.label}
+              </>
+            );
+            if (syncBadge.tone === 'warn' && onSyncNow) {
+              return (
+                // no-tour-anchor: same action as the Sync now menu row
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onSyncNow(a);
+                  }}
+                  title="Sync now"
+                  aria-label="Sync now"
+                  className={`${pillClass} touch-target-expand relative cursor-pointer transition-colors hover:bg-amber-200 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`}
+                  style={pillStyle}
+                >
+                  {pillInner}
+                </button>
+              );
+            }
+            return (
+              <span className={pillClass} style={pillStyle}>
+                {pillInner}
+              </span>
+            );
+          })()}
         {skippedCount > 0 && (
           <span
             title={`${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be individually targeted`}

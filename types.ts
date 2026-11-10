@@ -11085,6 +11085,7 @@ export type GlobalFeature =
   | 'paper-handwriting-ai'
   /** Each student's scanned pages kept at import and printed with marks (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md). */
   | 'paper-kept-pages'
+  | 'paper-pages-student-view'
   /** Highlights, shapes, stamps and pinned comments on handwritten answers, printed on the work. */
   | 'paper-image-markup'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
@@ -11199,7 +11200,9 @@ export type GlobalFeature =
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
   /** Due date picker in the Push to Schoology dialog. */
-  | 'schoology-push-due-date';
+  | 'schoology-push-due-date'
+  /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
+  | 'flashcards-check-sync';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
