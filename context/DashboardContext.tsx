@@ -4768,7 +4768,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   // device, or after a mirror failure/unlink cleared it)
                   // every local object would look like a local add and
                   // resurrect ink a collaborator just erased. Fall back to
-                  // the ink we had at subscribe time as the baseline.
+                  // the copy we last received, else the ink at subscribe time.
                   objects: mergeAnnotationObjects(
                     x.annotationOverlay?.objects ?? [],
                     remote.annotationOverlay.objects ?? [],
@@ -4776,7 +4776,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                       ? mirroredAnnotationBaseline(
                           lastMirroredRef.current.get(shareId)
                         )
-                      : (mountInkBaselineRef.current.get(shareId) ?? [])
+                      : (baseline?.annotationObjects ??
+                          mountInkBaselineRef.current.get(shareId) ??
+                          [])
                   ),
                 }
               : x.annotationOverlay,

@@ -1809,6 +1809,127 @@ describe('DashboardContext Sharing Logic', () => {
       });
     });
 
+    it('drops ink a peer erased after a refused write', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const stroke = (id: string, authorUid: string) => ({
+        id,
+        kind: 'path' as const,
+        z: 1,
+        points: [{ x: 1, y: 1 }],
+        color: '#000',
+        width: 2,
+        authorUid,
+      });
+
+      const linked: Dashboard = {
+        id: 'co-board',
+        name: 'Co-annotated Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-co',
+        linkedShareRole: 'collaborator',
+        annotationOverlay: { objects: [], updatedAt: 1 },
+      };
+      initialDashboardsSeed = [linked];
+
+      type Add = ReturnType<typeof useDashboard>['addAnnotationObject'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let add: Add | null = null;
+      let load: Load | null = null;
+      let captured: Dashboard | undefined;
+
+      const Probe: React.FC = () => {
+        const { addAnnotationObject, loadDashboard, dashboards } =
+          useDashboard();
+        useEffect(() => {
+          add = addAnnotationObject;
+          load = loadDashboard;
+          captured = dashboards.find((d) => d.id === 'co-board');
+        }, [addAnnotationObject, loadDashboard, dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(add).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('co-board');
+      });
+      // A peer's stroke arrives first, then this client draws.
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: {
+              objects: [stroke('erased', 'other-user')],
+              updatedAt: 50,
+            },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? []).map(
+          (o) => o.id
+        );
+        expect(ids).toContain('erased');
+      });
+      mockMirrorSharedBoard.mockClear();
+      mockMirrorSharedBoard.mockRejectedValueOnce(
+        Object.assign(new Error('denied'), { code: 'permission-denied' })
+      );
+      act(() => {
+        if (add) add(stroke('mine', 'test-user'));
+      });
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? []).map(
+          (o) => o.id
+        );
+        expect(ids).toContain('mine');
+      });
+
+      // The share refuses our write, then the peer erases their stroke.
+      await waitFor(() => expect(mockMirrorSharedBoard).toHaveBeenCalled(), {
+        timeout: 2000,
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: {
+              objects: [stroke('theirs', 'other-user')],
+              updatedAt: 99,
+            },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? [])
+          .map((o) => o.id)
+          .sort();
+        expect(ids).toEqual(['mine', 'theirs']);
+      });
+    });
+
     // Regression: with no mirrored payload yet (fresh mount after a reload)
     // the merge baseline was empty, so persisted local ink counted as a
     // local add and survived — a peer's clear was undone for everyone.
