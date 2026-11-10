@@ -70,21 +70,20 @@ const overlaps = (r: DOMRect, crop: ViewportRect) =>
   r.left < crop.x + crop.width &&
   r.top < crop.y + crop.height;
 
-/** Elements that show inside the crop, plus their ancestors; cloning only these keeps a picture from freezing the page. */
-export function elementsInCrop(
+/** Elements with nothing inside the crop; leaving them out keeps a picture from freezing the page, and anything added later is kept. */
+export function elementsOutsideCrop(
   root: Element,
   crop: ViewportRect
 ): Set<Element> {
-  const keep = new Set<Element>([root]);
-  for (const el of root.querySelectorAll('*')) {
+  const all = [...root.querySelectorAll('*')];
+  const inside = new Set<Element>();
+  for (const el of all) {
     if (!overlaps(el.getBoundingClientRect(), crop)) continue;
-    let n: Element | null = el;
-    while (n && !keep.has(n)) {
-      keep.add(n);
-      n = n.parentElement;
+    for (let n: Element | null = el; n && !inside.has(n); n = n.parentElement) {
+      inside.add(n);
     }
   }
-  return keep;
+  return new Set(all.filter((el) => !inside.has(el)));
 }
 
 const toBlob = (canvas: HTMLCanvasElement) =>
@@ -110,7 +109,7 @@ export async function captureStepSnapshot(
     buildNameMatcher(people),
     viewport
   );
-  const shown = elementsInCrop(document.body, crop);
+  const hidden = elementsOutsideCrop(document.body, crop);
   const [{ toCanvas }, fontEmbedCSS] = await Promise.all([
     import('html-to-image'),
     snapshotFontEmbedCss(document),
@@ -125,7 +124,7 @@ export async function captureStepSnapshot(
     filter: (node) =>
       !(
         node instanceof Element &&
-        (!shown.has(node) || node.hasAttribute('data-tour-ignore'))
+        (hidden.has(node) || node.hasAttribute('data-tour-ignore'))
       ),
   });
   const out = document.createElement('canvas');

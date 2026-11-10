@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SNAPSHOT_MIN,
   SNAPSHOT_PAD_PX,
-  elementsInCrop,
+  elementsOutsideCrop,
   snapshotCrop,
 } from './stepSnapshot';
 
@@ -46,8 +46,8 @@ describe('snapshotCrop', () => {
   });
 });
 
-describe('elementsInCrop', () => {
-  it('keeps what shows in the crop and its ancestors, and skips the rest', () => {
+describe('elementsOutsideCrop', () => {
+  it('leaves out only what has nothing in the crop', () => {
     const root = document.createElement('div');
     root.innerHTML =
       '<section id="wrap"><button id="in"></button></section><aside id="out"><i id="deep"></i></aside>';
@@ -60,9 +60,13 @@ describe('elementsInCrop', () => {
     place('in', 100, 100);
     place('out', 2000, 0);
     place('deep', 2000, 0);
-    const kept = elementsInCrop(root, { x: 0, y: 0, width: 640, height: 360 });
-    const ids = [...kept].map((el) => el.id).filter(Boolean);
-    expect(ids.sort()).toEqual(['in', 'wrap']);
-    expect(kept.has(root)).toBe(true);
+    const out = elementsOutsideCrop(root, {
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 360,
+    });
+    expect([...out].map((el) => el.id).sort()).toEqual(['deep', 'out']);
+    expect(out.has(root)).toBe(false);
   });
 });

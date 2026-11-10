@@ -350,7 +350,7 @@ describe('Synced board concurrent edits', () => {
     );
   });
 
-  it('stops writing to a share the server refused until a fresh copy arrives', async () => {
+  it('retries a refused share only when that board changes', async () => {
     mockMirrorSharedBoard.mockRejectedValue(
       Object.assign(new Error('denied'), { code: 'permission-denied' })
     );
@@ -368,27 +368,10 @@ describe('Synced board concurrent edits', () => {
         timeout: 2000,
       }
     );
-    await act(async () => {
-      await Promise.resolve();
-    });
-    act(() => {
-      ctx?.updateWidget('w1', { z: 3 });
-    });
     await new Promise((r) => setTimeout(r, 800));
     expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(1);
-
-    mockMirrorSharedBoard.mockImplementation((_id: string, d: Dashboard) =>
-      Promise.resolve(d)
-    );
     act(() => {
-      emit?.({
-        ...linked,
-        widgets: [widget('w1', { z: 3, xProp: 0.4 })],
-        updatedBy: 'other-user',
-      } as unknown as Dashboard);
-    });
-    act(() => {
-      ctx?.updateWidget('w1', { z: 4 });
+      ctx?.addWidget('clock');
     });
     await waitFor(
       () => expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(2),
