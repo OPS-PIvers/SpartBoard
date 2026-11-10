@@ -4804,7 +4804,8 @@
       "questions": "Questions",
       "allCount": "All ({{count}})",
       "reset": "Reset progress",
-      "lockedNote": "Your teacher set these options for this check."
+      "lockedNote": "Your teacher set these options for this check.",
+      "studyLockedNote": "Your teacher set these options."
     },
     "summary": {
       "complete": "Round {{round}} complete",

@@ -1332,6 +1332,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Admin-only until Paul has assigned a study resource with it.
+  'flashcards-study-settings': {
+    label: 'Flashcards: study settings',
+    icon: Layers,
+    description:
+      'Sets what students start with in a study resource, and Study resource as the default.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',

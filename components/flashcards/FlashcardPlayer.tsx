@@ -18,6 +18,7 @@ import type {
   FlashcardFlag,
   FlashcardMode,
   FlashcardModeSettings,
+  FlashcardStudySettings,
   FlashcardSpeakStudentSettings,
   FlashcardStudyState,
   FlashcardTestType,
@@ -129,6 +130,8 @@ export interface FlashcardPlayerProps {
   initialSettings?: Partial<FlashcardModeSettings>;
   /** Teacher-locked settings; only Shuffle stays editable, in Flashcards mode. */
   lockedSettings?: FlashcardModeSettings;
+  /** Study resource: the teacher's starting settings, which students can't change while locked. */
+  studySettings?: FlashcardStudySettings;
   check?: FlashcardPlayerCheck;
   allowedModes?: FlashcardMode[];
   speak?: FlashcardPlayerSpeak;
@@ -170,6 +173,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   adapter,
   initialSettings,
   lockedSettings,
+  studySettings,
   check,
   allowedModes: requestedModes = ['flashcards', 'write', 'test', 'speak'],
   speak,
@@ -186,6 +190,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   const { t } = useTranslation();
   const dark = theme === 'present';
   const locked = Boolean(lockedSettings);
+  const studyLocked = !check && studySettings?.locked === true;
   const speakCheck = check?.mode === 'speak';
   const speakLanguage =
     speak && (check ? speakCheck : requestedModes.includes('speak'))
@@ -205,7 +210,20 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   const masteryThreshold =
     check?.masteryThreshold ?? DEFAULT_FLASHCARD_MASTERY_THRESHOLD;
   const [settings, setSettings] = useState<FlashcardModeSettings>(() => {
-    const base = { ...DEFAULT_SETTINGS, ...initialSettings, ...lockedSettings };
+    const studyStart = studySettings
+      ? {
+          showFirst: studySettings.showFirst,
+          shuffle: studySettings.shuffle,
+          strict: studySettings.strict,
+          testTypes: studySettings.testTypes,
+        }
+      : {};
+    const base = {
+      ...DEFAULT_SETTINGS,
+      ...initialSettings,
+      ...(check ? {} : studyStart),
+      ...lockedSettings,
+    };
     return {
       ...base,
       testTypes:
@@ -1169,7 +1187,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             className="min-h-0 flex-1 overflow-y-auto"
             style={{ padding: 'min(14px, 3.5cqmin)' }}
           >
-            {locked && (
+            {(locked || studyLocked) && (
               <p
                 className={cx(
                   'rounded-xl font-bold',
@@ -1183,7 +1201,12 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   fontSize: 'min(11px, 3cqmin)',
                 }}
               >
-                {t('flashcards.settings.lockedNote')}
+                {locked
+                  ? t('flashcards.settings.lockedNote')
+                  : t(
+                      'flashcards.settings.studyLockedNote',
+                      'Your teacher set these options.'
+                    )}
               </p>
             )}
             <SettingsGroup label={t('flashcards.settings.cards')} dark={dark}>
@@ -1233,13 +1256,13 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                     showFirst: value === 'definition' ? 'definition' : 'term',
                   })
                 }
-                disabled={locked}
+                disabled={locked || studyLocked}
               />
               <ToggleSetting
                 label={t('flashcards.settings.shuffle')}
                 anchor={tourAttr('flashcards.present-shuffle')}
                 checked={settings.shuffle}
-                disabled={locked && mode !== 'flashcards'}
+                disabled={(locked && mode !== 'flashcards') || studyLocked}
                 dark={dark}
                 onChange={(checked) => updateSettings({ shuffle: checked })}
               />
@@ -1265,7 +1288,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   label={t('flashcards.settings.strict')}
                   description={t('flashcards.settings.strictHelp')}
                   checked={settings.strict}
-                  disabled={locked}
+                  disabled={locked || studyLocked}
                   dark={dark}
                   onChange={(checked) => updateSettings({ strict: checked })}
                 />
@@ -1344,7 +1367,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                           : undefined
                       }
                       checked={checked && !disabled}
-                      disabled={disabled || locked}
+                      disabled={disabled || locked || studyLocked}
                       dark={dark}
                       onChange={(nextChecked) => {
                         const nextTypes = nextChecked

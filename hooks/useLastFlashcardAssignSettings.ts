@@ -6,6 +6,7 @@ import type {
   FlashcardMode,
   FlashcardScoreVisibility,
   FlashcardSide,
+  FlashcardStudySettings,
   FlashcardTestType,
 } from '@/types';
 import {
@@ -22,6 +23,7 @@ import {
 import { SPEAK_PRESET_IDS } from '@/config/pronunciationGroups';
 import { clampSpeakAttempts } from '@/config/flashcardsSpeakAdmin';
 import { parseFlashcardCheckRules } from '@/components/common/library/assignStepper/flashcardsRuleValues';
+import { parseFlashcardsStudyValue } from '@/components/common/library/assignStepper/flashcardsStudyValue';
 
 /** Profile field holding this teacher's last-used Flashcards check rules (plan D12). */
 export const LAST_FLASHCARD_ASSIGN_SETTINGS_FIELD =
@@ -36,6 +38,8 @@ export type FlashcardAssignRules = Omit<
   rules?: FlashcardCheckRules;
   /** Last Speak rules picked; groups aren't kept since they depend on the language. */
   speak?: LastSpeakChoice;
+  /** Last study resource settings picked. */
+  study?: FlashcardStudySettings;
 };
 
 /** Groups are kept only for a Custom level, and reused only when they fit the next set's language. */
@@ -122,6 +126,10 @@ export function parseLastFlashcardAssignSettings(
       const speak = parseLastSpeak(r.speak);
       return speak ? { speak } : {};
     })(),
+    ...(() => {
+      const study = parseFlashcardsStudyValue(r.study);
+      return study ? { study } : {};
+    })(),
   };
 }
 
@@ -130,7 +138,7 @@ export function getFlashcardAssignPrefill(
   lastUsed: FlashcardAssignRules | null,
   deckSize: number
 ): FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> {
-  const { speak: _speak, ...saved } = lastUsed ?? {};
+  const { speak: _speak, study: _study, ...saved } = lastUsed ?? {};
   const form: FlashcardAssignForm & Pick<FlashcardAssignRules, 'rules'> = {
     ...DEFAULT_FLASHCARD_ASSIGN_FORM,
     ...saved,

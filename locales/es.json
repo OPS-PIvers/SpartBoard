@@ -3496,7 +3496,8 @@
       "questions": "Preguntas",
       "allCount": "Todas ({{count}})",
       "reset": "Restablecer progreso",
-      "lockedNote": "Tu docente eligió estas opciones para esta evaluación."
+      "lockedNote": "Tu docente eligió estas opciones para esta evaluación.",
+      "studyLockedNote": "Tu docente eligió estas opciones."
     },
     "summary": {
       "complete": "Ronda {{round}} completada",

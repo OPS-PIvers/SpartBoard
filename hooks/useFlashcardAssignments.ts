@@ -43,6 +43,7 @@ import {
 import type {
   AudienceSessionFields,
   FlashcardSpeakChoice,
+  FlashcardStudySettings,
   FlashcardAssignment,
   FlashcardAssignmentKind,
   FlashcardCardSelection,
@@ -86,6 +87,8 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakOff?: boolean;
   /** Speak rules picked when assigning, used instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
+  /** Study only: the starting settings, locked or not. */
+  studySettings?: FlashcardStudySettings;
   /** Check only: how `set.cards` was narrowed (already applied to the cards). */
   cardSelection?: FlashcardCardSelection;
   /** Check only: attempts, time limit, shuffle, integrity, What students see. */
@@ -290,6 +293,9 @@ export const useFlashcardAssignments = (
         ...(speakOff ? { speakOff: true as const } : {}),
         ...(!isCheck && canMissedCards ? { missedCards: true as const } : {}),
         ...(speak && speakChoice ? { speakChoice } : {}),
+        ...(!isCheck && input.studySettings
+          ? { studySettings: input.studySettings }
+          : {}),
         ...(cardSelection ? { cardSelection } : {}),
         ...(rules ? { rules } : {}),
         ...(plcLink
