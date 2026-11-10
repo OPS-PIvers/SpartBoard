@@ -16678,7 +16678,7 @@ export const TOUR_ANCHORS = {
   },
   // Quiz library kebab items that open dialogs.
   'quiz-library.assign-paper': {
-    label: 'Assign on paper item in a quiz card menu',
+    label: 'Assign on paper button in the quiz assign dialog',
     perWidgetType: true,
     panel: true,
   },

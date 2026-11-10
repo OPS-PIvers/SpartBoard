@@ -80,6 +80,8 @@ export interface LibraryMenuAction {
   disabledReason?: string;
   /** Live-tour anchor; replaces the positional row tag. */
   anchor?: TourAnchorAttrs;
+  /** Opens these rows in a side menu instead of running `onClick`. */
+  submenu?: LibraryMenuAction[];
 }
 
 /** Primary action on a card — always visible, never nested under overflow. */

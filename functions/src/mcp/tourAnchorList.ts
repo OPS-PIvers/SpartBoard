@@ -12226,7 +12226,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12315,7 +12315,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12339,7 +12339,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12362,7 +12362,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12385,7 +12385,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12408,7 +12408,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12431,7 +12431,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12454,7 +12454,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12478,7 +12478,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12502,7 +12502,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12827,7 +12827,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12847,7 +12847,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12871,7 +12871,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12895,7 +12895,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12918,7 +12918,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12941,7 +12941,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12961,7 +12961,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -12984,7 +12984,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13004,7 +13004,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13027,7 +13027,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13050,7 +13050,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13070,7 +13070,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13090,7 +13090,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13110,7 +13110,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13130,7 +13130,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13150,7 +13150,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13173,7 +13173,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13194,7 +13194,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13217,7 +13217,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13240,7 +13240,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13263,7 +13263,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13286,7 +13286,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13309,7 +13309,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13332,7 +13332,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13352,7 +13352,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13375,7 +13375,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13395,7 +13395,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13415,7 +13415,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13435,7 +13435,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13455,7 +13455,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13478,7 +13478,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13498,7 +13498,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -13519,7 +13519,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -18823,7 +18823,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -18959,7 +18959,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.paper-print",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:quiz#row-1",
+          "library-shell.card-primary-action:quiz#row-1",
           "quiz-library.assign-paper:quiz"
         ],
         "needs": [
@@ -73902,7 +73902,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-library.assign-paper",
-    "label": "Assign on paper item in a quiz card menu",
+    "label": "Assign on paper button in the quiz assign dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -73914,9 +73914,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "widget",
         "widget_type": "quiz",
         "path": [
-          "library-shell.card-menu:quiz#row-1"
+          "library-shell.card-primary-action:quiz#row-1"
         ],
-        "reveal": "library-shell.card-menu:quiz#row-1",
+        "reveal": "library-shell.card-primary-action:quiz#row-1",
         "needs": [
           "widget-on-stage"
         ]

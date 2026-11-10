@@ -37,6 +37,7 @@ import {
   type WrittenAnswersValue,
 } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 import { Printer } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   withAudienceSwitch,
   type AssignAudienceState,
@@ -83,6 +84,8 @@ export interface QuizAssignStepperProps {
     onChange: (next: WrittenAnswersValue) => void;
     count: number;
   };
+  /** Leaves the stepper for the paper print flow; omit when paper sheets are off. */
+  onAssignOnPaper?: () => void;
   onClose: () => void;
   onSubmit: () => void | Promise<void>;
 }
@@ -104,6 +107,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   handRaiseMode,
   submitLabel,
   written,
+  onAssignOnPaper,
   onClose,
   onSubmit,
 }) => {
@@ -223,6 +227,16 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       steps={steps}
       submitLabel={onPaper ? 'Assign and print' : submitLabel}
       submitIcon={onPaper ? Printer : undefined}
+      altAction={
+        onAssignOnPaper && !onPaper
+          ? {
+              label: 'Assign on paper',
+              icon: Printer,
+              onClick: onAssignOnPaper,
+              anchor: tourTypeAttr('quiz-library.assign-paper', 'quiz'),
+            }
+          : undefined
+      }
       onSubmit={onSubmit}
       disabled={needsPlc || backwards}
       disabledReason={
