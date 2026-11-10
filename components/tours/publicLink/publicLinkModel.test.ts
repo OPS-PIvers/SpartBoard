@@ -142,6 +142,15 @@ describe('publicLinkStatus', () => {
       )
     ).toEqual({ kind: 'paused', reason: 'pictures' });
   });
+  it('is off when an admin switched it off, so turning it on again needs no review', () => {
+    expect(
+      publicLinkStatus(
+        { ...record, off: { reason: 'admin', at: 2 } },
+        base,
+        'o'
+      )
+    ).toEqual({ kind: 'off' });
+  });
   it('is off without a record and paused when unpublished', () => {
     expect(publicLinkStatus(null, base, 'o')).toEqual({ kind: 'off' });
     expect(publicLinkStatus(record, null, 'o')).toEqual({
