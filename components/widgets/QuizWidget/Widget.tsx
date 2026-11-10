@@ -31,6 +31,7 @@ import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
   PAPER_KEPT_PAGES_FEATURE,
+  changedPaperBoxSetup,
   withPaperBoxSizes,
   withPaperBoxStyles,
 } from '@/utils/paperWritten';
@@ -3280,6 +3281,46 @@ const TeacherQuizWidget: React.FC<{
           } | null = null;
           let printWritten: (() => void) | null = null;
           if (stepper?.writtenOnPaper && user && writtenOnPaperOn) {
+            const { boxSizes, boxStyles } = changedPaperBoxSetup(
+              data.questions,
+              stepper.writtenOnPaper.boxSizes,
+              stepper.writtenOnPaper.boxStyles
+            );
+            if (
+              Object.keys(boxSizes).length > 0 ||
+              Object.keys(boxStyles).length > 0
+            ) {
+              assignQuestions = withPaperBoxStyles(
+                withPaperBoxSizes({ questions: assignQuestions }, boxSizes),
+                boxStyles
+              ).questions;
+              // Saved on the quiz too, so a reprint matches these sheets.
+              try {
+                await saveQuiz(
+                  withPaperBoxStyles(
+                    withPaperBoxSizes({ ...data }, boxSizes),
+                    boxStyles
+                  ),
+                  meta.driveFileId
+                );
+              } catch (err) {
+                if (err instanceof SyncedQuizVersionConflictError) {
+                  addToast(
+                    'Another teacher published an update to this quiz, so your answer-sheet changes were not saved to it. The sheets still print.',
+                    'warning'
+                  );
+                } else {
+                  logError('QuizWidget.assignment.writtenBoxSetup', err, {
+                    quizId: meta.id,
+                  });
+                  addToast(
+                    'Could not save the written answer sheets. Try again.',
+                    'error'
+                  );
+                  return;
+                }
+              }
+            }
             const plan = planHybridWrittenBatch({
               quiz: { ...data, questions: assignQuestions },
               classes: stepper.classes,

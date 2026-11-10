@@ -98,6 +98,12 @@ import { stimulusLoadErrorMessage } from '@/utils/paperSheetStimulusImages';
 import { shareSheetImagesPrompt } from '@/utils/paperSheetStimulusSharing';
 import { PaperSheetStimuliSection } from './PaperSheetStimuliSection';
 import {
+  BoxImageSelect,
+  BoxSizeSelect,
+  BoxStyleSelect,
+  WrittenBoxRow,
+} from './PaperWrittenBoxControls';
+import {
   analyzePaperQuiz,
   buildPaperStubQuiz,
   isPaperStubAnalysis,
@@ -112,12 +118,9 @@ import {
 import { browserStemMeasure, stemLinesById } from '@/utils/paperStemLines';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
-  PAPER_BOX_LINES,
-  PAPER_CUSTOM_MAX_LINES,
-  PAPER_CUSTOM_MIN_LINES,
-  paperBoxLines,
   PAPER_HANDWRITTEN_FEATURE,
-  paperBoxSizeOf,
+  changedPaperBoxSetup,
+  paperBoxImageChoices,
   withPaperBoxSizes,
   withPaperBoxStyles,
   paperBoxStyleOf,
@@ -239,146 +242,6 @@ interface StubWritten {
   size: PaperBoxSize;
   points: number;
 }
-
-const BOX_SIZE_OPTIONS = [
-  { value: 'S', label: `Short answer (${PAPER_BOX_LINES.S} lines)` },
-  { value: 'M', label: `1 paragraph (${PAPER_BOX_LINES.M} lines)` },
-  { value: 'full', label: '1 page' },
-  { value: 'custom', label: 'Custom' },
-] as const;
-
-/** A box size as the menu shows it: a named size, or Custom for a line count (and the older Large). */
-const boxSizeOption = (size: PaperBoxSize): string =>
-  size === 'S' || size === 'M' || size === 'full' ? size : 'custom';
-
-const BOX_STYLE_OPTIONS: readonly { value: PaperBoxStyle; label: string }[] = [
-  { value: 'lines', label: 'Lines' },
-  { value: 'blank', label: 'Blank' },
-  { value: 'graph', label: 'Graph paper' },
-  { value: 'coordinate', label: 'Coordinate grid' },
-  { value: 'image', label: 'Custom image' },
-];
-
-const UPLOAD_BOX_IMAGE = '__upload';
-
-/** Which image a custom image box prints: one of the quiz's images, or an upload. */
-const BoxImageSelect: React.FC<{
-  image: PaperSheetStimulus | undefined;
-  quizImages: readonly PaperSheetStimulus[];
-  onPick: (image: PaperSheetStimulus) => void;
-  onUpload: () => void;
-  ariaLabel: string;
-  anchor: string;
-}> = ({ image, quizImages, onPick, onUpload, ariaLabel, anchor }) => {
-  const options =
-    image && !quizImages.some((q) => q.id === image.id)
-      ? [image, ...quizImages]
-      : quizImages;
-  return (
-    <select
-      aria-label={ariaLabel}
-      {...tourFieldAttr('quiz-print.written-box-image', 'quiz', anchor)}
-      value={image?.id ?? ''}
-      onChange={(e) => {
-        if (e.target.value === UPLOAD_BOX_IMAGE) return onUpload();
-        const next = options.find((o) => o.id === e.target.value);
-        if (next) onPick(next);
-      }}
-      className="min-w-0 max-w-[10rem] shrink rounded-lg border border-slate-200 px-2 py-1 text-sm"
-    >
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.label}
-        </option>
-      ))}
-      <option value={UPLOAD_BOX_IMAGE}>Upload an image</option>
-    </select>
-  );
-};
-
-/** What prints inside a written box. */
-const BoxStyleSelect: React.FC<{
-  style: PaperBoxStyle;
-  onChange: (style: PaperBoxStyle) => void;
-  ariaLabel: string;
-  anchor: string;
-}> = ({ style, onChange, ariaLabel, anchor }) => (
-  <select
-    aria-label={ariaLabel}
-    {...tourFieldAttr('quiz-print.written-box-style', 'quiz', anchor)}
-    value={style}
-    onChange={(e) => {
-      const next = BOX_STYLE_OPTIONS.find((o) => o.value === e.target.value);
-      if (next) onChange(next.value);
-    }}
-    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-  >
-    {BOX_STYLE_OPTIONS.map((o) => (
-      <option key={o.value} value={o.value}>
-        {o.label}
-      </option>
-    ))}
-  </select>
-);
-
-/** Box size menu, with a line count beside it once Custom is picked. */
-const BoxSizeSelect: React.FC<{
-  size: PaperBoxSize;
-  onChange: (size: PaperBoxSize) => void;
-  ariaLabel: string;
-  anchor: string;
-}> = ({ size, onChange, ariaLabel, anchor }) => {
-  const option = boxSizeOption(size);
-  return (
-    <div className="flex shrink-0 items-center gap-2">
-      <select
-        aria-label={ariaLabel}
-        {...tourFieldAttr('quiz-print.written-box-size', 'quiz', anchor)}
-        value={option}
-        onChange={(e) => {
-          const next = e.target.value;
-          onChange(
-            next === 'custom'
-              ? Math.min(paperBoxLines(size), PAPER_CUSTOM_MAX_LINES)
-              : (next as PaperBoxSize)
-          );
-        }}
-        className="rounded-lg border border-slate-200 px-2 py-1 text-sm"
-      >
-        {BOX_SIZE_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      {option === 'custom' && (
-        <>
-          <input
-            type="number"
-            aria-label={`${ariaLabel}, lines`}
-            {...tourFieldAttr('quiz-print.written-box-lines', 'quiz', anchor)}
-            min={PAPER_CUSTOM_MIN_LINES}
-            max={PAPER_CUSTOM_MAX_LINES}
-            value={paperBoxLines(size)}
-            onChange={(e) =>
-              onChange(
-                Math.max(
-                  PAPER_CUSTOM_MIN_LINES,
-                  Math.min(
-                    PAPER_CUSTOM_MAX_LINES,
-                    Math.round(Number(e.target.value)) || PAPER_CUSTOM_MIN_LINES
-                  )
-                )
-              )
-            }
-            className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-          />
-          <span className="text-xs text-slate-500">lines</span>
-        </>
-      )}
-    </div>
-  );
-};
 
 /** A stub's sheet in number order; `idOf` names each number's question. */
 function stubEntries(
@@ -705,24 +568,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const sheetStimuliChanged =
     JSON.stringify(sheetStimuli) !==
     JSON.stringify(quiz.paperSheetStimuli ?? []);
-  // Only sizes that differ from what the quiz already prints with, on the quiz's own questions.
-  const changedBoxSizes = Object.fromEntries(
-    Object.entries(boxSizes).filter(([id, size]) => {
-      const q = savedQuiz.questions.find((sq) => sq.id === id);
-      return !!q && paperBoxLines(paperBoxSizeOf(q)) !== paperBoxLines(size);
-    })
-  );
+  const { boxSizes: changedBoxSizes, boxStyles: changedBoxStyles } =
+    changedPaperBoxSetup(savedQuiz.questions, boxSizes, boxStyles);
   const boxSizesChanged = Object.keys(changedBoxSizes).length > 0;
-  const changedBoxStyles = Object.fromEntries(
-    Object.entries(boxStyles).filter(([id, pick]) => {
-      const q = savedQuiz.questions.find((sq) => sq.id === id);
-      return (
-        !!q &&
-        (paperBoxStyleOf(q) !== pick.style ||
-          (pick.style === 'image' && q.paperBoxImage?.id !== pick.image?.id))
-      );
-    })
-  );
   const boxStylesChanged = Object.keys(changedBoxStyles).length > 0;
   /** Written boxes the teacher can size; one row per question, across versions. */
   const writtenRows = useMemo(() => {
@@ -753,21 +601,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   );
   /** The quiz's own images, as a custom image box prints them. */
   const quizBoxImages = useMemo(
-    (): PaperSheetStimulus[] =>
-      quizImageStimuli.flatMap((s) =>
-        s.driveFileId || s.url
-          ? [
-              {
-                id: s.id,
-                label: s.label,
-                source: 'image' as const,
-                ...(s.driveFileId ? { driveFileId: s.driveFileId } : {}),
-                ...(s.url ? { url: s.url } : {}),
-              },
-            ]
-          : []
-      ),
-    [quizImageStimuli]
+    () => paperBoxImageChoices(quiz.stimuli ?? []),
+    [quiz.stimuli]
   );
   const boxImageInput = useRef<HTMLInputElement>(null);
   const [boxImageFor, setBoxImageFor] = useState<string | null>(null);
@@ -1913,52 +1748,46 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Written answers
           </p>
-          <ul className="mt-2 space-y-1.5">
+          <ul className="mt-1 divide-y divide-slate-100">
             {writtenRows.map((row) => (
-              <li key={row.questionId} className="flex items-start gap-2">
-                {row.label && (
-                  <span className="w-8 shrink-0 pt-1 text-right text-sm font-semibold text-slate-700">
-                    {row.label}.
-                  </span>
-                )}
-                <span className="min-w-0 flex-1 pt-1 text-sm text-slate-700">
-                  {row.text || 'Untitled question'}
-                </span>
-                <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                  <BoxSizeSelect
-                    size={row.size}
-                    onChange={(size) =>
-                      setBoxSizes((prev) => ({
+              <WrittenBoxRow
+                key={row.questionId}
+                label={row.label}
+                text={row.text || 'Untitled question'}
+              >
+                <BoxSizeSelect
+                  size={row.size}
+                  onChange={(size) =>
+                    setBoxSizes((prev) => ({
+                      ...prev,
+                      [row.questionId]: size,
+                    }))
+                  }
+                  ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
+                  anchor={row.label ?? row.questionId}
+                />
+                <BoxStyleSelect
+                  style={row.style}
+                  onChange={(style) => pickBoxStyle(row, style)}
+                  ariaLabel={`${row.label ? `Question ${row.label}` : row.text} answer style`}
+                  anchor={row.label ?? row.questionId}
+                />
+                {row.style === 'image' && (
+                  <BoxImageSelect
+                    image={row.image}
+                    quizImages={quizBoxImages}
+                    onPick={(image) =>
+                      setBoxStyles((prev) => ({
                         ...prev,
-                        [row.questionId]: size,
+                        [row.questionId]: { style: 'image', image },
                       }))
                     }
-                    ariaLabel={`${row.label ? `Question ${row.label}` : row.text} box size`}
+                    onUpload={() => openBoxImageUpload(row.questionId)}
+                    ariaLabel={`${row.label ? `Question ${row.label}` : row.text} image`}
                     anchor={row.label ?? row.questionId}
                   />
-                  <BoxStyleSelect
-                    style={row.style}
-                    onChange={(style) => pickBoxStyle(row, style)}
-                    ariaLabel={`${row.label ? `Question ${row.label}` : row.text} answer style`}
-                    anchor={row.label ?? row.questionId}
-                  />
-                  {row.style === 'image' && (
-                    <BoxImageSelect
-                      image={row.image}
-                      quizImages={quizBoxImages}
-                      onPick={(image) =>
-                        setBoxStyles((prev) => ({
-                          ...prev,
-                          [row.questionId]: { style: 'image', image },
-                        }))
-                      }
-                      onUpload={() => openBoxImageUpload(row.questionId)}
-                      ariaLabel={`${row.label ? `Question ${row.label}` : row.text} image`}
-                      anchor={row.label ?? row.questionId}
-                    />
-                  )}
-                </div>
-              </li>
+                )}
+              </WrittenBoxRow>
             ))}
           </ul>
           {/* no-tour-anchor: hidden file input, opened from the image menu */}

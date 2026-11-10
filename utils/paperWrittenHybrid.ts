@@ -1,5 +1,15 @@
 // Written answers on paper for a device quiz: the written-answers-only stack and its print job.
-import type { ClassRoster, PaperBatch, QuizData, Student } from '@/types';
+import type {
+  ClassRoster,
+  PaperBatch,
+  PaperBoxSize,
+  PaperBoxStyle,
+  PaperSheetStimulus,
+  QuizData,
+  Student,
+} from '@/types';
+import { plainPromptText } from './promptMath';
+import { paperBoxStyleOf } from './paperWritten';
 import type { AssignClassesValue } from '@/utils/assignTargets';
 import {
   analyzePaperQuiz,
@@ -28,6 +38,36 @@ export function writtenOnlyAnalysis(quiz: QuizData): PaperQuizAnalysis {
 export function paperWrittenQuestionIds(quiz: QuizData): string[] {
   if ((quiz.bankSlots?.length ?? 0) > 0) return [];
   return writtenOnlyAnalysis(quiz).written.map((w) => w.questionId);
+}
+
+/** A written question as the box controls show it: its number, text and current box. */
+export interface PaperWrittenBoxRow {
+  questionId: string;
+  label: string;
+  text: string;
+  size: PaperBoxSize;
+  style: PaperBoxStyle;
+  image?: PaperSheetStimulus;
+}
+
+/** The written questions that print on paper, in sheet order. */
+export function paperWrittenBoxRows(quiz: QuizData): PaperWrittenBoxRow[] {
+  if ((quiz.bankSlots?.length ?? 0) > 0) return [];
+  const byId = new Map(quiz.questions.map((q) => [q.id, q]));
+  return writtenOnlyAnalysis(quiz).written.flatMap((w) => {
+    const q = byId.get(w.questionId);
+    if (!q) return [];
+    return [
+      {
+        questionId: w.questionId,
+        label: w.label,
+        text: plainPromptText(q.text),
+        size: w.size,
+        style: paperBoxStyleOf(q),
+        ...(q.paperBoxImage ? { image: q.paperBoxImage } : {}),
+      },
+    ];
+  });
 }
 
 const studentSort = (a: Student, b: Student): number =>
