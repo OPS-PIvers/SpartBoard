@@ -7,10 +7,7 @@ import { StudentLandingSample } from '@/components/student/landing/StudentLandin
 import { useAuth } from '@/context/useAuth';
 
 // The access flags that change the student page; each row is the same control as on Access > Previews.
-const STUDENT_PAGE_FEATURES: GlobalFeature[] = [
-  'student-gradebook',
-  'student-overview-resources',
-];
+const STUDENT_PAGE_FEATURES: GlobalFeature[] = ['student-gradebook'];
 
 // Rows in the sample are links to fixture sessions; keep the admin on this page.
 const blockLinks = (e: React.MouseEvent) => {
@@ -22,9 +19,6 @@ export const StudentPageView: React.FC = () => {
   // Only /admins can write global_permissions; hide controls rules would deny.
   const { isAdmin } = useAuth();
   const gradesEnabled = editor.getPermission('student-gradebook').enabled;
-  const resourcesEnabled = editor.getPermission(
-    'student-overview-resources'
-  ).enabled;
 
   return (
     <div className="pb-6">
@@ -50,7 +44,6 @@ export const StudentPageView: React.FC = () => {
           gradesEnabled={gradesEnabled}
           initialClassId="eng"
           embedded
-          overviewResources={resourcesEnabled}
         />
       </div>
     </div>

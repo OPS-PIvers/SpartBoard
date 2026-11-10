@@ -16,8 +16,6 @@ interface LandingOverviewProps {
   firstName: string | null;
   nowMs: number;
   pseudonymUid: string | null;
-  /** Resources list under Up next (`student-overview-resources`). */
-  showResources?: boolean;
 }
 
 const greetingFor = (hour: number): string =>
@@ -30,7 +28,6 @@ export const LandingOverview: React.FC<LandingOverviewProps> = ({
   firstName,
   nowMs,
   pseudonymUid,
-  showResources = false,
 }) => {
   const [seeAll, setSeeAll] = useState(false);
   const [seeAllRes, setSeeAllRes] = useState(false);
@@ -90,7 +87,7 @@ export const LandingOverview: React.FC<LandingOverviewProps> = ({
             </button>
           )}
         </section>
-        {showResources && p.resources.length > 0 && (
+        {p.resources.length > 0 && (
           <section
             aria-labelledby="landing-resources"
             className="flex flex-col gap-2"
