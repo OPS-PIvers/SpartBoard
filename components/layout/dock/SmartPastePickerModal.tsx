@@ -4,6 +4,7 @@ import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
+import { clipText } from '@/utils/clipText';
 
 interface SmartPastePickerModalProps {
   text: string;
@@ -22,7 +23,7 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
 }) => {
   const preview =
     text.length > PREVIEW_MAX_LENGTH
-      ? text.slice(0, PREVIEW_MAX_LENGTH).trimEnd() + '…'
+      ? clipText(text, PREVIEW_MAX_LENGTH).trimEnd() + '…'
       : text;
 
   return (

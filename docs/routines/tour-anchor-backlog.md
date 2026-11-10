@@ -35,6 +35,8 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | components/backgroundsModal/BackgroundThumbnail.tsx:21 | Background select and favorite buttons | One per catalog item, generated; needs an index or id prop from every caller to key them. |
 | components/common/ (shared pickers, radiogroups, sliders, dialogs, library importer) | ActiveClassChip, AssignClassPicker, ColorPresetPicker, DialogContainer, PenColorSwatches, RosterModeControl, RosterGroupSelect, StepSlider, SurfaceColorSettings, TextSizePresetSettings, TypographySettings, UniversalStyleSettings, WidgetBuildingToggle, TabExitsPopover, MagicInput, library/* | Each renders on many surfaces; one fixed id would mean different things, so they need a caller-supplied anchor prop. |
 | components/common/ (DriveImagePicker, EditorModalShell, FontSelect, FullscreenToggleButton, ImageLightbox, sessionViews/StatTile) | Add-image, header Close and Save retry, font dropdown, full-screen toggle, lightbox Close, interactive stat tile | Shared by many surfaces; a fixed id would mean different things, so they need a caller-supplied anchor prop. |
+| components/admin/HelpCenter/HelpItemForm.tsx:237 | Keep current and Change buttons in the Help item link field | Two states of one link control shared by embed and activity kinds; unclear which existing `admin.help-center.*` id a tour would want. |
+| components/admin/PermissionBuildingMultiSelect.tsx:65 | Building chips | Shared by many admin panels and generated per building; needs a caller-supplied anchor prop. |
 | components/common/library/assignStepper/MiniAppEditor.dev.tsx:19 | Inputs and button inside the sample HTML string | False positives from a template literal; nothing to tag. |
 
 ## Run log
@@ -65,3 +67,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-11-07 | claude/tour-anchors-2026-11-07-sweep | Library and assigning (flashcards player and share dialog, Keep apart picker, Schoology banner, Spotify Premium notice, video activity student answers) | 9 | 22 | 0 | 332 in 132 files |
 | 2026-11-08 | claude/tour-anchors-2026-11-08 | Library and assigning (flashcards student player and Write mode) | 6 | 11 | 0 | 315 in 130 files |
 | 2026-11-09 | claude/tour-anchors-2026-11-09 | Teams (PLC redesign mockup, dev harnesses, mobile shell controls, hidden date inputs) | 0 | 41 | 0 | 271 in 110 files |
+| 2026-11-10 | claude/tour-anchors-2026-11-10 | Admin (widget config panels, access rows, AI models, hidden file inputs) | 3 | 22 | 2 files | 4 in 2 files, all deferred |

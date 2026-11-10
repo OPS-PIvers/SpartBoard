@@ -992,6 +992,39 @@ export function resolvePictureIds<Q extends { imageIds: string[] }>(
   }));
 }
 
+const CHOICES_AS_LETTERS =
+  'This question’s choices are pictures or equations the reader can’t type, so the whole question was added as a picture and the choices are named by their letters.';
+
+/** Swaps each picture choice's key for its image id; a choice whose picture didn't crop goes back to its letter. */
+export function resolveChoicePictures(
+  question: ExtractedQuestion,
+  idByBox: ReadonlyMap<string, string>
+): ExtractedQuestion {
+  const { choiceFallbackId, ...q } = question;
+  if (!q.options.some((o) => o.imageId)) return q;
+  const lost = q.options.some((o) => o.imageId && !idByBox.has(o.imageId));
+  const letterOf = new Map(q.options.map((o) => [o.text, o.letter]));
+  const whole = choiceFallbackId ? idByBox.get(choiceFallbackId) : undefined;
+  return {
+    ...q,
+    ...(lost
+      ? {
+          correctAnswer: q.correctAnswer
+            .split('|')
+            .map((part) => letterOf.get(part) ?? part)
+            .join('|'),
+          imageIds: whole ? [whole] : q.imageIds,
+          warnings: [...q.warnings, CHOICES_AS_LETTERS],
+        }
+      : {}),
+    options: q.options.map(({ imageId, ...o }) => {
+      if (!imageId) return o;
+      const id = idByBox.get(imageId);
+      return id && !lost ? { ...o, imageId: id } : { ...o, text: o.letter };
+    }),
+  };
+}
+
 export const PDF_PICTURES_FAILED =
   'Pictures in this PDF couldn’t be brought in — add them in the editor.';
 
@@ -1011,30 +1044,37 @@ export async function attachPdfPictures(
 }> {
   // A picture of a whole question is boxed by the parser, so only its key says where it is.
   const known = new Set(pictures.map((box) => figureKey(box)));
+  const choiceKeys = questions.map((q) => [
+    ...q.options.flatMap((o) => (o.imageId ? [o.imageId] : [])),
+    ...(q.choiceFallbackId ? [q.choiceFallbackId] : []),
+  ]);
   const wholeQuestions = questions
-    .flatMap((q) => q.imageIds)
+    .flatMap((q, i) => [...q.imageIds, ...choiceKeys[i]])
     .filter((id) => !known.has(id))
     .map(boxFromKey)
     .filter((box): box is FigureBox => box !== null);
-  const used = usedPictureBoxes([...pictures, ...wholeQuestions], questions);
+  const used = usedPictureBoxes(
+    [...pictures, ...wholeQuestions],
+    questions.map((q, i) => ({ imageIds: [...q.imageIds, ...choiceKeys[i]] }))
+  );
+  const resolve = (idByBox: ReadonlyMap<string, string>) =>
+    resolvePictureIds(questions, idByBox).map((q) =>
+      resolveChoicePictures(q, idByBox)
+    );
   if (used.length === 0) {
-    return {
-      questions: resolvePictureIds(questions, new Map()),
-      images: [],
-      warnings: [],
-    };
+    return { questions: resolve(new Map()), images: [], warnings: [] };
   }
   try {
     const cropped = await cropPdfFigures(used, await makeCropper(file));
     return {
-      questions: resolvePictureIds(questions, cropped.idByBox),
+      questions: resolve(cropped.idByBox),
       images: cropped.images,
       warnings: cropped.warnings,
     };
   } catch (err) {
     console.warn('[quizDocumentImport] could not crop the PDF', err);
     return {
-      questions: resolvePictureIds(questions, new Map()),
+      questions: resolve(new Map()),
       images: [],
       warnings: [PDF_PICTURES_FAILED],
     };

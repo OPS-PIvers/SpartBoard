@@ -729,6 +729,12 @@
 | 2026-11-09 | State & Data | `extractYouTubeId` regex lacked `live/`, so `youtube.com/live/<id>` links were rejected. (contained). | [#5462](https://github.com/OPS-PIvers/SpartBoard/pull/5462) |
 | 2026-11-09 | Admin & Config | Quiz read-aloud monthly cap inputs snapped to 0 on clear (`parseInt` then `0` in `onChange`). Uses `DraftNumberField`. (contained). | [#5463](https://github.com/OPS-PIvers/SpartBoard/pull/5463) |
 | 2026-11-09 | Build & Tooling | Activity Wall archive file names reused the 60-char folder sanitizer, dropping the extension on long names and splitting surrogate pairs. New `sanitizeDriveFileName`, code-point safe. (contained). | [#5464](https://github.com/OPS-PIvers/SpartBoard/pull/5464) |
+| 2026-11-10 | Baseline | `pnpm run validate` green on `dev-paul` at `ecb5ea80` (5290 root tests). Only a unifier log PR open at dispatch. | — |
+| 2026-11-10 | Widgets | `sanitizeAgendaParts` capped Arts & Letters Agenda part labels with `.slice(0, 30)`, splitting an emoji at the cut. Uses `clipText`. (contained). | [#5523](https://github.com/OPS-PIvers/SpartBoard/pull/5523) |
+| 2026-11-10 | Dashboard & Layout | `DriveFileAttachment` (30k text sent to AI) and the SmartPaste/URL picker previews cut with raw `substring`/`slice`, splitting surrogate pairs. Uses `clipText`. (contained). | [#5524](https://github.com/OPS-PIvers/SpartBoard/pull/5524) |
+| 2026-11-10 | State & Data | `extractYouTubeId` rejected `youtube-nocookie.com` embed URLs. Regex accepts the host. (contained). | [#5525](https://github.com/OPS-PIvers/SpartBoard/pull/5525) |
+| 2026-11-10 | Admin & Config | Clean: building-ID canonicalization, config normalizers, admin Access panels, listener cleanup, auth InviteAcceptance, de/es/fr fallback (deliberate); no reproducible bug. | — |
+| 2026-11-10 | Build & Tooling | Clean: functions pure utils, SSRF guard, server copies of client logic, ClassLink helpers, `in` chunking, batch sizes, analytics history, rules/minify scripts; no reproducible bug. | — |
 
 ## Backlog
 
@@ -1181,6 +1187,10 @@
 | Dashboard & Layout | `DeepLinkShareImporter`: `runAssignmentImport` `.then` and the Import-canceled Retry route through `setPendingAssignmentSetup` without a board-switch check; `peekAndDispatchImportRef`/`runVideoActivityImportRef` still assigned during render under `eslint-disable react-hooks/refs`. Closed: `useUnifiedAssignments` dropping `periodNames`/`classIds` is intentional. `DraggableWindow.tsx`, `DashboardView.tsx` still unread. | 2026-11-09 | open (low) |
 | Admin & Config | Uncleared-number-input class likely remains in `CalendarConfigurationModal` (~397, ~806), `First5ConfigurationPanel:62`, `SmartNotebookConfigurationPanel:112`, `ActivityWallConfigurationPanel:191` (handlers unread). `normalizeQuizTranslationSettings` dedupe/cap 0 and `withoutProtectedMembers` O(n*m) not examined. | 2026-11-09 | open |
 | Build & Tooling | `backfill-live-session-codes.mjs`/`backfill-project-work-links.mjs` take `--apply` as the project id when `--project` has no value; `scripts/checkTourAnchors.ts` `--base` with no value gives `undefined...HEAD`; `refreshIdleResponses`/`finalizeQuizResponses` single `.limit(400)` page. Unread: `studentAssignmentTargets.ts`, `quizMediaArchive.ts` from line 500. | 2026-11-09 | open (low) |
+| Widgets | Surrogate-splitting `.slice` remains at `VideoActivityWidget/Widget.tsx` ~L345 (title 200), `Focus/FocusSetup.tsx` ~L348 (80), `miniAppImportAdapter` `titleFromFileName`/`titleFromHtml`, `GuidedLearning/.../resolveAnchor.ts` ~L147 (found 2026-11-10) |
+| Admin & Config | `AdminCalendarFetcher` writes back a pre-`await` `config` snapshot, so an admin edit to a calendar array during a slow sync can be overwritten; re-read before write or write only `cachedEvents`/`lastProxySync` paths (found 2026-11-10, not reproduced) |
+| Admin & Config | `PollResponsesPanel` (`Announcements/Widget.tsx`) CSV export lacks the spreadsheet-formula guard (found 2026-11-10, low) |
+| State & Data | `extractYouTubeId` regex is unanchored, so `evil.example/?u=youtu.be/<id>` matches (low); `useLastAssignSettings` catch `cache.delete(uid)` may drop a value `save()` just cached; `quizMaxPoints.countedQuestions` double-counts overlapping bank pools (found 2026-11-10) |
 
 ## Notes & Gotchas
 
@@ -1635,3 +1645,5 @@
 - Run count: **117** | Last run: **2026-11-08**
 - 2026-11-09: five fixes (#5460-#5464). Subagents ran scoped checks only; the first merged-tree gate failed at functions type-check (TS2550, `isWellFormed` again in a subagent test; the note from 2026-11-02 applies to `functions/` tests too), so the full gate was re-run after the fix. `dev-paul` moved during the run (no overlap). Baseline ~1 h, each gate ~1 h.
 - Run count: **118** | Last run: **2026-11-09**
+- 2026-11-10: three fixes (#5523-#5525), two areas clean. Subagents ran scoped checks only; `vitest related` fans out to hundreds of suites on `utils/` and `components/common` edits and stalls, so run the new test file directly. A subagent's leftover background vitest kept re-waking it with duplicate hand-backs; kill its processes once its fix is verified. Merged-tree gate (`validate` + `build`) green; baseline plus gate about 1.5 h. `dev-paul` moved during the run (no overlap); branches were rebased in their worktrees (a branch checked out in a worktree cannot be rebased from the main checkout).
+- Run count: **119** | Last run: **2026-11-10**

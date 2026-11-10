@@ -16,8 +16,8 @@ const isValidHex = (color?: string): boolean =>
 const BARE_HEX_RE = /^([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 /**
- * Normalise a stored hex colour to the 6-digit lowercase form that the native
- * `<input type="color">` swatch requires. The text field and the server
+ * Normalise a stored hex colour to the 6-digit lowercase form that the
+ * native colour swatch requires. The text field and the server
  * validator also accept 3-digit (`#abc`) and 8-digit alpha (`#aabbccdd`) hex,
  * but the swatch silently renders those as black — so expand shortform and
  * drop the alpha byte before handing the value to the swatch. `fallback` is

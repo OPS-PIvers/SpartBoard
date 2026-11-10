@@ -1285,7 +1285,7 @@ const InviteModal: React.FC<{
             }
           >
             {/* Checkbox list avoids the ctrl/cmd-click discoverability trap
-                of a native <select multiple>. Scrollable if many buildings. */}
+                of a native multi-select. Scrollable if many buildings. */}
             <div
               role="group"
               aria-label="Buildings"
@@ -1430,6 +1430,7 @@ const BulkImportModal: React.FC<{
         </p>
 
         <input
+          // no-tour-anchor: hidden file input opened by its upload button
           ref={fileInputRef}
           type="file"
           accept=".csv,text/csv"
