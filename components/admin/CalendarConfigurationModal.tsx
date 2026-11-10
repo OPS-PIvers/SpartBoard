@@ -291,6 +291,11 @@ export const CalendarConfigurationModal: React.FC<
       <div className="flex items-center gap-2">
         {isCalendarConnected === false && (
           <button
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'calendar',
+              'reconnectGoogle'
+            )}
             onClick={() =>
               void ensureGoogleScope('calendar.readonly', {
                 interactive: true,
@@ -304,6 +309,7 @@ export const CalendarConfigurationModal: React.FC<
           </button>
         )}
         <button
+          // no-tour-anchor: header X duplicates the anchored footer Close
           onClick={onClose}
           className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
         >

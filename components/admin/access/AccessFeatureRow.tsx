@@ -114,6 +114,7 @@ export const AccessLevelPicker: React.FC<{
   >
     {LEVELS.map(({ level, label: text, Icon }) => (
       <button
+        // no-tour-anchor: option buttons of the radiogroup that carries the access level anchor
         key={level}
         type="button"
         role="radio"

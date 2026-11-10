@@ -92,6 +92,11 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
         {BUILDINGS.map((b) => (
           <button
             key={b.id}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'url',
+              `building-${b.id}`
+            )}
             onClick={() => setActiveTab(b.id)}
             className={`px-4 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-colors ${
               activeTab === b.id
