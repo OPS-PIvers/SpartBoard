@@ -426,6 +426,16 @@ describe('rewriteOpenCheckSessions', () => {
     ).toBeNull();
   });
 
+  it('never carries a swap or a cleared side into a check', () => {
+    expect(
+      fixedCheckCards(
+        [card('a', 'gato', 'cat'), card('b', 'perro', 'dog')],
+        [card('a', 'cat', 'gato'), card('b', 'perro', '')],
+        false
+      )
+    ).toBeNull();
+  });
+
   it('treats alphabetized keys as the same card', () => {
     expect(
       fixedCheckCards(

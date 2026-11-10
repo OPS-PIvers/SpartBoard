@@ -10,6 +10,14 @@ const speakable = (card: FlashcardCard): boolean =>
 const sameCard = (a: FlashcardCard, b: FlashcardCard): boolean =>
   stableStringify(a) === stableStringify(b);
 
+/** A swap or a side cleared is a new card, not a fix, so it never reaches a Check. */
+const notAFix = (old: FlashcardCard, fixed: FlashcardCard): boolean =>
+  (old.term.trim() !== '' && fixed.term.trim() === '') ||
+  (old.definition.trim() !== '' && fixed.definition.trim() === '') ||
+  (fixed.term !== fixed.definition &&
+    fixed.term === old.definition &&
+    fixed.definition === old.term);
+
 /** A Check's cards with the set's fixes applied: same ids and order, null when nothing changed. */
 export const fixedCheckCards = (
   checkCards: FlashcardCard[],
@@ -22,6 +30,7 @@ export const fixedCheckCards = (
     const fixed = byId.get(old.id);
     // A deleted card stays, so counts, saved answers and submissions still line up.
     if (!fixed) return old;
+    if (notAFix(old, fixed)) return old;
     const { speak, ...text } = fixed;
     let card: FlashcardCard = speakStamped && speak ? { ...text, speak } : text;
     // Which cards can be spoken is fixed for the attempt, so a fix never changes it.

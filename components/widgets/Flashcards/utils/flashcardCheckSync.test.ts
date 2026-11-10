@@ -85,4 +85,22 @@ describe('fixedCheckCards', () => {
       )
     ).toBe(null);
   });
+
+  it('never carries a swap or a cleared side into a check', () => {
+    const check = [card('a', 'gato', 'cat'), card('b', 'perro', 'dog')];
+    expect(
+      fixedCheckCards(
+        check,
+        [card('a', 'cat', 'gato'), card('b', 'perro', '')],
+        false
+      )
+    ).toBe(null);
+  });
+
+  it('still fixes the term of a card that never had a definition', () => {
+    const check = [card('a', 'teh', '')];
+    expect(fixedCheckCards(check, [card('a', 'the', '')], false)).toEqual([
+      card('a', 'the', ''),
+    ]);
+  });
 });

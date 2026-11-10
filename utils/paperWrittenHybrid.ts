@@ -6,6 +6,7 @@ import type {
   PaperBoxStyle,
   PaperSheetStimulus,
   QuizData,
+  QuizQuestion,
   Student,
 } from '@/types';
 import { plainPromptText } from './promptMath';
@@ -135,7 +136,8 @@ export function planHybridWrittenBatch(input: {
 export function hybridPrintJob(
   quiz: QuizData,
   batch: PaperBatch,
-  sheets: readonly PaperSheetPlan[]
+  sheets: readonly PaperSheetPlan[],
+  writtenImages: Record<string, string> = {}
 ): PaperPrintJob {
   return {
     batchId: batch.id,
@@ -145,5 +147,20 @@ export function hybridPrintJob(
     sheets,
     ...(batch.pageMaps ? { pageMaps: batch.pageMaps } : {}),
     writtenTexts: Object.fromEntries(quiz.questions.map((q) => [q.id, q.text])),
+    ...(Object.keys(writtenImages).length > 0 ? { writtenImages } : {}),
   };
+}
+
+/** Custom image boxes in a written stack, keyed by question id. */
+export function hybridBoxImages(
+  questions: readonly QuizQuestion[],
+  questionIds: readonly string[]
+): Map<string, PaperSheetStimulus> {
+  const ids = new Set(questionIds);
+  const out = new Map<string, PaperSheetStimulus>();
+  for (const q of questions) {
+    if (ids.has(q.id) && q.paperBoxStyle === 'image' && q.paperBoxImage)
+      out.set(q.id, q.paperBoxImage);
+  }
+  return out;
 }

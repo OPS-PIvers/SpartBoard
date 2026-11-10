@@ -217,9 +217,15 @@ import type {
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import {
   PAPER_WRITTEN_HYBRID_FEATURE,
+  hybridBoxImages,
   hybridPrintJob,
   planHybridWrittenBatch,
 } from '@/utils/paperWrittenHybrid';
+import {
+  browserStimulusImageDeps,
+  resolveStimulusImages,
+  stimulusLoadErrorMessage,
+} from '@/utils/paperSheetStimulusImages';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
@@ -3600,6 +3606,29 @@ const TeacherQuizWidget: React.FC<{
               );
               return;
             }
+            const boxImages = hybridBoxImages(
+              assignQuestions,
+              plan.questionIds
+            );
+            const writtenImages: Record<string, string> = {};
+            if (boxImages.size > 0) {
+              const images = await resolveStimulusImages(
+                [...boxImages.values()],
+                browserStimulusImageDeps(
+                  async (fileId) =>
+                    (await getDriveFileAsBlob(fileId))?.blob ?? null
+                )
+              );
+              if (images.failed.length > 0) {
+                images.release();
+                addToast(stimulusLoadErrorMessage(images.failed), 'error');
+                return;
+              }
+              for (const [id, image] of boxImages) {
+                const src = images.src[image.id];
+                if (src) writtenImages[id] = src;
+              }
+            }
             try {
               await savePaperBatch(user.uid, plan.batch);
             } catch (err) {
@@ -3622,7 +3651,8 @@ const TeacherQuizWidget: React.FC<{
                 hybridPrintJob(
                   { ...data, questions: assignQuestions },
                   plan.batch,
-                  plan.sheets
+                  plan.sheets,
+                  writtenImages
                 )
               );
           }

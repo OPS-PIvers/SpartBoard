@@ -309,6 +309,14 @@ const cardSpeakable = (card: FlashcardCard): boolean => {
   );
 };
 
+/** A swap or a side cleared is a new card, not a fix, so it never reaches a Check. */
+const notAFix = (old: FlashcardCard, fixed: FlashcardCard): boolean =>
+  (old.term.trim() !== '' && fixed.term.trim() === '') ||
+  (old.definition.trim() !== '' && fixed.definition.trim() === '') ||
+  (fixed.term !== fixed.definition &&
+    fixed.term === old.definition &&
+    fixed.definition === old.term);
+
 /** Mirrors fixedCheckCards in components/widgets/Flashcards/utils/flashcardCheckSync.ts. */
 export function fixedCheckCards(
   checkCards: FlashcardCard[],
@@ -320,6 +328,7 @@ export function fixedCheckCards(
   const next = checkCards.map((old) => {
     const fixed = byId.get(old.id);
     if (!fixed) return old;
+    if (notAFix(old, fixed)) return old;
     const { speak, ...text } = fixed;
     let card: FlashcardCard = speakStamped && speak ? { ...text, speak } : text;
     if (speakStamped && cardSpeakable(card) !== cardSpeakable(old)) {
