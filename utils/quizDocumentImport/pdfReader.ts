@@ -383,6 +383,16 @@ export async function readPdf(
         tops.forEach((top, i) => {
           pageLines[i].top = top;
         });
+        const [a, , c, , e] = viewport.transform;
+        page.lines.forEach((line, i) => {
+          const segments = pageLines[i].segments;
+          if (!segments?.some((s) => s.x !== undefined)) return;
+          pageLines[i].segments = segments.map((s) =>
+            s.x === undefined
+              ? s
+              : { ...s, left: (a * s.x + c * line.y + e) / viewport.width }
+          );
+        });
         // An equation set as an image belongs to the last line that starts above its middle.
         for (const box of picturesByPage.get(n)?.inline ?? []) {
           const middle = box.y + box.height / 2;
@@ -398,6 +408,10 @@ export async function readPdf(
             top: Math.min(had?.top ?? 1, box.y),
             bottom: Math.max(had?.bottom ?? 0, box.y + box.height),
           };
+          pageLines[at].inlineBoxes = [
+            ...(pageLines[at].inlineBoxes ?? []),
+            { x: box.x, y: box.y, width: box.width, height: box.height },
+          ];
         }
         // Math that plain text gets wrong also comes in as a picture of the line.
         page.lines.forEach((line, i) => {

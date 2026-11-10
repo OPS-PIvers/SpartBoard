@@ -27,6 +27,7 @@ import {
   isExamView,
 } from './examView';
 import { keyedQuestionIndexes, mergeAnswerKey } from './mergeKey';
+import { newImageOnlyLabel } from '@/utils/quizAnswerImages';
 import { boxFromKey, figureKey } from './pdfFigures';
 import { captionLabels } from './pdfPictures';
 import {
@@ -534,6 +535,7 @@ export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
         ...(i === 0 && line.mathPicture ? { mathPicture: true } : {}),
         ...(line.top !== undefined ? { top: line.top } : {}),
         ...(line.inlineImage ? { inlineImage: line.inlineImage } : {}),
+        ...(line.inlineBoxes ? { inlineBoxes: line.inlineBoxes } : {}),
         ...(i === 0 && line.besideIds ? { besideIds: line.besideIds } : {}),
       };
       columnLines.add(piece);
@@ -541,6 +543,139 @@ export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
     });
   }
   return out;
+}
+
+type Box = { x: number; y: number; width: number; height: number };
+
+const boxCenter = (b: Box) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+
+/** A reader merges pictures stacked close together, so one box over several choices is cut back into one piece per choice. */
+export function sliceByChoice(
+  box: Box,
+  placed: readonly { top?: number; left?: number }[]
+): Box[] {
+  const inside = placed.filter(
+    (p) =>
+      p.top !== undefined &&
+      p.top >= box.y - 0.035 &&
+      p.top <= box.y + box.height + 0.035
+  );
+  const tops = [...new Set(inside.map((p) => Math.round((p.top ?? 0) * 200)))]
+    .sort((a, b) => a - b)
+    .map((t) => t / 200);
+  if (inside.length < 2) return [box];
+  // Every choice sits the same way against its picture as the first one does.
+  const lead = Math.max(0, tops[0] - box.y);
+  const bottom = box.y + box.height;
+  return tops.flatMap((top, r) => {
+    const y0 = Math.max(box.y, top - lead);
+    const y1 = r + 1 < tops.length ? tops[r + 1] - lead : bottom;
+    const row = inside
+      .filter((p) => Math.abs((p.top ?? 0) - top) < 0.005)
+      .map((p) => p.left ?? 0)
+      .sort((a, b) => a - b);
+    const xs = row.length > 1 ? row : [box.x];
+    return xs.map((x, c) => {
+      const x0 = Math.max(box.x, x);
+      const x1 = Math.min(c + 1 < xs.length ? xs[c + 1] : 1, box.x + box.width);
+      return { x: x0, y: y0, width: x1 - x0, height: Math.max(0, y1 - y0) };
+    });
+  });
+}
+
+/** Gives each blank choice the pictures printed beside it, or false when any choice has none (falls back to the whole question). */
+function cropEachChoice(draft: Draft): boolean {
+  const options = draft.options;
+  const page = options[0]?.line.page;
+  if (page === undefined) return false;
+  const placed = options.map((o) => ({
+    option: o,
+    top: o.line.top,
+    left: lineSegments(o.line)[0]?.left,
+  }));
+  if (placed.some((p) => p.top === undefined || p.option.line.page !== page)) {
+    return false;
+  }
+  const firstTop = Math.min(...placed.map((p) => p.top ?? 1));
+  // Math set as a picture in the stem still needs the whole question.
+  if ((draft.inlineImage?.top ?? 1) < firstTop - 0.035) return false;
+  const lines = [
+    ...(draft.openLine ? [draft.openLine] : []),
+    ...options.flatMap((o) => [o.line, ...o.wraps]),
+  ];
+  const seen = new Set<string>();
+  const candidates: { box: Box; figure?: string }[] = [];
+  for (const box of lines.flatMap((l) => l.inlineBoxes ?? [])) {
+    const key = figureKey({ page, ...box });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    candidates.push({ box });
+  }
+  const lefts = placed.map((p) => p.left ?? 0);
+  for (const id of draft.imageIds) {
+    const box = boxFromKey(id);
+    if (box?.page !== page) continue;
+    // A diagram above or off to the side of the choices belongs to the stem.
+    if (
+      box.y < firstTop - 0.06 ||
+      !lefts.some((x) => box.x >= x - 0.02 && box.x <= x + 0.15)
+    ) {
+      continue;
+    }
+    for (const slice of sliceByChoice(box, placed)) {
+      candidates.push({ box: slice, figure: id });
+    }
+  }
+  const sameRow = (a?: number, b?: number) =>
+    a !== undefined && b !== undefined && Math.abs(a - b) < 0.005;
+  const taken = new Set<number>();
+  const crops: { box: Box; figures: string[] }[] = [];
+  for (const p of placed) {
+    const top = p.top ?? 0;
+    const row = placed.filter((q) => sameRow(q.top, top));
+    if (row.length > 1 && row.some((q) => q.left === undefined)) return false;
+    const left = row.length > 1 ? (p.left ?? 0) - 0.01 : 0;
+    const right = Math.min(
+      1,
+      ...row
+        .map((q) => q.left ?? 0)
+        .filter((x) => p.left !== undefined && x > p.left)
+        .map((x) => x - 0.005)
+    );
+    const below = placed.map((q) => q.top ?? 0).filter((t) => t > top + 0.005);
+    const bottom = below.length > 0 ? Math.min(...below) - 0.035 : top + 0.15;
+    const mine = candidates.flatMap((c, i) => {
+      const { x, y } = boxCenter(c.box);
+      return !taken.has(i) &&
+        x >= left &&
+        x < right &&
+        y >= top - 0.035 &&
+        y < bottom
+        ? [i]
+        : [];
+    });
+    if (mine.length === 0) return false;
+    for (const i of mine) taken.add(i);
+    const boxes = mine.map((i) => candidates[i].box);
+    const x0 = Math.min(...boxes.map((b) => b.x)) - 0.004;
+    const y0 = Math.min(...boxes.map((b) => b.y)) - 0.004;
+    const x1 = Math.max(...boxes.map((b) => b.x + b.width)) + 0.004;
+    const y1 = Math.max(...boxes.map((b) => b.y + b.height)) + 0.004;
+    crops.push({
+      box: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 },
+      figures: mine.flatMap((i) => candidates[i].figure ?? []),
+    });
+  }
+  const labels: string[] = [];
+  options.forEach((option, i) => {
+    const label = newImageOnlyLabel(labels);
+    labels.push(label);
+    option.text = label;
+    option.imageId = figureKey({ page, ...crops[i].box });
+  });
+  const used = new Set(crops.flatMap((c) => c.figures));
+  draft.imageIds = draft.imageIds.filter((id) => !used.has(id));
+  return true;
 }
 
 interface OptionDraft extends ExtractedOption {
@@ -619,6 +754,8 @@ interface Draft {
   table?: { at: number; rows: string[] };
   /** Row notes about this question's pictures. */
   pictureNotes?: string[];
+  /** The whole-question picture to use if a picture choice fails to crop. */
+  choiceFallbackId?: string;
   /** "Read paragraph 8." copied into this stem from a shared lead-in. */
   instruction?: string;
   /** The instruction is the section's directions, which a real section takes back (E16). */
@@ -793,6 +930,7 @@ function finish(
   let options: ExtractedOption[] = sortedOptions.map((o) => ({
     letter: o.letter,
     text: o.text,
+    ...(o.imageId ? { imageId: o.imageId } : {}),
   }));
 
   if (SORTING.test(stem)) {
@@ -878,6 +1016,9 @@ function finish(
     options,
     correctAnswer,
     imageIds: [...new Set(draft.imageIds)],
+    ...(draft.choiceFallbackId
+      ? { choiceFallbackId: draft.choiceFallbackId }
+      : {}),
     warnings,
     ...(draft.target ? { suggestedTarget: draft.target } : {}),
     ...(draft.sharedTextId ? { sharedTextId: draft.sharedTextId } : {}),
@@ -2266,6 +2407,19 @@ export function parseDocument(
       width: 0.92,
       height: Math.min(end - start, 0.7),
     });
+    const stem = tidy(draft.textParts.join(' '));
+    if (
+      blankChoices &&
+      options.answerPictures &&
+      !draft.matching &&
+      !ORDERING.test(stem) &&
+      !SORTING.test(stem) &&
+      cropEachChoice(draft)
+    ) {
+      // The whole question stays ready in case a choice's own crop fails.
+      draft.choiceFallbackId = key;
+      return;
+    }
     draft.imageIds = [key];
     for (const option of draft.options) {
       if (!option.text.trim()) option.text = option.letter;

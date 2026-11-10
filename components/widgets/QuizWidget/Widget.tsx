@@ -2345,6 +2345,7 @@ const TeacherQuizWidget: React.FC<{
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
       pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
+      answerPictures: canAccessFeature('quiz-ordering-images'),
       equations:
         canAccessFeature('quiz-import-equations') &&
         canAccessFeature(STUDENT_KEYBOARDS_FEATURE),

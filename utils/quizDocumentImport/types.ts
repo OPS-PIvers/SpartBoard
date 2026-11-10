@@ -16,6 +16,8 @@ export interface DocSegment {
   x?: number;
   /** Right edge in the same units as `x`. */
   xEnd?: number;
+  /** Left edge as a fraction of the PDF page width; PDFs only. */
+  left?: number;
   /** Bold, underlined or highlighted somewhere in this segment. */
   emphasized?: boolean;
 }
@@ -49,6 +51,8 @@ export interface DocLine {
   top?: number;
   /** Small pictures, such as equations set as images, printed in this line: how far they reach up and down the page. */
   inlineImage?: { top: number; bottom: number };
+  /** Each of those small pictures, as fractions of the page. */
+  inlineBoxes?: { x: number; y: number; width: number; height: number }[];
   /** Pictures given to this line only because they are printed beside several questions. */
   besideIds?: string[];
   /** This line's picture is a crop of its own math, which plain text can't hold. */
@@ -69,6 +73,8 @@ export interface ExtractedOption {
   /** The letter as printed, uppercased: A–F. */
   letter: string;
   text: string;
+  /** A choice printed only as a picture: its crop key, then its image id; `text` is its generated label. */
+  imageId?: string;
 }
 
 /** A picture lifted out of the document, not yet uploaded anywhere. */
@@ -165,6 +171,8 @@ export interface ExtractedQuestion {
   correctAnswer: string;
   /** Pictures this question uses, by `ExtractedImage.id`. */
   imageIds: string[];
+  /** PDFs: the whole-question picture kept until its picture choices are cropped. */
+  choiceFallbackId?: string;
   /** Row notes for the review table; never fatal. */
   warnings: string[];
   /** The ExamView section kind that decides how a key applies (QUIZ_EXAMVIEW_IMPORT E5). */
@@ -287,6 +295,8 @@ export type RemoteImageFetcher = (
 /** Reader switches; `multiAnswer` lets a read produce choose-all-that-apply questions. */
 export interface ReaderOptions {
   multiAnswer?: boolean;
+  /** A choice printed only as a picture comes in as that picture, not the whole question. */
+  answerPictures?: boolean;
   /** Long text blocks become passage stimuli without a "read the passage" cue. */
   passages?: boolean;
   /** Lets an LMS export bring in pictures hosted outside the zip. */
