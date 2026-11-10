@@ -66,7 +66,9 @@ describe('StepsView article', () => {
     expect(screen.getByAltText('Picture of step 3')).toBeTruthy();
   });
 
-  it('rings the target on a picture that has one, and not on one that does not', () => {
+  it('spotlights the target on a picture that has one, and not on one that does not', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(450);
     render(
       view({
         steps: [
@@ -75,7 +77,8 @@ describe('StepsView article', () => {
         ],
       })
     );
-    expect(screen.getAllByTestId('step-picture-ring')).toHaveLength(1);
+    expect(screen.getAllByTestId('web-stage-preview')).toHaveLength(1);
+    vi.restoreAllMocks();
   });
 
   it('says plainly when a step only shows sometimes', () => {
