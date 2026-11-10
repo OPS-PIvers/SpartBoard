@@ -10953,6 +10953,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.swap-sides': {
+    label: 'Swap terms and definitions button in the Flashcards editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'flashcards.language-code': {
     label: 'Custom language code box in the Flashcards editor',
     perField: true,

@@ -161,6 +161,20 @@ export const useFlashcardEditorState = (
     );
   };
 
+  /** Flips every card's term and definition and the two languages; a second click undoes it. */
+  const swapSides = (): void => {
+    setCards((current) =>
+      current.map(({ speak: _speak, ...card }) => ({
+        ...card,
+        term: card.definition,
+        definition: card.term,
+      }))
+    );
+    setIpaDrafts({});
+    setTermLanguage(definitionLanguage);
+    setDefinitionLanguage(termLanguage);
+  };
+
   /** Inserts a blank card after `index`; null when the set is full. */
   const insertCardAfter = (index: number): FlashcardCard | null => {
     if (cards.length >= MAX_FLASHCARDS_PER_SET) {
@@ -292,6 +306,7 @@ export const useFlashcardEditorState = (
     updateCard,
     insertCardAfter,
     removeCard,
+    swapSides,
     appendCards,
     needsLookup,
     lookupReferences,

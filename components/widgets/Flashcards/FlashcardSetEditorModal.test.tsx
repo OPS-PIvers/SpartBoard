@@ -247,6 +247,26 @@ describe('FlashcardSetEditorModal', () => {
     expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
   });
 
+  it('swaps terms, definitions and languages, and swaps back on a second click', () => {
+    renderModal({ set: baseSet({ termLanguage: 'it-IT' }) });
+    fireEvent.click(screen.getByLabelText('Swap terms and definitions'));
+    expect(screen.getByLabelText('Term 1')).toHaveProperty('value', 'hello');
+    expect(screen.getByLabelText('Definition 1')).toHaveProperty(
+      'value',
+      'hola'
+    );
+    expect(screen.getByLabelText('Term language')).toHaveProperty(
+      'value',
+      'en-US'
+    );
+    fireEvent.click(screen.getByLabelText('Swap terms and definitions'));
+    expect(screen.getByLabelText('Term 1')).toHaveProperty('value', 'hola');
+    expect(screen.getByLabelText('Term language')).toHaveProperty(
+      'value',
+      'it-IT'
+    );
+  });
+
   it('ignores Enter while an IME composition is open', () => {
     renderModal({});
     fireEvent.keyDown(screen.getByLabelText('Definition 1'), {
