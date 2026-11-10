@@ -34,12 +34,6 @@ _2026-10-08: Thursday Audit B2 (read-only). Root `pnpm audit --audit-level=moder
 
 _2026-10-06: Tuesday Audit B2 (read-only). Root `pnpm audit --audit-level=moderate`: **7 vulnerabilities (1 low | 2 moderate | 4 high)**, up from 2 on 2026-10-01; `functions/`: **3 (1 moderate | 2 high)**, up from 0. New advisories: `braces` (high, stack exhaustion, via firebase-functions-test>jest, both), `source-map-js` (high, event-loop DoS; root via @vitest/coverage-v8>magicast, functions via vite>postcss), `basic-ftp` (high, via firebase-tools>proxy-agent), `sprintf-js` (moderate, jest chain, both), `postcss-selector-parser` (moderate, <7.1.6, via tailwindcss), plus the standing `@grpc/grpc-js` (high). All are dev/test-toolchain paths except `@grpc/grpc-js` (via `firebase`). Outdated: >1 major behind — `@google/genai` 1.52→2.27 (both), `firebase-admin` 13→14, `eslint` 9→10, `vite` 6→8 (root), `typescript` 5.9→7.0, `vitest` 4→5, `tailwindcss` 3→4, `lucide-react` 0.563→1.52, `jose` 4→6 (functions), `jsdom` 27→30, `@types/node` 24→26. No new firebase/react drift beyond these. Deprecated: `crypto-js`, `@types/tesseract.js`, `fluent-ffmpeg`.
 
-### MEDIUM `glob` (>=9 <=14.0.1) and `minimatch` (>=7 <11.0.1) moderate advisories — via dev toolchain and `firebase-admin`
-- **Detected:** 2026-11-10
-- **File:** package.json, functions/package.json (transitive: `firebase-admin>@google-cloud/firestore>google-gax>rimraf>glob>minimatch`; root also `@typescript-eslint/eslint-plugin>…>typescript-estree>minimatch`)
-- **Detail:** GHSA-3g3m-2fjr-6pw4 (glob AbortSignal cancellation bypass, patched >=14.0.2) and GHSA-g3hv-75wg-m249 (minimatch DoS, patched >=11.0.1). Root reports 4 moderate paths, `functions/` 2. Almost entirely dev/build-time or non-reachable in Cloud Functions, but the audit stays red.
-- **Fix:** Add `pnpm.overrides` for `glob` (>=14.0.2) and `minimatch` (>=11.0.1) after confirming rimraf/typescript-estree tolerate the newer majors, or wait for upstream `firebase-admin`/`typescript-eslint` bumps.
-
 ### MEDIUM New dev-toolchain advisories: `braces`, `source-map-js`, `sprintf-js`, `postcss-selector-parser`, `basic-ftp`
 
 - **Detected:** 2026-10-06
@@ -107,6 +101,9 @@ _2026-09-24: `pnpm audit --audit-level=moderate` (read-only) + `pnpm outdated` r
 ---
 
 ## Completed
+
+### MEDIUM `glob` and `minimatch` moderate advisories — RESOLVED 2026-11-10
+- Added `pnpm.overrides` `glob@>=9 <14.0.2` → `^14.0.2` and `minimatch@>=7 <11.0.1` → `^11.0.1` in root and `functions/`. `pnpm audit --audit-level=moderate` now clean in both; eslint on sample files passes, `firebase-admin` loads, functions `tsc --noEmit` passes. PR opened to `dev-paul`.
 
 ### MEDIUM `@hono/node-server` moderate advisory GHSA-rmxm-3fg6-px4f (`serveStatic` double-decodes path) — via `@google/genai` MCP SDK
 - **Detected:** 2026-10-29
