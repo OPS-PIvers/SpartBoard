@@ -130,6 +130,8 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
 
   if (!card) return null;
   const sides = getFlashcardSides(card, showFirst);
+  const canFlip = sides.answer !== '';
+  const shown = flipped && canFlip;
   const isStarred = starred.includes(card.id);
   const iconSize = {
     width: 'min(20px, 4.5cqmin)',
@@ -154,26 +156,32 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
         )}
       >
         <span className="sr-only" aria-live="polite">
-          {flipped
+          {shown
             ? `${t(`flashcards.cards.${answerSide}`)}: ${sides.answer}`
             : ''}
         </span>
         <button
           type="button"
           {...tourAttr('flashcards.present-flip')}
-          aria-pressed={flipped}
-          aria-label={`${t(`flashcards.cards.${flipped ? answerSide : showFirst}`)}: ${flipped ? sides.answer : sides.prompt}. ${t(flipped ? 'flashcards.cards.flipToPrompt' : 'flashcards.cards.flipToAnswer')}`}
-          onClick={() => setFlipped((current) => !current)}
+          aria-pressed={canFlip ? shown : undefined}
+          aria-label={
+            canFlip
+              ? `${t(`flashcards.cards.${shown ? answerSide : showFirst}`)}: ${shown ? sides.answer : sides.prompt}. ${t(shown ? 'flashcards.cards.flipToPrompt' : 'flashcards.cards.flipToAnswer')}`
+              : `${t('flashcards.cards.term')}: ${sides.prompt}`
+          }
+          onClick={() => {
+            if (canFlip) setFlipped((current) => !current);
+          }}
           className={cx(
             'relative h-full w-full rounded-[min(30px,6cqmin)] text-left shadow-2xl transition-transform duration-500 transform-3d motion-reduce:transition-none motion-reduce:transform-none focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-400',
-            flipped && 'motion-safe:transform-[rotateY(180deg)]'
+            shown && 'motion-safe:transform-[rotateY(180deg)]'
           )}
         >
           <div
             aria-hidden="true"
             className={cx(
               'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center backface-hidden motion-reduce:transition-opacity motion-reduce:duration-200',
-              flipped && 'motion-reduce:opacity-0',
+              shown && 'motion-reduce:opacity-0',
               dark
                 ? 'border-white/15 bg-slate-950/65 text-white'
                 : 'border-slate-200 bg-white text-slate-900'
@@ -191,7 +199,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
                 fontSize: 'min(11px, 2.8cqmin)',
               }}
             >
-              {t(`flashcards.cards.${showFirst}`)}
+              {t(`flashcards.cards.${canFlip ? showFirst : 'term'}`)}
             </span>
             <span
               className="max-w-[22ch] text-center font-black leading-tight text-balance"
@@ -199,24 +207,26 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
             >
               {sides.prompt}
             </span>
-            <span
-              className={cx(
-                'absolute font-bold',
-                dark ? 'text-white/65' : 'text-slate-500'
-              )}
-              style={{
-                bottom: 'min(18px, 4cqmin)',
-                fontSize: 'min(11px, 3cqmin)',
-              }}
-            >
-              {t('flashcards.cards.flipHint')}
-            </span>
+            {canFlip && (
+              <span
+                className={cx(
+                  'absolute font-bold',
+                  dark ? 'text-white/65' : 'text-slate-500'
+                )}
+                style={{
+                  bottom: 'min(18px, 4cqmin)',
+                  fontSize: 'min(11px, 3cqmin)',
+                }}
+              >
+                {t('flashcards.cards.flipHint')}
+              </span>
+            )}
           </div>
           <div
             aria-hidden="true"
             className={cx(
               'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center backface-hidden transform-[rotateY(180deg)] motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-200',
-              !flipped && 'motion-reduce:opacity-0',
+              !shown && 'motion-reduce:opacity-0',
               dark
                 ? 'border-cyan-200/20 bg-cyan-950/65 text-white'
                 : 'border-sky-200 bg-sky-50 text-sky-950'

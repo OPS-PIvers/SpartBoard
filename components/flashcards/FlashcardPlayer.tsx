@@ -50,7 +50,7 @@ import { FlashcardsMode } from './FlashcardsMode';
 import { WriteMode } from './WriteMode';
 import { TestMode } from './TestMode';
 import { CheckSubmitPanel } from './PlayerPrimitives';
-import { cx } from './playerUtils';
+import { cx, DEFINITION_MODES, isTermOnlyDeck } from './playerUtils';
 import {
   tourAttr,
   tourFieldAttr,
@@ -204,9 +204,14 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     [deckCards, speakFixes, speakLanguage]
   );
   // Without a stamp and a supported language there is no Speak tab and no Speak state (F21).
+  const termOnly = isTermOnlyDeck(deckCards);
   const allowedModes = check
     ? [check.mode]
-    : requestedModes.filter((id) => id !== 'speak' || speakLanguage !== null);
+    : requestedModes.filter(
+        (id) =>
+          (id !== 'speak' || speakLanguage !== null) &&
+          !(termOnly && DEFINITION_MODES.includes(id))
+      );
   const masteryThreshold =
     check?.masteryThreshold ?? DEFAULT_FLASHCARD_MASTERY_THRESHOLD;
   const [settings, setSettings] = useState<FlashcardModeSettings>(() => {

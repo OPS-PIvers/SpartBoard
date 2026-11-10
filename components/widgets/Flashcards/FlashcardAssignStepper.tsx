@@ -35,6 +35,10 @@ import {
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { FlashcardsCheckStep } from '@/components/common/library/assignStepper/FlashcardsCheckStep';
 import {
+  DEFINITION_MODES,
+  isTermOnlyDeck,
+} from '@/components/flashcards/playerUtils';
+import {
   formatFlashcardsModeValue,
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
@@ -302,8 +306,12 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     };
   })();
 
+  const termOnly = isTermOnlyDeck(
+    kind === 'work' ? resolveSelectedCards(cards, set.cards) : set.cards
+  );
   const effectiveCheck: FlashcardsCheckValue =
-    check.checkMode === 'speak' && !speakAvailable
+    (check.checkMode === 'speak' && !speakAvailable) ||
+    (termOnly && DEFINITION_MODES.includes(check.checkMode))
       ? { ...check, checkMode: 'flashcards' }
       : check;
   const form = { ...effectiveCheck, collectSubmission: kind === 'work' };
@@ -433,6 +441,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           onChange={changeCheck}
           cardCount={chosenCount}
           speakAvailable={speakAvailable}
+          termOnly={termOnly}
           speakRules={
             speakRulesOn && speakRules && speakLanguage ? (
               <FlashcardsSpeakRules

@@ -346,14 +346,16 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [flashcardSets, importedFrom]
   );
 
+  const allowTermOnly = canAccessFeature('flashcards-term-only');
   const importAdapter = useMemo(
     () =>
       createFlashcardImportAdapter({
         loadSheet,
         pickSheet,
         save: saveImportedSet,
+        termOnly: allowTermOnly,
       }),
-    [loadSheet, pickSheet, saveImportedSet]
+    [loadSheet, pickSheet, saveImportedSet, allowTermOnly]
   );
 
   const editorAiEnabled =
@@ -369,6 +371,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   ): Promise<void> => {
     try {
       const rewritten = await flashcardSets.saveSet(set, {
+        // Autosave never pushes a card whose definition may still be mid-typing.
         syncStudy: final || flashcardSetIncompleteReason(set) === null,
         // Checks are graded, so they take only the finished edit.
         syncChecks: final,
@@ -437,7 +440,9 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Add cards to this set before assigning it.', 'error');
       return;
     }
-    const incomplete = flashcardSetIncompleteReason(set);
+    const incomplete = flashcardSetIncompleteReason(set, {
+      termOnly: allowTermOnly,
+    });
     if (incomplete) {
       addToast(`Not ready to use yet: ${incomplete}`, 'error');
       return;

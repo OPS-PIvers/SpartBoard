@@ -28,3 +28,21 @@ describe('createFlashcardImportAdapter cards', () => {
     expect(save).toHaveBeenCalledWith(read.data, 'Spanish', true);
   });
 });
+
+describe('createFlashcardImportAdapter term-only', () => {
+  it('keeps term-only CSV and Sheet rows only when allowed', async () => {
+    const make = (termOnly: boolean) =>
+      createFlashcardImportAdapter({
+        loadSheet: () => Promise.resolve([['said'], ['was']]),
+        pickSheet: () => Promise.resolve(null),
+        save: () => Promise.resolve(),
+        termOnly,
+      });
+    const csv = await make(true).parse({ kind: 'csv', text: 'said\nwas' });
+    expect(csv.data.cards.map((card) => card.term)).toEqual(['said', 'was']);
+    const sheet = await make(true).parse({ kind: 'sheet', url: 'x' });
+    expect(sheet.data.cards).toHaveLength(2);
+    const strict = await make(false).parse({ kind: 'sheet', url: 'x' });
+    expect(strict.data.cards).toHaveLength(0);
+  });
+});

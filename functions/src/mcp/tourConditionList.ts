@@ -56,6 +56,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'flashcards-speak',
   'flashcards-study-settings',
   'flashcards-swap-sides',
+  'flashcards-term-only',
   'focus-sessions',
   'gemini-functions',
   'getting-started',

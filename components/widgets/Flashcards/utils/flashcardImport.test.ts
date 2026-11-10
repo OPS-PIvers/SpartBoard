@@ -21,6 +21,33 @@ describe('flashcard import', () => {
     ]);
   });
 
+  it('reads a plain word list as term-only cards when allowed', () => {
+    expect(() => parseFlashcardText('said\nwas\nthe')).toThrow();
+    const result = parseFlashcardText('said\nwas\n\nthe', { termOnly: true });
+    expect(
+      result.cards.map(({ term, definition }) => [term, definition])
+    ).toEqual([
+      ['said', ''],
+      ['was', ''],
+      ['the', ''],
+    ]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('keeps the separator error for a heading above tab rows', () => {
+    expect(() =>
+      parseFlashcardText('Unit 4\nhola\thello', { termOnly: true })
+    ).toThrow();
+  });
+
+  it('keeps tab rows with a blank definition only when term-only is allowed', () => {
+    const source = 'hola\thello\nsaid\t';
+    expect(parseFlashcardText(source).cards).toHaveLength(1);
+    expect(parseFlashcardText(source, { termOnly: true }).cards).toHaveLength(
+      2
+    );
+  });
+
   it('keeps commas and newlines inside quoted CSV cells', () => {
     const rows = parseDelimitedRows(
       'term,definition\n"hello, friend","line one\nline two"',

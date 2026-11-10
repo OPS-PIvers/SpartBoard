@@ -11119,6 +11119,8 @@ export type GlobalFeature =
   | 'flashcards-ai'
   /** Flashcards study resources: the teacher's starting settings, and Study resource as the default. */
   | 'flashcards-study-settings'
+  /** Flashcards cards can be saved with a term and no definition (e.g. sight words). */
+  | 'flashcards-term-only'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'

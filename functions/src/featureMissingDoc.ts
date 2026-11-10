@@ -40,6 +40,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'blooms-ai',
   'flashcards-ai',
   'flashcards-study-settings',
+  'flashcards-term-only',
   'plc-meeting-ai-notes',
   'sparty',
   'getting-started',
