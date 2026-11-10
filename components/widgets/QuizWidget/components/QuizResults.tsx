@@ -5,6 +5,7 @@
  */
 
 import { MathText } from '@/components/common/MathText';
+import { plainPromptText } from '@/utils/promptMath';
 import React, {
   useState,
   useRef,
@@ -3125,7 +3126,9 @@ const DistributionRow: React.FC<{
               style={SMALL_ICON}
             />
           )}
-          <span className="truncate">{label}</span>
+          <span className="truncate">
+            <MathText text={label} />
+          </span>
         </span>
         <span
           className="font-sans text-brand-gray-dark tabular-nums shrink-0"
@@ -3479,7 +3482,7 @@ const QuestionDrilldownPanel: React.FC<{
                       correct={row.isCorrect}
                       countLabel={`${row.students.length}`}
                       students={row.students}
-                      studentsLabel={`Answered ${row.label}`}
+                      studentsLabel={`Answered ${plainPromptText(row.label)}`}
                     />
                   ))}
             </ul>

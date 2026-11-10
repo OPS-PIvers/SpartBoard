@@ -116,11 +116,11 @@ export function buildStudentReportHtml(job: StudentReportJob): string {
           ? ''
           : `<div class="pts">${formatExportPoints(line.pointsEarned)}/${formatExportPoints(line.pointsMax)}</div>`;
       const answer = line.answerText
-        ? `<div class="answer">Answer: ${escapeHtml(line.answerText)}</div>`
+        ? `<div class="answer">Answer: ${escapeHtml(plainPromptText(line.answerText))}</div>`
         : '';
       const key =
         job.includeCorrectAnswers && showsMissedKey(line)
-          ? `<div class="key">Correct answer: ${escapeHtml(line.correctAnswerText ?? '')}</div>`
+          ? `<div class="key">Correct answer: ${escapeHtml(plainPromptText(line.correctAnswerText ?? ''))}</div>`
           : '';
       return `<li><span class="num">Q${line.number}</span><div><div class="text">${escapeHtml(plainPromptText(line.text))}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
     })
@@ -350,12 +350,12 @@ function mcAnswer(
           ? ' <span class="keytag">Correct answer</span>'
           : '';
       const bullet = multi ? (opt.picked ? '☑' : '☐') : opt.picked ? '●' : '○';
-      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${bullet}</span> ${letter}${escapeHtml(opt.text)}${mark}${key}</li>`;
+      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${bullet}</span> ${letter}${escapeHtml(plainPromptText(opt.text))}${mark}${key}</li>`;
     })
     .join('');
   const unmatched =
     line.answerText && !opts.some((o) => o.picked)
-      ? `<div class="answer">Answer: ${escapeHtml(line.answerText)}</div>`
+      ? `<div class="answer">Answer: ${escapeHtml(plainPromptText(line.answerText))}</div>`
       : '';
   return `<ul class="opts">${items}</ul>${unmatched}`;
 }
@@ -592,7 +592,7 @@ function answerBlock(
     );
   }
   if (!options.includeQuestions) {
-    return `<div class="answer">${line.answerText ? escapeHtml(line.answerText) : '<em>No answer</em>'}</div>${keyLine('Correct answer', escapeHtml(line.correctAnswerText ?? ''))}`;
+    return `<div class="answer">${line.answerText ? escapeHtml(plainPromptText(line.answerText)) : '<em>No answer</em>'}</div>${keyLine('Correct answer', escapeHtml(plainPromptText(line.correctAnswerText ?? '')))}`;
   }
   if (line.type === 'MC' || line.type === 'MA')
     return mcAnswer(line, student, options, showKey);
@@ -604,7 +604,7 @@ function answerBlock(
         : '<em>No answer</em>';
     return `<div class="answer">Your order: ${given}</div>${keyLine('Correct order', numbered(line.order.expected))}`;
   }
-  return `<div class="answer">Answer: ${line.answerText ? escapeHtml(line.answerText) : '<em>No answer</em>'}</div>${keyLine('Accepted answer', escapeHtml(line.correctAnswerText ?? ''))}`;
+  return `<div class="answer">Answer: ${line.answerText ? escapeHtml(plainPromptText(line.answerText)) : '<em>No answer</em>'}</div>${keyLine('Accepted answer', escapeHtml(plainPromptText(line.correctAnswerText ?? '')))}`;
 }
 
 function stimulusRow(stimulus: QuizStimulus): string {

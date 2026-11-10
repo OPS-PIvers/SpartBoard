@@ -22,6 +22,7 @@ import type {
 import { sectionsForQuestions } from '@/utils/quizSections';
 import { questionFromRows } from '@/utils/quizChoiceRows';
 import { importSections } from './importSections';
+import { mathMarker } from './mathMarkup';
 import {
   multiAnswerPart,
   type ExtractedQuestion,
@@ -124,6 +125,32 @@ export function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
   };
 }
 
+/** A choice question with the math in its choices and key marked the same way. */
+function markChoices(
+  q: ExtractedQuestion,
+  mark: (text: string) => string
+): ExtractedQuestion {
+  if (q.type !== 'MC' && q.type !== 'MA') return q;
+  const part = (text: string) =>
+    q.type === 'MA' ? multiAnswerPart(text) : text;
+  const marked = new Map<string, string>();
+  for (const o of q.options) {
+    const text = part(o.text);
+    const drawn = mark(text);
+    // `|` separates choose-all answers, so a choice holding one stays text.
+    marked.set(text, drawn.includes('|') ? text : drawn);
+  }
+  if (new Set(marked.values()).size !== marked.size) return q;
+  const swap = (text: string) => marked.get(text) ?? text;
+  const answer = q.correctAnswer.trim();
+  return {
+    ...q,
+    options: q.options.map((o) => ({ ...o, text: swap(part(o.text)) })),
+    correctAnswer:
+      q.type === 'MA' ? answer.split('|').map(swap).join('|') : swap(answer),
+  };
+}
+
 /** What the reader was unsure of on one question, shown on its review row. */
 export const readerNotes = (q: ExtractedQuestion): string[] => [
   ...q.warnings,
@@ -173,6 +200,8 @@ export function extractedToQuizData(
     sections?: boolean;
     /** Known catalog codes; printed codes beside a stem move to `standardCodes` only when every one is known. */
     standardsFromText?: ReadonlySet<string>;
+    /** Fractions, powers and roots in a question and its choices become equations the quiz draws (`quiz-import-equations`). */
+    equations?: boolean;
   } = {}
 ): QuizData {
   const now = options.now ?? Date.now();
@@ -206,6 +235,14 @@ export function extractedToQuizData(
   const notes = new Map<string, readonly string[]>();
   const suggestedTargets = new Map<string, SuggestedTarget>();
   const standardCodes = new Map<string, readonly string[]>();
+  const markMath = options.equations
+    ? mathMarker(
+        // One text per question, so one question's date choices can't make a math test.
+        extracted.questions.map((q) =>
+          [q.text, ...q.options.map((o) => o.text)].join('\n')
+        )
+      )
+    : null;
   const allQuestions = extracted.questions.map((read, index) => {
     // The section shows its directions, so the first stem gives them back.
     const leadIn = opens.get(index)?.directions ? read.directionsLeadIn : '';
@@ -232,7 +269,8 @@ export function extractedToQuizData(
             ],
           }
         : trimmed;
-    const built = toQuizQuestion(q);
+    const plain = toQuizQuestion(markMath ? markChoices(q, markMath) : q);
+    const built = markMath ? { ...plain, text: markMath(plain.text) } : plain;
     const shared = q.sharedTextId
       ? stimulusIdByText.get(q.sharedTextId)
       : undefined;

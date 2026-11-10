@@ -11029,6 +11029,8 @@ export type GlobalFeature =
   | 'quiz-import-google-doc-pdf'
   /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
   | 'quiz-import-pdf-answer-marks'
+  /** Math in an imported question's text becomes drawn equations; AND-ed with `student-keyboards`. */
+  | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
   /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/shipped/TOURS_10X.md F1). */

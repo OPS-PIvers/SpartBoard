@@ -336,9 +336,15 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                 className="text-emerald-700 font-bold"
                 style={{ fontSize: 'min(14px, 4.5cqmin)' }}
               >
-                {question.type === 'MA'
-                  ? multiAnswerCorrectOptions(question.correctAnswer).join(', ')
-                  : formatRevealedAnswer(revealValueFor(question))}
+                <MathText
+                  text={
+                    question.type === 'MA'
+                      ? multiAnswerCorrectOptions(question.correctAnswer).join(
+                          ', '
+                        )
+                      : formatRevealedAnswer(revealValueFor(question))
+                  }
+                />
               </p>
             </div>
           )}
@@ -481,7 +487,9 @@ const MCAnswerArea: React.FC<{
             <PreviewAnswerImage
               src={imageForLabel(question.answerImages, opt)}
             />
-            <div className="flex-1 min-w-0">{opt}</div>
+            <div className="flex-1 min-w-0">
+              <MathText text={opt} />
+            </div>
             {showAnswer && isCorrect && (
               <CheckCircle2
                 className="shrink-0 text-emerald-600"
@@ -595,7 +603,9 @@ const MultiAnswerArea: React.FC<{
               <PreviewAnswerImage
                 src={imageForLabel(question.answerImages, opt)}
               />
-              <div className="flex-1 min-w-0">{opt}</div>
+              <div className="flex-1 min-w-0">
+                <MathText text={opt} />
+              </div>
               {showAnswer && isCorrect && (
                 <CheckCircle2
                   className="shrink-0 text-emerald-600"

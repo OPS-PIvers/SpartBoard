@@ -71,7 +71,7 @@ function questionHtml(q: PaperTestQuestion): string {
       : `<ol class="c">${q.choices
           .map(
             (c, i) =>
-              `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
+              `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(plainPromptText(c))}</span></li>`
           )
           .join('')}</ol>`;
   const section = q.section

@@ -232,6 +232,7 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { Loader2, AlertTriangle, LogIn, Gamepad2 } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { STUDENT_KEYBOARDS_FEATURE } from '@/config/studentKeyboards';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
@@ -2344,6 +2345,9 @@ const TeacherQuizWidget: React.FC<{
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
       pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
+      equations:
+        canAccessFeature('quiz-import-equations') &&
+        canAccessFeature(STUDENT_KEYBOARDS_FEATURE),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportVersions
         ? {

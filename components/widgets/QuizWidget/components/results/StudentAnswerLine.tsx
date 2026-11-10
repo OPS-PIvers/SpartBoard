@@ -257,7 +257,7 @@ export const StudentAnswerLine: React.FC<{
               expected={orderSpots.expected}
             />
           ) : (
-            answer || (
+            (answer && <MathText text={answer} />) || (
               <span className="italic text-brand-gray-primary">
                 {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
               </span>
@@ -265,7 +265,9 @@ export const StudentAnswerLine: React.FC<{
           )}
         </Field>
         {!orderSpots && showsMissedKey(line) && (
-          <Field label="Correct answer">{line.correctAnswerText}</Field>
+          <Field label="Correct answer">
+            <MathText text={line.correctAnswerText ?? ''} />
+          </Field>
         )}
         {comment && <Field label="Comment">{comment}</Field>}
         {rubricRows.map((row) => (

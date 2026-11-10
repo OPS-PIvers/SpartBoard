@@ -4440,7 +4440,7 @@ export const ActiveQuiz: React.FC<{
                           <span
                             className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
                           >
-                            {opt}
+                            <MathText text={opt} />
                           </span>
                         </span>
                       ) : picture ? (
@@ -4449,13 +4449,15 @@ export const ActiveQuiz: React.FC<{
                           <span
                             className={`min-w-0 wrap-break-word ${isCrossedOut ? 'line-through decoration-2' : ''}`}
                           >
-                            {opt}
+                            <MathText text={opt} />
                           </span>
                         </span>
                       ) : isCrossedOut ? (
-                        <span className="line-through decoration-2">{opt}</span>
+                        <span className="line-through decoration-2">
+                          <MathText text={opt} />
+                        </span>
                       ) : (
-                        opt
+                        <MathText text={opt} />
                       );
                       const crossOutLabel = isCrossedOut && (
                         <span className="sr-only">
@@ -5373,7 +5375,7 @@ const AnswerFeedbackBanner: React.FC<{
             <p className="text-slate-400 text-xs mt-2 ml-9">
               Correct answer:{' '}
               <span className="text-emerald-400 font-semibold">
-                {revealedAnswer}
+                <MathText text={revealedAnswer} />
               </span>
             </p>
           )}
@@ -5453,7 +5455,9 @@ const ReviewPhase: React.FC<{
           <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl mb-4 max-w-sm w-full">
             <p className="text-emerald-400 font-bold text-sm">
               <Check className="w-4 h-4 inline-block mr-1 -mt-0.5" />
-              {revealedForDisplay(currentQuestion.type, revealed)}
+              <MathText
+                text={revealedForDisplay(currentQuestion.type, revealed)}
+              />
             </p>
           </div>
         )}
@@ -6239,16 +6243,20 @@ export const PublishedScoreReview: React.FC<{
                                           : answerNeutralText
                                     }`}
                                   >
-                                    {studentAnswer
-                                      ? formatAnswerForDisplay(
+                                    {studentAnswer ? (
+                                      <MathText
+                                        text={formatAnswerForDisplay(
                                           toDisplayAnswer(
                                             q,
                                             recapLocale,
                                             studentAnswer
                                           ),
                                           q.type
-                                        )
-                                      : '— no response'}
+                                        )}
+                                      />
+                                    ) : (
+                                      '— no response'
+                                    )}
                                   </span>
                                 </p>
                               )}
@@ -6258,14 +6266,16 @@ export const PublishedScoreReview: React.FC<{
                                   <span
                                     className={`font-mono ${answerCorrectText}`}
                                   >
-                                    {formatAnswerForDisplay(
-                                      toDisplayAnswer(
-                                        q,
-                                        recapLocale,
-                                        correctAnswer
-                                      ),
-                                      q.type
-                                    )}
+                                    <MathText
+                                      text={formatAnswerForDisplay(
+                                        toDisplayAnswer(
+                                          q,
+                                          recapLocale,
+                                          correctAnswer
+                                        ),
+                                        q.type
+                                      )}
+                                    />
                                   </span>
                                 </p>
                               )}
