@@ -37,6 +37,12 @@ describe('extractYouTubeId', () => {
     );
   });
 
+  it('extracts ID from a privacy-enhanced (youtube-nocookie) embed URL', () => {
+    expect(
+      extractYouTubeId('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    ).toBe('dQw4w9WgXcQ');
+  });
+
   it('extracts ID from watch URL with extra parameters', () => {
     expect(
       extractYouTubeId(
