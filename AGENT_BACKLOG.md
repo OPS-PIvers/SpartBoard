@@ -245,6 +245,7 @@ git push origin --delete claude/project-thread-9ltdwy claude/ab112-public-tour-b
 git push origin --delete claude/project-thread-0ybg2w
 git push origin --delete claude/project-thread-dn23lu
 git push origin --delete claude/project-thread-9ltdwy-links claude/project-thread-9ltdwy-stable claude/ab112-tour-links
+git push origin --delete claude/project-thread-ejijbp claude/project-thread-ejijbp-docs
 ```
 
   </details>
