@@ -76,9 +76,7 @@ describe('PublicTourPage', () => {
     expect(
       screen.getByRole('img', { name: 'Picture of step 1' })
     ).toHaveAttribute('src', `/api/tour-steps?t=${TOKEN}&p=s1`);
-    expect(
-      screen.getByRole('button', { name: 'Walk through' })
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Walk through' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument();
     for (const staffOnly of [/get the extension/i, /^start/i, /sign in/i])
       expect(screen.queryByRole('button', { name: staffOnly })).toBeNull();

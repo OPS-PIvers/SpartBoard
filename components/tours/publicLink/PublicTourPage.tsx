@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Play } from 'lucide-react';
 import { StepsView } from '@/components/tours/steps/StepsView';
-import { StepsWalkthrough } from '@/components/tours/steps/StepsWalkthrough';
 import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
 import {
   canPlayWebTours,
@@ -128,7 +127,6 @@ export const PublicTourPage: React.FC = () => {
             steps={tour.steps}
             pictures={pictures}
             labels={labels}
-            walkthrough={StepsWalkthrough}
             print={{ title }}
           />
         </div>
