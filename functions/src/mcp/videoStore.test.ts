@@ -13,4 +13,10 @@ describe('extractYouTubeId', () => {
       extractYouTubeId('https://www.youtube.com/live/dQw4w9WgXcQ?si=x')
     ).toBe('dQw4w9WgXcQ');
   });
+
+  it('reads youtube-nocookie embed links like the app does', () => {
+    expect(
+      extractYouTubeId('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    ).toBe('dQw4w9WgXcQ');
+  });
 });
