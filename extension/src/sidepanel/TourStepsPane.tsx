@@ -1,4 +1,4 @@
-// A published tour read as steps beside the website (docs/plans/TOURS_10X.md S4).
+// A published tour read as steps beside the website (docs/plans/shipped/TOURS_10X.md S4).
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Play, RefreshCw } from 'lucide-react';
 import {
