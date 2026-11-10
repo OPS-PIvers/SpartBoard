@@ -2,6 +2,7 @@ import {
   canonicalBuildingId,
   canonicalizeBuildingKeyedRecord,
 } from '@/config/buildings';
+import { clipText } from '@/utils/clipText';
 import type {
   ArtsLettersAgendaPart,
   ArtsLettersAgendaVersion,
@@ -25,7 +26,7 @@ export const sanitizeAgendaParts = (
     const { id, label } = entry as Record<string, unknown>;
     if (typeof id !== 'string' || !id || seen.has(id)) continue;
     if (typeof label !== 'string') continue;
-    const trimmed = label.trim().slice(0, PART_LABEL_MAX_LENGTH);
+    const trimmed = clipText(label.trim(), PART_LABEL_MAX_LENGTH);
     if (!trimmed) continue;
     seen.add(id);
     out.push({ id, label: trimmed });

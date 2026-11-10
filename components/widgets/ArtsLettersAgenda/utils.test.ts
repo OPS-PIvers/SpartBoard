@@ -6,7 +6,7 @@ import {
   resolveAgendaPartLists,
   sanitizeAgendaParts,
 } from './utils';
-import { DEFAULT_AGENDA_PARTS } from './constants';
+import { DEFAULT_AGENDA_PARTS, PART_LABEL_MAX_LENGTH } from './constants';
 
 describe('sanitizeAgendaParts', () => {
   it('keeps good entries, trims and caps labels, and drops bad or duplicate ones', () => {
@@ -34,6 +34,13 @@ describe('sanitizeAgendaParts', () => {
     expect(sanitizeAgendaParts(many)).toHaveLength(8);
     expect(sanitizeAgendaParts(undefined)).toEqual([]);
     expect(sanitizeAgendaParts({})).toEqual([]);
+  });
+
+  it('never splits an emoji at the label cap', () => {
+    const label = `${'a'.repeat(PART_LABEL_MAX_LENGTH - 1)}😀tail`;
+    const [part] = sanitizeAgendaParts([{ id: 'p', label }]);
+    expect(part.label).toBe('a'.repeat(PART_LABEL_MAX_LENGTH - 1));
+    expect(part.label).not.toMatch(/[\uD800-\uDBFF]$/);
   });
 });
 
