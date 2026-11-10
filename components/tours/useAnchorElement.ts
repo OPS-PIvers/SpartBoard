@@ -260,8 +260,7 @@ export function useAnchorElement(
       if (cancelled || element) return;
       // Mid-transition, only a control already fully on screen counts, so nothing scrolls a moving panel.
       const accept = fullOnly
-        ? (el: HTMLElement) =>
-            isAnchorReachable(el) && anchorInView(el) === 'full'
+        ? (el: Element) => isAnchorReachable(el) && anchorInView(el) === 'full'
         : isAnchorReachable;
       const opts = { widgetIds, slots, accept };
       let found = idOnly ? findTourAnchor(idOnly, opts) : null;
