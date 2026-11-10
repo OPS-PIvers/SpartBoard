@@ -88,6 +88,20 @@ export interface CroppedFigures {
 
 export const figureKey = boxKey;
 
+/** The box a `figureKey` was made from, to the key's own precision; null for any other id. */
+export function boxFromKey(key: string): FigureBox | null {
+  const parts = key.split(':').map(Number);
+  if (parts.length !== 5 || !parts.every(Number.isFinite)) return null;
+  const [page, x, y, width, height] = parts;
+  return {
+    page,
+    x: x / 1000,
+    y: y / 1000,
+    width: width / 1000,
+    height: height / 1000,
+  };
+}
+
 /**
  * Crops each distinct box once. Two questions that named the same picture get
  * the same image id, so it uploads once and links to both (D14).

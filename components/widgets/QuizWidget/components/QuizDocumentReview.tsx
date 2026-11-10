@@ -8,7 +8,7 @@
  * quick way to clear a "Needs answer" before the quiz is even created.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, FileWarning, X } from 'lucide-react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type {
@@ -20,6 +20,7 @@ import type {
 } from '@/types';
 import type { ExtractedImage } from '@/utils/quizDocumentImport';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
+import { questionFromRows, rowsFromQuestion } from '@/utils/quizChoiceRows';
 import {
   multiAnswerCorrectOptions,
   multiAnswerOptions,
@@ -70,6 +71,7 @@ const TYPE_LABEL: Record<QuizQuestionType, string> = {
 /** Every choice the document listed, answer first so the order is stable. */
 const choicesOf = (q: QuizQuestion): string[] => {
   if (q.type === 'MA') return multiAnswerOptions(q);
+  if (q.type === 'MC') return rowsFromQuestion(q).map((row) => row.text);
   return q.correctAnswer.trim()
     ? [q.correctAnswer, ...q.incorrectAnswers]
     : q.incorrectAnswers;
@@ -125,10 +127,17 @@ const ReviewTable: React.FC<
   const [previews] = useState<ReadonlyMap<string, string>>(
     () => new Map(images.map((img) => [img.id, URL.createObjectURL(img.blob)]))
   );
-  useEffect(
-    () => () => previews.forEach((url) => URL.revokeObjectURL(url)),
-    [previews]
-  );
+  // Released a tick after unmount: StrictMode's rehearsal unmount must not empty the thumbnails.
+  const release = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    clearTimeout(release.current);
+    return () => {
+      release.current = setTimeout(
+        () => previews.forEach((url) => URL.revokeObjectURL(url)),
+        0
+      );
+    };
+  }, [previews]);
 
   /** "Picture 2" reads better on a row than `figure-page-3.png` does. */
   const pictureLabel = (id: string): string =>
@@ -258,7 +267,9 @@ const ReviewTable: React.FC<
     ])
   );
   const isFlagged = (q: QuizQuestion): boolean =>
-    questionNeedsKey(q) || (spills.get(q.id)?.length ?? 0) > 0;
+    questionNeedsKey(q) ||
+    (spills.get(q.id)?.length ?? 0) > 0 ||
+    (extras?.notes.has(q.id) ?? false);
   const flaggedCount = allQuestions.filter(isFlagged).length;
   const showOnlyFlagged = onlyFlagged && flaggedCount > 0;
 
@@ -315,6 +326,7 @@ const ReviewTable: React.FC<
             .map((img) => img.id)
             .filter((id) => !linked.includes(id));
           const section = sectionAbove.get(q.id);
+          const rowNotes = extras?.notes.get(q.id) ?? [];
           return (
             <React.Fragment key={q.id}>
               {section && (
@@ -363,6 +375,11 @@ const ReviewTable: React.FC<
                           Needs answer
                         </span>
                       )}
+                      {rowNotes.length > 0 && rowSpills.length === 0 && (
+                        <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
+                          Check
+                        </span>
+                      )}
                       {rowSpills.length > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
                           <AlertCircle className="h-3 w-3" aria-hidden />
@@ -370,6 +387,19 @@ const ReviewTable: React.FC<
                         </span>
                       )}
                     </div>
+
+                    {rowNotes.map((note) => (
+                      <p
+                        key={note}
+                        className="flex items-start gap-1 text-xs text-amber-800"
+                      >
+                        <AlertCircle
+                          className="mt-0.5 h-3 w-3 shrink-0"
+                          aria-hidden
+                        />
+                        {note}
+                      </p>
+                    ))}
 
                     {extras?.untick.has(q.id) && !included && (
                       <p className="text-xs text-slate-500">
@@ -502,12 +532,25 @@ const ReviewTable: React.FC<
                                 updateQuestion(q.id, (prev) => {
                                   const all =
                                     choiceOrder.get(q.id) ?? choicesOf(prev);
+                                  const picked = all.indexOf(choice);
                                   return {
                                     ...prev,
                                     correctAnswer: choice,
                                     incorrectAnswers: all.filter(
                                       (c) => c !== choice
                                     ),
+                                    // The list keeps its printed order under the new answer.
+                                    ...(prev.type === 'MC'
+                                      ? {
+                                          optionOrder: questionFromRows(
+                                            all.map((text, i) => ({
+                                              text,
+                                              correct: i === picked,
+                                            })),
+                                            false
+                                          ).optionOrder,
+                                        }
+                                      : {}),
                                     // Answering it here clears the flag, so the
                                     // quiz can be assigned without a second pass.
                                     needsKey: false,

@@ -34,7 +34,7 @@ describe('passages found by their shape', () => {
     expect(questions.map((q) => q.sharedTextId)).toEqual(['text-1', 'text-1']);
     expect(questions[0].ref?.sectionDirections).toBeUndefined();
     expect(questions[0].warnings).toContain(
-      '“Case Study: FreshFuel Bowls” was attached to questions 25–26 as a passage. Check that it belongs with them.'
+      '“Case Study: FreshFuel Bowls” was attached to 2 questions, starting with this one, as a passage. Check that it belongs there.'
     );
     expect(questions[1].warnings).toEqual([]);
   });
@@ -130,5 +130,22 @@ describe('passages found by their shape', () => {
       undefined,
     ]);
     expect(questions.flatMap((q) => q.warnings)).toEqual([]);
+  });
+
+  it('numbers a second passage "Passage 2"', () => {
+    const { texts } = parseDocument(
+      lines(
+        'Use the case study to answer questions 1–2.',
+        CASE,
+        ...MC(1, 'First?'),
+        ...MC(2, 'Second?'),
+        'Use the case study to answer questions 3–4.',
+        CASE,
+        ...MC(3, 'Third?'),
+        ...MC(4, 'Fourth?')
+      ),
+      { passages: true }
+    );
+    expect(texts.map((t) => t.label)).toEqual(['Passage 1', 'Passage 2']);
   });
 });

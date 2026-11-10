@@ -27,7 +27,6 @@ import {
   extractedToQuizData,
   reviewExtrasFor,
   readByLabel,
-  rowWarnings,
   type AiExtractFn,
   type ExtractedImage,
   type RemoteImageFetcher,
@@ -142,6 +141,8 @@ export interface QuizImportAdapterDeps {
   importVersions?: boolean;
   /** `quiz-import-versions-plain` is on, so a typed PDF splits into versions without AI. */
   plainVersions?: boolean;
+  /** `quiz-import-pdf-answer-marks` is on, so a PDF's bold, underlined or highlighted choice is its answer. */
+  pdfMarks?: boolean;
   /** The versioned AI call; given only with `importVersions` and AI access. */
   aiExtractVersions?: AiExtractVersionsFn;
   /** Creates the folder, bank and quizzes a version review settled on, pictures already attached (V6). */
@@ -462,6 +463,7 @@ export function createQuizImportAdapter(
             ...(source.useAi === false ? { useAi: false } : {}),
             multiAnswer: true,
             passages: true,
+            ...(deps.pdfMarks ? { pdfMarks: true } : {}),
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }
               : {}),
@@ -499,12 +501,10 @@ export function createQuizImportAdapter(
             sections: true,
             ...(standardCodes ? { standardsFromText: standardCodes } : {}),
           }),
-          // Row notes ride the wizard's own warnings list, numbered so they
-          // line up with the review rows (D10).
+          // Notes about one question show on its review row, not here.
           warnings: [
             ...(versionsNeedAi ? [VERSIONS_NEED_AI] : []),
             ...extracted.warnings,
-            ...rowWarnings(extracted),
           ],
           ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
           ...(deps.aiExtract &&

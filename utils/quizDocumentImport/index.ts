@@ -97,7 +97,7 @@ export {
 } from './pdfLayout';
 export {
   extractedToQuizData,
-  rowWarnings,
+  readerNotes,
   reviewExtrasFor,
   type ReviewExtras,
 } from './toQuizData';
@@ -155,6 +155,8 @@ export interface ReadDocumentOptions {
   fetchRemoteImage?: RemoteImageFetcher;
   /** A typed PDF with version headings splits into versions without AI (QUIZ_IMPORT_VERSIONS V13). */
   versions?: boolean;
+  /** A PDF's bold, underlined or highlighted choice is its answer (`quiz-import-pdf-answer-marks`). */
+  pdfMarks?: boolean;
   /** Decodes a cropped picture so versions can share identical ones (V4). */
   decodePixels?: (blob: Blob) => Promise<Pixels | null>;
 }
@@ -335,6 +337,7 @@ export async function readQuizDocument(
         ? MAX_VERSIONED_DOCUMENT_PAGES
         : MAX_DOCUMENT_PAGES,
       pictures: Boolean(options.pdfCropper),
+      ...(options.pdfMarks ? { marks: true } : {}),
     }
   );
   const { lines, pageCount, scannedPages, usedOcr, pictures } = content;

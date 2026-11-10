@@ -1081,13 +1081,29 @@ export class GoogleDriveService {
    * already has bytes and is downloaded as-is.
    */
   async downloadDocumentAsBlob(
-    fileId: string
+    fileId: string,
+    /** `pdf` reads a Google Doc as printed: figures whole, with their labels. */
+    googleDocAs: 'docx' | 'pdf' = 'docx'
   ): Promise<{ blob: Blob; mimeType: string; name: string }> {
     const metadata = await this.getFileMetadata(fileId);
     const sourceType = metadata.mimeType ?? '';
 
     if (sourceType !== GOOGLE_DOC_MIME_TYPE) {
       return this.downloadFileAsBlob(fileId, metadata);
+    }
+
+    if (googleDocAs === 'pdf') {
+      const title = metadata.name ?? 'Google Doc';
+      try {
+        return {
+          blob: await this.exportAsPdf(fileId),
+          mimeType: 'application/pdf',
+          name: title.toLowerCase().endsWith('.pdf') ? title : `${title}.pdf`,
+        };
+      } catch (err) {
+        // Drive won't convert a very large doc; the Word export still reads.
+        console.warn('[googleDrive] PDF export failed, reading as Word', err);
+      }
     }
 
     const response = await this.fetchWithRetry(

@@ -6,8 +6,12 @@
  */
 
 import type { OcrLine, OcrPage } from './pdfLayout';
-import type { PdfReaderDeps, PdfTextItem } from './pdfReader';
-import { picturesOnPage } from './pdfPictures';
+import {
+  readPageText,
+  type PdfReaderDeps,
+  type PdfTextItem,
+} from './pdfReader';
+import { inlineImagesOnPage, picturesOnPage } from './pdfPictures';
 
 /** pdf.js viewport scale is relative to 72 dpi; 200 dpi is what OCR wants. */
 const OCR_SCALE = 200 / 72;
@@ -21,9 +25,22 @@ async function loadPdfDocument(file: Blob) {
     'pdfjs-dist/build/pdf.worker.min.mjs',
     import.meta.url
   ).toString();
-  const task = pdfjs.getDocument({ data: bytes, wasmUrl: '/pdfjs-wasm/' });
+  // Font names are how a bold answer is told from the rest.
+  const task = pdfjs.getDocument({
+    data: bytes,
+    wasmUrl: '/pdfjs-wasm/',
+    fontExtraProperties: true,
+  });
   const doc = await task.promise;
   return { doc, task, ops: pdfjs.OPS };
+}
+
+/** How many pages a PDF has, without reading any of them. */
+export async function pdfPageCount(file: Blob): Promise<number> {
+  const { doc, task } = await loadPdfDocument(file);
+  const count = doc.numPages;
+  await task.destroy();
+  return count;
 }
 
 /** Paint one page and hand tesseract a PNG; both are loaded on demand. */
@@ -110,9 +127,15 @@ export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
                   ...(typeof candidate.height === 'number'
                     ? { height: candidate.height }
                     : {}),
+                  ...(typeof candidate.fontName === 'string'
+                    ? { fontName: candidate.fontName }
+                    : {}),
                 });
               }
-              return { items };
+              return readPageText(page, items, {
+                ops,
+                pageWidth: page.getViewport({ scale: 1 }).width,
+              });
             },
             getPictures: async (items) => {
               const viewport = page.getViewport({ scale: 1 });
@@ -120,6 +143,7 @@ export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
               return {
                 viewport,
                 pictures: picturesOnPage(list, ops, viewport, items),
+                inline: inlineImagesOnPage(list, ops, viewport),
               };
             },
           };

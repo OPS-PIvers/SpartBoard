@@ -218,11 +218,12 @@ export const useGoogleDrive = () => {
    */
   const getDriveDocumentAsBlob = useCallback(
     async (
-      fileId: string
+      fileId: string,
+      googleDocAs: 'docx' | 'pdf' = 'docx'
     ): Promise<{ blob: Blob; mimeType: string; name: string } | null> => {
       if (!driveService) return null;
       try {
-        return await driveService.downloadDocumentAsBlob(fileId);
+        return await driveService.downloadDocumentAsBlob(fileId, googleDocAs);
       } catch (error) {
         console.error('Failed to download Drive document:', error);
         return null;
