@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { toPng } from 'html-to-image';
 import { useStorage } from './useStorage';
 import { useAuth } from '@/context/useAuth';
+import { snapshotFontEmbedCss } from '@/components/tours/snapshotFonts';
 
 interface UseScreenshotResult {
   takeScreenshot: (options?: { upload?: boolean }) => Promise<string | void>;
@@ -44,6 +45,8 @@ export const useScreenshot = (
         const dataUrl = await toPng(node, {
           cacheBust: true,
           pixelRatio: 2,
+          // Never let the library read web-font sheets itself: it writes every rule into the live page.
+          fontEmbedCSS: await snapshotFontEmbedCss(document),
           filter: (node: Element) => {
             if (!(node instanceof HTMLElement)) {
               return true;

@@ -7,6 +7,23 @@ export const fontFaceBlocks = (css: string): string[] =>
 const familyOf = (block: string): string | null =>
   /font-family:\s*['"]?([^'";]+?)['"]?\s*;/.exec(block)?.[1] ?? null;
 
+/** A font-weight in one spelling, so a CSS block and a loaded FontFace compare equal. */
+export const normalizeWeight = (weight: string): string =>
+  weight
+    .trim()
+    .toLowerCase()
+    .replace(/\bnormal\b/g, '400')
+    .replace(/\bbold\b/g, '700')
+    .replace(/\s+/g, ' ');
+
+const weightOf = (block: string): string =>
+  normalizeWeight(/font-weight:\s*([^;]+);/.exec(block)?.[1] ?? '400');
+
+const styleOf = (block: string): string =>
+  (/font-style:\s*([^;]+);/.exec(block)?.[1] ?? 'normal').trim().toLowerCase();
+
+const FETCH_TIMEOUT_MS = 8000;
+
 /** A unicode-range in one spelling, since the browser rewrites `U+0000-00FF` as `U+0-FF`. */
 export const normalizeRange = (range: string): string =>
   range
@@ -27,13 +44,15 @@ const rangeOf = (block: string): string =>
 const urlsOf = (block: string): string[] =>
   [...block.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)].map((m) => m[1]);
 
-/** Font family and unicode range of every face the page has actually loaded. */
+/** Family, weight, style and unicode range of every face the page has actually loaded. */
 export function loadedFaceKeys(fonts: Iterable<FontFace>): Set<string> {
   const keys = new Set<string>();
   for (const face of fonts) {
     if (face.status !== 'loaded') continue;
     const family = face.family.replace(/^['"]|['"]$/g, '');
-    keys.add(`${family}|${normalizeRange(face.unicodeRange)}`);
+    keys.add(
+      `${family}|${normalizeWeight(face.weight)}|${face.style.toLowerCase()}|${normalizeRange(face.unicodeRange)}`
+    );
   }
   return keys;
 }
@@ -45,7 +64,10 @@ export const usedFontFaceBlocks = (
 ): string[] =>
   blocks.filter((b) => {
     const family = familyOf(b);
-    return !!family && loaded.has(`${family}|${rangeOf(b)}`);
+    return (
+      !!family &&
+      loaded.has(`${family}|${weightOf(b)}|${styleOf(b)}|${rangeOf(b)}`)
+    );
   });
 
 const dataUrls = new Map<string, Promise<string>>();
@@ -53,7 +75,7 @@ const dataUrls = new Map<string, Promise<string>>();
 const toDataUrl = (url: string): Promise<string> => {
   let pending = dataUrls.get(url);
   if (!pending) {
-    pending = fetch(url)
+    pending = fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
       .then((res) => {
         if (!res.ok) throw new Error(`Font ${res.status}`);
         return res.blob();
@@ -102,7 +124,12 @@ const sheetText = new Map<string, Promise<string>>();
 const loadSheet = (href: string): Promise<string> => {
   let pending = sheetText.get(href);
   if (!pending) {
-    pending = fetch(href).then((res) => (res.ok ? res.text() : ''));
+    pending = fetch(href, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    }).then((res) => {
+      if (!res.ok) throw new Error(`Font sheet ${res.status}`);
+      return res.text();
+    });
     pending.catch(() => sheetText.delete(href));
     sheetText.set(href, pending);
   }

@@ -25,10 +25,22 @@ const vt323 = `@font-face {
   src: url(https://fonts.gstatic.com/s/vt323/latin.woff2) format('woff2');
   unicode-range: U+0000-00FF;
 }`;
-const sheet = `/* latin */\n${lexendLatin}\n/* vietnamese */\n${lexendViet}\n${vt323}`;
+const lexendBold = lexendLatin.replace('font-weight: 400', 'font-weight: 700');
+const sheet = `/* latin */\n${lexendLatin}\n${lexendBold}\n/* vietnamese */\n${lexendViet}\n${vt323}`;
 
-const face = (family: string, unicodeRange: string, status = 'loaded') =>
-  ({ family, unicodeRange, status }) as unknown as FontFace;
+const face = (
+  family: string,
+  unicodeRange: string,
+  status = 'loaded',
+  weight = '400'
+) =>
+  ({
+    family,
+    unicodeRange,
+    status,
+    weight,
+    style: 'normal',
+  }) as unknown as FontFace;
 
 describe('snapshotFonts', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -40,9 +52,9 @@ describe('snapshotFonts', () => {
     expect(normalizeRange('U+4??')).toBe('400-4ff');
   });
 
-  it('keeps only the faces the page has loaded', () => {
+  it('keeps only the faces the page has loaded, by weight', () => {
     const blocks = fontFaceBlocks(sheet);
-    expect(blocks).toHaveLength(3);
+    expect(blocks).toHaveLength(4);
     const loaded = loadedFaceKeys([
       face('"Lexend"', 'U+0-FF, U+131, U+152-153'),
       face('VT323', 'U+0-FF', 'unloaded'),
