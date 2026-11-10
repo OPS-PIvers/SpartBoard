@@ -323,13 +323,15 @@ export async function startSetIdFor(
   return resolved?.record.kind === 'web' ? resolved.setId : null;
 }
 
-/** A tour's public link token when the link would be served now, so staff can copy it; null otherwise. */
+/** A tour's public link token when the link would be served now and the caller has the preview, so they can copy it; null otherwise. */
 export async function workingLinkTokenFor(
   setId: string,
+  callerEmail: string,
   deps: PublicLinkDeps & {
     getLink: (setId: string) => Promise<PublicLinkRecord | null>;
   }
 ): Promise<string | null> {
+  if (!(await deps.flagOn(callerEmail))) return null;
   const record = await deps.getLink(setId);
   if (!record || record.off || record.kind !== 'web') return null;
   const resolved = await resolvePublicTour(record.token, deps);
