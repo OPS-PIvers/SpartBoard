@@ -33,9 +33,19 @@ import {
 } from '@/config/tourAnchors';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
-import type { QuizAnswerImage } from '@/types';
-import { answerImagesFromRows, imageForLabel } from '@/utils/quizAnswerImages';
-import { AnswerImageControl } from './AnswerImageControl';
+import type { QuizAnswerImage, QuizImageOnlyAnswer } from '@/types';
+import {
+  answerImagesFromRows,
+  imageForLabel,
+  imageOnlyAnswersFromRows,
+  imageOnlyFor,
+  newImageOnlyLabel,
+} from '@/utils/quizAnswerImages';
+import { PICTURE_ONLY_PLACEHOLDER } from './ChoiceOptionsEditor';
+import {
+  AnswerImageControl,
+  PictureDescriptionInput,
+} from './AnswerImageControl';
 import {
   useAnswerImagePicker,
   type UploadAnswerImage,
@@ -43,29 +53,88 @@ import {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** `label` is the generated name a picture-only cell saves under; `alt` describes its picture. */
+interface Cell {
+  text: string;
+  image?: string;
+  label?: string;
+  alt?: string;
+}
+
 interface PairRow {
   id: string;
-  term: string;
-  definition: string;
-  termImage?: string;
-  definitionImage?: string;
+  term: Cell;
+  definition: Cell;
 }
 
-interface DistractorRow {
+interface DistractorRow extends Cell {
   id: string;
-  text: string;
-  image?: string;
 }
 
-interface OrderRow {
+interface OrderRow extends Cell {
   id: string;
-  text: string;
-  /** Image URL; '' or absent = none. */
-  image?: string;
 }
 
-/** Shown in an answer's box when it has a picture but no text, which would not save. */
-const NEEDS_TEXT = 'Add text for this image';
+const cellImageOnly = (c: Cell): boolean =>
+  !c.text.trim() && !!c.image && !!c.label;
+
+/** The text a cell saves under: its generated label when it is only a picture. */
+const savedText = (c: Cell): string =>
+  cellImageOnly(c) ? (c.label ?? '') : c.text;
+
+const blankCell = (): Cell => ({ text: '' });
+
+/** A cell read back from saved text, unpacking a picture-only label. */
+function readCell(
+  text: string,
+  images: readonly QuizAnswerImage[] | undefined,
+  imageOnly: readonly QuizImageOnlyAnswer[] | undefined
+): Cell {
+  const image = imageForLabel(images, text);
+  const only = image ? imageOnlyFor(imageOnly, text) : undefined;
+  return only
+    ? { text: '', image, label: text, alt: only.alt ?? '' }
+    : { text, image };
+}
+
+/** Gives every cell with a picture a label, unique across `cells`, so clearing its text never drops it. */
+function labelCells<T extends Cell>(cells: T[], taken: string[]): T[] {
+  if (cells.every((c) => !c.image || c.label)) return cells;
+  return cells.map((c) => {
+    if (!c.image || c.label) return c;
+    const label = newImageOnlyLabel(taken);
+    taken.push(label);
+    return { ...c, label };
+  });
+}
+
+const cellTaken = (cells: readonly Cell[]): string[] =>
+  cells.flatMap((c) => [c.text, c.label ?? '']);
+
+/** The screen reader description box under a picture-only cell. */
+const CellDescription: React.FC<{
+  cell: Cell;
+  name: string;
+  field: string;
+  onChange: (alt: string) => void;
+  className?: string;
+}> = ({ cell, name, field, onChange, className }) =>
+  cellImageOnly(cell) ? (
+    <PictureDescriptionInput
+      value={cell.alt ?? ''}
+      onChange={onChange}
+      name={name}
+      attrs={tourFieldAttr(
+        'quiz-editor.answer-image-description',
+        'quiz',
+        field
+      )}
+      className={className}
+    />
+  ) : null;
+
+const cellPlaceholder = (cell: Cell, fallback: string): string =>
+  cellImageOnly(cell) ? PICTURE_ONLY_PLACEHOLDER : fallback;
 
 const newId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -90,45 +159,71 @@ const sanitizeOrderingItem = (value: string): string =>
  * editable rows. Empty / malformed input falls back to two blank rows so
  * the editor always has something to render.
  */
+const blankPair = (): PairRow => ({
+  id: newId(),
+  term: blankCell(),
+  definition: blankCell(),
+});
+
 function parsePairs(
   correctAnswer: string,
   answerImages?: readonly QuizAnswerImage[],
-  termImages?: readonly QuizAnswerImage[]
+  termImages?: readonly QuizAnswerImage[],
+  imageOnly?: readonly QuizImageOnlyAnswer[]
 ): PairRow[] {
-  if (!correctAnswer.trim()) {
-    return [
-      { id: newId(), term: '', definition: '' },
-      { id: newId(), term: '', definition: '' },
-    ];
-  }
+  if (!correctAnswer.trim()) return [blankPair(), blankPair()];
   const rows: PairRow[] = correctAnswer.split('|').map((p) => {
     const sep = p.indexOf(':');
     const term = sep < 0 ? p : p.slice(0, sep);
     const definition = sep < 0 ? '' : p.slice(sep + 1);
     return {
       id: newId(),
-      term,
-      definition,
-      termImage: imageForLabel(termImages, term),
-      definitionImage: imageForLabel(answerImages, definition),
+      term: readCell(term, termImages, imageOnly),
+      definition: readCell(definition, answerImages, imageOnly),
     };
   });
-  while (rows.length < 2) rows.push({ id: newId(), term: '', definition: '' });
+  while (rows.length < 2) rows.push(blankPair());
   return rows;
 }
 
 const toDistractorRows = (
   distractors: readonly string[],
-  answerImages?: readonly QuizAnswerImage[]
+  answerImages?: readonly QuizAnswerImage[],
+  imageOnly?: readonly QuizImageOnlyAnswer[]
 ): DistractorRow[] =>
   distractors.map((text) => ({
     id: newId(),
-    text,
-    image: imageForLabel(answerImages, text),
+    ...readCell(text, answerImages, imageOnly),
   }));
+
+/** Labels every pictured cell across pairs and extras together, so no two labels collide. */
+function labelMatching(
+  rows: PairRow[],
+  distractors: DistractorRow[]
+): { rows: PairRow[]; distractors: DistractorRow[] } {
+  const all = [...rows.flatMap((r) => [r.term, r.definition]), ...distractors];
+  if (all.every((c) => !c.image || c.label)) return { rows, distractors };
+  const taken = cellTaken(all);
+  const terms = labelCells(
+    rows.map((r) => r.term),
+    taken
+  );
+  const defs = labelCells(
+    rows.map((r) => r.definition),
+    taken
+  );
+  return {
+    rows: rows.map((r, i) => ({ ...r, term: terms[i], definition: defs[i] })),
+    distractors: labelCells(distractors, taken),
+  };
+}
 
 function serializePairs(rows: PairRow[]): string {
   return rows
+    .map((r) => ({
+      term: savedText(r.term),
+      definition: savedText(r.definition),
+    }))
     .filter((r) => r.term.trim() || r.definition.trim())
     .map((r) => `${r.term}:${r.definition}`)
     .join('|');
@@ -138,13 +233,15 @@ function serializePairs(rows: PairRow[]): string {
 function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
   const seen = new Map<string, string[]>();
   for (const row of rows) {
+    const term = savedText(row.term);
+    const definition = savedText(row.definition);
     // Derive the key exactly as gradeAnswer does: normalize the whole `term:definition` pair, then slice at the first ':' WITHOUT re-trimming, so a trailing space in the term doesn't false-positive against the grader.
-    const normalizedPair = normalizeAnswer(`${row.term}:${row.definition}`);
+    const normalizedPair = normalizeAnswer(`${term}:${definition}`);
     const colonIdx = normalizedPair.indexOf(':');
     const key =
       colonIdx === -1 ? normalizedPair : normalizedPair.slice(0, colonIdx);
     // Blank term + a definition still serializes (`:def`) and collides on the grader's '' key; skip only fully-empty rows.
-    if (!key && !row.definition.trim()) continue;
+    if (!key && !definition.trim()) continue;
     const ids = seen.get(key);
     if (ids) ids.push(row.id);
     else seen.set(key, [row.id]);
@@ -158,7 +255,8 @@ function findDuplicateTermRowIds(rows: PairRow[]): Set<string> {
 
 function parseOrderItems(
   correctAnswer: string,
-  images: readonly string[] = []
+  images: readonly string[] = [],
+  imageOnly?: readonly QuizImageOnlyAnswer[]
 ): OrderRow[] {
   if (!correctAnswer.trim()) {
     return [
@@ -167,25 +265,41 @@ function parseOrderItems(
       { id: newId(), text: '' },
     ];
   }
-  const rows: OrderRow[] = correctAnswer
-    .split('|')
-    .map((text, i) => ({ id: newId(), text, image: images[i] ?? '' }));
+  const rows: OrderRow[] = correctAnswer.split('|').map((text, i) => {
+    const image = images[i] ?? '';
+    const only = image ? imageOnlyFor(imageOnly, text) : undefined;
+    return only
+      ? { id: newId(), text: '', image, label: text, alt: only.alt ?? '' }
+      : { id: newId(), text, image };
+  });
   while (rows.length < 2) rows.push({ id: newId(), text: '' });
-  return rows;
+  return labelOrderRows(rows);
 }
 
+const labelOrderRows = (rows: OrderRow[]): OrderRow[] =>
+  labelCells(rows, cellTaken(rows));
+
+const keptOrderRows = (rows: OrderRow[]): OrderRow[] =>
+  rows.filter((r) => savedText(r).trim());
+
 function serializeOrderItems(rows: OrderRow[]): string {
-  return rows
-    .filter((r) => r.text.trim())
-    .map((r) => r.text)
-    .join('|');
+  return keptOrderRows(rows).map(savedText).join('|');
 }
 
 /** Images aligned with the serialized items, or undefined when none is set. */
 function serializeOrderImages(rows: OrderRow[]): string[] | undefined {
-  const images = rows.filter((r) => r.text.trim()).map((r) => r.image ?? '');
+  const images = keptOrderRows(rows).map((r) => r.image ?? '');
   return images.some(Boolean) ? images : undefined;
 }
+
+const imageOnlyFromCells = (cells: readonly Cell[]) =>
+  imageOnlyAnswersFromRows(
+    cells.map((c) => ({
+      text: savedText(c),
+      imageOnly: cellImageOnly(c),
+      alt: c.alt,
+    }))
+  );
 
 const sameImages = (
   a: readonly string[] | undefined,
@@ -249,11 +363,14 @@ export interface MatchingAnswerEditorProps {
   answerImages?: QuizAnswerImage[];
   /** Pictures on terms; keep the reference stable. */
   termImages?: QuizAnswerImage[];
+  /** Answers that are only a picture; keep the reference stable. */
+  imageOnlyAnswers?: QuizImageOnlyAnswer[];
   onChange: (next: {
     correctAnswer: string;
     matchingDistractors: string[];
     answerImages: QuizAnswerImage[] | undefined;
     matchingTermImages: QuizAnswerImage[] | undefined;
+    imageOnlyAnswers: QuizImageOnlyAnswer[] | undefined;
   }) => void;
   /** Uploads one picture and resolves to its URL; absent leaves only removing a saved one. */
   onUploadImage?: UploadAnswerImage;
@@ -261,18 +378,21 @@ export interface MatchingAnswerEditorProps {
 
 /** The saved fields for the editor's rows. */
 function matchingFields(rows: PairRow[], distractors: DistractorRow[]) {
+  const asSaved = (c: Cell) => ({ text: savedText(c), image: c.image });
   return {
     correctAnswer: serializePairs(rows),
     matchingDistractors: distractors
-      .map((d) => d.text)
+      .map(savedText)
       .filter((d) => d.trim().length > 0),
     answerImages: answerImagesFromRows([
-      ...rows.map((r) => ({ text: r.definition, image: r.definitionImage })),
+      ...rows.map((r) => asSaved(r.definition)),
+      ...distractors.map(asSaved),
+    ]),
+    matchingTermImages: answerImagesFromRows(rows.map((r) => asSaved(r.term))),
+    imageOnlyAnswers: imageOnlyFromCells([
+      ...rows.flatMap((r) => [r.term, r.definition]),
       ...distractors,
     ]),
-    matchingTermImages: answerImagesFromRows(
-      rows.map((r) => ({ text: r.term, image: r.termImage }))
-    ),
   };
 }
 
@@ -291,6 +411,7 @@ const matchingPropsEqual = (
   prev.onChange === next.onChange &&
   prev.answerImages === next.answerImages &&
   prev.termImages === next.termImages &&
+  prev.imageOnlyAnswers === next.imageOnlyAnswers &&
   prev.onUploadImage === next.onUploadImage &&
   (prev.matchingDistractors === next.matchingDistractors ||
     (prev.matchingDistractors.length === next.matchingDistractors.length &&
@@ -303,6 +424,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
   matchingDistractors,
   answerImages,
   termImages,
+  imageOnlyAnswers,
   onChange,
   onUploadImage,
 }: MatchingAnswerEditorProps) {
@@ -311,11 +433,15 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
   // Local row state owns ids/blank rows; the canonical wire form lives in
   // the parent's `correctAnswer`. We re-parse only when the parent value
   // changes from the outside (e.g., AI-generated questions, quiz reload).
-  const [rows, setRows] = React.useState<PairRow[]>(() =>
-    parsePairs(correctAnswer, answerImages, termImages)
-  );
-  const [distractors, setDistractors] = React.useState<DistractorRow[]>(() =>
-    toDistractorRows(matchingDistractors, answerImages)
+  const readProps = () =>
+    labelMatching(
+      parsePairs(correctAnswer, answerImages, termImages, imageOnlyAnswers),
+      toDistractorRows(matchingDistractors, answerImages, imageOnlyAnswers)
+    );
+  const [initial] = React.useState(readProps);
+  const [rows, setRows] = React.useState<PairRow[]>(initial.rows);
+  const [distractors, setDistractors] = React.useState<DistractorRow[]>(
+    initial.distractors
   );
   const wireKey = (fields: ReturnType<typeof matchingFields>) =>
     JSON.stringify([
@@ -323,17 +449,20 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
       fields.matchingDistractors,
       fields.answerImages ?? [],
       fields.matchingTermImages ?? [],
+      fields.imageOnlyAnswers ?? [],
     ]);
   const propsKey = wireKey({
     correctAnswer,
     matchingDistractors,
     answerImages,
     matchingTermImages: termImages,
+    imageOnlyAnswers,
   });
   useResetOnChange(propsKey, () => {
     if (wireKey(matchingFields(rows, distractors)) !== propsKey) {
-      setRows(parsePairs(correctAnswer, answerImages, termImages));
-      setDistractors(toDistractorRows(matchingDistractors, answerImages));
+      const next = readProps();
+      setRows(next.rows);
+      setDistractors(next.distractors);
     }
   });
   // Latest rows for an upload that resolves after later edits.
@@ -354,8 +483,17 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
     [rows]
   );
 
-  const emit = (nextRows: PairRow[], nextDistractors: DistractorRow[]) => {
-    onChange(matchingFields(nextRows, nextDistractors));
+  // Sets both lists, labelling any new picture, and saves unless `save` is false.
+  const apply = (
+    nextRows: PairRow[],
+    nextDistractors: DistractorRow[],
+    save = true
+  ) => {
+    const labelled = labelMatching(nextRows, nextDistractors);
+    latest.current = labelled;
+    setRows(labelled.rows);
+    setDistractors(labelled.distractors);
+    if (save) onChange(matchingFields(labelled.rows, labelled.distractors));
   };
 
   // Keys read `<row id>:term`, `<row id>:match` or `<row id>:extra`.
@@ -368,30 +506,27 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
       r.id !== id
         ? r
         : part === 'term'
-          ? { ...r, termImage: image }
+          ? { ...r, term: { ...r.term, image } }
           : part === 'match'
-            ? { ...r, definitionImage: image }
+            ? { ...r, definition: { ...r.definition, image } }
             : r
     );
     const nextDistractors = current.distractors.map((d) =>
       d.id === id && part === 'extra' ? { ...d, image } : d
     );
-    latest.current = { rows: nextRows, distractors: nextDistractors };
-    setRows(nextRows);
-    setDistractors(nextDistractors);
-    emit(nextRows, nextDistractors);
+    apply(nextRows, nextDistractors);
   };
   const images = useAnswerImagePicker(onUploadImage, setImage);
   const imageControl = (
     key: string,
-    image: string | undefined,
+    cell: Cell,
     name: string,
     addAttrs: TourAnchorAttrs,
     removeAttrs: TourAnchorAttrs
   ) =>
-    onUploadImage || image ? (
+    onUploadImage || cell.image ? (
       <AnswerImageControl
-        image={image}
+        image={cell.image}
         uploading={images.uploadingKey === key}
         disabled={images.uploadingKey !== null}
         onPick={() => images.pick(key)}
@@ -402,23 +537,26 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
       />
     ) : null;
 
-  const updateRow = (id: string, patch: Partial<Omit<PairRow, 'id'>>) => {
-    const next = rows.map((r) => (r.id === id ? { ...r, ...patch } : r));
-    setRows(next);
-    emit(next, distractors);
-  };
+  const updateCell = (
+    id: string,
+    side: 'term' | 'definition',
+    patch: Partial<Cell>
+  ) =>
+    apply(
+      rows.map((r) =>
+        r.id === id ? { ...r, [side]: { ...r[side], ...patch } } : r
+      ),
+      distractors
+    );
 
-  const addRow = () => {
-    const next = [...rows, { id: newId(), term: '', definition: '' }];
-    setRows(next);
-    emit(next, distractors);
-  };
+  const addRow = () => apply([...rows, blankPair()], distractors);
 
   const removeRow = (id: string) => {
     if (rows.length <= 2) return;
-    const next = rows.filter((r) => r.id !== id);
-    setRows(next);
-    emit(next, distractors);
+    apply(
+      rows.filter((r) => r.id !== id),
+      distractors
+    );
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -427,30 +565,24 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
     const oldIndex = rows.findIndex((r) => r.id === active.id);
     const newIndex = rows.findIndex((r) => r.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(rows, oldIndex, newIndex);
-    setRows(next);
-    emit(next, distractors);
+    apply(arrayMove(rows, oldIndex, newIndex), distractors);
   };
 
-  const updateDistractor = (index: number, value: string) => {
-    const next = distractors.map((d, i) =>
-      i === index ? { ...d, text: value } : d
+  const updateDistractor = (index: number, patch: Partial<Cell>) =>
+    apply(
+      rows,
+      distractors.map((d, i) => (i === index ? { ...d, ...patch } : d))
     );
-    setDistractors(next);
-    emit(rows, next);
-  };
 
-  const addDistractor = () => {
-    const next = [...distractors, { id: newId(), text: '' }];
-    setDistractors(next);
-    // Don't emit yet — empty distractor would be filtered out anyway.
-  };
+  // An empty extra saves nothing, so adding one waits for its text.
+  const addDistractor = () =>
+    apply(rows, [...distractors, { id: newId(), text: '' }], false);
 
-  const removeDistractor = (index: number) => {
-    const next = distractors.filter((_, i) => i !== index);
-    setDistractors(next);
-    emit(rows, next);
-  };
+  const removeDistractor = (index: number) =>
+    apply(
+      rows,
+      distractors.filter((_, i) => i !== index)
+    );
 
   return (
     <div className="space-y-3">
@@ -499,89 +631,104 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                         >
                           <GripVertical className="w-4 h-4" />
                         </button>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <input
-                            type="text"
-                            value={row.term}
-                            onPaste={images.pasteInto(`${row.id}:term`)}
-                            onChange={(e) =>
-                              updateRow(row.id, {
-                                term: sanitizeTerm(e.target.value),
-                              })
-                            }
-                            placeholder={
-                              row.termImage && !row.term.trim()
-                                ? NEEDS_TEXT
-                                : 'Term'
-                            }
-                            {...tourFieldAttr(
-                              'quiz-editor.match-term',
-                              'quiz',
-                              String(i + 1)
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <input
+                              type="text"
+                              value={row.term.text}
+                              onPaste={images.pasteInto(`${row.id}:term`)}
+                              onChange={(e) =>
+                                updateCell(row.id, 'term', {
+                                  text: sanitizeTerm(e.target.value),
+                                })
+                              }
+                              placeholder={cellPlaceholder(row.term, 'Term')}
+                              {...tourFieldAttr(
+                                'quiz-editor.match-term',
+                                'quiz',
+                                String(i + 1)
+                              )}
+                              aria-invalid={isDuplicateTerm}
+                              aria-describedby={
+                                isDuplicateTerm ? warningId : undefined
+                              }
+                              className={`min-w-0 flex-1 px-3 py-2 bg-white border-2 rounded-xl text-emerald-800 font-bold focus:outline-hidden shadow-xs text-sm ${
+                                isDuplicateTerm
+                                  ? 'border-brand-red-primary focus:border-brand-red-primary'
+                                  : 'border-emerald-500/20 focus:border-emerald-500'
+                              }`}
+                            />
+                            {imageControl(
+                              `${row.id}:term`,
+                              row.term,
+                              `term ${i + 1}`,
+                              tourFieldAttr(
+                                'quiz-editor.match-term-image',
+                                'quiz',
+                                String(i + 1)
+                              ),
+                              tourFieldAttr(
+                                'quiz-editor.match-term-image-remove',
+                                'quiz',
+                                String(i + 1)
+                              )
                             )}
-                            aria-invalid={isDuplicateTerm}
-                            aria-describedby={
-                              isDuplicateTerm ? warningId : undefined
+                          </div>
+                          <CellDescription
+                            cell={row.term}
+                            name={`term ${i + 1}`}
+                            field={`term-${i + 1}`}
+                            onChange={(alt) =>
+                              updateCell(row.id, 'term', { alt })
                             }
-                            className={`min-w-0 flex-1 px-3 py-2 bg-white border-2 rounded-xl text-emerald-800 font-bold focus:outline-hidden shadow-xs text-sm ${
-                              isDuplicateTerm
-                                ? 'border-brand-red-primary focus:border-brand-red-primary'
-                                : 'border-emerald-500/20 focus:border-emerald-500'
-                            }`}
                           />
-                          {imageControl(
-                            `${row.id}:term`,
-                            row.termImage,
-                            `term ${i + 1}`,
-                            tourFieldAttr(
-                              'quiz-editor.match-term-image',
-                              'quiz',
-                              String(i + 1)
-                            ),
-                            tourFieldAttr(
-                              'quiz-editor.match-term-image-remove',
-                              'quiz',
-                              String(i + 1)
-                            )
-                          )}
                         </div>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <input
-                            type="text"
-                            value={row.definition}
-                            onPaste={images.pasteInto(`${row.id}:match`)}
-                            onChange={(e) =>
-                              updateRow(row.id, {
-                                definition: sanitizeDefinition(e.target.value),
-                              })
-                            }
-                            placeholder={
-                              row.definitionImage && !row.definition.trim()
-                                ? NEEDS_TEXT
-                                : 'Match'
-                            }
-                            {...tourFieldAttr(
-                              'quiz-editor.match-definition',
-                              'quiz',
-                              String(i + 1)
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <input
+                              type="text"
+                              value={row.definition.text}
+                              onPaste={images.pasteInto(`${row.id}:match`)}
+                              onChange={(e) =>
+                                updateCell(row.id, 'definition', {
+                                  text: sanitizeDefinition(e.target.value),
+                                })
+                              }
+                              placeholder={cellPlaceholder(
+                                row.definition,
+                                'Match'
+                              )}
+                              {...tourFieldAttr(
+                                'quiz-editor.match-definition',
+                                'quiz',
+                                String(i + 1)
+                              )}
+                              className="min-w-0 flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
+                            />
+                            {imageControl(
+                              `${row.id}:match`,
+                              row.definition,
+                              `match ${i + 1}`,
+                              tourFieldAttr(
+                                'quiz-editor.match-definition-image',
+                                'quiz',
+                                String(i + 1)
+                              ),
+                              tourFieldAttr(
+                                'quiz-editor.match-definition-image-remove',
+                                'quiz',
+                                String(i + 1)
+                              )
                             )}
-                            className="min-w-0 flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
+                          </div>
+                          <CellDescription
+                            cell={row.definition}
+                            name={`match ${i + 1}`}
+                            field={`match-${i + 1}`}
+                            onChange={(alt) =>
+                              updateCell(row.id, 'definition', { alt })
+                            }
                           />
-                          {imageControl(
-                            `${row.id}:match`,
-                            row.definitionImage,
-                            `match ${i + 1}`,
-                            tourFieldAttr(
-                              'quiz-editor.match-definition-image',
-                              'quiz',
-                              String(i + 1)
-                            ),
-                            tourFieldAttr(
-                              'quiz-editor.match-definition-image-remove',
-                              'quiz',
-                              String(i + 1)
-                            )
-                          )}
                         </div>
                         <button
                           type="button"
@@ -635,52 +782,60 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
         </summary>
         <div className="mt-2 space-y-1.5">
           {distractors.map((d, i) => (
-            <div key={d.id} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={d.text}
-                onPaste={images.pasteInto(`${d.id}:extra`)}
-                onChange={(e) =>
-                  updateDistractor(i, sanitizeDefinition(e.target.value))
-                }
-                placeholder={
-                  d.image && !d.text.trim() ? NEEDS_TEXT : `Distractor ${i + 1}`
-                }
-                {...tourFieldAttr(
-                  'quiz-editor.match-distractor',
-                  'quiz',
-                  String(i + 1)
+            <div key={d.id} className="space-y-1">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={d.text}
+                  onPaste={images.pasteInto(`${d.id}:extra`)}
+                  onChange={(e) =>
+                    updateDistractor(i, {
+                      text: sanitizeDefinition(e.target.value),
+                    })
+                  }
+                  placeholder={cellPlaceholder(d, `Distractor ${i + 1}`)}
+                  {...tourFieldAttr(
+                    'quiz-editor.match-distractor',
+                    'quiz',
+                    String(i + 1)
+                  )}
+                  className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/20 rounded-xl text-brand-blue-dark font-medium focus:outline-hidden focus:border-brand-red-primary shadow-xs text-sm"
+                />
+                {imageControl(
+                  `${d.id}:extra`,
+                  d,
+                  `distractor ${i + 1}`,
+                  tourFieldAttr(
+                    'quiz-editor.match-distractor-image',
+                    'quiz',
+                    String(i + 1)
+                  ),
+                  tourFieldAttr(
+                    'quiz-editor.match-distractor-image-remove',
+                    'quiz',
+                    String(i + 1)
+                  )
                 )}
-                className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/20 rounded-xl text-brand-blue-dark font-medium focus:outline-hidden focus:border-brand-red-primary shadow-xs text-sm"
+                <button
+                  type="button"
+                  onClick={() => removeDistractor(i)}
+                  className="p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors"
+                  aria-label={`Remove distractor ${i + 1}`}
+                  {...tourFieldAttr(
+                    'quiz-editor.match-distractor-remove',
+                    'quiz',
+                    String(i + 1)
+                  )}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+              <CellDescription
+                cell={d}
+                name={`distractor ${i + 1}`}
+                field={`extra-${i + 1}`}
+                onChange={(alt) => updateDistractor(i, { alt })}
               />
-              {imageControl(
-                `${d.id}:extra`,
-                d.image,
-                `distractor ${i + 1}`,
-                tourFieldAttr(
-                  'quiz-editor.match-distractor-image',
-                  'quiz',
-                  String(i + 1)
-                ),
-                tourFieldAttr(
-                  'quiz-editor.match-distractor-image-remove',
-                  'quiz',
-                  String(i + 1)
-                )
-              )}
-              <button
-                type="button"
-                onClick={() => removeDistractor(i)}
-                className="p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors"
-                aria-label={`Remove distractor ${i + 1}`}
-                {...tourFieldAttr(
-                  'quiz-editor.match-distractor-remove',
-                  'quiz',
-                  String(i + 1)
-                )}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
           ))}
           <button
@@ -704,9 +859,12 @@ export interface OrderingAnswerEditorProps {
   correctAnswer: string;
   /** Index-aligned with the items in `correctAnswer`; keep the reference stable. */
   orderingImages?: string[];
+  /** Items that are only a picture; keep the reference stable. */
+  imageOnlyAnswers?: QuizImageOnlyAnswer[];
   onChange: (
     correctAnswer: string,
-    orderingImages: string[] | undefined
+    orderingImages: string[] | undefined,
+    imageOnlyAnswers: QuizImageOnlyAnswer[] | undefined
   ) => void;
   /** Uploads one image and resolves to its URL; absent leaves only removing a saved one. */
   onUploadImage?: UploadAnswerImage;
@@ -719,22 +877,25 @@ const NO_IMAGES: string[] = [];
 export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
   correctAnswer,
   orderingImages = NO_IMAGES,
+  imageOnlyAnswers,
   onChange,
   onUploadImage,
 }: OrderingAnswerEditorProps) {
   const [rows, setRows] = React.useState<OrderRow[]>(() =>
-    parseOrderItems(correctAnswer, orderingImages)
+    parseOrderItems(correctAnswer, orderingImages, imageOnlyAnswers)
   );
-  const resetKey = `${correctAnswer}\u0000${orderingImages.join('\u0001')}`;
+  const imageOnlyKey = JSON.stringify(imageOnlyAnswers ?? []);
+  const resetKey = `${correctAnswer}\u0000${orderingImages.join('\u0001')}\u0000${imageOnlyKey}`;
   useResetOnChange(resetKey, () => {
     const nextImages = orderingImages.some(Boolean)
       ? orderingImages
       : undefined;
     if (
       serializeOrderItems(rows) !== correctAnswer ||
-      !sameImages(serializeOrderImages(rows), nextImages)
+      !sameImages(serializeOrderImages(rows), nextImages) ||
+      JSON.stringify(imageOnlyFromCells(rows) ?? []) !== imageOnlyKey
     ) {
-      setRows(parseOrderItems(correctAnswer, orderingImages));
+      setRows(parseOrderItems(correctAnswer, orderingImages, imageOnlyAnswers));
     }
   });
   // Latest rows for the async upload callback, which resolves after later edits.
@@ -750,46 +911,39 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
     })
   );
 
-  const emit = (next: OrderRow[]) =>
-    onChange(serializeOrderItems(next), serializeOrderImages(next));
+  // Sets the rows, labelling any new picture, and saves them.
+  const apply = (edited: OrderRow[]) => {
+    const next = labelOrderRows(edited);
+    rowsRef.current = next;
+    setRows(next);
+    onChange(
+      serializeOrderItems(next),
+      serializeOrderImages(next),
+      imageOnlyFromCells(next)
+    );
+  };
 
   const setRowImage = (id: string, image: string) => {
     if (!rowsRef.current.some((r) => r.id === id)) return;
-    const next = rowsRef.current.map((r) =>
-      r.id === id ? { ...r, image } : r
-    );
-    rowsRef.current = next;
-    setRows(next);
-    emit(next);
+    apply(rowsRef.current.map((r) => (r.id === id ? { ...r, image } : r)));
   };
 
   const images = useAnswerImagePicker(onUploadImage, setRowImage);
 
-  const updateRow = (id: string, text: string) => {
-    const next = rows.map((r) => (r.id === id ? { ...r, text } : r));
-    setRows(next);
-    emit(next);
-  };
+  const updateRow = (id: string, patch: Partial<Cell>) =>
+    apply(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
-  const addRow = () => {
-    const next = [...rows, { id: newId(), text: '' }];
-    setRows(next);
-    emit(next);
-  };
+  const addRow = () => apply([...rows, { id: newId(), text: '' }]);
 
   const removeRow = (id: string) => {
     if (rows.length <= 2) return;
-    const next = rows.filter((r) => r.id !== id);
-    setRows(next);
-    emit(next);
+    apply(rows.filter((r) => r.id !== id));
   };
 
   const swap = (index: number, dir: 'up' | 'down') => {
     const target = dir === 'up' ? index - 1 : index + 1;
     if (target < 0 || target >= rows.length) return;
-    const next = arrayMove(rows, index, target);
-    setRows(next);
-    emit(next);
+    apply(arrayMove(rows, index, target));
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -798,9 +952,7 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
     const oldIndex = rows.findIndex((r) => r.id === active.id);
     const newIndex = rows.findIndex((r) => r.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(rows, oldIndex, newIndex);
-    setRows(next);
-    emit(next);
+    apply(arrayMove(rows, oldIndex, newIndex));
   };
 
   return (
@@ -821,107 +973,114 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
             {rows.map((row, i) => (
               <SortableRow key={row.id} id={row.id}>
                 {({ listeners, attributes }) => (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center justify-center text-brand-blue-primary/30 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing touch-none"
-                      aria-label="Drag to reorder"
-                      {...tourFieldAttr(
-                        'quiz-editor.order-drag',
-                        'quiz',
-                        String(i + 1)
-                      )}
-                      {...listeners}
-                      {...attributes}
-                    >
-                      <GripVertical className="w-4 h-4" />
-                    </button>
-                    <span className="font-black text-emerald-700 w-6 text-center text-sm shrink-0">
-                      {i + 1}.
-                    </span>
-                    <input
-                      type="text"
-                      value={row.text}
-                      onPaste={images.pasteInto(row.id)}
-                      onChange={(e) =>
-                        updateRow(row.id, sanitizeOrderingItem(e.target.value))
-                      }
-                      placeholder={
-                        row.image && !row.text.trim()
-                          ? NEEDS_TEXT
-                          : `Item ${i + 1}`
-                      }
-                      {...tourFieldAttr(
-                        'quiz-editor.order-item',
-                        'quiz',
-                        String(i + 1)
-                      )}
-                      className="flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
-                    />
-                    {(onUploadImage ?? row.image) && (
-                      <AnswerImageControl
-                        image={row.image}
-                        uploading={images.uploadingKey === row.id}
-                        disabled={images.uploadingKey !== null}
-                        onPick={() => images.pick(row.id)}
-                        onRemove={() => setRowImage(row.id, '')}
-                        name={`item ${i + 1}`}
-                        addAttrs={tourFieldAttr(
-                          'quiz-editor.order-image',
-                          'quiz',
-                          String(i + 1)
-                        )}
-                        removeAttrs={tourFieldAttr(
-                          'quiz-editor.order-image-remove',
-                          'quiz',
-                          String(i + 1)
-                        )}
-                      />
-                    )}
-                    <div className="flex items-center">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => swap(i, 'up')}
-                        disabled={i === 0}
-                        className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded-sm transition-colors disabled:opacity-20"
-                        aria-label="Move up"
+                        className="flex items-center justify-center text-brand-blue-primary/30 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing touch-none"
+                        aria-label="Drag to reorder"
                         {...tourFieldAttr(
-                          'quiz-editor.order-up',
+                          'quiz-editor.order-drag',
                           'quiz',
                           String(i + 1)
                         )}
+                        {...listeners}
+                        {...attributes}
                       >
-                        ▲
+                        <GripVertical className="w-4 h-4" />
                       </button>
+                      <span className="font-black text-emerald-700 w-6 text-center text-sm shrink-0">
+                        {i + 1}.
+                      </span>
+                      <input
+                        type="text"
+                        value={row.text}
+                        onPaste={images.pasteInto(row.id)}
+                        onChange={(e) =>
+                          updateRow(row.id, {
+                            text: sanitizeOrderingItem(e.target.value),
+                          })
+                        }
+                        placeholder={cellPlaceholder(row, `Item ${i + 1}`)}
+                        {...tourFieldAttr(
+                          'quiz-editor.order-item',
+                          'quiz',
+                          String(i + 1)
+                        )}
+                        className="flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-hidden focus:border-emerald-500 shadow-xs text-sm"
+                      />
+                      {(onUploadImage ?? row.image) && (
+                        <AnswerImageControl
+                          image={row.image}
+                          uploading={images.uploadingKey === row.id}
+                          disabled={images.uploadingKey !== null}
+                          onPick={() => images.pick(row.id)}
+                          onRemove={() => setRowImage(row.id, '')}
+                          name={`item ${i + 1}`}
+                          addAttrs={tourFieldAttr(
+                            'quiz-editor.order-image',
+                            'quiz',
+                            String(i + 1)
+                          )}
+                          removeAttrs={tourFieldAttr(
+                            'quiz-editor.order-image-remove',
+                            'quiz',
+                            String(i + 1)
+                          )}
+                        />
+                      )}
+                      <div className="flex items-center">
+                        <button
+                          type="button"
+                          onClick={() => swap(i, 'up')}
+                          disabled={i === 0}
+                          className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded-sm transition-colors disabled:opacity-20"
+                          aria-label="Move up"
+                          {...tourFieldAttr(
+                            'quiz-editor.order-up',
+                            'quiz',
+                            String(i + 1)
+                          )}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => swap(i, 'down')}
+                          disabled={i === rows.length - 1}
+                          className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded-sm transition-colors disabled:opacity-20"
+                          aria-label="Move down"
+                          {...tourFieldAttr(
+                            'quiz-editor.order-down',
+                            'quiz',
+                            String(i + 1)
+                          )}
+                        >
+                          ▼
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => swap(i, 'down')}
-                        disabled={i === rows.length - 1}
-                        className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded-sm transition-colors disabled:opacity-20"
-                        aria-label="Move down"
+                        onClick={() => removeRow(row.id)}
+                        disabled={rows.length <= 2}
+                        className="flex items-center justify-center p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
+                        aria-label="Remove item"
                         {...tourFieldAttr(
-                          'quiz-editor.order-down',
+                          'quiz-editor.order-remove',
                           'quiz',
                           String(i + 1)
                         )}
                       >
-                        ▼
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(row.id)}
-                      disabled={rows.length <= 2}
-                      className="flex items-center justify-center p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
-                      aria-label="Remove item"
-                      {...tourFieldAttr(
-                        'quiz-editor.order-remove',
-                        'quiz',
-                        String(i + 1)
-                      )}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <CellDescription
+                      cell={row}
+                      name={`item ${i + 1}`}
+                      field={String(i + 1)}
+                      onChange={(alt) => updateRow(row.id, { alt })}
+                      className={'pl-14'}
+                    />
                   </div>
                 )}
               </SortableRow>

@@ -46,7 +46,7 @@ const partition = (count: number): LandingPartition => ({
   done: [],
 });
 
-const renderOverview = (count: number, showResources: boolean) =>
+const renderOverview = (count: number) =>
   render(
     <LandingOverview
       partition={partition(count)}
@@ -54,24 +54,17 @@ const renderOverview = (count: number, showResources: boolean) =>
       firstName="Maya"
       nowMs={NOW}
       pseudonymUid="s1"
-      showResources={showResources}
     />
   );
 
 describe('LandingOverview resources', () => {
-  it('is hidden when the flag is off', () => {
-    renderOverview(2, false);
-    expect(screen.queryByRole('heading', { name: 'Resources' })).toBeNull();
-    expect(screen.queryByText('Resource 1')).toBeNull();
-  });
-
   it('is hidden when there are no resources', () => {
-    renderOverview(0, true);
+    renderOverview(0);
     expect(screen.queryByRole('heading', { name: 'Resources' })).toBeNull();
   });
 
   it('shows three with their class, then expands to all', () => {
-    renderOverview(5, true);
+    renderOverview(5);
     expect(screen.getByRole('heading', { name: 'Resources' })).toBeTruthy();
     expect(screen.getByText('Resource 3')).toBeTruthy();
     expect(screen.queryByText('Resource 4')).toBeNull();
@@ -85,7 +78,7 @@ describe('LandingOverview resources', () => {
   });
 
   it('has no See all link with three or fewer', () => {
-    renderOverview(3, true);
+    renderOverview(3);
     expect(screen.queryByRole('button', { name: /See all/ })).toBeNull();
   });
 });

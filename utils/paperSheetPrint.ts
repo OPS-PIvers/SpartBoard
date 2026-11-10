@@ -9,6 +9,7 @@ import { plainPromptText } from './promptMath';
  * the same geometry. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §5.
  */
 
+import type { ChoicePicture } from './quizAnswerImages';
 import {
   BUBBLE_DIAMETER_MM,
   BUBBLE_LETTER_GREY,
@@ -150,6 +151,8 @@ export interface PaperSheetQuestionText {
   text: string;
   /** Option text in bubble-letter order. */
   choices: readonly string[];
+  /** A picture per choice, null where none; only a picture-only choice prints its picture here. */
+  choicePictures?: readonly (ChoicePicture | null)[];
 }
 
 /** A graded paper response redrawn onto its sheet (docs/plans/shipped/QUIZ_RESULTS_PRINT.md D22-D23). */
@@ -360,11 +363,21 @@ function questionTextHtml(
       parts.push(
         `<div class="qt-choice" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(
           r.w
-        )};height:${mm(r.h)}">${escapeHtml(plainPromptText(choice))}</div>`
+        )};height:${mm(r.h)}">${sheetChoiceHtml(choice, q.choicePictures?.[i])}</div>`
       );
     });
   }
   return parts.join('');
+}
+
+// A bubble row is one line tall, so only a picture-only choice prints its picture, at that height.
+function sheetChoiceHtml(
+  text: string,
+  picture: ChoicePicture | null | undefined
+) {
+  return picture?.only
+    ? `<img src="${escapeHtml(picture.url)}" alt="${escapeHtml(picture.alt ?? '')}" style="height:100%;width:auto;object-fit:contain">`
+    : escapeHtml(plainPromptText(text));
 }
 
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;

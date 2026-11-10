@@ -30,6 +30,7 @@ import {
   AnswerImageZoomButton,
   AnswerLabel,
 } from './AnswerImage';
+import { pictureOnlyName } from './pictureOnlyName';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import {
   SIDE_BANK_PANEL,
@@ -71,7 +72,19 @@ const DraggableChip: React.FC<{
   onTap: () => void;
   ariaLabel?: string;
   light?: boolean;
-}> = ({ id, label, image, selected, disabled, onTap, ariaLabel, light }) => {
+  /** The item is only a picture; `label` is its spoken name. */
+  pictureOnly?: boolean;
+}> = ({
+  id,
+  label,
+  image,
+  selected,
+  disabled,
+  onTap,
+  ariaLabel,
+  light,
+  pictureOnly = false,
+}) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
   const style: React.CSSProperties = transform
@@ -103,7 +116,12 @@ const DraggableChip: React.FC<{
       aria-label={ariaLabel ?? label}
       title={label}
     >
-      <AnswerLabel label={label} image={image} layout="tile" />
+      <AnswerLabel
+        label={label}
+        image={image}
+        layout="tile"
+        pictureOnly={pictureOnly}
+      />
     </button>
   );
   if (!image) return chip;
@@ -126,6 +144,8 @@ const Slot: React.FC<{
   index: number;
   filledLabel: string | null;
   filledImage?: string;
+  /** The placed item is only a picture; `filledLabel` is its spoken name. */
+  filledPictureOnly?: boolean;
   selectedHere: boolean;
   onTapEmpty: () => void;
   onChipTap: () => void;
@@ -141,6 +161,7 @@ const Slot: React.FC<{
   index,
   filledLabel,
   filledImage,
+  filledPictureOnly = false,
   selectedHere,
   onTapEmpty,
   onChipTap,
@@ -207,6 +228,7 @@ const Slot: React.FC<{
             label={filledLabel}
             image={filledImage}
             layout="compact"
+            pictureOnly={filledPictureOnly}
           />
         </button>
       ) : (
@@ -295,6 +317,8 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     question.orderingImages?.length === items.length
       ? question.orderingImages
       : undefined;
+  const pictureName = (index: number) =>
+    pictureOnlyName(t, question, items[index], images?.[index], index + 1);
 
   // Slot state: each slot holds either an item index (into `items`) or null.
   // Bank holds the rest, in shuffled order. Per-attempt re-shuffle on
@@ -501,7 +525,14 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                 key={i}
                 id={`slot-${i}`}
                 index={i}
-                filledLabel={label}
+                filledLabel={
+                  slot !== null && slot !== undefined
+                    ? (pictureName(slot) ?? label)
+                    : label
+                }
+                filledPictureOnly={
+                  slot !== null && slot !== undefined && !!pictureName(slot)
+                }
                 filledImage={
                   slot !== null && slot !== undefined
                     ? images?.[slot]
@@ -558,12 +589,13 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                 >
                   <DraggableChip
                     id={`bank-${itemIndex}`}
-                    label={items[itemIndex]}
+                    label={pictureName(itemIndex) ?? items[itemIndex]}
+                    pictureOnly={!!pictureName(itemIndex)}
                     image={images?.[itemIndex]}
                     selected={selected}
                     disabled={disabled}
                     onTap={() => handleBankChipTap(itemIndex)}
-                    ariaLabel={`${items[itemIndex]}, in word bank`}
+                    ariaLabel={`${pictureName(itemIndex) ?? items[itemIndex]}, in word bank`}
                     light={light}
                   />
                   {speaker(items[itemIndex])}

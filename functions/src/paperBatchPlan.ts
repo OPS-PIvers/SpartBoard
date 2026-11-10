@@ -40,6 +40,10 @@ export interface PaperQuestion {
   paperOwnTest?: boolean;
   /** Any truthy value marks a recording question, which never prints. */
   recording?: unknown;
+  /** Mirrors `QuizQuestion.answerImages`; only the test paper reads it. */
+  answerImages?: { text: string; url: string }[];
+  /** Mirrors `QuizQuestion.imageOnlyAnswers`; only the test paper reads it. */
+  imageOnlyAnswers?: { text: string; alt?: string }[];
   maxWords?: number;
   paperBoxSize?: PaperBoxSize;
   paperBoxStyle?: PaperBoxStyle;

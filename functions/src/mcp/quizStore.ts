@@ -141,6 +141,7 @@ const KEY_FIELDS = [
 const TYPE_BOUND_EXTRAS = [
   'answerImages',
   'matchingTermImages',
+  'imageOnlyAnswers',
   'recording',
   'rubricId',
   'rubricSnapshot',
@@ -327,13 +328,19 @@ export function toStoredQuestion(
       }
       assertNoPipe(n, items, 'items');
       base.correctAnswer = items.join('|');
-      // Item images stay only while the items are unchanged; any edit to them drops the images.
+      // Item images follow their item's text, so a reorder keeps them and a renamed item loses its own.
       if (
         existing?.type === 'Ordering' &&
-        existing.correctAnswer === base.correctAnswer &&
         Array.isArray(existing.orderingImages)
-      )
-        base.orderingImages = existing.orderingImages;
+      ) {
+        const before = String(existing.correctAnswer ?? '').split('|');
+        const oldImages = existing.orderingImages as unknown[];
+        const images = items.map((item) => {
+          const url = oldImages[before.indexOf(item)];
+          return typeof url === 'string' ? url : '';
+        });
+        if (images.some(Boolean)) base.orderingImages = images;
+      }
       if (input.partial_credit !== undefined)
         base.allowPartialCredit = input.partial_credit;
       break;

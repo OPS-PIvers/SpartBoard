@@ -92,7 +92,7 @@ describe('ChoiceOptionsEditor pictures', () => {
     expect(seen.q?.answerImages).toBeUndefined();
   });
 
-  it('asks for text when a blank option gets a picture', async () => {
+  it('saves a blank option with a picture under a generated label', async () => {
     const upload = vi.fn().mockResolvedValue(URL_A);
     render(
       <ChoiceHarness
@@ -104,10 +104,60 @@ describe('ChoiceOptionsEditor pictures', () => {
       clipboardData: imagePaste,
     });
     await flush();
+    const label = seen.q?.incorrectAnswers[0] ?? '';
+    expect(label).toMatch(/^Picture [A-Z0-9]{3}$/);
+    expect(seen.q?.answerImages).toEqual([{ text: label, url: URL_A }]);
+    expect(seen.q?.imageOnlyAnswers).toEqual([{ text: label }]);
+    expect(screen.getByRole('textbox', { name: 'Option B' })).toHaveValue('');
     expect(screen.getByRole('textbox', { name: 'Option B' })).toHaveAttribute(
       'placeholder',
-      'Add text for this image'
+      'Picture only, or add text'
     );
+  });
+
+  it('reads a picture-only option back with an empty box and saves its description', () => {
+    render(
+      <ChoiceHarness
+        initial={{
+          ...mc,
+          correctAnswer: 'Picture ACD',
+          answerImages: [{ text: 'Picture ACD', url: URL_A }],
+          imageOnlyAnswers: [{ text: 'Picture ACD' }],
+        }}
+        upload={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('textbox', { name: 'Option A' })).toHaveValue('');
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Describe the picture in option A' }),
+      {
+        target: { value: 'A red triangle' },
+      }
+    );
+    expect(seen.q?.correctAnswer).toBe('Picture ACD');
+    expect(seen.q?.imageOnlyAnswers).toEqual([
+      { text: 'Picture ACD', alt: 'A red triangle' },
+    ]);
+  });
+
+  it('typing text on a picture-only option makes it a normal option', () => {
+    render(
+      <ChoiceHarness
+        initial={{
+          ...mc,
+          correctAnswer: 'Picture ACD',
+          answerImages: [{ text: 'Picture ACD', url: URL_A }],
+          imageOnlyAnswers: [{ text: 'Picture ACD' }],
+        }}
+        upload={vi.fn()}
+      />
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Option A' }), {
+      target: { value: 'Triangle' },
+    });
+    expect(seen.q?.correctAnswer).toBe('Triangle');
+    expect(seen.q?.answerImages).toEqual([{ text: 'Triangle', url: URL_A }]);
+    expect(seen.q?.imageOnlyAnswers).toBeUndefined();
   });
 
   // Unpositioned, its hit area stretches over the whole editor and takes every click.
@@ -249,6 +299,43 @@ describe('MatchingAnswerEditor pictures', () => {
     );
   });
 
+  it('saves picture-only terms and matches under labels and reads them back', () => {
+    const onChange = vi.fn();
+    render(
+      <MatchingAnswerEditor
+        correctAnswer="Picture ACD:Picture CDE|Frog:Amphibian"
+        matchingDistractors={['Picture DEF']}
+        answerImages={[
+          { text: 'Picture CDE', url: URL_B },
+          { text: 'Picture DEF', url: URL_B },
+        ]}
+        termImages={[{ text: 'Picture ACD', url: URL_A }]}
+        imageOnlyAnswers={[
+          { text: 'Picture ACD' },
+          { text: 'Picture CDE', alt: 'A dog' },
+          { text: 'Picture DEF' },
+        ]}
+        onChange={onChange}
+        onUploadImage={vi.fn()}
+      />
+    );
+    expect(screen.queryByDisplayValue('Picture ACD')).toBeNull();
+    fireEvent.change(screen.getByDisplayValue('Frog'), {
+      target: { value: 'Toad' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        correctAnswer: 'Picture ACD:Picture CDE|Toad:Amphibian',
+        matchingDistractors: ['Picture DEF'],
+        imageOnlyAnswers: [
+          { text: 'Picture ACD' },
+          { text: 'Picture CDE', alt: 'A dog' },
+          { text: 'Picture DEF' },
+        ],
+      })
+    );
+  });
+
   it('shows saved pictures on their rows', () => {
     render(
       <MatchingAnswerEditor
@@ -282,6 +369,36 @@ describe('OrderingAnswerEditor pasting', () => {
       clipboardData: imagePaste,
     });
     await flush();
-    expect(onChange).toHaveBeenLastCalledWith('First|Second', ['', URL_A]);
+    expect(onChange).toHaveBeenLastCalledWith(
+      'First|Second',
+      ['', URL_A],
+      undefined
+    );
+  });
+
+  it('saves a blank item with a picture under a generated label', async () => {
+    const onChange = vi.fn();
+    render(
+      <OrderingAnswerEditor
+        correctAnswer="First|Second"
+        onChange={onChange}
+        onUploadImage={vi.fn().mockResolvedValue(URL_A)}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add Row' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add image to item 3' })
+    );
+    const input = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [png] } });
+    await flush();
+    const [answer, images, imageOnly] = (onChange.mock.lastCall ??
+      []) as unknown[];
+    const label = String(answer).split('|')[2];
+    expect(label).toMatch(/^Picture [A-Z0-9]{3}$/);
+    expect(images).toEqual(['', '', URL_A]);
+    expect(imageOnly).toEqual([{ text: label }]);
   });
 });

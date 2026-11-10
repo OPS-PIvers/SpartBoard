@@ -106,6 +106,7 @@ export function useStepRhythm({
     else if (state.phase === 'ready' || state.phase === 'glide')
       setState(afterTick);
   } else if (
+    enabled &&
     rect &&
     (state.phase === 'ready' || state.phase === 'glide') &&
     !sameRect(rect, lastRect)

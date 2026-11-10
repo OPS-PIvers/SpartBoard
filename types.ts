@@ -4385,6 +4385,13 @@ export interface QuizAnswerImage {
   url: string;
 }
 
+/** An answer that is only a picture: `text` is its generated label ("Picture 7KQ"), hidden from students. */
+export interface QuizImageOnlyAnswer {
+  text: string;
+  /** Teacher's description of the picture for screen readers and read aloud. */
+  alt?: string;
+}
+
 export type QuizQuestionType =
   'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA' | 'free-response';
 
@@ -4492,6 +4499,8 @@ export interface QuizQuestion {
   answerImages?: QuizAnswerImage[];
   /** Matching only: pictures on the terms. */
   matchingTermImages?: QuizAnswerImage[];
+  /** Answers saved with a picture and no typed text, keyed by their generated label. */
+  imageOnlyAnswers?: QuizImageOnlyAnswer[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering/MA. Ignored
    * for MC/FIB/free-response. Defaults to false.
@@ -5256,6 +5265,8 @@ export interface QuizPublicQuestion {
   matchingLeftImages?: string[];
   /** Matching only: image URL per match, index-aligned with `matchingRight`; '' = no image. */
   matchingRightImages?: string[];
+  /** Labels of answers that are only a picture, with their descriptions; students see the picture instead. */
+  imageOnlyAnswers?: QuizImageOnlyAnswer[];
   /** Free Response only: optional editor placeholder */
   placeholder?: string;
   /** Free Response only: optional lower word bound shown in the editor */
@@ -11076,8 +11087,6 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
-  /** Resources list on the student Overview in My Assignments. */
-  | 'student-overview-resources'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
   /** Routine Guide widget, the instructional routines redesign. */

@@ -20,6 +20,7 @@ import { GripVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import { AnswerImageZoomButton, AnswerLabel } from './AnswerImage';
+import { pictureOnlyName } from './pictureOnlyName';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import type { ReadAloudItemControls } from './readAloud/useQuizReadAloud';
@@ -40,6 +41,8 @@ const Row: React.FC<{
   count: number;
   label: string;
   image?: string;
+  /** The item is only a picture; `label` is its spoken name. */
+  pictureOnly?: boolean;
   disabled?: boolean;
   light?: boolean;
   onMove: (dir: 'up' | 'down') => void;
@@ -51,6 +54,7 @@ const Row: React.FC<{
   count,
   label,
   image,
+  pictureOnly = false,
   disabled,
   light,
   onMove,
@@ -107,7 +111,12 @@ const Row: React.FC<{
           <GripVertical className="h-5 w-5" aria-hidden="true" />
         </button>
         <span className="min-w-0 flex-1">
-          <AnswerLabel label={label} image={image} layout="compact" />
+          <AnswerLabel
+            label={label}
+            image={image}
+            layout="compact"
+            pictureOnly={pictureOnly}
+          />
         </span>
       </div>
       {image ? <AnswerImageZoomButton src={image} label={label} /> : null}
@@ -194,13 +203,21 @@ export const OrderingListInput: React.FC<OrderingListInputProps> = ({
         <ol className="space-y-2">
           {order.map((itemIndex, position) => {
             const label = items[itemIndex];
+            const pictureName = pictureOnlyName(
+              t,
+              question,
+              label,
+              images?.[itemIndex],
+              itemIndex + 1
+            );
             return (
               <Row
                 key={itemIndex}
                 id={String(itemIndex)}
                 position={position}
                 count={order.length}
-                label={label}
+                label={pictureName ?? label}
+                pictureOnly={!!pictureName}
                 image={images?.[itemIndex]}
                 disabled={disabled}
                 light={light}

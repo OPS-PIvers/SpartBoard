@@ -66,6 +66,8 @@ import {
   makeReviewGameSession,
   makeQuizData,
   makeOrderingQuizData,
+  makePictureOnlyQuizData,
+  makePictureOnlyResponses,
   makeOrderingResponses,
   makeQuizConfig,
   makeVaSession,
@@ -354,6 +356,20 @@ const SessionView: React.FC<{
         session={makeReviewGameSession()}
         onBack={() => undefined}
         variant="review"
+      />
+    );
+  }
+
+  if (view === 'quiz-results' && state === 'picture-only') {
+    return (
+      <QuizResults
+        quiz={makePictureOnlyQuizData()}
+        responses={makePictureOnlyResponses()}
+        config={makeQuizConfig()}
+        session={makeQuizSession('ended')}
+        onBack={() => undefined}
+        onSubmitStudent={noop}
+        studentResultsActions={HARNESS_RESULTS_ACTIONS}
       />
     );
   }

@@ -76,6 +76,7 @@ const ANSWER_KEY_FIELDS = [
   'orderingImages',
   'answerImages',
   'matchingTermImages',
+  'imageOnlyAnswers',
 ] as const satisfies readonly (keyof QuizQuestion)[];
 
 const norm = (s: string): string =>

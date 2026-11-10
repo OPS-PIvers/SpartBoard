@@ -2055,6 +2055,12 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-editor.answer-image-description': {
+    label:
+      'Describe a picture-only answer for screen readers in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
   'quiz-editor.match-term-image': {
     label: 'Add image to matching term in the Quiz editor',
     perField: true,

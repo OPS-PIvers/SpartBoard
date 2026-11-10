@@ -33,6 +33,7 @@ import {
   AnswerLabel,
   ZoomableAnswerImage,
 } from './AnswerImage';
+import { pictureOnlyName } from './pictureOnlyName';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import {
   SIDE_BANK_PANEL,
@@ -81,6 +82,8 @@ interface DraggableChipProps {
   light?: boolean;
   /** Placed in a match zone: a compact row with the picture beside the text. */
   placed?: boolean;
+  /** The answer is only a picture; `label` is its spoken name. */
+  pictureOnly?: boolean;
 }
 
 const DraggableChip: React.FC<DraggableChipProps> = ({
@@ -93,6 +96,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
   ariaLabel,
   light,
   placed,
+  pictureOnly = false,
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
@@ -130,6 +134,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
         label={label}
         image={image}
         layout={tile ? 'tile' : 'compact'}
+        pictureOnly={pictureOnly}
       />
     </button>
   );
@@ -259,6 +264,18 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
     question.matchingRightImages?.length === allOptions.length
       ? question.matchingRightImages
       : undefined;
+  const termPicture = (index: number) =>
+    pictureOnlyName(t, question, terms[index], termImages?.[index], index + 1);
+  const optionPicture = (index: number) =>
+    pictureOnlyName(
+      t,
+      question,
+      allOptions[index],
+      optionImages?.[index],
+      index + 1
+    );
+  const optionName = (index: number) =>
+    optionPicture(index) ?? allOptions[index];
 
   // ─── Initial state ────────────────────────────────────────────────────────
   // Map term -> placed option index (into allOptions). null = empty zone.
@@ -486,6 +503,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
               placedIdx !== null && placedIdx !== undefined
                 ? allOptions[placedIdx]
                 : null;
+            const termName = termPicture(termIndex);
             const placedSelected =
               selectedSource?.kind === 'zone' && selectedSource.term === term;
             return (
@@ -497,11 +515,13 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                   {termImages?.[termIndex] && (
                     <ZoomableAnswerImage
                       src={termImages[termIndex]}
-                      label={term}
+                      label={termName ?? term}
                       layout="compact"
                     />
                   )}
-                  <span className="min-w-0 flex-1">{term}</span>
+                  <span className={termName ? 'sr-only' : 'min-w-0 flex-1'}>
+                    {termName ?? term}
+                  </span>
                   {speaker('matchingLeft', term)}
                 </span>
                 {placedLabel ? (
@@ -510,7 +530,8 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                   >
                     <DraggableChip
                       id={`zone-${term}`}
-                      label={placedLabel}
+                      label={optionName(placedIdx as number)}
+                      pictureOnly={!!optionPicture(placedIdx as number)}
                       image={
                         placedIdx !== null && placedIdx !== undefined
                           ? optionImages?.[placedIdx]
@@ -519,7 +540,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                       selected={placedSelected}
                       disabled={disabled}
                       onTap={() => handleZoneChipTap(term)}
-                      ariaLabel={`${placedLabel}, matched to ${term}`}
+                      ariaLabel={`${optionName(placedIdx as number)}, matched to ${termName ?? term}`}
                       light={light}
                       placed
                     />
@@ -533,7 +554,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                     onTap={() => handleZoneTap(term)}
                     onChipTap={() => handleZoneChipTap(term)}
                     disabled={disabled}
-                    termLabel={term}
+                    termLabel={termName ?? term}
                     light={light}
                   />
                 )}
@@ -579,12 +600,13 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                 >
                   <DraggableChip
                     id={`bank-${optionIndex}`}
-                    label={allOptions[optionIndex]}
+                    label={optionName(optionIndex)}
+                    pictureOnly={!!optionPicture(optionIndex)}
                     image={optionImages?.[optionIndex]}
                     selected={selected}
                     disabled={disabled}
                     onTap={() => handleBankChipTap(optionIndex)}
-                    ariaLabel={`${allOptions[optionIndex]}, in word bank`}
+                    ariaLabel={`${optionName(optionIndex)}, in word bank`}
                     light={light}
                   />
                   {speaker('matchingRight', allOptions[optionIndex])}

@@ -250,6 +250,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
                       return (
                         <li key={`${o.setId}/${o.stepId}`}>
                           <button
+                            // no-tour-anchor: per-row step link, generated per occurrence
                             type="button"
                             onClick={() => onOpenStep(o.setId, o.stepId)}
                             aria-label={t('tourHealth.unmapped.openLabel', {

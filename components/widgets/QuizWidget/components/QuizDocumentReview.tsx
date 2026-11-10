@@ -12,6 +12,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, FileWarning, X } from 'lucide-react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { MathText } from '@/components/common/MathText';
+import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
+import type { AnswerPicture } from '@/utils/quizAnswerImages';
 import { hasPromptMath, plainPromptText } from '@/utils/promptMath';
 import type {
   QuestionTargetTag,
@@ -69,6 +71,19 @@ const TYPE_LABEL: Record<QuizQuestionType, string> = {
   MA: 'Choose all that apply',
   'free-response': 'Written response',
 };
+
+/** Choices printed only as pictures, shown from the read's own crops. */
+const choicePicturesOf = (
+  q: QuizQuestion,
+  previews: ReadonlyMap<string, string>
+): Map<string, AnswerPicture> =>
+  new Map(
+    (q.answerImages ?? []).flatMap((image) => {
+      const url = previews.get(image.url);
+      const only = q.imageOnlyAnswers?.some((e) => e.text === image.text);
+      return url && only ? [[image.text, { url }] as const] : [];
+    })
+  );
 
 /** Every choice the document listed, answer first so the order is stable. */
 const choicesOf = (q: QuizQuestion): string[] => {
@@ -321,6 +336,7 @@ const ReviewTable: React.FC<
             rowSpills.find((w) => w.at === i);
           const stemSpill = rowSpills.find((w) => w.at === 'stem');
           const choices = choiceOrder.get(q.id) ?? choicesOf(q);
+          const choicePictures = choicePicturesOf(q, previews);
           // Only ids the document actually carried; a stimulus added some
           // other way has no thumbnail to show here.
           const linked = (q.stimulusIds ?? []).filter((id) => previews.has(id));
@@ -505,7 +521,10 @@ const ReviewTable: React.FC<
                               <span
                                 className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}
                               >
-                                <MathText text={choice} />
+                                <AnswerPictureText
+                                  text={choice}
+                                  pictures={choicePictures}
+                                />
                               </span>
                               {choiceSpill(choiceIndex) && (
                                 <SpillNote warning={choiceSpill(choiceIndex)} />
@@ -570,7 +589,10 @@ const ReviewTable: React.FC<
                             <span
                               className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}
                             >
-                              <MathText text={choice} />
+                              <AnswerPictureText
+                                text={choice}
+                                pictures={choicePictures}
+                              />
                             </span>
                             {choiceSpill(choiceIndex) && (
                               <SpillNote warning={choiceSpill(choiceIndex)} />

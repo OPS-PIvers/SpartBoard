@@ -142,6 +142,7 @@ export const AppSettingsView: React.FC = () => {
 
             <div className="flex-1 flex items-center gap-3">
               <input
+                // no-tour-anchor: hidden file input opened by its upload button
                 type="file"
                 accept="image/*"
                 className="hidden"
