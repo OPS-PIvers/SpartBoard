@@ -122,7 +122,7 @@ const StepImage: React.FC<{
         <ImagePlus size={16} />
       )}
       <input
-        // no-tour-anchor: hidden file input opened by its upload button
+        // no-tour-anchor: hidden file input; its visible drop zone is an unscanned div, see backlog Deferred
         type="file"
         accept="image/*"
         aria-label={`Step ${stepNumber} image`}

@@ -257,7 +257,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
               </>
             )}
             <input
-              // no-tour-anchor: hidden file input opened by its upload button
+              // no-tour-anchor: hidden file input; its visible drop zone is an unscanned div, see backlog Deferred
               ref={fileInputRef}
               type="file"
               accept="image/*"

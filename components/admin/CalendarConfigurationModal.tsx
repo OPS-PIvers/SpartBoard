@@ -291,11 +291,7 @@ export const CalendarConfigurationModal: React.FC<
       <div className="flex items-center gap-2">
         {isCalendarConnected === false && (
           <button
-            {...tourFieldAttr(
-              'admin.widget-config.field',
-              'calendar',
-              'reconnectGoogle'
-            )}
+            // no-tour-anchor: Google consent button, Autopilot must leave it to the teacher
             onClick={() =>
               void ensureGoogleScope('calendar.readonly', {
                 interactive: true,
