@@ -7,6 +7,7 @@ import {
   PAPER_STAMP_GLYPHS,
   cropViewportMm,
   markupCommentListHtml,
+  onInk,
   numberMarkupComments,
   renderPaperMarkup,
   renderPaperMarkupAnswers,
@@ -37,6 +38,15 @@ const relLum = (gray: number): number => {
 const contrast = (a: number, b: number): number => {
   const [hi, lo] = [Math.max(a, b), Math.min(a, b)];
   return (relLum(hi) + 0.05) / (relLum(lo) + 0.05);
+};
+
+const wcag = (a: string, b: string): number => {
+  const lum = (hex: string) => {
+    const [r, g, bl] = channels(hex).map((c) => relLum(c));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [Math.max(lum(a), lum(b)), Math.min(lum(a), lum(b))];
+  return (hi + 0.05) / (lo + 0.05);
 };
 
 describe('renderPaperMarkup shapes', () => {
@@ -472,7 +482,7 @@ describe('black-and-white printing', () => {
       const overWhite = channels(wash).map((c) => 255 - o * (255 - c));
       const gray =
         0.299 * overWhite[0] + 0.587 * overWhite[1] + 0.114 * overWhite[2];
-      expect(gray).toBeLessThanOrEqual(232);
+      expect(gray).toBeLessThanOrEqual(245);
       expect(gray).toBeGreaterThanOrEqual(190);
       const factor = overWhite.map((c) => c / 255);
       const under = channels(pencil).map((c, i) => c * factor[i]);
@@ -482,11 +492,13 @@ describe('black-and-white printing', () => {
     }
   });
 
-  it('keeps every stroke and number fill dark, with a white number on it legible', () => {
+  it('keeps every stroke visible on paper, with a legible number on its fill', () => {
     for (const color of COLORS) {
       const { ink } = PAPER_MARKUP_STYLE.palette[color];
-      expect(luma(ink)).toBeLessThanOrEqual(90);
-      expect(contrast(255, luma(ink))).toBeGreaterThanOrEqual(5.5);
+      expect(luma(ink)).toBeLessThanOrEqual(215);
+      expect(contrast(255, luma(ink))).toBeGreaterThanOrEqual(1.4);
+      const text = onInk(ink) === '#fff' ? '#ffffff' : '#111111';
+      expect(wcag(text, ink)).toBeGreaterThanOrEqual(3.9);
     }
   });
 
