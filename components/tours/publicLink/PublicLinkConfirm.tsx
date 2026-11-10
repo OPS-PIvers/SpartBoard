@@ -11,7 +11,6 @@ import {
 import { tourAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
 import { webTourStepsOf } from '@/components/widgets/GuidedLearning/utils/liveTour';
-import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
 import { loadPublishedTour } from '@/components/tours/publishedTours';
 import { isWebTourPicturePath } from '@/components/tours/webTours';
 import { StepsArticle } from '@/components/tours/steps/StepsArticle';
@@ -347,9 +346,6 @@ export const PublicLinkConfirm: React.FC<{
               steps={view.steps}
               pictures={view.pictures}
               labels={labels}
-              renderText={
-                tourKindOf(loaded.set) === 'live' ? renderStepText : undefined
-              }
             />
             <div
               ref={end}

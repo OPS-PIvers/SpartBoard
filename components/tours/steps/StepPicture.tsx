@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
+import { RingAndTip } from './picturePreview';
+import { useMeasured } from './previewMeasure';
 import type {
   StepPictureState,
   StepsLabels,
@@ -41,6 +43,7 @@ export const StepPicture: React.FC<{
 }> = ({ step, index, state, labels, markup }) => {
   const pic = step.picture;
   const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
+  const [frameRef, frame] = useMeasured<HTMLElement>();
   if (!pic) return null;
   const src = state?.status === 'ready' ? state.src : null;
   const failed = state?.status === 'failed' || (!!src && brokenSrc === src);
@@ -61,9 +64,10 @@ export const StepPicture: React.FC<{
   const sized = pic.w > 0 && pic.h > 0;
   return (
     <figure
+      ref={frameRef}
       data-testid="step-picture"
       data-state={src ? 'ready' : 'loading'}
-      className={`relative w-full max-w-[var(--pic-max)] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 print:break-inside-avoid ${
+      className={`relative w-full max-w-[var(--pic-max)] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 [transform:translateZ(0)] print:break-inside-avoid ${
         src ? '' : 'print:hidden'
       }`}
       style={
@@ -84,12 +88,26 @@ export const StepPicture: React.FC<{
             className="absolute inset-0 h-full w-full object-contain"
             onError={() => setBrokenSrc(src)}
           />
-          <TargetRing target={pic.target} />
+          {pic.target && frame.w > 0 && (
+            <RingAndTip
+              step={{
+                title: step.title,
+                text: step.text,
+                observe: step.observe,
+              }}
+              index={index}
+              total={1}
+              size={frame}
+              frac={pic.target}
+              withTip={false}
+            />
+          )}
           {pic.markup && (
             <TourPictureMarkup
               shapes={pic.markup}
               width={pic.w}
               height={pic.h}
+              overDim
             />
           )}
           {markup && (

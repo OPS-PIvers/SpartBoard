@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
 import { StepsView } from '@/components/tours/steps/StepsView';
 import { StepsWalkthrough } from '@/components/tours/steps/StepsWalkthrough';
 import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
@@ -99,7 +98,6 @@ export const PublicTourPage: React.FC = () => {
             labels={labels}
             walkthrough={StepsWalkthrough}
             print={{ title }}
-            renderText={tour.kind === 'live' ? renderStepText : undefined}
           />
         </div>
       </div>

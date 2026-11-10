@@ -1,4 +1,5 @@
 import React from 'react';
+import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
 import { StepPicture } from './StepPicture';
 import type { StepPictures, StepsLabels, StepsViewStep } from './stepsModel';
 
@@ -38,7 +39,7 @@ export const StepsArticle: React.FC<{
           </header>
           {text && (
             <p className="whitespace-pre-line text-sm/6 text-slate-700 wrap-break-word">
-              {renderText ? renderText(text) : text}
+              {(renderText ?? renderStepText)(text)}
             </p>
           )}
           <StepPicture
