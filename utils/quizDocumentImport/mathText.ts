@@ -3,7 +3,7 @@
  * `H₂O`, `(x + 1)/(2x − 5)`, `√(x + 1)`. Shared by the PDF and Word readers.
  */
 
-const SUPERSCRIPT: Record<string, string> = {
+export const SUPERSCRIPT: Record<string, string> = {
   '0': '⁰',
   '1': '¹',
   '2': '²',
@@ -47,7 +47,7 @@ const SUPERSCRIPT: Record<string, string> = {
   z: 'ᶻ',
 };
 
-const SUBSCRIPT: Record<string, string> = {
+export const SUBSCRIPT: Record<string, string> = {
   '0': '₀',
   '1': '₁',
   '2': '₂',

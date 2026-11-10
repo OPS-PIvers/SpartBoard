@@ -9,6 +9,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-import-versions-plain',
   'quiz-import-google-doc-pdf',
   'quiz-import-pdf-answer-marks',
+  'quiz-import-equations',
   'paper-answer-sheets',
   'roster-groups',
   'quiz-document-import',

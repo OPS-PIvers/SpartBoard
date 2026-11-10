@@ -103,6 +103,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-cross-out',
   'quiz-document-ai-reader',
   'quiz-document-import',
+  'quiz-import-equations',
   'quiz-import-google-doc-pdf',
   'quiz-import-pdf-answer-marks',
   'quiz-import-versions',

@@ -543,6 +543,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Fractions, powers and roots in imported question text become drawn equations. Admin-only until Paul has imported with it.
+  'quiz-import-equations': {
+    label: 'Draw math in imported tests',
+    icon: FileText,
+    description:
+      'Turns fractions, powers and roots in an imported question into drawn equations.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {

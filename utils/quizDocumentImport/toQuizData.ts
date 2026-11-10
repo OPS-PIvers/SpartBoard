@@ -22,6 +22,7 @@ import type {
 import { sectionsForQuestions } from '@/utils/quizSections';
 import { questionFromRows } from '@/utils/quizChoiceRows';
 import { importSections } from './importSections';
+import { mathMarker } from './mathMarkup';
 import {
   multiAnswerPart,
   type ExtractedQuestion,
@@ -173,6 +174,8 @@ export function extractedToQuizData(
     sections?: boolean;
     /** Known catalog codes; printed codes beside a stem move to `standardCodes` only when every one is known. */
     standardsFromText?: ReadonlySet<string>;
+    /** Fractions, powers and roots in a question's text become equations the quiz draws (`quiz-import-equations`). */
+    equations?: boolean;
   } = {}
 ): QuizData {
   const now = options.now ?? Date.now();
@@ -206,6 +209,14 @@ export function extractedToQuizData(
   const notes = new Map<string, readonly string[]>();
   const suggestedTargets = new Map<string, SuggestedTarget>();
   const standardCodes = new Map<string, readonly string[]>();
+  const markMath = options.equations
+    ? mathMarker(
+        extracted.questions.flatMap((q) => [
+          q.text,
+          ...q.options.map((o) => o.text),
+        ])
+      )
+    : null;
   const allQuestions = extracted.questions.map((read, index) => {
     // The section shows its directions, so the first stem gives them back.
     const leadIn = opens.get(index)?.directions ? read.directionsLeadIn : '';
@@ -232,7 +243,8 @@ export function extractedToQuizData(
             ],
           }
         : trimmed;
-    const built = toQuizQuestion(q);
+    const plain = toQuizQuestion(q);
+    const built = markMath ? { ...plain, text: markMath(plain.text) } : plain;
     const shared = q.sharedTextId
       ? stimulusIdByText.get(q.sharedTextId)
       : undefined;

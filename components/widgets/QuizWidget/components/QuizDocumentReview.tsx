@@ -11,6 +11,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, FileWarning, X } from 'lucide-react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { MathText } from '@/components/common/MathText';
+import { hasPromptMath } from '@/utils/promptMath';
 import type {
   QuestionTargetTag,
   QuizData,
@@ -438,6 +440,11 @@ const ReviewTable: React.FC<
                       aria-label={`Question ${index + 1} text`}
                       className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-hidden"
                     />
+                    {hasPromptMath(q.text) && (
+                      <p className="text-sm text-slate-800 whitespace-pre-line wrap-break-word">
+                        <MathText text={q.text} />
+                      </p>
+                    )}
                     {stemSpill && <SpillNote warning={stemSpill} />}
 
                     {targetSlots?.row(q, index + 1, (tag) =>
