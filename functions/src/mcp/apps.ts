@@ -152,7 +152,7 @@ export function rubricCard(rubric: Rubric) {
       name: c.name,
       description: c.description ?? '',
       examples: c.guide?.examples ?? [],
-      levels: c.levels.map((l) => ({
+      levels: (c.levels ?? []).map((l) => ({
         label: l.label,
         points: l.points,
         description: l.description ?? '',

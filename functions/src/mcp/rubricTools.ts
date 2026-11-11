@@ -146,7 +146,8 @@ async function saveRubricEdit(
   ctx: ToolContext,
   previous: Rubric,
   next: Rubric,
-  action: 'update' | 'restore'
+  action: 'update' | 'restore',
+  now = Date.now()
 ) {
   const batch = ctx.db.batch();
   const revisionId = snapshotRevision(ctx, batch, {
@@ -155,7 +156,7 @@ async function saveRubricEdit(
     title: previous.title,
     data: { ...rubricDoc(previous) },
   });
-  const doc = rubricDoc({ ...next, updatedAt: Date.now() });
+  const doc = rubricDoc({ ...next, updatedAt: now });
   batch.set(ctx.db.doc(rubricPath(ctx.uid, doc.id)), doc);
   logActivity(ctx, batch, {
     action,
@@ -350,9 +351,11 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
               : optionalText(input.description),
           criteria,
         };
+        // One timestamp, so the card's updated_at equals the saved updatedAt.
+        const now = Date.now();
         return {
-          result: await saveRubricEdit(ctx, existing, next, 'update'),
-          view: rubricView({ ...next, updatedAt: Date.now() }),
+          result: await saveRubricEdit(ctx, existing, next, 'update', now),
+          view: rubricView({ ...next, updatedAt: now }),
         };
       })
   );

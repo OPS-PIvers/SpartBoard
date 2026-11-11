@@ -149,14 +149,91 @@ describe('super admin tier requires an active member doc', () => {
     });
   }
 
-  it('a deactivated member super admin still passes via the legacy list', async () => {
+  it('a deactivated member on the legacy list is DENIED, including reactivating themselves', async () => {
     await seed(
       memberPath(SUPER_EMAIL),
       member(SUPER_EMAIL, 'super_admin', 'inactive')
     );
     await seed('admin_settings/user_roles', { superAdmins: [SUPER_EMAIL] });
-    await assertSucceeds(
+    await assertFails(
       getDoc(doc(as(SUPER_EMAIL), memberPath(OTHER_MEMBER_EMAIL, OTHER_ORG)))
+    );
+    await assertFails(
+      updateDoc(doc(as(SUPER_EMAIL), memberPath(SUPER_EMAIL)), {
+        status: 'active',
+      })
+    );
+  });
+
+  it('the legacy list still grants an email with no orono member doc', async () => {
+    const legacy = 'legacy.boss@orono.k12.mn.us';
+    await seed('admin_settings/user_roles', { superAdmins: [legacy] });
+    await assertSucceeds(
+      getDoc(doc(as(legacy), memberPath(OTHER_MEMBER_EMAIL, OTHER_ORG)))
+    );
+  });
+});
+
+describe('lower admins cannot change the status of a legacy-list address', () => {
+  beforeEach(async () => {
+    await seed('admin_settings/user_roles', { superAdmins: [TEACHER_EMAIL] });
+  });
+
+  it('domain and building admins are DENIED deactivating it', async () => {
+    await assertFails(
+      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
+        status: 'inactive',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
+        status: 'inactive',
+      })
+    );
+  });
+
+  it('a domain admin may still edit its other fields', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
+        name: 'Renamed',
+      })
+    );
+  });
+
+  it('a domain admin is DENIED recreating it as inactive, but may recreate it live', async () => {
+    const email = 'legacy.only@orono.k12.mn.us';
+    await seed('admin_settings/user_roles', { superAdmins: [email] });
+    await assertFails(
+      setDoc(
+        doc(as(DOMAIN_EMAIL), memberPath(email)),
+        member(email, 'teacher', 'inactive')
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(as(DOMAIN_EMAIL), memberPath(email)),
+        member(email, 'teacher', 'active')
+      )
+    );
+    await assertSucceeds(getDoc(doc(as(DOMAIN_EMAIL), memberPath(email))));
+  });
+
+  it('a super admin may create it as inactive', async () => {
+    const email = 'legacy.only@orono.k12.mn.us';
+    await seed('admin_settings/user_roles', { superAdmins: [email] });
+    await assertSucceeds(
+      setDoc(
+        doc(as(SUPER_EMAIL), memberPath(email)),
+        member(email, 'teacher', 'inactive')
+      )
+    );
+  });
+
+  it('a super admin may deactivate it', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(SUPER_EMAIL), memberPath(TEACHER_EMAIL)), {
+        status: 'inactive',
+      })
     );
   });
 });
