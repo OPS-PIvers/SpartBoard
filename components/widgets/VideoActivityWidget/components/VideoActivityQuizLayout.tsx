@@ -372,7 +372,7 @@ export const VideoActivityQuizDetailPane = React.memo(
               {VA_TYPE_LABELS[q.type] ?? typeMeta?.label ?? q.type}
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               disabled={selectedIndex <= 0}
@@ -380,7 +380,7 @@ export const VideoActivityQuizDetailPane = React.memo(
               aria-label="Previous question"
               title="Previous question"
               {...tourAttr('video-activity.editor-question-prev')}
-              className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="shrink-0 touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -404,11 +404,11 @@ export const VideoActivityQuizDetailPane = React.memo(
               aria-label="Next question"
               title="Next question"
               {...tourAttr('video-activity.editor-question-next')}
-              className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="shrink-0 touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
-            <div className="flex shrink-0 items-center gap-0.5 border-l border-slate-200 pl-1.5 ml-0.5">
+            <div className="flex shrink-0 items-center gap-2 border-l border-slate-200 pl-2">
               <button
                 type="button"
                 onClick={() => duplicateQuestion(id)}
@@ -419,7 +419,7 @@ export const VideoActivityQuizDetailPane = React.memo(
                   'video-activity',
                   String(selectedIndex + 1)
                 )}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-brand-blue-primary transition-colors"
+                className="touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-brand-blue-primary transition-colors"
               >
                 <Copy className="w-4 h-4" />
               </button>
@@ -439,7 +439,7 @@ export const VideoActivityQuizDetailPane = React.memo(
                   'video-activity',
                   id
                 )}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                className="touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

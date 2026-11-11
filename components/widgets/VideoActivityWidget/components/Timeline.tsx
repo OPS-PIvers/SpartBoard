@@ -543,7 +543,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             <button
               {...tourAttr('video-activity.timeline-add')}
               type="button"
-              disabled={!playerReady}
+              disabled={!playerReady && !actions}
               onClick={() => onAddAtTime(Math.floor(playhead))}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary text-white font-bold px-3 py-1.5 text-xs hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 shadow-xs"
             >
