@@ -83,6 +83,9 @@ describe('SmartNotebook share copy', () => {
     expect(msgs.some((m) => m.includes('Failed to create share link'))).toBe(
       false
     );
-    expect(msgs.some((m) => m.includes('https://x.test/share/abc'))).toBe(true);
+    expect(addToast).toHaveBeenCalledWith(
+      'Share link created but not copied: https://x.test/share/abc',
+      'info'
+    );
   });
 });
