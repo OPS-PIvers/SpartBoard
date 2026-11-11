@@ -450,6 +450,7 @@ describe('placeTip', () => {
       left: 12,
       top: 12,
       width: 320,
+      maxH: 650 - 24,
     });
   });
 
@@ -459,6 +460,7 @@ describe('placeTip', () => {
       left: 12,
       top: 12,
       width: 320,
+      maxH: 800 - 24,
     });
   });
 });

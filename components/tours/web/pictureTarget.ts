@@ -124,7 +124,7 @@ export function placeTourTip(
   const roomBelow = view.h - below - GUTTER;
   const roomAbove = rect.y - GUTTER * 3;
   if (Math.max(roomBelow, roomAbove) < minRoom)
-    return { left, top: GUTTER, width };
+    return { left, top: GUTTER, width, maxH: view.h - GUTTER * 2 };
   return roomBelow >= roomAbove
     ? { left, top: below, width, maxH: roomBelow }
     : { left, bottom: view.h - rect.y + GUTTER * 2, width, maxH: roomAbove };
