@@ -1072,11 +1072,8 @@ service cloud.firestore {
       allow read, write: if signedIn() && authUid() == userId;
     }
 
-    // Private server-managed credentials (e.g. encrypted Google OAuth
-    // refresh_token via exchangeGoogleAuthCode / refreshGoogleAccessToken).
-    // DENY ALL client access — Admin SDK only. Explicit (vs default-deny) to
-    // document intent and guard against a future permissive users/** rule.
-    // /users/{userId}/private/{document=**}: no client access (default deny).
+    // /users/{userId}/private/{document=**}: encrypted OAuth refresh tokens, Admin SDK only (default deny).
+    // Allows are OR'd, so any future users/** allow must exclude `private` itself.
 
     // Starter Packs
     match /artifacts/{appId}/public/data/starterPacks/{packId} {
