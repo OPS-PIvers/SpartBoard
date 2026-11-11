@@ -55,8 +55,11 @@ vi.mock('./publicLinkStore', () => ({
   },
   turnOffPublicLink: async () => {
     store.turnOff();
-    store.record = null;
-    store.listeners.forEach((fn) => fn(null));
+    store.record = store.record && {
+      ...store.record,
+      off: { reason: 'admin', at: 2 },
+    };
+    store.listeners.forEach((fn) => fn(store.record));
   },
 }));
 vi.mock('@/components/tours/publishedTours', () => ({
@@ -339,6 +342,8 @@ describe('usePublicLinkControls', () => {
     expect(store.turnOff).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('public-link-review')).toBeNull();
     expect(toggle()).toHaveAttribute('aria-checked', 'false');
+    // Switched off by hand is plain off, not a paused link that needs Review.
+    expect(screen.queryByTestId('public-link-paused')).toBeNull();
   });
 
   it('says why after a picture change turned it off, and Review reopens the confirm', async () => {

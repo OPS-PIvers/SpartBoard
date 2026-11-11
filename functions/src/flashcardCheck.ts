@@ -17,7 +17,7 @@ type FlashcardMode = 'flashcards' | 'write' | 'test' | 'speak';
 type FlashcardTestType = 'mc' | 'fib';
 type FlashcardAnswerType = FlashcardTestType | 'speak';
 
-interface FlashcardCard {
+export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
@@ -220,7 +220,7 @@ function isSpeakableCard(card: FlashcardCard): boolean {
   );
 }
 
-function sessionCards(raw: unknown): FlashcardCard[] {
+export function sessionCards(raw: unknown): FlashcardCard[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(
     (card): card is FlashcardCard =>
@@ -245,6 +245,24 @@ function lockedSettingsFrom(raw: unknown): LockedSettings {
         ? Math.floor(data.testCount)
         : 'all',
   };
+}
+
+/** How a Check's answers are graded, from its locked settings. */
+export function checkGrader(session: Record<string, unknown>) {
+  const settings = lockedSettingsFrom(session.lockedSettings);
+  const answerFor = (card: FlashcardCard): string =>
+    settings.showFirst === 'term' ? card.definition : card.term;
+  const rawLanguage =
+    settings.showFirst === 'term'
+      ? session.definitionLanguage
+      : session.termLanguage;
+  const language = typeof rawLanguage === 'string' ? rawLanguage : '';
+  const typedCorrect = (response: string, card: FlashcardCard): boolean =>
+    matchFlashcardAnswer(response, answerFor(card), {
+      language,
+      strict: settings.strict,
+    }).result !== 'wrong';
+  return { settings, answerFor, typedCorrect };
 }
 
 function sessionClassIds(session: Record<string, unknown>): string[] {
@@ -464,19 +482,7 @@ export async function handleSubmitFlashcardCheck(
     throw new HttpsError('failed-precondition', 'Unknown Check mode.');
   const cards = studentCards(await loadCheckCards(access), access);
   const byId = new Map(cards.map((card) => [card.id, card]));
-  const settings = lockedSettingsFrom(session.lockedSettings);
-  const answerFor = (card: FlashcardCard): string =>
-    settings.showFirst === 'term' ? card.definition : card.term;
-  const rawLanguage =
-    settings.showFirst === 'term'
-      ? session.definitionLanguage
-      : session.termLanguage;
-  const language = typeof rawLanguage === 'string' ? rawLanguage : '';
-  const typedCorrect = (response: string, card: FlashcardCard): boolean =>
-    matchFlashcardAnswer(response, answerFor(card), {
-      language,
-      strict: settings.strict,
-    }).result !== 'wrong';
+  const { settings, answerFor, typedCorrect } = checkGrader(session);
 
   if (
     input.forced &&

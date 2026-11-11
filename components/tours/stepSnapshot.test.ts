@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { SNAPSHOT_MIN, SNAPSHOT_PAD_PX, snapshotCrop } from './stepSnapshot';
+import {
+  SNAPSHOT_MIN,
+  SNAPSHOT_PAD_PX,
+  elementsOutsideCrop,
+  snapshotCrop,
+} from './stepSnapshot';
 
 const viewport = { w: 1440, h: 900 };
 
@@ -38,5 +43,51 @@ describe('snapshotCrop', () => {
       viewport
     );
     expect(whole).toEqual({ x: 0, y: 0, width: 1440, height: 900 });
+  });
+});
+
+describe('elementsOutsideCrop', () => {
+  it('keeps the outer box of an area with nothing in the crop and skips its contents', () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<section id="wrap"><button id="in"></button></section><aside id="out"><i id="deep"></i></aside>';
+    const place = (id: string, x: number, y: number) => {
+      const el = root.querySelector(`#${id}`);
+      if (!el) throw new Error(id);
+      el.getBoundingClientRect = () => new DOMRect(x, y, 40, 40);
+    };
+    place('wrap', 2000, 2000);
+    place('in', 100, 100);
+    place('out', 2000, 0);
+    place('deep', 2000, 0);
+    const out = elementsOutsideCrop(root, {
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 360,
+    });
+    expect([...out].map((el) => el.id)).toEqual(['deep']);
+    expect(out.has(root)).toBe(false);
+  });
+
+  it('keeps the defs and gradients of an SVG in the crop', () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<svg id="chart"><defs id="defs"><linearGradient id="grad"><stop id="stop"></stop></linearGradient></defs><rect id="bar"></rect></svg>';
+    const box = (id: string, r: DOMRect) => {
+      const el = root.querySelector(`#${id}`);
+      if (!el) throw new Error(id);
+      el.getBoundingClientRect = () => r;
+    };
+    box('chart', new DOMRect(100, 100, 200, 100));
+    box('bar', new DOMRect(110, 110, 20, 80));
+    for (const id of ['defs', 'grad', 'stop']) box(id, new DOMRect(0, 0, 0, 0));
+    const out = elementsOutsideCrop(root, {
+      x: 50,
+      y: 50,
+      width: 640,
+      height: 360,
+    });
+    expect([...out].map((el) => el.id)).toEqual([]);
   });
 });

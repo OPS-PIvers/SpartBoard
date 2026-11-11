@@ -11,6 +11,15 @@ import { useTranslation } from 'react-i18next';
 import { uppercaseFlashcardCharacter } from '@/config/flashcardCharBars';
 import { cx } from './playerUtils';
 
+/** The missed-card pile a round summary can offer; absent hides it. */
+export interface RoundSummaryMissed {
+  count: number;
+  /** This round studied only missed cards. */
+  only: boolean;
+  onStudy: () => void;
+  onStudyAll: () => void;
+}
+
 interface RoundSummaryProps {
   round: number;
   correct: number;
@@ -18,6 +27,7 @@ interface RoundSummaryProps {
   dark: boolean;
   onNextRound: () => void;
   onRestart?: () => void;
+  missed?: RoundSummaryMissed;
 }
 
 export const RoundSummary: React.FC<RoundSummaryProps> = ({
@@ -27,8 +37,31 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
   dark,
   onNextRound,
   onRestart,
+  missed,
 }) => {
   const { t } = useTranslation();
+  const missedOnly = missed?.only === true;
+  const studyMissed = missed?.count
+    ? {
+        label: t('flashcards.missed.study', { count: missed.count }),
+        onClick: missed.onStudy,
+      }
+    : null;
+  const studyAll = missed
+    ? { label: t('flashcards.missed.studyAll'), onClick: missed.onStudyAll }
+    : null;
+  // A missed-only round leads with the pile; a normal round keeps Next round first.
+  const primary = (missedOnly ? (studyMissed ?? studyAll) : null) ?? {
+    label: t('flashcards.summary.next'),
+    onClick: onNextRound,
+  };
+  const secondary = missedOnly ? (studyMissed ? studyAll : null) : studyMissed;
+  const secondaryClass = cx(
+    'inline-flex items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
+    dark
+      ? 'bg-white/10 text-white hover:bg-white/20'
+      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+  );
   return (
     <div className="flex h-full w-full items-center justify-center bg-transparent">
       <section
@@ -116,7 +149,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
           {/* no-tour-anchor: end-of-round screen; a tour would not wait out a full round */}
           <button
             type="button"
-            onClick={onNextRound}
+            onClick={primary.onClick}
             className="inline-flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300"
             style={{
               gap: 'min(8px, 2cqmin)',
@@ -124,7 +157,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
               fontSize: 'min(13px, 3.5cqmin)',
             }}
           >
-            {t('flashcards.summary.next')}
+            {primary.label}
             <ArrowRight
               aria-hidden="true"
               style={{
@@ -133,17 +166,26 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
               }}
             />
           </button>
-          {onRestart && (
+          {secondary && (
+            // no-tour-anchor: end-of-round screen; a tour would not wait out a full round
+            <button
+              type="button"
+              onClick={secondary.onClick}
+              className={secondaryClass}
+              style={{
+                padding: 'min(12px, 3cqmin) min(20px, 5cqmin)',
+                fontSize: 'min(13px, 3.5cqmin)',
+              }}
+            >
+              {secondary.label}
+            </button>
+          )}
+          {onRestart && !missedOnly && (
             // no-tour-anchor: end-of-round screen; a tour would not wait out a full round
             <button
               type="button"
               onClick={onRestart}
-              className={cx(
-                'inline-flex items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
-                dark
-                  ? 'bg-white/10 text-white hover:bg-white/20'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              )}
+              className={secondaryClass}
               style={{
                 gap: 'min(8px, 2cqmin)',
                 padding: 'min(12px, 3cqmin) min(20px, 5cqmin)',

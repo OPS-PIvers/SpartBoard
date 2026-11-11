@@ -10,3 +10,4 @@ A public link can't be recalled once someone has saved the page, so the gate sit
 - Public tours are served by a function that returns the published steps and pictures; the pictures stay private in Storage and no Firestore or Storage rule opens to the public.
 - A public link gives the Steps view only. Running the tour on the site stays staff-only.
 - Live tours follow the same gate, because their thumbnails show the author's board.
+- A tour keeps one public address for good (Paul, 2026-11-10): switching the link off keeps its token, so turning it on again or re-confirming after a picture change brings back the same address that documentation and support already point to. An address that leaked is recalled by switching the link off, not by changing it.

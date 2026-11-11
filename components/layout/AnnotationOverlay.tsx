@@ -75,6 +75,7 @@ import {
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
+import { snapshotFontEmbedCss } from '@/components/tours/snapshotFonts';
 import { getAnnotationWorldRect } from '@/utils/annotationSize';
 import { nextZ } from '@/utils/migrateDrawingConfig';
 
@@ -594,6 +595,8 @@ export const AnnotationOverlay: React.FC = () => {
     const dataUrl = await toPng(root, {
       cacheBust: true,
       pixelRatio: 2,
+      // Never let the library read web-font sheets itself: it writes every rule into the live page.
+      fontEmbedCSS: await snapshotFontEmbedCss(document),
       filter: (node: Element) => {
         if (!(node instanceof HTMLElement)) return true;
         return node.dataset.screenshot !== 'exclude';

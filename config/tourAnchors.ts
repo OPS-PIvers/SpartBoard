@@ -1051,6 +1051,10 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'schoology-push.due-date': {
+    label: 'Due date field in the Push to Schoology dialog',
+    panel: true,
+  },
   'schoology-push.skip-course': {
     label: 'Skip this course button in the Push to Schoology dialog',
     panel: true,
@@ -1089,6 +1093,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-step.speak': {
     label: 'Speak step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.study': {
+    label: 'Study settings step header in the Flashcards Assign dialog',
     panel: true,
   },
   'assign-step.sheets': {
@@ -1263,6 +1271,30 @@ export const TOUR_ANCHORS = {
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-study.show-first': {
+    label:
+      'Show first switch in the Flashcards Assign dialog Study settings step',
+    panel: true,
+  },
+  'flashcards-study.shuffle': {
+    label: 'Shuffle switch in the Flashcards Assign dialog Study settings step',
+    panel: true,
+  },
+  'flashcards-study.strict': {
+    label:
+      'Strict mode switch in the Flashcards Assign dialog Study settings step',
+    panel: true,
+  },
+  'flashcards-study.test-type': {
+    label:
+      'Test question type switch in the Flashcards Assign dialog Study settings step',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-study.lock': {
+    label: 'Lock study settings switch in the Flashcards Assign dialog',
     panel: true,
   },
   'flashcards-speak.show': {
@@ -3441,6 +3473,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-results.push-grades': {
     label: 'Push Grades in Quiz results',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-results.publish': {
+    label: 'Publish results in Quiz results',
     perWidgetType: true,
     persists: true,
   },
@@ -10947,6 +10984,11 @@ export const TOUR_ANCHORS = {
   'flashcards.language-select': {
     label: 'Language picker in the Flashcards editor',
     perField: true,
+    panel: true,
+  },
+  'flashcards.swap-sides': {
+    label: 'Swap terms and definitions button in the Flashcards editor',
+    perWidgetType: true,
     panel: true,
   },
   'flashcards.language-code': {

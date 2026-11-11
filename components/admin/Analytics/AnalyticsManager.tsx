@@ -932,16 +932,18 @@ export const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
 };
 
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
-  const featureRows = useMemo(
-    () =>
-      Object.entries(data.api.byFeature ?? {})
-        .map(([feature, count]) => ({
-          feature: AI_FEATURE_LABELS[feature] ?? feature,
-          count,
-        }))
-        .sort((a, b) => b.count - a.count),
-    [data.api.byFeature]
-  );
+  const featureRows = useMemo(() => {
+    // Counters that share a settings row share a label and one line.
+    const byLabel = new Map<string, number>();
+    for (const [feature, count] of Object.entries(data.api.byFeature ?? {})) {
+      const label = AI_FEATURE_LABELS[feature] ?? feature;
+      byLabel.set(label, (byLabel.get(label) ?? 0) + count);
+    }
+    return [...byLabel]
+      .map(([feature, count]) => ({ feature, count }))
+      .filter((row) => row.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [data.api.byFeature]);
 
   const userRows = useMemo(
     () =>

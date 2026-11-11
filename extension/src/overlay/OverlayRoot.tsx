@@ -27,6 +27,7 @@ import { rhythmOf } from '@/components/tours/playbackEngine';
 import { usePrefersReducedMotion } from '@/components/tours/usePrefersReducedMotion';
 import { secondaryBtn } from '@/components/tours/tourButtons';
 import { TourWherePicture } from '@/components/tours/TourWherePicture';
+import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
 
 // The target the frame seeker attached in this frame, which the page settles around.
 const frameTarget = () => globalThis.__sbWebTourFrame?.target?.el ?? null;
@@ -317,7 +318,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
           )}
           {!done && (
             <p className="whitespace-pre-line text-sm text-slate-700">
-              {state.text.trim()}
+              {renderStepText(state.text.trim())}
             </p>
           )}
           {state.status === 'wrong-page' && (

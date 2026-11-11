@@ -50,7 +50,7 @@ import type { SpeakJudgement } from '@/utils/pronunciation/verdict';
 import { heardReferences } from '@/utils/pronunciation/wordFixes';
 import XLSR53_VOCAB from '@/utils/pronunciation/xlsr53EspeakVocab.json';
 import type { FlashcardSpeakTally } from '@/utils/flashcardSchedule';
-import { RoundSummary } from './PlayerPrimitives';
+import { RoundSummary, type RoundSummaryMissed } from './PlayerPrimitives';
 import { cx } from './playerUtils';
 import { LevelMeter, LiveLevelMeter } from './speak/LevelMeter';
 import { useMicLevel } from './speak/useMicLevel';
@@ -100,6 +100,8 @@ const HEARD_LEVEL = 0.15;
 const AUTO_CONTINUE_MS = 3000;
 
 export interface SpeakModeProps {
+  /** Missed-card pile for the round summary; absent hides it. */
+  missed?: RoundSummaryMissed;
   cards: FlashcardCard[];
   round: number;
   language: SpeakLanguage;
@@ -514,6 +516,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   onStar,
   onNextRound,
   onRestart,
+  missed,
   paused = false,
   autoContinue = false,
   onSaveHeard,
@@ -883,6 +886,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
         dark={dark}
         onNextRound={onNextRound}
         onRestart={onRestart}
+        missed={missed}
       />
     );
   }

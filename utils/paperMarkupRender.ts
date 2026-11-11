@@ -148,7 +148,7 @@ export function numberMarkupComments(
 interface Wash {
   /** Highlighter color, laid at 35% over the work. */
   wash: string;
-  /** Strokes, stamps and number fills: dark enough to print in grayscale and to carry a white number. */
+  /** Strokes, stamps and number fills: bright, standard pen colours that stand out on handwriting. */
   ink: string;
 }
 
@@ -169,11 +169,11 @@ export const PAPER_MARKUP_STYLE = {
     pin: 'red',
   } satisfies Record<PaperMarkupKind, PaperMarkupColor>,
   palette: {
-    yellow: { wash: '#e8a900', ink: '#854d0e' },
-    green: { wash: '#22c55e', ink: '#166534' },
-    pink: { wash: '#ec4899', ink: '#9d174d' },
-    blue: { wash: '#38bdf8', ink: '#1d4ed8' },
-    red: { wash: '#ef4444', ink: '#b91c1c' },
+    yellow: { wash: '#ffe600', ink: '#ffd500' },
+    green: { wash: '#00e63c', ink: '#00b832' },
+    pink: { wash: '#ff33c8', ink: '#ff00aa' },
+    blue: { wash: '#1a9dff', ink: '#0066ff' },
+    red: { wash: '#ff1a1a', ink: '#ff0000' },
   } satisfies Record<PaperMarkupColor, Wash>,
 } as const;
 
@@ -273,9 +273,20 @@ export function placeDisc(
   return at(0);
 }
 
+/** Number colour on an ink fill: white when it reads (WCAG 3.9+ for a bold chip), else near-black. */
+export const onInk = (ink: string): string => {
+  const lin = (i: number): number => {
+    const c = parseInt(ink.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const l = 0.2126 * lin(1) + 0.7152 * lin(3) + 0.0722 * lin(5);
+  const white = 1.05 / (l + 0.05);
+  return white >= 3.9 || white > (l + 0.05) / 0.0556 ? '#fff' : '#111';
+};
+
 const FONT = 'font-family="Arial,Helvetica,sans-serif" font-weight="700"';
 
-/** A dark disc with a white number, haloed in white so it holds up over pencil. */
+/** An ink disc with a contrasting number, haloed in white so it holds up over pencil. */
 function discSvg(
   at: PaperPointMm,
   d: number,
@@ -289,7 +300,7 @@ function discSvg(
     `<circle cx="${n(at.x)}" cy="${n(at.y)}" r="${n(r + halo / 2)}" fill="#fff"/>` +
     `<circle cx="${n(at.x)}" cy="${n(at.y)}" r="${n(r)}" fill="${ink}"/>` +
     (label
-      ? `<text x="${n(at.x)}" y="${n(at.y)}" dy="0.35em" text-anchor="middle" font-size="${n(size)}" fill="#fff" ${FONT}>${label}</text>`
+      ? `<text x="${n(at.x)}" y="${n(at.y)}" dy="0.35em" text-anchor="middle" font-size="${n(size)}" fill="${onInk(ink)}" ${FONT}>${label}</text>`
       : '')
   );
 }
@@ -437,7 +448,7 @@ export function renderPaperMarkup(
 }
 
 const BADGE_BASE =
-  'display:inline-block;color:#fff;font-weight:700;text-align:center;text-indent:0;white-space:nowrap;box-sizing:border-box;';
+  'display:inline-block;font-weight:700;text-align:center;text-indent:0;white-space:nowrap;box-sizing:border-box;';
 
 /** The number as it prints in a list: the same dark disc the pin and badge use. */
 export function markupNumberChipHtml(
@@ -448,7 +459,7 @@ export function markupNumberChipHtml(
   inline = true
 ): string {
   const place = inline ? 'margin-right:1.2mm;vertical-align:1px' : 'margin:0';
-  return `<span style="${BADGE_BASE}min-width:${sizeMm}mm;height:${sizeMm}mm;line-height:${sizeMm}mm;padding:0 0.7mm;border-radius:${sizeMm / 2}mm;font-size:${fontPt}pt;background:${ink};${place}">${num}</span>`;
+  return `<span style="${BADGE_BASE}min-width:${sizeMm}mm;height:${sizeMm}mm;line-height:${sizeMm}mm;padding:0 0.7mm;border-radius:${sizeMm / 2}mm;font-size:${fontPt}pt;color:${onInk(ink)};background:${ink};${place}">${num}</span>`;
 }
 
 /** The numbered comment list for under an answer: each number matches its pin or badge. Empty when nothing is commented. */
@@ -460,7 +471,7 @@ export function markupCommentListHtml(
     .filter((item) => commentOf(item))
     .map(
       (item, i) =>
-        `<li style="display:flex;align-items:flex-start;margin:0 0 1mm;break-inside:avoid"><span style="flex:none;width:6mm;height:4.4mm;display:flex;align-items:center">${markupNumberChipHtml(i + 1, inkOf(item), 4.2, 8, false)}</span><span style="flex:1;min-width:0;line-height:4.4mm;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(commentOf(item))}</span></li>`
+        `<li style="display:flex;align-items:flex-start;margin:0 0 2mm;break-inside:avoid"><span style="flex:none;width:6mm;height:4.4mm;display:flex;align-items:center">${markupNumberChipHtml(i + 1, inkOf(item), 4.2, 8, false)}</span><span style="flex:1;min-width:0;line-height:4.4mm;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(commentOf(item))}</span></li>`
     );
   if (rows.length === 0) return '';
   return `<ol class="notes" style="list-style:none;padding-left:0;margin:1mm 0 1.5mm;${PRINT_EXACT}">${rows.join('')}</ol>`;

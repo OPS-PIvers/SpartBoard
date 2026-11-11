@@ -75,6 +75,30 @@ describe('FlashcardPlayer', () => {
     expect(screen.getByText('1. Multiple choice')).toBeTruthy();
   });
 
+  it('shows term-only cards without a flip and hides Write and Test', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={[
+          { id: 'said', term: 'said', definition: '' },
+          { id: 'was', term: 'was', definition: '' },
+        ]}
+        termLanguage="en-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('player-term-only')}
+        initialSettings={{ showFirst: 'definition' }}
+      />
+    );
+
+    const card = screen.getByRole('button', { name: 'Term: said' });
+    await user.click(card);
+    expect(card.getAttribute('aria-pressed')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Write' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Test' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(screen.getByText('2/2')).toBeTruthy();
+  });
+
   it('keeps keyboard shortcuts working after clicking a card control', async () => {
     const user = userEvent.setup();
     const adapter = new LocalFlashcardAdapter('player-keys');
@@ -307,6 +331,62 @@ describe('FlashcardPlayer Check assignments', () => {
 
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     expect(onSubmit).toHaveBeenCalledWith({ answerLog: [], flags: [] });
+  });
+
+  it('starts a study resource on the teacher settings and locks them', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('study-locked')}
+        studySettings={{
+          showFirst: 'definition',
+          shuffle: false,
+          strict: true,
+          testTypes: ['fib'],
+          locked: true,
+        }}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: /^Definition: one\. Showing prompt/ })
+    ).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    expect(screen.getByText('Your teacher set these options.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Term' })).toHaveProperty(
+      'disabled',
+      true
+    );
+    expect(
+      screen.getByRole('button', { name: 'Favorites only' })
+    ).toHaveProperty('disabled', false);
+  });
+
+  it('lets students change unlocked study settings', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('study-open')}
+        studySettings={{
+          showFirst: 'definition',
+          shuffle: false,
+          strict: false,
+          testTypes: ['mc', 'fib'],
+          locked: false,
+        }}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    expect(screen.queryByText('Your teacher set these options.')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Term' }));
+    expect(
+      screen.getByRole('button', { name: /^Term: uno\. Showing prompt/ })
+    ).toBeTruthy();
   });
 
   it('sends Test answers to the server instead of reviewing them locally', async () => {

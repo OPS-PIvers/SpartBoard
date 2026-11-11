@@ -43,6 +43,7 @@ import {
 import type {
   AudienceSessionFields,
   FlashcardSpeakChoice,
+  FlashcardStudySettings,
   FlashcardAssignment,
   FlashcardAssignmentKind,
   FlashcardCardSelection,
@@ -86,6 +87,8 @@ export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   speakOff?: boolean;
   /** Speak rules picked when assigning, used instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
+  /** Study only: the starting settings, locked or not. */
+  studySettings?: FlashcardStudySettings;
   /** Check only: how `set.cards` was narrowed (already applied to the cards). */
   cardSelection?: FlashcardCardSelection;
   /** Check only: attempts, time limit, shuffle, integrity, What students see. */
@@ -148,6 +151,8 @@ export const useFlashcardAssignments = (
   const [error, setError] = useState<string | null>(null);
   const auth = useContext(AuthContext);
   const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
+  const canMissedCards =
+    auth?.canAccessFeature('flashcards-missed-cards') ?? false;
 
   // Reset during render when the signed-in user changes.
   const [prevUserId, setPrevUserId] = useState(userId);
@@ -286,7 +291,11 @@ export const useFlashcardAssignments = (
         ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
         ...(speak ? { speak } : {}),
         ...(speakOff ? { speakOff: true as const } : {}),
+        ...(!isCheck && canMissedCards ? { missedCards: true as const } : {}),
         ...(speak && speakChoice ? { speakChoice } : {}),
+        ...(!isCheck && input.studySettings
+          ? { studySettings: input.studySettings }
+          : {}),
         ...(cardSelection ? { cardSelection } : {}),
         ...(rules ? { rules } : {}),
         ...(plcLink
@@ -355,7 +364,7 @@ export const useFlashcardAssignments = (
       await batch.commit();
       return id;
     },
-    [canSpeak, userId]
+    [canMissedCards, canSpeak, userId]
   );
 
   const endAssignment = useCallback<

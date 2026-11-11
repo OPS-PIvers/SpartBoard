@@ -9769,6 +9769,15 @@ export interface FlashcardStudyState {
 }
 
 export type FlashcardAssignmentKind = 'check' | 'study';
+
+/** Study resource: the settings students start with, and whether they can change them. */
+export interface FlashcardStudySettings {
+  showFirst: FlashcardSide;
+  shuffle: boolean;
+  strict: boolean;
+  testTypes: FlashcardTestType[];
+  locked: boolean;
+}
 /** Which cards a Check uses; `random` is drawn once at assign time. */
 export type FlashcardCardSelection =
   | { mode: 'all' }
@@ -9852,8 +9861,12 @@ export interface FlashcardSession
   speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
+  /** Study: students can study just the cards they missed (flag `flashcards-missed-cards`). */
+  missedCards?: true;
   /** Speak rules picked when assigning; a set save re-stamps with these instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
+  /** Study: the teacher's starting settings; absent means the player defaults, unlocked. */
+  studySettings?: FlashcardStudySettings;
   /** Check: how the set's cards were narrowed at assign time; absent means all. */
   cardSelection?: FlashcardCardSelection;
   /** Check: attempts, time limit, shuffle, integrity and What students see. */
@@ -11036,6 +11049,7 @@ export type GlobalFeature =
   | 'quiz-import-versions'
   /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
   | 'quiz-import-versions-plain'
+  | 'flashcards-swap-sides'
   /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
   | 'quiz-import-google-doc-pdf'
   /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
@@ -11071,12 +11085,15 @@ export type GlobalFeature =
   | 'paper-handwriting-ai'
   /** Each student's scanned pages kept at import and printed with marks (docs/plans/shipped/QUIZ_PAPER_KEPT_PAGES.md). */
   | 'paper-kept-pages'
+  | 'paper-pages-student-view'
   /** Highlights, shapes, stamps and pinned comments on handwritten answers, printed on the work. */
   | 'paper-image-markup'
   /** Claude connector: teachers connect Claude to their library (docs/plans/shipped/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
   | 'claude-connector-guided-learning'
+  /** Claude connector previews: quizzes and rubrics show as an interactive card inside Claude (MCP Apps). */
+  | 'claude-connector-apps'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
@@ -11102,6 +11119,10 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'flashcards-ai'
+  /** Flashcards study resources: the teacher's starting settings, and Study resource as the default. */
+  | 'flashcards-study-settings'
+  /** Flashcards cards can be saved with a term and no definition (e.g. sight words). */
+  | 'flashcards-term-only'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'
@@ -11145,6 +11166,8 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
+  /** Flashcards study: students study just the cards they missed, in every mode. */
+  | 'flashcards-missed-cards'
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
@@ -11177,7 +11200,11 @@ export type GlobalFeature =
   /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
   | 'video-activity-stops'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
-  | 'video-import-ai';
+  | 'video-import-ai'
+  /** Due date picker in the Push to Schoology dialog. */
+  | 'schoology-push-due-date'
+  /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
+  | 'flashcards-check-sync';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

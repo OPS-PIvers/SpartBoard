@@ -21,6 +21,7 @@ import { parseJob } from './paperTranscriptionWorker';
 import { studentMaySeeHandwriting } from './quizResultsVisibilityServer';
 import {
   PAPER_KEPT_PAGES_FEATURE,
+  PAPER_PAGES_STUDENT_VIEW_FEATURE,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   PAPER_WRITTEN_CROP_PREFIX,
@@ -83,6 +84,8 @@ export interface PaperWrittenDeps {
   downloadDriveFile: (accessToken: string, fileId: string) => Promise<Buffer>;
   /** `paper-kept-pages` for this caller; absent fails closed. */
   isKeptPagesGranted?: (caller: Caller) => Promise<boolean>;
+  /** Kept pages and `paper-pages-student-view` both granted to the session's teacher; absent fails closed. */
+  isStudentPagesGranted?: (teacherUid: string) => Promise<boolean>;
 }
 
 type Rec = Record<string, unknown>;
@@ -306,13 +309,24 @@ async function storedImage(
 
 const MAX_PAGE_NUMBER = 63;
 
-/** K1, K19: only the session's own teacher reads a kept page; students, teammates and anyone without the flag are refused. */
+/** Mirrors the client's `keptPageRefs`: the page's scan must be the one scan the answers came from. */
+function isGradedScanPage(response: Rec, artifactId: string): boolean {
+  const scans = new Set<string>();
+  for (const a of Array.isArray(response.answers) ? response.answers : []) {
+    if (isRec(a) && typeof a.paperScanId === 'string') scans.add(a.paperScanId);
+  }
+  if (scans.size === 0) return true;
+  const scan = parsePaperPageArtifactId(artifactId)?.scanId;
+  return scans.size === 1 && !!scan && scans.has(scan);
+}
+
+/** K1, K19: the session's own teacher reads a kept page; the student it belongs to may too once handwriting is returned and the teacher has `paper-pages-student-view`. */
 export async function handleGetPaperPage(
   deps: PaperWrittenDeps,
   rawCaller: Caller | null,
   raw: unknown
 ): Promise<GetPaperPageResponse> {
-  const caller = requireTeacherCaller(rawCaller);
+  const caller = requireCaller(rawCaller);
   const data = isRec(raw) ? raw : {};
   const sessionId = readId(data, 'sessionId', 200);
   const responseKey = readId(data, 'responseKey');
@@ -325,20 +339,45 @@ export async function handleGetPaperPage(
   ) {
     throw new HttpsError('invalid-argument', 'page is required.');
   }
-  await requireSessionTeacher(deps.db, sessionId, caller.uid);
-  if (!(await deps.isKeptPagesGranted?.(caller))) {
+  const sessionSnap = await sessionRefOf(deps.db, sessionId).get();
+  const session = sessionSnap.data();
+  const teacherUid =
+    typeof session?.teacherUid === 'string' ? session.teacherUid : '';
+  const isTeacher =
+    !!teacherUid &&
+    teacherUid === caller.uid &&
+    !caller.anonymous &&
+    !caller.studentRole;
+  const response = teacherUid
+    ? (
+        await responseRefOf(deps.db, {
+          sessionId,
+          responseKey,
+          questionId: '',
+        }).get()
+      ).data()
+    : undefined;
+  if (isTeacher) {
+    if (!(await deps.isKeptPagesGranted?.(caller))) {
+      throw new HttpsError(
+        'permission-denied',
+        'Kept pages are not enabled for this account.'
+      );
+    }
+  } else if (
+    // A forged key dies here: the doc's own studentUid is the only ownership fact trusted.
+    !teacherUid ||
+    !response ||
+    typeof response.studentUid !== 'string' ||
+    response.studentUid !== caller.uid ||
+    !studentMaySeeHandwriting(session, response, deps.now()) ||
+    !(await deps.isStudentPagesGranted?.(teacherUid))
+  ) {
     throw new HttpsError(
       'permission-denied',
-      'Kept pages are not enabled for this account.'
+      'This page is not available to you.'
     );
   }
-  const response = (
-    await responseRefOf(deps.db, {
-      sessionId,
-      responseKey,
-      questionId: '',
-    }).get()
-  ).data();
   if (!response) throw new HttpsError('not-found', 'Quiz response not found.');
   const pages = Array.isArray(response.paperPages)
     ? (response.paperPages as unknown[]).filter(isRec)
@@ -356,7 +395,7 @@ export async function handleGetPaperPage(
     typeof artifact.id !== 'string' ||
     typeof storagePath !== 'string' ||
     !(await isOwnPaperPagePath(deps.db, {
-      teacherUid: caller.uid,
+      teacherUid,
       sessionId,
       responseKey,
       artifactId: artifact.id,
@@ -365,7 +404,11 @@ export async function handleGetPaperPage(
   ) {
     return { status: 'not-available', reason: 'no-page' };
   }
-  return storedImage(deps, caller.uid, response, artifact, storagePath);
+  // A student sees only the scan their graded answers came from, never a rescan held for review.
+  if (!isTeacher && !isGradedScanPage(response, artifact.id)) {
+    return { status: 'not-available', reason: 'no-page' };
+  }
+  return storedImage(deps, teacherUid, response, artifact, storagePath);
 }
 
 export async function handleGetPaperWrittenCrop(
@@ -1014,6 +1057,30 @@ export function buildDefaultPaperWrittenDeps(): PaperWrittenDeps {
         caller.email ?? null,
         caller.uid
       ),
+    isStudentPagesGranted: async (teacherUid) => {
+      // A deleted teacher account fails closed, so students get a refusal rather than an error.
+      const email = await admin
+        .auth()
+        .getUser(teacherUid)
+        .then((u) => u.email ?? null)
+        .catch(() => undefined);
+      if (email === undefined) return false;
+      const [kept, student] = await Promise.all([
+        isGlobalFeatureGranted(
+          admin.firestore(),
+          PAPER_KEPT_PAGES_FEATURE,
+          email,
+          teacherUid
+        ),
+        isGlobalFeatureGranted(
+          admin.firestore(),
+          PAPER_PAGES_STUDENT_VIEW_FEATURE,
+          email,
+          teacherUid
+        ),
+      ]);
+      return kept && student;
+    },
   };
 }
 

@@ -125,6 +125,8 @@ export function useGradebookLmsPush(
     sessionId: column.sessionId,
     kind: column.kind === 'video-activity' ? 'va' : 'quiz',
     title: column.title,
+    closeAt: column.closeAt,
+    dueAt: column.dueAt,
     buildPayload: () =>
       Promise.resolve(
         plan && maxPoints !== null

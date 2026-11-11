@@ -4468,6 +4468,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "schoology-push.due-date",
+    "label": "Due date field in the Push to Schoology dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.schoology-push",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
     "id": "schoology-push.skip-course",
     "label": "Skip this course button in the Push to Schoology dialog",
     "scope": "board",
@@ -4586,6 +4598,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "assign-step.speak",
     "label": "Speak step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-step.study",
+    "label": "Study settings step header in the Flashcards Assign dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -5234,6 +5259,116 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-step.check"
         ],
         "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.show-first",
+    "label": "Show first switch in the Flashcards Assign dialog Study settings step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.shuffle",
+    "label": "Shuffle switch in the Flashcards Assign dialog Study settings step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.strict",
+    "label": "Strict mode switch in the Flashcards Assign dialog Study settings step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.test-type",
+    "label": "Test question type switch in the Flashcards Assign dialog Study settings step",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-study.lock",
+    "label": "Lock study settings switch in the Flashcards Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.study"
+        ],
+        "reveal": "assign-step.study",
         "needs": [
           "library-item",
           "class",
@@ -14233,6 +14368,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-results.push-grades",
     "label": "Push Grades in Quiz results",
+    "scope": "widget type",
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.publish",
+    "label": "Publish results in Quiz results",
     "scope": "widget type",
     "persists": true,
     "keys": [
@@ -24107,7 +24269,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "library.assignments",
+        "surface": "library.shell",
         "kind": "shared",
         "path": []
       }
@@ -24121,7 +24283,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "library.assignments",
+        "surface": "library.shell",
         "kind": "shared",
         "path": []
       }
@@ -48317,6 +48479,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Language picker in the Flashcards editor",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.swap-sides",
+    "label": "Swap terms and definitions button in the Flashcards editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",

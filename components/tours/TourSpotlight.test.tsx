@@ -126,4 +126,33 @@ describe('TourSpotlight', () => {
     expect(dimPath().style.transition).toBe('');
     expect(screen.getByTestId('tour-spotlight-ring').style.transition).toBe('');
   });
+
+  it('takes clicks on a separate layer cut around the live target while the drawn cutout glides', () => {
+    const onMisclick = vi.fn();
+    render(
+      <TourSpotlight
+        rect={{ x: 10, y: 10, width: 50, height: 20 }}
+        hole={{ x: 300, y: 200, width: 40, height: 40 }}
+        glideFor={200}
+        onMisclick={onMisclick}
+      />
+    );
+    expect(dimPath().style.pointerEvents).toBe('none');
+    const hit = screen.getByTestId('tour-spotlight-hit');
+    expect(hit.getAttribute('d')).toContain('M304,194');
+    expect(hit.style.transition).toBe('');
+    fireEvent.click(hit);
+    expect(onMisclick).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws a tick left behind on the finished control apart from the ring', () => {
+    render(
+      <TourSpotlight
+        rect={{ x: 300, y: 200, width: 40, height: 40 }}
+        tickAt={{ x: 10, y: 10, width: 50, height: 20 }}
+      />
+    );
+    const tick = screen.getByTestId('tour-spotlight-tick');
+    expect(tick.querySelector('circle')?.getAttribute('cx')).toBe('66');
+  });
 });

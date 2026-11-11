@@ -317,6 +317,8 @@ const RUN_CLOCK_SLACK_MS = 5000;
 const MOVE_MIN_PX = 24;
 /** How long a step's "Done" shows before the tour moves on by itself. */
 const DONE_PAUSE_MS = 1200;
+// A repeat click this soon after the last step's click is a double-click, not a new step.
+const DOUBLE_CLICK_MS = 500;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
@@ -734,6 +736,7 @@ export const LiveTourRunner: React.FC = () => {
     stepKey: `${tour?.index ?? 0}:${visit}`,
     rect: spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h },
     ignore: inTourUi,
+    immediate: true,
   });
   const rhythmAct = rhythm.act;
 
@@ -1630,7 +1633,14 @@ export const LiveTourRunner: React.FC = () => {
         (el instanceof HTMLSelectElement || !!el.querySelector('select')));
     const eventName = onChange ? 'change' : 'click';
     const binding = { action, value: stepValue };
-    const onClick = () => {
+    const onClick = (e: Event) => {
+      // The second click of a double-click never finishes the step it just opened.
+      if (
+        e instanceof MouseEvent &&
+        e.detail > 1 &&
+        Date.now() - lastStepClickAt.current < DOUBLE_CLICK_MS
+      )
+        return;
       lastStepClickAt.current = Date.now();
       lastStepCreated.current = stepCreates;
       // Autopilot's own click waits for the next anchor instead.
@@ -2866,15 +2876,20 @@ export const LiveTourRunner: React.FC = () => {
                     height: spot.h,
                   }
             }
+            // Clicks reach the step's control the moment it is found, even mid-glide.
+            hole={
+              spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h }
+            }
             onMisclick={misclick}
             pulse={anchor.centred}
             breathe={acted && !isMissing && !autoRunning && !autoBusy}
             {...(paced
               ? {
                   tick: rhythm.tick,
+                  tickAt: rhythm.tickAt,
                   glideFor:
                     rhythm.phase === 'glide'
-                      ? rhythmOf(reducedMotion).glideMs
+                      ? rhythmOf(reducedMotion, true).glideMs
                       : 0,
                 }
               : {})}

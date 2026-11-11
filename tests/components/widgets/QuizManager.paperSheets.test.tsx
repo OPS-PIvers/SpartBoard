@@ -215,6 +215,7 @@ describe('QuizManager — paper assignment card', () => {
       { onImportPaperResponses, onReprintPaperSheets }
     );
     openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
     expect(screen.getByText('Print response sheets')).toBeTruthy();
     fireEvent.click(screen.getByText('Import responses'));
     expect(onImportPaperResponses).toHaveBeenCalledWith(
@@ -286,6 +287,7 @@ describe('QuizManager — written answers on paper card', () => {
     });
     expect(screen.getByText('Paper 18/26 scanned')).toBeTruthy();
     openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
     expect(screen.getByText('Print written answer sheets')).toBeTruthy();
     fireEvent.click(screen.getByText('Import written answers'));
     expect(onImportPaperResponses).toHaveBeenCalledWith(
@@ -317,6 +319,19 @@ describe('QuizManager — row menu', () => {
   it('keeps Assign on paper in the menu for view-only libraries', () => {
     const onAssignOnPaper = vi.fn();
     renderLibrary({ onAssignOnPaper, assignmentMode: 'view-only' });
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Assign on paper' }));
+    expect(onAssignOnPaper).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
+  it('keeps Assign on paper in the menu for a quiz missing answers', () => {
+    const onAssignOnPaper = vi.fn();
+    renderLibrary({
+      onAssignOnPaper,
+      quizzes: [{ ...QUIZ, needsKeyCount: 2 }],
+    });
     openRowMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Assign on paper' }));
     expect(onAssignOnPaper).toHaveBeenCalledWith(

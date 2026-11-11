@@ -35,6 +35,10 @@ import {
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { FlashcardsCheckStep } from '@/components/common/library/assignStepper/FlashcardsCheckStep';
 import {
+  DEFINITION_MODES,
+  isTermOnlyDeck,
+} from '@/components/flashcards/playerUtils';
+import {
   formatFlashcardsModeValue,
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
@@ -72,6 +76,11 @@ import {
   formatFlashcardsSpeakValue,
   type FlashcardsSpeakValue,
 } from '@/components/common/library/assignStepper/flashcardsSpeakValue';
+import { FlashcardsStudyStep } from '@/components/common/library/assignStepper/FlashcardsStudyStep';
+import {
+  DEFAULT_FLASHCARDS_STUDY_VALUE,
+  formatFlashcardsStudyValue,
+} from '@/components/common/library/assignStepper/flashcardsStudyValue';
 import { FlashcardsSpeakRules } from '@/components/common/library/assignStepper/FlashcardsSpeakRules';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import { readFlashcardsSpeakAdminConfig } from '@/hooks/useFlashcardSets';
@@ -88,6 +97,7 @@ import {
 } from '@/hooks/useLastFlashcardAssignSettings';
 import {
   buildFlashcardAssignSubmission,
+  isMcAvailable,
   rosterHasSsoClass,
   validateFlashcardAssignForm,
   type FlashcardAssignSubmission,
@@ -99,6 +109,7 @@ import type {
   FlashcardSet,
   FlashcardSpeakChoice,
   FlashcardSpeakSettings,
+  FlashcardStudySettings,
   FlashcardsSpeakAdminConfig,
   Plc,
 } from '@/types';
@@ -163,7 +174,9 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   const lastUsed = useLastFlashcardAssignSettings(auth?.user?.uid, true);
   const cardCount = set.cards.length;
 
-  const [kind, setKind] = useState<AssignKind>('work');
+  // Study settings flag: Study resource opens first and gets its own settings step.
+  const studyOn = auth?.canAccessFeature('flashcards-study-settings') ?? false;
+  const [kind, setKind] = useState<AssignKind>(studyOn ? 'resource' : 'work');
   const [classes, setClasses] = useState<AssignClassesValue>(() => ({
     classIds: initialRosterIds.filter((id) => rosters.some((r) => r.id === id)),
     studentsByClass: {},
@@ -215,6 +228,18 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       setRules(savedRules ?? rulesFromScoreVisibility(form.scoreVisibility));
     }
   }
+  const [study, setStudy] = useState<FlashcardStudySettings>(
+    DEFAULT_FLASHCARDS_STUDY_VALUE
+  );
+  const [studySeeded, setStudySeeded] = useState(false);
+  if (!studySeeded && lastUsed.loaded) {
+    setStudySeeded(true);
+    if (lastUsed.lastUsed?.study) setStudy(lastUsed.lastUsed.study);
+  }
+  const changeStudy = (next: FlashcardStudySettings) => {
+    setStudySeeded(true);
+    setStudy(next);
+  };
   const changeCheck = (next: FlashcardsCheckValue) => {
     setPrefilled(true);
     setCheck(next);
@@ -281,8 +306,12 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     };
   })();
 
+  const termOnly = isTermOnlyDeck(
+    kind === 'work' ? resolveSelectedCards(cards, set.cards) : set.cards
+  );
   const effectiveCheck: FlashcardsCheckValue =
-    check.checkMode === 'speak' && !speakAvailable
+    (check.checkMode === 'speak' && !speakAvailable) ||
+    (termOnly && DEFINITION_MODES.includes(check.checkMode))
       ? { ...check, checkMode: 'flashcards' }
       : check;
   const form = { ...effectiveCheck, collectSubmission: kind === 'work' };
@@ -328,7 +357,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     plcId: '',
   });
   const needsPlc = inPlc && sharingNeedsPlc(sharing, plcs);
-  const ctx = { kind, speak: speakAvailable, inPlc };
+  const ctx = { kind, speak: speakAvailable, inPlc, study: studyOn };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
   const manualAvailable = whenVariant === 'when' && !staff;
 
@@ -412,6 +441,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           onChange={changeCheck}
           cardCount={chosenCount}
           speakAvailable={speakAvailable}
+          termOnly={termOnly}
           speakRules={
             speakRulesOn && speakRules && speakLanguage ? (
               <FlashcardsSpeakRules
@@ -428,6 +458,16 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     sharing: {
       value: needsPlc ? PICK_A_PLC : formatSharingValue(sharing, { plcs }),
       body: <SharingStep value={sharing} onChange={setSharing} plcs={plcs} />,
+    },
+    study: {
+      value: formatFlashcardsStudyValue(study),
+      body: (
+        <FlashcardsStudyStep
+          value={study}
+          onChange={changeStudy}
+          cardCount={cardCount}
+        />
+      ),
     },
     speak: {
       value: formatFlashcardsSpeakValue(speak, t),
@@ -526,6 +566,15 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           }
         : undefined;
     if (speakChoice) submission.input.speakChoice = speakChoice;
+    if (studyOn && kind === 'resource') {
+      // Multiple choice alone can't run under 4 cards; Test drops it until the deck grows.
+      const mcOnly = study.testTypes.every((type) => type === 'mc');
+      submission.input.studySettings = {
+        ...study,
+        testTypes:
+          mcOnly && !isMcAvailable(cardCount) ? ['mc', 'fib'] : study.testTypes,
+      };
+    }
     const sharePlc =
       inPlc && sharing.plcMode
         ? (resolveSharingPlc(sharing, plcs) ?? undefined)
@@ -556,6 +605,8 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
             : {}),
         }
       : lastUsed.lastUsed?.speak;
+    const lastStudy =
+      studyOn && kind === 'resource' ? study : lastUsed.lastUsed?.study;
     if (ok !== false && kind === 'work') {
       lastUsed.save({
         ...check,
@@ -564,11 +615,20 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         ),
         rules: stampedRules,
         ...(lastSpeak ? { speak: lastSpeak } : {}),
+        ...(lastStudy ? { study: lastStudy } : {}),
       });
-    } else if (ok !== false && speakChoice && lastSpeak) {
+    } else if (
+      ok !== false &&
+      lastUsed.loaded &&
+      ((speakChoice && lastSpeak) || lastStudy)
+    ) {
       const { collectSubmission: _kind, ...defaults } =
         getFlashcardAssignPrefill(null, cardCount);
-      lastUsed.save({ ...(lastUsed.lastUsed ?? defaults), speak: lastSpeak });
+      lastUsed.save({
+        ...(lastUsed.lastUsed ?? defaults),
+        ...(lastSpeak ? { speak: lastSpeak } : {}),
+        ...(lastStudy ? { study: lastStudy } : {}),
+      });
     }
   };
 

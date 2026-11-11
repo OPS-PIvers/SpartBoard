@@ -1140,8 +1140,14 @@ export function useStudentAssignments({
         : undefined;
       const base = fromRaw ?? fromHydration;
       if (base === null || base === undefined) continue; // missing or not yet resolved
+      // A session with no class channel (paper) files under the pointer's class.
+      const classIds =
+        base.classIds.length === 0 && studentClassIdsSet.has(pointer.classId)
+          ? [pointer.classId]
+          : base.classIds;
       merged.set(rawKey, {
         ...base,
+        classIds,
         openAt: pointer.openAt ?? base.openAt,
         closeAt: pointer.closeAt ?? base.closeAt,
         dueAt: pointer.dueAt ?? base.dueAt,
@@ -1157,7 +1163,13 @@ export function useStudentAssignments({
       return a.title.localeCompare(b.title);
     });
     return out;
-  }, [byKindChannel, pointerItems, rawByKindSession, hydratedSessions]);
+  }, [
+    byKindChannel,
+    pointerItems,
+    rawByKindSession,
+    hydratedSessions,
+    studentClassIdsSet,
+  ]);
 
   const retry = useCallback(() => setRetryNonce((n) => n + 1), []);
 

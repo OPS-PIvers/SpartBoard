@@ -166,6 +166,7 @@ export const ToursTab: React.FC<{
           onStart={() => void start(viewed.id)}
           starting={starting === viewed.id}
           disabled={starting !== null}
+          admin={reply.list.admin}
         />
       </div>
     );

@@ -101,15 +101,15 @@ export function scanSheetPatchRectsMm(): RectMm[] {
 const MARK_MM = 3.8;
 const MARK_GAP_MM = 2.6;
 const MARK_STROKE_MM = 0.55;
-const MARK_INK = { correct: '#166534', incorrect: '#b91c1c', unclear: '#000' };
+const MARK_INK = { correct: '#00b832', incorrect: '#ff0000', unclear: '#000' };
 const MARK_GLYPH = {
   correct: PAPER_STAMP_GLYPHS.check.d,
   incorrect: PAPER_STAMP_GLYPHS.x.d,
   unclear: PAPER_STAMP_GLYPHS.question.d,
 } as const;
 
-/** Key ring ink: a printed blue that reads dark gray in black and white, unlike pencil. */
-const KEY_INK = '#1d4ed8';
+/** Key ring ink: a bright printed blue, distinct from pencil. */
+const KEY_INK = '#0066ff';
 const KEY_STROKE_MM = 0.45;
 /** Clear of a filled bubble's pencil, and 1 mm short of the question number beside bubble A. */
 const KEY_RINGS_MM = [3.3];
@@ -125,12 +125,14 @@ const FEEDBACK_BOTTOM_MM =
   REGISTRATION_MARK_SIZE_MM / 2 -
   PATCH_PAD_REG_MM -
   1.5;
-const POINTS_PT = 10;
-const POINTS_LINE_MM = 4.4;
-const NOTE_PT = 7.5;
-const NOTE_LINE_MM = 3.2;
+const POINTS_PT = 11;
+const POINTS_LINE_MM = 4.8;
+const NOTE_PT = 10;
+const NOTE_LINE_MM = 4.2;
+/** Space above each numbered comment, so neighbours don't run together. */
+const NOTE_GAP_MM = 3;
 /** Width a number chip takes before its comment. */
-const CHIP_MM = 4.4;
+const CHIP_MM = 5.4;
 
 /** The score sits in the patched marker area, which is clear by construction. */
 const SCORE_PT = 10;
@@ -275,40 +277,48 @@ function feedbackColumnHtml(
     );
     used += POINTS_LINE_MM;
   }
-  let budget = Math.floor((bottom - top - used - 0.6) / NOTE_LINE_MM);
+  // Room left in millimetres; each comment row also takes its gap above it.
+  let room = bottom - top - used - 0.6;
+  const linesIn = (mmLeft: number) => Math.floor(mmLeft / NOTE_LINE_MM);
   const lead = comment?.trim() ?? '';
-  if (lead && budget > 0) {
-    // The overall comment keeps at most half the lines when numbered comments follow.
-    const room = rows.length ? Math.max(1, budget >> 1) : budget;
-    const text = cutToLines(lead, width, NOTE_PT, room);
-    const lines = Math.min(room, wrapLines(text, width, NOTE_PT));
+  const moreText = (n: number) =>
+    reportFollows ? `+${n} more in the report` : `+${n} more`;
+  // Room the "+n more" note takes at its widest count, gap included.
+  const moreMm =
+    NOTE_GAP_MM +
+    wrapLines(moreText(rows.length), width, NOTE_PT) * NOTE_LINE_MM;
+  if (lead && linesIn(room) > 0) {
+    // With comments to follow, it keeps half of what is left after one gap and the "+n more" room.
+    const rest = room - NOTE_GAP_MM - (rows.length > 1 ? moreMm : 0);
+    const fit = rows.length ? Math.max(1, linesIn(rest) >> 1) : linesIn(room);
+    const text = cutToLines(lead, width, NOTE_PT, fit);
+    const lines = Math.min(fit, wrapLines(text, width, NOTE_PT));
     parts.push(
       `<div style="font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)};max-height:${mm(lines * NOTE_LINE_MM)};overflow:hidden;overflow-wrap:anywhere">${escapeHtml(text)}</div>`
     );
-    budget -= lines;
+    room -= lines * NOTE_LINE_MM;
   }
   let shown = 0;
   for (const row of rows) {
     const left = rows.length - shown;
-    // Keep a line for "+n more" whenever a later comment would not fit.
-    const reserve = left > 1 ? 1 : 0;
-    const room = budget - reserve;
-    if (room < 1) break;
-    const text = cutToLines(row.text, width - CHIP_MM, NOTE_PT, room);
-    const lines = Math.min(room, wrapLines(text, width - CHIP_MM, NOTE_PT));
-    if (lines > room) break;
+    // Keep room for "+n more" whenever a later comment would not fit.
+    const reserve = left > 1 ? moreMm : 0;
+    const fit = linesIn(room - NOTE_GAP_MM - reserve);
+    if (fit < 1) break;
+    const text = cutToLines(row.text, width - CHIP_MM, NOTE_PT, fit);
+    const lines = Math.min(fit, wrapLines(text, width - CHIP_MM, NOTE_PT));
     parts.push(
-      `<div style="display:flex;align-items:flex-start;margin-top:0.4mm;font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)}"><span style="flex:none;width:${mm(CHIP_MM)}">${markupNumberChipHtml(row.number, row.ink, 3.2, 6.5, false)}</span><span style="flex:1;min-width:0;max-height:${mm(lines * NOTE_LINE_MM)};overflow:hidden;overflow-wrap:anywhere">${escapeHtml(text)}</span></div>`
+      `<div style="display:flex;align-items:flex-start;margin-top:${mm(NOTE_GAP_MM)};font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)}"><span style="flex:none;width:${mm(CHIP_MM)}">${markupNumberChipHtml(row.number, row.ink, 4, 8, false)}</span><span style="flex:1;min-width:0;max-height:${mm(lines * NOTE_LINE_MM)};overflow:hidden;overflow-wrap:anywhere">${escapeHtml(text)}</span></div>`
     );
-    budget -= lines;
+    room -= NOTE_GAP_MM + lines * NOTE_LINE_MM;
     shown += 1;
   }
   const hidden = rows.length - shown;
-  if (hidden > 0 && budget > 0) {
+  // In a tight column the note drops its gap rather than go missing.
+  const noteGap = linesIn(room - NOTE_GAP_MM) > 0 ? NOTE_GAP_MM : 0;
+  if (hidden > 0 && linesIn(room - noteGap) > 0) {
     parts.push(
-      `<div style="font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)};font-style:italic">${
-        reportFollows ? `+${hidden} more in the report` : `+${hidden} more`
-      }</div>`
+      `<div style="margin-top:${mm(noteGap)};font-size:${NOTE_PT}pt;line-height:${mm(NOTE_LINE_MM)};font-style:italic">${moreText(hidden)}</div>`
     );
   }
   if (parts.length === 0) return '';

@@ -196,6 +196,22 @@ const PaperAssign: React.FC = () => (
   />
 );
 
+const WRITTEN_QUIZ: QuizData = {
+  ...ASSIGN_QUIZ,
+  questions: [
+    ...ASSIGN_QUIZ.questions.slice(0, 4),
+    {
+      id: 'w5',
+      timeLimit: 0,
+      text: 'Use the provided resources and write an argumentative essay clearly arguing one side. Use details from the sources to support your argument.',
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      paperBoxSize: 'full',
+    },
+  ],
+};
+
 // ?drive=0 shows the no-Drive hint; ?uploads=fail makes every upload fail.
 const PaperImport: React.FC = () => {
   const { canAccessFeature } = useAuth();
@@ -239,6 +255,20 @@ const PaperImport: React.FC = () => {
 const VIEWS = {
   library: () => <Manager tab="library" assignments={IN_PROGRESS} />,
   assign: () => <PaperAssign />,
+  'assign-written': () => (
+    <PaperPrintModal
+      quiz={WRITTEN_QUIZ}
+      rosters={ROSTERS}
+      assign={{
+        plcs: [],
+        initialSharing: { plcMode: false, plcId: '' },
+        onCreateAssignment: () => Promise.resolve(),
+      }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   'in-progress': () => <Manager tab="active" assignments={IN_PROGRESS} />,
   import: () => <PaperImport />,
   completed: () => <Manager tab="archive" assignments={COMPLETED} />,

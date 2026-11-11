@@ -20,6 +20,7 @@ interface Hoisted {
   };
   published: unknown;
   pictures: Map<string, unknown>;
+  loadPicturesOverride?: () => Promise<Map<string, unknown>>;
   ping: ExtensionStatus;
   start: Mock<(...args: unknown[]) => Promise<unknown>>;
   open: Mock<(...args: unknown[]) => Promise<unknown>>;
@@ -69,7 +70,13 @@ vi.mock('@/components/tours/tourRuns', async (orig) => ({
 }));
 vi.mock('./webTourHub', async (orig) => ({
   ...(await orig<typeof import('./webTourHub')>()),
-  loadPictures: () => Promise.resolve(h.pictures),
+  loadPictures: () => h.loadPicturesOverride?.() ?? Promise.resolve(h.pictures),
+}));
+const link = vi.hoisted(() => ({
+  setId: vi.fn<(t: string) => Promise<string | null>>(),
+}));
+vi.mock('./publicLinkStart', () => ({
+  setIdForPublicLink: (t: string) => link.setId(t),
 }));
 vi.mock('./extensionClient', async (orig) => ({
   ...(await orig<typeof import('./extensionClient')>()),
@@ -120,6 +127,7 @@ beforeEach(() => {
   h.auth.canAccessFeature = () => true;
   h.published = webTour();
   h.pictures = new Map();
+  h.loadPicturesOverride = undefined;
   h.ping = { kind: 'none' };
   h.start.mockReset();
   h.open.mockReset();
@@ -555,5 +563,80 @@ describe('WebTourHubPage', () => {
     expect(
       screen.getByRole('button', { name: /Resume at step 2/ })
     ).toBeTruthy();
+  });
+});
+
+describe('WebTourHubPage from a public link', () => {
+  const staff = {
+    kind: 'ready',
+    protocol: 2,
+    version: '1',
+    profile: 'staff',
+  } as const;
+
+  it('starts the tour once when the link asks, then drops the ask', async () => {
+    window.history.replaceState(null, '', '/tour/s1?start=1');
+    h.ping = staff;
+    h.start.mockResolvedValue({ ok: true, tabId: 7 });
+    render(<WebTourHubPage />);
+    await waitFor(() => expect(h.start).toHaveBeenCalledTimes(1));
+    expect(h.start).toHaveBeenCalledWith(
+      expect.objectContaining({ setId: 's1' }),
+      'https://app.schoology.com/home',
+      0
+    );
+    expect(window.location.search).toBe('');
+  });
+
+  it('starts over a finished run the extension replays, and a reload never restarts', async () => {
+    window.history.replaceState(null, '', '/tour/s1?start=1');
+    h.ping = staff;
+    let release: (m: Map<string, unknown>) => void = () => undefined;
+    const late = new Promise<Map<string, unknown>>((r) => (release = r));
+    h.pictures = new Map();
+    h.loadPicturesOverride = () => late;
+    h.start.mockResolvedValue({ ok: true, tabId: 7 });
+    render(<WebTourHubPage />);
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
+    expect(window.location.search).toBe('');
+    act(() => {
+      h.onEvent?.({ type: 'web-tour/done', setId: 's1' });
+    });
+    await act(async () => {
+      release(new Map());
+      await late;
+    });
+    await waitFor(() => expect(h.start).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not start without the ask', async () => {
+    h.ping = staff;
+    render(<WebTourHubPage />);
+    await screen.findByRole('button', { name: /Start tour/ });
+    expect(h.start).not.toHaveBeenCalled();
+  });
+
+  it('never asks an extension that opens tours itself to open the link path', async () => {
+    window.history.replaceState(null, '', '/tour/from-link?t=abc');
+    h.ping = {
+      kind: 'ready',
+      protocol: 8,
+      version: '0.1.13',
+      profile: 'staff',
+    };
+    link.setId.mockResolvedValue(null);
+    render(<WebTourHubPage />);
+    await waitFor(() => expect(link.setId).toHaveBeenCalledWith('abc'));
+    expect(h.open).not.toHaveBeenCalled();
+  });
+
+  it('says the tour is unavailable when the link finds no tour', async () => {
+    window.history.replaceState(null, '', '/tour/from-link?t=abc');
+    link.setId.mockResolvedValue(null);
+    render(<WebTourHubPage />);
+    expect(
+      await screen.findByText(/isn.t available|unavailable/i)
+    ).toBeTruthy();
+    expect(link.setId).toHaveBeenCalledWith('abc');
   });
 });

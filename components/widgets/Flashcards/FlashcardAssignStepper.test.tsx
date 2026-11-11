@@ -93,12 +93,14 @@ const renderStepper = ({
   rosterIds = ['r1'],
   periodAccess,
   canSpeak = false,
+  studyOn = false,
   set = makeSet(),
   plcs,
 }: {
   rosterIds?: string[];
   periodAccess?: AssignPeriodAccessContext;
   canSpeak?: boolean;
+  studyOn?: boolean;
   set?: FlashcardSet;
   plcs?: Plc[];
 } = {}) => {
@@ -108,7 +110,9 @@ const renderStepper = ({
   );
   const auth = {
     user: { uid: 'teacher-1' },
-    canAccessFeature: (id: string) => canSpeak && id === 'flashcards-speak',
+    canAccessFeature: (id: string) =>
+      (canSpeak && id === 'flashcards-speak') ||
+      (studyOn && id === 'flashcards-study-settings'),
   } as unknown as React.ContextType<typeof AuthContext>;
   render(
     <AuthContext.Provider value={auth}>
@@ -161,6 +165,71 @@ describe('FlashcardAssignStepper', () => {
     expect(input.kind).toBe('study');
     expect(input.workKind).toBe('resource');
     expect(lastUsed.save).not.toHaveBeenCalled();
+  });
+
+  it('opens on Study resource with the study settings step when the flag is on', () => {
+    renderStepper({ studyOn: true });
+    expect(
+      screen.getByRole('radio', { name: /Study resource/ })
+    ).toHaveProperty('ariaChecked', 'true');
+    expect(screen.getByText('Study settings')).toBeTruthy();
+    expect(screen.queryByText('How students are checked')).toBeNull();
+  });
+
+  it('stamps the study settings, locked, and remembers them', async () => {
+    const { onAssign } = renderStepper({ studyOn: true });
+    fireEvent.click(screen.getByText('Study settings'));
+    fireEvent.click(screen.getByRole('radio', { name: 'Definition' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Strict mode' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Multiple choice' }));
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Lock study settings' })
+    );
+    assign();
+    await waitFor(() => expect(onAssign).toHaveBeenCalled());
+    const { input } = lastSubmission(onAssign);
+    expect(input.kind).toBe('study');
+    expect(input.studySettings).toEqual({
+      showFirst: 'definition',
+      shuffle: false,
+      strict: true,
+      testTypes: ['fib'],
+      locked: true,
+    });
+    await waitFor(() => expect(lastUsed.save).toHaveBeenCalled());
+    const saved = lastUsed.save.mock.calls[0][0] as FlashcardAssignRules;
+    expect(saved.study?.locked).toBe(true);
+  });
+
+  it('adds fill in the blank to multiple choice alone on a deck under 4 cards', async () => {
+    lastUsed.value = {
+      ...DEFAULT_FLASHCARD_ASSIGN_FORM,
+      study: {
+        showFirst: 'term',
+        shuffle: true,
+        strict: false,
+        testTypes: ['mc'],
+        locked: false,
+      },
+    };
+    const { onAssign } = renderStepper({ studyOn: true, set: makeSet(3) });
+    assign();
+    await waitFor(() => expect(onAssign).toHaveBeenCalled());
+    expect(lastSubmission(onAssign).input.studySettings?.testTypes).toEqual([
+      'mc',
+      'fib',
+    ]);
+    expect(lastSubmission(onAssign).input.studySettings?.shuffle).toBe(true);
+  });
+
+  it('stamps no study settings on a check', async () => {
+    const { onAssign } = renderStepper({ studyOn: true });
+    fireEvent.click(
+      screen.getByRole('radio', { name: /Students submit work/ })
+    );
+    assign();
+    await waitFor(() => expect(onAssign).toHaveBeenCalled());
+    expect(lastSubmission(onAssign).input.studySettings).toBeUndefined();
   });
 
   it('assigns a check with the last-used rules and saves them', async () => {

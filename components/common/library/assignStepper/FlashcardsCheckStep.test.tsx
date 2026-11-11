@@ -17,7 +17,8 @@ const record = (value: FlashcardsCheckValue): void => {
 const Harness: React.FC<{
   initial?: Partial<FlashcardsCheckValue>;
   cardCount?: number;
-}> = ({ initial, cardCount = 24 }) => {
+  termOnly?: boolean;
+}> = ({ initial, cardCount = 24, termOnly }) => {
   const [value, setValue] = useState<FlashcardsCheckValue>({
     ...DEFAULTS,
     ...initial,
@@ -30,6 +31,7 @@ const Harness: React.FC<{
         setValue(next);
       }}
       cardCount={cardCount}
+      termOnly={termOnly}
     />
   );
 };
@@ -47,6 +49,13 @@ describe('formatFlashcardsModeValue', () => {
 });
 
 describe('FlashcardsCheckStep', () => {
+  it('leaves out Write and Test when cards have no definition', () => {
+    render(<Harness termOnly />);
+    expect(screen.getByRole('radio', { name: 'Flashcards' })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Write' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Test' })).toBeNull();
+  });
+
   it('shows mastery only in Flashcards mode and strict only outside it', () => {
     render(<Harness />);
     expect(screen.getByLabelText('Correct in a row to master')).toBeTruthy();
