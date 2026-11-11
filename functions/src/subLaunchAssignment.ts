@@ -48,6 +48,7 @@ const MAX_ROSTERS = 20;
 const STIMULUS_QUOTES_FEATURE = 'quiz-stimulus-quotes';
 const CROSS_OUT_FEATURE = 'quiz-cross-out';
 const ORDERING_LIST_FEATURE = 'quiz-ordering-list';
+const INPUT_SIGNALS_FEATURE = 'input-signals';
 const STIMULUS_TABS_FEATURE = 'quiz-stimulus-tabs';
 const REVIEW_STEP_FEATURE = 'quiz-review-step';
 const ANONYMOUS_JOIN_FEATURE = 'anonymous-join';
@@ -1446,6 +1447,11 @@ export async function handleLaunchSubAssignment(
     hostUid,
     ORDERING_LIST_FEATURE
   );
+  const inputSignalsOn = await deps.hostHasFeature(
+    db,
+    hostUid,
+    INPUT_SIGNALS_FEATURE
+  );
   const stimulusTabsOn = await deps.hostHasFeature(
     db,
     hostUid,
@@ -1472,6 +1478,7 @@ export async function handleLaunchSubAssignment(
     ...(stimulusQuotesOn ? { allowStimulusQuotes: true } : {}),
     ...(crossOutOn ? { allowCrossOut: true } : {}),
     ...(orderingListOn ? { orderingList: true } : {}),
+    ...(inputSignalsOn ? { inputSignals: true } : {}),
     ...(stimulusTabsOn ? { stimulusTabs: true } : {}),
     ...(reviewStepOn && session.sessionMode === 'student'
       ? { reviewStep: true }

@@ -5,6 +5,7 @@ import {
   Hand,
   ImageOff,
   Lock,
+  MousePointerClick,
   Unlock,
 } from 'lucide-react';
 import { QuizSession, QuizConfig, StudentOverride } from '@/types';
@@ -12,6 +13,7 @@ import {
   AwayNowChip,
   TabExitsPopover,
 } from '@/components/common/TabExitsPopover';
+import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { studentCanEnter } from '@/utils/periodAccess';
@@ -451,6 +453,35 @@ export const RosterList: React.FC<RosterListProps> = ({
                 </span>
               </TabExitsPopover>
             )}
+            <InputSignalsBadge
+              signals={r.inputSignals}
+              completedAttempts={r.completedAttempts}
+              completed={r.status === 'completed'}
+              answers={
+                session.sessionMode === 'student' ? r.answers : undefined
+              }
+              studentName={s.name}
+            >
+              {(count) => (
+                <span
+                  className="inline-flex items-center text-amber-700 font-sans font-semibold tabular-nums"
+                  title={`${count} unusual input ${count === 1 ? 'sign' : 'signs'}`}
+                  style={{
+                    gap: 'min(2px, 0.5cqmin)',
+                    fontSize: 'min(11px, 3.8cqmin)',
+                  }}
+                >
+                  <MousePointerClick
+                    aria-hidden
+                    style={{
+                      width: 'min(12px, 4cqmin)',
+                      height: 'min(12px, 4cqmin)',
+                    }}
+                  />
+                  {count}
+                </span>
+              )}
+            </InputSignalsBadge>
             {locked && (
               <Lock
                 className="text-brand-gray-primary"

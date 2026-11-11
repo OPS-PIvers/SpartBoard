@@ -22,6 +22,7 @@ import React, {
 } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
+import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import {
   ArrowLeft,
   FileSpreadsheet,
@@ -45,6 +46,7 @@ import {
   Eye,
   EyeOff,
   MinusCircle,
+  MousePointerClick,
   Printer,
   UserCheck,
 } from 'lucide-react';
@@ -4356,6 +4358,7 @@ const StudentsScreen: React.FC<{
   view,
   onViewChange,
 }) => {
+  const questionOrder = useMemo(() => questions.map((q) => q.id), [questions]);
   const { t } = useTranslation();
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
@@ -4786,6 +4789,29 @@ const StudentsScreen: React.FC<{
                       </span>
                     </TabExitsPopover>
                   )}
+                  <InputSignalsBadge
+                    signals={r.inputSignals}
+                    completedAttempts={r.completedAttempts}
+                    completed={r.status === 'completed'}
+                    answers={
+                      session?.sessionMode === 'student' ? r.answers : undefined
+                    }
+                    studentName={displayName}
+                    questionOrder={questionOrder}
+                  >
+                    {(count) => (
+                      <span
+                        title={`${count} unusual input ${count === 1 ? 'sign' : 'signs'}`}
+                        className="shrink-0"
+                      >
+                        <SessionBadge
+                          tone="warn"
+                          icon={MousePointerClick}
+                          label={`${count}`}
+                        />
+                      </span>
+                    )}
+                  </InputSignalsBadge>
                   {/* Results-view lockout indicator. Student crossed the
                   `protection.tabWarningThreshold` while viewing
                   published results — the student app redirected

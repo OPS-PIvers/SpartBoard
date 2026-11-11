@@ -44,6 +44,7 @@ import {
   StickyNote,
   Table2,
   Target,
+  MousePointerClick,
   TextCursorInput,
   Timer,
   UserSearch,
@@ -1507,6 +1508,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Target,
     description:
       'Block copy, paste and print, and require fullscreen, on quizzes and video activities.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Unusual-input flags on quizzes. Admin-only until Paul has tested it in prod.
+  'input-signals': {
+    label: 'Unusual input flags',
+    icon: MousePointerClick,
+    description:
+      'Flags quiz answers that look entered by another app: clicks with no mouse movement, machine-like typing, pasted text.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',

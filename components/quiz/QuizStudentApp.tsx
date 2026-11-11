@@ -162,6 +162,7 @@ import {
   Rubric,
   StudentOverride,
   TabExit,
+  InputSignalCounts,
   QuizStimulus,
   isFreeResponseType,
   isAnswerSubmitted,
@@ -259,6 +260,7 @@ import {
   useMyQuizAttempts,
 } from '@/hooks/useQuizResponseAttempts';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { useInputSignals } from '@/hooks/useInputSignals';
 import { isHandedOff } from '@/utils/attemptHandOff';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
@@ -578,6 +580,7 @@ const QuizJoinFlow: React.FC<{
     completeQuiz,
     reportTabSwitch,
     saveTabExits,
+    saveInputSignals,
     setHandRaised,
     startAttemptClock,
     submitPart,
@@ -1795,6 +1798,7 @@ const QuizJoinFlow: React.FC<{
               onComplete={handleComplete}
               reportTabSwitch={reportTabSwitch}
               saveTabExits={saveTabExits}
+              saveInputSignals={isViewOnly ? undefined : saveInputSignals}
               onSetHandRaised={setHandRaised}
               onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
               onSubmitPart={isViewOnly ? undefined : submitPart}
@@ -1951,6 +1955,10 @@ export const ActiveQuiz: React.FC<{
   onComplete: (opts?: { timeUp?: boolean }) => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   saveTabExits?: (exits: TabExit[]) => Promise<void>;
+  saveInputSignals?: (
+    attempt: number,
+    counts: Record<string, InputSignalCounts>
+  ) => Promise<void>;
   onSetHandRaised: (raised: boolean) => Promise<void>;
   /** Stamps a missing attempt start once a time limit applies. */
   onStartAttemptClock?: () => Promise<void>;
@@ -1989,6 +1997,7 @@ export const ActiveQuiz: React.FC<{
   onComplete,
   reportTabSwitch,
   saveTabExits,
+  saveInputSignals,
   onSetHandRaised,
   onStartAttemptClock,
   onSubmitPart,
@@ -2473,6 +2482,20 @@ export const ActiveQuiz: React.FC<{
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  // Unusual-input counters; stamped on the session only with the input-signals flag.
+  useInputSignals({
+    enabled:
+      session.inputSignals === true &&
+      tabWarningsEnabled &&
+      session.status === 'active' &&
+      !isAttemptSubmitted(myResponse),
+    ready: myResponse != null,
+    attempt: myResponse?.completedAttempts ?? 0,
+    questionId: currentQuestion?.id,
+    serverSignals: myResponse?.inputSignals,
+    save: saveInputSignals,
+  });
+
   // Sections (QUIZ_EXAMVIEW_IMPORT.md E12, E13): the intro shows once per section.
   const [seenSections, setSeenSections] = useState<ReadonlySet<string>>(
     () => new Set()
