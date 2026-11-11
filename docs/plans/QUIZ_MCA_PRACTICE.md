@@ -63,13 +63,13 @@ No code in Quiz knows about MCA. If MDE changes its site, only the script breaks
   - **Dropdown:** each blank has its own list of choices (MCA inline choice).
   - **Drag:** one shared word bank of chips dragged or tapped into the blanks (MCA gap match), with **Words can be used more than once** (off by default).
 - **M7.** Saved as optional fields on the FIB question (`blankType`, and the choices per blank or for the bank). The key and `scoreFibBlanks` are unchanged, so results, score overrides, PLC math and exports need no change, and a previous client shows text boxes that still grade when the student types the choice.
-- **M8.** Choices are student-facing and travel with the public question; the key does not. The word bank shuffles; a dropdown keeps the authored order. On save, every blank's answer must be among its choices.
+- **M8.** Choices are student-facing and travel with the public question; the key does not. The word bank shuffles; a dropdown keeps the authored order. On save, every blank's answer must be among its choices. PR 1 covers every producer and reader of the public FIB question, not only the client's `toPublicQuestion`: the server copy for sub-launched quizzes (`publicQuestionFromKey` in `functions/src/subLaunchAssignment.ts`) and the read-aloud part resolver (`functions/src/quizReadAloud.ts`) both keep only the fields they list.
 - **M9.** No any-order setting. A word bank whose words are used once cannot produce "heat, heat, heat", so "any order" is each blank accepting the other words through the existing accepted-alternates list. Known gap: typed blanks still cannot be graded as a set.
 - **M10.** Drag reuses the dnd-kit base, tap-to-place and keyboard support from Matching. Read-aloud reads the sentence, then the choices. Paper answer sheets print dropdown choices in brackets after the blank and the word bank under the sentence.
 
 ### Stimulus tabs (PR 2)
 
-- **M11.** One stimulus panel beside the question. When a question has two or more stimuli in the panel they show as tabs, for every quiz; existing quizzes change to match. The first tab opens by default and the panel stays resizable.
+- **M11.** One stimulus panel beside the question. When a question has two or more stimuli in the panel they show as tabs, for every quiz; existing quizzes change to match once the flag opens (M5). Until then the tabbed layout and the M13 picture move reach only sessions started by a teacher who has `quiz-stimulus-tabs`. The first tab opens by default and the panel stays resizable.
 - **M12.** Tab names come from a new student-visible `tabLabel` on the stimulus ("Tab A", "Source 2"), kept in the session doc. Unnamed tabs are numbered. The authoring-only `label` is unchanged.
 - **M13.** Where a picture goes: an image stimulus used by two or more questions moves into the panel as a tab; an image used by one question stays above that question. A per-stimulus **Show beside the question / Show in the question** override covers the exceptions. Audio and video stay inline.
 - **M14.** The calculator stays in the panel as the last tab, named "Calculator".
@@ -125,17 +125,17 @@ No code in Quiz knows about MCA. If MDE changes its site, only the script breaks
 
 ## PR sequence
 
-| PR  | Scope                                                                                  | Flag (proposed)                                                         | Depends on                      |
-| --- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------- |
-| 1   | Blank types: Typed / Dropdown / Drag (M6–M10)                                          | `quiz-blank-types`                                                      | —                               |
-| 2   | Stimulus tabs, `tabLabel`, shared pictures in the panel (M11–M15)                      | `quiz-stimulus-tabs` gates authoring; the layout change is for everyone | —                               |
-| 3   | Explanations and Show explanations (M16–M18)                                           | `quiz-explanations`                                                     | —                               |
-| 4   | DOK field, Group by DOK, bank draw filter (M19–M22)                                    | `quiz-dok`                                                              | —                               |
-| 5   | Review before submit, Mark for review (M23–M25)                                        | `quiz-review-step`                                                      | —                               |
-| 6   | District library: collection, targeting rules, linked banks and quizzes (M26–M28, M30) | `district-library`                                                      | —                               |
-| 7   | District library admin screen and package upload (M29, M31)                            | behind PR 6's flag                                                      | PR 6                            |
-| 8   | MDE script and package writer (M32–M33)                                                | none (tooling)                                                          | PR 7; PRs 1–4 for full fidelity |
-| 9   | Science package for grades 5, 8 and HS, validated and published (M34–M35)              | none (content)                                                          | PR 8                            |
+| PR  | Scope                                                                                  | Flag (proposed)                                                    | Depends on                      |
+| --- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------- |
+| 1   | Blank types: Typed / Dropdown / Drag (M6–M10)                                          | `quiz-blank-types`                                                 | —                               |
+| 2   | Stimulus tabs, `tabLabel`, shared pictures in the panel (M11–M15)                      | `quiz-stimulus-tabs` gates authoring and the student layout change | —                               |
+| 3   | Explanations and Show explanations (M16–M18)                                           | `quiz-explanations`                                                | —                               |
+| 4   | DOK field, Group by DOK, bank draw filter (M19–M22)                                    | `quiz-dok`                                                         | —                               |
+| 5   | Review before submit, Mark for review (M23–M25)                                        | `quiz-review-step`                                                 | —                               |
+| 6   | District library: collection, targeting rules, linked banks and quizzes (M26–M28, M30) | `district-library`                                                 | —                               |
+| 7   | District library admin screen and package upload (M29, M31)                            | behind PR 6's flag                                                 | PR 6                            |
+| 8   | MDE script and package writer (M32–M33)                                                | none (tooling)                                                     | PR 7; PRs 1–4 for full fidelity |
+| 9   | Science package for grades 5, 8 and HS, validated and published (M34–M35)              | none (content)                                                     | PR 8                            |
 
 PRs 6–7 have no dependency on PRs 1–5 and can be built alongside them. The flag ids are proposals; rename them in the PR that adds each one.
 
@@ -143,7 +143,7 @@ Coverage of the 48 grade 8 science items in their real format: 24 today; 42 afte
 
 ## Rules and compatibility notes
 
-- PR 2 changes what students see on existing quizzes with several stimuli. It needs a changelog entry when it reaches `main`, and a check of every stimulus type in the tabbed panel on a phone and a Chromebook.
+- PR 2 changes what students see on existing quizzes with several stimuli. That change sits behind the PR's flag; its changelog entry is written when the flag opens to everyone. It also needs a check of every stimulus type in the tabbed panel on a phone and a Chromebook.
 - PR 3 adds a field to the response doc and PR 6 adds a collection with targeting rules. Check the compiled rules size with `node scripts/releaseFirestoreRules.mjs spartboard-dev` before either reaches `main`.
 - PR 5 changes how a self-paced quiz ends. A previous client still submits on the last answer; both must grade the same.
 
