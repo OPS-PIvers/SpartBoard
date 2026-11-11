@@ -255,6 +255,31 @@ describe('convertItems', () => {
     );
   });
 
+  it('puts tab stimuli in the panel', () => {
+    const stimuli = (run().banks as unknown as Bank[]).flatMap(
+      (b) => b.bank.stimuli
+    ) as { tabLabel?: string; placement?: string }[];
+    for (const s of stimuli.filter((x) => x.tabLabel)) {
+      expect(s.placement).toBe('panel');
+    }
+  });
+
+  it('fails validation on a keyless question, an unknown type or an oversized bank', () => {
+    const r = run();
+    const q = r.banks[0].bank.questions[0] as {
+      type: string;
+      correctAnswer: string;
+    };
+    const saved = { ...q };
+    q.correctAnswer = '';
+    q.type = 'MC';
+    expect(validateRun(r, items).join()).toMatch(/has no key/);
+    q.type = 'Weird';
+    expect(validateRun(r, items).join()).toMatch(/unknown type/);
+    Object.assign(q, saved);
+    expect(validateRun(r, items)).toEqual([]);
+  });
+
   it('validates that every listed item is accounted for', () => {
     const r = run();
     expect(validateRun(r, items)).toEqual([]);
@@ -271,6 +296,9 @@ describe('writePackage', () => {
     }
     for (const f of r.pictures.figures) {
       pictures.set(`pictures/${f.file}`, Buffer.from('png'));
+    }
+    for (const c of r.pictures.charts) {
+      pictures.set(`pictures/${c.file}`, Buffer.from('png'));
     }
     const bytes = await writePackage({
       banks: r.banks,

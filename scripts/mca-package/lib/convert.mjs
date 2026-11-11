@@ -328,6 +328,7 @@ export function convertItems({
       return {
         id: stableId('tab', set.key, tab.id),
         type: 'image',
+        placement: 'panel',
         url: `pictures/${file}`,
         label: `${set.title}: ${tab.title}`,
         [NEW_FIELDS.tabLabel]: tab.title,
@@ -370,6 +371,10 @@ export function convertItems({
   };
 }
 
+const QUESTION_TYPES = new Set(['MC', 'MA', 'FIB', 'Matching', 'Ordering', 'free-response']);
+// Conservative cap on one bank file; align with the District library validator.
+export const MAX_BANK_BYTES = 900_000;
+
 /** Checks the run against what the plan asks of a package (M34); returns problems, empty when sound. */
 export function validateRun(result, listed) {
   const problems = [];
@@ -388,9 +393,21 @@ export function validateRun(result, listed) {
     for (const q of b.bank.questions) {
       if (ids.has(q.id)) problems.push(`Duplicate question id ${q.id}`);
       ids.add(q.id);
+      if (!QUESTION_TYPES.has(q.type)) {
+        problems.push(`Question ${q.id} in "${b.title}" has unknown type ${q.type}`);
+      }
       if (q.type !== 'free-response' && !q.correctAnswer) {
         problems.push(`Question ${q.id} in "${b.title}" has no key`);
       }
+    }
+    for (const slot of b.bank.bankSlots ?? []) {
+      if (slot.count > b.bank.questions.length) {
+        problems.push(`Bank draw in "${b.title}" asks for more questions than the bank holds`);
+      }
+    }
+    const bytes = Buffer.byteLength(JSON.stringify(b.bank));
+    if (bytes > MAX_BANK_BYTES) {
+      problems.push(`Bank "${b.title}" is ${bytes} bytes, over the ${MAX_BANK_BYTES} cap`);
     }
     for (const s of b.bank.stimuli) {
       if (!known.has(s.url)) problems.push(`Missing picture ${s.url} in "${b.title}"`);
