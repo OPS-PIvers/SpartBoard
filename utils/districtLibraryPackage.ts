@@ -282,19 +282,45 @@ const FIB_BLANK_RE = /_{2,}/g;
 function checkKeyShape(q: Rec, qPath: string, errors: string[]): void {
   const key = typeof q.correctAnswer === 'string' ? q.correctAnswer : '';
   const wrong = isStrList(q.incorrectAnswers) ? q.incorrectAnswers : [];
-  if (q.type === 'FIB' && key.includes(FIB_BLANK_SEP)) {
+  if (q.type === 'FIB') {
     const blanks = key.split(FIB_BLANK_SEP);
     const inText =
       typeof q.text === 'string'
         ? (q.text.match(FIB_BLANK_RE)?.length ?? 0)
         : 0;
-    if (blanks.length !== inText) {
+    // A one-part key is fine for a stem that marks its blank another way, but not for two or more written blanks.
+    if (blanks.length > 1 ? blanks.length !== inText : inText > 1) {
       errors.push(
-        `${qPath}: the key has ${blanks.length} blanks but the text has ${inText}.`
+        `${qPath}: the key has ${blanks.length} ${blanks.length === 1 ? 'blank' : 'blanks'} but the text has ${inText}.`
       );
     }
     if (blanks.some((b) => b.trim() === '')) {
       errors.push(`${qPath}: a blank in the key is empty.`);
+    }
+    if (q.blankType === 'dropdown') {
+      const choices = Array.isArray(q.blankChoices) ? q.blankChoices : [];
+      blanks.forEach((answer, i) => {
+        const list: unknown = isRec(choices[i])
+          ? choices[i].choices
+          : undefined;
+        const ok =
+          isStrList(list) && list.some((c) => c.trim() === answer.trim());
+        if (!ok) {
+          errors.push(
+            `${qPath}: blank ${i + 1}'s answer is not one of its dropdown choices.`
+          );
+        }
+      });
+    }
+    if (q.blankType === 'drag') {
+      const bank = isStrList(q.wordBank) ? q.wordBank.map((w) => w.trim()) : [];
+      blanks.forEach((answer, i) => {
+        if (!bank.includes(answer.trim())) {
+          errors.push(
+            `${qPath}: blank ${i + 1}'s answer is not in the word bank.`
+          );
+        }
+      });
     }
   }
   if (q.type === 'MA') {

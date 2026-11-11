@@ -492,11 +492,14 @@ export async function setDistrictLibraryStatus(
   status: DistrictLibraryStatus,
   uid: string
 ): Promise<void> {
-  await updateItemAndIndex(itemId, (current) =>
-    current.status === status
-      ? null
-      : { status, updatedAt: Date.now(), updatedBy: uid }
-  );
+  await updateItemAndIndex(itemId, (current) => {
+    if (current.status === status) return null;
+    // A draft whose first upload never finished has no content to send anyone.
+    if (status === 'published' && !(current.contentVersion > 0)) {
+      throw new Error('Upload this item again before publishing it.');
+    }
+    return { status, updatedAt: Date.now(), updatedBy: uid };
+  });
 }
 
 /** Removes an item from the library and the index. Its content and pictures stay so teachers' copies and assigned quizzes keep working. */

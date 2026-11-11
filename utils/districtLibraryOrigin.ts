@@ -110,3 +110,16 @@ export function responsesAnsweringRemoved(
   ).length;
   return { removed, responseCount };
 }
+
+/** The removed-questions warning before Sync to latest: District library copies only, and never when bank draws are involved, whose served ids never match the canonical's fixed questions. */
+export function shouldCheckSyncRemovals(input: {
+  linkedCopy: boolean;
+  assignmentDrewFromBanks: boolean;
+  canonicalHasDraws: boolean;
+}): boolean {
+  return (
+    input.linkedCopy &&
+    !input.assignmentDrewFromBanks &&
+    !input.canonicalHasDraws
+  );
+}

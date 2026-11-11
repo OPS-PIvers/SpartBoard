@@ -427,6 +427,21 @@ describe('district canonicals', () => {
     await assertFails(getDoc(doc(asMiddle(), 'district_library/draft-1')));
   });
 
+  it('an item with no finished upload cannot be published', async () => {
+    await assertFails(
+      setDoc(
+        doc(asAdmin(), 'district_library/empty-1'),
+        item({ id: 'empty-1', status: 'published', contentVersion: 0 })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asAdmin(), 'district_library/empty-1'),
+        item({ id: 'empty-1', status: 'draft', contentVersion: 0 })
+      )
+    );
+  });
+
   it('the canonical id and kind are fixed once the draft exists', async () => {
     await assertFails(
       updateDoc(doc(asAdmin(), 'district_library/item-1'), {

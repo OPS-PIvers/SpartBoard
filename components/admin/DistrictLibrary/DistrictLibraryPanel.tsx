@@ -383,8 +383,9 @@ export const DistrictLibraryPanel: React.FC = () => {
           )}
           {plan.some((p) => p.action === 'update') && (
             <p className="mt-2 text-xs text-slate-600">
-              Replaced items reach teachers&apos; copies right away. Quizzes
-              already assigned keep the version they were assigned with.
+              A correction reaches a teacher&apos;s copy the next time they open
+              Quiz with Drive connected. An existing assignment keeps its
+              questions unless the teacher chooses Sync to latest.
             </p>
           )}
           <div className="mt-3 flex items-center gap-2">
@@ -470,7 +471,15 @@ export const DistrictLibraryPanel: React.FC = () => {
                   <div className="flex shrink-0 flex-wrap items-center gap-1">
                     <button
                       type="button"
-                      disabled={busy}
+                      disabled={
+                        busy ||
+                        (item.status === 'draft' && !(item.contentVersion > 0))
+                      }
+                      title={
+                        item.contentVersion > 0
+                          ? undefined
+                          : 'Its upload did not finish. Upload the package again first.'
+                      }
                       onClick={() => void togglePublished(item)}
                       {...tourFieldAttr(
                         'admin.district-library.publish',

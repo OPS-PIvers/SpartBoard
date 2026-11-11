@@ -93,6 +93,7 @@ describe('validateDistrictPackage', () => {
   it('passes the new question and stimulus fields through untouched', () => {
     const fib = question('q3', {
       type: 'FIB',
+      correctAnswer: 'heat',
       blankType: 'dropdown',
       blankChoices: [{ choices: ['heat', 'light'] }],
       wordBank: ['heat', 'light'],
@@ -301,6 +302,66 @@ describe('validateDistrictPackage', () => {
         text: 'Heat flows from ____ to ____.',
         correctAnswer: `hot${SEP} `,
         incorrectAnswers: [],
+      })
+    ).toBe(false);
+  });
+
+  it('rejects FIB keys that do not fit their blanks, dropdowns or word bank', () => {
+    const fib = (extra: Record<string, unknown>) => {
+      const file = bankFile();
+      file.questions[1] = question('q2', {
+        type: 'FIB',
+        incorrectAnswers: [],
+        ...extra,
+      });
+      return run([bankEntry()], file).ok;
+    };
+    // One-part key for a stem with two written blanks.
+    expect(fib({ text: 'From ____ to ____.', correctAnswer: 'hot' })).toBe(
+      false
+    );
+    expect(fib({ text: 'Heat flows from ____.', correctAnswer: 'hot' })).toBe(
+      true
+    );
+    // Dropdown: the answer must be one of that blank's choices.
+    expect(
+      fib({
+        text: 'Heat flows from ____.',
+        correctAnswer: 'hot',
+        blankType: 'dropdown',
+        blankChoices: [{ choices: ['hot', 'cold'] }],
+      })
+    ).toBe(true);
+    expect(
+      fib({
+        text: 'Heat flows from ____.',
+        correctAnswer: 'warm',
+        blankType: 'dropdown',
+        blankChoices: [{ choices: ['hot', 'cold'] }],
+      })
+    ).toBe(false);
+    expect(
+      fib({
+        text: 'Heat flows from ____.',
+        correctAnswer: 'hot',
+        blankType: 'dropdown',
+      })
+    ).toBe(false);
+    // Drag: the answer must be in the word bank.
+    expect(
+      fib({
+        text: 'Heat flows from ____.',
+        correctAnswer: 'hot',
+        blankType: 'drag',
+        wordBank: ['hot', 'cold'],
+      })
+    ).toBe(true);
+    expect(
+      fib({
+        text: 'Heat flows from ____.',
+        correctAnswer: 'warm',
+        blankType: 'drag',
+        wordBank: ['hot', 'cold'],
       })
     ).toBe(false);
   });

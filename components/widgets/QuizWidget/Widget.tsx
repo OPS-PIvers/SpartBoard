@@ -4613,7 +4613,16 @@ const TeacherQuizWidget: React.FC<{
         }}
         onSyncAssignment={async (a) => {
           try {
-            const { removed, responseCount } = await previewSyncRemovals(a.id);
+            const quizMeta = quizzes.find((q) => q.id === a.quizId);
+            // Only District library copies get this check; a failed check never blocks the sync.
+            const { removed, responseCount } = await previewSyncRemovals(a.id, {
+              linkedCopy: !!quizMeta && isDistrictCopy(quizMeta),
+            }).catch((err: unknown) => {
+              logError('Widget.onSyncAssignment.preview', err, {
+                assignmentId: a.id,
+              });
+              return { removed: [] as string[], responseCount: 0 };
+            });
             if (responseCount > 0) {
               const ok = await showConfirm(
                 `The latest version drops ${removed.length} ${removed.length === 1 ? 'question' : 'questions'} that ${responseCount} ${responseCount === 1 ? 'student has' : 'students have'} already answered. Syncing removes those questions from this assignment. Sync anyway?`,

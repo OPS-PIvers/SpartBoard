@@ -163,7 +163,10 @@ describe('isTargetedAt (mirrors dlTargeted in firestore.rules)', () => {
 });
 
 describe('index', () => {
-  const item = (id: string, overrides: Partial<DistrictLibraryItem>) => ({
+  const item = (
+    id: string,
+    overrides: Partial<DistrictLibraryItem>
+  ): DistrictLibraryItem => ({
     id,
     kind: 'bank',
     title: id,

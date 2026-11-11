@@ -2523,6 +2523,8 @@ service cloud.firestore {
         && isList('targetEmails') && isList('gradeBuildings')
         && isInt('createdAt') && isInt('updatedAt')
         && optMap(incoming(), 'questionNotes')
+        // Nothing is published before its first upload finishes.
+        && (incoming().status != 'published' || incoming().contentVersion > 0)
         // The random canonical id is minted once with the draft; it is never derived or swapped.
         && (resource == null || (unchanged('syncGroupId') && unchanged('kind')));
       allow delete: if isSiteAdmin();

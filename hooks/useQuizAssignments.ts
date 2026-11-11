@@ -206,7 +206,10 @@ import {
   END_TURN_IN_DELAY_MS,
   finalizeOpenQuizResponses,
 } from '@/utils/quizFinalizeOpenResponses';
-import { responsesAnsweringRemoved } from '@/utils/districtLibraryOrigin';
+import {
+  responsesAnsweringRemoved,
+  shouldCheckSyncRemovals,
+} from '@/utils/districtLibraryOrigin';
 
 /** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
 async function commitQuizLifecycle(
@@ -598,7 +601,8 @@ export interface UseQuizAssignmentsResult {
    */
   /** Questions the latest version drops and how many responses already answered them, read before a sync. */
   previewSyncRemovals: (
-    assignmentId: string
+    assignmentId: string,
+    options: { linkedCopy: boolean }
   ) => Promise<{ removed: string[]; responseCount: number }>;
   syncAssignmentToLatest: (assignmentId: string) => Promise<{
     /** True iff the rebuild actually ran (false = already at latest). */
@@ -3006,9 +3010,10 @@ export const useQuizAssignments = (
   const previewSyncRemovals = useCallback<
     UseQuizAssignmentsResult['previewSyncRemovals']
   >(
-    async (assignmentId) => {
-      if (!userId) throw new Error('Not authenticated');
+    async (assignmentId, { linkedCopy }) => {
       const none = { removed: [], responseCount: 0 };
+      // Ordinary synced assignments skip this entirely, so their sync reads and behaves as before.
+      if (!userId || !linkedCopy) return none;
       const assignmentSnap = await getDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
@@ -3021,6 +3026,16 @@ export const useQuizAssignments = (
         )
       );
       if (!assignment.sync) return none;
+      const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
+      if (
+        !shouldCheckSyncRemovals({
+          linkedCopy,
+          assignmentDrewFromBanks: !!assignment.resolvedDriveFileId,
+          canonicalHasDraws: quizHasBankSlots(canonical),
+        })
+      ) {
+        return none;
+      }
       const sessionSnap = await getDoc(
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
       );
@@ -3040,7 +3055,7 @@ export const useQuizAssignments = (
             ).data() as QuizSessionContent | undefined)
           : session;
       const previousIds = (served?.publicQuestions ?? []).map((pq) => pq.id);
-      const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
+      // The canonical's own fixed questions; draws were excluded above.
       const nextIds = canonical.questions.map((q) => q.id);
       if (previousIds.every((id) => nextIds.includes(id))) return none;
       const responsesSnap = await getDocs(

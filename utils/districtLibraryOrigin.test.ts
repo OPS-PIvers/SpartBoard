@@ -8,6 +8,7 @@ import {
   hasDistrictContent,
   isDistrictLinkedCopy,
   responsesAnsweringRemoved,
+  shouldCheckSyncRemovals,
 } from './districtLibraryOrigin';
 
 // A typed-but-unset mark, as on an ordinary QuizQuestion.
@@ -109,5 +110,35 @@ describe('responsesAnsweringRemoved', () => {
       removed: [],
       responseCount: 0,
     });
+  });
+});
+
+describe('shouldCheckSyncRemovals', () => {
+  it('checks only a District library copy with fixed questions', () => {
+    const base = {
+      linkedCopy: true,
+      assignmentDrewFromBanks: false,
+      canonicalHasDraws: false,
+    };
+    expect(shouldCheckSyncRemovals(base)).toBe(true);
+    // Ordinary synced assignments behave as before: no extra check.
+    expect(shouldCheckSyncRemovals({ ...base, linkedCopy: false })).toBe(false);
+  });
+
+  it('never checks a quiz with a random draw, whose drawn questions would all look removed', () => {
+    expect(
+      shouldCheckSyncRemovals({
+        linkedCopy: true,
+        assignmentDrewFromBanks: true,
+        canonicalHasDraws: true,
+      })
+    ).toBe(false);
+    expect(
+      shouldCheckSyncRemovals({
+        linkedCopy: true,
+        assignmentDrewFromBanks: false,
+        canonicalHasDraws: true,
+      })
+    ).toBe(false);
   });
 });
