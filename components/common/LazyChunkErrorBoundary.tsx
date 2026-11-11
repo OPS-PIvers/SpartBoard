@@ -6,6 +6,11 @@ import { LazyChunkFailedTile } from './LazyChunkFailedTile';
 
 interface LazyChunkErrorBoundaryProps {
   children: React.ReactNode;
+  // Replaces the widget-sized tile for a boundary outside a widget, where that tile would not be visible.
+  fallback?: (state: {
+    onRetry: () => void;
+    updating: boolean;
+  }) => React.ReactNode;
 }
 
 interface LazyChunkErrorBoundaryState {
@@ -72,6 +77,12 @@ export class LazyChunkErrorBoundary extends React.Component<
   override render() {
     const { error, reloadInFlight } = this.state;
     if (!error) return this.props.children;
+    if (this.props.fallback) {
+      return this.props.fallback({
+        onRetry: this.handleRetry,
+        updating: reloadInFlight,
+      });
+    }
 
     if (reloadInFlight) {
       return (
