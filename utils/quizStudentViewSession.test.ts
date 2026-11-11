@@ -119,3 +119,20 @@ describe('withFocusSettings', () => {
     ).toBe(true);
   });
 });
+
+describe('buildStudentViewSession stimulus tabs and review step', () => {
+  it('stamps neither without the teacher’s flags', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
+    expect(s).not.toHaveProperty('stimulusTabs');
+    expect(s).not.toHaveProperty('reviewStep');
+  });
+
+  it('stamps both with the flags, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, false, {
+      stimulusTabs: true,
+      reviewStep: true,
+    });
+    expect(s.stimulusTabs).toBe(true);
+    expect(s.reviewStep).toBe(true);
+  });
+});

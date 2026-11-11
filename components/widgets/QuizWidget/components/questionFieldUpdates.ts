@@ -52,11 +52,26 @@ export function fibPromptUpdate(
   if (isMultiBlank(q)) {
     return blanks === fibBlankCount(q)
       ? { text }
-      : { text, ...reshapeFibBlanks(q, blanks) };
+      : { text, ...reshapeFibBlanks(q, blanks), ...reshapeChoices(q, blanks) };
   }
   const grew = blanks > countTextBlanks(q.text);
   if (blanks < 2 || !grew) return { text };
-  return { text, ...reshapeFibBlanks(q, blanks) };
+  return { text, ...reshapeFibBlanks(q, blanks), ...reshapeChoices(q, blanks) };
+}
+
+// Dropdown choices follow the blanks, so a new blank gets an empty list to fill.
+function reshapeChoices(
+  q: QuizQuestion,
+  blanks: number
+): Partial<QuizQuestion> {
+  if (q.blankType !== 'dropdown') return {};
+  const count = Math.max(1, blanks);
+  return {
+    blankChoices: Array.from(
+      { length: count },
+      (_, i) => q.blankChoices?.[i] ?? { choices: ['', ''] }
+    ),
+  };
 }
 
 /** Patch for a type switch; null for Multiple Choice on an MA question. */

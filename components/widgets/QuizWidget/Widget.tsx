@@ -3100,6 +3100,8 @@ const TeacherQuizWidget: React.FC<{
             behavior={studentView.behavior}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
             orderingListOn={canAccessFeature('quiz-ordering-list')}
+            stimulusTabsOn={canAccessFeature('quiz-stimulus-tabs')}
+            reviewStepOn={canAccessFeature('quiz-review-step')}
             onExit={() => setStudentView(null)}
           />
         </Suspense>
