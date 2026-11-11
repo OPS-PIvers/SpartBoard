@@ -5075,3 +5075,13 @@ rather than "no data") is also still open.
   - Ready: #5527, #5525, #5523, #5515.
   - Ready with minor notes: #5524 (an import sits apart from the others after a blank line, there's a no-op `toBeTruthy` assertion, and the UrlPickerModal call site has no test) and #5526 (the four new debugger Backlog rows have 2 columns instead of 4).
 - Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.
+
+## 2026-11-11
+
+- PRs reviewed: #5601 test(coverage): cover rubricOverrideResolution; #5596 docs: debugger run 120 log; #5595 fix(admin): calendar background sync writes only synced fields; #5594 fix(hooks): failed profile read no longer evicts a value save() just cached; #5593 Fix help short-link code keeping a trailing dash; #5592 fix(smart-notebook): clipboard denial no longer reports a failed share
+- Comments processed: 6 total. 0 fixed, 0 newly explained. None of the PRs had inline review threads. The only change request was the claude[bot] legacy-key concern on #5595. A later commit already fixed it with a test, and that PR has a reply. The other five bot summaries found no issues and needed no reply.
+- Fixes pushed: none.
+- Reviews posted: 6
+  - Ready: #5601, #5595, #5594, #5593, #5592.
+  - Ready with minor notes: #5596. Its backlog already marks the #5595 lead "fixed", so merge it after #5592-#5595.
+- Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.
