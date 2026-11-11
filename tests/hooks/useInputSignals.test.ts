@@ -30,7 +30,7 @@ function setup(over: Partial<UseInputSignalsArgs> = {}) {
       enabled: true,
       ready: true,
       attempt: 0,
-      questionIndex: 0,
+      questionId: 'q1',
       serverSignals: undefined,
       save,
       ...over,
@@ -47,7 +47,7 @@ afterEach(() => {
 describe('useInputSignals', () => {
   it('saves the question just left, added to an earlier page load', () => {
     const { save, rerender } = setup({
-      serverSignals: { '0': { '0': { clicks: 2 } } },
+      serverSignals: { '0': { q1: { clicks: 2 } } },
     });
     document.body.dispatchEvent(mouse('pointerdown', 10, 10));
     document.body.dispatchEvent(mouse('pointerdown', 400, 400));
@@ -55,12 +55,12 @@ describe('useInputSignals', () => {
       enabled: true,
       ready: true,
       attempt: 0,
-      questionIndex: 1,
+      questionId: 'q2',
       serverSignals: undefined,
       save,
     });
     expect(save).toHaveBeenCalledExactlyOnceWith(0, {
-      '0': { clicks: 4, jumpClicks: 1 },
+      q1: { clicks: 4, jumpClicks: 1 },
     });
   });
 
@@ -72,7 +72,7 @@ describe('useInputSignals', () => {
     button.dispatchEvent(mouse('click', 5, 5, false));
     unmount();
     expect(save).toHaveBeenCalledExactlyOnceWith(0, {
-      '0': { scripted: 1 },
+      q1: { scripted: 1 },
     });
   });
 
@@ -83,11 +83,11 @@ describe('useInputSignals', () => {
       enabled: false,
       ready: true,
       attempt: 2,
-      questionIndex: 0,
+      questionId: 'q1',
       serverSignals: undefined,
       save,
     });
-    expect(save).toHaveBeenCalledExactlyOnceWith(1, { '0': { clicks: 1 } });
+    expect(save).toHaveBeenCalledExactlyOnceWith(1, { q1: { clicks: 1 } });
   });
 
   it('keeps earlier counts across a pause and resume', () => {
@@ -96,7 +96,7 @@ describe('useInputSignals', () => {
       enabled: true,
       ready: true,
       attempt: 0,
-      questionIndex: 0,
+      questionId: 'q1',
       serverSignals: undefined,
       save,
     };
@@ -105,7 +105,7 @@ describe('useInputSignals', () => {
     rerender(props);
     document.body.dispatchEvent(mouse('pointerdown', 12, 12));
     unmount();
-    expect(save).toHaveBeenLastCalledWith(0, { '0': { clicks: 2 } });
+    expect(save).toHaveBeenLastCalledWith(0, { q1: { clicks: 2 } });
   });
 
   it('records and saves nothing while off', () => {

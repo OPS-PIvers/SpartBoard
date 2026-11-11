@@ -110,12 +110,12 @@ describe('inputSignals on quiz responses', () => {
   it('lets the student save and extend their own counters', async () => {
     await assertSucceeds(
       updateDoc(response(asStudent()), {
-        'inputSignals.0': { '0': { clicks: 3, jumpClicks: 2 } },
+        'inputSignals.0': { q1: { clicks: 3, jumpClicks: 2 } },
       })
     );
     await assertSucceeds(
       updateDoc(response(asStudent()), {
-        'inputSignals.0': { '0': { clicks: 5 }, '1': { keys: 12 } },
+        'inputSignals.0': { q1: { clicks: 5 }, q2: { keys: 12 } },
       })
     );
   });
@@ -123,7 +123,7 @@ describe('inputSignals on quiz responses', () => {
   it('refuses another student', async () => {
     await assertFails(
       updateDoc(response(asOther()), {
-        'inputSignals.0': { '0': { clicks: 1 } },
+        'inputSignals.0': { q1: { clicks: 1 } },
       })
     );
   });
@@ -131,7 +131,7 @@ describe('inputSignals on quiz responses', () => {
   it('lets the teacher read them', async () => {
     await assertSucceeds(
       updateDoc(response(asStudent()), {
-        'inputSignals.0': { '0': { scripted: 1 } },
+        'inputSignals.0': { q1: { scripted: 1 } },
       })
     );
     await assertSucceeds(getDoc(response(asTeacher())));

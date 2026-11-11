@@ -1097,6 +1097,7 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
       unlocked: true,
       servedQuestionIds: ['q1'],
       resultsLockedOut: true,
+      inputSignals: { '0': { q1: { pastes: 1 } } },
     };
     const { docs: after } = await call(docs, [
       sheet(2, {
@@ -1113,6 +1114,7 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     expect(doc).not.toHaveProperty('unlocked');
     expect(doc).not.toHaveProperty('servedQuestionIds');
     expect(doc).not.toHaveProperty('resultsLockedOut');
+    expect(doc).not.toHaveProperty('inputSignals');
     expect(doc.answers).toEqual([
       { questionId: 'q9', answer: '<p>typed</p>', answeredAt: 1 },
       { questionId: 'q1', answer: 'C', answeredAt: NOW, status: 'submitted' },

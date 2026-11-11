@@ -650,6 +650,7 @@ describe('the payload allowlist', () => {
     'allowStimulusQuotes',
     'allowCrossOut',
     'orderingList',
+    'inputSignals',
     'liveLeaderboard',
     'classPeriodByClassId',
   ];
@@ -1062,6 +1063,22 @@ describe('the content the session carries', () => {
     await run();
 
     expect(written[0].data).not.toHaveProperty('orderingList');
+  });
+
+  it('stamps input signals only when the host has the flag', async () => {
+    const off = launch();
+    await off.run();
+    expect(off.written[0].data).not.toHaveProperty('inputSignals');
+
+    const hostHasFeature = vi.fn(() => Promise.resolve(true));
+    const on = launch({}, SUB, input(), { ...deps, hostHasFeature });
+    await on.run();
+    expect(hostHasFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      HOST,
+      'input-signals'
+    );
+    expect(on.written[0].data.inputSignals).toBe(true);
   });
 
   it('refuses a key whose quiz has no questions', async () => {

@@ -3,6 +3,7 @@ import {
   InputSignalCollector,
   addSignals,
   describeInputSignals,
+  formatFindingQuestions,
   inputFindingsByAttempt,
   readAttemptSignals,
 } from '@/utils/inputSignals';
@@ -43,14 +44,14 @@ describe('InputSignalCollector pointer', () => {
       humanMove(c, SPOTS[i - 1], SPOTS[i]);
       c.pointerDown(...SPOTS[i]);
     }
-    expect(c.snapshot()['0']).toEqual({ clicks: 5 });
+    expect(c.snapshot()._).toEqual({ clicks: 5 });
     expect(ids(c)).toEqual([]);
   });
 
   it('flags clicks that land far away with no travel', () => {
     const c = new InputSignalCollector(true);
     for (const spot of SPOTS) c.pointerDown(...spot);
-    expect(c.snapshot()['0']).toEqual({ clicks: 5, jumpClicks: 4 });
+    expect(c.snapshot()._).toEqual({ clicks: 5, jumpClicks: 4 });
     expect(ids(c)).toEqual(['jump-clicks']);
   });
 
@@ -58,7 +59,7 @@ describe('InputSignalCollector pointer', () => {
     const c = new InputSignalCollector(true);
     c.pointerDown(200, 200);
     c.pointerDown(203, 201);
-    expect(c.snapshot()['0']).toEqual({ clicks: 2 });
+    expect(c.snapshot()._).toEqual({ clicks: 2 });
   });
 
   it('flags a straight constant-speed path', () => {
@@ -70,7 +71,7 @@ describe('InputSignalCollector pointer', () => {
       for (let i = 19; i >= 0; i -= 1) c.pointerMove(n * 300, i * 15);
       c.pointerDown(n * 300, 0);
     }
-    expect(c.snapshot()['0'].lineClicks).toBeGreaterThanOrEqual(3);
+    expect(c.snapshot()._.lineClicks).toBeGreaterThanOrEqual(3);
     expect(ids(c)).toContain('line-clicks');
   });
 });
@@ -130,7 +131,7 @@ describe('InputSignalCollector typing', () => {
   it('flags text that arrives with no key presses', () => {
     const c = new InputSignalCollector(true);
     c.textInput(180, 9_000, 'typed');
-    expect(c.snapshot()['0']).toEqual({ chars: 180, unkeyedChars: 180 });
+    expect(c.snapshot()._).toEqual({ chars: 180, unkeyedChars: 180 });
     expect(ids(c)).toEqual(['unkeyed-text']);
   });
 
@@ -143,7 +144,7 @@ describe('InputSignalCollector typing', () => {
       () => 0
     );
     c.textInput(40, 60_000, 'typed');
-    const counts = c.snapshot()['0'];
+    const counts = c.snapshot()._;
     expect(counts.instantKeys).toBeUndefined();
     expect(counts.unkeyedChars).toBeUndefined();
   });
@@ -151,7 +152,7 @@ describe('InputSignalCollector typing', () => {
   it('counts composed text as typed', () => {
     const c = new InputSignalCollector(true);
     c.textInput(30, 9_000, 'composed');
-    expect(c.snapshot()['0']).toEqual({ chars: 30 });
+    expect(c.snapshot()._).toEqual({ chars: 30 });
   });
 
   it('counts a paste that lands, including one the editor re-inserts as text', () => {
@@ -160,7 +161,7 @@ describe('InputSignalCollector typing', () => {
     c.textInput(null, 1_001, 'pasted');
     c.paste(70, 2_000);
     c.textInput(70, 2_000, 'typed');
-    expect(c.snapshot()['0']).toEqual({ pastes: 2, pastedChars: 120 });
+    expect(c.snapshot()._).toEqual({ pastes: 2, pastedChars: 120 });
     expect(ids(c)).toEqual(['pasted']);
   });
 
@@ -172,19 +173,22 @@ describe('InputSignalCollector typing', () => {
 });
 
 describe('questions and saving', () => {
-  it('files counts under the question on screen', () => {
+  it('files counts under the id of the question on screen', () => {
     const c = new InputSignalCollector(true);
     c.scripted();
-    c.setQuestion(3);
+    c.setQuestion('q-a');
+    c.scripted();
+    c.setQuestion('q-b');
     c.scripted();
     c.scripted();
     expect(c.snapshot()).toEqual({
-      '0': { scripted: 1 },
-      '3': { scripted: 2 },
+      _: { scripted: 1 },
+      'q-a': { scripted: 1 },
+      'q-b': { scripted: 2 },
     });
     const [finding] = describeInputSignals(c.snapshot());
     expect(finding.id).toBe('scripted');
-    expect(finding.questions).toEqual([1, 4]);
+    expect(finding.questions).toEqual(['q-a', 'q-b']);
   });
 
   it('is dirty only after something was counted', () => {
@@ -209,7 +213,7 @@ describe('questions and saving', () => {
     const forged = {
       '0': {
         '2': { clicks: 3, jumpClicks: -4, keys: 'many', extra: 9 },
-        nope: { clicks: 1 },
+        'no pe': { clicks: 1 },
         '5': 'x',
       },
       '1': 'x',
@@ -255,5 +259,21 @@ describe('inputFindingsByAttempt', () => {
 
   it('is empty with no signals', () => {
     expect(inputFindingsByAttempt(undefined, 0)).toEqual([]);
+  });
+});
+
+describe('formatFindingQuestions', () => {
+  const order = ['a', 'b', 'c', 'd'];
+
+  it('numbers questions by the quiz order, not the order the student saw', () => {
+    expect(formatFindingQuestions(['d', 'b'], order)).toBe(' (Q2, Q4)');
+  });
+
+  it('counts questions it cannot place instead of numbering them', () => {
+    expect(formatFindingQuestions(['b', 'zz'], order)).toBe(' (Q2, +1 more)');
+    expect(formatFindingQuestions(['b', 'c'], undefined)).toBe(
+      ' (on 2 questions)'
+    );
+    expect(formatFindingQuestions([], order)).toBe('');
   });
 });

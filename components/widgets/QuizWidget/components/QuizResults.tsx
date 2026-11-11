@@ -4295,6 +4295,7 @@ const StudentsScreen: React.FC<{
   view,
   onViewChange,
 }) => {
+  const questionOrder = useMemo(() => questions.map((q) => q.id), [questions]);
   const { t } = useTranslation();
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
@@ -4733,6 +4734,7 @@ const StudentsScreen: React.FC<{
                       session?.sessionMode === 'student' ? r.answers : undefined
                     }
                     studentName={displayName}
+                    questionOrder={questionOrder}
                   >
                     {(count) => (
                       <span

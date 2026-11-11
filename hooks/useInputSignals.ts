@@ -15,7 +15,8 @@ export interface UseInputSignalsArgs {
   ready: boolean;
   /** Completed attempts; counters are kept per attempt. */
   attempt: number;
-  questionIndex: number;
+  /** The question on screen; counters are filed under its id. */
+  questionId: string | undefined;
   serverSignals: unknown;
   save:
     | ((
@@ -39,13 +40,9 @@ const isAnswerBox = (target: EventTarget | null): target is HTMLElement => {
 const isControl = (target: EventTarget | null): boolean =>
   target instanceof Element && target.closest(SCRIPT_TARGETS) !== null;
 
-/**
- * Counts how answers are entered (pointer travel, key timing, pasted or
- * scripted input) and saves the counters to the student's response.
- * It never records which keys were pressed or what was typed.
- */
+/** Counts how answers are entered and saves the counters to the response; never which keys or what text. */
 export function useInputSignals(args: UseInputSignalsArgs): void {
-  const { enabled, ready, attempt, questionIndex } = args;
+  const { enabled, ready, attempt, questionId } = args;
   const argsRef = useRef(args);
   useLayoutEffect(() => {
     argsRef.current = args;
@@ -63,7 +60,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     const collector = new InputSignalCollector(
       window.matchMedia?.('(pointer: fine)').matches ?? true
     );
-    collector.setQuestion(argsRef.current.questionIndex);
+    collector.setQuestion(argsRef.current.questionId);
     const base =
       writtenRef.current?.attempt === attempt
         ? writtenRef.current.counts
@@ -183,6 +180,6 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
   // Save the question just left, then count under the new one.
   useEffect(() => {
     flushRef.current?.();
-    collectorRef.current?.setQuestion(questionIndex);
-  }, [questionIndex]);
+    collectorRef.current?.setQuestion(questionId);
+  }, [questionId]);
 }

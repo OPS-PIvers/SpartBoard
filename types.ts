@@ -6088,7 +6088,7 @@ export interface InputSignalCounts {
   scripted?: number;
 }
 
-/** Keyed by completed-attempt count, then by question index. */
+/** Keyed by completed-attempt count, then by question id. */
 export type InputSignals = Record<string, Record<string, InputSignalCounts>>;
 
 export interface QuizResponse extends StaffResponseFields {

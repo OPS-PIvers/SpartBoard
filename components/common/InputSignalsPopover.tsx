@@ -4,6 +4,7 @@ import type { InputSignals, QuizResponseAnswer } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   INPUT_SIGNALS_FEATURE,
+  formatFindingQuestions,
   inputFindingsByAttempt,
 } from '@/utils/inputSignals';
 import { BadgePopover } from './BadgePopover';
@@ -16,23 +17,20 @@ interface InputSignalsBadgeProps {
   /** Pass only for self-paced sessions, where the gaps between answers are the student's own. */
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[];
   studentName: string;
+  /** Question ids in the quiz's own order, to number them; omit where that order isn't known. */
+  questionOrder?: readonly string[];
   /** Renders the badge for a count of findings. */
   children: (count: number) => React.ReactNode;
 }
 
-const questionList = (qs: number[]) =>
-  qs.length === 0 ? '' : ` (Q${qs.join(', Q')})`;
-
-/**
- * A badge that opens what looked unusual about how a student's answers were
- * entered. Renders nothing without the input-signals flag or without findings.
- */
+/** A badge that opens what looked unusual about how answers were entered; nothing without the flag or findings. */
 export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
   signals,
   completedAttempts,
   completed,
   answers,
   studentName,
+  questionOrder,
   children,
 }) => {
   const enabled =
@@ -74,7 +72,7 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
                     <p className="font-semibold text-slate-800">
                       {f.text}
                       <span className="font-normal text-slate-600">
-                        {questionList(f.questions)}
+                        {formatFindingQuestions(f.questions, questionOrder)}
                       </span>
                     </p>
                     <p className="text-xs text-slate-600">

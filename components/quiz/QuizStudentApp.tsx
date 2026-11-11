@@ -2274,20 +2274,6 @@ export const ActiveQuiz: React.FC<{
     fullscreenRequired,
   });
 
-  // Unusual-input counters; stamped on the session only with the input-signals flag.
-  useInputSignals({
-    enabled:
-      session.inputSignals === true &&
-      tabWarningsEnabled &&
-      session.status === 'active' &&
-      !isAttemptSubmitted(myResponse),
-    ready: myResponse != null,
-    attempt: myResponse?.completedAttempts ?? 0,
-    questionIndex: currentIndex,
-    serverSignals: myResponse?.inputSignals,
-    save: saveInputSignals,
-  });
-
   // Per-student answer shuffle. The session-level `publicQuestions` was
   // shuffled once teacher-side; we re-shuffle on the client deterministically
   // by student id so neighbours see different orders but a single student's
@@ -2410,6 +2396,20 @@ export const ActiveQuiz: React.FC<{
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  // Unusual-input counters; stamped on the session only with the input-signals flag.
+  useInputSignals({
+    enabled:
+      session.inputSignals === true &&
+      tabWarningsEnabled &&
+      session.status === 'active' &&
+      !isAttemptSubmitted(myResponse),
+    ready: myResponse != null,
+    attempt: myResponse?.completedAttempts ?? 0,
+    questionId: currentQuestion?.id,
+    serverSignals: myResponse?.inputSignals,
+    save: saveInputSignals,
+  });
+
   // Sections (QUIZ_EXAMVIEW_IMPORT.md E12, E13): the intro shows once per section.
   const [seenSections, setSeenSections] = useState<ReadonlySet<string>>(
     () => new Set()

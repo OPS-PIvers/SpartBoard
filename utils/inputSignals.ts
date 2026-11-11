@@ -37,6 +37,10 @@ const GAP_MAX_MS = 2000;
 const KEYED_WINDOW_MS = 1000;
 const PASTE_WINDOW_MS = 150;
 
+/** Counters are filed under the question's id; this key holds any taken with no question on screen. */
+const NO_QUESTION = '_';
+const QUESTION_KEY = /^[\w-]{1,64}$/;
+
 type Counts = Required<InputSignalCounts>;
 const emptyCounts = (): Counts => ({
   clicks: 0,
@@ -70,13 +74,10 @@ export interface KeyDownInfo {
   field: unknown;
 }
 
-/**
- * Turns raw pointer, key and text events into per-question counters.
- * Holds no DOM references, so the hook feeds it and tests can too.
- */
+/** Turns raw pointer, key and text events into per-question counters; holds no DOM references. */
 export class InputSignalCollector {
   private byQuestion = new Map<string, Counts>();
-  private question = '0';
+  private question = NO_QUESTION;
   private dirty = false;
 
   private px: number | null = null;
@@ -97,8 +98,8 @@ export class InputSignalCollector {
   /** `finePointer` is false on phones and tablets, where on-screen keyboards make key timing meaningless. */
   constructor(private finePointer: boolean) {}
 
-  setQuestion(index: number): void {
-    this.question = String(index);
+  setQuestion(id: string | undefined): void {
+    this.question = id && QUESTION_KEY.test(id) ? id : NO_QUESTION;
   }
 
   private bucket(): Counts {
@@ -241,7 +242,7 @@ export function readAttemptSignals(
   if (!isRecord(raw)) return {};
   const out: Record<string, InputSignalCounts> = {};
   for (const [q, counts] of Object.entries(raw)) {
-    if (!/^\d{1,4}$/.test(q) || !isRecord(counts)) continue;
+    if (!QUESTION_KEY.test(q) || !isRecord(counts)) continue;
     out[q] = compact(counts);
   }
   return out;
@@ -280,8 +281,8 @@ export interface InputFinding {
   id: InputFindingId;
   /** What was seen, with its numbers. */
   text: string;
-  /** Question numbers (1-based) it showed up on; empty when it spans the attempt. */
-  questions: number[];
+  /** Ids of the questions it showed up on; empty when it spans the attempt. */
+  questions: string[];
   /** What else could explain it. */
   otherCauses: string;
 }
@@ -310,11 +311,10 @@ export function describeInputSignals(
   const total = emptyCounts();
   for (const c of Object.values(perQuestion))
     for (const k of COUNT_KEYS) total[k] += c[k] ?? 0;
-  const where = (test: (c: InputSignalCounts) => boolean): number[] =>
+  const where = (test: (c: InputSignalCounts) => boolean): string[] =>
     Object.entries(perQuestion)
-      .filter(([, c]) => test(c))
-      .map(([q]) => Number(q) + 1)
-      .sort((a, b) => a - b);
+      .filter(([q, c]) => q !== NO_QUESTION && test(c))
+      .map(([q]) => q);
 
   const out: InputFinding[] = [];
   if (
@@ -424,6 +424,22 @@ export function describeInputSignals(
   }
   return out;
 }
+
+/** " (Q2, Q5)" in the quiz's own numbering; ids it can't place are counted, never numbered. */
+export const formatFindingQuestions = (
+  ids: string[],
+  order: readonly string[] | undefined
+): string => {
+  if (ids.length === 0) return '';
+  const numbers = ids
+    .map((id) => (order ? order.indexOf(id) + 1 : 0))
+    .filter((n) => n > 0)
+    .sort((a, b) => a - b);
+  const others = ids.length - numbers.length;
+  if (numbers.length === 0)
+    return ` (on ${others} ${others === 1 ? 'question' : 'questions'})`;
+  return ` (Q${numbers.join(', Q')}${others > 0 ? `, +${others} more` : ''})`;
+};
 
 export interface AttemptFindings {
   /** Completed attempts before this one; 0 is the first attempt. */
