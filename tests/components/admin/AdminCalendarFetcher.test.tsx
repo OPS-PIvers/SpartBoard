@@ -345,7 +345,13 @@ describe('AdminCalendarFetcher — transactional write', () => {
       unknown,
       { config: { buildingDefaults: Record<string, Record<string, unknown>> } },
     ];
-    expect(Object.keys(payload.config.buildingDefaults)).toEqual(['schumann']);
+    expect(Object.keys(payload.config.buildingDefaults)).toEqual([
+      'schumann',
+      'schumann-elementary',
+    ]);
+    expect(
+      payload.config.buildingDefaults['schumann-elementary'].lastProxySync
+    ).toBe(payload.config.buildingDefaults.schumann.lastProxySync);
     expect(payload.config.buildingDefaults.schumann.googleCalendarIds).toEqual([
       'cal-1',
     ]);

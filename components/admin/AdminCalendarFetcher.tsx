@@ -142,10 +142,17 @@ export const AdminCalendarFetcher: React.FC = () => {
             const liveDefaults = canonicalizeBuildingKeyedRecord(
               live?.buildingDefaults ?? {}
             );
+            const liveKeys = Object.keys(live?.buildingDefaults ?? {});
             const updates: Record<string, unknown> = {};
             for (const [id, cache] of Object.entries(synced)) {
               const liveEntry = liveDefaults[id];
-              if (liveEntry) updates[id] = { ...liveEntry, ...cache };
+              if (!liveEntry) continue;
+              // Also refresh a legacy key, which wins on canonicalized reads and would otherwise look stale forever.
+              for (const key of [id, ...liveKeys]) {
+                if (canonicalBuildingId(key) === id) {
+                  updates[key] = { ...liveEntry, ...cache };
+                }
+              }
             }
             if (Object.keys(updates).length === 0) return;
             tx.set(
