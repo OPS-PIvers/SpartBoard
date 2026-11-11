@@ -341,7 +341,6 @@ export function planPlcChange(
         update: {
           members,
           leadUid: toUid,
-          ...activeIndexes(members),
           updatedAt: ts,
         },
         result: { changed: true },
@@ -358,7 +357,7 @@ export function planPlcChange(
       const existing = members[target.uid];
       members[target.uid] = {
         uid: target.uid,
-        email: target.email.trim().toLowerCase(),
+        email: target.email.trim().toLowerCase() || existing?.email || '',
         displayName: existing?.displayName || target.displayName,
         role,
         joinedAt: existing?.joinedAt ?? ts,
@@ -471,7 +470,11 @@ export function parseMembershipAction(input: unknown): MembershipAction {
       };
     case 'adminSetMember': {
       const t = (raw.target ?? {}) as Data;
-      const email = str(t, 'email').toLowerCase();
+      // A member with no stored email sends ''; the planner keeps whatever is stored.
+      const email =
+        typeof t.email === 'string' && t.email.length <= 320
+          ? t.email.trim().toLowerCase()
+          : '';
       const displayName =
         typeof t.displayName === 'string' ? t.displayName.slice(0, 200) : '';
       return {

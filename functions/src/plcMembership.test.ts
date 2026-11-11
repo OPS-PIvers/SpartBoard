@@ -343,7 +343,39 @@ describe('planPlcChange', () => {
       ctx('a', true)
     );
     expect(update?.leadUid).toBe('co');
-    expect(update?.memberUids).toEqual(['lead', 'co', 'mem']);
+    expect(update).not.toHaveProperty('memberUids');
+    expect(update).not.toHaveProperty('memberEmails');
+  });
+
+  it('adminReassignLead keeps array-only members in the group', () => {
+    const data = plc({
+      memberUids: ['lead', 'co', 'mem', 'joiner'],
+      memberEmails: { joiner: 'joiner@x.edu' },
+    });
+    const { update } = planPlcChange(
+      data,
+      { action: 'adminReassignLead', plcId: 'p', uid: 'co' },
+      ctx('a', true)
+    );
+    expect(update).not.toHaveProperty('memberUids');
+    expect(update).not.toHaveProperty('memberEmails');
+  });
+
+  it('adminSetMember with no email sent keeps the stored one', () => {
+    const { update } = planPlcChange(
+      plc(),
+      {
+        action: 'adminSetMember',
+        plcId: 'p',
+        target: { uid: 'mem', email: '', displayName: '' },
+        role: 'viewer',
+      },
+      ctx('a', true)
+    );
+    expect((update?.members as StubData).mem).toMatchObject({
+      role: 'viewer',
+      email: 'mem@x.edu',
+    });
   });
 });
 
@@ -396,6 +428,14 @@ describe('parseMembershipAction', () => {
     expect(() =>
       parseMembershipAction({ action: 'leave', plcId: 'a/b' })
     ).toThrow();
+    expect(
+      parseMembershipAction({
+        action: 'adminSetMember',
+        plcId: 'p',
+        target: { uid: 'u', email: '' },
+        role: 'member',
+      })
+    ).toMatchObject({ target: { uid: 'u', email: '', displayName: '' } });
     expect(() => parseMembershipAction({ action: 'nuke' })).toThrow();
     expect(() => parseMembershipAction(null)).toThrow();
   });
