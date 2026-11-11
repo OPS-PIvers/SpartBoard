@@ -17,6 +17,11 @@ import { run } from './toolKit';
 /** Bump the suffix when the page changes shape, so Claude never pairs new data with a cached old page. */
 export const PREVIEW_URI = 'ui://spartboard/preview-v1';
 export const APP_MIME = 'text/html;profile=mcp-app';
+/** Lexend and Roboto Mono, the app's own fonts, served by Google Fonts. */
+const FONT_HOSTS = [
+  'https://fonts.googleapis.com',
+  'https://fonts.gstatic.com',
+];
 
 /** Tool `_meta` that points Claude at the preview page (both the nested and the legacy flat key). */
 export const previewMeta: Record<string, unknown> = {
@@ -57,7 +62,12 @@ export function registerAppResources(server: McpServer): void {
           uri: PREVIEW_URI,
           mimeType: APP_MIME,
           text: PREVIEW_HTML,
-          _meta: { ui: { prefersBorder: true } },
+          _meta: {
+            ui: {
+              prefersBorder: true,
+              csp: { resourceDomains: FONT_HOSTS },
+            },
+          },
         },
       ],
     })

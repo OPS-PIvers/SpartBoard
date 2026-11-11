@@ -1,16 +1,32 @@
-/* Host tokens first (Claude sends them), with plain fallbacks for other hosts. */
+/* SpartBoard's own look (tailwind.config.js brand colours, Lexend, the quiz editor's slate surfaces); only light/dark comes from the host. */
 :root {
   color-scheme: light dark;
-  --bg: var(--color-background-primary, light-dark(#ffffff, #1f1f1e));
-  --bg-2: var(--color-background-secondary, light-dark(#f5f5f4, #2a2a28));
-  --text: var(--color-text-primary, light-dark(#1c1917, #f5f5f4));
-  --text-2: var(--color-text-secondary, light-dark(#57534e, #a8a29e));
-  --border: var(--color-border-primary, light-dark(#e7e5e4, #3f3f3c));
-  --good: var(--color-text-success, light-dark(#15803d, #4ade80));
-  --warn: var(--color-text-warning, light-dark(#b45309, #fbbf24));
-  --accent: var(--color-text-info, light-dark(#1d4ed8, #93c5fd));
-  --radius: var(--border-radius-md, 8px);
-  --font: var(--font-sans, system-ui, -apple-system, 'Segoe UI', sans-serif);
+  --page: light-dark(#f8fafc, #0f172a);
+  --card: light-dark(#ffffff, #1e293b);
+  --subtle: light-dark(#f1f5f9, #273449);
+  --border: light-dark(#e2e8f0, #334155);
+  --border-strong: light-dark(#cbd5e1, #475569);
+  --text: light-dark(#0f172a, #f1f5f9);
+  --text-2: light-dark(#334155, #cbd5e1);
+  --muted: light-dark(#64748b, #94a3b8);
+  --brand: light-dark(#2d3f89, #8fa0e0);
+  --brand-dark: #1d2a5d;
+  --brand-fill: light-dark(#eaecf5, #26315c);
+  --good-fill: light-dark(#ecfdf5, #0f3a2e);
+  --good-border: light-dark(#a7f3d0, #166534);
+  --good-text: light-dark(#065f46, #6ee7b7);
+  --warn-fill: light-dark(#fef3c7, #422c06);
+  --warn-text: light-dark(#92400e, #fcd34d);
+  --font: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Roboto Mono', ui-monospace, monospace;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 * {
@@ -20,9 +36,10 @@
 html,
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--page);
   color: var(--text);
-  font: 14px/1.45 var(--font);
+  font: 400 14px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
@@ -35,40 +52,67 @@ body {
   opacity: 0.55;
 }
 
-h1 {
-  font-size: 18px;
-  margin: 2px 0 4px;
-  overflow-wrap: anywhere;
+/* Header: small uppercase label, bold title, muted facts, as in the quiz editor header. */
+header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 2px 12px;
+  margin-bottom: 14px;
 }
 
-header {
-  margin-bottom: 12px;
+header > :not(.open) {
+  grid-column: 1;
 }
 
 .kind {
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-2);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+h1 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+header .muted {
+  font-size: 12px;
+}
+
+header .open {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
 }
 
 .muted {
-  color: var(--text-2);
+  color: var(--muted);
   margin: 0;
 }
 
 .notice,
 .superseded {
-  background: var(--bg-2);
-  border-radius: var(--radius);
+  border-radius: 8px;
   padding: 8px 12px;
   margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--brand-fill);
+  color: var(--brand);
 }
 
 .superseded {
-  font-weight: 600;
+  background: var(--subtle);
+  color: var(--text-2);
 }
 
+/* Question cards: white surface, slate border, soft shadow. */
 .questions {
   list-style: none;
   padding: 0;
@@ -78,14 +122,16 @@ header {
 }
 
 .question {
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
   outline: none;
 }
 
 .question.changed {
-  border-color: var(--accent);
+  border-color: var(--brand);
 }
 
 .q-head {
@@ -94,79 +140,103 @@ header {
   gap: 8px;
   align-items: center;
   font-size: 12px;
+  color: var(--muted);
 }
 
 .num {
+  font-family: var(--mono);
   font-weight: 700;
+  color: var(--text-2);
 }
 
 .badge {
-  border-radius: 999px;
-  padding: 1px 8px;
-  font-weight: 600;
-  background: var(--bg-2);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .badge.new {
-  color: var(--accent);
+  background: var(--brand-fill);
+  color: var(--brand);
 }
 
 .badge.warn {
-  color: var(--warn);
+  background: var(--warn-fill);
+  color: var(--warn-text);
 }
 
 .q-text {
-  margin: 6px 0 8px;
+  margin: 6px 0 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .math {
-  font-family: ui-monospace, monospace;
-  background: var(--bg-2);
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--subtle);
   border-radius: 4px;
   padding: 0 4px;
 }
 
+/* Choices: bordered rows like the editor's option rows; the key reads in emerald. */
 .choices {
   list-style: none;
   padding: 0;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .choices li {
   display: flex;
   gap: 8px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--bg-2);
+  align-items: baseline;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text-2);
   overflow-wrap: anywhere;
 }
 
 .choices li.correct {
-  color: var(--good);
+  background: var(--good-fill);
+  border-color: var(--good-border);
+  color: var(--good-text);
   font-weight: 600;
 }
 
 .mark {
   width: 1em;
   flex: none;
+  font-weight: 700;
 }
 
 .key {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   padding-left: 20px;
+  color: var(--text-2);
+}
+
+.key strong {
+  color: var(--good-text);
 }
 
 .pairs {
   border-collapse: collapse;
   margin-bottom: 8px;
+  color: var(--text-2);
 }
 
 .pairs td {
-  padding: 2px 8px 2px 0;
+  padding: 3px 10px 3px 0;
   vertical-align: top;
 }
 
@@ -178,16 +248,22 @@ header {
 }
 
 .tag {
-  font-size: 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--brand-fill);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
+/* Rubric: slate header column, bordered cells, as in the app's rubric builder. */
 .rubric-box summary {
   cursor: pointer;
-  font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 8px;
 }
 
 .rubric-box,
@@ -197,40 +273,58 @@ header {
 
 .rubric {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
   display: block;
   overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
 }
 
 .rubric th,
 .rubric td {
-  border: 1px solid var(--border);
-  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 8px 10px;
   vertical-align: top;
   text-align: left;
   min-width: 120px;
 }
 
+.rubric tr:last-child > * {
+  border-bottom: none;
+}
+
+.rubric tr > :last-child {
+  border-right: none;
+}
+
 .rubric th {
-  background: var(--bg-2);
+  background: var(--subtle);
+  font-weight: 700;
+  color: var(--text);
 }
 
 .level {
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .desc {
-  color: var(--text-2);
+  color: var(--muted);
   font-weight: 400;
   margin-top: 2px;
 }
 
+/* Buttons: the editor's small bold rounded-lg controls; primary is brand blue. */
 button {
   font: inherit;
   color: inherit;
   cursor: pointer;
   min-height: 32px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:disabled {
@@ -238,28 +332,58 @@ button:disabled {
   opacity: 0.5;
 }
 
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 button.link {
   background: none;
   border: none;
   padding: 4px 0;
-  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand);
 }
 
 button.primary,
 button.secondary {
-  border-radius: var(--radius);
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  background: var(--bg-2);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background-color 150ms;
+}
+
+button.secondary {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-2);
 }
 
 button.primary {
-  font-weight: 600;
+  background: var(--brand-dark);
+  border: 1px solid var(--brand-dark);
+  color: #ffffff;
+}
+
+@media (hover: hover) {
+  button.secondary:not(:disabled):hover {
+    background: var(--subtle);
+  }
+  button.primary:not(:disabled):hover {
+    background: #2d3f89;
+  }
+  button.link:not(:disabled):hover {
+    text-decoration: underline;
+  }
 }
 
 button.wide {
   width: 100%;
   margin-top: 10px;
+  min-height: 40px;
 }
 
 .ask-form {
@@ -276,21 +400,24 @@ button.wide {
   flex: 1;
   min-width: 0;
   font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
   padding: 6px 10px;
 }
 
 .status {
   font-size: 12px;
-  color: var(--text-2);
+  color: var(--muted);
   margin-left: 8px;
 }
 
 .criteria-asks {
-  margin-top: 8px;
+  margin-top: 10px;
+  display: grid;
+  gap: 2px;
 }
 
 footer {
@@ -305,4 +432,10 @@ footer {
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }

@@ -2,8 +2,6 @@
 import {
   App,
   applyDocumentTheme,
-  applyHostFonts,
-  applyHostStyleVariables,
   type McpUiHostContext,
 } from '@modelcontextprotocol/ext-apps/app-with-deps';
 import { renderMessage, renderPreview } from './render';
@@ -68,9 +66,8 @@ const supersession = createSupersession(() => {
 
 function applyContext(ctx: McpUiHostContext | undefined): void {
   if (!ctx) return;
+  // SpartBoard's own colours and type; only light or dark follows the host.
   if (ctx.theme) applyDocumentTheme(ctx.theme);
-  if (ctx.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
-  if (ctx.styles?.css?.fonts) applyHostFonts(ctx.styles.css.fonts);
   if (ctx.displayMode) {
     const next = ctx.displayMode === 'fullscreen';
     if (next !== fullscreen) {

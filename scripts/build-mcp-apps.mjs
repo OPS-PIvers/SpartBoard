@@ -41,6 +41,9 @@ export async function buildPreviewHtml() {
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     '<meta name="color-scheme" content="light dark">',
     '<title>SpartBoard preview</title>',
+    // Same fonts as index.html; the resource's CSP allows these two hosts.
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Roboto+Mono:wght@500;700&display=swap">',
     `<style>${css}</style></head>`,
     '<body><main id="root" aria-live="polite"></main>',
     `<script>${js}</script></body></html>`,

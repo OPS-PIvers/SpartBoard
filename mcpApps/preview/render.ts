@@ -401,7 +401,7 @@ function header(
   if (open) {
     const btn = h(
       'button',
-      { type: 'button', class: 'link' },
+      { type: 'button', class: 'secondary open' },
       'Open SpartBoard'
     );
     btn.addEventListener('click', () => open.actions.open(open.url));
