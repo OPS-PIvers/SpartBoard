@@ -1792,6 +1792,7 @@ export const TOUR_ANCHORS = {
   },
   'quiz-bank-draw.dok': {
     label: 'DOK filter on a question bank draw',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.prompt-standards-undo': {

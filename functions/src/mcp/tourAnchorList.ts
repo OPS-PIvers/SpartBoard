@@ -7273,8 +7273,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-bank-draw.dok",
     "label": "DOK filter on a question bank draw",
-    "scope": "board",
+    "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
