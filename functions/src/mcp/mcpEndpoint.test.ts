@@ -18,7 +18,10 @@ vi.mock('../functionsInit', () => ({}));
 // (ffmpeg, Drive, etc.) — irrelevant to this endpoint's own logic and not
 // worth dragging into a unit test of the auth gate. Stub it directly so
 // `isGrantActive`'s own caching/gating behavior is what's under test.
-vi.mock('./eligibility', () => ({
+vi.mock('./eligibility', async (importOriginal) => ({
+  isDeactivatedOperatorMember: (
+    await importOriginal<typeof import('./eligibility')>()
+  ).isDeactivatedOperatorMember,
   isConnectorFeatureGranted: () => Promise.resolve(state.featureGranted),
 }));
 
@@ -152,6 +155,32 @@ describe('isGrantActive', () => {
       1_000
     );
     expect(ok).toBe(false);
+  });
+
+  it('is false once the teacher is deactivated in the operator org', async () => {
+    const stub = seedDb({
+      'users/deactivated/mcp_grants/g': { revokedAt: null },
+      [`organizations/orono/members/${TEACHER}`]: { status: 'inactive' },
+    });
+    const ok = await isGrantActive(
+      stub.db as unknown as Parameters<typeof isGrantActive>[0],
+      { uid: 'deactivated', email: TEACHER, grantId: 'g' },
+      1_000
+    );
+    expect(ok).toBe(false);
+  });
+
+  it('stays true for an active operator-org member', async () => {
+    const stub = seedDb({
+      'users/member-active/mcp_grants/g': { revokedAt: null },
+      [`organizations/orono/members/${TEACHER}`]: { status: 'active' },
+    });
+    const ok = await isGrantActive(
+      stub.db as unknown as Parameters<typeof isGrantActive>[0],
+      { uid: 'member-active', email: TEACHER, grantId: 'g' },
+      1_000
+    );
+    expect(ok).toBe(true);
   });
 
   it('caches a result per instance and only re-queries after the cache expires', async () => {

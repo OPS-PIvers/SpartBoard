@@ -447,7 +447,10 @@ service cloud.firestore {
     // A status change must not touch an address on the legacy super admin list (a super admin may).
     function legacyStatusSafe(emailLower) {
       return incoming().get('status', '') == existing().get('status', '') ||
-             !exists(/databases/$(database)/documents/admin_settings/user_roles) ||
+             notLegacyListed(emailLower);
+    }
+    function notLegacyListed(emailLower) {
+      return !exists(/databases/$(database)/documents/admin_settings/user_roles) ||
              !(emailLower in get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []));
     }
     function isLegacySuperAdmin() {
@@ -742,8 +745,10 @@ service cloud.firestore {
         // buildingIds intersect their own. Create pins doc id == lowercased email (so
         // isOrgMember()'s lookup resolves) and forces data.email == emailLower (F15).
         // Only a super admin may create a super_admin member (same anti-escalation as update).
+        // A domain admin may not create a non-live doc for a legacy-list address (delete then recreate would bypass legacyStatusSafe).
         allow create: if memberStatusOk() && (isSuperAdmin() ||
-                          (isDomainAdmin(orgId) && incoming().get('roleId', '') != 'super_admin')) &&
+                          (isDomainAdmin(orgId) && incoming().get('roleId', '') != 'super_admin' &&
+                           (liveStatus(incoming()) || notLegacyListed(emailLower)))) &&
           incoming().email == incoming().email.lower() &&
           incoming().email == emailLower &&
           incoming().orgId == orgId &&

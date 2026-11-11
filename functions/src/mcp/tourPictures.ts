@@ -6,6 +6,7 @@ import { publicOrigin } from './config';
 import { ToolError, type ToolContext } from './activity';
 import { isAdmin, loadSet, saveSet, type GlSet } from './glTools';
 import { grantRef } from './grants';
+import { isDeactivatedOperatorMember } from './eligibility';
 import { isWebTour, WEB_TOUR_REFUSAL } from './webTours';
 import { GL_MEDIA_MARKER } from '../glMediaReferences';
 
@@ -115,7 +116,11 @@ export async function savePictures(
 ) {
   const { ctx, setId } = await readTicket(db, body.ticket, now);
   const grant = await grantRef(db, ctx.uid, ctx.grantId).get();
-  if (!grant.exists || grant.get('revokedAt') != null)
+  if (
+    !grant.exists ||
+    grant.get('revokedAt') != null ||
+    (await isDeactivatedOperatorMember(db, ctx.email))
+  )
     throw new ToolError('This SpartBoard connection was disconnected.');
   if (!(await isAdmin(ctx)))
     throw new ToolError('Only SpartBoard admins can set live tour pictures.');
