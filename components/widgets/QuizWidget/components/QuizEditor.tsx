@@ -101,6 +101,7 @@ import {
   NeedsAnswerNotice,
   QuestionPromptField,
   QuestionTargetsField,
+  QuestionExplanationField,
   QuestionTypeSelect,
 } from './QuestionFields';
 import {
@@ -1005,6 +1006,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         <QuestionTargetsField
           question={q}
           onChange={(targets) => updateQuestion(q.id, { targets })}
+          onDokChange={
+            canAccessFeature('quiz-dok')
+              ? (dok) => updateQuestion(q.id, { dok })
+              : undefined
+          }
           promptStandards={promptStandards}
           pickerOpen={pickerOpen}
           onPickerOpenChange={setPickerOpen}
@@ -1356,6 +1362,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         )}
         {blankTypeOf(q) === 'drag' && (
           <FibWordBankEditor
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+          />
+        )}
+
+        {canAccessFeature('quiz-explanations') && (
+          <QuestionExplanationField
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
           />

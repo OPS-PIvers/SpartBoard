@@ -1281,6 +1281,32 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Explanations on questions and answers. Admin-only until Paul has tested it in prod.
+  'quiz-explanations': {
+    label: 'Quiz explanations',
+    icon: FileText,
+    description:
+      'Add an explanation to any question or answer. Students see them under their published results when Show explanations is on.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // DOK levels on questions. Admin-only until Paul has tested it in prod.
+  'quiz-dok': {
+    label: 'Quiz DOK levels',
+    icon: Gauge,
+    description:
+      'Tag questions with a DOK level, group results by DOK, and draw bank questions by DOK.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Lunch Count redesign. Admin-only until Paul has used it in prod.
   'lunch-count-redesign': {
     label: 'Lunch Count redesign',

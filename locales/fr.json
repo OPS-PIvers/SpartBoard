@@ -2183,6 +2183,23 @@
       "barLabel": "Score moyen {{pct}} %"
     }
   },
+  "quizExplanations": {
+    "label": "Afficher les explications",
+    "hint": "Les élèves voient les explications avec les résultats publiés. Un changement s’applique à la prochaine publication.",
+    "heading": "Explication",
+    "placeholder": "Pourquoi la réponse est correcte",
+    "optionPlaceholder": "Pourquoi correcte ou incorrecte",
+    "optionLabel": "Explication pour {{option}}"
+  },
+  "quizDok": {
+    "level": "Niveau DOK",
+    "none": "Sans DOK",
+    "any": "Tout niveau DOK",
+    "levelOption": "DOK {{level}}",
+    "groupBy": "Regrouper par",
+    "target": "Objectif",
+    "dok": "DOK"
+  },
   "quizScoreOnSubmit": {
     "label": "Afficher le score à la remise",
     "on": "Les élèves voient leur score dès qu'ils remettent.",

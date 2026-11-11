@@ -4819,6 +4819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#reveal-correct",
       "assign#rewind-on-wrong",
       "assign#score-on-submit",
+      "assign#show-explanations",
       "assign#show-right-wrong",
       "assign#shuffle-answers",
       "assign#shuffle-questions",
@@ -4924,6 +4925,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#raise-hand",
       "assign#read-aloud",
       "assign#score-on-submit",
+      "assign#show-explanations",
       "assign#speed-bonus",
       "assign#streak-bonus"
     ],
@@ -7197,6 +7199,98 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.answer-key-fill",
         "kind": "shared",
         "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.explanation",
+    "label": "Explanation box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.dok",
+    "label": "DOK level select beside Learning targets in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.group-by",
+    "label": "Group by Target or DOK switch in Quiz results",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-bank-draw.dok",
+    "label": "DOK filter on a question bank draw",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -26593,6 +26687,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "plc-assessments.detail-back",
     "label": "Detail back button in the PLC assessments tab",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.assessments.detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#assessments",
+          "plc-assessments.open:plc"
+        ],
+        "needs": [
+          "plc",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-assessments.detail-group-by",
+    "label": "Group by Target or DOK switch on a PLC assessment",
     "scope": "board",
     "routes": [
       {

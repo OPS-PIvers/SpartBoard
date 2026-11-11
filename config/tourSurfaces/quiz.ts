@@ -101,6 +101,7 @@ export const SURFACES: TourSurfaceMap = {
       `${C}SectionRow.tsx`,
       `${C}BankSlotRow.tsx`,
       `${C}BankTargetFilter.tsx`,
+      `${C}BankDokFilter.tsx`,
       `${C}ResponseFormatSection.tsx`,
       `${C}WhiteboardStartingPagePicker.tsx`,
       `${C}WordLimitFields.tsx`,

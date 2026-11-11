@@ -586,6 +586,23 @@ function writtenAnswer(
   return `${body}${notes}<div class="feedback">${points}${comment}${rubric}</div>`;
 }
 
+/** The teacher's explanation under a printed question, with the key it belongs to. */
+function explanationHtml(
+  line: StudentQuestionLine,
+  options: QuizResultsPrintOptions
+): string {
+  const entry = line.explanation;
+  if (!entry || options.keyMode === 'off') return '';
+  if (options.keyMode === 'missed' && !MISSED_MARKS.has(line.mark)) return '';
+  const parts = [
+    ...(entry.explanation ? [escapeHtml(entry.explanation)] : []),
+    ...Object.entries(entry.options ?? {}).map(
+      ([option, text]) => `<em>${escapeHtml(option)}</em>: ${escapeHtml(text)}`
+    ),
+  ];
+  return `<div class="key">Explanation: ${parts.join('<br>')}</div>`;
+}
+
 function answerBlock(
   line: StudentQuestionLine,
   student: ResultsPrintStudent,
@@ -688,7 +705,7 @@ function studentReport(
       const text = options.includeQuestions
         ? `<div class="text">${escapeHtml(plainPromptText(line.text))}</div>`
         : '';
-      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup)}</div>${markCell(line, options)}</li>`;
+      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup)}${explanationHtml(line, options)}</div>${markCell(line, options)}</li>`;
     })
     .join('');
   const questions =

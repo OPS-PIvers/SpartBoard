@@ -201,6 +201,10 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       JSON.stringify(qa.imageOnlyAnswers ?? []) !==
         JSON.stringify(qb.imageOnlyAnswers ?? []) ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
+      (qa.explanation ?? '') !== (qb.explanation ?? '') ||
+      JSON.stringify(qa.optionExplanations ?? {}) !==
+        JSON.stringify(qb.optionExplanations ?? {}) ||
+      qa.dok !== qb.dok ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
       (qa.rubricVisibleToStudents === true) !==
         (qb.rubricVisibleToStudents === true) ||
@@ -246,6 +250,7 @@ const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
       (sa.count ?? 0) !== (sb.count ?? 0) ||
       (sa.points ?? 1) !== (sb.points ?? 1) ||
       (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|') ||
+      (sa.dokFilter ?? []).join('|') !== (sb.dokFilter ?? []).join('|') ||
       (sa.stimulusIds ?? []).join('|') !== (sb.stimulusIds ?? []).join('|')
     ) {
       return false;

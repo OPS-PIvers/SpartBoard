@@ -55,6 +55,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-ordering-images',
   'quiz-ordering-list',
   'quiz-ordering-results',
+  'quiz-explanations',
+  'quiz-dok',
   'quiz-blank-types',
   'quiz-stimulus-tabs',
   'quiz-review-step',

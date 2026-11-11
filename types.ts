@@ -1587,6 +1587,8 @@ export interface PlcAssessmentAggregate {
   perTarget?: PlcAggregateTargetRow[];
   /** Standards directly tagged or inherited from child targets (schema 3+). */
   perStandard?: PlcAggregateTargetRow[];
+  /** Mastery by DOK level, rows keyed `dok:N`; absent when no question carries a level. */
+  perDok?: PlcAggregateTargetRow[];
   /** Uids of teachers who contributed results; the PLC page shows no per-teacher scores. */
   contributorUids: string[];
   /** serverTimestamp resolved to ms on read; when the function last recomputed. */
@@ -4481,6 +4483,12 @@ export interface QuizQuestion {
   alternateAnswers?: string[];
   /** Multi-blank FIB only: other accepted answers per blank, index-aligned with the blanks in `correctAnswer`. Never sent to students. */
   blankAlternates?: { answers: string[] }[];
+  /** Why the answer is right. Teacher-only until results are published with Show explanations on. */
+  explanation?: string;
+  /** MC/MA: why each option is right or wrong, keyed by the option's text. Same visibility as `explanation`. */
+  optionExplanations?: Record<string, string>;
+  /** Depth of Knowledge level, 1 to 4. Teacher-side only. */
+  dok?: 1 | 2 | 3 | 4;
   /** FIB only: how students fill the blanks; absent = typed. */
   blankType?: FibBlankType;
   /** FIB dropdown only: each blank's choices in authored order, index-aligned with the blanks; includes its answer. */
@@ -4781,6 +4789,8 @@ export interface QuizBankSlot {
   count?: number;
   /** random mode: any-of match on tag ids; absent = whole bank */
   targetFilter?: string[];
+  /** random mode: any-of match on DOK levels; absent = every level */
+  dokFilter?: number[];
   /** random mode: points applied to every drawn question (default 1) */
   points?: number;
   /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
@@ -5165,6 +5175,8 @@ export interface BaseSessionOptions {
 
 /** Options passed from the quiz assignment modal to configure session toggles. */
 export interface QuizSessionOptions extends BaseSessionOptions {
+  /** Students see explanations under their published results. Default off. */
+  showExplanations?: boolean;
   speedBonusEnabled?: boolean;
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
@@ -5609,6 +5621,8 @@ export interface QuizSession
   showCorrectOnBoard?: boolean;
   /** Group published answer feedback by the projected learning-target tags. */
   showLearningTargets?: boolean;
+  /** Explanations are published to students with results. */
+  showExplanations?: boolean;
   /** Students see their score as soon as the server grades a submitted attempt. */
   showScoreOnSubmit?: boolean;
   /** Overall time limit per attempt in minutes, counted from `QuizResponse.attemptStartedAt`. */
@@ -6334,6 +6348,8 @@ export interface QuizResponse extends StaffResponseFields {
   revealedAnswers?: Record<string, string>;
   /** Scoring-guide example responses by question then criterion, published with the answer key. */
   revealedRubricExamples?: RevealedRubricExamples;
+  /** Explanations by question, published with the answer key when Show explanations is on. */
+  revealedExplanations?: RevealedExplanations;
   /**
    * Per-student results publication, independent of the class setting.
    * Absent = follows the class. Teacher-written only.
@@ -6353,6 +6369,8 @@ export type QuizResultsOverride =
       revealedAnswers?: Record<string, string>;
       /** Scoring-guide example responses, at the same level as `revealedAnswers`. */
       revealedRubricExamples?: RevealedRubricExamples;
+      /** Explanations by question, at the same level as `revealedAnswers`. */
+      revealedExplanations?: RevealedExplanations;
       /** Protection for this student; absent on older overrides, which use the class one. */
       protection?: ResultsProtection;
     }
@@ -6734,6 +6752,12 @@ export interface RubricCriterion {
 
 /** `{ questionId: { criterionId: examples } }` published to a student with the answer key. */
 export type RevealedRubricExamples = Record<string, Record<string, string[]>>;
+
+/** Explanations by question id: the question's own and one per answer option, keyed by option text. */
+export type RevealedExplanations = Record<
+  string,
+  { explanation?: string; options?: Record<string, string> }
+>;
 
 /** Scoring-guide extras for one row; examples are teacher-only until results are published with answers. */
 export interface RubricGuideRow {
@@ -11178,6 +11202,10 @@ export type GlobalFeature =
   | 'quiz-ordering-list'
   /** Ordering results: each item's spot, with the items students put out of order marked. */
   | 'quiz-ordering-results'
+  /** Quiz explanations on questions and answers, shown with published results. */
+  | 'quiz-explanations'
+  /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */
+  | 'quiz-dok'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
   | 'quiz-blank-types'
   /** Quiz stimuli as named tabs in the panel beside the question (M11). */

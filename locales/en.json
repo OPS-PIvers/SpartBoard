@@ -3480,6 +3480,23 @@
     "next": "Next",
     "submit": "Submit quiz"
   },
+  "quizExplanations": {
+    "label": "Show explanations",
+    "hint": "Students see explanations with published results. A change applies the next time you publish.",
+    "heading": "Explanation",
+    "placeholder": "Why the answer is right",
+    "optionPlaceholder": "Why right or wrong",
+    "optionLabel": "Explanation for {{option}}"
+  },
+  "quizDok": {
+    "level": "DOK level",
+    "none": "No DOK",
+    "any": "Any DOK",
+    "levelOption": "DOK {{level}}",
+    "groupBy": "Group by",
+    "target": "Target",
+    "dok": "DOK"
+  },
   "quizScoreOnSubmit": {
     "label": "Show score on submit",
     "on": "Students see their score as soon as they submit.",

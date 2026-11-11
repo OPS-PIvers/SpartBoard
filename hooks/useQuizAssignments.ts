@@ -108,6 +108,7 @@ import type {
   RevealedRubricExamples,
 } from '@/types';
 import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
+import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
@@ -809,6 +810,8 @@ function sessionOptionsToSessionPatch(
     patch.showCorrectOnBoard = o.showCorrectOnBoard;
   if (o.showLearningTargets !== undefined)
     patch.showLearningTargets = o.showLearningTargets;
+  if (o.showExplanations !== undefined)
+    patch.showExplanations = o.showExplanations;
   if (o.speedBonusEnabled !== undefined)
     patch.speedBonusEnabled = o.speedBonusEnabled;
   if (o.streakBonusEnabled !== undefined)
@@ -1541,8 +1544,16 @@ export const useQuizAssignments = (
       // `showLearningTargets`.
       const sessionQuestions = dedupeQuestionsById(quiz.questions);
       const questionSnapshot = sessionQuestions.flatMap((question) =>
-        question.targets && question.targets.length > 0
-          ? [{ id: question.id, targets: question.targets }]
+        (question.targets?.length ?? 0) > 0 || question.dok != null
+          ? [
+              {
+                id: question.id,
+                ...(question.targets?.length
+                  ? { targets: question.targets }
+                  : {}),
+                ...(question.dok != null ? { dok: question.dok } : {}),
+              },
+            ]
           : []
       );
 
@@ -1745,6 +1756,7 @@ export const useQuizAssignments = (
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
         showLearningTargets: opts.showLearningTargets ?? false,
+        ...(opts.showExplanations ? { showExplanations: true } : {}),
         ...(scoreOnSubmitOn &&
         opts.showScoreOnSubmit &&
         !quizNeedsManualGrading(sessionQuestions)
@@ -3447,7 +3459,9 @@ export const useQuizAssignments = (
         .filter((d) => {
           const data = d.data() as QuizResponse;
           return (
-            data.revealedAnswers != null || data.revealedRubricExamples != null
+            data.revealedAnswers != null ||
+            data.revealedRubricExamples != null ||
+            data.revealedExplanations != null
           );
         })
         .map((d) => d.ref);
@@ -3460,6 +3474,7 @@ export const useQuizAssignments = (
             patch: {
               revealedAnswers: deleteField(),
               revealedRubricExamples: deleteField(),
+              revealedExplanations: deleteField(),
             },
           }))
         );
@@ -3547,6 +3562,14 @@ export const useQuizAssignments = (
         visibility === 'score-responses-and-answers'
           ? buildRevealedRubricExamples(quizData)
           : null;
+      const explanations =
+        visibility === 'score-responses-and-answers' &&
+        (
+          assignmentSnap.data() as
+            { sessionOptions?: QuizSessionOptions } | undefined
+        )?.sessionOptions?.showExplanations === true
+          ? buildRevealedExplanations(quizData)
+          : null;
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -3578,6 +3601,7 @@ export const useQuizAssignments = (
           // The answer key lives on each response, never the session (D4).
           revealedAnswers: answerKey ?? deleteField(),
           revealedRubricExamples: rubricExamples ?? deleteField(),
+          revealedExplanations: explanations ?? deleteField(),
         };
       };
       const updates: ResponsePatch[] = [];
@@ -3763,6 +3787,14 @@ export const useQuizAssignments = (
         visibility === 'score-responses-and-answers'
           ? buildRevealedRubricExamples(quizData)
           : null;
+      const revealedExplanations =
+        visibility === 'score-responses-and-answers' &&
+        (
+          assignmentSnap.data() as
+            { sessionOptions?: QuizSessionOptions } | undefined
+        )?.sessionOptions?.showExplanations === true
+          ? buildRevealedExplanations(quizData)
+          : null;
       const snaps = await Promise.all(
         keys.map((key) =>
           getDoc(
@@ -3790,6 +3822,7 @@ export const useQuizAssignments = (
             expiresAt,
             ...(revealedAnswers ? { revealedAnswers } : {}),
             ...(revealedRubricExamples ? { revealedRubricExamples } : {}),
+            ...(revealedExplanations ? { revealedExplanations } : {}),
             ...(protection ? { protection } : {}),
           },
         };

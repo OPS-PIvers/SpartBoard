@@ -2183,6 +2183,23 @@
       "barLabel": "Durchschnittliche Punktzahl {{pct}} %"
     }
   },
+  "quizExplanations": {
+    "label": "Erklärungen anzeigen",
+    "hint": "Schüler sehen die Erklärungen bei veröffentlichten Ergebnissen. Eine Änderung gilt ab der nächsten Veröffentlichung.",
+    "heading": "Erklärung",
+    "placeholder": "Warum die Antwort richtig ist",
+    "optionPlaceholder": "Warum richtig oder falsch",
+    "optionLabel": "Erklärung zu {{option}}"
+  },
+  "quizDok": {
+    "level": "DOK-Stufe",
+    "none": "Ohne DOK",
+    "any": "Beliebige DOK-Stufe",
+    "levelOption": "DOK {{level}}",
+    "groupBy": "Gruppieren nach",
+    "target": "Ziel",
+    "dok": "DOK"
+  },
   "quizScoreOnSubmit": {
     "label": "Punktzahl nach Abgabe zeigen",
     "on": "Schüler/innen sehen ihre Punktzahl direkt nach der Abgabe.",
