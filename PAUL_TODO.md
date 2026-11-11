@@ -7,16 +7,12 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
 - **Next free ID: PT-172.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
-Last audited 2026-11-01. Items removed as done: PT-4, PT-7, PT-12, PT-16, PT-17, PT-19, PT-52, PT-53, PT-54, PT-55, PT-57, PT-58, PT-59, PT-66, PT-67, PT-69, PT-70, PT-71, PT-72, PT-76, PT-92, PT-100, PT-103, PT-104, PT-129, PT-132, PT-135, PT-137, PT-142 (2026-11-10 morning cleanup), PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
+Last audited 2026-11-01. Items removed as done: PT-1, PT-115, PT-126 (2026-11-11 morning cleanup), PT-4, PT-7, PT-12, PT-16, PT-17, PT-19, PT-52, PT-53, PT-54, PT-55, PT-57, PT-58, PT-59, PT-66, PT-67, PT-69, PT-70, PT-71, PT-72, PT-76, PT-92, PT-100, PT-103, PT-104, PT-129, PT-132, PT-135, PT-137, PT-142 (2026-11-10 morning cleanup), PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
 ---
 
 ## 1. Now: blocking a release or a person
 
-- [ ] **PT-126 🤖 Schoology section owner backfill, now due** (security wave 3, live since release #5189 on 2026-11-05). Until it runs, Schoology sections launched before the release show "Student" instead of names and refuse course linking until a student relaunches. On the PC with the prod key:
-  > Run `node scripts/backfill-lti-context-owners.mjs` on prod as a dry run and show me the counts, then re-run with `--apply` after I say go.
-- [ ] **PT-1 🤖 Quiz join code backfill, run 2** (F78). Run 1 and the security release are done; run 2 is what lets the next release drop the old-client rule (AB-47). Turn on the PC with the prod key (OPS-z6wXCDG6PbO), then paste:
-  > Run the post-release quiz join code backfill on prod: `node scripts/backfill-quiz-join-codes.mjs --all` as a dry run, show me the counts, then `--all --apply` after I say go.
 - [ ] **PT-2 🤖 Re-run the widened demote script** (F73, #4900). The first run only checked auto-enrolled teacher records; this one checks all of them, which can include students. On the PC with the prod key and ClassLink env vars:
   > Run `node scripts/demote-student-member-docs.mjs` on prod as a dry run and list who it would demote, then add `--apply` after I say go.
 - [ ] **PT-6 You: `ORG_REPO_TOKEN` secret on OPS-PIvers/claude-skills** (F42, claude-skills #24). Fine-grained PAT: owner Orono-Public-Schools, repo claude-skills only, Contents read and write. Then tell an agent "merge claude-skills #24". Without the secret, the first mirror run after merge fails.
@@ -106,8 +102,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
   > Count prod Activity Wall sessions whose owner uid is a student account, wall posts whose `id` field doesn't match their doc id, and photo, file or video posts whose `content` isn't their `storagePath`. Read-only; deleting needs my OK.
 - [ ] **PT-65 🤖 Claude SDK 1.x smoke test** (F58, #4603).
   > Set one AI integration to a Claude model on dev, run it, then do the same on prod with me. Tell me if anything falls back to Gemini or web tour writing fails.
-- [ ] **PT-115 🤖 Record who started each older PLC** (security batch 2D). Only after the next main release is live on prod (running it earlier turns the fallback off before new teams get their record). Until it runs, older teams trust their earliest member as creator, so printing for a team's creator keeps working:
-  > Run `node scripts/backfill-plc-creators.mjs --project spartboard` (dry run) from the PC with the prod key, show me the count and any rows marked "differs from lead", then re-run with `--apply` after I say go.
 - [ ] **PT-106 🤖 Strip leaderboard names from old quiz sessions** (security batch 1A, #4986). After the next main release, so no open monitor still writes them:
   > Remove `name` from every `liveLeaderboard` entry on prod `quiz_sessions` docs: dry run with a count, then apply after I say go.
 - [ ] **PT-112 🤖 PLC assessments made by people who were not members** (security batch 2E, optional). Pooled results already skip them; their assessment entries stay in the PLC's list.
