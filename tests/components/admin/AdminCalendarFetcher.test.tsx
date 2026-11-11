@@ -44,10 +44,12 @@ vi.mock('@/config/firebase', () => ({ db: {} }));
 const setDocMock = vi.fn<(...args: unknown[]) => Promise<void>>(() =>
   Promise.resolve()
 );
+const DELETE_SENTINEL = { __delete: true };
 // Live doc seen by the transaction read; defaults to the calendar permission config.
 const liveDocMock = vi.fn<() => unknown>();
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
+  deleteField: () => DELETE_SENTINEL,
   runTransaction: (_db: unknown, fn: (tx: unknown) => Promise<void>) =>
     fn({
       get: () => Promise.resolve({ data: () => liveDocMock() }),
@@ -349,11 +351,58 @@ describe('AdminCalendarFetcher — transactional write', () => {
       'schumann',
       'schumann-elementary',
     ]);
-    expect(
-      payload.config.buildingDefaults['schumann-elementary'].lastProxySync
-    ).toBe(payload.config.buildingDefaults.schumann.lastProxySync);
+    expect(payload.config.buildingDefaults['schumann-elementary']).toBe(
+      DELETE_SENTINEL
+    );
     expect(payload.config.buildingDefaults.schumann.googleCalendarIds).toEqual([
       'cal-1',
     ]);
+  });
+
+  it('keeps the canonical entry over a stale legacy alias and removes the alias', async () => {
+    currentBuildings = [{ id: 'schumann', name: 'Schumann Elementary' }];
+    authValue.featurePermissions = [
+      {
+        ...calendarPermission,
+        config: {
+          blockedDates: [],
+          updateFrequencyHours: 4,
+          buildingDefaults: {
+            schumann: {
+              buildingId: 'schumann',
+              events: [],
+              googleCalendarIds: ['cal-new'],
+            },
+            'schumann-elementary': {
+              buildingId: 'schumann',
+              events: [],
+              googleCalendarIds: ['cal-old'],
+            },
+          },
+        },
+      },
+    ];
+    render(<AdminCalendarFetcher />);
+    await settle();
+    const [, payload] = setDocMock.mock.calls[0] as [
+      unknown,
+      { config: { buildingDefaults: Record<string, Record<string, unknown>> } },
+    ];
+    expect(payload.config.buildingDefaults.schumann.googleCalendarIds).toEqual([
+      'cal-new',
+    ]);
+    expect(getEventsMock).toHaveBeenCalledWith(
+      'cal-new',
+      expect.any(String),
+      expect.any(String)
+    );
+    expect(getEventsMock).not.toHaveBeenCalledWith(
+      'cal-old',
+      expect.any(String),
+      expect.any(String)
+    );
+    expect(payload.config.buildingDefaults['schumann-elementary']).toBe(
+      DELETE_SENTINEL
+    );
   });
 });

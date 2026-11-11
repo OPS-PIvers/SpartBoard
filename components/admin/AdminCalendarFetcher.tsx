@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { doc, runTransaction } from 'firebase/firestore';
+import { deleteField, doc, runTransaction } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { CalendarEvent, CalendarGlobalConfig } from '@/types';
@@ -97,7 +97,9 @@ export const AdminCalendarFetcher: React.FC = () => {
 
         for (const building of BUILDINGS) {
           const canonicalId = canonicalBuildingId(building.id);
-          const bConfig = buildingDefaults[canonicalId];
+          const bConfig =
+            config.buildingDefaults?.[canonicalId] ??
+            buildingDefaults[canonicalId];
           const ids = bConfig?.googleCalendarIds ?? [];
 
           if (ids.length === 0) continue;
@@ -142,15 +144,16 @@ export const AdminCalendarFetcher: React.FC = () => {
             const liveDefaults = canonicalizeBuildingKeyedRecord(
               live?.buildingDefaults ?? {}
             );
-            const liveKeys = Object.keys(live?.buildingDefaults ?? {});
+            const liveRaw = live?.buildingDefaults ?? {};
             const updates: Record<string, unknown> = {};
             for (const [id, cache] of Object.entries(synced)) {
-              const liveEntry = liveDefaults[id];
+              // The canonical entry is the one admins save; a legacy alias only fills in when it is missing.
+              const liveEntry = liveRaw[id] ?? liveDefaults[id];
               if (!liveEntry) continue;
-              // Also refresh a legacy key, which wins on canonicalized reads and would otherwise look stale forever.
-              for (const key of [id, ...liveKeys]) {
-                if (canonicalBuildingId(key) === id) {
-                  updates[key] = { ...liveEntry, ...cache };
+              updates[id] = { ...liveEntry, ...cache };
+              for (const key of Object.keys(liveRaw)) {
+                if (key !== id && canonicalBuildingId(key) === id) {
+                  updates[key] = deleteField();
                 }
               }
             }
