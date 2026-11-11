@@ -11375,8 +11375,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
   },
+  'video-activity.editor-question-pill': {
+    label: 'Question button in the editor question list',
+    perField: true,
+  },
   'video-activity.editor-question-delete': {
-    label: 'Delete button for the open question in the video activity editor',
+    label: 'Delete button for a question in the video activity editor',
     perField: true,
     destructive: true,
     persists: true,
@@ -11414,20 +11418,23 @@ export const TOUR_ANCHORS = {
     label: 'Draft with AI button in the video activity editor',
   },
   'video-activity.editor-add-question': {
-    label:
-      'Add question button in the video activity editor before a video is set',
+    label: 'Add question button in the video activity editor',
     persists: true,
     sandboxed: true,
   },
+  'video-activity.editor-question-select': {
+    label: 'Select checkbox on a question in the video activity editor',
+    perField: true,
+  },
   'video-activity.editor-question-duplicate': {
-    label:
-      'Duplicate button for the open question in the video activity editor',
+    label: 'Duplicate button for a question in the video activity editor',
     perField: true,
     persists: true,
     sandboxed: true,
   },
   'video-activity.editor-bulk-tag': {
-    label: 'Tag all button in the video activity editor',
+    label:
+      'Tag button for selected or all questions in the video activity editor',
   },
   'video-activity.editor-question-prev': {
     label: 'Previous question arrow in the video activity editor',
@@ -11437,6 +11444,15 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.editor-question-jump': {
     label: 'Question menu in the video activity editor',
+  },
+  'video-activity.editor-bulk-delete': {
+    label: 'Delete button for selected questions in the video activity editor',
+    destructive: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-bulk-clear': {
+    label: 'Clear selection button in the video activity editor',
   },
   'video-activity.editor-targets-edit': {
     label: 'Learning targets Add or Edit button in the video activity editor',

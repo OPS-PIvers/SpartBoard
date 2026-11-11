@@ -11204,7 +11204,8 @@ export type GlobalFeature =
   /** Due date picker in the Push to Schoology dialog. */
   | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
-  | 'flashcards-check-sync';
+  | 'flashcards-check-sync'
+  | 'video-activity-editor-arrows';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

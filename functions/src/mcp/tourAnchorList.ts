@@ -50071,6 +50071,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50157,13 +50166,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.editor-question-pill",
+    "label": "Question button in the editor question list",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.editor-question-delete",
-    "label": "Delete button for the open question in the video activity editor",
+    "label": "Delete button for a question in the video activity editor",
     "scope": "field",
     "destructive": true,
     "persists": true,
     "sandboxed": true,
     "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50184,6 +50218,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50203,6 +50246,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50221,6 +50273,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "sandboxed": true,
     "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50279,6 +50340,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50296,24 +50366,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-add-question",
-    "label": "Add question button in the video activity editor before a video is set",
-    "scope": "board",
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
+      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50327,12 +50387,65 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.editor-add-question",
+    "label": "Add question button in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-select",
+    "label": "Select checkbox on a question in the video activity editor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.editor-question-duplicate",
-    "label": "Duplicate button for the open question in the video activity editor",
+    "label": "Duplicate button for a question in the video activity editor",
     "scope": "field",
     "persists": true,
     "sandboxed": true,
     "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50347,9 +50460,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-bulk-tag",
-    "label": "Tag all button in the video activity editor",
+    "label": "Tag button for selected or all questions in the video activity editor",
     "scope": "board",
     "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50365,23 +50487,103 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "video-activity.editor-question-prev",
     "label": "Previous question arrow in the video activity editor",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "video-activity.editor-question-next",
     "label": "Next question arrow in the video activity editor",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "video-activity.editor-question-jump",
     "label": "Question menu in the video activity editor",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-delete",
+    "label": "Delete button for selected questions in the video activity editor",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-clear",
+    "label": "Clear selection button in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "video-activity.editor-targets-edit",
     "label": "Learning targets Add or Edit button in the video activity editor",
     "scope": "board",
     "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50402,6 +50604,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50420,6 +50631,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "sandboxed": true,
     "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",

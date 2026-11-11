@@ -11,7 +11,7 @@ const seekTo = vi.hoisted(() => vi.fn());
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-test' },
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => id === 'video-activity-editor-arrows',
   }),
 }));
 
