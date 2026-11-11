@@ -75,7 +75,7 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
             </div>
           </div>
         </div>
-        <button
+        <button /* no-tour-anchor: substitute portal, never on the board */
           type="button"
           onClick={onChangeBuilding}
           className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1.5 text-xs transition-colors cursor-pointer"
@@ -136,7 +136,7 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
                 No teachers in this building have shared a substitute board
                 today. Check with the office or try a different building.
               </p>
-              <button
+              <button /* no-tour-anchor: substitute portal, never on the board */
                 type="button"
                 onClick={onChangeBuilding}
                 className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"

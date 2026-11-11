@@ -122,7 +122,7 @@ const SignInPromptCard: React.FC<{ plcName?: string }> = ({ plcName }) => {
             ? `Sign in to accept your invitation to "${plcName}" on ${APP_NAME}.`
             : `Sign in to accept your invitation to ${APP_NAME}.`}
         </p>
-        <button
+        <button /* no-tour-anchor: sign-in and setup screen, never on the board */
           onClick={handleSignIn}
           disabled={signingIn}
           className="group relative w-full bg-brand-blue-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 overflow-hidden shadow-lg shadow-brand-blue-primary/25 hover:shadow-brand-blue-primary/40 hover:bg-brand-blue-dark transition-all duration-200 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 disabled:cursor-not-allowed"
@@ -203,7 +203,7 @@ const AcceptPanel: React.FC<{
           .
         </p>
         <div className="w-full flex flex-col gap-3">
-          <button
+          <button /* no-tour-anchor: sign-in and setup screen, never on the board */
             onClick={onAccept}
             disabled={busy}
             className="group relative w-full bg-brand-blue-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-brand-blue-primary/25 hover:shadow-brand-blue-primary/40 hover:bg-brand-blue-dark transition-all duration-200 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 disabled:cursor-not-allowed"
@@ -214,7 +214,7 @@ const AcceptPanel: React.FC<{
               'Accept invitation'
             )}
           </button>
-          <button
+          <button /* no-tour-anchor: sign-in and setup screen, never on the board */
             onClick={onDecline}
             disabled={busy}
             className="w-full bg-white text-slate-700 py-4 rounded-2xl font-semibold border border-slate-200 hover:bg-slate-50 transition-colors active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 disabled:cursor-not-allowed"
@@ -432,7 +432,7 @@ export const PlcInviteAcceptance: React.FC = () => {
         title="Wrong account"
         message={`This invitation was sent${expected}. Sign out and sign in with the invited email.`}
         action={
-          <button
+          <button /* no-tour-anchor: sign-in and setup screen, never on the board */
             onClick={() => {
               void signOut();
             }}

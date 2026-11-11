@@ -70,7 +70,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ minimal = false }) => {
         {t('login.signInToAccess')}
       </p>
 
-      <button
+      <button /* no-tour-anchor: sign-in and setup screen, never on the board */
         onClick={handleSignIn}
         disabled={signingIn}
         className="mt-7 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100"

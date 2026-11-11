@@ -126,7 +126,7 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
               {section.boards.map((board) => {
                 const current = board.id === currentBoardId;
                 return (
-                  <button
+                  <button /* no-tour-anchor: substitute portal, never on the board */
                     key={board.id}
                     type="button"
                     role="menuitem"
@@ -163,7 +163,7 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
       )}
 
       <div className="flex items-center gap-1">
-        <button
+        <button /* no-tour-anchor: substitute portal, never on the board */
           type="button"
           className={FAB_BASE}
           disabled={!prevId}
@@ -175,7 +175,7 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <button
+        <button /* no-tour-anchor: substitute portal, never on the board */
           ref={triggerRef}
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
@@ -188,7 +188,7 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
         >
           <LayoutGrid className="w-4 h-4" />
         </button>
-        <button
+        <button /* no-tour-anchor: substitute portal, never on the board */
           type="button"
           className={FAB_BASE}
           disabled={!nextId}
