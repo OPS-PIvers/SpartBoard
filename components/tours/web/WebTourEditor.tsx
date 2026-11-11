@@ -901,7 +901,7 @@ const outlineStep = (
               ? { text: neverPlays, tone: 'warn' }
               : webStepNeedsText(step)
                 ? { text: 'Needs text', tone: 'warn' }
-                : needsFixOnSite(step)
+                : result !== 'found' && needsFixOnSite(step)
                   ? { text: 'Needs checking', tone: 'warn' }
                   : step.web.showWhen
                     ? {

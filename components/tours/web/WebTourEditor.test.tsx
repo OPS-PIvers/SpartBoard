@@ -573,6 +573,21 @@ describe('WebTourEditor', () => {
     open.mockRestore();
   });
 
+  it('drops Needs checking once Check tour found a page-position step', () => {
+    const weak = tour('Biology 7');
+    const web = weak.steps[0].web;
+    if (!web) throw new Error('no web');
+    weak.steps[0] = {
+      ...weak.steps[0],
+      web: { ...web, locator: { css: 'div > a' } },
+    };
+    renderEditor(checked(weak));
+    expect(screen.queryByText('Needs checking')).toBeNull();
+    expect(
+      screen.queryByText('This step may not find its target on the site.')
+    ).toBeNull();
+  });
+
   it('keeps Fix on site off on an extension without it', () => {
     const weak = tour('Biology 7');
     const web = weak.steps[0].web;
