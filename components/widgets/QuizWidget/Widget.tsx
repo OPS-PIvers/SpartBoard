@@ -3649,15 +3649,17 @@ const TeacherQuizWidget: React.FC<{
               questionIds: plan.questionIds,
               seats: Object.keys(plan.batch.seats).length,
             };
+            const release = releaseImages;
             printWritten = () =>
-              printPaperSheets(
-                hybridPrintJob(
+              printPaperSheets({
+                ...hybridPrintJob(
                   { ...data, questions: assignQuestions },
                   plan.batch,
                   plan.sheets,
                   writtenImages
-                )
-              );
+                ),
+                ...(release ? { onImagesReady: release } : {}),
+              });
           }
 
           let assignmentSaved = false;
