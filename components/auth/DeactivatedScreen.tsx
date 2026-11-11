@@ -34,7 +34,7 @@ export const DeactivatedScreen: React.FC = () => {
         Contact your administrator if you believe this is a mistake.
       </p>
 
-      <button
+      <button /* no-tour-anchor: sign-in and setup screen, never on the board */
         onClick={() => {
           // signInWithGoogle() re-throws (incl. popup-closed-by-user). Swallow it
           // so a cancelled popup doesn't surface as an unhandledrejection.

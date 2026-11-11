@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-11-09_
+_Last audited: 2026-11-11_
 _Last action: 2026-10-19 — Claude MCP connector: added `functions/src/mcp/tools.test.ts` (34 tests); the HIGH item is resolved and moved to Completed. Prior: 2026-10-12 — `quizTools.test.ts`; 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-11-11: Weekly audit (Wednesday). `pnpm test`: 2327 files, 25007 passed, 5 skipped, 0 failures. Gaps fall under existing Open families. 0 new issues._
 
 _2026-11-09: Weekly audit (Monday). `pnpm test`: 2258 files, 24084 passed, 5 skipped, 0 failures. Added one LOW item for six new untested files._
 
@@ -146,13 +148,6 @@ _2026-10-12: Weekly audit (Monday), after merging `origin/dev-paul` @ `c7605470`
 - **File:** `utils/responseArtifacts.ts` (126 lines, zero tests anywhere)
 - **Detail:** This is the client-side twin of the take-selection logic in `functions/src/getQuizArtifactPlaybackUrl.ts` (per its own comment, "the server resolves it again and is the authority" — so a client/server mismatch here silently plays or grades the wrong take). `artifactCountsAsTake` decides whether a failed upload still counts as a take by consulting the server-owned `archive` map and the `DEAD_ARCHIVE_STATUSES` set (`'failed'`, `'lost'`); `selectPlaybackTake` filters an answer array down to one question/slot, drops takes that don't count, re-numbers `displayIndex` positionally (so a dropped/rescued take never leaves a gap), and picks either the teacher's pinned `gradedTakeIndex` or the highest `takeIndex`; `resolveArtifactPlaybackState` maps an `ArtifactArchiveEntry` to one of `'playable' | 'archiving' | 'failed' | 'lost' | 'deleted'`; `responseHasArtifacts` is a shape-tolerant unknown-data guard.
 - **Fix:** Assert `isArtifactPlayable`/`artifactCountsAsTake` for every combination of `uploadState` (`undefined`/`'failed'`/other) crossed with `archiveStatus` (`undefined`/`'archived'`/`'failed'`/`'lost'`/other), including the "failed upload but archive entry rescued it" case; assert `selectPlaybackTake` returns `null` for no matching `questionId`/`slot`, filters out takes where `artifactCountsAsTake` is false, numbers `displayIndex` 1-based by sorted `takeIndex` even with gaps, prefers a matching `gradedTakeIndex` over the highest, and falls back to the highest `takeIndex` when `gradedTakeIndex` is unset or doesn't match any candidate; assert `resolveArtifactPlaybackState` covers all five states including the `'deleting'/'deleted'/'delete-failed'` → `'deleted'` collapse and the default-to-`'archiving'` fallback; assert `responseHasArtifacts` on malformed/non-array `answers`/`artifacts` shapes.
-
-### MEDIUM `utils/rubricOverrideResolution.ts` per-student grading override resolution untested
-
-- **Detected:** 2026-09-07
-- **File:** `utils/rubricOverrideResolution.ts` (55 lines, zero tests anywhere)
-- **Detail:** `resolveRubricForResponse` decides which rubric (if any) grades a written response, per the M17 accommodations spec: it looks up the response's `targetRefKey` from `responseStudentUid`, then that student's `rubricOverrideByQuestion[question.id]`. A wrong resolution here means a student is graded against the wrong rubric (or raw points instead of a rubric) — a direct grading-accuracy bug. There are four distinct fallback branches to the base `question.rubricSnapshot`: missing `overridesBySourcedId`/`targetRefKeyByStudentUid`/`responseStudentUid`, an unmapped `targetRefKey`, no override entry for that student, and no override for that specific question id — plus the two "overridden" outcomes (`'points'` mode returns `rubric: undefined`, `'rubric'` mode returns the alternate rubric).
-- **Fix:** Table-drive all four fallback branches (each returns `{rubric: baseRubric, isOverridden: false, overrideMode: null}`) plus the two override outcomes; assert the `'points'` override mode returns `rubric: undefined` even when `question.rubricSnapshot` is defined (points mode must ignore the base rubric, not merge it); assert an override for a *different* question id on the same student falls back to the base rubric; assert `question.rubricSnapshot` being `undefined` with no override correctly returns `rubric: undefined, isOverridden: false`.
 
 ### MEDIUM `hooks/usePollSession.ts` live vote-tally listener untested
 
@@ -370,6 +365,14 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
 ---
 
 ## Completed
+
+### MEDIUM `utils/rubricOverrideResolution.ts` per-student grading override resolution untested
+
+- **Detected:** 2026-09-07
+- **File:** `utils/rubricOverrideResolution.ts` (55 lines, zero tests anywhere)
+- **Detail:** `resolveRubricForResponse` decides which rubric (if any) grades a written response, per the M17 accommodations spec: it looks up the response's `targetRefKey` from `responseStudentUid`, then that student's `rubricOverrideByQuestion[question.id]`. A wrong resolution here means a student is graded against the wrong rubric (or raw points instead of a rubric) — a direct grading-accuracy bug. There are four distinct fallback branches to the base `question.rubricSnapshot`: missing `overridesBySourcedId`/`targetRefKeyByStudentUid`/`responseStudentUid`, an unmapped `targetRefKey`, no override entry for that student, and no override for that specific question id — plus the two "overridden" outcomes (`'points'` mode returns `rubric: undefined`, `'rubric'` mode returns the alternate rubric).
+- **Fix:** Table-drive all four fallback branches (each returns `{rubric: baseRubric, isOverridden: false, overrideMode: null}`) plus the two override outcomes; assert the `'points'` override mode returns `rubric: undefined` even when `question.rubricSnapshot` is defined (points mode must ignore the base rubric, not merge it); assert an override for a *different* question id on the same student falls back to the base rubric; assert `question.rubricSnapshot` being `undefined` with no override correctly returns `rubric: undefined, isOverridden: false`.
+- **Resolved:** 2026-11-11 — added `utils/rubricOverrideResolution.test.ts` (9 cases: six fallback branches, rubric mode, points mode, no base rubric).
 
 ### MEDIUM `tests/utils/miniAppResultsExport.test.ts` 'Score column' test fails (expects 1 sheet question, receives 2)
 
