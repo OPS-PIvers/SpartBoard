@@ -2016,6 +2016,17 @@ describe('isTestClassAuthority', () => {
     await expect(check()).resolves.toBe(true);
   });
 
+  it('refuses a legacy-listed email whose operator member doc is deactivated', async () => {
+    state.docs.set('admin_settings/user_roles', {
+      superAdmins: ['Teacher@Orono.k12.mn.us'],
+    });
+    state.docs.set(`organizations/orono/members/${EMAIL}`, {
+      roleId: 'teacher',
+      status: 'inactive',
+    });
+    await expect(check()).resolves.toBe(false);
+  });
+
   it('allows an operator-org member with roleId super_admin', async () => {
     state.docs.set(`organizations/orono/members/${EMAIL}`, {
       roleId: 'super_admin',

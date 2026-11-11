@@ -1445,15 +1445,16 @@ export async function isTestClassAuthority(
   const legacyList: unknown = legacyDoc.exists
     ? legacyDoc.get('superAdmins')
     : null;
+  const operatorStatus: unknown = operatorMemberDoc.get('status');
   if (
     Array.isArray(legacyList) &&
     legacyList.some(
       (e) => typeof e === 'string' && e.toLowerCase() === teacherEmailLower
-    )
+    ) &&
+    !(operatorMemberDoc.exists && isRevokedMemberStatus(operatorStatus))
   ) {
     return true;
   }
-  const operatorStatus: unknown = operatorMemberDoc.get('status');
   if (
     roleIdOf(operatorMemberDoc) === 'super_admin' &&
     (operatorStatus === undefined || operatorStatus === 'active')
