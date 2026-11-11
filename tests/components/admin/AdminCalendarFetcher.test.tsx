@@ -220,3 +220,40 @@ describe('AdminCalendarFetcher — legacy building id canonicalization', () => {
     ).toBeUndefined();
   });
 });
+
+describe('AdminCalendarFetcher — write scope', () => {
+  it('writes only the synced fields so concurrent admin edits are not overwritten', async () => {
+    authValue.featurePermissions = [
+      {
+        ...calendarPermission,
+        config: {
+          blockedDates: ['2026-01-01'],
+          updateFrequencyHours: 4,
+          buildingDefaults: {
+            b1: { buildingId: 'b1', events: [], googleCalendarIds: ['cal-1'] },
+            b2: { buildingId: 'b2', events: [], googleCalendarIds: [] },
+          },
+        },
+      },
+    ];
+    render(<AdminCalendarFetcher />);
+    await act(async () => {
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+    expect(setDocMock).toHaveBeenCalled();
+    const [, payload] = setDocMock.mock.calls[0] as [
+      unknown,
+      { config: Record<string, unknown> },
+    ];
+    expect(Object.keys(payload.config)).toEqual(['buildingDefaults']);
+    const bd = payload.config.buildingDefaults as Record<
+      string,
+      Record<string, unknown>
+    >;
+    expect(Object.keys(bd)).toEqual(['b1']);
+    expect(Object.keys(bd.b1).sort()).toEqual([
+      'cachedEvents',
+      'lastProxySync',
+    ]);
+  });
+});

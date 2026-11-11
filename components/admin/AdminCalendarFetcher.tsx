@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { CalendarGlobalConfig } from '@/types';
+import { CalendarEvent, CalendarGlobalConfig } from '@/types';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
@@ -90,7 +90,10 @@ export const AdminCalendarFetcher: React.FC = () => {
         const buildingDefaults = canonicalizeBuildingKeyedRecord(
           config.buildingDefaults ?? {}
         );
-        let hasChanges = false;
+        const synced: Record<
+          string,
+          { cachedEvents: CalendarEvent[]; lastProxySync: number }
+        > = {};
 
         for (const building of BUILDINGS) {
           const canonicalId = canonicalBuildingId(building.id);
@@ -117,12 +120,10 @@ export const AdminCalendarFetcher: React.FC = () => {
               .flat()
               .sort((a, b) => a.date.localeCompare(b.date));
 
-            buildingDefaults[canonicalId] = {
-              ...bConfig,
+            synced[canonicalId] = {
               cachedEvents: merged,
               lastProxySync: Date.now(),
             };
-            hasChanges = true;
           } catch (err) {
             console.error(
               `[AdminCalendarFetcher] Failed building ${building.id}:`,
@@ -131,15 +132,13 @@ export const AdminCalendarFetcher: React.FC = () => {
           }
         }
 
-        if (hasChanges) {
+        if (Object.keys(synced).length > 0) {
           const docRef = doc(db, 'feature_permissions', 'calendar');
           await setDoc(
             docRef,
             {
-              config: {
-                ...config,
-                buildingDefaults,
-              },
+              // Deep-merge only the synced fields so concurrent admin edits survive.
+              config: { buildingDefaults: synced },
               updatedAt: Date.now(),
             },
             { merge: true }
