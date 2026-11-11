@@ -1,32 +1,24 @@
-/* SpartBoard's own look (tailwind.config.js brand colours, Lexend, the quiz editor's slate surfaces); only light/dark comes from the host. */
+/* SpartBoard's own look (tailwind.config.js brand colours, Lexend, the quiz editor's slate surfaces), always light like the app's quizzes. */
 :root {
-  color-scheme: light dark;
-  --page: light-dark(#f8fafc, #0f172a);
-  --card: light-dark(#ffffff, #1e293b);
-  --subtle: light-dark(#f1f5f9, #273449);
-  --border: light-dark(#e2e8f0, #334155);
-  --border-strong: light-dark(#cbd5e1, #475569);
-  --text: light-dark(#0f172a, #f1f5f9);
-  --text-2: light-dark(#334155, #cbd5e1);
-  --muted: light-dark(#64748b, #94a3b8);
-  --brand: light-dark(#2d3f89, #8fa0e0);
+  color-scheme: light;
+  --page: #f8fafc;
+  --card: #ffffff;
+  --subtle: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-2: #334155;
+  --muted: #64748b;
+  --brand: #2d3f89;
   --brand-dark: #1d2a5d;
-  --brand-fill: light-dark(#eaecf5, #26315c);
-  --good-fill: light-dark(#ecfdf5, #0f3a2e);
-  --good-border: light-dark(#a7f3d0, #166534);
-  --good-text: light-dark(#065f46, #6ee7b7);
-  --warn-fill: light-dark(#fef3c7, #422c06);
-  --warn-text: light-dark(#92400e, #fcd34d);
+  --brand-fill: #eaecf5;
+  --good-fill: #ecfdf5;
+  --good-border: #a7f3d0;
+  --good-text: #065f46;
+  --warn-fill: #fef3c7;
+  --warn-text: #92400e;
   --font: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'Roboto Mono', ui-monospace, monospace;
-}
-
-:root[data-theme='light'] {
-  color-scheme: light;
-}
-
-:root[data-theme='dark'] {
-  color-scheme: dark;
 }
 
 * {

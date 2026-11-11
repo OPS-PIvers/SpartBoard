@@ -1,7 +1,6 @@
 // Entry for the connector's preview card: connects to Claude and redraws on each tool result.
 import {
   App,
-  applyDocumentTheme,
   type McpUiHostContext,
 } from '@modelcontextprotocol/ext-apps/app-with-deps';
 import { renderMessage, renderPreview } from './render';
@@ -66,8 +65,6 @@ const supersession = createSupersession(() => {
 
 function applyContext(ctx: McpUiHostContext | undefined): void {
   if (!ctx) return;
-  // SpartBoard's own colours and type; only light or dark follows the host.
-  if (ctx.theme) applyDocumentTheme(ctx.theme);
   if (ctx.displayMode) {
     const next = ctx.displayMode === 'fullscreen';
     if (next !== fullscreen) {
