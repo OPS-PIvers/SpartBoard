@@ -357,15 +357,16 @@ service firebase.storage {
     // Quiz recorded media — transit buffer only. The path segment is the
     // response key, so ownership is proven by the response doc's studentUid.
     match /quiz_response_media/{sessionId}/{responseKey}/{fileName} {
+      // Teacher, then student, then admin: each of the first two stays within two Firestore reads.
       allow read: if request.auth != null &&
         (
-          isSiteAdmin() ||
+          (firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)
+          ).data.get('teacherUid', '') == request.auth.uid && notDeactivated()) ||
           (pinScopeOk(sessionId) && firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
           ).data.get('studentUid', '') == request.auth.uid) ||
-          (firestore.get(
-            /databases/(default)/documents/quiz_sessions/$(sessionId)
-          ).data.get('teacherUid', '') == request.auth.uid && notDeactivated())
+          isSiteAdmin()
         );
       // Create only (no update): the caller must own the response doc at this key.
       // Audio takes, plus a whiteboard take's PNG picture and JSON drawing log.

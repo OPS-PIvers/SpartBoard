@@ -2159,7 +2159,7 @@ service cloud.firestore {
         isStr('sessionId') &&
         // No startsWith() in rules — matches() (RE2) is the only prefix primitive.
         // Auth UIDs are alphanumeric (no regex-special chars), so embedding is safe.
-        incoming().sessionId.matches(authUid() + '_.*') &&
+        mySid(incoming().sessionId) &&
         newKeys().hasOnly([
           'id', 'sessionId', 'originalAuthor', 'title', 'prompt', 'mode',
           'identificationMode', 'allowComments', 'allowCommentResponses',
@@ -6771,7 +6771,7 @@ service cloud.firestore {
         // lists unfiltered and would break otherwise). Merged student page: the student-link
         // audience reads approved posts while the teacher keeps the wall visible.
         allow read: if signedIn() &&
-                            (sessionId.matches(authUid() + '_.*') ||
+                            (mySid(sessionId) ||
                              isSiteAdmin() ||
                              (awSession().get('publiclyShared', false) == true &&
                               (!awIsPadletSession() ||
