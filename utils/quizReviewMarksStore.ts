@@ -56,3 +56,23 @@ export function clearReviewState(key: string): void {
     /* storage blocked */
   }
 }
+
+/** Drops every attempt's saved state for one response; runs once it is turned in. */
+export function clearAllReviewStates(
+  sessionId: string,
+  responseKey: string | undefined
+): void {
+  const prefix = reviewStateKey(sessionId, responseKey, 0)?.replace(/0$/, '');
+  if (!prefix) return;
+  try {
+    const store = window.sessionStorage;
+    const keys: string[] = [];
+    for (let i = 0; i < store.length; i++) {
+      const key = store.key(i);
+      if (key?.startsWith(prefix)) keys.push(key);
+    }
+    for (const key of keys) store.removeItem(key);
+  } catch {
+    /* storage blocked */
+  }
+}

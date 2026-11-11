@@ -420,7 +420,10 @@ describe('QuizStudentApp — question timer with the review step (quiz-review-st
     expect(
       await screen.findByRole('heading', { name: /Review before you submit/i })
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Pick two/i)).not.toBeInTheDocument();
+    // The question view is gone; the review list still names each question.
+    expect(
+      screen.queryByRole('button', { name: /Beta/ })
+    ).not.toBeInTheDocument();
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
   }, 15000);
 });

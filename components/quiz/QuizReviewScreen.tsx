@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { MathText } from '@/components/common/MathText';
 import { reviewCounts, type ReviewRow } from '@/utils/quizReviewStep';
+import { clearAllReviewStates } from '@/utils/quizReviewMarksStore';
 
 const focusCls =
   'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary';
@@ -43,6 +44,25 @@ export const MarkForReviewButton: React.FC<{
     </button>
   );
 };
+
+/** Rendered on the submitted screen, where the question view and its marks have already unmounted. */
+export const ReviewMarksCleanup: React.FC<{
+  sessionId: string;
+  responseKey: string | undefined;
+}> = ({ sessionId, responseKey }) => {
+  React.useEffect(() => {
+    clearAllReviewStates(sessionId, responseKey);
+  }, [sessionId, responseKey]);
+  return null;
+};
+
+/** Shows the review screen in place of the question area, keeping the question markup's indentation. */
+export const ReviewSwap: React.FC<{
+  review: React.ReactNode;
+  className?: string;
+  children?: React.ReactNode;
+}> = ({ review, className, children }) =>
+  review != null ? <>{review}</> : <div className={className}>{children}</div>;
 
 const StatusIcon: React.FC<{ status: ReviewRow['status'] }> = ({ status }) =>
   status === 'answered' ? (

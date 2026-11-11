@@ -134,6 +134,8 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-stimuli.card-delete': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.passage-text': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.play-limit': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.tab-label': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.placement': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.attach-all-questions': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.attach-question': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.attach-bank-slot': 'quiz-editor.tab-stimuli:quiz',
