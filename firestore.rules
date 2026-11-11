@@ -444,6 +444,12 @@ service cloud.firestore {
              ((isLegacySuperAdmin() && notDeactivated()) || isMemberSuperAdmin());
     }
 
+    // A status change must not touch an address on the legacy super admin list (a super admin may).
+    function legacyStatusSafe(emailLower) {
+      return incoming().get('status', '') == existing().get('status', '') ||
+             !exists(/databases/$(database)/documents/admin_settings/user_roles) ||
+             !(emailLower in get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []));
+    }
     function isLegacySuperAdmin() {
       return get(/databases/$(database)/documents/admin_settings/user_roles) != null &&
              request.auth.token.email.lower() in
@@ -756,6 +762,7 @@ service cloud.firestore {
            changedOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ]) &&
+           legacyStatusSafe(emailLower) &&
            // No self-service role or status change (e.g. undoing a deactivation).
            (emailLower != myEmail() ||
             (incoming().get('roleId', '') == existing().get('roleId', '') &&
@@ -782,7 +789,8 @@ service cloud.firestore {
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            // Deactivate only: reactivating is a domain admin's call.
            (liveStatus(existing()) || !liveStatus(incoming())) &&
-           changedOnly(['status'])) ||
+           changedOnly(['status']) &&
+           legacyStatusSafe(emailLower)) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.
           // Strictly bound — email/orgId must match and only `lastActive` may
           // change, so it can't escalate role/buildingIds/status or touch another

@@ -174,6 +174,41 @@ describe('super admin tier requires an active member doc', () => {
   });
 });
 
+describe('lower admins cannot change the status of a legacy-list address', () => {
+  beforeEach(async () => {
+    await seed('admin_settings/user_roles', { superAdmins: [TEACHER_EMAIL] });
+  });
+
+  it('domain and building admins are DENIED deactivating it', async () => {
+    await assertFails(
+      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
+        status: 'inactive',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(as(BUILDING_EMAIL), memberPath(TEACHER_EMAIL)), {
+        status: 'inactive',
+      })
+    );
+  });
+
+  it('a domain admin may still edit its other fields', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
+        name: 'Renamed',
+      })
+    );
+  });
+
+  it('a super admin may deactivate it', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(SUPER_EMAIL), memberPath(TEACHER_EMAIL)), {
+        status: 'inactive',
+      })
+    );
+  });
+});
+
 describe('member status writes accept only active, invited, inactive', () => {
   for (const status of ['active', 'invited', 'inactive']) {
     it(`domain and super admins may write ${status}`, async () => {
