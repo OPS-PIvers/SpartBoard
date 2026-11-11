@@ -80,7 +80,7 @@ export interface TimelineProps {
   handleRef?: React.Ref<TimelineHandle>;
   /** Questions still missing a correct answer; their markers show in amber. */
   needsAnswerIds?: ReadonlySet<string>;
-  /** Extra buttons shown beside Add at the playhead. */
+  /** Extra buttons beside Add at the playhead; Add then stays usable before the player loads. */
   actions?: React.ReactNode;
 }
 
@@ -410,7 +410,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             const isActive = q.id === activeQuestionId;
             const isDragging =
               markerDragSec !== null && markerDragSec.id === q.id;
-            const dot = needsAnswerIds?.has(q.id)
+            const amber = needsAnswerIds?.has(q.id) ?? false;
+            const dot = amber
               ? 'bg-amber-500 ring-amber-200'
               : 'bg-emerald-500 ring-emerald-200';
 
@@ -515,9 +516,9 @@ export const Timeline: React.FC<TimelineProps> = ({
                 title={`${formatHms(previewSec)} — ${q.text || 'Untitled question'}`}
                 className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all touch-none ${dot} ${
                   isDragging
-                    ? 'w-4 h-4 ring-2 cursor-grabbing'
+                    ? `w-4 h-4 ring-2 cursor-grabbing ${amber ? '' : 'bg-emerald-600 ring-emerald-300'}`
                     : isActive
-                      ? 'w-4 h-4 ring-2 ring-offset-1 ring-offset-slate-200 cursor-grab'
+                      ? 'w-4 h-4 ring-2 cursor-grab'
                       : 'w-3 h-3 hover:w-4 hover:h-4 cursor-grab'
                 }`}
                 style={{ left: `${pct}%` }}

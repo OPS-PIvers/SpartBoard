@@ -49,6 +49,8 @@ const blankQuestion = (): VideoActivityQuestion => ({
 });
 
 interface UseVideoActivityEditorStateProps {
+  /** Opens the first question whenever none is selected (the arrows layout has no list). */
+  keepQuestionOpen?: boolean;
   activity: VideoActivityData | null;
   /** Opens the AI prompt as soon as this activity loads (a YouTube import, D35). */
   startWithAi?: boolean;
@@ -151,6 +153,7 @@ function sortByTimestamp(
 export function useVideoActivityEditorState({
   activity,
   startWithAi = false,
+  keepQuestionOpen = false,
 }: UseVideoActivityEditorStateProps): VideoActivityEditorController {
   // Dedupe by id: a Drive-sync/arrayUnion race can write a question twice (same guard as grading/session-creation).
   const originalQuestions = useMemo(
@@ -244,7 +247,7 @@ export function useVideoActivityEditorState({
     [questions, selectedId]
   );
   // With no question list, one question is always open while any exist.
-  if (!selectedQuestion && questions.length > 0) {
+  if (keepQuestionOpen && !selectedQuestion && questions.length > 0) {
     setSelectedId(questions[0].id);
   }
 

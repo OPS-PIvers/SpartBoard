@@ -132,6 +132,7 @@ export const VideoActivityEditorModal: React.FC<
   const editorState = useVideoActivityEditorState({
     activity,
     startWithAi: startWithAi && canUseAi,
+    keepQuestionOpen: arrowsEnabled,
   });
 
   const {
