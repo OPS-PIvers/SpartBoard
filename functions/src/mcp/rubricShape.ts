@@ -44,7 +44,7 @@ export function rubricDoc(rubric: Rubric): Rubric {
 /** Mirrors rubricMaxPoints in utils/rubricPoints.ts. */
 export const rubricMaxPoints = (criteria: RubricCriterion[]): number =>
   criteria.reduce(
-    (sum, c) => sum + Math.max(0, ...c.levels.map((l) => l.points)),
+    (sum, c) => sum + Math.max(0, ...(c.levels ?? []).map((l) => l.points)),
     0
   );
 

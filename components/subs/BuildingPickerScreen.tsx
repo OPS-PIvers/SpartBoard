@@ -43,7 +43,7 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
               {user?.email ?? 'unknown'}
             </span>
           </span>
-          <button
+          <button /* no-tour-anchor: substitute portal, never on the board */
             type="button"
             onClick={() => void signOut()}
             className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1 transition-colors cursor-pointer"
@@ -62,7 +62,7 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {buildings.map((b) => (
-              <button
+              <button /* no-tour-anchor: substitute portal, never on the board */
                 key={b.id}
                 type="button"
                 onClick={() => onPick(b.id)}

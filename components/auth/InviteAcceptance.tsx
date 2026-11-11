@@ -196,7 +196,7 @@ const SignInPromptCard: React.FC = () => {
         <p className="text-slate-600 mb-7 text-sm sm:text-base leading-relaxed">
           Sign in to accept your invitation to {APP_NAME}.
         </p>
-        <button
+        <button /* no-tour-anchor: sign-in and setup screen, never on the board */
           onClick={handleSignIn}
           disabled={signingIn}
           className="group relative w-full bg-brand-blue-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 overflow-hidden shadow-lg shadow-brand-blue-primary/25 hover:shadow-brand-blue-primary/40 hover:bg-brand-blue-dark transition-all duration-200 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 disabled:cursor-not-allowed"
@@ -356,7 +356,7 @@ export const InviteAcceptance: React.FC = () => {
   // status.kind === 'error'
   const content = getErrorContent(status.code);
   const action = content.showSignOut ? (
-    <button
+    <button /* no-tour-anchor: sign-in and setup screen, never on the board */
       onClick={() => {
         void signOut();
       }}

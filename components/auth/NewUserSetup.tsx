@@ -343,7 +343,7 @@ export const NewUserSetup: React.FC = () => {
 
         {/* Footer nav */}
         <div className="px-8 py-5 border-t border-slate-700 flex items-center justify-between">
-          <button
+          <button /* no-tour-anchor: sign-in and setup screen, never on the board */
             onClick={() => setStep((s) => s - 1)}
             disabled={step === 0}
             className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white disabled:opacity-0 disabled:pointer-events-none transition-colors text-sm"
@@ -368,7 +368,7 @@ export const NewUserSetup: React.FC = () => {
           </div>
 
           {!isLastStep ? (
-            <button
+            <button /* no-tour-anchor: sign-in and setup screen, never on the board */
               onClick={() => setStep((s) => s + 1)}
               disabled={!canAdvance}
               className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-colors"
@@ -377,7 +377,7 @@ export const NewUserSetup: React.FC = () => {
               <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
-            <button
+            <button /* no-tour-anchor: sign-in and setup screen, never on the board */
               onClick={handleFinish}
               disabled={finishing}
               className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 text-white rounded-xl font-medium text-sm transition-colors"
@@ -438,7 +438,7 @@ const StepBuildings: React.FC<{
       {BUILDINGS.map((b) => {
         const isSelected = selected.includes(b.id);
         return (
-          <button
+          <button /* no-tour-anchor: sign-in and setup screen, never on the board */
             key={b.id}
             onClick={() => onToggle(b.id)}
             aria-pressed={isSelected}
@@ -504,7 +504,7 @@ const StepAppearance: React.FC<{
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {FONT_OPTIONS.map((f) => (
-            <button
+            <button /* no-tour-anchor: sign-in and setup screen, never on the board */
               key={f.value}
               onClick={() => update({ fontFamily: f.value })}
               className={`p-3 rounded-xl border-2 text-left transition-all ${
@@ -531,7 +531,7 @@ const StepAppearance: React.FC<{
         </label>
         <div className="flex gap-3">
           {WINDOW_CORNER_OPTIONS.map((o) => (
-            <button
+            <button /* no-tour-anchor: sign-in and setup screen, never on the board */
               key={o.value}
               onClick={() => update({ windowBorderRadius: o.value })}
               className={`flex-1 flex flex-col items-center gap-2 p-3 border-2 transition-all ${
@@ -566,7 +566,7 @@ const StepAppearance: React.FC<{
               none: 'rounded-none',
             };
             return (
-              <button
+              <button /* no-tour-anchor: sign-in and setup screen, never on the board */
                 key={o.label}
                 onClick={() =>
                   update({
@@ -598,7 +598,7 @@ const StepAppearance: React.FC<{
         </label>
         <div className="flex gap-3">
           {DOCK_COLOR_OPTIONS.map((c) => (
-            <button
+            <button /* no-tour-anchor: sign-in and setup screen, never on the board */
               key={c.value}
               onClick={() => update({ dockTextColor: c.value })}
               title={c.label}
@@ -661,7 +661,7 @@ const StepDock: React.FC<{
               const Icon = tool.icon;
               const isSelected = dockTypes.includes(type);
               return (
-                <button
+                <button /* no-tour-anchor: sign-in and setup screen, never on the board */
                   key={type}
                   onClick={() => onToggle(type)}
                   className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${

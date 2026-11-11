@@ -71,7 +71,7 @@ export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
         </div>
         <div className="mt-3 flex flex-col gap-1.5">
           {entry.boards.map((board) => (
-            <button
+            <button /* no-tour-anchor: substitute portal, never on the board */
               key={board.id}
               type="button"
               onClick={() => onPickCollectionBoard(entry.shareId, board.id)}
@@ -112,7 +112,7 @@ export const SubDirectoryCard: FC<SubDirectoryCardProps> = ({
   const widgetCount = entry.kind === 'board' ? entry.widgetCount : undefined;
 
   return (
-    <button
+    <button /* no-tour-anchor: substitute portal, never on the board */
       type="button"
       onClick={open}
       className={`group ${CARD_CLASS} hover:border-brand-blue-primary/40 hover:shadow-md transition-all focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer`}
