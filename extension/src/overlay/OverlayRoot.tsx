@@ -36,7 +36,7 @@ const TIP_W = 320;
 const GUTTER = 12;
 const TIP_H = 120;
 
-/** Below the target when it fits, else above, else centred. */
+/** Below the target when the whole tip fits, else above, else as low as it stays on screen. */
 export function placeTip(
   rect: OverlayRect | null,
   view: { w: number; h: number },
@@ -51,11 +51,13 @@ export function placeTip(
     view.w - width - GUTTER
   );
   const below = rect.y + rect.height + GUTTER * 2;
-  if (below < view.h * 0.75) return { left, top: below, width };
+  if (below + tipH + GUTTER <= view.h) return { left, top: below, width };
   // Above is pinned by its bottom edge, so a tip that grows after it is measured still clears the target.
   if (rect.y - GUTTER * 2 >= tipH + GUTTER)
     return { left, bottom: view.h - rect.y + GUTTER * 2, width };
-  return { left, top: GUTTER, width };
+  const top =
+    below < view.h * 0.75 ? Math.max(GUTTER, view.h - tipH - GUTTER) : GUTTER;
+  return { left, top, width };
 }
 
 // A step found faster than this never flashes "Looking…".
