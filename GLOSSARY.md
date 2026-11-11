@@ -50,6 +50,32 @@ _Avoid_: PLC (for Teams in general), Group (that means joined widgets), My PLCs
 A set of students split up for class work, as in the Randomizer or a roster's saved groups. Always say "student team" when it could be mistaken for a Team.
 _Avoid_: Team (unqualified, when talking about students)
 
+**District library**:
+Quizzes and question banks that admins publish to chosen buildings, grades or teachers. A teacher's copy stays linked to it, so an admin's correction reaches every copy.
+_Avoid_: assessment library, shared library, admin library
+
+## Quizzes
+
+**Blank type**:
+How students fill the blanks of a fill-in-the-blank question: Typed, Dropdown (pick from a list on each blank) or Drag (pull words from a shared word bank).
+_Avoid_: choice blank, cloze, inline choice, gap match
+
+**Stimulus tab**:
+One named source (a reading, picture, PDF or calculator) in the panel beside a question, shown as a tab when the question has two or more.
+_Avoid_: source tab, passage tab
+
+**Explanation**:
+A teacher's text saying why an answer is right, or why one choice is right or wrong. Students see it only with published results, when the teacher switches it on.
+_Avoid_: rationale, feedback (which means a teacher's comments on a student's written answer)
+
+**Mark for review**:
+A student's own marker on a question they want to come back to before submitting. Teachers never see it.
+_Avoid_: flag (which means a feature flag or a flagged answer)
+
+**Package file**:
+One file holding quizzes or question banks with their pictures, which an admin uploads to the District library.
+_Avoid_: bundle, export
+
 ## Getting Started
 
 **Live tour**:

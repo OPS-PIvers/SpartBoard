@@ -91,7 +91,7 @@ export const WebStepCard: React.FC<{
   const clues = entries.filter(
     (e) => e.field !== 'label' && e.field !== 'text'
   );
-  const weak = needsFixOnSite(step);
+  const weak = result !== 'found' && needsFixOnSite(step);
   // The target's name, highlighted like its clue when it holds student data.
   const targetEntry = TARGET_FIELDS.map((f) =>
     clues.find((e) => e.field === f && e.value.trim())
