@@ -62,6 +62,7 @@ import {
   pageProtectionSessionFields,
 } from '@/utils/pageProtections';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import { INPUT_SIGNALS_FEATURE } from '@/utils/inputSignals';
 import {
   addJoinCodeOwnerToBatch,
   addJoinCodePointerToBatch,
@@ -1336,6 +1337,8 @@ export const useQuizAssignments = (
   const crossOutOn = authContext?.canAccessFeature?.('quiz-cross-out') === true;
   const orderingListOn =
     authContext?.canAccessFeature?.('quiz-ordering-list') === true;
+  const inputSignalsOn =
+    authContext?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
   const pageProtectionsOn =
     authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
@@ -1734,6 +1737,7 @@ export const useQuizAssignments = (
           ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
           : {}),
         ...(crossOutOn ? { allowCrossOut: true } : {}),
+        ...(inputSignalsOn ? { inputSignals: true } : {}),
         ...(orderingListOn ? { orderingList: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
@@ -1966,6 +1970,7 @@ export const useQuizAssignments = (
       stimulusQuotesOn,
       crossOutOn,
       orderingListOn,
+      inputSignalsOn,
       pageProtectionsOn,
     ]
   );

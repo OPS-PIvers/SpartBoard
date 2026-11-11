@@ -69,6 +69,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'music-my-songs',
   'widget-connections',
   'focus-sessions',
+  'input-signals',
   'staff-audience',
   'universal-import',
   'import-extension-send',

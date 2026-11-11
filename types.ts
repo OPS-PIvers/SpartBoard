@@ -5569,6 +5569,8 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
+  /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
+  inputSignals?: boolean;
   /** Stamped only with the quiz-ordering-list flag; Ordering shows one list to drag into order. */
   orderingList?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
@@ -6058,6 +6060,37 @@ export interface TabExit {
 /** Rules refuse a log past this length; the warning count keeps going. */
 export const TAB_EXITS_MAX = 50;
 
+/** Input counters for one question, recorded by the student page; evidence for a teacher, never proof. */
+export interface InputSignalCounts {
+  /** Mouse clicks. */
+  clicks?: number;
+  /** Mouse clicks that landed far from the last one with no pointer travel. */
+  jumpClicks?: number;
+  /** Mouse clicks that followed a straight path at constant speed. */
+  lineClicks?: number;
+  /** Character key presses in answer boxes. */
+  keys?: number;
+  /** Key presses released in under 10 ms. */
+  instantKeys?: number;
+  /** Gaps under 2 s between key presses: how many, their sum and sum of squares in ms. */
+  ikN?: number;
+  ikSum?: number;
+  ikSq?: number;
+  /** Characters that arrived in answer boxes. */
+  chars?: number;
+  /** Characters that arrived with no key press. */
+  unkeyedChars?: number;
+  /** Paste and drop attempts, blocked or not. */
+  pastes?: number;
+  /** Characters a paste or drop put into an answer box. */
+  pastedChars?: number;
+  /** Clicks, key presses and edits the browser marks as made by a script. */
+  scripted?: number;
+}
+
+/** Keyed by completed-attempt count, then by question index. */
+export type InputSignals = Record<string, Record<string, InputSignalCounts>>;
+
 export interface QuizResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -6157,6 +6190,8 @@ export interface QuizResponse extends StaffResponseFields {
   tabSwitchWarnings?: number;
   /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
   tabExits?: TabExit[];
+  /** Written only when the session carries `inputSignals`. */
+  inputSignals?: InputSignals;
   /**
    * Number of tab-switch / focus-loss events the student has accumulated while
    * viewing **published results**. Distinct from `tabSwitchWarnings`, which
@@ -11176,6 +11211,7 @@ export type GlobalFeature =
   | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
+  | 'input-signals'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
   /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */

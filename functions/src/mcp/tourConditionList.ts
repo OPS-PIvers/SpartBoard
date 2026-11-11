@@ -80,6 +80,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'import-schoology-course',
   'import-sticker',
   'import-video-activity',
+  'input-signals',
   'instructional-routine',
   'live-session',
   'live-tour-editing-v2',
