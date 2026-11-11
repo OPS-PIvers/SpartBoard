@@ -394,8 +394,9 @@ export function useFlashcardSets(
     [canSpeak, syncChecks, userId]
   );
 
+  // `checks` is the starting save's own Check sync, so a fill started by a draft never reaches a Check.
   const patchVoices = useCallback(
-    (setId: string): VoiceFillWrite =>
+    (setId: string, checks: boolean): VoiceFillWrite =>
       (merge, final) =>
         oneWriteAtATime(`${userId}/${setId}`, async () => {
           if (!userId) return;
@@ -428,7 +429,7 @@ export function useFlashcardSets(
               userId,
               patched,
               await speakAdminConfigFor(patched, canSpeak),
-              syncChecks
+              syncChecks && checks
             );
           } catch (err) {
             logError('useFlashcardSets.patchVoices', err, { userId, setId });
@@ -452,11 +453,18 @@ export function useFlashcardSets(
           );
         } catch (err) {
           if (err instanceof FlashcardStudySyncError && canSpeak) {
-            startVoiceFill(applyVoiceResults(set), patchVoices(set.id));
+            startVoiceFill(
+              applyVoiceResults(set),
+              patchVoices(set.id, options?.syncChecks ?? true)
+            );
           }
           throw err;
         }
-        if (canSpeak) startVoiceFill(result.saved, patchVoices(set.id));
+        if (canSpeak)
+          startVoiceFill(
+            result.saved,
+            patchVoices(set.id, options?.syncChecks ?? true)
+          );
         return result.rewritten;
       }),
     [canSpeak, patchVoices, userId, writeSet]
@@ -464,7 +472,7 @@ export function useFlashcardSets(
 
   const fillSpeakVoices = useCallback(
     (set: FlashcardSet): void => {
-      if (canSpeak && userId) startVoiceFill(set, patchVoices(set.id));
+      if (canSpeak && userId) startVoiceFill(set, patchVoices(set.id, false));
     },
     [canSpeak, patchVoices, userId]
   );

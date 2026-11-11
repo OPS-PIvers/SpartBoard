@@ -60,6 +60,19 @@ describe('rescoredSubmission', () => {
     expect(next?.answerLog[0]).toMatchObject({ correct: true });
   });
 
+  it('keeps the verdict when the card has no answer left to grade against', () => {
+    expect(
+      rescoredSubmission(
+        {
+          submittedAt: 1,
+          answerLog: [{ cardId: 'a', response: 'respeto', correct: true }],
+        },
+        [card('a', '', 'respect')],
+        grader
+      )
+    ).toBeNull();
+  });
+
   it('never takes a multiple choice point away and keeps accepted flags', () => {
     const next = rescoredSubmission(
       {
