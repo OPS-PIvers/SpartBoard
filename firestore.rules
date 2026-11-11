@@ -1035,6 +1035,16 @@ service cloud.firestore {
       allow read, write: if ownsUser(userId);
     }
 
+    // District library banks a teacher added: a pointer to the canonical, never content (QUIZ_MCA_PRACTICE.md M28).
+    match /users/{userId}/district_links/{itemId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId)
+        && newKeys().hasOnly(['itemId', 'kind', 'syncGroupId', 'ownerUid', 'title', 'questionCount', 'targetIds', 'addedAt'])
+        && incoming().itemId == itemId
+        && isStr('syncGroupId') && isStr('ownerUid')
+        && isInt('addedAt');
+    }
+
     // Activity Wall library - per-user reusable activity definitions.
     // Activities used to live inline on the Activity Wall widget's config;
     // moving them here lets teachers reuse the same activity across widgets
@@ -2291,8 +2301,18 @@ service cloud.firestore {
       return newKeys().hasOnly([
         'id', 'version', 'title', 'questions', 'participants', 'plcId', 'createdAt',
         'updatedAt', 'updatedBy', 'behavior', 'stimuli', 'paperSheetStimuli',
-        'translations', 'bankSlots', 'order', 'sections'
+        'translations', 'bankSlots', 'order', 'sections', 'districtItemId'
       ]);
+    }
+    // A District library canonical is written only by a site admin; `member` (participant or owner) counts only on unmarked docs (M27).
+    function districtOr(member) {
+      return existing().get('districtItemId', '') == '' ? member : isSiteAdmin();
+    }
+    function districtMarkOk() {
+      return !('districtItemId' in incoming()) || (isStr('districtItemId') && isSiteAdmin());
+    }
+    function districtMarkKept() {
+      return incoming().get('districtItemId', '') == existing().get('districtItemId', '');
     }
     function versionKeysOk() {
       return newKeys().hasOnly([
@@ -2347,13 +2367,15 @@ service cloud.firestore {
         // Bank draws and their layout; same list shape as `stimuli`.
         && optList(incoming(), 'bankSlots')
         && optList(incoming(), 'order')
-        && optList(incoming(), 'sections');
+        && optList(incoming(), 'sections')
+        && districtMarkOk();
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
       // retries on the newer base); hasOnly locks the field surface.
       allow update: if signedIn()
-        && authUid() in existing().participants
+        && districtOr(authUid() in existing().participants)
+        && districtMarkKept()
         && syncedQuizKeysOk()
         && sameId()
         && unchanged('participants')
@@ -2403,7 +2425,8 @@ service cloud.firestore {
     function syncedBankKeysOk() {
       return newKeys().hasOnly([
         'id', 'ownerUid', 'plcIds', 'version', 'title', 'questions', 'stimuli', 'targets',
-        'language', 'questionCount', 'targetIds', 'targetCounts', 'createdAt', 'updatedAt'
+        'language', 'questionCount', 'targetIds', 'targetCounts', 'createdAt', 'updatedAt',
+        'districtItemId'
       ]);
     }
 
@@ -2431,11 +2454,13 @@ service cloud.firestore {
         && isInt('createdAt')
         && isInt('updatedAt')
         && optList(incoming(), 'stimuli')
-        && optList(incoming(), 'targets');
+        && optList(incoming(), 'targets')
+        && districtMarkOk();
 
       // Owner-only; version climbs by exactly one so stale pulls are detectable.
       allow update: if signedIn()
-        && myOldOwner()
+        && districtOr(myOldOwner())
+        && districtMarkKept()
         && syncedBankKeysOk()
         && sameId()
         && unchanged('ownerUid')
@@ -2450,9 +2475,63 @@ service cloud.firestore {
         && optList(incoming(), 'targets');
 
       // Unshare from the last PLC removes the copy; a slot pointing here then
-      // fails assign-time resolution with a fix-it message.
+      // fails assign-time resolution with a fix-it message. District banks are never deleted.
       allow delete: if signedIn()
-        && myOldOwner();
+        && myOldOwner()
+        && existing().get('districtItemId', '') == '';
+    }
+
+    // ---- District library (docs/plans/QUIZ_MCA_PRACTICE.md M26-M30) ----
+    // Site admins publish quizzes and banks to buildings, grades or named staff; content
+    // lives in synced_quizzes / synced_question_banks, reached only through syncGroupId here.
+    // District staff only (M30): no anonymous, student or outside reader on any path.
+    function dlItemKeysOk() {
+      return newKeys().hasOnly([
+        'id', 'kind', 'title', 'description', 'tags', 'questionCount', 'status',
+        'everyone', 'targetBuildings', 'targetGrades', 'targetEmails', 'gradeBuildings',
+        'syncGroupId', 'contentVersion', 'packageTitle', 'packageGeneratedAt',
+        'sourceName', 'questionNotes', 'createdAt', 'updatedAt', 'updatedBy'
+      ]);
+    }
+    // Building and grade picks are the teacher's profile; no grades picked falls back to the buildings that teach the grade.
+    function dlProfileMatch(d, p) {
+      let b = p.get('selectedBuildings', []);
+      let g = p.get('gradesTaught', []);
+      return d.targetBuildings.hasAny(b) || d.targetGrades.hasAny(g) ||
+        (g.size() == 0 && d.gradeBuildings.hasAny(b));
+    }
+    function dlTargeted(d) {
+      return d.everyone == true || myEmail() in d.targetEmails ||
+        dlProfileMatch(d, dbGet4('users', authUid(), 'userProfile', 'profile').data);
+    }
+    match /district_library/{itemId} {
+      allow get: if isSiteAdmin() ||
+        (isDistrictStaff() && existing().status == 'published' && dlTargeted(existing()));
+      // Staff list only items naming them; building, grade and everyone items come from the index doc.
+      allow list: if isSiteAdmin() ||
+        (isDistrictStaff() && existing().status == 'published' && myEmail() in existing().targetEmails);
+      allow create, update: if isSiteAdmin()
+        && dlItemKeysOk()
+        && incoming().id == itemId
+        && myUpdatedBy()
+        && incoming().kind in ['quiz', 'bank']
+        && incoming().status in ['draft', 'published']
+        && isStr('title') && isStr('syncGroupId')
+        && isInt('contentVersion') && isInt('questionCount')
+        && isBool('everyone')
+        && isList('targetBuildings') && isList('targetGrades')
+        && isList('targetEmails') && isList('gradeBuildings')
+        && isInt('createdAt') && isInt('updatedAt')
+        && optMap(incoming(), 'questionNotes')
+        // The random canonical id is minted once with the draft; it is never derived or swapped.
+        && (resource == null || (unchanged('syncGroupId') && unchanged('kind')));
+      allow delete: if isSiteAdmin();
+    }
+    // One doc ('published') mapping each published item id to its building/grade/everyone targeting, without names.
+    match /district_library_index/{indexId} {
+      allow get: if isDistrictStaff() || isSiteAdmin();
+      allow list: if false;
+      allow write: if isSiteAdmin() && indexId == 'published';
     }
 
     // ---- Shared / Synced VIDEO ACTIVITY parallel collections (PR3) ----

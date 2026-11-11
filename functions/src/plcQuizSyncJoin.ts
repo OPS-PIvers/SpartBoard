@@ -19,6 +19,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import type { SyncedParticipant } from './syncedQuizGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertNotDistrictGroup } from './districtLibraryGuard';
 import {
   PLC_DETACHED_SUBCOLLECTION,
   assertGroupLinkedToPlc,
@@ -107,6 +108,7 @@ export async function handleJoinPlcQuizSyncGroup(
     );
     if (!alreadyJoined) {
       assertPlcContentEditor(plcSnap.data(), uid);
+      assertNotDistrictGroup(groupSnap.data());
       const markerRef = groupRef
         .collection(PLC_DETACHED_SUBCOLLECTION)
         .doc(uid);

@@ -40,3 +40,17 @@ export const isOrgOnlyAdmin = (
   !!memberOrgId &&
   !!memberRoleId &&
   ORG_ADMIN_ROLE_IDS.includes(memberRoleId);
+
+// Client mirror of the rules' isSiteAdmin(): an /admins doc, unless it was mirrored from a building_admin role (or another org's role).
+export const isSiteAdminActor = (
+  isAdmin: boolean | null,
+  memberRoleId: string | null | undefined,
+  memberOrgId: string | null | undefined
+): boolean => {
+  if (isAdmin !== true) return false;
+  if (!memberRoleId || !ORG_ADMIN_ROLE_IDS.includes(memberRoleId)) return true;
+  return (
+    memberOrgId === OPERATOR_ORG_ID &&
+    (memberRoleId === 'super_admin' || memberRoleId === 'domain_admin')
+  );
+};

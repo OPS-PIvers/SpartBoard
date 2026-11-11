@@ -29,6 +29,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.reprint-written-sheets':
         'library-shell.archive-menu:quiz#row-1',
       'quiz-library.import-questions': 'library-shell.card-menu:quiz#row-1',
+      'quiz-library.make-own-copy': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.archive-monitor': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-settings': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-plc-results':
@@ -206,6 +207,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'import-wizard.bulk-file',
     parent: 'quiz.import',
     files: [`${C}CartridgeBankImportModal.tsx`],
+  },
+  'quiz.district-library': {
+    label: 'District library dialog',
+    kind: 'modal',
+    opensWith: 'quiz.district-library',
+    needs: ['widget-on-stage'],
+    files: [`${C}DistrictLibraryModal.tsx`],
   },
   'quiz.import.schoology': {
     label: 'From Schoology review dialog',

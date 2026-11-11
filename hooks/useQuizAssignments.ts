@@ -206,6 +206,7 @@ import {
   END_TURN_IN_DELAY_MS,
   finalizeOpenQuizResponses,
 } from '@/utils/quizFinalizeOpenResponses';
+import { responsesAnsweringRemoved } from '@/utils/districtLibraryOrigin';
 
 /** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
 async function commitQuizLifecycle(
@@ -498,7 +499,9 @@ export interface UseQuizAssignmentsResult {
   shareAssignment: (
     assignmentId: string,
     quizData: QuizData,
-    loadBankContents?: LoadBankContentsForQuiz
+    loadBankContents?: LoadBankContentsForQuiz,
+    /** The quiz's `districtOrigin`; library content is refused. */
+    districtOrigin?: readonly string[]
   ) => Promise<string>;
   /**
    * Peek at a `/shared_assignments/{shareId}` doc without importing. Used
@@ -593,6 +596,10 @@ export interface UseQuizAssignmentsResult {
    * No-op if the assignment isn't synced (no `syncGroupId`) or already
    * matches the canonical version.
    */
+  /** Questions the latest version drops and how many responses already answered them, read before a sync. */
+  previewSyncRemovals: (
+    assignmentId: string
+  ) => Promise<{ removed: string[]; responseCount: number }>;
   syncAssignmentToLatest: (assignmentId: string) => Promise<{
     /** True iff the rebuild actually ran (false = already at latest). */
     updated: boolean;
@@ -2555,10 +2562,14 @@ export const useQuizAssignments = (
   const shareAssignment = useCallback<
     UseQuizAssignmentsResult['shareAssignment']
   >(
-    async (assignmentId, quizData, loadBankContents) => {
+    async (assignmentId, quizData, loadBankContents, districtOrigin) => {
       if (!userId) throw new Error('Not authenticated');
       // Load the banks first so a missing one fails before any sync-group write.
-      const content = await buildSharedQuizContent(quizData, loadBankContents);
+      const content = await buildSharedQuizContent(
+        quizData,
+        loadBankContents,
+        districtOrigin
+      );
       const snap = await getDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
@@ -2990,6 +3001,63 @@ export const useQuizAssignments = (
       return created.id;
     },
     [userId, createAssignment]
+  );
+
+  const previewSyncRemovals = useCallback<
+    UseQuizAssignmentsResult['previewSyncRemovals']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const none = { removed: [], responseCount: 0 };
+      const assignmentSnap = await getDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
+      );
+      if (!assignmentSnap.exists()) return none;
+      const assignment = migrateSyncLinkageShape(
+        migrateLegacyAssignmentShape(
+          assignmentSnap.data() as QuizAssignment &
+            LegacyPlcShape &
+            LegacySyncLinkageShape
+        )
+      );
+      if (!assignment.sync) return none;
+      const sessionSnap = await getDoc(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+      );
+      const session = sessionSnap.data() as QuizSession | undefined;
+      const served =
+        session?.questionsInContent === true
+          ? ((
+              await getDoc(
+                doc(
+                  db,
+                  QUIZ_SESSIONS_COLLECTION,
+                  assignmentId,
+                  QUIZ_CONTENT_COLLECTION,
+                  QUIZ_CONTENT_DOC
+                )
+              )
+            ).data() as QuizSessionContent | undefined)
+          : session;
+      const previousIds = (served?.publicQuestions ?? []).map((pq) => pq.id);
+      const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
+      const nextIds = canonical.questions.map((q) => q.id);
+      if (previousIds.every((id) => nextIds.includes(id))) return none;
+      const responsesSnap = await getDocs(
+        collection(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          assignmentId,
+          RESPONSES_COLLECTION
+        )
+      );
+      return responsesAnsweringRemoved(
+        previousIds,
+        nextIds,
+        responsesSnap.docs.map((d) => d.data() as QuizResponse)
+      );
+    },
+    [userId]
   );
 
   const syncAssignmentToLatest = useCallback<
@@ -3994,6 +4062,7 @@ export const useQuizAssignments = (
     shareAssignment,
     peekSharedAssignment,
     importSharedAssignment,
+    previewSyncRemovals,
     syncAssignmentToLatest,
     publishAssignmentScores,
     unpublishAssignmentScores,

@@ -10,6 +10,7 @@ import {
   randomBankSlots,
   type BankContent,
 } from '@/utils/questionBanks';
+import { assertShareableOutsideLibrary } from '@/utils/districtLibraryOrigin';
 
 /** A bank a shared quiz draws from, inlined so the importer needs no access to it. */
 export interface SharedQuizBank extends BankContent {
@@ -46,8 +47,11 @@ export type LoadBankContentsForQuiz = (
  */
 export async function buildSharedQuizContent(
   quiz: QuizData,
-  loadBankContents?: LoadBankContentsForQuiz
+  loadBankContents?: LoadBankContentsForQuiz,
+  districtOrigin?: readonly string[]
 ): Promise<SharedQuizContent> {
+  // District library content never goes on a share link (QUIZ_MCA_PRACTICE.md M30).
+  assertShareableOutsideLibrary(quiz, [], districtOrigin);
   const slots = randomBankSlots(quiz);
   const banks: SharedQuizBank[] = [];
   if (slots.length > 0) {
@@ -65,6 +69,7 @@ export async function buildSharedQuizContent(
           `"${slot.bankTitle}" could not be loaded, so this quiz can't be shared. Re-add that bank to the quiz and try again.`
         );
       }
+      assertShareableOutsideLibrary({}, [bank]);
       banks.push({
         key,
         id: bank.id,

@@ -983,6 +983,29 @@ export const TOUR_ANCHORS = {
     label: 'My learning targets button in the Quiz library',
     perWidget: true,
   },
+  'quiz.district-library': {
+    label: 'District library button in the Quiz library',
+    perWidget: true,
+  },
+  'quiz.district-library.add': {
+    label: 'Add button for a District library item, by item',
+    perField: true,
+    persists: true,
+    creates: true,
+    panel: true,
+  },
+  'quiz.district-library.sources': {
+    label: 'Sources toggle for a District library item, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz.district-library.remove': {
+    label: 'Remove a District library bank from your banks, by item',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
   'quiz.schoology-inbox': {
     label: 'From Schoology review button in the Quiz library',
     perWidget: true,
@@ -2414,6 +2437,13 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     destructive: true,
     panel: true,
+  },
+  'quiz-banks.picker-remove-district': {
+    label: 'Remove button for a District library bank in Quiz banks, by item',
+    perField: true,
+    panel: true,
+    persists: true,
+    destructive: true,
   },
   'quiz-banks.picker-source': {
     label:
@@ -9623,6 +9653,75 @@ export const TOUR_ANCHORS = {
   'admin.import-block-list.add': {
     label: 'Add button in Import block list',
     persists: true,
+    panel: true,
+  },
+  'admin.district-library.upload': {
+    label: 'Upload package file button in District library',
+    panel: true,
+  },
+  'admin.district-library.confirm-upload': {
+    label: 'Add to library button after reviewing a package file',
+    persists: true,
+    creates: true,
+    panel: true,
+  },
+  'admin.district-library.cancel-upload': {
+    label: 'Cancel button after reviewing a package file',
+    panel: true,
+  },
+  'admin.district-library.publish': {
+    label: 'Publish or Unpublish button in a District library row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.district-library.targeting': {
+    label: 'Who sees it button in a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.replace': {
+    label: 'Replace button in a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.delete': {
+    label: 'Delete button in a District library row',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.district-library.everyone': {
+    label:
+      'Every teacher in the district checkbox in District library targeting',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.building': {
+    label: 'Building checkbox in District library targeting, by building id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.grade': {
+    label: 'Grade checkbox in District library targeting, by grade',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.teachers': {
+    label: 'Teachers email box in District library targeting',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.save-targeting': {
+    label: 'Save button in District library targeting',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.district-library.cancel-targeting': {
+    label: 'Cancel button in District library targeting',
+    perField: true,
     panel: true,
   },
   'admin.import-block-list.new-pattern': {
@@ -16851,6 +16950,13 @@ export const TOUR_ANCHORS = {
     label: 'Import questions item in a quiz card menu',
     perWidgetType: true,
     panel: true,
+  },
+  'quiz-library.make-own-copy': {
+    label: 'Make my own copy item in a District library quiz card menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+    creates: true,
   },
   'quiz-library.archive-monitor': {
     label: 'Monitor item in a quiz assignment row menu',

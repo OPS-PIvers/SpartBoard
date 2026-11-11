@@ -4573,6 +4573,8 @@ export interface QuizQuestion {
    * consecutive questions carrying the same id form a stimulus set.
    */
   stimulusIds?: string[];
+  /** District library item this question came from; travels with every copy so share links refuse it (M30). */
+  districtItemId?: string;
   /**
    * Opt-in media-response block. Absent on every question authored before
    * this feature and on every non-recording question — its absence is the
@@ -4751,6 +4753,8 @@ export interface SyncedQuestionBank {
   targetCounts: Record<string, number>;
   createdAt: number;
   updatedAt: number;
+  /** Set when this is a District library item's canonical (site admins write it). */
+  districtItemId?: string;
 }
 
 /** Header at `plcs/{plcId}/question_banks/{entryId}` pointing at the synced doc. */
@@ -4795,6 +4799,8 @@ export interface QuizBankSlot {
   points?: number;
   /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
   stimulusIds?: string[];
+  /** Set when the slot draws from a District library bank; share links refuse the quiz. */
+  districtItemId?: string;
   /** random mode: `balanced` deals pool questions in turn per class period; absent = independent random. */
   dealing?: 'random' | 'balanced';
 }
@@ -5101,6 +5107,10 @@ export interface QuizMetadata {
   language?: string;
   /** `importSourceKey` of the quiz's `source`, so a re-import finds it without a Drive read. */
   sourceKey?: string;
+  /** District library items any of this quiz's content came from; never cleared, and share links refuse the quiz. */
+  districtOrigin?: string[];
+  /** Set on a linked, read-only copy of a District library quiz (QUIZ_MCA_PRACTICE.md M27). */
+  districtLinkedItemId?: string;
 }
 
 /** One locale's row in `QuizMetadata.translations`; a Drive-free coverage answer (plan §3.3). */
@@ -7438,6 +7448,8 @@ export interface SyncedQuizGroup {
   updatedAt: number;
   /** Auth uid of whoever last published an edit (for participant attribution). */
   updatedBy: string;
+  /** Set when this is a District library item's canonical: read-only for teachers, written by site admins. */
+  districtItemId?: string;
 }
 
 /**
@@ -11244,6 +11256,8 @@ export type GlobalFeature =
   | 'staff-audience'
   /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
   | 'getting-started'
+  /** District library: admin-published quizzes and banks teachers add as linked copies (docs/plans/QUIZ_MCA_PRACTICE.md M26-M31). */
+  | 'district-library'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */

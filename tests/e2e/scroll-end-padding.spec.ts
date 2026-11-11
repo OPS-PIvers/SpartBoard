@@ -45,6 +45,10 @@ test('every Admin Settings tab keeps padding under its last row', async ({
   await expect(
     dialog.getByRole('tab', { name: 'Team type defaults' })
   ).toBeVisible();
+  // Admin preview flags pass for the mock admin, so flagged tabs are measured too.
+  await expect(
+    dialog.getByRole('tab', { name: 'District library' })
+  ).toBeVisible();
   await checkEveryTab(page, dialog, 'Admin Settings');
 });
 

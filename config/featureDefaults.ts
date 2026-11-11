@@ -1146,6 +1146,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'district-library': {
+    label: 'District library',
+    icon: Library,
+    description:
+      'Quizzes and question banks admins publish to buildings, grades or teachers.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',

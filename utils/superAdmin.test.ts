@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { OPERATOR_ORG_ID } from '@/config/organization';
-import { isOrgOnlyAdmin, isSuperAdminActor } from './superAdmin';
+import {
+  isOrgOnlyAdmin,
+  isSiteAdminActor,
+  isSuperAdminActor,
+} from './superAdmin';
 
 describe('isSuperAdminActor', () => {
   it('accepts a member doc with the super_admin role in the operator org', () => {
@@ -68,5 +72,23 @@ describe('isOrgOnlyAdmin', () => {
     expect(isOrgOnlyAdmin(true, 'domain_admin', 'orono')).toBe(false);
     expect(isOrgOnlyAdmin(false, 'teacher', 'other-org')).toBe(false);
     expect(isOrgOnlyAdmin(false, 'domain_admin', null)).toBe(false);
+  });
+});
+
+describe('isSiteAdminActor', () => {
+  it('passes a hand-made admin and a district super or domain admin', () => {
+    expect(isSiteAdminActor(true, null, null)).toBe(true);
+    expect(isSiteAdminActor(true, 'teacher', OPERATOR_ORG_ID)).toBe(true);
+    expect(isSiteAdminActor(true, 'domain_admin', OPERATOR_ORG_ID)).toBe(true);
+    expect(isSiteAdminActor(true, 'super_admin', OPERATOR_ORG_ID)).toBe(true);
+  });
+
+  it('refuses a building admin, another org and a non-admin', () => {
+    expect(isSiteAdminActor(true, 'building_admin', OPERATOR_ORG_ID)).toBe(
+      false
+    );
+    expect(isSiteAdminActor(true, 'domain_admin', 'other-org')).toBe(false);
+    expect(isSiteAdminActor(false, null, null)).toBe(false);
+    expect(isSiteAdminActor(null, null, null)).toBe(false);
   });
 });

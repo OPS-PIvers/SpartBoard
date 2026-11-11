@@ -64,6 +64,8 @@ export interface QuizEditorBankApi {
   sources: BankSource[];
   loadBankContent(source: BankSource): Promise<BankContent>;
   appendQuestionsToBank: UseQuestionBanksResult['appendQuestionsToBank'];
+  /** Drops a District library bank from the teacher's picker. */
+  removeDistrictSource?: (source: BankSource) => Promise<void>;
 }
 
 interface QuizEditorModalProps {

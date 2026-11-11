@@ -67,6 +67,12 @@ import { noDriveMessage } from '@/utils/viewAsDrive';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 import { useSandboxedQuiz } from './useTourSandboxed';
+import {
+  DISTRICT_READ_ONLY_MESSAGE,
+  districtLinkedQuizId,
+  districtMetaFields,
+  isDistrictLinkedCopy,
+} from '@/utils/districtLibraryOrigin';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -112,6 +118,11 @@ export interface UseQuizResult {
    * surface the new title in a toast).
    */
   duplicateQuiz: (sourceMeta: QuizMetadata) => Promise<QuizMetadata>;
+  /** Adds a linked, read-only copy of a District library quiz; a second call for the same item returns the first copy. */
+  addLinkedDistrictQuiz: (item: {
+    id: string;
+    syncGroupId: string;
+  }) => Promise<QuizMetadata>;
   /**
    * Parse a Google Sheet (chosen via the Drive Picker) and return quiz
    * questions.
@@ -294,6 +305,10 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ? migrateQuizMetadataShape(existingMetaSnap.data())
         : null;
       const existingSync = existingMeta?.sync;
+      // A linked District library copy is read-only on every path (QUIZ_MCA_PRACTICE.md M27).
+      if (isDistrictLinkedCopy(existingMeta)) {
+        throw new Error(DISTRICT_READ_ONLY_MESSAGE);
+      }
 
       // Preserve-on-omit: when the caller doesn't pass `behavior`, fall back
       // to whatever is already on the metadata doc so we never silently drop
@@ -394,6 +409,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           : existingMeta?.sourceKey
             ? { sourceKey: existingMeta.sourceKey }
             : {}),
+        ...districtMetaFields(updatedQuiz, existingMeta),
       };
 
       await setDoc(metaRef, metadata);
@@ -494,6 +510,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(translations ? { translations } : {}),
         ...(canonical.language ? { language: canonical.language } : {}),
         ...(quizMeta.sourceKey ? { sourceKey: quizMeta.sourceKey } : {}),
+        ...districtMetaFields(refreshed, quizMeta),
       };
       await setDoc(
         doc(db, 'users', userId, QUIZZES_COLLECTION, quizMeta.id),
@@ -544,6 +561,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       if (!quizMeta.sync) {
         return { ...quizMeta };
       }
+      if (isDistrictLinkedCopy(quizMeta)) {
+        throw new Error(DISTRICT_READ_ONLY_MESSAGE);
+      }
       // Remove the caller from the canonical doc's participant list
       // BEFORE clearing the local linkage. Letting the Cloud Function
       // failure short-circuit the whole detach is the right call here —
@@ -577,6 +597,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           : {}),
         ...(quizMeta.language ? { language: quizMeta.language } : {}),
         ...(quizMeta.sourceKey ? { sourceKey: quizMeta.sourceKey } : {}),
+        ...districtMetaFields({}, quizMeta),
         // Intentionally omit `sync` so the metadata reverts to the
         // unsynced shape.
       };
@@ -794,6 +815,8 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
             : {}),
           ...(Object.keys(translations).length > 0 ? { translations } : {}),
           ...(fresh.language ? { language: fresh.language } : {}),
+          // An own copy keeps the library origin (no share links) but is no longer linked.
+          ...districtMetaFields(fresh, sourceMeta, null),
         };
         await setDoc(
           doc(db, 'users', userId, QUIZZES_COLLECTION, fresh.id),
@@ -827,6 +850,68 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     [userId, getDriveService]
   );
 
+  const addLinkedDistrictQuiz = useCallback(
+    async (item: {
+      id: string;
+      syncGroupId: string;
+    }): Promise<QuizMetadata> => {
+      if (!userId) throw new Error('Not authenticated');
+      const quizId = districtLinkedQuizId(item.id);
+      const metaRef = doc(db, 'users', userId, QUIZZES_COLLECTION, quizId);
+      // A retry after a partial add finds the first copy instead of making another.
+      const existingSnap = await getDoc(metaRef);
+      if (existingSnap.exists()) {
+        return migrateQuizMetadataShape(existingSnap.data());
+      }
+      // Read the canonical first, so a failure leaves nothing behind.
+      const canonical = await pullSyncedQuizContent(item.syncGroupId);
+      const drive = getDriveService();
+      const now = Date.now();
+      const data: QuizData = {
+        id: quizId,
+        title: canonical.title,
+        questions: canonical.questions,
+        ...syncedQuizContentFields(canonical),
+        createdAt: now,
+        updatedAt: now,
+      };
+      const driveFileId = await drive.saveQuiz(data);
+      const metadata: QuizMetadata = {
+        id: quizId,
+        title: canonical.title,
+        driveFileId,
+        questionCount: quizServedQuestionCount(data),
+        searchText: buildQuizSearchText(data.questions),
+        needsKeyCount: countQuestionsNeedingKey(data.questions),
+        createdAt: now,
+        updatedAt: now,
+        // Linked and marked in the same write that makes it visible.
+        sync: {
+          groupId: item.syncGroupId,
+          lastSyncedVersion: canonical.version,
+        },
+        ...(canonical.behavior ? { behavior: canonical.behavior } : {}),
+        ...(canonical.language ? { language: canonical.language } : {}),
+        ...districtMetaFields(data, null, item.id),
+      };
+      try {
+        await setDoc(metaRef, metadata);
+      } catch (err) {
+        try {
+          await drive.deleteQuizFile(driveFileId);
+        } catch (rollbackErr) {
+          logError('useQuiz.addLinkedDistrictQuiz.rollback', rollbackErr, {
+            itemId: item.id,
+            orphanDriveFileId: driveFileId,
+          });
+        }
+        throw err;
+      }
+      return metadata;
+    },
+    [userId, getDriveService]
+  );
+
   const shareQuiz = useCallback(
     async (
       quizMeta: QuizMetadata,
@@ -835,7 +920,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
       const quizData = await drive.loadQuiz(quizMeta.driveFileId);
-      const content = await buildSharedQuizContent(quizData, loadBankContents);
+      const content = await buildSharedQuizContent(
+        quizData,
+        loadBankContents,
+        quizMeta.districtOrigin
+      );
       const shareRef = await addDoc(collection(db, 'shared_quizzes'), {
         ...content,
         originalAuthor: userId,
@@ -893,6 +982,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     saveDriveSnapshot,
     deleteQuiz,
     duplicateQuiz,
+    addLinkedDistrictQuiz,
     importFromSheet,
     importFromCSV,
     createQuizTemplate,

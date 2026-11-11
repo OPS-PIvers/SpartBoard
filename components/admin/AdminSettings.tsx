@@ -23,13 +23,18 @@ import {
   ArrowLeft,
   BookOpenCheck,
   Library,
+  Landmark,
   ClipboardList,
   History,
   ShieldBan,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
-import { isOrgOnlyAdmin, isSuperAdminActor } from '@/utils/superAdmin';
+import {
+  isOrgOnlyAdmin,
+  isSiteAdminActor,
+  isSuperAdminActor,
+} from '@/utils/superAdmin';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { FeaturesPanel } from './access/FeaturesPanel';
@@ -53,6 +58,7 @@ import { AccessSearchProvider } from './access/AccessSearchProvider';
 import { GradebookAdminPanel } from './Gradebook/GradebookAdminPanel';
 import { ViewAsLogPanel } from './ViewAsLog/ViewAsLogPanel';
 import { ImportBlockListPanel } from './ImportBlockList/ImportBlockListPanel';
+import { DistrictLibraryPanel } from './DistrictLibrary/DistrictLibraryPanel';
 import type { GlobalFeature } from '@/types';
 
 interface AdminSettingsProps {
@@ -139,6 +145,14 @@ const TAB_GROUPS = [
         label: 'Content areas',
         icon: Library,
         component: SubjectsPanel,
+      },
+      {
+        id: 'district-library',
+        label: 'District library',
+        icon: Landmark,
+        component: DistrictLibraryPanel,
+        feature: 'district-library',
+        siteAdminOnly: true,
       },
     ],
   },
@@ -244,6 +258,8 @@ interface TabConfig {
   component: React.FC;
   fillHeight?: boolean;
   superAdminOnly?: boolean;
+  /** Hidden from building admins; the rules let only site admins write it. */
+  siteAdminOnly?: boolean;
   /** Hidden until this preview feature is on for the admin. */
   feature?: GlobalFeature;
 }
@@ -255,6 +271,7 @@ const TABS: readonly TabConfig[] = TAB_GROUPS.flatMap<TabConfig>(
 /** The groups and tabs this admin can open; empty groups drop out. */
 const visibleGroups = (
   isSuperAdmin: boolean,
+  isSiteAdmin: boolean,
   canAccessFeature: (id: GlobalFeature) => boolean
 ) =>
   TAB_GROUPS.map((group) => ({
@@ -263,6 +280,7 @@ const visibleGroups = (
     tabs: (group.tabs as readonly TabConfig[]).filter(
       (tab) =>
         (isSuperAdmin || !tab.superAdminOnly) &&
+        (isSiteAdmin || !tab.siteAdminOnly) &&
         (!tab.feature || canAccessFeature(tab.feature))
     ),
   })).filter((group) => group.tabs.length > 0);
@@ -329,7 +347,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           tabs: TABS.filter((t) => t.id === 'organization'),
         },
       ]
-    : visibleGroups(isSuperAdmin, canAccessFeature);
+    : visibleGroups(
+        isSuperAdmin,
+        isSiteAdminActor(isAdmin, roleId, orgId),
+        canAccessFeature
+      );
   const tabs = groups.flatMap((group) => group.tabs);
   const [storedTab, setActiveTabState] = useState<TabId>(readLastTab);
   // A remembered tab this admin can't open falls back to their first tab.
