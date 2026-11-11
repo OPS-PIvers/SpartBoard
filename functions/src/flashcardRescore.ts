@@ -50,6 +50,8 @@ export function rescoredSubmission(
     const card = byId.get(entry.cardId);
     // Blank answers were left unanswered (forced submit); Speak verdicts come from the device.
     if (!card || entry.response === '' || entry.type === 'speak') return entry;
+    // A card with no answer left to grade against keeps its verdict.
+    if (grader.answerFor(card).trim() === '') return entry;
     // A picked choice keeps its verdict: the student chose the keyed answer they were shown.
     const correct =
       entry.type === 'mc'

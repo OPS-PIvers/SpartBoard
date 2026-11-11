@@ -217,9 +217,15 @@ import type {
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import {
   PAPER_WRITTEN_HYBRID_FEATURE,
+  hybridBoxImages,
   hybridPrintJob,
   planHybridWrittenBatch,
 } from '@/utils/paperWrittenHybrid';
+import {
+  browserStimulusImageDeps,
+  resolveStimulusImages,
+  stimulusLoadErrorMessage,
+} from '@/utils/paperSheetStimulusImages';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
@@ -3600,9 +3606,35 @@ const TeacherQuizWidget: React.FC<{
               );
               return;
             }
+            const boxImages = hybridBoxImages(
+              assignQuestions,
+              plan.questionIds
+            );
+            const writtenImages: Record<string, string> = {};
+            let releaseImages: (() => void) | null = null;
+            if (boxImages.size > 0) {
+              const images = await resolveStimulusImages(
+                [...boxImages.values()],
+                browserStimulusImageDeps(
+                  async (fileId) =>
+                    (await getDriveFileAsBlob(fileId))?.blob ?? null
+                )
+              );
+              if (images.failed.length > 0) {
+                images.release();
+                addToast(stimulusLoadErrorMessage(images.failed), 'error');
+                return;
+              }
+              releaseImages = images.release;
+              for (const [id, image] of boxImages) {
+                const src = images.src[image.id];
+                if (src) writtenImages[id] = src;
+              }
+            }
             try {
               await savePaperBatch(user.uid, plan.batch);
             } catch (err) {
+              releaseImages?.();
               logError('QuizWidget.assignment.writtenOnPaper', err, {
                 quizId: meta.id,
               });
@@ -3617,14 +3649,17 @@ const TeacherQuizWidget: React.FC<{
               questionIds: plan.questionIds,
               seats: Object.keys(plan.batch.seats).length,
             };
+            const release = releaseImages;
             printWritten = () =>
-              printPaperSheets(
-                hybridPrintJob(
+              printPaperSheets({
+                ...hybridPrintJob(
                   { ...data, questions: assignQuestions },
                   plan.batch,
-                  plan.sheets
-                )
-              );
+                  plan.sheets,
+                  writtenImages
+                ),
+                ...(release ? { onImagesReady: release } : {}),
+              });
           }
 
           let assignmentSaved = false;

@@ -252,10 +252,9 @@ export const TestMode: React.FC<TestModeProps> = ({
         retakeIds ? 'all' : testCount,
         isCheck ? seed : `${seed}:${round}:${cycle}`,
         check?.answerChoices,
-        choiceCards ?? cards
+        choiceCards ?? pool
       ),
     [
-      cards,
       choiceCards,
       check?.answerChoices,
       isCheck,

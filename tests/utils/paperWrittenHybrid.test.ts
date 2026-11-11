@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassRoster, QuizData, QuizQuestion } from '@/types';
 import {
+  hybridBoxImages,
   hybridPrintJob,
   paperWrittenBoxRows,
   paperWrittenQuestionIds,
@@ -136,6 +137,35 @@ describe('planHybridWrittenBatch', () => {
     expect(html).toContain('Explain w1');
     expect(html).toContain('Explain w2');
     expect(html).not.toContain('class="bub');
+  });
+
+  it('prints the custom image in a written box picked in the stepper', () => {
+    const image = {
+      id: 'img-1',
+      source: 'image',
+      label: 'Graph',
+      url: 'https://example.test/graph.png',
+    } as unknown as NonNullable<QuizQuestion['paperBoxImage']>;
+    const q = quiz([
+      mc('m1'),
+      fr('w1', { paperBoxStyle: 'image', paperBoxImage: image }),
+      fr('w2'),
+    ]);
+    const plan = planHybridWrittenBatch({
+      quiz: q,
+      classes: { classIds: ['r1'], studentsByClass: {} },
+      rosters: [roster],
+      spareCount: 0,
+      batchId: 'b1',
+      now: 1,
+    });
+    if (!plan.ok) throw new Error('expected a plan');
+    const boxes = hybridBoxImages(q.questions, plan.questionIds);
+    expect([...boxes.keys()]).toEqual(['w1']);
+    const html = buildPaperSheetsHtml(
+      hybridPrintJob(q, plan.batch, plan.sheets, { w1: 'blob:graph-src' })
+    );
+    expect(html).toContain('blob:graph-src');
   });
 });
 

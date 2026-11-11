@@ -484,7 +484,11 @@ export const FlashcardSetEditorModal: React.FC<
           >
             0
           </span>
-          <div className="flex min-w-0 items-start justify-between">
+          <div
+            className={
+              canSwap ? 'flex min-w-0 items-start justify-between' : 'contents'
+            }
+          >
             <FlashcardLanguageField
               key={`term-${swapCount}`}
               label="Term language"
