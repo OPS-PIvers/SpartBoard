@@ -67,7 +67,7 @@ export function useDriveImageFallback(src: string | undefined): {
     if (src && loaded?.for !== src) setFailedSrc(src);
   };
 
-  return { src: loaded?.for === src ? loaded.url : src, onError };
+  return { src: loaded && loaded.for === src ? loaded.url : src, onError };
 }
 
 export const __resetDriveImageFallbackForTests = (): void => {
