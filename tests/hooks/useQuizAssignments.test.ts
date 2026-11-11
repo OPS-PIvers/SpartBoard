@@ -2785,6 +2785,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     ).toEqual({
       revealedAnswers: DELETE_FIELD_SENTINEL,
       revealedRubricExamples: DELETE_FIELD_SENTINEL,
+      revealedExplanations: DELETE_FIELD_SENTINEL,
     });
     expect(
       batchUpdate.mock.calls.find(([ref]) => ref === refPlain)

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import type { QuizQuestion } from '@/types';
-import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { DOK_LEVELS } from '@/utils/quizDok';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
@@ -17,9 +17,12 @@ export const BankDokFilter: React.FC<BankDokFilterProps> = ({
   value,
   onChange,
 }) => {
-  const { canAccessFeature } = useAuth();
+  const auth = useContext(AuthContext);
   const hasDok = questions.some((q) => q.dok != null);
-  if (!canAccessFeature('quiz-dok') || (!hasDok && value.length === 0))
+  if (
+    auth?.canAccessFeature?.('quiz-dok') !== true ||
+    (!hasDok && value.length === 0)
+  )
     return null;
   return (
     <div>

@@ -242,7 +242,7 @@ export function validateBankSlots(
         slotId: slot.id,
         bankTitle: slot.bankTitle,
         message: filtered
-          ? `"${slot.bankTitle}" has ${eligible} question${eligible === 1 ? '' : 's'} matching the filter but the slot draws ${count}. Lower the count, widen the filter, or tag more questions.`
+          ? `"${slot.bankTitle}" has ${eligible} question${eligible === 1 ? '' : 's'} matching the ${slot.targetFilter?.length ? 'target' : 'DOK'} filter but the slot draws ${count}. Lower the count, widen the filter, or tag more questions.`
           : `"${slot.bankTitle}" has ${eligible} question${eligible === 1 ? '' : 's'} but the slot draws ${count}. Lower the count or add questions to the bank.`,
       });
     }

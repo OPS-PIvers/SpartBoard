@@ -7201,6 +7201,95 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.explanation",
+    "label": "Explanation box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.dok",
+    "label": "DOK level select beside Learning targets in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.group-by",
+    "label": "Group by Target or DOK switch in Quiz results",
+    "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-bank-draw.dok",
+    "label": "DOK filter on a question bank draw",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.prompt-standards-undo",
     "label": "Undo link after a standard is tagged from the question text",
     "scope": "board",
@@ -26371,6 +26460,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "plc-assessments.detail-back",
     "label": "Detail back button in the PLC assessments tab",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.assessments.detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#assessments",
+          "plc-assessments.open:plc"
+        ],
+        "needs": [
+          "plc",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-assessments.detail-group-by",
+    "label": "Group by Target or DOK switch on a PLC assessment",
     "scope": "board",
     "routes": [
       {

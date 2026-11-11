@@ -306,6 +306,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
   showCorrectAnswerToStudent: false,
   showCorrectOnBoard: false,
   showLearningTargets: false,
+  showExplanations: false,
   speedBonusEnabled: false,
   streakBonusEnabled: false,
   showPodiumBetweenQuestions: false,
