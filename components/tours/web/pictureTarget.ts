@@ -96,13 +96,19 @@ export interface TipPlace {
   top?: number;
   bottom?: number;
   width: number;
+  /** Set when neither side fits the whole tip: the tip's height on the side it was given. */
+  maxH?: number;
 }
 
-// Mirrors the extension overlay's placeTip: below the target when it fits, else above, else centred.
-export function placePreviewTip(
+// A side with less room than this can't hold a readable tip, so the tip may cover the target instead.
+export const MIN_TIP_ROOM = 120;
+
+/** The extension overlay's tip placement, shared with the editor preview so both put the tip in the same spot. */
+export function placeTourTip(
   rect: { x: number; y: number; width: number; height: number } | null,
   view: { w: number; h: number },
-  tipH: number
+  tipH: number,
+  minRoom = MIN_TIP_ROOM
 ): TipPlace {
   const width = Math.max(0, Math.min(TIP_W, view.w - GUTTER * 2));
   if (!rect) return { left: (view.w - width) / 2, top: view.h / 3, width };
@@ -111,11 +117,20 @@ export function placePreviewTip(
     view.w - width - GUTTER
   );
   const below = rect.y + rect.height + GUTTER * 2;
-  if (below < view.h * 0.75) return { left, top: below, width };
+  if (below + tipH + GUTTER <= view.h) return { left, top: below, width };
+  // Above is pinned by its bottom edge, so a tip that grows after it is measured still clears the target.
   if (rect.y - GUTTER * 2 >= tipH + GUTTER)
     return { left, bottom: view.h - rect.y + GUTTER * 2, width };
-  return { left, top: GUTTER, width };
+  const roomBelow = view.h - below - GUTTER;
+  const roomAbove = rect.y - GUTTER * 3;
+  if (Math.max(roomBelow, roomAbove) < minRoom)
+    return { left, top: GUTTER, width };
+  return roomBelow >= roomAbove
+    ? { left, top: below, width, maxH: roomBelow }
+    : { left, bottom: view.h - rect.y + GUTTER * 2, width, maxH: roomAbove };
 }
+
+export const placePreviewTip = placeTourTip;
 
 /** Largest picture magnification, so a capture never goes soft on a big screen. */
 export const MAX_MAGNIFY = 1.5;

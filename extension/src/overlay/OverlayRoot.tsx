@@ -28,51 +28,25 @@ import { usePrefersReducedMotion } from '@/components/tours/usePrefersReducedMot
 import { secondaryBtn } from '@/components/tours/tourButtons';
 import { TourWherePicture } from '@/components/tours/TourWherePicture';
 import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
+import {
+  MIN_TIP_ROOM,
+  placeTourTip,
+  type TipPlace,
+} from '@/components/tours/web/pictureTarget';
 
 // The target the frame seeker attached in this frame, which the page settles around.
 const frameTarget = () => globalThis.__sbWebTourFrame?.target?.el ?? null;
 
-const TIP_W = 320;
 const GUTTER = 12;
 const TIP_H = 120;
 
-// A side with less room than this can't hold a readable tip, so the tip may cover the target instead.
-const MIN_ROOM = 120;
-
 /** Below the target when the whole tip fits, else above, else on the roomier side with `maxH` capping the tip. */
-export function placeTip(
+export const placeTip = (
   rect: OverlayRect | null,
   view: { w: number; h: number },
   tipH = TIP_H,
-  minRoom = MIN_ROOM
-): {
-  left: number;
-  top?: number;
-  bottom?: number;
-  width: number;
-  maxH?: number;
-} {
-  const width = Math.min(TIP_W, view.w - GUTTER * 2);
-  if (!rect) {
-    return { left: (view.w - width) / 2, top: view.h / 3, width };
-  }
-  const left = Math.min(
-    Math.max(GUTTER, rect.x + rect.width / 2 - width / 2),
-    view.w - width - GUTTER
-  );
-  const below = rect.y + rect.height + GUTTER * 2;
-  if (below + tipH + GUTTER <= view.h) return { left, top: below, width };
-  // Above is pinned by its bottom edge, so a tip that grows after it is measured still clears the target.
-  if (rect.y - GUTTER * 2 >= tipH + GUTTER)
-    return { left, bottom: view.h - rect.y + GUTTER * 2, width };
-  const roomBelow = view.h - below - GUTTER;
-  const roomAbove = rect.y - GUTTER * 3;
-  if (Math.max(roomBelow, roomAbove) < minRoom)
-    return { left, top: GUTTER, width };
-  return roomBelow >= roomAbove
-    ? { left, top: below, width, maxH: roomBelow }
-    : { left, bottom: view.h - rect.y + GUTTER * 2, width, maxH: roomAbove };
-}
+  minRoom = MIN_TIP_ROOM
+): TipPlace => placeTourTip(rect, view, tipH, minRoom);
 
 // A step found faster than this never flashes "Looking…".
 export const LOOKING_DELAY_MS = 400;
@@ -218,7 +192,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
     rect,
     view,
     tipH,
-    Math.max(MIN_ROOM, chromeH + GUTTER * 4)
+    Math.max(MIN_TIP_ROOM, chromeH + GUTTER * 4)
   );
   const tip = away
     ? {
@@ -356,7 +330,9 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
             <div
               ref={bodyRef}
               className={
-                bodyMax === undefined ? undefined : '-mx-3 overflow-y-auto px-3'
+                bodyMax === undefined
+                  ? undefined
+                  : '-mx-3 overflow-y-auto px-3 pb-1'
               }
               style={bodyMax === undefined ? undefined : { maxHeight: bodyMax }}
             >
