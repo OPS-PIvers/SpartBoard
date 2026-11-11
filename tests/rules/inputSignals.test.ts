@@ -19,21 +19,10 @@ const TEACHER_UID = 'teacher-uid-inputsignals';
 const STUDENT_UID = 'student-uid-inputsignals';
 const OTHER_UID = 'other-uid-inputsignals';
 const QUIZ_SESSION = 'quiz-session-inputsignals';
-const VA_SESSION = 'va-session-inputsignals';
 const PIN_KEY = 'pin-period_1-01';
 
-const COLLECTIONS = [
-  {
-    name: 'quiz',
-    session: `quiz_sessions/${QUIZ_SESSION}`,
-    response: `quiz_sessions/${QUIZ_SESSION}/responses/${PIN_KEY}`,
-  },
-  {
-    name: 'video activity',
-    session: `video_activity_sessions/${VA_SESSION}`,
-    response: `video_activity_sessions/${VA_SESSION}/responses/${PIN_KEY}`,
-  },
-] as const;
+const SESSION = `quiz_sessions/${QUIZ_SESSION}`;
+const RESPONSE = `quiz_sessions/${QUIZ_SESSION}/responses/${PIN_KEY}`;
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -81,13 +70,13 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await setDoc(doc(db, COLLECTIONS[0].session), {
+    await setDoc(doc(db, SESSION), {
       teacherUid: TEACHER_UID,
       status: 'active',
       code: 'INSIGNL',
       inputSignals: true,
     });
-    await setDoc(doc(db, COLLECTIONS[0].response), {
+    await setDoc(doc(db, RESPONSE), {
       studentUid: STUDENT_UID,
       pin: '01',
       classPeriod: 'period_1',
@@ -103,8 +92,7 @@ beforeEach(async () => {
   });
 });
 
-const response = (db: ReturnType<typeof asStudent>) =>
-  doc(db, COLLECTIONS[0].response);
+const response = (db: ReturnType<typeof asStudent>) => doc(db, RESPONSE);
 
 describe('inputSignals on quiz responses', () => {
   it('lets the student save and extend their own counters', async () => {

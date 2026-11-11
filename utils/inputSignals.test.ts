@@ -168,7 +168,7 @@ describe('InputSignalCollector typing', () => {
   it('reports a blocked paste as a try', () => {
     const c = new InputSignalCollector(true);
     c.paste(50, 1_000);
-    expect(ids(c)).toEqual(['paste-tries']);
+    expect(ids(c)).toEqual(['paste-attempts']);
   });
 });
 
@@ -254,7 +254,7 @@ describe('inputFindingsByAttempt', () => {
     };
     const out = inputFindingsByAttempt(signals, 2);
     expect(out.map((a) => a.attempt)).toEqual([2, 0]);
-    expect(out[0].findings[0].id).toBe('paste-tries');
+    expect(out[0].findings[0].id).toBe('paste-attempts');
   });
 
   it('is empty with no signals', () => {

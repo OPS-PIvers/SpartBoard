@@ -273,7 +273,7 @@ export type InputFindingId =
   | 'fast-typing'
   | 'unkeyed-text'
   | 'pasted'
-  | 'paste-tries'
+  | 'paste-attempts'
   | 'scripted'
   | 'even-answers';
 
@@ -384,7 +384,7 @@ export function describeInputSignals(
     });
   } else if (total.pastes > 0) {
     out.push({
-      id: 'paste-tries',
+      id: 'paste-attempts',
       text: `Tried to paste ${plural(total.pastes, 'time')}.`,
       questions: where((c) => (c.pastes ?? 0) > 0),
       otherCauses: 'Habit; nothing was pasted.',
