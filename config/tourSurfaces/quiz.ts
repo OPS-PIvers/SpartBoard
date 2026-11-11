@@ -94,6 +94,8 @@ export const SURFACES: TourSurfaceMap = {
       `${C}PromptEquations.tsx`,
       `${C}ChoiceOptionsEditor.tsx`,
       `${C}FibBlanksEditor.tsx`,
+      `${C}FibBlankTypeEditor.tsx`,
+      `${C}StimulusTabFields.tsx`,
       `${C}MatchingOrderingEditor.tsx`,
       `${C}AlternateAnswersEditor.tsx`,
       `${C}SectionRow.tsx`,

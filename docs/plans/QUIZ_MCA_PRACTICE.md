@@ -66,6 +66,7 @@ No code in Quiz knows about MCA. If MDE changes its site, only the script breaks
 - **M8.** Choices are student-facing and travel with the public question; the key does not. The word bank shuffles; a dropdown keeps the authored order. On save, every blank's answer must be among its choices. PR 1 covers every producer and reader of the public FIB question, not only the client's `toPublicQuestion`: the server copy for sub-launched quizzes (`publicQuestionFromKey` in `functions/src/subLaunchAssignment.ts`) and the read-aloud part resolver (`functions/src/quizReadAloud.ts`) both keep only the fields they list.
 - **M9.** No any-order setting. A word bank whose words are used once cannot produce "heat, heat, heat", so "any order" is each blank accepting the other words through the existing accepted-alternates list. Known gap: typed blanks still cannot be graded as a set.
 - **M10.** Drag reuses the dnd-kit base, tap-to-place and keyboard support from Matching. Read-aloud reads the sentence, then the choices. Paper answer sheets print dropdown choices in brackets after the blank and the word bank under the sentence.
+  - The paper clause is deferred to AB-199: paper sheets print no fill-in-the-blank today, so dropdown and drag stay excluded like typed blanks.
 
 ### Stimulus tabs (PR 2)
 

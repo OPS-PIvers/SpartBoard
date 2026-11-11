@@ -1996,6 +1996,51 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-editor.fib-blank-type': {
+    label: 'Blank type select (Typed, Dropdown, Drag) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.fib-choice': {
+    label: 'Dropdown choice input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.fib-choice-correct': {
+    label: 'Dropdown right-choice radio in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.fib-choice-remove': {
+    label: 'Remove dropdown choice (×) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.fib-choice-add': {
+    label: 'Add dropdown choice in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.word-bank-word': {
+    label: 'Word bank word input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.word-bank-remove': {
+    label: 'Remove word bank word (×) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.word-bank-add': {
+    label: 'Add word to the word bank in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.word-bank-reuse': {
+    label: 'Words can be used more than once checkbox in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.multi-answer-item': {
     label: 'Answer item input (shared, per index) in the Quiz editor',
     perField: true,
@@ -3400,6 +3445,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-stimuli.play-limit': {
     label: 'Play limit input in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.tab-label': {
+    label: 'Stimulus tab name input in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.placement': {
+    label: 'Picture Show select (beside or in the question) in the Quiz widget',
     perField: true,
     panel: true,
   },

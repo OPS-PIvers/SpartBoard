@@ -4449,7 +4449,17 @@ export interface QuizStimulus {
   readAloudSource?: 'pdf-text' | 'ocr' | 'edited' | 'text';
   /** calculator only: which Desmos calculator; `url` stays empty and is never trusted. */
   calculator?: QuizCalculatorKind;
+  /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
+  tabLabel?: string;
+  /** image only: beside the question or in it; absent = beside when two or more questions use it (M13). */
+  placement?: QuizStimulusPlacement;
 }
+
+/** Where an image stimulus shows: in the panel beside the question, or above the question. */
+export type QuizStimulusPlacement = 'panel' | 'inline';
+
+/** How students fill a FIB question's blanks; absent means typed (M6). */
+export type FibBlankType = 'typed' | 'dropdown' | 'drag';
 
 export interface QuizQuestion {
   id: string;
@@ -4471,6 +4481,14 @@ export interface QuizQuestion {
   alternateAnswers?: string[];
   /** Multi-blank FIB only: other accepted answers per blank, index-aligned with the blanks in `correctAnswer`. Never sent to students. */
   blankAlternates?: { answers: string[] }[];
+  /** FIB only: how students fill the blanks; absent = typed. */
+  blankType?: FibBlankType;
+  /** FIB dropdown only: each blank's choices in authored order, index-aligned with the blanks; includes its answer. */
+  blankChoices?: { choices: string[] }[];
+  /** FIB drag only: every word in the bank, each blank's answer included; students get it shuffled. */
+  wordBank?: string[];
+  /** FIB drag only: a bank word can fill more than one blank. */
+  wordBankReuse?: boolean;
   /** MC/MA: editor-only display order over `[right options..., incorrectAnswers...]`; students still get a shuffle. */
   optionOrder?: number[];
   /** MC from the teacher's own test paper: answer sheets letter options in the editor order above, never shuffled. */
@@ -5246,6 +5264,14 @@ export interface QuizPublicQuestion {
   choices?: string[];
   /** FIB only: number of blanks to fill, set only when there are two or more. */
   blankCount?: number;
+  /** FIB only: set for dropdown and drag blanks; absent = typed. */
+  blankType?: Exclude<FibBlankType, 'typed'>;
+  /** FIB dropdown only: each blank's choices in authored order (the key is not marked). */
+  blankChoices?: { choices: string[] }[];
+  /** FIB drag only: the shuffled word bank, answers and extra words mixed. */
+  wordBank?: string[];
+  /** FIB drag only: a bank word can fill more than one blank. */
+  wordBankReuse?: boolean;
   /** Matching only: left-side terms (prompt side) */
   matchingLeft?: string[];
   /**
@@ -5571,6 +5597,10 @@ export interface QuizSession
   allowCrossOut?: boolean;
   /** Stamped only with the quiz-ordering-list flag; Ordering shows one list to drag into order. */
   orderingList?: boolean;
+  /** Stamped only with the quiz-stimulus-tabs flag; stimuli show as tabs beside the question. */
+  stimulusTabs?: boolean;
+  /** Stamped only with the quiz-review-step flag; self-paced quizzes end on a review screen. */
+  reviewStep?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
   /** Reveal the correct answer text to students after submit (default false) */
@@ -11148,6 +11178,12 @@ export type GlobalFeature =
   | 'quiz-ordering-list'
   /** Ordering results: each item's spot, with the items students put out of order marked. */
   | 'quiz-ordering-results'
+  /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
+  | 'quiz-blank-types'
+  /** Quiz stimuli as named tabs in the panel beside the question (M11). */
+  | 'quiz-stimulus-tabs'
+  /** Self-paced quizzes end on a review screen with Mark for review (M23). */
+  | 'quiz-review-step'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Lunch Count: send a corrected count that replaces the day's row for that class. */

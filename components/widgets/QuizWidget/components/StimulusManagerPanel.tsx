@@ -43,6 +43,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
 import type { QuizEditorController } from './useQuizEditorState';
+import { StimulusTabFields } from './StimulusTabFields';
 
 const labelClass =
   'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
@@ -457,7 +458,14 @@ export const StimulusManagerPanel: React.FC<{
   readAloudAvailable?: boolean;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
-}> = ({ state, readAloudAvailable = false, calculatorAvailable = false }) => {
+  /** `quiz-stimulus-tabs` gate: tab names and where a picture shows. */
+  tabsAvailable?: boolean;
+}> = ({
+  state,
+  readAloudAvailable = false,
+  calculatorAvailable = false,
+  tabsAvailable = false,
+}) => {
   const { stimuli, questions } = state;
   const intake = useStimulusIntake(state);
   const { addFromFile } = intake;
@@ -534,6 +542,7 @@ export const StimulusManagerPanel: React.FC<{
               stimulus={s}
               state={state}
               readAloudAvailable={readAloudAvailable}
+              tabsAvailable={tabsAvailable}
             />
           ))}
         </div>
@@ -707,7 +716,8 @@ const StimulusCard: React.FC<{
   index: number;
   state: QuizEditorController;
   readAloudAvailable: boolean;
-}> = ({ stimulus: s, index, state, readAloudAvailable }) => {
+  tabsAvailable: boolean;
+}> = ({ stimulus: s, index, state, readAloudAvailable, tabsAvailable }) => {
   const {
     questions,
     bankSlots,
@@ -811,6 +821,13 @@ const StimulusCard: React.FC<{
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
               Share this doc as &ldquo;Anyone with the link can view.&rdquo;
             </p>
+          )}
+          {tabsAvailable && (
+            <StimulusTabFields
+              stimulus={s}
+              index={index}
+              onChange={(updates) => updateStimulus(s.id, updates)}
+            />
           )}
           {readAloudAvailable && (s.type === 'image' || s.type === 'pdf') && (
             <ReadAloudTextRow

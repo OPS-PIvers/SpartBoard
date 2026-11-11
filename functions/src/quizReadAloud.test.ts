@@ -1087,3 +1087,65 @@ describe('picture-only answers in read aloud', () => {
     expect(whole.join(' ')).not.toContain('Picture ACD');
   });
 });
+
+describe('blank types read aloud (QUIZ_MCA_PRACTICE M10)', () => {
+  const dropdown = {
+    id: 'fib1',
+    type: 'FIB',
+    text: 'Ice ___ when it is ___.',
+    blankType: 'dropdown',
+    blankChoices: [
+      { choices: ['melts', 'freezes'] },
+      { choices: ['heated', 'melts'] },
+    ],
+  };
+
+  it('reads the sentence, then each dropdown choice once', () => {
+    expect(
+      wholeSubParts(dropdown)
+        .slice(1)
+        .map((p) => p.text)
+    ).toEqual(['melts', 'freezes', 'heated']);
+    expect(wholeSubParts(dropdown).map((p) => p.mark)).toEqual([
+      'question',
+      'choice:0',
+      'choice:1',
+      'choice:2',
+    ]);
+    expect(resolvePartText(dropdown, { kind: 'choice', index: 2 })).toEqual([
+      { text: 'heated' },
+    ]);
+  });
+
+  it('reads the word bank of a drag question', () => {
+    const drag = {
+      id: 'fib2',
+      type: 'FIB',
+      text: 'Plants need ___.',
+      blankType: 'drag',
+      wordBank: ['light', 'sand'],
+    };
+    expect(wholeSubParts(drag).map((p) => p.mark)).toEqual([
+      'question',
+      'choice:0',
+      'choice:1',
+    ]);
+    expect(resolvePartText(drag, { kind: 'choice', index: 1 })).toEqual([
+      { text: 'sand' },
+    ]);
+  });
+
+  it('gives a typed blank no choice parts', () => {
+    const typed = { id: 'fib3', type: 'FIB', text: 'Two plus two is ___.' };
+    expect(wholeSubParts(typed).map((p) => p.mark)).toEqual(['question']);
+    expect(resolvePartText(typed, { kind: 'choice', index: 0 })).toBeNull();
+  });
+
+  it('lists the choice parts in the manifest', () => {
+    const keys = enumerateParts({ publicQuestions: [dropdown] }).parts.map(
+      (p) => p.key
+    );
+    expect(keys).toContain(partKey('fib1', { kind: 'choice', index: 2 }));
+    expect(keys).toContain(partKey('fib1', { kind: 'whole' }));
+  });
+});

@@ -2189,6 +2189,45 @@
     "off": "Schüler/innen sehen ihre Punktzahl, wenn du die Ergebnisse veröffentlichst.",
     "unavailable": "Nicht verfügbar bei Freitextfragen."
   },
+  "quizBlanks": {
+    "blankN": "Lücke {{n}}",
+    "theBlank": "Die Lücke",
+    "yourAnswer": "Deine Antwort",
+    "choose": "Auswählen…",
+    "dropHere": "Wort hier ablegen",
+    "emptyBlank": "{{blank}}, leer",
+    "inBlank": "{{word}}, in {{blank}}",
+    "inBank": "{{word}}, in der Wortliste",
+    "wordBank": "Wortliste",
+    "reset": "Zurücksetzen",
+    "clearAll": "Alle Lücken leeren",
+    "allPlaced": "Alle Wörter eingesetzt.",
+    "picked": "{{word}} ausgewählt. Wähle eine Lücke.",
+    "placed": "{{word}} in {{blank}} eingesetzt.",
+    "returned": "{{word}} zurück in die Wortliste gelegt."
+  },
+  "quizReview": {
+    "reviewButton": "ÜBERPRÜFEN",
+    "reviewLink": "Überprüfen",
+    "mark": "Zum Überprüfen markieren",
+    "marked": "Zum Überprüfen markiert",
+    "markedShort": "zum Überprüfen markiert",
+    "title": "Vor dem Abgeben überprüfen",
+    "answered": "Beantwortet",
+    "unanswered": "Nicht beantwortet",
+    "locked": "Gesperrt",
+    "countAnswered": "{{count}} beantwortet",
+    "countUnanswered": "{{count}} nicht beantwortet",
+    "countMarked": "{{count}} markiert",
+    "questionN": "Frage {{n}}",
+    "backToLast": "Zurück zur letzten Frage",
+    "submit": "QUIZ ABGEBEN"
+  },
+  "quizStimulusTabs": {
+    "sources": "Quellen",
+    "calculator": "Taschenrechner",
+    "numbered": "Tab {{n}}"
+  },
   "quizTimeLimit": {
     "label": "Zeitlimit",
     "minutes": "Minuten",

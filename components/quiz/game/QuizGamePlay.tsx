@@ -64,6 +64,8 @@ import {
 } from '@/utils/quizGame';
 import { CollapsibleStimuli } from '../QuizStimulusView';
 import { FibMultiBlankInput, NumberedBlanksText } from '../FibMultiBlankInput';
+import { FibChoiceBlanksInput } from '../FibChoiceBlanksInput';
+import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { AnswerImageZoomButton, AnswerLabel } from '../AnswerImage';
 import { pictureOnlyName } from '../pictureOnlyName';
 import { AnswerPictureText } from '../AnswerPictureText';
@@ -830,7 +832,16 @@ const GameQuestion: React.FC<{
       )}
 
       {question.type === 'FIB' &&
-        (multiBlank ? (
+        (hasChoiceBlanks(question) ? (
+          <FibChoiceBlanksInput
+            key={question.id}
+            question={question}
+            value={draft}
+            onChange={onDraft}
+            disabled={submitting}
+            light
+          />
+        ) : multiBlank ? (
           <FibMultiBlankInput
             count={question.blankCount ?? 0}
             value={draft}
