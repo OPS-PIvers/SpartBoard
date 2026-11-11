@@ -180,12 +180,14 @@ export const mcpServer = onRequest(
       { registerTools, hiddenToolsFor, SERVER_INSTRUCTIONS },
       { registerPrompts },
       { slimToolListing },
+      { appsOn, registerAppResources },
     ] = await Promise.all([
       import('@modelcontextprotocol/sdk/server/mcp.js'),
       import('@modelcontextprotocol/sdk/server/streamableHttp.js'),
       import('./tools'),
       import('./prompts'),
       import('./toolKit'),
+      import('./apps'),
     ]);
     const server = new McpServer(
       {
@@ -211,7 +213,12 @@ export const mcpServer = onRequest(
     };
     registerTools(server, ctx);
     registerPrompts(server);
-    slimToolListing(server, () => hiddenToolsFor(ctx));
+    registerAppResources(server);
+    slimToolListing(
+      server,
+      () => hiddenToolsFor(ctx),
+      () => appsOn(ctx)
+    );
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
