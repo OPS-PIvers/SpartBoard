@@ -36,12 +36,21 @@ const TIP_W = 320;
 const GUTTER = 12;
 const TIP_H = 120;
 
-/** Below the target when the whole tip fits, else above, else as low as it stays on screen. */
+// A side with less room than this can't hold a readable tip, so the tip may cover the target instead.
+const MIN_ROOM = 120;
+
+/** Below the target when the whole tip fits, else above, else on the roomier side with `maxH` capping the tip. */
 export function placeTip(
   rect: OverlayRect | null,
   view: { w: number; h: number },
   tipH = TIP_H
-): { left: number; top?: number; bottom?: number; width: number } {
+): {
+  left: number;
+  top?: number;
+  bottom?: number;
+  width: number;
+  maxH?: number;
+} {
   const width = Math.min(TIP_W, view.w - GUTTER * 2);
   if (!rect) {
     return { left: (view.w - width) / 2, top: view.h / 3, width };
@@ -55,9 +64,13 @@ export function placeTip(
   // Above is pinned by its bottom edge, so a tip that grows after it is measured still clears the target.
   if (rect.y - GUTTER * 2 >= tipH + GUTTER)
     return { left, bottom: view.h - rect.y + GUTTER * 2, width };
-  const top =
-    below < view.h * 0.75 ? Math.max(GUTTER, view.h - tipH - GUTTER) : GUTTER;
-  return { left, top, width };
+  const roomBelow = view.h - below - GUTTER;
+  const roomAbove = rect.y - GUTTER * 3;
+  if (Math.max(roomBelow, roomAbove) < MIN_ROOM)
+    return { left, top: GUTTER, width };
+  return roomBelow >= roomAbove
+    ? { left, top: below, width, maxH: roomBelow }
+    : { left, bottom: view.h - rect.y + GUTTER * 2, width, maxH: roomAbove };
 }
 
 // A step found faster than this never flashes "Looking…".
@@ -75,20 +88,27 @@ function useViewport(): { w: number; h: number } {
   return { w, h };
 }
 
-/** The element's rendered height, or `fallback` until it has been measured. */
+/** The rendered height of whichever element `ref` holds now, or `fallback` until one is measured. */
 function useHeight(
   ref: React.RefObject<HTMLElement | null>,
   fallback: number
 ): number {
-  const [height, setHeight] = useState(fallback);
+  const [height, setHeight] = useState(0);
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  // No deps on purpose: the tip unmounts between steps and remounts as a new element.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sets state only when the element changed
   useLayoutEffect(() => {
-    const el = ref.current;
+    if (ref.current !== el) setEl(ref.current);
+  });
+  useLayoutEffect(() => {
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => setHeight(el.offsetHeight));
+    const observer = new ResizeObserver(() => {
+      if (el.isConnected && el.offsetHeight > 0) setHeight(el.offsetHeight);
+    });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [ref]);
-  return height;
+  }, [el]);
+  return height > 0 ? height : fallback;
 }
 
 /** True once `on` has held for `ms`; false again as soon as it drops. */
@@ -178,7 +198,12 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
   const { rect, token } = useTargetRect(lit || given.status === 'seeking');
   const state = aheadState(given, token);
   const view = useViewport();
-  const tipH = useHeight(boxRef, TIP_H);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const boxH = useHeight(boxRef, TIP_H);
+  const bodyH = useHeight(bodyRef, 0);
+  // Placement uses the tip's full height, so capping the body never flips it to the other side.
+  const tipH = boxH - bodyH + useHeight(contentRef, 0);
   // A target inside a frame is lit there; the tip waits low on the screen so it doesn't cover the frame.
   const away = state.status === 'shown' && !state.targetHere;
   const placed = placeTip(rect, view, tipH);
@@ -187,8 +212,13 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
         ...placed,
         top: Math.max(GUTTER, view.h - tipH - GUTTER * 4),
         bottom: undefined,
+        maxH: undefined,
       }
     : placed;
+  const bodyMax =
+    tip.maxH === undefined
+      ? undefined
+      : Math.max(GUTTER * 4, tip.maxH - (boxH - bodyH));
   const done = state.status === 'done';
   const looking = useAfter(state.status === 'seeking', LOOKING_DELAY_MS);
   // Settle, tick, glide, tip after the learner acts (TOURS_10X.md P1).
@@ -231,7 +261,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
     ? tetherFor(
         {
           x: tip.left,
-          y: tip.top ?? view.h - (tip.bottom ?? 0) - tipH,
+          y: tip.top ?? view.h - (tip.bottom ?? 0) - boxH,
           w: tip.width,
           h: tipH,
         },
@@ -309,55 +339,64 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
                 : undefined
           }
         >
-          {result && !done && (
-            <p
-              role="status"
-              data-testid="web-tour-check-result"
-              className={`mb-2 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${CHECK_TONE[result]}`}
-            >
-              {t(CHECK_KEYS[result])}
-            </p>
-          )}
-          {!done && (
-            <p className="whitespace-pre-line text-sm text-slate-700">
-              {renderStepText(state.text.trim())}
-            </p>
-          )}
-          {state.status === 'wrong-page' && (
-            <p
-              data-testid="web-tour-other-page"
-              className="mt-2 text-sm font-semibold text-slate-700"
-            >
-              {t('tours.webOtherPage')}
-            </p>
-          )}
-          {state.status === 'fallback' && (
-            <p
-              data-testid="web-tour-find-it"
-              className="mt-2 text-sm font-semibold text-slate-700"
-            >
-              {t('tours.webFindIt')}
-            </p>
-          )}
-          {state.picture &&
-            (state.status === 'fallback' || state.status === 'wrong-page') && (
-              <Picture
-                picture={state.picture}
-                markup={state.markup}
-                target={state.target}
-              />
-            )}
-          {state.status === 'wrong-page' && state.takeBack && (
-            // no-tour-anchor: tour playback chrome on a website, never a tour's own target
-            <button
-              type="button"
-              data-testid="tour-take-me-back"
-              onClick={() => onAction('takeBack')}
-              className={`${secondaryBtn} mt-2 -ml-3`}
-            >
-              {t('tours.takeMeBack')}
-            </button>
-          )}
+          <div
+            ref={bodyRef}
+            className={bodyMax === undefined ? undefined : 'overflow-y-auto'}
+            style={bodyMax === undefined ? undefined : { maxHeight: bodyMax }}
+          >
+            <div ref={contentRef}>
+              {result && !done && (
+                <p
+                  role="status"
+                  data-testid="web-tour-check-result"
+                  className={`mb-2 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${CHECK_TONE[result]}`}
+                >
+                  {t(CHECK_KEYS[result])}
+                </p>
+              )}
+              {!done && (
+                <p className="whitespace-pre-line text-sm text-slate-700">
+                  {renderStepText(state.text.trim())}
+                </p>
+              )}
+              {state.status === 'wrong-page' && (
+                <p
+                  data-testid="web-tour-other-page"
+                  className="mt-2 text-sm font-semibold text-slate-700"
+                >
+                  {t('tours.webOtherPage')}
+                </p>
+              )}
+              {state.status === 'fallback' && (
+                <p
+                  data-testid="web-tour-find-it"
+                  className="mt-2 text-sm font-semibold text-slate-700"
+                >
+                  {t('tours.webFindIt')}
+                </p>
+              )}
+              {state.picture &&
+                (state.status === 'fallback' ||
+                  state.status === 'wrong-page') && (
+                  <Picture
+                    picture={state.picture}
+                    markup={state.markup}
+                    target={state.target}
+                  />
+                )}
+              {state.status === 'wrong-page' && state.takeBack && (
+                // no-tour-anchor: tour playback chrome on a website, never a tour's own target
+                <button
+                  type="button"
+                  data-testid="tour-take-me-back"
+                  onClick={() => onAction('takeBack')}
+                  className={`${secondaryBtn} mt-2 -ml-3`}
+                >
+                  {t('tours.takeMeBack')}
+                </button>
+              )}
+            </div>
+          </div>
         </TourTip>
       )}
     </>
