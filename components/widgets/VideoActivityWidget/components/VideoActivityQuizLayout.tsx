@@ -8,6 +8,8 @@ import React, {
 } from 'react';
 import {
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   MousePointerClick,
   PlayCircle,
@@ -16,11 +18,7 @@ import {
   Trash2,
   Wand2,
 } from 'lucide-react';
-import type {
-  QuizQuestion,
-  QuizQuestionType,
-  VideoActivityQuestion,
-} from '@/types';
+import type { QuizQuestion, QuizQuestionType } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { extractYouTubeId } from '@/utils/youtube';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
@@ -31,7 +29,6 @@ import {
   vaToQuizQuestion,
 } from '@/utils/vaQuestionAdapter';
 import { useAuth } from '@/context/useAuth';
-import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { ChoiceOptionsEditor } from '@/components/widgets/QuizWidget/components/ChoiceOptionsEditor';
@@ -70,14 +67,6 @@ interface ContextPaneProps extends PaneProps {
   aiEnabled: boolean;
 }
 
-// Same badge colors as the Quiz editor's question rows.
-const TYPE_BADGE: Record<VideoActivityQuestion['type'], string> = {
-  MC: 'bg-blue-100 text-blue-700',
-  FIB: 'bg-amber-100 text-amber-800',
-  MA: 'bg-emerald-100 text-emerald-700',
-  SA: 'bg-violet-100 text-violet-700',
-};
-
 const VA_TYPE_LABELS: Partial<Record<QuizQuestionType, string>> = {
   'free-response': 'Short Answer',
 };
@@ -95,9 +84,7 @@ const contextPanePropsEqual = (
   prev.state.notes === next.state.notes &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
-  prev.state.checkedIds === next.state.checkedIds &&
-  prev.state.error === next.state.error &&
-  prev.state.deleteChecked === next.state.deleteChecked;
+  prev.state.error === next.state.error;
 
 export const VideoActivityQuizContextPane = React.memo(
   function VideoActivityQuizContextPane({
@@ -118,31 +105,23 @@ export const VideoActivityQuizContextPane = React.memo(
       addQuestionAtTime,
       updateQuestion,
       setVideoDurationSeconds,
-      deleteQuestion,
-      duplicateQuestion,
-      checkedIds,
-      toggleChecked,
-      setAllChecked,
-      deleteChecked,
       applyTargets,
       setShowAiPrompt,
       setTimestampInput,
       error,
     } = state;
-    const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
+    const [tagAllOpen, setTagAllOpen] = useState(false);
 
     const videoId = youtubeUrl.trim()
       ? extractYouTubeId(youtubeUrl.trim())
       : null;
     const hasUrl = youtubeUrl.trim().length > 0;
 
-    // Rows keep stable callbacks; the latest questions are read at click time.
     const questionsRef = useRef(questions);
-    const deleteRef = useRef(deleteQuestion);
     useLayoutEffect(() => {
       questionsRef.current = questions;
-      deleteRef.current = deleteQuestion;
     });
+    // A marker opens its question and moves the video there.
     const handleSelect = useCallback(
       (id: string) => {
         setSelectedId(id);
@@ -151,9 +130,50 @@ export const VideoActivityQuizContextPane = React.memo(
       },
       [setSelectedId, timelineRef]
     );
-    const handleDelete = useCallback((id: string) => deleteRef.current(id), []);
     const handleAdd = () =>
       addQuestionAtTime(timelineRef.current?.getCurrentTime() ?? 0);
+    const needsAnswerIds = useMemo(
+      () =>
+        new Set(
+          questions
+            .filter((q) => questionNeedsKey(vaToQuizQuestion(q)))
+            .map((q) => q.id)
+        ),
+      [questions]
+    );
+
+    const actions = (
+      <>
+        {questions.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setTagAllOpen(true)}
+            {...tourAttr('video-activity.editor-bulk-tag')}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+          >
+            <Tag className="w-3.5 h-3.5 text-slate-500" />
+            Tag all
+          </button>
+        )}
+        {aiEnabled && (
+          <button
+            type="button"
+            onClick={() => setShowAiPrompt(true)}
+            disabled={!hasUrl}
+            {...tourAttr('video-activity.editor-draft-ai')}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={
+              hasUrl
+                ? 'Generate questions with AI'
+                : 'Paste a YouTube URL first'
+            }
+          >
+            <Wand2 className="w-3.5 h-3.5 text-slate-500" />
+            Draft with AI
+          </button>
+        )}
+      </>
+    );
 
     return (
       <div className="flex flex-col h-full">
@@ -184,13 +204,13 @@ export const VideoActivityQuizContextPane = React.memo(
           )}
         </div>
 
-        <div className="h-[45%] min-h-44 shrink-0 px-5 pt-4 pb-3 border-b border-slate-200 bg-slate-50">
+        <div className="flex-1 min-h-0 px-5 pt-4 pb-4 bg-slate-50">
           {videoId ? (
             <Timeline
               videoId={videoId}
               questions={questions}
               onAddAtTime={addQuestionAtTime}
-              onSelectQuestion={setSelectedId}
+              onSelectQuestion={handleSelect}
               onMarkerDrag={(id, seconds) => {
                 setTimestampInput(id, secondsToMmSs(seconds));
                 updateQuestion(id, { timestamp: seconds });
@@ -198,122 +218,51 @@ export const VideoActivityQuizContextPane = React.memo(
               activeQuestionId={selectedId ?? undefined}
               onDurationChange={setVideoDurationSeconds}
               handleRef={timelineRef}
+              needsAnswerIds={needsAnswerIds}
+              actions={actions}
             />
           ) : (
-            <div className="h-full w-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
-              <PlayCircle className="w-8 h-8 text-red-400 mb-2" />
-              <p className="text-sm font-bold text-slate-700">
-                Paste a YouTube URL above
-              </p>
-              <p className="text-xs">
-                The player and timeline will appear here.
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-50 px-5 pb-5 pt-4">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Questions ({questions.length})
-            </h4>
-            <div className="flex items-center gap-2">
-              {checkedIds.size > 0 && (
-                <>
-                  <span className="text-xs font-semibold text-slate-600">
-                    {checkedIds.size} selected
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setBulkPickerOpen(true)}
-                    {...tourAttr('video-activity.editor-bulk-tag')}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
-                  >
-                    <Tag className="w-3.5 h-3.5" />
-                    Tag
-                  </button>
-                  <button
-                    type="button"
-                    onClick={deleteChecked}
-                    {...tourAttr('video-activity.editor-bulk-delete')}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 border border-slate-300 text-red-600 rounded-lg text-xs font-bold transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Delete
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAllChecked(false)}
-                    {...tourAttr('video-activity.editor-bulk-clear')}
-                    className="px-2 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
-                  >
-                    Clear
-                  </button>
-                </>
-              )}
-              {aiEnabled && (
+            <div className="flex h-full flex-col gap-2">
+              <div className="flex-1 min-h-0 w-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
+                <PlayCircle className="w-8 h-8 text-red-400 mb-2" />
+                <p className="text-sm font-bold text-slate-700">
+                  Paste a YouTube URL above
+                </p>
+                <p className="text-xs">
+                  The player and timeline will appear here.
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center justify-end gap-2">
+                {actions}
                 <button
                   type="button"
-                  onClick={() => setShowAiPrompt(true)}
-                  disabled={!hasUrl}
-                  {...tourAttr('video-activity.editor-draft-ai')}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={
-                    hasUrl
-                      ? 'Generate questions with AI'
-                      : 'Paste a YouTube URL first'
-                  }
+                  onClick={handleAdd}
+                  {...tourAttr('video-activity.editor-add-question')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors"
                 >
-                  <Wand2 className="w-3.5 h-3.5 text-slate-500" />
-                  Draft with AI
+                  <Plus className="w-3.5 h-3.5" />
+                  Add
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={handleAdd}
-                {...tourAttr('video-activity.editor-add-question')}
-                className="flex items-center gap-1 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add
-              </button>
-            </div>
-          </div>
-
-          {questions.length === 0 ? (
-            <div className="text-center text-slate-500 text-sm py-8 border-2 border-dashed border-slate-300 rounded-lg bg-white">
-              No questions yet.
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {questions.map((q, index) => (
-                <VaQuestionRow
-                  key={q.id}
-                  question={q}
-                  index={index}
-                  isSelected={q.id === selectedId}
-                  isChecked={checkedIds.has(q.id)}
-                  onSelect={handleSelect}
-                  onToggleChecked={toggleChecked}
-                  onDelete={handleDelete}
-                  onDuplicate={duplicateQuestion}
-                />
-              ))}
+              </div>
             </div>
           )}
         </div>
 
-        {bulkPickerOpen && (
+        {tagAllOpen && (
           <TargetPicker
             open
             initial={[]}
             allowReplace
-            title={`Tag ${checkedIds.size} question${checkedIds.size === 1 ? '' : 's'}`}
+            title={`Tag all ${questions.length} questions`}
             onApply={(tags, mode) => {
-              applyTargets([...checkedIds], tags, mode);
-              setBulkPickerOpen(false);
+              applyTargets(
+                questions.map((q) => q.id),
+                tags,
+                mode
+              );
+              setTagAllOpen(false);
             }}
-            onClose={() => setBulkPickerOpen(false)}
+            onClose={() => setTagAllOpen(false)}
           />
         )}
       </div>
@@ -322,137 +271,11 @@ export const VideoActivityQuizContextPane = React.memo(
   contextPanePropsEqual
 );
 
-// ─── Question row ────────────────────────────────────────────────────────────
-
-interface VaQuestionRowProps {
-  question: VideoActivityQuestion;
-  index: number;
-  isSelected: boolean;
-  isChecked: boolean;
-  onSelect: (id: string) => void;
-  onToggleChecked: (id: string, range?: boolean) => void;
-  onDelete: (id: string) => void;
-  onDuplicate: (id: string) => void;
-}
-
-// Quiz's row with the question's time in the video where Quiz has its drag handle.
-const VaQuestionRow = React.memo(function VaQuestionRow({
-  question,
-  index,
-  isSelected,
-  isChecked,
-  onSelect,
-  onToggleChecked,
-  onDelete,
-  onDuplicate,
-}: VaQuestionRowProps) {
-  const needsKey = questionNeedsKey(vaToQuizQuestion(question));
-  return (
-    <div
-      onClick={() => onSelect(question.id)}
-      {...tourFieldAttr(
-        'video-activity.editor-question-pill',
-        'video-activity',
-        question.id
-      )}
-      aria-current={isSelected ? 'true' : undefined}
-      className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg border bg-white cursor-pointer transition-all ${
-        isSelected
-          ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/15'
-          : 'border-slate-200 hover:border-slate-300'
-      }`}
-    >
-      <span className="shrink-0 font-mono text-xs font-bold text-slate-500 tabular-nums">
-        {secondsToMmSs(question.timestamp)}
-      </span>
-      <input
-        type="checkbox"
-        checked={isChecked}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) =>
-          onToggleChecked(
-            question.id,
-            (e.nativeEvent as MouseEvent).shiftKey === true
-          )
-        }
-        aria-label={`Select question ${index + 1}`}
-        {...tourFieldAttr(
-          'video-activity.editor-question-select',
-          'video-activity',
-          String(index + 1)
-        )}
-        className={`shrink-0 accent-brand-blue-primary transition-opacity ${
-          isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        }`}
-      />
-      <span className="text-slate-400 font-mono font-bold text-xs w-5 shrink-0 text-center">
-        {index + 1}
-      </span>
-      <span
-        className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type ?? 'MC']}`}
-      >
-        {question.type ?? 'MC'}
-      </span>
-      {needsKey && (
-        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
-          <AlertCircle className="w-2.5 h-2.5" aria-hidden />
-          Needs answer
-        </span>
-      )}
-      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-        <span className="text-sm text-slate-700 truncate">
-          {question.text || (
-            <span className="italic text-slate-400">Untitled question</span>
-          )}
-        </span>
-        {question.targets && question.targets.length > 0 && (
-          <span className="flex flex-wrap items-center gap-1">
-            <TargetChips targets={question.targets} compact max={3} />
-          </span>
-        )}
-      </span>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDuplicate(question.id);
-        }}
-        aria-label="Duplicate question"
-        title="Duplicate question"
-        {...tourFieldAttr(
-          'video-activity.editor-question-duplicate',
-          'video-activity',
-          String(index + 1)
-        )}
-        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-      >
-        <Copy className="w-3.5 h-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(question.id);
-        }}
-        aria-label="Delete question"
-        title="Delete question"
-        {...tourFieldAttr(
-          'video-activity.editor-question-delete',
-          'video-activity',
-          question.id
-        )}
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-});
-
 // ─── Detail pane ─────────────────────────────────────────────────────────────
 
 const detailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.timelineRef === next.timelineRef &&
+  prev.state.selectedId === next.state.selectedId &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedQuestion === next.state.selectedQuestion &&
   prev.state.selectedIndex === next.state.selectedIndex &&
@@ -467,6 +290,9 @@ export const VideoActivityQuizDetailPane = React.memo(
       updateQuestion,
       timestampInputs,
       setTimestampInput,
+      setSelectedId,
+      deleteQuestion,
+      duplicateQuestion,
     } = state;
     const { canAccessFeature } = useAuth();
     const shortAnswerEnabled = canAccessFeature('video-activity-stops');
@@ -488,6 +314,12 @@ export const VideoActivityQuizDetailPane = React.memo(
       () => (selectedQuestion ? vaToQuizQuestion(selectedQuestion) : null),
       [selectedQuestion]
     );
+
+    const goTo = (qid: string) => {
+      setSelectedId(qid);
+      const target = questions.find((x) => x.id === qid);
+      if (target) timelineRef.current?.seekTo(target.timestamp);
+    };
 
     if (!selectedQuestion || !q) {
       return (
@@ -532,15 +364,87 @@ export const VideoActivityQuizDetailPane = React.memo(
 
     return (
       <div className="flex flex-col h-full">
-        <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
-            Question {selectedIndex + 1} of {questions.length}
-            <span className="mx-1.5">·</span>
-            {VA_TYPE_LABELS[q.type] ?? typeMeta?.label ?? q.type}
+        <div className="px-5 py-3 border-b border-slate-200 bg-white sticky top-0 z-10 space-y-2">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-slate-500 font-bold truncate">
+              Question {selectedIndex + 1} of {questions.length}
+              <span className="mx-1.5">·</span>
+              {VA_TYPE_LABELS[q.type] ?? typeMeta?.label ?? q.type}
+            </div>
           </div>
-          <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
-            {q.text.trim() || `Question ${selectedIndex + 1}`}
-          </h4>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={selectedIndex <= 0}
+              onClick={() => goTo(questions[selectedIndex - 1].id)}
+              aria-label="Previous question"
+              title="Previous question"
+              {...tourAttr('video-activity.editor-question-prev')}
+              className="shrink-0 touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <select
+              value={id}
+              onChange={(e) => goTo(e.target.value)}
+              aria-label="Jump to question"
+              {...tourAttr('video-activity.editor-question-jump')}
+              className={`${inputClass} min-w-0 flex-1 truncate font-semibold`}
+            >
+              {questions.map((x, i) => (
+                <option key={x.id} value={x.id}>
+                  {`${i + 1}. ${secondsToMmSs(x.timestamp)}  ${x.text.trim() || 'Untitled question'}${questionNeedsKey(vaToQuizQuestion(x)) ? ' (needs answer)' : ''}`}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={selectedIndex >= questions.length - 1}
+              onClick={() => goTo(questions[selectedIndex + 1].id)}
+              aria-label="Next question"
+              title="Next question"
+              {...tourAttr('video-activity.editor-question-next')}
+              className="shrink-0 touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <div className="flex shrink-0 items-center gap-2 border-l border-slate-200 pl-2">
+              <button
+                type="button"
+                onClick={() => duplicateQuestion(id)}
+                aria-label="Duplicate question"
+                title="Duplicate question"
+                {...tourFieldAttr(
+                  'video-activity.editor-question-duplicate',
+                  'video-activity',
+                  String(selectedIndex + 1)
+                )}
+                className="touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-brand-blue-primary transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const next =
+                    questions[selectedIndex + 1] ??
+                    questions[selectedIndex - 1];
+                  deleteQuestion(id);
+                  if (next) goTo(next.id);
+                }}
+                aria-label="Delete question"
+                title="Delete question"
+                {...tourFieldAttr(
+                  'video-activity.editor-question-delete',
+                  'video-activity',
+                  id
+                )}
+                className="touch-target-expand relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">

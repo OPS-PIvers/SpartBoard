@@ -84,6 +84,12 @@ import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
 import { FibBlanksEditor } from './FibBlanksEditor';
+import {
+  FibBlankTypeSelect,
+  FibDropdownEditor,
+  FibWordBankEditor,
+} from './FibBlankTypeEditor';
+import { blankTypeOf } from '@/utils/quizBlankTypes';
 import { AnswerKeyKeyboard } from './AnswerKeyKeyboard';
 import { isMultiBlank } from '@/utils/quizFibBlanks';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
@@ -840,6 +846,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const uploadWhiteboardImage = useWhiteboardImageUpload();
   const answerImagesOn = canAccessFeature('quiz-ordering-images');
   const keyboardsOn = canAccessFeature(STUDENT_KEYBOARDS_FEATURE);
+  const blankTypesOn = canAccessFeature('quiz-blank-types');
   const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
     async (file: File): Promise<string | null> => {
@@ -1151,6 +1158,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         )}
 
+        {q.type === 'FIB' && (blankTypesOn || blankTypeOf(q) !== 'typed') && (
+          <FibBlankTypeSelect
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+            disabled={!blankTypesOn}
+          />
+        )}
+
         {/* Type-specific answer editor */}
         {q.type === 'MC' || q.type === 'MA' ? (
           <div className="space-y-1">
@@ -1305,6 +1320,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               )}
             </div>
           </div>
+        ) : blankTypeOf(q) === 'dropdown' ? (
+          <FibDropdownEditor
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+          />
         ) : isMultiBlank(q) ? (
           <div>
             <AnswerKeyKeyboard
@@ -1332,6 +1352,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
             keyboard={keyboardsOn ? { defaultAccents } : undefined}
+          />
+        )}
+        {blankTypeOf(q) === 'drag' && (
+          <FibWordBankEditor
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
           />
         )}
 

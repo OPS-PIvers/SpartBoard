@@ -55,6 +55,9 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-ordering-images',
   'quiz-ordering-list',
   'quiz-ordering-results',
+  'quiz-blank-types',
+  'quiz-stimulus-tabs',
+  'quiz-review-step',
   'quiz-calculator-stimulus',
   'student-keyboards',
   'lunch-count-redesign',
@@ -92,6 +95,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'schoology-push-due-date',
   'flashcards-missed-cards',
   'flashcards-check-sync',
+  'video-activity-editor-arrows',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

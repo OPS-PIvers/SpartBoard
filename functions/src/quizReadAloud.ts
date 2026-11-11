@@ -187,7 +187,36 @@ interface SessionQuestion {
   rubricSnapshot?: unknown;
   localized?: unknown;
   imageOnlyAnswers?: unknown;
+  blankType?: unknown;
+  blankChoices?: unknown;
+  wordBank?: unknown;
 }
+
+// Mirrors utils/quizBlankTypes spokenBlankChoices: dropdown choices once each, or the word bank.
+export function spokenBlankChoices(question: SessionQuestion): string[] {
+  if (question.type !== 'FIB') return [];
+  if (question.blankType === 'drag')
+    return [...new Set(strings(question.wordBank))];
+  if (question.blankType !== 'dropdown') return [];
+  const out: string[] = [];
+  const blanks = Array.isArray(question.blankChoices)
+    ? question.blankChoices
+    : [];
+  for (const blank of blanks) {
+    const choices =
+      blank && typeof blank === 'object'
+        ? (blank as { choices?: unknown }).choices
+        : undefined;
+    for (const c of strings(choices)) if (!out.includes(c)) out.push(c);
+  }
+  return out;
+}
+
+/** The list the `choice` parts index into: MC/MA options, or a FIB's blank choices. */
+const choiceList = (question: SessionQuestion): string[] =>
+  hasChoices(question.type)
+    ? strings(question.choices)
+    : spokenBlankChoices(question);
 
 // ── Pure helpers (exported for tests) ──────────────────────────────────────
 
@@ -399,7 +428,7 @@ export function wholeSubParts(question: SessionQuestion): SubPart[] {
       out.push({ mark: `${kind}:${index}`, text: capText(text) });
     });
   };
-  if (hasChoices(question.type)) add('choice', strings(question.choices));
+  add('choice', choiceList(question));
   if (question.type === 'Matching') {
     add('matchingLeft', strings(question.matchingLeft));
     add('matchingRight', strings(question.matchingRight));
@@ -430,10 +459,10 @@ export function resolvePartText(
       );
       return text ? [{ text: capText(text) }] : null;
     }
-    case 'choice':
-      return hasChoices(question.type)
-        ? single(question.choices, part.index)
-        : null;
+    case 'choice': {
+      const list = choiceList(question);
+      return list.length > 0 ? single(list, part.index) : null;
+    }
     case 'matchingLeft':
       return question.type === 'Matching'
         ? single(question.matchingLeft, part.index)
@@ -544,7 +573,7 @@ export function enumerateParts(session: Record<string, unknown>): {
         push(partKey(q.id as string, part), resolvePartText(q, part));
       });
     };
-    if (hasChoices(q.type)) listed('choice', q.choices);
+    listed('choice', choiceList(q));
     if (q.type === 'Matching') {
       listed('matchingLeft', q.matchingLeft);
       listed('matchingRight', q.matchingRight);

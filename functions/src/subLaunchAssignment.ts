@@ -49,6 +49,8 @@ const STIMULUS_QUOTES_FEATURE = 'quiz-stimulus-quotes';
 const CROSS_OUT_FEATURE = 'quiz-cross-out';
 const ORDERING_LIST_FEATURE = 'quiz-ordering-list';
 const INPUT_SIGNALS_FEATURE = 'input-signals';
+const STIMULUS_TABS_FEATURE = 'quiz-stimulus-tabs';
+const REVIEW_STEP_FEATURE = 'quiz-review-step';
 const ANONYMOUS_JOIN_FEATURE = 'anonymous-join';
 /** A session doc is capped at ~1 MiB by Firestore; stay well inside it. */
 const MAX_PAYLOAD_BYTES = 700_000;
@@ -330,6 +332,66 @@ interface KeyQuestion {
   noSpellCheck?: boolean;
   answerKeyboard?: unknown;
   stimulusIds?: string[];
+  blankType?: unknown;
+  blankChoices?: unknown;
+  wordBank?: unknown;
+  wordBankReuse?: unknown;
+}
+
+// Mirrors FIB_BLANK_SEP in utils/quizFibBlanks.ts.
+const FIB_BLANK_SEP = '\u001F';
+const cleanBlankWord = (s: unknown): string =>
+  typeof s === 'string' ? s.split(FIB_BLANK_SEP).join('').trim() : '';
+
+// Mirrors utils/quizBlankTypes publicBlankFields: choices and the word bank travel, the key never does.
+export function publicBlankFieldsFromKey(
+  q: KeyQuestion
+): Record<string, unknown> {
+  const answers = (q.correctAnswer ?? '').split(FIB_BLANK_SEP);
+  if (q.blankType === 'dropdown') {
+    const raw = Array.isArray(q.blankChoices) ? q.blankChoices : [];
+    const lists = answers.map((_, i) => {
+      const entry: unknown = raw[i];
+      const choices =
+        entry && typeof entry === 'object'
+          ? (entry as { choices?: unknown }).choices
+          : undefined;
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const c of Array.isArray(choices) ? choices : []) {
+        const word = cleanBlankWord(c);
+        if (!word || seen.has(word.toLowerCase())) continue;
+        seen.add(word.toLowerCase());
+        out.push(word);
+      }
+      return out;
+    });
+    if (lists.some((l) => l.length === 0)) return {};
+    return {
+      blankType: 'dropdown',
+      blankChoices: lists.map((choices) => ({ choices })),
+    };
+  }
+  if (q.blankType === 'drag') {
+    const reuse = q.wordBankReuse === true;
+    const seen = new Set<string>();
+    const bank: string[] = [];
+    const words = Array.isArray(q.wordBank) ? q.wordBank : [];
+    for (const raw of words) {
+      const w = cleanBlankWord(raw);
+      if (!w) continue;
+      if (reuse && seen.has(w.toLowerCase())) continue;
+      seen.add(w.toLowerCase());
+      bank.push(w);
+    }
+    if (bank.length === 0) return {};
+    return {
+      blankType: 'drag',
+      wordBank: shuffled(bank),
+      ...(reuse ? { wordBankReuse: true } : {}),
+    };
+  }
+  return {};
 }
 
 function shuffled<T>(items: T[]): T[] {
@@ -476,6 +538,12 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     ANSWER_KEYBOARDS.has(q.answerKeyboard)
   )
     base.answerKeyboard = q.answerKeyboard;
+  if (q.type === 'FIB') {
+    // Mirrors useQuizSession toPublicQuestion: blankCount only for two or more blanks.
+    const blanks = (q.correctAnswer ?? '').split(FIB_BLANK_SEP).length;
+    if (blanks >= 2) base.blankCount = blanks;
+    Object.assign(base, publicBlankFieldsFromKey(q));
+  }
   const imageOnly = publicImageOnlyAnswers(q, base);
   if (imageOnly) base.imageOnlyAnswers = imageOnly;
   if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
@@ -1384,6 +1452,16 @@ export async function handleLaunchSubAssignment(
     hostUid,
     INPUT_SIGNALS_FEATURE
   );
+  const stimulusTabsOn = await deps.hostHasFeature(
+    db,
+    hostUid,
+    STIMULUS_TABS_FEATURE
+  );
+  const reviewStepOn = await deps.hostHasFeature(
+    db,
+    hostUid,
+    REVIEW_STEP_FEATURE
+  );
   const publicQuestions = publicQuestionsFromKey(keyQuiz.questions);
   const quizTitle =
     typeof keyQuiz.title === 'string' && keyQuiz.title ? keyQuiz.title : 'Quiz';
@@ -1401,6 +1479,10 @@ export async function handleLaunchSubAssignment(
     ...(crossOutOn ? { allowCrossOut: true } : {}),
     ...(orderingListOn ? { orderingList: true } : {}),
     ...(inputSignalsOn ? { inputSignals: true } : {}),
+    ...(stimulusTabsOn ? { stimulusTabs: true } : {}),
+    ...(reviewStepOn && session.sessionMode === 'student'
+      ? { reviewStep: true }
+      : {}),
     ...(Array.isArray(keyQuiz.stimuli) ? { stimuli: keyQuiz.stimuli } : {}),
     ...(typeof keyQuiz.language === 'string'
       ? { language: keyQuiz.language }

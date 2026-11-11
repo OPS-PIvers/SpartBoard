@@ -8134,6 +8134,186 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.fib-blank-type",
+    "label": "Blank type select (Typed, Dropdown, Drag) in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.fib-choice",
+    "label": "Dropdown choice input in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.fib-choice-correct",
+    "label": "Dropdown right-choice radio in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.fib-choice-remove",
+    "label": "Remove dropdown choice (×) in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.fib-choice-add",
+    "label": "Add dropdown choice in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.word-bank-word",
+    "label": "Word bank word input in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.word-bank-remove",
+    "label": "Remove word bank word (×) in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.word-bank-add",
+    "label": "Add word to the word bank in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.word-bank-reuse",
+    "label": "Words can be used more than once checkbox in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.multi-answer-item",
     "label": "Answer item input (shared, per index) in the Quiz editor",
     "scope": "field",
@@ -13970,6 +14150,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-stimuli.play-limit",
     "label": "Play limit input in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.tab-label",
+    "label": "Stimulus tab name input in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.placement",
+    "label": "Picture Show select (beside or in the question) in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -50175,7 +50397,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-question-delete",
-    "label": "Delete button on a question in the editor question list",
+    "label": "Delete button for a question in the video activity editor",
     "scope": "field",
     "destructive": true,
     "persists": true,
@@ -50326,7 +50548,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-add-question",
-    "label": "Add question button in the video activity editor question list",
+    "label": "Add question button in the video activity editor",
     "scope": "board",
     "persists": true,
     "sandboxed": true,
@@ -50362,7 +50584,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-question-duplicate",
-    "label": "Duplicate button on a question in the video activity editor",
+    "label": "Duplicate button for a question in the video activity editor",
     "scope": "field",
     "persists": true,
     "sandboxed": true,
@@ -50381,7 +50603,58 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-bulk-tag",
-    "label": "Tag button for selected questions in the video activity editor",
+    "label": "Tag button for selected or all questions in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-prev",
+    "label": "Previous question arrow in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-next",
+    "label": "Next question arrow in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-jump",
+    "label": "Question menu in the video activity editor",
     "scope": "board",
     "routes": [
       {

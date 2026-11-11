@@ -2189,6 +2189,48 @@
     "off": "Les élèves voient leur score quand tu publies les résultats.",
     "unavailable": "Indisponible avec des questions à réponse libre."
   },
+  "quizBlanks": {
+    "blankN": "Blanc {{n}}",
+    "theBlank": "Le blanc",
+    "yourAnswer": "Ta réponse",
+    "choose": "Choisir…",
+    "dropHere": "Dépose un mot ici",
+    "emptyBlank": "{{blank}}, vide",
+    "inBlank": "{{word}}, dans {{blank}}",
+    "inBank": "{{word}}, dans la banque de mots",
+    "wordBank": "Banque de mots",
+    "reset": "Réinitialiser",
+    "clearAll": "Vider tous les blancs",
+    "allPlaced": "Tous les mots sont placés.",
+    "picked": "{{word}} sélectionné. Choisis un blanc.",
+    "placed": "{{word}} placé dans {{blank}}.",
+    "returned": "{{word}} remis dans la banque de mots."
+  },
+  "quizReview": {
+    "reviewButton": "VÉRIFIER",
+    "reviewLink": "Vérifier",
+    "mark": "Marquer pour vérifier",
+    "marked": "Marquée pour vérifier",
+    "markedShort": "marquée pour vérifier",
+    "title": "Vérifie avant de rendre",
+    "answered": "Répondue",
+    "unanswered": "Sans réponse",
+    "locked": "Verrouillée",
+    "countAnswered_one": "{{count}} répondue",
+    "countAnswered_other": "{{count}} répondues",
+    "countUnanswered_one": "{{count}} sans réponse",
+    "countUnanswered_other": "{{count}} sans réponse",
+    "countMarked_one": "{{count}} marquée",
+    "countMarked_other": "{{count}} marquées",
+    "questionN": "Question {{n}}",
+    "backToLast": "Revenir à la dernière question",
+    "submit": "RENDRE LE QUIZ"
+  },
+  "quizStimulusTabs": {
+    "sources": "Sources",
+    "calculator": "Calculatrice",
+    "numbered": "Onglet {{n}}"
+  },
   "quizTimeLimit": {
     "label": "Limite de temps",
     "minutes": "Minutes",
