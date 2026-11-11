@@ -4819,6 +4819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#reveal-correct",
       "assign#rewind-on-wrong",
       "assign#score-on-submit",
+      "assign#show-explanations",
       "assign#show-right-wrong",
       "assign#shuffle-answers",
       "assign#shuffle-questions",
@@ -4924,6 +4925,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#raise-hand",
       "assign#read-aloud",
       "assign#score-on-submit",
+      "assign#show-explanations",
       "assign#speed-bonus",
       "assign#streak-bonus"
     ],
