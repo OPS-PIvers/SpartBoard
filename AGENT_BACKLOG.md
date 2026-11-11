@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-198**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-199**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,6 +19,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
+- **AB-198 Building-keyed configs: prefer the canonical key over a legacy alias** (S). `canonicalizeBuildingKeyedRecord` (`config/buildings.ts`) lets the later key win when a legacy alias (`schumann-elementary`) and its canonical id (`schumann`) both exist, and Firestore returns map keys sorted, so the stale alias wins for every reader (dock defaults, `buildingDefaults` in widget configs). Release #5606 fixed only the calendar fetcher (#5604). Make the function prefer the canonical key, with a test, and check readers that index the raw map. From release #5606 review.
 - **AB-185 Shared board ink: only an accepted write is the merge baseline** (S). `context/DashboardContext.tsx` mirror timer sets `lastMirroredRef` to the payload before `mirrorSharedBoard` settles. If a peer's snapshot lands while that write is in flight and the write is then refused, the unaccepted payload was the ink baseline, so local strokes read as remote deletes and vanish. Hold the in-flight payload in a pending ref for dedupe and move it into `lastMirroredRef` in `.then`. Done when a test with a snapshot arriving before a permission-denied rejection keeps the local stroke. Found in release #5559 review (pre-existing).
 - **AB-172 Finish moving student data off bare isAdmin() in firestore.rules** (S, Opus, rules). From release 2026.11.09 (3) review of #5485. `isSiteAdmin()` now keeps a synced building admin out of most student data, but these still use `isAdmin()`: `guided_learning_sessions` update and delete, `poll_sessions` get, list and writes, poll `votes` delete, the `nextup_sessions` session write, `sessions/{userId}` get (live code), and `shared_activity_walls` comments and likes read and delete. Also `archived_responses` update and delete have no session-teacher branch (no client path uses them today). Decide each, convert the student-work ones, check `check:rules-size`, and add allowed and denied rules tests.
 - **AB-173 Paper import on an assignment with no paperBatchId picks a batch blind** (S). From the same review of #5484. `components/widgets/QuizWidget/Widget.tsx` now offers every batch of the quiz when the assignment has no `paperBatchId`; with one batch it is chosen silently, and `importPaperResponses` only checks `batch.quizId`, so scans can be graded against another assignment's choice order. Show the batch's assignment or date in the picker even with one batch, or match by assignment, with a test. Before `paper-answer-sheets` opens. Also from the #5486 review: `isRewordOnly` (`utils/paperImportPlan.ts`) accepts a swap plus a reword (recorded ['A1','B1','C'], current ['B2','A2','C']) as reword-only, so new scans grade against today's order; accept a reword only when no moved text could explain it (for example the correct choice keeps its position), with a test.
@@ -209,6 +210,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+nightly/admin-calendar-followup-2026-11-11
+claude/project-thread-c0512w
 nightly/widgets-2026-11-11
 nightly/dashboard-2026-11-11
 nightly/state-2026-11-11
