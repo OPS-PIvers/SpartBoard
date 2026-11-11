@@ -5,6 +5,7 @@ import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { getUrlIcon, DEFAULT_URL_COLOR } from './icons';
 import { toSafeLinkHref } from './url';
 import { ICON_PER_FONT, linkLabelFontSize } from './labelFit';
+import { useDriveImageFallback } from '@/hooks/useDriveImageFallback';
 
 export type UrlLink = UrlWidgetConfig['urls'][number];
 
@@ -28,16 +29,20 @@ const linkImage = (link: UrlLink): string | null => {
   return trimmed && isSafeIconUrl(trimmed) ? trimmed : null;
 };
 
-const LinkImage: React.FC<{ src: string }> = ({ src }) => (
-  <img
-    src={src}
-    alt=""
-    referrerPolicy="no-referrer"
-    loading="lazy"
-    aria-hidden="true"
-    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-  />
-);
+const LinkImage: React.FC<{ src: string }> = ({ src }) => {
+  const image = useDriveImageFallback(src);
+  return (
+    <img
+      src={image.src}
+      onError={image.onError}
+      alt=""
+      referrerPolicy="no-referrer"
+      loading="lazy"
+      aria-hidden="true"
+      className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+    />
+  );
+};
 
 const LinkIcon: React.FC<{ id?: string; style: React.CSSProperties }> = ({
   id,
