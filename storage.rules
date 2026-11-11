@@ -54,6 +54,14 @@ service firebase.storage {
              request.auth.token.get('studentRole', false) != true &&
              districtStaffMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())));
     }
+    // As firestore.rules notDeactivated(): false only for an operator-org member whose status revokes access.
+    function notDeactivated() {
+      return request.auth.token.get('email', '') == '' ||
+             liveMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())));
+    }
+    function liveMember(member) {
+      return member == null || member.data.get('status', 'active') in ['active', 'invited'];
+    }
     function districtStaffMember(member) {
       return member != null &&
              member.data.get('status', 'active') in ['active', 'invited'] &&
@@ -203,7 +211,7 @@ service firebase.storage {
       // download a photo so the gallery page can render it.
       allow read: if request.auth != null &&
         (
-          sessionId.matches(request.auth.uid + '_.*') ||
+          (sessionId.matches(request.auth.uid + '_.*') && notDeactivated()) ||
           isSiteAdmin() ||
           firestore.get(
             /databases/(default)/documents/activity_wall_sessions/$(sessionId)
@@ -220,7 +228,7 @@ service firebase.storage {
         );
       // The owning teacher/admin may delete the temporary Firebase copy after Drive archival.
       allow delete: if request.auth != null && viewAsWriteOk() &&
-        (sessionId.matches(request.auth.uid + '_.*') || isSiteAdmin());
+        ((sessionId.matches(request.auth.uid + '_.*') && notDeactivated()) || isSiteAdmin());
     }
 
     // Activity Wall media (Padlet-lite) — transit buffer only. A server-side
@@ -286,7 +294,7 @@ service firebase.storage {
       // ownership proof) before archival/publish.
       allow read: if request.auth != null &&
         (
-          sessionId.matches(request.auth.uid + '_.*') ||
+          (sessionId.matches(request.auth.uid + '_.*') && notDeactivated()) ||
           isSiteAdmin() ||
           (pinScopeOk(sessionId) &&
            (submissionId == request.auth.uid ||
@@ -337,7 +345,7 @@ service firebase.storage {
       // the uploader deletes their own object only to roll back a failed
       // submission write, or when the teacher lets students delete posts on an open wall.
       allow delete: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
-        (sessionId.matches(request.auth.uid + '_.*') ||
+        ((sessionId.matches(request.auth.uid + '_.*') && notDeactivated()) ||
          ((submissionId == request.auth.uid ||
            submissionId.matches('^' + request.auth.uid + '__.*')) &&
           (!awSubmissionExists() ||
@@ -349,15 +357,16 @@ service firebase.storage {
     // Quiz recorded media — transit buffer only. The path segment is the
     // response key, so ownership is proven by the response doc's studentUid.
     match /quiz_response_media/{sessionId}/{responseKey}/{fileName} {
+      // Teacher, admin, then student: each path stays within two Firestore reads (students have no email, so skip the admin read).
       allow read: if request.auth != null &&
         (
+          (firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)
+          ).data.get('teacherUid', '') == request.auth.uid && notDeactivated()) ||
           isSiteAdmin() ||
           (pinScopeOk(sessionId) && firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
-          ).data.get('studentUid', '') == request.auth.uid) ||
-          firestore.get(
-            /databases/(default)/documents/quiz_sessions/$(sessionId)
-          ).data.get('teacherUid', '') == request.auth.uid
+          ).data.get('studentUid', '') == request.auth.uid)
         );
       // Create only (no update): the caller must own the response doc at this key.
       // Audio takes, plus a whiteboard take's PNG picture and JSON drawing log.
@@ -373,12 +382,13 @@ service firebase.storage {
         firestore.get(
           /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
         ).data.get('studentUid', '') == request.auth.uid;
+      // Teacher first: Storage rules may read only two Firestore docs.
       allow delete: if request.auth != null && viewAsWriteOk() &&
         (
-          isSiteAdmin() ||
-          firestore.get(
+          (firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)
-          ).data.get('teacherUid', '') == request.auth.uid
+          ).data.get('teacherUid', '') == request.auth.uid && notDeactivated()) ||
+          isSiteAdmin()
         );
     }
 
@@ -456,7 +466,7 @@ service firebase.storage {
       // The run teacher. runId is `${teacherUid}_${projectId}`, so ownership
       // reads off the path without a Firestore get().
       function pjOwnsRun() {
-        return request.auth != null && runId.matches(request.auth.uid + '_.*');
+        return request.auth != null && runId.matches(request.auth.uid + '_.*') && notDeactivated();
       }
       // Positive membership. A helper that passes every non-student can never
       // stand in for this — it would hand every teacher every group's files.
@@ -504,7 +514,7 @@ service firebase.storage {
         (pjIsRunTeacher() || (pjIsGroupMember() && pjRunAccepting()));
       // A closed run freezes what each group handed in; only the teacher or a site admin deletes then.
       allow delete: if viewAsWriteOk() &&
-        (isSiteAdmin() || pjIsRunTeacher() || (pjIsGroupMember() && pjRunAccepting()));
+        (pjIsRunTeacher() || isSiteAdmin() || (pjIsGroupMember() && pjRunAccepting()));
     }
 
     // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK, admins list and write.
