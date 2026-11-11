@@ -55,6 +55,28 @@ beforeEach(() => {
 });
 
 describe('useLastAssignSettings', () => {
+  it('keeps a saved value when the in-flight read later fails', async () => {
+    let rejectRead: (e: Error) => void = () => undefined;
+    getDocMock.mockImplementationOnce(
+      () => new Promise((_res, rej) => (rejectRead = rej))
+    );
+    const first = renderHook(() =>
+      useLastAssignSettings(NUMBER_SPEC, 'u1', true)
+    );
+    await waitFor(() => expect(getDocMock).toHaveBeenCalledTimes(1));
+    act(() => first.result.current.save(5));
+    await act(async () => {
+      rejectRead(new Error('offline'));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    first.unmount();
+    const second = renderHook(() =>
+      useLastAssignSettings(NUMBER_SPEC, 'u1', true)
+    );
+    await waitFor(() => expect(second.result.current.loaded).toBe(true));
+    expect(second.result.current.lastUsed).toBe(5);
+  });
+
   it('falls back to null on first use and reports loaded', async () => {
     const { result } = renderHook(() =>
       useLastAssignSettings(NUMBER_SPEC, 'u1', true)
