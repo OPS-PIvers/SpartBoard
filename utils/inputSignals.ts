@@ -176,7 +176,7 @@ export class InputSignalCollector {
       if (d.del > 0) {
         c.dels += 1;
         c.delChars += d.del;
-      } else if (prev.slice(d.pos).trim() !== '') {
+      } else if (d.pos < prev.trimEnd().length) {
         c.midInserts += 1;
       }
     }

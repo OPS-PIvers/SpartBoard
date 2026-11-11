@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   WRITING_LOG_MAX,
   WritingLogWriter,
+  buildCheckpoints,
   diffText,
   parseWritingLog,
   summarizeWriting,
   textAfter,
+  textAt,
 } from './writingLog';
 
 const type = (w: WritingLogWriter, steps: string[], gap = 100) => {
@@ -36,10 +38,10 @@ describe('diffText', () => {
 describe('WritingLogWriter', () => {
   it('round-trips typing, a deletion and special characters', () => {
     const w = new WritingLogWriter(undefined);
-    type(w, ['T', 'Th', 'The', 'Th', 'Thi', 'Thi;', 'Thi;,%!', 'A Thi;,%!']);
+    type(w, ['T', 'Th', 'The', 'Th', 'Thi', 'Thi;', 'Thi;,%!:', 'A Thi;,%!:']);
     const { edits, cutOff } = parseWritingLog(w.value);
     expect(cutOff).toBe(false);
-    expect(textAfter(edits, edits.length)).toBe('A Thi;,%!');
+    expect(textAfter(edits, edits.length)).toBe('A Thi;,%!:');
     expect(textAfter(edits, 3)).toBe('The');
     const s = summarizeWriting(edits);
     expect(s.deletions).toBe(1);
@@ -77,18 +79,21 @@ describe('WritingLogWriter', () => {
     expect(textAfter(edits, 4)).toBe('one two');
   });
 
-  it('stops at the size limit and says so', () => {
+  it('holds an essay and jumps to any point in it', () => {
     const w = new WritingLogWriter(undefined);
     let text = '';
     for (let i = 0; i < 6000; i += 1) {
-      const next = `${text}x`;
+      const next = `${text}${i % 6 === 5 ? ' ' : 'x'}`;
       w.write(text, next, i * 10, 'typed', 1e6);
       text = next;
     }
-    expect(w.value.length).toBeLessThan(WRITING_LOG_MAX + 64);
     const parsed = parseWritingLog(w.value);
-    expect(parsed.cutOff).toBe(true);
-    expect(parsed.edits.length).toBeLessThan(6000);
+    expect(parsed.cutOff).toBe(false);
+    expect(parsed.edits).toHaveLength(6000);
+    expect(w.value.length / 6000).toBeLessThan(5);
+    const marks = buildCheckpoints(parsed.edits);
+    expect(textAt(parsed.edits, marks, 6000)).toBe(text);
+    expect(textAt(parsed.edits, marks, 1234)).toBe(text.slice(0, 1234));
   });
 
   it('stops when the shared budget runs out', () => {

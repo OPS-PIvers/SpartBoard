@@ -11,7 +11,8 @@ import {
   PAUSE_CAP_MS,
   parseWritingLog,
   summarizeWriting,
-  textAfter,
+  buildCheckpoints,
+  textAt,
   type WritingEdit,
 } from '@/utils/writingLog';
 import { BadgePopover } from './BadgePopover';
@@ -56,7 +57,11 @@ export const WritingPlayer: React.FC<{ log: string }> = ({ log }) => {
     return () => window.clearTimeout(id);
   }, [playing, atEnd, index, speed, edits]);
 
-  const text = useMemo(() => textAfter(edits, index), [edits, index]);
+  const checkpoints = useMemo(() => buildCheckpoints(edits), [edits]);
+  const text = useMemo(
+    () => textAt(edits, checkpoints, index),
+    [edits, checkpoints, index]
+  );
   const last = index > 0 ? edits[index - 1] : undefined;
   const caret = last ? last.pos + last.ins.length : 0;
   const marked = last && last.kind !== 'typed' ? last.ins.length : 0;

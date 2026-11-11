@@ -1,7 +1,7 @@
-/** One question's edit log may not grow past this many characters. */
-export const WRITING_LOG_MAX = 16_000;
-/** All the logs on one response share this budget. */
-export const WRITING_LOG_BUDGET = 120_000;
+/** All the edit logs on one response share this many characters, about 6,000 words of typing. */
+export const WRITING_LOG_BUDGET = 200_000;
+/** One answer's log can use the whole budget. */
+export const WRITING_LOG_MAX = WRITING_LOG_BUDGET;
 const END_MARK = '!';
 
 export type WritingEditKind = 'typed' | 'pasted' | 'sync';
@@ -54,9 +54,12 @@ const KIND_MARK: Record<WritingEditKind, string> = {
   sync: 'S',
 };
 const escapeText = (s: string) =>
-  s.replace(/[%,;!]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  s.replace(
+    /[%,;!:]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+  );
 const unescapeText = (s: string) =>
-  s.replace(/%(25|2C|3B|21)/g, (_, hex: string) =>
+  s.replace(/%(25|2C|3B|21|3A)/g, (_, hex: string) =>
     String.fromCharCode(parseInt(hex, 16))
   );
 
@@ -65,6 +68,9 @@ export function encodeEdit(e: WritingEdit, cursor: number): string {
   const dt = Math.max(0, Math.round(e.dt)).toString(36);
   const pos = e.pos === cursor ? '' : e.pos.toString(36);
   const del = e.del > 0 ? e.del.toString(36) : '';
+  // Plain typing at the cursor is most of a log, so it gets the short form.
+  if (e.kind === 'typed' && pos === '' && del === '')
+    return `${dt}:${escapeText(e.ins)}`;
   return `${KIND_MARK[e.kind]}${dt},${pos},${del},${escapeText(e.ins)}`;
 }
 
@@ -92,7 +98,9 @@ export function parseWritingLog(log: unknown): ParsedWritingLog {
     }
     const kind: WritingEditKind =
       token[0] === 'P' ? 'pasted' : token[0] === 'S' ? 'sync' : 'typed';
-    const parts = (kind === 'typed' ? token : token.slice(1)).split(',');
+    const body = kind === 'typed' ? token : token.slice(1);
+    const short = /^([0-9a-z]+):(.*)$/s.exec(body);
+    const parts = short ? [short[1], '', '', short[2]] : body.split(',');
     if (parts.length !== 4) continue;
     const dt = fromBase36(parts[0]);
     const rawPos = parts[1] === '' ? cursor : fromBase36(parts[1]);
@@ -116,6 +124,33 @@ export const applyEdit = (text: string, e: WritingEdit): string =>
 export function textAfter(edits: WritingEdit[], count: number): string {
   let text = '';
   for (let i = 0; i < count && i < edits.length; i += 1)
+    text = applyEdit(text, edits[i]);
+  return text;
+}
+
+const CHECKPOINT_EVERY = 250;
+
+/** Snapshots of the text every few hundred edits, so playback can jump anywhere in a long log. */
+export function buildCheckpoints(edits: WritingEdit[]): string[] {
+  const out = [''];
+  let text = '';
+  edits.forEach((e, i) => {
+    text = applyEdit(text, e);
+    if ((i + 1) % CHECKPOINT_EVERY === 0) out.push(text);
+  });
+  return out;
+}
+
+/** The text after the first `count` edits, from the nearest snapshot. */
+export function textAt(
+  edits: WritingEdit[],
+  checkpoints: string[],
+  count: number
+): string {
+  const n = Math.max(0, Math.min(count, edits.length));
+  const at = Math.min(Math.floor(n / CHECKPOINT_EVERY), checkpoints.length - 1);
+  let text = checkpoints[at];
+  for (let i = at * CHECKPOINT_EVERY; i < n; i += 1)
     text = applyEdit(text, edits[i]);
   return text;
 }
@@ -222,7 +257,7 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
     if (e.del > 0) {
       s.deletions += 1;
       s.deletedChars += e.del;
-    } else if (before.slice(e.pos).trim() !== '') {
+    } else if (e.pos < before.trimEnd().length) {
       s.insertsInside += 1;
     }
   }
