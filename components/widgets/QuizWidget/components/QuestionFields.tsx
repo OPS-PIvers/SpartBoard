@@ -309,9 +309,10 @@ export const QuestionExplanationField: React.FC<
     });
   };
   return (
-    <div {...tourTypeAttr('quiz-editor.explanation', 'quiz')}>
+    <div>
       <label className={labelClass}>Explanation</label>
       <textarea
+        {...tourTypeAttr('quiz-editor.explanation', 'quiz')}
         value={q.explanation ?? ''}
         onChange={(e) => onChange({ explanation: e.target.value || undefined })}
         rows={2}
@@ -329,6 +330,7 @@ export const QuestionExplanationField: React.FC<
               >
                 {option}
               </span>
+              {/* no-tour-anchor: one box per option, reached through the Explanation anchor */}
               <input
                 type="text"
                 value={q.optionExplanations?.[option] ?? ''}

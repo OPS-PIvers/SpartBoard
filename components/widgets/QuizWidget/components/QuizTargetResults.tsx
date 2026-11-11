@@ -288,6 +288,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
           {...tourTypeAttr('quiz-results.group-by', 'quiz')}
         >
           {(['target', 'dok'] as const).map((option) => (
+            // no-tour-anchor: the Group by switch around these buttons carries the anchor
             <button
               key={option}
               type="button"
