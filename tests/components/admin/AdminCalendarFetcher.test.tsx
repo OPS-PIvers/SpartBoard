@@ -44,9 +44,15 @@ vi.mock('@/config/firebase', () => ({ db: {} }));
 const setDocMock = vi.fn<(...args: unknown[]) => Promise<void>>(() =>
   Promise.resolve()
 );
+// Live doc seen by the transaction read; defaults to the calendar permission config.
+const liveDocMock = vi.fn<() => unknown>();
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
-  setDoc: (...args: unknown[]) => setDocMock(...args),
+  runTransaction: (_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+    fn({
+      get: () => Promise.resolve({ data: () => liveDocMock() }),
+      set: (...args: unknown[]) => setDocMock(...args),
+    }),
 }));
 
 const getEventsMock = vi.fn<(...args: unknown[]) => Promise<unknown[]>>(() =>
@@ -89,6 +95,12 @@ beforeEach(() => {
   authValue.ensureGoogleScope = ensureGoogleScopeMock;
   currentBuildings = STABLE_BUILDINGS;
   setDocMock.mockClear();
+  liveDocMock.mockReset();
+  liveDocMock.mockImplementation(() => ({
+    config: authValue.featurePermissions.find(
+      (p) => p.widgetType === 'calendar'
+    )?.config,
+  }));
   getEventsMock.mockClear();
   getEventsMock.mockResolvedValue([]);
 });
@@ -221,8 +233,93 @@ describe('AdminCalendarFetcher — legacy building id canonicalization', () => {
   });
 });
 
-describe('AdminCalendarFetcher — legacy-keyed stored entry', () => {
-  it('writes the cache under the stored legacy key so its calendar ids still win on read', async () => {
+const settle = () =>
+  act(async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  });
+
+describe('AdminCalendarFetcher — transactional write', () => {
+  const entry = (extra: Record<string, unknown> = {}) => ({
+    buildingId: 'b1',
+    events: [],
+    googleCalendarIds: ['cal-1'],
+    ...extra,
+  });
+  const stale = {
+    blockedDates: [],
+    updateFrequencyHours: 4,
+    buildingDefaults: { b1: entry() },
+  };
+
+  it('writes the full live entry under the canonical key so the widget and modal both read it', async () => {
+    authValue.featurePermissions = [
+      {
+        ...calendarPermission,
+        config: stale,
+      },
+    ];
+    render(<AdminCalendarFetcher />);
+    await settle();
+    const [, payload, opts] = setDocMock.mock.calls[0] as [
+      unknown,
+      { config: { buildingDefaults: Record<string, Record<string, unknown>> } },
+      unknown,
+    ];
+    expect(opts).toEqual({ merge: true });
+    expect(Object.keys(payload.config)).toEqual(['buildingDefaults']);
+    expect(Object.keys(payload.config.buildingDefaults)).toEqual(['b1']);
+    expect(payload.config.buildingDefaults.b1).toMatchObject({
+      buildingId: 'b1',
+      events: [],
+      googleCalendarIds: ['cal-1'],
+      cachedEvents: [],
+    });
+  });
+
+  it('takes building fields from the live doc, not the pre-await snapshot', async () => {
+    authValue.featurePermissions = [
+      {
+        ...calendarPermission,
+        config: stale,
+      },
+    ];
+    liveDocMock.mockImplementation(() => ({
+      config: {
+        ...stale,
+        buildingDefaults: {
+          b1: entry({ googleCalendarIds: ['cal-1', 'cal-2'] }),
+        },
+      },
+    }));
+    render(<AdminCalendarFetcher />);
+    await settle();
+    const [, payload] = setDocMock.mock.calls[0] as [
+      unknown,
+      { config: { buildingDefaults: Record<string, Record<string, unknown>> } },
+    ];
+    expect(payload.config.buildingDefaults.b1.googleCalendarIds).toEqual([
+      'cal-1',
+      'cal-2',
+    ]);
+  });
+
+  it('does not recreate a building entry removed while the sync was running', async () => {
+    authValue.featurePermissions = [
+      {
+        ...calendarPermission,
+        config: stale,
+      },
+    ];
+    liveDocMock.mockImplementation(() => ({
+      config: { ...stale, buildingDefaults: {} },
+    }));
+    render(<AdminCalendarFetcher />);
+    await settle();
+    expect(getEventsMock).toHaveBeenCalled();
+    expect(setDocMock).not.toHaveBeenCalled();
+  });
+
+  it('writes under the canonical key when the stored entry has a legacy key', async () => {
     currentBuildings = [
       { id: 'schumann-elementary', name: 'Schumann Elementary' },
     ];
@@ -243,52 +340,14 @@ describe('AdminCalendarFetcher — legacy-keyed stored entry', () => {
       },
     ];
     render(<AdminCalendarFetcher />);
-    await act(async () => {
-      for (let i = 0; i < 6; i++) await Promise.resolve();
-    });
+    await settle();
     const [, payload] = setDocMock.mock.calls[0] as [
       unknown,
-      { config: { buildingDefaults: Record<string, unknown> } },
+      { config: { buildingDefaults: Record<string, Record<string, unknown>> } },
     ];
-    expect(Object.keys(payload.config.buildingDefaults)).toEqual([
-      'schumann-elementary',
-    ]);
-  });
-});
-
-describe('AdminCalendarFetcher — write scope', () => {
-  it('writes only the synced fields so concurrent admin edits are not overwritten', async () => {
-    authValue.featurePermissions = [
-      {
-        ...calendarPermission,
-        config: {
-          blockedDates: ['2026-01-01'],
-          updateFrequencyHours: 4,
-          buildingDefaults: {
-            b1: { buildingId: 'b1', events: [], googleCalendarIds: ['cal-1'] },
-            b2: { buildingId: 'b2', events: [], googleCalendarIds: [] },
-          },
-        },
-      },
-    ];
-    render(<AdminCalendarFetcher />);
-    await act(async () => {
-      for (let i = 0; i < 8; i++) await Promise.resolve();
-    });
-    expect(setDocMock).toHaveBeenCalled();
-    const [, payload] = setDocMock.mock.calls[0] as [
-      unknown,
-      { config: Record<string, unknown> },
-    ];
-    expect(Object.keys(payload.config)).toEqual(['buildingDefaults']);
-    const bd = payload.config.buildingDefaults as Record<
-      string,
-      Record<string, unknown>
-    >;
-    expect(Object.keys(bd)).toEqual(['b1']);
-    expect(Object.keys(bd.b1).sort()).toEqual([
-      'cachedEvents',
-      'lastProxySync',
+    expect(Object.keys(payload.config.buildingDefaults)).toEqual(['schumann']);
+    expect(payload.config.buildingDefaults.schumann.googleCalendarIds).toEqual([
+      'cal-1',
     ]);
   });
 });
