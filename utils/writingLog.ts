@@ -1,7 +1,11 @@
-/** All the edit logs on one response share this many characters, about 6,000 words of typing. */
+/** All the edit logs on one response share this many bytes, about 6,000 words of typing. */
 export const WRITING_LOG_BUDGET = 200_000;
 /** One answer's log can use the whole budget. */
 export const WRITING_LOG_MAX = WRITING_LOG_BUDGET;
+
+const encoder = new TextEncoder();
+/** Size in Firestore, where a character can cost up to 3 bytes. */
+export const utf8Length = (s: string): number => encoder.encode(s).length;
 const END_MARK = '!';
 
 export type WritingEditKind = 'typed' | 'pasted' | 'sync';
@@ -162,11 +166,13 @@ export class WritingLogWriter {
   private lastT: number | null = null;
   private closed: boolean;
   private log: string;
+  private bytes: number;
 
   constructor(base: string | undefined) {
     const parsed = parseWritingLog(base);
     this.log = parsed.edits.length > 0 && base ? base : '';
     this.closed = parsed.cutOff;
+    this.bytes = utf8Length(this.log);
     this.text = textAfter(parsed.edits, parsed.edits.length);
     const last = parsed.edits[parsed.edits.length - 1];
     this.cursor = last ? last.pos + last.ins.length : 0;
@@ -176,7 +182,11 @@ export class WritingLogWriter {
     return this.log;
   }
 
-  /** Records `prev` becoming `next`; returns the characters added to the log. `room` is what the shared budget has left. */
+  get size(): number {
+    return this.bytes;
+  }
+
+  /** Records `prev` becoming `next`; returns the bytes added to the log. `room` is what the shared budget has left. */
   write(
     prev: string,
     next: string,
@@ -185,18 +195,23 @@ export class WritingLogWriter {
     room: number
   ): number {
     if (this.closed) return 0;
-    const before = this.log.length;
+    const before = this.bytes;
     const dt = this.lastT === null ? 0 : Math.min(t - this.lastT, 86_400_000);
     // The box held something the log never saw: a reload, or text set by a script.
     if (this.text !== prev) this.push(this.text, prev, 0, 'sync');
     this.push(prev, next, dt, kind);
     this.lastT = t;
-    const added = this.log.length - before;
-    if (this.log.length > WRITING_LOG_MAX || added > room) {
-      this.log += `;${END_MARK}`;
+    if (this.bytes > WRITING_LOG_MAX || this.bytes - before > room) {
+      this.append(END_MARK);
       this.closed = true;
     }
-    return this.log.length - before;
+    return this.bytes - before;
+  }
+
+  private append(token: string): void {
+    const piece = this.log ? `;${token}` : token;
+    this.log += piece;
+    this.bytes += utf8Length(piece);
   }
 
   private push(
@@ -207,8 +222,7 @@ export class WritingLogWriter {
   ): void {
     const d = diffText(from, to);
     if (!d) return;
-    const token = encodeEdit({ ...d, dt, kind }, this.cursor);
-    this.log = this.log ? `${this.log};${token}` : token;
+    this.append(encodeEdit({ ...d, dt, kind }, this.cursor));
     this.text = to;
     this.cursor = d.pos + d.ins.length;
   }

@@ -9,6 +9,7 @@ import {
   WRITING_LOG_MAX,
   WritingLogWriter,
   diffText,
+  utf8Length,
 } from '@/utils/writingLog';
 
 /** Global feature that gates recording and showing input signals. */
@@ -96,7 +97,7 @@ export interface KeyDownInfo {
 export interface CollectorOptions {
   /** Edit logs an earlier page load saved for this attempt, by question id. */
   logs?: Record<string, string>;
-  /** Log characters this attempt may still add to the response. */
+  /** Log bytes this attempt may still add to the response. */
   logRoom?: number;
 }
 
@@ -189,6 +190,13 @@ export class InputSignalCollector {
     // The editor re-inserts a paste as plain typing, so the paste event marks it.
     const how = t <= this.pasteUntil ? 'pasted' : kind;
     this.logRoom -= writer.write(prev, text, t, how, this.logRoom);
+  }
+
+  /** Bytes of edit log this page load is carrying. */
+  logBytes(): number {
+    let n = 0;
+    for (const w of this.writers.values()) n += w.size;
+    return n;
   }
 
   panelOpened(): void {
@@ -697,14 +705,14 @@ export function writingLogs(
   return out.sort((a, b) => b.attempt - a.attempt);
 }
 
-/** Log characters already saved on a response outside one attempt. */
-export function otherLogChars(signals: unknown, attempt: number): number {
+/** Log bytes already saved on a response outside one attempt. */
+export function otherLogBytes(signals: unknown, attempt: number): number {
   if (!isRecord(signals)) return 0;
   let n = 0;
   for (const [key, perQuestion] of Object.entries(signals)) {
     if (key === String(attempt) || !isRecord(perQuestion)) continue;
     for (const c of Object.values(perQuestion))
-      if (isRecord(c) && typeof c.log === 'string') n += c.log.length;
+      if (isRecord(c) && typeof c.log === 'string') n += utf8Length(c.log);
   }
   return n;
 }

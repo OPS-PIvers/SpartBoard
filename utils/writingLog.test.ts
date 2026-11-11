@@ -8,6 +8,7 @@ import {
   summarizeWriting,
   textAfter,
   textAt,
+  utf8Length,
 } from './writingLog';
 
 const type = (w: WritingLogWriter, steps: string[], gap = 100) => {
@@ -94,6 +95,12 @@ describe('WritingLogWriter', () => {
     const marks = buildCheckpoints(parsed.edits);
     expect(textAt(parsed.edits, marks, 6000)).toBe(text);
     expect(textAt(parsed.edits, marks, 1234)).toBe(text.slice(0, 1234));
+  });
+
+  it('budgets in bytes, so non-Latin text costs more', () => {
+    const w = new WritingLogWriter(undefined);
+    expect(w.write('', '你', 0, 'typed', 1e6)).toBe(5);
+    expect(w.size).toBe(utf8Length(w.value));
   });
 
   it('stops when the shared budget runs out', () => {

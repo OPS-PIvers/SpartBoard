@@ -5,7 +5,7 @@ import {
   describeInputSignals,
   formatFindingQuestions,
   inputFindingsByAttempt,
-  otherLogChars,
+  otherLogBytes,
   questionWordCounts,
   readAttemptSignals,
   writingLogs,
@@ -334,7 +334,7 @@ describe('revisions and writing logs', () => {
     expect(writingLogs({ '0': read })).toEqual([
       { attempt: 0, questionId: 'q1', log: saved.q1.log },
     ]);
-    expect(otherLogChars({ '0': read, '1': {} }, 1)).toBe(saved.q1.log?.length);
+    expect(otherLogBytes({ '0': read, '1': {} }, 1)).toBe(saved.q1.log?.length);
   });
 
   it('does not count composing edits as revisions', () => {

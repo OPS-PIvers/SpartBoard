@@ -3,10 +3,10 @@ import type { InputSignalCounts } from '@/types';
 import {
   InputSignalCollector,
   addSignals,
-  otherLogChars,
+  otherLogBytes,
   readAttemptSignals,
 } from '@/utils/inputSignals';
-import { WRITING_LOG_BUDGET } from '@/utils/writingLog';
+import { WRITING_LOG_BUDGET, utf8Length } from '@/utils/writingLog';
 import { isTrustedEvent } from '@/utils/eventTrust';
 import { logError } from '@/utils/logError';
 
@@ -29,6 +29,9 @@ export interface UseInputSignalsArgs {
 }
 
 const FLUSH_MS = 20_000;
+/** Past this many bytes of edit log, timed saves slow to one a minute so an essay isn't re-sent every 20 s. */
+const BIG_LOG_BYTES = 30_000;
+const BIG_LOG_FLUSH_MS = 60_000;
 const SCRIPT_TARGETS =
   'button, select, textarea, input:not([type=file]):not([type=color]), [role=button], [role=radio], [role=checkbox], [role=option], [contenteditable=true]';
 
@@ -76,11 +79,11 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
         ? writtenRef.current.counts
         : readAttemptSignals(argsRef.current.serverSignals, attempt);
     const logs: Record<string, string> = {};
-    let logChars = otherLogChars(argsRef.current.serverSignals, attempt);
+    let logChars = otherLogBytes(argsRef.current.serverSignals, attempt);
     for (const [q, c] of Object.entries(base)) {
       if (!c.log) continue;
       logs[q] = c.log;
-      logChars += c.log.length;
+      logChars += utf8Length(c.log);
     }
     const finePointer = window.matchMedia?.('(pointer: fine)').matches ?? true;
     const collector = new InputSignalCollector(finePointer, {
@@ -226,7 +229,17 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     document.addEventListener('input', onInput, opts);
     document.addEventListener('visibilitychange', onHidden);
     window.addEventListener('resize', onResize);
-    const id = window.setInterval(flush, FLUSH_MS);
+    let lastTimed = performance.now();
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      if (
+        collector.logBytes() > BIG_LOG_BYTES &&
+        now - lastTimed < BIG_LOG_FLUSH_MS
+      )
+        return;
+      lastTimed = now;
+      flush();
+    }, FLUSH_MS);
     return () => {
       document.removeEventListener('pointermove', onPointerMove, opts);
       document.removeEventListener('pointerdown', onPointerDown, opts);
