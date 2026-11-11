@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isRevokedMemberStatus,
+  isSiteWideAdmin,
   isStrictSuperAdmin,
   isSuperAdminRoleId,
 } from './authz';
@@ -39,6 +40,7 @@ const fakeDb = (
         return Promise.resolve({
           exists: data !== null,
           get: (k: string) => (data ? data[k] : undefined),
+          data: () => data ?? undefined,
         });
       },
     }),
@@ -84,11 +86,33 @@ describe('isStrictSuperAdmin', () => {
     }
   });
 
-  it('still admits the legacy superAdmins list', async () => {
+  it('admits the legacy superAdmins list with no orono doc or a live one', async () => {
+    expect(await isStrictSuperAdmin(fakeDb(null, [email]), email)).toBe(true);
+    for (const status of ['active', 'invited', undefined]) {
+      expect(
+        await isStrictSuperAdmin(
+          fakeDb({ roleId: 'teacher', status }, [email]),
+          email
+        )
+      ).toBe(true);
+    }
+  });
+
+  it('refuses a listed email whose orono member doc is deactivated', async () => {
     expect(
       await isStrictSuperAdmin(
         fakeDb({ roleId: 'super_admin', status: 'inactive' }, [email]),
         email
+      )
+    ).toBe(false);
+  });
+
+  it('still counts a deactivated listed email when includeRevoked is set', async () => {
+    expect(
+      await isStrictSuperAdmin(
+        fakeDb({ roleId: 'super_admin', status: 'inactive' }, [email]),
+        email,
+        { includeRevoked: true }
       )
     ).toBe(true);
   });
@@ -98,6 +122,54 @@ describe('isStrictSuperAdmin', () => {
       await isStrictSuperAdmin(
         fakeDb({ roleId: 'domain_admin', status: 'active' }),
         email
+      )
+    ).toBe(false);
+  });
+});
+
+describe('isSiteWideAdmin', () => {
+  const email = 'boss@orono.k12.mn.us';
+
+  it('admits a legacy /admins doc with no orono member doc or a live one', async () => {
+    expect(
+      await isSiteWideAdmin(fakeDb(null), email, undefined, undefined)
+    ).toBe(true);
+    expect(
+      await isSiteWideAdmin(
+        fakeDb({ roleId: 'teacher', status: 'active' }),
+        email,
+        undefined,
+        undefined
+      )
+    ).toBe(true);
+  });
+
+  it('refuses any /admins doc once the orono member doc is deactivated', async () => {
+    const db = fakeDb({ roleId: 'super_admin', status: 'inactive' });
+    expect(await isSiteWideAdmin(db, email, undefined, undefined)).toBe(false);
+    expect(await isSiteWideAdmin(db, email, 'super_admin', 'orono')).toBe(
+      false
+    );
+    expect(await isSiteWideAdmin(db, email, 'domain_admin', 'other-org')).toBe(
+      false
+    );
+  });
+
+  it('keeps the other-org fallback to an active orono super or domain admin', async () => {
+    expect(
+      await isSiteWideAdmin(
+        fakeDb({ roleId: 'domain_admin', status: 'active' }),
+        email,
+        'building_admin',
+        'other-org'
+      )
+    ).toBe(true);
+    expect(
+      await isSiteWideAdmin(
+        fakeDb({ roleId: 'teacher', status: 'active' }),
+        email,
+        'building_admin',
+        'other-org'
       )
     ).toBe(false);
   });

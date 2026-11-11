@@ -195,7 +195,7 @@ const RosterLoadButton: React.FC<{
   const failed = status === 'error';
   const Icon = failed ? AlertCircle : Users;
   return (
-    <button
+    <button /* no-tour-anchor: substitute portal, never on the board */
       type="button"
       onClick={onLoad}
       className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold shadow-md transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
@@ -223,7 +223,7 @@ export const ExpiredOrErrorPanel: React.FC<{
       <p className="mt-2 text-sm text-slate-600">
         {hint ?? 'Returning you to the teacher directory.'}
       </p>
-      <button
+      <button /* no-tour-anchor: substitute portal, never on the board */
         type="button"
         onClick={onBack}
         className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"

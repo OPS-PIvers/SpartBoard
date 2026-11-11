@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-11-09_
+_Last audited: 2026-11-11_
 _Last action: 2026-08-30 (starterPacks `notDeactivated()` gate, via nightly debugger routine)_
+
+_2026-11-11: Weekly audit (Wednesday). Cross-referenced client and `functions/src` collection names against `firestore.rules`. Names with no match block (`ai_usage_refunds`, `contexts`, `focus_class_locks`, `notesJobs`, `paper_reword_log`, `plcCreators`, `poll_codes`, `student_sections`, `mcp_oauth_codes`) are referenced only from Admin SDK code in `functions/src`, none from client code, so default-deny is correct. Catch-all intact. 0 HIGH, 0 new issues._
 
 _2026-11-09: Weekly audit (Monday). Cross-referenced 109 collection names against `firestore.rules`. Unmatched: `contexts`, `contributions`, `mcp_oauth_codes`, `notesJobs`, `student_sections`, `ai_usage_refunds`, `focus_class_locks`, `plcCreators`, `poll_codes` — all Admin SDK-only in `functions/src`, covered by default-deny. 0 new HIGH items; 0 new issues._
 

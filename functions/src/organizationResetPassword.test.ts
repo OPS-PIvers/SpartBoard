@@ -144,6 +144,8 @@ function buildFirestoreStub(opts: {
   callerEmail?: string;
   // Caller's operator-org roleId for isStrictSuperAdmin(); null = no operator membership.
   callerOperatorRole?: string | null;
+  // Target's operator-org member status; undefined = no status field.
+  targetStatus?: string;
   verifiedDomains?: Record<string, string | string[]>;
 }) {
   const mailSet = opts.mailSet ?? vi.fn().mockResolvedValue(undefined);
@@ -177,7 +179,12 @@ function buildFirestoreStub(opts: {
         }
         return Promise.resolve({
           exists: true,
-          get: (k: string) => (k === 'status' ? undefined : roleOf(email)),
+          get: (k: string) =>
+            k === 'status'
+              ? email === callerEmail
+                ? undefined
+                : opts.targetStatus
+              : roleOf(email),
         });
       },
     }),
@@ -386,6 +393,20 @@ describe('resetOrganizationUserPassword — role check on the target', () => {
         emailEnabled: false,
         callerRole: 'domain_admin',
         targetRole: 'domain_admin',
+        legacySuperAdmins: ['boss@orono.k12.mn.us'],
+      })
+    );
+    await expect(call()).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
+  });
+
+  it('domain admin still cannot reset a deactivated legacy-list super admin', async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerRole: 'domain_admin',
+        targetRole: 'domain_admin',
+        targetStatus: 'inactive',
         legacySuperAdmins: ['boss@orono.k12.mn.us'],
       })
     );
