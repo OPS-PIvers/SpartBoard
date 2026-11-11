@@ -36,6 +36,7 @@ const EDIT_LABEL: Record<WritingEdit['kind'], string | null> = {
   typed: null,
   pasted: 'Pasted',
   sync: 'Appeared without typing',
+  restored: 'Already here after a page reload',
 };
 
 /** Replays one written answer edit by edit. */
@@ -98,13 +99,17 @@ export const WritingPlayer: React.FC<{ log: string }> = ({ log }) => {
           </div>
         ))}
       </dl>
-      {(summary.pastedChars > 0 || summary.syncChars > 0) && (
+      {(summary.pastedChars > 0 ||
+        summary.syncChars > 0 ||
+        summary.restoredChars > 0) && (
         <p className="text-sm text-slate-700">
           {[
             summary.pastedChars > 0 &&
               `${count(summary.pastedChars, 'character')} pasted`,
+            summary.restoredChars > 0 &&
+              `${count(summary.restoredChars, 'character')} typed just before a page reload were not recorded`,
             summary.syncChars > 0 &&
-              `${count(summary.syncChars, 'character')} appeared without typing (a restored draft, or text set by another tool)`,
+              `${count(summary.syncChars, 'character')} appeared without typing`,
           ]
             .filter(Boolean)
             .join('; ')}

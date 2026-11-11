@@ -54,8 +54,8 @@ describe('WritingLogWriter', () => {
   it('marks pasted text and text that changed with no edit event', () => {
     const w = new WritingLogWriter(undefined);
     w.write('', 'a', 0, 'typed', 1e6);
-    w.write('a restored draft', 'a restored draft!', 50, 'typed', 1e6);
-    w.write('a restored draft!', 'a restored draft! pasted', 90, 'pasted', 1e6);
+    w.write('a set by a tool', 'a set by a tool!', 50, 'typed', 1e6);
+    w.write('a set by a tool!', 'a set by a tool! pasted', 90, 'pasted', 1e6);
     const { edits } = parseWritingLog(w.value);
     expect(edits.map((e) => e.kind)).toEqual([
       'typed',
@@ -64,9 +64,9 @@ describe('WritingLogWriter', () => {
       'pasted',
     ]);
     const s = summarizeWriting(edits);
-    expect(s.syncChars).toBe(15);
+    expect(s.syncChars).toBe(14);
     expect(s.pastedChars).toBe(7);
-    expect(s.finalText).toBe('a restored draft! pasted');
+    expect(s.finalText).toBe('a set by a tool! pasted');
   });
 
   it('continues a log saved by an earlier page load', () => {
@@ -74,6 +74,17 @@ describe('WritingLogWriter', () => {
     type(first, ['o', 'on', 'one']);
     const second = new WritingLogWriter(first.value);
     second.write('one', 'one two', 5, 'typed', 1e6);
+    const lost = new WritingLogWriter(first.value);
+    lost.write('one and', 'one and more', 5, 'typed', 1e6);
+    const gap = parseWritingLog(lost.value).edits;
+    expect(gap.map((e) => e.kind)).toEqual([
+      'typed',
+      'typed',
+      'typed',
+      'restored',
+      'typed',
+    ]);
+    expect(summarizeWriting(gap).restoredChars).toBe(4);
     const { edits } = parseWritingLog(second.value);
     expect(edits).toHaveLength(4);
     expect(edits.every((e) => e.kind === 'typed')).toBe(true);

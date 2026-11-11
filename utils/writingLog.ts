@@ -8,7 +8,7 @@ const encoder = new TextEncoder();
 export const utf8Length = (s: string): number => encoder.encode(s).length;
 const END_MARK = '!';
 
-export type WritingEditKind = 'typed' | 'pasted' | 'sync';
+export type WritingEditKind = 'typed' | 'pasted' | 'sync' | 'restored';
 
 export interface WritingEdit {
   /** Ms since the edit before it. */
@@ -18,7 +18,7 @@ export interface WritingEdit {
   del: number;
   /** Text put in at `pos`. */
   ins: string;
-  /** `sync` is text that changed with no typing or paste event, such as an answer restored on reload. */
+  /** `restored` is text already in the box when the page loaded; `sync` is text that changed mid-page with no typing or paste event. */
   kind: WritingEditKind;
 }
 
@@ -56,6 +56,7 @@ const KIND_MARK: Record<WritingEditKind, string> = {
   typed: '',
   pasted: 'P',
   sync: 'S',
+  restored: 'R',
 };
 const escapeText = (s: string) =>
   s.replace(
@@ -101,7 +102,13 @@ export function parseWritingLog(log: unknown): ParsedWritingLog {
       break;
     }
     const kind: WritingEditKind =
-      token[0] === 'P' ? 'pasted' : token[0] === 'S' ? 'sync' : 'typed';
+      token[0] === 'P'
+        ? 'pasted'
+        : token[0] === 'S'
+          ? 'sync'
+          : token[0] === 'R'
+            ? 'restored'
+            : 'typed';
     const body = kind === 'typed' ? token : token.slice(1);
     const short = /^([0-9a-z]+):(.*)$/s.exec(body);
     const parts = short ? [short[1], '', '', short[2]] : body.split(',');
@@ -167,6 +174,7 @@ export class WritingLogWriter {
   private closed: boolean;
   private log: string;
   private bytes: number;
+  private started = false;
 
   constructor(base: string | undefined) {
     const parsed = parseWritingLog(base);
@@ -197,8 +205,10 @@ export class WritingLogWriter {
     if (this.closed) return 0;
     const before = this.bytes;
     const dt = this.lastT === null ? 0 : Math.min(t - this.lastT, 86_400_000);
-    // The box held something the log never saw: a reload, or text set by a script.
-    if (this.text !== prev) this.push(this.text, prev, 0, 'sync');
+    // The box held something the log never saw: edits lost to a reload, or text set by a script.
+    if (this.text !== prev)
+      this.push(this.text, prev, 0, this.started ? 'sync' : 'restored');
+    this.started = true;
     this.push(prev, next, dt, kind);
     this.lastT = t;
     if (this.bytes > WRITING_LOG_MAX || this.bytes - before > room) {
@@ -237,8 +247,10 @@ export interface WritingSummary {
   /** Edits that added text somewhere other than the end. */
   insertsInside: number;
   pastedChars: number;
-  /** Characters that appeared with no typing or paste event. */
+  /** Characters that appeared mid-page with no typing or paste event. */
   syncChars: number;
+  /** Characters already in the box after a page reload that the log had not saved. */
+  restoredChars: number;
   /** Time spent writing, counting no more than `PAUSE_CAP_MS` for any one pause. */
   writingMs: number;
   finalText: string;
@@ -255,14 +267,15 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
     insertsInside: 0,
     pastedChars: 0,
     syncChars: 0,
+    restoredChars: 0,
     writingMs: 0,
     finalText: '',
   };
   for (const e of edits) {
     const before = s.finalText;
     s.finalText = applyEdit(before, e);
-    if (e.kind === 'sync') {
-      s.syncChars += e.ins.length;
+    if (e.kind === 'sync' || e.kind === 'restored') {
+      s[e.kind === 'sync' ? 'syncChars' : 'restoredChars'] += e.ins.length;
       continue;
     }
     s.edits += 1;
