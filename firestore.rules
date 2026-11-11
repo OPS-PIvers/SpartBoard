@@ -13,7 +13,7 @@ service cloud.firestore {
     function myEmail() { return tok().email.lower(); }
     function newKeys() { return incoming().keys(); }
     function noDoc() { return resource == null; }
-    function mySid(id) { return id.matches(authUid() + '_.*'); }
+    function mySid(id) { return id.matches(authUid() + '_.*') && notDeactivated(); }
     function optListMax(k, n) { return !(k in incoming()) || (isList(k) && incoming()[k].size() <= n); }
     function optNullStr(k) { return !(k in incoming()) || incoming()[k] == null || isStr(k); }
     function dbExists(c, id) { return exists(/databases/$(database)/documents/$(c)/$(id)); }
@@ -179,8 +179,10 @@ service cloud.firestore {
     function staffSignedIn() { return signedIn() && notAnon() && !isStudentRoleUser(); }
     function liveStaffSignedIn() { return signedIn() && notAnon() && !isStudentRoleUser() && notDeactivated(); }
     // The caller is the named uid field of the incoming or stored doc.
-    function myOldTeacher() { return existing().teacherUid == authUid(); }
-    function myNewTeacher() { return incoming().teacherUid == authUid(); }
+    function myOldTeacher() { return liveUid(existing().teacherUid); }
+    function myNewTeacher() { return liveUid(incoming().teacherUid); }
+    // The caller is uid u and not a deactivated operator-org member (notDeactivated() last: it is a get()).
+    function liveUid(u) { return u == authUid() && notDeactivated(); }
     function myCreatedBy() { return incoming().createdBy == authUid(); }
     function myAuthorUid() { return incoming().authorUid == authUid(); }
     function myUpdatedBy() { return incoming().updatedBy == authUid(); }
@@ -343,7 +345,7 @@ service cloud.firestore {
     }
     function contentWriteOk(coll, sid) {
       return signedIn() &&
-             dbGetAfter(coll, sid).data.teacherUid == authUid();
+             liveUid(dbGetAfter(coll, sid).data.teacherUid);
     }
     // Kinds with no response at join keep the student's period on their seat.
     function seatPeriodOk(s, uid) {
@@ -363,7 +365,8 @@ service cloud.firestore {
       return signedIn() &&
              authUid() in s.get('subMonitorUids', []) &&
              request.time.toMillis() < s.get('subMonitorUntil', 0) &&
-             (s.get('launchedBy', null) == null || subShareLive(s.launchedBy.shareId));
+             (s.get('launchedBy', null) == null || subShareLive(s.launchedBy.shareId)) &&
+             notDeactivated();
     }
     // The teacher name a substitute share shows in /subs: absent, null or a short string.
     function subNameOk(k) {
@@ -419,7 +422,7 @@ service cloud.firestore {
     // enumeration. Never put `is list` or `size()` on a resource-derived value
     // either: that makes the clause unprovable, so it can only ever be false.
     function sessionListScoped() {
-      return existing().get('teacherUid', '') == authUid() ||
+      return (existing().get('teacherUid', '') == authUid() && notDeactivated()) ||
              (tok().get('classIds', []) is list &&
               (existing().get('classIds', []).hasAny(tok().get('classIds', [])) ||
                existing().get('classId', '') in tok().get('classIds', [])));
@@ -4692,7 +4695,7 @@ service cloud.firestore {
 
     match /sessions/{userId} {
       // No list. The teacher, admins, and a student whose join record holds the current code read it.
-      allow get: if signedIn() && (authUid() == userId || isAdmin() ||
+      allow get: if signedIn() && (liveUid(userId) || isAdmin() ||
         dbGet4('sessions', userId, 'students', authUid()).data.get('code', '') == existing().code);
       // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
       function liveSessionOk(k) {
@@ -4706,10 +4709,10 @@ service cloud.firestore {
             dbGetAfter('live_session_codes', incoming().code).data.teacherUid == userId));
       }
       // Teacher-only; a new `code` must be a /live_session_codes pointer this teacher owns (getAfter: same batch).
-      allow create, update: if liveTeacher() && authUid() == userId &&
+      allow create, update: if liveTeacher() && liveUid(userId) &&
         liveSessionOk(request.method == 'create' ? newKeys() :
           incoming().diff(existing()).addedKeys().union(incoming().diff(existing()).changedKeys()));
-      allow delete: if signedIn() && authUid() == userId;
+      allow delete: if signedIn() && liveUid(userId);
 
       match /students/{studentId} {
         // Student session records store the roster PIN the student typed, which pinLoginV1
@@ -4718,7 +4721,7 @@ service cloud.firestore {
         // ownership without server-side logic; students create/update only their own
         // record (heartbeats/disconnects); only teacher and admins delete.
         allow read: if signedIn() &&
-          (authUid() == userId || authUid() == studentId || isSiteAdmin());
+          (liveUid(userId) || authUid() == studentId || isSiteAdmin());
         // Matches the client's exact write shape (useLiveSession.ts `newStudent`) - without
         // it, any caller who learns a sessionId could spray unbounded arbitrary-shape docs
         // into a teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
@@ -4745,7 +4748,7 @@ service cloud.firestore {
         // to 'active', so a fabricated rejoin can't escape a freeze or self-freeze.
         allow update: if signedIn() &&
           (
-            ((authUid() == userId || isSiteAdmin()) &&
+            ((liveUid(userId) || isSiteAdmin()) &&
              changedOnly(['status']) &&
              incoming().status in ['active', 'frozen', 'disconnected']) ||
             (authUid() == studentId &&
@@ -4757,14 +4760,14 @@ service cloud.firestore {
              isValidLiveStudentPayload(incoming()))
           );
         allow delete: if signedIn() &&
-          (authUid() == userId || isSiteAdmin());
+          (liveUid(userId) || isSiteAdmin());
       }
     }
 
     // ---- Gradebook (docs/plans/GRADEBOOK.md data model) ----
     // Teacher docs are owner-only in v1; editorUids is stored empty for later co-teaching (D12).
     function gbOwned() {
-      return signedIn() && myOldOwner();
+      return signedIn() && myOldOwner() && notDeactivated();
     }
     // A mark or column may only be created on the caller's own session.
     function gbSessionOwned(d) {
@@ -5163,7 +5166,7 @@ service cloud.firestore {
         // (else probing keys reveals which PINs have joined). The class gate
         // stays a hard prerequisite for studentRole users.
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUid() ||
+          liveUid(sessionTeacherUid()) ||
           isSiteAdmin() ||
           isSubMonitor(sessionData()) ||
           (passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
@@ -5401,11 +5404,11 @@ service cloud.firestore {
             incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
            (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
-          authUid() == sessionTeacherUid() ||
+          liveUid(sessionTeacherUid()) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations']))
         );
         allow delete: if signedIn() &&
-          (authUid() == sessionTeacherUid() || isSiteAdmin());
+          (liveUid(sessionTeacherUid()) || isSiteAdmin());
 
         // Append-only snapshot log of overwritten answers — captures a prior
         // answers[i] before it's replaced (see submitAnswer in useQuizSession.ts),
@@ -5418,7 +5421,7 @@ service cloud.firestore {
           // Read: teacher, admin, or the owning student.
           allow read: if signedIn() && (
             isSiteAdmin() ||
-            authUid() == sessionTeacherUid() ||
+            liveUid(sessionTeacherUid()) ||
             authUid() == parentStudentUid()
           );
           // Create: only the owning student of the parent response; strict shape;
@@ -5436,22 +5439,22 @@ service cloud.firestore {
           // Immutable from clients. Teachers/admins may clean up.
           allow update: if false;
           allow delete: if signedIn() &&
-            (authUid() == sessionTeacherUid() || isSiteAdmin());
+            (liveUid(sessionTeacherUid()) || isSiteAdmin());
         }
 
         // Handwritten paper answers: AI transcript internals. Session teacher reads; only the server writes.
         match /paperPrivate/{questionId} {
-          allow read: if signedIn() && authUid() == sessionTeacherUid();
+          allow read: if signedIn() && liveUid(sessionTeacherUid());
           allow write: if false;
         }
 
         // Each finished attempt's copy; the server writes it and the session teacher or an admin may grade an earlier (closed) one.
         match /attempts/{attemptId} {
           allow read: if signedIn() && (
-            authUid() == sessionTeacherUid() || isSiteAdmin() ||
+            liveUid(sessionTeacherUid()) || isSiteAdmin() ||
             isSubMonitor(sessionData())
           );
-          allow update: if signedIn() && (authUid() == sessionTeacherUid() || isSiteAdmin()) &&
+          allow update: if signedIn() && (liveUid(sessionTeacherUid()) || isSiteAdmin()) &&
             existing().get('closed', false) == true &&
             incoming().diff(existing()).affectedKeys().hasOnly(['grading']) &&
             isMap('grading');
@@ -5463,17 +5466,17 @@ service cloud.firestore {
       // session's teacher writes; a reader must be seated on their own response here.
       match /live/{docId} {
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUid() || isSiteAdmin() ||
+          liveUid(sessionTeacherUid()) || isSiteAdmin() ||
           isSubMonitor(sessionData()) ||
           dbGet4('quiz_sessions', sessionId, 'responses', dbGet4('quiz_sessions', sessionId, 'seats', authUid()).data.responseKey).data.studentUid == authUid()
         );
-        allow write: if signedIn() && authUid() == sessionTeacherUid();
+        allow write: if signedIn() && liveUid(sessionTeacherUid());
       }
 
       // Per-attempt scores beside the response, since students can read their response before release.
       match /attemptScores/{responseKey} {
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUid() || isSiteAdmin() ||
+          liveUid(sessionTeacherUid()) || isSiteAdmin() ||
           isSubMonitor(sessionData())
         );
         allow write: if false;
@@ -5484,7 +5487,7 @@ service cloud.firestore {
       // response, whose classId is the period (anonymous keys aren't the uid).
       match /content/{docId} {
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUid() || isAdmin() ||
+          liveUid(sessionTeacherUid()) || isAdmin() ||
           isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
           sessionData().status == 'ended' ||
           periodOpen(sessionData(), seatedClassId('quiz_sessions', sessionId))
@@ -5500,7 +5503,7 @@ service cloud.firestore {
       match /bank_deals/{dealId} {
         allow read: if signedIn();
         allow create, update: if false;
-        allow delete: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin());
+        allow delete: if signedIn() && (liveUid(sessionTeacherUid()) || isAdmin());
       }
 
       // Archived responses — copies of teacher-removed responses (was a hard
@@ -5512,13 +5515,13 @@ service cloud.firestore {
           return dbGet('quiz_sessions', sessionId).data.teacherUid;
         }
         allow read: if signedIn() && (
-          authUid() == sessionTeacherUidArch() || isSiteAdmin()
+          liveUid(sessionTeacherUidArch()) || isSiteAdmin()
         );
         // Teacher or admin can archive (symmetric with the parent delete rule,
         // else an admin's archive+delete batch rolls back). archivedBy ==
         // auth.uid (no proxy writes); archiveReason constrained to a small set.
         allow create: if signedIn() &&
-          (authUid() == sessionTeacherUidArch() || isSiteAdmin()) &&
+          (liveUid(sessionTeacherUidArch()) || isSiteAdmin()) &&
           incoming().archivedBy == authUid() &&
           isNumber('archivedAt') &&
           incoming().get('archiveReason', '') in
@@ -5535,7 +5538,7 @@ service cloud.firestore {
       match /views/{viewId} {
         allow read: if signedIn() && (
           isAdmin() ||
-          dbGet('quiz_sessions', sessionId).data.teacherUid == authUid()
+          liveUid(dbGet('quiz_sessions', sessionId).data.teacherUid)
         );
         allow create: if signedIn() && viewAsOk() &&
           newKeys().hasOnly(['viewedAt']) &&
@@ -5583,9 +5586,9 @@ service cloud.firestore {
       allow read: if signedIn() && (
         noDoc() ||
         myOldStudent() ||
-        authUid() == existing().teacherUid ||
+        liveUid(existing().teacherUid) ||
         isSiteAdmin() ||
-        authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid
+        liveUid(ledgerS('quiz_sessions', ledgerId).teacherUid)
       );
       // Student creates their own entry on first completion (see ledgerCreateOk).
       allow create: if signedIn() &&
@@ -5605,8 +5608,8 @@ service cloud.firestore {
         // Teacher reset/refund branch — may only DECREASE completedAttempts
         // (removeStudent reset, unlockStudentAttempt refund); never inflate, so the
         // cap stays an anti-cheating defense.
-        (((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
-          authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid) &&
+        (((liveUid(existing().teacherUid) && authUid() != existing().studentUid) ||
+          liveUid(ledgerS('quiz_sessions', ledgerId).teacherUid)) &&
          unchanged('studentUid') &&
          unchanged('quizId') &&
          unchanged('teacherUid') &&
@@ -5625,8 +5628,8 @@ service cloud.firestore {
       // teacherUid naming the student never lets them undo their own cap.
       allow delete: if signedIn() && (
         noDoc() ||
-        (authUid() == existing().teacherUid && authUid() != existing().studentUid) || isSiteAdmin() ||
-        authUid() == ledgerS('quiz_sessions', ledgerId).teacherUid
+        (liveUid(existing().teacherUid) && authUid() != existing().studentUid) || isSiteAdmin() ||
+        liveUid(ledgerS('quiz_sessions', ledgerId).teacherUid)
       );
     }
 
@@ -5641,8 +5644,8 @@ service cloud.firestore {
         myOldStudent() ||
         isSiteAdmin() ||
         (!isStudentRoleUser() &&
-         (authUid() == existing().teacherUid ||
-          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
+         (liveUid(existing().teacherUid) ||
+          liveUid(ledgerS('video_activity_sessions', ledgerId).teacherUid)))
       );
       allow create: if signedIn() &&
         ledgerCreateOk(ledgerId, ledgerS('video_activity_sessions', ledgerId), 'activityId');
@@ -5658,8 +5661,8 @@ service cloud.firestore {
         // Teacher reset/refund branch (see quiz_attempt_ledger): may only DECREASE
         // completedAttempts (removeStudent reset + unlockStudentAttempt refund).
         (!isStudentRoleUser() &&
-         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
-          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid) &&
+         ((liveUid(existing().teacherUid) && authUid() != existing().studentUid) ||
+          liveUid(ledgerS('video_activity_sessions', ledgerId).teacherUid)) &&
          unchanged('studentUid') &&
          unchanged('activityId') &&
          unchanged('teacherUid') &&
@@ -5676,8 +5679,8 @@ service cloud.firestore {
         noDoc() ||
         isSiteAdmin() ||
         (!isStudentRoleUser() &&
-         ((authUid() == existing().teacherUid && authUid() != existing().studentUid) ||
-          authUid() == ledgerS('video_activity_sessions', ledgerId).teacherUid))
+         ((liveUid(existing().teacherUid) && authUid() != existing().studentUid) ||
+          liveUid(ledgerS('video_activity_sessions', ledgerId).teacherUid)))
       );
     }
 
@@ -5941,7 +5944,7 @@ service cloud.firestore {
       }
       // Student tokens are non-anonymous, so they never count as the owner.
       function vaOwner(s) {
-        return signedIn() && ((s.teacherUid == authUid() && !isStudentRoleUser()) || isSiteAdmin());
+        return signedIn() && ((liveUid(s.teacherUid) && !isStudentRoleUser()) || isSiteAdmin());
       }
       // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
       // caller can't enumerate every teacher's sessions.
@@ -6175,7 +6178,7 @@ service cloud.firestore {
       }
       // Student tokens never count as the owner.
       function maOwner() {
-        return maSessionData().teacherUid == authUid() && !isStudentRoleUser();
+        return liveUid(maSessionData().teacherUid) && !isStudentRoleUser();
       }
       function maOpen() {
         return seatOpen('mini_app_sessions', sessionId, maSessionData());
@@ -6342,7 +6345,7 @@ service cloud.firestore {
         return passesStudentClassGateCompat(glSession().get('classIds', []), glSession().get('classId', ''));
       }
       function glIsTeacher() {
-        return isSiteAdmin() || (glSession().teacherUid == authUid() && !isStudentRoleUser());
+        return isSiteAdmin() || (liveUid(glSession().teacherUid) && !isStudentRoleUser());
       }
       // GL stores assignment mode under `assignmentMode` (its `mode` is
       // play-mode: structured/guided/explore); other widgets use `mode`.
@@ -6484,7 +6487,7 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data;
       }
       function awIsOwner() {
-        return sessionId.matches(authUid() + '_.*') || isSiteAdmin();
+        return mySid(sessionId) || isSiteAdmin();
       }
       // Padlet-lite audience: an enrolled studentRole user, or anyone once the
       // teacher opted into guests. Legacy sessions (no layout) never match.
@@ -6780,7 +6783,7 @@ service cloud.firestore {
                              awBoardMemberOk(true) ||
                              (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
-                            (sessionId.matches(authUid() + '_.*') || isSiteAdmin());
+                            (mySid(sessionId) || isSiteAdmin());
         // Students may retract their own post while the wall is open and the
         // teacher enabled deletion (Padlet-lite sessions only).
         allow delete: if signedIn() &&
@@ -6795,7 +6798,7 @@ service cloud.firestore {
         // doc AFTER merge - untouched existing fields (e.g. driveFileId) stay present and
         // must pass the whitelist too. See create's comment for why an extra field matters.
         allow update: if signedIn() &&
-                            (sessionId.matches(authUid() + '_.*') || isSiteAdmin()) &&
+                            (mySid(sessionId) || isSiteAdmin()) &&
                             incoming().keys().hasOnly([
                               'id', 'activityId', 'content', 'submittedAt', 'status',
                               'participantLabel', 'storagePath', 'archiveStatus',
@@ -7250,7 +7253,7 @@ service cloud.firestore {
         return dbGet('flashcard_sessions', sessionId).data;
       }
       function fcIsSessionTeacher() {
-        return signedIn() && fcSession().teacherUid == authUid();
+        return signedIn() && liveUid(fcSession().teacherUid);
       }
       function fcOpen() {
         return seatOpen('flashcard_sessions', sessionId, fcSession());
@@ -7344,10 +7347,10 @@ service cloud.firestore {
                       && 'submittedAt' in existing()
                       && resultsGuardWrite();
         // Show / Hide / Follow class and Unlock results for one student (flashcards-assign-v2).
-        allow update: if fcIsSessionTeacher() && notDeactivated()
+        allow update: if fcIsSessionTeacher()
                       && changedOnly(['resultsOverride', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'handRaisedAt'])
                       && optMap(incoming(), 'resultsOverride');
-        allow delete: if fcIsSessionTeacher() && notDeactivated();
+        allow delete: if fcIsSessionTeacher();
       }
     }
 
@@ -7387,17 +7390,14 @@ service cloud.firestore {
       }
       // notDeactivated() last: it is a get(), and a student never reaches it.
       function pjIsRunTeacher() {
-        return signedIn()
-               && pjRun().teacherUid == authUid()
-               && notDeactivated();
+        return signedIn() && liveUid(pjRun().teacherUid);
       }
 
       // `.get()`, never bare `resource.data.teacherUid`: a bare property read
       // on a list evaluation throws instead of returning false, which fails
       // the whole rule rather than falling through to the student branch.
       allow get: if signedIn()
-                 && ((existing().get('teacherUid', '') == authUid()
-                      && notDeactivated())
+                 && (liveUid(existing().get('teacherUid', ''))
                      || pjStudentInAnyClass(existing().get('classIds', [])));
       // A list rule is evaluated ONCE against the query with an EMPTY resource,
       // so every clause must be provable from the client's own filters. These
@@ -7411,8 +7411,7 @@ service cloud.firestore {
       // measured on the emulator — the same two traps `sessionListScoped()`
       // carries, hardened against there in #3150.
       function pjRunListScoped() {
-        return (existing().get('teacherUid', '') == authUid()
-                && notDeactivated()) ||
+        return liveUid(existing().get('teacherUid', '')) ||
                (tok().get('classIds', []) is list &&
                 existing().get('classIds', [])
                   .hasAny(tok().get('classIds', [])));
@@ -7583,12 +7582,12 @@ service cloud.firestore {
     // Focus sessions (CHROME_EXTENSION.md F1, F8, F11): server-written; the class's teachers and a stamped sub monitor read, students never.
     match /focus_sessions/{sessionId} {
       function focusReader(s) {
-        return staffSignedIn() &&
+        return liveStaffSignedIn() &&
                (authUid() in s.get('teacherUids', []) || isSubMonitor(s));
       }
       allow get: if focusReader(existing());
       // Only the teacher query where('teacherUids', 'array-contains', uid) is provable; a sub reads by id.
-      allow list: if staffSignedIn() &&
+      allow list: if liveStaffSignedIn() &&
                      authUid() in existing().teacherUids;
       allow write: if false;
 
