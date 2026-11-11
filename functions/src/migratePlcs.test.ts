@@ -127,6 +127,14 @@ function makeDb(state: StubState) {
         get: (field: string) => (data as Record<string, unknown>)[field],
       });
     }
+    // /organizations/orono/members/{email}: no operator-org member docs in these fixtures.
+    if (/^organizations\/orono\/members\/[^/]+$/.test(path)) {
+      return Promise.resolve({
+        exists: false,
+        data: () => undefined,
+        get: () => undefined,
+      });
+    }
     throw new Error(`Unexpected getDoc: ${path}`);
   };
 
@@ -170,6 +178,7 @@ function makeDb(state: StubState) {
   };
 
   return {
+    doc: (path: string) => ({ get: () => getDoc(path) }),
     collection: (name: string) => {
       if (name === 'plcs') return plcsQuery;
       return collectionRef(name);

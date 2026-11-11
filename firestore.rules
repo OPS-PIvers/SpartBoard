@@ -70,7 +70,8 @@ service cloud.firestore {
              request.auth.token.get('email', '') != '' &&
              request.auth.token.get('email_verified', false) == true &&
              viewAsAdminOk() &&
-             exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+             exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())) &&
+             notDeactivated();
     }
     // Site admin as storage.rules isSiteAdmin(): a synced building_admin never reaches other teachers' student data.
     function isSiteAdmin() {
@@ -440,9 +441,15 @@ service cloud.firestore {
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
              viewAsAdminOk() &&
-             (isLegacySuperAdmin() || isMemberSuperAdmin());
+             ((isLegacySuperAdmin() && notDeactivated()) || isMemberSuperAdmin());
     }
 
+    // A status change must not touch an address on the legacy super admin list (a super admin may).
+    function legacyStatusSafe(emailLower) {
+      return incoming().get('status', '') == existing().get('status', '') ||
+             !exists(/databases/$(database)/documents/admin_settings/user_roles) ||
+             !(emailLower in get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []));
+    }
     function isLegacySuperAdmin() {
       return get(/databases/$(database)/documents/admin_settings/user_roles) != null &&
              request.auth.token.email.lower() in
@@ -755,6 +762,7 @@ service cloud.firestore {
            changedOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ]) &&
+           legacyStatusSafe(emailLower) &&
            // No self-service role or status change (e.g. undoing a deactivation).
            (emailLower != myEmail() ||
             (incoming().get('roleId', '') == existing().get('roleId', '') &&
@@ -781,7 +789,8 @@ service cloud.firestore {
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            // Deactivate only: reactivating is a domain admin's call.
            (liveStatus(existing()) || !liveStatus(incoming())) &&
-           changedOnly(['status'])) ||
+           changedOnly(['status']) &&
+           legacyStatusSafe(emailLower)) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.
           // Strictly bound — email/orgId must match and only `lastActive` may
           // change, so it can't escalate role/buildingIds/status or touch another
@@ -2543,12 +2552,12 @@ service cloud.firestore {
     // whose role in `members` is not 'viewer'. Unkeyed (legacy/array-only) members edit.
     // The caller is in the PLC's denormalized member index.
     function plcMember(id) {
-      return authUid() in get(/databases/$(database)/documents/plcs/$(id)).data.memberUids;
+      return authUid() in get(/databases/$(database)/documents/plcs/$(id)).data.memberUids && notDeactivated();
     }
     function plcCanEditContent(plcId) {
       let plcData = get(/databases/$(database)/documents/plcs/$(plcId)).data;
       return authUid() in plcData.memberUids
-        && plcRoleOf(plcData, authUid()) != 'viewer';
+        && plcRoleOf(plcData, authUid()) != 'viewer' && notDeactivated();
     }
     function plcEditor(id) { return signedIn() && plcCanEditContent(id); }
     function plcReader(id) { return signedIn() && plcMember(id); }
@@ -2560,7 +2569,7 @@ service cloud.firestore {
     // nor does a coLead entry left 'removed' by a rejoin that never reset it.
     function isPlcMembershipManager(plcData) {
       let entry = plcData.get('members', {}).get(authUid(), {});
-      return authUid() in plcData.get('memberUids', [])
+      return authUid() in plcData.get('memberUids', []) && notDeactivated()
         && (
           authUid() == plcData.get('leadUid', '')
           || (
@@ -3215,7 +3224,7 @@ service cloud.firestore {
       // runs the same kind of unfiltered list query against this collection.
       allow read: if signedIn()
         && (
-          authUid() in existing().memberUids
+          (authUid() in existing().memberUids && notDeactivated())
           || (
             isAdmin()
             && existing().get('orgId', null) is string
@@ -3272,7 +3281,7 @@ service cloud.firestore {
       // isAdminManagingPlc (the only
       // non-member branch).
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
-      allow update: if request.auth != null && viewAsOk() && (
+      allow update: if request.auth != null && viewAsOk() && notDeactivated() && (
         (
           request.auth.uid == resource.data.leadUid
           && request.resource.data.leadUid == resource.data.leadUid
@@ -3329,7 +3338,7 @@ service cloud.firestore {
       // abandoned PLC for recovery (Decision 3.4), gated to a PLC whose orgId
       // matches an org the admin belongs to.
       // shorthands: on
-      allow delete: if signedIn()
+      allow delete: if signedIn() && notDeactivated()
         && (
           authUid() == existing().leadUid
           || (
@@ -3406,7 +3415,7 @@ service cloud.firestore {
         function plcRootData() {
           return dbGet('plcs', plcId).data;
         }
-        allow read: if signedIn() && authUid() in plcRootData().get('memberUids', []);
+        allow read: if signedIn() && authUid() in plcRootData().get('memberUids', []) && notDeactivated();
         // No client writes — server-only (Admin SDK bypasses rules).
         allow create, update, delete: if false;
       }
@@ -4318,7 +4327,7 @@ service cloud.firestore {
       }
       function mentFacilitator(id) {
         let p = mentPlc(id);
-        return signedIn() && authUid() in p.memberUids && isPlcMembershipManager(p);
+        return signedIn() && isPlcMembershipManager(p);
       }
       function mentInPair(id, ws) {
         return signedIn() && authUid() in ws.get('memberUids', []) && plcMember(id);
