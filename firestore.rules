@@ -6487,7 +6487,7 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data;
       }
       function awIsOwner() {
-        return mySid(sessionId) || isSiteAdmin();
+        return sessionId.matches(authUid() + '_.*') ? notDeactivated() : isSiteAdmin();
       }
       // Padlet-lite audience: an enrolled studentRole user, or anyone once the
       // teacher opted into guests. Legacy sessions (no layout) never match.
@@ -6757,8 +6757,8 @@ service cloud.firestore {
           (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
           awStoragePathOk() &&
           awUploadPathOk() &&
-          // Storage takes uploads only from the owner, so a co-teacher posts text, words and links.
-          (awIsOwner() ||
+          // Storage takes uploads only from the owner, so a co-teacher posts text, words and links. Raw owner check: this rule sits at the 1,000-expression limit.
+          (sessionId.matches(authUid() + '_.*') || isSiteAdmin() ||
            (incoming().get('type', 'text') in ['text', 'word', 'link'] &&
             !incoming().keys().hasAny(['storagePath', 'fileName', 'mimeType', 'sizeBytes']) &&
             awBoardMemberOk(true)));
@@ -6771,8 +6771,7 @@ service cloud.firestore {
         // lists unfiltered and would break otherwise). Merged student page: the student-link
         // audience reads approved posts while the teacher keeps the wall visible.
         allow read: if signedIn() &&
-                            (mySid(sessionId) ||
-                             isSiteAdmin() ||
+                            ((sessionId.matches(authUid() + '_.*') ? notDeactivated() : isSiteAdmin()) ||
                              (awSession().get('publiclyShared', false) == true &&
                               (!awIsPadletSession() ||
                                existing().status == 'approved')) ||
@@ -6783,7 +6782,7 @@ service cloud.firestore {
                              awBoardMemberOk(true) ||
                              (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
-                            (mySid(sessionId) || isSiteAdmin());
+                            (sessionId.matches(authUid() + '_.*') ? notDeactivated() : isSiteAdmin());
         // Students may retract their own post while the wall is open and the
         // teacher enabled deletion (Padlet-lite sessions only).
         allow delete: if signedIn() &&
@@ -6798,7 +6797,7 @@ service cloud.firestore {
         // doc AFTER merge - untouched existing fields (e.g. driveFileId) stay present and
         // must pass the whitelist too. See create's comment for why an extra field matters.
         allow update: if signedIn() &&
-                            (mySid(sessionId) || isSiteAdmin()) &&
+                            (sessionId.matches(authUid() + '_.*') ? notDeactivated() : isSiteAdmin()) &&
                             incoming().keys().hasOnly([
                               'id', 'activityId', 'content', 'submittedAt', 'status',
                               'participantLabel', 'storagePath', 'archiveStatus',
