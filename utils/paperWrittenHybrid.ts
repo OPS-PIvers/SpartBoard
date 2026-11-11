@@ -159,7 +159,7 @@ export function hybridBoxImages(
   const ids = new Set(questionIds);
   const out = new Map<string, PaperSheetStimulus>();
   for (const q of questions) {
-    if (ids.has(q.id) && q.paperBoxStyle === 'image' && q.paperBoxImage)
+    if (ids.has(q.id) && paperBoxStyleOf(q) === 'image' && q.paperBoxImage)
       out.set(q.id, q.paperBoxImage);
   }
   return out;

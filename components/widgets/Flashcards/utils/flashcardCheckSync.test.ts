@@ -97,6 +97,23 @@ describe('fixedCheckCards', () => {
     ).toBe(null);
   });
 
+  it('treats a swap with a typo fix as a swap, but keeps a cognate fix', () => {
+    expect(
+      fixedCheckCards(
+        [card('a', 'gatto', 'cat')],
+        [card('a', 'Cat', 'gato')],
+        false
+      )
+    ).toBe(null);
+    expect(
+      fixedCheckCards(
+        [card('a', 'animal', 'anmal')],
+        [card('a', 'animal', 'animal')],
+        false
+      )
+    ).toEqual([card('a', 'animal', 'animal')]);
+  });
+
   it('still fixes the term of a card that never had a definition', () => {
     const check = [card('a', 'teh', '')];
     expect(fixedCheckCards(check, [card('a', 'the', '')], false)).toEqual([

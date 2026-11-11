@@ -11,12 +11,14 @@ const sameCard = (a: FlashcardCard, b: FlashcardCard): boolean =>
   stableStringify(a) === stableStringify(b);
 
 /** A swap or a side cleared is a new card, not a fix, so it never reaches a Check. */
+const side = (text: string): string => text.trim().toLowerCase();
 const notAFix = (old: FlashcardCard, fixed: FlashcardCard): boolean =>
-  (old.term.trim() !== '' && fixed.term.trim() === '') ||
-  (old.definition.trim() !== '' && fixed.definition.trim() === '') ||
-  (fixed.term !== fixed.definition &&
-    fixed.term === old.definition &&
-    fixed.definition === old.term);
+  (side(old.term) !== '' && side(fixed.term) === '') ||
+  (side(old.definition) !== '' && side(fixed.definition) === '') ||
+  (side(fixed.term) !== side(old.term) &&
+    side(old.term) !== side(old.definition) &&
+    (side(fixed.term) === side(old.definition) ||
+      side(fixed.definition) === side(old.term)));
 
 /** A Check's cards with the set's fixes applied: same ids and order, null when nothing changed. */
 export const fixedCheckCards = (

@@ -3611,6 +3611,7 @@ const TeacherQuizWidget: React.FC<{
               plan.questionIds
             );
             const writtenImages: Record<string, string> = {};
+            let releaseImages: (() => void) | null = null;
             if (boxImages.size > 0) {
               const images = await resolveStimulusImages(
                 [...boxImages.values()],
@@ -3624,6 +3625,7 @@ const TeacherQuizWidget: React.FC<{
                 addToast(stimulusLoadErrorMessage(images.failed), 'error');
                 return;
               }
+              releaseImages = images.release;
               for (const [id, image] of boxImages) {
                 const src = images.src[image.id];
                 if (src) writtenImages[id] = src;
@@ -3632,6 +3634,7 @@ const TeacherQuizWidget: React.FC<{
             try {
               await savePaperBatch(user.uid, plan.batch);
             } catch (err) {
+              releaseImages?.();
               logError('QuizWidget.assignment.writtenOnPaper', err, {
                 quizId: meta.id,
               });
