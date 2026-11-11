@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-11-09_
+_Last audited: 2026-11-11_
 _Last action: 2026-10-19 — Claude MCP connector: added `functions/src/mcp/tools.test.ts` (34 tests); the HIGH item is resolved and moved to Completed. Prior: 2026-10-12 — `quizTools.test.ts`; 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-11-11: Weekly audit (Wednesday). `pnpm test`: 2327 files, 25007 passed, 5 skipped, 0 failures. Gaps fall under existing Open families. 0 new issues._
 
 _2026-11-09: Weekly audit (Monday). `pnpm test`: 2258 files, 24084 passed, 5 skipped, 0 failures. Added one LOW item for six new untested files._
 
