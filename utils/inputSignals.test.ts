@@ -5,7 +5,10 @@ import {
   describeInputSignals,
   formatFindingQuestions,
   inputFindingsByAttempt,
+  otherLogChars,
+  questionWordCounts,
   readAttemptSignals,
+  writingLogs,
 } from '@/utils/inputSignals';
 
 const ids = (c: InputSignalCollector, answers?: { answeredAt: number }[]) =>
@@ -275,5 +278,119 @@ describe('formatFindingQuestions', () => {
       ' (on 2 questions)'
     );
     expect(formatFindingQuestions([], order)).toBe('');
+  });
+});
+
+describe('revisions and writing logs', () => {
+  const typeOut = (c: InputSignalCollector, field: object, text: string) => {
+    let prev = '';
+    c.primeText(field, prev);
+    [...text].forEach((ch, i) => {
+      prev += ch;
+      const t = 1000 + i * 150;
+      c.textInput(1, t, 'typed');
+      c.textEdit(field, prev, t, 'typed', { log: true, composing: false });
+    });
+    return prev;
+  };
+
+  it('flags a long answer typed with no revision', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    typeOut(c, {}, 'a'.repeat(220));
+    const found = describeInputSignals(c.snapshot());
+    expect(found.find((f) => f.id === 'no-revisions')?.questions).toEqual([
+      'q1',
+    ]);
+  });
+
+  it('does not flag one that was revised, or a short one', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    const field = {};
+    const text = typeOut(c, field, 'a'.repeat(220));
+    c.textEdit(field, text.slice(0, -1), 99_000, 'typed', {
+      log: true,
+      composing: false,
+    });
+    c.setQuestion('q2');
+    typeOut(c, {}, 'short answer');
+    expect(ids(c)).not.toContain('no-revisions');
+    expect(c.snapshot().q1.dels).toBe(1);
+    expect(c.snapshot().q1.delChars).toBe(1);
+  });
+
+  it('keeps a log only where asked, and carries it through a save', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    typeOut(c, {}, 'hello');
+    c.setQuestion('q2');
+    const blank = {};
+    c.primeText(blank, '');
+    c.textEdit(blank, 'x', 5, 'typed', { log: false, composing: false });
+    const saved = addSignals({}, c.snapshot());
+    expect(saved.q2.log).toBeUndefined();
+    const read = readAttemptSignals({ '0': saved }, 0);
+    expect(writingLogs({ '0': read })).toEqual([
+      { attempt: 0, questionId: 'q1', log: saved.q1.log },
+    ]);
+    expect(otherLogChars({ '0': read, '1': {} }, 1)).toBe(saved.q1.log?.length);
+  });
+
+  it('does not count composing edits as revisions', () => {
+    const c = new InputSignalCollector(true);
+    const field = {};
+    c.primeText(field, 'ni');
+    c.textEdit(field, '你', 5, 'typed', { log: false, composing: true });
+    expect(c.snapshot()._?.dels).toBeUndefined();
+  });
+});
+
+describe('time on a question', () => {
+  it('counts visible time under the question on screen without marking dirty', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    c.clock(1000, true);
+    c.clock(4000, false);
+    c.clock(9000, true);
+    c.setQuestion('q2', 10_000);
+    c.clock(12_500, true);
+    expect(c.takeDirty()).toBe(false);
+    expect(c.snapshot()).toEqual({ q1: { ms: 4000 }, q2: { ms: 2500 } });
+  });
+
+  it('flags answers given faster than the questions can be read', () => {
+    const words = questionWordCounts(
+      ['q1', 'q2', 'q3'].map((id) => ({
+        id,
+        text: `<p>${'word '.repeat(60)}</p>`,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b', 'c'],
+      }))
+    );
+    expect(words.q1).toBe(63);
+    const signals = { q1: { ms: 2000 }, q2: { ms: 3000 }, q3: { ms: 40_000 } };
+    const answered = new Set(['q1', 'q2', 'q3']);
+    const fast = describeInputSignals(signals, undefined, { words, answered });
+    expect(fast.find((f) => f.id === 'fast-answers')?.questions).toEqual([
+      'q1',
+      'q2',
+    ]);
+    expect(
+      describeInputSignals(signals, undefined, {
+        words,
+        answered: new Set(['q1']),
+      })
+    ).toEqual([]);
+  });
+});
+
+describe('window signs', () => {
+  it('reports a side panel and a second screen', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    c.panelOpened();
+    c.extraScreen();
+    expect(ids(c)).toEqual(['side-panel', 'extra-screen']);
   });
 });

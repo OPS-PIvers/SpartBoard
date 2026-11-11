@@ -3,8 +3,10 @@ import type { InputSignalCounts } from '@/types';
 import {
   InputSignalCollector,
   addSignals,
+  otherLogChars,
   readAttemptSignals,
 } from '@/utils/inputSignals';
+import { WRITING_LOG_BUDGET } from '@/utils/writingLog';
 import { isTrustedEvent } from '@/utils/eventTrust';
 import { logError } from '@/utils/logError';
 
@@ -37,10 +39,22 @@ const isAnswerBox = (target: EventTarget | null): target is HTMLElement => {
   return target instanceof HTMLElement && target.isContentEditable;
 };
 
+/** Long answers keep an edit log for playback; one-line blanks only keep counts. */
+const isLongAnswer = (el: HTMLElement): boolean =>
+  el instanceof HTMLTextAreaElement || el.isContentEditable;
+
+const answerText = (el: HTMLElement): string =>
+  el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement
+    ? el.value
+    : el.innerText;
+
+/** A side panel takes at least this much width, in px. */
+const PANEL_MIN_PX = 200;
+
 const isControl = (target: EventTarget | null): boolean =>
   target instanceof Element && target.closest(SCRIPT_TARGETS) !== null;
 
-/** Counts how answers are entered and saves the counters to the response; never which keys or what text. */
+/** Counts how answers are entered and logs edits to written answers, saved to the response; never keys pressed outside an answer box. */
 export function useInputSignals(args: UseInputSignalsArgs): void {
   const { enabled, ready, attempt, questionId } = args;
   const argsRef = useRef(args);
@@ -57,16 +71,30 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
 
   useEffect(() => {
     if (!enabled || !ready) return;
-    const collector = new InputSignalCollector(
-      window.matchMedia?.('(pointer: fine)').matches ?? true
-    );
-    collector.setQuestion(argsRef.current.questionId);
     const base =
       writtenRef.current?.attempt === attempt
         ? writtenRef.current.counts
         : readAttemptSignals(argsRef.current.serverSignals, attempt);
+    const logs: Record<string, string> = {};
+    let logChars = otherLogChars(argsRef.current.serverSignals, attempt);
+    for (const [q, c] of Object.entries(base)) {
+      if (!c.log) continue;
+      logs[q] = c.log;
+      logChars += c.log.length;
+    }
+    const finePointer = window.matchMedia?.('(pointer: fine)').matches ?? true;
+    const collector = new InputSignalCollector(finePointer, {
+      logs,
+      logRoom: WRITING_LOG_BUDGET - logChars,
+    });
+    collector.setQuestion(argsRef.current.questionId);
+    const visible = () => document.visibilityState === 'visible';
+    collector.clock(performance.now(), visible());
+    if ((window.screen as Screen & { isExtended?: boolean }).isExtended)
+      collector.extraScreen();
     const flush = () => {
       const save = argsRef.current.save;
+      collector.clock(performance.now(), visible());
       if (!save || !collector.takeDirty()) return;
       const counts = addSignals(base, collector.snapshot());
       writtenRef.current = { attempt, counts };
@@ -124,6 +152,10 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       if (isTrustedEvent(e) && text && isAnswerBox(e.target))
         collector.paste(text.length, e.timeStamp);
     };
+    const onBeforeInput = (e: Event) => {
+      if (isAnswerBox(e.target))
+        collector.primeText(e.target, answerText(e.target));
+    };
     const onInput = (e: Event) => {
       if (
         !isTrustedEvent(e) ||
@@ -132,6 +164,17 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       )
         return;
       const type = e.inputType;
+      const pasted = type === 'insertFromPaste' || type === 'insertFromDrop';
+      collector.textEdit(
+        e.target,
+        answerText(e.target),
+        e.timeStamp,
+        pasted ? 'pasted' : 'typed',
+        {
+          log: isLongAnswer(e.target),
+          composing: e.isComposing || type === 'insertCompositionText',
+        }
+      );
       const len = e.data === null ? null : [...e.data].length;
       if (type === 'insertFromPaste' || type === 'insertFromDrop') {
         collector.textInput(len, e.timeStamp, 'pasted');
@@ -146,7 +189,29 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       }
     };
     const onHidden = () => {
-      if (document.visibilityState === 'hidden') flush();
+      if (visible()) collector.clock(performance.now(), true);
+      else flush();
+    };
+    let size = {
+      inner: window.innerWidth,
+      outer: window.outerWidth,
+      zoom: window.devicePixelRatio,
+    };
+    const onResize = () => {
+      const next = {
+        inner: window.innerWidth,
+        outer: window.outerWidth,
+        zoom: window.devicePixelRatio,
+      };
+      // Zooming and resizing the window narrow the page too; neither is a panel.
+      if (
+        finePointer &&
+        size.inner - next.inner >= PANEL_MIN_PX &&
+        Math.abs(size.outer - next.outer) < 20 &&
+        size.zoom === next.zoom
+      )
+        collector.panelOpened();
+      size = next;
     };
 
     const opts = { capture: true, passive: true } as const;
@@ -157,8 +222,10 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     document.addEventListener('keyup', onKeyUp, opts);
     document.addEventListener('paste', onPaste, opts);
     document.addEventListener('drop', onDrop, opts);
+    document.addEventListener('beforeinput', onBeforeInput, opts);
     document.addEventListener('input', onInput, opts);
     document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('resize', onResize);
     const id = window.setInterval(flush, FLUSH_MS);
     return () => {
       document.removeEventListener('pointermove', onPointerMove, opts);
@@ -168,8 +235,10 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       document.removeEventListener('keyup', onKeyUp, opts);
       document.removeEventListener('paste', onPaste, opts);
       document.removeEventListener('drop', onDrop, opts);
+      document.removeEventListener('beforeinput', onBeforeInput, opts);
       document.removeEventListener('input', onInput, opts);
       document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('resize', onResize);
       window.clearInterval(id);
       flush();
       collectorRef.current = null;
