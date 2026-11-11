@@ -8,21 +8,22 @@ export function isSuperAdminRoleId(roleId: unknown, orgId?: unknown): boolean {
   return roleId === 'super_admin' || roleId === 'domain_admin';
 }
 
-/** Site-wide check for an existing /admins doc: a mirror stamped with another org falls back to the operator-org member doc. */
+/** Site-wide check for an existing /admins doc: a mirror stamped with another org falls back to the operator-org member doc, and a deactivated operator-org member never passes. */
 export async function isSiteWideAdmin(
   db: admin.firestore.Firestore,
   emailLower: string,
   roleId: unknown,
   orgId: unknown
 ): Promise<boolean> {
-  if (isSuperAdminRoleId(roleId, orgId)) return true;
-  if (typeof orgId !== 'string' || orgId === OPERATOR_ORG_ID) return false;
   const snap = await db
     .doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`)
     .get();
   const data = snap.exists
     ? (snap.data() as { roleId?: unknown; status?: unknown } | undefined)
     : undefined;
+  if (data && isRevokedMemberStatus(data.status)) return false;
+  if (isSuperAdminRoleId(roleId, orgId)) return true;
+  if (typeof orgId !== 'string' || orgId === OPERATOR_ORG_ID) return false;
   return (
     (data?.roleId === 'super_admin' || data?.roleId === 'domain_admin') &&
     data.status === 'active'
@@ -57,10 +58,11 @@ export const OPERATOR_ORG_ID = 'orono';
 /** Role ids the strict gate admits; domain_admin and a missing roleId are deliberately out. */
 export const STRICT_SUPER_ADMIN_ROLE_IDS: readonly string[] = ['super_admin'];
 
-/** Strict super admin, mirroring the rules' isSuperAdmin(): an active operator-org super_admin member or the legacy user_roles list. */
+/** Strict super admin, mirroring the rules' isSuperAdmin(): an active operator-org super_admin member or the legacy user_roles list (refused once their operator-org doc is deactivated, unless includeRevoked). */
 export async function isStrictSuperAdmin(
   db: admin.firestore.Firestore,
-  emailLower: string
+  emailLower: string,
+  opts: { includeRevoked?: boolean } = {}
 ): Promise<boolean> {
   const [operatorSnap, legacySnap] = await Promise.all([
     db.doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`).get(),
@@ -78,6 +80,13 @@ export async function isStrictSuperAdmin(
     }
   }
   if (!legacySnap.exists) return false;
+  if (
+    !opts.includeRevoked &&
+    operatorSnap.exists &&
+    isRevokedMemberStatus(operatorSnap.get('status'))
+  ) {
+    return false;
+  }
   const legacy: unknown = legacySnap.get('superAdmins');
   return Array.isArray(legacy) && legacy.includes(emailLower);
 }

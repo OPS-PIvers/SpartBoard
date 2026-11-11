@@ -220,7 +220,7 @@ async function attachRubrics(
   for (const [i, input] of inputs.entries()) {
     const q = questions[i];
     const wanted = input.rubric_id;
-    if (wanted !== undefined && q.type !== 'free-response') {
+    if (wanted != null && q.type !== 'free-response') {
       throw new ToolError(
         `Question ${i + 1}: rubric_id only works on free_response questions.`
       );
