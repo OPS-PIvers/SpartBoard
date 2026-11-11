@@ -3,7 +3,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ToolContext } from './activity';
 import { APPS_FEATURE_ID, publicOrigin } from './config';
-import { PREVIEW_HTML } from './apps/previewApp.gen';
 import {
   questionNeedsKey,
   toFriendlyQuestion,
@@ -15,13 +14,57 @@ import { rubricMaxPoints, type Rubric } from './rubricShape';
 import { run } from './toolKit';
 
 /** Bump the suffix when the page changes shape, so Claude never pairs new data with a cached old page. */
-export const PREVIEW_URI = 'ui://spartboard/preview-v1';
+export const PREVIEW_URI = 'ui://spartboard/preview-v2';
 export const APP_MIME = 'text/html;profile=mcp-app';
-/** Lexend and Roboto Mono, the app's own fonts, served by Google Fonts. */
-const FONT_HOSTS = [
+/** Where `vite.mcp-app.config.ts` puts the card page on the app's own hosting. */
+export const CARD_PAGE_PATH = '/mcp-app/mcpApps/quiz-preview.html';
+const CARD_CACHE_MS = 5 * 60 * 1000;
+
+/** Google Fonts (Lexend), plus the hosts quiz pictures are served from. */
+const MEDIA_HOSTS = [
   'https://fonts.googleapis.com',
   'https://fonts.gstatic.com',
+  'https://firebasestorage.googleapis.com',
+  'https://storage.googleapis.com',
+  'https://lh3.googleusercontent.com',
+  'https://drive.google.com',
 ];
+
+const FALLBACK_HTML =
+  '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="color-scheme" content="light"></head><body style="margin:0;background:#fff;font:14px system-ui,sans-serif;color:#475569"><p style="padding:16px">This preview could not load. Open the quiz in SpartBoard to see it.</p></body></html>';
+
+let cardCache: { origin: string; html: string; at: number } | null = null;
+
+/** The card page from the deployed app, with a base URL so its /mcp-app and /mathlive paths load from there. */
+export async function cardHtml(
+  fetcher: typeof fetch = fetch,
+  now = Date.now()
+): Promise<string> {
+  const origin = publicOrigin();
+  if (
+    cardCache &&
+    cardCache.origin === origin &&
+    now - cardCache.at < CARD_CACHE_MS
+  ) {
+    return cardCache.html;
+  }
+  try {
+    const res = await fetcher(`${origin}${CARD_PAGE_PATH}`);
+    if (!res.ok) throw new Error(`card page ${res.status}`);
+    const page = await res.text();
+    if (!page.includes('<head>')) throw new Error('card page has no head');
+    const html = page.replace('<head>', `<head><base href="${origin}/">`);
+    cardCache = { origin, html, at: now };
+    return html;
+  } catch (err) {
+    console.error('[mcpServer] preview card page failed to load', { err });
+    return FALLBACK_HTML;
+  }
+}
+
+export function resetCardCacheForTests(): void {
+  cardCache = null;
+}
 
 /** Tool `_meta` that points Claude at the preview page (both the nested and the legacy flat key). */
 export const previewMeta: Record<string, unknown> = {
@@ -56,21 +99,27 @@ export function registerAppResources(server: McpServer): void {
       mimeType: APP_MIME,
       description: 'Preview card for quizzes, question banks and rubrics.',
     },
-    () => ({
-      contents: [
-        {
-          uri: PREVIEW_URI,
-          mimeType: APP_MIME,
-          text: PREVIEW_HTML,
-          _meta: {
-            ui: {
-              prefersBorder: true,
-              csp: { resourceDomains: FONT_HOSTS },
+    async () => {
+      const origin = publicOrigin();
+      return {
+        contents: [
+          {
+            uri: PREVIEW_URI,
+            mimeType: APP_MIME,
+            text: await cardHtml(),
+            _meta: {
+              ui: {
+                prefersBorder: true,
+                csp: {
+                  resourceDomains: [origin, ...MEDIA_HOSTS],
+                  baseUriDomains: [origin],
+                },
+              },
             },
           },
-        },
-      ],
-    })
+        ],
+      };
+    }
   );
 }
 
@@ -117,6 +166,7 @@ export function rubricView(rubric: Rubric) {
     view: 'rubric',
     rubric_id: rubric.id,
     updated_at: rubric.updatedAt,
+    open_url: publicOrigin(),
     ...rubricCard(rubric),
   };
 }
@@ -157,6 +207,9 @@ export function quizView(
     bank_pulls: count(content.bankSlots),
     removed_questions: edit?.removed ?? 0,
     open_url: publicOrigin(),
+    // The saved quiz and its settings, so the card can run the real student player.
+    quiz: content,
+    behavior: (meta.behavior as Record<string, unknown> | undefined) ?? null,
     questions: content.questions.map((q, i) => {
       const snapshot = q.rubricSnapshot as Rubric | undefined;
       return {

@@ -1,4 +1,5 @@
 // The card data the connector's quiz and rubric tools send (functions/src/mcp/apps.ts).
+import type { QuizBehaviorSettings, QuizData } from '@/types';
 
 export interface RubricLevelView {
   label: string;
@@ -65,12 +66,16 @@ export interface QuizView {
   removed_questions: number;
   open_url: string;
   questions: QuestionView[];
+  /** The saved quiz as the student player reads it. */
+  quiz: QuizData;
+  behavior: QuizBehaviorSettings | null;
 }
 
 export interface RubricView extends RubricCardView {
   view: 'rubric';
   rubric_id: string;
   updated_at: number;
+  open_url: string;
 }
 
 export type PreviewView = QuizView | RubricView;

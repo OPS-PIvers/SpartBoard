@@ -5,7 +5,13 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ToolContext } from './activity';
 import { registerQuizTools } from './quizTools';
 import { registerRubricTools } from './rubricTools';
-import { PREVIEW_URI, registerAppResources } from './apps';
+import {
+  CARD_PAGE_PATH,
+  PREVIEW_URI,
+  cardHtml,
+  registerAppResources,
+  resetCardCacheForTests,
+} from './apps';
 import { slimToolListing, stripAppMeta } from './toolKit';
 
 const drive = vi.hoisted(() => ({ files: new Map<string, unknown>() }));
@@ -257,13 +263,79 @@ describe('preview card', () => {
     expect(tools.find((t) => t.name === 'list_quizzes')?._meta).toBeUndefined();
   });
 
-  it('serves the page as an MCP App resource', async () => {
+  it('serves the hosted card page with a base URL and CSP', async () => {
+    process.env.MCP_PUBLIC_ORIGIN = 'https://app.example';
+    resetCardCacheForTests();
+    const fetcher = vi.fn(() =>
+      Promise.resolve(
+        new Response('<!doctype html><html><head></head><body></body></html>')
+      )
+    );
+    vi.stubGlobal('fetch', fetcher);
+    try {
+      const { client } = await connect();
+      const res = await client.readResource({ uri: PREVIEW_URI });
+      const page = res.contents[0] as {
+        mimeType?: string;
+        text?: string;
+        _meta?: Data;
+      };
+      expect(page.mimeType).toBe('text/html;profile=mcp-app');
+      expect(fetcher).toHaveBeenCalledWith(
+        `https://app.example${CARD_PAGE_PATH}`
+      );
+      expect(page.text).toContain('<head><base href="https://app.example/">');
+      expect(page._meta).toMatchObject({
+        ui: {
+          csp: {
+            resourceDomains: expect.arrayContaining([
+              'https://app.example',
+            ]) as unknown,
+            baseUriDomains: ['https://app.example'],
+          },
+        },
+      });
+      await client.readResource({ uri: PREVIEW_URI });
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+      delete process.env.MCP_PUBLIC_ORIGIN;
+      resetCardCacheForTests();
+    }
+  });
+
+  it('serves a message page when the hosted card cannot load', async () => {
+    resetCardCacheForTests();
+    const html = await cardHtml(() =>
+      Promise.resolve(new Response('nope', { status: 404 }))
+    );
+    expect(html).toContain('This preview could not load');
+    resetCardCacheForTests();
+  });
+
+  it('sends the saved quiz with the card so the student player can run it', async () => {
+    flags.apps = true;
     const { client } = await connect();
-    const res = await client.readResource({ uri: PREVIEW_URI });
-    const page = res.contents[0] as { mimeType?: string; text?: string };
-    expect(page.mimeType).toBe('text/html;profile=mcp-app');
-    expect(page.text).toMatch(/^<!doctype html>/);
-    expect(page.text).toContain('id="root"');
+    const made = (await client.callTool({
+      name: 'create_quiz',
+      arguments: {
+        title: 'Player',
+        questions: [
+          {
+            type: 'multiple_choice',
+            text: 'Q?',
+            correct_answer: 'A',
+            incorrect_answers: ['B'],
+          },
+        ],
+      },
+    })) as Raw;
+    const view = made.structuredContent as { quiz: Data; behavior: unknown };
+    expect((view.quiz.questions as Data[])[0]).toMatchObject({
+      type: 'MC',
+      text: 'Q?',
+    });
+    expect(view.behavior).toBeNull();
   });
 
   it('leaves the preview link out of the tool list while the flag is off', async () => {
