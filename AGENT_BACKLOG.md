@@ -209,6 +209,12 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+nightly/widgets-2026-11-11
+nightly/dashboard-2026-11-11
+nightly/state-2026-11-11
+nightly/admin-2026-11-11
+nightly/debugger-log-2026-11-11
+claude/tour-anchors-2026-11-11
 claude/project-thread-ylaw63
 claude/project-thread-tc5drw
 claude/project-thread-tc5drw-docs
