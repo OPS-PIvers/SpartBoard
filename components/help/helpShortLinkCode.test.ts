@@ -7,6 +7,8 @@ describe('helpShortLinkCode canonical form', () => {
     'sharing-your-boards-with-students',
     'my_guide_',
     'trailing-',
+    '_abc',
+    '-abc',
     'a'.repeat(26) + '_b',
   ])('is already the slug createShortLink would store for %s', (id) => {
     const code = helpShortLinkCode(id);

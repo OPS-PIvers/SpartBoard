@@ -19,9 +19,11 @@ export function parseHelpItemPath(pathname: string): string | null {
   return /^[A-Za-z0-9_-]{1,128}$/.test(id) ? id : null;
 }
 
-// One /r/ code per resource so every copy adds to one click count; no trailing dash, which the slug rules strip.
+// One /r/ code per resource so every copy adds to one click count; already in the canonical slug form the slug rules store.
 export function helpShortLinkCode(itemId: string): string {
-  return `help-${itemId.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+  return `help-${itemId}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
     .slice(0, 32)
     .replace(/-+$/g, '');
 }
