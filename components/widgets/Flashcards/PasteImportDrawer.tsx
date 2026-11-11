@@ -10,11 +10,13 @@ import { tourTypeAttr } from '@/config/tourAnchors';
 interface PasteImportDrawerProps {
   onClose: () => void;
   onImport: (cards: FlashcardCard[]) => void;
+  termOnly?: boolean;
 }
 
 export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
   onClose,
   onImport,
+  termOnly = false,
 }) => {
   const [source, setSource] = useState('');
   const [separator, setSeparator] = useState<FlashcardImportSeparator>('auto');
@@ -23,7 +25,11 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
   const preview = useMemo(() => {
     try {
       return {
-        result: parseFlashcardText(source, { separator, customSeparator }),
+        result: parseFlashcardText(source, {
+          separator,
+          customSeparator,
+          termOnly,
+        }),
         error: null,
       };
     } catch (error) {
@@ -32,7 +38,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
         error: error instanceof Error ? error.message : String(error),
       };
     }
-  }, [customSeparator, separator, source]);
+  }, [customSeparator, separator, source, termOnly]);
 
   const cards = preview.result?.cards ?? [];
 

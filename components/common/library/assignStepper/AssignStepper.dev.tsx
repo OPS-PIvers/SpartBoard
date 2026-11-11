@@ -36,6 +36,7 @@ const VALUES: Record<AssignStepId, string> = {
   check: 'Flashcards, hide until I publish',
   cards: 'All 24 cards',
   speak: 'On',
+  study: 'Term first',
   sheets: '2 spares, answer key',
   written: 'On paper, 3 questions',
   sharing: 'Not shared',

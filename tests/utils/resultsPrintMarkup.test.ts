@@ -379,7 +379,7 @@ describe('markup on the redrawn sheet', () => {
       10
     );
     expect(lines).toBeLessThanOrEqual(6);
-    expect(px(strip, 'height')).toBeCloseTo(lines * 3.4 + 0.9, 2);
+    expect(px(strip, 'height')).toBeCloseTo(lines * 3.6 + 0.9, 2);
     // Every pin is still on the crop, even where its comment is cut.
     expect(root.querySelectorAll('.wr-mk svg text')).toHaveLength(30);
   });

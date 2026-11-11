@@ -308,7 +308,7 @@ const ReviewItem: React.FC<{
             </span>
           </p>
         )}
-        {showAnswers && (!correct || speak) && (
+        {showAnswers && (!correct || speak) && sides.answer && (
           <p>
             {t('flashcards.assignment.correctAnswer')}{' '}
             <span className="font-mono text-emerald-700">{sides.answer}</span>
@@ -398,7 +398,7 @@ const LegacyResults: React.FC<FlashcardCheckResultsProps> = ({
                             className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-950"
                           >
                             <p className="font-black">{card.term}</p>
-                            {showAnswers && (
+                            {showAnswers && card.definition && (
                               <p className="mt-1">{card.definition}</p>
                             )}
                           </li>

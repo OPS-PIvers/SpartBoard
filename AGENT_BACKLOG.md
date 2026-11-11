@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-185**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-188**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,6 +19,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
+- **AB-185 Shared board ink: only an accepted write is the merge baseline** (S). `context/DashboardContext.tsx` mirror timer sets `lastMirroredRef` to the payload before `mirrorSharedBoard` settles. If a peer's snapshot lands while that write is in flight and the write is then refused, the unaccepted payload was the ink baseline, so local strokes read as remote deletes and vanish. Hold the in-flight payload in a pending ref for dedupe and move it into `lastMirroredRef` in `.then`. Done when a test with a snapshot arriving before a permission-denied rejection keeps the local stroke. Found in release #5559 review (pre-existing).
 - **AB-172 Finish moving student data off bare isAdmin() in firestore.rules** (S, Opus, rules). From release 2026.11.09 (3) review of #5485. `isSiteAdmin()` now keeps a synced building admin out of most student data, but these still use `isAdmin()`: `guided_learning_sessions` update and delete, `poll_sessions` get, list and writes, poll `votes` delete, the `nextup_sessions` session write, `sessions/{userId}` get (live code), and `shared_activity_walls` comments and likes read and delete. Also `archived_responses` update and delete have no session-teacher branch (no client path uses them today). Decide each, convert the student-work ones, check `check:rules-size`, and add allowed and denied rules tests.
 - **AB-173 Paper import on an assignment with no paperBatchId picks a batch blind** (S). From the same review of #5484. `components/widgets/QuizWidget/Widget.tsx` now offers every batch of the quiz when the assignment has no `paperBatchId`; with one batch it is chosen silently, and `importPaperResponses` only checks `batch.quizId`, so scans can be graded against another assignment's choice order. Show the batch's assignment or date in the picker even with one batch, or match by assignment, with a test. Before `paper-answer-sheets` opens. Also from the #5486 review: `isRewordOnly` (`utils/paperImportPlan.ts`) accepts a swap plus a reword (recorded ['A1','B1','C'], current ['B2','A2','C']) as reword-only, so new scans grade against today's order; accept a reword only when no moved text could explain it (for example the correct choice keeps its position), with a test.
 - **AB-169 Class list follow-ups from release #5455** (S). (1) `refreshMyClassesV1` has no cooldown, so a teacher can call ClassLink on every click; add a per-user minimum interval. (2) `organizationUserDelete` leaves the user's `verified_classes` doc behind; delete it with the member. Done with functions tests for both.
@@ -128,6 +129,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### PLC, Schoology and imports
 
+- **AB-186 Schoology push due date: check the flag on the server** (S). `ltiPushToolColumnV1` (`functions/src/lti/toolColumnEndpoints.ts`) applies `dueDate` from any caller; only the client hides the picker behind `schoology-push-due-date`. Ignore `dueDate` unless `isGlobalFeatureGranted(db, 'schoology-push-due-date', email, uid)`. Low risk (it only sets the due date on the caller's own new column). Delete with the gate when it retires. From release #5559 review.
 - **AB-24 Schoology columns Phase 6** (M). Score never-launched students on Schoology-attached sessions through NRPS matching. Plan: `docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md`.
 - **AB-25 PLC sync rollback gaps** (M). `docs/PLC_ROADMAP.md` "Still open": the share-write rollback gap and the `detachSyncLinkage` API.
 - **AB-26 Rostered join link** (L). Quiz, Video Activity and GL get a rostered join link (`docs/wide-distro-plan.md`).
@@ -135,6 +137,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Tours and extension
 
+- **AB-187 Tour routes for assignment-row side menus** (S). #5576 moved Share, PLC results, Publish/Unpublish scores and paper import/print rows on In Progress and Completed into side menus (Paper, Share, Published scores). Give each group row a registered `tourAttr` anchor, point the inner routes in `config/tourSurfaces/quiz.ts` (and VA, Mini App, Flashcards where they share the menu) at it, regenerate `functions/src/mcp/tourAnchorList.ts`, and rebind the prod tour steps that click these rows by position (prod edit needs Paul's OK). Done when `tests/tourAnchorRoutes.test.ts` shows each moved anchor's path through its side-menu row.
 - **AB-183 Links in web tour tips look like plain text in the extension** (S, release #5550 review). `extension/src/overlay/OverlayRoot.tsx` now renders tips with `renderStepText` (`components/widgets/GuidedLearning/utils/richText.tsx`), but `extension/scripts/tailwind.overlay.config.ts` content globs don't include `richText.tsx`, so its `underline underline-offset-2` classes are never generated and a `[label](https://...)` link shows with no underline or color. Add the file to the overlay content list, check a link in a tip, and bump the extension version.
 - **AB-184 Print the tour Steps article with the new spotlight** (S, release #5550 review). `components/tours/steps/StepPicture.tsx` now draws `RingAndTip` sized by `useMeasured`, and `TourSpotlight` paints a 55% dim. `PrintCopy` in `StepsView.tsx` prints 150ms after portaling the article, so a picture may print with no ring (unmeasured) or with the dim over it. Print a Live tour and a web tour with targets on spartboard-dev; if either is wrong, hide the dim and draw the ring from percentages in print.
 - **AB-182 Tour anchors for library side-menu rows** (S, from #5539 review). Library card menus now have side menus (Quiz Preview › and Share ›, Flashcards Share ›). Their rows reuse `library-shell.card-menu-item` with fields like `row-1-item-1-2`, but that anchor's surface opener is `library-shell.card-menu` (`config/tourSurfaces/library.ts`), and the side menu mounts only after its parent row is clicked (`components/common/library/LibraryItemCard.tsx` `openSub`). So a tour step on Get link, Share with PLC, Check answers or Student view can't be reached. Give side-menu rows their own anchor id with the parent row as opener, register it, regenerate the anchor maps, and add a `tourDryRun` test. While there, key library menu rows by action id instead of position (`LibraryItemCard.tsx` `${rowKey}-item-${i + 1}`), keeping the old positional keys working for saved tours (release #5550 review: removing Stats shifted every row after it).
@@ -201,7 +204,13 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
 claude/project-thread-ylaw63
+claude/project-thread-tc5drw
+claude/project-thread-tc5drw-docs
+claude/project-thread-uhhzb5
+claude/project-thread-uhhzb5-docs
 claude/project-thread-tu7i6d
+claude/project-thread-zsvnns
+claude/project-thread-zsvnns-ab112
 
 ```
 git push origin --delete claude/project-thread-1ylvse
@@ -245,6 +254,14 @@ git push origin --delete claude/project-thread-9ltdwy claude/ab112-public-tour-b
 git push origin --delete claude/project-thread-0ybg2w
 git push origin --delete claude/project-thread-dn23lu
 git push origin --delete claude/project-thread-9ltdwy-links claude/project-thread-9ltdwy-stable claude/ab112-tour-links
+git push origin --delete claude/project-thread-8c5xjf
+git push origin --delete claude/project-thread-ejijbp claude/project-thread-ejijbp-docs
+git push origin --delete claude/project-thread-ttggwa claude/ab112-paper-written-step3
+git push origin --delete claude/project-thread-4u3dz9 claude/project-thread-4u3dz9-docs
+git push origin --delete claude/project-thread-dkc08c claude/project-thread-dkc08c-docs
+git push origin --delete claude/project-thread-fbyjcl claude/project-thread-fbyjcl-ab112
+git push origin --delete claude/project-thread-ic5u38 claude/project-thread-ic5u38-ab112
+git push origin --delete claude/project-thread-47qx31
 ```
 
   </details>

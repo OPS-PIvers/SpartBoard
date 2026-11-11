@@ -7,6 +7,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-document-ai-reader',
   'quiz-import-versions',
   'quiz-import-versions-plain',
+  'flashcards-swap-sides',
   'quiz-import-google-doc-pdf',
   'quiz-import-pdf-answer-marks',
   'quiz-import-equations',
@@ -20,6 +21,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',
+  'paper-pages-student-view',
   'paper-image-markup',
   'claude-connector',
   'web-tours',
@@ -37,6 +39,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'routine-guide',
   'blooms-ai',
   'flashcards-ai',
+  'flashcards-study-settings',
+  'flashcards-term-only',
   'plc-meeting-ai-notes',
   'sparty',
   'getting-started',
@@ -84,6 +88,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'video-import-ai',
   'embed-mini-app',
   'schoology-push-due-date',
+  'flashcards-missed-cards',
+  'flashcards-check-sync',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { numberMarkupComments } from '@/utils/paperMarkupRender';
+import { numberMarkupComments, onInk } from '@/utils/paperMarkupRender';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { inkOf, markupColorOf } from './markupStyle';
 import type { PaperMarkupEditor } from './usePaperMarkupEditor';
@@ -32,9 +32,10 @@ export const MarkupCommentList: React.FC<{ editor: PaperMarkupEditor }> = ({
               }`}
             >
               <span
-                className="mt-px inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white tabular-nums"
+                className="mt-px inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
                 style={{
                   background: item ? inkOf(markupColorOf(item)) : undefined,
+                  color: item ? onInk(inkOf(markupColorOf(item))) : '#fff',
                 }}
               >
                 {c.number}

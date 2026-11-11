@@ -168,6 +168,7 @@ export {
 } from './flashcardCheck';
 export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
+export { rescoreFlashcardCheckV1 } from './flashcardRescore';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
 export { lookupSpeakReferencesV1 } from './pronunciation/lookup';

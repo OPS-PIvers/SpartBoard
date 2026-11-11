@@ -11,6 +11,7 @@ export type AssignStepId =
   | 'check'
   | 'cards'
   | 'speak'
+  | 'study'
   | 'sheets'
   | 'written'
   | 'sharing';
@@ -25,6 +26,8 @@ export interface AssignStepContext {
   inPlc?: boolean;
   /** Flashcards Study: Speak is available for this set (flag and language). */
   speak?: boolean;
+  /** Flashcards Study: the teacher sets students' starting settings. */
+  study?: boolean;
   /** Video Activity: the rule steps belong to the assignment; self-paced only. */
   rules?: boolean;
   /** Video Activity: the player honors shuffle and answer feedback (slice 5). */
@@ -51,6 +54,7 @@ export function getAssignSteps(
 ): AssignStepId[] {
   const steps: AssignStepId[] = ['classes', 'when'];
   if (effectiveKind(activity, ctx.kind) === 'resource') {
+    if (activity === 'flashcards' && ctx.study) steps.push('study');
     if (activity === 'flashcards' && ctx.speak) steps.push('speak');
     return steps;
   }
@@ -83,6 +87,7 @@ const TITLES: Record<AssignStepId, string> = {
   check: 'How students are checked',
   cards: 'Cards',
   speak: 'Speak',
+  study: 'Study settings',
   sheets: 'Answer sheets',
   written: 'Written answers',
   sharing: 'Sharing',
