@@ -1587,6 +1587,8 @@ export interface PlcAssessmentAggregate {
   perTarget?: PlcAggregateTargetRow[];
   /** Standards directly tagged or inherited from child targets (schema 3+). */
   perStandard?: PlcAggregateTargetRow[];
+  /** Mastery by DOK level, rows keyed `dok:N`; absent when no question carries a level. */
+  perDok?: PlcAggregateTargetRow[];
   /** Uids of teachers who contributed results; the PLC page shows no per-teacher scores. */
   contributorUids: string[];
   /** serverTimestamp resolved to ms on read; when the function last recomputed. */

@@ -349,7 +349,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   assessmentId,
 }) => {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
   const { data: assessments, loading: assessmentsLoading } =
     usePlcAssessmentsData({ flashcards: true });
@@ -394,6 +394,10 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   );
   const masteryCutoffs =
     learningTargetList?.masteryCutoffs ?? DEFAULT_MASTERY_CUTOFFS;
+  // The switch exists only when a question has a DOK level and targets exist to switch from.
+  const dokRows = canAccessFeature('quiz-dok') ? (aggregate?.perDok ?? []) : [];
+  const [groupByDok, setGroupByDok] = useState(false);
+  const dokView = dokRows.length > 0 && (groupByDok || targets.length === 0);
 
   const goBack = () => spaNavigate(buildPlcPath(plc.id, 'assessments'));
   const backButton = (
@@ -629,14 +633,41 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
         </div>
       </section>
 
-      {(standards.length > 0 || targets.length > 0) && (
+      {(standards.length > 0 || targets.length > 0 || dokRows.length > 0) && (
         <section data-testid="target-mastery">
           <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">
             {t('plcDashboard.assessmentDetail.targetMasteryHeading', {
               defaultValue: 'Learning target mastery',
             })}
           </h3>
-          {standards.length > 0 && (
+          {dokRows.length > 0 && targets.length > 0 && (
+            <div
+              role="group"
+              aria-label={t('plcDashboard.assessmentDetail.groupBy', {
+                defaultValue: 'Group by',
+              })}
+              className="mb-3 inline-flex overflow-hidden rounded-md border border-slate-200 bg-white"
+              {...tourAttr('plc-assessments.detail-group-by')}
+            >
+              {[false, true].map((byDok) => (
+                // no-tour-anchor: the Group by switch around these buttons carries the anchor
+                <button
+                  key={String(byDok)}
+                  type="button"
+                  aria-pressed={groupByDok === byDok}
+                  onClick={() => setGroupByDok(byDok)}
+                  className={`px-2.5 py-1 text-xs font-bold ${
+                    groupByDok === byDok
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-brand-blue-primary hover:bg-slate-50'
+                  }`}
+                >
+                  {byDok ? 'DOK' : 'Target'}
+                </button>
+              ))}
+            </div>
+          )}
+          {!dokView && standards.length > 0 && (
             <div className="mb-4">
               <h4 className="mb-2 text-xxs font-bold uppercase tracking-wider text-slate-500">
                 {t('plcDashboard.assessmentDetail.standardsHeading', {
@@ -655,15 +686,19 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
               </ul>
             </div>
           )}
-          {targets.length > 0 && (
+          {(dokView || targets.length > 0) && (
             <div>
               <h4 className="mb-2 text-xxs font-bold uppercase tracking-wider text-slate-500">
-                {t('plcDashboard.assessmentDetail.targetsHeading', {
-                  defaultValue: 'Targets',
-                })}
+                {dokView
+                  ? t('plcDashboard.assessmentDetail.dokHeading', {
+                      defaultValue: 'DOK levels',
+                    })
+                  : t('plcDashboard.assessmentDetail.targetsHeading', {
+                      defaultValue: 'Targets',
+                    })}
               </h4>
               <ul className="space-y-2">
-                {targets.map((row) => (
+                {(dokView ? dokRows : targets).map((row) => (
                   <TargetAggregateRow
                     key={row.targetId}
                     row={row}

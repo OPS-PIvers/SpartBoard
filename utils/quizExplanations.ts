@@ -49,3 +49,42 @@ export function buildRevealedExplanations(
   }
   return Object.keys(out).length > 0 ? out : null;
 }
+
+type OptionedQuestion = Pick<
+  QuizQuestion,
+  'type' | 'correctAnswer' | 'incorrectAnswers' | 'optionExplanations'
+>;
+
+const optionSlots = (q: OptionedQuestion): string[] => [
+  ...(q.type === 'MA' ? q.correctAnswer.split('|') : [q.correctAnswer]),
+  ...q.incorrectAnswers,
+];
+
+/** Option explanations after an edit: a renamed option keeps its text, a deleted option's is dropped. */
+export function rekeyOptionExplanations(
+  prev: OptionedQuestion,
+  next: OptionedQuestion
+): Record<string, string> | undefined {
+  const map = prev.optionExplanations;
+  if (!map) return undefined;
+  const before = optionSlots(prev);
+  const after = optionSlots(next);
+  const kept = new Set(after);
+  const out: Record<string, string> = {};
+  for (const [option, text] of Object.entries(map)) {
+    if (kept.has(option)) out[option] = text;
+  }
+  if (before.length === after.length) {
+    before.forEach((option, i) => {
+      const moved = map[option];
+      if (
+        option !== after[i] &&
+        !kept.has(option) &&
+        moved &&
+        !(after[i] in out)
+      )
+        out[after[i]] = moved;
+    });
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}

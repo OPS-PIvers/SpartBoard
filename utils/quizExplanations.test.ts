@@ -5,6 +5,7 @@ import {
   buildRevealedExplanations,
   explainableOptions,
   explanationsForQuestion,
+  rekeyOptionExplanations,
 } from '@/utils/quizExplanations';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 
@@ -122,5 +123,68 @@ describe('resolveResultsVisibility and explanations', () => {
       resultsOverride: { mode: 'hidden', publishedAt: 5 },
     } as never);
     expect(out.revealedExplanations).toBeUndefined();
+  });
+});
+
+describe('rekeyOptionExplanations', () => {
+  const base = {
+    type: 'MC' as const,
+    correctAnswer: 'Paris',
+    incorrectAnswers: ['London', 'Rome'],
+    optionExplanations: { Paris: 'Right.', London: 'England.' },
+  };
+
+  it('moves an explanation to the renamed option', () => {
+    const next = { ...base, incorrectAnswers: ['Londres', 'Rome'] };
+    expect(rekeyOptionExplanations(base, next)).toEqual({
+      Paris: 'Right.',
+      Londres: 'England.',
+    });
+  });
+
+  it('follows the text through a clear and retype', () => {
+    const cleared = { ...base, correctAnswer: '' };
+    const step = rekeyOptionExplanations(base, cleared);
+    expect(step).toEqual({ '': 'Right.', London: 'England.' });
+    const retyped = { ...cleared, correctAnswer: 'Paris' };
+    expect(
+      rekeyOptionExplanations({ ...cleared, optionExplanations: step }, retyped)
+    ).toEqual({ Paris: 'Right.', London: 'England.' });
+  });
+
+  it('drops the explanation of a deleted option', () => {
+    const next = { ...base, incorrectAnswers: ['Rome'] };
+    expect(rekeyOptionExplanations(base, next)).toEqual({ Paris: 'Right.' });
+  });
+
+  it('keeps explanations when a Multiple Answer option changes sides', () => {
+    const ma = {
+      type: 'MA' as const,
+      correctAnswer: 'Paris|Lyon',
+      incorrectAnswers: ['London'],
+      optionExplanations: { London: 'England.', Lyon: 'Second.' },
+    };
+    const next = {
+      ...ma,
+      correctAnswer: 'Paris|London',
+      incorrectAnswers: ['Lyon'],
+    };
+    expect(rekeyOptionExplanations(ma, next)).toEqual({
+      London: 'England.',
+      Lyon: 'Second.',
+    });
+  });
+
+  it('is undefined when nothing remains or nothing was written', () => {
+    expect(
+      rekeyOptionExplanations(base, {
+        ...base,
+        correctAnswer: 'X',
+        incorrectAnswers: [],
+      })
+    ).toBeUndefined();
+    expect(
+      rekeyOptionExplanations({ ...base, optionExplanations: undefined }, base)
+    ).toBeUndefined();
   });
 });

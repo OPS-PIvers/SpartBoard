@@ -93,7 +93,11 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
       )}
       {explanationsOn && (
         <StepToggleRow
-          label="Show explanations"
+          label={t('quizExplanations.label', 'Show explanations')}
+          hint={t(
+            'quizExplanations.hint',
+            'Students see explanations with published results.'
+          )}
           anchor={tourFieldAttr(
             'assign-rule.toggle',
             'assign',

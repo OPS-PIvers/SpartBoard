@@ -60,6 +60,17 @@ export interface GroupQuestion {
   rubricCriterionIds: string[];
   /** Frozen tag snapshots used for target and standard rollups. */
   targets: QuestionTargetSnapshot[];
+  /** Depth of Knowledge level 1-4 from the synced quiz or the assignment snapshot. */
+  dok?: number;
+}
+
+function parseDok(raw: unknown): number | undefined {
+  return typeof raw === 'number' &&
+    Number.isInteger(raw) &&
+    raw >= 1 &&
+    raw <= 4
+    ? raw
+    : undefined;
 }
 
 export interface SyncedQuestions {
@@ -216,6 +227,8 @@ export interface AggregatePayload {
   perQuestion: AggregatePerQuestion[];
   perTarget: AggregateTargetRow[];
   perStandard: AggregateTargetRow[];
+  /** Mastery by DOK level; absent when no question has one. */
+  perDok?: AggregateTargetRow[];
   /** Uids of teachers whose sessions contributed, sorted; no scores. */
   contributorUids: string[];
   /** Still written for older clients; current clients read `contributorUids`. */
@@ -356,6 +369,7 @@ export function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
     allowPartialCredit: r.allowPartialCredit === true,
     rubricCriterionIds: parseRubricCriterionIds(r.rubricSnapshot),
     targets: parseTargets(r.targets),
+    ...(parseDok(r.dok) ? { dok: parseDok(r.dok) } : {}),
   };
 }
 
@@ -397,12 +411,13 @@ function mergeTargets(
 
 function parseQuestionTargetSnapshot(
   raw: unknown
-): { id: string; targets: QuestionTargetSnapshot[] } | null {
+): { id: string; targets: QuestionTargetSnapshot[]; dok?: number } | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const r = raw as Record<string, unknown>;
   const id = asString(r.id);
   if (!id) return null;
-  return { id, targets: parseTargets(r.targets) };
+  const dok = parseDok(r.dok);
+  return { id, targets: parseTargets(r.targets), ...(dok ? { dok } : {}) };
 }
 
 /**
@@ -440,6 +455,7 @@ export function resolveGroupQuestions(
     const question = questions.get(snapshot.id);
     if (question) {
       question.targets = mergeTargets(question.targets, snapshot.targets);
+      if (snapshot.dok && !question.dok) question.dok = snapshot.dok;
     }
   }
   // A teacher-written assignment key stands in for a question the synced group does not key.
@@ -1195,6 +1211,17 @@ export function computeAssessmentAggregate(
     contributorUids: perTeacher.map((t) => t.teacherUid),
     perTeacher,
   };
+  const perDok = buildAggregateTargetRows(
+    input.groupQuestions.map((q) => ({
+      id: q.id,
+      targets: q.dok
+        ? [{ id: `dok:${q.dok}`, kind: 'plc' as const, label: `DOK ${q.dok}` }]
+        : [],
+    })),
+    acc,
+    false
+  ).sort((a, b) => a.targetId.localeCompare(b.targetId));
+  if (perDok.length > 0) payload.perDok = perDok;
   if (anyMismatch) payload.alignmentWarning = ALIGNMENT_WARNING;
   return payload;
 }

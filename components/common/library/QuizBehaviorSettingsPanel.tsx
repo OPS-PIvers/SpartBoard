@@ -100,7 +100,11 @@ export const QuizBehaviorSettingsPanel: React.FC<
             {explanationsOn && (
               <ToggleRow
                 compact
-                label="Show explanations"
+                label={t('quizExplanations.label', 'Show explanations')}
+                hint={t(
+                  'quizExplanations.hint',
+                  'Students see explanations with published results.'
+                )}
                 anchor={tourFieldAttr(
                   'assign-quiz-behavior.toggle',
                   'assign',

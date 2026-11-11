@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { RevealedExplanations } from '@/types';
 
 interface StudentExplanationProps {
@@ -11,6 +12,7 @@ export const StudentExplanation: React.FC<StudentExplanationProps> = ({
   entry,
   light = false,
 }) => {
+  const { t } = useTranslation();
   const options = Object.entries(entry?.options ?? {});
   if (!entry?.explanation && options.length === 0) return null;
   const card = light
@@ -22,7 +24,7 @@ export const StudentExplanation: React.FC<StudentExplanationProps> = ({
       <p
         className={`mb-1 text-[10px] font-black uppercase tracking-wider ${heading}`}
       >
-        Explanation
+        {t('quizExplanations.heading', 'Explanation')}
       </p>
       {entry?.explanation && (
         <p className="whitespace-pre-wrap text-sm leading-relaxed">

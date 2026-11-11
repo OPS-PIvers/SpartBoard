@@ -6409,6 +6409,9 @@ export const TOUR_ANCHORS = {
   'plc-assessments.detail-back': {
     label: 'Detail back button in the PLC assessments tab',
   },
+  'plc-assessments.detail-group-by': {
+    label: 'Group by Target or DOK switch on a PLC assessment',
+  },
   'plc-assessments.detail-sort': {
     label: 'Detail sort button in the PLC assessments tab',
     perField: true,

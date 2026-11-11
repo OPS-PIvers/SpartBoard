@@ -1540,8 +1540,16 @@ export const useQuizAssignments = (
       // `showLearningTargets`.
       const sessionQuestions = dedupeQuestionsById(quiz.questions);
       const questionSnapshot = sessionQuestions.flatMap((question) =>
-        question.targets && question.targets.length > 0
-          ? [{ id: question.id, targets: question.targets }]
+        (question.targets?.length ?? 0) > 0 || question.dok != null
+          ? [
+              {
+                id: question.id,
+                ...(question.targets?.length
+                  ? { targets: question.targets }
+                  : {}),
+                ...(question.dok != null ? { dok: question.dok } : {}),
+              },
+            ]
           : []
       );
 

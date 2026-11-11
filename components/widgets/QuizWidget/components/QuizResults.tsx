@@ -220,6 +220,7 @@ import type {
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
 import { computeDokStats, quizHasDok } from '@/utils/quizDok';
+import { explanationsForQuestion } from '@/utils/quizExplanations';
 import { QuizTargetResults } from './QuizTargetResults';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
@@ -2591,6 +2592,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               onSelectStudents={handleSelectStudents}
               onOpenStudent={handleOpenStudent}
               orderingByItem={canAccessFeature('quiz-ordering-results')}
+              explanationsOn={canAccessFeature('quiz-explanations')}
             />
           )}
           {effectiveScreen === 'targets' && hasTargetsScreen && (
@@ -3432,8 +3434,11 @@ const QuestionDrilldownPanel: React.FC<{
   onOpenStudent?: (responseKey: string) => void;
   orderingByItem?: boolean;
   pictures: ReadonlyMap<string, AnswerPicture>;
+  /** The question's explanations, shown to the teacher when the feature is on. */
+  explanation?: ReturnType<typeof explanationsForQuestion>;
 }> = ({
   pictures,
+  explanation,
   id,
   drilldown,
   showStudentNames,
@@ -3482,6 +3487,25 @@ const QuestionDrilldownPanel: React.FC<{
           <p className="font-sans text-brand-gray-primary" style={SMALL_TEXT}>
             No students have answered this question yet.
           </p>
+        )}
+
+        {explanation && (
+          <div className="font-sans text-brand-gray-dark" style={SMALL_TEXT}>
+            <p
+              className="font-semibold uppercase tracking-wider text-brand-gray-primary"
+              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+            >
+              Explanation
+            </p>
+            {explanation.explanation && (
+              <p className="whitespace-pre-wrap">{explanation.explanation}</p>
+            )}
+            {Object.entries(explanation.options ?? {}).map(([option, text]) => (
+              <p key={option} className="wrap-break-word">
+                <span className="font-semibold">{option}:</span> {text}
+              </p>
+            ))}
+          </div>
         )}
 
         {servedCount > 0 &&
@@ -3652,6 +3676,8 @@ const QuestionsScreen: React.FC<{
   onOpenStudent?: (responseKey: string) => void;
   /** Ordering lists each item and who had it out of order (quiz-ordering-results). */
   orderingByItem?: boolean;
+  /** Teachers see each question's explanations (quiz-explanations). */
+  explanationsOn?: boolean;
 }> = ({
   questions,
   responses,
@@ -3662,6 +3688,7 @@ const QuestionsScreen: React.FC<{
   onSelectStudents,
   onOpenStudent,
   orderingByItem = false,
+  explanationsOn = false,
 }) => {
   const { t } = useTranslation();
   const [sortBy, setSortBy] = useState<QuestionSort>('order');
@@ -3997,6 +4024,7 @@ const QuestionsScreen: React.FC<{
                 onOpenStudent={onOpenStudent}
                 orderingByItem={byItem}
                 pictures={imageOnlyPictures(q)}
+                explanation={explanationsOn ? explanationsForQuestion(q) : null}
               />
             )}
           </div>
