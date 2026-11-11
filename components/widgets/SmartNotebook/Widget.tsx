@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
+import { copyText } from '@/utils/copyText';
 import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import {
   collection,
@@ -542,8 +543,11 @@ export const SmartNotebookWidget: React.FC<{
     e.stopPropagation();
     try {
       const url = await shareNotebook(notebook);
-      await navigator.clipboard.writeText(url);
-      addToast('Share link copied — paste it onto another board', 'success');
+      if (await copyText(url)) {
+        addToast('Share link copied — paste it onto another board', 'success');
+      } else {
+        addToast(`Share link created but not copied: ${url}`, 'info');
+      }
     } catch (err) {
       console.error('Failed to share notebook', err);
       addToast('Failed to create share link', 'error');
