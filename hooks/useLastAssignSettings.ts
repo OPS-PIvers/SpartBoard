@@ -54,7 +54,8 @@ function readLastUsed<T>(
       .then(() => getDoc(profileRef(uid)))
       .then((snap) => spec.parse(snap.exists() ? snap.get(spec.field) : null))
       .catch((err: unknown) => {
-        cache.delete(uid);
+        // A save may have replaced this entry while the read was in flight.
+        if (cache.get(uid) === pending) cache.delete(uid);
         logError(`${spec.logTag}.read`, err);
         return null;
       });
