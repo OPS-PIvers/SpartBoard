@@ -200,6 +200,35 @@ describe('lower admins cannot change the status of a legacy-list address', () =>
     );
   });
 
+  it('a domain admin is DENIED recreating it as inactive, but may recreate it live', async () => {
+    const email = 'legacy.only@orono.k12.mn.us';
+    await seed('admin_settings/user_roles', { superAdmins: [email] });
+    await assertFails(
+      setDoc(
+        doc(as(DOMAIN_EMAIL), memberPath(email)),
+        member(email, 'teacher', 'inactive')
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(as(DOMAIN_EMAIL), memberPath(email)),
+        member(email, 'teacher', 'active')
+      )
+    );
+    await assertSucceeds(getDoc(doc(as(DOMAIN_EMAIL), memberPath(email))));
+  });
+
+  it('a super admin may create it as inactive', async () => {
+    const email = 'legacy.only@orono.k12.mn.us';
+    await seed('admin_settings/user_roles', { superAdmins: [email] });
+    await assertSucceeds(
+      setDoc(
+        doc(as(SUPER_EMAIL), memberPath(email)),
+        member(email, 'teacher', 'inactive')
+      )
+    );
+  });
+
   it('a super admin may deactivate it', async () => {
     await assertSucceeds(
       updateDoc(doc(as(SUPER_EMAIL), memberPath(TEACHER_EMAIL)), {
