@@ -12,6 +12,7 @@ import {
 } from '@/utils/questionBanks';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { BankTargetFilter } from './BankTargetFilter';
+import { BankDokFilter } from './BankDokFilter';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { QuizEditorBankApi } from './QuizEditorModal';
 
@@ -55,6 +56,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
   const [count, setCount] = useState(5);
   const [points, setPoints] = useState(1);
   const [targetFilter, setTargetFilter] = useState<string[]>([]);
+  const [dokFilter, setDokFilter] = useState<number[]>([]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -114,7 +116,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
     [content, pq]
   );
   const eligible = content
-    ? eligibleBankQuestions(content, targetFilter).length
+    ? eligibleBankQuestions(content, targetFilter, undefined, dokFilter).length
     : 0;
   const randomValid = count >= 1 && count <= eligible;
 
@@ -152,6 +154,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
         mode: 'random',
         count,
         ...(targetFilter.length > 0 ? { targetFilter } : {}),
+        ...(dokFilter.length > 0 ? { dokFilter } : {}),
         points,
       });
     }
@@ -430,6 +433,11 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                       onChange={setTargetFilter}
                     />
                   </div>
+                  <BankDokFilter
+                    questions={content.questions}
+                    value={dokFilter}
+                    onChange={setDokFilter}
+                  />
                   <p
                     role="status"
                     className={`text-sm font-semibold ${randomValid ? 'text-slate-700' : 'text-brand-red-dark'}`}

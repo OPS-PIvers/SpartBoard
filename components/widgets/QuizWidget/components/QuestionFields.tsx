@@ -15,6 +15,7 @@ import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import type { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
+import { explainableOptions } from '@/utils/quizExplanations';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 import { AlternateAnswersEditor } from './AlternateAnswersEditor';
 import { AnswerKeyKeyboard, type KeyboardSettings } from './AnswerKeyKeyboard';
@@ -200,8 +201,10 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
 };
 
 interface QuestionTargetsFieldProps {
-  question: Pick<QuizQuestion, 'id' | 'text' | 'targets'>;
+  question: Pick<QuizQuestion, 'id' | 'text' | 'targets' | 'dok'>;
   onChange: (targets: QuestionTargetTag[] | undefined) => void;
+  /** Offers the DOK level beside the targets; absent where DOK is off or unsupported. */
+  onDokChange?: (dok: QuizQuestion['dok']) => void;
   promptStandards: ReturnType<typeof useStandardsFromPrompt>;
   pickerOpen: boolean;
   onPickerOpenChange: (open: boolean) => void;
@@ -211,6 +214,7 @@ interface QuestionTargetsFieldProps {
 export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   question: q,
   onChange,
+  onDokChange,
   promptStandards,
   pickerOpen,
   onPickerOpenChange,
@@ -219,15 +223,35 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   <div>
     <div className="flex items-center justify-between mb-1">
       <label className={labelClass}>Learning targets</label>
-      <button
-        type="button"
-        onClick={() => onPickerOpenChange(true)}
-        className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-        {...editAnchor}
-      >
-        <Tag className="w-3.5 h-3.5" />
-        {q.targets?.length ? 'Edit' : 'Add'}
-      </button>
+      <div className="flex items-center gap-3">
+        {onDokChange && (
+          <select
+            value={q.dok ?? ''}
+            aria-label="DOK level"
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              onDokChange(n >= 1 && n <= 4 ? (n as 1 | 2 | 3 | 4) : undefined);
+            }}
+            className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
+            {...tourTypeAttr('quiz-editor.dok', 'quiz')}
+          >
+            <option value="">No DOK</option>
+            <option value="1">DOK 1</option>
+            <option value="2">DOK 2</option>
+            <option value="3">DOK 3</option>
+            <option value="4">DOK 4</option>
+          </select>
+        )}
+        <button
+          type="button"
+          onClick={() => onPickerOpenChange(true)}
+          className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+          {...editAnchor}
+        >
+          <Tag className="w-3.5 h-3.5" />
+          {q.targets?.length ? 'Edit' : 'Add'}
+        </button>
+      </div>
     </div>
     {q.targets?.length ? (
       <TargetChips
@@ -266,6 +290,60 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
     )}
   </div>
 );
+
+interface QuestionExplanationFieldProps {
+  question: QuizQuestion;
+  onChange: (updates: Partial<QuizQuestion>) => void;
+}
+
+/** The question's explanation, plus one per answer option on Multiple Choice. */
+export const QuestionExplanationField: React.FC<
+  QuestionExplanationFieldProps
+> = ({ question: q, onChange }) => {
+  const options = explainableOptions(q);
+  const setOption = (option: string, text: string) => {
+    const next = { ...q.optionExplanations, [option]: text };
+    if (!text.trim()) delete next[option];
+    onChange({
+      optionExplanations: Object.keys(next).length > 0 ? next : undefined,
+    });
+  };
+  return (
+    <div {...tourTypeAttr('quiz-editor.explanation', 'quiz')}>
+      <label className={labelClass}>Explanation</label>
+      <textarea
+        value={q.explanation ?? ''}
+        onChange={(e) => onChange({ explanation: e.target.value || undefined })}
+        rows={2}
+        aria-label="Explanation"
+        placeholder="Why the answer is right"
+        className={`${inputClass} resize-y`}
+      />
+      {options.length > 1 && (
+        <div className="mt-2 space-y-1.5">
+          {options.map((option) => (
+            <div key={option} className="flex items-center gap-2">
+              <span
+                className="w-1/3 min-w-0 truncate text-xs font-semibold text-slate-600"
+                title={option}
+              >
+                {option}
+              </span>
+              <input
+                type="text"
+                value={q.optionExplanations?.[option] ?? ''}
+                onChange={(e) => setOption(option, e.target.value)}
+                aria-label={`Explanation for ${option}`}
+                placeholder="Why right or wrong"
+                className={inputClass}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface QuestionTypeSelectProps {
   question: QuizQuestion;

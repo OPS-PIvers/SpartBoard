@@ -23,7 +23,10 @@ import { CollapsibleSection } from './CollapsibleSection';
 import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 import { QuizTimeLimitRow } from './QuizTimeLimitRow';
-import { useQuizRuleGates } from './assignStepper/QuizRuleStepGates';
+import {
+  useQuizExplanationsOn,
+  useQuizRuleGates,
+} from './assignStepper/QuizRuleStepGates';
 import { patchQuizSessionOptions } from './assignStepper/QuizRuleStepValues';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
@@ -63,6 +66,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
 }) => {
   const { t } = useTranslation();
   const assessmentOnly = variant === 'quiz';
+  const explanationsOn = useQuizExplanationsOn();
   const gates = useQuizRuleGates();
   const { tabAwayTimerOn, scoreOnSubmitOn } = gates;
   const timeLimitOn =
@@ -92,36 +96,51 @@ export const QuizBehaviorSettingsPanel: React.FC<
         showLearningTargetsToggle
         hideCorrectOnBoard={assessmentOnly}
         feedbackLeadingSlot={
-          scoreOnSubmitOn && (
-            <ToggleRow
-              compact
-              label={t('quizScoreOnSubmit.label', 'Show score on submit')}
-              anchor={tourFieldAttr(
-                'assign-quiz-behavior.toggle',
-                'assign',
-                'score-on-submit'
-              )}
-              checked={scoreOnSubmit}
-              disabled={hasManualGrading}
-              onChange={(v) => patch({ showScoreOnSubmit: v })}
-              hint={
-                hasManualGrading
-                  ? t(
-                      'quizScoreOnSubmit.unavailable',
-                      'Not available with free-response questions.'
-                    )
-                  : scoreOnSubmit
+          <>
+            {explanationsOn && (
+              <ToggleRow
+                compact
+                label="Show explanations"
+                anchor={tourFieldAttr(
+                  'assign-quiz-behavior.toggle',
+                  'assign',
+                  'show-explanations'
+                )}
+                checked={value.sessionOptions.showExplanations ?? false}
+                onChange={(v) => patch({ showExplanations: v })}
+              />
+            )}
+            {scoreOnSubmitOn && (
+              <ToggleRow
+                compact
+                label={t('quizScoreOnSubmit.label', 'Show score on submit')}
+                anchor={tourFieldAttr(
+                  'assign-quiz-behavior.toggle',
+                  'assign',
+                  'score-on-submit'
+                )}
+                checked={scoreOnSubmit}
+                disabled={hasManualGrading}
+                onChange={(v) => patch({ showScoreOnSubmit: v })}
+                hint={
+                  hasManualGrading
                     ? t(
-                        'quizScoreOnSubmit.on',
-                        'Students see their score as soon as they submit.'
+                        'quizScoreOnSubmit.unavailable',
+                        'Not available with free-response questions.'
                       )
-                    : t(
-                        'quizScoreOnSubmit.off',
-                        'Students see their score when you publish results.'
-                      )
-              }
-            />
-          )
+                    : scoreOnSubmit
+                      ? t(
+                          'quizScoreOnSubmit.on',
+                          'Students see their score as soon as they submit.'
+                        )
+                      : t(
+                          'quizScoreOnSubmit.off',
+                          'Students see their score when you publish results.'
+                        )
+                }
+              />
+            )}
+          </>
         }
         options={{
           tabWarningsEnabled: value.sessionOptions.tabWarningsEnabled,

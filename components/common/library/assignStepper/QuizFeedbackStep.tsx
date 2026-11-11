@@ -5,7 +5,7 @@ import {
   type QuizHandRaiseMode,
 } from '@/utils/quizHandRaise';
 import type { QuizRuleStepProps } from './QuizAttemptsStep';
-import { useQuizRuleGates } from './QuizRuleStepGates';
+import { useQuizExplanationsOn, useQuizRuleGates } from './QuizRuleStepGates';
 import { patchQuizSessionOptions } from './QuizRuleStepValues';
 import { StepToggleRow } from './QuizStepRows';
 import { tourFieldAttr } from '@/config/tourAnchors';
@@ -31,6 +31,7 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
   const { t } = useTranslation();
   // Flashcards always scored on submit, so the row needs no Quiz flag there.
   const scoreOnSubmitOn = useQuizRuleGates().scoreOnSubmitOn || flashcards;
+  const explanationsOn = useQuizExplanationsOn() && !flashcards;
   const o = value.sessionOptions;
   const patch = (next: Parameters<typeof patchQuizSessionOptions>[1]) =>
     onChange(patchQuizSessionOptions(value, next));
@@ -88,6 +89,18 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
           )}
           checked={o.showLearningTargets ?? false}
           onChange={(showLearningTargets) => patch({ showLearningTargets })}
+        />
+      )}
+      {explanationsOn && (
+        <StepToggleRow
+          label="Show explanations"
+          anchor={tourFieldAttr(
+            'assign-rule.toggle',
+            'assign',
+            'show-explanations'
+          )}
+          checked={o.showExplanations ?? false}
+          onChange={(showExplanations) => patch({ showExplanations })}
         />
       )}
       {handRaiseMode === 'teacher-choice' && (

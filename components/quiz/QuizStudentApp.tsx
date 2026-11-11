@@ -54,6 +54,7 @@ import {
   SectionIntroDialog,
 } from './QuizSectionParts';
 import { QuizStopScreen } from './QuizStopScreen';
+import { StudentExplanation } from './StudentExplanation';
 import {
   openedPartFor,
   partOfQuestion,
@@ -148,6 +149,7 @@ import {
   type ResponseArtifact,
   type UnrespondedReason,
   type ResultsProtection,
+  type RevealedExplanations,
   type RevealedRubricExamples,
 } from '@/types';
 import {
@@ -1615,6 +1617,7 @@ const QuizJoinFlow: React.FC<{
               visibility={published.visibility}
               revealedAnswers={published.revealedAnswers}
               revealedRubricExamples={published.revealedRubricExamples}
+              revealedExplanations={published.revealedExplanations}
               publishedAt={published.publishedAt}
               protection={published.protection}
               pin={pin}
@@ -5579,6 +5582,7 @@ const ResultsScreen: React.FC<{
         visibility={published.visibility}
         revealedAnswers={published.revealedAnswers}
         revealedRubricExamples={published.revealedRubricExamples}
+        revealedExplanations={published.revealedExplanations}
         publishedAt={published.publishedAt}
         protection={published.protection}
         pin={pin}
@@ -5664,6 +5668,8 @@ export const PublishedScoreReview: React.FC<{
   revealedAnswers?: Record<string, string>;
   /** Scoring-guide example responses, published with the answer key. */
   revealedRubricExamples?: RevealedRubricExamples;
+  /** Explanations published with the answer key when Show explanations is on. */
+  revealedExplanations?: RevealedExplanations;
   /** Publish time for the watermark; falls back to the session's. */
   publishedAt?: number;
   /** This student's results protection; falls back to the session's. */
@@ -5694,6 +5700,7 @@ export const PublishedScoreReview: React.FC<{
   visibility,
   revealedAnswers,
   revealedRubricExamples,
+  revealedExplanations,
   publishedAt: publishedAtProp,
   protection: protectionProp,
   pin,
@@ -6333,6 +6340,12 @@ export const PublishedScoreReview: React.FC<{
                                 </p>
                               )}
                             </>
+                          )}
+                          {session.showExplanations === true && (
+                            <StudentExplanation
+                              entry={revealedExplanations?.[q.id]}
+                              light={light}
+                            />
                           )}
                           {mediaEnabled && responseKey && (
                             <ResponsePlaybackCard

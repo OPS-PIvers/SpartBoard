@@ -234,6 +234,7 @@ const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
       (sa.count ?? 0) !== (sb.count ?? 0) ||
       (sa.points ?? 1) !== (sb.points ?? 1) ||
       (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|') ||
+      (sa.dokFilter ?? []).join('|') !== (sb.dokFilter ?? []).join('|') ||
       (sa.stimulusIds ?? []).join('|') !== (sb.stimulusIds ?? []).join('|')
     ) {
       return false;

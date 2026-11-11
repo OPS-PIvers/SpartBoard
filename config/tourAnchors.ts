@@ -1776,6 +1776,24 @@ export const TOUR_ANCHORS = {
     panel: true,
     closes: 'own',
   },
+  'quiz-editor.explanation': {
+    label: 'Explanation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.dok': {
+    label: 'DOK level select beside Learning targets in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.group-by': {
+    label: 'Group by Target or DOK switch in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-bank-draw.dok': {
+    label: 'DOK filter on a question bank draw',
+    panel: true,
+  },
   'quiz-editor.prompt-standards-undo': {
     label: 'Undo link after a standard is tagged from the question text',
     panel: true,

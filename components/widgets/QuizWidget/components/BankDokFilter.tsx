@@ -1,0 +1,46 @@
+import React from 'react';
+import type { QuizQuestion } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { tourTypeAttr } from '@/config/tourAnchors';
+import { DOK_LEVELS } from '@/utils/quizDok';
+import { inputClass, labelClass } from './quizEditorFieldStyles';
+
+interface BankDokFilterProps {
+  questions: readonly Pick<QuizQuestion, 'dok'>[];
+  value: number[];
+  onChange: (next: number[]) => void;
+}
+
+/** Draw only questions at one DOK level; absent unless the bank has levels. */
+export const BankDokFilter: React.FC<BankDokFilterProps> = ({
+  questions,
+  value,
+  onChange,
+}) => {
+  const { canAccessFeature } = useAuth();
+  const hasDok = questions.some((q) => q.dok != null);
+  if (!canAccessFeature('quiz-dok') || (!hasDok && value.length === 0))
+    return null;
+  return (
+    <div>
+      <label className={labelClass}>DOK level</label>
+      <select
+        value={value[0] ?? ''}
+        aria-label="DOK level"
+        onChange={(e) => {
+          const level = Number(e.target.value);
+          onChange(level > 0 ? [level] : []);
+        }}
+        className={inputClass}
+        {...tourTypeAttr('quiz-bank-draw.dok', 'quiz')}
+      >
+        <option value="">Any DOK</option>
+        {DOK_LEVELS.map((level) => (
+          <option key={level} value={level}>
+            {`DOK ${level}`}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};

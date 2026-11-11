@@ -219,6 +219,7 @@ import type {
   FibGradingContext,
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
+import { computeDokStats, quizHasDok } from '@/utils/quizDok';
 import { QuizTargetResults } from './QuizTargetResults';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
@@ -1072,6 +1073,32 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const hasTargetResults = targetStats.targets.some(
     (row) => row.servedCount > 0
   );
+  // The Group by switch and DOK rows exist only when a question has a DOK level.
+  const dokOn = canAccessFeature('quiz-dok') && quizHasDok(quiz.questions);
+  const [groupByChoice, setGroupByChoice] = useState<'target' | 'dok'>(
+    'target'
+  );
+  const dokStats = useMemo(
+    () =>
+      dokOn
+        ? computeDokStats(
+            quiz.questions,
+            filteredResponses,
+            DEFAULT_MASTERY_CUTOFFS,
+            fibGrading
+          )
+        : null,
+    [dokOn, quiz.questions, filteredResponses, fibGrading]
+  );
+  const hasDokResults =
+    dokStats?.targets.some((row) => row.servedCount > 0) ?? false;
+  const hasTargetsScreen = hasTargetResults || hasDokResults;
+  const groupBy: 'target' | 'dok' =
+    dokStats && hasDokResults && (groupByChoice === 'dok' || !hasTargetResults)
+      ? 'dok'
+      : 'target';
+  const shownTargetStats =
+    groupBy === 'dok' && dokStats ? dokStats : targetStats;
   const resolveTargetStudentName = useCallback(
     (response: QuizResponse) =>
       resolveResponseDisplayName(response, pinToName, byStudentUid),
@@ -2251,7 +2278,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // as home (title + back-out semantics) even if a drill-down was open when
   // the last response was deleted.
   const effectiveScreen =
-    responses.length === 0 || (screen === 'targets' && !hasTargetResults)
+    responses.length === 0 || (screen === 'targets' && !hasTargetsScreen)
       ? 'home'
       : screen;
   const headerTitle =
@@ -2526,12 +2553,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   onClick={() => setScreen('questions')}
                   anchor={tourTypeAttr('quiz-results.drill-questions', 'quiz')}
                 />
-                {hasTargetResults && (
+                {hasTargetsScreen && (
                   <ResultsDrillRow
-                    label="Targets"
-                    detail={`${targetStats.targets.filter((row) => row.servedCount > 0).length} target${
-                      targetStats.targets.filter((row) => row.servedCount > 0)
-                        .length === 1
+                    label={groupBy === 'dok' ? 'DOK' : 'Targets'}
+                    detail={`${shownTargetStats.targets.filter((row) => row.servedCount > 0).length} ${groupBy === 'dok' ? 'level' : 'target'}${
+                      shownTargetStats.targets.filter(
+                        (row) => row.servedCount > 0
+                      ).length === 1
                         ? ''
                         : 's'
                     }`}
@@ -2565,11 +2593,17 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               orderingByItem={canAccessFeature('quiz-ordering-results')}
             />
           )}
-          {effectiveScreen === 'targets' && hasTargetResults && (
+          {effectiveScreen === 'targets' && hasTargetsScreen && (
             <QuizTargetResults
               quizTitle={quiz.title}
               responses={filteredResponses}
-              stats={targetStats}
+              stats={shownTargetStats}
+              groupBy={groupBy}
+              onGroupByChange={
+                dokOn && hasTargetResults && hasDokResults
+                  ? setGroupByChoice
+                  : undefined
+              }
               resolveName={resolveShownName}
               resolveExportName={resolveTargetExportName}
             />

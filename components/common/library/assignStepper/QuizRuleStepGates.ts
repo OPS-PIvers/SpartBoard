@@ -17,3 +17,9 @@ export const useQuizRuleGates = (): QuizRuleGates => {
     pageProtectionsOn: can(PAGE_PROTECTIONS_FEATURE),
   };
 };
+
+/** True when the signed-in teacher may use quiz explanations; false without a provider. */
+export const useQuizExplanationsOn = (): boolean => {
+  const auth = useContext(AuthContext);
+  return auth?.canAccessFeature?.('quiz-explanations') === true;
+};
