@@ -210,6 +210,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-848bcg
 docs/release-2026-11-11c-followups
 claude/project-thread-vplbva
 nightly/admin-calendar-followup-2026-11-11
