@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { QuizQuestion } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import { tourTypeAttr } from '@/config/tourAnchors';
@@ -17,6 +18,7 @@ export const BankDokFilter: React.FC<BankDokFilterProps> = ({
   value,
   onChange,
 }) => {
+  const { t } = useTranslation();
   const auth = useContext(AuthContext);
   const hasDok = questions.some((q) => q.dok != null);
   if (
@@ -26,10 +28,10 @@ export const BankDokFilter: React.FC<BankDokFilterProps> = ({
     return null;
   return (
     <div>
-      <label className={labelClass}>DOK level</label>
+      <label className={labelClass}>{t('quizDok.level', 'DOK level')}</label>
       <select
         value={value[0] ?? ''}
-        aria-label="DOK level"
+        aria-label={t('quizDok.level', 'DOK level')}
         onChange={(e) => {
           const level = Number(e.target.value);
           onChange(level > 0 ? [level] : []);
@@ -37,10 +39,13 @@ export const BankDokFilter: React.FC<BankDokFilterProps> = ({
         className={inputClass}
         {...tourTypeAttr('quiz-bank-draw.dok', 'quiz')}
       >
-        <option value="">Any DOK</option>
+        <option value="">{t('quizDok.any', 'Any DOK')}</option>
         {DOK_LEVELS.map((level) => (
           <option key={level} value={level}>
-            {`DOK ${level}`}
+            {t('quizDok.levelOption', {
+              level,
+              defaultValue: 'DOK {{level}}',
+            })}
           </option>
         ))}
       </select>

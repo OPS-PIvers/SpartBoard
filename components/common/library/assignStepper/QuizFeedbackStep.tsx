@@ -96,7 +96,7 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
           label={t('quizExplanations.label', 'Show explanations')}
           hint={t(
             'quizExplanations.hint',
-            'Students see explanations with published results.'
+            'Students see explanations with published results. A change applies the next time you publish.'
           )}
           anchor={tourFieldAttr(
             'assign-rule.toggle',

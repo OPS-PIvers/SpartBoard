@@ -58,6 +58,9 @@ import {
   Utensils,
   CloudSun,
   Workflow,
+  SquareChevronDown,
+  PanelLeft,
+  ListTodo,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1226,6 +1229,45 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Dropdown and Drag blank types. Admin-only until Paul has tested it in prod.
+  'quiz-blank-types': {
+    label: 'Fill in the blank: dropdown and drag',
+    icon: SquareChevronDown,
+    description:
+      'Blanks can be a dropdown list or a word bank students drag words from, as well as typed.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Stimuli as tabs beside the question. Admin-only until Paul has tested it in prod.
+  'quiz-stimulus-tabs': {
+    label: 'Stimulus tabs',
+    icon: PanelLeft,
+    description:
+      'Questions with two or more stimuli show them as named tabs beside the question, with the calculator last.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Review before submit and Mark for review. Admin-only until Paul has tested it in prod.
+  'quiz-review-step': {
+    label: 'Review before submit',
+    icon: ListTodo,
+    description:
+      'Self-paced quizzes end on a review screen of answered, unanswered and marked questions before students submit.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Ordering results by item. Admin-only until Paul has tested it in prod.
   'quiz-ordering-results': {
     label: 'Ordering results by item',
@@ -1661,6 +1703,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Video,
     description:
       'Short-answer questions the teacher marks, note stops that pause the video on text, and a start and end time for the video.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'video-activity-editor-arrows': {
+    label: 'Video Activity editor: question arrows',
+    icon: Video,
+    description:
+      'The video fills the editor and arrows step through questions in place of the question list.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

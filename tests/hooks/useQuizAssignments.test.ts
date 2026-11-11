@@ -3485,6 +3485,56 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findSessionSet()).not.toHaveProperty('allowStimulusQuotes');
   });
 
+  const mcaWrapper = (on: string[]) =>
+    gateWrapper(
+      gateAuth('teacher-choice', {
+        canAccessFeature: (id: string) => on.includes(id),
+      })
+    );
+
+  it('stamps stimulus tabs and the review step on a self-paced session with the flags', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mcaWrapper(['quiz-stimulus-tabs', 'quiz-review-step']),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'student',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet()).toMatchObject({
+      stimulusTabs: true,
+      reviewStep: true,
+    });
+  });
+
+  it('never stamps the review step on a teacher-paced session', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mcaWrapper(['quiz-review-step']),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet()).not.toHaveProperty('reviewStep');
+  });
+
+  it('stamps neither without the flags', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mcaWrapper([]),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'student',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet()).not.toHaveProperty('stimulusTabs');
+    expect(findSessionSet()).not.toHaveProperty('reviewStep');
+  });
+
   it('mirrors showLearningTargets and only projects tags when it is enabled', async () => {
     const taggedQuiz = {
       ...QUIZ,

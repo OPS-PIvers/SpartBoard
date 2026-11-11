@@ -2183,11 +2183,70 @@
       "barLabel": "Puntuación media {{pct}} %"
     }
   },
+  "quizExplanations": {
+    "label": "Mostrar explicaciones",
+    "hint": "Los estudiantes ven las explicaciones con los resultados publicados. Un cambio se aplica la próxima vez que publiques.",
+    "heading": "Explicación",
+    "placeholder": "Por qué es correcta la respuesta",
+    "optionPlaceholder": "Por qué es correcta o incorrecta",
+    "optionLabel": "Explicación de {{option}}"
+  },
+  "quizDok": {
+    "level": "Nivel DOK",
+    "none": "Sin DOK",
+    "any": "Cualquier DOK",
+    "levelOption": "DOK {{level}}",
+    "groupBy": "Agrupar por",
+    "target": "Objetivo",
+    "dok": "DOK"
+  },
   "quizScoreOnSubmit": {
     "label": "Mostrar la calificación al entregar",
     "on": "Los estudiantes ven su calificación en cuanto entregan.",
     "off": "Los estudiantes ven su calificación cuando publicas los resultados.",
     "unavailable": "No disponible con preguntas de respuesta libre."
+  },
+  "quizBlanks": {
+    "blankN": "Espacio {{n}}",
+    "theBlank": "El espacio",
+    "yourAnswer": "Tu respuesta",
+    "choose": "Elige…",
+    "dropHere": "Suelta una palabra aquí",
+    "emptyBlank": "{{blank}}, vacío",
+    "inBlank": "{{word}}, en {{blank}}",
+    "inBank": "{{word}}, en el banco de palabras",
+    "wordBank": "Banco de palabras",
+    "reset": "Restablecer",
+    "clearAll": "Vaciar todos los espacios",
+    "allPlaced": "Todas las palabras colocadas.",
+    "picked": "{{word}} seleccionada. Elige un espacio.",
+    "placed": "{{word}} colocada en {{blank}}.",
+    "returned": "{{word}} devuelta al banco de palabras."
+  },
+  "quizReview": {
+    "reviewButton": "REVISAR",
+    "reviewLink": "Revisar",
+    "mark": "Marcar para revisar",
+    "marked": "Marcada para revisar",
+    "markedShort": "marcada para revisar",
+    "title": "Revisa antes de entregar",
+    "answered": "Respondida",
+    "unanswered": "Sin responder",
+    "locked": "Bloqueada",
+    "countAnswered_one": "{{count}} respondida",
+    "countAnswered_other": "{{count}} respondidas",
+    "countUnanswered_one": "{{count}} sin responder",
+    "countUnanswered_other": "{{count}} sin responder",
+    "countMarked_one": "{{count}} marcada",
+    "countMarked_other": "{{count}} marcadas",
+    "questionN": "Pregunta {{n}}",
+    "backToLast": "Volver a la última pregunta",
+    "submit": "ENTREGAR QUIZ"
+  },
+  "quizStimulusTabs": {
+    "sources": "Fuentes",
+    "calculator": "Calculadora",
+    "numbered": "Pestaña {{n}}"
   },
   "quizTimeLimit": {
     "label": "Límite de tiempo",

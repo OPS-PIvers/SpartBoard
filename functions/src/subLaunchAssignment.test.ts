@@ -2046,3 +2046,116 @@ describe('publicQuestionFromKey picture-only answers', () => {
     ).toEqual(['Picture CDE', 'Picture XYZ']);
   });
 });
+
+describe('publicQuestionFromKey blank types', () => {
+  const SEP = '\u001F';
+  it('sends dropdown choices in authored order and never the key', () => {
+    const out = publicQuestionFromKey({
+      id: 'q1',
+      type: 'FIB',
+      text: 'Ice ___ when ___.',
+      correctAnswer: `melts${SEP}heated`,
+      blankAlternates: [{ answers: ['thaws'] }, { answers: [] }],
+      blankType: 'dropdown',
+      blankChoices: [
+        { choices: ['freezes', 'melts', 'melts', ' '] },
+        { choices: ['heated', 'cooled'] },
+      ],
+    } as unknown as Parameters<typeof publicQuestionFromKey>[0]);
+    expect(out.blankType).toBe('dropdown');
+    expect(out.blankCount).toBe(2);
+    expect(out.blankChoices).toEqual([
+      { choices: ['freezes', 'melts'] },
+      { choices: ['heated', 'cooled'] },
+    ]);
+    expect(out).not.toHaveProperty('correctAnswer');
+    expect(out).not.toHaveProperty('blankAlternates');
+    expect(findAnswerField(out)).toBeNull();
+  });
+
+  it('sends the word bank shuffled, keeping a repeated word that cannot be reused', () => {
+    const out = publicQuestionFromKey({
+      id: 'q2',
+      type: 'FIB',
+      text: '___ and ___',
+      correctAnswer: `heat${SEP}heat`,
+      blankType: 'drag',
+      wordBank: ['heat', 'light', ' ', 'heat'],
+    });
+    expect(out.blankType).toBe('drag');
+    expect([...(out.wordBank as string[])].sort()).toEqual([
+      'heat',
+      'heat',
+      'light',
+    ]);
+    expect(out).not.toHaveProperty('wordBankReuse');
+    expect(findAnswerField(out)).toBeNull();
+  });
+
+  it('lists a reusable answer once', () => {
+    const out = publicQuestionFromKey({
+      id: 'q3',
+      type: 'FIB',
+      text: '___ and ___',
+      correctAnswer: `heat${SEP}heat`,
+      blankType: 'drag',
+      wordBankReuse: true,
+      wordBank: ['heat', 'light', 'Heat'],
+    });
+    expect([...(out.wordBank as string[])].sort()).toEqual(['heat', 'light']);
+    expect(out.wordBankReuse).toBe(true);
+  });
+
+  it('leaves a typed question as it was', () => {
+    const out = publicQuestionFromKey({
+      id: 'q4',
+      type: 'FIB',
+      text: 'The capital is ___',
+      correctAnswer: 'Paris',
+    });
+    expect(out).toEqual({
+      id: 'q4',
+      type: 'FIB',
+      text: 'The capital is ___',
+      timeLimit: 30,
+    });
+  });
+});
+
+describe('handleLaunchSubAssignment stimulus tabs and review step', () => {
+  const only = (on: string[]) =>
+    vi.fn((...args: unknown[]) =>
+      Promise.resolve(on.includes(String(args[2])))
+    );
+
+  it('stamps both when the host has the flags on a self-paced run', async () => {
+    const { run, written } = launch(
+      {},
+      SUB,
+      input({ session: session({ sessionMode: 'student' }) }),
+      {
+        ...deps,
+        hostHasFeature: only(['quiz-stimulus-tabs', 'quiz-review-step']),
+      }
+    );
+    await run();
+    expect(written[0].data.stimulusTabs).toBe(true);
+    expect(written[0].data.reviewStep).toBe(true);
+  });
+
+  it('never stamps the review step on a teacher-paced run', async () => {
+    const { run, written } = launch({}, SUB, input(), {
+      ...deps,
+      hostHasFeature: only(['quiz-review-step']),
+    });
+    await run();
+    expect(written[0].data).not.toHaveProperty('reviewStep');
+  });
+
+  it('stamps neither without the host’s flags', async () => {
+    const { run, written } = launch();
+    await run();
+    expect(written[0].data).not.toHaveProperty('stimulusTabs');
+    expect(written[0].data).not.toHaveProperty('reviewStep');
+  });
+});

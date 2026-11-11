@@ -130,6 +130,25 @@ import {
   stimulusPlayKey,
 } from '@/utils/quizStimuli';
 import {
+  splitStimuliForTabs,
+  stimulusUseCounts,
+} from '@/utils/quizStimulusTabs';
+import { StimulusTabsPanel } from './StimulusTabsPanel';
+import {
+  MarkForReviewButton,
+  QuizReviewScreen,
+  ReviewMarksCleanup,
+  ReviewSwap,
+} from './QuizReviewScreen';
+import { reviewRows, reviewStepActive } from '@/utils/quizReviewStep';
+import { useResetOnChange } from '@/hooks/useResetOnChange';
+import {
+  clearReviewState,
+  loadReviewState,
+  reviewStateKey,
+  saveReviewState,
+} from '@/utils/quizReviewMarksStore';
+import {
   CollapsibleStimuli,
   StimulusRenderer,
   type StimulusReadAloud,
@@ -275,6 +294,8 @@ import {
   revealedBlanksMatch,
 } from '@/utils/quizFibBlanks';
 import { FibMultiBlankInput, NumberedBlanksText } from './FibMultiBlankInput';
+import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
+import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
 import { answerAccents } from '@/config/studentKeyboards';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
@@ -1609,34 +1630,46 @@ const QuizJoinFlow: React.FC<{
       // so an async assignment no live teacher ends still reaches its score.
       case 'submitted': {
         const published = resolveResultsVisibility(session, screen.response);
+        const marksCleanup = (
+          <ReviewMarksCleanup
+            sessionId={session.id}
+            responseKey={screen.response._responseKey}
+          />
+        );
         if (published.visibility !== 'none' && screen.completed) {
           return (
-            <PublishedScoreReview
-              session={session}
-              myResponse={screen.response}
-              visibility={published.visibility}
-              revealedAnswers={published.revealedAnswers}
-              revealedRubricExamples={published.revealedRubricExamples}
-              revealedExplanations={published.revealedExplanations}
-              publishedAt={published.publishedAt}
-              protection={published.protection}
-              pin={pin}
-              embedded={embedded}
-              watermarkNameOverride={watermarkNameOverride}
-              override={myOverride}
-              drawIds={drawIds}
-            />
+            <>
+              {marksCleanup}
+              <PublishedScoreReview
+                session={session}
+                myResponse={screen.response}
+                visibility={published.visibility}
+                revealedAnswers={published.revealedAnswers}
+                revealedRubricExamples={published.revealedRubricExamples}
+                revealedExplanations={published.revealedExplanations}
+                publishedAt={published.publishedAt}
+                protection={published.protection}
+                pin={pin}
+                embedded={embedded}
+                watermarkNameOverride={watermarkNameOverride}
+                override={myOverride}
+                drawIds={drawIds}
+              />
+            </>
           );
         }
         return (
-          <QuizSubmittedWaitScreen
-            session={session}
-            myResponse={screen.response}
-            pin={pin}
-            answeredCount={myAnsweredCount}
-            totalQuestions={servedTotalQuestions}
-            pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
-          />
+          <>
+            {marksCleanup}
+            <QuizSubmittedWaitScreen
+              session={session}
+              myResponse={screen.response}
+              pin={pin}
+              answeredCount={myAnsweredCount}
+              totalQuestions={servedTotalQuestions}
+              pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
+            />
+          </>
         );
       }
 
@@ -1974,6 +2007,55 @@ export const ActiveQuiz: React.FC<{
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
+  // Review before submit (quiz-review-step): this tab's sessionStorage only, so teachers never see marks.
+  const reviewStoreKey = reviewStateKey(
+    session.id,
+    myResponse?._responseKey,
+    myResponse?.completedAttempts ?? 0
+  );
+  const [reviewOpen, setReviewOpen] = useState(
+    () => loadReviewState(reviewStoreKey).open
+  );
+  const [returnToReview, setReturnToReview] = useState(
+    () => loadReviewState(reviewStoreKey).returnTo
+  );
+  const [markedIds, setMarkedIds] = useState<ReadonlySet<string>>(
+    () => new Set(loadReviewState(reviewStoreKey).marked)
+  );
+  // A new attempt, or a response that loads after mount, reads its own saved state.
+  useResetOnChange(reviewStoreKey, (key) => {
+    const saved = loadReviewState(key);
+    setMarkedIds(new Set(saved.marked));
+    setReviewOpen(saved.open);
+    setReturnToReview(saved.returnTo);
+  });
+  // Submitting bumps the attempt in the same write, so the finished attempt's key is cleared on the move.
+  const prevReviewKeyRef = useRef(reviewStoreKey);
+  useEffect(() => {
+    const prev = prevReviewKeyRef.current;
+    prevReviewKeyRef.current = reviewStoreKey;
+    if (prev && reviewStoreKey && prev !== reviewStoreKey)
+      clearReviewState(prev);
+  }, [reviewStoreKey]);
+  const reviewAttemptSubmitted = isAttemptSubmitted(myResponse);
+  useEffect(() => {
+    if (!reviewStoreKey) return;
+    if (reviewAttemptSubmitted) {
+      clearReviewState(reviewStoreKey);
+      return;
+    }
+    saveReviewState(reviewStoreKey, {
+      marked: [...markedIds],
+      open: reviewOpen,
+      returnTo: returnToReview,
+    });
+  }, [
+    reviewStoreKey,
+    reviewAttemptSubmitted,
+    markedIds,
+    reviewOpen,
+    returnToReview,
+  ]);
   const [handBusy, setHandBusy] = useState(false);
   const handleToggleHand = async () => {
     if (handBusy) return;
@@ -2199,6 +2281,7 @@ export const ActiveQuiz: React.FC<{
   const [localIndex, setLocalIndex] = useState(0);
 
   const isStudentPaced = session.sessionMode === 'student';
+  const reviewOn = reviewStepActive(session);
   const currentIndex = isStudentPaced
     ? localIndex
     : session.currentQuestionIndex;
@@ -2437,7 +2520,11 @@ export const ActiveQuiz: React.FC<{
     manifest: session.readAloud,
     locale: readAloudLocale,
     canonicalQuestions: session.publicQuestions,
-    question: currentQuestion,
+    // Nothing to read behind the review screen.
+    question:
+      reviewOn && reviewOpen && !isAttemptSubmitted(myResponse)
+        ? undefined
+        : currentQuestion,
     nextQuestion: isStudentPaced
       ? orderedPublicQuestions[localIndex + 1]
       : undefined,
@@ -2485,10 +2572,16 @@ export const ActiveQuiz: React.FC<{
     () => resolveStimuli(currentQuestion?.stimulusIds, session.stimuli),
     [currentQuestion?.stimulusIds, session.stimuli]
   );
-  const { docShaped: docStimuli, inline: inlineStimuli } = useMemo(
-    () => splitStimuliForLayout(currentStimuli),
-    [currentStimuli]
+  const stimulusTabsOn = session.stimulusTabs === true;
+  const stimulusUse = useMemo(
+    () => stimulusUseCounts(session.publicQuestions ?? []),
+    [session.publicQuestions]
   );
+  const { docShaped: docStimuli, inline: inlineStimuli } = useMemo(() => {
+    if (!stimulusTabsOn) return splitStimuliForLayout(currentStimuli);
+    const { panel, inline } = splitStimuliForTabs(currentStimuli, stimulusUse);
+    return { docShaped: panel, inline };
+  }, [currentStimuli, stimulusTabsOn, stimulusUse]);
   const recoveryQuestionId = currentQuestion?.id;
   const recoveryResponseKey = myResponse?._responseKey;
   const takeRecovery = useMemo(
@@ -2869,6 +2962,10 @@ export const ActiveQuiz: React.FC<{
   timeoutFinishesQuizRef.current =
     currentIndex >= effectiveTotalQuestions - 1 &&
     !isAttemptSubmitted(myResponse);
+  // With the review step, a last-question timeout opens the review screen instead (M23).
+  const timeoutOpensReviewRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  timeoutOpensReviewRef.current = reviewOn && timeoutFinishesQuizRef.current;
   const onCompleteRef = useRef(onComplete);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCompleteRef.current = onComplete;
@@ -2910,7 +3007,8 @@ export const ActiveQuiz: React.FC<{
       isFreeResponseType(question.type) &&
       wordLimitStatus(answerWords, question).blocked &&
       answerWords < (question.minWords ?? 0);
-    const finishesQuiz = timeoutFinishesQuizRef.current;
+    const opensReview = timeoutOpensReviewRef.current;
+    const finishesQuiz = !opensReview && timeoutFinishesQuizRef.current;
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
@@ -2920,6 +3018,11 @@ export const ActiveQuiz: React.FC<{
       )
       .then(
         async () => {
+          if (opensReview) {
+            setReturnToReview(false);
+            setReviewOpen(true);
+            return;
+          }
           if (!finishesQuiz) return;
           // Same gate as handleSubmitAndAdvance: an open recording slot blocks completion.
           if (openRecordingCountRef.current > 0) {
@@ -3386,6 +3489,14 @@ export const ActiveQuiz: React.FC<{
   };
 
   const handleNext = () => {
+    if (
+      reviewOn &&
+      (returnToReview || localIndex >= effectiveTotalQuestions - 1)
+    ) {
+      setReturnToReview(false);
+      setReviewOpen(true);
+      return;
+    }
     if (isStudentPaced && localIndex < effectiveTotalQuestions - 1) {
       setLocalIndex(localIndex + 1);
     }
@@ -3501,7 +3612,10 @@ export const ActiveQuiz: React.FC<{
       }
 
       const isLast = currentIndex >= effectiveTotalQuestions - 1;
-      if (isLast) {
+      if (reviewOn && (isLast || returnToReview)) {
+        setReturnToReview(false);
+        setReviewOpen(true);
+      } else if (isLast) {
         if (openRecordingQuestions.length > 0) {
           setSubmitBlocked(true);
           return;
@@ -3617,6 +3731,11 @@ export const ActiveQuiz: React.FC<{
   };
 
   const handleRecordingSubmit = async () => {
+    if (reviewOn) {
+      setReturnToReview(false);
+      setReviewOpen(true);
+      return;
+    }
     if (openRecordingQuestions.length > 0) {
       setSubmitBlocked(true);
       return;
@@ -3627,6 +3746,46 @@ export const ActiveQuiz: React.FC<{
     } catch (err) {
       console.error('[QuizStudentApp] onComplete failed:', err);
       setSaveError("Couldn't submit your quiz. Tap to try again.");
+    }
+  };
+
+  const toggleMarked = (questionId: string) =>
+    setMarkedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(questionId)) next.delete(questionId);
+      else next.add(questionId);
+      return next;
+    });
+
+  // The review screen's Submit: the same completion a last answer runs without the step.
+  const handleReviewSubmit = async () => {
+    if (advancingRef.current || submitting) return;
+    // A time-up submit owns completion so it is recorded as timed out.
+    if (timeUpInFlightRef.current || timeUpTriggeredRef.current) return;
+    if (attemptDeadline != null && getServerNow() >= attemptDeadline) {
+      await attemptTimeUpSubmit();
+      return;
+    }
+    if (openRecordingQuestions.length > 0) {
+      setReviewOpen(false);
+      setSubmitBlocked(true);
+      return;
+    }
+    advancingRef.current = true;
+    setSubmitting(true);
+    setSaveError(null);
+    try {
+      dispatchStep({ type: 'submit' });
+      if (!isAttemptSubmitted(myResponse)) await onComplete();
+      setMarkedIds(new Set());
+      setReviewOpen(false);
+    } catch (err) {
+      console.error('[QuizStudentApp] onComplete failed:', err);
+      dispatchStep({ type: 'submitFailed' });
+      setSaveError("Couldn't submit your quiz. Tap to try again.");
+    } finally {
+      setSubmitting(false);
+      advancingRef.current = false;
     }
   };
 
@@ -3704,6 +3863,10 @@ export const ActiveQuiz: React.FC<{
     sectionServedIds
   );
   const quizDone = isAttemptSubmitted(myResponse);
+  const atLastStep =
+    currentIndex >= effectiveTotalQuestions - 1 || (reviewOn && returnToReview);
+  const reviewLabel = t('quizReview.reviewButton', 'REVIEW');
+  const finishLabel = reviewOn ? reviewLabel : 'SUBMIT';
   const handBesideNext =
     !!whiteboardConfig && isStudentPaced && !(sectionLocked && sectionState);
   const raiseHandButton =
@@ -3811,6 +3974,49 @@ export const ActiveQuiz: React.FC<{
             : currentQuestion.type === 'MA'
               ? 'bg-indigo-500/20 text-indigo-400'
               : 'bg-rose-500/20 text-rose-400';
+
+  const reviewScreen =
+    reviewOn && reviewOpen && !quizDone ? (
+      <QuizReviewScreen
+        title={localizedQuizTitle(session, assignedLocale)}
+        rows={reviewRows(
+          orderedPublicQuestions.map((q) =>
+            applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
+          ),
+          myResponse?.answers ?? [],
+          answerCache,
+          markedIds,
+          (id) =>
+            partOf(orderedPublicQuestions.find((q) => q.id === id)) <=
+              partsDone ||
+            isLockedByChooseCount(
+              session.sections,
+              sectionAnswers,
+              id,
+              sectionServedIds
+            )
+        )}
+        onJump={(index) => {
+          setReviewOpen(false);
+          setReturnToReview(true);
+          setLocalIndex(index);
+        }}
+        onBack={() => {
+          setReviewOpen(false);
+          setReturnToReview(false);
+          setLocalIndex(Math.max(0, effectiveTotalQuestions - 1));
+        }}
+        onSubmit={() => void handleReviewSubmit()}
+        submitting={submitting || timeUpInFlight}
+        error={saveError}
+        clock={
+          attemptDeadline != null ? (
+            <QuizTimeLimitClock deadline={attemptDeadline} light />
+          ) : null
+        }
+        footer={raiseHandButton}
+      />
+    ) : null;
 
   return (
     // `overflow-x-hidden` is a defensive backstop so an oversized child
@@ -4001,7 +4207,8 @@ export const ActiveQuiz: React.FC<{
         </StimulusDrawer>
       )}
 
-      <div
+      <ReviewSwap
+        review={reviewScreen}
         className={
           sideStimuli.length > 0
             ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
@@ -4009,22 +4216,38 @@ export const ActiveQuiz: React.FC<{
         }
       >
         {/* Doc-shaped stimuli: resizable left panel on wide screens,
-            stacked (height-capped, scrollable) above the question on
-            narrow ones. One DOM node for both breakpoints so crossing a
-            breakpoint never remounts a viewer mid-read. */}
+          stacked (height-capped, scrollable) above the question on
+          narrow ones. One DOM node for both breakpoints so crossing a
+          breakpoint never remounts a viewer mid-read. */}
         {sideStimuli.length > 0 && (
           <div className="shrink-0 w-full lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:resize-x lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3">
-            {sideStimuli.map((s) => (
-              <div key={s.id} className="flex-1 min-h-[280px] flex flex-col">
-                <StimulusRenderer
-                  stimulus={s}
-                  light={light}
-                  onLoadError={handleStimulusLoadError}
-                  readAloud={stimulusReadAloudFor(s)}
-                  selectableText={session.allowStimulusQuotes === true}
-                />
-              </div>
-            ))}
+            {stimulusTabsOn ? (
+              <StimulusTabsPanel
+                stimuli={sideStimuli}
+                light={light}
+                renderStimulus={(s) => (
+                  <StimulusRenderer
+                    stimulus={s}
+                    light={light}
+                    onLoadError={handleStimulusLoadError}
+                    readAloud={stimulusReadAloudFor(s)}
+                    selectableText={session.allowStimulusQuotes === true}
+                  />
+                )}
+              />
+            ) : (
+              sideStimuli.map((s) => (
+                <div key={s.id} className="flex-1 min-h-[280px] flex flex-col">
+                  <StimulusRenderer
+                    stimulus={s}
+                    light={light}
+                    onLoadError={handleStimulusLoadError}
+                    readAloud={stimulusReadAloudFor(s)}
+                    selectableText={session.allowStimulusQuotes === true}
+                  />
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -4111,6 +4334,14 @@ export const ActiveQuiz: React.FC<{
             </span>
           </div>
 
+          {reviewOn && !quizDone && (
+            <div className="flex justify-end -mt-3 mb-4">
+              <MarkForReviewButton
+                marked={markedIds.has(currentQuestion.id)}
+                onToggle={() => toggleMarked(currentQuestion.id)}
+              />
+            </div>
+          )}
           {sectionState && (
             <div className="flex flex-wrap items-center">
               <SectionBreadcrumb
@@ -4218,7 +4449,9 @@ export const ActiveQuiz: React.FC<{
                     disabled={submitting}
                     className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                   >
-                    {t('quizSections.submit', 'Submit quiz')}
+                    {reviewOn
+                      ? t('quizReview.reviewLink', 'Review')
+                      : t('quizSections.submit', 'Submit quiz')}
                   </button>
                 ))}
             </div>
@@ -4331,7 +4564,9 @@ export const ActiveQuiz: React.FC<{
                           {currentIndex >= effectiveTotalQuestions - 1
                             ? saveError
                               ? 'Retry Submit'
-                              : t('quizMediaResponse.capture.submitQuiz')
+                              : reviewOn
+                                ? t('quizReview.reviewLink', 'Review')
+                                : t('quizMediaResponse.capture.submitQuiz')
                             : t('quizMediaResponse.capture.nextQuestion')}
                         </button>
                       </div>
@@ -4561,7 +4796,8 @@ export const ActiveQuiz: React.FC<{
                     <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
                       {isStudentPaced ? (
                         submitted &&
-                        currentIndex >= effectiveTotalQuestions - 1 ? (
+                        currentIndex >= effectiveTotalQuestions - 1 &&
+                        (!reviewOn || quizDone) ? (
                           <SuccessPill light={light}>
                             Quiz complete!
                           </SuccessPill>
@@ -4575,7 +4811,10 @@ export const ActiveQuiz: React.FC<{
                             onClick={handleNext}
                             className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                           >
-                            NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                            {reviewOn && atLastStep
+                              ? reviewLabel
+                              : 'NEXT QUESTION'}{' '}
+                            <ArrowRight className="w-5 h-5" />
                           </button>
                         ) : (
                           <>
@@ -4592,10 +4831,9 @@ export const ActiveQuiz: React.FC<{
                             >
                               {submitting ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                              ) : currentIndex >=
-                                effectiveTotalQuestions - 1 ? (
+                              ) : atLastStep ? (
                                 <>
-                                  {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                                  {saveError ? 'Retry Submit' : finishLabel}{' '}
                                   <CheckCircle2 className="w-5 h-5" />
                                 </>
                               ) : (
@@ -4646,11 +4884,22 @@ export const ActiveQuiz: React.FC<{
               {!recordingConfig && currentQuestion.type === 'FIB' && (
                 <div className="space-y-4 flex-1">
                   <AccentKeysArea
-                    accents={accentKeys}
+                    accents={
+                      hasChoiceBlanks(currentQuestion) ? undefined : accentKeys
+                    }
                     disabled={submitted && !isStudentPaced}
                     light={light}
                   >
-                    {(currentQuestion.blankCount ?? 0) >= 2 ? (
+                    {hasChoiceBlanks(currentQuestion) ? (
+                      <FibChoiceBlanksInput
+                        key={currentQuestion.id}
+                        question={currentQuestion}
+                        value={liveAnswer ?? ''}
+                        onChange={setCacheForCurrent}
+                        disabled={submitted && !isStudentPaced}
+                        light={light}
+                      />
+                    ) : (currentQuestion.blankCount ?? 0) >= 2 ? (
                       <FibMultiBlankInput
                         key={mathKeyboardOn ? mathSeedKey : currentQuestion.id}
                         count={currentQuestion.blankCount ?? 0}
@@ -4720,7 +4969,8 @@ export const ActiveQuiz: React.FC<{
                   <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
                     {isStudentPaced ? (
                       submitted &&
-                      currentIndex >= effectiveTotalQuestions - 1 ? (
+                      currentIndex >= effectiveTotalQuestions - 1 &&
+                      (!reviewOn || quizDone) ? (
                         <SuccessPill light={light}>Quiz complete!</SuccessPill>
                       ) : submitted &&
                         autoSubmitTriggeredFor === currentQuestion.id ? (
@@ -4728,7 +4978,10 @@ export const ActiveQuiz: React.FC<{
                           onClick={handleNext}
                           className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                         >
-                          NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                          {reviewOn && atLastStep
+                            ? reviewLabel
+                            : 'NEXT QUESTION'}{' '}
+                          <ArrowRight className="w-5 h-5" />
                         </button>
                       ) : (
                         <>
@@ -4748,9 +5001,9 @@ export const ActiveQuiz: React.FC<{
                           >
                             {submitting ? (
                               <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : currentIndex >= effectiveTotalQuestions - 1 ? (
+                            ) : atLastStep ? (
                               <>
-                                {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                                {saveError ? 'Retry Submit' : finishLabel}{' '}
                                 <CheckCircle2 className="w-5 h-5" />
                               </>
                             ) : (
@@ -4862,7 +5115,9 @@ export const ActiveQuiz: React.FC<{
                     }}
                     submitting={submitting}
                     isStudentPaced={isStudentPaced}
-                    isLastQuestion={currentIndex >= effectiveTotalQuestions - 1}
+                    isLastQuestion={atLastStep}
+                    finishLabel={finishLabel}
+                    reviewPending={reviewOn && !quizDone}
                     onNext={handleNext}
                     saveError={saveError}
                     readAloud={readAloudOn ? readAloud.items : undefined}
@@ -4959,31 +5214,32 @@ export const ActiveQuiz: React.FC<{
                     )}
 
                   {/*
-              Sticky CTA: the editor can grow up to ~70vh tall, so without
-              `sticky bottom-0` the Submit button rides below the fold and
-              students miss it.
-            */}
+            Sticky CTA: the editor can grow up to ~70vh tall, so without
+            `sticky bottom-0` the Submit button rides below the fold and
+            students miss it.
+          */}
                   <div
                     className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-xs pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
                   >
                     {isStudentPaced ? (
                       submitted &&
-                      currentIndex >= effectiveTotalQuestions - 1 ? (
+                      currentIndex >= effectiveTotalQuestions - 1 &&
+                      (!reviewOn || quizDone) ? (
                         <QuizCompleteCard />
                       ) : (
                         <>
                           {saveError && <SaveErrorBanner message={saveError} />}
                           {/* Written NEXT stays enabled (only `submitting` gates it)
-                        so a student can advance past a blank essay; gating it
-                        on the cache like MC/FIB would trap anyone who wants to
-                        skip. When the cache HAS a value (typed, seeded, or a
-                        deliberate clear) we submit it; when it's unseeded
-                        (`submittableAnswer === null`) we advance WITHOUT writing
-                        so a fast tap can't clobber a not-yet-loaded saved essay
-                        with a blank (see handleSubmitAndAdvance `skipWrite`).
-                        An enforced word limit blocks only the final SUBMIT;
-                        mid-quiz NEXT advances without writing so the draft
-                        (already autosaved) stays editable on return. */}
+                      so a student can advance past a blank essay; gating it
+                      on the cache like MC/FIB would trap anyone who wants to
+                      skip. When the cache HAS a value (typed, seeded, or a
+                      deliberate clear) we submit it; when it's unseeded
+                      (`submittableAnswer === null`) we advance WITHOUT writing
+                      so a fast tap can't clobber a not-yet-loaded saved essay
+                      with a blank (see handleSubmitAndAdvance `skipWrite`).
+                      An enforced word limit blocks only the final SUBMIT;
+                      mid-quiz NEXT advances without writing so the draft
+                      (already autosaved) stays editable on return. */}
                           <button
                             onClick={() =>
                               void handleSubmitAndAdvance(
@@ -5008,9 +5264,9 @@ export const ActiveQuiz: React.FC<{
                           >
                             {submitting ? (
                               <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : currentIndex >= effectiveTotalQuestions - 1 ? (
+                            ) : atLastStep ? (
                               <>
-                                {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                                {saveError ? 'Retry Submit' : finishLabel}{' '}
                                 <CheckCircle2 className="w-5 h-5" />
                               </>
                             ) : (
@@ -5100,7 +5356,7 @@ export const ActiveQuiz: React.FC<{
             <div className="mt-6 flex justify-center">{raiseHandButton}</div>
           )}
         </div>
-      </div>
+      </ReviewSwap>
     </div>
   );
 };
@@ -5129,6 +5385,10 @@ const StructuredQuestionInput: React.FC<{
   readAloud?: ReadAloudItemControls;
   /** Ordering as one drag-to-order list (quiz-ordering-list flag). */
   orderingList?: boolean;
+  /** The last step's label: REVIEW with the review step, else SUBMIT. */
+  finishLabel?: string;
+  /** Review step on and the attempt not yet submitted: never show the complete state. */
+  reviewPending?: boolean;
 }> = ({
   question,
   submitted,
@@ -5144,6 +5404,8 @@ const StructuredQuestionInput: React.FC<{
   saveError,
   readAloud,
   orderingList,
+  finishLabel = 'SUBMIT',
+  reviewPending = false,
 }) => {
   const isMatching = question.type === 'Matching';
   const isList = !isMatching && orderingList === true;
@@ -5216,7 +5478,8 @@ const StructuredQuestionInput: React.FC<{
   // question, or (b) the timeout fallback when the timer auto-submitted
   // without an answer.
   const showEditableForm = isStudentPaced
-    ? !(submitted && isLastQuestion) && !(submitted && isAutoSubmitted)
+    ? !(submitted && isLastQuestion && !reviewPending) &&
+      !(submitted && isAutoSubmitted)
     : !submitted;
 
   return (
@@ -5269,7 +5532,7 @@ const StructuredQuestionInput: React.FC<{
             ) : isStudentPaced ? (
               isLastQuestion ? (
                 <>
-                  {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                  {saveError ? 'Retry Submit' : finishLabel}{' '}
                   <CheckCircle2 className="w-5 h-5" />
                 </>
               ) : (
@@ -5285,14 +5548,17 @@ const StructuredQuestionInput: React.FC<{
         </>
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-2">
-          {isStudentPaced && isAutoSubmitted && !isLastQuestion ? (
+          {isStudentPaced &&
+          isAutoSubmitted &&
+          (reviewPending || !isLastQuestion) ? (
             // Timeout-auto-submit fallback for self-paced: timer expired
             // without an answer; give the student a way to advance.
             <button
               onClick={onNext}
               className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
             >
-              NEXT QUESTION <ArrowRight className="w-5 h-5" />
+              {reviewPending && isLastQuestion ? finishLabel : 'NEXT QUESTION'}{' '}
+              <ArrowRight className="w-5 h-5" />
             </button>
           ) : (
             <SuccessPill light={isStudentPaced}>

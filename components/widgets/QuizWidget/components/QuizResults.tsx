@@ -3447,6 +3447,7 @@ const QuestionDrilldownPanel: React.FC<{
   onOpenStudent,
   orderingByItem = false,
 }) => {
+  const { t } = useTranslation();
   const openStudent = showStudentNames ? onOpenStudent : undefined;
   const selectStudents = showStudentNames ? onSelectStudents : undefined;
   const [openRows, setOpenRows] = useState<Set<string>>(() => new Set());
@@ -3495,7 +3496,7 @@ const QuestionDrilldownPanel: React.FC<{
               className="font-semibold uppercase tracking-wider text-brand-gray-primary"
               style={{ fontSize: 'min(10px, 3.5cqmin)' }}
             >
-              Explanation
+              {t('quizExplanations.heading', 'Explanation')}
             </p>
             {explanation.explanation && (
               <p className="whitespace-pre-wrap">{explanation.explanation}</p>

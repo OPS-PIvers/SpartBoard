@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MathText } from '@/components/common/MathText';
 import {
   AlertTriangle,
@@ -189,6 +190,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
   groupBy = 'target',
   onGroupByChange,
 }) => {
+  const { t } = useTranslation();
   const dokView = groupBy === 'dok';
   const columns = stats.targets.filter((row) => row.servedCount > 0);
   const standards = stats.standards.filter((row) => row.servedCount > 0);
@@ -283,7 +285,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
       {onGroupByChange && (
         <div
           role="group"
-          aria-label="Group by"
+          aria-label={t('quizDok.groupBy', 'Group by')}
           className="inline-flex self-start overflow-hidden rounded-md border border-brand-gray-lighter bg-white"
           {...tourTypeAttr('quiz-results.group-by', 'quiz')}
         >
@@ -304,7 +306,9 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
                 fontSize: 'min(11px, 3.8cqmin)',
               }}
             >
-              {option === 'target' ? 'Target' : 'DOK'}
+              {option === 'target'
+                ? t('quizDok.target', 'Target')
+                : t('quizDok.dok', 'DOK')}
             </button>
           ))}
         </div>

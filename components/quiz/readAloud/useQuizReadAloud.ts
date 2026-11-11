@@ -14,6 +14,7 @@ import {
   resolveReadAloudUrl,
   synthesizeQuizAudio,
 } from '@/utils/quizReadAloudApi';
+import { spokenBlankChoices } from '@/utils/quizBlankTypes';
 import { serveLocalizedQuestion } from '@/utils/quizOverrideServing';
 import { sameReadAloudPart } from './readAloudHighlight';
 
@@ -109,6 +110,7 @@ export function questionPartKeys(q: QuizPublicQuestion): string[] {
       keys.push(readAloudPartKey(q.id, { kind, index }))
     );
   if (q.type === 'MC' || q.type === 'MA') listed('choice', q.choices);
+  if (q.type === 'FIB') listed('choice', spokenBlankChoices(q));
   if (q.type === 'Matching') {
     listed('matchingLeft', q.matchingLeft);
     listed('matchingRight', q.matchingRight);

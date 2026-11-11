@@ -6,7 +6,9 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
+import { reviewStateKey, saveReviewState } from '@/utils/quizReviewMarksStore';
 import type {
   QuizSession,
   QuizResponse,
@@ -292,4 +294,38 @@ describe('QuizStudentApp — overall time limit', () => {
     expect(screen.queryByRole('timer')).not.toBeInTheDocument();
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
   });
+});
+
+describe('QuizStudentApp — time limit on the review screen (quiz-review-step)', () => {
+  it('records a submit after time is up as timed out, even after the auto-submit failed', async () => {
+    const consoleSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    window.sessionStorage.clear();
+    mockCompleteQuiz.mockRejectedValueOnce(new Error('offline'));
+    hookState.session = {
+      ...buildSession({ timeLimitMinutes: 30 }),
+      reviewStep: true,
+    };
+    hookState.myResponse = buildResponse({
+      _responseKey: 'sso-uid-1',
+      attemptStartedAt: startedAt(31 * 60_000),
+    });
+    const key = reviewStateKey('session-1', 'sso-uid-1', 0);
+    if (key) saveReviewState(key, { marked: [], open: true, returnTo: false });
+    const user = userEvent.setup();
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Couldn't submit/i
+    );
+    await user.click(screen.getByRole('button', { name: /SUBMIT QUIZ/i }));
+    await waitFor(() =>
+      expect(mockCompleteQuiz.mock.calls.length).toBeGreaterThanOrEqual(2)
+    );
+    for (const call of mockCompleteQuiz.mock.calls)
+      expect(call).toEqual([{ timeUp: true }]);
+    consoleSpy.mockRestore();
+  }, 10000);
 });

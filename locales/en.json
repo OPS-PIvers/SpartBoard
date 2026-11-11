@@ -3480,6 +3480,23 @@
     "next": "Next",
     "submit": "Submit quiz"
   },
+  "quizExplanations": {
+    "label": "Show explanations",
+    "hint": "Students see explanations with published results. A change applies the next time you publish.",
+    "heading": "Explanation",
+    "placeholder": "Why the answer is right",
+    "optionPlaceholder": "Why right or wrong",
+    "optionLabel": "Explanation for {{option}}"
+  },
+  "quizDok": {
+    "level": "DOK level",
+    "none": "No DOK",
+    "any": "Any DOK",
+    "levelOption": "DOK {{level}}",
+    "groupBy": "Group by",
+    "target": "Target",
+    "dok": "DOK"
+  },
   "quizScoreOnSubmit": {
     "label": "Show score on submit",
     "on": "Students see their score as soon as they submit.",
@@ -3505,6 +3522,48 @@
   },
   "quizPaperWritten": {
     "writeOnSheet": "Write your answer on your paper answer sheet."
+  },
+  "quizBlanks": {
+    "blankN": "Blank {{n}}",
+    "theBlank": "The blank",
+    "yourAnswer": "Your answer",
+    "choose": "Choose…",
+    "dropHere": "Drop a word here",
+    "emptyBlank": "{{blank}}, empty",
+    "inBlank": "{{word}}, in {{blank}}",
+    "inBank": "{{word}}, in word bank",
+    "wordBank": "Word Bank",
+    "reset": "Reset",
+    "clearAll": "Clear all blanks",
+    "allPlaced": "All words placed.",
+    "picked": "{{word}} selected. Choose a blank.",
+    "placed": "{{word}} placed in {{blank}}.",
+    "returned": "{{word}} returned to the word bank."
+  },
+  "quizReview": {
+    "reviewButton": "REVIEW",
+    "reviewLink": "Review",
+    "mark": "Mark for review",
+    "marked": "Marked for review",
+    "markedShort": "marked for review",
+    "title": "Review before you submit",
+    "answered": "Answered",
+    "unanswered": "Not answered",
+    "locked": "Locked",
+    "countAnswered_one": "{{count}} answered",
+    "countAnswered_other": "{{count}} answered",
+    "countUnanswered_one": "{{count}} not answered",
+    "countUnanswered_other": "{{count}} not answered",
+    "countMarked_one": "{{count}} marked",
+    "countMarked_other": "{{count}} marked",
+    "questionN": "Question {{n}}",
+    "backToLast": "Back to the last question",
+    "submit": "SUBMIT QUIZ"
+  },
+  "quizStimulusTabs": {
+    "sources": "Sources",
+    "calculator": "Calculator",
+    "numbered": "Tab {{n}}"
   },
   "quizReadAloud": {
     "label": "Read aloud",

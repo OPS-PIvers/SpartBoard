@@ -1,5 +1,6 @@
 // Question fields shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertCircle, Plus, Sigma, Tag } from 'lucide-react';
 import type {
   QuestionTargetTag,
@@ -200,6 +201,32 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   );
 };
 
+const DokSelect: React.FC<{
+  value: QuizQuestion['dok'];
+  onChange: (dok: QuizQuestion['dok']) => void;
+}> = ({ value, onChange }) => {
+  const { t } = useTranslation();
+  return (
+    <select
+      value={value ?? ''}
+      aria-label={t('quizDok.level', 'DOK level')}
+      onChange={(e) => {
+        const n = Number(e.target.value);
+        onChange(n >= 1 && n <= 4 ? (n as 1 | 2 | 3 | 4) : undefined);
+      }}
+      className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
+      {...tourTypeAttr('quiz-editor.dok', 'quiz')}
+    >
+      <option value="">{t('quizDok.none', 'No DOK')}</option>
+      {[1, 2, 3, 4].map((level) => (
+        <option key={level} value={level}>
+          {t('quizDok.levelOption', { level, defaultValue: 'DOK {{level}}' })}
+        </option>
+      ))}
+    </select>
+  );
+};
+
 interface QuestionTargetsFieldProps {
   question: Pick<QuizQuestion, 'id' | 'text' | 'targets' | 'dok'>;
   onChange: (targets: QuestionTargetTag[] | undefined) => void;
@@ -224,24 +251,7 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
     <div className="flex items-center justify-between mb-1">
       <label className={labelClass}>Learning targets</label>
       <div className="flex items-center gap-3">
-        {onDokChange && (
-          <select
-            value={q.dok ?? ''}
-            aria-label="DOK level"
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              onDokChange(n >= 1 && n <= 4 ? (n as 1 | 2 | 3 | 4) : undefined);
-            }}
-            className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-            {...tourTypeAttr('quiz-editor.dok', 'quiz')}
-          >
-            <option value="">No DOK</option>
-            <option value="1">DOK 1</option>
-            <option value="2">DOK 2</option>
-            <option value="3">DOK 3</option>
-            <option value="4">DOK 4</option>
-          </select>
-        )}
+        {onDokChange && <DokSelect value={q.dok} onChange={onDokChange} />}
         <button
           type="button"
           onClick={() => onPickerOpenChange(true)}
@@ -300,6 +310,7 @@ interface QuestionExplanationFieldProps {
 export const QuestionExplanationField: React.FC<
   QuestionExplanationFieldProps
 > = ({ question: q, onChange }) => {
+  const { t } = useTranslation();
   const options = explainableOptions(q);
   const setOption = (option: string, text: string) => {
     const next = { ...q.optionExplanations, [option]: text };
@@ -310,14 +321,19 @@ export const QuestionExplanationField: React.FC<
   };
   return (
     <div>
-      <label className={labelClass}>Explanation</label>
+      <label className={labelClass}>
+        {t('quizExplanations.heading', 'Explanation')}
+      </label>
       <textarea
         {...tourTypeAttr('quiz-editor.explanation', 'quiz')}
         value={q.explanation ?? ''}
         onChange={(e) => onChange({ explanation: e.target.value || undefined })}
         rows={2}
-        aria-label="Explanation"
-        placeholder="Why the answer is right"
+        aria-label={t('quizExplanations.heading', 'Explanation')}
+        placeholder={t(
+          'quizExplanations.placeholder',
+          'Why the answer is right'
+        )}
         className={`${inputClass} resize-y`}
       />
       {options.length > 1 && (
@@ -335,8 +351,14 @@ export const QuestionExplanationField: React.FC<
                 type="text"
                 value={q.optionExplanations?.[option] ?? ''}
                 onChange={(e) => setOption(option, e.target.value)}
-                aria-label={`Explanation for ${option}`}
-                placeholder="Why right or wrong"
+                aria-label={t('quizExplanations.optionLabel', {
+                  option,
+                  defaultValue: 'Explanation for {{option}}',
+                })}
+                placeholder={t(
+                  'quizExplanations.optionPlaceholder',
+                  'Why right or wrong'
+                )}
                 className={inputClass}
               />
             </div>

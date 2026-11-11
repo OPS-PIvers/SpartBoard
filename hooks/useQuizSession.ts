@@ -128,6 +128,7 @@ import {
   timestampMillis,
 } from '@/utils/quizTimeLimit';
 import { withNotChosen } from '@/utils/quizSections';
+import { publicBlankFields } from '@/utils/quizBlankTypes';
 import {
   sessionClassPredicate,
   targetingKey,
@@ -706,6 +707,7 @@ export function toPublicQuestion(
     }
   }
   if (isMultiBlank(q)) base.blankCount = fibBlankCount(q);
+  if (q.type === 'FIB') Object.assign(base, publicBlankFields(q));
   const imageOnly = publicImageOnlyAnswers(q.imageOnlyAnswers, [
     { labels: base.choices ?? [], images: base.choiceImages },
     { labels: base.matchingLeft ?? [], images: base.matchingLeftImages },

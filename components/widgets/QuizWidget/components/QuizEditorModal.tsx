@@ -127,7 +127,9 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.playLimit ?? 0) !== (sb.playLimit ?? 0) ||
       (sa.readAloudText ?? '') !== (sb.readAloudText ?? '') ||
       (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '') ||
-      (sa.calculator ?? '') !== (sb.calculator ?? '')
+      (sa.calculator ?? '') !== (sb.calculator ?? '') ||
+      (sa.tabLabel ?? '') !== (sb.tabLabel ?? '') ||
+      (sa.placement ?? '') !== (sb.placement ?? '')
     ) {
       return false;
     }
@@ -221,9 +223,19 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
     for (let j = 0; j < aDistractors.length; j++) {
       if (aDistractors[j] !== bDistractors[j]) return false;
     }
+    if (blankTypeKey(qa) !== blankTypeKey(qb)) return false;
   }
   return true;
 };
+
+// Blank type fields (docs/plans/QUIZ_MCA_PRACTICE.md M7) in one comparable string.
+const blankTypeKey = (q: QuizQuestion): string =>
+  JSON.stringify([
+    q.blankType ?? 'typed',
+    q.blankChoices ?? [],
+    q.wordBank ?? [],
+    q.wordBankReuse === true,
+  ]);
 
 const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
   if (a.length !== b.length) return false;
@@ -660,6 +672,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               state={editorState}
               readAloudAvailable={readAloudAvailable}
               calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+              tabsAvailable={canAccessFeature('quiz-stimulus-tabs')}
             />
           ) : (
             <>

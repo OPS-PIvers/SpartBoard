@@ -662,7 +662,9 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
                       : 'text-brand-blue-primary hover:bg-slate-50'
                   }`}
                 >
-                  {byDok ? 'DOK' : 'Target'}
+                  {byDok
+                    ? t('quizDok.dok', 'DOK')
+                    : t('quizDok.target', 'Target')}
                 </button>
               ))}
             </div>

@@ -10,6 +10,7 @@ import {
   multiAnswerCorrectOptions,
   multiAnswerOptions,
 } from './quizMultiAnswer';
+import { blankTypeProblem } from './quizBlankTypes';
 
 /**
  * Two levels of check. `…IncompleteReason` is the editor's nudge: everything
@@ -49,6 +50,8 @@ export const quizIncompleteReason = (
       return `Question ${i + 1}: correct answer is required`;
     const maProblem = multiAnswerProblem(q);
     if (maProblem) return `Question ${i + 1}: ${maProblem}`;
+    const blankProblem = blankTypeProblem(q);
+    if (blankProblem) return `Question ${i + 1}: ${blankProblem}`;
   }
   return null;
 };
@@ -62,6 +65,8 @@ const questionKeyProblem = (questions: QuizQuestion[]): string | null => {
       return `question ${i + 1} has no correct answer`;
     const maProblem = multiAnswerProblem(q);
     if (maProblem) return `question ${i + 1}: ${maProblem}`;
+    const blankProblem = blankTypeProblem(q);
+    if (blankProblem) return `question ${i + 1}: ${blankProblem}`;
   }
   return null;
 };
