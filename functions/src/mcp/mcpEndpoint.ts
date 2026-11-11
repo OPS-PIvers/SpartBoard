@@ -9,7 +9,10 @@ import {
   resourceMetadataUrl,
 } from './config';
 import { verifyAccessToken, type AccessClaims } from './tokens';
-import { isConnectorFeatureGranted } from './eligibility';
+import {
+  isConnectorFeatureGranted,
+  isDeactivatedOperatorMember,
+} from './eligibility';
 import { grantRef } from './grants';
 import { BoundedLruMap } from '../utils/boundedLruMap';
 import {
@@ -28,7 +31,7 @@ const callCounts = new BoundedLruMap<string, { day: string; count: number }>(
   5000
 );
 
-/** Grant still live and the gate still open; cached per instance so a normal call reads nothing (CC-D16). */
+/** Grant still live, teacher not deactivated and the gate still open; cached per instance so a normal call reads nothing (CC-D16). */
 export async function isGrantActive(
   db: Firestore,
   claims: AccessClaims,
@@ -41,6 +44,7 @@ export async function isGrantActive(
   const ok =
     grant.exists &&
     grant.get('revokedAt') == null &&
+    !(await isDeactivatedOperatorMember(db, claims.email)) &&
     (await isConnectorFeatureGranted(db, claims.email, claims.uid));
   statusCache.set(key, { ok, at: now });
   return ok;
@@ -180,12 +184,14 @@ export const mcpServer = onRequest(
       { registerTools, hiddenToolsFor, SERVER_INSTRUCTIONS },
       { registerPrompts },
       { slimToolListing },
+      { appsOn, registerAppResources },
     ] = await Promise.all([
       import('@modelcontextprotocol/sdk/server/mcp.js'),
       import('@modelcontextprotocol/sdk/server/streamableHttp.js'),
       import('./tools'),
       import('./prompts'),
       import('./toolKit'),
+      import('./apps'),
     ]);
     const server = new McpServer(
       {
@@ -211,7 +217,12 @@ export const mcpServer = onRequest(
     };
     registerTools(server, ctx);
     registerPrompts(server);
-    slimToolListing(server, () => hiddenToolsFor(ctx));
+    registerAppResources(server);
+    slimToolListing(
+      server,
+      () => hiddenToolsFor(ctx),
+      () => appsOn(ctx)
+    );
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

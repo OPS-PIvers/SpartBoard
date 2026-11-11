@@ -148,7 +148,7 @@ describe('live tour step pictures', () => {
     );
   });
 
-  it('refuses an expired ticket, a revoked grant and a non-admin', async () => {
+  it('refuses an expired ticket, a revoked grant, a deactivated teacher and a non-admin', async () => {
     const { ticket } = await issuePictureTicket(ctx, 'tour-1', 1000);
     const body = {
       ticket,
@@ -162,6 +162,9 @@ describe('live tour step pictures', () => {
     h.docs.set('users/u1/mcp_grants/g1', { revokedAt: 5 });
     await expect(savePictures(db, body, 2000)).rejects.toThrow(/disconnected/);
     h.docs.set('users/u1/mcp_grants/g1', {});
+    h.docs.set('organizations/orono/members/a@b.org', { status: 'inactive' });
+    await expect(savePictures(db, body, 2000)).rejects.toThrow(/disconnected/);
+    h.docs.delete('organizations/orono/members/a@b.org');
     h.admin = false;
     await expect(savePictures(db, body, 2000)).rejects.toThrow(/admins/);
     expect(h.saveSet).not.toHaveBeenCalled();

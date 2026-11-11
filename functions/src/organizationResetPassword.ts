@@ -118,7 +118,7 @@ async function assertCallerOutranksTarget(
 ): Promise<void> {
   const targetIsSuper =
     target.roleId === 'super_admin' ||
-    (await isStrictSuperAdmin(db, targetEmailLower));
+    (await isStrictSuperAdmin(db, targetEmailLower, { includeRevoked: true }));
   if (!targetIsSuper) return;
   if (await isStrictSuperAdmin(db, callerEmailLower)) return;
   throw new HttpsError(

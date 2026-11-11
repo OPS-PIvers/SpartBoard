@@ -103,6 +103,8 @@ export interface FriendlyQuestion {
   max_words?: number;
   standards?: string[];
   learning_targets?: string[];
+  /** free_response: library rubric to attach; null removes the attached one. */
+  rubric_id?: string | null;
 }
 
 const TO_STORED: Record<FriendlyType, StoredQuestionType> = {
@@ -420,6 +422,8 @@ export function toFriendlyQuestion(
       if (q.placeholder) out.placeholder = q.placeholder;
       if (q.minWords !== undefined) out.min_words = q.minWords;
       if (q.maxWords !== undefined) out.max_words = q.maxWords;
+      if (typeof q.rubricId === 'string' && q.rubricSnapshot)
+        out.rubric_id = q.rubricId;
   }
   if (questionNeedsKey(q)) out.needs_answer_key = true;
   return out;

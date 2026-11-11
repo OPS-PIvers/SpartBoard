@@ -44,6 +44,18 @@ import {
   run,
   titleAndFolderFilter,
 } from './toolKit';
+import {
+  changedQuestionIds,
+  previewMeta,
+  quizView,
+  runWithPreview,
+} from './apps';
+import {
+  readRubric,
+  rubricDoc,
+  rubricMaxPoints,
+  type Rubric,
+} from './rubricShape';
 
 /** Revisions above this size keep only a pointer; Drive's own version history still has the file. */
 const MAX_REVISION_BYTES = 800_000;
@@ -129,11 +141,19 @@ const questionSchema = z.object({
     .describe('free_response hint text.'),
   min_words: z.number().int().min(0).max(5000).optional(),
   max_words: z.number().int().min(1).max(5000).optional(),
+  rubric_id: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe(
+      'free_response: attach a rubric from list_rubrics or create_rubric; its total becomes the points. Keep the same id to keep the attached copy; null removes it.'
+    ),
   ...targetInputFields,
 });
 
 const QUESTION_HELP =
-  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
+  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
 
 const toolNames = (kind: QuizKind) =>
   kind === 'quiz'
@@ -174,7 +194,7 @@ async function buildQuestions(
     inputs,
     previous.flatMap((q) => q.targets ?? [])
   );
-  return inputs.map((input, i) => {
+  const built = inputs.map((input, i) => {
     const existing =
       input.id && byId.has(input.id) && !used.has(input.id)
         ? byId.get(input.id)
@@ -186,6 +206,45 @@ async function buildQuestions(
     else delete q.targets;
     return q;
   });
+  await attachRubrics(ctx, inputs, built);
+  return built;
+}
+
+/** Mirrors QuizEditor's handleAttachRubric / handleDetachRubric: the question keeps a frozen copy and the rubric total is its points. */
+async function attachRubrics(
+  ctx: ToolContext,
+  inputs: FriendlyQuestion[],
+  questions: StoredQuestion[]
+): Promise<void> {
+  const rubrics = new Map<string, Promise<Rubric>>();
+  for (const [i, input] of inputs.entries()) {
+    const q = questions[i];
+    const wanted = input.rubric_id;
+    if (wanted != null && q.type !== 'free-response') {
+      throw new ToolError(
+        `Question ${i + 1}: rubric_id only works on free_response questions.`
+      );
+    }
+    if (wanted === null) {
+      delete q.rubricId;
+      delete q.rubricSnapshot;
+      delete q.rubricVisibleToStudents;
+      continue;
+    }
+    if (wanted && !(q.rubricId === wanted && q.rubricSnapshot)) {
+      let pending = rubrics.get(wanted);
+      if (!pending) {
+        pending = readRubric(ctx, wanted);
+        rubrics.set(wanted, pending);
+      }
+      q.rubricId = wanted;
+      q.rubricSnapshot = rubricDoc(await pending);
+    }
+    const snapshot = q.rubricSnapshot as Rubric | undefined;
+    if (q.type === 'free-response' && Array.isArray(snapshot?.criteria)) {
+      q.points = rubricMaxPoints(snapshot.criteria);
+    }
+  }
 }
 
 function summarize(kind: QuizKind, id: string, data: Record<string, unknown>) {
@@ -279,10 +338,14 @@ async function saveContent(
   });
   await batch.commit();
   return {
-    ...summarize(kind, content.id, meta),
-    ...(revisionId ? { previous_version_revision_id: revisionId } : {}),
-    questions_missing_answer_key:
-      content.questions.filter(questionNeedsKey).length,
+    summary: {
+      ...summarize(kind, content.id, meta),
+      ...(revisionId ? { previous_version_revision_id: revisionId } : {}),
+      questions_missing_answer_key:
+        content.questions.filter(questionNeedsKey).length,
+    },
+    content,
+    meta,
   };
 }
 
@@ -302,7 +365,7 @@ export async function restoreQuizRevision(
   const { meta, content, token } = await loadContent(ctx, kind, id);
   assertNotSynced(kind, meta);
   await reserveWrite(ctx);
-  return saveContent(
+  const saved = await saveContent(
     ctx,
     kind,
     { ...data.content, id },
@@ -313,6 +376,7 @@ export async function restoreQuizRevision(
       action: 'restore',
     }
   );
+  return saved.summary;
 }
 
 export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
@@ -358,16 +422,17 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
         description: `Returns a ${label} with its answer key and question ids.`,
         inputSchema: { [names.idKey]: z.string().min(1) },
         annotations: READ_ONLY,
+        _meta: previewMeta,
       },
       (input: Record<string, string>) =>
-        run(names.get, ctx, async () => {
+        runWithPreview(names.get, ctx, async () => {
           const id = input[names.idKey];
           const { meta, content } = await loadContent(ctx, kind, id);
           const sections = Array.isArray(content.sections)
             ? content.sections
             : [];
           const stimuli = Array.isArray(content.stimuli) ? content.stimuli : [];
-          return {
+          const result = {
             ...summarize(kind, id, meta),
             language: content.language ?? null,
             questions: content.questions.map(toFriendlyQuestion),
@@ -386,6 +451,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
               ? { question_bank_pulls: content.bankSlots.length }
               : {}),
           };
+          return { result, view: quizView(kind, content, meta) };
         })
     );
 
@@ -408,9 +474,10 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
           questions: z.array(questionSchema).min(1).max(MAX_QUESTIONS),
         },
         annotations: CREATES,
+        _meta: previewMeta,
       },
       (input) =>
-        run(names.create, ctx, async () => {
+        runWithPreview(names.create, ctx, async () => {
           await assertFolder(ctx, folderType, input.folder_id);
           const questions = await buildQuestions(ctx, input.questions, []);
           const token = await driveTokenFor(ctx.uid);
@@ -424,13 +491,16 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
             updatedAt: now,
             ...(input.language ? { language: input.language } : {}),
           };
-          const result = await saveContent(ctx, kind, content, {
+          const saved = await saveContent(ctx, kind, content, {
             token,
             meta: input.folder_id ? { folderId: input.folder_id } : null,
             previous: null,
             action: 'create',
           });
-          return { ...result, where_to_find_it: names.where };
+          return {
+            result: { ...saved.summary, where_to_find_it: names.where },
+            view: quizView(kind, saved.content, saved.meta),
+          };
         })
     );
 
@@ -454,9 +524,10 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
             .optional(),
         },
         annotations: OVERWRITES,
+        _meta: previewMeta,
       },
       (input: Record<string, unknown>) =>
-        run(names.update, ctx, async () => {
+        runWithPreview(names.update, ctx, async () => {
           const id = String(input[names.idKey]);
           const folderId = input.folder_id as string | null | undefined;
           if (folderId) await assertFolder(ctx, folderType, folderId);
@@ -470,7 +541,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
               )
             : content.questions;
           await reserveWrite(ctx);
-          return saveContent(
+          const saved = await saveContent(
             ctx,
             kind,
             {
@@ -486,6 +557,23 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
               action: 'update',
             }
           );
+          const kept = new Set(saved.content.questions.map((q) => q.id));
+          const changed = changedQuestionIds(
+            content.questions,
+            saved.content.questions
+          );
+          return {
+            result: {
+              ...saved.summary,
+              changed_questions: saved.content.questions.flatMap((q, i) =>
+                changed.includes(q.id) ? [i + 1] : []
+              ),
+            },
+            view: quizView(kind, saved.content, saved.meta, {
+              changed,
+              removed: content.questions.filter((q) => !kept.has(q.id)).length,
+            }),
+          };
         })
     );
   }
