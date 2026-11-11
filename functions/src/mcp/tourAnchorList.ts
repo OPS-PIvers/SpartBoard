@@ -50071,15 +50071,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50171,10 +50162,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -50189,15 +50181,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "sandboxed": true,
     "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50218,15 +50201,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50246,15 +50220,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50273,15 +50238,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "sandboxed": true,
     "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50340,15 +50296,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50365,15 +50312,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Draft with AI button in the video activity editor",
     "scope": "board",
     "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50394,15 +50332,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50420,10 +50349,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -50437,15 +50367,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "sandboxed": true,
     "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50463,15 +50384,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Tag button for selected or all questions in the video activity editor",
     "scope": "board",
     "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50544,10 +50456,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -50560,10 +50473,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -50575,15 +50489,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Learning targets Add or Edit button in the video activity editor",
     "scope": "board",
     "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
@@ -50604,15 +50509,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "sandboxed": true,
     "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
         "surface": "library.video-activity.editor",
         "kind": "editor",
         "path": [
@@ -50631,15 +50527,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "sandboxed": true,
     "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "library.video-activity.editor",
         "kind": "editor",
