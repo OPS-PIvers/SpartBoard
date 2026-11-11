@@ -90,6 +90,11 @@ export const AdminCalendarFetcher: React.FC = () => {
         const buildingDefaults = canonicalizeBuildingKeyedRecord(
           config.buildingDefaults ?? {}
         );
+        // Write under the stored key that wins on read so a legacy-keyed entry keeps its calendar ids.
+        const storedKeys: Record<string, string> = {};
+        for (const rawKey of Object.keys(config.buildingDefaults ?? {})) {
+          storedKeys[canonicalBuildingId(rawKey)] = rawKey;
+        }
         const synced: Record<
           string,
           { cachedEvents: CalendarEvent[]; lastProxySync: number }
@@ -120,7 +125,7 @@ export const AdminCalendarFetcher: React.FC = () => {
               .flat()
               .sort((a, b) => a.date.localeCompare(b.date));
 
-            synced[canonicalId] = {
+            synced[storedKeys[canonicalId] ?? canonicalId] = {
               cachedEvents: merged,
               lastProxySync: Date.now(),
             };

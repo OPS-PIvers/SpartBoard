@@ -221,6 +221,41 @@ describe('AdminCalendarFetcher — legacy building id canonicalization', () => {
   });
 });
 
+describe('AdminCalendarFetcher — legacy-keyed stored entry', () => {
+  it('writes the cache under the stored legacy key so its calendar ids still win on read', async () => {
+    currentBuildings = [
+      { id: 'schumann-elementary', name: 'Schumann Elementary' },
+    ];
+    authValue.featurePermissions = [
+      {
+        ...calendarPermission,
+        config: {
+          blockedDates: [],
+          updateFrequencyHours: 4,
+          buildingDefaults: {
+            'schumann-elementary': {
+              buildingId: 'schumann',
+              events: [],
+              googleCalendarIds: ['cal-1'],
+            },
+          },
+        },
+      },
+    ];
+    render(<AdminCalendarFetcher />);
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    const [, payload] = setDocMock.mock.calls[0] as [
+      unknown,
+      { config: { buildingDefaults: Record<string, unknown> } },
+    ];
+    expect(Object.keys(payload.config.buildingDefaults)).toEqual([
+      'schumann-elementary',
+    ]);
+  });
+});
+
 describe('AdminCalendarFetcher — write scope', () => {
   it('writes only the synced fields so concurrent admin edits are not overwritten', async () => {
     authValue.featurePermissions = [
