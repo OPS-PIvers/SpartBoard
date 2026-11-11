@@ -348,6 +348,43 @@ describe('metadata mirrors', () => {
     expect('sync' in meta).toBe(false);
   });
 
+  it('keeps and grows the District library origin on every save', () => {
+    const content = {
+      id: 'z',
+      title: 'T',
+      questions: [q('1'), q('2', { districtItemId: 'item-b' })],
+      bankSlots: [{ id: 's', districtItemId: 'item-c' }],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    const meta = buildMetadata(
+      'quiz',
+      content,
+      'file-1',
+      { districtOrigin: ['item-a'], districtLinkedItemId: 'item-a' },
+      {}
+    );
+    expect(meta.districtOrigin).toEqual(['item-a', 'item-b', 'item-c']);
+    expect(meta.districtLinkedItemId).toBe('item-a');
+    // Questions rewritten without their marks still keep the recorded origin.
+    const rewritten = buildMetadata(
+      'quiz',
+      { ...content, questions: [q('1')], bankSlots: [] },
+      'file-1',
+      { districtOrigin: ['item-a'] },
+      {}
+    );
+    expect(rewritten.districtOrigin).toEqual(['item-a']);
+    const plain = buildMetadata(
+      'quiz',
+      { ...content, questions: [q('1')], bankSlots: [] },
+      'file-1',
+      {},
+      {}
+    );
+    expect('districtOrigin' in plain).toBe(false);
+  });
+
   it('keeps a bank filed in its Quiz library folder', () => {
     const meta = buildMetadata(
       'bank',

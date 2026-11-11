@@ -153,5 +153,5 @@ Coverage of the 48 grade 8 science items in their real format: 24 today; 42 afte
 - **Terms of use.** MDE publishes released items for classroom use. Paul to confirm that covers redistribution inside the district through the District library. M30 keeps them internal either way.
 - **State results as numbers.** The API returns only a chart picture, so comparing a class to the state is not planned. It would need the numbers read off the picture or supplied by MDE.
 - **Math and reading item types** have not been looked at (equation entry, number lines, long passages). Survey them before the second package.
-- **Where District library files live.** D28 points at `synced_quizzes`; whether the pictures sit in an admin's Drive or elsewhere is settled in PR 6's design.
+- **Where District library files live.** Settled in PRs 6–7: content in `synced_quizzes` / `synced_question_banks` at a random `syncGroupId` minted with the draft header (marked `districtItemId`, written by any site admin), pictures in Firebase Storage at `district_library/{itemId}/v{version}-{attemptId}/`, never in an admin's Drive. Each upload attempt writes a new folder and old ones are kept, so live sessions and frozen copies keep their pictures.
 - **Changelog.** Each flagged piece gets its `public/changelog.json` entry when its flag opens to everyone, not when it merges.

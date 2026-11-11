@@ -5,6 +5,7 @@ import type {
   QuestionBankSyncLinkage,
   SyncedQuestionBank,
 } from '@/types';
+import type { DistrictBankLinkView } from '@/types/districtLibrary';
 import { bankTargetIndex } from '@/utils/questionBanks';
 import { importSourceKey } from '@/utils/importSource';
 import { buildQuizSearchText } from '@/utils/quizSearchText';
@@ -158,11 +159,11 @@ export function withoutPlcId(
 export interface BankSource {
   /** bankSlotKey: syncGroupId for shared banks, bankId otherwise. */
   key: string;
-  kind: 'personal' | 'plc';
+  kind: 'personal' | 'plc' | 'district';
   bankId: string;
-  /** Set when the bank is PLC-shared (own or a teammate's). */
+  /** Set when the bank is PLC-shared (own or a teammate's) or from the District library. */
   syncGroupId?: string;
-  /** personal only: the signed-in owner of this synced bank. */
+  /** personal: the signed-in owner of this synced bank; district: the admin who published it. */
   syncOwnerUid?: string;
   title: string;
   questionCount: number;
@@ -174,6 +175,8 @@ export interface BankSource {
   plcId?: string;
   plcName?: string;
   sharedByName?: string;
+  /** district only: the item was unpublished, retargeted away or deleted. */
+  unavailable?: boolean;
 }
 
 export interface SharedBankRow {
@@ -226,4 +229,30 @@ export function mergeBankSources(
     });
   }
   return sources;
+}
+
+/** District library banks the teacher added, skipping any bank already listed. */
+export function withDistrictBankSources(
+  sources: BankSource[],
+  links: readonly DistrictBankLinkView[]
+): BankSource[] {
+  const seen = new Set(sources.map((s) => s.syncGroupId ?? s.key));
+  const out = [...sources];
+  for (const link of links) {
+    if (seen.has(link.syncGroupId)) continue;
+    seen.add(link.syncGroupId);
+    out.push({
+      key: link.syncGroupId,
+      kind: 'district',
+      bankId: link.itemId,
+      syncGroupId: link.syncGroupId,
+      syncOwnerUid: link.ownerUid,
+      title: link.title,
+      questionCount: link.questionCount,
+      targetIds: link.targetIds ?? [],
+      targetCounts: {},
+      ...(link.unavailable ? { unavailable: true } : {}),
+    });
+  }
+  return out;
 }

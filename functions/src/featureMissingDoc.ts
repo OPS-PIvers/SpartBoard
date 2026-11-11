@@ -45,6 +45,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-meeting-ai-notes',
   'sparty',
   'getting-started',
+  'district-library',
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',

@@ -58,6 +58,7 @@ import {
 import { formatShortDate } from './newAssignmentHelpers';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
 import { toAssessmentBehavior } from '@/utils/quizBehavior';
 import type { AssignClassesValue } from '@/utils/assignTargets';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -137,9 +138,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
   const submittingRef = useRef(false);
   const outward = useViewAsOutward();
 
+  // A linked District library copy can't become a PLC template; the district owns its sync group.
+  const templateQuizzes = useMemo(
+    () => quizzes.filter((q) => !isDistrictLinkedCopy(q)),
+    [quizzes]
+  );
   const pickerItems: PlcSharePickerItem[] = useMemo(
     () =>
-      quizzes.map((quiz) => ({
+      templateQuizzes.map((quiz) => ({
         id: quiz.id,
         title: quiz.title,
         metaLine: t('plcDashboard.newAssignment.quiz.metaLine', {
@@ -148,12 +154,12 @@ export const PlcNewQuizAssignmentModal: React.FC<
           defaultValue: '{{count}} questions · {{date}}',
         }),
       })),
-    [quizzes, t]
+    [templateQuizzes, t]
   );
 
   const handlePick = useCallback(
     (quizId: string): Promise<void> => {
-      const meta = quizzes.find((q) => q.id === quizId);
+      const meta = templateQuizzes.find((q) => q.id === quizId);
       if (!meta) {
         addToast(
           t('plcDashboard.newAssignment.quiz.missingFromLibrary', {
@@ -190,7 +196,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       setStep('configure');
       return Promise.resolve();
     },
-    [addToast, quizzes, t, periodAccess]
+    [addToast, templateQuizzes, t, periodAccess]
   );
 
   // `confirmed`: the stepper already asked the View as confirm.

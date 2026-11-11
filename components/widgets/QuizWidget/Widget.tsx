@@ -56,7 +56,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
-import { useBankSources } from '@/hooks/useBankSources';
+import { useBankSources, type BankSource } from '@/hooks/useBankSources';
 import { loadCatalogCodes } from '@/hooks/useStandardsCatalog';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import {
@@ -272,6 +272,13 @@ import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 import { isSandboxed, isTourSandboxActive } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
+import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
+import {
+  addDistrictBank,
+  removeDistrictBank,
+  useDistrictLibraryForTeacher,
+} from '@/hooks/useDistrictLibrary';
+import { DistrictLibraryModal } from './components/DistrictLibraryModal';
 
 const QuizStudentView = lazy(() =>
   import('@/components/quiz/QuizStudentView').then((m) => ({
@@ -364,7 +371,10 @@ const TeacherQuizWidget: React.FC<{
     getAssignmentMode,
     appSettings,
     updateAppSettings,
+    selectedBuildings,
+    gradesTaught,
   } = useAuth();
+  const districtLibraryOn = canAccessFeature('district-library');
   const viewAsDrive = useViewAsDriveStatus();
   const titleOf = useConnectionWidgetTitle();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -527,6 +537,7 @@ const TeacherQuizWidget: React.FC<{
     saveDriveSnapshot,
     deleteQuiz,
     duplicateQuiz,
+    addLinkedDistrictQuiz,
     importFromSheet,
     importFromCSV,
     createQuizTemplate,
@@ -559,7 +570,7 @@ const TeacherQuizWidget: React.FC<{
     loading: bankSourcesLoading,
     loadBankContent,
     loadBankContentsForQuiz,
-  } = useBankSources(user?.uid);
+  } = useBankSources(user?.uid, { districtLibrary: districtLibraryOn });
   const {
     banks,
     loading: banksLoading,
@@ -577,9 +588,21 @@ const TeacherQuizWidget: React.FC<{
     () => bankSources.filter((s) => s.kind === 'plc'),
     [bankSources]
   );
+  const removeDistrictSource = useCallback(
+    async (source: BankSource) => {
+      if (!user?.uid) return;
+      await removeDistrictBank(user.uid, source.bankId);
+    },
+    [user]
+  );
   const bankApi = useMemo(
-    () => ({ sources: bankSources, loadBankContent, appendQuestionsToBank }),
-    [bankSources, loadBankContent, appendQuestionsToBank]
+    () => ({
+      sources: bankSources,
+      loadBankContent,
+      appendQuestionsToBank,
+      removeDistrictSource,
+    }),
+    [bankSources, loadBankContent, appendQuestionsToBank, removeDistrictSource]
   );
   const bankAiAllowed = canAccessFeature('question-bank-ai') && canUseQuizAi;
   const {
@@ -668,6 +691,7 @@ const TeacherQuizWidget: React.FC<{
     publishResultsForStudents,
     hideResultsForStudents,
     clearResultsOverride,
+    previewSyncRemovals,
     syncAssignmentToLatest,
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
@@ -747,6 +771,38 @@ const TeacherQuizWidget: React.FC<{
     return Array.from(ids);
   }, [quizzes, assignments]);
   const { groups: syncedGroups } = useSyncedQuizGroupsByIds(syncGroupIds);
+  // District library (QUIZ_MCA_PRACTICE.md M27-M28): copies stay linked and read-only.
+  // The persisted marker decides; the canonical's mark is a fallback for copies added another way.
+  const isDistrictCopy = useCallback(
+    (q: QuizMetadata) =>
+      isDistrictLinkedCopy(q) ||
+      !!(q.sync && syncedGroups.get(q.sync.groupId)?.districtItemId),
+    [syncedGroups]
+  );
+  const districtViewer = useMemo(
+    () =>
+      user?.email
+        ? {
+            email: user.email,
+            buildings: selectedBuildings,
+            grades: gradesTaught ?? [],
+          }
+        : null,
+    [user, selectedBuildings, gradesTaught]
+  );
+  const { items: districtItems } = useDistrictLibraryForTeacher(
+    districtViewer,
+    districtLibraryOn && variant === 'quiz'
+  );
+  // Bank links already come through useBankSources; reuse them instead of a second listener.
+  const districtBankItemIds = useMemo(
+    () =>
+      new Set(
+        bankSources.filter((s) => s.kind === 'district').map((s) => s.bankId)
+      ),
+    [bankSources]
+  );
+  const [districtLibraryOpen, setDistrictLibraryOpen] = useState(false);
 
   // D3: each widget's archive lists only its own kind.
   const kindAssignments = useMemo(
@@ -1043,7 +1099,9 @@ const TeacherQuizWidget: React.FC<{
       },
       onAutoPulled: (replica) =>
         addToast(
-          `"${replica.title}" updated to your teammate's latest version.`,
+          isDistrictCopy(replica)
+            ? `"${replica.title}" updated with the district's latest corrections.`
+            : `"${replica.title}" updated to your teammate's latest version.`,
           'info'
         ),
       onAutoPullError: (replica) =>
@@ -3264,6 +3322,12 @@ const TeacherQuizWidget: React.FC<{
         }
         onEdit={async (meta) => {
           const data = await loadQuiz(meta);
+          if (data && isDistrictCopy(meta)) {
+            // Read-only copy: open the answer check instead of the editor.
+            setLoadedQuizData(await withSampleBankDraw(data));
+            setView('preview');
+            return;
+          }
           if (data) {
             setEditingQuiz(data);
             setEditingMeta(meta);
@@ -3560,30 +3624,32 @@ const TeacherQuizWidget: React.FC<{
                 withPaperBoxSizes({ questions: assignQuestions }, boxSizes),
                 boxStyles
               ).questions;
-              // Saved on the quiz too, so a reprint matches these sheets.
-              try {
-                await saveQuiz(
-                  withPaperBoxStyles(
-                    withPaperBoxSizes({ ...data }, boxSizes),
-                    boxStyles
-                  ),
-                  meta.driveFileId
-                );
-              } catch (err) {
-                if (err instanceof SyncedQuizVersionConflictError) {
-                  addToast(
-                    'Another teacher published an update to this quiz, so your answer-sheet changes were not saved to it. The sheets still print.',
-                    'warning'
+              // Saved on the quiz too, so a reprint matches these sheets; a District library copy is read-only, so its batch keeps the layout.
+              if (!isDistrictCopy(meta)) {
+                try {
+                  await saveQuiz(
+                    withPaperBoxStyles(
+                      withPaperBoxSizes({ ...data }, boxSizes),
+                      boxStyles
+                    ),
+                    meta.driveFileId
                   );
-                } else {
-                  logError('QuizWidget.assignment.writtenBoxSetup', err, {
-                    quizId: meta.id,
-                  });
-                  addToast(
-                    'Could not save the written answer sheets. Try again.',
-                    'error'
-                  );
-                  return;
+                } catch (err) {
+                  if (err instanceof SyncedQuizVersionConflictError) {
+                    addToast(
+                      'Another teacher published an update to this quiz, so your answer-sheet changes were not saved to it. The sheets still print.',
+                      'warning'
+                    );
+                  } else {
+                    logError('QuizWidget.assignment.writtenBoxSetup', err, {
+                      quizId: meta.id,
+                    });
+                    addToast(
+                      'Could not save the written answer sheets. Try again.',
+                      'error'
+                    );
+                    return;
+                  }
                 }
               }
             }
@@ -3721,6 +3787,8 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
                 mode: quizAssignmentMode,
                 ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
+                // Teammates can't join a District canonical, so no PLC template.
+                ...(isDistrictCopy(meta) ? { skipPlcTemplateWrite: true } : {}),
                 ...(plcLinkage && plcOptions.plcPoolSyncGroupId
                   ? { plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId }
                   : {}),
@@ -4399,7 +4467,8 @@ const TeacherQuizWidget: React.FC<{
             const url = await shareAssignment(
               a.id,
               data,
-              loadBankContentsForQuiz
+              loadBankContentsForQuiz,
+              meta.districtOrigin
             );
             try {
               await navigator.clipboard.writeText(url);
@@ -4546,6 +4615,27 @@ const TeacherQuizWidget: React.FC<{
         }}
         onSyncAssignment={async (a) => {
           try {
+            const quizMeta = quizzes.find((q) => q.id === a.quizId);
+            // Only District library copies get this check; a failed check never blocks the sync.
+            const { removed, responseCount } = await previewSyncRemovals(a.id, {
+              linkedCopy: !!quizMeta && isDistrictCopy(quizMeta),
+            }).catch((err: unknown) => {
+              logError('Widget.onSyncAssignment.preview', err, {
+                assignmentId: a.id,
+              });
+              return { removed: [] as string[], responseCount: 0 };
+            });
+            if (responseCount > 0) {
+              const ok = await showConfirm(
+                `The latest version drops ${removed.length} ${removed.length === 1 ? 'question' : 'questions'} that ${responseCount} ${responseCount === 1 ? 'student has' : 'students have'} already answered. Syncing removes those questions from this assignment. Sync anyway?`,
+                {
+                  title: 'Questions removed',
+                  variant: 'warning',
+                  confirmLabel: 'Sync anyway',
+                }
+              );
+              if (!ok) return;
+            }
             const result = await syncAssignmentToLatest(a.id);
             if (!result.updated) {
               addToast('Assignment is already at the latest version.', 'info');
@@ -4567,7 +4657,50 @@ const TeacherQuizWidget: React.FC<{
             );
           }
         }}
+        districtLibraryCount={districtItems.length}
+        onOpenDistrictLibrary={() => setDistrictLibraryOpen(true)}
+        isDistrictCopy={isDistrictCopy}
+        onMakeOwnCopy={async (meta) => {
+          try {
+            const copy = await duplicateQuiz(meta);
+            addToast(`Made your own copy, "${copy.title}".`, 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Could not make a copy.',
+              'error'
+            );
+          }
+        }}
       />
+      {districtLibraryOpen && user && (
+        <DistrictLibraryModal
+          isOpen
+          onClose={() => setDistrictLibraryOpen(false)}
+          items={districtItems}
+          addedQuizItemIds={
+            new Set(
+              quizzes.flatMap((q) =>
+                q.districtLinkedItemId &&
+                districtItems.find((i) => i.id === q.districtLinkedItemId)
+                  ?.syncGroupId === q.sync?.groupId
+                  ? [q.districtLinkedItemId]
+                  : []
+              )
+            )
+          }
+          addedBankIds={districtBankItemIds}
+          onAdd={async (item) => {
+            if (item.kind === 'bank') {
+              await addDistrictBank(user.uid, item);
+              addToast(`"${item.title}" is in your question banks.`, 'success');
+              return;
+            }
+            const meta = await addLinkedDistrictQuiz(item);
+            addToast(`"${meta.title}" is in your library.`, 'success');
+          }}
+          onRemoveBank={(item) => removeDistrictBank(user.uid, item.id)}
+        />
+      )}
       <QuizEditorModal
         isOpen={!!editingQuiz}
         quiz={editingQuiz}
@@ -4909,6 +5042,11 @@ const TeacherQuizWidget: React.FC<{
                   if (paperSheetStimuli.length > 0)
                     next.paperSheetStimuli = paperSheetStimuli;
                   else delete next.paperSheetStimuli;
+                  // A District library copy is read-only: this print uses the setup and its batch records the layout.
+                  if (isDistrictCopy(paperPrintMeta)) {
+                    setPaperPrintQuiz(next);
+                    return;
+                  }
                   try {
                     setPaperPrintMeta(
                       await saveQuiz(next, paperPrintMeta.driveFileId)
@@ -5019,6 +5157,8 @@ const TeacherQuizWidget: React.FC<{
               : { ...quota, disabled: true };
           }}
           onSaveQuiz={async (data) => {
+            // A District library copy already has its key and tags and is read-only, so the import skips that save.
+            if (isDistrictCopy(paperImport.meta)) return;
             await saveQuiz(data, paperImport.meta.driveFileId);
           }}
           onSavePending={(batchId, review) =>

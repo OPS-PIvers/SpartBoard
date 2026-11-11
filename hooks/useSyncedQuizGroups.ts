@@ -24,6 +24,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { DISTRICT_READ_ONLY_MESSAGE } from '@/utils/districtLibraryOrigin';
 import {
   collection,
   deleteDoc,
@@ -473,6 +474,8 @@ export async function publishSyncedQuiz(
       throw new Error('Synced quiz group not found.');
     }
     const current = snap.data() as SyncedQuizGroup;
+    // District library canonicals change only through a package upload, admins included.
+    if (current.districtItemId) throw new Error(DISTRICT_READ_ONLY_MESSAGE);
     if (current.version !== input.expectedVersion) {
       throw new SyncedQuizVersionConflictError(
         input.expectedVersion,
@@ -672,6 +675,7 @@ export async function restoreSyncedVersion(
     throw new Error('Synced quiz group not found.');
   }
   const current = groupSnap.data() as SyncedQuizGroup;
+  if (current.districtItemId) throw new Error(DISTRICT_READ_ONLY_MESSAGE);
   // Prefer the snapshot's stimuli; legacy snapshots (no field) keep the
   // current canonical's so a restore never silently wipes attachments.
   // Dangling pointers are sanitized on the next editor load/save.

@@ -16,9 +16,11 @@ import {
 } from '@/utils/questionBanks';
 import {
   mergeBankSources,
+  withDistrictBankSources,
   type BankSource,
   type SharedBankRow,
 } from '@/utils/questionBankRecords';
+import { useDistrictBankLinks } from './useDistrictLibrary';
 import { logError } from '@/utils/logError';
 import { usePlcs } from './usePlcs';
 import {
@@ -71,6 +73,7 @@ export async function loadSyncedBankContent(
   return {
     ...toBankContent(data),
     ...(data.ownerUid ? { syncOwnerUid: data.ownerUid } : {}),
+    ...(data.districtItemId ? { districtItemId: data.districtItemId } : {}),
   };
 }
 
@@ -125,8 +128,13 @@ export async function loadBankContentsFor(
 }
 
 export function useBankSources(
-  userId: string | undefined
+  userId: string | undefined,
+  options: { districtLibrary?: boolean } = {}
 ): UseBankSourcesResult {
+  const districtLinks = useDistrictBankLinks(
+    userId,
+    options.districtLibrary === true
+  );
   const {
     banks,
     loading: banksLoading,
@@ -177,14 +185,22 @@ export function useBankSources(
       }
     }
     rows.sort((a, b) => b.entry.sharedAt - a.entry.sharedAt);
-    return mergeBankSources(banks, rows, userId);
-  }, [banks, plcs, sharedByPlc, userId]);
+    return withDistrictBankSources(
+      mergeBankSources(banks, rows, userId),
+      districtLinks
+    );
+  }, [banks, plcs, sharedByPlc, userId, districtLinks]);
 
   const loadBankContent = useCallback(
     async (source: BankSource): Promise<BankContent> => {
       if (source.kind === 'plc') {
         if (!source.syncGroupId) throw new Error('Shared bank has no group id');
         return loadSyncedBankContent(source.syncGroupId);
+      }
+      if (source.kind === 'district') {
+        if (!source.syncGroupId)
+          throw new Error('Library bank has no group id');
+        return loadSyncedBankContent(source.syncGroupId, source.syncOwnerUid);
       }
       if (!source.driveFileId) throw new Error('Bank has no Drive file');
       const data = await loadBankData(source.driveFileId);

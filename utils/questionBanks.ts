@@ -18,6 +18,8 @@ export type BankContent = Pick<
 > & {
   /** Owner read from the synced doc itself; absent on Drive banks. */
   syncOwnerUid?: string;
+  /** Set when the bank is a District library canonical. */
+  districtItemId?: string;
 };
 
 /** Key under which a slot's bank content is looked up: the synced group when shared. */
