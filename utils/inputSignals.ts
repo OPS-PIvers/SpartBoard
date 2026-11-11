@@ -186,7 +186,9 @@ export class InputSignalCollector {
       writer = new WritingLogWriter(this.baseLogs[this.question]);
       this.writers.set(this.question, writer);
     }
-    this.logRoom -= writer.write(prev, text, t, kind, this.logRoom);
+    // The editor re-inserts a paste as plain typing, so the paste event marks it.
+    const how = t <= this.pasteUntil ? 'pasted' : kind;
+    this.logRoom -= writer.write(prev, text, t, how, this.logRoom);
   }
 
   panelOpened(): void {
