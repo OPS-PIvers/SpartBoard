@@ -3,6 +3,7 @@ import { WidgetData, StickerConfig } from '@/types';
 import { DraggableSticker } from './DraggableSticker';
 import { HelpCircle } from 'lucide-react';
 import { NamedLucideIcon } from '@/utils/lucideIconMap';
+import { useDriveImageFallback } from '@/hooks/useDriveImageFallback';
 
 interface StickerItemWidgetProps {
   widget: WidgetData;
@@ -12,6 +13,7 @@ export const StickerItemWidget: React.FC<StickerItemWidgetProps> = ({
   widget,
 }) => {
   const config = widget.config as StickerConfig;
+  const image = useDriveImageFallback(config.url);
 
   // Helper for dynamic classes since Tailwind might purge unused dynamic strings
   const getColorClasses = (color: string) => {
@@ -179,7 +181,8 @@ export const StickerItemWidget: React.FC<StickerItemWidgetProps> = ({
       <div className="w-full h-full flex items-center justify-center group/img">
         {config.url ? (
           <img
-            src={config.url}
+            src={image.src}
+            onError={image.onError}
             alt="Sticker"
             className="w-full h-full object-contain pointer-events-none drop-shadow-lg transition-transform group-hover/img:scale-105"
           />
