@@ -10,8 +10,7 @@
 //   Phase 3 writes — scoped writes enabled per role:
 //     * super admin: org create/delete; any field on any org
 //     * domain admin: update identity fields on own org (NOT aiEnabled/plan);
-//       full CRUD on buildings/domains/roles (custom only)/members/
-//       studentPageConfig
+//       full CRUD on buildings/domains/roles (custom only)/members
 //     * building admin: read-only everywhere, with two exceptions —
 //       (a) update buildings they manage, and
 //       (b) update `status` (only) on members whose buildingIds intersect
@@ -245,7 +244,7 @@ describe('organizations — reads (Phase 1)', () => {
     );
   });
 
-  it('member can read buildings, domains, roles, members, studentPageConfig', async () => {
+  it('member can read buildings, domains, roles, members', async () => {
     await assertSucceeds(
       getDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/high`))
     );
@@ -258,14 +257,6 @@ describe('organizations — reads (Phase 1)', () => {
     await assertSucceeds(
       getDoc(
         doc(asDomainAdmin(), `organizations/${ORG_ID}/members/${MEMBER_EMAIL}`)
-      )
-    );
-    await assertSucceeds(
-      getDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/studentPageConfig/default`
-        )
       )
     );
   });
@@ -1593,95 +1584,14 @@ describe('organizations/members — writes', () => {
   });
 });
 
-describe('organizations/studentPageConfig — writes', () => {
-  it('domain admin can update student page config', async () => {
-    await assertSucceeds(
-      updateDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/studentPageConfig/default`
-        ),
-        { heroText: 'Welcome Spartans!', accentColor: '#ad2122' }
-      )
-    );
-  });
-
-  it('super admin can update student page config', async () => {
-    await assertSucceeds(
-      updateDoc(
-        doc(asSuper(), `organizations/${ORG_ID}/studentPageConfig/default`),
-        { heroText: 'From super' }
-      )
-    );
-  });
-
-  it('building admin cannot update student page config', async () => {
-    await assertFails(
-      updateDoc(
-        doc(
-          asBuildingAdmin(),
-          `organizations/${ORG_ID}/studentPageConfig/default`
-        ),
-        { heroText: 'nope' }
-      )
-    );
-  });
-
-  it('teacher cannot update student page config', async () => {
-    await assertFails(
-      updateDoc(
-        doc(asTeacher(), `organizations/${ORG_ID}/studentPageConfig/default`),
-        { heroText: 'nope' }
-      )
-    );
-  });
-
-  it('domain admin cannot create a non-default student page config', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/studentPageConfig/sneaky`
-        ),
-        { orgId: ORG_ID, heroText: 'sneaky' }
-      )
-    );
-  });
-
-  it('super admin cannot delete the student page config', async () => {
-    await assertFails(
-      deleteDoc(
-        doc(asSuper(), `organizations/${ORG_ID}/studentPageConfig/default`)
-      )
-    );
-  });
-
-  it('domain admin cannot create student page config with mismatched orgId', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/studentPageConfig/default`
-        ),
-        { orgId: OTHER_ORG_ID, heroText: 'spoof' }
-      )
-    );
-  });
-
-  it('domain admin cannot create student page config with unknown keys', async () => {
-    await assertFails(
-      setDoc(
-        doc(
-          asDomainAdmin(),
-          `organizations/${ORG_ID}/studentPageConfig/default`
-        ),
-        {
-          orgId: ORG_ID,
-          heroText: 'Hi',
-          secretField: 'nope', // not in whitelist
-        }
-      )
-    );
+describe('organizations/studentPageConfig — retired, no client access', () => {
+  it('nobody reads or writes the retired student page config', async () => {
+    for (const db of [asDomainAdmin(), asSuper(), asTeacher()]) {
+      const ref = doc(db, `organizations/${ORG_ID}/studentPageConfig/default`);
+      await assertFails(getDoc(ref));
+      await assertFails(updateDoc(ref, { heroText: 'nope' }));
+      await assertFails(deleteDoc(ref));
+    }
   });
 });
 
