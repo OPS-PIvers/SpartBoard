@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-175.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-176.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-1, PT-115, PT-126 (2026-11-11 morning cleanup), PT-4, PT-7, PT-12, PT-16, PT-17, PT-19, PT-52, PT-53, PT-54, PT-55, PT-57, PT-58, PT-59, PT-66, PT-67, PT-69, PT-70, PT-71, PT-72, PT-76, PT-92, PT-100, PT-103, PT-104, PT-129, PT-132, PT-135, PT-137, PT-142 (2026-11-10 morning cleanup), PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -81,6 +81,8 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 ## 3. Prod steps that need your OK
 
+- [ ] **PT-175 🤖 Count old-format data so firestore.rules can drop its compatibility branches** (rules room, read-only). Rules still accept data only older app versions wrote; each branch can go once prod has none left. Together about 3 to 4 KB of the 245,000 limit (estimate). On the PC with the prod key:
+  > Read-only on prod: count (1) sessions with a `classId` but no `classIds` list (passesStudentClassGateCompat), (2) docs whose `updatedAt`/`createdAt`/`lastSeenAt` is still an int instead of a timestamp, (3) addresses on the legacy `admin_settings/user_roles` superAdmins list with no super admin member doc, (4) docs naming a legacy long-form building id. Show me the counts; any rules change goes to dev-paul by PR.
 - [ ] **PT-146 🤖 Fill each teacher's verified class list on prod** (security wave 4, batch 4A; after the release that ships the list). The class targeting rules (AB-166) wait until every teacher with classes has a list. After that release, run this in a cloud SpartBoard thread:
   > With my OK: on prod, turn on Admin Settings > Access > Previews > "Fill verified class lists" (super admins only; live since release #5486), then I'll press Force run on the `verifiedClassesFill` job in Cloud Scheduler (https://console.cloud.google.com/cloudscheduler?project=spartboard). The job logs how many teachers remain; press Force run again until that number stops dropping, then show me who is left. Afterwards count (read-only) `verified_classes` docs with a ClassLink read against users with rosters and show me the numbers.
 - [ ] **PT-144 🤖 Turn in unfinished quiz work from before 2026-11-07** (optional). The idle sweep now turns in frozen-period and Stop-held rows of quizzes ended on or after 2026-11-07; older ended quizzes keep theirs as In Progress. On the PC with the prod key:
@@ -185,5 +187,4 @@ Each prompt starts a grilling; the agent writes your answers into the plan and m
   - Deferred video capture responses (peer mode, framing check, transcode, district gate)
   - Link shortener PR 2 (per-click log, nightly rollup, chart) and PR 4 (bulk CSV)
   - Rewrite or retire `docs/PLC_ROADMAP.md`, which covers only the first 6 phases
-  - Delete the retired `users/{uid}/plc_layouts` rule and its tests
     > Ask me build or drop on each idea in PT-98. Move each yes into AGENT_BACKLOG.md as a brief, delete each no.
