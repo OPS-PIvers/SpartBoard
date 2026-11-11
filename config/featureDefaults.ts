@@ -894,6 +894,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz and rubric tools return an interactive preview card that Claude shows in the chat (MCP Apps).
+  'claude-connector-apps': {
+    label: 'Claude connector: previews',
+    icon: Bot,
+    description:
+      'Quizzes and rubrics Claude makes or edits show as a preview card in Claude, with a box to ask for changes.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Teacher-paced (live) Video Activity: the Assign dialog's live option (docs/plans/shipped/VA_TEACHER_PACED.md).
   'video-activity-live': {
     label: 'Video Activity live mode',
