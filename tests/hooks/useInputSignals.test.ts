@@ -90,6 +90,24 @@ describe('useInputSignals', () => {
     expect(save).toHaveBeenCalledExactlyOnceWith(1, { '0': { clicks: 1 } });
   });
 
+  it('keeps earlier counts across a pause and resume', () => {
+    const { save, rerender, unmount } = setup();
+    const props = {
+      enabled: true,
+      ready: true,
+      attempt: 0,
+      questionIndex: 0,
+      serverSignals: undefined,
+      save,
+    };
+    document.body.dispatchEvent(mouse('pointerdown', 10, 10));
+    rerender({ ...props, enabled: false });
+    rerender(props);
+    document.body.dispatchEvent(mouse('pointerdown', 12, 12));
+    unmount();
+    expect(save).toHaveBeenLastCalledWith(0, { '0': { clicks: 2 } });
+  });
+
   it('records and saves nothing while off', () => {
     const { save, unmount } = setup({ enabled: false });
     document.body.dispatchEvent(mouse('pointerdown', 10, 10));

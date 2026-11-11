@@ -52,6 +52,11 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
   });
   const collectorRef = useRef<InputSignalCollector | null>(null);
   const flushRef = useRef<(() => void) | null>(null);
+  // Outlives a pause and resume, where the response snapshot can lag the last save.
+  const writtenRef = useRef<{
+    attempt: number;
+    counts: Record<string, InputSignalCounts>;
+  } | null>(null);
 
   useEffect(() => {
     if (!enabled || !ready) return;
@@ -59,12 +64,17 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       window.matchMedia?.('(pointer: fine)').matches ?? true
     );
     collector.setQuestion(argsRef.current.questionIndex);
-    const base = readAttemptSignals(argsRef.current.serverSignals, attempt);
+    const base =
+      writtenRef.current?.attempt === attempt
+        ? writtenRef.current.counts
+        : readAttemptSignals(argsRef.current.serverSignals, attempt);
     const flush = () => {
       const save = argsRef.current.save;
       if (!save || !collector.takeDirty()) return;
-      save(attempt, addSignals(base, collector.snapshot())).catch(
-        (err: unknown) => logError('useInputSignals.save', err)
+      const counts = addSignals(base, collector.snapshot());
+      writtenRef.current = { attempt, counts };
+      save(attempt, counts).catch((err: unknown) =>
+        logError('useInputSignals.save', err)
       );
     };
     collectorRef.current = collector;
