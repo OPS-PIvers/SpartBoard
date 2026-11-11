@@ -236,6 +236,7 @@ git push origin --delete claude/project-thread-xa560h claude/project-thread-xa56
 git push origin --delete claude/project-thread-kof3cp
 git push origin --delete claude/project-thread-6j0hsf
 git push origin --delete claude/project-thread-42s01y claude/project-thread-42s01y-ab112
+git push origin --delete claude/project-thread-fpc0bu
 git push origin --delete claude/project-thread-unrkuv
 git push origin --delete claude/project-thread-6mytcz claude/project-thread-6mytcz-ab112
 git push origin --delete claude/project-thread-7g5uex
