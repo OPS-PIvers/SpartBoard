@@ -1,0 +1,19 @@
+{
+  "naepId": "880897",
+  "tabId": 57,
+  "tabTitle": "Tab A",
+  "tabSetId": 29,
+  "tabSetTitle": "Arizona Meteor",
+  "tabs": [
+    {
+      "itemTableIdTab": 28766,
+      "naepId": null,
+      "tabId": 57,
+      "tabTitle": "Tab A",
+      "tabSetId": 29,
+      "itemContent": " <div class=\"paragraph\"><span class=\"abbi-ttschunk\">Impact craters are bowl-shaped areas of land that form when a meteor collides with Earth’s surface.</span><span class=\"abbi-ttschunk\"> Meteor Crater in Arizona formed from the impact of an <span class=\"nobreak\">iron-nickel</span> meteor approximately 50,000 years ago.</span><span class=\"ssml-sub:Scientists%20estimmate\"> Scientists estimate</span> that the mass of the meteor was approximately <span class=\"ssml-sub:2.7%20times\">2.7 ×</span><span class=\"ssml-sub:ten%20to-the-eighth-power\">10<sup>8</sup></span> kilograms (kg). <span class=\"abbi-ttschunk\">Figure 1 shows Meteor Crater in Arizona.</span></div><div class=\"paragraph\" style=\"text-align: center;\"><div class=\"stdaln_img\"><img src=\"/api/QuestionDetails/itemresource?TableID=2e40c5d9-d424-409e-b75b-2b17f545f342\" alt=\"Figure 1. Meteor Crater, Arizona. An image of a large bowl-shaped hole in the ground. \" title=\"Figure 1. Meteor Crater, Arizona. An image of a large bowl-shaped hole in the ground. \" height=\"292\" width=\"400\" class=\"inln_img\" /></div></div><div class=\"paragraph\"><span>Table 1 shows the height and potential energy</span><span class=\"ssml-sub:pee%2C%20ee\"> (PE) </span><span>of a meteor as it falls toward Earth’s surface.</span></div><table border=\"1\" cellpadding=\"3\" class=\"abbi-ttsorder-row1col\" style=\"width: 200px; margin-left: auto; margin-right: auto;\"><div class=\"paragraph\" style=\"text-align: center;\"><span class=\"stressed_text_1\">Table 1. Height and Potential Energy </span><span class=\"ssml-sub:pee%2C%20ee\"><span class=\"stressed_text_1\">(PE) </span></span><span class=\"stressed_text_1\">of Falling Meteor</span></div><tbody><tr><th scope=\"col\">Height of <br />\r\nMeteor<br /><span class=\"ssml-sub:kilometers\">(km)</span></th><th scope=\"col\"><span class=\"ssml-sub:potential%20energy\">PE</span> of <br />\r\nMeteor <span class=\"ssml-sub:mega%20joules\">(MJ)</span></th></tr><tr><td><span class=\"abbi-hiddentts\">10</span></td><td><span class=\"ssml-sub:2.6%20times\">2.6 ×</span><span class=\"ssml-sub:ten%20to-the-thirteenth-power\">10<sup>13</sup></span></td></tr><tr><td><span class=\"abbi-hiddentts\">5</span></td><td><span class=\"ssml-sub:1.3%20times\">1.3 ×</span><span class=\"ssml-sub:ten%20to-the-thirteenth-power\">10<sup>13</sup></span></td></tr><tr><td><span class=\"abbi-hiddentts\">0</span></td><td><span class=\"abbi-hiddentts\">0</span></td></tr></tbody></table><div class=\"paragraph\"></div>",
+      "isDefaultTab": true,
+      "sortOrder": 1
+    }
+  ]
+}

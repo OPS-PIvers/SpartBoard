@@ -1,0 +1,130 @@
+{
+  "27032": {
+    "why": "Keep the map; the other picture drew the sentence.",
+    "keepImages": [0]
+  },
+  "28743": {
+    "why": "The alt text spells numbers out (ninety percent) and MDE accepts two complete answers.",
+    "questions": [
+      {
+        "kind": "fib",
+        "blankType": "drag",
+        "text": "Based on the data in Graph 3 (Tab B), construct an argument about how water temperature affects the survival rate of lobsters. Drag the words and percentage into the boxes.\nThe data in Graph 3 (Tab B) show that at temperatures between 2°C and 20°C, the survival rate of lobsters remains above _____. As the temperature _____, the survival rate of lobsters _____.",
+        "bank": ["increases", "decreases", "90%", "85%"],
+        "answers": ["85%", "increases", "decreases"],
+        "alternates": [[], ["decreases"], ["increases"]],
+        "explanation": "The data in Graph 3 (Tab B) show that at temperatures between 2°C and 20°C, the survival rate of lobsters remains above 85%. As the temperature increases, the survival rate of lobsters decreases.",
+        "review": [
+          "MDE accepts temperature increases with survival decreases, or the reverse. Per-blank accepted answers also let through increases/increases and decreases/decreases; check a student who writes those."
+        ]
+      }
+    ]
+  },
+  "28749": {
+    "why": "The only picture drew the drag boxes.",
+    "keepImages": []
+  },
+  "28750": {
+    "why": "Keep Figure 1; the rock layers come from it.",
+    "keepImages": [0]
+  },
+  "28755": {
+    "why": "Keep the comb picture; the other picture drew the sentence.",
+    "keepImages": [0]
+  },
+  "28758": {
+    "why": "The only picture drew the drag boxes.",
+    "keepImages": []
+  },
+  "28773": {
+    "why": "Keep Figure 1; it is the evidence the question asks about.",
+    "keepImages": [0]
+  },
+  "28774": {
+    "why": "MDE accepts heat, sound and light in any order for blanks 2-4; the parser cannot express that.",
+    "questions": [
+      {
+        "kind": "fib",
+        "blankType": "drag",
+        "text": "Identify 3 energy transformations that occur as a meteor hits Earth’s surface. Drag the words into the boxes.\nAs a meteor falls toward Earth’s surface, the _____ energy of the meteor decreases as it is converted to _____ energy, _____ energy, and _____ energy.",
+        "bank": ["heat", "potential", "light", "sound"],
+        "answers": ["potential", "heat", "sound", "light"],
+        "alternates": [
+          [],
+          ["sound", "light"],
+          ["heat", "light"],
+          ["heat", "sound"]
+        ],
+        "explanation": "As a meteor falls towards Earth’s surface, the potential energy of the meteor decreases as it is converted to heat energy, sound energy, and light energy.",
+        "review": [
+          "Blanks 2-4 accept any of heat, sound and light through accepted answers, as MDE does."
+        ]
+      }
+    ]
+  },
+  "28784": {
+    "why": "Point graph: no matching question type (plan M3). Part A is written, Part B is multiple choice.",
+    "questions": [
+      {
+        "kind": "fr",
+        "part": "A",
+        "images": [0],
+        "text": "Part A. Use 3 trials with these settings: Hill 1 height 60 m, Hill 2 height 50 m, and a car mass of 400 kg, 500 kg and 600 kg. Construct a graph of kinetic energy versus mass using the results recorded in the simulation table. List the 3 points you would plot as (mass in kg, kinetic energy in kJ).",
+        "explanation": "The student selects points on the graph: (400, 39); (500, 49); and (600, 59).",
+        "review": [
+          "Point graph item split into a written Part A and an MC Part B."
+        ]
+      },
+      {
+        "kind": "mc",
+        "part": "B",
+        "text": "Part B. Three roller coaster trials use Hill 1 height 60 m, Hill 2 height 50 m, and a car mass of 400 kg, 500 kg and 600 kg. Based on a graph of kinetic energy versus mass for these trials, which statement best describes the relationship between the mass of the car and the kinetic energy of the car?",
+        "options": [
+          "Increasing the mass of the car results in a linear increase in the kinetic energy of the car.",
+          "Increasing the mass of the car results in a linear decrease in the kinetic energy of the car.",
+          "Increasing the mass of the car results in a nonlinear increase in the kinetic energy of the car.",
+          "Increasing the mass of the car results in a nonlinear decrease in the kinetic energy of the car."
+        ],
+        "correct": 0,
+        "optionExplanations": [
+          "Correct. The KE of an object is directly proportional to its mass.",
+          "KE does not decrease as mass increases; it increases with mass.",
+          "The relationship between KE and mass is not nonlinear.",
+          "The relationship between KE and mass is not nonlinear; KE does not decrease as mass increases, it increases with mass."
+        ],
+        "explanation": "The KE of an object is directly proportional to its mass."
+      }
+    ]
+  },
+  "28785": {
+    "why": "Point graph: no matching question type (plan M3). Part A is written, Part B is multiple choice.",
+    "questions": [
+      {
+        "kind": "fr",
+        "part": "A",
+        "images": [0],
+        "text": "Part A. Use 3 trials with these settings: Hill 1 height 80 m, a car mass of 400 kg, and a Hill 2 height of 75 m, 50 m and 25 m. Construct a graph of kinetic energy versus speed for the car at the top of Hill 2 using the results recorded in the simulation table. The graph already has a point at (0, 0) for the car at rest. Round the results to the nearest 5 units, then list the 3 points you would plot as (speed in m/s, kinetic energy in kJ).",
+        "explanation": "The student selects these points on the graph: (10, 20); (25, 120); (35, 220).",
+        "review": [
+          "Point graph item split into a written Part A and an MC Part B."
+        ]
+      },
+      {
+        "kind": "mc",
+        "part": "B",
+        "text": "Part B. Three roller coaster trials use Hill 1 height 80 m, a car mass of 400 kg, and a Hill 2 height of 75 m, 50 m and 25 m. Based on a graph of kinetic energy versus speed at the top of Hill 2, what type of relationship exists between the kinetic energy and the speed of the car?",
+        "options": [
+          "The relationship between kinetic energy and speed is a linear relationship.",
+          "The relationship between kinetic energy and speed is a nonlinear relationship."
+        ],
+        "correct": 1,
+        "optionExplanations": [
+          "The kinetic energy of the car increases in proportion to the square of the speed of the car.",
+          "Correct: The relationship between kinetic energy and speed is a nonlinear relationship."
+        ],
+        "explanation": "Correct: The relationship between kinetic energy and speed is a nonlinear relationship."
+      }
+    ]
+  },
+  "_readme": "Hand conversions for MCA IV science grade 8, keyed by MDE itemTableId. 'questions' replaces what the parser reads; 'keepImages' keeps the listed pictures (indexes into the item's own pictures) and drops the rest. Every entry carries 'why'."
+}
