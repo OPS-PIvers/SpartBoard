@@ -444,6 +444,15 @@ describe('placeTip', () => {
     });
   });
 
+  it('covers the target rather than cap a side too small for the tip chrome', () => {
+    const rect = { x: 20, y: 320, width: 200, height: 40 };
+    expect(placeTip(rect, { w: 1280, h: 650 }, 300, 300)).toEqual({
+      left: 12,
+      top: 12,
+      width: 320,
+    });
+  });
+
   it('falls back to the top when a target leaves no room on either side', () => {
     const rect = { x: 20, y: 40, width: 200, height: 700 };
     expect(placeTip(rect, view, 220)).toEqual({

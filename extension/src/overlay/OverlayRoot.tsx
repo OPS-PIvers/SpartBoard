@@ -43,7 +43,8 @@ const MIN_ROOM = 120;
 export function placeTip(
   rect: OverlayRect | null,
   view: { w: number; h: number },
-  tipH = TIP_H
+  tipH = TIP_H,
+  minRoom = MIN_ROOM
 ): {
   left: number;
   top?: number;
@@ -66,7 +67,7 @@ export function placeTip(
     return { left, bottom: view.h - rect.y + GUTTER * 2, width };
   const roomBelow = view.h - below - GUTTER;
   const roomAbove = rect.y - GUTTER * 3;
-  if (Math.max(roomBelow, roomAbove) < MIN_ROOM)
+  if (Math.max(roomBelow, roomAbove) < minRoom)
     return { left, top: GUTTER, width };
   return roomBelow >= roomAbove
     ? { left, top: below, width, maxH: roomBelow }
@@ -93,7 +94,10 @@ function useHeight(
   ref: React.RefObject<HTMLElement | null>,
   fallback: number
 ): number {
-  const [height, setHeight] = useState(0);
+  const [measured, setMeasured] = useState<{
+    el: HTMLElement | null;
+    h: number;
+  }>({ el: null, h: 0 });
   const [el, setEl] = useState<HTMLElement | null>(null);
   // No deps on purpose: the tip unmounts between steps and remounts as a new element.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- sets state only when the element changed
@@ -103,12 +107,14 @@ function useHeight(
   useLayoutEffect(() => {
     if (!el || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
-      if (el.isConnected && el.offsetHeight > 0) setHeight(el.offsetHeight);
+      if (el.isConnected && el.offsetHeight > 0)
+        setMeasured({ el, h: el.offsetHeight });
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, [el]);
-  return height > 0 ? height : fallback;
+  // A height measured on an earlier step's element never places this one.
+  return measured.el === el && measured.h > 0 ? measured.h : fallback;
 }
 
 /** True once `on` has held for `ms`; false again as soon as it drops. */
@@ -206,7 +212,14 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
   const tipH = boxH - bodyH + useHeight(contentRef, 0);
   // A target inside a frame is lit there; the tip waits low on the screen so it doesn't cover the frame.
   const away = state.status === 'shown' && !state.targetHere;
-  const placed = placeTip(rect, view, tipH);
+  const chromeH = boxH - bodyH;
+  // A capped side must hold the title, buttons and a few lines of text, or the tip overflows it.
+  const placed = placeTip(
+    rect,
+    view,
+    tipH,
+    Math.max(MIN_ROOM, chromeH + GUTTER * 4)
+  );
   const tip = away
     ? {
         ...placed,
@@ -218,7 +231,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
   const bodyMax =
     tip.maxH === undefined
       ? undefined
-      : Math.max(GUTTER * 4, tip.maxH - (boxH - bodyH));
+      : Math.max(GUTTER * 4, tip.maxH - chromeH);
   const done = state.status === 'done';
   const looking = useAfter(state.status === 'seeking', LOOKING_DELAY_MS);
   // Settle, tick, glide, tip after the learner acts (TOURS_10X.md P1).
@@ -263,7 +276,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
           x: tip.left,
           y: tip.top ?? view.h - (tip.bottom ?? 0) - boxH,
           w: tip.width,
-          h: tipH,
+          h: boxH,
         },
         { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
       )
@@ -339,64 +352,68 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
                 : undefined
           }
         >
-          <div
-            ref={bodyRef}
-            className={bodyMax === undefined ? undefined : 'overflow-y-auto'}
-            style={bodyMax === undefined ? undefined : { maxHeight: bodyMax }}
-          >
-            <div ref={contentRef}>
-              {result && !done && (
-                <p
-                  role="status"
-                  data-testid="web-tour-check-result"
-                  className={`mb-2 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${CHECK_TONE[result]}`}
-                >
-                  {t(CHECK_KEYS[result])}
-                </p>
-              )}
-              {!done && (
-                <p className="whitespace-pre-line text-sm text-slate-700">
-                  {renderStepText(state.text.trim())}
-                </p>
-              )}
-              {state.status === 'wrong-page' && (
-                <p
-                  data-testid="web-tour-other-page"
-                  className="mt-2 text-sm font-semibold text-slate-700"
-                >
-                  {t('tours.webOtherPage')}
-                </p>
-              )}
-              {state.status === 'fallback' && (
-                <p
-                  data-testid="web-tour-find-it"
-                  className="mt-2 text-sm font-semibold text-slate-700"
-                >
-                  {t('tours.webFindIt')}
-                </p>
-              )}
-              {state.picture &&
-                (state.status === 'fallback' ||
-                  state.status === 'wrong-page') && (
-                  <Picture
-                    picture={state.picture}
-                    markup={state.markup}
-                    target={state.target}
-                  />
+          {!done && (
+            <div
+              ref={bodyRef}
+              className={
+                bodyMax === undefined ? undefined : '-mx-3 overflow-y-auto px-3'
+              }
+              style={bodyMax === undefined ? undefined : { maxHeight: bodyMax }}
+            >
+              <div ref={contentRef} className="flex flex-col gap-2">
+                {result && !done && (
+                  <p
+                    role="status"
+                    data-testid="web-tour-check-result"
+                    className={`mb-2 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${CHECK_TONE[result]}`}
+                  >
+                    {t(CHECK_KEYS[result])}
+                  </p>
                 )}
-              {state.status === 'wrong-page' && state.takeBack && (
-                // no-tour-anchor: tour playback chrome on a website, never a tour's own target
-                <button
-                  type="button"
-                  data-testid="tour-take-me-back"
-                  onClick={() => onAction('takeBack')}
-                  className={`${secondaryBtn} mt-2 -ml-3`}
-                >
-                  {t('tours.takeMeBack')}
-                </button>
-              )}
+                {!done && (
+                  <p className="whitespace-pre-line text-sm text-slate-700">
+                    {renderStepText(state.text.trim())}
+                  </p>
+                )}
+                {state.status === 'wrong-page' && (
+                  <p
+                    data-testid="web-tour-other-page"
+                    className="mt-2 text-sm font-semibold text-slate-700"
+                  >
+                    {t('tours.webOtherPage')}
+                  </p>
+                )}
+                {state.status === 'fallback' && (
+                  <p
+                    data-testid="web-tour-find-it"
+                    className="mt-2 text-sm font-semibold text-slate-700"
+                  >
+                    {t('tours.webFindIt')}
+                  </p>
+                )}
+                {state.picture &&
+                  (state.status === 'fallback' ||
+                    state.status === 'wrong-page') && (
+                    <Picture
+                      picture={state.picture}
+                      markup={state.markup}
+                      target={state.target}
+                    />
+                  )}
+                {state.status === 'wrong-page' && state.takeBack && (
+                  // no-tour-anchor: tour playback chrome on a website, never a tour's own target
+                  <button
+                    type="button"
+                    data-testid="tour-take-me-back"
+                    onClick={() => onAction('takeBack')}
+                    className={`${secondaryBtn} mt-2 -ml-3`}
+                  >
+                    {t('tours.takeMeBack')}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </TourTip>
       )}
     </>
