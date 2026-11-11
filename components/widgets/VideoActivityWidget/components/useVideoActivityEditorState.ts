@@ -243,6 +243,10 @@ export function useVideoActivityEditorState({
     () => (selectedId ? questions.findIndex((q) => q.id === selectedId) : -1),
     [questions, selectedId]
   );
+  // With no question list, one question is always open while any exist.
+  if (!selectedQuestion && questions.length > 0) {
+    setSelectedId(questions[0].id);
+  }
 
   const flashReorderHint = useCallback((id: string) => {
     setReorderHintFor(id);

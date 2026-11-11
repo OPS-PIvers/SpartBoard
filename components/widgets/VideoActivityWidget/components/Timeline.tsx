@@ -78,6 +78,10 @@ export interface TimelineProps {
    */
   onDurationChange?: (seconds: number) => void;
   handleRef?: React.Ref<TimelineHandle>;
+  /** Questions still missing a correct answer; their markers show in amber. */
+  needsAnswerIds?: ReadonlySet<string>;
+  /** Extra buttons shown beside Add at the playhead. */
+  actions?: React.ReactNode;
 }
 
 /**
@@ -109,6 +113,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   activeQuestionId,
   onDurationChange,
   handleRef,
+  needsAnswerIds,
+  actions,
 }) => {
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -404,6 +410,9 @@ export const Timeline: React.FC<TimelineProps> = ({
             const isActive = q.id === activeQuestionId;
             const isDragging =
               markerDragSec !== null && markerDragSec.id === q.id;
+            const dot = needsAnswerIds?.has(q.id)
+              ? 'bg-amber-500 ring-amber-200'
+              : 'bg-emerald-500 ring-emerald-200';
 
             const handleMarkerPointerDown = (
               e: React.PointerEvent<HTMLButtonElement>
@@ -504,12 +513,12 @@ export const Timeline: React.FC<TimelineProps> = ({
                 onPointerDown={handleMarkerPointerDown}
                 aria-label={`Question at ${formatHms(previewSec)}: ${q.text || 'untitled'} — drag to move, click to select`}
                 title={`${formatHms(previewSec)} — ${q.text || 'Untitled question'}`}
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all touch-none ${
+                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all touch-none ${dot} ${
                   isDragging
-                    ? 'w-4 h-4 bg-emerald-600 ring-2 ring-emerald-300 cursor-grabbing'
+                    ? 'w-4 h-4 ring-2 cursor-grabbing'
                     : isActive
-                      ? 'w-4 h-4 bg-emerald-500 ring-2 ring-emerald-200 cursor-grab'
-                      : 'w-3 h-3 bg-emerald-500 hover:w-4 hover:h-4 cursor-grab'
+                      ? 'w-4 h-4 ring-2 ring-offset-1 ring-offset-slate-200 cursor-grab'
+                      : 'w-3 h-3 hover:w-4 hover:h-4 cursor-grab'
                 }`}
                 style={{ left: `${pct}%` }}
               />
@@ -524,20 +533,23 @@ export const Timeline: React.FC<TimelineProps> = ({
         </div>
 
         {/* Add-at-playhead button */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <p className="text-xxs text-slate-500">
             Drag a marker to move its question.
           </p>
-          <button
-            {...tourAttr('video-activity.timeline-add')}
-            type="button"
-            disabled={!playerReady}
-            onClick={() => onAddAtTime(Math.floor(playhead))}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary text-white font-bold px-3 py-1.5 text-xs hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add at {formatHms(playhead)}
-          </button>
+          <div className="flex items-center gap-2">
+            {actions}
+            <button
+              {...tourAttr('video-activity.timeline-add')}
+              type="button"
+              disabled={!playerReady}
+              onClick={() => onAddAtTime(Math.floor(playhead))}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary text-white font-bold px-3 py-1.5 text-xs hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add at {formatHms(playhead)}
+            </button>
+          </div>
         </div>
       </div>
     </div>

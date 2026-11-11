@@ -33,14 +33,50 @@ vi.mock('@/components/common/EditorWorkspace', () => ({
   ),
 }));
 
+vi.mock('@/components/quiz/targets/TargetPicker', () => ({
+  TargetPicker: ({
+    title,
+    onApply,
+  }: {
+    title: string;
+    onApply: (tags: unknown[], mode: 'add' | 'replace') => void;
+  }) => (
+    <button
+      onClick={() =>
+        onApply([{ id: 't1', kind: 'standard', label: 'S1' }], 'add')
+      }
+    >
+      {title}
+    </button>
+  ),
+}));
+
 // The YouTube player can't load in jsdom; the stub reports the playhead at 0:42.
 vi.mock('@/components/widgets/VideoActivityWidget/components/Timeline', () => ({
-  Timeline: ({ handleRef }: TimelineProps) => {
+  Timeline: ({
+    handleRef,
+    questions,
+    onSelectQuestion,
+    onAddAtTime,
+    actions,
+  }: TimelineProps) => {
     useImperativeHandle(handleRef, () => ({
       seekTo,
       getCurrentTime: () => 42,
     }));
-    return <div data-testid="timeline" />;
+    return (
+      <div data-testid="timeline">
+        {questions.map((q) => (
+          <button
+            key={q.id}
+            aria-label={`Marker ${q.text}`}
+            onClick={() => onSelectQuestion?.(q.id)}
+          />
+        ))}
+        {actions}
+        <button onClick={() => onAddAtTime(42)}>Add at 0:42</button>
+      </div>
+    );
   },
 }));
 
@@ -116,9 +152,11 @@ describe('Video Activity editor on the Quiz layout', () => {
     expect(onSave.mock.calls[0][1]).toEqual(behavior);
   });
 
-  it('lists questions with their time and shows the Quiz fields without Time Limit', () => {
+  it('shows the open question with its time and the Quiz fields without Time Limit', () => {
     renderEditor([mc()]);
-    expect(screen.getByText('00:10')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>('Time in video').value).toBe(
+      '00:10'
+    );
     expect(screen.getByRole('combobox', { name: 'Type' })).toBeTruthy();
     expect(screen.getByLabelText('Time in video')).toBeTruthy();
     expect(screen.queryByText(/Time Limit/i)).toBeNull();
@@ -130,10 +168,44 @@ describe('Video Activity editor on the Quiz layout', () => {
     expect(types).toEqual(['Multiple Choice', 'Fill in the Blank']);
   });
 
-  it('selecting a row seeks the video to the question', () => {
+  it('clicking a marker opens its question and seeks the video', () => {
     renderEditor([mc(), mc({ id: 'q2', timestamp: 30, text: 'Second' })]);
-    fireEvent.click(screen.getByText('Second'));
+    fireEvent.click(screen.getByLabelText('Marker Second'));
     expect(seekTo).toHaveBeenCalledWith(30);
+    expect(screen.getByText(/Question 2 of 2/)).toBeTruthy();
+  });
+
+  it('arrows and the question menu step through questions', () => {
+    renderEditor([
+      mc(),
+      mc({ id: 'q2', timestamp: 30, text: 'Second' }),
+      mc({ id: 'q3', timestamp: 50, text: 'Third' }),
+    ]);
+    const prev = screen.getByRole('button', { name: 'Previous question' });
+    const next = screen.getByRole('button', { name: 'Next question' });
+    expect(prev).toHaveProperty('disabled', true);
+    fireEvent.click(next);
+    expect(screen.getByText(/Question 2 of 3/)).toBeTruthy();
+    expect(seekTo).toHaveBeenLastCalledWith(30);
+    fireEvent.change(screen.getByLabelText('Jump to question'), {
+      target: { value: 'q3' },
+    });
+    expect(screen.getByText(/Question 3 of 3/)).toBeTruthy();
+    expect(next).toHaveProperty('disabled', true);
+    fireEvent.click(prev);
+    expect(screen.getByText(/Question 2 of 3/)).toBeTruthy();
+  });
+
+  it('deleting the open question opens the next one', async () => {
+    const onSave = renderEditor([
+      mc(),
+      mc({ id: 'q2', timestamp: 30, text: 'Second' }),
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete question' }));
+    expect(screen.getByText(/Question 1 of 1/)).toBeTruthy();
+    expect(screen.getByDisplayValue('Second')).toBeTruthy();
+    const qs = await saved(onSave);
+    expect(qs.map((q) => q.id)).toEqual(['q2']);
   });
 
   it('saves prompt and option edits in the Video Activity shape', async () => {
@@ -174,7 +246,7 @@ describe('Video Activity editor on the Quiz layout', () => {
         target: { value: 'mitosis' },
       }
     );
-    fireEvent.click(screen.getByText(/^Add /));
+    fireEvent.click(screen.getByText(/^Add (?!at)/));
     fireEvent.change(screen.getAllByRole('textbox').at(-1) as HTMLElement, {
       target: { value: 'cell division' },
     });
@@ -204,14 +276,10 @@ describe('Video Activity editor on the Quiz layout', () => {
     );
   });
 
-  it('Add puts a new question at the playhead', () => {
+  it('Add at the playhead opens a new question there', () => {
     renderEditor([mc()]);
-    fireEvent.click(
-      document.querySelector(
-        '[data-tour="video-activity.editor-add-question"]'
-      ) as HTMLElement
-    );
-    expect(screen.getByText('00:42')).toBeTruthy();
+    fireEvent.click(screen.getByText('Add at 0:42'));
+    expect(screen.getByText(/Question 2 of 2/)).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>('Time in video').value).toBe(
       '00:42'
     );
@@ -228,17 +296,11 @@ describe('Video Activity editor on the Quiz layout', () => {
     expect(qs[1].id).not.toBe(qs[0].id);
   });
 
-  it('deletes checked questions in bulk', async () => {
-    const onSave = renderEditor([
-      mc(),
-      mc({ id: 'q2', timestamp: 20 }),
-      mc({ id: 'q3', timestamp: 30, text: 'Keep me' }),
-    ]);
-    fireEvent.click(screen.getByLabelText('Select question 1'));
-    fireEvent.click(screen.getByLabelText('Select question 2'));
-    expect(screen.getByText('2 selected')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+  it('Tag all tags every question', async () => {
+    const onSave = renderEditor([mc(), mc({ id: 'q2', timestamp: 20 })]);
+    fireEvent.click(screen.getByRole('button', { name: 'Tag all' }));
+    fireEvent.click(screen.getByText('Tag all 2 questions'));
     const qs = await saved(onSave);
-    expect(qs.map((q) => q.id)).toEqual(['q3']);
+    expect(qs.map((q) => q.targets?.[0]?.id)).toEqual(['t1', 't1']);
   });
 });
