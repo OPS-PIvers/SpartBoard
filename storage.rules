@@ -425,7 +425,8 @@ service firebase.storage {
     // PLC norming audio copies: members read, only setPlcNormingFlagV1 writes.
     match /plc_norming_media/{plcId}/{fileName} {
       allow read: if request.auth != null
-        && request.auth.uid in firestore.get(/databases/(default)/documents/plcs/$(plcId)).data.memberUids;
+        && request.auth.uid in firestore.get(/databases/(default)/documents/plcs/$(plcId)).data.memberUids
+        && notDeactivated();
       allow write: if false;
     }
 
@@ -437,7 +438,8 @@ service firebase.storage {
     }
     match /plc_meeting_audio/{plcId}/{recordingId}/{allPaths=**} {
       allow read: if request.auth != null && viewAsReadOk()
-        && request.auth.uid in plcMeetingData(plcId).memberUids;
+        && request.auth.uid in plcMeetingData(plcId).memberUids
+        && notDeactivated();
     }
     match /plc_meeting_audio/{plcId}/{recordingId}/{partIndex}/{fileName} {
       allow create: if request.auth != null && viewAsWriteOk()
