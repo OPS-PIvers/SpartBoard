@@ -84,9 +84,50 @@ describe('useDriveImageFallback', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('does nothing without a Drive token', () => {
-    renderWithToken(LH3, null);
-    fireEvent.error(screen.getByAltText('pic'));
+  it('retries once the Drive token arrives after the image failed', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+    });
+    const view = renderWithToken(LH3, null);
+    const img = screen.getByAltText('pic');
+    fireEvent.error(img);
     expect(fetchMock).not.toHaveBeenCalled();
+
+    view.rerender(
+      <AuthContext.Provider
+        value={{ googleAccessToken: 'late' } as unknown as AuthContextType}
+      >
+        <Img src={LH3} />
+      </AuthContext.Provider>
+    );
+
+    await waitFor(() =>
+      expect(img.getAttribute('src')).toBe('blob:drive-image')
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries with a refreshed token after a failed download', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401 });
+    const view = renderWithToken(LH3, 'old');
+    const img = screen.getByAltText('pic');
+    fireEvent.error(img);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
+    });
+    view.rerender(
+      <AuthContext.Provider
+        value={{ googleAccessToken: 'new' } as unknown as AuthContextType}
+      >
+        <Img src={LH3} />
+      </AuthContext.Provider>
+    );
+    await waitFor(() =>
+      expect(img.getAttribute('src')).toBe('blob:drive-image')
+    );
   });
 });

@@ -1,11 +1,4 @@
-/**
- * Read-only: lists one teacher's boards with their image (sticker) and Links widgets,
- * so a "my picture vanished on reload" report can be told apart: widget gone (save lost)
- * or widget there with an image URL that no longer loads.
- *
- *   scripts/cloud-run.sh scripts/inspect-board-images.mjs <email>
- * Prints board names, widget ids, URL host and kind only; writes nothing.
- */
+// Read-only: one teacher's picture and Links widgets per board. Usage: scripts/cloud-run.sh scripts/inspect-board-images.mjs <email>
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { existsSync, readFileSync } from 'fs';

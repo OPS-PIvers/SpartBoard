@@ -1,4 +1,4 @@
-import { useCallback, useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
@@ -29,7 +29,7 @@ const downloadAsBlobUrl = (
       return URL.createObjectURL(blob);
     })
     .catch((err: unknown) => {
-      // Let a later attempt (say, after the token refreshes) try again.
+      // Not cached, so a refreshed token gets another try.
       blobUrls.delete(fileId);
       console.warn('[DriveImage] Fallback download failed:', err);
       return null;
@@ -44,24 +44,30 @@ export function useDriveImageFallback(src: string | undefined): {
   onError: () => void;
 } {
   const token = useContext(AuthContext)?.googleAccessToken ?? null;
-  const [fallback, setFallback] = useState<{
-    for: string;
-    url: string | null;
-  } | null>(null);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<{ for: string; url: string } | null>(
+    null
+  );
 
-  const onError = useCallback(() => {
-    const fileId = lh3DriveFileId(src);
+  const fileId = failedSrc === src ? lh3DriveFileId(src) : null;
+  // Runs once per (failed src, token): a token that arrives or refreshes after the failure retries.
+  useEffect(() => {
     if (!src || !fileId || !token) return;
-    // Already tried for this src (or the blob URL itself failed): stop here.
-    if (fallback?.for === src) return;
-    setFallback({ for: src, url: null });
+    let cancelled = false;
     void downloadAsBlobUrl(fileId, token).then((url) => {
-      if (url) setFallback({ for: src, url });
+      if (!cancelled && url) setLoaded({ for: src, url });
     });
-  }, [src, token, fallback]);
+    return () => {
+      cancelled = true;
+    };
+  }, [src, fileId, token]);
 
-  const active = fallback?.for === src ? fallback.url : null;
-  return { src: active ?? src, onError };
+  const onError = () => {
+    // The blob copy failing too ends it; the original link failing starts the fallback.
+    if (src && loaded?.for !== src) setFailedSrc(src);
+  };
+
+  return { src: loaded?.for === src ? loaded.url : src, onError };
 }
 
 export const __resetDriveImageFallbackForTests = (): void => {
