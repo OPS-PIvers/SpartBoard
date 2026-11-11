@@ -11380,7 +11380,7 @@ export const TOUR_ANCHORS = {
     perField: true,
   },
   'video-activity.editor-question-delete': {
-    label: 'Delete button on a question in the editor question list',
+    label: 'Delete button for a question in the video activity editor',
     perField: true,
     destructive: true,
     persists: true,
@@ -11418,7 +11418,7 @@ export const TOUR_ANCHORS = {
     label: 'Draft with AI button in the video activity editor',
   },
   'video-activity.editor-add-question': {
-    label: 'Add question button in the video activity editor question list',
+    label: 'Add question button in the video activity editor',
     persists: true,
     sandboxed: true,
   },
@@ -11427,13 +11427,23 @@ export const TOUR_ANCHORS = {
     perField: true,
   },
   'video-activity.editor-question-duplicate': {
-    label: 'Duplicate button on a question in the video activity editor',
+    label: 'Duplicate button for a question in the video activity editor',
     perField: true,
     persists: true,
     sandboxed: true,
   },
   'video-activity.editor-bulk-tag': {
-    label: 'Tag button for selected questions in the video activity editor',
+    label:
+      'Tag button for selected or all questions in the video activity editor',
+  },
+  'video-activity.editor-question-prev': {
+    label: 'Previous question arrow in the video activity editor',
+  },
+  'video-activity.editor-question-next': {
+    label: 'Next question arrow in the video activity editor',
+  },
+  'video-activity.editor-question-jump': {
+    label: 'Question menu in the video activity editor',
   },
   'video-activity.editor-bulk-delete': {
     label: 'Delete button for selected questions in the video activity editor',

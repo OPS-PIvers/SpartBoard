@@ -1641,6 +1641,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'video-activity-editor-arrows': {
+    label: 'Video Activity editor: question arrows',
+    icon: Video,
+    description:
+      'The video fills the editor and arrows step through questions in place of the question list.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'video-import-ai': {
     label: 'Video import: AI questions',
     icon: Sparkles,

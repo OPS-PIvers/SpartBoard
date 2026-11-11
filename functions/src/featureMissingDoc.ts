@@ -91,6 +91,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'schoology-push-due-date',
   'flashcards-missed-cards',
   'flashcards-check-sync',
+  'video-activity-editor-arrows',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
