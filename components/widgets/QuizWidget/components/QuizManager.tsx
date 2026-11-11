@@ -1411,7 +1411,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
     if (isDistrictCopy?.(quiz)) {
       // Linked District library copy: an allowlist, so actions added later stay off until reviewed.
-      const allowed = new Set(['preview', 'assign-paper', 'sync-now']);
+      const allowed = new Set([
+        'preview',
+        'assign-paper',
+        'import-paper',
+        'sync-now',
+      ]);
       const kept = actions.filter((a) => allowed.has(a.id));
       actions.length = 0;
       actions.push(...kept);

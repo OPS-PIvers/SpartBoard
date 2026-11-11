@@ -63,10 +63,10 @@ const iconButton =
   'touch-target-expand inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50';
 
 export const DistrictLibraryPanel: React.FC = () => {
-  const { user, isAdmin, roleId, orgId } = useAuth();
+  const { user, isAdmin, adminDoc } = useAuth();
   const { showConfirm } = useDialog();
   const buildings = useAdminBuildings();
-  const siteAdmin = isSiteAdminActor(isAdmin, roleId, orgId);
+  const siteAdmin = isSiteAdminActor(isAdmin, adminDoc);
   const { items, loading, error } = useDistrictLibraryItems(siteAdmin);
   const fileInput = useRef<HTMLInputElement>(null);
   const replaceTarget = useRef<string | null>(null);

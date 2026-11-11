@@ -860,9 +860,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const metaRef = doc(db, 'users', userId, QUIZZES_COLLECTION, quizId);
       // A retry after a partial add finds the first copy instead of making another.
       const existingSnap = await getDoc(metaRef);
-      if (existingSnap.exists()) {
-        return migrateQuizMetadataShape(existingSnap.data());
-      }
+      const existing = existingSnap.exists()
+        ? migrateQuizMetadataShape(existingSnap.data())
+        : null;
+      // A copy of a deleted and re-uploaded item points at the old canonical; replace it.
+      if (existing?.sync?.groupId === item.syncGroupId) return existing;
       // Read the canonical first, so a failure leaves nothing behind.
       const canonical = await pullSyncedQuizContent(item.syncGroupId);
       const drive = getDriveService();
@@ -906,6 +908,14 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           });
         }
         throw err;
+      }
+      if (existing && existing.driveFileId !== driveFileId) {
+        void drive.deleteQuizFile(existing.driveFileId).catch((err: unknown) =>
+          logError('useQuiz.addLinkedDistrictQuiz.replace', err, {
+            itemId: item.id,
+            orphanDriveFileId: existing.driveFileId,
+          })
+        );
       }
       return metadata;
     },

@@ -4238,20 +4238,55 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz.district-library",
     "label": "District library button in the Quiz library",
-    "scope": "widget"
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "quiz.district-library.add",
     "label": "Add button for a District library item, by item",
     "scope": "field",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "quiz.district-library.sources",
     "label": "Sources toggle for a District library item, by item",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "quiz.district-library.remove",
@@ -4259,7 +4294,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "quiz.schoology-inbox",
@@ -9849,7 +9896,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.editor.bank-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.add-menu:quiz",
+          "quiz-editor.add-from-bank:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "quiz-banks.picker-source",
@@ -42517,39 +42579,117 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "admin.district-library.upload",
     "label": "Upload package file button in District library",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.confirm-upload",
     "label": "Add to library button after reviewing a package file",
     "scope": "board",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.cancel-upload",
     "label": "Cancel button after reviewing a package file",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.publish",
     "label": "Publish or Unpublish button in a District library row",
     "scope": "field",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.targeting",
     "label": "Who sees it button in a District library row",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.replace",
     "label": "Replace button in a District library row",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.delete",
@@ -42557,44 +42697,135 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.everyone",
     "label": "Every teacher in the district checkbox in District library targeting",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.building",
     "label": "Building checkbox in District library targeting, by building id",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.grade",
     "label": "Grade checkbox in District library targeting, by grade",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.teachers",
     "label": "Teachers email box in District library targeting",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.save-targeting",
     "label": "Save button in District library targeting",
     "scope": "field",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.district-library.cancel-targeting",
     "label": "Cancel button in District library targeting",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "admin.import-block-list.new-pattern",
@@ -74758,6 +74989,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.card-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.card-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {

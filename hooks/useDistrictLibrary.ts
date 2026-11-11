@@ -132,31 +132,35 @@ async function checkDistrictBankLink(
   uid: string,
   link: DistrictLibraryBankLink
 ): Promise<DistrictBankLinkView> {
-  let published = false;
+  let itemSyncGroupId: string | null = null;
   try {
     // The rules only let a teacher read an item that is published and still targets them.
     const item = await getDoc(
       doc(db, DISTRICT_LIBRARY_COLLECTION, link.itemId)
     );
-    published =
-      item.exists() &&
-      (item.data() as DistrictLibraryItem).status === 'published';
+    const data = item.exists() ? (item.data() as DistrictLibraryItem) : null;
+    if (data?.status === 'published') itemSyncGroupId = data.syncGroupId;
   } catch {
-    published = false;
+    itemSyncGroupId = null;
   }
-  if (!published) return { ...link, unavailable: true };
+  if (!itemSyncGroupId) return { ...link, unavailable: true };
   try {
+    // A deleted and re-uploaded item has a new canonical; follow it.
     const snap = await getDoc(
-      doc(db, 'synced_question_banks', link.syncGroupId)
+      doc(db, 'synced_question_banks', itemSyncGroupId)
     );
     if (!snap.exists()) return { ...link, unavailable: true };
     const bank = snap.data() as SyncedQuestionBank;
     const fresh = {
+      syncGroupId: itemSyncGroupId,
+      ownerUid: bank.ownerUid,
       title: bank.title,
       questionCount: bank.questionCount,
       targetIds: bank.targetIds ?? [],
     };
     const changed =
+      fresh.syncGroupId !== link.syncGroupId ||
+      fresh.ownerUid !== link.ownerUid ||
       fresh.title !== link.title ||
       fresh.questionCount !== link.questionCount ||
       fresh.targetIds.join('|') !== (link.targetIds ?? []).join('|');

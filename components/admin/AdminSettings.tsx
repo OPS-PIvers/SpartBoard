@@ -330,8 +330,15 @@ const RailTab: React.FC<{
 );
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
-  const { isAdmin, user, userRoles, roleId, orgId, canAccessFeature } =
-    useAuth();
+  const {
+    isAdmin,
+    user,
+    userRoles,
+    roleId,
+    orgId,
+    adminDoc,
+    canAccessFeature,
+  } = useAuth();
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
     userRoles?.superAdmins,
@@ -349,7 +356,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       ]
     : visibleGroups(
         isSuperAdmin,
-        isSiteAdminActor(isAdmin, roleId, orgId),
+        isSiteAdminActor(isAdmin, adminDoc),
         canAccessFeature
       );
   const tabs = groups.flatMap((group) => group.tabs);

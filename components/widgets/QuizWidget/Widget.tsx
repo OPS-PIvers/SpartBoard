@@ -3787,6 +3787,8 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
                 mode: quizAssignmentMode,
                 ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
+                // Teammates can't join a District canonical, so no PLC template.
+                ...(isDistrictCopy(meta) ? { skipPlcTemplateWrite: true } : {}),
                 ...(plcLinkage && plcOptions.plcPoolSyncGroupId
                   ? { plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId }
                   : {}),
@@ -4678,7 +4680,11 @@ const TeacherQuizWidget: React.FC<{
           addedQuizItemIds={
             new Set(
               quizzes.flatMap((q) =>
-                q.districtLinkedItemId ? [q.districtLinkedItemId] : []
+                q.districtLinkedItemId &&
+                districtItems.find((i) => i.id === q.districtLinkedItemId)
+                  ?.syncGroupId === q.sync?.groupId
+                  ? [q.districtLinkedItemId]
+                  : []
               )
             )
           }

@@ -120,6 +120,24 @@ describe('reconcileBankSlotsForPlcShare', () => {
     expect(result.unsharedBankTitles).toEqual(['Bank A']);
   });
 
+  it('accepts a District library bank slot without a PLC share', () => {
+    const result = reconcileBankSlotsForPlcShare(
+      {
+        bankSlots: [
+          slot({
+            bankId: 'item-1',
+            syncGroupId: 'dg',
+            districtItemId: 'item-1',
+          }),
+        ],
+      },
+      [],
+      'plc-1'
+    );
+    expect(result.unsharedBankTitles).toEqual([]);
+    expect(result.changed).toBe(false);
+  });
+
   it('ignores selected-mode slots and dedupes titles', () => {
     const result = reconcileBankSlotsForPlcShare(
       {

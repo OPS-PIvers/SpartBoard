@@ -74,6 +74,7 @@ import {
 } from '@/utils/gradeMatch';
 import i18n from '@/i18n';
 import { GoogleDriveService } from '@/utils/googleDriveService';
+import type { AdminDocProvenance } from '@/utils/superAdmin';
 import { onDriveTokenChange } from '@/utils/driveAuthErrors';
 import { reportGlobalPermissionsError } from '@/utils/globalPermissionsErrors';
 import {
@@ -418,6 +419,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAdmin, setIsAdmin] = useState<boolean | null>(
     isAuthBypass ? true : null
   ); // null = not yet checked
+  const [adminDoc, setAdminDoc] = useState<AdminDocProvenance | null>(null);
   const [userRoles, setUserRoles] = useState<UserRolesConfig | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [featurePermissions, setFeaturePermissions] = useState<
@@ -1537,6 +1539,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // transition while AuthContext stays mounted.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resets admin status before the new user's Firestore check
     setIsAdmin(null);
+    setAdminDoc(null);
 
     const checkAdminStatus = async () => {
       if (!user?.email) return;
@@ -1549,9 +1552,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // As per code review, we are keeping isAdmin aligned with the /admins collection
         // until a safer data model for roles is established, to avoid authorization failures
         // on writes since firestore.rules still only uses the /admins collection.
+        const data = adminDoc.data();
+        setAdminDoc(
+          data
+            ? {
+                source:
+                  typeof data.source === 'string' ? data.source : undefined,
+                orgId: typeof data.orgId === 'string' ? data.orgId : undefined,
+                roleId:
+                  typeof data.roleId === 'string' ? data.roleId : undefined,
+              }
+            : null
+        );
         setIsAdmin(adminDoc.exists());
       } catch (error) {
         console.error('Error checking admin status:', error);
+        setAdminDoc(null);
         setIsAdmin(false);
       }
     };
@@ -3496,6 +3512,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       googleAccessToken,
       loading,
       isAdmin,
+      adminDoc,
       userRoles,
       appSettings,
       featurePermissions,
@@ -3579,6 +3596,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       googleAccessToken,
       loading,
       isAdmin,
+      adminDoc,
       userRoles,
       appSettings,
       featurePermissions,
