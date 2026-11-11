@@ -10,7 +10,10 @@ import {
   type WrittenAnswersValue,
 } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 
-const Harness: React.FC<{ staff?: boolean }> = ({ staff = false }) => {
+const Harness: React.FC<{ staff?: boolean; onAssignOnPaper?: () => void }> = ({
+  staff = false,
+  onAssignOnPaper,
+}) => {
   const [when, setWhen] = useState(() =>
     defaultWhenValue({
       activity: 'quiz',
@@ -36,11 +39,28 @@ const Harness: React.FC<{ staff?: boolean }> = ({ staff = false }) => {
       hasManualGrading={false}
       handRaiseMode="teacher-choice"
       submitLabel="Assign"
+      onAssignOnPaper={onAssignOnPaper}
       onClose={vi.fn()}
       onSubmit={vi.fn()}
     />
   );
 };
+
+describe('QuizAssignStepper Assign on paper', () => {
+  it('is left out unless offered', () => {
+    render(<Harness />);
+    expect(
+      screen.queryByRole('button', { name: 'Assign on paper' })
+    ).toBeNull();
+  });
+
+  it('leaves for the paper flow from beside Assign', () => {
+    const onAssignOnPaper = vi.fn();
+    render(<Harness onAssignOnPaper={onAssignOnPaper} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Assign on paper' }));
+    expect(onAssignOnPaper).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('QuizAssignStepper When step without bell periods', () => {
   it('offers a due date per class with one shared Opens', () => {
@@ -87,7 +107,22 @@ const WrittenHarness: React.FC<{ offered: boolean }> = ({ offered }) => {
       handRaiseMode="teacher-choice"
       submitLabel="Assign"
       {...(offered
-        ? { written: { value: written, onChange: setWritten, count: 3 } }
+        ? {
+            written: {
+              value: written,
+              onChange: setWritten,
+              count: 1,
+              rows: [
+                {
+                  questionId: 'w1',
+                  label: '5',
+                  text: 'Use the provided resources and write an essay.',
+                  size: written.boxSizes.w1 ?? 'M',
+                  style: written.boxStyles.w1?.style ?? 'lines',
+                },
+              ],
+            },
+          }
         : {})}
       onClose={vi.fn()}
       onSubmit={vi.fn()}
@@ -113,5 +148,30 @@ describe('QuizAssignStepper Written answers step', () => {
     expect(
       screen.getByRole('button', { name: /Assign and print/ })
     ).toBeInTheDocument();
+  });
+
+  it('picks page count and paper type for each written question on paper', () => {
+    render(<WrittenHarness offered />);
+    fireEvent.click(screen.getByRole('button', { name: /^\dWritten answers/ }));
+    expect(
+      screen.queryByLabelText('Question 5 box size')
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'On paper' }));
+    expect(
+      screen.getByText('Use the provided resources and write an essay.')
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Question 5 box size'), {
+      target: { value: 'full' },
+    });
+    fireEvent.change(screen.getByLabelText('Question 5 answer style'), {
+      target: { value: 'graph' },
+    });
+    expect(screen.getByLabelText('Question 5 box size')).toHaveValue('full');
+    expect(screen.getByLabelText('Question 5 answer style')).toHaveValue(
+      'graph'
+    );
+    expect(
+      screen.queryByRole('option', { name: 'Custom image' })
+    ).not.toBeInTheDocument();
   });
 });

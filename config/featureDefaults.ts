@@ -1,11 +1,11 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  ArrowLeftRight,
   Camera,
   PenLine,
   BarChart,
   BellRing,
-  BookOpen,
   Bot,
   Building2,
   Cast,
@@ -508,6 +508,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Swap terms and definitions button in the Flashcards set editor. Admin-only until Paul has tried it in prod.
+  'flashcards-swap-sides': {
+    label: 'Flashcards: swap terms and definitions',
+    icon: ArrowLeftRight,
+    description: 'Adds a swap button above the cards in the set editor.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Version split without AI (F24). Admin-only until Paul has imported with it.
   'quiz-import-versions-plain': {
     label: 'Split versions without AI',
@@ -790,6 +801,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Students see their own kept pages with their returned results (lifts K1).
+  'paper-pages-student-view': {
+    label: 'Students see their scanned pages',
+    icon: ScanLine,
+    description:
+      'Students see their own scanned pages with their results once you return written answers.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Students see scanned pages',
+    group: 'questions',
+    requires: 'paper-kept-pages',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Markup on handwritten answer images (QUIZ_PAPER_KEPT_PAGES.md §3.3).
   'paper-image-markup': {
     label: 'Mark up handwritten answers',
@@ -867,6 +894,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz and rubric tools return an interactive preview card that Claude shows in the chat (MCP Apps).
+  'claude-connector-apps': {
+    label: 'Claude connector: previews',
+    icon: Bot,
+    description:
+      'Quizzes and rubrics Claude makes or edits show as a preview card in Claude, with a box to ask for changes.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Teacher-paced (live) Video Activity: the Assign dialog's live option (docs/plans/shipped/VA_TEACHER_PACED.md).
   'video-activity-live': {
     label: 'Video Activity live mode',
@@ -925,17 +964,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Student Grades tab',
     icon: GraduationCap,
     description: 'Students see their published scores in My Assignments.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'student-overview-resources': {
-    label: 'Student Overview resources',
-    icon: BookOpen,
-    description:
-      'Students see open resources from every class on the Overview.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1319,6 +1347,45 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
+  // Stamped on study assignments at assign time; students can't read flags.
+  'flashcards-missed-cards': {
+    label: 'Flashcards: study missed cards',
+    icon: Layers,
+    description:
+      'Students in a study assignment can study just the cards they missed, in every mode.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Admin-only until Paul has assigned a study resource with it.
+  'flashcards-study-settings': {
+    label: 'Flashcards: study settings',
+    icon: Layers,
+    description:
+      'Sets what students start with in a study resource, and Study resource as the default.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Admin-only until Paul has saved a sight-word set with it.
+  'flashcards-term-only': {
+    label: 'Flashcards: cards without definitions',
+    icon: Layers,
+    description:
+      'Teachers can save cards with only a term, like sight words. Write and Test are hidden for those sets.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
     label: 'Flashcards: AI',
@@ -1582,6 +1649,28 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'video-activity',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'schoology-push-due-date': {
+    label: 'Schoology push: due date',
+    icon: Send,
+    description:
+      'Lets teachers pick the Schoology due date when a push makes a new gradebook column.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'flashcards-check-sync': {
+    label: 'Flashcards: set fixes reach Checks',
+    icon: Layers,
+    description:
+      'Saving a set updates the cards in its open Checks. Cards added or deleted stay as assigned.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

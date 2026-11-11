@@ -16,6 +16,7 @@ import {
   Share2,
   Trash2,
   Users2,
+  Link2,
 } from 'lucide-react';
 import type { FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
@@ -440,25 +441,36 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
           icon: MonitorPlay,
           onClick: () => onPresent(set),
         },
-        {
-          id: 'share',
-          label: 'Share',
-          icon: Share2,
-          onClick: () => onShare(set),
-        },
+        onShareWithPlc
+          ? {
+              id: 'share',
+              label: 'Share',
+              icon: Share2,
+              onClick: () => onShare(set),
+              submenu: [
+                {
+                  id: 'get-link',
+                  label: 'Get link',
+                  icon: Link2,
+                  onClick: () => onShare(set),
+                },
+                {
+                  id: 'share-with-plc',
+                  label: 'Share with PLC',
+                  icon: Users2,
+                  onClick: () => onShareWithPlc(set),
+                },
+              ],
+            }
+          : {
+              id: 'share',
+              label: 'Share',
+              icon: Share2,
+              onClick: () => onShare(set),
+            },
         buildMoveToFolderAction({
           onOpenPicker: () => setFolderTarget(set),
         }),
-        ...(onShareWithPlc
-          ? [
-              {
-                id: 'share-with-plc',
-                label: 'Share with PLC',
-                icon: Users2,
-                onClick: () => onShareWithPlc(set),
-              },
-            ]
-          : []),
         {
           id: 'delete',
           label: 'Delete',

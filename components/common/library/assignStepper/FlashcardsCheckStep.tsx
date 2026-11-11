@@ -9,12 +9,15 @@ import {
   FLASHCARD_TEST_TYPE_OPTIONS,
 } from '@/components/widgets/Flashcards/utils/flashcardAssignOptions';
 import type { FlashcardsCheckValue } from './flashcardsCheckValue';
+import { DEFINITION_MODES } from '@/components/flashcards/playerUtils';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface FlashcardsCheckContext {
   cardCount: number;
   /** Speak is available for this set (flag and language). */
   speakAvailable?: boolean;
+  /** Some cards have no definition, so Write and Test are left out. */
+  termOnly?: boolean;
 }
 
 export interface FlashcardsCheckStepProps extends FlashcardsCheckContext {
@@ -43,6 +46,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
   onChange,
   cardCount,
   speakAvailable = false,
+  termOnly = false,
   speakRules,
 }) => {
   const update = (patch: Partial<FlashcardsCheckValue>): void =>
@@ -54,9 +58,14 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         ? [...value.testTypes.filter((t) => t !== type), type]
         : value.testTypes.filter((t) => t !== type),
     });
-  const modeOptions = speakAvailable
-    ? [...FLASHCARD_MODE_OPTIONS, { value: 'speak' as const, label: 'Speak' }]
+  const baseModes = termOnly
+    ? FLASHCARD_MODE_OPTIONS.filter(
+        (option) => !DEFINITION_MODES.includes(option.value)
+      )
     : FLASHCARD_MODE_OPTIONS;
+  const modeOptions = speakAvailable
+    ? [...baseModes, { value: 'speak' as const, label: 'Speak' }]
+    : baseModes;
   const speakMode = value.checkMode === 'speak';
   const noTestTypes =
     value.checkMode === 'test' &&

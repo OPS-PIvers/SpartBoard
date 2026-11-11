@@ -43,13 +43,24 @@ function choiceImageIds(quiz: QuizData): Set<string> {
 }
 
 /** A picture-only choice whose picture was lost goes back to its printed letter. */
-function lettered(q: QuizQuestion, lost: ReadonlySet<string>): QuizQuestion {
+function lettered(
+  q: QuizQuestion,
+  lost: ReadonlySet<string>,
+  printed: readonly string[]
+): QuizQuestion {
   if (lost.size === 0 || (q.type !== 'MC' && q.type !== 'MA')) return q;
-  const right =
-    q.type === 'MA' ? q.correctAnswer.split('|') : [q.correctAnswer];
+  const right = (
+    q.type === 'MA' ? q.correctAnswer.split('|') : [q.correctAnswer]
+  ).filter(Boolean);
   const all = [...right, ...q.incorrectAnswers];
+  // Without a stored printed order, the pictures' own order is it only when every choice is a picture.
+  const fromPictures =
+    printed.length === all.length && printed.every((t) => all.includes(t))
+      ? printed.map((t) => all.indexOf(t))
+      : null;
   const order =
-    q.optionOrder?.length === all.length ? q.optionOrder : all.map((_, i) => i);
+    q.optionOrder?.length === all.length ? q.optionOrder : fromPictures;
+  if (!order) return q;
   const rename = new Map<string, string>();
   order.forEach((index, position) => {
     const text = all[index];
@@ -92,7 +103,11 @@ function withChoiceUrls(
       );
       const { answerImages: _images, imageOnlyAnswers: _only, ...rest } = q;
       return {
-        ...lettered(rest, lost),
+        ...lettered(
+          rest,
+          lost,
+          q.answerImages.map((image) => image.text)
+        ),
         ...(images.length > 0 ? { answerImages: images } : {}),
         ...(only.length > 0 ? { imageOnlyAnswers: only } : {}),
       };

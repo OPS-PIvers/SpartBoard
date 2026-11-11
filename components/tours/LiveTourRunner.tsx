@@ -96,7 +96,11 @@ import {
   settingsUndoKey,
 } from './tourPrerequisites';
 import { fieldSettingsTab } from './settingsTab';
-import { anchorPrerequisite, WHOLE_BOARD_ANCHOR } from '@/config/tourAnchors';
+import {
+  anchorPrerequisite,
+  isCreatesAnchor,
+  WHOLE_BOARD_ANCHOR,
+} from '@/config/tourAnchors';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { TourDialog } from './TourDialog';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
@@ -313,10 +317,14 @@ const RUN_CLOCK_SLACK_MS = 5000;
 const MOVE_MIN_PX = 24;
 /** How long a step's "Done" shows before the tour moves on by itself. */
 const DONE_PAUSE_MS = 1200;
+// A repeat click this soon after the last step's click is a double-click, not a new step.
+const DOUBLE_CLICK_MS = 500;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
 const FOLLOW_BOARD_MS = 3000;
+/** A new board waits on its first save before the app opens it, so a Create step follows for longer. */
+const FOLLOW_CREATE_MS = 20_000;
 const CALLOUT_WIDTH = 320;
 /** Lets a scrolled or opened control settle before its picture is taken. */
 const SNAPSHOT_SETTLE_MS = 300;
@@ -457,6 +465,7 @@ export const LiveTourRunner: React.FC = () => {
   const cueSeq = useRef(0);
   const startingRef = useRef(false);
   const lastStepClickAt = useRef(0);
+  const lastStepCreated = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   // Tour pacing (TOURS_10X.md F1): catch-up, the settle-tick-glide rhythm and the waiting chip.
   const pacing = canAccessFeature('tour-pacing');
@@ -727,6 +736,7 @@ export const LiveTourRunner: React.FC = () => {
     stepKey: `${tour?.index ?? 0}:${visit}`,
     rect: spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h },
     ignore: inTourUi,
+    immediate: true,
   });
   const rhythmAct = rhythm.act;
 
@@ -1555,6 +1565,7 @@ export const LiveTourRunner: React.FC = () => {
   const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
+  const stepCreates = isCreatesAnchor(step?.tour?.anchor ?? '');
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   const advanceFrom = useEffectEvent((from: number) => {
     if (tour?.phase !== 'running' || tour.index !== from) return;
@@ -1622,8 +1633,16 @@ export const LiveTourRunner: React.FC = () => {
         (el instanceof HTMLSelectElement || !!el.querySelector('select')));
     const eventName = onChange ? 'change' : 'click';
     const binding = { action, value: stepValue };
-    const onClick = () => {
+    const onClick = (e: Event) => {
+      // The second click of a double-click never finishes the step it just opened.
+      if (
+        e instanceof MouseEvent &&
+        e.detail > 1 &&
+        Date.now() - lastStepClickAt.current < DOUBLE_CLICK_MS
+      )
+        return;
       lastStepClickAt.current = Date.now();
+      lastStepCreated.current = stepCreates;
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
       const signal = clickWait.current?.signal;
@@ -1662,7 +1681,15 @@ export const LiveTourRunner: React.FC = () => {
       el.removeEventListener(eventName, onClick, true);
       el.removeEventListener('input', onInput, true);
     };
-  }, [anchor.element, acted, action, stepValue, stepIndex, doneFact]);
+  }, [
+    anchor.element,
+    acted,
+    action,
+    stepValue,
+    stepIndex,
+    doneFact,
+    stepCreates,
+  ]);
 
   // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
   const lookahead =
@@ -1789,8 +1816,17 @@ export const LiveTourRunner: React.FC = () => {
     activeDashboard.id !== tour.boardId;
   const endOnBoardSwitch = useEffectEvent(() => {
     const board = latest.current.dashboard.activeDashboard;
-    // The editor follows the admin to the new board and replays there.
-    if (tour?.edit) {
+    const sinceClick = Date.now() - lastStepClickAt.current;
+    const stepSwitched =
+      sinceClick < FOLLOW_BOARD_MS ||
+      (!!tour?.edit &&
+        lastStepCreated.current &&
+        sinceClick < FOLLOW_CREATE_MS);
+    // The editor replays on a board the admin switched to, but follows its own Create, which a replay would click again.
+    if (
+      tour?.edit &&
+      !(tour.phase === 'running' && (stepSwitched || jumping))
+    ) {
       resetEdit();
       return;
     }
@@ -1803,7 +1839,7 @@ export const LiveTourRunner: React.FC = () => {
     if (
       tour?.phase === 'running' &&
       board &&
-      (Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS || tourBoard)
+      (stepSwitched || tourBoard || tour.edit)
     ) {
       setTour({
         ...tour,
@@ -1828,7 +1864,6 @@ export const LiveTourRunner: React.FC = () => {
     endTour();
   });
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ends the tour when the board switches
     if (boardSwitched) endOnBoardSwitch();
   }, [boardSwitched]);
 
@@ -2140,6 +2175,12 @@ export const LiveTourRunner: React.FC = () => {
     // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     // Autopilot can't produce a real result for the teacher, so a step waiting on one is theirs.
+    // An editor fast-forward stops before a real board or collection; the author clicks it or not.
+    if (tour.edit && jumping && isCreatesAnchor(binding.anchor)) {
+      setAuto(null);
+      stopJump();
+      return;
+    }
     const gate = doneFact
       ? 'teacher'
       : canPerform(binding)
@@ -2835,15 +2876,20 @@ export const LiveTourRunner: React.FC = () => {
                     height: spot.h,
                   }
             }
+            // Clicks reach the step's control the moment it is found, even mid-glide.
+            hole={
+              spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h }
+            }
             onMisclick={misclick}
             pulse={anchor.centred}
             breathe={acted && !isMissing && !autoRunning && !autoBusy}
             {...(paced
               ? {
                   tick: rhythm.tick,
+                  tickAt: rhythm.tickAt,
                   glideFor:
                     rhythm.phase === 'glide'
-                      ? rhythmOf(reducedMotion).glideMs
+                      ? rhythmOf(reducedMotion, true).glideMs
                       : 0,
                 }
               : {})}

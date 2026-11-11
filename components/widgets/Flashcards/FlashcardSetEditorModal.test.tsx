@@ -53,9 +53,11 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
   ...overrides,
 });
 
-const auth = (speak: boolean) =>
+const auth = (speak: boolean, swap = true) =>
   ({
-    canAccessFeature: (id: string) => speak && id === 'flashcards-speak',
+    canAccessFeature: (id: string) =>
+      (speak && id === 'flashcards-speak') ||
+      (swap && id === 'flashcards-swap-sides'),
   }) as unknown as AuthContextType;
 
 const lookup = vi.fn<SpeakLookupCall>((input) =>
@@ -71,13 +73,14 @@ const renderModal = (opts: {
   set?: FlashcardSet;
   isNew?: boolean;
   speak?: boolean;
+  swap?: boolean;
 }) => {
   const onPersist = vi.fn<
     (set: FlashcardSet, o: { final: boolean }) => Promise<void>
   >(() => Promise.resolve());
   const onClose = vi.fn();
   render(
-    <AuthContext.Provider value={auth(opts.speak ?? false)}>
+    <AuthContext.Provider value={auth(opts.speak ?? false, opts.swap ?? true)}>
       <FlashcardSetEditorModal
         set={opts.set ?? baseSet()}
         isNew={opts.isNew ?? false}
@@ -247,6 +250,31 @@ describe('FlashcardSetEditorModal', () => {
     expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
   });
 
+  it('swaps terms, definitions and languages, and swaps back on a second click', () => {
+    renderModal({ set: baseSet({ termLanguage: 'it-IT' }) });
+    fireEvent.click(screen.getByLabelText('Swap terms and definitions'));
+    expect(screen.getByLabelText('Term 1')).toHaveProperty('value', 'hello');
+    expect(screen.getByLabelText('Definition 1')).toHaveProperty(
+      'value',
+      'hola'
+    );
+    expect(screen.getByLabelText('Term language')).toHaveProperty(
+      'value',
+      'en-US'
+    );
+    fireEvent.click(screen.getByLabelText('Swap terms and definitions'));
+    expect(screen.getByLabelText('Term 1')).toHaveProperty('value', 'hola');
+    expect(screen.getByLabelText('Term language')).toHaveProperty(
+      'value',
+      'it-IT'
+    );
+  });
+
+  it('hides the swap button without the feature', () => {
+    renderModal({ swap: false });
+    expect(screen.queryByLabelText('Swap terms and definitions')).toBeNull();
+  });
+
   it('ignores Enter while an IME composition is open', () => {
     renderModal({});
     fireEvent.keyDown(screen.getByLabelText('Definition 1'), {
@@ -349,5 +377,17 @@ describe('flashcardSetIncompleteReason', () => {
     expect(
       flashcardSetIncompleteReason({ title: 'A', cards: [card('a', 'b')] })
     ).toBeNull();
+  });
+  it('accepts a term with no definition when term-only cards are on', () => {
+    const cards = [card('said', ''), card('was', '')];
+    expect(
+      flashcardSetIncompleteReason({ title: 'A', cards }, { termOnly: true })
+    ).toBeNull();
+    expect(
+      flashcardSetIncompleteReason(
+        { title: 'A', cards: [card('', 'b')] },
+        { termOnly: true }
+      )
+    ).toBe('Card 1: term is required');
   });
 });

@@ -36,10 +36,13 @@ export function cardSetLeftOut(
   return `Left out: ${list}.`;
 }
 
-export function flashcardsFromCardSet(set: ImportCardSet): CardSetImport {
+export function flashcardsFromCardSet(
+  set: ImportCardSet,
+  { termOnly = false }: { termOnly?: boolean } = {}
+): CardSetImport {
   const { cards, warnings } = flashcardsFromRows(
     set.cards.map((c) => [c.term, c.definition]),
-    { headerless: true }
+    { headerless: true, termOnly }
   );
   const termLanguage = flashcardLanguageFor(set.termLanguage);
   const definitionLanguage = flashcardLanguageFor(set.definitionLanguage);

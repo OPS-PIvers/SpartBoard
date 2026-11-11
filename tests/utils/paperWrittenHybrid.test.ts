@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassRoster, QuizData, QuizQuestion } from '@/types';
 import {
+  hybridBoxImages,
   hybridPrintJob,
+  paperWrittenBoxRows,
   paperWrittenQuestionIds,
   planHybridWrittenBatch,
   writtenOnlyAnalysis,
 } from '@/utils/paperWrittenHybrid';
 import { reprintBlocker } from '@/utils/paperReprint';
+import {
+  changedPaperBoxSetup,
+  withPaperBoxSizes,
+  withPaperBoxStyles,
+} from '@/utils/paperWritten';
 import { buildPaperSheetsHtml } from '@/utils/paperSheetPrint';
 
 const mc = (id: string): QuizQuestion => ({
@@ -130,5 +137,77 @@ describe('planHybridWrittenBatch', () => {
     expect(html).toContain('Explain w1');
     expect(html).toContain('Explain w2');
     expect(html).not.toContain('class="bub');
+  });
+
+  it('prints the custom image in a written box picked in the stepper', () => {
+    const image = {
+      id: 'img-1',
+      source: 'image',
+      label: 'Graph',
+      url: 'https://example.test/graph.png',
+    } as unknown as NonNullable<QuizQuestion['paperBoxImage']>;
+    const q = quiz([
+      mc('m1'),
+      fr('w1', { paperBoxStyle: 'image', paperBoxImage: image }),
+      fr('w2'),
+    ]);
+    const plan = planHybridWrittenBatch({
+      quiz: q,
+      classes: { classIds: ['r1'], studentsByClass: {} },
+      rosters: [roster],
+      spareCount: 0,
+      batchId: 'b1',
+      now: 1,
+    });
+    if (!plan.ok) throw new Error('expected a plan');
+    const boxes = hybridBoxImages(q.questions, plan.questionIds);
+    expect([...boxes.keys()]).toEqual(['w1']);
+    const html = buildPaperSheetsHtml(
+      hybridPrintJob(q, plan.batch, plan.sheets, { w1: 'blob:graph-src' })
+    );
+    expect(html).toContain('blob:graph-src');
+  });
+});
+
+describe('paperWrittenBoxRows', () => {
+  it('lists each written question with its number, text and box', () => {
+    const q = quiz([
+      mc('m1'),
+      fr('w1', { paperBoxSize: 'full', paperBoxStyle: 'graph' }),
+    ]);
+    expect(paperWrittenBoxRows(q)).toEqual([
+      {
+        questionId: 'w1',
+        label: '2',
+        text: 'Explain w1',
+        size: 'full',
+        style: 'graph',
+      },
+    ]);
+  });
+});
+
+describe('changedPaperBoxSetup', () => {
+  it('keeps only picks that change what prints', () => {
+    const base = quiz([fr('w1'), fr('w2', { paperBoxSize: 'S' })]);
+    const picks = changedPaperBoxSetup(
+      base.questions,
+      { w1: 'full', w2: 'S', gone: 'M' },
+      { w1: { style: 'lines' }, w2: { style: 'graph' } }
+    );
+    expect(picks).toEqual({
+      boxSizes: { w1: 'full' },
+      boxStyles: { w2: { style: 'graph' } },
+    });
+    const saved = withPaperBoxStyles(
+      withPaperBoxSizes(base, picks.boxSizes),
+      picks.boxStyles
+    );
+    expect(
+      paperWrittenBoxRows(saved).map((r) => [r.questionId, r.size, r.style])
+    ).toEqual([
+      ['w1', 'full', 'lines'],
+      ['w2', 'S', 'graph'],
+    ]);
   });
 });

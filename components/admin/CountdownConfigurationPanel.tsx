@@ -214,6 +214,7 @@ export const CountdownConfigurationPanel: React.FC<
         <div className="space-y-3 pt-4 border-t border-slate-200">
           <div className="flex items-center justify-between">
             <button
+              // no-tour-anchor: label text for the anchored switch beside it
               type="button"
               className="text-sm font-bold text-slate-700 cursor-pointer text-left"
               onClick={() =>
@@ -241,6 +242,7 @@ export const CountdownConfigurationPanel: React.FC<
           </div>
           <div className="flex items-center justify-between">
             <button
+              // no-tour-anchor: label text for the anchored switch beside it
               type="button"
               className="text-sm font-bold text-slate-700 cursor-pointer text-left"
               onClick={() =>

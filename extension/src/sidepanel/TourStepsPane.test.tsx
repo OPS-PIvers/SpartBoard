@@ -5,11 +5,14 @@ import { TourStepsPane } from './TourStepsPane';
 import type { TourStepsReply } from '../tourSteps';
 
 const send = vi.fn<(msg: object) => Promise<TourStepsReply>>();
+const createTab = vi.fn(() => Promise.resolve({}));
 
 beforeEach(() => {
   send.mockReset();
+  createTab.mockClear();
   (globalThis as { chrome?: unknown }).chrome = {
     runtime: { sendMessage: send },
+    tabs: { create: createTab },
   };
 });
 afterEach(() => {
@@ -121,5 +124,46 @@ describe('TourStepsPane', () => {
     expect(
       await screen.findByRole('button', { name: 'Starting...' })
     ).toBeTruthy();
+  });
+
+  it('copies the public link when the tour has one', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const token = 'a'.repeat(32);
+    if (!ok.ok) throw new Error('fixture');
+    send.mockResolvedValue({ ok: true, tour: { ...ok.tour, link: token } });
+    render(pane());
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy link' }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://spartboard.web.app/tour-steps/${token}`
+      )
+    );
+    expect(
+      await screen.findByRole('button', { name: 'Link copied' })
+    ).toBeTruthy();
+  });
+
+  it('offers no link for a tour without one', async () => {
+    send.mockResolvedValue(ok);
+    render(pane());
+    await screen.findByText('Open the gradebook');
+    expect(screen.queryByRole('button', { name: 'Copy link' })).toBeNull();
+  });
+
+  it('opens the editor for admins only', async () => {
+    send.mockResolvedValue(ok);
+    const { unmount } = render(pane());
+    await screen.findByText('Open the gradebook');
+    expect(screen.queryByRole('button', { name: 'Edit tour' })).toBeNull();
+    unmount();
+    render(pane({ admin: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit tour' }));
+    expect(createTab).toHaveBeenCalledWith({
+      url: 'https://spartboard.web.app/?edit-web-tour=set1',
+    });
   });
 });

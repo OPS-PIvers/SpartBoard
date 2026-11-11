@@ -66,7 +66,9 @@ describe('StepsView article', () => {
     expect(screen.getByAltText('Picture of step 3')).toBeTruthy();
   });
 
-  it('rings the target on a picture that has one, and not on one that does not', () => {
+  it('spotlights the target on a picture that has one, and not on one that does not', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(450);
     render(
       view({
         steps: [
@@ -75,7 +77,8 @@ describe('StepsView article', () => {
         ],
       })
     );
-    expect(screen.getAllByTestId('step-picture-ring')).toHaveLength(1);
+    expect(screen.getAllByTestId('web-stage-preview')).toHaveLength(1);
+    vi.restoreAllMocks();
   });
 
   it('says plainly when a step only shows sometimes', () => {
@@ -155,6 +158,18 @@ describe('StepsView walk through', () => {
     expect(screen.getByRole('dialog').textContent).toContain('Tip 2');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByText('Step 1 of 3')).toBeTruthy();
+  });
+
+  it('shows bold in the tip and the article, not the asterisks', () => {
+    render(view({ steps: [step(1, { text: 'Click the **Tools** menu.' })] }));
+    expect(screen.getByTestId('steps-article').textContent).toContain(
+      'Click the Tools menu.'
+    );
+    expect(screen.getByText('Tools').tagName).toBe('STRONG');
+    fireEvent.click(screen.getByRole('button', { name: 'Walk through' }));
+    const tip = screen.getByRole('dialog');
+    expect(tip.textContent).toContain('Click the Tools menu.');
+    expect(tip.querySelector('strong')?.textContent).toBe('Tools');
   });
 
   it('goes back to the steps from Done on the last step, and from the Steps button', () => {

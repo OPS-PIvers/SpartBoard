@@ -6,6 +6,9 @@ export const CONNECTOR_FEATURE_ID = 'claude-connector';
 /** GlobalFeature id gating the Guided Learning tools inside the connector. */
 export const GL_FEATURE_ID = 'claude-connector-guided-learning';
 
+/** GlobalFeature id gating the interactive quiz and rubric preview cards (MCP Apps). */
+export const APPS_FEATURE_ID = 'claude-connector-apps';
+
 /** GlobalFeature id gating the meeting notes tools (MR-D21). */
 export const MEETING_AI_FEATURE_ID = 'plc-meeting-ai-notes';
 

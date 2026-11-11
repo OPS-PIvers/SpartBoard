@@ -17,26 +17,11 @@
  * hint as the drag-handle tooltip at reduced opacity.
  */
 
-import React, {
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
-import { createPortal } from 'react-dom';
+import React, { useContext, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Check,
-  Folder,
-  FolderPlus,
-  GripVertical,
-  MoreHorizontal,
-} from 'lucide-react';
-import { useClickOutside } from '@/hooks/useClickOutside';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { Check, Folder, FolderPlus, GripVertical } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 import {
@@ -47,14 +32,13 @@ import {
 import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { useLibraryDrag } from './LibraryDragContext';
 import { itemMergeDroppableId } from './folderDropTargets';
-import { useCloseOnHostResize } from '../useCloseOnHostResize';
+import { OverflowMenu } from './LibraryOverflowMenu';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryBadge,
   LibraryBadgeTone,
   LibraryIconAction,
   LibraryItemCardProps,
-  LibraryMenuAction,
 } from './types';
 
 /**
@@ -102,179 +86,6 @@ const BADGE_TONE_STYLES: Record<
     dot: 'bg-brand-red-primary',
     hoverBg: 'hover:bg-brand-red-lighter/60',
   },
-};
-
-/* ─── Overflow menu (click-outside aware) ─────────────────────────────────── */
-
-interface OverflowMenuProps {
-  actions: LibraryMenuAction[];
-  /** `row-${index+1}` for the owning card, or undefined to skip tour tagging. */
-  rowKey?: string;
-  widgetType: string;
-}
-
-const MENU_WIDTH = 224; // w-56; fits the longest current item label ("Print response sheets") without truncating
-const MENU_GAP = 4;
-const MENU_ITEM_HEIGHT = 32;
-const MENU_CHROME_HEIGHT = 10;
-
-const OverflowMenu: React.FC<OverflowMenuProps> = ({
-  actions,
-  rowKey,
-  widgetType,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
-    null
-  );
-  const ref = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useClickOutside(ref, () => setOpen(false));
-
-  // stopPropagation prevents this portalled menu's Escape from also minimizing the topmost widget.
-  useEffect(() => {
-    if (!open) return undefined;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (isEscapeFromWidgetInput(e)) return;
-      e.stopPropagation();
-      setOpen(false);
-      buttonRef.current?.focus();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    const viewportW =
-      typeof window !== 'undefined' ? window.innerWidth : rect.right;
-    // Right-align menu to the trigger, clamped to viewport.
-    const left = Math.max(
-      8,
-      Math.min(rect.right - MENU_WIDTH, viewportW - MENU_WIDTH - 8)
-    );
-    // Flip above the trigger when the menu would run off the bottom of the viewport.
-    const viewportH =
-      typeof window !== 'undefined' ? window.innerHeight : Infinity;
-    const menuH = actions.length * MENU_ITEM_HEIGHT + MENU_CHROME_HEIGHT;
-    const below = rect.bottom + MENU_GAP;
-    const top =
-      below + menuH > viewportH - 8 && rect.top - MENU_GAP - menuH >= 8
-        ? rect.top - MENU_GAP - menuH
-        : below;
-    setMenuPos({ top, left });
-  }, [actions.length, open]);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    window.addEventListener('resize', close);
-    // Capture phase catches scrolls on any ancestor scroll container.
-    window.addEventListener('scroll', close, true);
-    return () => {
-      window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, true);
-    };
-  }, [open]);
-
-  useCloseOnHostResize(open, ref, () => setOpen(false));
-
-  if (actions.length === 0) return null;
-
-  // Destructive actions float to the bottom to mirror the Quiz pattern.
-  const ordered = [...actions].sort((a, b) => {
-    if (a.destructive === b.destructive) return 0;
-    return a.destructive ? 1 : -1;
-  });
-
-  const menu =
-    open && menuPos
-      ? createPortal(
-          <div
-            role="menu"
-            data-click-outside-ignore="true"
-            className="min-w-[224px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-            style={{
-              position: 'fixed',
-              top: menuPos.top,
-              left: menuPos.left,
-              width: MENU_WIDTH,
-              zIndex: Z_INDEX.popover,
-            }}
-          >
-            {ordered.map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  role="menuitem"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpen(false);
-                    if (!item.disabled) item.onClick();
-                  }}
-                  disabled={item.disabled}
-                  title={item.disabled ? item.disabledReason : undefined}
-                  {...(item.anchor ??
-                    (rowKey
-                      ? tourFieldAttr(
-                          'library-shell.card-menu-item',
-                          widgetType,
-                          `${rowKey}-item-${i + 1}`
-                        )
-                      : {}))}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    item.destructive
-                      ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
-                      : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {Icon && <Icon size={14} className="shrink-0" />}
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>,
-          document.body
-        )
-      : null;
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        {...(rowKey
-          ? tourFieldAttr('library-shell.card-menu', widgetType, rowKey)
-          : {})}
-        className="inline-flex shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-        style={{
-          width: 'min(32px, 9cqmin)',
-          height: 'min(32px, 9cqmin)',
-        }}
-        title="More actions"
-        aria-label="More actions"
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <MoreHorizontal
-          style={{
-            width: 'min(16px, 4.5cqmin)',
-            height: 'min(16px, 4.5cqmin)',
-          }}
-        />
-      </button>
-      {menu}
-    </div>
-  );
 };
 
 /* ─── Inline icon-only action button ──────────────────────────────────────── */

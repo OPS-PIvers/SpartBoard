@@ -1,11 +1,18 @@
 const TOUR_PATH = '/tour/';
 
+/** Start tour on a public tour page: `?t=` carries its token, and the page finds the set signed in. */
+export const FROM_PUBLIC_LINK_PATH = '/tour/from-link';
+
 /** The set id in a `/tour/{setId}` path, or null when the path is not one. */
 export function parseTourPath(pathname: string): string | null {
-  if (!pathname.startsWith(TOUR_PATH)) return null;
+  if (!pathname.startsWith(TOUR_PATH) || pathname === FROM_PUBLIC_LINK_PATH)
+    return null;
   const id = pathname.slice(TOUR_PATH.length).split('/')[0];
   return /^[A-Za-z0-9_-]{1,128}$/.test(id) ? id : null;
 }
+
+/** On a `/tour/{setId}` link, starts the tour once the page is ready. */
+export const START_PARAM = 'start';
 
 export function buildTourUrl(setId: string): string {
   return `${window.location.origin}${TOUR_PATH}${encodeURIComponent(setId)}`;

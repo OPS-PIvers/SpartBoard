@@ -120,7 +120,7 @@ describe('AssignmentArchiveCard', () => {
     // widget.z is a monotonically-increasing counter bumped by bringToFront
     // on every focus/drag (see DashboardContext) — it is never reset, so it
     // regularly exceeds small numbers over a dashboard's lifetime. The
-    // portalled menu must out-rank it using the shared Z_INDEX.dropdown
+    // portalled menu must out-rank it using the shared Z_INDEX.popover
     // constant, not a hardcoded value that only looks safe in isolation.
     const secondary: LibraryMenuAction[] = [
       { id: 'edit', label: 'Edit', onClick: vi.fn() },
@@ -142,7 +142,7 @@ describe('AssignmentArchiveCard', () => {
     // single class period of drag/click activity.
     const accumulatedWidgetZ = 75;
     expect(menuZ).toBeGreaterThan(accumulatedWidgetZ);
-    expect(menuZ).toBe(Z_INDEX.dropdown);
+    expect(menuZ).toBe(Z_INDEX.popover);
   });
 
   it('closes the overflow menu when the host widget resizes (e.g. Alt+M maximize/restore)', () => {

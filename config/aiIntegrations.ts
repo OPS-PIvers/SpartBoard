@@ -36,7 +36,7 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
   },
   {
     id: 'quiz-stimulus-ocr',
-    label: 'Read-aloud text from a scan',
+    label: 'OCR: read-aloud passages',
     description:
       'Reads the text of a scanned reading passage so a quiz can read it aloud.',
     group: 'Quizzes',
@@ -61,7 +61,7 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
   },
   {
     id: 'paper-handwriting',
-    label: 'Handwritten paper answers',
+    label: 'OCR: handwritten answers',
     description:
       'Reads handwritten answers from scanned paper quizzes. Its tier comes from the Handwritten Answers setting.',
     group: 'Quizzes',
@@ -206,7 +206,7 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
   },
   {
     id: 'ocr',
-    label: 'Text recognition',
+    label: 'OCR: camera and drawings',
     description: 'Reads text from a drawing, webcam picture or image.',
     group: 'Board and widgets',
     tier: 'standard',

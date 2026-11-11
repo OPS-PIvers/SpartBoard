@@ -4,6 +4,8 @@ import { useGooglePicker, PickedFile } from '@/hooks/useGooglePicker';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
+import { clipText } from '@/utils/clipText';
+
 const FILE_TEXT_LIMIT = 30_000;
 
 interface DriveFileAttachmentProps {
@@ -94,7 +96,7 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
           return;
         }
 
-        const trimmed = text.substring(0, FILE_TEXT_LIMIT);
+        const trimmed = clipText(text, FILE_TEXT_LIMIT);
         onFileContent(trimmed, file.name);
       } catch (err) {
         const message =

@@ -34,7 +34,6 @@ interface StudentLandingV2Props {
   tab: LandingTab;
   onTabChange: (tab: LandingTab) => void;
   gradesEnabled: boolean;
-  overviewResources: boolean;
   onSignOut: () => void;
   notice?: React.ReactNode;
 }
@@ -54,7 +53,6 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
   tab,
   onTabChange,
   gradesEnabled,
-  overviewResources,
   onSignOut,
   notice,
 }) => {
@@ -145,7 +143,6 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
       onTabChange={onTabChange}
       gradesEnabled={gradesOn}
       grades={gradesOn ? grades : undefined}
-      overviewResources={overviewResources}
       firstName={firstName}
       pseudonymUid={pseudonymUid}
       onSignOut={onSignOut}

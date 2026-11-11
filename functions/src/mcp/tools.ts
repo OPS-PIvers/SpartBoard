@@ -24,12 +24,17 @@ import {
   mergeCards,
   normalizeSet,
   readSet,
+  rewriteOpenCheckSessions,
   rewriteOpenStudySessions,
   setsPath,
   guardPublicShare,
   stageSetWrite,
   type FlashcardSet,
 } from './flashcardStore';
+import {
+  CHECK_SYNC_FEATURE_ID,
+  handleRescoreFlashcardCheck,
+} from '../flashcardRescore';
 import { prepareSpeakSave, type SpeakSaveResult } from './flashcardSpeak';
 import {
   CONTENT_TYPES,
@@ -239,10 +244,51 @@ async function saveFlashcardEdit(
     warning =
       'Saved, but open Study assignments still show the old cards until the teacher re-saves the set in SpartBoard.';
   }
+  let checksUpdated: number | undefined;
+  try {
+    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+    if (
+      await isGlobalFeatureGranted(
+        ctx.db,
+        CHECK_SYNC_FEATURE_ID,
+        ctx.email,
+        ctx.uid
+      )
+    ) {
+      const synced = await rewriteOpenCheckSessions(
+        ctx.db,
+        ctx.uid,
+        normalized
+      );
+      checksUpdated = synced.updated;
+      for (const assignmentId of synced.cardsChanged) {
+        await handleRescoreFlashcardCheck(
+          ctx.db,
+          { uid: ctx.uid, email: ctx.email, studentRole: false },
+          { assignmentId }
+        ).catch((err: unknown) =>
+          console.error('[mcpServer] check rescore failed', {
+            assignmentId,
+            err,
+          })
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[mcpServer] check session rewrite failed', {
+      uid: ctx.uid,
+      err,
+    });
+    warning =
+      'Saved, but open assignments still show the old cards until the teacher re-saves the set in SpartBoard.';
+  }
   return {
     ...summarizeSet(normalized),
     previous_version_revision_id: revisionId,
     open_study_assignments_updated: studySessionsUpdated,
+    ...(checksUpdated !== undefined
+      ? { open_checks_updated: checksUpdated }
+      : {}),
     ...speakSummary(speak),
     ...(warning ? { warning } : {}),
   };

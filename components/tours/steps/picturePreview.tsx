@@ -2,6 +2,7 @@ import React from 'react';
 import { noop, TIP_H, useMeasured, type Size } from './previewMeasure';
 import { TourSpotlight } from '@/components/tours/TourSpotlight';
 import { TourTip } from '@/components/tours/TourTip';
+import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
 import { tetherFor } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import {
   placePreviewTip,
@@ -80,7 +81,7 @@ export const PreviewTip: React.FC<{
   >
     {step.text.trim() && (
       <p className="whitespace-pre-line text-sm text-slate-700 wrap-break-word">
-        {renderText ? renderText(step.text.trim()) : step.text.trim()}
+        {(renderText ?? renderStepText)(step.text.trim())}
       </p>
     )}
   </TourTip>

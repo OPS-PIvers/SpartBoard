@@ -349,4 +349,35 @@ describe('Synced board concurrent edits', () => {
       { timeout: 2000 }
     );
   });
+
+  it('retries a refused share only when that board changes', async () => {
+    mockMirrorSharedBoard.mockRejectedValue(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    const linked = linkedBoard([widget('w1')]);
+    await mount(linked);
+    act(() => {
+      emit?.({ ...linked, updatedBy: 'other-user' } as unknown as Dashboard);
+    });
+    act(() => {
+      ctx?.updateWidget('w1', { z: 2 });
+    });
+    await waitFor(
+      () => expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(1),
+      {
+        timeout: 2000,
+      }
+    );
+    await new Promise((r) => setTimeout(r, 800));
+    expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(1);
+    act(() => {
+      ctx?.addWidget('clock');
+    });
+    await waitFor(
+      () => expect(mockMirrorSharedBoard).toHaveBeenCalledTimes(2),
+      {
+        timeout: 2000,
+      }
+    );
+  });
 });

@@ -295,6 +295,11 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       onImport={noop}
       onEdit={noop}
       onPreview={noop}
+      onStudentView={noop}
+      onDuplicate={noop}
+      onAssignOnPaper={noop}
+      onReadPaperQuestions={noop}
+      onShareWithPlc={noop}
       onAssign={noop}
       onResults={noop}
       onDelete={noop}
@@ -313,8 +318,37 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       onEditBank={noop}
       onDuplicateBank={noop}
       onDeleteBank={noop}
-      assignments={QUIZ_ASSIGNMENTS}
+      assignments={QUIZ_ASSIGNMENTS.map((a, i) =>
+        i === 1
+          ? {
+              ...a,
+              paper: true,
+              paperBatchId: 'batch-1',
+              hasPaperResponses: true,
+              scoreVisibility: 'score-only' as const,
+            }
+          : i === 2
+            ? { ...a, sync: { groupId: 'g1', syncedVersion: 1 } }
+            : a
+      )}
+      syncedGroups={
+        new Map([['g1', { id: 'g1', version: 2, title: 'Synced' } as never]])
+      }
+      onSyncAssignment={asyncNoop}
       assignmentsLoading={false}
+      onArchiveResults={asyncNoop}
+      onArchiveMonitor={asyncNoop}
+      onArchiveEditSettings={noop}
+      onArchiveShare={asyncNoop}
+      onArchiveSharePlcResults={noop}
+      onArchivePublishScores={asyncNoop}
+      onArchiveUnpublishScores={asyncNoop}
+      onArchivePauseResume={asyncNoop}
+      onArchiveDeactivate={asyncNoop}
+      onArchiveReopen={asyncNoop}
+      onArchiveDelete={asyncNoop}
+      onImportPaperResponses={noop}
+      onReprintPaperSheets={noop}
     />
   );
 };
@@ -358,6 +392,8 @@ const VideoActivityManagerView: React.FC<{
     onNew={noop}
     onImport={noop}
     onEdit={noop}
+    onDuplicate={noop}
+    onShareWithPlc={noop}
     onDelete={noop}
     onAssign={() => Promise.resolve('')}
     rosters={ROSTERS}

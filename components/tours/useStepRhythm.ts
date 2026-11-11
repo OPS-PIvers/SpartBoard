@@ -24,6 +24,8 @@ export interface StepRhythm {
   phase: RhythmPhase;
   /** Draw the tick on the ring. */
   tick: boolean;
+  /** `immediate`: where to draw the finished step's tick while the ring glides away from it. */
+  tickAt: RhythmRect | null;
   /** The tip may show. */
   tipShown: boolean;
   /** The learner finished the current step: wait for the page to settle, tick, then call `then`; `gone` says the control left the page. */
@@ -52,11 +54,15 @@ interface Options {
   onPhase?: (phase: RhythmPhase) => void;
   /** The finished step's control left the page (a new page or panel): no ring to hold or tick on. */
   finishedGone?: () => boolean;
+  /** Live: `act` moves on at once; the ring glides straight away, the tick stays behind, the tip comes with the ring. */
+  immediate?: boolean;
 }
 
 interface State {
   phase: RhythmPhase;
   held: RhythmRect | null;
+  /** Immediate: set by `act`, so the step change it causes keeps this glide. */
+  acted?: boolean;
 }
 
 const sameRect = (a: RhythmRect | null, b: RhythmRect | null) =>
@@ -82,8 +88,9 @@ export function useStepRhythm({
   ignore,
   onPhase,
   finishedGone,
+  immediate = false,
 }: Options): StepRhythm {
-  const { tickMs, glideMs } = rhythmOf(reducedMotion);
+  const { tickMs, glideMs } = rhythmOf(reducedMotion, immediate);
   const hasRect = rect !== null;
   const [state, setState] = useState<State>(READY);
   const [seenKey, setSeenKey] = useState(stepKey);
@@ -92,15 +99,24 @@ export function useStepRhythm({
   // The glide starts from the finished step's ring.
   const afterTick: State =
     glideMs > 0 ? { phase: 'glide', held: lastRect } : READY;
+  const holdingRing = state.held !== null;
   const then = useRef<(() => void) | null>(null);
   const nearRef = useRef<() => Element | null>(() => null);
   const live = useRef({ ignore, onPhase, finishedGone });
   const goneRef = useRef<(() => boolean) | null>(null);
+  // Immediate: the tick left on the finished control, keyed so a newer act replaces it.
+  const [tickAt, setTickAt] = useState<{
+    rect: RhythmRect;
+    n: number;
+  } | null>(null);
+  const tickN = useRef(0);
+  const tickGone = useRef<(() => boolean) | null>(null);
 
   // A new step glides in, or settles and ticks first when the learner's action brought it (web).
   if (seenKey !== stepKey) {
     setSeenKey(stepKey);
     if (!enabled) setState(READY);
+    else if (state.acted) setState({ phase: state.phase, held: state.held });
     else if (actedChange && state.phase === 'ready')
       setState({ phase: 'settle', held: lastRect });
     else if (state.phase === 'ready' || state.phase === 'glide')
@@ -161,6 +177,21 @@ export function useStepRhythm({
       const id = setTimeout(() => finishTick(), tickMs);
       return () => clearTimeout(id);
     }
+    if (state.phase === 'glide' && immediate && !hasRect && state.held) {
+      // The held ring waits for the next target; it lets go if the finished control leaves the page.
+      const gone = goneRef.current;
+      let raf = 0;
+      const check = () => {
+        if (gone?.()) setState((s) => ({ ...s, held: null }));
+        else raf = requestAnimationFrame(check);
+      };
+      raf = requestAnimationFrame(check);
+      const id = setTimeout(() => setState(READY), SETTLE_CAP_MS);
+      return () => {
+        cancelAnimationFrame(raf);
+        clearTimeout(id);
+      };
+    }
     if (state.phase === 'glide') {
       // Glides once the next target is on screen; one that never shows gives up waiting.
       const id = setTimeout(
@@ -172,11 +203,54 @@ export function useStepRhythm({
     return undefined;
     // afterTick is derived from glideMs, which is a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, doc, state.phase, tickMs, glideMs, hasRect]);
+  }, [
+    enabled,
+    doc,
+    state.phase,
+    tickMs,
+    glideMs,
+    hasRect,
+    immediate,
+    holdingRing,
+  ]);
+
+  // Immediate: the tick fades after its moment, or as soon as its control leaves the page.
+  useEffect(() => {
+    if (!tickAt) return undefined;
+    const gone = tickGone.current;
+    let raf = 0;
+    const clear = () => setTickAt((t) => (t?.n === tickAt.n ? null : t));
+    const check = () => {
+      if (gone?.()) clear();
+      else raf = requestAnimationFrame(check);
+    };
+    raf = requestAnimationFrame(check);
+    const id = setTimeout(clear, Math.max(tickMs, 1));
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(id);
+    };
+  }, [tickAt, tickMs]);
 
   const act = useCallback(
     (find: () => Element | null, next?: () => void, gone?: () => boolean) => {
       if (!enabled) {
+        next?.();
+        return;
+      }
+      if (immediate) {
+        // The next step is clickable now; only the ring and tip catch up.
+        const isGone = gone?.() ?? false;
+        then.current = null;
+        goneRef.current = gone ?? null;
+        tickGone.current = gone ?? null;
+        if (tickMs > 0 && lastRect && !isGone)
+          setTickAt({ rect: lastRect, n: ++tickN.current });
+        setState(
+          glideMs > 0
+            ? { phase: 'glide', held: isGone ? null : lastRect, acted: true }
+            : { ...READY, acted: true }
+        );
         next?.();
         return;
       }
@@ -185,7 +259,7 @@ export function useStepRhythm({
       goneRef.current = gone ?? null;
       setState({ phase: 'settle', held: lastRect });
     },
-    [enabled, lastRect]
+    [enabled, lastRect, immediate, tickMs, glideMs]
   );
 
   const holding = state.phase === 'settle' || state.phase === 'tick';
@@ -200,7 +274,12 @@ export function useStepRhythm({
     rect: shown,
     phase: enabled ? state.phase : 'ready',
     tick: enabled && state.phase === 'tick',
-    tipShown: !enabled || state.phase === 'ready',
+    tickAt: enabled && tickAt ? tickAt.rect : null,
+    // Immediate: the tip comes in with the ring, as soon as the next target is found.
+    tipShown:
+      !enabled ||
+      state.phase === 'ready' ||
+      (immediate && state.phase === 'glide' && hasRect),
     act,
   };
 }

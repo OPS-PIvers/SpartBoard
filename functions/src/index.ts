@@ -168,6 +168,7 @@ export {
 } from './flashcardCheck';
 export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
+export { rescoreFlashcardCheckV1 } from './flashcardRescore';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
 export { lookupSpeakReferencesV1 } from './pronunciation/lookup';
@@ -336,7 +337,11 @@ export {
 } from './webTourExtension';
 
 // Public tour links: the Steps view for anyone with the link, and auto-off on a picture change (docs/plans/shipped/TOURS_10X.md S6).
-export { tourPublicStepsV1, tourPublicLinkGuard } from './tourPublicLink';
+export {
+  tourPublicStepsV1,
+  tourPublicLinkGuard,
+  tourPublicLinkStartV1,
+} from './tourPublicLink';
 
 // Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 export {

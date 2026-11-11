@@ -2475,6 +2475,10 @@
       }
     },
     "paperReview": {
+      "sheetHeading": "Tu hoja de respuestas",
+      "sheetAlt": "Página {{number}} de tu hoja de respuestas",
+      "sheetLoading": "Cargando tu hoja de respuestas",
+      "sheetUnavailable": "No se pudo cargar la página {{number}}.",
       "handwriting": "Tu letra",
       "cropAlt": "Tu respuesta escrita a mano, pregunta {{number}}",
       "loading": "Cargando escritura",
@@ -3496,7 +3500,8 @@
       "questions": "Preguntas",
       "allCount": "Todas ({{count}})",
       "reset": "Restablecer progreso",
-      "lockedNote": "Tu docente eligió estas opciones para esta evaluación."
+      "lockedNote": "Tu docente eligió estas opciones para esta evaluación.",
+      "studyLockedNote": "Tu docente eligió estas opciones."
     },
     "summary": {
       "complete": "Ronda {{round}} completada",
@@ -3505,6 +3510,12 @@
       "learning": "Aún aprendiendo",
       "next": "Siguiente ronda",
       "restart": "Reiniciar todo"
+    },
+    "missed": {
+      "button": "Falladas: {{count}}",
+      "study_one": "Estudiar {{count}} tarjeta fallada",
+      "study_other": "Estudiar {{count}} tarjetas falladas",
+      "studyAll": "Estudiar todas las tarjetas"
     },
     "cards": {
       "term": "Término",

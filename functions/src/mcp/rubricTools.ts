@@ -20,34 +20,28 @@ import {
   run,
   titleAndFolderFilter,
 } from './toolKit';
+import {
+  readRubric,
+  rubricDoc,
+  rubricMaxPoints,
+  rubricPath,
+  type Rubric,
+  type RubricCriterion,
+  type RubricLevel,
+} from './rubricShape';
+import { previewMeta, rubricView, runWithPreview } from './apps';
+
+export {
+  rubricDoc,
+  rubricMaxPoints,
+  type Rubric,
+  type RubricCriterion,
+  type RubricLevel,
+};
 
 export const MIN_LEVELS = 2;
 export const MAX_LEVELS = 6;
 export const MAX_CRITERIA = 12;
-
-export interface RubricLevel {
-  id: string;
-  label: string;
-  points: number;
-  description?: string;
-}
-export interface RubricCriterion {
-  id: string;
-  name: string;
-  description?: string;
-  levels: RubricLevel[];
-  /** Scoring-guide row: `description` holds the guidelines. */
-  guide?: { examples?: string[] };
-}
-/** Rubric in types.ts; firestore.rules locks the doc to exactly these keys. */
-export interface Rubric {
-  id: string;
-  title: string;
-  description?: string;
-  criteria: RubricCriterion[];
-  createdAt: number;
-  updatedAt: number;
-}
 
 export interface CriterionInput {
   id?: string;
@@ -61,8 +55,6 @@ export interface CriterionInput {
     description?: string;
   }[];
 }
-
-const rubricPath = (uid: string, id: string) => `users/${uid}/rubrics/${id}`;
 
 const optionalText = (value: string | undefined): string | undefined =>
   value?.trim() ? value.trim() : undefined;
@@ -137,26 +129,6 @@ export function buildCriteria(
   });
 }
 
-/** Exactly the keys firestore.rules allows, with undefined optionals dropped. */
-export function rubricDoc(rubric: Rubric): Rubric {
-  const out: Rubric = {
-    id: rubric.id,
-    title: rubric.title,
-    criteria: rubric.criteria,
-    createdAt: rubric.createdAt,
-    updatedAt: rubric.updatedAt,
-  };
-  if (rubric.description) out.description = rubric.description;
-  return out;
-}
-
-/** Mirrors rubricMaxPoints in utils/rubricPoints.ts. */
-export const rubricMaxPoints = (criteria: RubricCriterion[]): number =>
-  criteria.reduce(
-    (sum, c) => sum + Math.max(0, ...c.levels.map((l) => l.points)),
-    0
-  );
-
 function summarize(id: string, data: Record<string, unknown>) {
   const criteria = Array.isArray(data.criteria)
     ? (data.criteria as RubricCriterion[])
@@ -168,16 +140,6 @@ function summarize(id: string, data: Record<string, unknown>) {
     max_points: rubricMaxPoints(criteria),
     updated_at: iso(data.updatedAt),
   };
-}
-
-async function readRubric(ctx: ToolContext, id: string): Promise<Rubric> {
-  const snap = await ctx.db.doc(rubricPath(ctx.uid, id)).get();
-  if (!snap.exists) {
-    throw new ToolError(
-      'That rubric was not found. Use list_rubrics to find its id.'
-    );
-  }
-  return { ...(snap.data() as Rubric), id };
 }
 
 async function saveRubricEdit(
@@ -292,14 +254,18 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
       description: 'Returns a rubric with criterion and level ids.',
       inputSchema: { rubric_id: z.string().min(1) },
       annotations: READ_ONLY,
+      _meta: previewMeta,
     },
     ({ rubric_id }) =>
-      run('get_rubric', ctx, async () => {
+      runWithPreview('get_rubric', ctx, async () => {
         const rubric = await readRubric(ctx, rubric_id);
         return {
-          ...summarize(rubric_id, { ...rubric }),
-          description: rubric.description ?? '',
-          criteria: rubric.criteria,
+          result: {
+            ...summarize(rubric_id, { ...rubric }),
+            description: rubric.description ?? '',
+            criteria: rubric.criteria,
+          },
+          view: rubricView(rubric),
         };
       })
   );
@@ -316,9 +282,10 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
         criteria: z.array(criterionSchema).min(1).max(MAX_CRITERIA),
       },
       annotations: CREATES,
+      _meta: previewMeta,
     },
     (input) =>
-      run('create_rubric', ctx, async () => {
+      runWithPreview('create_rubric', ctx, async () => {
         const criteria = buildCriteria(input.criteria, [], randomUUID);
         await reserveWrite(ctx);
         const now = Date.now();
@@ -340,9 +307,14 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
         });
         await batch.commit();
         return {
-          ...summarize(doc.id, { ...doc }),
-          where_to_find_it:
-            'SpartBoard > Quiz editor > a Free Response question > Rubric',
+          result: {
+            ...summarize(doc.id, { ...doc }),
+            where_to_find_it:
+              'SpartBoard > Quiz editor > a Free Response question > Rubric',
+            attach_it:
+              'Pass rubric_id on a free_response question in update_quiz or update_question_bank.',
+          },
+          view: rubricView(doc),
         };
       })
   );
@@ -360,28 +332,28 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
         criteria: z.array(criterionSchema).min(1).max(MAX_CRITERIA).optional(),
       },
       annotations: OVERWRITES,
+      _meta: previewMeta,
     },
     (input) =>
-      run('update_rubric', ctx, async () => {
+      runWithPreview('update_rubric', ctx, async () => {
         const existing = await readRubric(ctx, input.rubric_id);
         const criteria = input.criteria
           ? buildCriteria(input.criteria, existing.criteria, randomUUID)
           : existing.criteria;
         await reserveWrite(ctx);
-        return saveRubricEdit(
-          ctx,
-          existing,
-          {
-            ...existing,
-            title: input.title?.trim() || existing.title,
-            description:
-              input.description === undefined
-                ? existing.description
-                : optionalText(input.description),
-            criteria,
-          },
-          'update'
-        );
+        const next: Rubric = {
+          ...existing,
+          title: input.title?.trim() || existing.title,
+          description:
+            input.description === undefined
+              ? existing.description
+              : optionalText(input.description),
+          criteria,
+        };
+        return {
+          result: await saveRubricEdit(ctx, existing, next, 'update'),
+          view: rubricView({ ...next, updatedAt: Date.now() }),
+        };
       })
   );
 }

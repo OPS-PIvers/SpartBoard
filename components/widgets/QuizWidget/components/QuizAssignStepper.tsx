@@ -32,11 +32,9 @@ import { useQuizRuleGates } from '@/components/common/library/assignStepper/Quiz
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import { SharingStep } from '@/components/common/library/assignStepper/SharingStep';
 import { WrittenAnswersStep } from '@/components/common/library/assignStepper/WrittenAnswersStep';
-import {
-  formatWrittenAnswersValue,
-  type WrittenAnswersValue,
-} from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
+import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 import { Printer } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   withAudienceSwitch,
   type AssignAudienceState,
@@ -78,11 +76,9 @@ export interface QuizAssignStepperProps {
   handRaiseMode: QuizHandRaiseMode;
   submitLabel: string;
   /** Offer written questions on paper; omit to leave the step out. */
-  written?: {
-    value: WrittenAnswersValue;
-    onChange: (next: WrittenAnswersValue) => void;
-    count: number;
-  };
+  written?: React.ComponentProps<typeof WrittenAnswersStep>;
+  /** Leaves the stepper for the paper print flow; omit when paper sheets are off. */
+  onAssignOnPaper?: () => void;
   onClose: () => void;
   onSubmit: () => void | Promise<void>;
 }
@@ -104,6 +100,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   handRaiseMode,
   submitLabel,
   written,
+  onAssignOnPaper,
   onClose,
   onSubmit,
 }) => {
@@ -223,6 +220,16 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       steps={steps}
       submitLabel={onPaper ? 'Assign and print' : submitLabel}
       submitIcon={onPaper ? Printer : undefined}
+      altAction={
+        onAssignOnPaper && !onPaper
+          ? {
+              label: 'Assign on paper',
+              icon: Printer,
+              onClick: onAssignOnPaper,
+              anchor: tourTypeAttr('quiz-library.assign-paper', 'quiz'),
+            }
+          : undefined
+      }
       onSubmit={onSubmit}
       disabled={needsPlc || backwards}
       disabledReason={

@@ -145,6 +145,28 @@ export const buildFlashcardRoundQueue = ({
   };
 };
 
+/** A card is missed while its latest answer was wrong; a right answer takes it out of the pile. */
+export const isFlashcardMissed = (
+  progress: FlashcardCardProgress | undefined
+): boolean => !!progress && progress.s === 0 && progress.w > 0;
+
+export const missedFlashcards = (
+  cards: FlashcardCard[],
+  progress: Record<string, FlashcardCardProgress> | undefined
+): FlashcardCard[] =>
+  cards.filter((card) => isFlashcardMissed(progress?.[card.id]));
+
+/** Missed cards for a missed-only round, in deck order or shuffled per round. */
+export const buildMissedRoundCards = (
+  cards: FlashcardCard[],
+  progress: Record<string, FlashcardCardProgress> | undefined,
+  shuffle: boolean,
+  seed: string
+): FlashcardCard[] => {
+  const missed = missedFlashcards(cards, progress);
+  return shuffle ? seededShuffle(missed, seed) : missed;
+};
+
 export const countMasteredFlashcards = (
   cards: FlashcardCard[],
   progress: Record<string, FlashcardCardProgress>,

@@ -38,7 +38,6 @@ vi.mock('@/hooks/useProjectsWidgetSettings', () => ({
 
 vi.mock('@/hooks/useStudentGrades', () => ({
   useStudentGradebookEnabled: () => false,
-  useStudentFeatureOpen: () => false,
   useStudentGrades: () => ({ status: 'loading' }),
 }));
 

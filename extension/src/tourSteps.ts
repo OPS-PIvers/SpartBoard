@@ -14,6 +14,8 @@ export interface PanelTourSteps {
   steps: StepsViewStep[];
   /** Each picture as a data URL, by step id. */
   pictures: StepPictures;
+  /** The token of the tour's public link, when it has one that works now. */
+  link?: string;
 }
 
 export type TourStepsReply =
@@ -115,5 +117,8 @@ export function panelStepsOf(raw: unknown): PanelTourSteps | null {
     ),
     steps,
     pictures,
+    ...(typeof raw.link === 'string' && /^[0-9a-f]{32}$/.test(raw.link)
+      ? { link: raw.link }
+      : {}),
   };
 }

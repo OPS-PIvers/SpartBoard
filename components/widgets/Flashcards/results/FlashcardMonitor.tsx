@@ -699,8 +699,8 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                       className="wrap-break-word font-sans text-brand-gray-primary"
                       style={text.sub}
                     >
-                      {hard.card.definition} · {hard.strugglingStudents} still
-                      working on it
+                      {hard.card.definition && `${hard.card.definition} · `}
+                      {hard.strugglingStudents} still working on it
                     </p>
                   </div>
                   <span

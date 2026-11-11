@@ -182,6 +182,55 @@ describe('flashcard_sessions', () => {
     );
   });
 
+  it('lets the teacher sync set fixes into an open Check, and no one else', async () => {
+    const check = session({ kind: 'check', checkMode: 'write' });
+    await seed(SESSION_PATH, check);
+    await seed(`${SESSION_PATH}/content/cards`, { cards: check.cards });
+    const teacherDb = asTeacher(TEACHER_UID);
+    const fixed = [{ id: 'card-1', term: 'hola', definition: 'hi' }];
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(teacherDb, 'flashcard_sessions'),
+          where('teacherUid', '==', TEACHER_UID),
+          where('setId', '==', 'set-1'),
+          where('kind', '==', 'check'),
+          where('status', '==', 'active')
+        )
+      )
+    );
+    await assertSucceeds(
+      getDoc(doc(teacherDb, `${SESSION_PATH}/content/cards`))
+    );
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, SESSION_PATH), { cards: fixed, title: 'New' })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(teacherDb, `${SESSION_PATH}/content/cards`),
+        { cards: fixed },
+        { merge: true }
+      )
+    );
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    expect((await getDoc(doc(studentDb, SESSION_PATH))).get('cards')).toEqual(
+      fixed
+    );
+    await assertFails(
+      updateDoc(doc(studentDb, SESSION_PATH), { cards: check.cards })
+    );
+    const otherDb = asTeacher(OTHER_TEACHER_UID);
+    await assertFails(
+      updateDoc(doc(otherDb, SESSION_PATH), { cards: check.cards })
+    );
+    await assertFails(
+      setDoc(doc(otherDb, `${SESSION_PATH}/content/cards`), {
+        cards: check.cards,
+      })
+    );
+    await assertFails(getDoc(doc(otherDb, SESSION_PATH)));
+  });
+
   it('denies students creating sessions', async () => {
     await assertFails(
       setDoc(

@@ -68,8 +68,8 @@ const input = (over: Partial<ScanSheetPageInput> = {}): ScanSheetPageInput => ({
 
 const glyphCount = (html: string, ink: string) =>
   html.split(`stroke="${ink}" stroke-width`).length - 1;
-const CHECK = '#166534';
-const CROSS = '#b91c1c';
+const CHECK = '#00b832';
+const CROSS = '#ff0000';
 
 function paintRect(
   page: { width: number; data: Uint8ClampedArray },
@@ -227,7 +227,7 @@ describe('buildScanSheetPageHtml', () => {
       );
       const cx = b.x + b.w / 2;
       const m = new RegExp(
-        `<circle cx="${cx}" cy="${b.y + b.h / 2}" r="([\\d.]+)" fill="none" stroke="#1d4ed8" stroke-width="([\\d.]+)"`
+        `<circle cx="${cx}" cy="${b.y + b.h / 2}" r="([\\d.]+)" fill="none" stroke="#0066ff" stroke-width="([\\d.]+)"`
       ).exec(html);
       expect(m, `ring on row ${row.label}`).not.toBeNull();
       const r = Number(m?.[1]);
@@ -253,7 +253,7 @@ describe('buildScanSheetPageHtml', () => {
         })
       ) ?? '';
     const m =
-      /<circle cx="[\d.]+" cy="[\d.]+" r="([\d.]+)" fill="none" stroke="#1d4ed8" stroke-width="([\d.]+)"/.exec(
+      /<circle cx="[\d.]+" cy="[\d.]+" r="([\d.]+)" fill="none" stroke="#0066ff" stroke-width="([\d.]+)"/.exec(
         html
       );
     expect(m).not.toBeNull();
@@ -261,7 +261,7 @@ describe('buildScanSheetPageHtml', () => {
     expect(reach).toBeLessThan(
       QUESTION_CHOICE_LINE_MM - BUBBLE_DIAMETER_MM / 2
     );
-    expect(html).toContain('fill="#1d4ed8"/>');
+    expect(html).toContain('fill="#0066ff"/>');
   });
 
   it('draws markup in page millimetres and lists its numbered comments beside the box', () => {
@@ -296,6 +296,56 @@ describe('buildScanSheetPageHtml', () => {
     expect(html).toContain('…');
     expect(html).not.toContain('word299');
     expect(html).toMatch(/\+\d+ more in the report/);
+    // The note wraps at 10 pt, so its two lines fit under the cut comments.
+    const col =
+      /<div class="scan-fb"[^>]*max-height:([\d.]+)mm[^>]*>(.*)<\/div>/.exec(
+        html
+      );
+    const cap = Number(col?.[1]);
+    const used = [...(col?.[2] ?? '').matchAll(/max-height:([\d.]+)mm/g)]
+      .map((m) => Number(m[1]))
+      .reduce((a, v) => a + v, 0);
+    const gaps = [...(col?.[2] ?? '').matchAll(/margin-top:([\d.]+)mm/g)]
+      .map((m) => Number(m[1]))
+      .reduce((a, v) => a + v, 0);
+    expect(gaps).toBeGreaterThan(0);
+    expect(used + gaps + 4.8 + 2 * 4.2).toBeLessThanOrEqual(cap);
+  });
+
+  it('still prints a numbered comment beside a short box with an overall comment', () => {
+    const base = scanPageMaps()[0];
+    const w1 = base.items.find((i) => i.questionId === 'w1');
+    if (!w1 || w1.kind !== 'written') throw new Error('fixture');
+    // A second written box 28 mm below leaves the column about five lines.
+    const next = {
+      ...w1,
+      questionId: 'w-next',
+      label: '8',
+      headerMm: { ...w1.headerMm, y: w1.headerMm.y + 28 },
+      boxMm: { ...w1.boxMm, y: w1.boxMm.y + 28 },
+    };
+    const items = [
+      'Intro sentence.',
+      'Cut off for writing outside the box.',
+    ].map((comment, i) => ({
+      id: `p${i}`,
+      kind: 'pin' as const,
+      atMm: { x: 60 + i * 20, y: 110 },
+      comment,
+    }));
+    const long = Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ');
+    const html =
+      buildScanSheetPageHtml(
+        input({
+          geometry: {
+            ...input().geometry,
+            pageMap: { ...base, items: [...base.items, next] },
+          },
+          fill: fillOf({ written: { w1: { points: '3/4', comment: long } } }),
+          markup: { w1: { scanId: 'scan-A', page: 1, items } },
+        })
+      ) ?? '';
+    expect(html).toMatch(/Intro/);
   });
 
   it('keeps everything it draws inside the strip any printer can reach', () => {
