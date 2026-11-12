@@ -296,7 +296,8 @@ import {
   FIB_BLANK_SEP,
   revealedBlanksMatch,
 } from '@/utils/quizFibBlanks';
-import { FibMultiBlankInput, NumberedBlanksText } from './FibMultiBlankInput';
+import { FibMultiBlankInput } from './FibMultiBlankInput';
+import { QuestionPrompt } from './QuestionPrompt';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
 import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
@@ -4260,6 +4261,7 @@ export const ActiveQuiz: React.FC<{
                     onLoadError={handleStimulusLoadError}
                     readAloud={stimulusReadAloudFor(s)}
                     selectableText={session.allowStimulusQuotes === true}
+                    fill
                   />
                 )}
               />
@@ -4416,18 +4418,12 @@ export const ActiveQuiz: React.FC<{
             <div
               className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
             >
-              <h2
-                className={`flex-1 text-xl font-bold leading-snug wrap-break-word whitespace-pre-line ${headingText}`}
-              >
-                {(currentQuestion.blankCount ?? 0) >= 2 ? (
-                  <NumberedBlanksText
-                    text={displayQuestion.text}
-                    light={light}
-                  />
-                ) : (
-                  <MathText text={displayQuestion.text} />
-                )}
-              </h2>
+              <QuestionPrompt
+                text={displayQuestion.text}
+                blankCount={currentQuestion.blankCount}
+                light={light}
+                className={`flex-1 ${headingText}`}
+              />
               <ReadAloudButton
                 variant="prominent"
                 label={t('quizReadAloud.readPrompt', 'Read question aloud')}
@@ -4437,15 +4433,12 @@ export const ActiveQuiz: React.FC<{
               />
             </div>
           ) : (
-            <h2
-              className={`text-xl font-bold ${questionGap} leading-snug wrap-break-word whitespace-pre-line ${headingText}`}
-            >
-              {(currentQuestion.blankCount ?? 0) >= 2 ? (
-                <NumberedBlanksText text={displayQuestion.text} light={light} />
-              ) : (
-                <MathText text={displayQuestion.text} />
-              )}
-            </h2>
+            <QuestionPrompt
+              text={displayQuestion.text}
+              blankCount={currentQuestion.blankCount}
+              light={light}
+              className={`${questionGap} ${headingText}`}
+            />
           )}
 
           {/* Answer area */}

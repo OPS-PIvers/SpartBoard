@@ -588,6 +588,10 @@ const TeacherQuizWidget: React.FC<{
     () => bankSources.filter((s) => s.kind === 'plc'),
     [bankSources]
   );
+  const districtBankSources = useMemo(
+    () => bankSources.filter((s) => s.kind === 'district'),
+    [bankSources]
+  );
   const removeDistrictSource = useCallback(
     async (source: BankSource) => {
       if (!user?.uid) return;
@@ -4230,6 +4234,8 @@ const TeacherQuizWidget: React.FC<{
         banks={banks}
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
+        districtBankSources={districtBankSources}
+        onRemoveDistrictBank={removeDistrictSource}
         onImportBank={() => setBankImportOpen(true)}
         schoologyInboxCount={schoologyInbox.items.length}
         onOpenSchoologyInbox={() => setSchoologyReviewOpen(true)}
