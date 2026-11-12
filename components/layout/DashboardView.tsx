@@ -131,7 +131,7 @@ const Sidebar = React.lazy(() =>
 const Dock = React.lazy(() =>
   import('./Dock').then((m) => ({ default: m.Dock }))
 );
-// Loaded only when the side panel's Open in SpartBoard link names a web tour draft.
+// Loaded only for an older extension's Open in SpartBoard link, which it forwards to /web-tours.
 const WebTourEditorHost = React.lazy(() =>
   import('@/components/tours/web/WebTourEditorHost').then((m) => ({
     default: m.WebTourEditorHost,
