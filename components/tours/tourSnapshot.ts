@@ -30,6 +30,7 @@ const NOT_PUBLISHED = new Set([
   'webTourChecked',
   'webSuggestions',
   'webFixDismissed',
+  'webRevisionPictures',
 ]);
 
 // A web step's note, Claude's question and the uncropped capture stay in the draft.

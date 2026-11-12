@@ -29,6 +29,7 @@ import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import { logError } from '@/utils/logError';
 import { buildTourContent, GL_TOURS_COLLECTION } from './tourSnapshot';
 import { newWebTour } from './web/recordedSteps';
+import { firstTargetedIndex } from './web/tourSequence';
 
 // Web tour storage (docs/plans/CHROME_EXTENSION.md T6): admin-only drafts, staff-only snapshots and pictures.
 export const WEB_TOURS_COLLECTION = 'building_web_tours';
@@ -82,6 +83,31 @@ export function webTourPicturePaths(
       if (typeof path === 'string' && isWebTourPicturePath(setId, path))
         out.add(path);
     }
+  }
+  return out;
+}
+
+/** Pictures a Claude step-list revision still references, until that revision expires (X18). */
+export function revisionPicturePaths(
+  setId: string,
+  set: { webRevisionPictures?: unknown } | null | undefined,
+  now = Date.now()
+): Set<string> {
+  const out = new Set<string>();
+  const kept = set?.webRevisionPictures;
+  if (!Array.isArray(kept)) return out;
+  for (const entry of kept as unknown[]) {
+    const { path, until } = (entry ?? {}) as {
+      path?: unknown;
+      until?: unknown;
+    };
+    if (
+      typeof path === 'string' &&
+      typeof until === 'number' &&
+      until > now &&
+      isWebTourPicturePath(setId, path)
+    )
+      out.add(path);
   }
   return out;
 }
@@ -256,6 +282,9 @@ export async function publishWebTour(
 ): Promise<void> {
   const draft = await loadWebTourDraft(setId);
   if (!draft) throw new Error('Web tour draft not found');
+  // A tour of Message steps alone has nowhere to open (X8).
+  if (firstTargetedIndex(draft.steps) < 0)
+    throw new Error('A web tour needs at least one step with a target');
   // The caller's publish gate runs on the exact draft being published; a throw aborts.
   check?.(draft);
   const previous = await getDoc(snapshotRef(setId));
@@ -279,6 +308,8 @@ export async function publishWebTour(
   const latest = await loadWebTourDraft(setId);
   const kept = webTourPicturePaths(setId, draft);
   webTourPicturePaths(setId, latest).forEach((p) => kept.add(p));
+  revisionPicturePaths(setId, draft).forEach((p) => kept.add(p));
+  revisionPicturePaths(setId, latest).forEach((p) => kept.add(p));
   for (const p of keep) kept.add(p);
   const stale = [...before].filter((p) => !kept.has(p));
   await Promise.all(
@@ -294,7 +325,7 @@ export async function publishWebTour(
 /** Files younger than this may be uploads another session hasn't saved into the draft yet. */
 export const ORPHAN_GRACE_MS = 10 * 60 * 1000;
 
-/** Deletes the tour's stored pictures that neither the draft, the published copy nor `keep` uses; `replaced` (this editor's own past pictures) skip the age wait. */
+/** Deletes the tour's stored pictures that neither the draft, the published copy, a Claude revision nor `keep` uses; `replaced` (this editor's own past pictures) skip the age wait. */
 export async function sweepWebTourPictures(
   setId: string,
   opts: { keep?: Iterable<string>; replaced?: Iterable<string> } = {},
@@ -308,6 +339,7 @@ export async function sweepWebTourPictures(
   // A deleted draft's folder goes with it on the server.
   if (!draft) return [];
   const used = webTourPicturePaths(setId, draft);
+  revisionPicturePaths(setId, draft, now).forEach((p) => used.add(p));
   if (snap.exists())
     webTourPicturePaths(
       setId,

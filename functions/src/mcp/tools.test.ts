@@ -1199,6 +1199,7 @@ describe('hiddenToolsFor', () => {
       'get_web_tour',
       'get_web_tour_step_picture',
       'list_web_tours',
+      'update_web_tour_steps',
       'update_web_tour_text',
     ]);
   });

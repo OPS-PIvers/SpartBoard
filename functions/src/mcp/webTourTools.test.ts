@@ -6,7 +6,9 @@ import type * as admin from '../firebaseAdmin';
 import type { ToolContext } from './activity';
 import {
   WEB_TOUR_TOOLS,
+  applyWebStepList,
   applyWebStepText,
+  keepRevisionPictures,
   publishState,
   registerWebTourTools,
   restoreWebTourRevision,
@@ -235,6 +237,7 @@ describe('web tour connector tools', () => {
     expect(out.steps[0]).toEqual({
       id: 'a',
       number: 1,
+      kind: 'recorded',
       title: 'Click Gradebook',
       tip: '',
       action: 'click',
@@ -748,6 +751,185 @@ describe('web tour connector tools', () => {
     await restoreWebTourRevision(ctxFor(env.db), snap);
     const saved = env.docs.get('building_web_tours/t1') as Data;
     expect({ ...saved, updatedAt: 10 }).toEqual(tour());
+  });
+
+  it('adds, moves and removes steps on the draft, keeping each recorded step whole (X16)', async () => {
+    const call = await connect(seed().db);
+    const out = await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [
+        { new_message: true, title: 'Welcome', tip: 'Let us find the grades.' },
+        { id: 'b', tip: 'Now look here.' },
+        { id: 'a' },
+      ],
+    });
+    const saved = env.docs.get('building_web_tours/t1') as Data & {
+      steps: Data[];
+    };
+    const [message, b, a] = saved.steps;
+    expect(message).toEqual({
+      id: expect.any(String) as unknown,
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
+      interactionType: 'tooltip',
+      label: 'Welcome',
+      text: 'Let us find the grades.',
+      message: true,
+    });
+    expect(b).toEqual({ ...STEP_B, text: 'Now look here.' });
+    expect(a).toEqual(STEP_A);
+    expect(out).toMatchObject({
+      added_steps: [message.id],
+      removed_steps: [],
+      steps: [
+        containing({ kind: 'message', number: 1, action: null }),
+        containing({ id: 'b', kind: 'recorded', number: 2 }),
+        containing({ id: 'a', kind: 'recorded', has_picture: true }),
+      ],
+    });
+    expect(saved.title).toBe('Find the gradebook');
+
+    await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [{ id: 'b' }],
+    });
+    const after = env.docs.get('building_web_tours/t1') as Data & {
+      steps: Data[];
+    };
+    expect(after.steps.map((s) => s.id)).toEqual(['b']);
+  });
+
+  it('restores a removed recorded step exactly, and the draft holds its picture for 30 days (X18)', async () => {
+    const call = await connect(seed().db);
+    const before = Date.now();
+    const out = await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [{ id: 'b' }],
+    });
+    expect(out).toMatchObject({ removed_steps: ['a'] });
+    const removed = env.docs.get('building_web_tours/t1') as Data;
+    const kept = removed.webRevisionPictures as {
+      path: string;
+      until: number;
+    }[];
+    expect(kept.map((k) => k.path)).toEqual(['web_tour_pictures/t1/p1.jpg']);
+    expect(kept[0].until).toBeGreaterThanOrEqual(before + 30 * 86_400_000);
+
+    const revPath = `users/u1/claude_revisions/${String(out.previous_version_revision_id)}`;
+    const rev = env.docs.get(revPath) as Data;
+    expect(rev.data).toMatchObject({ source: 'web', kind: 'steps' });
+    const snap = {
+      get: (k: string) => rev[k],
+    } as unknown as admin.firestore.DocumentSnapshot;
+    const restored = await restoreWebTourRevision(ctxFor(env.db), snap);
+    expect(restored).toMatchObject({ step_count: 2 });
+    const saved = env.docs.get('building_web_tours/t1') as Data;
+    expect(saved.steps).toEqual([STEP_A, STEP_B]);
+    // The restore is a step-list edit too, so it can be undone with its own revision.
+    expect(
+      (saved.webRevisionPictures as { path: string }[]).map((k) => k.path)
+    ).toEqual(['web_tour_pictures/t1/p1.jpg']);
+  });
+
+  it('refuses to restore a step-list revision whose pictures are no longer held', async () => {
+    const call = await connect(seed().db);
+    const out = await call('update_web_tour_steps', {
+      set_id: 't1',
+      steps: [{ id: 'b' }],
+    });
+    const rev = env.docs.get(
+      `users/u1/claude_revisions/${String(out.previous_version_revision_id)}`
+    ) as Data;
+    const snap = {
+      get: (k: string) =>
+        k === 'createdAt' ? Date.now() - 31 * 86_400_000 : rev[k],
+    } as unknown as admin.firestore.DocumentSnapshot;
+    await expect(restoreWebTourRevision(ctxFor(env.db), snap)).rejects.toThrow(
+      'expired'
+    );
+  });
+
+  it('keeps the light revision and no picture list for word-only edits', async () => {
+    const call = await connect(seed().db);
+    const out = await call('update_web_tour_text', {
+      set_id: 't1',
+      steps: [{ id: 'a', tip: 'x' }],
+    });
+    const rev = env.docs.get(
+      `users/u1/claude_revisions/${String(out.previous_version_revision_id)}`
+    ) as Data;
+    expect(rev.data).not.toHaveProperty('kind');
+    expect(env.docs.get('building_web_tours/t1')).not.toHaveProperty(
+      'webRevisionPictures'
+    );
+  });
+
+  it("can't create a recorded step or retarget one", async () => {
+    const call = await connect(seed().db);
+    for (const step of [
+      { id: 'a', web: { urlPattern: 'https://x.example.com/' } },
+      { new_message: true, tip: 'Hi', web: { urlPattern: 'https://x/' } },
+      { new_message: true, tip: 'Hi', id: 'z' },
+      { title: 'No id' },
+    ])
+      expect(
+        await call('update_web_tour_steps', { set_id: 't1', steps: [step] })
+      ).toMatchObject({ error: expect.any(String) as unknown });
+    expect(env.docs.get('building_web_tours/t1')).toEqual(tour());
+  });
+
+  it('refuses unknown or repeated ids, an empty list, a blank message and student data', () => {
+    const steps = tour().steps as Parameters<typeof applyWebStepList>[0];
+    expect(() => applyWebStepList(steps, [])).toThrow('cannot be empty');
+    expect(() => applyWebStepList(steps, [{ id: 'nope' }])).toThrow(
+      'No step has id "nope"'
+    );
+    expect(() => applyWebStepList(steps, [{ id: 'a' }, { id: 'a' }])).toThrow(
+      'twice'
+    );
+    expect(() =>
+      applyWebStepList(steps, [{ new_message: true, tip: '   ' }])
+    ).toThrow('without a tip');
+    expect(() =>
+      applyWebStepList(steps, [
+        { id: 'a' },
+        { new_message: true, tip: 'Email kid@school.org' },
+      ])
+    ).toThrow(/Step 2 tip looks like it holds student data/);
+  });
+
+  it('warns when no step points at a control any more', () => {
+    const steps = tour().steps as Parameters<typeof applyWebStepList>[0];
+    const out = applyWebStepList(
+      steps,
+      [{ new_message: true, tip: 'Only words' }],
+      () => 'm1'
+    );
+    expect(out.removed).toEqual(['a', 'b']);
+    expect(out.warnings).toEqual([
+      expect.stringMatching(/cannot be published/),
+    ]);
+  });
+
+  it('merges revision pictures, keeping the later expiry and dropping expired ones', () => {
+    expect(
+      keepRevisionPictures(
+        [
+          { path: 'p/old', until: 5 },
+          { path: 'p/live', until: 50 },
+          { path: 'p/again', until: 20 },
+          'junk',
+        ],
+        ['p/again', 'p/new'],
+        100,
+        10
+      )
+    ).toEqual([
+      { path: 'p/live', until: 50 },
+      { path: 'p/again', until: 100 },
+      { path: 'p/new', until: 100 },
+    ]);
   });
 
   it('matches hard and soft student data patterns', () => {

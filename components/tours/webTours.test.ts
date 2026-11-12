@@ -208,6 +208,40 @@ describe('publishWebTour', () => {
   it('fails when there is no draft', async () => {
     await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow();
   });
+
+  it('refuses a tour with no targeted step (X8) and writes nothing', async () => {
+    h.docs.set(
+      'building_web_tours/w1',
+      draft([{ id: 'm1', message: true, label: 'Hi', text: 'Welcome' }])
+    );
+    await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow(
+      'at least one step with a target'
+    );
+    expect(h.writes).toEqual([]);
+  });
+
+  it('keeps a picture a Claude revision references until it expires (X18)', async () => {
+    h.docs.set('building_guided_learning_tours/w1', {
+      surface: 'web',
+      set: { steps: [pic('removed.png'), pic('expired.png')] },
+    });
+    h.docs.set('building_web_tours/w1', {
+      ...draft([pic('new.png')]),
+      webRevisionPictures: [
+        {
+          path: 'web_tour_pictures/w1/removed.png',
+          until: Date.now() + 60_000,
+        },
+        { path: 'web_tour_pictures/w1/expired.png', until: Date.now() - 1 },
+      ],
+    });
+    await publishWebTour('w1', 'admin-uid');
+    expect(h.deleted).toEqual(['web_tour_pictures/w1/expired.png']);
+    const write = h.writes.find(
+      (w) => w.path === 'building_guided_learning_tours/w1'
+    );
+    expect(write?.data.set).not.toHaveProperty('webRevisionPictures');
+  });
 });
 
 describe('duplicateWebTourDraft', () => {
@@ -287,6 +321,25 @@ describe('sweepWebTourPictures', () => {
       NOW
     );
     expect(h.deleted).toEqual([P('blurred-over.png')]);
+  });
+
+  it('keeps a picture a Claude revision references, and drops it once the revision expires (X18)', async () => {
+    h.docs.set('building_web_tours/w1', {
+      ...draft([pic('draft.png')]),
+      webRevisionPictures: [
+        { path: P('orphan.png'), until: NOW + 1 },
+        { path: P('blurred-over.png'), until: NOW + 1 },
+        { path: 'web_tour_pictures/other/x.png', until: NOW + 1 },
+      ],
+    });
+    await sweepWebTourPictures(
+      'w1',
+      { replaced: [P('blurred-over.png')] },
+      NOW
+    );
+    expect(h.deleted).toEqual([]);
+    await sweepWebTourPictures('w1', {}, NOW + 1);
+    expect(h.deleted).toEqual([P('orphan.png')]);
   });
 
   it('leaves a deleted tour to the server', async () => {
