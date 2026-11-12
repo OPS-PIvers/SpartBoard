@@ -66,7 +66,7 @@ describe('ImportScreenHost', () => {
       />
     );
 
-  it('shows a corner notice for waiting pages that opens Import, and hides it', () => {
+  it('shows a corner notice for waiting pages that opens Import, and discards them', () => {
     inboxItems.push({
       id: 's1',
       url: 'https://example.org/a',
@@ -81,8 +81,10 @@ describe('ImportScreenHost', () => {
     expect(
       screen.getByText('1 page sent from your browser')
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    inboxRemove.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(screen.queryByText('1 page sent from your browser')).toBeNull();
+    expect(inboxRemove).toHaveBeenCalledWith('s1');
     act(() => openImportScreen());
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     act(() => closeImportScreen());

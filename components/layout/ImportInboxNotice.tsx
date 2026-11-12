@@ -8,6 +8,8 @@ interface ImportInboxNoticeProps {
   /** True while the Add to board window is open. */
   suppressed: boolean;
   onOpen: () => void;
+  /** Discards the given Sends for good. */
+  onDiscard: (ids: string[]) => void;
 }
 
 /** Corner notice for pages the extension sent that haven't been added yet. */
@@ -15,8 +17,9 @@ export const ImportInboxNotice: React.FC<ImportInboxNoticeProps> = ({
   items,
   suppressed,
   onOpen,
+  onDiscard,
 }) => {
-  // Hiding lasts until another page arrives.
+  // Hides at once while the deletes reach Firestore.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const waiting = items.filter((item) => !hidden.has(item.id));
   if (suppressed || waiting.length === 0) return null;
@@ -43,8 +46,12 @@ export const ImportInboxNotice: React.FC<ImportInboxNoticeProps> = ({
       </button>
       <button // no-tour-anchor: shows only after a Send, not on a tour path
         type="button"
-        onClick={() => setHidden(new Set(items.map((item) => item.id)))}
-        aria-label="Hide"
+        onClick={() => {
+          const ids = items.map((item) => item.id);
+          setHidden(new Set(ids));
+          onDiscard(ids);
+        }}
+        aria-label="Discard"
         className="relative touch-target-expand rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
       >
         <X className="h-4 w-4" />
