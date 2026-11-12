@@ -22,6 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import type { HelpItemKind, HelpResourceItem } from '@/types/helpCenter';
+import { KIND_LABEL } from './helpCenterAdmin';
 
 export interface HelpListSection {
   id: string;
@@ -33,11 +34,6 @@ export interface HelpRowInfo {
   published: boolean;
   attention: boolean;
 }
-
-export const KIND_LABEL: Record<HelpItemKind, string> = {
-  'live-tour': 'Live tour',
-  'picture-guide': 'Picture guide',
-};
 
 const SECTION_PREFIX = 'section:';
 const POINTER_OPTIONS = { activationConstraint: { distance: 8 } };

@@ -19,8 +19,8 @@ import {
   type HelpResourceItem,
 } from '@/types/helpCenter';
 import { tourStepsOf } from '@/components/tours/tourSession';
-import type { HelpItemFieldPatch } from './helpCenterAdmin';
-import { KIND_LABEL, type HelpRowInfo } from './HelpItemList';
+import type { HelpRowInfo } from './HelpItemList';
+import { KIND_LABEL, type HelpItemFieldPatch } from './helpCenterAdmin';
 
 const TourHealthPanel = lazy(() => import('./TourHealthPanel'));
 

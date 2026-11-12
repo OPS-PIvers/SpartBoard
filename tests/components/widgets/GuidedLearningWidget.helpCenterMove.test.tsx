@@ -183,7 +183,11 @@ describe('GuidedLearningWidget Help Center moves', () => {
       orgId: 'org-1',
       isSuperAdmin: false,
     });
-    const [message, type, action] = addToast.mock.calls[0];
+    const [message, type, action] = addToast.mock.calls[0] as [
+      string,
+      string,
+      { label: string; onClick: () => void },
+    ];
     expect(message).toBe('Moved to Help Center.');
     expect(type).toBe('success');
     expect(action.label).toBe('Open in Help Center');
@@ -230,7 +234,12 @@ describe('GuidedLearningWidget Help Center moves', () => {
     await waitFor(() =>
       expect(helpItems.finishPendingMove).toHaveBeenCalledTimes(1)
     );
-    const [uid, finished, remove] = helpItems.finishPendingMove.mock.calls[0];
+    const [uid, finished, remove] = helpItems.finishPendingMove.mock
+      .calls[0] as [
+      string,
+      { id: string },
+      (id: string, driveFileId: string) => Promise<void>,
+    ];
     expect(uid).toBe('admin-1');
     expect(finished.id).toBe('tagged');
     await remove('tagged', 'drive-tagged');

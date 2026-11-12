@@ -66,20 +66,12 @@ export const HelpCategoriesDialog: React.FC<HelpCategoriesDialogProps> = ({
     );
     if (!confirmed) return;
     await run(() =>
-      onDelete(
-        category,
-        renumber(ordered.filter((c) => c.id !== category.id))
-      )
+      onDelete(category, renumber(ordered.filter((c) => c.id !== category.id)))
     );
   };
 
   return (
-    <Modal
-      isOpen
-      onClose={onClose}
-      title="Categories"
-      maxWidth="max-w-lg"
-    >
+    <Modal isOpen onClose={onClose} title="Categories" maxWidth="max-w-lg">
       <div className="space-y-3">
         <SortableList
           items={ordered}

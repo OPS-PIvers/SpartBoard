@@ -10,6 +10,7 @@ import {
 import { useDialog } from '@/context/useDialog';
 import type { UseGuidedLearningResult } from '@/hooks/useGuidedLearning';
 import type { HelpItemKind, HelpResourceItem } from '@/types/helpCenter';
+import { KIND_LABEL } from './helpCenterAdmin';
 import {
   helpCopyIdFor,
   isPendingHelpCenterMove,
@@ -32,11 +33,6 @@ interface Row {
   owner: Owner;
   source: MoveSource;
 }
-
-const KIND_LABEL: Record<HelpItemKind, string> = {
-  'live-tour': 'Live tour',
-  'picture-guide': 'Picture guide',
-};
 
 interface MoveFromLibraryDialogProps {
   library: Pick<

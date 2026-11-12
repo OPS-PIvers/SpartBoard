@@ -1,4 +1,8 @@
-import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
+import type {
+  HelpCategory,
+  HelpItemKind,
+  HelpResourceItem,
+} from '@/types/helpCenter';
 import type { User } from 'firebase/auth';
 import type { GuidedLearningSet } from '@/types';
 
@@ -83,3 +87,8 @@ export const newPictureGuide = (
   isBuilding: true,
   helpCenter: true,
 });
+
+export const KIND_LABEL: Record<HelpItemKind, string> = {
+  'live-tour': 'Live tour',
+  'picture-guide': 'Picture guide',
+};
