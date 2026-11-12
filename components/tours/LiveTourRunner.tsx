@@ -155,6 +155,7 @@ import {
 } from './playbackEngine';
 import { domSettleHost } from './settleDom';
 import { useStepRhythm } from './useStepRhythm';
+import { useDialogLift } from './useDialogLift';
 import {
   endTestRun,
   installTestRunHook,
@@ -1771,6 +1772,7 @@ export const LiveTourRunner: React.FC = () => {
   // A teacher's own picked item takes real writes, so only a run without one autopilots sandboxed saves.
   const inSandbox = !!tour?.sandboxed && sandbox.passthrough.size === 0;
   const running = tour?.phase === 'running';
+  const dialogBoxes = useDialogLift(running);
   const offeringResume = !tour && resumeOffer !== null && !!activeDashboard;
   // The editor keeps Escape for its own controls, except to stop a fast-forward.
   const escapable =
@@ -1933,7 +1935,7 @@ export const LiveTourRunner: React.FC = () => {
   // Re-places the tip after the bar is dragged.
   const [, setBarMoves] = useState(0);
   const onBarPlace = useCallback(() => setBarMoves((n) => n + 1), []);
-  const obstacles = tour ? tourObstacles() : [];
+  const obstacles = tour ? [...tourObstacles(), ...dialogBoxes] : [];
   const placement = spot
     ? placeCallout({ box, target: spot, container: viewport, obstacles })
     : null;
