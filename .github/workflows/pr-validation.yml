@@ -425,18 +425,8 @@ jobs:
           key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: firebase-emulators-${{ runner.os }}-
 
-      # Shard 1 also checks the per-PR rules size budget; labels are read live so a re-run sees a new rules-size-ok label.
       - name: Run Firestore rules tests
-        env:
-          RULES_BASE_REF: ${{ github.event_name == 'pull_request' && github.base_ref != 'main' && github.base_ref || '' }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ -n "$PR_NUMBER" ]; then
-            RULES_SIZE_OK=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | index("rules-size-ok") != null' || echo false)
-            export RULES_SIZE_OK
-          fi
-          RULES_SHARD=${{ matrix.shard }}/4 pnpm run test:rules
+        run: RULES_SHARD=${{ matrix.shard }}/4 pnpm run test:rules
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -444,6 +434,48 @@ jobs:
           name: vitest-rules-report-shard-${{ matrix.shard }}
           path: .vitest-reports/rules-shard-${{ matrix.shard }}.json
           retention-days: 1
+
+  # Per-PR compiled rules growth budget. Not gated on preflight, so a reused dev-branch run still gets it.
+  rules-size-budget:
+    needs: changes
+    if: github.base_ref != '' && github.base_ref != 'main' && needs.changes.outputs.rules == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    name: Rules Size Budget
+    steps:
+      # Depth 2 keeps the merge commit's first parent, the base this PR is measured against.
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Firestore emulator jar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
+
+      # Labels are read live, so re-running this job after adding rules-size-ok lets the growth through.
+      - name: Check rules growth against the base branch
+        env:
+          RULES_BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pnpm exec firebase setup:emulators:firestore
+          RULES_SIZE_OK=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | index("rules-size-ok") != null' || echo false)
+          export RULES_SIZE_OK
+          node scripts/checkRulesSize.mjs
 
   build:
     needs: preflight
@@ -513,6 +545,7 @@ jobs:
         functions-test,
         test-counts,
         rules,
+        rules-size-budget,
         build,
         e2e,
         grader-scope,

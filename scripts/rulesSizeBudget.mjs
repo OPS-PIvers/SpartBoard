@@ -11,14 +11,16 @@ export function budgetVerdict({ compiled, baseCompiled, budget = RULES_GROWTH_BU
   return { ok: override, growth, overridden: override };
 }
 
-/** firestore.rules on the tip of the PR's base branch, or null when it can't be fetched. */
+/** Base firestore.rules: the PR merge commit's first parent in CI, else the tip of origin/<baseRef>. */
 export function baseRulesText(baseRef) {
+  const git = (...args) =>
+    execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
   try {
+    if (git('rev-list', '--parents', '-n', '1', 'HEAD').trim().split(' ').length > 2) {
+      return git('show', 'HEAD^1:firestore.rules');
+    }
     execFileSync('git', ['fetch', '--quiet', '--depth=1', 'origin', baseRef], { stdio: 'ignore' });
-    return execFileSync('git', ['show', 'FETCH_HEAD:firestore.rules'], {
-      encoding: 'utf8',
-      maxBuffer: 16 * 1024 * 1024,
-    });
+    return git('show', 'FETCH_HEAD:firestore.rules');
   } catch {
     return null;
   }
