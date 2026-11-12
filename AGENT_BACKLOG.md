@@ -216,6 +216,8 @@ claude/project-thread-kwulpx
 
 claude/project-thread-oakw56
 claude/project-thread-oakw56-ab112
+claude/project-thread-jrytph
+claude/ab112-grader-copy
 claude/tour-anchors-2026-11-12
 nightly/debugger-log-2026-11-12
 nightly/admin-config-2026-11-12
