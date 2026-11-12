@@ -97,7 +97,7 @@ export const RemoteExpectationsControl: React.FC<
             {VOICE_LEVELS.map(({ level, label, color }) => {
               const isActive = config.voiceLevel === level;
               return (
-                <button
+                <button /* no-tour-anchor: phone remote page, never on the board */
                   key={level}
                   onClick={() => setVoiceLevel(level)}
                   className={`touch-manipulation flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
@@ -127,7 +127,7 @@ export const RemoteExpectationsControl: React.FC<
             {WORK_MODES.map(({ value, label, icon }) => {
               const isActive = config.workMode === value;
               return (
-                <button
+                <button /* no-tour-anchor: phone remote page, never on the board */
                   key={value}
                   onClick={() => setWorkMode(value)}
                   className={`touch-manipulation flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
@@ -154,7 +154,7 @@ export const RemoteExpectationsControl: React.FC<
             {INTERACTION_MODES.map(({ value, label, icon }) => {
               const isActive = config.interactionMode === value;
               return (
-                <button
+                <button /* no-tour-anchor: phone remote page, never on the board */
                   key={value}
                   onClick={() => setInteractionMode(value)}
                   className={`touch-manipulation flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 ${

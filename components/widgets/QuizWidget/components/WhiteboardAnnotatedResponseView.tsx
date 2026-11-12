@@ -102,7 +102,9 @@ export const WhiteboardAnnotatedResponseView: React.FC<
     const resolve = (id: string | undefined): Promise<string | null> =>
       id
         ? resolverRef.current(id).then((url) => {
-            created.push(url);
+            // A file that lands after cleanup has no one left to revoke it.
+            if (cancelled) URL.revokeObjectURL(url);
+            else created.push(url);
             return url;
           })
         : Promise.resolve(null);
