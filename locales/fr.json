@@ -4344,6 +4344,8 @@
     "webGoToStart": "Aller au début",
     "webArmedExit": "Arrêter la visite",
     "webMoved": "Votre visite est passée dans l'autre onglet.",
+    "webSwitchTitle": "La suite se passe sur {{host}}",
+    "webGoTo": "Aller sur {{host}}",
     "webStopped": "Visite arrêtée. Cliquez sur l’icône SpartBoard pour la relancer.",
     "webDismiss": "Fermer",
     "webPictureAlt": "Image de cette étape",

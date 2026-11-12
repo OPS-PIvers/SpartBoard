@@ -3,8 +3,10 @@ import {
   parseMarkupShapes,
   parsePictureTarget,
   parseWebTourCondition,
+  isStartMessageStep,
   parseWebTourStartTour,
   type WebTourPictureBytes,
+  type WebTourStartStep,
 } from '@/components/tours/web/extensionProtocol';
 import {
   buildStartTour,
@@ -16,6 +18,32 @@ import { toPlayback, type ParsedStart } from './startMessage';
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === 'object' && !Array.isArray(v);
+
+const MAX_STEPS = 200;
+const MAX_TEXT = 4000;
+
+interface MessageStep {
+  id: string;
+  label?: string;
+  text?: string;
+  message: true;
+}
+
+const isTargeted = (s: unknown): s is HandoffStep =>
+  isObj(s) &&
+  typeof s.id === 'string' &&
+  isObj(s.web) &&
+  typeof s.web.urlPattern === 'string' &&
+  typeof s.web.action === 'string' &&
+  isObj(s.web.locator);
+
+const isMessageOf = (s: unknown): s is MessageStep =>
+  isObj(s) &&
+  typeof s.id === 'string' &&
+  s.message === true &&
+  s.web === undefined &&
+  (s.label === undefined || typeof s.label === 'string') &&
+  (s.text === undefined || typeof s.text === 'string');
 
 const PICTURE_MIMES = ['image/png', 'image/jpeg', 'image/webp'] as const;
 
@@ -76,16 +104,14 @@ export function openedTour(
   // The server sends a picture's markup with the picture (webTourLoadV1).
   const pictureMarkup = (id: string): unknown =>
     isObj(raw.pictures) ? raw.pictures[id] : undefined;
-  const steps = raw.steps
+  // Message steps stay in their place (X9); a step that is neither is dropped.
+  const kept = raw.steps
     .filter(
-      (s): s is HandoffStep =>
-        isObj(s) &&
-        typeof s.id === 'string' &&
-        isObj(s.web) &&
-        typeof s.web.urlPattern === 'string' &&
-        typeof s.web.action === 'string' &&
-        isObj(s.web.locator)
+      (s): s is HandoffStep | MessageStep => isTargeted(s) || isMessageOf(s)
     )
+    .slice(0, MAX_STEPS);
+  const steps = kept
+    .filter((s): s is HandoffStep => !isMessageOf(s))
     .map((s) =>
       withMarkup(withConditions(s, conditions[s.id]), pictureMarkup(s.id))
     );
@@ -101,23 +127,39 @@ export function openedTour(
   if (!startUrl || !Number.isInteger(version)) return null;
   let tour;
   try {
-    tour = parseWebTourStartTour(
-      buildStartTour(
-        setId,
-        version as number,
-        typeof raw.title === 'string' ? raw.title : '',
-        steps,
-        pictures,
-        true,
-        true
-      )
+    const built = buildStartTour(
+      setId,
+      version as number,
+      typeof raw.title === 'string' ? raw.title : '',
+      steps,
+      pictures,
+      true,
+      true
     );
+    const byId = new Map(built.steps.map((st) => [st.id, st]));
+    tour = parseWebTourStartTour({
+      ...built,
+      steps: kept.flatMap((st): WebTourStartStep[] => {
+        if (isMessageOf(st))
+          return [
+            {
+              id: st.id,
+              message: true,
+              label: (st.label ?? '').slice(0, MAX_TEXT),
+              text: (st.text ?? '').slice(0, MAX_TEXT),
+            },
+          ];
+        const one = byId.get(st.id);
+        return one ? [one] : [];
+      }),
+    });
   } catch {
     return null;
   }
   if (!tour || tour.steps.length === 0) return null;
   const locators: StepLocators = {};
-  for (const s of tour.steps) locators[s.id] = s.web.locator;
+  for (const s of tour.steps)
+    if (!isStartMessageStep(s)) locators[s.id] = s.web.locator;
   return {
     start: toPlayback({ type: 'web-tour/start', startUrl, stepIndex: 0, tour }),
     locators,

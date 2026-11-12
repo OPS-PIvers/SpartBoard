@@ -4344,6 +4344,8 @@
     "webGoToStart": "Zum Anfang",
     "webArmedExit": "Tour beenden",
     "webMoved": "Ihre Tour wurde in den anderen Tab verschoben.",
+    "webSwitchTitle": "Weiter geht es auf {{host}}",
+    "webGoTo": "Zu {{host}}",
     "webStopped": "Tour beendet. Klicken Sie auf das SpartBoard-Symbol, um sie neu zu starten.",
     "webDismiss": "Schließen",
     "webPictureAlt": "Bild dieses Schritts",

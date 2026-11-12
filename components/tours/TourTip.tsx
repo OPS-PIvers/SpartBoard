@@ -48,7 +48,7 @@ interface TourTipProps {
   /** Asks before Autopilot performs a step that outlives the tour. */
   confirm?: { onYes: () => void; onNo: () => void };
   /** Shown on steps that don't move on by themselves. */
-  next?: { onNext: () => void; last: boolean };
+  next?: { onNext: () => void; last: boolean; label?: string };
   /** Shown on a step waiting for a real result, so the teacher is never stuck. */
   skip?: { onSkip: () => void };
   /** Sparty perched on the tip, when the caller has checked `useShowSparty` (D20). */
@@ -294,7 +294,7 @@ export const TourTip: React.FC<TourTipProps> = ({
               onClick={next.onNext}
               className={`${primaryBtn} ml-auto mr-2`}
             >
-              {next.last ? t('tours.done') : t('tours.next')}
+              {next.label ?? (next.last ? t('tours.done') : t('tours.next'))}
             </button>
           )}
         </div>
