@@ -145,8 +145,11 @@ export const StepPicture: React.FC<{
             className="absolute inset-0 h-full w-full object-contain"
             onError={() => setBrokenSrc(src)}
           />
-          {pic.target && sized && (
-            <PrintSpotlight target={pic.target} ratio={pic.h / pic.w} />
+          {pic.target && (
+            <PrintSpotlight
+              target={pic.target}
+              ratio={sized ? pic.h / pic.w : 9 / 16}
+            />
           )}
           {pic.target && frame.w > 0 && (
             <div className="print:hidden">
