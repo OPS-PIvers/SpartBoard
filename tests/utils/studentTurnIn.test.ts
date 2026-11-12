@@ -40,6 +40,23 @@ describe('readTurnInState', () => {
     ).toBe('in-progress');
   });
 
+  it('puts a teacher-reopened quiz back in progress', () => {
+    expect(
+      readTurnInState('quiz', undefined, {
+        status: 'in-progress',
+        completedAttempts: 1,
+        unlocked: true,
+      })
+    ).toBe('in-progress');
+    expect(
+      readTurnInState('quiz', undefined, {
+        status: 'completed',
+        completedAttempts: 2,
+        unlocked: true,
+      })
+    ).toBe('turned-in');
+  });
+
   it('counts a video activity and guided learning by completedAt', () => {
     expect(readTurnInState('video-activity', undefined, { answers: [] })).toBe(
       'in-progress'

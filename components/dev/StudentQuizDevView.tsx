@@ -187,9 +187,15 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
       />
     );
   }
-  const response = makeTimedStudentResponse(
+  const timedResponse = makeTimedStudentResponse(
     state === 'sq-last-minute' ? 48_000 : 12 * 60_000 + 34_000
   );
+  const response =
+    state === 'sq-reopened'
+      ? { ...timedResponse, unlocked: true, unlockKind: 'reopen' as const }
+      : state === 'sq-unlocked'
+        ? { ...timedResponse, unlocked: true }
+        : timedResponse;
   return (
     <div className="h-full overflow-y-auto">
       {state === 'sq-fullscreen' && (

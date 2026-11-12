@@ -654,6 +654,7 @@ const TeacherQuizWidget: React.FC<{
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    reopenStudentAttempt,
     submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
@@ -661,6 +662,7 @@ const TeacherQuizWidget: React.FC<{
     hideAnswer,
   } = useQuizSessionTeacher(config.activeAssignmentId);
   const canSubmitForStudent = canAccessFeature('quiz-submit-for-student');
+  const canReopenSubmission = canAccessFeature('quiz-reopen-submission');
 
   // Count of students in the active session whose results view is locked
   // out (tab-warning threshold breached). Surfaced on the Monitor button
@@ -2758,7 +2760,12 @@ const TeacherQuizWidget: React.FC<{
           session={liveSession}
           onDeleteResponse={removeStudent}
           onUnlockResultsForStudent={unlockResultsForStudent}
-          onReopenStudent={unlockStudentAttempt}
+          onReopenStudent={
+            canReopenSubmission ? reopenStudentAttempt : unlockStudentAttempt
+          }
+          onUnlockTabLockedStudent={
+            canReopenSubmission ? unlockStudentAttempt : undefined
+          }
           onSubmitStudent={canSubmitForStudent ? submitForStudent : undefined}
           onPlcSheetUrlReplaced={async (newUrl) => {
             // After QuizResults regenerates a stale PLC sheet (404
@@ -3108,6 +3115,9 @@ const TeacherQuizWidget: React.FC<{
           onUpdateConfig={handleUpdateQuizConfig}
           onRemoveStudent={removeStudent}
           onUnlockStudent={unlockStudentAttempt}
+          onReopenStudent={
+            canReopenSubmission ? reopenStudentAttempt : undefined
+          }
           onSubmitForStudent={
             canSubmitForStudent ? submitForStudent : undefined
           }

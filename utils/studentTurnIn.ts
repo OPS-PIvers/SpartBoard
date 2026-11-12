@@ -20,6 +20,9 @@ export function readTurnInState(
     : false;
   switch (kind) {
     case 'quiz':
+      // A teacher-reopened attempt is back in progress even after an earlier turn-in.
+      if (response.unlocked === true && response.status !== 'completed')
+        return 'in-progress';
       return response.status === 'completed' || retaken
         ? 'turned-in'
         : 'in-progress';

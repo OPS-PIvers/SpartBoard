@@ -15,6 +15,8 @@ import {
 /** One student's standing on one session, read from their own response doc. */
 export interface TurnInCheck {
   turnIn: TurnInState;
+  /** A teacher reopened this turned-in quiz; it stays open past its close time. */
+  reopened?: boolean;
   lockedOut: boolean;
   resultsOverride: QuizResultsOverride | null;
 }
@@ -29,6 +31,11 @@ function toCheck(
   const overridable = OVERRIDE_KINDS.has(a.kind) && !!data;
   return {
     turnIn: readTurnInState(a.kind, a.flashcardKind, data),
+    reopened:
+      a.kind === 'quiz' &&
+      data?.unlocked === true &&
+      data.unlockKind === 'reopen' &&
+      data.status !== 'completed',
     lockedOut: overridable && data?.resultsLockedOut === true,
     resultsOverride: overridable
       ? ((data?.resultsOverride as QuizResultsOverride | undefined) ?? null)
