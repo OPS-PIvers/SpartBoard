@@ -117,18 +117,26 @@ jobs:
                 })
               ).data.workflow_runs;
             // A run counts once every check job passed or was skipped; its deploy jobs may fail (a Google 503) or still be going.
+            // The `deploy` job needs every check job, so it is listed only once they have all resolved.
             const checksPassed = async (run) => {
               if (run.conclusion === 'success') return true;
-              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: run.id,
-                filter: 'latest',
-                per_page: 100,
-              });
+              let jobs;
+              try {
+                jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run.id,
+                  filter: 'latest',
+                  per_page: 100,
+                });
+              } catch (e) {
+                core.info(`Could not list jobs for run ${run.id}: ${e.message}`);
+                return false;
+              }
               const checks = jobs.filter((j) => !/^deploy/.test(j.name));
               return (
-                checks.some((j) => j.conclusion === 'success') &&
+                jobs.some((j) => j.name === 'deploy') &&
+                checks.some((j) => j.name === 'test-counts' && j.conclusion === 'success') &&
                 checks.every((j) => j.status === 'completed' && ['success', 'skipped'].includes(j.conclusion))
               );
             };
