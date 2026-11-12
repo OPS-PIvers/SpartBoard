@@ -207,14 +207,14 @@ export async function mirrorPlcAssignmentStatus(
     await updateDoc(ref, { status });
   } catch (err) {
     const code = errorCode(err);
+    if (code === 'not-found') return;
+    // Rules deny an update to a missing doc, so quizzes assigned since the index stopped taking quiz rows land here.
+    if (code === 'permission-denied' && !(await indexEntryExists(ref))) return;
     logError('mirrorPlcAssignmentStatus.write', err, {
       plcId,
       assignmentId,
       status,
     });
-    if (code === 'not-found') return;
-    // Rules deny an update to a missing doc, so quizzes assigned since the index stopped taking quiz rows land here.
-    if (code === 'permission-denied' && !(await indexEntryExists(ref))) return;
     notifyPlcWriteFailure({ scope: 'assignmentStatusMirror', plcId });
   }
 }

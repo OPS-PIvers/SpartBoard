@@ -565,6 +565,7 @@ describe('mirrorPlcAssignmentStatus toast on denial', () => {
     mockGetDoc.mockResolvedValueOnce({ exists: () => false });
     await mirrorPlcAssignmentStatus(PLC_ID, 'asn-1', 'inactive');
     expect(toasts).toHaveLength(0);
+    expect(mockLogError).not.toHaveBeenCalled();
   });
 
   it('stays quiet when the teacher can no longer read the PLC', async () => {
