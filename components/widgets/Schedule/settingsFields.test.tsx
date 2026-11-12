@@ -160,6 +160,45 @@ describe('Schedule settings drawer fields', () => {
     expect(patch.items).toEqual([]);
   });
 
+  it('turns a block warning on with 5 minutes and Chime, then off', () => {
+    const updateConfig = vi.fn();
+    setup();
+    const ctx = makeCtx(
+      {
+        items: [item('art', 'Art', '09:00')],
+        settingsSelectedScheduleId: 'default',
+      },
+      updateConfig
+    );
+    render(React.createElement(ScheduleListField, { ctx }));
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Warn before this ends' })
+    );
+    const patch = updateConfig.mock.calls[0]?.[0] as {
+      schedules?: DailySchedule[];
+      items?: ScheduleItem[];
+    };
+    const saved = (patch.items ?? patch.schedules?.[0].items)?.[0];
+    expect(saved?.warning).toEqual({ minutes: 5, sound: 'Chime' });
+  });
+
+  it('hides the warning toggle when Connections are off', () => {
+    setup();
+    const ctx = makeCtx({
+      items: [item('art', 'Art', '09:00')],
+      settingsSelectedScheduleId: 'default',
+    });
+    (
+      ctx.canAccessFeature as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue(false);
+    render(React.createElement(ScheduleListField, { ctx }));
+
+    expect(
+      screen.queryByRole('button', { name: 'Warn before this ends' })
+    ).toBeNull();
+  });
+
   it('renaming a stored schedule keeps its events and its siblings', () => {
     const updateConfig = vi.fn();
     setup();

@@ -6258,6 +6258,11 @@
   },
   "connections": {
     "runFinished": "Sequence finished",
+    "scheduleWarning": {
+      "banner": "{{task}} ends in {{minutes}} min",
+      "thisBlock": "This block",
+      "enableSound": "Enable classroom sounds"
+    },
     "connect": "Connect",
     "badgeTitle": "Connected: open the steps",
     "menuConnection": "Connection {{n}}",
@@ -6273,7 +6278,8 @@
         "restart": "Start",
         "start": "Resume",
         "pause": "Pause",
-        "reset": "Reset"
+        "reset": "Reset",
+        "start-to-block-end": "Start until the block ends"
       },
       "random": {
         "next": "Pick next name"
@@ -6301,7 +6307,8 @@
         "next": "Check next item"
       },
       "schedule": {
-        "next-block": "Wait for next block"
+        "next-block": "Wait for next block",
+        "warn": "Warn when a block is ending"
       },
       "work-symbols": {
         "show": "Show"

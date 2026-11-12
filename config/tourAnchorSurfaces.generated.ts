@@ -3679,6 +3679,13 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.schedule.event-auto-launch-widget': [
       'widgets.schedule.settings',
     ],
+    'widget-settings.schedule.event-warning': ['widgets.schedule.settings'],
+    'widget-settings.schedule.event-warning-minutes': [
+      'widgets.schedule.settings',
+    ],
+    'widget-settings.schedule.event-warning-sound': [
+      'widgets.schedule.settings',
+    ],
     'override-row.extended-time': ['library.override-row'],
     'seating.class-chip': ['widgets.seating-chart.face'],
     'lunch-count.class-chip': ['widgets.lunch-count.face'],

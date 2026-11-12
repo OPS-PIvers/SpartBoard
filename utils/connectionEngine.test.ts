@@ -10,6 +10,8 @@ import {
   joinRunByHand,
   liveConnections,
   sharesFollowSlot,
+  startRun,
+  warningScheduleOf,
 } from './connectionEngine';
 import { currentShuffleName } from './randomCurrentName';
 
@@ -438,5 +440,72 @@ describe('liveConnections with a malformed stored connection', () => {
     const widgets = [timer('a', 60), timer('b', 60)];
     const bad = [{ kind: 'sequence' }, 1, null] as never;
     expect(liveConnections(bad, widgets)).toEqual([]);
+  });
+});
+
+describe('block warning Sequence', () => {
+  const schedule = widget('s', 'schedule', { items: [] });
+  const block = {
+    endsAt: 1_000_000 + 300_000,
+    task: 'Art',
+    minutes: 5,
+    sound: 'Chime',
+  };
+  const seq = (): SequenceConnection => ({
+    id: 'w',
+    kind: 'sequence',
+    repeat: 'until-done',
+    steps: [
+      {
+        id: 'a',
+        actions: [
+          { widgetId: 's', action: 'warn' },
+          { widgetId: 't', action: 'start-to-block-end' },
+        ],
+      },
+    ],
+  });
+
+  it('is started by the Schedule warn action', () => {
+    expect(warningScheduleOf(seq(), [schedule, timer('t', 60)])?.id).toBe('s');
+    expect(
+      warningScheduleOf(
+        {
+          ...seq(),
+          steps: [{ id: 'a', actions: [{ widgetId: 't', action: 'restart' }] }],
+        },
+        [schedule, timer('t', 60)]
+      )
+    ).toBeUndefined();
+  });
+
+  it('plays the alert and runs the Timer until the block ends', () => {
+    const widgets = [schedule, timer('t', 60)];
+    const started = startRun(seq(), widgets, 1_000_000, 'dev', block);
+    expect(started?.patches.s).toMatchObject({
+      warningAlert: { task: 'Art', minutes: 5, sound: 'Chime' },
+    });
+    expect(started?.patches.t).toMatchObject({
+      mode: 'timer',
+      duration: 300,
+      elapsedTime: 300,
+      isRunning: true,
+      startTime: 1_000_000,
+    });
+    expect(started?.sequence.run?.block).toEqual(block);
+  });
+
+  it('never loops back to the start, even when set to repeat', () => {
+    const widgets = [schedule, timer('t', 60)];
+    const started = startRun(seq(), widgets, 1_000_000, 'dev', block);
+    if (!started) throw new Error('the Run did not start');
+    const after = apply(widgets, started.patches);
+    const moved = advanceRun(
+      started.sequence,
+      after,
+      1_000_000 + 300_000,
+      'dev'
+    );
+    expect(moved.finished).toBe(true);
   });
 });

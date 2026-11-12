@@ -6,9 +6,15 @@ import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import type {
   ChecklistConfig,
   Dashboard,
+  ScheduleConfig,
   SequenceConnection,
   WidgetConnection,
 } from '@/types';
+import {
+  findDueWarning,
+  markWarningFired,
+  type DueWarning,
+} from '@/components/widgets/Schedule/blockWarning';
 import { useRosterGroupsIntegrationSettingsState } from '@/hooks/useRosterGroupsIntegrationSettings';
 import { checklistUsesClassRoster } from '@/utils/checklistCurrent';
 import { engineWidgets } from '@/utils/connectionRosterView';
@@ -18,6 +24,7 @@ import {
   startRun,
   joinRunByHand,
   liveSteps,
+  warningScheduleOf,
   type WidgetPatches,
 } from '@/utils/connectionEngine';
 import {
@@ -405,7 +412,7 @@ export const ConnectionsRunner: React.FC = () => {
           const r = advanceRun(seq, widgets, now, CONNECTION_DEVICE_ID);
           updated.set(c.id, r.sequence);
           Object.assign(patches, r.patches);
-          if (r.finished) finishedAny = true;
+          if (r.finished && !run.block) finishedAny = true;
         }
         if (updated.size === 0) continue;
         write(latest.current.applyConnectionChanges, board, patches, updated);
@@ -420,6 +427,74 @@ export const ConnectionsRunner: React.FC = () => {
     const id = window.setInterval(tick, TICK_MS);
     return () => window.clearInterval(id);
   }, [anyRun]);
+
+  // A Sequence that starts with Schedule's block warning begins itself when a block is about to end.
+  const watchWarnings =
+    enabled &&
+    !!activeDashboard?.connections?.some(
+      (c) =>
+        c.kind === 'sequence' && !!warningScheduleOf(c, activeDashboard.widgets)
+    );
+
+  useEffect(() => {
+    if (!watchWarnings) return;
+    const tick = () => {
+      const board = latest.current.activeDashboard;
+      if (!board) return;
+      if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
+      const widgets = engineWidgets(board, latest.current.roster);
+      if (!widgets) return;
+      const now = Date.now();
+      const patches: WidgetPatches = {};
+      const updated = new Map<string, WidgetConnection>();
+      const due = new Map<string, DueWarning | null>();
+      const fired = new Set<string>();
+      for (const c of board.connections ?? []) {
+        if (c.kind !== 'sequence' || c.run) continue;
+        const schedule = warningScheduleOf(c, widgets);
+        if (!schedule) continue;
+        if (!due.has(schedule.id)) {
+          due.set(
+            schedule.id,
+            findDueWarning(schedule.config as unknown as ScheduleConfig, now)
+          );
+        }
+        const warning = due.get(schedule.id);
+        if (!warning) continue;
+        const started = startRun(
+          c,
+          widgets,
+          now,
+          CONNECTION_DEVICE_ID,
+          warning.block
+        );
+        if (!started) continue;
+        updated.set(c.id, started.sequence);
+        for (const [id, p] of Object.entries(started.patches)) {
+          patches[id] = { ...(patches[id] ?? {}), ...p };
+        }
+        fired.add(schedule.id);
+      }
+      if (updated.size === 0) return;
+      for (const id of fired) {
+        const schedule = widgets.find((w) => w.id === id);
+        const warning = due.get(id);
+        if (!schedule || !warning) continue;
+        patches[id] = {
+          ...(patches[id] ?? {}),
+          warningsFired: markWarningFired(
+            schedule.config as unknown as ScheduleConfig,
+            warning.key,
+            now
+          ),
+        };
+      }
+      write(latest.current.applyConnectionChanges, board, patches, updated);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [watchWarnings]);
 
   return enabled && needsRosterGroups(dashboards) ? (
     <RosterGroupsGateReader onChange={setGate} />

@@ -1956,6 +1956,23 @@ export interface ScheduleItem {
   periodId?: string;
   /** Marks the item as a class period that rosters and per-period windows can use. */
   isClassPeriod?: boolean;
+  /** Warn this many minutes before the block ends; fires a Connection that starts with "Block ending". */
+  warning?: ScheduleItemWarning;
+}
+
+export interface ScheduleItemWarning {
+  minutes: number;
+  /** A Timer sound: Chime, Blip, Gong or Alert. */
+  sound?: string;
+}
+
+/** The latest block warning, written for the board to play and show. */
+export interface ScheduleWarningAlert {
+  id: string;
+  at: number;
+  task: string;
+  minutes: number;
+  sound: string;
 }
 
 export interface DailySchedule {
@@ -3555,6 +3572,9 @@ export interface ScheduleConfig {
   localEvents?: CalendarEvent[];
   isBuildingSyncEnabled?: boolean;
   lastSyncedBuildingId?: string;
+  /** Block warnings already fired, item key to YYYY-MM-DD, so each fires once a day. */
+  warningsFired?: Record<string, string>;
+  warningAlert?: ScheduleWarningAlert;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -11060,6 +11080,16 @@ export interface ConnectionRun {
   stepStartedAt: number;
   /** Completed passes through the whole list. */
   loops: number;
+  /** The Schedule block that started this Run, for steps that use its end time. */
+  block?: ConnectionBlock;
+}
+
+/** A Schedule block that is about to end (its warning is due). */
+export interface ConnectionBlock {
+  endsAt: number;
+  task: string;
+  minutes: number;
+  sound: string;
 }
 
 export interface SequenceConnection {

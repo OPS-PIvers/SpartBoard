@@ -1,6 +1,7 @@
 // What each widget can do inside a Connection (docs/adr/0002). A widget type absent here can't be connected.
 import type {
   ChecklistConfig,
+  ConnectionBlock,
   RandomConfig,
   ScheduleConfig,
   TimeToolConfig,
@@ -9,6 +10,7 @@ import type {
 import {
   clockStateOf,
   secondsAt,
+  startFreshClock,
   timeToolClockPatch,
 } from '@/utils/timeToolClock';
 import { currentShuffleName } from '@/utils/randomCurrentName';
@@ -34,7 +36,8 @@ export interface ConnectionActionDef {
   apply: (
     config: Config,
     now: number,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    block?: ConnectionBlock
   ) => ConnectionActionResult | null;
   /** Present when the step waits for this widget: true once it has finished. */
   isFinished?: (config: Config, now: number, stepStartedAt: number) => boolean;
@@ -177,6 +180,17 @@ export const WIDGET_CONNECTIONS: Partial<
       timerAction('start', 'Resume', 'start', true),
       timerAction('pause', 'Pause', 'pause', false),
       timerAction('reset', 'Reset', 'reset', false),
+      {
+        id: 'start-to-block-end',
+        label: 'Start until the block ends',
+        apply: (_c, now, _params, block) => {
+          if (!block) return { patch: {} };
+          const seconds = Math.max(1, Math.round((block.endsAt - now) / 1000));
+          return { patch: { ...startFreshClock(seconds, now) } };
+        },
+        waitsFor: 'end',
+        isFinished: timerFinished,
+      },
     ],
   },
   random: {
@@ -228,6 +242,24 @@ export const WIDGET_CONNECTIONS: Partial<
         apply: () => ({ patch: {} }),
         isFinished: nextBlockStarted,
         waitsFor: 'next-block',
+      },
+      {
+        id: 'warn',
+        label: 'Warn when a block is ending',
+        apply: (_c, now, _params, block) =>
+          block
+            ? {
+                patch: {
+                  warningAlert: {
+                    id: `${now}`,
+                    at: now,
+                    task: block.task,
+                    minutes: block.minutes,
+                    sound: block.sound,
+                  },
+                },
+              }
+            : { patch: {} },
       },
     ],
   },

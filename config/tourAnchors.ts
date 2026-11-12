@@ -15540,6 +15540,30 @@ export const TOUR_ANCHORS = {
     keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+',
     keyHint: 'schedule#event-1-timer for the Timer choice on the first event',
   },
+  'widget-settings.schedule.event-warning': {
+    label:
+      'Warn before this ends toggle for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
+  'widget-settings.schedule.event-warning-minutes': {
+    label:
+      'Minutes-before-end choice for an event warning in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
+  'widget-settings.schedule.event-warning-sound': {
+    label:
+      'Warning sound choice for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
   'override-row.extended-time': {
     label: 'Extended time options in a student override',
     panel: true,
