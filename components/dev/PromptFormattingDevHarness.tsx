@@ -10,12 +10,12 @@ const START =
 export const PromptFormattingDevHarness: React.FC = () => {
   const [q, setQ] = useState<QuizQuestion>({
     id: 'q1',
-    type: 'Short Answer',
+    type: 'free-response',
     text: START,
     correctAnswer: '',
     incorrectAnswers: [],
     timeLimit: 0,
-  } as QuizQuestion);
+  } as unknown as QuizQuestion);
   const [plain, setPlain] = useState<QuizQuestion>(q);
   const ref = useRef<HTMLTextAreaElement>(null);
   const ref2 = useRef<HTMLTextAreaElement>(null);
