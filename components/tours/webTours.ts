@@ -125,14 +125,16 @@ export function revisionPicturePaths(
 export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
   // A copy loaded before a Claude step edit lacks its revision pictures, so the stored list is merged in.
   const now = Date.now();
-  const current = await getDoc(draftRef(set.id));
+  // Offline the read fails; the write still has to queue, so it keeps the copy's own list.
+  const savedList: unknown = await getDoc(draftRef(set.id)).then(
+    (snap): unknown =>
+      snap.exists() ? (snap.get('webRevisionPictures') as unknown) : undefined,
+    () => undefined
+  );
   const byPath = new Map<string, number>();
   for (const e of [
     ...liveRevisionPictures(set.webRevisionPictures, now),
-    ...liveRevisionPictures(
-      current.exists() ? current.get('webRevisionPictures') : undefined,
-      now
-    ),
+    ...liveRevisionPictures(savedList, now),
   ])
     byPath.set(e.path, Math.max(e.until, byPath.get(e.path) ?? 0));
   const webRevisionPictures = [...byPath].map(([path, until]) => ({

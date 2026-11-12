@@ -906,7 +906,10 @@ describe('web tour connector tools', () => {
     ];
     expect(() =>
       applyWebStepList(steps, [{ id: 'a' }, { id: 'm', tip: ' ' }])
-    ).toThrow("Step 2 is a message, so its tip can't be empty.");
+    ).toThrow(`Step "m" is a message, so its tip can't be empty.`);
+    expect(() => applyWebStepText(steps, [{ id: 'm', tip: '' }])).toThrow(
+      'is a message'
+    );
     expect(
       applyWebStepList(steps, [{ id: 'b', tip: '' }, { id: 'm' }]).steps[0].text
     ).toBe('');

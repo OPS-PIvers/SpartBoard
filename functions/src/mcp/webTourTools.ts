@@ -324,6 +324,10 @@ export function applyWebStepText(
       const value = edit[field];
       if (value === undefined) continue;
       const clean = value.trim();
+      if (field === 'tip' && !clean && isMessageStep(step))
+        throw new ToolError(
+          `Step "${step.id}" is a message, so its tip can't be empty.`
+        );
       checkText(`Step ${i + 1} ${field}`, clean, warnings);
       out[key] = clean;
     }
@@ -401,8 +405,6 @@ export function applyWebStepList(
       throw new ToolError(`steps names step "${entry.id}" twice.`);
     seen.add(entry.id);
     if (entry.title === undefined && entry.tip === undefined) return step;
-    if (isMessageStep(step) && entry.tip !== undefined && !entry.tip.trim())
-      throw new ToolError(`${at} is a message, so its tip can't be empty.`);
     const edited = applyWebStepText(
       [step],
       [{ id: entry.id, title: entry.title, tip: entry.tip }]

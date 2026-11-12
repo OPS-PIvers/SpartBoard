@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   afterWrite: null as null | (() => void),
   files: [] as string[],
   created: new Map<string, number>(),
+  readFails: false,
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, storage: {} }));
@@ -17,6 +18,10 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(),
   doc: (_db: unknown, coll: string, id: string) => ({ path: `${coll}/${id}` }),
   getDoc: ({ path }: { path: string }) => {
+    if (h.readFails) {
+      h.readFails = false;
+      return Promise.reject(new Error('client is offline'));
+    }
     const data = h.docs.get(path);
     return Promise.resolve({
       exists: () => data !== undefined,
@@ -261,6 +266,18 @@ describe('saveWebTourDraft', () => {
     await saveWebTourDraft(draft([pic('a.png')]) as never);
     expect(h.docs.get('building_web_tours/w1')?.webRevisionPictures).toEqual([
       { path: 'web_tour_pictures/w1/kept.png', until },
+    ]);
+  });
+
+  it('still writes when the stored copy cannot be read (offline)', async () => {
+    const until = Date.now() + 60_000;
+    h.readFails = true;
+    await saveWebTourDraft({
+      ...draft([]),
+      webRevisionPictures: [{ path: 'web_tour_pictures/w1/k.png', until }],
+    } as never);
+    expect(h.docs.get('building_web_tours/w1')?.webRevisionPictures).toEqual([
+      { path: 'web_tour_pictures/w1/k.png', until },
     ]);
   });
 
