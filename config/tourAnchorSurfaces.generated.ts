@@ -357,6 +357,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-availability.date': ['library.assign-modal'],
     'assign-availability.time': ['library.assign-modal'],
     'assign-availability.bell': ['library.assign-modal'],
+    'assign-availability.open-ended': ['library.assign-modal'],
     'assign-availability.scope': ['library.assign-modal'],
     'assign-availability.work-kind': ['library.assign-modal'],
     'assign-availability.allow-late': ['library.assign-modal'],

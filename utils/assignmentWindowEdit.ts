@@ -12,22 +12,31 @@ import {
   type ResolvedAvailability,
 } from '@/utils/assignAvailability';
 import { earliestDueAt } from '@/utils/perClassDueDates';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 
 export interface WindowBaseline {
   value: AssignAvailability;
   resolved: ResolvedAvailability;
 }
 
-/** The window as saved, resolved the same way as the edit so unchanged fields are never rewritten. */
+/** The window as saved, resolved the same way as the edit so unchanged fields are never rewritten. A resource with no close shows "You end it". */
 export function windowBaselineFor(
   stored: Parameters<typeof availabilityFromStored>[0],
-  rosters: readonly ClassRoster[]
+  rosters: readonly ClassRoster[],
+  workKind?: WorkKind
 ): WindowBaseline {
-  const value = availabilityFromStored(
+  const fromStored = availabilityFromStored(
     stored,
     rosters.map((r) => r.id)
   );
-  return { value, resolved: resolveAvailability(value, rosters, undefined) };
+  const value: AssignAvailability =
+    workKind === 'resource' && stored.closeAt == null && !fromStored.byRoster
+      ? { ...fromStored, noEnd: true }
+      : fromStored;
+  return {
+    value,
+    resolved: resolveAvailability(value, rosters, undefined, workKind),
+  };
 }
 
 /** True when any checked class closes at or before it opens. */
@@ -57,14 +66,22 @@ export function assignmentWindowEdit({
   baseline,
   availability,
   rosters,
+  workKind,
 }: {
   periodAccess: Record<string, PeriodAccess> | undefined;
   perPeriod: boolean;
   baseline: WindowBaseline;
   availability: AssignAvailability;
   rosters: readonly ClassRoster[];
+  /** Must match the baseline's. */
+  workKind?: WorkKind;
 }): AssignmentWindowEdit {
-  const resolved = resolveAvailability(availability, rosters, undefined);
+  const resolved = resolveAvailability(
+    availability,
+    rosters,
+    undefined,
+    workKind
+  );
   const changed = changedWindow(baseline.resolved, resolved);
   const out: AssignmentWindowEdit = {};
   if (perPeriod) {

@@ -254,6 +254,7 @@ describe('GuidedLearningWidget assign stepper', () => {
     expect(mode).toBe('submissions');
     expect(options.workKind).toBe('resource');
     expect(window.openAt).toEqual(expect.any(Number));
+    expect(window.closeAt).toBeUndefined();
     expect(gate).toBeUndefined();
   });
 
