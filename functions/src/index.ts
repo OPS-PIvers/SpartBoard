@@ -310,6 +310,7 @@ export {
 // PLC membership changes (accept, leave, remove, roles, lead) run server-side so rules stay small.
 export { plcMembershipV1 } from './plcMembership';
 export { orgAdminV1 } from './orgAdmin';
+export { shareMembershipV1 } from './shareMembership';
 
 // PLC norming flags: anonymized answer copies for norming (docs/plans/shipped/PLC_NORMING_FLAGS.md).
 export {
