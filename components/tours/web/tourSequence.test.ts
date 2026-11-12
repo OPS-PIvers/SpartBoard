@@ -42,9 +42,7 @@ describe('isMessageStep', () => {
   it('is true only for message: true with no web', () => {
     expect(isMessageStep(message('m'))).toBe(true);
     expect(isMessageStep(targeted('a', G1))).toBe(false);
-    expect(isMessageStep({ message: true, web: targeted('a', G1).web })).toBe(
-      false
-    );
+    expect(isMessageStep({ ...targeted('a', G1), message: true })).toBe(false);
   });
 });
 
