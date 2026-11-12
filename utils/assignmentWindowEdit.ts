@@ -1,17 +1,19 @@
 // The window part of an assignment Settings save, shared by Quiz and Flashcards.
 import type { ClassRoster, PeriodAccess } from '@/types';
 import {
-  availabilityFromStored,
+  type availabilityFromStored,
   changedWindow,
   closesBeforeOpens,
   periodAccessWindowEdits,
   resolveAvailability,
   specForRoster,
+  storedResourceAvailability,
   type AssignAvailability,
   type PeriodAccessWindowEdits,
   type ResolvedAvailability,
 } from '@/utils/assignAvailability';
 import { earliestDueAt } from '@/utils/perClassDueDates';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 
 export interface WindowBaseline {
   value: AssignAvailability;
@@ -21,13 +23,18 @@ export interface WindowBaseline {
 /** The window as saved, resolved the same way as the edit so unchanged fields are never rewritten. */
 export function windowBaselineFor(
   stored: Parameters<typeof availabilityFromStored>[0],
-  rosters: readonly ClassRoster[]
+  rosters: readonly ClassRoster[],
+  workKind?: WorkKind
 ): WindowBaseline {
-  const value = availabilityFromStored(
+  const value = storedResourceAvailability(
     stored,
-    rosters.map((r) => r.id)
+    rosters.map((r) => r.id),
+    workKind
   );
-  return { value, resolved: resolveAvailability(value, rosters, undefined) };
+  return {
+    value,
+    resolved: resolveAvailability(value, rosters, undefined, workKind),
+  };
 }
 
 /** True when any checked class closes at or before it opens. */
@@ -57,14 +64,22 @@ export function assignmentWindowEdit({
   baseline,
   availability,
   rosters,
+  workKind,
 }: {
   periodAccess: Record<string, PeriodAccess> | undefined;
   perPeriod: boolean;
   baseline: WindowBaseline;
   availability: AssignAvailability;
   rosters: readonly ClassRoster[];
+  /** Must match the baseline's. */
+  workKind?: WorkKind;
 }): AssignmentWindowEdit {
-  const resolved = resolveAvailability(availability, rosters, undefined);
+  const resolved = resolveAvailability(
+    availability,
+    rosters,
+    undefined,
+    workKind
+  );
   const changed = changedWindow(baseline.resolved, resolved);
   const out: AssignmentWindowEdit = {};
   if (perPeriod) {

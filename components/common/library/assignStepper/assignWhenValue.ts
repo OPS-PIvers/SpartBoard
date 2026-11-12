@@ -18,7 +18,7 @@ export interface AssignWhenValue {
   availability: AssignAvailability;
 }
 
-/** Quiz starts on Manual when its classes have bell periods; everything else is Scheduled. */
+/** Quiz starts on Manual when its classes have bell periods; everything else is Scheduled. A study resource opens now and stays until the teacher ends it. */
 export function defaultWhenValue({
   activity,
   now = new Date(),
@@ -35,7 +35,11 @@ export function defaultWhenValue({
       activity === 'quiz' && manualAvailable && bellAvailable
         ? 'manual'
         : 'scheduled',
-    availability: defaultAvailability(now, bellAvailable),
+    availability: {
+      ...defaultAvailability(now, bellAvailable),
+      opensNow: true,
+      noEnd: true,
+    },
   };
 }
 
@@ -95,29 +99,49 @@ export function formatWhenValue(
           defaultValue: 'Open on different dates for each class',
         });
   const { opens, closes } = value.availability.all;
-  const vars = {
+  const openPoint = {
     openDay: formatDay(opens.day),
     openTime:
       opens.time === 'bell'
         ? t('assignWhen.startOfClass', { defaultValue: 'start of class' })
         : formatClock(opens.time),
+  };
+  const closePoint = {
     closeDay: formatDay(closes.day),
     closeTime:
       closes.time === 'bell'
         ? t('assignWhen.endOfClass', { defaultValue: 'end of class' })
         : formatClock(closes.time),
   };
-  return available
-    ? t('assignWhen.availableRange', {
-        ...vars,
-        defaultValue:
-          'Available {{openDay}}, {{openTime}} to {{closeDay}}, {{closeTime}}',
-      })
-    : t('assignWhen.openRange', {
-        ...vars,
-        defaultValue:
-          'Open {{openDay}}, {{openTime}} to {{closeDay}}, {{closeTime}}',
+  const vars = { ...openPoint, ...closePoint };
+  if (available) {
+    const { opensNow, noEnd } = value.availability;
+    if (opensNow && noEnd)
+      return t('assignWhen.availableNowOpenEnded', {
+        defaultValue: 'Available now until manually ended',
       });
+    if (opensNow)
+      return t('assignWhen.availableNowUntil', {
+        ...closePoint,
+        defaultValue: 'Available now until {{closeDay}}, {{closeTime}}',
+      });
+    if (noEnd)
+      return t('assignWhen.availableFromOpenEnded', {
+        ...openPoint,
+        defaultValue:
+          'Available {{openDay}}, {{openTime}} until manually ended',
+      });
+    return t('assignWhen.availableRange', {
+      ...vars,
+      defaultValue:
+        'Available {{openDay}}, {{openTime}} to {{closeDay}}, {{closeTime}}',
+    });
+  }
+  return t('assignWhen.openRange', {
+    ...vars,
+    defaultValue:
+      'Open {{openDay}}, {{openTime}} to {{closeDay}}, {{closeTime}}',
+  });
 }
 
 /** True when a Scheduled window closes at or before it opens for a picked class; Manual has no window. */

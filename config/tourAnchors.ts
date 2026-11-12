@@ -1577,6 +1577,12 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'assign-availability.open-ended': {
+    label:
+      'Opens now or Available until manually ended choice in the Assign window',
+    perField: true,
+    panel: true,
+  },
   'assign-availability.scope': {
     label:
       'All classes or Each class dropdown in the Assign window availability',

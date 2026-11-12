@@ -12,6 +12,7 @@ import {
   periodAccessWindowEdits,
   resolveAvailability,
   type AssignAvailability,
+  storedResourceAvailability,
 } from './assignAvailability';
 import { BELL_CLOSE_CUSHION_MS, type PeriodRoster } from './periodPlan';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from './studentTargetRef';
@@ -691,5 +692,85 @@ describe('applyWhen', () => {
     expect(targeting.periodPlan).toBeUndefined();
     expect(targeting.dueAt).toBeUndefined();
     expect(targeting.openAt).toBe(at('2026-10-02', '09:05'));
+  });
+});
+
+describe('open-ended study resources', () => {
+  const opened = new Date(2026, 10, 12, 9, 0).getTime();
+  const row = (closeAt: number | null) => ({
+    state: 'open' as const,
+    verified: true,
+    label: 'P',
+    bellPeriodId: 'p1',
+    openAt: opened,
+    closeAt,
+  });
+
+  it('reads a resource nothing closes as Manually ended, one shared Opens', () => {
+    const value = storedResourceAvailability(
+      {
+        openAt: null,
+        closeAt: null,
+        createdAt: opened,
+        periodAccess: {
+          a: { ...row(null), rosterId: 'r1' },
+          b: { ...row(null), rosterId: 'r2' },
+        },
+      },
+      ['r1', 'r2'],
+      'resource'
+    );
+    expect(value.noEnd).toBe(true);
+    expect(value.byRoster).toBeUndefined();
+    expect(resolveAvailability(value, [], undefined, 'resource').closeAt).toBe(
+      undefined
+    );
+  });
+
+  it('keeps per-class closes that were saved', () => {
+    const value = storedResourceAvailability(
+      {
+        openAt: null,
+        closeAt: null,
+        createdAt: opened,
+        periodAccess: {
+          a: { ...row(opened + 3_600_000), rosterId: 'r1' },
+          b: { ...row(null), rosterId: 'r2' },
+        },
+      },
+      ['r1', 'r2'],
+      'resource'
+    );
+    expect(value.noEnd).toBeUndefined();
+  });
+
+  it('leaves collected work alone', () => {
+    expect(
+      storedResourceAvailability(
+        { openAt: opened, closeAt: null, createdAt: opened },
+        [],
+        undefined
+      ).noEnd
+    ).toBeUndefined();
+  });
+
+  it('never writes a made-up close when only Opens moves', () => {
+    const stored = { openAt: opened, closeAt: null, createdAt: opened };
+    const availability = storedResourceAvailability(stored, [], 'resource');
+    const moved = {
+      ...availability,
+      all: {
+        ...availability.all,
+        opens: { ...availability.all.opens, time: '10:00' },
+      },
+    };
+    const next = applyWindowEdit(
+      { ...EMPTY_ASSIGN_TARGETING_VALUE, availability: moved },
+      stored,
+      false,
+      'resource'
+    );
+    expect(next.openAt).toBe(new Date(2026, 10, 12, 10, 0).getTime());
+    expect('closeAt' in next).toBe(false);
   });
 });

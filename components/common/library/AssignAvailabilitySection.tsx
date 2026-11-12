@@ -30,6 +30,8 @@ export const PointField: React.FC<{
   onChange: (point: AvailabilityPoint) => void;
   cqScaled?: boolean;
   wideLabel?: boolean;
+  /** Offers an X that drops the date, e.g. back to Now. */
+  clear?: { label: string; onClear: () => void };
 }> = ({
   label,
   side,
@@ -39,6 +41,7 @@ export const PointField: React.FC<{
   onChange,
   cqScaled,
   wideLabel,
+  clear,
 }) => {
   const { t } = useTranslation();
   const dateId = useId();
@@ -136,6 +139,58 @@ export const PointField: React.FC<{
           )}
         </span>
       </div>
+      {clear && (
+        <button
+          type="button"
+          aria-label={clear.label}
+          title={clear.label}
+          onClick={clear.onClear}
+          {...tourFieldAttr('assign-availability.open-ended', 'assign', side)}
+          className="touch-target-expand rounded-sm p-0.5 text-slate-400 hover:text-slate-700"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+/** A study resource point with no date: opens now, or stays until the teacher ends it. */
+const OpenEndedField: React.FC<{
+  label: string;
+  side: Side;
+  valueLabel: string;
+  onSetDate: () => void;
+  wideLabel?: boolean;
+}> = ({ label, side, valueLabel, onSetDate, wideLabel }) => {
+  const { t } = useTranslation();
+  const id = useId();
+  return (
+    <div className="flex items-center gap-2">
+      <label
+        htmlFor={id}
+        className={`${wideLabel ? 'w-28' : 'w-14'} shrink-0 text-sm font-semibold text-slate-700`}
+      >
+        {label}
+      </label>
+      <span className="relative flex h-8 w-44 items-center gap-1.5 rounded-lg border border-slate-300 bg-white pl-2.5 pr-2 text-sm text-slate-800 focus-within:border-brand-blue-primary">
+        <CalendarClock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+        <select
+          id={id}
+          value="open"
+          onChange={(e) => {
+            if (e.target.value === 'date') onSetDate();
+          }}
+          {...tourFieldAttr('assign-availability.open-ended', 'assign', side)}
+          className="min-w-0 flex-1 appearance-none bg-transparent pr-4 focus:outline-hidden"
+        >
+          <option value="open">{valueLabel}</option>
+          <option value="date">
+            {t('assignAvailability.setDate', 'Set a date')}
+          </option>
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-slate-400" />
+      </span>
     </div>
   );
 };
@@ -151,6 +206,10 @@ export const SpecRows: React.FC<{
   resource?: boolean;
   noEnd?: boolean;
   hideOpens?: boolean;
+  /** A study resource that opens as soon as it's assigned. */
+  opensNow?: boolean;
+  /** Offers Now / Manually ended in place of the dates; absent keeps the dates fixed. */
+  onOpenEnded?: (next: { opensNow: boolean; noEnd: boolean }) => void;
 }> = ({
   spec,
   bellAvailable,
@@ -161,11 +220,33 @@ export const SpecRows: React.FC<{
   resource,
   noEnd,
   hideOpens,
+  opensNow,
+  onOpenEnded,
 }) => {
   const { t } = useTranslation();
+  const openEnded = !!onOpenEnded;
+  const setOpenEnded = (next: { opensNow?: boolean; noEnd?: boolean }) =>
+    onOpenEnded?.({
+      opensNow: next.opensNow ?? !!opensNow,
+      noEnd: next.noEnd ?? !!noEnd,
+    });
+  const untilLabel = resource
+    ? t('assignAvailability.availableUntil', 'Available until')
+    : t('assignAvailability.closes', 'Closes');
+  const nowLabel = t('assignAvailability.now', 'Now');
+  const endsLabel = t('assignAvailability.manuallyEnded', 'Manually ended');
   return (
     <div className="space-y-2">
-      {!hideOpens && (
+      {!hideOpens && openEnded && opensNow && (
+        <OpenEndedField
+          label={t('assignAvailability.opens', 'Opens')}
+          side="opens"
+          valueLabel={nowLabel}
+          onSetDate={() => setOpenEnded({ opensNow: false })}
+          wideLabel={resource}
+        />
+      )}
+      {!hideOpens && !(openEnded && opensNow) && (
         <PointField
           label={t('assignAvailability.opens', 'Opens')}
           side="opens"
@@ -180,22 +261,43 @@ export const SpecRows: React.FC<{
             onChange({ opens, closes });
           }}
           cqScaled={cqScaled}
+          clear={
+            openEnded
+              ? {
+                  label: nowLabel,
+                  onClear: () => setOpenEnded({ opensNow: true }),
+                }
+              : undefined
+          }
+        />
+      )}
+      {openEnded && noEnd && (
+        <OpenEndedField
+          label={untilLabel}
+          side="closes"
+          valueLabel={endsLabel}
+          onSetDate={() => setOpenEnded({ noEnd: false })}
+          wideLabel={resource}
         />
       )}
       {!noEnd && (
         <PointField
-          label={
-            resource
-              ? t('assignAvailability.availableUntil', 'Available until')
-              : t('assignAvailability.closes', 'Closes')
-          }
+          label={untilLabel}
           side="closes"
           point={spec.closes}
-          minDay={spec.opens.day}
+          minDay={opensNow ? undefined : spec.opens.day}
           wideLabel={resource}
           bellAvailable={bellAvailable}
           onChange={(closes) => onChange({ ...spec, closes })}
           cqScaled={cqScaled}
+          clear={
+            openEnded
+              ? {
+                  label: endsLabel,
+                  onClear: () => setOpenEnded({ noEnd: true }),
+                }
+              : undefined
+          }
         />
       )}
       {backwards && !noEnd && (

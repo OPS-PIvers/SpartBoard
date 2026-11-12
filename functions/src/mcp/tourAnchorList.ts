@@ -6466,6 +6466,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-availability.open-ended",
+    "label": "Opens now or Available until manually ended choice in the Assign window",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-modal",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-availability.scope",
     "label": "All classes or Each class dropdown in the Assign window availability",
     "scope": "board",
