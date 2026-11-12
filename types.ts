@@ -6140,6 +6140,19 @@ export interface InputSignalCounts {
   pastedChars?: number;
   /** Clicks, key presses and edits the browser marks as made by a script. */
   scripted?: number;
+  /** Edits that removed text, and how many characters they removed. */
+  dels?: number;
+  delChars?: number;
+  /** Text added somewhere other than the end of an answer. */
+  midInserts?: number;
+  /** Ms the question was on screen with the page visible. */
+  ms?: number;
+  /** Times the page got narrower while the window kept its size, as when a side panel opens. */
+  panelOpens?: number;
+  /** Page loads with a second screen attached. */
+  extraScreen?: number;
+  /** Every edit to a written answer, for playback (utils/writingLog.ts). */
+  log?: string;
 }
 
 /** Keyed by completed-attempt count, then by question id. */

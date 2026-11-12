@@ -1532,7 +1532,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Unusual input flags',
     icon: MousePointerClick,
     description:
-      'Flags quiz answers that look entered by another app: clicks with no mouse movement, machine-like typing, pasted text.',
+      'Flags quiz answers that look entered by another app (clicks with no mouse movement, machine-like typing, pasted text) and replays how written answers were typed.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',

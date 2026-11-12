@@ -23,6 +23,8 @@ import React, {
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
+import { WritingPlaybackBadge } from '@/components/common/WritingPlayback';
+import { questionWordCounts } from '@/utils/inputSignals';
 import {
   ArrowLeft,
   FileSpreadsheet,
@@ -46,6 +48,7 @@ import {
   Eye,
   EyeOff,
   MinusCircle,
+  History,
   MousePointerClick,
   Printer,
   UserCheck,
@@ -4359,6 +4362,10 @@ const StudentsScreen: React.FC<{
   onViewChange,
 }) => {
   const questionOrder = useMemo(() => questions.map((q) => q.id), [questions]);
+  const questionWords = useMemo(
+    () => questionWordCounts(questions),
+    [questions]
+  );
   const { t } = useTranslation();
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
@@ -4796,6 +4803,8 @@ const StudentsScreen: React.FC<{
                     answers={
                       session?.sessionMode === 'student' ? r.answers : undefined
                     }
+                    questionWords={questionWords}
+                    allAnswers={r.answers}
                     studentName={displayName}
                     questionOrder={questionOrder}
                   >
@@ -4812,6 +4821,24 @@ const StudentsScreen: React.FC<{
                       </span>
                     )}
                   </InputSignalsBadge>
+                  <WritingPlaybackBadge
+                    signals={r.inputSignals}
+                    studentName={displayName}
+                    questionOrder={questionOrder}
+                  >
+                    {(count) => (
+                      <span
+                        title={`Writing playback for ${count} ${count === 1 ? 'answer' : 'answers'}`}
+                        className="shrink-0"
+                      >
+                        <SessionBadge
+                          tone="neutral"
+                          icon={History}
+                          label={`${count}`}
+                        />
+                      </span>
+                    )}
+                  </WritingPlaybackBadge>
                   {/* Results-view lockout indicator. Student crossed the
                   `protection.tabWarningThreshold` while viewing
                   published results — the student app redirected

@@ -1,6 +1,7 @@
 import React, { useContext, useMemo } from 'react';
 import { MousePointerClick } from 'lucide-react';
 import type { InputSignals, QuizResponseAnswer } from '@/types';
+import type { ReadingContext } from '@/utils/inputSignals';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   INPUT_SIGNALS_FEATURE,
@@ -16,6 +17,9 @@ interface InputSignalsBadgeProps {
   completed: boolean;
   /** Pass only for self-paced sessions, where the gaps between answers are the student's own. */
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[];
+  /** Words to read on each question, by id; with `allAnswers` it flags answers given faster than reading. */
+  questionWords?: ReadingContext['words'];
+  allAnswers?: Pick<QuizResponseAnswer, 'questionId'>[];
   studentName: string;
   /** Question ids in the quiz's own order, to number them; omit where that order isn't known. */
   questionOrder?: readonly string[];
@@ -29,6 +33,8 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
   completedAttempts,
   completed,
   answers,
+  questionWords,
+  allAnswers,
   studentName,
   questionOrder,
   children,
@@ -39,8 +45,23 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
     if (!enabled) return [];
     // A submit bumps the count, so the answers on the doc are the attempt before it.
     const current = Math.max(0, (completedAttempts ?? 0) - (completed ? 1 : 0));
-    return inputFindingsByAttempt(signals, current, answers);
-  }, [enabled, signals, completedAttempts, completed, answers]);
+    const reading =
+      questionWords && allAnswers
+        ? {
+            words: questionWords,
+            answered: new Set(allAnswers.map((a) => a.questionId)),
+          }
+        : undefined;
+    return inputFindingsByAttempt(signals, current, answers, reading);
+  }, [
+    enabled,
+    signals,
+    completedAttempts,
+    completed,
+    answers,
+    questionWords,
+    allAnswers,
+  ]);
 
   const count = attempts.reduce((n, a) => n + a.findings.length, 0);
   if (count === 0) return null;

@@ -1,8 +1,16 @@
 import type {
   InputSignalCounts,
   InputSignals,
+  QuizQuestion,
   QuizResponseAnswer,
 } from '@/types';
+import {
+  WRITING_LOG_BUDGET,
+  WRITING_LOG_MAX,
+  WritingLogWriter,
+  diffText,
+  utf8Length,
+} from '@/utils/writingLog';
 
 /** Global feature that gates recording and showing input signals. */
 export const INPUT_SIGNALS_FEATURE = 'input-signals' as const;
@@ -21,6 +29,12 @@ const COUNT_KEYS = [
   'pastes',
   'pastedChars',
   'scripted',
+  'dels',
+  'delChars',
+  'midInserts',
+  'ms',
+  'panelOpens',
+  'extraScreen',
 ] as const satisfies readonly (keyof InputSignalCounts)[];
 
 /** A click this far from the last one, in px, has to have travelled. */
@@ -41,7 +55,7 @@ const PASTE_WINDOW_MS = 150;
 const NO_QUESTION = '_';
 const QUESTION_KEY = /^[\w-]{1,64}$/;
 
-type Counts = Required<InputSignalCounts>;
+type Counts = Required<Omit<InputSignalCounts, 'log'>>;
 const emptyCounts = (): Counts => ({
   clicks: 0,
   jumpClicks: 0,
@@ -56,6 +70,12 @@ const emptyCounts = (): Counts => ({
   pastes: 0,
   pastedChars: 0,
   scripted: 0,
+  dels: 0,
+  delChars: 0,
+  midInserts: 0,
+  ms: 0,
+  panelOpens: 0,
+  extraScreen: 0,
 });
 
 const cv = (n: number, sum: number, sq: number): number => {
@@ -72,6 +92,13 @@ export interface KeyDownInfo {
   char: boolean;
   /** The answer box, so a gap is only measured inside one box. */
   field: unknown;
+}
+
+export interface CollectorOptions {
+  /** Edit logs an earlier page load saved for this attempt, by question id. */
+  logs?: Record<string, string>;
+  /** Log bytes this attempt may still add to the response. */
+  logRoom?: number;
 }
 
 /** Turns raw pointer, key and text events into per-question counters; holds no DOM references. */
@@ -95,11 +122,89 @@ export class InputSignalCollector {
   private pasteUntil = 0;
   private pasteLen = 0;
 
-  /** `finePointer` is false on phones and tablets, where on-screen keyboards make key timing meaningless. */
-  constructor(private finePointer: boolean) {}
+  private fieldText = new WeakMap<object, string>();
+  private writers = new Map<string, WritingLogWriter>();
+  private baseLogs: Record<string, string>;
+  private logRoom: number;
+  private activeSince: number | null = null;
 
-  setQuestion(id: string | undefined): void {
+  /** `finePointer` is false on phones and tablets, where on-screen keyboards make key timing meaningless. */
+  constructor(
+    private finePointer: boolean,
+    options: CollectorOptions = {}
+  ) {
+    this.baseLogs = options.logs ?? {};
+    this.logRoom = options.logRoom ?? WRITING_LOG_BUDGET;
+  }
+
+  /** `t` closes the time counted for the question being left. */
+  setQuestion(id: string | undefined, t?: number): void {
+    if (t !== undefined) this.clock(t, this.activeSince !== null);
     this.question = id && QUESTION_KEY.test(id) ? id : NO_QUESTION;
+  }
+
+  /** Adds the time since the last call to the question on screen; `active` is whether the page is visible now. */
+  clock(t: number, active: boolean): void {
+    if (this.activeSince !== null && t > this.activeSince) {
+      // Time alone is saved with the next real event, never on its own.
+      const wasDirty = this.dirty;
+      this.bucket().ms += t - this.activeSince;
+      this.dirty = wasDirty;
+    }
+    this.activeSince = active ? t : null;
+  }
+
+  /** What an answer box holds before an edit lands. */
+  primeText(field: object, text: string): void {
+    this.fieldText.set(field, text);
+  }
+
+  /** An answer box changed. `log` keeps the edit for playback; `composing` edits rewrite text as part of typing it. */
+  textEdit(
+    field: object,
+    text: string,
+    t: number,
+    kind: 'typed' | 'pasted',
+    options: { log: boolean; composing: boolean }
+  ): void {
+    const prev = this.fieldText.get(field);
+    this.fieldText.set(field, text);
+    if (prev === undefined) return;
+    const d = diffText(prev, text);
+    if (!d) return;
+    const c = this.bucket();
+    if (!options.composing) {
+      if (d.del > 0) {
+        c.dels += 1;
+        c.delChars += d.del;
+      } else if (d.pos < prev.trimEnd().length) {
+        c.midInserts += 1;
+      }
+    }
+    if (!options.log || this.question === NO_QUESTION) return;
+    let writer = this.writers.get(this.question);
+    if (!writer) {
+      writer = new WritingLogWriter(this.baseLogs[this.question]);
+      this.writers.set(this.question, writer);
+    }
+    // The editor re-inserts a paste as plain typing, so the paste event marks it.
+    const how = t <= this.pasteUntil ? 'pasted' : kind;
+    this.logRoom -= writer.write(prev, text, t, how, this.logRoom);
+  }
+
+  /** Bytes of edit log this page load is carrying. */
+  logBytes(): number {
+    let n = 0;
+    for (const w of this.writers.values()) n += w.size;
+    return n;
+  }
+
+  panelOpened(): void {
+    this.bucket().panelOpens += 1;
+  }
+
+  extraScreen(): void {
+    this.bucket().extraScreen += 1;
   }
 
   private bucket(): Counts {
@@ -216,6 +321,8 @@ export class InputSignalCollector {
   snapshot(): Record<string, InputSignalCounts> {
     const out: Record<string, InputSignalCounts> = {};
     for (const [q, c] of this.byQuestion) out[q] = compact(c);
+    for (const [q, w] of this.writers)
+      if (w.value) out[q] = { ...out[q], log: w.value };
     return out;
   }
 }
@@ -227,6 +334,12 @@ const compact = (c: InputSignalCounts): InputSignalCounts => {
     if (typeof v === 'number' && Number.isFinite(v) && v > 0)
       out[k] = Math.round(v);
   }
+  if (
+    typeof c.log === 'string' &&
+    c.log &&
+    c.log.length <= WRITING_LOG_MAX + 64
+  )
+    out.log = c.log;
   return out;
 };
 
@@ -260,6 +373,8 @@ export function addSignals(
       const v = (sum[k] ?? 0) + (counts[k] ?? 0);
       if (v > 0) sum[k] = v;
     }
+    // The local log starts from the saved one, so it replaces it.
+    if (counts.log) sum.log = counts.log;
     out[q] = sum;
   }
   return out;
@@ -275,7 +390,11 @@ export type InputFindingId =
   | 'pasted'
   | 'paste-attempts'
   | 'scripted'
-  | 'even-answers';
+  | 'even-answers'
+  | 'no-revisions'
+  | 'fast-answers'
+  | 'side-panel'
+  | 'extra-screen';
 
 export interface InputFinding {
   id: InputFindingId;
@@ -300,13 +419,47 @@ const UNKEYED_MIN = 20;
 const ANSWER_MIN_GAPS = 5;
 const EVEN_ANSWERS_CV = 0.15;
 
+const NO_REVISION_MIN_CHARS = 200;
+const READ_MIN_WORDS = 30;
+/** 100 ms a word is 600 words a minute, twice a fast reader. */
+const READ_MS_PER_WORD = 100;
+const FAST_ANSWERS_MIN = 2;
+
+/** What `fast-answers` needs: each question's length and which ones the student answered. */
+export interface ReadingContext {
+  words: Record<string, number>;
+  answered: ReadonlySet<string>;
+}
+
+const countWords = (text: string): number =>
+  text
+    .replace(/<[^>]*>/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+/** Words a student has to read on each question: its text and its options. */
+export const questionWordCounts = (
+  questions: Pick<
+    QuizQuestion,
+    'id' | 'text' | 'correctAnswer' | 'incorrectAnswers'
+  >[]
+): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const q of questions)
+    out[q.id] = countWords(
+      [q.text, q.correctAnswer, ...(q.incorrectAnswers ?? [])].join(' ')
+    );
+  return out;
+};
+
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /** Flags for one attempt. An empty list means nothing stood out, not that the work is the student's own. */
 export function describeInputSignals(
   perQuestion: Record<string, InputSignalCounts>,
-  answers?: Pick<QuizResponseAnswer, 'answeredAt'>[]
+  answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
+  reading?: ReadingContext
 ): InputFinding[] {
   const total = emptyCounts();
   for (const c of Object.values(perQuestion))
@@ -399,6 +552,63 @@ export function describeInputSignals(
         'A browser extension such as a password manager, grammar checker or accessibility tool.',
     });
   }
+  const unrevised = where(
+    (c) =>
+      (c.chars ?? 0) >= NO_REVISION_MIN_CHARS &&
+      !c.dels &&
+      !c.midInserts &&
+      !c.pastedChars
+  );
+  if (unrevised.length > 0) {
+    const chars = unrevised.reduce(
+      (n, q) => n + (perQuestion[q].chars ?? 0),
+      0
+    );
+    out.push({
+      id: 'no-revisions',
+      text: `Typed ${plural(chars, 'character')} without deleting or changing anything.`,
+      questions: unrevised,
+      otherCauses: 'Copying out an answer they drafted on paper first.',
+    });
+  }
+  if (reading) {
+    const fast = Object.entries(perQuestion)
+      .filter(([q, c]) => {
+        const words = reading.words[q] ?? 0;
+        return (
+          reading.answered.has(q) &&
+          words >= READ_MIN_WORDS &&
+          (c.ms ?? 0) > 0 &&
+          (c.ms ?? 0) < words * READ_MS_PER_WORD
+        );
+      })
+      .map(([q]) => q);
+    if (fast.length >= FAST_ANSWERS_MIN) {
+      out.push({
+        id: 'fast-answers',
+        text: `Answered ${plural(fast.length, 'question')} in less time than it takes to read them.`,
+        questions: fast,
+        otherCauses:
+          'Guessing, or remembering the question from an earlier attempt.',
+      });
+    }
+  }
+  if (total.panelOpens > 0) {
+    out.push({
+      id: 'side-panel',
+      text: `The page got narrower ${plural(total.panelOpens, 'time')} while the window stayed the same size, as when a browser side panel opens.`,
+      questions: where((c) => (c.panelOpens ?? 0) > 0),
+      otherCauses: 'A bookmarks or reading-list panel, or developer tools.',
+    });
+  }
+  if (total.extraScreen > 0) {
+    out.push({
+      id: 'extra-screen',
+      text: 'A second screen was connected.',
+      questions: [],
+      otherCauses: 'A desk monitor or a classroom projector.',
+    });
+  }
 
   const times = (answers ?? [])
     .map((a) => a.answeredAt)
@@ -451,7 +661,8 @@ export interface AttemptFindings {
 export function inputFindingsByAttempt(
   signals: InputSignals | undefined,
   currentAttempt: number,
-  answers?: Pick<QuizResponseAnswer, 'answeredAt'>[]
+  answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
+  reading?: ReadingContext
 ): AttemptFindings[] {
   const attempts = new Set<number>([currentAttempt]);
   if (isRecord(signals)) {
@@ -464,8 +675,44 @@ export function inputFindingsByAttempt(
       attempt,
       findings: describeInputSignals(
         readAttemptSignals(signals, attempt),
-        attempt === currentAttempt ? answers : undefined
+        attempt === currentAttempt ? answers : undefined,
+        attempt === currentAttempt ? reading : undefined
       ),
     }))
     .filter((a) => a.findings.length > 0);
+}
+
+export interface WrittenAnswerLog {
+  /** Completed attempts before this one; 0 is the first attempt. */
+  attempt: number;
+  questionId: string;
+  log: string;
+}
+
+/** Every written answer with an edit log, latest attempt first. */
+export function writingLogs(
+  signals: InputSignals | undefined
+): WrittenAnswerLog[] {
+  if (!isRecord(signals)) return [];
+  const out: WrittenAnswerLog[] = [];
+  for (const key of Object.keys(signals)) {
+    if (!/^\d{1,3}$/.test(key)) continue;
+    for (const [questionId, c] of Object.entries(
+      readAttemptSignals(signals, key)
+    ))
+      if (c.log) out.push({ attempt: Number(key), questionId, log: c.log });
+  }
+  return out.sort((a, b) => b.attempt - a.attempt);
+}
+
+/** Log bytes already saved on a response outside one attempt. */
+export function otherLogBytes(signals: unknown, attempt: number): number {
+  if (!isRecord(signals)) return 0;
+  let n = 0;
+  for (const [key, perQuestion] of Object.entries(signals)) {
+    if (key === String(attempt) || !isRecord(perQuestion)) continue;
+    for (const c of Object.values(perQuestion))
+      if (isRecord(c) && typeof c.log === 'string') n += utf8Length(c.log);
+  }
+  return n;
 }
