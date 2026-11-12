@@ -255,6 +255,17 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['admin'],
     inner: { 'tour-editor.menu-item': 'tour-editor.menu' },
   },
+  'board.web-tours-page': {
+    label:
+      'Web tours page (list, health and public links; opened from Manage tours in the extension)',
+    kind: 'page',
+    url: '/web-tours',
+    needs: ['admin'],
+    files: [
+      'components/tours/web/WebToursPage.tsx',
+      'components/tours/web/WebToursGate.tsx',
+    ],
+  },
   'board.web-tour-editor': {
     label:
       'Web tour editor (the shared tour editor shell beside a picture stage; Record a tour > Web tour, or Edit on a web tour card)',
