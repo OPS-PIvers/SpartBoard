@@ -73,6 +73,11 @@ describe('hostOf', () => {
     expect(hostOf('http://localhost:3000/a')).toBe('localhost:3000');
     expect(hostOf('not a url')).toBeNull();
   });
+
+  it('ignores userinfo and a default port', () => {
+    expect(hostOf('https://claude.ai:443/x')).toBe('claude.ai');
+    expect(hostOf('https://a@claude.ai/')).toBe('claude.ai');
+  });
 });
 
 describe('switchUrlFor', () => {
@@ -88,6 +93,14 @@ describe('switchUrlFor', () => {
     );
     expect(switchUrlFor('https://claude.ai/*')).toBe('https://claude.ai/');
     expect(switchUrlFor('https://claude.ai/a/*/b')).toBe('https://claude.ai/a');
+  });
+
+  it('keeps query parameters and hash that have no wildcard', () => {
+    expect(switchUrlFor('https://a.com/p?tab=1#*')).toBe(
+      'https://a.com/p?tab=1'
+    );
+    expect(switchUrlFor('https://a.com/p?a=1&b=*')).toBe('https://a.com/p?a=1');
+    expect(switchUrlFor('https://a@b.com/')).toBe('https://b.com/');
   });
 
   it('drops a wildcard query and keeps the path', () => {

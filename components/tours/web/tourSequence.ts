@@ -25,7 +25,7 @@ export interface SiteSwitch {
 }
 
 export const isMessageStep = (
-  step: Pick<GuidedLearningStep, 'message' | 'web'>
+  step: GuidedLearningStep
 ): step is WebTourMessageStep => step.message === true && !step.web;
 
 /** A web set's targeted and Message steps in authored order; none for any other set. */
@@ -38,27 +38,39 @@ export const webTourSequenceOf = (
       )
     : [];
 
-/** The host of a step's `urlPattern`, lowercased and with any port; null when it isn't an http(s) address. */
+/** The host of a step's `urlPattern`, lowercased, without userinfo or a default port; null when it isn't an http(s) address. */
 export const hostOf = (urlPattern: string): string | null => {
-  const m = /^https?:\/\/([^/?#]+)/i.exec(urlPattern.trim());
-  return m ? m[1].toLowerCase() : null;
+  const m = /^(https?):\/\/([^/?#]+)/i.exec(urlPattern.trim());
+  if (!m) return null;
+  const host = m[2].slice(m[2].lastIndexOf('@') + 1).toLowerCase();
+  const defaultPort = m[1].toLowerCase() === 'https' ? ':443' : ':80';
+  return host.endsWith(defaultPort) ? host.slice(0, -defaultPort.length) : host;
 };
 
 /** The address a Site switch opens (X2): the pattern cut at its first `*` segment, else its origin; null when the host itself has a wildcard or it isn't https. */
 export const switchUrlFor = (urlPattern: string): string | null => {
-  const m = /^(https:\/\/[^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(
+  const m = /^(https:\/\/)([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(
     urlPattern.trim()
   );
-  if (!m || m[1].includes('*')) return null;
-  const [, origin, path, query = '', hash = ''] = m;
+  if (!m || m[2].includes('*')) return null;
+  const [, scheme, authority, path, query = '', hash = ''] = m;
+  const origin = scheme + authority.slice(authority.lastIndexOf('@') + 1);
   const segments = path.split('/');
   const wild = segments.findIndex((seg) => seg.includes('*'));
-  const url =
-    wild >= 0
-      ? origin + segments.slice(0, wild).join('/')
-      : path.includes('*') || query.includes('*') || hash.includes('*')
-        ? origin + path
-        : origin + path + query + hash;
+  let url: string;
+  if (wild >= 0) {
+    url = origin + segments.slice(0, wild).join('/');
+  } else {
+    const params = query
+      .slice(1)
+      .split('&')
+      .filter((p) => p && !p.includes('*'));
+    url =
+      origin +
+      path +
+      (params.length ? `?${params.join('&')}` : '') +
+      (hash.includes('*') ? '' : hash);
+  }
   try {
     return new URL(url || origin).href;
   } catch {
@@ -99,5 +111,5 @@ export const needsCrossSite = (
 
 /** Index of the first step with a target, which sets where the tour opens (X8); -1 when none has one. */
 export const firstTargetedIndex = (
-  steps: readonly Pick<GuidedLearningStep, 'message' | 'web'>[]
+  steps: readonly GuidedLearningStep[]
 ): number => steps.findIndex((s) => !!s.web && !isMessageStep(s));
