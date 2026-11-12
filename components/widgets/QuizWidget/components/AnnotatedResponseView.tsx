@@ -40,6 +40,7 @@ import React, {
 import { Trash2, X } from 'lucide-react';
 import type { Rubric, WrittenAnswerAnnotation } from '@/types';
 import { RubricStrandChips, RubricStrandPills } from './RubricStrandChips';
+import { CopyTextButton } from './CopyTextButton';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   toggleStrandTag,
@@ -49,6 +50,7 @@ import {
   getPlainTextOffsetFromRange,
   parseSnapshotRoot,
   PREVIEW_ANNOTATION_ID,
+  htmlToPlainText,
   renderAnnotatedSnapshot,
 } from '@/utils/writtenAnnotations';
 
@@ -481,6 +483,7 @@ const EditView: React.FC<EditProps> = ({
   // `annotations` mutates per keypress and would otherwise re-
   // DOMParse the whole snapshot each time.
   const parsedRoot = useMemo(() => parseSnapshotRoot(snapshot), [snapshot]);
+  const plainText = useMemo(() => htmlToPlainText(snapshot), [snapshot]);
   // While the teacher is mid-selection (pending state), inject a
   // synthetic annotation so the renderer shows a preview mark over
   // the drag range. The textarea's autoFocus collapses the native
@@ -819,6 +822,13 @@ const EditView: React.FC<EditProps> = ({
           onPendingCommentChange={
             popover.kind === 'pending' ? setPendingComment : undefined
           }
+          selectedText={
+            popover.kind === 'pending'
+              ? plainText.slice(pendingSelection?.from, pendingSelection?.to)
+              : active
+                ? plainText.slice(active.from, active.to)
+                : ''
+          }
           x={popover.x}
           y={popover.y}
           placement={popover.placement}
@@ -903,6 +913,8 @@ const AnchoredAnnotationEditor: React.FC<{
   /** Parent-owned textarea state for pending mode (so it survives commit). */
   pendingCommentDraft?: string;
   onPendingCommentChange?: (v: string) => void;
+  /** Plain text under the selection or highlight, for the copy button. */
+  selectedText: string;
   x: number;
   y: number;
   placement: 'below' | 'above';
@@ -923,6 +935,7 @@ const AnchoredAnnotationEditor: React.FC<{
   annotation,
   pendingCommentDraft,
   onPendingCommentChange,
+  selectedText,
   x,
   y,
   placement,
@@ -980,6 +993,14 @@ const AnchoredAnnotationEditor: React.FC<{
           ))}
         </div>
         <div className="flex items-center gap-0.5">
+          <CopyTextButton
+            text={selectedText}
+            label={isPending ? 'Copy selected text' : 'Copy highlighted text'}
+            copiedLabel="Copied"
+            anchor={tourTypeAttr('quiz-grading.annotate-copy', 'quiz')}
+            className="p-1 rounded-sm text-slate-500 hover:bg-slate-200 transition-colors"
+            iconClassName="w-4 h-4"
+          />
           {!isPending && (
             <button
               type="button"

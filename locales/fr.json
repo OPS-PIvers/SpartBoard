@@ -2686,6 +2686,9 @@
         "spoken": "Orale",
         "whiteboard": "Tableau blanc"
       },
+      "copy": "Copier",
+      "copyResponse": "Copier la réponse",
+      "copied": "Copié",
       "responseLabel": "Réponse de l'élève",
       "timedOutUnderMinimum": "Temps écoulé sous le minimum",
       "noTextAnswer": "L'élève n'a pas répondu à cette question.",

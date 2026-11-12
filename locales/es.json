@@ -2686,6 +2686,9 @@
         "spoken": "Hablada",
         "whiteboard": "Pizarra"
       },
+      "copy": "Copiar",
+      "copyResponse": "Copiar respuesta",
+      "copied": "Copiado",
       "responseLabel": "Respuesta del estudiante",
       "timedOutUnderMinimum": "Tiempo agotado por debajo del mínimo",
       "noTextAnswer": "El estudiante no respondió esta pregunta.",

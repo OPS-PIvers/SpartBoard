@@ -104,6 +104,7 @@ import {
 import { useGradeWriteQueue } from '@/hooks/useGradeWriteQueue';
 import { isBackTranslatableLocale } from '@/utils/backTranslationHash';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
+import { CopyTextButton } from './CopyTextButton';
 import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { WhiteboardAnnotatedResponseView } from './WhiteboardAnnotatedResponseView';
@@ -1940,6 +1941,19 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         <Clock aria-hidden className="h-3 w-3" />
                         {tg('timedOutUnderMinimum')}
                       </span>
+                    )}
+                    {studentAnswer && (
+                      <CopyTextButton
+                        html={snapshotForList}
+                        label={tg('copyResponse')}
+                        copiedLabel={tg('copied')}
+                        caption={tg('copy')}
+                        anchor={tourTypeAttr(
+                          'quiz-grading.copy-response',
+                          'quiz'
+                        )}
+                        className="ml-auto inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30"
+                      />
                     )}
                   </div>
                 )}
