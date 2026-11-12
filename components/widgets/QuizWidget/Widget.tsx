@@ -1160,6 +1160,7 @@ const TeacherQuizWidget: React.FC<{
 
   // Shared and District library banks open read-only, the same way district quiz copies do.
   const previewBankSource = async (source: BankSource) => {
+    setLoadingQuizData(true);
     try {
       const content = await loadBankContent(source);
       setLoadedQuizData({
@@ -1176,6 +1177,8 @@ const TeacherQuizWidget: React.FC<{
         err instanceof Error ? err.message : 'Could not open that bank.',
         'error'
       );
+    } finally {
+      setLoadingQuizData(false);
     }
   };
 

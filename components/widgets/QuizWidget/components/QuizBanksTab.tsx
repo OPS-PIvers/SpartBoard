@@ -428,11 +428,16 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                 label: 'Preview',
                 icon: Eye,
                 onClick: () => onPreviewBank(source),
+                anchor: tourFieldAttr('quiz-banks.shared-preview', 'quiz', key),
               }
             : undefined
         }
         secondaryActions={actions}
-        onDoubleClick={onPreviewBank ? () => onPreviewBank(source) : undefined}
+        onDoubleClick={
+          onPreviewBank && !source.unavailable
+            ? () => onPreviewBank(source)
+            : undefined
+        }
         viewMode="list"
         sortable={false}
         meta={source}
@@ -453,7 +458,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       }
       badges={[{ label: 'District library', tone: 'info' }]}
       primaryAction={
-        onPreviewBank
+        onPreviewBank && !source.unavailable
           ? {
               label: 'Preview',
               icon: Eye,
@@ -466,7 +471,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
             }
           : undefined
       }
-      onDoubleClick={onPreviewBank ? () => onPreviewBank(source) : undefined}
+      onDoubleClick={
+        onPreviewBank && !source.unavailable
+          ? () => onPreviewBank(source)
+          : undefined
+      }
       secondaryActions={
         onRemoveDistrictBank
           ? [

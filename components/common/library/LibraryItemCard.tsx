@@ -544,7 +544,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                   tourWidgetTypeResolved,
                   tourRowKey
                 )
-              : {})}
+              : (primaryAction.anchor ?? {}))}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-lighter font-semibold text-brand-blue-dark transition-colors hover:bg-brand-blue-primary/15 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-lighter"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',

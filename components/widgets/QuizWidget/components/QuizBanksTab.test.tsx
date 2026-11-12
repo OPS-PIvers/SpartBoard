@@ -134,8 +134,31 @@ describe('QuizBanksTab District library banks', () => {
     };
     renderTab({ banks: [], districtBankSources: [source], onPreviewBank });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    const preview = screen.getByRole('button', { name: 'Preview' });
+    expect(preview.outerHTML).toContain('quiz-banks.district-preview');
+    fireEvent.click(preview);
     expect(onPreviewBank).toHaveBeenCalledWith(source);
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('offers no preview once the bank is no longer shared', () => {
+    renderTab({
+      banks: [],
+      districtBankSources: [
+        {
+          key: 'group-1',
+          kind: 'district',
+          bankId: 'item-1',
+          syncGroupId: 'group-1',
+          title: 'Withdrawn bank',
+          questionCount: 5,
+          targetIds: [],
+          targetCounts: {},
+          unavailable: true,
+        },
+      ],
+      onPreviewBank: vi.fn(),
+    });
+    expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull();
   });
 });

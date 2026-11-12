@@ -2602,7 +2602,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }
         badges={inDistrict ? [] : [{ label: 'District library', tone: 'info' }]}
         primaryAction={
-          onPreviewBank
+          onPreviewBank && !source.unavailable
             ? {
                 label: 'Preview',
                 icon: Eye,
@@ -2615,7 +2615,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               }
             : undefined
         }
-        onDoubleClick={onPreviewBank ? () => onPreviewBank(source) : undefined}
+        onDoubleClick={
+          onPreviewBank && !source.unavailable
+            ? () => onPreviewBank(source)
+            : undefined
+        }
         secondaryActions={[
           ...(onMoveDistrictBank
             ? [
