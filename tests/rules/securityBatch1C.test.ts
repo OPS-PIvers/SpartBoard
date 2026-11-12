@@ -240,14 +240,14 @@ describe('plcs invite accept: the invite must be for this PLC and this person', 
     );
   });
 
-  it('the real invitee accepts their own invite and can then read the PLC', async () => {
+  it('client write refused (plcMembershipV1 does it): the real invitee accepting directly', async () => {
     await seedPlcAndInvite({
       id: `${VICTIM_PLC}_${INVITEE_EMAIL}`,
       plcId: VICTIM_PLC,
       inviteeEmailLower: INVITEE_EMAIL,
     });
-    await assertSucceeds(acceptAs(INVITEE_UID, INVITEE_EMAIL));
-    await assertSucceeds(
+    await assertFails(acceptAs(INVITEE_UID, INVITEE_EMAIL));
+    await assertFails(
       getDoc(
         doc(
           testEnv

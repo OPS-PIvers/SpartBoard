@@ -450,8 +450,8 @@ describe('plcs/{plcId} create — lead-only sole-member members map', () => {
 // ===========================================================================
 
 describe('plcs/{plcId} update — transferLead', () => {
-  it('the lead can transfer leadership to an existing member', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can transfer leadership to an existing member', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         leadUid: MEMBER_UID,
         members: {
@@ -472,8 +472,8 @@ describe('plcs/{plcId} update — transferLead', () => {
     );
   });
 
-  it('a co-lead can transfer leadership to an existing member', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a co-lead can transfer leadership to an existing member', async () => {
+    await assertFails(
       updateDoc(doc(asCoLead(), `plcs/${PLC_ID}`), {
         leadUid: MEMBER_UID,
         members: {
@@ -616,8 +616,8 @@ describe('plcs/{plcId} update — transferLead', () => {
     );
   });
 
-  it('the lead can transfer with a serverTimestamp updatedAt (dual-accept)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can transfer with a serverTimestamp updatedAt (dual-accept)', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         leadUid: MEMBER_UID,
         members: {
@@ -644,8 +644,8 @@ describe('plcs/{plcId} update — transferLead', () => {
 // ===========================================================================
 
 describe('plcs/{plcId} update — changeRole', () => {
-  it('the lead can promote a member to coLead (roleChangeUid pointer)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can promote a member to coLead (roleChangeUid pointer)', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -659,9 +659,9 @@ describe('plcs/{plcId} update — changeRole', () => {
     );
   });
 
-  it('a co-lead can set a member to member', async () => {
+  it('client write refused (plcMembershipV1 does it): a co-lead can set a member to member', async () => {
     // VIEWER (viewer → member), driven by the co-lead manager.
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asCoLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -675,8 +675,8 @@ describe('plcs/{plcId} update — changeRole', () => {
     );
   });
 
-  it('a co-lead can set a member to viewer', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a co-lead can set a member to viewer', async () => {
+    await assertFails(
       updateDoc(doc(asCoLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -732,10 +732,10 @@ describe('plcs/{plcId} update — changeRole', () => {
     );
   });
 
-  it('the lead can still remove a member via the broad branch (removeMemberUid)', async () => {
+  it('client write refused (plcMembershipV1 does it): the lead can still remove a member via the broad branch (removeMemberUid)', async () => {
     // The exactly-one-lead guard must NOT break the legitimate broad-branch
     // members write: a lone removal named by removeMemberUid still succeeds.
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -827,8 +827,8 @@ describe('plcs/{plcId} update — changeRole', () => {
     );
   });
 
-  it('a co-lead can change a role with a serverTimestamp updatedAt (dual-accept)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a co-lead can change a role with a serverTimestamp updatedAt (dual-accept)', async () => {
+    await assertFails(
       updateDoc(doc(asCoLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -848,9 +848,9 @@ describe('plcs/{plcId} update — changeRole', () => {
 // ===========================================================================
 
 describe('plcs/{plcId} update — accept-invite (members-map maintenance)', () => {
-  it('a non-member with a pending invite self-appends to BOTH the map and indexes', async () => {
+  it('client write refused (plcMembershipV1 does it): a non-member with a pending invite self-appends to BOTH the map and indexes', async () => {
     await seedPendingInvite(NON_MEMBER_EMAIL);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asNonMemberVerified(), `plcs/${PLC_ID}`), {
         memberUids: [
           LEAD_UID,
@@ -971,9 +971,9 @@ describe('plcs/{plcId} update — accept-invite (members-map maintenance)', () =
     );
   });
 
-  it('accepts with a serverTimestamp updatedAt (dual-accept)', async () => {
+  it('client write refused (plcMembershipV1 does it): accepts with a serverTimestamp updatedAt (dual-accept)', async () => {
     await seedPendingInvite(NON_MEMBER_EMAIL);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asNonMemberVerified(), `plcs/${PLC_ID}`), {
         memberUids: [
           LEAD_UID,
@@ -1009,8 +1009,8 @@ describe('plcs/{plcId} update — accept-invite (members-map maintenance)', () =
 });
 
 describe('plcs/{plcId} update — leave (members-map maintenance)', () => {
-  it('a non-lead member self-removes, flipping their own map entry to removed', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a non-lead member self-removes, flipping their own map entry to removed', async () => {
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         memberUids: [LEAD_UID, COLEAD_UID, VIEWER_UID],
         memberEmails: {
@@ -1092,8 +1092,8 @@ describe('plcs/{plcId} update — leave (members-map maintenance)', () => {
     );
   });
 
-  it('leaves with a serverTimestamp updatedAt (dual-accept)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): leaves with a serverTimestamp updatedAt (dual-accept)', async () => {
+    await assertFails(
       updateDoc(doc(asViewer(), `plcs/${PLC_ID}`), {
         memberUids: [LEAD_UID, COLEAD_UID, MEMBER_UID],
         memberEmails: {

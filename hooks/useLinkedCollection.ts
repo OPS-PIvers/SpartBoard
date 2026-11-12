@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from 'react';
 import {
-  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -12,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { callShareMembership } from '@/utils/shareMembershipClient';
 import type {
   LinkedCollection,
   LinkedCollectionBoard,
@@ -281,8 +281,10 @@ export const useLinkedCollection = () => {
         }
         return;
       }
-      await updateDoc(doc(db, LINKED_COLLECTIONS_PATH, link.linkId), {
-        [`participants.${uid}`]: entry,
+      await callShareMembership({
+        action: 'joinCollection',
+        linkId: link.linkId,
+        ...(entry.name ? { name: entry.name } : {}),
       });
     },
     []
@@ -299,9 +301,7 @@ export const useLinkedCollection = () => {
         }
         return;
       }
-      await updateDoc(doc(db, LINKED_COLLECTIONS_PATH, linkId), {
-        [`participants.${uid}`]: deleteField(),
-      });
+      await callShareMembership({ action: 'leaveCollection', linkId });
     },
     []
   );

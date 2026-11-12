@@ -126,6 +126,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-ordering-list',
   'quiz-ordering-results',
   'quiz-read-aloud',
+  'quiz-reopen-submission',
   'quiz-results-tools',
   'quiz-review-step',
   'quiz-score-on-submit',

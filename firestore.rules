@@ -2467,109 +2467,7 @@ service cloud.firestore {
         );
     }
 
-    // Exactly-one-lead invariant (Decision 1.2): a role change must never mint a
-    // second lead (only transferLead moves the crown). CEL can't iterate a map, so
-    // this leans on the leadUid mirror — the leadUid member is 'lead' both sides.
-    // Pair with a leadUid-immutability check.
-    function plcLeadRoleUnchanged(plcData, newData) {
-      return plcRoleOf(newData, newData.get('leadUid', '')) == 'lead'
-        && plcRoleOf(plcData, plcData.get('leadUid', '')) == 'lead';
-    }
-
-    // Guards the broad sitting-lead update branch against minting a second lead
-    // (Decision 1.2). Its only permitted members mutation is a single-member REMOVAL
-    // named by the transient `removeMemberUid` pointer, and that member leaves memberUids.
-    // memberUids may only shrink here. Returns true when members is untouched, so
-    // rename / tenancy-backfill writes still pass.
-    // shorthands: off (PLC membership transitions run close to the 1,000-expression limit)
-    function plcBroadMembersOk() {
-      let nd = request.resource.data;
-      let touchesMembers =
-        'members' in nd.diff(resource.data).affectedKeys();
-      let removed = nd.get('removeMemberUid', '');
-      let newMembers = nd.get('members', {});
-      let memberDiff = newMembers
-        .diff(resource.data.get('members', {}))
-        .affectedKeys();
-      let newUids = nd.memberUids;
-      // memberUids never gains a uid here (adds go through accept or admin edit).
-      return resource.data.memberUids.hasAll(newUids)
-        && (
-          !touchesMembers
-          || (
-             // The sitting lead must stay lead (no self-demote via this path).
-             plcLeadRoleUnchanged(resource.data, nd)
-             // A removal pointer is supplied and names the sole changed entry.
-             && removed != ''
-             && memberDiff.hasOnly([removed])
-             // The named member is being removed (status flips to 'removed'),
-             // and is NOT the sitting lead (the lead can't vacate this way).
-             && removed != resource.data.get('leadUid', '')
-             && (removed in resource.data.get('members', {}))
-             && newMembers[removed].status == 'removed'
-             && !(removed in newUids)
-           )
-        );
-    }
-
-    // True iff the update is the caller self-adding to memberUids (accepting an
-    // invite). Verified against a matching *pending* invitation doc, and
-    // constrained so the only change is appending the caller (an invitee can't
-    // rewrite the whole array).
-    // email_verified is REQUIRED, same reason as isAdmin() above — otherwise an
-    // unverified self-reported email lets an attacker accept another teacher's
-    // PLC invite and join in their place.
-    function isAcceptingPlcInvite(plcId) {
-      let nd = request.resource.data;
-      let od = resource.data;
-      let myUid = request.auth.uid;
-      let emailLower = request.auth.token.get('email', '').lower();
-      let oldMembers = od.memberUids;
-      let newMembers = nd.memberUids;
-      let oldEmails = od.memberEmails;
-      let newEmails = nd.memberEmails;
-      // members map moves in lockstep with the denormalized indexes: accepting
-      // appends only the caller's own entry (role 'member', status 'active').
-      // OPTIONAL in the diff (legacy array-only PLCs still accept) unless the caller
-      // already has a stale entry, which must be reset so an old coLead role can't return.
-      let membersUntouchedOrSelfAppended =
-        (
-          !('members' in nd.diff(od).affectedKeys())
-          && !(myUid in od.get('members', {}))
-        )
-        || (
-             nd.members.diff(od.get('members', {}))
-               .affectedKeys().hasOnly([myUid])
-             && nd.members[myUid].role == 'member'
-             && nd.members[myUid].status == 'active'
-             && nd.members[myUid].uid == myUid
-             // Only the keys acceptInvite writes, so a rejoin can't smuggle in e.g. mentorRole.
-             && nd.members[myUid].keys().hasOnly(['uid', 'email', 'displayName', 'role', 'status', 'joinedAt'])
-           );
-      return request.auth.token.get('email_verified', false) == true
-        && emailLower != ''
-        && !(myUid in oldMembers)
-        && (myUid in newMembers)
-        && newMembers.size() == oldMembers.size() + 1
-        && newMembers.toSet().hasAll(oldMembers.toSet())
-        && newEmails.diff(oldEmails).affectedKeys().hasOnly([myUid])
-        && newEmails.get(myUid, '') == emailLower
-        && membersUntouchedOrSelfAppended
-        // leadUid is immutable on the accept path — an invitee can never seize
-        // leadership while self-adding.
-        && nd.get('leadUid', '') == od.get('leadUid', '')
-        && changedOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
-        // Dual-accept the timestamp bump (serverTimestamp resolves to a
-        // `timestamp`; legacy clients still write `int` during rollout).
-        && plcUpdatedAtOk()
-        && plcInviteMatches(get(/databases/$(database)/documents/plc_invitations/$(plcInviteDocId(plcId, emailLower))).data, plcId, emailLower);
-    }
-
-    // The id alone is ambiguous ('a_b' + '_' + 'c' == 'a' + '_' + 'b_c'), so the invite's own fields must match.
-    function plcInviteMatches(inv, plcId, emailLower) {
-      return inv.status == 'pending' && inv.plcId == plcId && inv.inviteeEmailLower == emailLower;
-    }
-
+    // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
     // updatedAt dual-accept (timestamp || legacy int millis) during the
     // serverTimestamp rollout (Decision 3.2). Centralized so tightening to
     // timestamp-only is a one-line change.
@@ -2746,214 +2644,19 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
-    // True iff the update is the caller self-removing from memberUids (leaving).
-    // The lead can't use this path (transfer or delete first). Constrained so the
-    // only change is dropping the caller (can't evict others while leaving).
-    function isLeavingPlc() {
-      let nd = request.resource.data;
-      let od = resource.data;
-      let myUid = request.auth.uid;
-      let oldMembers = od.memberUids;
-      let newMembers = nd.memberUids;
-      let oldEmails = od.memberEmails;
-      let newEmails = nd.memberEmails;
-      // members map moves in lockstep: when in the diff, only the leaver's own
-      // entry may change (flip to status 'removed'), so the branch can't rewrite a
-      // teammate while self-removing. OPTIONAL only when the caller has no entry to flip.
-      let membersUntouchedOrSelfRemoved =
-        (
-          !('members' in nd.diff(od).affectedKeys())
-          && !(myUid in od.get('members', {}))
-        )
-        || (
-             nd.members.diff(od.get('members', {}))
-               .affectedKeys().hasOnly([myUid])
-             && nd.members[myUid].status == 'removed'
-             // The leaver's role is pinned, so leaving can't mint a lead or coLead.
-             && (myUid in od.get('members', {}))
-             && nd.members[myUid].get('role', '')
-                  == od.members[myUid].get('role', '')
-           );
-      return (myUid in oldMembers)
-        && !(myUid in newMembers)
-        && myUid != od.leadUid
-        && newMembers.size() == oldMembers.size() - 1
-        && oldMembers.toSet().hasAll(newMembers.toSet())
-        && newEmails.diff(oldEmails).affectedKeys().hasOnly([myUid])
-        && membersUntouchedOrSelfRemoved
-        // Keep the field-set closed so this branch still can't smuggle a name /
-        // sheet-url / org change.
-        && changedOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
-        // leadUid is immutable on the leave path (a non-lead is leaving).
-        && nd.get('leadUid', '') == od.leadUid
-        && plcUpdatedAtOk();
-    }
-
-    // True iff a membership manager (lead OR coLead) transfers leadership to another
-    // current member - the only way to move the crown. Invoker is lead/coLead; new
-    // leadUid is an existing member != old lead; map lockstep (never two leads); diff
-    // closed to leadUid/members/memberUids/memberEmails/updatedAt; membership unchanged.
-    function isTransferringPlcLead() {
-      let nd = request.resource.data;
-      let oldLead = resource.data.leadUid;
-      let newLead = nd.leadUid;
-      // Lockstep checks apply only once a populated members map exists; legacy
-      // map-less PLCs transfer via leadUid alone (only the sitting lead can).
-      let mapPresent =
-        'members' in nd
-        && request.auth.uid in nd.members;
-      let mapLockstep =
-        !mapPresent
-        || (
-             nd.members[newLead].role == 'lead'
-             && nd.members[oldLead].role != 'lead'
-           );
-      // A transfer may change ONLY the two lead entries — re-roling others must
-      // go through isChangingMemberRole, one at a time.
-      let membersDiffOk =
-        !mapPresent
-        || nd.members
-             .diff(resource.data.get('members', {}))
-             .affectedKeys().hasOnly([newLead, oldLead]);
-      return isPlcMembershipManager(resource.data)
-        && newLead != oldLead
-        && (newLead in resource.data.memberUids)
-        && (newLead in nd.memberUids)
-        && mapLockstep
-        && membersDiffOk
-        // The leaving/incoming lead both remain members — the set is identical.
-        && nd.memberUids.toSet()
-             .hasAll(resource.data.memberUids.toSet())
-        && resource.data.memberUids.toSet()
-             .hasAll(nd.memberUids.toSet())
-        && changedOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
-                       'updatedAt'])
-        && changed(['leadUid'])
-        && plcUpdatedAtOk();
-    }
-
-    // True iff a membership manager changes exactly ONE member's role within {coLead,
-    // member, viewer} and nothing else. CEL can't index a map at a dynamic key, so the
-    // target is the schema-locked transient `roleChangeUid` pointer. Guards
-    // exactly-one-lead: leadUid immutable, lead stays 'lead', diff closed to members +
-    // roleChangeUid + updatedAt, target != sitting lead, new role never 'lead'.
-    function isChangingMemberRole() {
+    // Membership changes run in plcMembershipV1 (Admin SDK). The one client write left is a
+    // manager tagging one non-lead member mentor or mentee (setMemberMentorRole, T29).
+    function isTaggingPlcMentor() {
       let nd = request.resource.data;
       let target = nd.get('roleChangeUid', '');
-      let changedKeys =
-        nd.members.diff(resource.data.get('members', {}))
-          .affectedKeys();
-      return isPlcMembershipManager(resource.data)
-        // Field-set closed: only the members map, the target pointer, and the
-        // customary updatedAt bump may change.
-        && changedOnly(['members', 'roleChangeUid', 'updatedAt'])
-        && changed(['members'])
-        && target != ''
-        // leadUid never moves on this branch (transferLead owns that).
-        && nd.get('leadUid', '') == resource.data.get('leadUid', '')
-        // The exactly-one-lead invariant: the lead member is 'lead' both sides.
-        && plcLeadRoleUnchanged(resource.data, nd)
-        // Exactly the named member's entry changes…
-        && changedKeys.hasOnly([target])
-        && changedKeys.size() == 1
-        // …and the target is NOT the sitting lead (no self-demoting the lead).
-        && target != resource.data.get('leadUid', '')
-        // …to a non-lead role (coLead | member | viewer) — never 'lead'.
-        && nd.members[target].role in ['coLead', 'member', 'viewer']
-        // The target is a current member (in memberUids, keyed or array-only) and stays
-        // active. Role changes don't add, drop or mark people removed (invite/leave/remove).
-        && (target in resource.data.memberUids)
-        && nd.members[target].status == 'active'
-        && nd.members[target].uid == target
-        && plcUpdatedAtOk();
-    }
-
-    // True iff an in-org SITE ADMIN recovers an abandoned PLC (Decision 3.4) -
-    // reassigning leadership WITHOUT being a member. Scoped: isAdmin(); PLC has an
-    // orgId and the admin is in that SAME org; new leadUid is an existing member != old
-    // lead; map lockstep; membership unchanged; diff closed to leadUid/members/
-    // memberUids/memberEmails/updatedAt. Mutually exclusive with the member-only branches.
-    function isAdminManagingPlc() {
-      let nd = request.resource.data;
-      let oldLead = resource.data.get('leadUid', '');
-      let newLead = nd.get('leadUid', '');
-      // Lockstep map<->leadUid checks only apply once the PLC carries a
-      // populated members map (legacy PLCs reassign via leadUid alone).
-      let mapPresent =
-        'members' in nd
-        && newLead in nd.members
-        && oldLead in nd.get('members', {});
-      let mapLockstep =
-        !mapPresent
-        || (
-             nd.members[newLead].role == 'lead'
-             && nd.members[oldLead].role != 'lead'
-           );
-      // Recovery may change ONLY the two lead entries in the members map — an
-      // admin reassign can't silently re-role other members in the same write.
-      let membersDiffOk =
-        !mapPresent
-        || nd.members
-             .diff(resource.data.get('members', {}))
-             .affectedKeys().hasOnly([newLead, oldLead]);
-      return isAdmin()
-        && resource.data.get('orgId', null) is string
-        && isOrgMember(resource.data.orgId)
-        && newLead != oldLead
-        && (newLead in resource.data.memberUids)
-        && (newLead in nd.memberUids)
-        && mapLockstep
-        && membersDiffOk
-        // The membership SET is unchanged — recovery reassigns, never adds/drops.
-        && nd.memberUids.toSet()
-             .hasAll(resource.data.memberUids.toSet())
-        && resource.data.memberUids.toSet()
-             .hasAll(nd.memberUids.toSet())
-        && changedOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
-                       'updatedAt'])
-        && changed(['leadUid'])
-        && plcUpdatedAtOk();
-    }
-
-    // In-org site admin adds, re-roles or removes ONE non-lead member; target named
-    // by the transient `adminMemberUid`. leadUid and every other entry are untouched.
-    function isAdminEditingPlcMembers() {
-      let nd = request.resource.data;
-      let target = nd.get('adminMemberUid', '');
-      let newMembers = nd.get('members', {});
       let oldMembers = resource.data.get('members', {});
-      let oldUids = resource.data.memberUids;
-      let newUids = nd.memberUids;
-      // Uids the arrays know but the map does not (un-migrated PLC, or an invite accept that
-      // only wrote the arrays) may be backfilled alongside the target. CEL cannot iterate a map,
-      // so those backfilled entries are copied through by the client and not checked one by one.
-      let arrayOnly = oldUids.toSet().difference(oldMembers.keys().toSet());
-      let allowedKeys = arrayOnly.union([target].toSet());
-      return isAdmin()
-        && resource.data.get('orgId', null) is string
-        && isOrgMember(resource.data.orgId)
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['members', 'roleChangeUid', 'updatedAt'])
         && target != ''
-        && target != resource.data.leadUid
-        && nd.leadUid == resource.data.leadUid
-        && (target in newMembers)
-        && newMembers.diff(oldMembers).affectedKeys().hasOnly(allowedKeys)
-        // A backfill must carry every legacy uid and nothing else.
-        && (oldMembers.size() > 0
-            || (newMembers.keys().toSet().hasOnly(allowedKeys)
-                && newMembers.keys().toSet().hasAll(allowedKeys)))
-        && (resource.data.leadUid in newMembers)
-        && newMembers[resource.data.leadUid].role == 'lead'
-        && newMembers[target].uid == target
-        && newMembers[target].role in ['coLead', 'member', 'viewer']
-        && newMembers[target].status in ['active', 'removed']
-        && ((target in newUids) == (newMembers[target].status == 'active'))
-        && newUids.removeAll([target]).toSet().hasAll(oldUids.removeAll([target]))
-        && oldUids.removeAll([target]).toSet().hasAll(newUids.removeAll([target]))
-        && nd.memberEmails
-             .diff(resource.data.get('memberEmails', {}))
-             .affectedKeys().hasOnly(allowedKeys)
-        && changedOnly(['members', 'memberUids', 'memberEmails', 'adminMemberUid',
-                       'updatedAt'])
+        && target != resource.data.get('leadUid', '')
+        && (target in oldMembers)
+        && nd.members.diff(oldMembers).affectedKeys().hasOnly([target])
+        && nd.members[target].diff(oldMembers[target]).affectedKeys().hasOnly(['mentorRole'])
         && plcUpdatedAtOk();
     }
 
@@ -2967,7 +2670,7 @@ service cloud.firestore {
       // isAdmin() is a bare /admins/{email} doc, which also mirrors org-scoped
       // building_admin (see functions/src/organizationMembersSync.ts) — used
       // bare here it let a building_admin of one org browse another org's PLC
-      // directory. Scoped the same way as isAdminManagingPlc() below: same-org
+      // directory. Scoped the same way as the admin delete branch on plcs: same-org
       // admin only, same as the org-peer branch it sits next to. isSuperAdmin()
       // stays as a resource-independent branch (matching help_resources) so the
       // admin "browse every PLC" picker (hooks/usePlcs.ts's asAdmin mode, an
@@ -3092,8 +2795,8 @@ service cloud.firestore {
       // building_admin (see
       // functions/src/organizationMembersSync.ts) — used bare it let a
       // building_admin of one org read another org's member emails/names off
-      // this doc. Scoped to same-org, matching isAdminManagingPlc() and the
-      // admin delete branch below (both already same-org-gated and tested in
+      // this doc. Scoped to same-org, matching the
+      // admin delete branch below (already same-org-gated and tested in
       // plcAdminRecovery.test.ts) instead of the write side being scoped while
       // read stayed open. isSuperAdmin() stays as a resource-independent branch
       // for the same reason as plcIndex above — hooks/usePlcs.ts's asAdmin mode
@@ -3146,46 +2849,22 @@ service cloud.firestore {
              || incoming().get('updatedAt', 0) is int
            );
 
-      // Lead can rename, remove a member (via `removeMemberUid`), or backfill tenancy -
-      // but can't vacate leadership (leadUid immutable) or mint a second lead
-      // (plcBroadMembersOk limits members mutations to one named removal). Tenancy
-      // (orgId/buildingId) is immutable-after-set. The update branches are MUTUALLY
-      // EXCLUSIVE, each a disjoint shape: broad sitting-lead update; isAcceptingPlcInvite;
-      // isLeavingPlc; isTransferringPlcLead / isChangingMemberRole; isSettingPlcSharedSheetUrl
-      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence / isUpdatingPlcLayout
-      // / isUpdatingPlcMeetingNoteTemplate / isUpdatingPlcCalendar;
-      // isAdminManagingPlc (the only
-      // non-member branch).
+      // Lead can rename or backfill tenancy but never change membership or leadUid; joins,
+      // leaves, removals, roles and lead moves run in plcMembershipV1 (Admin SDK). Tenancy
+      // (orgId/buildingId) is immutable-after-set. Each other branch is one disjoint shape.
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
       allow update: if request.auth != null && viewAsOk() && notDeactivated() && (
         (
           request.auth.uid == resource.data.leadUid
-          && request.resource.data.leadUid == resource.data.leadUid
-          && resource.data.leadUid in request.resource.data.memberUids
+          && !request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['leadUid', 'members', 'memberUids', 'memberEmails'])
           && plcUpdatedAtOk()
           && plcTenancyImmutableAfterSet('orgId')
           && plcTenancyImmutableAfterSet('buildingId')
           && plcLeadGroupFieldsOk()
-          // Block minting a second lead — members changes here are a single named
-          // removal only (exactly-one-lead invariant, Decision 1.2).
-          && plcBroadMembersOk()
           && plcCalendarFieldOk()
         )
-        // Each branch below sits behind a cheap condition it already requires, because a
-        // function's `let` bindings run even when its first check fails and every branch
-        // shares one 1,000-expression budget per request.
-        || (
-          !(request.auth.uid in resource.data.memberUids)
-          && request.auth.uid in request.resource.data.memberUids
-          && isAcceptingPlcInvite(plcId)
-        )
-        || (
-          request.auth.uid in resource.data.memberUids
-          && !(request.auth.uid in request.resource.data.memberUids)
-          && isLeavingPlc()
-        )
-        || (request.resource.data.leadUid != resource.data.leadUid && isTransferringPlcLead())
-        || (request.resource.data.get('roleChangeUid', '') != '' && isChangingMemberRole())
+        || (request.resource.data.get('roleChangeUid', '') != '' && isTaggingPlcMentor())
         || isSettingPlcSharedSheetUrl()
         || isUpdatingPlcFeatures()
         || isUpdatingPlcDigestOptIn()
@@ -3203,11 +2882,6 @@ service cloud.firestore {
           request.resource.data.get('calendarEmbedUrl', null) != resource.data.get('calendarEmbedUrl', null)
           && isUpdatingPlcCalendar()
         )
-        || (
-          request.resource.data.get('leadUid', '') != resource.data.get('leadUid', '')
-          && isAdminManagingPlc()
-        )
-        || (request.resource.data.get('adminMemberUid', '') != '' && isAdminEditingPlcMembers())
       );
 
       // The lead can dissolve the PLC; an in-org SITE ADMIN can also dissolve an
@@ -4500,8 +4174,8 @@ service cloud.firestore {
         );
 
       // Lead of the target PLC creates (or re-creates) the invite. The doc
-      // id is forced to the deterministic format so isAcceptingPlcInvite
-      // can verify by id without a query.
+      // id is forced to the deterministic format (plcInviteDocId) so lookups
+      // need no query.
       allow create, update: if signedIn()
         && incoming().invitedByUid == authUid()
         && isStr('inviteeEmailLower')

@@ -2,13 +2,18 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useOrganization } from './useOrganization';
 import { useAuth } from '@/context/useAuth';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import type { OrgRecord } from '@/types/organization';
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   onSnapshot: vi.fn(),
   updateDoc: vi.fn(),
+}));
+
+vi.mock('@/utils/orgAdminClient', () => ({
+  callOrgAdmin: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -40,14 +45,14 @@ describe('useOrganization', () => {
   const mockUseAuth = useAuth as Mock;
   const mockDoc = doc as Mock;
   const mockOnSnapshot = onSnapshot as Mock;
-  const mockUpdateDoc = updateDoc as Mock;
+  const mockCall = callOrgAdmin as Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
-    mockUpdateDoc.mockResolvedValue(undefined);
+    mockCall.mockResolvedValue(undefined);
   });
 
   it('returns null org and clears loading when orgId is null', () => {
@@ -93,8 +98,10 @@ describe('useOrganization', () => {
       });
     });
 
-    expect(mockUpdateDoc).toHaveBeenCalledWith('organizations/orono', {
-      name: 'Orono Public',
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'updateOrg',
+      orgId: 'orono',
+      patch: { name: 'Orono Public' },
     });
   });
 
@@ -108,9 +115,70 @@ describe('useOrganization', () => {
       await result.current.archiveOrg();
     });
 
-    expect(mockUpdateDoc).toHaveBeenCalledWith('organizations/orono', {
-      status: 'archived',
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'updateOrg',
+      orgId: 'orono',
+      patch: { status: 'archived' },
     });
+  });
+
+  it('shows a typed edit at once and keeps it until the snapshot carries it', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
+    let emit: (data: OrgRecord) => void = () => undefined;
+    mockOnSnapshot.mockImplementation(
+      (_ref: unknown, onNext: (snap: unknown) => void) => {
+        emit = (data) =>
+          onNext({ exists: () => true, id: data.id, data: () => data });
+        return () => undefined;
+      }
+    );
+    let finish: () => void = () => undefined;
+    mockCall.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+
+    const { result } = renderHook(() => useOrganization('orono'));
+    act(() => emit(mockOrg));
+
+    let call: Promise<void> = Promise.resolve();
+    act(() => {
+      call = result.current.updateOrg({ name: 'Orono P' });
+    });
+    expect(result.current.organization?.name).toBe('Orono P');
+
+    // An older snapshot doesn't pull the field back.
+    act(() => emit({ ...mockOrg, name: 'Orono' }));
+    expect(result.current.organization?.name).toBe('Orono P');
+
+    await act(async () => {
+      finish();
+      await call;
+    });
+    act(() => emit({ ...mockOrg, name: 'Orono P' }));
+    expect(result.current.organization?.name).toBe('Orono P');
+  });
+
+  it('drops a refused edit', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
+    let emit: (data: OrgRecord) => void = () => undefined;
+    mockOnSnapshot.mockImplementation(
+      (_ref: unknown, onNext: (snap: unknown) => void) => {
+        emit = (data) =>
+          onNext({ exists: () => true, id: data.id, data: () => data });
+        return () => undefined;
+      }
+    );
+    mockCall.mockImplementation(() => Promise.reject(new Error('no')));
+
+    const { result } = renderHook(() => useOrganization('orono'));
+    act(() => emit(mockOrg));
+    await act(async () => {
+      await result.current.updateOrg({ name: 'Nope' }).catch(() => undefined);
+    });
+    expect(result.current.organization?.name).toBe(mockOrg.name);
   });
 
   it('updateOrg rejects when orgId is null', async () => {

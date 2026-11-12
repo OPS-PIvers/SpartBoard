@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import { useAuth } from '@/context/useAuth';
 import type { OrgRecord } from '@/types/organization';
 import { slugOrFallback } from '@/utils/slug';
@@ -97,14 +92,18 @@ export const useOrganizations = () => {
       seedColor: partial.seedColor ?? 'bg-indigo-600',
       ...(partial.supportUrl ? { supportUrl: partial.supportUrl } : {}),
     };
-    await setDoc(doc(db, 'organizations', id), record);
+    await callOrgAdmin({ action: 'createOrg', record });
   };
 
   const archiveOrg = async (orgId: string): Promise<void> => {
     if (!orgId) {
       throw new Error('Organization id is required.');
     }
-    await updateDoc(doc(db, 'organizations', orgId), { status: 'archived' });
+    await callOrgAdmin({
+      action: 'updateOrg',
+      orgId,
+      patch: { status: 'archived' },
+    });
   };
 
   return {
