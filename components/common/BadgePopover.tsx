@@ -68,7 +68,10 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
     if (!pos || pos.checked || !panelRef.current || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const above = Math.max(0, rect.top - GAP - EDGE);
-    const overflows = panelRef.current.scrollHeight > pos.maxHeight;
+    const el = panelRef.current;
+    // Borders sit inside maxHeight (border-box) but outside scrollHeight.
+    const overflows =
+      el.scrollHeight + el.offsetHeight - el.clientHeight > pos.maxHeight;
     setPos(
       overflows && above > pos.maxHeight
         ? {
