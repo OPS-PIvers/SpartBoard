@@ -77,14 +77,32 @@ export function rekeyOptionExplanations(
   if (before.length === after.length) {
     before.forEach((option, i) => {
       const moved = map[option];
+      const blank = !option.trim();
       if (
         option !== after[i] &&
-        !kept.has(option) &&
+        (blank || !kept.has(option)) &&
         moved &&
         !(after[i] in out)
-      )
+      ) {
         out[after[i]] = moved;
+        if (blank && after[i].trim()) delete out[option];
+      }
     });
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Drops explanations parked under a blank option while it was being retyped; Firestore refuses empty keys. */
+export function withoutBlankOptionKeys<
+  T extends { optionExplanations?: Record<string, string> },
+>(q: T): T {
+  const map = q.optionExplanations;
+  if (!map || Object.keys(map).every((k) => k.trim())) return q;
+  const kept = Object.fromEntries(
+    Object.entries(map).filter(([k]) => k.trim())
+  );
+  const next = { ...q };
+  if (Object.keys(kept).length > 0) next.optionExplanations = kept;
+  else delete next.optionExplanations;
+  return next;
 }
