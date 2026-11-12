@@ -30,7 +30,7 @@ const h = vi.hoisted(() => ({
   edits: [] as string[],
   editRequests: [] as TourEditRequest[],
   aiAllowed: true,
-  orgId: 'org-1',
+  orgId: null as string | null,
   createItem: vi.fn(),
   toast: vi.fn(),
 }));
