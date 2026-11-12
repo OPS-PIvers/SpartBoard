@@ -30,6 +30,8 @@ export interface TourAnchorDef {
   opensEmpty?: string;
   /** Surface id its click closes, or 'own' for the dialog it sits in; the dry run warns on a later step inside it. */
   closes?: string;
+  /** One element per row of a list, so a step can bind `#row-*` to whichever row the teacher picks. */
+  rows?: true;
 }
 
 export const TOUR_ANCHOR_PREREQUISITES = [
@@ -6014,11 +6016,13 @@ export const TOUR_ANCHORS = {
   'library-shell.card-open': {
     label: 'Library item card body (open)',
     perField: true,
+    rows: true,
   },
   'library-shell.card-primary-action': {
     label: 'Primary action button on a library item card',
     persists: true,
     perField: true,
+    rows: true,
   },
   'library-shell.card-secondary-action': {
     label: 'Secondary primary action button on a library item card',
@@ -6045,6 +6049,7 @@ export const TOUR_ANCHORS = {
       'Primary action button on an assignment row (In Progress or Archive tab)',
     persists: true,
     perField: true,
+    rows: true,
   },
   'library-shell.archive-menu': {
     label:
@@ -6195,6 +6200,7 @@ export const TOUR_ANCHORS = {
     label: 'Edit class button in My Classes',
     perField: true,
     panel: true,
+    rows: true,
   },
   'classes.sync-classlink': {
     label: 'Sync with ClassLink button in My Classes',
@@ -6206,6 +6212,7 @@ export const TOUR_ANCHORS = {
     label: 'Link to Google Classroom button in My Classes',
     perField: true,
     panel: true,
+    rows: true,
   },
   'classes.delete-roster': {
     label: 'Delete class button in My Classes',
@@ -6217,26 +6224,31 @@ export const TOUR_ANCHORS = {
     label: 'Class actions menu in My Classes',
     perField: true,
     panel: true,
+    rows: true,
   },
   'classes.classroom-course-row': {
     label: 'Course row in the Link to Google Classroom modal',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.open-plc': {
     label: 'Open a team card in My Teams',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.actions-menu': {
     label: 'Team actions kebab in My Teams',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.edit-plc': {
     label: 'Edit/View PLC action in the PLC actions menu',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.delete-plc': {
     label: 'Delete PLC action in the PLC actions menu',
@@ -6593,6 +6605,7 @@ export const TOUR_ANCHORS = {
   'plc-assessments.open': {
     label: 'Open button in the PLC assessments tab',
     perField: true,
+    rows: true,
   },
   'plc-assessments.status': {
     label: 'Status chip on a PLC assessment row',
@@ -6606,11 +6619,13 @@ export const TOUR_ANCHORS = {
     label: 'Assign button in the PLC assessments tab',
     persists: true,
     perField: true,
+    rows: true,
   },
   'plc-assessments.menu': {
     label: 'Menu button in the PLC assessments tab',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plc-assessments.menu-item': {
     label: 'Menu item button in the PLC assessments tab',
@@ -17726,6 +17741,17 @@ export const tourAnchorRef = (
     : widgetType
       ? `${id}:${widgetType}`
       : id;
+
+/** The field key that binds a step to every row of a `rows` anchor. */
+export const ROW_WILDCARD = 'row-*';
+
+/** Whether a ref binds to whichever row the teacher picks; never on a destructive anchor. */
+export const isRowWildcardRef = (ref: string): boolean => {
+  const { id, fieldKey } = parseTourAnchorRef(ref);
+  if (fieldKey !== ROW_WILDCARD || !isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.rows && !def.destructive;
+};
 
 export const parseTourAnchorRef = (
   ref: string
