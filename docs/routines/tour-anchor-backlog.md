@@ -69,3 +69,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-11-09 | claude/tour-anchors-2026-11-09 | Teams (PLC redesign mockup, dev harnesses, mobile shell controls, hidden date inputs) | 0 | 41 | 0 | 271 in 110 files |
 | 2026-11-10 | claude/tour-anchors-2026-11-10 | Admin (widget config panels, access rows, AI models, hidden file inputs) | 3 | 22 | 2 files | 4 in 2 files, all deferred |
 | 2026-11-11 | claude/tour-anchors-2026-11-11 | Outside the board (auth screens, substitute portal) | 0 | 34 | 0 | 212 in 76 files |
+| 2026-11-12 | claude/tour-anchors-2026-11-12 | Outside the board (phone remote: mobile view, widget card, activity wall, breathing, checklist, clock, dice, embed, expectations, music, next up controls) | 0 | 32 | 0 | 179 in 64 files |

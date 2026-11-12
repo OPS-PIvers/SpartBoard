@@ -119,8 +119,8 @@ beforeEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId} update — transferLead', () => {
-  it('the lead can transfer leadership to an existing member', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can transfer leadership to an existing member', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         leadUid: MEMBER_UID,
         members: {
@@ -249,8 +249,8 @@ describe('plcs/{plcId} update — transferLead', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId} update — setMemberRole', () => {
-  it('the lead can promote a member to coLead (leadUid unchanged)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can promote a member to coLead (leadUid unchanged)', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -266,8 +266,8 @@ describe('plcs/{plcId} update — setMemberRole', () => {
     );
   });
 
-  it('the lead can set a member to viewer', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can set a member to viewer', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -296,8 +296,8 @@ describe('plcs/{plcId} update — setMemberRole', () => {
 });
 
 describe('plcs/{plcId} update — removeMember', () => {
-  it('the lead can remove a member (drops them from memberUids + flips status)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can remove a member (drops them from memberUids + flips status)', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -416,9 +416,9 @@ describe('plcs/{plcId} update — isChangingMemberRole (co-lead)', () => {
     });
   };
 
-  it('a co-lead can change another member to viewer (with roleChangeUid)', async () => {
+  it('client write refused (plcMembershipV1 does it): a co-lead can change another member to viewer (with roleChangeUid)', async () => {
     await seedWithCoLead();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -553,9 +553,9 @@ describe('plcs/{plcId} update — transferLead (co-lead)', () => {
     });
   };
 
-  it('a co-lead can transfer leadership to another member (lockstep map move)', async () => {
+  it('client write refused (plcMembershipV1 does it): a co-lead can transfer leadership to another member (lockstep map move)', async () => {
     await seedWithCoLead();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         leadUid: OTHER_UID,
         members: {
@@ -602,8 +602,8 @@ describe('plcs/{plcId} update — transferLead (co-lead)', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
-  it('a non-lead member can self-remove (flips own status, drops from indexes)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a non-lead member can self-remove (flips own status, drops from indexes)', async () => {
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -674,7 +674,7 @@ describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
     }
   );
 
-  it('rejects a co-lead leaver writing role lead, while a role-kept co-lead leave succeeds', async () => {
+  it('client write refused (plcMembershipV1 does it): rejects a co-lead leaver writing role lead, while a role-kept co-lead leave succeeds', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
         [`members.${MEMBER_UID}`]: member(MEMBER_UID, MEMBER_EMAIL, 'coLead'),
@@ -696,7 +696,7 @@ describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
         updatedAt: 2,
       });
     await assertFails(leave('lead'));
-    await assertSucceeds(leave('coLead'));
+    await assertFails(leave('coLead'));
   });
 
   it('rejects a non-member driving the leave path', async () => {
@@ -756,8 +756,8 @@ describe('plcs/{plcId} — members known only to the arrays (invite accepted)', 
     await assertFails(getDoc(doc(asNonMember(), `plcs/${PLC_ID}`)));
   });
 
-  it('the lead can transfer leadership to an array-only member', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can transfer leadership to an array-only member', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         leadUid: JOINED_UID,
         [`members.${LEAD_UID}`]: member(LEAD_UID, LEAD_EMAIL, 'member'),
@@ -779,8 +779,8 @@ describe('plcs/{plcId} — members known only to the arrays (invite accepted)', 
     );
   });
 
-  it('the lead can make an array-only member a co-lead', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can make an array-only member a co-lead', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         [`members.${JOINED_UID}`]: member(JOINED_UID, JOINED_EMAIL, 'coLead'),
         roleChangeUid: JOINED_UID,
@@ -828,8 +828,8 @@ describe('plcs/{plcId} — members known only to the arrays (invite accepted)', 
     );
   });
 
-  it('the lead can remove an array-only member from the indexes', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can remove an array-only member from the indexes', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         memberUids: [LEAD_UID, MEMBER_UID],
         memberEmails: {
@@ -841,8 +841,8 @@ describe('plcs/{plcId} — members known only to the arrays (invite accepted)', 
     );
   });
 
-  it('the array-only member can leave without touching the map', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the array-only member can leave without touching the map', async () => {
+    await assertFails(
       updateDoc(doc(asJoined(), `plcs/${PLC_ID}`), {
         memberUids: [LEAD_UID, MEMBER_UID],
         memberEmails: {
@@ -984,7 +984,7 @@ describe('plcs/{plcId} update — broad lead branch keeps memberUids in step', (
     );
   });
 
-  it('the lead can drop a removed-but-still-indexed member by naming them', async () => {
+  it('client write refused (plcMembershipV1 does it): the lead can drop a removed-but-still-indexed member by naming them', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
         [`members.${OTHER_UID}`]: member(
@@ -995,7 +995,7 @@ describe('plcs/{plcId} update — broad lead branch keeps memberUids in step', (
         ),
       });
     });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(plcRef(), {
         memberUids: [LEAD_UID, MEMBER_UID],
         memberEmails: { [LEAD_UID]: LEAD_EMAIL, [MEMBER_UID]: MEMBER_EMAIL },
@@ -1058,8 +1058,8 @@ describe('plcs/{plcId} update — role change keeps the target active', () => {
     );
   });
 
-  it('the lead can still make an active member a viewer', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): the lead can still make an active member a viewer', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         [`members.${OTHER_UID}`]: member(OTHER_UID, OTHER_EMAIL, 'viewer'),
         roleChangeUid: OTHER_UID,

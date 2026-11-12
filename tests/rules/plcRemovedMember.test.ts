@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -281,8 +281,8 @@ describe('re-accepting an invite resets a stale entry', () => {
     );
   });
 
-  it('allows an accept that rewrites the entry as an active member, which then cannot invite', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): allows an accept that rewrites the entry as an active member, which then cannot invite', async () => {
+    await assertFails(
       updateDoc(doc(asExColead(), `plcs/${PLC_ID}`), {
         memberUids: arrayUnion(EX_COLEAD_UID),
         [`memberEmails.${EX_COLEAD_UID}`]: EX_COLEAD_EMAIL,
@@ -357,16 +357,16 @@ describe('accepting an invite on a mapped PLC', () => {
     });
   });
 
-  it('allows a first-time arrays-only accept', async () => {
+  it('client write refused (plcMembershipV1 does it): allows a first-time arrays-only accept', async () => {
     const db = as(NEW_UID, NEW_EMAIL);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, `plcs/${PLC_ID}`), {
         memberUids: arrayUnion(NEW_UID),
         [`memberEmails.${NEW_UID}`]: NEW_EMAIL,
         updatedAt: 2,
       })
     );
-    await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
+    await assertFails(getDoc(doc(db, `plcs/${PLC_ID}`)));
   });
 
   it('denies a self entry carrying keys the client never writes', async () => {
@@ -383,9 +383,9 @@ describe('accepting an invite on a mapped PLC', () => {
     );
   });
 
-  it('a rejoin over a removed viewer entry resets it to an active member who can edit', async () => {
+  it('refuses a client rejoin over a removed viewer entry (plcMembershipV1 does it)', async () => {
     const db = as(EX_VIEWER_UID, EX_VIEWER_EMAIL);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, `plcs/${PLC_ID}`), {
         memberUids: arrayUnion(EX_VIEWER_UID),
         [`memberEmails.${EX_VIEWER_UID}`]: EX_VIEWER_EMAIL,
@@ -397,14 +397,7 @@ describe('accepting an invite on a mapped PLC', () => {
         updatedAt: 2,
       })
     );
-    const snap = await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
-    const mine = (
-      snap.data()?.members as Record<string, { role: string; status: string }>
-    )[EX_VIEWER_UID];
-    expect(mine).toMatchObject({ role: 'member', status: 'active' });
-    await assertSucceeds(
-      setDoc(doc(db, `plcs/${PLC_ID}/meta/learningTargets`), learningTargets)
-    );
+    await assertFails(getDoc(doc(db, `plcs/${PLC_ID}`)));
   });
 
   it('a rejoin over a removed viewer entry cannot add a mentor tag', async () => {

@@ -3993,6 +3993,8 @@ describe('index barrel — deployed export set', () => {
     'syncBuildingGroupV1',
     'onUserProfileBuildingsChangedV1',
     'plcMembershipV1',
+    'orgAdminV1',
+    'shareMembershipV1',
     'setPlcNormingFlagV1',
     'finalizePlcRecordingV1',
     'deletePlcRecordingAudioV1',

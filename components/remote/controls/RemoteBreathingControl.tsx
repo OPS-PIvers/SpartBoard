@@ -61,7 +61,7 @@ export const RemoteBreathingControl: React.FC<RemoteBreathingControlProps> = ({
           {PATTERNS.map(({ value, label, desc }) => {
             const isActive = config.pattern === value;
             return (
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 key={value}
                 onClick={() => set({ pattern: value })}
                 className={`touch-manipulation flex items-center justify-between px-4 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
@@ -88,7 +88,7 @@ export const RemoteBreathingControl: React.FC<RemoteBreathingControlProps> = ({
           {VISUALS.map(({ value, label, icon }) => {
             const isActive = config.visual === value;
             return (
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 key={value}
                 onClick={() => set({ visual: value })}
                 className={`touch-manipulation flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
@@ -113,7 +113,7 @@ export const RemoteBreathingControl: React.FC<RemoteBreathingControlProps> = ({
         </div>
         <div className="flex flex-wrap gap-3">
           {COLORS.map((color) => (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               key={color}
               onClick={() => set({ color })}
               className="touch-manipulation w-10 h-10 rounded-full transition-all active:scale-95"

@@ -8,7 +8,6 @@ import {
   setDoc,
   addDoc,
   deleteDoc,
-  deleteField,
   onSnapshot,
   query,
   orderBy,
@@ -19,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { assertViewAsCanWrite, isViewAsTab } from '@/utils/viewAsTab';
+import { callShareMembership } from '@/utils/shareMembershipClient';
 import {
   mergeDashboardForSave,
   type SaveBaseline,
@@ -1051,9 +1051,11 @@ export const useFirestore = (userId: string | null) => {
         mockSharedStore.update(shareId, { participants });
         return;
       }
-      const docRef = doc(db, 'shared_boards', shareId);
-      await updateDoc(docRef, {
-        [`participants.${userId}`]: entry,
+      await callShareMembership({
+        action: 'joinBoard',
+        shareId,
+        role,
+        ...(displayName ? { displayName } : {}),
       });
     },
     [userId]
@@ -1074,10 +1076,7 @@ export const useFirestore = (userId: string | null) => {
         mockSharedStore.update(shareId, { participants });
         return;
       }
-      const docRef = doc(db, 'shared_boards', shareId);
-      await updateDoc(docRef, {
-        [`participants.${userId}`]: deleteField(),
-      });
+      await callShareMembership({ action: 'leaveBoard', shareId });
     },
     [userId]
   );
