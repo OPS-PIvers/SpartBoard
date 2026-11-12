@@ -9070,6 +9070,8 @@ export interface WebTourCheckRun {
   sig: string;
   /** By step id; a step the run never reached has none. */
   results: Record<string, WebTourCheckResult>;
+  /** Weak steps the admin confirmed are the right element: step id to the `fixKey` of the locator confirmed. */
+  accepted?: Record<string, string>;
 }
 
 /** Better clues the extension found for a step that missed or played weak (C14); the admin accepts or dismisses them. */

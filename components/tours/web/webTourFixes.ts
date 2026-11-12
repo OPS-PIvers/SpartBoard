@@ -9,7 +9,7 @@ import type { TourRun } from '@/components/tours/tourRuns';
 import type { NameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import { parseWeak } from './webTourHealth';
 import { scrubLocator } from './recordedSteps';
-import { targetsSignature } from './webStepReview';
+import { isConfirmedWeak, targetsSignature } from './webStepReview';
 import { checkFixClues, fixKey, runFixClues } from './fixClues';
 
 export { FIX_CLUES, fixKey } from './fixClues';
@@ -95,7 +95,9 @@ export function suggestionFor(
     fixKey(s.locator) !== current &&
     fixKey(s.locator) !== dismissed;
   const check = set.webSuggestions?.[step.id];
-  const foundSince = set.webTourChecked?.results[step.id] === 'found';
+  const foundSince =
+    set.webTourChecked?.results[step.id] === 'found' ||
+    isConfirmedWeak(set.webTourChecked, step);
   if (!foundSince && usable(check)) return check ?? null;
   const run = fromRuns.get(step.id);
   return usable(run) ? (run ?? null) : null;

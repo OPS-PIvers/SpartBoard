@@ -139,5 +139,19 @@ describe('web tour fixes client/server parity', () => {
       expect(!!fromServer).toBe(!!fromClient);
       expect(!!fromClient).toBe(result !== 'found');
     }
+    // An admin-confirmed weak match hides it on both sides too.
+    const confirmed = {
+      steps,
+      webSuggestions: { a: suggestion },
+      webTourChecked: {
+        by: 'x',
+        at: 3,
+        sig: 's',
+        results: { a: 'weak' as const },
+        accepted: { a: client.fixKey(steps[0].web?.locator) },
+      },
+    };
+    expect(client.suggestionFor(confirmed, steps[0], new Map())).toBeNull();
+    expect(server.stepFixes(confirmed, null, []).get('a')).toBeUndefined();
   });
 });
