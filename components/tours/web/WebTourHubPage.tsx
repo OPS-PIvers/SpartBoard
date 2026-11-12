@@ -53,11 +53,7 @@ import {
   type HubPlay,
   type LoadedPicture,
 } from './webTourHub';
-import {
-  isMessageStep,
-  webTourSequenceOf,
-  type WebTourSequenceStep,
-} from './tourSequence';
+import { webTourSequenceOf, type WebTourSequenceStep } from './tourSequence';
 import type { ExtensionUpdateStatus } from './extensionProtocol';
 import { FROM_PUBLIC_LINK_PATH, parseTourPath, START_PARAM } from './tourLinks';
 import { setIdForPublicLink } from './publicLinkStart';
@@ -70,10 +66,7 @@ import {
   type StepPictures,
 } from '@/components/tours/steps/stepsModel';
 import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
-import {
-  isWebTourSet,
-  type WebTourStep,
-} from '@/components/widgets/GuidedLearning/utils/liveTour';
+import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 
 const SignInPage = lazy(() =>
   import('@/components/auth/SignInPage').then((m) => ({
@@ -394,12 +387,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
   const storeId = extensionId();
   const tour = load.kind === 'ready' ? load.tour : null;
   const viewSteps = useMemo(
-    () =>
-      tour
-        ? stepsFromWebTour(
-            tour.steps.filter((s): s is WebTourStep => !isMessageStep(s))
-          )
-        : [],
+    () => (tour ? stepsFromWebTour(tour.steps) : []),
     [tour]
   );
   const viewPictures = useMemo<StepPictures>(
