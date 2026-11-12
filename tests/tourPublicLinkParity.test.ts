@@ -205,6 +205,39 @@ describe('public link parity', () => {
     expect(served?.find((s) => s.id === 'c')?.continueOn).toBe('claude.ai');
   });
 
+  it('reads hosts the same way: default ports and userinfo are not a new site', () => {
+    const step = (id: string, urlPattern: string) => ({
+      id,
+      label: id,
+      text: id,
+      web: { urlPattern, action: 'observe' },
+    });
+    const set = {
+      id: 'x2',
+      title: 'Hosts',
+      surface: 'web',
+      steps: [
+        step('a', 'https://claude.ai/x'),
+        step('b', 'https://claude.ai:443/y'),
+        step('c', 'https://me@Claude.AI/z'),
+        step('d', 'http://claude.ai:80/z'),
+        step('e', 'https://claude.ai:8443/z'),
+        step('f', 'https://claude.ai/z'),
+      ],
+    } as unknown as GuidedLearningSet;
+    const app = stepsFromWebTour(webTourSequenceOf(set));
+    const served = publicTourOf('x2', set, BUCKET)?.tour.steps;
+    expect(served).toEqual(app);
+    expect(served?.map((s) => s.continueOn)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'claude.ai:8443',
+      'claude.ai',
+    ]);
+  });
+
   it('draws Live steps the way the function serves them', () => {
     const app = stepsFromLiveTour(liveTour).steps;
     const served = publicTourOf('l1', liveTour, BUCKET)?.tour.steps;

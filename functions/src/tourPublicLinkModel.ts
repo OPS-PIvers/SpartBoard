@@ -151,10 +151,13 @@ const isMessage = (s: Rec) => s.message === true && !rec(s.web);
 const webSteps = (set: Rec) =>
   stepsOf(set).filter((s) => !!rec(s.web) || isMessage(s));
 
-/** A web urlPattern's host, lowercased with any port; null when it isn't an http(s) address (tourSequence.ts hostOf). */
+/** A web urlPattern's host, lowercased, without userinfo or a default port; null when it isn't an http(s) address (tourSequence.ts hostOf). */
 const hostOf = (urlPattern: unknown): string | null => {
-  const m = /^https?:\/\/([^/?#]+)/i.exec(str(urlPattern).trim());
-  return m ? m[1].toLowerCase() : null;
+  const m = /^(https?):\/\/([^/?#]+)/i.exec(str(urlPattern).trim());
+  if (!m) return null;
+  const host = m[2].slice(m[2].lastIndexOf('@') + 1).toLowerCase();
+  const defaultPort = m[1].toLowerCase() === 'https' ? ':443' : ':80';
+  return host.endsWith(defaultPort) ? host.slice(0, -defaultPort.length) : host;
 };
 
 /** The host each step is on when the tour just moved there from another site, by step index (tourSequence.ts siteSwitchesOf). */
