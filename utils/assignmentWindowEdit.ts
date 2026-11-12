@@ -19,7 +19,7 @@ export interface WindowBaseline {
   resolved: ResolvedAvailability;
 }
 
-/** The window as saved, resolved the same way as the edit so unchanged fields are never rewritten. A resource with no close shows "You end it". */
+/** The window as saved, resolved the same way as the edit so unchanged fields are never rewritten. A resource with no close shows "Manually ended". */
 export function windowBaselineFor(
   stored: Parameters<typeof availabilityFromStored>[0],
   rosters: readonly ClassRoster[],

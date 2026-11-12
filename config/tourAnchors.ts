@@ -1579,7 +1579,7 @@ export const TOUR_ANCHORS = {
   },
   'assign-availability.open-ended': {
     label:
-      'Opens now or Available until you end it choice in the Assign window',
+      'Opens now or Available until manually ended choice in the Assign window',
     perField: true,
     panel: true,
   },

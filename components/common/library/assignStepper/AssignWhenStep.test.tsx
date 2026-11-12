@@ -155,19 +155,19 @@ describe('formatWhenValue', () => {
     );
   });
 
-  it('reads Now and You end it for a study resource', () => {
+  it('reads Now and Manually ended for a study resource', () => {
     const at = (opensNow: boolean, noEnd: boolean): AssignWhenValue => ({
       ...BELL,
       availability: { ...BELL.availability, opensNow, noEnd },
     });
     expect(fmt(at(true, true), 'available')).toBe(
-      'Available now until you end it'
+      'Available now until manually ended'
     );
     expect(fmt(at(true, false), 'available')).toBe(
       'Available now until Oct 8, end of class'
     );
     expect(fmt(at(false, true), 'available')).toBe(
-      'Available Oct 8, start of class until you end it'
+      'Available Oct 8, start of class until manually ended'
     );
     expect(fmt(at(true, true), 'when')).toMatch(/^Open Oct 8/);
   });
@@ -275,7 +275,7 @@ describe('AssignWhenStep', () => {
     expect(screen.queryByText('Allow submissions after close')).toBeNull();
   });
 
-  it('switches a study resource between Now / You end it and dates', () => {
+  it('switches a study resource between Now / Manually ended and dates', () => {
     const onValue = vi.fn<(v: AssignWhenValue) => void>();
     render(
       <Harness
@@ -290,7 +290,7 @@ describe('AssignWhenStep', () => {
     const opens = screen.getByLabelText('Opens');
     expect((opens as HTMLSelectElement).value).toBe('open');
     expect(screen.getByRole('option', { name: 'Now' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'You end it' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Manually ended' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Available until'), {
       target: { value: 'date' },
     });
@@ -298,7 +298,7 @@ describe('AssignWhenStep', () => {
       opensNow: true,
       noEnd: false,
     });
-    fireEvent.click(screen.getByRole('button', { name: 'You end it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manually ended' }));
     expect(onValue.mock.lastCall?.[0].availability.noEnd).toBe(true);
   });
 

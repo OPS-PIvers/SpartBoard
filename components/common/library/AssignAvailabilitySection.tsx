@@ -173,7 +173,7 @@ const OpenEndedField: React.FC<{
       >
         {label}
       </label>
-      <span className="relative flex h-8 w-40 items-center gap-1.5 rounded-lg border border-slate-300 bg-white pl-2.5 pr-2 text-sm text-slate-800 focus-within:border-brand-blue-primary">
+      <span className="relative flex h-8 w-44 items-center gap-1.5 rounded-lg border border-slate-300 bg-white pl-2.5 pr-2 text-sm text-slate-800 focus-within:border-brand-blue-primary">
         <CalendarClock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
         <select
           id={id}
@@ -208,7 +208,7 @@ export const SpecRows: React.FC<{
   hideOpens?: boolean;
   /** A study resource that opens as soon as it's assigned. */
   opensNow?: boolean;
-  /** Offers Now / You end it in place of the dates; absent keeps the dates fixed. */
+  /** Offers Now / Manually ended in place of the dates; absent keeps the dates fixed. */
   onOpenEnded?: (next: { opensNow: boolean; noEnd: boolean }) => void;
 }> = ({
   spec,
@@ -234,7 +234,7 @@ export const SpecRows: React.FC<{
     ? t('assignAvailability.availableUntil', 'Available until')
     : t('assignAvailability.closes', 'Closes');
   const nowLabel = t('assignAvailability.now', 'Now');
-  const endsLabel = t('assignAvailability.youEndIt', 'You end it');
+  const endsLabel = t('assignAvailability.manuallyEnded', 'Manually ended');
   return (
     <div className="space-y-2">
       {!hideOpens && openEnded && opensNow && (

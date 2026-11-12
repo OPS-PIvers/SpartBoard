@@ -118,7 +118,7 @@ export function formatWhenValue(
     const { opensNow, noEnd } = value.availability;
     if (opensNow && noEnd)
       return t('assignWhen.availableNowOpenEnded', {
-        defaultValue: 'Available now until you end it',
+        defaultValue: 'Available now until manually ended',
       });
     if (opensNow)
       return t('assignWhen.availableNowUntil', {
@@ -128,7 +128,8 @@ export function formatWhenValue(
     if (noEnd)
       return t('assignWhen.availableFromOpenEnded', {
         ...openPoint,
-        defaultValue: 'Available {{openDay}}, {{openTime}} until you end it',
+        defaultValue:
+          'Available {{openDay}}, {{openTime}} until manually ended',
       });
     return t('assignWhen.availableRange', {
       ...vars,
