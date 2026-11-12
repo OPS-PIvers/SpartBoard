@@ -1002,7 +1002,7 @@ service cloud.firestore {
         && newKeys().hasOnly(['itemId', 'kind', 'syncGroupId', 'ownerUid', 'title', 'questionCount', 'targetIds', 'addedAt', 'folderId'])
         && incoming().itemId == itemId
         && isStr('syncGroupId') && isStr('ownerUid')
-        && isInt('addedAt');
+        && isInt('addedAt') && optString(incoming(), 'folderId');
     }
 
     // Activity Wall library - per-user reusable activity definitions.
@@ -2329,7 +2329,7 @@ service cloud.firestore {
     // One doc ('published') mapping each published item id to its building/grade/everyone targeting, without names.
     // 'folders' holds folder names for staff; 'audiences' holds folder audiences, which name teachers, for admins only.
     match /district_library_index/{indexId} {
-      allow get: if isSiteAdmin() || (isDistrictStaff() && indexId != 'audiences');
+      allow get: if (isDistrictStaff() && indexId != 'audiences') || isSiteAdmin();
       allow list: if false;
       allow write: if isSiteAdmin() && indexId in ['published', 'folders', 'audiences'];
     }

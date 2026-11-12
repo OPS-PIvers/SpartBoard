@@ -66,6 +66,16 @@ function findClose(s: string, from: number, to: number, mark: string): number {
     ) {
       return k;
     }
+    // Step over a nested run of another mark, so *a **b** c* closes after c.
+    for (const { mark: inner } of MARKS) {
+      if (inner === mark || !s.startsWith(inner, k)) continue;
+      if (!canOpen(s, k, from, inner)) continue;
+      const end = findClose(s, k + inner.length, to - mark.length, inner);
+      if (end !== -1) {
+        k = end + inner.length - 1;
+        break;
+      }
+    }
   }
   return -1;
 }
@@ -170,7 +180,9 @@ export function promptFormatHtml(
   return text
     .split('\n')
     .map((line) =>
-      nodesToHtml(parsePromptInline(line), (s) => escapeHtml(leaf(s)))
+      nodesToHtml(parsePromptInline(line), (s) =>
+        escapeHtml(leaf(s.replaceAll(ZWSP, '')))
+      )
     )
     .join('\n');
 }
