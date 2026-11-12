@@ -19,8 +19,19 @@ interface BadgePopoverProps {
 }
 
 const PANEL_WIDTH = 340;
+const GAP = 4;
+const EDGE = 8;
 
-/** Makes a roster badge a button that opens a small panel beneath it. */
+interface PanelPos {
+  left: number;
+  /** Below the badge: `top`; flipped above it: `bottom`, both in viewport px. */
+  top?: number;
+  bottom?: number;
+  maxHeight: number;
+  checked: boolean;
+}
+
+/** Makes a roster badge a button that opens a small panel beneath it, or above it when only that side fits. */
 export const BadgePopover: React.FC<BadgePopoverProps> = ({
   triggerLabel,
   dialogLabel,
@@ -28,7 +39,7 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
   children,
 }) => {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<PanelPos | null>(null);
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -44,8 +55,31 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
       8,
       Math.min(rect.right - PANEL_WIDTH, window.innerWidth - PANEL_WIDTH - 8)
     );
-    setPos({ top: rect.bottom + 4, left });
+    setPos({
+      left,
+      top: rect.bottom + GAP,
+      maxHeight: Math.max(0, window.innerHeight - rect.bottom - GAP - EDGE),
+      checked: false,
+    });
   }, [open]);
+
+  // Flip above the badge when the panel overflows below and there is more room above.
+  useLayoutEffect(() => {
+    if (!pos || pos.checked || !panelRef.current || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const above = Math.max(0, rect.top - GAP - EDGE);
+    const overflows = panelRef.current.scrollHeight > pos.maxHeight;
+    setPos(
+      overflows && above > pos.maxHeight
+        ? {
+            left: pos.left,
+            bottom: window.innerHeight - rect.top + GAP,
+            maxHeight: above,
+            checked: true,
+          }
+        : { ...pos, checked: true }
+    );
+  }, [pos]);
 
   useEffect(() => {
     if (open && pos) panelRef.current?.focus();
@@ -53,12 +87,18 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
 
   useEffect(() => {
     if (!open) return undefined;
-    const close = () => setOpen(false);
+    // Scrolling the page moves the badge away, but scrolling a long panel itself must not close it.
+    const close = (e: Event) => {
+      if (e.target instanceof Node && panelRef.current?.contains(e.target))
+        return;
+      setOpen(false);
+    };
+    const closeOnResize = () => setOpen(false);
     window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
+    window.addEventListener('resize', closeOnResize);
     return () => {
       window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
+      window.removeEventListener('resize', closeOnResize);
     };
   }, [open]);
 
@@ -102,12 +142,14 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
             style={{
               position: 'fixed',
               top: pos.top,
+              bottom: pos.bottom,
               left: pos.left,
+              maxHeight: pos.maxHeight,
               width: PANEL_WIDTH,
               maxWidth: 'calc(100vw - 16px)',
               zIndex: Z_INDEX.dropdown,
             }}
-            className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-hidden"
+            className="overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-hidden"
           >
             {panel}
           </div>,
