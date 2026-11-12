@@ -6493,7 +6493,7 @@ service cloud.firestore {
         // The vote ids this caller may write; get() fails, denying, when it never joined.
         function pollVoteIds() {
           let q = string(incoming().questionIndex) + '_';
-          return [q + dbGet('poll_joins', pollJid()).data.get('voterId', authUid()), q + authUid()];
+          return [q + dbGet('poll_joins', pollJid()).data.voterId];
         }
 
         // A joined device may create/update ONLY the vote doc whose id ==
@@ -6502,7 +6502,6 @@ service cloud.firestore {
         // [0, optionCounts[questionIndex]); only while active and the question
         // isn't in lockedQuestions. Re-voting the
         // same question overwrites (one per device per question).
-        // The `_{uid}` id is for tabs still on the previous app; drop it after the next main release (AB-165).
         allow create, update: if signedIn() &&
           newKeys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
           isInt('questionIndex') &&

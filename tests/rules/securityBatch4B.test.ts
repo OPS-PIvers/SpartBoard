@@ -199,8 +199,8 @@ describe('poll votes', () => {
     );
   });
 
-  it('still takes a uid-keyed vote from a joined tab on the previous app', async () => {
-    await assertSucceeds(setDoc(voteRef(asAnon(), `0_${ANON_UID}`), vote()));
+  it('refuses a uid-keyed vote from a joined device', async () => {
+    await assertFails(setDoc(voteRef(asAnon(), `0_${ANON_UID}`), vote()));
   });
 
   it('refuses a device that never joined, under any id', async () => {
