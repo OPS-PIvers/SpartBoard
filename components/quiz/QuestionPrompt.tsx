@@ -1,6 +1,6 @@
 // The question text a student reads; a short stem is a bold heading, a long or multi-paragraph one reads as body text.
 import React from 'react';
-import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import { isLongPrompt, spacedPrompt } from '@/utils/quizPromptText';
 import { NumberedBlanksText } from './FibMultiBlankInput';
 
@@ -23,7 +23,7 @@ export const QuestionPrompt: React.FC<{
       {(blankCount ?? 0) >= 2 ? (
         <NumberedBlanksText text={shown} light={light} />
       ) : (
-        <MathText text={shown} />
+        <PromptText text={shown} />
       )}
     </h2>
   );

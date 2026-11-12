@@ -13,6 +13,7 @@
  * (`text-slate-500/600`).
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -267,7 +268,7 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
                             className="flex items-center justify-between gap-3 text-sm"
                           >
                             <span className="text-slate-600 truncate">
-                              {q.text ||
+                              {plainPromptText(q.text) ||
                                 t('plcDashboard.meeting.untitledQuestion', {
                                   defaultValue: 'Untitled question',
                                 })}

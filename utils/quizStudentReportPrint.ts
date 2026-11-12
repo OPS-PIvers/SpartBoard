@@ -1,5 +1,5 @@
 import { splitPictureLabels } from './quizAnswerImages';
-import { plainPromptText } from './promptMath';
+import { plainMathText, promptPrintHtml } from './promptMath';
 import {
   escapeHtml,
   printHtmlDocument,
@@ -124,7 +124,7 @@ export function buildStudentReportHtml(job: StudentReportJob): string {
         job.includeCorrectAnswers && showsMissedKey(line)
           ? `<div class="key">Correct answer: ${answerTextHtml(line.correctAnswerText ?? '', line)}</div>`
           : '';
-      return `<li><span class="num">Q${line.number}</span><div><div class="text">${escapeHtml(plainPromptText(line.text))}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
+      return `<li><span class="num">Q${line.number}</span><div><div class="text">${promptPrintHtml(line.text)}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
     })
     .join('');
 
@@ -385,11 +385,11 @@ const numbered = (items: readonly string[], line: StudentQuestionLine) =>
 
 /** Escaped answer text with each picture-only label printed as its picture and label. */
 function answerTextHtml(text: string, line: StudentQuestionLine): string {
-  if (!line.pictures) return escapeHtml(plainPromptText(text));
+  if (!line.pictures) return escapeHtml(plainMathText(text));
   return splitPictureLabels(text, line.pictures)
     .map((part) =>
       part.kind === 'text'
-        ? escapeHtml(plainPromptText(part.text))
+        ? escapeHtml(plainMathText(part.text))
         : `<span class="pic"><img src="${escapeHtml(part.picture.url)}" alt="${escapeHtml(part.picture.alt ?? '')}">${escapeHtml(part.label)}</span>`
     )
     .join('');
@@ -703,7 +703,7 @@ function studentReport(
         }
       }
       const text = options.includeQuestions
-        ? `<div class="text">${escapeHtml(plainPromptText(line.text))}</div>`
+        ? `<div class="text">${promptPrintHtml(line.text)}</div>`
         : '';
       return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup)}${explanationHtml(line, options)}</div>${markCell(line, options)}</li>`;
     })

@@ -1,5 +1,6 @@
 // Data hooks for team notes: the meeting-note template, block view-models and each member's "My items".
 
+import { plainPromptText } from '@/utils/promptMath';
 import { useCallback, useMemo, useState } from 'react';
 import type {
   LearningTarget,
@@ -153,7 +154,7 @@ export function decisionLinkModel(
         })
       : null;
   return {
-    label: `Q${q.number} ${q.text}${title ? ` · ${title}` : ''}`,
+    label: `Q${q.number} ${plainPromptText(q.text)}${title ? ` · ${title}` : ''}`,
     detail,
     assessmentId: link.assessmentId,
   };

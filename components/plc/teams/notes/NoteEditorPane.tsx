@@ -1,5 +1,6 @@
 // The open meeting note: sections from its body, live Data and Decision blocks, action items, recording (T11 to T14).
 
+import { plainPromptText } from '@/utils/promptMath';
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
@@ -384,7 +385,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
           .sort((x, y) => x.number - y.number)
           .map((q) => ({
             value: `q:${a.id}:${q.questionId}`,
-            label: `Q${q.number} ${q.text}`,
+            label: `Q${q.number} ${plainPromptText(q.text)}`,
           })),
       };
     });

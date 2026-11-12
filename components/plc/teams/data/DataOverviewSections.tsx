@@ -1,5 +1,6 @@
 // Props-driven sections of the PLC Data overview (T18, T19), drawn with the mockup's SVG chart kit (T20).
 
+import { plainPromptText } from '@/utils/promptMath';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -288,7 +289,7 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
               }),
             ]}
             rows={ordered.map((q) => [
-              `Q${q.number} ${q.text}`,
+              `Q${q.number} ${plainPromptText(q.text)}`,
               q.correctPercent === null ? '' : `${q.correctPercent}%`,
               q.dominantWrong
                 ? `${q.dominantWrong.label}, ${q.dominantWrong.percent}%`

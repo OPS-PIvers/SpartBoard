@@ -7,6 +7,7 @@ import {
   PenLine,
   BarChart,
   BellRing,
+  Bold,
   Bot,
   Building2,
   Cast,
@@ -675,6 +676,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Prompt formatting toolbar. Admin-only until Paul has tested it in prod.
+  'quiz-prompt-formatting': {
+    label: 'Question prompt formatting',
+    icon: Bold,
+    description:
+      'Bold, italic, underline and lists in the question prompt of quizzes and video activities.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

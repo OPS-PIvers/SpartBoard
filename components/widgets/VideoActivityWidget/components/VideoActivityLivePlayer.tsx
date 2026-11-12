@@ -3,6 +3,8 @@
  * teacher-paced (live) session (docs/plans/shipped/VA_TEACHER_PACED.md §5.2).
  */
 
+import { plainPromptText } from '@/utils/promptMath';
+import { PromptText } from '@/components/common/PromptText';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useMemo, useRef, useState } from 'react';
 import {
@@ -735,7 +737,7 @@ export const VideoActivityLivePlayer: React.FC<
                         className="text-slate-700 line-clamp-2"
                         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
                       >
-                        {i + 1}. {q.text}
+                        {i + 1}. {plainPromptText(q.text)}
                       </span>
                     </button>
                   </li>
@@ -779,10 +781,10 @@ const LiveQuestionBody: React.FC<{
   return (
     <>
       <p
-        className="font-bold text-slate-800 leading-snug"
+        className="font-bold text-slate-800 leading-snug whitespace-pre-line wrap-break-word"
         style={{ fontSize: 'min(28px, 7cqmin)' }}
       >
-        {question.text}
+        <PromptText text={question.text} />
       </p>
       <StopPicture
         fileId={question.imageDriveFileId}

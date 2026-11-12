@@ -6,6 +6,7 @@
  * what each question asks and what counts as right.
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import React from 'react';
 import { CheckCircle2, Film } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -116,7 +117,7 @@ export const VideoActivityPreview: React.FC<{
                       className="text-slate-200"
                       style={{ fontSize: 'min(14px, 5.5cqmin)' }}
                     >
-                      {index + 1}. {question.text}
+                      {index + 1}. {plainPromptText(question.text)}
                     </span>
                   </div>
                   <div

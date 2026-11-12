@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { plainPromptText } from '@/utils/promptMath';
+import { PromptText } from '@/components/common/PromptText';
 import {
   ArrowLeft,
   BarChart3,
@@ -527,7 +529,7 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
                       className="text-brand-gray-dark truncate"
                       style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                     >
-                      {q.text}
+                      {plainPromptText(q.text)}
                     </p>
                   </div>
                   <div
@@ -671,10 +673,10 @@ const QuestionDetail: React.FC<{
           {totalAnswered} answered
         </p>
         <p
-          className="font-semibold text-brand-blue-dark"
+          className="font-semibold text-brand-blue-dark whitespace-pre-line wrap-break-word"
           style={{ fontSize: 'min(15px, 5.5cqmin)', lineHeight: 1.3 }}
         >
-          {question.text}
+          <PromptText text={question.text} />
         </p>
       </div>
       {question.type === 'SA' ? (

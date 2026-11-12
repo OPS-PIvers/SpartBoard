@@ -11194,6 +11194,8 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Math keyboard and accent keys on student answer boxes, set per quiz. */
   | 'student-keyboards'
+  /** Bold, italic, underline and lists in the question prompt box of the Quiz and Video Activity editors. */
+  | 'quiz-prompt-formatting'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */

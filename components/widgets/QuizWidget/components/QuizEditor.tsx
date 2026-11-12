@@ -719,7 +719,7 @@ const QuestionRow = React.memo(function QuestionRow({
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="text-sm text-slate-700 truncate">
           {question.text ? (
-            <MathText text={question.text} />
+            <MathText text={question.text} format />
           ) : (
             <span className="italic text-slate-400">Untitled question</span>
           )}
@@ -847,6 +847,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const uploadWhiteboardImage = useWhiteboardImageUpload();
   const answerImagesOn = canAccessFeature('quiz-ordering-images');
   const keyboardsOn = canAccessFeature(STUDENT_KEYBOARDS_FEATURE);
+  const promptFormatOn = canAccessFeature('quiz-prompt-formatting');
   const blankTypesOn = canAccessFeature('quiz-blank-types');
   const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
@@ -862,10 +863,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   );
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
-  const readPrompt = useCallback(() => promptRef.current?.value, []);
+  const promptTextRef = useRef(selectedQuestion?.text);
+  // The formatted prompt box has no textarea, so fall back to the saved text.
+  const readPrompt = useCallback(
+    () => promptRef.current?.value ?? promptTextRef.current,
+    []
+  );
   const targetsRef = useRef(selectedQuestion?.targets);
   useLayoutEffect(() => {
     targetsRef.current = selectedQuestion?.targets;
+    promptTextRef.current = selectedQuestion?.text;
   });
   const readTargets = useCallback(() => targetsRef.current, []);
   const promptStandards = useStandardsFromPrompt(
@@ -982,7 +989,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         </div>
         <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
           {q.text.trim() ? (
-            <MathText text={q.text} />
+            <MathText text={q.text} format />
           ) : (
             `Question ${selectedIndex + 1}`
           )}
@@ -1000,6 +1007,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           textareaRef={promptRef}
           promptAccents={keyboardsOn ? defaultAccents : undefined}
           promptMath={keyboardsOn}
+          promptFormat={promptFormatOn}
         />
 
         {/* Learning targets */}

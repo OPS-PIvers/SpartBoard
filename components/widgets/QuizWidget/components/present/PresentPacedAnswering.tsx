@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import { QuizQuestion, QuizSession } from '@/types';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 import { resolveStimuli } from '@/utils/quizStimuli';
@@ -85,7 +85,7 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
         className={`font-sans font-semibold max-w-[80vw] leading-snug ${t.strong}`}
         style={{ fontSize: 'clamp(1.6rem, 5vw, 4.5rem)', textWrap: 'balance' }}
       >
-        <MathText text={question.text} />
+        <PromptText text={question.text} />
       </p>
       {stimuli.length > 0 && (
         <div

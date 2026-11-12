@@ -256,7 +256,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                       className="min-w-0 flex-1 text-left"
                     >
                       <span className="line-clamp-2 text-xs text-slate-700">
-                        {index + 1}. <MathText text={question.text} />
+                        {index + 1}. <MathText text={question.text} format />
                       </span>
                     </button>
                     <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xxs font-bold text-slate-600">
