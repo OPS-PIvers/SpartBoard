@@ -451,7 +451,10 @@ export const LiveTourRunner: React.FC = () => {
   // Counts step entries, so going Back to a step opens it afresh.
   const [visit, setVisit] = useState(0);
   // The editor's visit whose last step was just finished; the stage stops looking for its control.
-  const [editEndVisit, setEditEndVisit] = useState<number | null>(null);
+  const [editEnd, setEditEnd] = useState<{
+    visit: number;
+    step: GuidedLearningStep;
+  } | null>(null);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
   // The bar's Autopilot switch; handsOn marks a teacher who turned it off this run.
   const [autoOn, setAutoOn] = useState(false);
@@ -700,8 +703,13 @@ export const LiveTourRunner: React.FC = () => {
   }, [savedKey, ended]);
   const step =
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
+  // A draft edit swaps the step objects, so any change to the steps searches again.
   const editAtEnd =
-    !!tour?.edit && tour.phase === 'running' && editEndVisit === visit;
+    !!tour?.edit &&
+    tour.phase === 'running' &&
+    editEnd?.visit === visit &&
+    editEnd.step === step &&
+    tour.index + 1 === tour.steps.length;
   const anchor = useAnchorElement(
     editAtEnd ? null : (step?.tour ?? null),
     { widgetIds: added, slots: tour?.slots },
@@ -1425,7 +1433,10 @@ export const LiveTourRunner: React.FC = () => {
     setAuto(null);
     if (index >= tour.steps.length) {
       if (!tour.edit) finish(true);
-      else setEditEndVisit(visit);
+      else {
+        const last = tour.steps[tour.index];
+        if (last) setEditEnd({ visit, step: last });
+      }
       return;
     }
     if (caught === undefined) noteMiss();

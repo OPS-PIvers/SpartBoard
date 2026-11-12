@@ -292,6 +292,32 @@ describe('LiveTourRunner edit mode', () => {
     expect(getTourEditPlayback().missing).toEqual([]);
   });
 
+  it('plays a step added after the finished last step', async () => {
+    const two: Binding[] = [
+      { anchor: 'sidebar.boards', action: 'click' },
+      { anchor: 'sidebar.backgrounds', action: 'click' },
+    ];
+    await edit(makeSet(two), 1);
+    await run(3000);
+    fireEvent.click(screen.getByText('Menu'));
+    await run(1000);
+    expect(screen.getByTestId('tour-step-done')).toBeInTheDocument();
+    act(() =>
+      setTourEdit({
+        set: makeSet([...two, { anchor: 'dock.item:dice', action: 'click' }]),
+        selected: 2,
+        replay: 0,
+        readAloud: false,
+        v2: false,
+      })
+    );
+    await run(4000);
+    expect(screen.getByText('Step 3')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-step-done')).not.toBeInTheDocument();
+    expect(getTourEditPlayback().index).toBe(2);
+    expect(clicks.menu).toHaveBeenCalledTimes(2);
+  });
+
   it('stands aside while Record from here captures real clicks', async () => {
     await edit(makeSet(STEPS));
     await run(300);
