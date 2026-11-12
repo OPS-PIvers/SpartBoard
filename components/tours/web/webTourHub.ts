@@ -29,6 +29,7 @@ export function hubGateOf(
 ): 'play' | 'update' | 'update-now' {
   const needed = needsCrossSite(steps) ? CROSS_SITE_PROTOCOL : 0;
   if (protocol >= needed) return 'play';
+  // Reachable once a tour needs more than CROSS_SITE_PROTOCOL (X15: "from the next bump on").
   return protocol >= CROSS_SITE_PROTOCOL ? 'update-now' : 'update';
 }
 
