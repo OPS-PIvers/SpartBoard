@@ -148,7 +148,7 @@ export function switchAfter(
   return before && patternHost(before.urlPattern) !== site ? site : null;
 }
 
-/** The step plays on another of the tour's own sites than `url` (X1); a stray site is a wrong page instead. */
+/** The step is across a Site switch from `url`: the targeted step before or after it plays on that page's site (X1); anywhere else is a wrong page. */
 export function onOtherSite(
   steps: readonly PlaybackStep[],
   step: PlaybackStep,
@@ -157,8 +157,23 @@ export function onOtherSite(
   if (isMessage(step)) return false;
   const here = urlHost(url);
   if (!here || here === patternHost(step.urlPattern)) return false;
-  return steps.some((s) => !isMessage(s) && patternHost(s.urlPattern) === here);
+  const index = steps.indexOf(step);
+  const before = steps
+    .slice(0, Math.max(0, index))
+    .filter((s) => !isMessage(s))
+    .at(-1);
+  const after = steps[targetedFrom(steps, index + 1)];
+  return [before, after].some((s) => !!s && patternHost(s.urlPattern) === here);
 }
+
+/** Whether a step plays on `url`; a Message step reads as the next targeted step's page, so moving on and catch-up see through it. */
+const onPageOf =
+  (steps: readonly PlaybackStep[]) =>
+  (s: PlaybackStep, url: string): boolean => {
+    if (!isMessage(s)) return matchesUrlPattern(s.urlPattern, url);
+    const next = steps[targetedFrom(steps, steps.indexOf(s) + 1)];
+    return !!next && matchesUrlPattern(next.urlPattern, url);
+  };
 
 function pageStatus(
   state: PlaybackState,
@@ -303,7 +318,7 @@ function reduce(state: PlaybackState, event: PlaybackEvent): PlaybackState {
         if (
           next &&
           !matchesUrlPattern(step.urlPattern, event.url) &&
-          matchesUrlPattern(next.urlPattern, event.url) &&
+          onPageOf(state.tour.steps)(next, event.url) &&
           step.action !== 'observe'
         ) {
           return enterStep(state, state.index + 1, event.url);
@@ -314,7 +329,7 @@ function reduce(state: PlaybackState, event: PlaybackEvent): PlaybackState {
         state.tour.steps,
         state.index,
         event.url,
-        (s, url) => matchesUrlPattern(s.urlPattern, url),
+        onPageOf(state.tour.steps),
         leadsAway,
         LOOKAHEAD_STEPS
       );

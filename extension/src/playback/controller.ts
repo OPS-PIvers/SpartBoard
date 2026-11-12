@@ -305,10 +305,15 @@ export function createPlaybackController(host: PlaybackHost) {
       state.status === 'shown' && !isMessage(step) ? rec.targetFrameId : null;
     const settled = state.status === 'shown' || state.status === 'fallback';
     const switching = state.status === 'switch';
+    const ahead =
+      state.status === 'shown'
+        ? switchAfter(state.tour.steps, state.index)
+        : null;
+    // A message before a switch whose site the learner is already on keeps plain Next.
     const go = switching
       ? patternHost(step.urlPattern)
-      : state.status === 'shown'
-        ? switchAfter(state.tour.steps, state.index)
+      : ahead && hostOf(rec.url) !== ahead
+        ? ahead
         : null;
     const base = {
       title: switching ? '' : step.title.slice(0, MAX_TITLE),
@@ -614,12 +619,18 @@ export function createPlaybackController(host: PlaybackHost) {
   }
 
   /** Go to {host} (X2, X3, X6): finishes a message before a switch, then reuses the run's tab on that site or opens one. */
-  async function goSite(rec: TabRecord): Promise<void> {
+  async function goSite(given: TabRecord): Promise<void> {
+    let rec = given;
     if (
       rec.state.status === 'shown' &&
       switchAfter(rec.state.tour.steps, rec.state.index)
-    )
+    ) {
       await dispatch(rec, { type: 'next' });
+      // A check run may already have crossed inside that dispatch (X5), leaving this tab.
+      const now = await load(rec.tabId);
+      if (!now) return;
+      rec = now;
+    }
     if (statusOf(rec) !== 'switch') return;
     const step = rec.state.tour.steps[rec.state.index];
     const site = patternHost(step.urlPattern);
@@ -636,8 +647,14 @@ export function createPlaybackController(host: PlaybackHost) {
           await host.navigate(known, url);
           return;
         }
-        await host.inject(known, [0], true);
-        await dispatch(moved, { type: 'page', url: at });
+        // In the reused tab's own queue, so a find reported there sees this seek; not awaited, so the two queues never wait on each other.
+        void serial(known, async () => {
+          const there = await load(known);
+          if (!there) return;
+          await host.inject(known, [0], true);
+          there.url = at;
+          await dispatch(there, { type: 'page', url: at });
+        }).catch(() => undefined);
         return;
       }
     }
