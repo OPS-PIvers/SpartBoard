@@ -5,6 +5,7 @@ import type { ReadingContext } from '@/utils/inputSignals';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   INPUT_SIGNALS_FEATURE,
+  MANAGED_PROFILE_FEATURE,
   formatFindingQuestions,
   inputFindingsByAttempt,
 } from '@/utils/inputSignals';
@@ -39,8 +40,10 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
   questionOrder,
   children,
 }) => {
-  const enabled =
-    useContext(AuthContext)?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
+  const auth = useContext(AuthContext);
+  const enabled = auth?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
+  const expectManaged =
+    auth?.canAccessFeature?.(MANAGED_PROFILE_FEATURE) === true;
   const attempts = useMemo(() => {
     if (!enabled) return [];
     // A submit bumps the count, so the answers on the doc are the attempt before it.
@@ -52,7 +55,13 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
             answered: new Set(allAnswers.map((a) => a.questionId)),
           }
         : undefined;
-    return inputFindingsByAttempt(signals, current, answers, reading);
+    return inputFindingsByAttempt(
+      signals,
+      current,
+      answers,
+      reading,
+      expectManaged
+    );
   }, [
     enabled,
     signals,
@@ -61,6 +70,7 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
     answers,
     questionWords,
     allAnswers,
+    expectManaged,
   ]);
 
   const count = attempts.reduce((n, a) => n + a.findings.length, 0);
@@ -80,7 +90,7 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
             Signs that another app may have entered answers. Each has innocent
             causes, so treat these as a reason to talk, not as proof.
           </p>
-          {attempts.map(({ attempt, findings }) => (
+          {attempts.map(({ attempt, findings, browsers }) => (
             <div key={attempt} className="mt-2">
               {attempts.length > 1 && (
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -102,6 +112,11 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
                   </li>
                 ))}
               </ul>
+              {browsers.length > 0 && (
+                <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-600">
+                  Browser: {browsers.join('; ')}
+                </p>
+              )}
             </div>
           ))}
         </>

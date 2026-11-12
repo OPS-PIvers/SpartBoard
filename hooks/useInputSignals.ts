@@ -8,6 +8,8 @@ import {
 } from '@/utils/inputSignals';
 import { WRITING_LOG_BUDGET, utf8Length } from '@/utils/writingLog';
 import { isTrustedEvent } from '@/utils/eventTrust';
+import { detectQuizEnvironment } from '@/utils/quizEnvironment';
+import { pingExtension } from '@/components/tours/web/extensionClient';
 import { logError } from '@/utils/logError';
 
 export interface UseInputSignalsArgs {
@@ -95,6 +97,10 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     collector.clock(performance.now(), visible());
     if ((window.screen as Screen & { isExtended?: boolean }).isExtended)
       collector.extraScreen();
+    void detectQuizEnvironment(pingExtension).then(
+      (env) => collector.setEnvironment(env.browser, env.profile),
+      (err: unknown) => logError('useInputSignals.environment', err)
+    );
     const flush = () => {
       const save = argsRef.current.save;
       collector.clock(performance.now(), visible());

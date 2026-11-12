@@ -76,6 +76,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'widget-connections',
   'focus-sessions',
   'input-signals',
+  'managed-profile-check',
   'staff-audience',
   'universal-import',
   'import-extension-send',
