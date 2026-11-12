@@ -633,6 +633,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-banks.select-mode': ['quiz.banks'],
     'quiz-banks.empty-new-bank': ['quiz.banks'],
     'quiz-banks.shared-preview': ['quiz.banks'],
+    'quiz-banks.district-preview': ['quiz.banks', 'quiz.face'],
     'quiz-import.review-only-flagged': ['quiz.import'],
     'quiz-import.review-include': ['quiz.import'],
     'quiz-import.review-question-text': ['quiz.import'],

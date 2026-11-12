@@ -2939,6 +2939,12 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-banks.district-preview': {
+    label:
+      'Preview on a District library bank row in the Quiz library, by item',
+    perField: true,
+    panel: true,
+  },
   'quiz-import.review-only-flagged': {
     label: 'Show only flagged rows in Quiz import',
     perWidgetType: true,

@@ -93,7 +93,7 @@ export interface QuizBanksTabProps {
     meta: QuestionBankMetadata,
     plcId: string
   ) => void | Promise<void>;
-  onPreviewSharedBank?: (source: BankSource) => void;
+  onPreviewBank?: (source: BankSource) => void;
   /** Surfaces a failed folder move (drag or bulk) as a toast. */
   onError?: (message: string) => void;
   /** Set when banks share the Quiz library's folders. */
@@ -166,7 +166,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onReorderBanks,
   onShareBankWithPlc,
   onUnshareBankFromPlc,
-  onPreviewSharedBank,
+  onPreviewBank,
   onError,
   libraryFolders,
 }) => {
@@ -423,17 +423,20 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         }
         badges={chip ? [{ label: chip, tone: 'neutral' }] : undefined}
         primaryAction={
-          onPreviewSharedBank
+          onPreviewBank
             ? {
                 label: 'Preview',
                 icon: Eye,
-                onClick: () => onPreviewSharedBank(source),
+                onClick: () => onPreviewBank(source),
+                anchor: tourFieldAttr('quiz-banks.shared-preview', 'quiz', key),
               }
             : undefined
         }
         secondaryActions={actions}
         onDoubleClick={
-          onPreviewSharedBank ? () => onPreviewSharedBank(source) : undefined
+          onPreviewBank && !source.unavailable
+            ? () => onPreviewBank(source)
+            : undefined
         }
         viewMode="list"
         sortable={false}
@@ -454,6 +457,25 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         </span>
       }
       badges={[{ label: 'District library', tone: 'info' }]}
+      primaryAction={
+        onPreviewBank && !source.unavailable
+          ? {
+              label: 'Preview',
+              icon: Eye,
+              onClick: () => onPreviewBank(source),
+              anchor: tourFieldAttr(
+                'quiz-banks.district-preview',
+                'quiz',
+                source.key
+              ),
+            }
+          : undefined
+      }
+      onDoubleClick={
+        onPreviewBank && !source.unavailable
+          ? () => onPreviewBank(source)
+          : undefined
+      }
       secondaryActions={
         onRemoveDistrictBank
           ? [
@@ -710,7 +732,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                     {source.plcName ? ` · ${source.plcName}` : ''}
                   </span>
                 </span>
-                {onPreviewSharedBank && (
+                {onPreviewBank && (
                   <button
                     type="button"
                     {...tourFieldAttr(
@@ -718,7 +740,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                       'quiz',
                       source.key
                     )}
-                    onClick={() => onPreviewSharedBank(source)}
+                    onClick={() => onPreviewBank(source)}
                     className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />

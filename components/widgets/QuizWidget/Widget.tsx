@@ -1158,6 +1158,30 @@ const TeacherQuizWidget: React.FC<{
     [updateWidget, widget.id, config]
   );
 
+  // Shared and District library banks open read-only, the same way district quiz copies do.
+  const previewBankSource = async (source: BankSource) => {
+    setLoadingQuizData(true);
+    try {
+      const content = await loadBankContent(source);
+      setLoadedQuizData({
+        id: content.id,
+        title: content.title || source.title,
+        questions: content.questions,
+        ...(content.stimuli ? { stimuli: content.stimuli } : {}),
+        createdAt: 0,
+        updatedAt: 0,
+      });
+      setView('preview');
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Could not open that bank.',
+        'error'
+      );
+    } finally {
+      setLoadingQuizData(false);
+    }
+  };
+
   const loadQuiz = useCallback(
     async (
       meta: QuizMetadata,
@@ -4257,6 +4281,7 @@ const TeacherQuizWidget: React.FC<{
         sharedBankSources={sharedBankSources}
         districtBankSources={districtBankSources}
         onRemoveDistrictBank={removeDistrictSource}
+        onPreviewBank={previewBankSource}
         districtFolders={districtFoldersOn ? districtFolders : null}
         districtItemFolderIds={districtItemFolderIds}
         onMoveDistrictBank={
