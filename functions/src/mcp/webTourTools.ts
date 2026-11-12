@@ -1,4 +1,5 @@
-// Admin-only web tour tools: read recorded drafts and their pictures, and rewrite step titles and tips; never publish.
+// Admin-only web tour tools: read recorded drafts and their pictures, rewrite words, add Message steps and move or remove steps; never publish.
+import { randomUUID } from 'node:crypto';
 import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -11,6 +12,7 @@ import {
   type ToolContext,
 } from './activity';
 import { assertAccess, MAX_SLIDE_BYTES } from './glTools';
+import { LOG_TTL_MS } from './config';
 import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { isWebTour, isWebTourSnapshot } from './webTours';
 import { isHardTextHit, webTourTextHits } from './webTourStudentData';
@@ -37,6 +39,7 @@ export const WEB_TOUR_TOOLS: ReadonlySet<string> = new Set([
   'get_web_tour',
   'get_web_tour_step_picture',
   'update_web_tour_text',
+  'update_web_tour_steps',
 ]);
 
 const NOT_WEB =
@@ -58,7 +61,12 @@ interface WebBinding {
   urlPattern?: unknown;
   action?: unknown;
   locator?: WebLocator;
-  picture?: { path?: unknown; w?: unknown; h?: unknown };
+  picture?: {
+    path?: unknown;
+    w?: unknown;
+    h?: unknown;
+    original?: { path?: unknown };
+  };
   note?: unknown;
   claudeQuestion?: unknown;
 }
@@ -67,6 +75,7 @@ export interface WebStep {
   label?: unknown;
   text?: unknown;
   web?: WebBinding;
+  message?: unknown;
   [key: string]: unknown;
 }
 export interface WebTourDoc {
@@ -79,6 +88,7 @@ export interface WebTourDoc {
   webGoal?: unknown;
   webSuggestions?: unknown;
   webFixDismissed?: unknown;
+  webRevisionPictures?: unknown;
   [key: string]: unknown;
 }
 
@@ -197,6 +207,10 @@ function changedClues(before: WebLocator, after: WebLocator): string[] {
     .map((k) => CLUE_NAMES[k]);
 }
 
+/** A Message step (X9): says something without pointing at a control, so it has no `web`. */
+export const isMessageStep = (step: WebStep): boolean =>
+  step.message === true && !step.web;
+
 /** A step as Claude sees it: words, action, address, the readable clues, the admin's note and any suggested fix; never the CSS or box. */
 export function publicWebStep(step: WebStep, index: number, fix?: StepFix) {
   const web = step.web;
@@ -206,6 +220,7 @@ export function publicWebStep(step: WebStep, index: number, fix?: StepFix) {
   return {
     id: step.id,
     number: index + 1,
+    kind: isMessageStep(step) ? 'message' : 'recorded',
     title: str(step.label),
     tip: str(step.text),
     action: web ? str(web.action) || null : null,
@@ -309,6 +324,10 @@ export function applyWebStepText(
       const value = edit[field];
       if (value === undefined) continue;
       const clean = value.trim();
+      if (field === 'tip' && !clean && isMessageStep(step))
+        throw new ToolError(
+          `Step "${step.id}" is a message, so its tip can't be empty.`
+        );
       checkText(`Step ${i + 1} ${field}`, clean, warnings);
       out[key] = clean;
     }
@@ -331,30 +350,153 @@ export function checkText(at: string, text: string, warnings: string[]) {
     );
 }
 
-/** Saves a new title and step words, keeping the old words as a revision; fails if the draft changed since it was read. */
+export type StepListEntry =
+  | { id: string; title?: string; tip?: string }
+  | { new_message: true; title?: string; tip: string };
+
+/** The tour's new step list: kept steps by id in the given order, new Message steps where named; any step left out is removed. */
+export function applyWebStepList(
+  steps: readonly WebStep[],
+  entries: readonly StepListEntry[],
+  newId: () => string = randomUUID
+): {
+  steps: WebStep[];
+  added: string[];
+  removed: string[];
+  warnings: string[];
+} {
+  if (!entries.length)
+    throw new ToolError(
+      'steps is the whole new list and cannot be empty. A tour needs at least one step.'
+    );
+  const byId = new Map(steps.map((s) => [s.id, s]));
+  const seen = new Set<string>();
+  const warnings: string[] = [];
+  const added: string[] = [];
+  const next = entries.map((entry, i) => {
+    const at = `Step ${i + 1}`;
+    if ('new_message' in entry) {
+      const label = (entry.title ?? '').trim();
+      const text = entry.tip.trim();
+      if (!text) throw new ToolError(`${at} is a new message without a tip.`);
+      checkText(`${at} title`, label, warnings);
+      checkText(`${at} tip`, text, warnings);
+      const id = newId();
+      added.push(id);
+      // Same base fields a recorded step gets (toWebStep), with no web binding.
+      const message: WebStep = {
+        id,
+        xPct: 50,
+        yPct: 50,
+        imageIndex: 0,
+        interactionType: 'tooltip',
+        label,
+        text,
+        message: true,
+      };
+      return message;
+    }
+    const step = byId.get(entry.id);
+    if (!step)
+      throw new ToolError(
+        `No step has id "${entry.id}". Use the ids get_web_tour returns; a new message takes new_message instead of an id.`
+      );
+    if (seen.has(entry.id))
+      throw new ToolError(`steps names step "${entry.id}" twice.`);
+    seen.add(entry.id);
+    if (entry.title === undefined && entry.tip === undefined) return step;
+    const edited = applyWebStepText(
+      [step],
+      [{ id: entry.id, title: entry.title, tip: entry.tip }]
+    );
+    // applyWebStepText numbers the step 1; say where it sits in the new list.
+    warnings.push(...edited.warnings.map((w) => w.replace(/^Step 1/, at)));
+    return edited.steps[0];
+  });
+  if (next.length > MAX_WEB_STEPS)
+    throw new ToolError(`A web tour has at most ${MAX_WEB_STEPS} steps.`);
+  const removed = steps.filter((s) => !seen.has(s.id)).map((s) => s.id);
+  if (!next.some((s) => !!s.web))
+    warnings.push(
+      'No step points at a control now, so the tour cannot be published until a recorded step is put back.'
+    );
+  return { steps: next, added, removed, warnings };
+}
+
+/** Every picture file the steps point at in the set's own folder, the uncropped capture included. */
+export function stepPicturePaths(
+  setId: string,
+  steps: readonly WebStep[]
+): string[] {
+  const out = new Set<string>();
+  for (const step of steps) {
+    const picture = step.web?.picture;
+    for (const path of [picture?.path, picture?.original?.path])
+      if (typeof path === 'string' && isWebTourPicturePath(setId, path))
+        out.add(path);
+  }
+  return [...out];
+}
+
+/** The draft's revision picture list with `paths` held until `until`; expired entries drop out (X18). */
+export function keepRevisionPictures(
+  current: unknown,
+  paths: readonly string[],
+  until: number,
+  now: number
+): { path: string; until: number }[] {
+  const kept = new Map<string, number>();
+  for (const entry of Array.isArray(current) ? (current as unknown[]) : []) {
+    const e = (entry ?? {}) as { path?: unknown; until?: unknown };
+    if (
+      typeof e.path === 'string' &&
+      typeof e.until === 'number' &&
+      e.until > now
+    )
+      kept.set(e.path, Math.max(e.until, kept.get(e.path) ?? 0));
+  }
+  for (const p of paths) kept.set(p, Math.max(until, kept.get(p) ?? 0));
+  return [...kept].map(([path, u]) => ({ path, until: u }));
+}
+
+/** Saves a new title and steps, keeping the old version as a revision; fails if the draft changed since it was read. Step-list revisions keep every step whole. */
 async function saveWebText(
   ctx: ToolContext,
   loaded: Awaited<ReturnType<typeof loadWebTour>>,
   title: string,
   steps: WebStep[],
-  action: 'update' | 'restore'
+  action: 'update' | 'restore',
+  wholeSteps = false
 ) {
   const { set, updateTime } = loaded;
   const batch = ctx.db.batch();
-  const revisionId = snapshotRevision(ctx, batch, {
-    itemType: 'guided_learning',
-    itemId: set.id,
-    title: str(set.title),
-    data: {
-      source: 'web',
+  const now = Date.now();
+  const revisionId = snapshotRevision(
+    ctx,
+    batch,
+    {
+      itemType: 'guided_learning',
+      itemId: set.id,
       title: str(set.title),
-      steps: set.steps.map((s) => ({
-        id: s.id,
-        label: str(s.label),
-        text: str(s.text),
-      })),
+      data: wholeSteps
+        ? {
+            source: 'web',
+            kind: 'steps',
+            title: str(set.title),
+            steps: set.steps,
+          }
+        : {
+            source: 'web',
+            title: str(set.title),
+            steps: set.steps.map((s) => ({
+              id: s.id,
+              label: str(s.label),
+              text: str(s.text),
+            })),
+          },
     },
-  });
+    now
+  );
   logActivity(ctx, batch, {
     action,
     itemType: 'guided_learning',
@@ -364,7 +506,22 @@ async function saveWebText(
   });
   batch.update(
     ctx.db.collection(WEB_TOURS).doc(set.id),
-    { title, steps, updatedAt: Date.now() },
+    {
+      title,
+      steps,
+      updatedAt: now,
+      // The editor's sweep and publish can't read Claude's revisions, so the draft lists what they still need.
+      ...(wholeSteps
+        ? {
+            webRevisionPictures: keepRevisionPictures(
+              set.webRevisionPictures,
+              stepPicturePaths(set.id, set.steps),
+              now + LOG_TTL_MS,
+              now
+            ),
+          }
+        : {}),
+    },
     { lastUpdateTime: updateTime }
   );
   try {
@@ -380,17 +537,39 @@ async function saveWebText(
 export const isWebTourRevision = (rev: admin.firestore.DocumentSnapshot) =>
   (rev.get('data') as { source?: unknown } | undefined)?.source === 'web';
 
-/** Puts back a revision's tour title and step words; steps recorded since keep theirs. */
+/** Puts back a revision: a step-list revision restores every step exactly; a word revision restores titles and tips, and steps recorded since keep theirs. */
 export async function restoreWebTourRevision(
   ctx: ToolContext,
   rev: admin.firestore.DocumentSnapshot
 ) {
   await assertWebTourAccess(ctx);
   const data = rev.get('data') as {
+    kind?: unknown;
     title?: unknown;
     steps?: { id?: unknown; label?: unknown; text?: unknown }[];
   };
   const loaded = await loadWebTour(ctx, String(rev.get('itemId')));
+  if (data.kind === 'steps') {
+    const steps = (Array.isArray(data.steps) ? data.steps : []).filter(
+      (s): s is WebStep =>
+        !!s && typeof s === 'object' && typeof s.id === 'string'
+    );
+    if (!steps.length)
+      throw new ToolError('That revision has no steps to put back.');
+    // Its pictures are held only this long, even if the revision outlives it before Firestore's TTL removes it.
+    if (Number(rev.get('createdAt') ?? 0) + LOG_TTL_MS <= Date.now())
+      throw new ToolError('That revision has expired.');
+    const title = str(data.title) || str(loaded.set.title);
+    await reserveWrite(ctx);
+    const saved = await saveWebText(ctx, loaded, title, steps, 'restore', true);
+    return {
+      set_id: loaded.set.id,
+      title,
+      step_count: steps.length,
+      previous_version_revision_id: saved.revisionId,
+      note: 'Restored every step, with its target and picture, as a draft; publishing stays with the admin in SpartBoard.',
+    };
+  }
   const known = new Set(loaded.set.steps.map((s) => s.id));
   const edits = (Array.isArray(data.steps) ? data.steps : []).flatMap((s) =>
     typeof s.id === 'string' && known.has(s.id)
@@ -410,7 +589,7 @@ export async function restoreWebTourRevision(
 }
 
 const STEP_LIST =
-  "Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains. suggested_fix, when present, is what a run of the tour found instead when the step missed or matched weakly: the clues (locator, whose name, text and heading are always the step's own, never words from the page it was found on), which clues differ (changed), where it came from (source: check for the admin's Check tour, admin for an admin's own run, teacher for teachers' runs, shown once at least two agree), and how many runs found it (runs). Claude can recommend a fix; only the admin can use it, in SpartBoard.";
+  "Each step: id, number, kind (recorded for a step the admin recorded on a page, message for a Message step that says something without pointing at a control and has no action, address, locator or picture), title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains. suggested_fix, when present, is what a run of the tour found instead when the step missed or matched weakly: the clues (locator, whose name, text and heading are always the step's own, never words from the page it was found on), which clues differ (changed), where it came from (source: check for the admin's Check tour, admin for an admin's own run, teacher for teachers' runs, shown once at least two agree), and how many runs found it (runs). Claude can recommend a fix; only the admin can use it, in SpartBoard.";
 
 export function registerWebTourTools(
   server: McpServer,
@@ -476,7 +655,7 @@ export function registerWebTourTools(
     'get_web_tour',
     {
       title: 'Get a web tour',
-      description: `Admins only. Returns a web tour draft with every step, in play order. ${STEP_LIST} Look at a step's picture with get_web_tour_step_picture before rewriting its words. Only titles and tips can change through Claude (update_web_tour_text); re-recording, reordering and publishing stay with the admin in SpartBoard.`,
+      description: `Admins only. Returns a web tour draft with every step, in play order. ${STEP_LIST} Look at a step's picture with get_web_tour_step_picture before rewriting its words. Claude can rewrite titles and tips (update_web_tour_text) and add Message steps, move steps and remove steps (update_web_tour_steps); recording steps, changing where one points and publishing stay with the admin in SpartBoard.`,
       inputSchema: { set_id: z.string().min(1).max(100) },
       annotations: READ_ONLY,
     },
@@ -610,6 +789,67 @@ export function registerWebTourTools(
             .filter((s) => changed.has(s.id)),
           ...(warnings.length ? { warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard and publishes; the publish check there also looks for roster names.',
+        };
+      })
+  );
+  server.registerTool(
+    'update_web_tour_steps',
+    {
+      title: "Add, move or remove a web tour's steps",
+      description: `Admins only. Sets the draft's whole step list in its new order. Name each step to keep by id (with an optional new title or tip); add a Message step with new_message: true, a tip and an optional title; any step left out is removed, recorded steps included. A Message step shows a centered tip with no picture and plays on whatever page the teacher is on: use it for an opening, a closing, or before the tour moves to another site, and only when the admin asks for one. Claude can't create a recorded step or change where one points. A tour needs at least one recorded step to publish. Saves the draft only and keeps the whole old list, targets and pictures included, as a revision restore_revision puts back exactly. Text that looks like student data is refused. If the tour is open in the SpartBoard editor, the admin reloads it there first, or its next save puts the old steps back.`,
+      inputSchema: {
+        set_id: z.string().min(1).max(100),
+        steps: z
+          .array(
+            z.union([
+              z
+                .object({
+                  id: z.string().min(1).max(100),
+                  title: z.string().max(MAX_WEB_STEP_TITLE).optional(),
+                  tip: z.string().max(MAX_WEB_TIP).optional(),
+                })
+                .strict(),
+              z
+                .object({
+                  new_message: z.literal(true),
+                  title: z.string().max(MAX_WEB_STEP_TITLE).optional(),
+                  tip: z.string().min(1).max(MAX_WEB_TIP),
+                })
+                .strict(),
+            ])
+          )
+          .min(1)
+          .max(MAX_WEB_STEPS)
+          .describe(
+            'The whole new step list, in play order: { id } keeps a step, { new_message: true, tip } adds one.'
+          ),
+      },
+      annotations: OVERWRITES,
+    },
+    ({ set_id, steps }) =>
+      run('update_web_tour_steps', ctx, async () => {
+        await assertWebTourAccess(ctx);
+        const loaded = await loadWebTour(ctx, set_id);
+        const edited = applyWebStepList(loaded.set.steps, steps);
+        await reserveWrite(ctx);
+        const title = str(loaded.set.title);
+        const saved = await saveWebText(
+          ctx,
+          loaded,
+          title,
+          edited.steps,
+          'update',
+          true
+        );
+        return {
+          set_id,
+          title,
+          previous_version_revision_id: saved.revisionId,
+          steps: edited.steps.map((s, i) => publicWebStep(s, i)),
+          added_steps: edited.added,
+          removed_steps: edited.removed,
+          ...(edited.warnings.length ? { warnings: edited.warnings } : {}),
+          note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard and publishes.',
         };
       })
   );

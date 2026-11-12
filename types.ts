@@ -9302,6 +9302,14 @@ export interface GuidedLearningSet {
   webSuggestions?: Record<string, WebTourSuggestion>;
   /** Web tours: the fingerprint of the fix the admin dismissed, by step id; never published. */
   webFixDismissed?: Record<string, string>;
+  /** Web tours: pictures a Claude step-list revision still needs, kept until `until` (X18); never published. */
+  webRevisionPictures?: WebTourRevisionPicture[];
+}
+
+/** A picture path a stored Claude revision of a web tour references, and when that revision expires (ms). */
+export interface WebTourRevisionPicture {
+  path: string;
+  until: number;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */
