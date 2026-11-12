@@ -486,6 +486,18 @@ describe('wildcard row refs', () => {
     expect(warned.some((m) => m.includes('position in a list'))).toBe(false);
   });
 
+  it('lets a row-* click open what a route row-N entry opens', () => {
+    const report = dryRunTour(
+      [
+        step('board.whole'),
+        step('library-shell.card-open:projects#row-*', 'click'),
+        step('projects-editor.description', 'click'),
+      ],
+      { widgets: ['projects'] }
+    );
+    expect(messages(report.errors).join('\n')).not.toContain('only shows once');
+  });
+
   it('refuses row-* on an anchor that is not a list', () => {
     const report = dryRunTour(
       [

@@ -24989,7 +24989,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.card-menu",
     "label": "Kebab menu button on a library item card",
     "scope": "field",
-    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -25033,7 +25032,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.archive-menu",
     "label": "Kebab menu button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
-    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",

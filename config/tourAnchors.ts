@@ -6037,7 +6037,6 @@ export const TOUR_ANCHORS = {
   'library-shell.card-menu': {
     label: 'Kebab menu button on a library item card',
     perField: true,
-    rows: true,
   },
   'library-shell.card-menu-item': {
     label: 'Item inside a library item card kebab menu',
@@ -6056,7 +6055,6 @@ export const TOUR_ANCHORS = {
     label:
       'Kebab menu button on an assignment row (In Progress or Archive tab)',
     perField: true,
-    rows: true,
   },
   'library-shell.archive-menu-item': {
     label: 'Item inside an assignment row kebab menu',

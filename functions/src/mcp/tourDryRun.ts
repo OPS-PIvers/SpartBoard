@@ -110,7 +110,10 @@ export const parseRef = (ref: string): Ref => {
 const sameControl = (wanted: Ref, clicked: Ref): boolean =>
   wanted.id === clicked.id &&
   (!wanted.type || wanted.type === clicked.type) &&
-  (!wanted.key || wanted.key === clicked.key);
+  (!wanted.key ||
+    wanted.key === clicked.key ||
+    // A click on whichever row opens what a route's row-N entry opens.
+    (clicked.key === ROW_WILDCARD && /^row-\d+$/.test(wanted.key)));
 
 const stepName = (step: DryRunStep, i: number) =>
   `steps[${i}]${step.label ? ` ("${step.label}")` : ''}`;

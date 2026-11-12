@@ -1741,6 +1741,28 @@ export const LiveTourRunner: React.FC = () => {
     stepMatches,
   ]);
 
+  // The lit area spans every row, so a press between rows on some other control is held back.
+  const holdOffRow = useEffectEvent((e: Event) => {
+    const rows = anchor.matches;
+    const box = anchor.status === 'found' ? anchor.rect : null;
+    if (!rows || rows.length < 2 || !box || !(e instanceof MouseEvent)) return;
+    const hit = e.target instanceof Element ? e.target : null;
+    if (!hit || hit.closest('[data-tour-ignore]') || isInPopup(hit)) return;
+    if (rows.some((r) => r.contains(hit))) return;
+    const { clientX: x, clientY: y } = e;
+    if (x < box.left || x > box.right || y < box.top || y > box.bottom) return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  const guardRows = (stepMatches?.length ?? 0) > 1;
+  useEffect(() => {
+    if (!guardRows) return;
+    const types = ['pointerdown', 'mousedown', 'click'] as const;
+    const on = (e: Event) => holdOffRow(e);
+    types.forEach((t) => window.addEventListener(t, on, true));
+    return () => types.forEach((t) => window.removeEventListener(t, on, true));
+  }, [guardRows]);
+
   // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
   const lookahead =
     pacing &&
