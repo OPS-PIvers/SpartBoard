@@ -34,6 +34,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { minifyRules, proveRenamed } from './minifyRules.mjs';
+import { baseRulesText, budgetVerdict, OVERRIDE_LABEL, RULES_GROWTH_BUDGET } from './rulesSizeBudget.mjs';
 import { findEmulatorJar } from './rulesAst/emulatorJar.mjs';
 import { stripRulesComments } from './stripRulesComments.mjs';
 
@@ -163,6 +164,31 @@ if (compiled === null) {
     `firestore.rules compiles to ${sizes(compiled)} ` +
       `(${COMPILED_CLIFF - compiled} under the ${COMPILED_CLIFF}-byte release limit)`
   );
+}
+
+const baseRef = process.env.RULES_BASE_REF;
+if (baseRef && compiled !== null) {
+  const baseText = baseRulesText(baseRef);
+  if (baseText === null) {
+    console.error(`\nCould not read firestore.rules from origin/${baseRef} to check the per-PR size budget.\n`);
+    process.exit(1);
+  }
+  const baseCompiled = measureCompiled(minifyRules(stripRulesComments(baseText)).text);
+  const verdict = budgetVerdict({
+    compiled,
+    baseCompiled,
+    override: process.env.RULES_SIZE_OK === 'true',
+  });
+  const change = `${verdict.growth >= 0 ? '+' : ''}${verdict.growth} bytes compiled vs ${baseRef} (${baseCompiled} -> ${compiled})`;
+  if (!verdict.ok) {
+    console.error(
+      `\nThis PR grows firestore.rules by ${change}, over the ${RULES_GROWTH_BUDGET}-byte per-PR budget.\n\n` +
+        `Move rare writes to a server function, reuse existing rule functions, or trim elsewhere. ` +
+        `If the growth is needed, add the \`${OVERRIDE_LABEL}\` label to the PR and re-run this job.\n`
+    );
+    process.exit(1);
+  }
+  console.log(`rules size budget: ${change}${verdict.overridden ? ` (over budget, allowed by the ${OVERRIDE_LABEL} label)` : ''}`);
 }
 
 if (bytes > MAX_BYTES * WARN_RATIO) {
