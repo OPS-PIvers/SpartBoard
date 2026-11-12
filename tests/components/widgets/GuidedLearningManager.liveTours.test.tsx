@@ -9,10 +9,7 @@ import {
 } from '@testing-library/react';
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { AuthContext } from '@/context/AuthContextValue';
-import {
-  TOUR_RECORD_EVENT,
-  TOUR_START_EVENT,
-} from '@/components/tours/tourState';
+import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
 import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
@@ -47,23 +44,16 @@ vi.mock('@/hooks/useFolders', () => ({
   }),
 }));
 
-const runnable = vi.hoisted(() => new Map<string, boolean | undefined>());
 const snapshots = vi.hoisted(
   () => new Map<string, { publishedAt: number; set: { surface: 'web' } }>()
 );
 vi.mock('@/components/tours/publishedTours', () => ({
   watchTours: () => () => undefined,
   getToursVersion: () => 0,
-  isTourRunnable: (id: string) => runnable.get(id),
   readPublishedTour: (id: string) => ({
     loaded: true,
     tour: snapshots.get(id) ?? null,
   }),
-}));
-
-const board = vi.hoisted(() => ({ canRun: false }));
-vi.mock('@/components/tours/useCanRunLiveTour', () => ({
-  useCanRunLiveTour: () => board.canRun,
 }));
 
 const createWebTourDraft = vi.fn(() =>
@@ -143,7 +133,6 @@ const buildingSet = (id: string, title: string, live: boolean) =>
 interface Extras {
   sets?: GuidedLearningSetMetadata[];
   extraBuilding?: GuidedLearningSet[];
-  onCopyTourToBuilding?: (setId: string, driveFileId: string) => void;
   features?: string[];
 }
 
@@ -156,6 +145,14 @@ const personalTour: GuidedLearningSetMetadata = {
   driveFileId: 'drive-1',
   createdAt: 1,
   updatedAt: 2,
+};
+
+const personalSet: GuidedLearningSetMetadata = {
+  ...personalTour,
+  id: 'p-set',
+  title: 'Personal lesson',
+  mode: 'guided',
+  driveFileId: 'drive-2',
 };
 
 const renderLibrary = (isAdmin = true, extras: Extras = {}) =>
@@ -177,7 +174,6 @@ const renderLibrary = (isAdmin = true, extras: Extras = {}) =>
           buildingSet('plain-1', 'Plain set', false),
           ...(extras.extraBuilding ?? []),
         ].map(toBuildingIndexEntry)}
-        onCopyTourToBuilding={extras.onCopyTourToBuilding}
         assignments={[]}
         loading={false}
         buildingLoading={false}
@@ -224,10 +220,8 @@ const listen = (type: string) => {
 afterEach(() => {
   listeners.forEach(([type, fn]) => window.removeEventListener(type, fn));
   listeners.length = 0;
-  runnable.clear();
   snapshots.clear();
   webDrafts.list = [];
-  board.canRun = false;
   vi.clearAllMocks();
 });
 
@@ -240,7 +234,7 @@ const renderManager = (isAdmin = true, extras: Extras = {}) => {
   return result;
 };
 
-describe('GuidedLearningManager live tours', () => {
+describe('GuidedLearningManager tours', () => {
   it('offers Record a tour to admins with live tours', async () => {
     const record = listen(TOUR_RECORD_EVENT);
     renderManager();
@@ -269,155 +263,38 @@ describe('GuidedLearningManager live tours', () => {
 
   it('hides Record a tour from non-admins', async () => {
     renderManager(false);
-    await screen.findByText('Boards walkthrough');
+    await screen.findByText('Plain set');
     expect(screen.queryByRole('button', { name: 'Record a tour' })).toBeNull();
   });
 
-  it('runs a published tour on the board from its menu', async () => {
-    runnable.set('live-1', true);
-    const start = listen(TOUR_START_EVENT);
-    renderManager(false);
-    await cardMenu('Boards walkthrough');
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: /Run live on my board/ })
-    );
-    expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
-      setId: 'live-1',
-    });
-  });
-
-  it('does not offer Run live for a set without live steps', async () => {
-    renderManager();
-    await cardMenu('Plain set');
-    expect(
-      screen.queryByRole('menuitem', { name: /Run live on my board/ })
-    ).toBeNull();
-  });
-
-  it('hides Run live from teachers until the tour is published', async () => {
-    // A teacher's card has no menu at all without a runnable tour.
-    const noRunLive = async () => {
-      await screen.findByText('Boards walkthrough');
-      const more = screen.queryAllByRole('button', { name: 'More actions' });
-      more.forEach((b) => fireEvent.click(b));
-      expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
-    };
-    runnable.set('live-1', false);
-    renderManager(false);
-    await noRunLive();
-    cleanup();
-    runnable.delete('live-1');
-    renderManager(false);
-    await noRunLive();
-  });
-
-  it('offers authors no draft run of an unpublished tour', async () => {
-    runnable.set('live-1', false);
-    renderManager();
-    await cardMenu('Boards walkthrough');
-    expect(await screen.findByRole('menuitem', { name: 'Edit' })).toBeTruthy();
-    expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
-  });
-
-  it('badges tours and filters the library by type', async () => {
-    renderManager(false);
-    const tourCard = await screen.findByText('Boards walkthrough');
-    expect(screen.getAllByText('Live tour')).toHaveLength(1);
-    expect(screen.getByText('Guided')).toBeInTheDocument();
-    expect(tourCard).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Type'), {
-      target: { value: 'tour' },
-    });
-    expect(screen.getByText('Boards walkthrough')).toBeInTheDocument();
-    expect(screen.queryByText('Plain set')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Type'), {
-      target: { value: 'activity' },
-    });
-    expect(screen.queryByText('Boards walkthrough')).toBeNull();
-    expect(screen.getByText('Plain set')).toBeInTheDocument();
-  });
-
-  it('shows authors whether a building tour is published or a draft', async () => {
-    runnable.set('live-1', false);
-    renderManager();
-    expect(await screen.findByText('Draft')).toBeInTheDocument();
-    cleanup();
-    runnable.set('live-1', true);
-    renderManager();
-    expect(await screen.findByText('Published')).toBeInTheDocument();
-    cleanup();
-    renderManager(false);
-    await screen.findByText('Boards walkthrough');
-    expect(screen.queryByText('Published')).toBeNull();
-  });
-
-  it('files a personal tour under Live tours and offers to copy it to the building', async () => {
-    const copy = vi.fn();
-    renderManager(true, {
-      sets: [personalTour],
-      onCopyTourToBuilding: copy,
-    });
-    expect(await screen.findByText("Can't run live")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Type'), {
-      target: { value: 'tour' },
-    });
-    expect(screen.getByText('My recorded tour')).toBeInTheDocument();
-    await cardMenu('My recorded tour');
-    fireEvent.click(
-      await screen.findByRole('menuitem', {
-        name: 'Copy to building to run live',
-      })
-    );
-    expect(copy).toHaveBeenCalledWith('p-tour', 'drive-1');
-  });
-
-  it('lists Help Center tours in the Live tours view, with no explainer note', async () => {
+  it('never lists a Live tour, for anyone', async () => {
     const helpTour = {
       ...buildingSet('help-1', 'Help Center tour', true),
       helpCenter: true,
     };
-    renderManager(true, { extraBuilding: [helpTour] });
-    await screen.findByText('Boards walkthrough');
-    expect(screen.queryByText('Help Center tour')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Type'), {
-      target: { value: 'tour' },
-    });
-    expect(screen.getByText('Help Center tour')).toBeInTheDocument();
-    expect(screen.queryByText('Where live tours live')).toBeNull();
-    expect(screen.queryByRole('note')).toBeNull();
+    const boundSet = {
+      ...buildingSet('bound-1', 'Bound picture guide', false),
+      hasLiveTour: true,
+    };
+    for (const isAdmin of [true, false]) {
+      renderManager(isAdmin, { extraBuilding: [helpTour, boundSet] });
+      await screen.findByText('Plain set');
+      expect(screen.queryByText('Boards walkthrough')).toBeNull();
+      expect(screen.queryByText('Help Center tour')).toBeNull();
+      expect(screen.queryByText('Bound picture guide')).toBeNull();
+      expect(screen.queryByText('Live tour')).toBeNull();
+      expect(screen.queryByLabelText('Type')).toBeNull();
+      cleanup();
+    }
+    renderManager(true, { sets: [personalTour, personalSet] });
+    await screen.findByText('Personal lesson');
+    expect(screen.queryByText('My recorded tour')).toBeNull();
+    expect(screen.queryByText("Can't run live")).toBeNull();
   });
 
-  it('makes Play run a published tour live on a board, with no slides to play', async () => {
-    board.canRun = true;
-    runnable.set('live-1', true);
-    const start = listen(TOUR_START_EVENT);
-    renderManager(false);
-    fireEvent.click(await screen.findByRole('button', { name: 'Play live' }));
-    expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
-      setId: 'live-1',
-    });
-    screen
-      .queryAllByRole('button', { name: 'More actions' })
-      .forEach((b) => fireEvent.click(b));
-    expect(
-      screen.queryByRole('menuitem', { name: 'Play as slides' })
-    ).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
-  });
-
-  it('does not play an unpublished tour live', async () => {
-    board.canRun = true;
-    runnable.set('live-1', false);
-    renderManager();
-    await screen.findByText('Boards walkthrough');
-    expect(screen.queryByRole('button', { name: /live/ })).toBeNull();
-  });
-
-  it('keeps Play as slides off a board', async () => {
-    runnable.set('live-1', true);
-    renderManager(false);
-    await screen.findByText('Boards walkthrough');
-    expect(screen.queryByRole('button', { name: 'Play live' })).toBeNull();
+  it('keeps a teacher personal tour listed, since only admins can move it', async () => {
+    renderManager(false, { sets: [personalTour, personalSet] });
+    expect(await screen.findByText('My recorded tour')).toBeTruthy();
   });
 
   describe('web tours', () => {
@@ -482,8 +359,7 @@ describe('GuidedLearningManager live tours', () => {
     it('hides web tours without the flag', async () => {
       webDrafts.list = [webTour('w-1', 'Docs tour')];
       renderManager(true);
-      showTours();
-      await screen.findByText('Boards walkthrough');
+      await screen.findByText('Plain set');
       expect(screen.queryByText('Docs tour')).toBeNull();
     });
 
@@ -507,25 +383,16 @@ describe('GuidedLearningManager live tours', () => {
       expect(webTourStore.setWebTourHelpCenter).not.toHaveBeenCalled();
     });
 
-    it('lets a web tour already in the Help Center come back to the library', async () => {
+    it('keeps a web tour already in the Help Center listed so it can come back', async () => {
       webDrafts.list = [webTour('w-1', 'Docs tour', { helpCenter: true })];
       renderManager(true, { features: ['web-tours'] });
-      fireEvent.change(screen.getByLabelText('Type'), {
-        target: { value: 'tour' },
-      });
-      fireEvent.change(screen.getByLabelText('Source'), {
-        target: { value: 'help' },
-      });
+      showTours();
+      expect(await screen.findByText('Docs tour')).toBeTruthy();
+      expect(screen.queryByRole('option', { name: 'Help Center' })).toBeNull();
       await cardMenu('Docs tour');
-      fireEvent.click(
+      expect(
         screen.getByRole('menuitem', { name: 'Move to library' })
-      );
-      await vi.waitFor(() =>
-        expect(webTourStore.setWebTourHelpCenter).toHaveBeenCalledWith(
-          'w-1',
-          false
-        )
-      );
+      ).toBeTruthy();
     });
 
     it('opens the editor from Edit and keeps Play off until published', async () => {

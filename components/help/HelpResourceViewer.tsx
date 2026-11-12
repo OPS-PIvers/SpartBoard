@@ -2,7 +2,6 @@ import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
-  ExternalLink,
   Footprints,
   Loader2,
   Maximize2,
@@ -11,11 +10,6 @@ import {
 } from 'lucide-react';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import type { GuidedLearningSet } from '@/types';
-import {
-  helpIframeSandbox,
-  inferHelpEmbedType,
-  toHelpEmbedSrc,
-} from '@/utils/helpEmbed';
 import { incrementHelpOpenCount } from '@/hooks/useHelpResources';
 import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
@@ -35,7 +29,7 @@ import { LiveTourStepsView } from '@/components/tours/steps/LiveTourStepsView';
 import { TourStepList } from '@/components/tours/TourStepList';
 import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 
-// Lazy so the Help modal never pulls the Guided Learning player for teachers who only read embeds.
+// Lazy so the Help modal never pulls the Guided Learning player until a guide opens.
 const GuidedLearningPlayer = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/GuidedLearningPlayer').then(
     (m) => ({ default: m.GuidedLearningPlayer })
@@ -216,51 +210,6 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   );
 };
 
-const EmbedViewer: React.FC<{ item: HelpResourceItem; fill: boolean }> = ({
-  item,
-  fill,
-}) => {
-  const { t } = useTranslation();
-  const url = item.url ?? '';
-  // The sandbox comes from the URL below; the stored embedType is only a display hint.
-  const src = toHelpEmbedSrc(url);
-  // Anything the converter left alone is a raw admin-entered URL: link out instead of framing it.
-  const unconverted = src === url;
-
-  if (!url || unconverted) {
-    return (
-      <a
-        href={url || undefined}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-sm font-semibold text-brand-blue-primary hover:bg-slate-100 transition-colors"
-      >
-        <ExternalLink className="w-4 h-4" />
-        {t('helpCenter.guides.openExternal')}
-      </a>
-    );
-  }
-
-  const boxClass = fill
-    ? 'relative w-full h-full'
-    : item.embedType === 'youtube'
-      ? 'relative w-full aspect-video rounded-lg'
-      : 'relative w-full min-h-[60vh] rounded-lg';
-
-  return (
-    <div className={`${boxClass} overflow-hidden bg-slate-100`}>
-      <iframe
-        src={src}
-        title={item.title}
-        sandbox={helpIframeSandbox(inferHelpEmbedType(url))}
-        referrerPolicy="strict-origin-when-cross-origin"
-        allow="autoplay; fullscreen"
-        className="absolute inset-0 w-full h-full border-0"
-      />
-    </div>
-  );
-};
-
 export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
   item,
   onBack,
@@ -329,17 +278,6 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
             {t('helpCenter.guides.fullscreen')}
           </button>
         )}
-        {item.url && (
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:underline"
-          >
-            {t('helpCenter.guides.open')}
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        )}
       </div>
 
       <div className="min-w-0">
@@ -355,20 +293,16 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
           isFullscreen ? 'relative h-full w-full bg-slate-900' : 'min-w-0'
         }
       >
-        {item.kind === 'guided-learning' ? (
-          item.setId ? (
-            <GuidedLearningViewer
-              key={item.setId}
-              setId={item.setId}
-              fill={isFullscreen}
-            />
-          ) : (
-            <p className="py-16 text-center text-sm text-slate-500">
-              {t('helpCenter.guides.activityUnavailable')}
-            </p>
-          )
+        {item.kind === 'guided-learning' && item.setId ? (
+          <GuidedLearningViewer
+            key={item.setId}
+            setId={item.setId}
+            fill={isFullscreen}
+          />
         ) : (
-          <EmbedViewer item={item} fill={isFullscreen} />
+          <p className="py-16 text-center text-sm text-slate-500">
+            {t('helpCenter.guides.activityUnavailable')}
+          </p>
         )}
         {isFullscreen && (
           <button

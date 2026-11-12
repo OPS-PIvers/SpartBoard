@@ -43,7 +43,42 @@ export const useTourRunning = (): boolean =>
 
 export const TOUR_RECORD_EVENT = 'spart:record-tour';
 
+/** Where a recording or edit started: a Help Center start reopens Admin Settings when it ends (H13). */
+export type TourOrigin = 'help-center' | 'widget';
+
+export interface TourRecordRequest {
+  origin: TourOrigin;
+}
+
+// Also used as a bare onClick handler, so anything but 'help-center' counts as a widget start.
+const originOf = (value: unknown): TourOrigin =>
+  value === 'help-center' ? 'help-center' : 'widget';
+
 /** Asks the recording host to start a new tour recording; admin surfaces close themselves on it. */
-export function requestRecordTour(): void {
-  window.dispatchEvent(new Event(TOUR_RECORD_EVENT));
+export function requestRecordTour(origin?: TourOrigin): void {
+  window.dispatchEvent(
+    new CustomEvent<TourRecordRequest>(TOUR_RECORD_EVENT, {
+      detail: { origin: originOf(origin) },
+    })
+  );
+}
+
+/** Reads a record event's origin; a plain Event from older callers is a widget start. */
+export const recordOriginOf = (event: Event): TourOrigin =>
+  originOf((event as CustomEvent<TourRecordRequest | null>).detail?.origin);
+
+export const HELP_CENTER_OPEN_EVENT = 'spart:open-help-center';
+
+export interface HelpCenterOpenRequest {
+  /** The help_resources item to select once Admin Settings > Help Center is open. */
+  selectId?: string;
+}
+
+/** Opens Admin Settings > Help Center, optionally with one item selected. */
+export function requestOpenHelpCenter(req: HelpCenterOpenRequest = {}): void {
+  window.dispatchEvent(
+    new CustomEvent<HelpCenterOpenRequest>(HELP_CENTER_OPEN_EVENT, {
+      detail: req,
+    })
+  );
 }

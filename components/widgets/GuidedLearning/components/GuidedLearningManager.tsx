@@ -51,7 +51,6 @@ import {
   Upload,
   Circle,
   Globe,
-  Footprints,
   LifeBuoy,
   MousePointerClick,
   Library,
@@ -69,7 +68,8 @@ import type {
 } from '@/types';
 import { thumbnailUrl } from '@/utils/guidedLearningMedia';
 import { logError } from '@/utils/logError';
-import { HELP_CENTER_SOURCE, isHelpCenterSet } from '../utils/helpCenterSets';
+import { isHelpCenterSet } from '../utils/helpCenterSets';
+import { isPendingHelpCenterMove } from '@/utils/helpCenterItems';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
@@ -106,14 +106,9 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
-import {
-  requestRecordTour,
-  requestStartTour,
-} from '@/components/tours/tourState';
-import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
+import { requestRecordTour } from '@/components/tours/tourState';
 import {
   getToursVersion,
-  isTourRunnable,
   readPublishedTour,
   watchTours,
 } from '@/components/tours/publishedTours';
@@ -160,12 +155,14 @@ interface LibraryEntry {
   buildingEntry?: GuidedLearningBuildingSetIndex;
   /** Web-only: the saved draft (admins only); its published copy is watched separately. */
   webTour?: GuidedLearningSet;
-  /** Building or web: owned by the Help Center, so only the Help Center filter lists it. */
+  /** Web-only: owned by the Help Center, so the library hides it. */
   helpCenter?: boolean;
   /** Personal-only: current folder assignment (`null` = root). */
   folderId?: string | null;
   /** Personal-only: Claude changed it and the teacher hasn't opened it since. */
   claudeReviewPendingAt?: number;
+  /** Personal-only: copied into the Help Center while students had it open (H5). */
+  movedToHelpCenter?: boolean;
 }
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
@@ -260,13 +257,6 @@ export interface GuidedLearningManagerProps {
   onDeleteBuilding: (setId: string) => void | Promise<void>;
   /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
   folderDeleteActions?: FolderDeleteActions;
-  /** Admin-only: copies a personal live tour into the building library, where tours run. */
-  onCopyTourToBuilding?: (
-    setId: string,
-    driveFileId: string
-  ) => void | Promise<void>;
-  /** Busy-state probe for the copy-to-building kebab item. */
-  isCopyingTourToBuilding?: (setId: string) => boolean;
   /** Admin-only: drafts a new building live tour from this set and opens it on the board. */
   onConvertToLiveTour?: (
     setId: string,
@@ -275,11 +265,14 @@ export interface GuidedLearningManagerProps {
   ) => void | Promise<void>;
   /** Busy-state probe for the convert-to-live-tour kebab item. */
   isConvertingToLiveTour?: (setId: string) => boolean;
-  /** Admin-only: moves a building set into (true) or out of (false) the Help Center. */
-  onSetBuildingHelpCenter?: (
+  /** Admin-only: moves a personal or building set into the Help Center (H4). */
+  onMoveToHelpCenter?: (
     setId: string,
-    helpCenter: boolean
+    driveFileId?: string,
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => void | Promise<void>;
+  /** Busy-state probe for the Move to Help Center kebab item. */
+  isMovingToHelpCenter?: (setId: string) => boolean;
   /** Export a set to a self-contained .gl.json file. Same routing as onPlay. */
   onExport?: (
     setId: string,
@@ -393,19 +386,20 @@ const LIBRARY_SORT_COMPARATORS = {
 const TOUR_TYPE = 'tour';
 const NO_WEB_TOURS: GuidedLearningSet[] = [];
 
-const isTourEntry = (e: LibraryEntry): boolean =>
-  e.mode === 'tour' || !!e.buildingEntry?.hasLiveTour;
+const isTourEntry = (e: LibraryEntry): boolean => e.mode === 'tour';
 
-// Help Center sets live in Admin Settings, so every view but their own hides them.
+// Live tours and Help Center sets live only in the Help Center (H1).
+const listsPersonal = (meta: GuidedLearningSetMetadata): boolean =>
+  meta.mode !== 'tour';
+const listsBuilding = (entry: GuidedLearningBuildingSetIndex): boolean =>
+  entry.mode !== 'tour' && !entry.hasLiveTour && !isHelpCenterSet(entry);
+
 const LIBRARY_FILTER_PREDICATES = {
   source: (item: LibraryEntry, value: string): boolean =>
-    value === HELP_CENTER_SOURCE
-      ? !!item.helpCenter
-      : !item.helpCenter &&
-        (value === '' ||
-          item.source === value ||
-          // Web tours are building-wide, so the Building filter lists them.
-          (value === 'building' && item.source === 'web')),
+    value === '' ||
+    item.source === value ||
+    // Web tours are building-wide, so the Building filter lists them.
+    (value === 'building' && item.source === 'web'),
   type: (item: LibraryEntry, value: string): boolean =>
     isTourEntry(item) === (value === TOUR_TYPE),
 };
@@ -437,6 +431,7 @@ const buildLibraryEntries = (
     driveFileId: meta.driveFileId,
     folderId: meta.folderId ?? null,
     claudeReviewPendingAt: meta.claudeReviewPendingAt,
+    movedToHelpCenter: isPendingHelpCenterMove(meta),
   }));
 
   const building: LibraryEntry[] = buildingSets.map((entry) => ({
@@ -453,7 +448,6 @@ const buildLibraryEntries = (
       ? { order: entry.order }
       : {}),
     buildingEntry: entry,
-    helpCenter: isHelpCenterSet(entry),
   }));
 
   const web: LibraryEntry[] = webTours.map((set) => ({
@@ -504,9 +498,9 @@ const ViewCountSubtitle: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
 export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   userId,
-  sets,
+  sets: allSets,
   reviewBadge,
-  buildingSets,
+  buildingSets: allBuildingSets,
   assignments,
   loading,
   buildingLoading,
@@ -528,11 +522,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   isDuplicatingBuilding,
   onDeleteBuilding,
   folderDeleteActions,
-  onCopyTourToBuilding,
-  isCopyingTourToBuilding,
   onConvertToLiveTour,
   isConvertingToLiveTour,
-  onSetBuildingHelpCenter,
+  onMoveToHelpCenter,
+  isMovingToHelpCenter,
   onExport,
   onImport,
   importFocusCounter = 0,
@@ -554,9 +547,17 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onError,
 }) => {
   const { t } = useTranslation();
+  // Only admins can move a personal tour into the Help Center, so teachers keep theirs listed.
+  const sets = useMemo(
+    () => (isAdmin ? allSets.filter(listsPersonal) : allSets),
+    [allSets, isAdmin]
+  );
+  const buildingSets = useMemo(
+    () => allBuildingSets.filter(listsBuilding),
+    [allBuildingSets]
+  );
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
-  const canRunLiveTour = useCanRunLiveTour();
   // Same gate as the Studio's AI button.
   const auth = React.useContext(AuthContext);
   const aiAuthoring =
@@ -582,10 +583,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   }, [canCreateWebTour]);
   const visibleWebTours = canCreateWebTour ? webTours : NO_WEB_TOURS;
   // Only a published snapshot runs from the library; the shared watchers read each tour once per page.
-  const liveTourKey = [
-    ...buildingSets.filter((e) => e.hasLiveTour).map((e) => e.id),
-    ...visibleWebTours.map((set) => set.id),
-  ].join(',');
+  const liveTourKey = [...visibleWebTours.map((set) => set.id)].join(',');
   const watchLiveTours = useCallback(
     (onChange: () => void) =>
       liveTourKey
@@ -649,9 +647,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   } | null>(null);
   const buildingSourceKeys = useMemo(
     () => [
-      ...buildingSets
-        .filter((set) => !isHelpCenterSet(set))
-        .map((set) => `building:${set.id}`),
+      ...buildingSets.map((set) => `building:${set.id}`),
       ...visibleWebTours
         .filter((set) => !isHelpCenterSet(set))
         .map((set) => `web:${set.id}`),
@@ -713,18 +709,13 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     options: [
       { value: 'personal', label: 'Personal' },
       { value: 'building', label: 'Building' },
-      { value: HELP_CENTER_SOURCE, label: 'Help Center' },
     ],
     // Building filter is admin-gated. Non-admins never see this control.
     visible: isAdmin,
   };
 
-  // Teachers never see Help Center sets in the library, so their tours don't count.
   // Admins with web tours always get the filter, since web tours are listed under it.
-  const hasTours =
-    (isAdmin && !!auth?.canAccessFeature('web-tours')) ||
-    sets.some((s) => s.mode === 'tour') ||
-    buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
+  const hasTours = isAdmin && !!auth?.canAccessFeature('web-tours');
 
   const view = useFolderLibraryView<LibraryEntry>({
     items: allEntries,
@@ -761,24 +752,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
-  const isHelpCenterFiltered = activeSourceFilter === HELP_CENTER_SOURCE;
-  // Admins' "Live tours" view lists every tour, so Help Center tours are findable from the library.
-  const showHelpCenterTours =
-    isAdmin && activeTypeFilter === TOUR_TYPE && activeSourceFilter === '';
-  // The "All" view skips the source predicate, so Help Center sets are dropped here too.
-  const libraryItems = useMemo(
-    () =>
-      isHelpCenterFiltered || showHelpCenterTours
-        ? view.visibleItems
-        : view.visibleItems.filter((entry) => !entry.helpCenter),
-    [view.visibleItems, isHelpCenterFiltered, showHelpCenterTours]
-  );
+  // Only Web tours still carry the flag; they stay listed until they get their own page.
+  const libraryItems = view.visibleItems;
 
   // Adjust-during-render: on import success, show the Personal view the set landed in.
   const [seenImportFocus, setSeenImportFocus] = useState(importFocusCounter);
   if (importFocusCounter !== seenImportFocus) {
     setSeenImportFocus(importFocusCounter);
-    if (isBuildingFiltered || isHelpCenterFiltered) {
+    if (isBuildingFiltered) {
       view.toolbarProps.onFilterChange?.('source', 'personal');
     }
   }
@@ -992,10 +973,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // ─── Drive disconnected banner ────────────────────────────────────────────
   const showDriveBanner =
-    tab === 'library' &&
-    !isDriveConnected &&
-    !isBuildingFiltered &&
-    !isHelpCenterFiltered;
+    tab === 'library' && !isDriveConnected && !isBuildingFiltered;
 
   /* ─── Rendering helpers ─────────────────────────────────────────────────── */
 
@@ -1163,6 +1141,23 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     );
   };
 
+  const moveToHelpCenter = async (entry: LibraryEntry, rawId: string) => {
+    if (!onMoveToHelpCenter) return;
+    // A building set leaves every teacher's library, so confirm first (H6).
+    if (entry.buildingEntry) {
+      const ok = await showConfirm(
+        "It leaves every teacher's building library and is hidden in the Help Center until you publish it.",
+        {
+          title: 'Move to Help Center',
+          confirmLabel: 'Move',
+        }
+      );
+      if (!ok) return;
+    }
+    setPreviewEntryId(null);
+    await onMoveToHelpCenter(rawId, entry.driveFileId, entry.buildingEntry);
+  };
+
   const renderLibraryCard = (
     entry: LibraryEntry,
     index?: number
@@ -1172,37 +1167,19 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       entry.source === 'personal'
         ? entry.id.slice('personal:'.length)
         : entry.id.slice('building:'.length);
-    const isTour = isTourEntry(entry);
     const badges: LibraryBadge[] = [
-      isTour
-        ? { label: 'Live tour', tone: 'info' }
-        : { label: MODE_LABELS[entry.mode], tone: 'info' },
+      { label: MODE_LABELS[entry.mode], tone: 'info' },
     ];
     if (entry.source === 'building') {
-      badges.push({
-        label: entry.helpCenter ? 'Help Center' : 'Building',
-        tone: 'warn',
-      });
+      badges.push({ label: 'Building', tone: 'warn' });
+    }
+    if (entry.movedToHelpCenter) {
+      badges.push({ label: 'Moved to Help Center', tone: 'neutral' });
     }
     const review = reviewBadge?.(entry, () =>
       onEdit(rawId, entry.driveFileId, entry.buildingEntry)
     );
     if (review) badges.push(review);
-    // Authors see where a tour stands: only a published building tour reaches teachers.
-    if (isTour && isAdmin) {
-      if (entry.source === 'personal') {
-        badges.push({ label: "Can't run live", tone: 'danger' });
-      } else {
-        const runnable = isTourRunnable(rawId);
-        if (runnable !== undefined) {
-          badges.push(
-            runnable
-              ? { label: 'Published', tone: 'success' }
-              : { label: 'Draft', tone: 'neutral' }
-          );
-        }
-      }
-    }
 
     const isBuildingEntry = entry.source === 'building';
     const placedChip = isBuildingEntry
@@ -1236,53 +1213,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
-    // A published tour plays live as teachers see it; authors try drafts in the board editor.
-    let runLive: LibraryMenuAction | null = null;
-    if (entry.buildingEntry?.hasLiveTour) {
-      if (isTourRunnable(rawId) === true) {
-        runLive = {
-          id: 'run-live',
-          label: t('glStudio.runLive'),
-          icon: Footprints,
-          onClick: () => requestStartTour({ setId: rawId }),
-        };
-      }
-    }
     const play = () => onPlay(rawId, entry.driveFileId, entry.buildingEntry);
-    // On a board, a runnable tour's Play runs it live; tour-mode sets have no slides to play.
-    const playsLive = runLive !== null && canRunLiveTour;
-    if (runLive && playsLive) {
-      if (entry.mode !== 'tour') {
-        secondary.push({
-          id: 'play-slides',
-          label: 'Play as slides',
-          icon: Play,
-          onClick: play,
-        });
-      }
-    } else if (runLive) {
-      secondary.push(runLive);
-    }
 
-    if (
-      isTour &&
-      isAdmin &&
-      entry.source === 'personal' &&
-      entry.driveFileId &&
-      onCopyTourToBuilding
-    ) {
-      const fileId = entry.driveFileId;
-      secondary.push({
-        id: 'copy-tour-to-building',
-        label: 'Copy to building to run live',
-        icon: Library,
-        disabled: isCopyingTourToBuilding?.(rawId),
-        disabledReason: 'Copying…',
-        onClick: () => void onCopyTourToBuilding(rawId, fileId),
-      });
-    }
-
-    if (isAdmin && entry.mode !== 'tour' && onConvertToLiveTour) {
+    if (isAdmin && onConvertToLiveTour) {
       secondary.push({
         id: 'convert-to-live-tour',
         label: t('glStudio.convertToLiveTour'),
@@ -1357,29 +1290,29 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           )
         );
       }
-      if (!entry.helpCenter) {
-        secondary.push(
-          buildMoveToFolderAction({
-            onOpenPicker: () =>
-              setFolderPickerTarget({
-                rawId,
-                title: entry.title,
-                folderId: placedChip ? folderIdOf(entry.id) : null,
-                sourceKey: entry.id,
-              }),
-            disabled: !userId,
-          })
-        );
-      }
+      secondary.push(
+        buildMoveToFolderAction({
+          onOpenPicker: () =>
+            setFolderPickerTarget({
+              rawId,
+              title: entry.title,
+              folderId: placedChip ? folderIdOf(entry.id) : null,
+              sourceKey: entry.id,
+            }),
+          disabled: !userId,
+        })
+      );
     }
 
-    if (isBuildingEntry && isAdmin && onSetBuildingHelpCenter) {
-      const toHelp = !entry.helpCenter;
+    // Admins file their own sets and building sets in the Help Center; a tagged set is already there.
+    if (isAdmin && onMoveToHelpCenter && !entry.movedToHelpCenter) {
       secondary.push({
         id: 'help-center',
-        label: toHelp ? 'Move to Help Center' : 'Move to library',
-        icon: toHelp ? LifeBuoy : Library,
-        onClick: () => void onSetBuildingHelpCenter(rawId, toHelp),
+        label: 'Move to Help Center',
+        icon: LifeBuoy,
+        disabled: isMovingToHelpCenter?.(rawId),
+        disabledReason: 'Moving…',
+        onClick: () => void moveToHelpCenter(entry, rawId),
       });
     }
 
@@ -1443,15 +1376,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         subtitle={subtitle}
         thumbnail={thumbnail}
         badges={badges}
-        secondaryPrimaryAction={
-          playsLive && runLive
-            ? {
-                label: 'Play live',
-                icon: Footprints,
-                onClick: runLive.onClick,
-              }
-            : { label: 'Play', icon: Play, onClick: play }
-        }
+        secondaryPrimaryAction={{ label: 'Play', icon: Play, onClick: play }}
         primaryAction={{
           label: primaryActionLabel,
           icon: Link2,
@@ -1477,9 +1402,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
               }
             : undefined
         }
-        sortable={
-          (isPersonal || !entry.helpCenter) && enableCardDrag && !selectionMode
-        }
+        sortable={enableCardDrag && !selectionMode}
         viewMode={view.state.viewMode}
         meta={entry}
         selectionMode={selectable}
@@ -1775,13 +1698,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 icon={BookOpen}
                 title="No sets yet"
                 subtitle={
-                  isHelpCenterFiltered
-                    ? 'Add them in Admin Settings > Help Center.'
-                    : isBuildingFiltered
-                      ? isAdmin
-                        ? 'Use New Building Set or AI to add one.'
-                        : undefined
-                      : 'Click New Set to make one.'
+                  isBuildingFiltered
+                    ? isAdmin
+                      ? 'Use New Building Set or AI to add one.'
+                      : undefined
+                    : 'Click New Set to make one.'
                 }
               />
             }
@@ -1958,7 +1879,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       tab={tab}
       onTabChange={setTab}
       counts={{
-        library: allEntries.filter((entry) => !entry.helpCenter).length,
+        library: allEntries.length,
         active: activeAssignments.length,
         archive: archivedAssignments.length,
       }}

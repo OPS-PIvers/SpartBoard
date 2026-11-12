@@ -9370,6 +9370,8 @@ export interface GuidedLearningSetMetadata {
   claudeEditedAt?: number;
   /** Claude made or changed this set and the teacher hasn't opened it since. */
   claudeReviewPendingAt?: number;
+  /** Copied into the Help Center while students had it open; removed once none do (H5). */
+  movedToHelpCenterAt?: number;
 }
 
 /** Library entry for a building set, written only by the glBuildingIndexMirror function. */

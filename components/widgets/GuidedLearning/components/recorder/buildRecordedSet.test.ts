@@ -41,6 +41,7 @@ describe('buildRecordedSet', () => {
       id: 'set-9',
       schemaVersion: 4,
       isBuilding: true,
+      helpCenter: true,
       hasLiveTour: true,
       imageUrls: [],
       tourSetup: { widgets: [] },

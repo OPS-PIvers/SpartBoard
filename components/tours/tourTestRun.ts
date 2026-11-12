@@ -159,7 +159,7 @@ export const sampleHelpItems = (): HelpResourceItem[] =>
   SAMPLE_HELP_GUIDES.map(
     ([categoryId, title, description, widgetTypes], i) => ({
       id: `sample-help-${i + 1}`,
-      kind: 'embed',
+      kind: 'guided-learning',
       title,
       description,
       categoryId,
@@ -167,9 +167,9 @@ export const sampleHelpItems = (): HelpResourceItem[] =>
       visible: true,
       orgId: null,
       widgetTypes,
-      url: 'https://docs.google.com/document/d/sample/preview',
-      embedType: 'doc',
-      setId: null,
+      url: null,
+      embedType: null,
+      setId: `sample-help-set-${i + 1}`,
       openCount: 0,
       createdBy: 'sample',
       createdByEmail: '',

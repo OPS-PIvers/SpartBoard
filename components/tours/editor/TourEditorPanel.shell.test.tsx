@@ -156,7 +156,7 @@ describe('Live tour editor header', () => {
     expect(h.publish).not.toHaveBeenCalled();
   });
 
-  it('lists broken links before publishing anyway', async () => {
+  it('lists broken links and refuses to publish them', () => {
     const set = tourOf([
       step('a', { tour: { anchor: 'gone.anchor', action: 'click' } }),
     ]);
@@ -166,13 +166,10 @@ describe('Live tour editor header', () => {
     expect(h.publish).not.toHaveBeenCalled();
     const confirm = screen.getByTestId('tour-editor-publish-confirm');
     expect(confirm).toHaveTextContent('Step 1');
-    await act(async () => {
-      fireEvent.click(
-        within(confirm).getByRole('button', { name: 'Publish anyway' })
-      );
-      await Promise.resolve();
-    });
-    expect(h.publish).toHaveBeenCalled();
+    expect(
+      within(confirm).queryByRole('button', { name: 'Publish anyway' })
+    ).toBeNull();
+    expect(h.publish).not.toHaveBeenCalled();
   });
 
   it('asks for text first and takes the admin to the first step without any', () => {
