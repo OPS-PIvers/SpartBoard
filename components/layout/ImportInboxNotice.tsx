@@ -19,8 +19,11 @@ export const ImportInboxNotice: React.FC<ImportInboxNoticeProps> = ({
   onOpen,
   onDiscard,
 }) => {
-  // Hides at once while the deletes reach Firestore.
+  // Hides at once while the deletes reach Firestore; an id that left the list is forgotten, so a re-send shows again.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  const stale = [...hidden].filter((id) => !items.some((i) => i.id === id));
+  if (stale.length > 0)
+    setHidden(new Set([...hidden].filter((id) => !stale.includes(id))));
   const waiting = items.filter((item) => !hidden.has(item.id));
   if (suppressed || waiting.length === 0) return null;
   const count = items.length;
