@@ -94,12 +94,6 @@ _2026-10-03: Daily audit (Saturday). `pnpm type-check` exit 0, 0 errors. `pnpm l
 
 _2026-10-02: Daily audit (Friday). `pnpm type-check` exit 0, 0 errors. `pnpm lint:functions` exit 0. `eslint . --max-warnings 0` on the app exit 0 with 0 errors/warnings when run with `NODE_OPTIONS=--max-old-space-size=6144`; plain `pnpm lint` was OOM-killed (exit 137) on this 16 GB runner at the default heap. 1 new LOW item (tooling, below)._
 
-### LOW `pnpm lint` (full-repo type-aware ESLint) is OOM-killed at the default Node heap
-
-- **Detected:** 2026-10-02
-- **File:** `package.json` (`lint:app` script)
-- **Detail:** `eslint . --max-warnings 0` exits 137 (killed) with Node's default heap on a 16 GB runner; it passes cleanly with `--max-old-space-size=6144`. Scheduled audits and any contributor running the full lint can get a false failure.
-- **Fix:** Set `NODE_OPTIONS=--max-old-space-size=6144` in the `lint:app` script (or document it), keeping the CLAUDE.md guidance against running full lint casually.
 
 _2026-10-01: Daily audit (HEAD `00ce6828`). `pnpm type-check` exit 0 with no errors. `pnpm lint` (app + functions, `--max-warnings 0`) exit 0 with no errors or warnings. 0 issues._
 
@@ -370,6 +364,14 @@ _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-0
 ---
 
 ## Completed
+
+### LOW `pnpm lint` (full-repo type-aware ESLint) is OOM-killed at the default Node heap
+
+- **Detected:** 2026-10-02
+- **File:** `package.json` (`lint:app` script)
+- **Detail:** `eslint . --max-warnings 0` exits 137 (killed) with Node's default heap on a 16 GB runner; it passes cleanly with `--max-old-space-size=6144`. Scheduled audits and any contributor running the full lint can get a false failure.
+- **Fix:** Set `NODE_OPTIONS=--max-old-space-size=6144` in the `lint:app` script (or document it), keeping the CLAUDE.md guidance against running full lint casually.
+- **Completed:** 2026-11-12 — `scripts/lintApp.mjs` (behind `lint:app`) already passes `--max-old-space-size=6144` unless `NODE_OPTIONS` sets a heap size. No code change needed.
 
 ### MEDIUM node_modules not installed — type-check and lint cannot run in this environment
 
