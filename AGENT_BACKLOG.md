@@ -234,6 +234,8 @@ nightly/widgets-2026-11-12
 nightly/unifier-log-2026-11-12
 claude/project-thread-ov98y6
 claude/project-thread-ov98y6-branchlog
+claude/project-thread-bd1fel
+claude/project-thread-bd1fel-ab112
 claude/project-thread-l8b36b
 claude/project-thread-shwk3a
 claude/project-thread-anub7c
