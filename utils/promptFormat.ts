@@ -48,7 +48,15 @@ const canOpen = (s: string, i: number, from: number, mark: string) => {
   );
 };
 
-function findClose(s: string, from: number, to: number, mark: string): number {
+function findClose(
+  s: string,
+  from: number,
+  to: number,
+  mark: string,
+  nested = true
+): number {
+  // A mark that found no close from one spot finds none from a later one, so it is tried once.
+  const unclosed = new Set<string>();
   for (let k = from; k <= to - mark.length; k++) {
     if (s[k] === '⟦') {
       const end = s.indexOf('⟧', k);
@@ -65,6 +73,24 @@ function findClose(s: string, from: number, to: number, mark: string): number {
       markMayCloseBefore(after)
     ) {
       return k;
+    }
+    // Step over a nested run of another mark, so *a **b** c* closes after c.
+    for (const { mark: inner } of nested ? MARKS : []) {
+      if (inner === mark || unclosed.has(inner)) continue;
+      if (!s.startsWith(inner, k) || !canOpen(s, k, from, inner)) continue;
+      const end = findClose(
+        s,
+        k + inner.length,
+        to - mark.length,
+        inner,
+        false
+      );
+      if (end === -1) {
+        unclosed.add(inner);
+        continue;
+      }
+      k = end + inner.length - 1;
+      break;
     }
   }
   return -1;
@@ -170,7 +196,9 @@ export function promptFormatHtml(
   return text
     .split('\n')
     .map((line) =>
-      nodesToHtml(parsePromptInline(line), (s) => escapeHtml(leaf(s)))
+      nodesToHtml(parsePromptInline(line), (s) =>
+        escapeHtml(leaf(s.replaceAll(ZWSP, '')))
+      )
     )
     .join('\n');
 }

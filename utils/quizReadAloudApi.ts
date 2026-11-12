@@ -151,7 +151,7 @@ function speakPromptMath(math: string): string {
 
 /** Client mirror of the server's R11 normalizer (functions/src/quizReadAloud.ts); both sides must chunk the same input. */
 export function normalizeReadAloudText(raw: string): string {
-  let s = raw;
+  let s = raw.replace(/\u200b/g, '');
   s = s.replace(/⟦([^⟦⟧]*)⟧/g, (_m, math: string) => speakPromptMath(math));
   s = s.replace(/<[^>]+>/g, ' ');
   s = s.replace(/_{3,}/g, ' blank ');
