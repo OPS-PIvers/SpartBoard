@@ -395,7 +395,7 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
   );
 };
 
-/** A hairline between rows that adds a message there; it shows on hover, focus and touch. */
+/** A thin strip between rows that adds a message there; its label shows on hover, focus and touch and never takes clicks from the rows. */
 const MessageGap: React.FC<{ index: number; adapter: TourShellAdapter }> = ({
   index,
   adapter,
@@ -404,18 +404,20 @@ const MessageGap: React.FC<{ index: number; adapter: TourShellAdapter }> = ({
   return (
     <li
       data-testid="tour-editor-add-message-gap"
-      className="relative h-0 shrink-0"
+      className="relative h-1.5 shrink-0"
     >
       {/* no-tour-anchor: repeats between every step; the Add a message button is the anchor */}
       <button
         type="button"
         onClick={() => adapter.onAddMessage?.(index)}
         aria-label={adapter.addMessageLabel}
-        className={`absolute inset-x-1.5 -top-1.5 z-10 flex h-3 items-center gap-2 text-[11px] font-semibold text-brand-blue-primary opacity-0 hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 ${focusRing}`}
+        className={`group/gap absolute inset-x-1.5 inset-y-0 rounded-sm ${focusRing}`}
       >
-        <span className="h-px flex-1 bg-brand-blue-primary/30" />
-        {adapter.addMessageLabel}
-        <span className="h-px flex-1 bg-brand-blue-primary/30" />
+        <span className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex h-4 -translate-y-1/2 items-center gap-2 bg-white/90 text-[11px] font-semibold text-brand-blue-primary opacity-0 group-hover/gap:opacity-100 group-focus-visible/gap:opacity-100 touch:opacity-100">
+          <span className="h-px flex-1 bg-brand-blue-primary/30" />
+          {adapter.addMessageLabel}
+          <span className="h-px flex-1 bg-brand-blue-primary/30" />
+        </span>
       </button>
     </li>
   );
