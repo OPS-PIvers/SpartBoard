@@ -8,6 +8,8 @@ import {
   Loader2,
   Plus,
   FolderMinus,
+  Folder,
+  FolderOpen,
 } from 'lucide-react';
 import type { Plc, QuestionBankMetadata } from '@/types';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -61,6 +63,8 @@ export interface QuizBanksTabProps {
   /** District library banks the teacher added (kind 'district'); read-only. */
   districtBankSources?: BankSource[];
   onRemoveDistrictBank?: (source: BankSource) => void | Promise<void>;
+  /** Set when district banks live in the library's District library folder: they list as that one folder. */
+  onOpenDistrictFolder?: () => void;
   plcs: readonly Plc[];
   shell: Pick<
     LibraryShellProps,
@@ -149,6 +153,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   sharedBankSources,
   districtBankSources = NO_DISTRICT_BANKS,
   onRemoveDistrictBank,
+  onOpenDistrictFolder,
   plcs,
   shell,
   onNewBank,
@@ -616,6 +621,32 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
             libraryView.folderView.location.folderId === null)
     )
     .map(renderDistrictRow);
+  const districtFolderRow =
+    onOpenDistrictFolder && districtBankSources.length > 0 ? (
+      <LibraryItemCard<null>
+        key="district-library-folder"
+        id="district-library-folder"
+        title="District library"
+        thumbnail={<Folder className="h-5 w-5 text-slate-400" aria-hidden />}
+        subtitle={<span>{plural(districtBankSources.length, 'bank')}</span>}
+        primaryAction={{
+          label: 'Open',
+          icon: FolderOpen,
+          onClick: onOpenDistrictFolder,
+          anchor: tourTypeAttr('quiz-library.district-folder', 'quiz'),
+        }}
+        onDoubleClick={onOpenDistrictFolder}
+        viewMode="list"
+        sortable={false}
+        meta={null}
+      />
+    ) : null;
+  const districtTrailing =
+    onOpenDistrictFolder && !districtQuery
+      ? districtFolderRow
+        ? [districtFolderRow]
+        : []
+      : districtRows;
 
   const body = loading ? (
     <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary gap-3 py-10">
@@ -645,7 +676,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         }
         layout="list"
         emptyState={emptyState}
-        trailingRows={[...sharedRows, ...districtRows]}
+        trailingRows={[...sharedRows, ...districtTrailing]}
         useExternalDndContext={enableCardDrag}
         renderCard={(bank, index) => renderCard(bank, false, index)}
       />

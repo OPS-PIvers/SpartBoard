@@ -7,7 +7,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LibraryMenuAction } from './types';
 
 /* ─── Overflow menu (click-outside aware) ─────────────────────────────────── */
@@ -19,6 +19,8 @@ interface OverflowMenuProps {
   widgetType: string;
   /** Assignment rows (In Progress, Completed) keep their own tour anchor ids and a slightly smaller trigger. */
   archive?: boolean;
+  /** Tour anchor for the trigger when the menu has no rowKey. */
+  anchor?: TourAnchorAttrs;
 }
 
 const MENU_WIDTH = 224; // w-56; fits the longest current item label ("Print response sheets") without truncating
@@ -40,6 +42,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   rowKey,
   widgetType,
   archive = false,
+  anchor,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
@@ -331,7 +334,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
           ? archive
             ? tourFieldAttr('library-shell.archive-menu', widgetType, rowKey)
             : tourFieldAttr('library-shell.card-menu', widgetType, rowKey)
-          : {})}
+          : (anchor ?? {}))}
         className="inline-flex shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
         style={
           archive

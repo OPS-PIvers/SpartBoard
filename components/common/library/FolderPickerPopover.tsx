@@ -54,6 +54,8 @@ export interface FolderPickerPopoverProps {
   anchorRef?: RefObject<HTMLElement | null>;
   rootAnchor?: TourAnchorAttrs;
   rowAnchor?: (folderId: string) => TourAnchorAttrs;
+  /** Label for the null choice; defaults to "All items (no folder)". */
+  rootLabel?: string;
 }
 
 interface FlatNode {
@@ -119,6 +121,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   anchorRef,
   rootAnchor,
   rowAnchor,
+  rootLabel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const headerId = useId();
@@ -272,7 +275,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
       >
         {renderRow(
           null,
-          'All items (no folder)',
+          rootLabel ?? 'All items (no folder)',
           0,
           <Inbox className="h-4 w-4" aria-hidden="true" />
         )}

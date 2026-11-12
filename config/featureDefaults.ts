@@ -1,6 +1,7 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  FolderTree,
   ArrowLeftRight,
   RotateCcw,
   Camera,
@@ -1169,6 +1170,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'sharing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'district-library-folders': {
+    label: 'District library folders',
+    icon: FolderTree,
+    description:
+      'Folders in the District library, with one audience per folder, shown to teachers as folders.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
