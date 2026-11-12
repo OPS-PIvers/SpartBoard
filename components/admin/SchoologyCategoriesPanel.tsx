@@ -119,7 +119,7 @@ export const SchoologyCategoriesPanel: React.FC = () => {
               setLoadFailed(false);
               setLoadAttempt((n) => n + 1);
             }}
-            className="font-bold text-brand-blue-primary"
+            className="relative touch-target-expand rounded font-bold text-brand-blue-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
             Try again
           </button>
