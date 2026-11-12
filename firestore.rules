@@ -2467,6 +2467,7 @@ service cloud.firestore {
         );
     }
 
+    // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
     // updatedAt dual-accept (timestamp || legacy int millis) during the
     // serverTimestamp rollout (Decision 3.2). Centralized so tightening to
     // timestamp-only is a one-line change.
