@@ -62,6 +62,7 @@ import {
   pageProtectionSessionFields,
 } from '@/utils/pageProtections';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import { INPUT_SIGNALS_FEATURE } from '@/utils/inputSignals';
 import {
   addJoinCodeOwnerToBatch,
   addJoinCodePointerToBatch,
@@ -108,6 +109,7 @@ import type {
   RevealedRubricExamples,
 } from '@/types';
 import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
+import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
@@ -205,6 +207,10 @@ import {
   END_TURN_IN_DELAY_MS,
   finalizeOpenQuizResponses,
 } from '@/utils/quizFinalizeOpenResponses';
+import {
+  responsesAnsweringRemoved,
+  shouldCheckSyncRemovals,
+} from '@/utils/districtLibraryOrigin';
 
 /** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
 async function commitQuizLifecycle(
@@ -497,7 +503,9 @@ export interface UseQuizAssignmentsResult {
   shareAssignment: (
     assignmentId: string,
     quizData: QuizData,
-    loadBankContents?: LoadBankContentsForQuiz
+    loadBankContents?: LoadBankContentsForQuiz,
+    /** The quiz's `districtOrigin`; library content is refused. */
+    districtOrigin?: readonly string[]
   ) => Promise<string>;
   /**
    * Peek at a `/shared_assignments/{shareId}` doc without importing. Used
@@ -592,6 +600,11 @@ export interface UseQuizAssignmentsResult {
    * No-op if the assignment isn't synced (no `syncGroupId`) or already
    * matches the canonical version.
    */
+  /** Questions the latest version drops and how many responses already answered them, read before a sync. */
+  previewSyncRemovals: (
+    assignmentId: string,
+    options: { linkedCopy: boolean }
+  ) => Promise<{ removed: string[]; responseCount: number }>;
   syncAssignmentToLatest: (assignmentId: string) => Promise<{
     /** True iff the rebuild actually ran (false = already at latest). */
     updated: boolean;
@@ -809,6 +822,8 @@ function sessionOptionsToSessionPatch(
     patch.showCorrectOnBoard = o.showCorrectOnBoard;
   if (o.showLearningTargets !== undefined)
     patch.showLearningTargets = o.showLearningTargets;
+  if (o.showExplanations !== undefined)
+    patch.showExplanations = o.showExplanations;
   if (o.speedBonusEnabled !== undefined)
     patch.speedBonusEnabled = o.speedBonusEnabled;
   if (o.streakBonusEnabled !== undefined)
@@ -1336,6 +1351,12 @@ export const useQuizAssignments = (
   const crossOutOn = authContext?.canAccessFeature?.('quiz-cross-out') === true;
   const orderingListOn =
     authContext?.canAccessFeature?.('quiz-ordering-list') === true;
+  const inputSignalsOn =
+    authContext?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
+  const stimulusTabsOn =
+    authContext?.canAccessFeature?.('quiz-stimulus-tabs') === true;
+  const reviewStepOn =
+    authContext?.canAccessFeature?.('quiz-review-step') === true;
   const pageProtectionsOn =
     authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
@@ -1537,8 +1558,16 @@ export const useQuizAssignments = (
       // `showLearningTargets`.
       const sessionQuestions = dedupeQuestionsById(quiz.questions);
       const questionSnapshot = sessionQuestions.flatMap((question) =>
-        question.targets && question.targets.length > 0
-          ? [{ id: question.id, targets: question.targets }]
+        (question.targets?.length ?? 0) > 0 || question.dok != null
+          ? [
+              {
+                id: question.id,
+                ...(question.targets?.length
+                  ? { targets: question.targets }
+                  : {}),
+                ...(question.dok != null ? { dok: question.dok } : {}),
+              },
+            ]
           : []
       );
 
@@ -1734,11 +1763,15 @@ export const useQuizAssignments = (
           ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
           : {}),
         ...(crossOutOn ? { allowCrossOut: true } : {}),
+        ...(inputSignalsOn ? { inputSignals: true } : {}),
         ...(orderingListOn ? { orderingList: true } : {}),
+        ...(stimulusTabsOn ? { stimulusTabs: true } : {}),
+        ...(reviewStepOn && mode === 'student' ? { reviewStep: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
         showLearningTargets: opts.showLearningTargets ?? false,
+        ...(opts.showExplanations ? { showExplanations: true } : {}),
         ...(scoreOnSubmitOn &&
         opts.showScoreOnSubmit &&
         !quizNeedsManualGrading(sessionQuestions)
@@ -1966,6 +1999,9 @@ export const useQuizAssignments = (
       stimulusQuotesOn,
       crossOutOn,
       orderingListOn,
+      inputSignalsOn,
+      stimulusTabsOn,
+      reviewStepOn,
       pageProtectionsOn,
     ]
   );
@@ -2535,10 +2571,14 @@ export const useQuizAssignments = (
   const shareAssignment = useCallback<
     UseQuizAssignmentsResult['shareAssignment']
   >(
-    async (assignmentId, quizData, loadBankContents) => {
+    async (assignmentId, quizData, loadBankContents, districtOrigin) => {
       if (!userId) throw new Error('Not authenticated');
       // Load the banks first so a missing one fails before any sync-group write.
-      const content = await buildSharedQuizContent(quizData, loadBankContents);
+      const content = await buildSharedQuizContent(
+        quizData,
+        loadBankContents,
+        districtOrigin
+      );
       const snap = await getDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
@@ -2970,6 +3010,74 @@ export const useQuizAssignments = (
       return created.id;
     },
     [userId, createAssignment]
+  );
+
+  const previewSyncRemovals = useCallback<
+    UseQuizAssignmentsResult['previewSyncRemovals']
+  >(
+    async (assignmentId, { linkedCopy }) => {
+      const none = { removed: [], responseCount: 0 };
+      // Ordinary synced assignments skip this entirely, so their sync reads and behaves as before.
+      if (!userId || !linkedCopy) return none;
+      const assignmentSnap = await getDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
+      );
+      if (!assignmentSnap.exists()) return none;
+      const assignment = migrateSyncLinkageShape(
+        migrateLegacyAssignmentShape(
+          assignmentSnap.data() as QuizAssignment &
+            LegacyPlcShape &
+            LegacySyncLinkageShape
+        )
+      );
+      if (!assignment.sync) return none;
+      const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
+      if (
+        !shouldCheckSyncRemovals({
+          linkedCopy,
+          assignmentDrewFromBanks: !!assignment.resolvedDriveFileId,
+          canonicalHasDraws: quizHasBankSlots(canonical),
+        })
+      ) {
+        return none;
+      }
+      const sessionSnap = await getDoc(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+      );
+      const session = sessionSnap.data() as QuizSession | undefined;
+      const served =
+        session?.questionsInContent === true
+          ? ((
+              await getDoc(
+                doc(
+                  db,
+                  QUIZ_SESSIONS_COLLECTION,
+                  assignmentId,
+                  QUIZ_CONTENT_COLLECTION,
+                  QUIZ_CONTENT_DOC
+                )
+              )
+            ).data() as QuizSessionContent | undefined)
+          : session;
+      const previousIds = (served?.publicQuestions ?? []).map((pq) => pq.id);
+      // The canonical's own fixed questions; draws were excluded above.
+      const nextIds = canonical.questions.map((q) => q.id);
+      if (previousIds.every((id) => nextIds.includes(id))) return none;
+      const responsesSnap = await getDocs(
+        collection(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          assignmentId,
+          RESPONSES_COLLECTION
+        )
+      );
+      return responsesAnsweringRemoved(
+        previousIds,
+        nextIds,
+        responsesSnap.docs.map((d) => d.data() as QuizResponse)
+      );
+    },
+    [userId]
   );
 
   const syncAssignmentToLatest = useCallback<
@@ -3439,7 +3547,9 @@ export const useQuizAssignments = (
         .filter((d) => {
           const data = d.data() as QuizResponse;
           return (
-            data.revealedAnswers != null || data.revealedRubricExamples != null
+            data.revealedAnswers != null ||
+            data.revealedRubricExamples != null ||
+            data.revealedExplanations != null
           );
         })
         .map((d) => d.ref);
@@ -3452,6 +3562,7 @@ export const useQuizAssignments = (
             patch: {
               revealedAnswers: deleteField(),
               revealedRubricExamples: deleteField(),
+              revealedExplanations: deleteField(),
             },
           }))
         );
@@ -3539,6 +3650,14 @@ export const useQuizAssignments = (
         visibility === 'score-responses-and-answers'
           ? buildRevealedRubricExamples(quizData)
           : null;
+      const explanations =
+        visibility === 'score-responses-and-answers' &&
+        (
+          assignmentSnap.data() as
+            { sessionOptions?: QuizSessionOptions } | undefined
+        )?.sessionOptions?.showExplanations === true
+          ? buildRevealedExplanations(quizData)
+          : null;
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -3570,6 +3689,7 @@ export const useQuizAssignments = (
           // The answer key lives on each response, never the session (D4).
           revealedAnswers: answerKey ?? deleteField(),
           revealedRubricExamples: rubricExamples ?? deleteField(),
+          revealedExplanations: explanations ?? deleteField(),
         };
       };
       const updates: ResponsePatch[] = [];
@@ -3755,6 +3875,14 @@ export const useQuizAssignments = (
         visibility === 'score-responses-and-answers'
           ? buildRevealedRubricExamples(quizData)
           : null;
+      const revealedExplanations =
+        visibility === 'score-responses-and-answers' &&
+        (
+          assignmentSnap.data() as
+            { sessionOptions?: QuizSessionOptions } | undefined
+        )?.sessionOptions?.showExplanations === true
+          ? buildRevealedExplanations(quizData)
+          : null;
       const snaps = await Promise.all(
         keys.map((key) =>
           getDoc(
@@ -3782,6 +3910,7 @@ export const useQuizAssignments = (
             expiresAt,
             ...(revealedAnswers ? { revealedAnswers } : {}),
             ...(revealedRubricExamples ? { revealedRubricExamples } : {}),
+            ...(revealedExplanations ? { revealedExplanations } : {}),
             ...(protection ? { protection } : {}),
           },
         };
@@ -3953,6 +4082,7 @@ export const useQuizAssignments = (
     shareAssignment,
     peekSharedAssignment,
     importSharedAssignment,
+    previewSyncRemovals,
     syncAssignmentToLatest,
     publishAssignmentScores,
     unpublishAssignmentScores,

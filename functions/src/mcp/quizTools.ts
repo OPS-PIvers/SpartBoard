@@ -175,6 +175,14 @@ const toolNames = (kind: QuizKind) =>
       };
 
 function assertNotSynced(kind: QuizKind, meta: Record<string, unknown>): void {
+  if (
+    typeof meta.districtLinkedItemId === 'string' &&
+    meta.districtLinkedItemId !== ''
+  ) {
+    throw new ToolError(
+      `This ${KIND[kind].label} comes from the District library and is read-only. Make your own copy in SpartBoard to edit it.`
+    );
+  }
   if (meta.sync) {
     throw new ToolError(
       `This ${KIND[kind].label} is shared with a PLC, so it has to be edited in SpartBoard where teammates' copies stay in sync.`

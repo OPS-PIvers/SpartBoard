@@ -24,6 +24,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertNotDistrictGroup } from './districtLibraryGuard';
 import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
 
 // Guard so this module can be loaded standalone in tests/tooling without
@@ -116,6 +117,7 @@ export async function handleJoinSyncedQuizGroup(
     );
     if (!alreadyJoined) {
       assertShareAuthorInGroup(shareData, groupSnap.data());
+      assertNotDistrictGroup(groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

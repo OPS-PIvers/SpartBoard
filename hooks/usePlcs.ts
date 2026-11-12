@@ -36,6 +36,7 @@ import {
   parseMeetingCadence,
 } from '@/utils/plcMeetingCadence';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
+import { callPlcMembership } from '@/utils/plcMembershipClient';
 import { parseNormingLevelLabels } from '@/utils/plcNorming';
 import { featuresForTeamLayout, parseTeamLayout } from '@/utils/teamLayout';
 import { isSuperAdminActor } from '@/utils/superAdmin';
@@ -257,138 +258,6 @@ function parsePlcMembers(value: unknown): Record<string, PlcMember> {
         ? { mentorRole: m.mentorRole }
         : {}),
     };
-  }
-  return out;
-}
-
-/**
- * A members-map entry as it is *written* to Firestore. Mirrors `PlcMember`
- * but lets `joinedAt` be the unresolved `serverTimestamp()` sentinel for a
- * fresh join (Decision 1.3) — the typed `PlcMember.joinedAt: number` is the
- * read-side shape, after the parser resolves the Timestamp.
- */
-type PlcMemberWrite = Omit<PlcMember, 'joinedAt'> & { joinedAt: unknown };
-
-/**
- * Read the canonical `members` map off raw transaction data, falling back to
- * synthesizing it from the denormalized `memberUids` / `memberEmails` /
- * `leadUid` arrays for legacy (un-migrated) PLCs. Every membership mutator
- * starts from this so a role/transfer write on a legacy PLC backfills the
- * full map (an empty `members: {}` is treated as un-migrated by the read
- * helpers, so a half-written map would silently fall back to the arrays).
- *
- * Existing members keep their stored `joinedAt` (a Firestore Timestamp on
- * read — written straight back so it isn't reset); synthesized legacy members
- * get `serverTimestamp()` so the first canonical write stamps a real join
- * time rather than freezing `0`.
- */
-function readMembersForWrite(
-  data: Record<string, unknown>,
-  // Admin writes may backfill uids that only the arrays know about.
-  { includeArrayOnly = false }: { includeArrayOnly?: boolean } = {}
-): Record<string, PlcMemberWrite> {
-  const parsed = parsePlcMembers(data.members);
-  if (Object.keys(parsed).length > 0) {
-    // Preserve the raw stored joinedAt (Timestamp/number) rather than the
-    // parsed millis, so writing it back does not lose precision or reset it.
-    const rawMembers = (data.members ?? {}) as Record<
-      string,
-      Record<string, unknown>
-    >;
-    const out: Record<string, PlcMemberWrite> = {};
-    for (const [uid, m] of Object.entries(parsed)) {
-      out[uid] = {
-        uid: m.uid,
-        email: m.email,
-        displayName: m.displayName,
-        role: m.role,
-        status: m.status,
-        joinedAt: rawMembers[uid]?.joinedAt ?? serverTimestamp(),
-        // Written back unchanged so the rules' single-entry members diff still holds.
-        ...(m.addedBy ? { addedBy: m.addedBy } : {}),
-        ...(m.mentorRole ? { mentorRole: m.mentorRole } : {}),
-      };
-    }
-    if (includeArrayOnly) {
-      for (const [uid, m] of Object.entries(synthesizeMembers(data))) {
-        if (!out[uid]) out[uid] = m;
-      }
-    }
-    return out;
-  }
-  return synthesizeMembers(data);
-}
-
-/** Members derived from the legacy arrays alone; the lead keeps the lead role. */
-function synthesizeMembers(
-  data: Record<string, unknown>
-): Record<string, PlcMemberWrite> {
-  const leadUid = typeof data.leadUid === 'string' ? data.leadUid : '';
-  const memberUids = Array.isArray(data.memberUids)
-    ? (data.memberUids as unknown[]).filter(
-        (u): u is string => typeof u === 'string'
-      )
-    : [];
-  const emails = (data.memberEmails ?? {}) as Record<string, unknown>;
-  const out: Record<string, PlcMemberWrite> = {};
-  for (const uid of memberUids) {
-    const rawEmail = typeof emails[uid] === 'string' ? emails[uid] : '';
-    const email = rawEmail.trim().toLowerCase();
-    const displayName = email.includes('@') ? email.split('@')[0] : email;
-    out[uid] = {
-      uid,
-      email,
-      displayName,
-      role: uid === leadUid ? 'lead' : 'member',
-      status: 'active',
-      joinedAt: serverTimestamp(),
-    };
-  }
-  return out;
-}
-
-/** Adds `uid` to the map from the arrays when only the arrays know it (invite accept writes only those). */
-function backfillArrayMember(
-  members: Record<string, PlcMemberWrite>,
-  data: Record<string, unknown>,
-  uid: string
-): void {
-  if (members[uid]) return;
-  const synthesized = synthesizeMembers(data)[uid];
-  if (synthesized) members[uid] = synthesized;
-}
-
-/** Stored indexes minus `uid`, so array-only members survive a write that drops someone else. */
-function indexesWithout(
-  data: Record<string, unknown>,
-  uid: string
-): { memberUids: string[]; memberEmails: Record<string, unknown> } {
-  const memberUids = Array.isArray(data.memberUids)
-    ? (data.memberUids as unknown[]).filter(
-        (u): u is string => typeof u === 'string' && u !== uid
-      )
-    : [];
-  const memberEmails = {
-    ...((data.memberEmails ?? {}) as Record<string, unknown>),
-  };
-  delete memberEmails[uid];
-  return { memberUids, memberEmails };
-}
-
-/** Active member uids derived from a write-shape members map. */
-function activeMemberUids(members: Record<string, PlcMemberWrite>): string[] {
-  return Object.values(members)
-    .filter((m) => m.status === 'active')
-    .map((m) => m.uid);
-}
-
-/** Active member email map (`{ uid: email }`) derived from a members map. */
-function activeMemberEmails(
-  members: Record<string, PlcMemberWrite>
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const m of Object.values(members)) {
-    if (m.status === 'active' && m.email) out[m.uid] = m.email;
   }
   return out;
 }
@@ -716,76 +585,24 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
-  // Transactional so concurrent edits to the members map + denormalized
-  // indexes don't drop a member silently. The `members` map, `memberUids`,
-  // `memberEmails`, and `leadUid` mirror all move in lockstep — diverging
-  // copies would make the lead's "remove member" UI render stale state and
-  // break the membership-gated rules/list query.
+  // Membership changes run in plcMembershipV1, which checks the caller and keeps the members map and indexes in lockstep.
   const removeMember = useCallback(
     async (plcId: string, uid: string) => {
       if (!user) return;
-      // Snapshot the removed member's display label inside the txn so the
-      // post-commit `member_left` activity event renders without a join.
-      // `didRemove` gates the emit so a no-op (member not in the map) doesn't
-      // log a phantom departure.
-      let removedName = '';
-      let didRemove = false;
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) return;
-        const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data);
-        const isRemovingLead =
-          members[uid]?.role === 'lead' || uid === data.leadUid;
-        // Defensive: the rules' lead-update branch requires the lead remain in
-        // memberUids, so removing the lead via this hook would be rejected at
-        // the server with PERMISSION_DENIED. The UI never surfaces this path,
-        // but guard the public hook surface explicitly.
-        if (isRemovingLead) {
-          throw new Error(i18n.t('plc.errors.leadCannotBeRemoved'));
-        }
-        // Mark removed in the canonical map (audit trail) AND drop from the
-        // denormalized indexes so the array-contains list query no longer
-        // returns this PLC for the removed member.
-        const indexes = indexesWithout(data, uid);
-        if (members[uid]) {
-          removedName = members[uid].displayName || members[uid].email || uid;
-          didRemove = true;
-          members[uid] = { ...members[uid], status: 'removed' };
-          tx.update(ref, {
-            members,
-            ...indexes,
-            // Transient pointer naming the single member this broad-branch write
-            // removes. The rules' `plcBroadMembersOk()` uses it to confirm the
-            // members-map mutation is a lone removal (not a second-lead mint) —
-            // the same pointer convention `setMemberRole` uses with
-            // `roleChangeUid`. Not persisted as membership data; ignored on read.
-            removeMemberUid: uid,
-            updatedAt: serverTimestamp(),
-          });
-          return;
-        }
-        // Array-only member (never written to the map): drop them from the indexes alone.
-        const emails = (data.memberEmails ?? {}) as Record<string, unknown>;
-        const email = typeof emails[uid] === 'string' ? emails[uid] : '';
-        removedName = email || uid;
-        didRemove =
-          Array.isArray(data.memberUids) && data.memberUids.includes(uid);
-        tx.update(ref, { ...indexes, updatedAt: serverTimestamp() });
+      const { changed, targetName } = await callPlcMembership({
+        action: 'removeMember',
+        plcId,
+        uid,
       });
-      // Activity log (Decision 2.2, §3.4) — fire-and-forget after the canonical
-      // membership write commits; never blocks or fails it. The actor is the
-      // lead performing the removal; `targetId`/`targetTitle` name the removed
-      // member so the feed reads "{lead} removed {member}".
-      if (didRemove) {
+      // Fire-and-forget after commit; the feed reads "{lead} removed {member}".
+      if (changed) {
         void writePlcActivityEvent(plcId, {
           type: 'member_left',
           actorUid: user.uid,
           actorName: resolveActorName(user),
           targetType: 'member',
           targetId: uid,
-          ...(removedName ? { targetTitle: removedName } : {}),
+          ...(targetName ? { targetTitle: targetName } : {}),
         });
       }
     },
@@ -795,36 +612,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const leavePlc = useCallback(
     async (plcId: string) => {
       if (!user) return;
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
-        const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data);
-        const isLead =
-          members[user.uid]?.role === 'lead' || data.leadUid === user.uid;
-        if (isLead) {
-          throw new Error(i18n.t('plc.errors.leadCannotLeave'));
-        }
-        const indexes = indexesWithout(data, user.uid);
-        if (members[user.uid]) {
-          members[user.uid] = { ...members[user.uid], status: 'removed' };
-          tx.update(ref, { members, ...indexes, updatedAt: serverTimestamp() });
-          return;
-        }
-        tx.update(ref, { ...indexes, updatedAt: serverTimestamp() });
-      });
-      // Activity log (Decision 2.2, §3.4) — fire-and-forget AFTER the leave
-      // commits. The departing member is the actor (no target — the
-      // `member_left` copy reads "{actor} left the PLC"). NOTE: the leave
-      // transaction drops the caller from `memberUids`, and the activity-create
-      // rule gates on PLC membership, so this self-authored write is rejected by
-      // rules post-leave (swallowed by the fire-and-forget helper). Reliable
-      // emission of a self-leave event therefore belongs to the leave Cloud
-      // Function alongside `member_joined` (invite-accept) — see the deferral
-      // note in the structured fix result. The attempt is left here so that, if
-      // the membership write is ever moved server-side (where the actor is still
-      // a member at write time), the event lands without a code change.
+      await callPlcMembership({ action: 'leave', plcId });
+      // The rules refuse this once the caller has left; kept so it lands if the server ever writes it first.
       void writePlcActivityEvent(plcId, {
         type: 'member_left',
         actorUid: user.uid,
@@ -834,59 +623,19 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
-  // Lead / co-lead only (re-enforced in rules): set a member's role. Cannot
-  // touch the current lead — leadership only moves through `transferLead`
-  // (the exactly-one-lead invariant). A role change leaves the membership
-  // sets intact, so `memberUids` / `memberEmails` are unchanged; only the
-  // `members` map entry's `role` moves. We still re-write the whole map (with
-  // the legacy backfill) so a role change on an un-migrated PLC populates the
-  // canonical map in one shot.
+  // Lead or co-lead: set a non-lead member's role. Leadership only moves through transferLead.
   const setMemberRole = useCallback(
     async (plcId: string, uid: string, role: PlcRole) => {
       if (!user) return;
       if (role === 'lead') {
-        // Promoting to lead is leadership transfer — force the atomic path so
-        // the invariant (and `leadUid` mirror) can't be bypassed.
         throw new Error(i18n.t('plc.errors.cannotDemoteLead'));
       }
-      // Snapshot the target's display label inside the txn for the post-commit
-      // `role_changed` activity event (renders without a join).
-      let targetName = '';
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
-        const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data);
-        backfillArrayMember(members, data, uid);
-        const target = members[uid];
-        if (!target || target.status !== 'active') {
-          throw new Error(i18n.t('plc.errors.notAMember'));
-        }
-        if (target.role === 'lead' || uid === data.leadUid) {
-          // Can't demote the sitting lead via a role change — transfer first.
-          throw new Error(i18n.t('plc.errors.cannotDemoteLead'));
-        }
-        targetName = target.displayName || target.email || uid;
-        members[uid] = { ...target, role };
-        // Mentor and mentee tags belong to members only (T29).
-        if (role !== 'member') delete members[uid].mentorRole;
-        tx.update(ref, {
-          members,
-          // Explicit target pointer for the rules' `isChangingMemberRole`
-          // branch (T6). Firestore rules cannot read a map value at a
-          // dynamically-discovered key, so the changed uid is named here; the
-          // rule validates `members[roleChangeUid]`. Harmless on the lead path
-          // (the broad lead-update branch ignores it); REQUIRED for co-leads
-          // (their only authorized path is `isChangingMemberRole`).
-          roleChangeUid: uid,
-          updatedAt: serverTimestamp(),
-        });
+      const { targetName } = await callPlcMembership({
+        action: 'setRole',
+        plcId,
+        uid,
+        role,
       });
-      // Activity log (Decision 2.2, §3.4) — fire-and-forget after commit; the
-      // actor (lead/co-lead) stays a member, so this write is authorized. The
-      // target member's label rides on `targetTitle` so the feed reads
-      // "{actor} changed {member}'s role".
       void writePlcActivityEvent(plcId, {
         type: 'role_changed',
         actorUid: user.uid,
@@ -899,56 +648,16 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
-  // Lead-only (re-enforced in rules): atomically hand leadership to another
-  // active member. Demotes the outgoing lead to `member`, promotes the target
-  // to `lead`, and moves the denormalized `leadUid` mirror in lockstep —
-  // preserving the exactly-one-lead invariant. Rejects a non-member target.
+  // Lead or co-lead: hand leadership to another active member; a transfer to the sitting lead is a no-op.
   const transferLead = useCallback(
     async (plcId: string, toUid: string) => {
       if (!user) return;
-      // Snapshot the new lead's display label + whether a transfer actually
-      // happened (a no-op transfer to the sitting lead must not log an event).
-      let targetName = '';
-      let didTransfer = false;
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
-        const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data);
-        const fromUid =
-          typeof data.leadUid === 'string'
-            ? data.leadUid
-            : (Object.values(members).find((m) => m.role === 'lead')?.uid ??
-              '');
-        backfillArrayMember(members, data, toUid);
-        const target = members[toUid];
-        if (!target || target.status !== 'active') {
-          throw new Error(i18n.t('plc.errors.targetNotActiveMember'));
-        }
-        // No-op transfer to the sitting lead — nothing to do, keep invariant.
-        if (toUid === fromUid) return;
-        targetName = target.displayName || target.email || toUid;
-        didTransfer = true;
-        // Demote every current lead (defensive: a malformed legacy map could
-        // carry more than one) then promote exactly the target.
-        for (const [uid, m] of Object.entries(members)) {
-          if (m.role === 'lead') members[uid] = { ...m, role: 'member' };
-        }
-        members[toUid] = { ...members[toUid], role: 'lead' };
-        // memberUids / memberEmails stay as stored: a transfer never changes who is in the group.
-        tx.update(ref, {
-          members,
-          leadUid: toUid,
-          updatedAt: serverTimestamp(),
-        });
+      const { changed, targetName } = await callPlcMembership({
+        action: 'transferLead',
+        plcId,
+        uid: toUid,
       });
-      // Activity log (Decision 2.2, §3.4) — fire-and-forget after commit. A
-      // leadership transfer IS a role change for the promoted member, so it
-      // reuses `role_changed` (no dedicated transfer type in the union). The
-      // outgoing lead (the actor) remains an active member, so the write is
-      // authorized.
-      if (didTransfer) {
+      if (changed) {
         void writePlcActivityEvent(plcId, {
           type: 'role_changed',
           actorUid: user.uid,
@@ -962,58 +671,14 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
-  // Admin recovery (Decision 3.4, §3.4): an in-org site admin reassigns the
-  // crown of an abandoned PLC to another EXISTING active member. The caller is
-  // a NON-member, so this is the one mutator that does not gate on the acting
-  // user being part of the PLC — only that they are signed in (rules enforce
-  // the `isAdmin()` + same-org gate). Writes EXACTLY the closed diff the
-  // `isAdminManagingPlc` rule admits (`leadUid` / `members` / `memberUids` /
-  // `memberEmails` / `updatedAt`): the membership SET is preserved (recovery
-  // reassigns a role, never adds/drops members), the incoming lead is promoted
-  // and the outgoing lead demoted in lockstep with the `leadUid` mirror, and
-  // NO extra pointer field (e.g. `roleChangeUid`) or activity event is written
-  // — both would either bust the rule's `hasOnly` diff or be denied as a
-  // non-member subcollection write.
+  // Admin recovery: an in-org admin (not a member) hands an abandoned PLC to an existing active member.
   const adminReassignLead = useCallback(
     async (plcId: string, toUid: string) => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
-        const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data);
-        const fromUid =
-          typeof data.leadUid === 'string'
-            ? data.leadUid
-            : (Object.values(members).find((m) => m.role === 'lead')?.uid ??
-              '');
-        const target = members[toUid];
-        if (!target || target.status !== 'active') {
-          throw new Error(i18n.t('plc.errors.targetNotActiveMember'));
-        }
-        // No-op reassign to the sitting lead — the rule requires
-        // `newLead != oldLead`, so a same-lead write would be rejected; bail
-        // cleanly instead of issuing a doomed write.
-        if (toUid === fromUid) {
-          throw new Error(i18n.t('plc.errors.alreadyLead'));
-        }
-        // Demote every current lead (defensive against a malformed legacy map
-        // carrying more than one) then promote exactly the target.
-        for (const [uid, m] of Object.entries(members)) {
-          if (m.role === 'lead') members[uid] = { ...m, role: 'member' };
-        }
-        members[toUid] = { ...members[toUid], role: 'lead' };
-        tx.update(ref, {
-          members,
-          leadUid: toUid,
-          // The membership SET is unchanged; re-derive the indexes from the
-          // (role-only-mutated) map so they stay byte-for-byte the same set
-          // the rule's `toSet().hasAll(...)` lockstep check expects.
-          memberUids: activeMemberUids(members),
-          memberEmails: activeMemberEmails(members),
-          updatedAt: serverTimestamp(),
-        });
+      await callPlcMembership({
+        action: 'adminReassignLead',
+        plcId,
+        uid: toUid,
       });
     },
     [user]
@@ -1026,35 +691,11 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       role: Exclude<PlcRole, 'lead'>
     ) => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
-        const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data, { includeArrayOnly: true });
-        if (
-          target.uid === data.leadUid ||
-          members[target.uid]?.role === 'lead'
-        ) {
-          throw new Error(i18n.t('plc.errors.cannotDemoteLead'));
-        }
-        const existing = members[target.uid];
-        members[target.uid] = {
-          uid: target.uid,
-          email: target.email.trim().toLowerCase(),
-          displayName: existing?.displayName || target.displayName,
-          role,
-          joinedAt: existing?.joinedAt ?? serverTimestamp(),
-          status: 'active',
-        };
-        tx.update(ref, {
-          members,
-          memberUids: activeMemberUids(members),
-          memberEmails: activeMemberEmails(members),
-          // Rule pointer naming the single changed entry; ignored on read.
-          adminMemberUid: target.uid,
-          updatedAt: serverTimestamp(),
-        });
+      await callPlcMembership({
+        action: 'adminSetMember',
+        plcId,
+        target,
+        role,
       });
     },
     [user]
@@ -1063,27 +704,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const adminRemoveMember = useCallback(
     async (plcId: string, uid: string) => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db, PLCS_COLLECTION, plcId);
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
-        const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data, { includeArrayOnly: true });
-        if (uid === data.leadUid || members[uid]?.role === 'lead') {
-          throw new Error(i18n.t('plc.errors.leadCannotBeRemoved'));
-        }
-        if (!members[uid] || members[uid].status !== 'active') {
-          throw new Error(i18n.t('plc.errors.notActiveMember'));
-        }
-        members[uid] = { ...members[uid], status: 'removed' };
-        tx.update(ref, {
-          members,
-          memberUids: activeMemberUids(members),
-          memberEmails: activeMemberEmails(members),
-          adminMemberUid: uid,
-          updatedAt: serverTimestamp(),
-        });
-      });
+      await callPlcMembership({ action: 'adminRemoveMember', plcId, uid });
     },
     [user]
   );

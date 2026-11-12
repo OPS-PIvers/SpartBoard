@@ -1587,6 +1587,8 @@ export interface PlcAssessmentAggregate {
   perTarget?: PlcAggregateTargetRow[];
   /** Standards directly tagged or inherited from child targets (schema 3+). */
   perStandard?: PlcAggregateTargetRow[];
+  /** Mastery by DOK level, rows keyed `dok:N`; absent when no question carries a level. */
+  perDok?: PlcAggregateTargetRow[];
   /** Uids of teachers who contributed results; the PLC page shows no per-teacher scores. */
   contributorUids: string[];
   /** serverTimestamp resolved to ms on read; when the function last recomputed. */
@@ -4449,7 +4451,17 @@ export interface QuizStimulus {
   readAloudSource?: 'pdf-text' | 'ocr' | 'edited' | 'text';
   /** calculator only: which Desmos calculator; `url` stays empty and is never trusted. */
   calculator?: QuizCalculatorKind;
+  /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
+  tabLabel?: string;
+  /** image only: beside the question or in it; absent = beside when two or more questions use it (M13). */
+  placement?: QuizStimulusPlacement;
 }
+
+/** Where an image stimulus shows: in the panel beside the question, or above the question. */
+export type QuizStimulusPlacement = 'panel' | 'inline';
+
+/** How students fill a FIB question's blanks; absent means typed (M6). */
+export type FibBlankType = 'typed' | 'dropdown' | 'drag';
 
 export interface QuizQuestion {
   id: string;
@@ -4471,6 +4483,20 @@ export interface QuizQuestion {
   alternateAnswers?: string[];
   /** Multi-blank FIB only: other accepted answers per blank, index-aligned with the blanks in `correctAnswer`. Never sent to students. */
   blankAlternates?: { answers: string[] }[];
+  /** Why the answer is right. Teacher-only until results are published with Show explanations on. */
+  explanation?: string;
+  /** MC/MA: why each option is right or wrong, keyed by the option's text. Same visibility as `explanation`. */
+  optionExplanations?: Record<string, string>;
+  /** Depth of Knowledge level, 1 to 4. Teacher-side only. */
+  dok?: 1 | 2 | 3 | 4;
+  /** FIB only: how students fill the blanks; absent = typed. */
+  blankType?: FibBlankType;
+  /** FIB dropdown only: each blank's choices in authored order, index-aligned with the blanks; includes its answer. */
+  blankChoices?: { choices: string[] }[];
+  /** FIB drag only: every word in the bank, each blank's answer included; students get it shuffled. */
+  wordBank?: string[];
+  /** FIB drag only: a bank word can fill more than one blank. */
+  wordBankReuse?: boolean;
   /** MC/MA: editor-only display order over `[right options..., incorrectAnswers...]`; students still get a shuffle. */
   optionOrder?: number[];
   /** MC from the teacher's own test paper: answer sheets letter options in the editor order above, never shuffled. */
@@ -4547,6 +4573,8 @@ export interface QuizQuestion {
    * consecutive questions carrying the same id form a stimulus set.
    */
   stimulusIds?: string[];
+  /** District library item this question came from; travels with every copy so share links refuse it (M30). */
+  districtItemId?: string;
   /**
    * Opt-in media-response block. Absent on every question authored before
    * this feature and on every non-recording question — its absence is the
@@ -4725,6 +4753,8 @@ export interface SyncedQuestionBank {
   targetCounts: Record<string, number>;
   createdAt: number;
   updatedAt: number;
+  /** Set when this is a District library item's canonical (site admins write it). */
+  districtItemId?: string;
 }
 
 /** Header at `plcs/{plcId}/question_banks/{entryId}` pointing at the synced doc. */
@@ -4763,10 +4793,14 @@ export interface QuizBankSlot {
   count?: number;
   /** random mode: any-of match on tag ids; absent = whole bank */
   targetFilter?: string[];
+  /** random mode: any-of match on DOK levels; absent = every level */
+  dokFilter?: number[];
   /** random mode: points applied to every drawn question (default 1) */
   points?: number;
   /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
   stimulusIds?: string[];
+  /** Set when the slot draws from a District library bank; share links refuse the quiz. */
+  districtItemId?: string;
   /** random mode: `balanced` deals pool questions in turn per class period; absent = independent random. */
   dealing?: 'random' | 'balanced';
 }
@@ -5073,6 +5107,10 @@ export interface QuizMetadata {
   language?: string;
   /** `importSourceKey` of the quiz's `source`, so a re-import finds it without a Drive read. */
   sourceKey?: string;
+  /** District library items any of this quiz's content came from; never cleared, and share links refuse the quiz. */
+  districtOrigin?: string[];
+  /** Set on a linked, read-only copy of a District library quiz (QUIZ_MCA_PRACTICE.md M27). */
+  districtLinkedItemId?: string;
 }
 
 /** One locale's row in `QuizMetadata.translations`; a Drive-free coverage answer (plan §3.3). */
@@ -5147,6 +5185,8 @@ export interface BaseSessionOptions {
 
 /** Options passed from the quiz assignment modal to configure session toggles. */
 export interface QuizSessionOptions extends BaseSessionOptions {
+  /** Students see explanations under their published results. Default off. */
+  showExplanations?: boolean;
   speedBonusEnabled?: boolean;
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
@@ -5246,6 +5286,14 @@ export interface QuizPublicQuestion {
   choices?: string[];
   /** FIB only: number of blanks to fill, set only when there are two or more. */
   blankCount?: number;
+  /** FIB only: set for dropdown and drag blanks; absent = typed. */
+  blankType?: Exclude<FibBlankType, 'typed'>;
+  /** FIB dropdown only: each blank's choices in authored order (the key is not marked). */
+  blankChoices?: { choices: string[] }[];
+  /** FIB drag only: the shuffled word bank, answers and extra words mixed. */
+  wordBank?: string[];
+  /** FIB drag only: a bank word can fill more than one blank. */
+  wordBankReuse?: boolean;
   /** Matching only: left-side terms (prompt side) */
   matchingLeft?: string[];
   /**
@@ -5569,8 +5617,14 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
+  /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
+  inputSignals?: boolean;
   /** Stamped only with the quiz-ordering-list flag; Ordering shows one list to drag into order. */
   orderingList?: boolean;
+  /** Stamped only with the quiz-stimulus-tabs flag; stimuli show as tabs beside the question. */
+  stimulusTabs?: boolean;
+  /** Stamped only with the quiz-review-step flag; self-paced quizzes end on a review screen. */
+  reviewStep?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
   /** Reveal the correct answer text to students after submit (default false) */
@@ -5579,6 +5633,8 @@ export interface QuizSession
   showCorrectOnBoard?: boolean;
   /** Group published answer feedback by the projected learning-target tags. */
   showLearningTargets?: boolean;
+  /** Explanations are published to students with results. */
+  showExplanations?: boolean;
   /** Students see their score as soon as the server grades a submitted attempt. */
   showScoreOnSubmit?: boolean;
   /** Overall time limit per attempt in minutes, counted from `QuizResponse.attemptStartedAt`. */
@@ -6058,6 +6114,54 @@ export interface TabExit {
 /** Rules refuse a log past this length; the warning count keeps going. */
 export const TAB_EXITS_MAX = 50;
 
+/** Input counters for one question, recorded by the student page; evidence for a teacher, never proof. */
+export interface InputSignalCounts {
+  /** Mouse clicks. */
+  clicks?: number;
+  /** Mouse clicks that landed far from the last one with no pointer travel. */
+  jumpClicks?: number;
+  /** Mouse clicks that followed a straight path at constant speed. */
+  lineClicks?: number;
+  /** Character key presses in answer boxes. */
+  keys?: number;
+  /** Key presses released in under 10 ms. */
+  instantKeys?: number;
+  /** Gaps under 2 s between key presses: how many, their sum and sum of squares in ms. */
+  ikN?: number;
+  ikSum?: number;
+  ikSq?: number;
+  /** Characters that arrived in answer boxes. */
+  chars?: number;
+  /** Characters that arrived with no key press. */
+  unkeyedChars?: number;
+  /** Paste and drop attempts, blocked or not. */
+  pastes?: number;
+  /** Characters a paste or drop put into an answer box. */
+  pastedChars?: number;
+  /** Clicks, key presses and edits the browser marks as made by a script. */
+  scripted?: number;
+  /** Edits that removed text, and how many characters they removed. */
+  dels?: number;
+  delChars?: number;
+  /** Text added somewhere other than the end of an answer. */
+  midInserts?: number;
+  /** Ms the question was on screen with the page visible. */
+  ms?: number;
+  /** Times the page got narrower while the window kept its size, as when a side panel opens. */
+  panelOpens?: number;
+  /** Page loads with a second screen attached. */
+  extraScreen?: number;
+  /** Every edit to a written answer, for playback (utils/writingLog.ts). */
+  log?: string;
+  /** Browsers the attempt ran in, such as "Chrome 141, macOS", joined by `|`; kept on the `_` entry. */
+  browser?: string;
+  /** Profile states the attempt ran in (utils/quizEnvironment.ts), joined by `|`; kept on the `_` entry. */
+  profile?: string;
+}
+
+/** Keyed by completed-attempt count, then by question id. */
+export type InputSignals = Record<string, Record<string, InputSignalCounts>>;
+
 export interface QuizResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -6157,6 +6261,8 @@ export interface QuizResponse extends StaffResponseFields {
   tabSwitchWarnings?: number;
   /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
   tabExits?: TabExit[];
+  /** Written only when the session carries `inputSignals`. */
+  inputSignals?: InputSignals;
   /**
    * Number of tab-switch / focus-loss events the student has accumulated while
    * viewing **published results**. Distinct from `tabSwitchWarnings`, which
@@ -6304,6 +6410,8 @@ export interface QuizResponse extends StaffResponseFields {
   revealedAnswers?: Record<string, string>;
   /** Scoring-guide example responses by question then criterion, published with the answer key. */
   revealedRubricExamples?: RevealedRubricExamples;
+  /** Explanations by question, published with the answer key when Show explanations is on. */
+  revealedExplanations?: RevealedExplanations;
   /**
    * Per-student results publication, independent of the class setting.
    * Absent = follows the class. Teacher-written only.
@@ -6323,6 +6431,8 @@ export type QuizResultsOverride =
       revealedAnswers?: Record<string, string>;
       /** Scoring-guide example responses, at the same level as `revealedAnswers`. */
       revealedRubricExamples?: RevealedRubricExamples;
+      /** Explanations by question, at the same level as `revealedAnswers`. */
+      revealedExplanations?: RevealedExplanations;
       /** Protection for this student; absent on older overrides, which use the class one. */
       protection?: ResultsProtection;
     }
@@ -6704,6 +6814,12 @@ export interface RubricCriterion {
 
 /** `{ questionId: { criterionId: examples } }` published to a student with the answer key. */
 export type RevealedRubricExamples = Record<string, Record<string, string[]>>;
+
+/** Explanations by question id: the question's own and one per answer option, keyed by option text. */
+export type RevealedExplanations = Record<
+  string,
+  { explanation?: string; options?: Record<string, string> }
+>;
 
 /** Scoring-guide extras for one row; examples are teacher-only until results are published with answers. */
 export interface RubricGuideRow {
@@ -7384,6 +7500,8 @@ export interface SyncedQuizGroup {
   updatedAt: number;
   /** Auth uid of whoever last published an edit (for participant attribution). */
   updatedBy: string;
+  /** Set when this is a District library item's canonical: read-only for teachers, written by site admins. */
+  districtItemId?: string;
 }
 
 /**
@@ -8952,6 +9070,8 @@ export interface WebTourCheckRun {
   sig: string;
   /** By step id; a step the run never reached has none. */
   results: Record<string, WebTourCheckResult>;
+  /** Weak steps the admin confirmed are the right element: step id to the `fixKey` of the locator confirmed. */
+  accepted?: Record<string, string>;
 }
 
 /** Better clues the extension found for a step that missed or played weak (C14); the admin accepts or dismisses them. */
@@ -11148,6 +11268,16 @@ export type GlobalFeature =
   | 'quiz-ordering-list'
   /** Ordering results: each item's spot, with the items students put out of order marked. */
   | 'quiz-ordering-results'
+  /** Quiz explanations on questions and answers, shown with published results. */
+  | 'quiz-explanations'
+  /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */
+  | 'quiz-dok'
+  /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
+  | 'quiz-blank-types'
+  /** Quiz stimuli as named tabs in the panel beside the question (M11). */
+  | 'quiz-stimulus-tabs'
+  /** Self-paced quizzes end on a review screen with Mark for review (M23). */
+  | 'quiz-review-step'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Lunch Count: send a corrected count that replaces the day's row for that class. */
@@ -11176,10 +11306,15 @@ export type GlobalFeature =
   | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
+  | 'input-signals'
+  /** Shows a sign on quiz attempts that ran outside a school-managed Chrome profile; needs the extension pushed to students. */
+  | 'managed-profile-check'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
   /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
   | 'getting-started'
+  /** District library: admin-published quizzes and banks teachers add as linked copies (docs/plans/QUIZ_MCA_PRACTICE.md M26-M31). */
+  | 'district-library'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
@@ -11204,7 +11339,8 @@ export type GlobalFeature =
   /** Due date picker in the Push to Schoology dialog. */
   | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
-  | 'flashcards-check-sync';
+  | 'flashcards-check-sync'
+  | 'video-activity-editor-arrows';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -401,13 +401,66 @@ describe('placeTip', () => {
     expect(tip).toEqual({ left: 12, bottom: 800 - 700 + 24, width: 320 });
   });
 
+  it('moves a tall tip above a mid-screen target instead of past the bottom', () => {
+    const rect = { x: 20, y: 400, width: 200, height: 40 };
+    expect(placeTip(rect, view, 120).top).toBe(464);
+    expect(placeTip(rect, view, 340)).toEqual({
+      left: 12,
+      bottom: 800 - 400 + 24,
+      width: 320,
+    });
+  });
+
+  it('caps a tip on the roomier side when neither side has room', () => {
+    const tip = placeTip({ x: 20, y: 150, width: 200, height: 40 }, view, 700);
+    expect(tip).toEqual({
+      left: 12,
+      top: 214,
+      width: 320,
+      maxH: 800 - 214 - 12,
+    });
+  });
+
+  it('never covers a mid-screen target on a short screen', () => {
+    const rect = { x: 20, y: 320, width: 200, height: 40 };
+    const tip = placeTip(rect, { w: 1280, h: 650 }, 300);
+    expect(tip).toEqual({
+      left: 12,
+      bottom: 650 - 320 + 24,
+      width: 320,
+      maxH: 284,
+    });
+    expect(650 - (tip.bottom ?? 0)).toBeLessThan(rect.y);
+  });
+
   it('keeps a tall tip on screen when there is no room above the target', () => {
     const rect = { x: 20, y: 200, width: 200, height: 600 };
     expect(placeTip(rect, view, 120).bottom).toBe(800 - 200 + 24);
     expect(placeTip(rect, view, 220)).toEqual({
       left: 12,
+      bottom: 800 - 200 + 24,
+      width: 320,
+      maxH: 164,
+    });
+  });
+
+  it('covers the target rather than cap a side too small for the tip chrome', () => {
+    const rect = { x: 20, y: 320, width: 200, height: 40 };
+    expect(placeTip(rect, { w: 1280, h: 650 }, 300, 300)).toEqual({
+      left: 12,
       top: 12,
       width: 320,
+      maxH: 650 - 24,
+    });
+  });
+
+  it('falls back to the top when a target leaves no room on either side', () => {
+    const rect = { x: 20, y: 40, width: 200, height: 700 };
+    expect(placeTip(rect, view, 220)).toEqual({
+      left: 12,
+      top: 12,
+      width: 320,
+      maxH: 800 - 24,
     });
   });
 });

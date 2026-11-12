@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { deleteField, doc, runTransaction } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { CalendarEvent, CalendarGlobalConfig } from '@/types';
@@ -90,11 +90,6 @@ export const AdminCalendarFetcher: React.FC = () => {
         const buildingDefaults = canonicalizeBuildingKeyedRecord(
           config.buildingDefaults ?? {}
         );
-        // Write under the stored key that wins on read so a legacy-keyed entry keeps its calendar ids.
-        const storedKeys: Record<string, string> = {};
-        for (const rawKey of Object.keys(config.buildingDefaults ?? {})) {
-          storedKeys[canonicalBuildingId(rawKey)] = rawKey;
-        }
         const synced: Record<
           string,
           { cachedEvents: CalendarEvent[]; lastProxySync: number }
@@ -102,7 +97,9 @@ export const AdminCalendarFetcher: React.FC = () => {
 
         for (const building of BUILDINGS) {
           const canonicalId = canonicalBuildingId(building.id);
-          const bConfig = buildingDefaults[canonicalId];
+          const bConfig =
+            config.buildingDefaults?.[canonicalId] ??
+            buildingDefaults[canonicalId];
           const ids = bConfig?.googleCalendarIds ?? [];
 
           if (ids.length === 0) continue;
@@ -125,7 +122,7 @@ export const AdminCalendarFetcher: React.FC = () => {
               .flat()
               .sort((a, b) => a.date.localeCompare(b.date));
 
-            synced[storedKeys[canonicalId] ?? canonicalId] = {
+            synced[canonicalId] = {
               cachedEvents: merged,
               lastProxySync: Date.now(),
             };
@@ -139,15 +136,37 @@ export const AdminCalendarFetcher: React.FC = () => {
 
         if (Object.keys(synced).length > 0) {
           const docRef = doc(db, 'feature_permissions', 'calendar');
-          await setDoc(
-            docRef,
-            {
-              // Deep-merge only the synced fields so concurrent admin edits survive.
-              config: { buildingDefaults: synced },
-              updatedAt: Date.now(),
-            },
-            { merge: true }
-          );
+          // Re-read the live doc in a transaction so admin edits made during the sync survive and removed buildings are not recreated.
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(docRef);
+            const live = snap.data()?.config as
+              CalendarGlobalConfig | undefined;
+            const liveDefaults = canonicalizeBuildingKeyedRecord(
+              live?.buildingDefaults ?? {}
+            );
+            const liveRaw = live?.buildingDefaults ?? {};
+            const updates: Record<string, unknown> = {};
+            for (const [id, cache] of Object.entries(synced)) {
+              // The canonical entry is the one admins save; a legacy alias only fills in when it is missing.
+              const liveEntry = liveRaw[id] ?? liveDefaults[id];
+              if (!liveEntry) continue;
+              updates[id] = { ...liveEntry, ...cache };
+              for (const key of Object.keys(liveRaw)) {
+                if (key !== id && canonicalBuildingId(key) === id) {
+                  updates[key] = deleteField();
+                }
+              }
+            }
+            if (Object.keys(updates).length === 0) return;
+            tx.set(
+              docRef,
+              {
+                config: { buildingDefaults: updates },
+                updatedAt: Date.now(),
+              },
+              { merge: true }
+            );
+          });
           console.warn('[AdminCalendarFetcher] Background sync complete.');
         }
       } catch (err) {

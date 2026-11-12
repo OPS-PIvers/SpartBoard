@@ -247,6 +247,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
 }) => {
   const { canAccessFeature, googleAccessToken, refreshGoogleToken } = useAuth();
   const imageMarkup = canAccessFeature('paper-image-markup');
+  const explanationsOn = canAccessFeature('quiz-explanations');
   const keptPagesOn = canAccessFeature('paper-kept-pages') && !!sessionId;
   const [everyAttempt, setEveryAttempt] = useState(false);
   const hasEarlier = !!earlierAttempts && earlierAttempts.size > 0;
@@ -350,6 +351,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
         period: r.classPeriod ?? null,
         status: r.status,
         drilldown: computeStudentDrilldown(quiz.questions, r, gradeFn, {
+          includeExplanations: explanationsOn,
           choiceOrder: batch
             ? printedChoiceOrder(batch, quiz.questions)
             : undefined,
@@ -382,6 +384,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     rubricFor,
     targetsFor,
     periodOrder,
+    explanationsOn,
   ]);
 
   const chosen = students.filter((s) => selected.has(s.student.key));
@@ -402,6 +405,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                 lettered: false,
                 attempt: r.completedAttempts ?? undefined,
                 drilldown: computeStudentDrilldown(quiz.questions, r, gradeFn, {
+                  includeExplanations: explanationsOn,
                   rubricFor: (q) => rubricFor(r, q),
                 }),
                 sheet: undefined,

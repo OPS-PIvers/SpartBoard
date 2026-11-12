@@ -30,7 +30,7 @@ export const SubShareUpdateBanner: React.FC<SubShareUpdateBannerProps> = ({
           teacher: teacherName,
         })}
       </span>
-      <button
+      <button /* no-tour-anchor: substitute portal, never on the board */
         type="button"
         onClick={onReload}
         className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-1 text-xs font-bold text-white transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"

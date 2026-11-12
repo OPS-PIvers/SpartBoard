@@ -11,7 +11,8 @@
       "vite/client",
       "google.accounts",
       "google.picker",
-      "gapi"
+      "gapi",
+      "@testing-library/jest-dom/vitest"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,

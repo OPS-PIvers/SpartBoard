@@ -60,7 +60,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
 
   return (
     <div ref={containerRef} className="fixed top-4 left-4 z-50">
-      <button
+      <button /* no-tour-anchor: substitute portal, never on the board */
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -174,7 +174,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
   danger,
   onClick,
 }) => (
-  <button
+  <button /* no-tour-anchor: substitute portal, never on the board */
     type="button"
     role="menuitem"
     onClick={onClick}

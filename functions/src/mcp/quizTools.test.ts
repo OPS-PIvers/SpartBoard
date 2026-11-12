@@ -324,6 +324,19 @@ describe.each([
       expect(res.error).toMatch(/shared with a PLC/);
     });
 
+    it('calls a linked District library copy read-only, not PLC-shared', async () => {
+      const { call, id, docs } = await created();
+      const path = `users/u1/${k.collection}/${id}`;
+      docs.set(path, {
+        ...(docs.get(path) as Data),
+        sync: { groupId: 'district-item-1' },
+        districtLinkedItemId: 'item-1',
+      });
+      const res = await call(k.update, { [k.idKey]: id, title: 'X' });
+      expect(res.error).toMatch(/District library/);
+      expect(res.error).not.toMatch(/PLC/);
+    });
+
     it('reports an unknown id', async () => {
       const { call } = await created();
       const res = await call(k.update, { [k.idKey]: 'missing', title: 'X' });

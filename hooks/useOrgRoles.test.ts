@@ -2,14 +2,8 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useOrgRoles } from './useOrgRoles';
 import { useAuth } from '@/context/useAuth';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import type { RoleRecord } from '@/types/organization';
 
 vi.mock('firebase/firestore', () => ({
@@ -19,6 +13,10 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
+}));
+
+vi.mock('@/utils/orgAdminClient', () => ({
+  callOrgAdmin: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -53,9 +51,15 @@ describe('useOrgRoles', () => {
   const mockCollection = collection as Mock;
   const mockOnSnapshot = onSnapshot as Mock;
   const mockDoc = doc as Mock;
-  const mockSetDoc = setDoc as Mock;
-  const mockDeleteDoc = deleteDoc as Mock;
-  const mockUpdateDoc = updateDoc as Mock;
+  const mockCall = callOrgAdmin as Mock;
+  const lastSave = () =>
+    mockCall.mock.calls[mockCall.mock.calls.length - 1][0] as {
+      action: string;
+      orgId: string;
+      upserts: Array<Record<string, unknown>>;
+      systemPerms: Array<{ id: string; perms: unknown }>;
+      deletes: string[];
+    };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -63,9 +67,7 @@ describe('useOrgRoles', () => {
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
-    mockSetDoc.mockResolvedValue(undefined);
-    mockDeleteDoc.mockResolvedValue(undefined);
-    mockUpdateDoc.mockResolvedValue(undefined);
+    mockCall.mockResolvedValue(undefined);
   });
 
   // Helper: seed the hook with a given roles snapshot and return the result
@@ -130,21 +132,22 @@ describe('useOrgRoles', () => {
       await result.current.saveRoles([systemRole, newCustom]);
     });
 
-    // Upsert only hits the custom role (system:true is skipped).
-    expect(mockSetDoc).toHaveBeenCalledTimes(1);
-    expect(mockSetDoc.mock.calls[0][0]).toBe(
-      'organizations/orono/roles/specialist'
-    );
-    expect(mockSetDoc.mock.calls[0][1]).toMatchObject({
-      id: 'specialist',
-      system: false,
-      color: 'emerald',
-    });
-
-    // Removed custom role is deleted.
-    expect(mockDeleteDoc).toHaveBeenCalledWith(
-      'organizations/orono/roles/coach'
-    );
+    // One call: upsert only the custom role (system:true is skipped), delete the removed one.
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    const req = lastSave();
+    expect(req.action).toBe('saveRoles');
+    expect(req.orgId).toBe('orono');
+    expect(req.upserts).toEqual([
+      {
+        id: 'specialist',
+        name: 'Specialist',
+        blurb: '',
+        color: 'emerald',
+        perms: {},
+      },
+    ]);
+    expect(req.systemPerms).toEqual([]);
+    expect(req.deletes).toEqual(['coach']);
   });
 
   it('resetRoles deletes every custom role but keeps system roles', async () => {
@@ -160,10 +163,12 @@ describe('useOrgRoles', () => {
       await result.current.resetRoles();
     });
 
-    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
-    expect(mockDeleteDoc).toHaveBeenCalledWith(
-      'organizations/orono/roles/coach'
-    );
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    expect(lastSave()).toMatchObject({
+      upserts: [],
+      systemPerms: [],
+      deletes: ['coach'],
+    });
   });
 
   it('writes reject when orgId is null', async () => {
@@ -195,14 +200,11 @@ describe('useOrgRoles', () => {
       await result.current.saveRoles([edited], { canEditSystemRoles: true });
     });
 
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
-    expect(mockUpdateDoc).toHaveBeenCalledWith(
-      'organizations/orono/roles/teacher',
-      { perms: { viewBoards: 'full' } }
-    );
-    // System roles must never go through setDoc (identity/seed fields would
-    // round-trip and the rules reject that).
-    expect(mockSetDoc).not.toHaveBeenCalled();
+    // System roles only ever send perms, never a full upsert.
+    expect(lastSave().systemPerms).toEqual([
+      { id: 'teacher', perms: { viewBoards: 'full' } },
+    ]);
+    expect(lastSave().upserts).toEqual([]);
   });
 
   it('saveRoles does not touch system roles when canEditSystemRoles is false', async () => {
@@ -224,7 +226,7 @@ describe('useOrgRoles', () => {
       await result.current.saveRoles([edited]);
     });
 
-    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(lastSave().systemPerms).toEqual([]);
   });
 
   it('saveRoles skips system role update when perms are unchanged (even with canEditSystemRoles)', async () => {
@@ -255,6 +257,6 @@ describe('useOrgRoles', () => {
       });
     });
 
-    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(lastSave().systemPerms).toEqual([]);
   });
 });

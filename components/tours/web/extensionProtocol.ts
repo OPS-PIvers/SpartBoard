@@ -13,7 +13,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 12;
+export const EXTENSION_PROTOCOL_VERSION = 13;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -47,6 +47,12 @@ export const MARKUP_PROTOCOL = 12;
 
 /** Protocol 12 too: playback keeps pace (TOURS_10X.md P1-P5). Nothing the page sends changes, so no page gates on it. */
 export const PACING_PROTOCOL = 12;
+
+/** Protocol 13: the ping reply says how the extension was installed, so a quiz page can tell a school-managed profile. */
+export const INSTALL_PROTOCOL = 13;
+
+/** How Chrome got the extension: pushed by an admin policy, added by the user, or loaded unpacked. */
+export type ExtensionInstall = 'policy' | 'user' | 'dev';
 
 /** The district Google domain; students share it, so the server checks a staff member doc too. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -210,6 +216,8 @@ export interface PingReply {
   protocol: number;
   version: string;
   profile: ExtensionProfile;
+  /** Protocol 13; absent when Chrome wouldn't say. */
+  install?: ExtensionInstall;
 }
 
 /** `unavailable`: the extension couldn't load the tour for `web-tour/open`, so the page falls back to handing it over. */

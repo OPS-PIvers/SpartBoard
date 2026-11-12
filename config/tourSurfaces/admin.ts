@@ -680,6 +680,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'admin.settings.tab:admin#getting-started',
     needs: ['admin'],
   },
+  'admin.district-library': {
+    label: 'Admin Settings > District library',
+    kind: 'panel',
+    files: ['components/admin/DistrictLibrary/'],
+    opensWith: 'admin.settings.tab:admin#district-library',
+    needs: ['admin'],
+  },
   'admin.import-block-list': {
     label: 'Admin Settings > Import block list',
     kind: 'panel',

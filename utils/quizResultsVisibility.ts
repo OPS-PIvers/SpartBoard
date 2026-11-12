@@ -4,6 +4,7 @@ import type {
   QuizScoreVisibility,
   QuizSession,
   ResultsProtection,
+  RevealedExplanations,
   RevealedRubricExamples,
 } from '@/types';
 
@@ -18,6 +19,8 @@ export interface EffectiveResultsVisibility {
   revealedAnswers?: Record<string, string>;
   /** Scoring-guide example responses, at the same level as `revealedAnswers`. */
   revealedRubricExamples?: RevealedRubricExamples;
+  /** Explanations, at the same level as `revealedAnswers`; present only when the teacher published them. */
+  revealedExplanations?: RevealedExplanations;
   /** Watermark and tab-away lockout for the results view; absent = none. */
   protection?: ResultsProtection;
 }
@@ -32,7 +35,10 @@ type SessionPublication = Pick<
 >;
 type ResponsePublication = Pick<
   QuizResponse,
-  'resultsOverride' | 'revealedAnswers' | 'revealedRubricExamples'
+  | 'resultsOverride'
+  | 'revealedAnswers'
+  | 'revealedRubricExamples'
+  | 'revealedExplanations'
 > &
   Partial<Pick<QuizResponse, 'score' | 'status'>>;
 
@@ -107,6 +113,10 @@ export const resolveResultsVisibility = (
         override.visibility === 'score-responses-and-answers'
           ? override.revealedRubricExamples
           : undefined,
+      revealedExplanations:
+        override.visibility === 'score-responses-and-answers'
+          ? override.revealedExplanations
+          : undefined,
     };
   }
   const visibility = classResultsVisibility(session);
@@ -131,6 +141,10 @@ export const resolveResultsVisibility = (
     revealedRubricExamples:
       visibility === 'score-responses-and-answers'
         ? response?.revealedRubricExamples
+        : undefined,
+    revealedExplanations:
+      visibility === 'score-responses-and-answers'
+        ? response?.revealedExplanations
         : undefined,
   };
 };

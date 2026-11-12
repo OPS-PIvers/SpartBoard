@@ -1,13 +1,11 @@
-// Rules coverage for `isAdminEditingPlcMembers`: an in-org site admin may add,
-// re-role or remove ONE non-lead member of a PLC in their org, without being a
-// member. Requires a running Firestore emulator — `pnpm run test:rules`.
+// Rules coverage for PLC admin member edits: the client write is refused now that
+// plcMembershipV1 makes these changes. Requires a running Firestore emulator (pnpm run test:rules).
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import {
   initializeTestEnvironment,
-  assertSucceeds,
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
@@ -175,12 +173,12 @@ const removeMember = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('plcs/{plcId} update — isAdminEditingPlcMembers', () => {
-  it('an in-org admin can add a teacher as a member', async () => {
-    await assertSucceeds(updateDoc(doc(asAdmin(), `plcs/${PLC_ID}`), addNew()));
+  it('client write refused (plcMembershipV1 does it): an in-org admin can add a teacher as a member', async () => {
+    await assertFails(updateDoc(doc(asAdmin(), `plcs/${PLC_ID}`), addNew()));
   });
 
-  it('an in-org admin can change a member role', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): an in-org admin can change a member role', async () => {
+    await assertFails(
       updateDoc(doc(asAdmin(), `plcs/${PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
@@ -194,14 +192,14 @@ describe('plcs/{plcId} update — isAdminEditingPlcMembers', () => {
     );
   });
 
-  it('an in-org admin can remove a member', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): an in-org admin can remove a member', async () => {
+    await assertFails(
       updateDoc(doc(asAdmin(), `plcs/${PLC_ID}`), removeMember())
     );
   });
 
-  it('an in-org admin can add to an un-migrated PLC, backfilling the map', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): an in-org admin can add to an un-migrated PLC, backfilling the map', async () => {
+    await assertFails(
       updateDoc(doc(asAdmin(), `plcs/${UNMIGRATED_PLC_ID}`), addNew())
     );
   });
@@ -251,8 +249,8 @@ describe('plcs/{plcId} update — isAdminEditingPlcMembers', () => {
     );
   });
 
-  it('backfills an array-only member while adding, in any uid order', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): backfills an array-only member while adding, in any uid order', async () => {
+    await assertFails(
       updateDoc(doc(asAdmin(), `plcs/${DRIFTED_PLC_ID}`), {
         members: {
           [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),

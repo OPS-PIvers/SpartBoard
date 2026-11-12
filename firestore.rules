@@ -810,32 +810,12 @@ service cloud.firestore {
            changedOnly(['lastActive'])));
       }
 
-      match /studentPageConfig/{configId} {
-        allow read: if isOrgMember(orgId) || isSuperAdmin();
-        // Only the canonical `default` doc is writable; clients never need
-        // arbitrary config ids, and delete is refused so the org always has
-        // a config doc. Payload must carry the canonical orgId and only the
-        // known config fields so clients can't seed unexpected attributes.
-        allow create, update: if (orgAdmin(orgId)) &&
-          configId == 'default' &&
-          incoming().orgId == orgId &&
-          newKeys().hasOnly([
-            'orgId', 'showAnnouncements', 'showTeacherDirectory',
-            'showLunchMenu', 'accentColor', 'heroText'
-          ]);
-        allow delete: if false;
-      }
-
       // Remove-from-org tombstone: auto-enroll (Admin SDK) skips these emails.
       match /removedMembers/{emailLower} {
         allow write: if orgAdmin(orgId);
       }
 
-      match /invitations/{token} {
-        // Phase 4 wires invite acceptance; until then nothing reads or writes
-        // from the client — Cloud Functions own this collection.
-        allow read, write: if false; // TODO(phase-4)
-      }
+      // /invitations/{token}: no client access; Cloud Functions own it (Phase 4 wires acceptance).
 
       // Mock classes for PII-free student SSO testing. Admin-managed allowlist
       // that the `studentLoginV1` function (Admin SDK, bypasses rules) reads
@@ -854,7 +834,6 @@ service cloud.firestore {
         allow read: if isSuperAdmin() ||
                     isDomainAdmin(orgId) ||
                     isBuildingAdmin(orgId);
-        allow write: if false;
       }
     }
 
@@ -905,7 +884,6 @@ service cloud.firestore {
       match /pin_index/{indexKey} {
         allow read: if signedIn() &&
           (authUid() == userId || isSiteAdmin());
-        allow write: if false;
       }
     }
 
@@ -926,7 +904,6 @@ service cloud.firestore {
     // Handwriting transcription jobs: owner reads; the import callable and worker write.
     match /users/{userId}/paper_transcription_jobs/{jobId} {
       allow read: if ownsUserTeacher(userId) && notAnon();
-      allow write: if false;
     }
 
     // Pull-out group email alerts: a server-readable copy of a Drive-held group
@@ -951,23 +928,6 @@ service cloud.firestore {
              && d.startDate is string && d.startDate.size() == 10
              && d.timeZone is string && d.timeZone.size() <= 64
              && d.message is string && d.message.size() <= 500
-             && d.updatedAt is int;
-    }
-
-    // PLC Home v2 layout — per-user tile order, spotlight and seen result counts. No PLC
-    // membership check needed (a non-member's doc is inert — tiles still pass the
-    // PLC rule gates to read content). Per-tile enum validation is delegated to
-    // usePlcOverviewLayout.ts (CEL has no .every()); blast radius is owner-only
-    // and the tiles size cap below bounds doc size.
-    match /users/{userId}/plc_layouts/{plcId} {
-      allow read, delete: if ownsUser(userId);
-      allow write: if ownsUser(userId) && plcLayoutOk(incoming());
-    }
-    function plcLayoutOk(d) {
-      return d.keys().hasOnly(['tiles', 'heroTileId', 'seenCounts', 'updatedAt'])
-             && d.tiles is list && d.tiles.size() <= 50
-             && (d.get('heroTileId', null) == null || d.heroTileId is string)
-             && optMap(d, 'seenCounts') && d.get('seenCounts', {}).size() <= 200
              && d.updatedAt is int;
     }
 
@@ -1035,6 +995,16 @@ service cloud.firestore {
       allow read, write: if ownsUser(userId);
     }
 
+    // District library banks a teacher added: a pointer to the canonical, never content (QUIZ_MCA_PRACTICE.md M28).
+    match /users/{userId}/district_links/{itemId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId)
+        && newKeys().hasOnly(['itemId', 'kind', 'syncGroupId', 'ownerUid', 'title', 'questionCount', 'targetIds', 'addedAt'])
+        && incoming().itemId == itemId
+        && isStr('syncGroupId') && isStr('ownerUid')
+        && isInt('addedAt');
+    }
+
     // Activity Wall library - per-user reusable activity definitions.
     // Activities used to live inline on the Activity Wall widget's config;
     // moving them here lets teachers reuse the same activity across widgets
@@ -1096,7 +1066,6 @@ service cloud.firestore {
     // persist writes it via the Admin SDK); the owner can only READ their own.
     match /users/{userId}/lti_seen_sections/{contextId} {
       allow read: if signedIn() && authUid() == userId;
-      allow write: if false;
     }
 
     // User data collection. Intentionally NOT gated by notDeactivated(): this
@@ -1113,13 +1082,8 @@ service cloud.firestore {
       allow read, write: if signedIn() && authUid() == userId;
     }
 
-    // Private server-managed credentials (e.g. encrypted Google OAuth
-    // refresh_token via exchangeGoogleAuthCode / refreshGoogleAccessToken).
-    // DENY ALL client access — Admin SDK only. Explicit (vs default-deny) to
-    // document intent and guard against a future permissive users/** rule.
-    match /users/{userId}/private/{document=**} {
-      allow read, write: if false;
-    }
+    // /users/{userId}/private/{document=**}: encrypted OAuth refresh tokens, Admin SDK only (default deny).
+    // Allows are OR'd, so any future users/** allow must exclude `private` itself.
 
     // Starter Packs
     match /artifacts/{appId}/public/data/starterPacks/{packId} {
@@ -1161,150 +1125,16 @@ service cloud.firestore {
                        isSuperAdmin());
     }
 
+    // Docs every signed-in user reads (district settings and rollout switches); tests/rulesDeadPaths.test.ts fails on a retired name.
+    match /admin_settings/{docId} {
+      allow read: if (signedIn() && docId.matches('subjects|flashcardsSpeak|flashcardsSpeakWordFixes|import_conversion|quiz_translation|plc_note_collab|paper_answer_sheets|sub_launch_as_teacher|plc_delegated_printing|roster_groups_integration|projects_widget|quiz_document_import|group_reminder_emails|claude_review_reminders|quiz_recording_notice|getting_started|board_backgrounds|student_context_menu')) ||
+                     (staffSignedIn() && docId.matches('gradebook|focus_sessions')) ||
+                     (signedIn() && notAnon() && docId == 'team_type_defaults');
+    }
+
     // Nutrislice lunch menus, written only by the Sync Lunch Menus GitHub Action (Admin credentials).
     match /lunch_menus/{schoolSite} {
       allow read: if signedIn();
-    }
-
-    // Content areas (subjects) — teachers read them for their profile; admins edit.
-    match /admin_settings/subjects {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Flashcards Speak district defaults; teachers resolve them into the stamp at save (F22).
-    match /admin_settings/flashcardsSpeak {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // District Speak word fixes: every student's Speak reads them; admins write (Words to check). Readers normalize the shape.
-    match /admin_settings/flashcardsSpeakWordFixes {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Import AI Conversion kill switch (docs/plans/IMPORT.md D28): teachers read it to offer AI; admins flip it.
-    match /admin_settings/import_conversion {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Curated translation languages + org caps — teachers read the language list
-    // for the quiz Languages tab; admins edit. Deliberately a SEPARATE doc from
-    // quiz_read_aloud, which stays admin-only.
-    match /admin_settings/quiz_translation {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for real-time (CRDT) PLC note editing — every member
-    // reads it to decide which editor path to mount; admins flip it.
-    match /admin_settings/plc_note_collab {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for paper answer sheets — teachers read it to decide
-    // whether to surface the print/import entry points; admins flip it.
-    match /admin_settings/paper_answer_sheets {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for a substitute starting an activity in the teacher's
-    // account — the sub's board reads it to decide whether to offer Launch at
-    // all; the callable re-checks it server-side. Super admins flip it.
-    match /admin_settings/sub_launch_as_teacher {
-      allow read: if signedIn();
-      allow write: if isSuperAdmin();
-    }
-
-    // Rollout switch for printing a PLC teammate's paper answer sheets — a
-    // member reads it to decide whether to surface the delegated print entry;
-    // admins flip it. Separate from paper_answer_sheets so delegation can be
-    // killed on its own.
-    match /admin_settings/plc_delegated_printing {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for class groups in widgets — teachers read it to decide
-    // whether to offer the group picker; admins flip it.
-    match /admin_settings/roster_groups_integration {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for the Projects widget — teachers read it to decide
-    // whether to mount the widget at all, and students so it stays a kill
-    // switch for runs already created; admins flip it.
-    match /admin_settings/projects_widget {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for building a quiz from a test document — teachers read
-    // it to decide whether to offer the import source; admins flip it.
-    match /admin_settings/quiz_document_import {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Gradebook district proficiency scale (GRADEBOOK.md D17): every teacher reads it; admins write.
-    match /admin_settings/gradebook {
-      allow read: if staffSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Kill switch for emailed group reminder alerts — teachers read it to show
-    // the Email alert toggle; the scheduled sender re-checks it; admins flip it.
-    match /admin_settings/group_reminder_emails {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Team type defaults (TEAMS_REDESIGN T3): staff read them to lay out a team; admins edit.
-    match /admin_settings/team_type_defaults {
-      allow read: if signedIn() && notAnon();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for the "Review before assigning" mark on Claude-made
-    // items — teachers read it to show the mark; admins turn it off.
-    match /admin_settings/claude_review_reminders {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Org switch for the notice students read before a quiz recording —
-    // students read it on the quiz; admins turn it off.
-    match /admin_settings/quiz_recording_notice {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Getting Started tour list and sidebar switch: teachers read it for the page; admins curate it.
-    match /admin_settings/getting_started {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Default background for new boards, by district and building: every teacher's new board reads it; admins set it.
-    match /admin_settings/board_backgrounds {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Rollout switch for blocking the right-click menu — every student page reads it; admins flip it.
-    match /admin_settings/student_context_menu {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Focus session hours and the live-site switch (CHROME_EXTENSION.md F4, F6): staff read; super admins write (in the list above).
-    match /admin_settings/focus_sessions {
-      allow read: if staffSignedIn();
     }
 
     // Admin audit log — admin-only read; create-only (append-only so an admin
@@ -1339,12 +1169,6 @@ service cloud.firestore {
     // View-as sessions: Admin SDK writes only; super admins read them.
     match /view_as_sessions/{sid} {
       allow read: if isSuperAdmin();
-    }
-
-    // User Roles - admins read; only super admins write, since superAdmins[] is what isSuperAdmin() trusts.
-    match /admin_settings/user_roles {
-      allow read: if isAdmin();
-      allow write: if isSuperAdmin();
     }
 
     // Explicitly allow all authenticated users to read user roles
@@ -1396,18 +1220,14 @@ service cloud.firestore {
     // Schoology LTI 1.3: server-internal OIDC handshake state, Admin SDK only.
     // The login-initiation CF writes per-launch `state`/`nonce`; the launch CF reads
     // and deletes it. Short-lived CSRF protection with no client path - deny all.
-    match /lti_oidc_state/{state} {
-      allow read, write: if false;
-    }
+    // /lti_oidc_state/{state}: no client access (default deny).
 
     // Server-internal one-time launch codes — Admin SDK only. After the LTI
     // launch CF validates the id_token it mints a single-use code that the
     // SpartBoard runner exchanges (server-side) for a custom auth token.
     // Mirrors lti_oidc_state: a transient server secret, so deny all client
     // access.
-    match /lti_launch_codes/{code} {
-      allow read, write: if false;
-    }
+    // /lti_launch_codes/{code}: no client access (default deny).
 
     // Schoology section (LTI context) -> ClassLink class link; LTI analogue of
     // classroom_course_links, keyed by LTI `context_id` (a co-teacher's own link is
@@ -1423,17 +1243,13 @@ service cloud.firestore {
     // PII-free grade-sync keys (pseudonym sub -> resourceLink). Written and read only
     // by CFs via the Admin SDK. Deny all client access: a doc carries the student's
     // LTI `sub` + AGS line-item/score URLs, which no client should enumerate.
-    match /lti_grade_links/{pseudonymUid}/resources/{resourceLinkId} {
-      allow read, write: if false;
-    }
+    // /lti_grade_links/{pseudonymUid}/resources/{resourceLinkId}: no client access (default deny).
 
     // PII-free sticky identity bridge (Schoology sub pseudonym -> ClassLink pseudonym),
     // written and read only by the launch exchange CF via Admin SDK. Exists so a
     // OneRoster blip can't re-identify a student mid-assignment. Neither side is a
     // secret alone, but the mapping LINKS a student's two identities - deny all.
-    match /lti_identity_bridge/{pseudonymUid} {
-      allow read, write: if false;
-    }
+    // /lti_identity_bridge/{pseudonymUid}: no client access (default deny).
 
     // lti_tool_columns/{sessionId}/sections/{contextId} (AGS line-item URLs for
     // SpartBoard-created gradebook columns) and lti_tool_columns_prefs/{teacherUid_contextId}
@@ -1443,9 +1259,7 @@ service cloud.firestore {
     // PII-free NRPS membership endpoints, keyed by quiz session -> context. Written and
     // read only by CFs via Admin SDK; a doc holds a roster service URL no client should
     // enumerate, so deny all. `{document=**}` covers the contexts/{contextId} subcollection.
-    match /lti_session_memberships/{sessionId}/{document=**} {
-      allow read, write: if false;
-    }
+    // /lti_session_memberships/{sessionId}/{document=**}: no client access (default deny).
 
     // Global permissions - all authenticated users can read, only admins can write
     match /global_permissions/{featureId=**} {
@@ -1492,9 +1306,7 @@ service cloud.firestore {
     // `createOrganizationInvites` CF can still enqueue sends). Clients must
     // never read or write — these docs contain pending recipient addresses
     // and the extension's `delivery` subfield exposes SMTP response details.
-    match /mail/{mailId} {
-      allow read, write: if false;
-    }
+    // /mail/{mailId}: no client access (default deny).
 
     // Guided Learning
     match /users/{userId}/guided_learning/{setId} {
@@ -2249,7 +2061,6 @@ service cloud.firestore {
             parentShare().get('originalAuthor', null) == authUid() ||
             isAdmin()
           );
-        allow update: if false;
       }
 
       // Likes — deterministic doc id (`{submissionId}__{authorUid}`) caps
@@ -2283,7 +2094,6 @@ service cloud.firestore {
             parentShare().get('originalAuthor', null) == authUid() ||
             isAdmin()
           );
-        allow update: if false;
       }
     }
 
@@ -2291,8 +2101,18 @@ service cloud.firestore {
       return newKeys().hasOnly([
         'id', 'version', 'title', 'questions', 'participants', 'plcId', 'createdAt',
         'updatedAt', 'updatedBy', 'behavior', 'stimuli', 'paperSheetStimuli',
-        'translations', 'bankSlots', 'order', 'sections'
+        'translations', 'bankSlots', 'order', 'sections', 'districtItemId'
       ]);
+    }
+    // A District library canonical is written only by a site admin; `member` (participant or owner) counts only on unmarked docs (M27).
+    function districtOr(member) {
+      return existing().get('districtItemId', '') == '' ? member : isSiteAdmin();
+    }
+    function districtMarkOk() {
+      return !('districtItemId' in incoming()) || (isStr('districtItemId') && isSiteAdmin());
+    }
+    function districtMarkKept() {
+      return incoming().get('districtItemId', '') == existing().get('districtItemId', '');
     }
     function versionKeysOk() {
       return newKeys().hasOnly([
@@ -2323,7 +2143,6 @@ service cloud.firestore {
       // list closed: it would let any authed user enumerate every synced quiz
       // (defeating the unguessable-id gate on get). Clients always know the
       // groupId via their quiz_metadata or a share URL, so get suffices.
-      allow list: if false;
 
       // hasOnly(...) pins the top-level field surface so a client can't smuggle
       // extra fields downstream consumers might trust.
@@ -2347,13 +2166,15 @@ service cloud.firestore {
         // Bank draws and their layout; same list shape as `stimuli`.
         && optList(incoming(), 'bankSlots')
         && optList(incoming(), 'order')
-        && optList(incoming(), 'sections');
+        && optList(incoming(), 'sections')
+        && districtMarkOk();
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
       // retries on the newer base); hasOnly locks the field surface.
       allow update: if signedIn()
-        && authUid() in existing().participants
+        && districtOr(authUid() in existing().participants)
+        && districtMarkKept()
         && syncedQuizKeysOk()
         && sameId()
         && unchanged('participants')
@@ -2373,7 +2194,6 @@ service cloud.firestore {
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.
-      allow delete: if false;
 
       // ---- Bounded version history (PRD §5.1/§3.10) ----
       // Pre-edit snapshot of canonical content, written fire-and-forget after the
@@ -2396,14 +2216,14 @@ service cloud.firestore {
           && isMap('content');
 
         // Identity-immutable: snapshots are append-only from clients.
-        allow update, delete: if false;
       }
     }
 
     function syncedBankKeysOk() {
       return newKeys().hasOnly([
         'id', 'ownerUid', 'plcIds', 'version', 'title', 'questions', 'stimuli', 'targets',
-        'language', 'questionCount', 'targetIds', 'targetCounts', 'createdAt', 'updatedAt'
+        'language', 'questionCount', 'targetIds', 'targetCounts', 'createdAt', 'updatedAt',
+        'districtItemId'
       ]);
     }
 
@@ -2416,7 +2236,6 @@ service cloud.firestore {
       allow get: if staffSignedIn() && (noDoc() ||
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
-      allow list: if false;
 
       allow create: if signedIn()
         && syncedBankKeysOk()
@@ -2431,11 +2250,13 @@ service cloud.firestore {
         && isInt('createdAt')
         && isInt('updatedAt')
         && optList(incoming(), 'stimuli')
-        && optList(incoming(), 'targets');
+        && optList(incoming(), 'targets')
+        && districtMarkOk();
 
       // Owner-only; version climbs by exactly one so stale pulls are detectable.
       allow update: if signedIn()
-        && myOldOwner()
+        && districtOr(myOldOwner())
+        && districtMarkKept()
         && syncedBankKeysOk()
         && sameId()
         && unchanged('ownerUid')
@@ -2450,9 +2271,65 @@ service cloud.firestore {
         && optList(incoming(), 'targets');
 
       // Unshare from the last PLC removes the copy; a slot pointing here then
-      // fails assign-time resolution with a fix-it message.
+      // fails assign-time resolution with a fix-it message. District banks are never deleted.
       allow delete: if signedIn()
-        && myOldOwner();
+        && myOldOwner()
+        && existing().get('districtItemId', '') == '';
+    }
+
+    // ---- District library (docs/plans/QUIZ_MCA_PRACTICE.md M26-M30) ----
+    // Site admins publish quizzes and banks to buildings, grades or named staff; content
+    // lives in synced_quizzes / synced_question_banks, reached only through syncGroupId here.
+    // District staff only (M30): no anonymous, student or outside reader on any path.
+    function dlItemKeysOk() {
+      return newKeys().hasOnly([
+        'id', 'kind', 'title', 'description', 'tags', 'questionCount', 'status',
+        'everyone', 'targetBuildings', 'targetGrades', 'targetEmails', 'gradeBuildings',
+        'syncGroupId', 'contentVersion', 'packageTitle', 'packageGeneratedAt',
+        'sourceName', 'questionNotes', 'createdAt', 'updatedAt', 'updatedBy'
+      ]);
+    }
+    // Building and grade picks are the teacher's profile; no grades picked falls back to the buildings that teach the grade.
+    function dlProfileMatch(d, p) {
+      let b = p.get('selectedBuildings', []);
+      let g = p.get('gradesTaught', []);
+      return d.targetBuildings.hasAny(b) || d.targetGrades.hasAny(g) ||
+        (g.size() == 0 && d.gradeBuildings.hasAny(b));
+    }
+    function dlTargeted(d) {
+      return d.everyone == true || myEmail() in d.targetEmails ||
+        dlProfileMatch(d, dbGet4('users', authUid(), 'userProfile', 'profile').data);
+    }
+    match /district_library/{itemId} {
+      allow get: if isSiteAdmin() ||
+        (isDistrictStaff() && existing().status == 'published' && dlTargeted(existing()));
+      // Staff list only items naming them; building, grade and everyone items come from the index doc.
+      allow list: if isSiteAdmin() ||
+        (isDistrictStaff() && existing().status == 'published' && myEmail() in existing().targetEmails);
+      allow create, update: if isSiteAdmin()
+        && dlItemKeysOk()
+        && incoming().id == itemId
+        && myUpdatedBy()
+        && incoming().kind in ['quiz', 'bank']
+        && incoming().status in ['draft', 'published']
+        && isStr('title') && isStr('syncGroupId')
+        && isInt('contentVersion') && isInt('questionCount')
+        && isBool('everyone')
+        && isList('targetBuildings') && isList('targetGrades')
+        && isList('targetEmails') && isList('gradeBuildings')
+        && isInt('createdAt') && isInt('updatedAt')
+        && optMap(incoming(), 'questionNotes')
+        // Nothing is published before its first upload finishes.
+        && (incoming().status != 'published' || incoming().contentVersion > 0)
+        // The random canonical id is minted once with the draft; it is never derived or swapped.
+        && (resource == null || (unchanged('syncGroupId') && unchanged('kind')));
+      allow delete: if isSiteAdmin();
+    }
+    // One doc ('published') mapping each published item id to its building/grade/everyone targeting, without names.
+    match /district_library_index/{indexId} {
+      allow get: if isDistrictStaff() || isSiteAdmin();
+      allow list: if false;
+      allow write: if isSiteAdmin() && indexId == 'published';
     }
 
     // ---- Shared / Synced VIDEO ACTIVITY parallel collections (PR3) ----
@@ -2486,7 +2363,6 @@ service cloud.firestore {
       // list closed (see synced_quizzes): would let any authed user enumerate
       // every synced activity. Clients know the groupId via their
       // video_activity_metadata or a share URL.
-      allow list: if false;
 
       allow create: if signedIn()
         && syncedVideoKeysOk()
@@ -2512,8 +2388,6 @@ service cloud.firestore {
         && incoming().get('plcId', null) == existing().get('plcId', null)
         && optMap(incoming(), 'behavior');
 
-      allow delete: if false;
-
       // ---- Bounded version history (PRD §5.1/§3.10) ----
       // Mirrors synced_quizzes/{groupId}/versions, scoped to Video Activity.
       // Participant read; participant-create-only (schema lock + self `savedBy`);
@@ -2532,7 +2406,6 @@ service cloud.firestore {
           && isInt('savedAt')
           && isMap('content');
 
-        allow update, delete: if false;
       }
     }
 
@@ -2594,109 +2467,7 @@ service cloud.firestore {
         );
     }
 
-    // Exactly-one-lead invariant (Decision 1.2): a role change must never mint a
-    // second lead (only transferLead moves the crown). CEL can't iterate a map, so
-    // this leans on the leadUid mirror — the leadUid member is 'lead' both sides.
-    // Pair with a leadUid-immutability check.
-    function plcLeadRoleUnchanged(plcData, newData) {
-      return plcRoleOf(newData, newData.get('leadUid', '')) == 'lead'
-        && plcRoleOf(plcData, plcData.get('leadUid', '')) == 'lead';
-    }
-
-    // Guards the broad sitting-lead update branch against minting a second lead
-    // (Decision 1.2). Its only permitted members mutation is a single-member REMOVAL
-    // named by the transient `removeMemberUid` pointer, and that member leaves memberUids.
-    // memberUids may only shrink here. Returns true when members is untouched, so
-    // rename / tenancy-backfill writes still pass.
-    // shorthands: off (PLC membership transitions run close to the 1,000-expression limit)
-    function plcBroadMembersOk() {
-      let nd = request.resource.data;
-      let touchesMembers =
-        'members' in nd.diff(resource.data).affectedKeys();
-      let removed = nd.get('removeMemberUid', '');
-      let newMembers = nd.get('members', {});
-      let memberDiff = newMembers
-        .diff(resource.data.get('members', {}))
-        .affectedKeys();
-      let newUids = nd.memberUids;
-      // memberUids never gains a uid here (adds go through accept or admin edit).
-      return resource.data.memberUids.hasAll(newUids)
-        && (
-          !touchesMembers
-          || (
-             // The sitting lead must stay lead (no self-demote via this path).
-             plcLeadRoleUnchanged(resource.data, nd)
-             // A removal pointer is supplied and names the sole changed entry.
-             && removed != ''
-             && memberDiff.hasOnly([removed])
-             // The named member is being removed (status flips to 'removed'),
-             // and is NOT the sitting lead (the lead can't vacate this way).
-             && removed != resource.data.get('leadUid', '')
-             && (removed in resource.data.get('members', {}))
-             && newMembers[removed].status == 'removed'
-             && !(removed in newUids)
-           )
-        );
-    }
-
-    // True iff the update is the caller self-adding to memberUids (accepting an
-    // invite). Verified against a matching *pending* invitation doc, and
-    // constrained so the only change is appending the caller (an invitee can't
-    // rewrite the whole array).
-    // email_verified is REQUIRED, same reason as isAdmin() above — otherwise an
-    // unverified self-reported email lets an attacker accept another teacher's
-    // PLC invite and join in their place.
-    function isAcceptingPlcInvite(plcId) {
-      let nd = request.resource.data;
-      let od = resource.data;
-      let myUid = request.auth.uid;
-      let emailLower = request.auth.token.get('email', '').lower();
-      let oldMembers = od.memberUids;
-      let newMembers = nd.memberUids;
-      let oldEmails = od.memberEmails;
-      let newEmails = nd.memberEmails;
-      // members map moves in lockstep with the denormalized indexes: accepting
-      // appends only the caller's own entry (role 'member', status 'active').
-      // OPTIONAL in the diff (legacy array-only PLCs still accept) unless the caller
-      // already has a stale entry, which must be reset so an old coLead role can't return.
-      let membersUntouchedOrSelfAppended =
-        (
-          !('members' in nd.diff(od).affectedKeys())
-          && !(myUid in od.get('members', {}))
-        )
-        || (
-             nd.members.diff(od.get('members', {}))
-               .affectedKeys().hasOnly([myUid])
-             && nd.members[myUid].role == 'member'
-             && nd.members[myUid].status == 'active'
-             && nd.members[myUid].uid == myUid
-             // Only the keys acceptInvite writes, so a rejoin can't smuggle in e.g. mentorRole.
-             && nd.members[myUid].keys().hasOnly(['uid', 'email', 'displayName', 'role', 'status', 'joinedAt'])
-           );
-      return request.auth.token.get('email_verified', false) == true
-        && emailLower != ''
-        && !(myUid in oldMembers)
-        && (myUid in newMembers)
-        && newMembers.size() == oldMembers.size() + 1
-        && newMembers.toSet().hasAll(oldMembers.toSet())
-        && newEmails.diff(oldEmails).affectedKeys().hasOnly([myUid])
-        && newEmails.get(myUid, '') == emailLower
-        && membersUntouchedOrSelfAppended
-        // leadUid is immutable on the accept path — an invitee can never seize
-        // leadership while self-adding.
-        && nd.get('leadUid', '') == od.get('leadUid', '')
-        && changedOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
-        // Dual-accept the timestamp bump (serverTimestamp resolves to a
-        // `timestamp`; legacy clients still write `int` during rollout).
-        && plcUpdatedAtOk()
-        && plcInviteMatches(get(/databases/$(database)/documents/plc_invitations/$(plcInviteDocId(plcId, emailLower))).data, plcId, emailLower);
-    }
-
-    // The id alone is ambiguous ('a_b' + '_' + 'c' == 'a' + '_' + 'b_c'), so the invite's own fields must match.
-    function plcInviteMatches(inv, plcId, emailLower) {
-      return inv.status == 'pending' && inv.plcId == plcId && inv.inviteeEmailLower == emailLower;
-    }
-
+    // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
     // updatedAt dual-accept (timestamp || legacy int millis) during the
     // serverTimestamp rollout (Decision 3.2). Centralized so tightening to
     // timestamp-only is a one-line change.
@@ -2873,214 +2644,19 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
-    // True iff the update is the caller self-removing from memberUids (leaving).
-    // The lead can't use this path (transfer or delete first). Constrained so the
-    // only change is dropping the caller (can't evict others while leaving).
-    function isLeavingPlc() {
-      let nd = request.resource.data;
-      let od = resource.data;
-      let myUid = request.auth.uid;
-      let oldMembers = od.memberUids;
-      let newMembers = nd.memberUids;
-      let oldEmails = od.memberEmails;
-      let newEmails = nd.memberEmails;
-      // members map moves in lockstep: when in the diff, only the leaver's own
-      // entry may change (flip to status 'removed'), so the branch can't rewrite a
-      // teammate while self-removing. OPTIONAL only when the caller has no entry to flip.
-      let membersUntouchedOrSelfRemoved =
-        (
-          !('members' in nd.diff(od).affectedKeys())
-          && !(myUid in od.get('members', {}))
-        )
-        || (
-             nd.members.diff(od.get('members', {}))
-               .affectedKeys().hasOnly([myUid])
-             && nd.members[myUid].status == 'removed'
-             // The leaver's role is pinned, so leaving can't mint a lead or coLead.
-             && (myUid in od.get('members', {}))
-             && nd.members[myUid].get('role', '')
-                  == od.members[myUid].get('role', '')
-           );
-      return (myUid in oldMembers)
-        && !(myUid in newMembers)
-        && myUid != od.leadUid
-        && newMembers.size() == oldMembers.size() - 1
-        && oldMembers.toSet().hasAll(newMembers.toSet())
-        && newEmails.diff(oldEmails).affectedKeys().hasOnly([myUid])
-        && membersUntouchedOrSelfRemoved
-        // Keep the field-set closed so this branch still can't smuggle a name /
-        // sheet-url / org change.
-        && changedOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
-        // leadUid is immutable on the leave path (a non-lead is leaving).
-        && nd.get('leadUid', '') == od.leadUid
-        && plcUpdatedAtOk();
-    }
-
-    // True iff a membership manager (lead OR coLead) transfers leadership to another
-    // current member - the only way to move the crown. Invoker is lead/coLead; new
-    // leadUid is an existing member != old lead; map lockstep (never two leads); diff
-    // closed to leadUid/members/memberUids/memberEmails/updatedAt; membership unchanged.
-    function isTransferringPlcLead() {
-      let nd = request.resource.data;
-      let oldLead = resource.data.leadUid;
-      let newLead = nd.leadUid;
-      // Lockstep checks apply only once a populated members map exists; legacy
-      // map-less PLCs transfer via leadUid alone (only the sitting lead can).
-      let mapPresent =
-        'members' in nd
-        && request.auth.uid in nd.members;
-      let mapLockstep =
-        !mapPresent
-        || (
-             nd.members[newLead].role == 'lead'
-             && nd.members[oldLead].role != 'lead'
-           );
-      // A transfer may change ONLY the two lead entries — re-roling others must
-      // go through isChangingMemberRole, one at a time.
-      let membersDiffOk =
-        !mapPresent
-        || nd.members
-             .diff(resource.data.get('members', {}))
-             .affectedKeys().hasOnly([newLead, oldLead]);
-      return isPlcMembershipManager(resource.data)
-        && newLead != oldLead
-        && (newLead in resource.data.memberUids)
-        && (newLead in nd.memberUids)
-        && mapLockstep
-        && membersDiffOk
-        // The leaving/incoming lead both remain members — the set is identical.
-        && nd.memberUids.toSet()
-             .hasAll(resource.data.memberUids.toSet())
-        && resource.data.memberUids.toSet()
-             .hasAll(nd.memberUids.toSet())
-        && changedOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
-                       'updatedAt'])
-        && changed(['leadUid'])
-        && plcUpdatedAtOk();
-    }
-
-    // True iff a membership manager changes exactly ONE member's role within {coLead,
-    // member, viewer} and nothing else. CEL can't index a map at a dynamic key, so the
-    // target is the schema-locked transient `roleChangeUid` pointer. Guards
-    // exactly-one-lead: leadUid immutable, lead stays 'lead', diff closed to members +
-    // roleChangeUid + updatedAt, target != sitting lead, new role never 'lead'.
-    function isChangingMemberRole() {
+    // Membership changes run in plcMembershipV1 (Admin SDK). The one client write left is a
+    // manager tagging one non-lead member mentor or mentee (setMemberMentorRole, T29).
+    function isTaggingPlcMentor() {
       let nd = request.resource.data;
       let target = nd.get('roleChangeUid', '');
-      let changedKeys =
-        nd.members.diff(resource.data.get('members', {}))
-          .affectedKeys();
-      return isPlcMembershipManager(resource.data)
-        // Field-set closed: only the members map, the target pointer, and the
-        // customary updatedAt bump may change.
-        && changedOnly(['members', 'roleChangeUid', 'updatedAt'])
-        && changed(['members'])
-        && target != ''
-        // leadUid never moves on this branch (transferLead owns that).
-        && nd.get('leadUid', '') == resource.data.get('leadUid', '')
-        // The exactly-one-lead invariant: the lead member is 'lead' both sides.
-        && plcLeadRoleUnchanged(resource.data, nd)
-        // Exactly the named member's entry changes…
-        && changedKeys.hasOnly([target])
-        && changedKeys.size() == 1
-        // …and the target is NOT the sitting lead (no self-demoting the lead).
-        && target != resource.data.get('leadUid', '')
-        // …to a non-lead role (coLead | member | viewer) — never 'lead'.
-        && nd.members[target].role in ['coLead', 'member', 'viewer']
-        // The target is a current member (in memberUids, keyed or array-only) and stays
-        // active. Role changes don't add, drop or mark people removed (invite/leave/remove).
-        && (target in resource.data.memberUids)
-        && nd.members[target].status == 'active'
-        && nd.members[target].uid == target
-        && plcUpdatedAtOk();
-    }
-
-    // True iff an in-org SITE ADMIN recovers an abandoned PLC (Decision 3.4) -
-    // reassigning leadership WITHOUT being a member. Scoped: isAdmin(); PLC has an
-    // orgId and the admin is in that SAME org; new leadUid is an existing member != old
-    // lead; map lockstep; membership unchanged; diff closed to leadUid/members/
-    // memberUids/memberEmails/updatedAt. Mutually exclusive with the member-only branches.
-    function isAdminManagingPlc() {
-      let nd = request.resource.data;
-      let oldLead = resource.data.get('leadUid', '');
-      let newLead = nd.get('leadUid', '');
-      // Lockstep map<->leadUid checks only apply once the PLC carries a
-      // populated members map (legacy PLCs reassign via leadUid alone).
-      let mapPresent =
-        'members' in nd
-        && newLead in nd.members
-        && oldLead in nd.get('members', {});
-      let mapLockstep =
-        !mapPresent
-        || (
-             nd.members[newLead].role == 'lead'
-             && nd.members[oldLead].role != 'lead'
-           );
-      // Recovery may change ONLY the two lead entries in the members map — an
-      // admin reassign can't silently re-role other members in the same write.
-      let membersDiffOk =
-        !mapPresent
-        || nd.members
-             .diff(resource.data.get('members', {}))
-             .affectedKeys().hasOnly([newLead, oldLead]);
-      return isAdmin()
-        && resource.data.get('orgId', null) is string
-        && isOrgMember(resource.data.orgId)
-        && newLead != oldLead
-        && (newLead in resource.data.memberUids)
-        && (newLead in nd.memberUids)
-        && mapLockstep
-        && membersDiffOk
-        // The membership SET is unchanged — recovery reassigns, never adds/drops.
-        && nd.memberUids.toSet()
-             .hasAll(resource.data.memberUids.toSet())
-        && resource.data.memberUids.toSet()
-             .hasAll(nd.memberUids.toSet())
-        && changedOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
-                       'updatedAt'])
-        && changed(['leadUid'])
-        && plcUpdatedAtOk();
-    }
-
-    // In-org site admin adds, re-roles or removes ONE non-lead member; target named
-    // by the transient `adminMemberUid`. leadUid and every other entry are untouched.
-    function isAdminEditingPlcMembers() {
-      let nd = request.resource.data;
-      let target = nd.get('adminMemberUid', '');
-      let newMembers = nd.get('members', {});
       let oldMembers = resource.data.get('members', {});
-      let oldUids = resource.data.memberUids;
-      let newUids = nd.memberUids;
-      // Uids the arrays know but the map does not (un-migrated PLC, or an invite accept that
-      // only wrote the arrays) may be backfilled alongside the target. CEL cannot iterate a map,
-      // so those backfilled entries are copied through by the client and not checked one by one.
-      let arrayOnly = oldUids.toSet().difference(oldMembers.keys().toSet());
-      let allowedKeys = arrayOnly.union([target].toSet());
-      return isAdmin()
-        && resource.data.get('orgId', null) is string
-        && isOrgMember(resource.data.orgId)
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['members', 'roleChangeUid', 'updatedAt'])
         && target != ''
-        && target != resource.data.leadUid
-        && nd.leadUid == resource.data.leadUid
-        && (target in newMembers)
-        && newMembers.diff(oldMembers).affectedKeys().hasOnly(allowedKeys)
-        // A backfill must carry every legacy uid and nothing else.
-        && (oldMembers.size() > 0
-            || (newMembers.keys().toSet().hasOnly(allowedKeys)
-                && newMembers.keys().toSet().hasAll(allowedKeys)))
-        && (resource.data.leadUid in newMembers)
-        && newMembers[resource.data.leadUid].role == 'lead'
-        && newMembers[target].uid == target
-        && newMembers[target].role in ['coLead', 'member', 'viewer']
-        && newMembers[target].status in ['active', 'removed']
-        && ((target in newUids) == (newMembers[target].status == 'active'))
-        && newUids.removeAll([target]).toSet().hasAll(oldUids.removeAll([target]))
-        && oldUids.removeAll([target]).toSet().hasAll(newUids.removeAll([target]))
-        && nd.memberEmails
-             .diff(resource.data.get('memberEmails', {}))
-             .affectedKeys().hasOnly(allowedKeys)
-        && changedOnly(['members', 'memberUids', 'memberEmails', 'adminMemberUid',
-                       'updatedAt'])
+        && target != resource.data.get('leadUid', '')
+        && (target in oldMembers)
+        && nd.members.diff(oldMembers).affectedKeys().hasOnly([target])
+        && nd.members[target].diff(oldMembers[target]).affectedKeys().hasOnly(['mentorRole'])
         && plcUpdatedAtOk();
     }
 
@@ -3094,7 +2670,7 @@ service cloud.firestore {
       // isAdmin() is a bare /admins/{email} doc, which also mirrors org-scoped
       // building_admin (see functions/src/organizationMembersSync.ts) — used
       // bare here it let a building_admin of one org browse another org's PLC
-      // directory. Scoped the same way as isAdminManagingPlc() below: same-org
+      // directory. Scoped the same way as the admin delete branch on plcs: same-org
       // admin only, same as the org-peer branch it sits next to. isSuperAdmin()
       // stays as a resource-independent branch (matching help_resources) so the
       // admin "browse every PLC" picker (hooks/usePlcs.ts's asAdmin mode, an
@@ -3117,14 +2693,12 @@ service cloud.firestore {
           || isSuperAdmin()
         );
       // Server-only — clients never write the discovery mirror.
-      allow create, update, delete: if false;
     }
 
     // Private flag -> answer pointer; only the flagging teacher reads it, only the server writes.
     match /plc_norming_sources/{sourceId} {
       allow read: if signedIn()
         && existing().flaggedByUid == authUid();
-      allow write: if false;
     }
 
     function assignmentIndexKeysOk() {
@@ -3221,8 +2795,8 @@ service cloud.firestore {
       // building_admin (see
       // functions/src/organizationMembersSync.ts) — used bare it let a
       // building_admin of one org read another org's member emails/names off
-      // this doc. Scoped to same-org, matching isAdminManagingPlc() and the
-      // admin delete branch below (both already same-org-gated and tested in
+      // this doc. Scoped to same-org, matching the
+      // admin delete branch below (already same-org-gated and tested in
       // plcAdminRecovery.test.ts) instead of the write side being scoped while
       // read stayed open. isSuperAdmin() stays as a resource-independent branch
       // for the same reason as plcIndex above — hooks/usePlcs.ts's asAdmin mode
@@ -3275,46 +2849,22 @@ service cloud.firestore {
              || incoming().get('updatedAt', 0) is int
            );
 
-      // Lead can rename, remove a member (via `removeMemberUid`), or backfill tenancy -
-      // but can't vacate leadership (leadUid immutable) or mint a second lead
-      // (plcBroadMembersOk limits members mutations to one named removal). Tenancy
-      // (orgId/buildingId) is immutable-after-set. The update branches are MUTUALLY
-      // EXCLUSIVE, each a disjoint shape: broad sitting-lead update; isAcceptingPlcInvite;
-      // isLeavingPlc; isTransferringPlcLead / isChangingMemberRole; isSettingPlcSharedSheetUrl
-      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence / isUpdatingPlcLayout
-      // / isUpdatingPlcMeetingNoteTemplate / isUpdatingPlcCalendar;
-      // isAdminManagingPlc (the only
-      // non-member branch).
+      // Lead can rename or backfill tenancy but never change membership or leadUid; joins,
+      // leaves, removals, roles and lead moves run in plcMembershipV1 (Admin SDK). Tenancy
+      // (orgId/buildingId) is immutable-after-set. Each other branch is one disjoint shape.
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
       allow update: if request.auth != null && viewAsOk() && notDeactivated() && (
         (
           request.auth.uid == resource.data.leadUid
-          && request.resource.data.leadUid == resource.data.leadUid
-          && resource.data.leadUid in request.resource.data.memberUids
+          && !request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['leadUid', 'members', 'memberUids', 'memberEmails'])
           && plcUpdatedAtOk()
           && plcTenancyImmutableAfterSet('orgId')
           && plcTenancyImmutableAfterSet('buildingId')
           && plcLeadGroupFieldsOk()
-          // Block minting a second lead — members changes here are a single named
-          // removal only (exactly-one-lead invariant, Decision 1.2).
-          && plcBroadMembersOk()
           && plcCalendarFieldOk()
         )
-        // Each branch below sits behind a cheap condition it already requires, because a
-        // function's `let` bindings run even when its first check fails and every branch
-        // shares one 1,000-expression budget per request.
-        || (
-          !(request.auth.uid in resource.data.memberUids)
-          && request.auth.uid in request.resource.data.memberUids
-          && isAcceptingPlcInvite(plcId)
-        )
-        || (
-          request.auth.uid in resource.data.memberUids
-          && !(request.auth.uid in request.resource.data.memberUids)
-          && isLeavingPlc()
-        )
-        || (request.resource.data.leadUid != resource.data.leadUid && isTransferringPlcLead())
-        || (request.resource.data.get('roleChangeUid', '') != '' && isChangingMemberRole())
+        || (request.resource.data.get('roleChangeUid', '') != '' && isTaggingPlcMentor())
         || isSettingPlcSharedSheetUrl()
         || isUpdatingPlcFeatures()
         || isUpdatingPlcDigestOptIn()
@@ -3332,11 +2882,6 @@ service cloud.firestore {
           request.resource.data.get('calendarEmbedUrl', null) != resource.data.get('calendarEmbedUrl', null)
           && isUpdatingPlcCalendar()
         )
-        || (
-          request.resource.data.get('leadUid', '') != resource.data.get('leadUid', '')
-          && isAdminManagingPlc()
-        )
-        || (request.resource.data.get('adminMemberUid', '') != '' && isAdminEditingPlcMembers())
       );
 
       // The lead can dissolve the PLC; an in-org SITE ADMIN can also dissolve an
@@ -3408,7 +2953,6 @@ service cloud.firestore {
       // Anonymized norming copies; written only by setPlcNormingFlagV1.
       match /norming/{normingId} {
         allow read: if plcRd();
-        allow write: if false;
       }
 
       // Anonymized per-assessment aggregates (Decisions 6.0+3.3) — member-readable,
@@ -3422,7 +2966,6 @@ service cloud.firestore {
         }
         allow read: if signedIn() && authUid() in plcRootData().get('memberUids', []) && notDeactivated();
         // No client writes — server-only (Admin SDK bypasses rules).
-        allow create, update, delete: if false;
       }
 
       // ---- Team updates (TEAMS_REDESIGN T27) ----
@@ -3483,7 +3026,6 @@ service cloud.firestore {
             && incoming().uid == authUid()
             && isStr('name') && incoming().name.size() <= 200
             && incoming().ackedAt == request.time;
-          allow update, delete: if false;
         }
       }
 
@@ -4185,8 +3727,6 @@ service cloud.firestore {
             && incoming().uid == authUid()
             && plcSubTimeFieldOk('at');
 
-          allow update: if false;
-
           allow delete: if plcEd();
         }
       }
@@ -4227,12 +3767,9 @@ service cloud.firestore {
              ])
           && plcRecordingLiveOk();
 
-        allow delete: if false;
-
         // Speaker-labelled transcript; only the server writes it.
         match /transcript/{docId} {
           allow read: if plcRd();
-          allow write: if false;
         }
       }
 
@@ -4282,7 +3819,6 @@ service cloud.firestore {
           && incoming().url.matches('https://docs[.]google[.]com/.*')
           && myCreatedBy()
           && plcSubTimeFieldOk('createdAt');
-        allow update: if false;
         allow delete: if plcEd();
       }
 
@@ -4313,7 +3849,6 @@ service cloud.firestore {
         allow read: if plcRd();
 
         // Legacy; imported into note action items (§7.4) — no new to-dos.
-        allow create: if false;
 
         // Legacy; only the soft-delete tombstone may still be written (§7.4) —
         // used to archive a to-do once it's been imported into a note.
@@ -4557,7 +4092,6 @@ service cloud.firestore {
           && plcSubTimeFieldOk('createdAt');
 
         // No client update/delete — see the block comment above (Wave-4 GC).
-        allow update, delete: if false;
       }
 
       // PLC comments + @mentions (Decision 2.6, §3.5). Scoped to dataCard /
@@ -4620,7 +4154,6 @@ service cloud.firestore {
              );
 
         // Hard delete is server-only (GC). Clients soft-delete via `deletedAt`.
-        allow delete: if false;
       }
     }
 
@@ -4641,8 +4174,8 @@ service cloud.firestore {
         );
 
       // Lead of the target PLC creates (or re-creates) the invite. The doc
-      // id is forced to the deterministic format so isAcceptingPlcInvite
-      // can verify by id without a query.
+      // id is forced to the deterministic format (plcInviteDocId) so lookups
+      // need no query.
       allow create, update: if signedIn()
         && incoming().invitedByUid == authUid()
         && isStr('inviteeEmailLower')
@@ -4848,7 +4381,6 @@ service cloud.firestore {
     // D10 index rows: written only by the server triggers.
     match /grade_index/{rowId} {
       allow read: if gbOwned();
-      allow write: if false;
     }
 
     // D9 overlay, one per assignment x student.
@@ -4868,7 +4400,6 @@ service cloud.firestore {
           isInt('at') && incoming().field in ['override', 'comment', 'flags', 'publish', 'fill'] &&
           (incoming().get('batchId', null) == null || isStr('batchId')) &&
           dbGetAfter('gradebook_marks', markId).data.ownerUid == authUid();
-        allow update, delete: if false;
       }
     }
 
@@ -4917,12 +4448,10 @@ service cloud.firestore {
 
     // D37 student projection: server-written, read only by that signed-in student.
     match /student_grades/{studentUid} {
-      allow read, write: if false;
 
       match /classes/{classId} {
         allow read: if signedIn() && authUid() == studentUid && isStudentRoleUser() &&
           !isPinLoginToken();
-        allow write: if false;
       }
     }
 
@@ -4937,7 +4466,6 @@ service cloud.firestore {
     // pseudonym functions, which preserves cross-assignment unlinkability. A
     // collectionGroup query on `items` is denied by omission.
     match /student_assignments/{studentUid} {
-      allow read, write: if false;
 
       match /items/{assignmentId} {
         allow read: if signedIn() &&
@@ -4952,7 +4480,6 @@ service cloud.firestore {
           (resource == null ||
            existing().get('sessionId', '') == request.auth.token.get('pinSessionId', ''));
         // shorthands: on
-        allow write: if false;
       }
     }
 
@@ -5319,7 +4846,7 @@ service cloud.firestore {
             (incoming().get('submittedAt', null) == null ?
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
              nearServerNow(incoming().submittedAt))) &&
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'inputSignals']) &&
            tabExitsOk() &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
            (!changed(['partsDone']) || incoming().get('partsDone', 0) is int) &&
@@ -5451,7 +4978,6 @@ service cloud.firestore {
             incoming().status in ['draft', 'submitted'] &&
             incoming().snapshotAt == request.time;
           // Immutable from clients. Teachers/admins may clean up.
-          allow update: if false;
           allow delete: if signedIn() &&
             (liveUid(sessionTeacherUid()) || isSiteAdmin());
         }
@@ -5459,7 +4985,6 @@ service cloud.firestore {
         // Handwritten paper answers: AI transcript internals. Session teacher reads; only the server writes.
         match /paperPrivate/{questionId} {
           allow read: if signedIn() && liveUid(sessionTeacherUid());
-          allow write: if false;
         }
 
         // Each finished attempt's copy; the server writes it and the session teacher or an admin may grade an earlier (closed) one.
@@ -5472,7 +4997,6 @@ service cloud.firestore {
             existing().get('closed', false) == true &&
             incoming().diff(existing()).affectedKeys().hasOnly(['grading']) &&
             isMap('grading');
-          allow create, delete: if false;
         }
       }
 
@@ -5493,7 +5017,6 @@ service cloud.firestore {
           liveUid(sessionTeacherUid()) || isSiteAdmin() ||
           isSubMonitor(sessionData())
         );
-        allow write: if false;
       }
 
       // Question content for per-period sessions, readable by a student only
@@ -5516,7 +5039,6 @@ service cloud.firestore {
       // Balanced-slot counters; only drawQuizBankQuestionsV1 advances them.
       match /bank_deals/{dealId} {
         allow read: if signedIn();
-        allow create, update: if false;
         allow delete: if signedIn() && (liveUid(sessionTeacherUid()) || isAdmin());
       }
 
@@ -5559,7 +5081,6 @@ service cloud.firestore {
           isTimestamp('viewedAt') &&
           dbExists('quiz_sessions', sessionId) &&
           dbGet('quiz_sessions', sessionId).data.get('mode', 'submissions') == 'view-only';
-        allow update, delete: if false;
       }
     }
 
@@ -5812,7 +5333,6 @@ service cloud.firestore {
         && isInt('updatedAt');
       allow delete: if isSuperAdmin();
     }
-
 
     // Help Center config — the shared category list. Any authed user reads it
     // (the Help modal renders categories); only super admins edit it.
@@ -6157,7 +5677,6 @@ service cloud.firestore {
           newKeys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           vaS().get('mode', 'submissions') == 'view-only';
-        allow update, delete: if false;
       }
     }
 
@@ -6182,7 +5701,6 @@ service cloud.firestore {
         sessionStaff() &&
         changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt', 'classIds', 'rosterIds', 'removedClasses']) &&
         incoming().status in ['active', 'ended'];
-      allow delete: if false;
 
       // MiniApp student submissions (replaces the legacy Sheets pipeline). Doc id
       // is an opaque per-assignment pseudonym (studentRole) or the anonymous auth
@@ -6274,7 +5792,6 @@ service cloud.firestore {
             isSiteAdmin() ||
             maOwner()
           );
-          allow create, update: if false;
         }
       }
 
@@ -6290,7 +5807,6 @@ service cloud.firestore {
           maOwner()
         );
         allow create, update: if !isStudentRoleUser() && contentWriteOk('mini_app_sessions', sessionId);
-        allow delete: if false;
       }
 
       // View tracking for view-only Share links (see quiz_sessions/views).
@@ -6305,7 +5821,6 @@ service cloud.firestore {
           isTimestamp('viewedAt') &&
           dbExists('mini_app_sessions', sessionId) &&
           dbGet('mini_app_sessions', sessionId).data.get('mode', 'submissions') == 'view-only';
-        allow update, delete: if false;
       }
     }
 
@@ -6494,7 +6009,6 @@ service cloud.firestore {
                             ((mySid(sessionId) &&
                                 incoming().get('teacherUid', authUid()) == authUid()) ||
                               isSiteAdmin());
-      allow delete: if false;
 
       // Merged student page helpers (shared by submissions, likes, comments).
       function awParentSession() {
@@ -6904,7 +6418,6 @@ service cloud.firestore {
           likeId == incoming().submissionId + '__' + authUid();
         allow delete: if signedIn() &&
           (existing().get('authorUid', null) == authUid() || awIsOwner());
-        allow update: if false;
       }
 
       // Comments — replies need allowCommentResponses; commenter or owner deletes.
@@ -6932,7 +6445,6 @@ service cloud.firestore {
           isInt('createdAt');
         allow delete: if signedIn() &&
           (existing().get('authorUid', null) == authUid() || awIsOwner());
-        allow update: if false;
       }
     }
 
@@ -6956,7 +6468,6 @@ service cloud.firestore {
                               (quizStaff() &&
                                 mySid(sessionId) &&
                                 incoming().get('teacherUid', authUid()) == authUid()));
-      allow delete: if false;
 
       // Vote doc id is the composite `{questionIndex}_{voterId}` so one listener
       // covers every question in a multi-question poll while still holding the
@@ -7184,7 +6695,6 @@ service cloud.firestore {
       }
 
       allow get: if true;
-      allow list: if false;
       allow create: if liveStaffSignedIn()
                     && sessionStaff()
                     && validPublicFlashcardSnapshot();
@@ -7525,7 +7035,6 @@ service cloud.firestore {
                             || authUid() in get(
                                  /databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId)
                                ).data.get('memberUids', []));
-          allow update, delete: if false;
         }
 
         // D40: work links are the group's own, like uploads. One doc, `work`.
@@ -7602,17 +7111,13 @@ service cloud.firestore {
       // Only the teacher query where('teacherUids', 'array-contains', uid) is provable; a sub reads by id.
       allow list: if liveStaffSignedIn() &&
                      authUid() in existing().teacherUids;
-      allow write: if false;
 
       match /students/{studentUid} {
         allow read: if focusReader(dbGet('focus_sessions', sessionId).data);
-        allow write: if false;
       }
     }
 
     // Default deny all other collections
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // /{document=**}: no client access (default deny).
   }
 }

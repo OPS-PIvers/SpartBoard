@@ -793,6 +793,7 @@ const DEVICE_ATTEMPT_FIELDS = [
   'autoSubmitted',
   'tabSwitchWarnings',
   'tabExits',
+  'inputSignals',
   'resultsTabWarnings',
   'resultsLockedOut',
   'resultsLockedOutAt',

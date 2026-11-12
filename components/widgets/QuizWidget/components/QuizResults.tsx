@@ -22,6 +22,9 @@ import React, {
 } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
+import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
+import { WritingPlaybackBadge } from '@/components/common/WritingPlayback';
+import { questionWordCounts } from '@/utils/inputSignals';
 import {
   ArrowLeft,
   FileSpreadsheet,
@@ -45,6 +48,8 @@ import {
   Eye,
   EyeOff,
   MinusCircle,
+  History,
+  MousePointerClick,
   Printer,
   UserCheck,
 } from 'lucide-react';
@@ -219,6 +224,8 @@ import type {
   FibGradingContext,
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
+import { computeDokStats, quizHasDok } from '@/utils/quizDok';
+import { explanationsForQuestion } from '@/utils/quizExplanations';
 import { QuizTargetResults } from './QuizTargetResults';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
@@ -1072,6 +1079,32 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const hasTargetResults = targetStats.targets.some(
     (row) => row.servedCount > 0
   );
+  // The Group by switch and DOK rows exist only when a question has a DOK level.
+  const dokOn = canAccessFeature('quiz-dok') && quizHasDok(quiz.questions);
+  const [groupByChoice, setGroupByChoice] = useState<'target' | 'dok'>(
+    'target'
+  );
+  const dokStats = useMemo(
+    () =>
+      dokOn
+        ? computeDokStats(
+            quiz.questions,
+            filteredResponses,
+            DEFAULT_MASTERY_CUTOFFS,
+            fibGrading
+          )
+        : null,
+    [dokOn, quiz.questions, filteredResponses, fibGrading]
+  );
+  const hasDokResults =
+    dokStats?.targets.some((row) => row.servedCount > 0) ?? false;
+  const hasTargetsScreen = hasTargetResults || hasDokResults;
+  const groupBy: 'target' | 'dok' =
+    dokStats && hasDokResults && (groupByChoice === 'dok' || !hasTargetResults)
+      ? 'dok'
+      : 'target';
+  const shownTargetStats =
+    groupBy === 'dok' && dokStats ? dokStats : targetStats;
   const resolveTargetStudentName = useCallback(
     (response: QuizResponse) =>
       resolveResponseDisplayName(response, pinToName, byStudentUid),
@@ -2251,7 +2284,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // as home (title + back-out semantics) even if a drill-down was open when
   // the last response was deleted.
   const effectiveScreen =
-    responses.length === 0 || (screen === 'targets' && !hasTargetResults)
+    responses.length === 0 || (screen === 'targets' && !hasTargetsScreen)
       ? 'home'
       : screen;
   const headerTitle =
@@ -2526,12 +2559,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   onClick={() => setScreen('questions')}
                   anchor={tourTypeAttr('quiz-results.drill-questions', 'quiz')}
                 />
-                {hasTargetResults && (
+                {hasTargetsScreen && (
                   <ResultsDrillRow
-                    label="Targets"
-                    detail={`${targetStats.targets.filter((row) => row.servedCount > 0).length} target${
-                      targetStats.targets.filter((row) => row.servedCount > 0)
-                        .length === 1
+                    label={groupBy === 'dok' ? 'DOK' : 'Targets'}
+                    detail={`${shownTargetStats.targets.filter((row) => row.servedCount > 0).length} ${groupBy === 'dok' ? 'level' : 'target'}${
+                      shownTargetStats.targets.filter(
+                        (row) => row.servedCount > 0
+                      ).length === 1
                         ? ''
                         : 's'
                     }`}
@@ -2563,13 +2597,20 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               onSelectStudents={handleSelectStudents}
               onOpenStudent={handleOpenStudent}
               orderingByItem={canAccessFeature('quiz-ordering-results')}
+              explanationsOn={canAccessFeature('quiz-explanations')}
             />
           )}
-          {effectiveScreen === 'targets' && hasTargetResults && (
+          {effectiveScreen === 'targets' && hasTargetsScreen && (
             <QuizTargetResults
               quizTitle={quiz.title}
               responses={filteredResponses}
-              stats={targetStats}
+              stats={shownTargetStats}
+              groupBy={groupBy}
+              onGroupByChange={
+                dokOn && hasTargetResults && hasDokResults
+                  ? setGroupByChoice
+                  : undefined
+              }
               resolveName={resolveShownName}
               resolveExportName={resolveTargetExportName}
             />
@@ -3398,8 +3439,11 @@ const QuestionDrilldownPanel: React.FC<{
   onOpenStudent?: (responseKey: string) => void;
   orderingByItem?: boolean;
   pictures: ReadonlyMap<string, AnswerPicture>;
+  /** The question's explanations, shown to the teacher when the feature is on. */
+  explanation?: ReturnType<typeof explanationsForQuestion>;
 }> = ({
   pictures,
+  explanation,
   id,
   drilldown,
   showStudentNames,
@@ -3408,6 +3452,7 @@ const QuestionDrilldownPanel: React.FC<{
   onOpenStudent,
   orderingByItem = false,
 }) => {
+  const { t } = useTranslation();
   const openStudent = showStudentNames ? onOpenStudent : undefined;
   const selectStudents = showStudentNames ? onSelectStudents : undefined;
   const [openRows, setOpenRows] = useState<Set<string>>(() => new Set());
@@ -3448,6 +3493,25 @@ const QuestionDrilldownPanel: React.FC<{
           <p className="font-sans text-brand-gray-primary" style={SMALL_TEXT}>
             No students have answered this question yet.
           </p>
+        )}
+
+        {explanation && (
+          <div className="font-sans text-brand-gray-dark" style={SMALL_TEXT}>
+            <p
+              className="font-semibold uppercase tracking-wider text-brand-gray-primary"
+              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+            >
+              {t('quizExplanations.heading', 'Explanation')}
+            </p>
+            {explanation.explanation && (
+              <p className="whitespace-pre-wrap">{explanation.explanation}</p>
+            )}
+            {Object.entries(explanation.options ?? {}).map(([option, text]) => (
+              <p key={option} className="wrap-break-word">
+                <span className="font-semibold">{option}:</span> {text}
+              </p>
+            ))}
+          </div>
         )}
 
         {servedCount > 0 &&
@@ -3618,6 +3682,8 @@ const QuestionsScreen: React.FC<{
   onOpenStudent?: (responseKey: string) => void;
   /** Ordering lists each item and who had it out of order (quiz-ordering-results). */
   orderingByItem?: boolean;
+  /** Teachers see each question's explanations (quiz-explanations). */
+  explanationsOn?: boolean;
 }> = ({
   questions,
   responses,
@@ -3628,6 +3694,7 @@ const QuestionsScreen: React.FC<{
   onSelectStudents,
   onOpenStudent,
   orderingByItem = false,
+  explanationsOn = false,
 }) => {
   const { t } = useTranslation();
   const [sortBy, setSortBy] = useState<QuestionSort>('order');
@@ -3963,6 +4030,7 @@ const QuestionsScreen: React.FC<{
                 onOpenStudent={onOpenStudent}
                 orderingByItem={byItem}
                 pictures={imageOnlyPictures(q)}
+                explanation={explanationsOn ? explanationsForQuestion(q) : null}
               />
             )}
           </div>
@@ -4293,6 +4361,11 @@ const StudentsScreen: React.FC<{
   view,
   onViewChange,
 }) => {
+  const questionOrder = useMemo(() => questions.map((q) => q.id), [questions]);
+  const questionWords = useMemo(
+    () => questionWordCounts(questions),
+    [questions]
+  );
   const { t } = useTranslation();
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
@@ -4723,6 +4796,49 @@ const StudentsScreen: React.FC<{
                       </span>
                     </TabExitsPopover>
                   )}
+                  <InputSignalsBadge
+                    signals={r.inputSignals}
+                    completedAttempts={r.completedAttempts}
+                    completed={r.status === 'completed'}
+                    answers={
+                      session?.sessionMode === 'student' ? r.answers : undefined
+                    }
+                    questionWords={questionWords}
+                    allAnswers={r.answers}
+                    studentName={displayName}
+                    questionOrder={questionOrder}
+                  >
+                    {(count) => (
+                      <span
+                        title={`${count} unusual input ${count === 1 ? 'sign' : 'signs'}`}
+                        className="shrink-0"
+                      >
+                        <SessionBadge
+                          tone="warn"
+                          icon={MousePointerClick}
+                          label={`${count}`}
+                        />
+                      </span>
+                    )}
+                  </InputSignalsBadge>
+                  <WritingPlaybackBadge
+                    signals={r.inputSignals}
+                    studentName={displayName}
+                    questionOrder={questionOrder}
+                  >
+                    {(count) => (
+                      <span
+                        title={`Writing playback for ${count} ${count === 1 ? 'answer' : 'answers'}`}
+                        className="shrink-0"
+                      >
+                        <SessionBadge
+                          tone="neutral"
+                          icon={History}
+                          label={`${count}`}
+                        />
+                      </span>
+                    )}
+                  </WritingPlaybackBadge>
                   {/* Results-view lockout indicator. Student crossed the
                   `protection.tabWarningThreshold` while viewing
                   published results — the student app redirected

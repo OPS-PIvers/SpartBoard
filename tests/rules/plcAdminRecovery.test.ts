@@ -249,8 +249,8 @@ const reassignToMember = (overrides: Record<string, unknown> = {}) => ({
 // ===========================================================================
 
 describe('plcs/{plcId} — admin reassigns lead (Decision 3.4)', () => {
-  it('an in-org site admin CAN reassign leadership (leadUid + members lockstep)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): an in-org site admin CAN reassign leadership (leadUid + members lockstep)', async () => {
+    await assertFails(
       updateDoc(doc(asAdmin(), `plcs/${ORG_PLC_ID}`), reassignToMember())
     );
   });
@@ -393,14 +393,14 @@ describe('plcs/{plcId} — dissolve (delete)', () => {
 // ===========================================================================
 
 describe('plcs/{plcId} — member branches unaffected by the admin branch', () => {
-  it('a sitting lead can STILL transfer leadership (isTransferringPlcLead)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a sitting lead can STILL transfer leadership (isTransferringPlcLead)', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${ORG_PLC_ID}`), reassignToMember())
     );
   });
 
-  it('a co-lead can STILL change a member’s role (isChangingMemberRole)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a co-lead can STILL change a member’s role (isChangingMemberRole)', async () => {
+    await assertFails(
       updateDoc(doc(asCoLead(), `plcs/${ORG_PLC_ID}`), {
         roleChangeUid: MEMBER_UID,
         members: {
@@ -413,8 +413,8 @@ describe('plcs/{plcId} — member branches unaffected by the admin branch', () =
     );
   });
 
-  it('a non-lead member can STILL leave (isLeavingPlc)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a non-lead member can STILL leave (isLeavingPlc)', async () => {
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${ORG_PLC_ID}`), {
         memberUids: [LEAD_UID, COLEAD_UID],
         memberEmails: { [LEAD_UID]: LEAD_EMAIL, [COLEAD_UID]: COLEAD_EMAIL },
@@ -432,7 +432,7 @@ describe('plcs/{plcId} — member branches unaffected by the admin branch', () =
     );
   });
 
-  it('an invitee can STILL accept an invite (isAcceptingPlcInvite)', async () => {
+  it('client write refused (plcMembershipV1 does it): an invitee can STILL accept an invite (isAcceptingPlcInvite)', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `plc_invitations/${ORG_PLC_ID}_${INVITEE_EMAIL}`),
@@ -446,7 +446,7 @@ describe('plcs/{plcId} — member branches unaffected by the admin branch', () =
         }
       );
     });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asInvitee(), `plcs/${ORG_PLC_ID}`), {
         memberUids: [LEAD_UID, MEMBER_UID, COLEAD_UID, INVITEE_UID],
         memberEmails: {

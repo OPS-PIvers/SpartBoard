@@ -47,6 +47,9 @@ interface QuizStudentViewProps {
   tabAwayTimerOn: boolean;
   /** Teacher has quiz-ordering-list, so Ordering shows the one-list layout like a real assignment. */
   orderingListOn?: boolean;
+  /** Teacher has quiz-stimulus-tabs and quiz-review-step, so the preview matches what Assign stamps. */
+  stimulusTabsOn?: boolean;
+  reviewStepOn?: boolean;
   onExit: () => void;
 }
 
@@ -72,6 +75,8 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   behavior,
   tabAwayTimerOn,
   orderingListOn = false,
+  stimulusTabsOn = false,
+  reviewStepOn = false,
   onExit,
 }) => {
   const saved = useMemo(() => focusSettingsFrom(behavior), [behavior]);
@@ -79,8 +84,18 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   const [run, setRun] = useState(0);
   const base = useMemo(
     () =>
-      buildStudentViewSession(quiz, behavior, tabAwayTimerOn, orderingListOn),
-    [quiz, behavior, tabAwayTimerOn, orderingListOn]
+      buildStudentViewSession(quiz, behavior, tabAwayTimerOn, orderingListOn, {
+        stimulusTabs: stimulusTabsOn,
+        reviewStep: reviewStepOn,
+      }),
+    [
+      quiz,
+      behavior,
+      tabAwayTimerOn,
+      orderingListOn,
+      stimulusTabsOn,
+      reviewStepOn,
+    ]
   );
   const session = useMemo(
     () => withFocusSettings(base, focus, tabAwayTimerOn),

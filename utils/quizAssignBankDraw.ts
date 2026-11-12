@@ -164,7 +164,8 @@ export function applyCurrentAnswerKeys(
     for (const q of eligibleBankQuestions(
       bank,
       slot.targetFilter,
-      randomSlotPool(slot)
+      randomSlotPool(slot),
+      slot.dokFilter
     ))
       if (!current.has(q.id)) current.set(q.id, q);
   }

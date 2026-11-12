@@ -5,20 +5,15 @@ import {
   where,
   onSnapshot,
   doc,
-  getDoc,
   setDoc,
   deleteDoc,
-  runTransaction,
-  arrayUnion,
-  updateDoc,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcInvitation } from '@/types';
+import { callPlcMembership } from '@/utils/plcMembershipClient';
 
 const INVITATIONS_COLLECTION = 'plc_invitations';
-const PLCS_COLLECTION = 'plcs';
 
 /**
  * Deterministic invitation doc id used by both the client and the Firestore
@@ -253,81 +248,8 @@ export const usePlcInvitations = (
       if (invite.status !== 'pending') {
         throw new Error('Invitation is no longer pending');
       }
-      const inviteRef = doc(db, INVITATIONS_COLLECTION, invite.id);
-      const plcRef = doc(db, PLCS_COLLECTION, invite.plcId);
-      // Blind write: the accept-flow rule (isAcceptingPlcInvite) validates
-      // the update without requiring the invitee to read the PLC doc first —
-      // which they can't, because non-members can't read `/plcs/{plcId}`.
-      // `arrayUnion` satisfies the rule's size-delta check and dotted-path
-      // `memberEmails.<uid>` keeps the diff scoped to a single key.
-      const commitAccept = (resetMemberEntry: boolean) =>
-        runTransaction(db, (tx) => {
-          tx.update(plcRef, {
-            memberUids: arrayUnion(user.uid),
-            [`memberEmails.${user.uid}`]: myEmailLower,
-            // Rejoining over a stale (removed) entry must reset it to an active member.
-            ...(resetMemberEntry
-              ? {
-                  [`members.${user.uid}`]: {
-                    uid: user.uid,
-                    email: myEmailLower,
-                    displayName: user.displayName ?? myEmailLower.split('@')[0],
-                    role: 'member',
-                    status: 'active',
-                    joinedAt: serverTimestamp(),
-                  },
-                }
-              : {}),
-            updatedAt: Date.now(),
-          });
-          tx.update(inviteRef, {
-            status: 'accepted',
-            respondedAt: Date.now(),
-          });
-          return Promise.resolve();
-        });
-      try {
-        try {
-          await commitAccept(false);
-        } catch (firstErr) {
-          const firstCode = (firstErr as { code?: string } | null)?.code;
-          if (firstCode !== 'permission-denied') throw firstErr;
-          await commitAccept(true);
-        }
-      } catch (err) {
-        // Already a member (e.g. an admin added them): close out the invite. Otherwise leave it pending to retry.
-        const code = (err as { code?: string } | null)?.code;
-        if (code !== 'permission-denied') throw err;
-        const notJoined = new Error(
-          'Could not accept this invitation. Try again in a moment.'
-        );
-        let memberUids: unknown = [];
-        try {
-          const confirmSnap = await getDoc(plcRef);
-          if (confirmSnap.exists()) {
-            memberUids = (confirmSnap.data() as { memberUids?: unknown })
-              .memberUids;
-          }
-        } catch (confirmErr) {
-          // The PLC read requires membership, so a denied read means not joined.
-          const confirmCode = (confirmErr as { code?: string } | null)?.code;
-          if (confirmCode === 'permission-denied') throw notJoined;
-          throw confirmErr;
-        }
-        if (!Array.isArray(memberUids) || !memberUids.includes(user.uid)) {
-          throw notJoined;
-        }
-        try {
-          await updateDoc(inviteRef, {
-            status: 'accepted',
-            respondedAt: Date.now(),
-          });
-        } catch (closeErr) {
-          // Already joined; another tab may have closed the invite first.
-          const closeCode = (closeErr as { code?: string } | null)?.code;
-          if (closeCode !== 'permission-denied') throw closeErr;
-        }
-      }
+      // The server joins the PLC and closes the invite; an existing member just gets the invite closed.
+      await callPlcMembership({ action: 'acceptInvite', inviteId: invite.id });
     },
     [user, myEmailLower]
   );

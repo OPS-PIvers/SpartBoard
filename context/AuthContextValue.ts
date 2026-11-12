@@ -17,6 +17,7 @@ import {
   MaterialsPreferences,
 } from '@/types';
 import type { BuildingRecord } from '@/types/organization';
+import type { AdminDocProvenance } from '@/utils/superAdmin';
 
 /** Keys writable via `updateUserPreference`. Grows as more per-user numeric prefs land. */
 export type UserPreferenceKey = 'settingsDrawerWidth' | 'timeToolStartSeconds';
@@ -26,6 +27,8 @@ export interface AuthContextType {
   googleAccessToken: string | null;
   loading: boolean;
   isAdmin: boolean | null; // null = admin status not yet determined
+  /** Provenance fields of the /admins doc; absent in harnesses and bypass, which count as hand-made. */
+  adminDoc?: AdminDocProvenance | null;
   userRoles: UserRolesConfig | null;
   appSettings: AppSettings | null;
   featurePermissions: FeaturePermission[];

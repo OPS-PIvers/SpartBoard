@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MathText } from '@/components/common/MathText';
 import {
   AlertTriangle,
@@ -24,6 +25,10 @@ interface QuizTargetResultsProps {
   resolveName: (response: QuizResponse) => string;
   /** Name written to the CSV; defaults to `resolveName`. */
   resolveExportName?: (response: QuizResponse) => string;
+  /** What the rows group by; DOK relabels the headings. */
+  groupBy?: 'target' | 'dok';
+  /** Shows the Group by switch; absent when there is nothing to switch between. */
+  onGroupByChange?: (groupBy: 'target' | 'dok') => void;
 }
 
 type SortState = { key: string; descending: boolean };
@@ -182,7 +187,11 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
   stats,
   resolveName,
   resolveExportName = resolveName,
+  groupBy = 'target',
+  onGroupByChange,
 }) => {
+  const { t } = useTranslation();
+  const dokView = groupBy === 'dok';
   const columns = stats.targets.filter((row) => row.servedCount > 0);
   const standards = stats.standards.filter((row) => row.servedCount > 0);
   const [sort, setSort] = useState<SortState>({
@@ -259,7 +268,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${quizTitle.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'quiz'}_target_mastery.csv`;
+    link.download = `${quizTitle.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'quiz'}_${dokView ? 'dok' : 'target'}_mastery.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -273,6 +282,37 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
 
   return (
     <div className="flex flex-col" style={{ gap: 'min(16px, 4cqmin)' }}>
+      {onGroupByChange && (
+        <div
+          role="group"
+          aria-label={t('quizDok.groupBy', 'Group by')}
+          className="inline-flex self-start overflow-hidden rounded-md border border-brand-gray-lighter bg-white"
+          {...tourTypeAttr('quiz-results.group-by', 'quiz')}
+        >
+          {(['target', 'dok'] as const).map((option) => (
+            // no-tour-anchor: the Group by switch around these buttons carries the anchor
+            <button
+              key={option}
+              type="button"
+              aria-pressed={groupBy === option}
+              onClick={() => onGroupByChange(option)}
+              className={`font-bold transition-colors ${
+                groupBy === option
+                  ? 'bg-brand-blue-primary text-white'
+                  : 'text-brand-blue-primary hover:bg-slate-50'
+              }`}
+              style={{
+                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                fontSize: 'min(11px, 3.8cqmin)',
+              }}
+            >
+              {option === 'target'
+                ? t('quizDok.target', 'Target')
+                : t('quizDok.dok', 'DOK')}
+            </button>
+          ))}
+        </div>
+      )}
       {standards.length > 0 && (
         <section aria-labelledby="quiz-standard-rollups-heading">
           <h2
@@ -296,7 +336,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
           className="font-bold uppercase tracking-wider text-brand-blue-primary"
           style={sectionHeadingStyle}
         >
-          Class mastery by target
+          {dokView ? 'Class mastery by DOK' : 'Class mastery by target'}
         </h2>
         <div className="flex flex-col" style={listStyle}>
           {columns.map((row) => (
@@ -318,7 +358,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
             className="font-bold uppercase tracking-wider text-brand-blue-primary"
             style={{ fontSize: 'min(10px, 3.5cqmin)' }}
           >
-            Student × target
+            {dokView ? 'Student × DOK' : 'Student × target'}
           </h2>
           <button
             type="button"

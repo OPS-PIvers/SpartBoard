@@ -4,6 +4,7 @@ import * as firestore from 'firebase/firestore';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { useAuth } from '@/context/useAuth';
 import type { PlcInvitation } from '@/types';
+import { callPlcMembership } from '@/utils/plcMembershipClient';
 
 vi.mock('firebase/firestore');
 
@@ -16,7 +17,12 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
+vi.mock('@/utils/plcMembershipClient', () => ({
+  callPlcMembership: vi.fn(),
+}));
+
 const mockUseAuth = useAuth as unknown as Mock;
+const mockCall = callPlcMembership as Mock;
 
 const makeInvite = (overrides: Partial<PlcInvitation> = {}): PlcInvitation => ({
   id: 'plc-1_invitee@example.com',
@@ -50,203 +56,27 @@ describe('usePlcInvitations — acceptInvite', () => {
     (firestore.doc as unknown as Mock).mockImplementation(
       (_db: unknown, col: string, id: string) => ({ __ref: `${col}/${id}` })
     );
-
-    // arrayUnion is opaque — return a sentinel we can assert on.
-    (firestore.arrayUnion as unknown as Mock).mockImplementation(
-      (...values: unknown[]) => ({ __arrayUnion: values })
-    );
   });
 
-  it('issues a blind PLC update with arrayUnion + dotted memberEmails path', async () => {
-    const updates: Array<{ ref: unknown; patch: Record<string, unknown> }> = [];
-    type TxShape = {
-      update: (ref: unknown, patch: Record<string, unknown>) => void;
-    };
-    const tx: TxShape = {
-      update: (ref, patch) => {
-        updates.push({ ref, patch });
-      },
-    };
-    (firestore.runTransaction as unknown as Mock).mockImplementation(
-      async (_db: unknown, fn: (tx: TxShape) => Promise<void>) => {
-        await fn(tx);
-      }
-    );
-
+  it('asks the server to accept the invite by id', async () => {
+    mockCall.mockResolvedValue({ changed: true });
     const { result } = renderHook(() => usePlcInvitations());
     await act(async () => {
       await result.current.acceptInvite(makeInvite());
     });
-
-    // No `tx.get` should have been attempted — blind write only.
-    expect(updates).toHaveLength(2);
-
-    const plcUpdate = updates.find(
-      (u) => (u.ref as { __ref: string }).__ref === 'plcs/plc-1'
-    );
-    expect(plcUpdate).toBeDefined();
-    expect(plcUpdate?.patch).toMatchObject({
-      memberUids: { __arrayUnion: ['invitee-uid'] },
-      'memberEmails.invitee-uid': 'invitee@example.com',
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'acceptInvite',
+      inviteId: 'plc-1_invitee@example.com',
     });
-    expect(plcUpdate?.patch).toHaveProperty('updatedAt');
-
-    const inviteUpdate = updates.find(
-      (u) =>
-        (u.ref as { __ref: string }).__ref ===
-        'plc_invitations/plc-1_invitee@example.com'
-    );
-    expect(inviteUpdate?.patch).toMatchObject({ status: 'accepted' });
-    expect(inviteUpdate?.patch).toHaveProperty('respondedAt');
+    expect(firestore.runTransaction).not.toHaveBeenCalled();
   });
 
-  it('retries with a reset active member entry when the plain accept is denied (rejoin)', async () => {
-    const patches: Array<Record<string, unknown>> = [];
-    let calls = 0;
-    (firestore.runTransaction as unknown as Mock).mockImplementation(
-      async (
-        _db: unknown,
-        fn: (tx: {
-          update: (ref: unknown, patch: Record<string, unknown>) => void;
-        }) => Promise<void>
-      ) => {
-        calls += 1;
-        const attempt: Array<Record<string, unknown>> = [];
-        await fn({ update: (_ref, patch) => attempt.push(patch) });
-        patches.push(attempt[0]);
-        if (calls === 1) {
-          throw Object.assign(new Error('denied'), {
-            code: 'permission-denied',
-          });
-        }
-      }
-    );
-
-    const { result } = renderHook(() => usePlcInvitations());
-    await act(async () => {
-      await result.current.acceptInvite(makeInvite());
-    });
-
-    expect(calls).toBe(2);
-    expect(patches[0]).not.toHaveProperty('members.invitee-uid');
-    expect(patches[1]['members.invitee-uid']).toMatchObject({
-      uid: 'invitee-uid',
-      role: 'member',
-      status: 'active',
-    });
-    expect(firestore.updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('falls back to closing out the invite on permission-denied (already-a-member edge case)', async () => {
-    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
-      Object.assign(new Error('denied'), { code: 'permission-denied' })
-    );
-    (firestore.updateDoc as unknown as Mock).mockResolvedValueOnce(undefined);
-    // Membership verify confirms the user is already in the PLC — the
-    // benign "lead added me manually" path the fallback is designed for.
-    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ memberUids: ['lead-uid', 'invitee-uid'] }),
-    });
-
-    const { result } = renderHook(() => usePlcInvitations());
-    await act(async () => {
-      await result.current.acceptInvite(makeInvite());
-    });
-
-    expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
-    const [ref, patch] = (firestore.updateDoc as unknown as Mock).mock.calls[0];
-    expect((ref as { __ref: string }).__ref).toBe(
-      'plc_invitations/plc-1_invitee@example.com'
-    );
-    expect(patch).toMatchObject({ status: 'accepted' });
-    expect(patch).toHaveProperty('respondedAt');
-  });
-
-  it('throws actionable error when fallback membership-verify finds caller is not a member', async () => {
-    // Simulates a future rules regression where the txn permission-denies
-    // but the user is NOT actually in memberUids (i.e. the prior assumption
-    // "lead added them manually" doesn't hold). Without the verify, the
-    // invite would silently mark accepted while the user remains unjoined.
-    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
-      Object.assign(new Error('denied'), { code: 'permission-denied' })
-    );
-    (firestore.updateDoc as unknown as Mock).mockResolvedValueOnce(undefined);
-    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ memberUids: ['lead-uid'] }), // invitee-uid missing
-    });
-
+  it('passes a server refusal through', async () => {
+    mockCall.mockRejectedValue(new Error('Invitation is no longer pending'));
     const { result } = renderHook(() => usePlcInvitations());
     await expect(result.current.acceptInvite(makeInvite())).rejects.toThrow(
-      /could not accept this invitation/i
+      'no longer pending'
     );
-    // The invite stays pending so the invitee can try again.
-    expect(firestore.updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('throws actionable error when fallback membership-verify itself permission-denies', async () => {
-    // The PLC read rule requires membership, so a permission-denied on the
-    // verify read is definitive evidence the caller is not a member.
-    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
-      Object.assign(new Error('denied'), { code: 'permission-denied' })
-    );
-    (firestore.updateDoc as unknown as Mock).mockResolvedValueOnce(undefined);
-    (firestore.getDoc as unknown as Mock).mockRejectedValueOnce(
-      Object.assign(new Error('denied'), { code: 'permission-denied' })
-    );
-
-    const { result } = renderHook(() => usePlcInvitations());
-    await expect(result.current.acceptInvite(makeInvite())).rejects.toThrow(
-      /could not accept this invitation/i
-    );
-    expect(firestore.updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('treats a denied close-out as joined when membership is confirmed', async () => {
-    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
-      Object.assign(new Error('denied'), { code: 'permission-denied' })
-    );
-    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ memberUids: ['lead-uid', 'invitee-uid'] }),
-    });
-    (firestore.updateDoc as unknown as Mock).mockRejectedValueOnce(
-      Object.assign(new Error('denied'), { code: 'permission-denied' })
-    );
-
-    const { result } = renderHook(() => usePlcInvitations());
-    await expect(
-      result.current.acceptInvite(makeInvite())
-    ).resolves.toBeUndefined();
-  });
-
-  it('leaves the invite pending when the group no longer exists', async () => {
-    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
-      Object.assign(new Error('denied'), { code: 'permission-denied' })
-    );
-    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
-      exists: () => false,
-      data: () => undefined,
-    });
-
-    const { result } = renderHook(() => usePlcInvitations());
-    await expect(result.current.acceptInvite(makeInvite())).rejects.toThrow(
-      /could not accept this invitation/i
-    );
-    expect(firestore.updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('rethrows non-permission errors from the transaction', async () => {
-    (firestore.runTransaction as unknown as Mock).mockRejectedValueOnce(
-      Object.assign(new Error('boom'), { code: 'unavailable' })
-    );
-
-    const { result } = renderHook(() => usePlcInvitations());
-    await expect(result.current.acceptInvite(makeInvite())).rejects.toThrow(
-      'boom'
-    );
-    expect(firestore.updateDoc).not.toHaveBeenCalled();
   });
 
   it('rejects an invite addressed to a different account before touching Firestore', async () => {
@@ -256,7 +86,7 @@ describe('usePlcInvitations — acceptInvite', () => {
         makeInvite({ inviteeEmailLower: 'someone.else@example.com' })
       )
     ).rejects.toThrow('different account');
-    expect(firestore.runTransaction).not.toHaveBeenCalled();
+    expect(mockCall).not.toHaveBeenCalled();
   });
 
   it('rejects a stale non-pending invite with a friendly message', async () => {
@@ -264,6 +94,6 @@ describe('usePlcInvitations — acceptInvite', () => {
     await expect(
       result.current.acceptInvite(makeInvite({ status: 'declined' }))
     ).rejects.toThrow('no longer pending');
-    expect(firestore.runTransaction).not.toHaveBeenCalled();
+    expect(mockCall).not.toHaveBeenCalled();
   });
 });

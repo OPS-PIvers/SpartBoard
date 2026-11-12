@@ -344,3 +344,86 @@ describe('QuizStudentApp — question timer runs out', () => {
     consoleSpy.mockRestore();
   }, 10000);
 });
+
+describe('QuizStudentApp — question timer with the review step (quiz-review-step)', () => {
+  const withReview = (questions: QuizPublicQuestion[]) => {
+    startQuiz(questions);
+    hookState.session = {
+      ...(hookState.session as QuizSession),
+      reviewStep: true,
+    };
+    // Echo each save onto the response, as the live listener would.
+    mockSubmitAnswer.mockImplementation(
+      (questionId: string, answer: string) => {
+        const prev = hookState.myResponse as QuizResponse;
+        hookState.myResponse = {
+          ...prev,
+          answers: [
+            ...prev.answers.filter((a) => a.questionId !== questionId),
+            { questionId, answer, answeredAt: Date.now() },
+          ],
+        };
+        return Promise.resolve();
+      }
+    );
+  };
+
+  it('opens the review screen instead of turning the quiz in on the last question', async () => {
+    withReview([mcQuestion('q1', 'Pick one')]);
+    render(<QuizStudentApp />);
+    await screen.findByText(/Pick one/i);
+    fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: /Review before you submit/i },
+        { timeout: 4000 }
+      )
+    ).toBeInTheDocument();
+    expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', 'Beta', 0, undefined);
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /SUBMIT QUIZ/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+  }, 10000);
+
+  it('sends a timed-out question reached from the review screen back to it', async () => {
+    const untimed: QuizPublicQuestion = {
+      ...mcQuestion('q2', 'Pick two'),
+      timeLimit: 0,
+    };
+    withReview([mcQuestion('q1', 'Pick one'), untimed]);
+    render(<QuizStudentApp />);
+    await screen.findByText(/Pick one/i);
+    fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
+
+    // The mid-quiz timeout keeps its usual NEXT QUESTION before any review visit.
+    fireEvent.click(
+      await screen.findByRole(
+        'button',
+        { name: /NEXT QUESTION/ },
+        { timeout: 4000 }
+      )
+    );
+    await screen.findByText(/Pick two/i);
+    fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^REVIEW/ }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Question 1,/ })
+    );
+    await screen.findByText(/Pick one/i);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^REVIEW/ }, { timeout: 4000 })
+    );
+    expect(
+      await screen.findByRole('heading', { name: /Review before you submit/i })
+    ).toBeInTheDocument();
+    // The question view is gone; the review list still names each question.
+    expect(
+      screen.queryByRole('button', { name: /Beta/ })
+    ).not.toBeInTheDocument();
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+  }, 15000);
+});

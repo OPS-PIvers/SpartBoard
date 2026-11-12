@@ -67,6 +67,9 @@ export const WebStepCard: React.FC<{
   canFix: boolean;
   fix: WebTourSuggestion | null;
   result: WebTourCheckResult | null;
+  /** The admin confirmed this step's weak match is the right element. */
+  confirmed?: boolean;
+  onConfirm?: (on: boolean) => void;
   onChange: (step: WebStep, field?: string) => void;
   onDelete: () => void;
   onFix: () => void;
@@ -78,6 +81,8 @@ export const WebStepCard: React.FC<{
   canFix,
   fix,
   result,
+  confirmed = false,
+  onConfirm,
   onChange,
   onDelete,
   onFix,
@@ -91,7 +96,7 @@ export const WebStepCard: React.FC<{
   const clues = entries.filter(
     (e) => e.field !== 'label' && e.field !== 'text'
   );
-  const weak = needsFixOnSite(step);
+  const weak = result !== 'found' && !confirmed && needsFixOnSite(step);
   // The target's name, highlighted like its clue when it holds student data.
   const targetEntry = TARGET_FIELDS.map((f) =>
     clues.find((e) => e.field === f && e.value.trim())
@@ -134,9 +139,11 @@ export const WebStepCard: React.FC<{
             </span>
             {result && (
               <span
-                className={`w-fit rounded-full px-1.5 text-[11px] font-semibold ${CHECK_TONE[result]}`}
+                className={`w-fit rounded-full px-1.5 text-[11px] font-semibold ${
+                  confirmed ? CHECK_TONE.found : CHECK_TONE[result]
+                }`}
               >
-                {CHECK_LABEL[result]}
+                {confirmed ? 'Weak match, confirmed' : CHECK_LABEL[result]}
               </span>
             )}
           </span>
@@ -152,6 +159,29 @@ export const WebStepCard: React.FC<{
             Fix on site
           </button>
         </div>
+        {result === 'weak' && !confirmed && onConfirm && (
+          <span className="flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-800">
+            Did the check highlight the right element?
+            {/* no-tour-anchor: shows only on a step a check matched weakly */}
+            <button
+              type="button"
+              className={`${secondaryBtn} px-2 text-xs`}
+              onClick={() => onConfirm(true)}
+            >
+              Yes, it&apos;s right
+            </button>
+          </span>
+        )}
+        {confirmed && onConfirm && (
+          // no-tour-anchor: shows only on a step whose weak match was confirmed
+          <button
+            type="button"
+            className="w-fit text-xs font-semibold text-brand-blue-primary hover:underline"
+            onClick={() => onConfirm(false)}
+          >
+            Undo confirm
+          </button>
+        )}
         {weak && (
           <span className="flex items-start gap-1.5 text-xs font-semibold text-amber-800">
             <TriangleAlert

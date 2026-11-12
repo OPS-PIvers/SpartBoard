@@ -1305,3 +1305,243 @@ describe('QuizStudentApp — cross out choices', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('QuizStudentApp — review before submit (quiz-review-step)', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  const answerAll = async (user: ReturnType<typeof userEvent.setup>) => {
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Paris' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Color of the sky/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Blue' }));
+  };
+
+  it('submits on the last answer without the stamp, as before', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    await answerAll(user);
+    expect(
+      screen.queryByRole('button', { name: /Mark for review/i })
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+  });
+
+  it('opens the review screen on the last answer and submits only from it', async () => {
+    const user = userEvent.setup();
+    hookState.session = { ...buildSession(), reviewStep: true };
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Mark for review/i }));
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^REVIEW/i }));
+
+    expect(
+      await screen.findByRole('heading', { name: /Review before you submit/i })
+    ).toBeInTheDocument();
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+    expect(mockSubmitAnswer).toHaveBeenCalledWith(
+      'q3',
+      'Blue',
+      undefined,
+      undefined
+    );
+    expect(
+      screen.getByRole('button', {
+        name: 'Question 1, Answered, marked for review',
+      })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /SUBMIT QUIZ/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+  });
+
+  it('jumps back to a question and returns to the review screen after it', async () => {
+    const user = userEvent.setup();
+    hookState.session = { ...buildSession(), reviewStep: true };
+    render(<QuizStudentApp />);
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^REVIEW/i }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Question 2, Answered' })
+    );
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Berlin' }));
+    await user.click(screen.getByRole('button', { name: /^REVIEW/i }));
+    expect(
+      await screen.findByRole('heading', { name: /Review before you submit/i })
+    ).toBeInTheDocument();
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'q2',
+      'Berlin',
+      undefined,
+      undefined
+    );
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+  });
+
+  it('offers REVIEW, never Quiz complete, back on the last question after the review screen', async () => {
+    const user = userEvent.setup();
+    hookState.session = { ...buildSession(), reviewStep: true };
+    render(<QuizStudentApp />);
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^REVIEW/i }));
+    await user.click(
+      await screen.findByRole('button', { name: /Back to the last question/i })
+    );
+    expect(await screen.findByText(/Color of the sky/i)).toBeInTheDocument();
+    expect(screen.queryByText('Quiz complete!')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^REVIEW/i })).toBeEnabled();
+  });
+
+  it('shows an answered Matching question reached from the review screen as editable', async () => {
+    const user = userEvent.setup();
+    const matching: QuizPublicQuestion = {
+      id: 'qm',
+      type: 'Matching',
+      text: 'Match the sound',
+      timeLimit: 0,
+      matchingLeft: ['Cat'],
+      matchingRight: ['Meow'],
+    };
+    hookState.session = {
+      ...buildSession({
+        publicQuestions: [matching, QUESTIONS[1]],
+        totalQuestions: 2,
+      }),
+      reviewStep: true,
+    };
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Match the sound/i)).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Meow, in word bank' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Drop zone for Cat' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Paris' }));
+    await user.click(screen.getByRole('button', { name: /^REVIEW/i }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Question 1, Answered' })
+    );
+    expect(await screen.findByText(/Match the sound/i)).toBeInTheDocument();
+    expect(screen.queryByText('Quiz complete!')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /^REVIEW/i })
+    ).toBeInTheDocument();
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+  });
+
+  it('keeps marks and the open review screen across a reload, and clears them on submit', async () => {
+    const user = userEvent.setup();
+    hookState.session = { ...buildSession(), reviewStep: true };
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    // The real completion write bumps the attempt count with the status.
+    mockCompleteQuiz.mockImplementation(() => {
+      if (hookState.myResponse) {
+        hookState.myResponse = {
+          ...hookState.myResponse,
+          status: 'completed',
+          submittedAt: Date.now(),
+          completedAttempts: (hookState.myResponse.completedAttempts ?? 0) + 1,
+        };
+        triggerRefresh();
+      }
+      return Promise.resolve();
+    });
+    const first = render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Mark for review/i }));
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^REVIEW/i }));
+    await screen.findByRole('heading', { name: /Review before you submit/i });
+    first.unmount();
+
+    render(<QuizStudentApp />);
+    expect(
+      await screen.findByRole('heading', { name: /Review before you submit/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Question 1, Answered, marked for review',
+      })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Quiz complete!')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /SUBMIT QUIZ/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        Object.keys(window.sessionStorage).filter((k) =>
+          k.startsWith('spartboard:quiz-review:')
+        )
+      ).toEqual([])
+    );
+
+    // A teacher unlock refunds the attempt; the old marks must not come back.
+    act(() => {
+      hookState.myResponse = {
+        ...(hookState.myResponse ?? buildResponse()),
+        status: 'in-progress',
+        submittedAt: null,
+        completedAttempts: 0,
+      };
+      triggerRefresh();
+    });
+    expect(
+      screen.queryByRole('heading', { name: /Review before you submit/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Marked for review/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('ignores the stamp on a teacher-paced session', () => {
+    hookState.session = {
+      ...buildSession({ sessionMode: 'teacher' }),
+      reviewStep: true,
+    };
+    render(<QuizStudentApp />);
+    expect(
+      screen.queryByRole('button', { name: /Mark for review/i })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('QuizStudentApp — dropdown blanks (quiz-blank-types)', () => {
+  it('submits the picked choice like a typed answer', async () => {
+    const user = userEvent.setup();
+    const dropdown: QuizPublicQuestion = {
+      id: 'qf',
+      type: 'FIB',
+      text: 'Ice ___ when heated.',
+      timeLimit: 0,
+      blankType: 'dropdown',
+      blankChoices: [{ choices: ['freezes', 'melts'] }],
+    };
+    hookState.session = buildSession({
+      publicQuestions: [dropdown, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Ice ___ when heated/i)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Your answer' }),
+      'melts'
+    );
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'qf',
+      'melts',
+      undefined,
+      undefined
+    );
+  });
+});

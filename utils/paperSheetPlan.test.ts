@@ -254,6 +254,40 @@ describe('analyzePaperQuiz', () => {
     expect(result.exclusions[0].label).toContain('Fill in the blank');
   });
 
+  it('excludes dropdown and drag blanks like typed ones (M10 paper clause deferred)', () => {
+    const result = analyzePaperQuiz(
+      quiz({
+        questions: [
+          mc({ id: 'typed', type: 'FIB', text: 'Typed ___' }),
+          mc({
+            id: 'dropdown',
+            type: 'FIB',
+            text: 'Pick ___',
+            blankType: 'dropdown',
+            blankChoices: [{ choices: ['a', 'b'] }],
+          }),
+          mc({
+            id: 'drag',
+            type: 'FIB',
+            text: 'Drag ___',
+            blankType: 'drag',
+            wordBank: ['a', 'b'],
+          }),
+        ],
+      }),
+      { written: true }
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.entries).toEqual([]);
+    expect(result.exclusions.map((e) => e.reason)).toEqual([
+      'question-type',
+      'question-type',
+      'question-type',
+    ]);
+    for (const e of result.exclusions)
+      expect(e.label).toContain('Fill in the blank');
+  });
+
   it('excludes bank slots, which draw a different paper for each student', () => {
     const result = analyzePaperQuiz(
       quiz({

@@ -18,6 +18,8 @@ export type BankContent = Pick<
 > & {
   /** Owner read from the synced doc itself; absent on Drive banks. */
   syncOwnerUid?: string;
+  /** Set when the bank is a District library canonical. */
+  districtItemId?: string;
 };
 
 /** Key under which a slot's bank content is looked up: the synced group when shared. */
@@ -67,11 +69,16 @@ export function bankTargetIndex(
 export function eligibleBankQuestions(
   bank: Pick<BankContent, 'questions' | 'targets'>,
   targetFilter?: string[],
-  poolIds?: string[]
+  poolIds?: string[],
+  dokFilter?: number[]
 ): QuizQuestion[] {
   const pool = poolIds && poolIds.length > 0 ? new Set(poolIds) : null;
   const inPool = pool ? bank.questions.filter((q) => pool.has(q.id)) : null;
-  const questions = inPool ?? bank.questions;
+  let questions = inPool ?? bank.questions;
+  if (dokFilter && dokFilter.length > 0) {
+    const levels = new Set(dokFilter);
+    questions = questions.filter((q) => q.dok != null && levels.has(q.dok));
+  }
   if (!targetFilter || targetFilter.length === 0) return questions;
   const wanted = new Set(targetFilter);
   return questions.filter((q) =>
@@ -226,15 +233,18 @@ export function validateBankSlots(
     const eligible = eligibleBankQuestions(
       bank,
       slot.targetFilter,
-      randomSlotPool(slot)
+      randomSlotPool(slot),
+      slot.dokFilter
     ).length;
     if (eligible < count) {
-      const filtered = slot.targetFilter && slot.targetFilter.length > 0;
+      const filtered =
+        (slot.targetFilter?.length ?? 0) > 0 ||
+        (slot.dokFilter?.length ?? 0) > 0;
       problems.push({
         slotId: slot.id,
         bankTitle: slot.bankTitle,
         message: filtered
-          ? `"${slot.bankTitle}" has ${eligible} question${eligible === 1 ? '' : 's'} matching the target filter but the slot draws ${count}. Lower the count, widen the filter, or tag more questions.`
+          ? `"${slot.bankTitle}" has ${eligible} question${eligible === 1 ? '' : 's'} matching the ${slot.targetFilter?.length ? 'target' : 'DOK'} filter but the slot draws ${count}. Lower the count, widen the filter, or tag more questions.`
           : `"${slot.bankTitle}" has ${eligible} question${eligible === 1 ? '' : 's'} but the slot draws ${count}. Lower the count or add questions to the bank.`,
       });
     }
@@ -312,7 +322,8 @@ export function resolveQuizAssignment(
     for (const source of eligibleBankQuestions(
       bank,
       slot.targetFilter,
-      randomSlotPool(slot)
+      randomSlotPool(slot),
+      slot.dokFilter
     )) {
       // A bank question drawn by two slots keeps its first slot's points.
       if (usedIds.has(source.id)) continue;
@@ -503,6 +514,8 @@ export function describeBankSlot(
       `${slot.targetFilter.length} target${slot.targetFilter.length === 1 ? '' : 's'}`
     );
   }
+  if (slot.dokFilter && slot.dokFilter.length > 0)
+    parts.push(`DOK ${slot.dokFilter.join(', ')}`);
   const pts = slot.points ?? 1;
   parts.push(`${pts} pt${pts === 1 ? '' : 's'}`);
   return parts.join(' · ');

@@ -237,7 +237,14 @@ export function isStaleActivity(
  * A synced group is empty (reapable) when its `participants` map has no keys.
  * Tolerant of a missing/non-object `participants` field (treated as empty).
  */
-export function isEmptyGroup(group: { participants?: unknown }): boolean {
+export function isEmptyGroup(group: {
+  participants?: unknown;
+  districtItemId?: unknown;
+}): boolean {
+  // District library canonicals have no team; teachers' copies and live sessions still read them.
+  if (typeof group.districtItemId === 'string' && group.districtItemId !== '') {
+    return false;
+  }
   const participants = group.participants;
   if (
     participants === null ||

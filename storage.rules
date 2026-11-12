@@ -192,6 +192,17 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // District library pictures (QUIZ_MCA_PRACTICE.md M31): site admins upload, one folder per item version;
+    // quizzes load them by download URL, so students in a session see them without a staff account.
+    match /district_library/{itemId}/{allPaths=**} {
+      allow get: if request.auth != null;
+      allow list: if isSiteAdmin();
+      allow create, update: if isSiteAdmin() &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(png|jpeg|gif|webp)');
+      allow delete: if isSiteAdmin();
+    }
+
     // Global PDFs — all authenticated users can read, only admins can write
     match /global_pdfs/{fileName} {
       allow read: if request.auth != null;

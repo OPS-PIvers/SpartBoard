@@ -44,6 +44,7 @@ import {
   StickyNote,
   Table2,
   Target,
+  MousePointerClick,
   TextCursorInput,
   Timer,
   UserSearch,
@@ -58,6 +59,9 @@ import {
   Utensils,
   CloudSun,
   Workflow,
+  SquareChevronDown,
+  PanelLeft,
+  ListTodo,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1143,6 +1147,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'district-library': {
+    label: 'District library',
+    icon: Library,
+    description:
+      'Quizzes and question banks admins publish to buildings, grades or teachers.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',
@@ -1226,12 +1242,77 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Dropdown and Drag blank types. Admin-only until Paul has tested it in prod.
+  'quiz-blank-types': {
+    label: 'Fill in the blank: dropdown and drag',
+    icon: SquareChevronDown,
+    description:
+      'Blanks can be a dropdown list or a word bank students drag words from, as well as typed.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Stimuli as tabs beside the question. Admin-only until Paul has tested it in prod.
+  'quiz-stimulus-tabs': {
+    label: 'Stimulus tabs',
+    icon: PanelLeft,
+    description:
+      'Questions with two or more stimuli show them as named tabs beside the question, with the calculator last.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Review before submit and Mark for review. Admin-only until Paul has tested it in prod.
+  'quiz-review-step': {
+    label: 'Review before submit',
+    icon: ListTodo,
+    description:
+      'Self-paced quizzes end on a review screen of answered, unanswered and marked questions before students submit.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Ordering results by item. Admin-only until Paul has tested it in prod.
   'quiz-ordering-results': {
     label: 'Ordering results by item',
     icon: ListOrdered,
     description:
       'Question and student results list each Ordering item and mark the ones students put out of order.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Explanations on questions and answers. Admin-only until Paul has tested it in prod.
+  'quiz-explanations': {
+    label: 'Quiz explanations',
+    icon: FileText,
+    description:
+      'Add an explanation to any question or answer. Students see them under their published results when Show explanations is on.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // DOK levels on questions. Admin-only until Paul has tested it in prod.
+  'quiz-dok': {
+    label: 'Quiz DOK levels',
+    icon: Gauge,
+    description:
+      'Tag questions with a DOK level, group results by DOK, and draw bank questions by DOK.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
@@ -1446,6 +1527,32 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Unusual-input flags on quizzes. Admin-only until Paul has tested it in prod.
+  'input-signals': {
+    label: 'Unusual input flags',
+    icon: MousePointerClick,
+    description:
+      'Flags quiz answers that look entered by another app (clicks with no mouse movement, machine-like typing, pasted text) and replays how written answers were typed.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Only useful where the district pushes the extension to student profiles.
+  'managed-profile-check': {
+    label: 'Managed profile check',
+    icon: MousePointerClick,
+    description:
+      'Adds a sign to quiz attempts that ran outside a school-managed Chrome profile. Needs the SpartBoard extension pushed to student accounts and Unusual input flags on.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Assign to Staff: the link needs district Google sign-in and results show each person's name and email.
   'staff-audience': {
     label: 'Assign to staff',
@@ -1635,6 +1742,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Video,
     description:
       'Short-answer questions the teacher marks, note stops that pause the video on text, and a start and end time for the video.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'video-activity-editor-arrows': {
+    label: 'Video Activity editor: question arrows',
+    icon: Video,
+    description:
+      'The video fills the editor and arrows step through questions in place of the question list.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

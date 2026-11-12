@@ -41,6 +41,7 @@ import { useQuizEditorState } from './useQuizEditorState';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { QuizLanguageField } from './QuizLanguageField';
 import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
+import { withoutBlankOptionKeys } from '@/utils/quizExplanations';
 import { quizOrder, quizServedQuestionCount } from '@/utils/questionBanks';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
@@ -64,6 +65,8 @@ export interface QuizEditorBankApi {
   sources: BankSource[];
   loadBankContent(source: BankSource): Promise<BankContent>;
   appendQuestionsToBank: UseQuestionBanksResult['appendQuestionsToBank'];
+  /** Drops a District library bank from the teacher's picker. */
+  removeDistrictSource?: (source: BankSource) => Promise<void>;
 }
 
 interface QuizEditorModalProps {
@@ -127,7 +130,9 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.playLimit ?? 0) !== (sb.playLimit ?? 0) ||
       (sa.readAloudText ?? '') !== (sb.readAloudText ?? '') ||
       (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '') ||
-      (sa.calculator ?? '') !== (sb.calculator ?? '')
+      (sa.calculator ?? '') !== (sb.calculator ?? '') ||
+      (sa.tabLabel ?? '') !== (sb.tabLabel ?? '') ||
+      (sa.placement ?? '') !== (sb.placement ?? '')
     ) {
       return false;
     }
@@ -199,6 +204,10 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       JSON.stringify(qa.imageOnlyAnswers ?? []) !==
         JSON.stringify(qb.imageOnlyAnswers ?? []) ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
+      (qa.explanation ?? '') !== (qb.explanation ?? '') ||
+      JSON.stringify(qa.optionExplanations ?? {}) !==
+        JSON.stringify(qb.optionExplanations ?? {}) ||
+      qa.dok !== qb.dok ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
       (qa.rubricVisibleToStudents === true) !==
         (qb.rubricVisibleToStudents === true) ||
@@ -217,9 +226,19 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
     for (let j = 0; j < aDistractors.length; j++) {
       if (aDistractors[j] !== bDistractors[j]) return false;
     }
+    if (blankTypeKey(qa) !== blankTypeKey(qb)) return false;
   }
   return true;
 };
+
+// Blank type fields (docs/plans/QUIZ_MCA_PRACTICE.md M7) in one comparable string.
+const blankTypeKey = (q: QuizQuestion): string =>
+  JSON.stringify([
+    q.blankType ?? 'typed',
+    q.blankChoices ?? [],
+    q.wordBank ?? [],
+    q.wordBankReuse === true,
+  ]);
 
 const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
   if (a.length !== b.length) return false;
@@ -234,6 +253,7 @@ const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
       (sa.count ?? 0) !== (sb.count ?? 0) ||
       (sa.points ?? 1) !== (sb.points ?? 1) ||
       (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|') ||
+      (sa.dokFilter ?? []).join('|') !== (sb.dokFilter ?? []).join('|') ||
       (sa.stimulusIds ?? []).join('|') !== (sb.stimulusIds ?? []).join('|')
     ) {
       return false;
@@ -418,7 +438,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       await translations.saveAll();
       // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
       // live, but a save must never persist a dangling pointer.
-      const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);
+      const cleanQuestions = sanitizeStimulusPointers(
+        questions.map(withoutBlankOptionKeys),
+        stimuli
+      );
       const cleanSlots = sanitizeStimulusPointers(bankSlots, stimuli);
       // `order` only carries information when a slot or a section sits between questions.
       const cleanOrder = quizOrder({
@@ -655,6 +678,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               state={editorState}
               readAloudAvailable={readAloudAvailable}
               calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+              tabsAvailable={canAccessFeature('quiz-stimulus-tabs')}
             />
           ) : (
             <>
