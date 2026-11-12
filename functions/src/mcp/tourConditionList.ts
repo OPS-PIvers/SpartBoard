@@ -48,6 +48,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'dashboard-layout',
   'dashboard-sharing',
   'district-library',
+  'district-library-folders',
   'document-camera-pro',
   'drawing-ai',
   'embed-mini-app',
