@@ -44,54 +44,8 @@ vi.mock('@/hooks/useFolders', () => ({
   }),
 }));
 
-const snapshots = vi.hoisted(
-  () => new Map<string, { publishedAt: number; set: { surface: 'web' } }>()
-);
-vi.mock('@/components/tours/publishedTours', () => ({
-  watchTours: () => () => undefined,
-  getToursVersion: () => 0,
-  readPublishedTour: (id: string) => ({
-    loaded: true,
-    tour: snapshots.get(id) ?? null,
-  }),
-}));
-
-const createWebTourDraft = vi.fn(() =>
-  Promise.resolve({ id: 'web-1', title: 'Untitled web tour' })
-);
-const webDrafts = vi.hoisted(() => ({ list: [] as GuidedLearningSet[] }));
-const webTourStore = vi.hoisted(() => ({
-  deleteWebTourDraft: vi.fn(() => Promise.resolve()),
-  setWebTourHelpCenter: vi.fn(() => Promise.resolve()),
-  duplicateWebTourDraft: vi.fn(() => Promise.resolve()),
-}));
-vi.mock('@/components/tours/webTours', () => ({
-  createWebTourDraft: () => createWebTourDraft(),
-  watchWebTourDrafts: (onChange: (sets: GuidedLearningSet[]) => void) => {
-    onChange(webDrafts.list);
-    return () => undefined;
-  },
-  ...webTourStore,
-}));
-
-const copyLink = vi.hoisted(() =>
-  vi.fn((_setId: string, _title: string) => Promise.resolve(true))
-);
-vi.mock('@/components/tours/web/useCopyWebTourLink', async () => {
-  const { useEffect } = await import('react');
-  return {
-    CopyWebTourLinkTask: (p: {
-      setId: string;
-      title: string;
-      onDone: (ok: boolean) => void;
-    }) => {
-      useEffect(() => {
-        void copyLink(p.setId, p.title).then(p.onDone);
-      }, [p]);
-      return null;
-    },
-  };
-});
+const watchWebTourDrafts = vi.hoisted(() => vi.fn());
+vi.mock('@/components/tours/webTours', () => ({ watchWebTourDrafts }));
 
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: () => Promise.resolve(true) }),
@@ -220,8 +174,6 @@ const listen = (type: string) => {
 afterEach(() => {
   listeners.forEach(([type, fn]) => window.removeEventListener(type, fn));
   listeners.length = 0;
-  snapshots.clear();
-  webDrafts.list = [];
   vi.clearAllMocks();
 });
 
@@ -244,21 +196,15 @@ describe('GuidedLearningManager tours', () => {
     expect(record).toHaveBeenCalledTimes(1);
   });
 
-  it('asks which kind of tour to record when web tours are on', async () => {
+  it('keeps web tours out of the library, even with the flag on', async () => {
     const record = listen(TOUR_RECORD_EVENT);
     renderManager(true, { features: ['web-tours'] });
     fireEvent.click(
       await screen.findByRole('button', { name: 'Record a tour' })
     );
-    fireEvent.click(screen.getByRole('menuitem', { name: 'SpartBoard tour' }));
     expect(record).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Record a tour' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Web tour' }));
-    expect(
-      await screen.findByText('Editing Untitled web tour')
-    ).toBeInTheDocument();
-    expect(createWebTourDraft).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menuitem', { name: 'Web tour' })).toBeNull();
+    expect(watchWebTourDrafts).not.toHaveBeenCalled();
   });
 
   it('hides Record a tour from non-admins', async () => {
@@ -295,118 +241,5 @@ describe('GuidedLearningManager tours', () => {
   it('keeps a teacher personal tour listed, since only admins can move it', async () => {
     renderManager(false, { sets: [personalTour, personalSet] });
     expect(await screen.findByText('My recorded tour')).toBeTruthy();
-  });
-
-  describe('web tours', () => {
-    const webTour = (id: string, title: string, extra = {}) =>
-      ({
-        id,
-        title,
-        imageUrls: [],
-        steps: [
-          {
-            id: `${id}-1`,
-            xPct: 0,
-            yPct: 0,
-            imageIndex: 0,
-            interactionType: 'tooltip',
-            web: {
-              urlPattern: 'https://docs.google.com/document/d/*/edit',
-              locator: { text: 'Extensions' },
-              action: 'click',
-            },
-          },
-        ],
-        mode: 'tour',
-        surface: 'web',
-        createdAt: 1,
-        updatedAt: 5,
-        ...extra,
-      }) as GuidedLearningSet;
-
-    const showTours = () =>
-      fireEvent.change(screen.getByLabelText('Type'), {
-        target: { value: 'tour' },
-      });
-
-    it('lists web tours as cards with their site and publish state', async () => {
-      webDrafts.list = [
-        webTour('w-draft', 'Docs draft'),
-        webTour('w-live', 'Docs published'),
-        webTour('w-changed', 'Docs changed', { updatedAt: 50 }),
-      ];
-      snapshots.set('w-live', { publishedAt: 10, set: { surface: 'web' } });
-      snapshots.set('w-changed', { publishedAt: 10, set: { surface: 'web' } });
-      renderManager(true, { features: ['web-tours'] });
-      showTours();
-      const card = async (title: string) => {
-        let el: HTMLElement | null = await screen.findByText(title);
-        while (el && !within(el).queryByText('docs.google.com'))
-          el = el.parentElement;
-        if (!el) throw new Error(`No card for ${title}`);
-        return el;
-      };
-      expect(within(await card('Docs draft')).getByText('Draft')).toBeTruthy();
-      expect(
-        within(await card('Docs published')).getByText('Published')
-      ).toBeTruthy();
-      expect(
-        within(await card('Docs changed')).getByText('Changed since publish')
-      ).toBeTruthy();
-      expect(screen.queryByText('New web tour')).toBeNull();
-    });
-
-    it('hides web tours without the flag', async () => {
-      webDrafts.list = [webTour('w-1', 'Docs tour')];
-      renderManager(true);
-      await screen.findByText('Plain set');
-      expect(screen.queryByText('Docs tour')).toBeNull();
-    });
-
-    it('copies the link and deletes from the card, with no way to move it into the Help Center', async () => {
-      webDrafts.list = [webTour('w-1', 'Docs tour')];
-      renderManager(true, { features: ['web-tours'] });
-      showTours();
-      await screen.findByText('Docs tour');
-      fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
-      expect(copyLink).toHaveBeenCalledWith('w-1', 'Docs tour');
-      expect(await screen.findByText('Link copied')).toBeTruthy();
-
-      await cardMenu('Docs tour');
-      expect(
-        screen.queryByRole('menuitem', { name: 'Move to Help Center' })
-      ).toBeNull();
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
-      await vi.waitFor(() =>
-        expect(webTourStore.deleteWebTourDraft).toHaveBeenCalledWith('w-1')
-      );
-      expect(webTourStore.setWebTourHelpCenter).not.toHaveBeenCalled();
-    });
-
-    it('keeps a web tour already in the Help Center listed so it can come back', async () => {
-      webDrafts.list = [webTour('w-1', 'Docs tour', { helpCenter: true })];
-      renderManager(true, { features: ['web-tours'] });
-      showTours();
-      expect(await screen.findByText('Docs tour')).toBeTruthy();
-      expect(screen.queryByRole('option', { name: 'Help Center' })).toBeNull();
-      await cardMenu('Docs tour');
-      expect(
-        screen.getByRole('menuitem', { name: 'Move to library' })
-      ).toBeTruthy();
-    });
-
-    it('opens the editor from Edit and keeps Play off until published', async () => {
-      webDrafts.list = [webTour('w-1', 'Docs tour')];
-      renderManager(true, { features: ['web-tours'] });
-      showTours();
-      let card: HTMLElement | null = await screen.findByText('Docs tour');
-      while (card && !within(card).queryByRole('button', { name: 'Play' }))
-        card = card.parentElement;
-      if (!card) throw new Error('No Docs tour card');
-      expect(within(card).getByRole('button', { name: 'Play' })).toBeDisabled();
-      await cardMenu('Docs tour');
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
-      expect(await screen.findByText('Editing Docs tour')).toBeTruthy();
-    });
   });
 });

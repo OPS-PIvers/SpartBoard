@@ -35394,12 +35394,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       },
@@ -54157,14 +54155,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.tab-settings"
         ],
         "reveal": "web-tour-editor.tab-settings",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54178,12 +54174,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54198,14 +54192,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54219,12 +54211,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54238,12 +54228,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54330,6 +54318,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.new",
+    "label": "New web tour button on the Web tours page",
+    "scope": "board"
+  },
+  {
+    "id": "web-tours.edit",
+    "label": "Edit button for a web tour on the Web tours page",
+    "scope": "field"
+  },
+  {
+    "id": "web-tours.check",
+    "label": "Check tour button for a web tour on the Web tours page",
+    "scope": "field"
+  },
+  {
+    "id": "web-tours.copy-link",
+    "label": "Copy link button for a web tour on the Web tours page",
+    "scope": "field"
+  },
+  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
     "scope": "board",
@@ -54337,14 +54345,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.tab-settings"
         ],
         "reveal": "web-tour-editor.tab-settings",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54358,12 +54364,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54378,14 +54382,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54399,12 +54401,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54418,12 +54418,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54438,12 +54436,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54460,14 +54456,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54481,12 +54475,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54502,14 +54494,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54523,12 +54513,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54542,12 +54530,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54561,12 +54547,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54580,12 +54564,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54599,12 +54581,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54618,12 +54598,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54638,14 +54616,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54660,14 +54636,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54682,14 +54656,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54704,14 +54676,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54726,14 +54696,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54748,14 +54716,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54770,14 +54736,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54793,14 +54757,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54815,14 +54777,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54837,14 +54797,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54860,14 +54818,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
