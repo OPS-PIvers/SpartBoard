@@ -51,6 +51,9 @@ export const PACING_PROTOCOL = 12;
 /** Protocol 13: the ping reply says how the extension was installed, so a quiz page can tell a school-managed profile. */
 export const INSTALL_PROTOCOL = 13;
 
+/** Protocol 14: a tour may carry Message steps and cross sites; below it such a tour is not sent (WEB_TOURS_CROSS_SITE.md X13). */
+export const CROSS_SITE_PROTOCOL = 14;
+
 /** How Chrome got the extension: pushed by an admin policy, added by the user, or loaded unpacked. */
 export type ExtensionInstall = 'policy' | 'user' | 'dev';
 
