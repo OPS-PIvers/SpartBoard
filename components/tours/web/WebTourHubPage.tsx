@@ -656,7 +656,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
                 title: tour.title || t('webTourHub.untitled'),
                 subtitle: t('webTourHub.summary', {
                   site,
-                  count: tour.steps.length,
+                  count: viewSteps.length,
                 }),
               }}
             />
