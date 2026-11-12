@@ -30,6 +30,8 @@ export const SchoologyCategoriesPanel: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,12 +50,13 @@ export const SchoologyCategoriesPanel: React.FC = () => {
       })
       .catch((err: unknown) => {
         logError('SchoologyCategoriesPanel.load', err);
-        if (!cancelled) setRows(toRows(DEFAULT_SCHOOLOGY_CATEGORIES));
+        // Never show defaults on a failed read: saving would overwrite the real doc.
+        if (!cancelled) setLoadFailed(true);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const total = (rows ?? []).reduce((t, r) => t + r.weight, 0);
   const names = (rows ?? []).map((r) => r.title.trim().toLowerCase());
@@ -107,7 +110,21 @@ export const SchoologyCategoriesPanel: React.FC = () => {
         </div>
       </div>
 
-      {!rows ? (
+      {loadFailed && !rows ? (
+        <div role="alert" className="space-y-2 text-sm text-brand-red-primary">
+          <p>Could not load the saved categories.</p>
+          <button /* no-tour-anchor: shown only when the load fails */
+            type="button"
+            onClick={() => {
+              setLoadFailed(false);
+              setLoadAttempt((n) => n + 1);
+            }}
+            className="font-bold text-brand-blue-primary"
+          >
+            Try again
+          </button>
+        </div>
+      ) : !rows ? (
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
           Loading…
