@@ -55,6 +55,10 @@ const GEMINI_PRICES: Record<
   string,
   Pick<AiModelOption, 'price' | 'priceChange'>
 > = {
+  // Gemini 4 prices checked 2026-11-12; Carbon and Argon list them through 2026-11-30.
+  'gemini-4-hydrogen': { price: { input: 1.5, output: 7.5 } },
+  'gemini-4-carbon': { price: { input: 2, output: 10 } },
+  'gemini-4-argon': { price: { input: 2, output: 10 } },
   'gemini-3.8-flash': {
     price: { input: 0.75, output: 3.75 },
     priceChange: { from: '2027-01-01', input: 1.5, output: 7.5 },
