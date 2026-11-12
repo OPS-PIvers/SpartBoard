@@ -103,3 +103,39 @@ describe('QuizBanksTab drop-on-folder', () => {
     );
   });
 });
+
+describe('QuizBanksTab District library banks', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useFolders as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      folders: [],
+      loading: false,
+      error: null,
+      moveItem: vi.fn(),
+      createFolder: vi.fn(),
+      renameFolder: vi.fn(),
+      moveFolder: vi.fn(),
+      deleteFolder: vi.fn(),
+    });
+  });
+
+  it('opens a read-only preview of a district bank', () => {
+    const onPreviewBank = vi.fn();
+    const source = {
+      key: 'group-1',
+      kind: 'district' as const,
+      bankId: 'item-1',
+      syncGroupId: 'group-1',
+      syncOwnerUid: 'admin-1',
+      title: 'Arizona Meteor (2025)',
+      questionCount: 5,
+      targetIds: [],
+      targetCounts: {},
+    };
+    renderTab({ banks: [], districtBankSources: [source], onPreviewBank });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    expect(onPreviewBank).toHaveBeenCalledWith(source);
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+});

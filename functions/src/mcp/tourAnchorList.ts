@@ -11954,6 +11954,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-banks.district-preview",
+    "label": "Preview on a District library bank row in the Quiz library, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.banks",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#banks"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-import.review-only-flagged",
     "label": "Show only flagged rows in Quiz import",
     "scope": "widget type",

@@ -497,7 +497,7 @@ interface QuizManagerProps {
     meta: QuestionBankMetadata,
     plcId: string
   ) => void | Promise<void>;
-  onPreviewSharedBank?: (source: BankSource) => void;
+  onPreviewBank?: (source: BankSource) => void;
   assignments?: QuizAssignment[];
   assignmentsLoading?: boolean;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
@@ -818,7 +818,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onMoveBankToLibraryFolder,
   onShareBankWithPlc,
   onUnshareBankFromPlc,
-  onPreviewSharedBank,
+  onPreviewBank,
   assignments = [],
   assignmentsLoading = false,
   onArchiveCopyUrl,
@@ -2601,6 +2601,21 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           </span>
         }
         badges={inDistrict ? [] : [{ label: 'District library', tone: 'info' }]}
+        primaryAction={
+          onPreviewBank
+            ? {
+                label: 'Preview',
+                icon: Eye,
+                onClick: () => onPreviewBank(source),
+                anchor: tourFieldAttr(
+                  'quiz-banks.district-preview',
+                  'quiz',
+                  source.key
+                ),
+              }
+            : undefined
+        }
+        onDoubleClick={onPreviewBank ? () => onPreviewBank(source) : undefined}
         secondaryActions={[
           ...(onMoveDistrictBank
             ? [
@@ -2843,7 +2858,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onReorderBanks={onReorderBanks}
         onShareBankWithPlc={onShareBankWithPlc}
         onUnshareBankFromPlc={onUnshareBankFromPlc}
-        onPreviewSharedBank={onPreviewSharedBank}
+        onPreviewBank={onPreviewBank}
         onError={onError}
       />
     );
