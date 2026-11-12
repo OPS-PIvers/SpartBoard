@@ -2,13 +2,8 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useOrgDomains } from './useOrgDomains';
 import { useAuth } from '@/context/useAuth';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import type { DomainRecord } from '@/types/organization';
 
 vi.mock('firebase/firestore', () => ({
@@ -17,6 +12,10 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   onSnapshot: vi.fn(),
   setDoc: vi.fn(),
+}));
+
+vi.mock('@/utils/orgAdminClient', () => ({
+  callOrgAdmin: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -44,8 +43,7 @@ describe('useOrgDomains', () => {
   const mockCollection = collection as Mock;
   const mockOnSnapshot = onSnapshot as Mock;
   const mockDoc = doc as Mock;
-  const mockSetDoc = setDoc as Mock;
-  const mockDeleteDoc = deleteDoc as Mock;
+  const mockCall = callOrgAdmin as Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,8 +51,7 @@ describe('useOrgDomains', () => {
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
-    mockSetDoc.mockResolvedValue(undefined);
-    mockDeleteDoc.mockResolvedValue(undefined);
+    mockCall.mockResolvedValue(undefined);
   });
 
   it('skips subscription when orgId is null', () => {
@@ -148,10 +145,14 @@ describe('useOrgDomains', () => {
       });
     });
 
-    expect(mockSetDoc).toHaveBeenCalledTimes(1);
-    const [ref, payload] = mockSetDoc.mock.calls[0] as [string, unknown];
-    expect(ref).toBe('organizations/orono/domains/hs-orono-k12-mn-us');
-    expect(payload).toMatchObject({
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    const [req] = mockCall.mock.calls[0] as [
+      { action: string; orgId: string; record: unknown },
+    ];
+    expect(req.action).toBe('addDomain');
+    expect(req.orgId).toBe('orono');
+    expect(req.record).toMatchObject({
+      id: 'hs-orono-k12-mn-us',
       orgId: 'orono',
       domain: '@hs.orono.k12.mn.us',
       authMethod: 'google',
@@ -182,9 +183,11 @@ describe('useOrgDomains', () => {
       await result.current.removeDomain('orono.k12.mn.us');
     });
 
-    expect(mockDeleteDoc).toHaveBeenCalledWith(
-      'organizations/orono/domains/orono.k12.mn.us'
-    );
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'removeDomain',
+      orgId: 'orono',
+      id: 'orono.k12.mn.us',
+    });
   });
 
   it('writes reject when orgId is null', async () => {

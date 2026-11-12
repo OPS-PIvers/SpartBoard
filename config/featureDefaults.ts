@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   ArrowLeftRight,
+  RotateCcw,
   Camera,
   PenLine,
   BarChart,
@@ -1210,6 +1211,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Submit quiz for a student',
     icon: Send,
     description: "Turn in a student's saved quiz answers.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'quiz-reopen-submission': {
+    label: 'Reopen a submitted quiz',
+    icon: RotateCcw,
+    description: "Reopen a student's submitted quiz with their answers kept.",
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',

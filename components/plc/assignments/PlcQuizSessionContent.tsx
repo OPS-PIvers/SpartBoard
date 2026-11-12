@@ -86,6 +86,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    reopenStudentAttempt,
     submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
@@ -277,6 +278,11 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         onUpdateConfig={handleUpdateConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
+        onReopenStudent={
+          canAccessFeature('quiz-reopen-submission')
+            ? reopenStudentAttempt
+            : undefined
+        }
         onSubmitForStudent={
           canAccessFeature('quiz-submit-for-student')
             ? submitForStudent

@@ -2,13 +2,8 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useOrganizations } from './useOrganizations';
 import { useAuth } from '@/context/useAuth';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import type { OrgRecord } from '@/types/organization';
 
 vi.mock('firebase/firestore', () => ({
@@ -17,6 +12,10 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
+}));
+
+vi.mock('@/utils/orgAdminClient', () => ({
+  callOrgAdmin: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -49,8 +48,7 @@ describe('useOrganizations', () => {
   const mockCollection = collection as Mock;
   const mockOnSnapshot = onSnapshot as Mock;
   const mockDoc = doc as Mock;
-  const mockSetDoc = setDoc as Mock;
-  const mockUpdateDoc = updateDoc as Mock;
+  const mockCall = callOrgAdmin as Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,8 +56,7 @@ describe('useOrganizations', () => {
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
-    mockSetDoc.mockResolvedValue(undefined);
-    mockUpdateDoc.mockResolvedValue(undefined);
+    mockCall.mockResolvedValue(undefined);
   });
 
   it('does not subscribe when user is not a super admin', () => {
@@ -124,12 +121,11 @@ describe('useOrganizations', () => {
       });
     });
 
-    expect(mockSetDoc).toHaveBeenCalledTimes(1);
-    const [ref, payload] = mockSetDoc.mock.calls[0] as [
-      string,
-      Record<string, unknown>,
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    const [{ action, record: payload }] = mockCall.mock.calls[0] as [
+      { action: string; record: Record<string, unknown> },
     ];
-    expect(ref).toBe('organizations/new-district');
+    expect(action).toBe('createOrg');
     expect(payload).toMatchObject({
       id: 'new-district',
       name: 'New District',
@@ -156,7 +152,7 @@ describe('useOrganizations', () => {
     await expect(result.current.createOrg({})).rejects.toThrow(
       /name is required/i
     );
-    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(mockCall).not.toHaveBeenCalled();
   });
 
   it('archiveOrg sets status to archived', async () => {
@@ -172,8 +168,10 @@ describe('useOrganizations', () => {
       await result.current.archiveOrg('orono');
     });
 
-    expect(mockUpdateDoc).toHaveBeenCalledWith('organizations/orono', {
-      status: 'archived',
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'updateOrg',
+      orgId: 'orono',
+      patch: { status: 'archived' },
     });
   });
 });

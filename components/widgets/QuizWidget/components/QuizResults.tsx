@@ -85,7 +85,12 @@ import {
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
-import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
+import {
+  REOPEN_ENDED_REASON,
+  canTeacherSubmit,
+  isTabLockedOut,
+} from '@/utils/quizTeacherSubmit';
+import { resolveStudentTabWarningThreshold } from '@/utils/tabWarningThreshold';
 import { getResponseDocKey, type ResponseDocKey } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -303,6 +308,8 @@ interface QuizResultsProps {
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   /** Sends one submitted student back into the live quiz with their answers kept. */
   onReopenStudent?: (responseKey: string) => Promise<void>;
+  /** Unlocks a tab-locked student with the one-exit rule; when set, Reopen sends those students here. */
+  onUnlockTabLockedStudent?: (responseKey: string) => Promise<void>;
   /** Turns in one unfinished student's saved answers. */
   onSubmitStudent?: (responseKey: string) => Promise<void>;
   /**
@@ -466,6 +473,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   onDeleteResponse,
   onUnlockResultsForStudent,
   onReopenStudent,
+  onUnlockTabLockedStudent,
   onSubmitStudent,
   onPlcSheetUrlReplaced,
   initialExportUrl,
@@ -1192,9 +1200,30 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       { title: 'Reopen for selected students', confirmLabel: 'Reopen' }
     );
     if (!ok) return false;
+    const tabLocked = new Set(
+      onUnlockTabLockedStudent
+        ? responses
+            .filter((r) =>
+              isTabLockedOut(
+                r,
+                resolveStudentTabWarningThreshold(
+                  session?.tabWarningThreshold,
+                  r.studentUid,
+                  overridesBySourcedId,
+                  targetRefKeyByStudentUid
+                )
+              )
+            )
+            .map((r) => getResponseDocKey(r) as string)
+        : []
+    );
     // Each reopen is its own small batch, so run them side by side.
     const outcomes = await Promise.allSettled(
-      done.map((key) => onReopenStudent(key))
+      done.map((key) =>
+        tabLocked.has(key) && onUnlockTabLockedStudent
+          ? onUnlockTabLockedStudent(key)
+          : onReopenStudent(key)
+      )
     );
     const failed = outcomes.filter((o) => {
       if (o.status === 'fulfilled') return false;
@@ -1244,9 +1273,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     return true;
   };
   const reopenBlockedReason =
-    session?.status === 'ended'
-      ? 'This assignment has ended. Reopen the assignment first.'
-      : null;
+    session?.status === 'ended' ? REOPEN_ENDED_REASON : null;
   const [printSelection, setPrintSelection] = useState<
     readonly string[] | null | undefined
   >(undefined);

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 import type { OrgRecord } from '@/types/organization';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 
 /**
  * Subscribes to a single `/organizations/{orgId}` doc. Reads are gated at the
@@ -15,10 +16,40 @@ import type { OrgRecord } from '@/types/organization';
  * mutations require the `org-admin-writes` feature flag to be enabled in the
  * client gate — the rules still enforce role scoping regardless.
  */
+const same = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+// Keys the snapshot now carries with the pending value are no longer pending.
+const dropLanded = (
+  pending: Partial<OrgRecord>,
+  org: OrgRecord | null
+): Partial<OrgRecord> => {
+  if (!org) return pending;
+  const entries = Object.entries(pending).filter(
+    ([k, v]) => !same(org[k as keyof OrgRecord], v)
+  );
+  return entries.length === Object.keys(pending).length
+    ? pending
+    : Object.fromEntries(entries);
+};
+
+// A refused edit stops showing, unless a later keystroke already replaced it.
+const dropFailed = (
+  pending: Partial<OrgRecord>,
+  failed: Partial<OrgRecord>
+): Partial<OrgRecord> =>
+  Object.fromEntries(
+    Object.entries(pending).filter(
+      ([k, v]) => !(k in failed) || !same(failed[k as keyof OrgRecord], v)
+    )
+  );
+
 export const useOrganization = (orgId: string | null) => {
   const { user } = useAuth();
   const [organization, setOrganization] = useState<OrgRecord | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  // Edits sent to the server but not yet seen in a snapshot, shown at once so typed fields don't snap back.
+  const [pending, setPending] = useState<Partial<OrgRecord>>({});
 
   const shouldSubscribe = !isAuthBypass && Boolean(user) && Boolean(orgId);
   const [loading, setLoading] = useState<boolean>(shouldSubscribe);
@@ -28,6 +59,7 @@ export const useOrganization = (orgId: string | null) => {
     if (shouldClear) {
       setOrganization(null);
       setError(null);
+      setPending({});
     }
   });
 
@@ -37,9 +69,11 @@ export const useOrganization = (orgId: string | null) => {
     const unsub = onSnapshot(
       doc(db, 'organizations', orgId),
       (snap) => {
-        setOrganization(
-          snap.exists() ? ({ id: snap.id, ...snap.data() } as OrgRecord) : null
-        );
+        const next = snap.exists()
+          ? ({ id: snap.id, ...snap.data() } as OrgRecord)
+          : null;
+        setOrganization(next);
+        setPending((p) => dropLanded(p, next));
         setError(null);
         setLoading(false);
       },
@@ -59,18 +93,36 @@ export const useOrganization = (orgId: string | null) => {
     // Never let a client clobber the doc id field.
     const { id: _omit, ...rest } = patch;
     if (Object.keys(rest).length === 0) return;
-    await updateDoc(doc(db, 'organizations', orgId), rest);
+    setPending((p) => ({ ...p, ...rest }));
+    try {
+      await callOrgAdmin({ action: 'updateOrg', orgId, patch: rest });
+    } catch (err) {
+      setPending((p) => dropFailed(p, rest));
+      throw err;
+    }
   };
+
+  const shown = useMemo(
+    () =>
+      organization && Object.keys(pending).length > 0
+        ? { ...organization, ...pending }
+        : organization,
+    [organization, pending]
+  );
 
   const archiveOrg = async (): Promise<void> => {
     if (!orgId) {
       throw new Error('No organization selected.');
     }
-    await updateDoc(doc(db, 'organizations', orgId), { status: 'archived' });
+    await callOrgAdmin({
+      action: 'updateOrg',
+      orgId,
+      patch: { status: 'archived' },
+    });
   };
 
   return {
-    organization,
+    organization: shown,
     loading,
     error,
     updateOrg,

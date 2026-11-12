@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import { useAuth } from '@/context/useAuth';
 import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 import type { CapabilityId, RoleRecord } from '@/types/organization';
@@ -87,26 +81,21 @@ export const useOrgRoles = (orgId: string | null) => {
     }
 
     const workingIds = new Set(workingRoles.map((r) => r.id));
-    // Custom roles: full setDoc upsert. The seed flag is always false because
-    // the rules reject any client write that tries to flip `system:true`.
-    const customUpserts = workingRoles
+    // Custom roles are full upserts; the server keeps them system:false.
+    const upserts = workingRoles
       .filter((r) => !r.system)
-      .map((r) =>
-        setDoc(doc(db, 'organizations', orgId, 'roles', r.id), {
-          id: r.id,
-          name: r.name,
-          blurb: r.blurb ?? '',
-          color: r.color,
-          system: false,
-          perms: r.perms ?? {},
-        })
-      );
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        blurb: r.blurb ?? '',
+        color: r.color,
+        perms: r.perms ?? {},
+      }));
 
-    // System roles: only super admins may edit them, and only `perms` is
-    // writable (rules enforce this). Diff against the live snapshot so we
-    // skip no-op writes and avoid touching identity fields.
+    // System roles: only super admins may edit them, and only `perms`. Diff
+    // against the live snapshot so no-op writes are skipped.
     const liveById = new Map(roles.map((r) => [r.id, r]));
-    const systemPatches = options.canEditSystemRoles
+    const systemPerms = options.canEditSystemRoles
       ? workingRoles
           .filter((r) => r.system)
           .filter((r) => {
@@ -114,19 +103,21 @@ export const useOrgRoles = (orgId: string | null) => {
             if (!live) return false;
             return !permsEqual(live.perms, r.perms);
           })
-          .map((r) =>
-            updateDoc(doc(db, 'organizations', orgId, 'roles', r.id), {
-              perms: r.perms ?? {},
-            })
-          )
+          .map((r) => ({ id: r.id, perms: r.perms ?? {} }))
       : [];
 
     // Delete custom roles that disappeared from the working set.
-    const deletions = roles
+    const deletes = roles
       .filter((r) => !r.system && !workingIds.has(r.id))
-      .map((r) => deleteDoc(doc(db, 'organizations', orgId, 'roles', r.id)));
+      .map((r) => r.id);
 
-    await Promise.all([...customUpserts, ...systemPatches, ...deletions]);
+    await callOrgAdmin({
+      action: 'saveRoles',
+      orgId,
+      upserts,
+      systemPerms,
+      deletes,
+    });
   };
 
   const resetRoles = async (): Promise<void> => {
@@ -137,10 +128,15 @@ export const useOrgRoles = (orgId: string | null) => {
     // the migration script and `config/organizationCapabilities.ts`; re-seeding
     // those happens out-of-band (the rules block client writes to
     // `system:true` docs).
-    const deletions = roles
-      .filter((r) => !r.system)
-      .map((r) => deleteDoc(doc(db, 'organizations', orgId, 'roles', r.id)));
-    await Promise.all(deletions);
+    const deletes = roles.filter((r) => !r.system).map((r) => r.id);
+    if (deletes.length === 0) return;
+    await callOrgAdmin({
+      action: 'saveRoles',
+      orgId,
+      upserts: [],
+      systemPerms: [],
+      deletes,
+    });
   };
 
   return {
