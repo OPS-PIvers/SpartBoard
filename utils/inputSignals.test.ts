@@ -394,3 +394,46 @@ describe('window signs', () => {
     expect(ids(c)).toEqual(['side-panel', 'extra-screen']);
   });
 });
+
+describe('browser and profile', () => {
+  const run = (profile: string, browser = 'Chrome 141, macOS') => {
+    const c = new InputSignalCollector(true);
+    c.setEnvironment(browser, profile);
+    return addSignals({}, c.snapshot());
+  };
+
+  it('flags an attempt outside a managed profile only when the school expects one', () => {
+    const saved = run('no-extension', 'Firefox 131, Windows');
+    expect(describeInputSignals(saved)).toEqual([]);
+    const [finding] = describeInputSignals(saved, undefined, undefined, true);
+    expect(finding.id).toBe('unmanaged-profile');
+    expect(finding.text).toContain('Firefox 131, Windows');
+  });
+
+  it('does not flag a managed, embedded or unknown profile', () => {
+    for (const profile of ['managed', 'embedded', 'unknown'])
+      expect(
+        describeInputSignals(run(profile), undefined, undefined, true)
+      ).toEqual([]);
+  });
+
+  it('keeps every browser across page loads and drops malformed values', () => {
+    const merged = addSignals(
+      run('managed'),
+      run('unmanaged', 'Edge 140, Windows')
+    );
+    expect(merged._).toEqual({
+      browser: 'Chrome 141, macOS|Edge 140, Windows',
+      profile: 'managed|unmanaged',
+    });
+    const read = readAttemptSignals(
+      { '0': { _: { browser: '<img src=x>|Chrome 141, macOS', profile: 7 } } },
+      0
+    );
+    expect(read._).toEqual({ browser: 'Chrome 141, macOS' });
+    expect(
+      inputFindingsByAttempt({ '0': merged }, 0, undefined, undefined, true)[0]
+        .browsers
+    ).toEqual(['Chrome 141, macOS', 'Edge 140, Windows']);
+  });
+});

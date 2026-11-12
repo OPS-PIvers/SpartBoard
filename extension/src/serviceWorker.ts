@@ -5,7 +5,7 @@ import {
   type WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
 import { createExternalHandler } from './handler';
-import { getChromeEmail, getChromeProfile } from './profile';
+import { getChromeEmail, getChromeProfile, getInstall } from './profile';
 import { FOCUS_ENFORCE_PROTOCOL } from '@/components/tours/web/extensionProtocol';
 import { createFocusClient } from './focus/focusClient';
 import { createChromeEnforcer } from './focus/chromeEnforce';
@@ -406,6 +406,7 @@ const handle = createExternalHandler({
   origins,
   version: chrome.runtime.getManifest().version,
   getProfile: getChromeProfile,
+  getInstall,
   // Starting ends any other tour first, so its exit reaches its run before a new run begins.
   startWebTour: async (message) => {
     const tabId = await playback.start(toPlayback(message));

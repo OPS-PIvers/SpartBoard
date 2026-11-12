@@ -1540,6 +1540,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Only useful where the district pushes the extension to student profiles.
+  'managed-profile-check': {
+    label: 'Managed profile check',
+    icon: MousePointerClick,
+    description:
+      'Adds a sign to quiz attempts that ran outside a school-managed Chrome profile. Needs the SpartBoard extension pushed to student accounts and Unusual input flags on.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Assign to Staff: the link needs district Google sign-in and results show each person's name and email.
   'staff-audience': {
     label: 'Assign to staff',

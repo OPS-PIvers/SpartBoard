@@ -1,5 +1,6 @@
 import {
   profileFromEmail,
+  type ExtensionInstall,
   type ExtensionProfile,
 } from '@/components/tours/web/extensionProtocol';
 import { BENCH } from './bench';
@@ -26,6 +27,17 @@ export async function getChromeEmail(): Promise<string | undefined> {
       accountStatus: 'ANY',
     });
     return info.email || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** How Chrome got this extension; `getSelf` needs no permission. */
+export async function getInstall(): Promise<ExtensionInstall | undefined> {
+  try {
+    const { installType } = await chrome.management.getSelf();
+    if (installType === 'admin') return 'policy';
+    return installType === 'development' ? 'dev' : 'user';
   } catch {
     return undefined;
   }

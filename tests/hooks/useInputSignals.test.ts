@@ -12,6 +12,13 @@ vi.mock('@/utils/eventTrust', () => ({
   isTrustedEvent: (e: Event) => !scripted.has(e),
 }));
 
+const environment = vi.hoisted(() => ({
+  detect: vi.fn(() => new Promise<never>(() => undefined)),
+}));
+vi.mock('@/utils/quizEnvironment', () => ({
+  detectQuizEnvironment: environment.detect,
+}));
+
 type Save = (
   attempt: number,
   counts: Record<string, InputSignalCounts>
@@ -159,5 +166,19 @@ describe('useInputSignals', () => {
     });
     unmount();
     expect(save.mock.calls[0][1].q1.panelOpens).toBe(1);
+  });
+
+  it('saves the browser and profile the attempt ran in', async () => {
+    environment.detect.mockResolvedValueOnce({
+      browser: 'Firefox 131, Windows',
+      profile: 'no-extension',
+    } as never);
+    const { save, unmount } = setup();
+    await Promise.resolve();
+    await Promise.resolve();
+    unmount();
+    expect(save).toHaveBeenCalledExactlyOnceWith(0, {
+      _: { browser: 'Firefox 131, Windows', profile: 'no-extension' },
+    });
   });
 });

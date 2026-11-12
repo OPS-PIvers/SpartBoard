@@ -6153,6 +6153,10 @@ export interface InputSignalCounts {
   extraScreen?: number;
   /** Every edit to a written answer, for playback (utils/writingLog.ts). */
   log?: string;
+  /** Browsers the attempt ran in, such as "Chrome 141, macOS", joined by `|`; kept on the `_` entry. */
+  browser?: string;
+  /** Profile states the attempt ran in (utils/quizEnvironment.ts), joined by `|`; kept on the `_` entry. */
+  profile?: string;
 }
 
 /** Keyed by completed-attempt count, then by question id. */
@@ -11301,6 +11305,8 @@ export type GlobalFeature =
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   | 'input-signals'
+  /** Shows a sign on quiz attempts that ran outside a school-managed Chrome profile; needs the extension pushed to students. */
+  | 'managed-profile-check'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
   /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */

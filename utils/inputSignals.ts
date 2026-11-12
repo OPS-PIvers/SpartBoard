@@ -12,6 +12,9 @@ import {
   utf8Length,
 } from '@/utils/writingLog';
 
+/** Global feature that shows the sign for an attempt outside a school-managed Chrome profile. */
+export const MANAGED_PROFILE_FEATURE = 'managed-profile-check' as const;
+
 /** Global feature that gates recording and showing input signals. */
 export const INPUT_SIGNALS_FEATURE = 'input-signals' as const;
 
@@ -55,7 +58,7 @@ const PASTE_WINDOW_MS = 150;
 const NO_QUESTION = '_';
 const QUESTION_KEY = /^[\w-]{1,64}$/;
 
-type Counts = Required<Omit<InputSignalCounts, 'log'>>;
+type Counts = Required<Omit<InputSignalCounts, 'log' | 'browser' | 'profile'>>;
 const emptyCounts = (): Counts => ({
   clicks: 0,
   jumpClicks: 0,
@@ -127,6 +130,7 @@ export class InputSignalCollector {
   private baseLogs: Record<string, string>;
   private logRoom: number;
   private activeSince: number | null = null;
+  private environment: { browser: string; profile: string } | null = null;
 
   /** `finePointer` is false on phones and tablets, where on-screen keyboards make key timing meaningless. */
   constructor(
@@ -197,6 +201,12 @@ export class InputSignalCollector {
     let n = 0;
     for (const w of this.writers.values()) n += w.size;
     return n;
+  }
+
+  /** The browser and profile this page load runs in. */
+  setEnvironment(browser: string, profile: string): void {
+    this.environment = { browser, profile };
+    this.dirty = true;
   }
 
   panelOpened(): void {
@@ -323,6 +333,8 @@ export class InputSignalCollector {
     for (const [q, c] of this.byQuestion) out[q] = compact(c);
     for (const [q, w] of this.writers)
       if (w.value) out[q] = { ...out[q], log: w.value };
+    if (this.environment)
+      out[NO_QUESTION] = { ...out[NO_QUESTION], ...this.environment };
     return out;
   }
 }
@@ -340,8 +352,26 @@ const compact = (c: InputSignalCounts): InputSignalCounts => {
     c.log.length <= WRITING_LOG_MAX + 64
   )
     out.log = c.log;
+  const browser = cleanList(c.browser, /^[\w .,()-]{1,60}$/);
+  if (browser) out.browser = browser;
+  const profile = cleanList(c.profile, /^[a-z-]{1,20}$/);
+  if (profile) out.profile = profile;
   return out;
 };
+
+/** A `|`-joined list with anything malformed dropped, at most four entries. */
+const cleanList = (value: unknown, item: RegExp): string =>
+  typeof value === 'string'
+    ? [...new Set(value.split('|').filter((v) => item.test(v)))]
+        .slice(0, 4)
+        .join('|')
+    : '';
+
+const mergeList = (a: string | undefined, b: string | undefined): string =>
+  [...new Set([...(a?.split('|') ?? []), ...(b?.split('|') ?? [])])]
+    .filter(Boolean)
+    .slice(0, 4)
+    .join('|');
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -375,6 +405,10 @@ export function addSignals(
     }
     // The local log starts from the saved one, so it replaces it.
     if (counts.log) sum.log = counts.log;
+    const browser = mergeList(sum.browser, counts.browser);
+    if (browser) sum.browser = browser;
+    const profile = mergeList(sum.profile, counts.profile);
+    if (profile) sum.profile = profile;
     out[q] = sum;
   }
   return out;
@@ -394,7 +428,8 @@ export type InputFindingId =
   | 'no-revisions'
   | 'fast-answers'
   | 'side-panel'
-  | 'extra-screen';
+  | 'extra-screen'
+  | 'unmanaged-profile';
 
 export interface InputFinding {
   id: InputFindingId;
@@ -459,7 +494,8 @@ const plural = (n: number, one: string, many = `${one}s`) =>
 export function describeInputSignals(
   perQuestion: Record<string, InputSignalCounts>,
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
-  reading?: ReadingContext
+  reading?: ReadingContext,
+  expectManaged = false
 ): InputFinding[] {
   const total = emptyCounts();
   for (const c of Object.values(perQuestion))
@@ -609,6 +645,20 @@ export function describeInputSignals(
       otherCauses: 'A desk monitor or a classroom projector.',
     });
   }
+  const env = perQuestion[NO_QUESTION];
+  const outside = (env?.profile?.split('|') ?? []).filter(
+    (p) => p === 'unmanaged' || p === 'no-extension'
+  );
+  if (expectManaged && outside.length > 0) {
+    const browsers = env?.browser?.split('|').join('; ');
+    out.push({
+      id: 'unmanaged-profile',
+      text: `Not in a school-managed Chrome profile${browsers ? ` (${browsers})` : ''}.`,
+      questions: [],
+      otherCauses:
+        'An iPad, phone or other browser, or a device the extension has not reached yet.',
+    });
+  }
 
   const times = (answers ?? [])
     .map((a) => a.answeredAt)
@@ -655,6 +705,8 @@ export interface AttemptFindings {
   /** Completed attempts before this one; 0 is the first attempt. */
   attempt: number;
   findings: InputFinding[];
+  /** Browsers the attempt ran in, such as "Chrome 141, macOS". */
+  browsers: string[];
 }
 
 /** Every attempt that has something to show, latest first. `answers` belong to `currentAttempt`. */
@@ -662,7 +714,8 @@ export function inputFindingsByAttempt(
   signals: InputSignals | undefined,
   currentAttempt: number,
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
-  reading?: ReadingContext
+  reading?: ReadingContext,
+  expectManaged = false
 ): AttemptFindings[] {
   const attempts = new Set<number>([currentAttempt]);
   if (isRecord(signals)) {
@@ -671,14 +724,20 @@ export function inputFindingsByAttempt(
   }
   return [...attempts]
     .sort((a, b) => b - a)
-    .map((attempt) => ({
-      attempt,
-      findings: describeInputSignals(
-        readAttemptSignals(signals, attempt),
-        attempt === currentAttempt ? answers : undefined,
-        attempt === currentAttempt ? reading : undefined
-      ),
-    }))
+    .map((attempt) => {
+      const perQuestion = readAttemptSignals(signals, attempt);
+      const current = attempt === currentAttempt;
+      return {
+        attempt,
+        findings: describeInputSignals(
+          perQuestion,
+          current ? answers : undefined,
+          current ? reading : undefined,
+          expectManaged
+        ),
+        browsers: perQuestion[NO_QUESTION]?.browser?.split('|') ?? [],
+      };
+    })
     .filter((a) => a.findings.length > 0);
 }
 

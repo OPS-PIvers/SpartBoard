@@ -88,6 +88,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'lunch-count-redesign',
   'lunch-count-resend',
   'magic-layout',
+  'managed-profile-check',
   'mini-app-ai',
   'mini-app-results',
   'music-my-songs',
