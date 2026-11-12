@@ -13,7 +13,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 13;
+export const EXTENSION_PROTOCOL_VERSION = 14;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -51,6 +51,9 @@ export const PACING_PROTOCOL = 12;
 /** Protocol 13: the ping reply says how the extension was installed, so a quiz page can tell a school-managed profile. */
 export const INSTALL_PROTOCOL = 13;
 
+/** Protocol 14: a tour may carry Message steps and cross sites; below it such a tour is not sent (WEB_TOURS_CROSS_SITE.md X13). */
+export const CROSS_SITE_PROTOCOL = 14;
+
 /** How Chrome got the extension: pushed by an admin policy, added by the user, or loaded unpacked. */
 export type ExtensionInstall = 'policy' | 'user' | 'dev';
 
@@ -73,13 +76,30 @@ export interface WebTourPictureBytes {
   h: number;
 }
 
-export interface WebTourStartStep {
+export interface WebTourStartTargetStep {
   id: string;
   label?: string;
   text?: string;
   web: { urlPattern: string; action: WebTourAction; locator: WebTourLocator };
   picture?: WebTourPictureBytes;
+  message?: never;
 }
+
+/** A Message step (X9): words only, played on whatever page the learner is on; CROSS_SITE_PROTOCOL only. */
+export interface WebTourStartMessageStep {
+  id: string;
+  label?: string;
+  text?: string;
+  message: true;
+  web?: never;
+  picture?: never;
+}
+
+export type WebTourStartStep = WebTourStartTargetStep | WebTourStartMessageStep;
+
+export const isStartMessageStep = (
+  s: WebTourStartStep
+): s is WebTourStartMessageStep => s.message === true;
 
 /** A step's conditions (E6): when it plays and when it is done. */
 export interface WebStepConditions {
@@ -141,6 +161,19 @@ export interface SchoologySignInMessage {
 export interface SchoologySignInReply {
   ok: true;
   signedIn: boolean;
+}
+
+/** Protocol 14, staff only: Chrome checks the store for a newer extension and reloads into it (WEB_TOURS_CROSS_SITE.md X15). */
+export interface ExtensionUpdateMessage {
+  type: 'extension/update';
+}
+
+/** `available` means the extension is about to reload into the new version. */
+export type ExtensionUpdateStatus = 'available' | 'none' | 'throttled';
+
+export interface ExtensionUpdateReply {
+  ok: true;
+  update: ExtensionUpdateStatus;
 }
 
 export interface WebTourStartReply {
@@ -208,7 +241,8 @@ export type ExtensionMessage =
   | WebTourStartMessage
   | WebTourCheckStartMessage
   | WebTourOpenMessage
-  | SchoologySignInMessage;
+  | SchoologySignInMessage
+  | ExtensionUpdateMessage;
 export type ExtensionMessageType = ExtensionMessage['type'];
 
 export interface PingReply {
@@ -230,7 +264,11 @@ export interface ExtensionErrorReply {
 }
 
 export type ExtensionReply =
-  PingReply | WebTourStartReply | SchoologySignInReply | ExtensionErrorReply;
+  | PingReply
+  | WebTourStartReply
+  | SchoologySignInReply
+  | ExtensionUpdateReply
+  | ExtensionErrorReply;
 
 interface MessageSpec {
   /** Refused unless the Chrome profile is a staff account (D3). */
@@ -266,6 +304,7 @@ const MESSAGE_SPECS: Record<ExtensionMessageType, MessageSpec> = {
   'web-tour/open': { staffOnly: true, fields: { setId: isTourSetId } },
   'schoology/signed-in': { staffOnly: true, fields: {} },
   'schoology/connect': { staffOnly: true, fields: {} },
+  'extension/update': { staffOnly: true, fields: {} },
 };
 
 export type ParsedMessage =
@@ -472,16 +511,27 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     return null;
   }
   const ids = new Set<string>();
+  const seen = new Set<string>();
   const out: WebTourStartStep[] = [];
   for (const s of steps) {
     if (
       !isPlainObject(s) ||
-      !onlyKeys(s, ['id', 'label', 'text', 'web', 'picture'])
+      !onlyKeys(s, ['id', 'label', 'text', 'web', 'picture', 'message'])
     ) {
       return null;
     }
-    if (!str(s.id, 200) || !s.id || ids.has(s.id)) return null;
+    if (!str(s.id, 200) || !s.id || seen.has(s.id)) return null;
     if (!optStr(s.label, MAX_TEXT) || !optStr(s.text, MAX_TEXT)) return null;
+    seen.add(s.id);
+    if (s.message !== undefined) {
+      if (s.message !== true || s.web !== undefined || s.picture !== undefined)
+        return null;
+      const msg: WebTourStartMessageStep = { id: s.id, message: true };
+      if (s.label !== undefined) msg.label = s.label;
+      if (s.text !== undefined) msg.text = s.text;
+      out.push(msg);
+      continue;
+    }
     const web = s.web;
     if (
       !isPlainObject(web) ||
@@ -492,7 +542,7 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     const action = WEB_ACTIONS.find((a) => a === web.action);
     const locator = parseLocator(web.locator);
     if (!isPattern(web.urlPattern) || !action || !locator) return null;
-    const step: WebTourStartStep = {
+    const step: WebTourStartTargetStep = {
       id: s.id,
       web: { urlPattern: web.urlPattern, action, locator },
     };
@@ -506,6 +556,8 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
     ids.add(s.id);
     out.push(step);
   }
+  // A tour needs a step with a target to open on (X8).
+  if (ids.size === 0) return null;
   const conditions =
     raw.conditions === undefined
       ? undefined

@@ -6,6 +6,7 @@ import type {
 } from '@/types';
 import type { ReviewField } from './webStepReview';
 import { hasStarterTitle } from './writeWithClaude';
+import { isMessageStep } from './tourSequence';
 
 export type WebStep = GuidedLearningStep & {
   web?: NonNullable<GuidedLearningStep['web']>;
@@ -56,9 +57,31 @@ export const webTargetLabel = (loc: WebTourLocator | undefined): string =>
     .find((v): v is string => !!v) ??
   (loc?.css ? 'A spot on the page' : 'No target yet');
 
-/** A web step with nothing a person or Claude wrote: a recording's starter title and no tip. */
+/** A web step with nothing a person or Claude wrote: a recording's starter title and no tip. Messages are the admin's own words, so never. */
 export const webStepNeedsText = (step: GuidedLearningStep): boolean =>
-  hasStarterTitle(step) && !step.text?.trim();
+  !isMessageStep(step) && hasStarterTitle(step) && !step.text?.trim();
+
+/** A blank Message step: words only, no target. */
+export const newMessageStep = (): GuidedLearningStep => ({
+  id: crypto.randomUUID(),
+  xPct: 50,
+  yPct: 50,
+  imageIndex: 0,
+  interactionType: 'tooltip',
+  label: '',
+  text: '',
+  message: true,
+});
+
+/** Inserts `added` so it lands at `index` (0 = first, length = last). */
+export const insertAt = (
+  steps: readonly GuidedLearningStep[],
+  index: number,
+  added: GuidedLearningStep
+): GuidedLearningStep[] => {
+  const at = Math.min(Math.max(index, 0), steps.length);
+  return [...steps.slice(0, at), added, ...steps.slice(at)];
+};
 
 /** Why a step's showWhen can never hold, or null: its address is on another site than the step's own page. */
 export function showWhenProblem(web: GuidedLearningStep['web']): string | null {

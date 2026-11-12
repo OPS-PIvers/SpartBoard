@@ -195,6 +195,11 @@ const WebTourHubPage = lazy(() =>
     default: module.WebTourHubPage,
   }))
 );
+const WebToursGate = lazy(() =>
+  import('./components/tours/web/WebToursGate').then((module) => ({
+    default: module.WebToursGate,
+  }))
+);
 const SignInPage = lazy(() =>
   import('./components/auth/SignInPage').then((module) => ({
     default: module.SignInPage,
@@ -1161,6 +1166,20 @@ const App: React.FC = () => {
           <WebTourIntakePage />
         </Suspense>
       </AuthProvider>
+    );
+  }
+
+  // Web tours admin page (HELP_CENTER_HOME.md H9): auth and dialogs only, no board.
+  if (pathname === '/web-tours') {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <WebToursGate />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 

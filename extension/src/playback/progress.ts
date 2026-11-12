@@ -1,6 +1,8 @@
 import type { TourMarkupShape, WebTourAction, WebTourFrame } from '@/types';
 import type { WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
+import { hostOf, switchUrlFor } from '@/components/tours/web/tourSequence';
+import { isGoHost } from '../overlay/overlayState';
 import type { WebStepConditions } from '@/components/tours/web/extensionProtocol';
 import {
   doneOnPage,
@@ -38,6 +40,8 @@ export interface PlaybackStep {
   markup?: TourMarkupShape[];
   /** Where the control sits in the step's picture, 0-1, ringed by Show me where. */
   target?: { x: number; y: number; w: number; h: number };
+  /** A Message step (X7): words only, on any page; its urlPattern is empty and it is never sought. */
+  message?: true;
 }
 
 export interface PlaybackTour {
@@ -48,8 +52,16 @@ export interface PlaybackTour {
 }
 
 /** `armed`: started but not yet on the start step's page, e.g. while the learner signs in (WEB_TOURS_HELP_PANEL.md H1). */
+/** `switch`: the step plays on another of the tour's sites, so the tip offers Go to that site (X2). */
 export type PlaybackStatus =
-  'armed' | 'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done' | 'exited';
+  | 'armed'
+  | 'wrong-page'
+  | 'switch'
+  | 'seeking'
+  | 'shown'
+  | 'fallback'
+  | 'done'
+  | 'exited';
 
 export interface PlaybackState {
   tour: PlaybackTour;
@@ -63,6 +75,8 @@ export interface PlaybackState {
   skipped?: string[];
   /** Steps left out because their showWhen didn't hold (E6), apart from catch-up's `skipped`. */
   conditionSkipped?: string[];
+  /** The top page the run last saw, so a step entered without an address can still tell it is on another site. */
+  at?: string;
 }
 
 export type PlaybackEvent =
@@ -96,8 +110,106 @@ export function startPlayback(
   );
 }
 
-const pageStatus = (step: PlaybackStep | undefined, url: string) =>
-  step && matchesUrlPattern(step.urlPattern, url) ? 'seeking' : 'wrong-page';
+export const isMessage = (step: PlaybackStep | undefined): boolean =>
+  step?.message === true;
+
+/** The host an address pattern plays on, lowercased; empty for a Message step. */
+export const patternHost = (pattern: string): string => hostOf(pattern) ?? '';
+
+export const urlHost = (url: string): string => {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
+/** The first step at or after `from` with a target, or -1. */
+export const targetedFrom = (
+  steps: readonly PlaybackStep[],
+  from: number
+): number => {
+  for (let i = Math.max(0, from); i < steps.length; i++)
+    if (!isMessage(steps[i])) return i;
+  return -1;
+};
+
+/** A targeted step Go can open: its site has a plain host and an https address to open (X2); otherwise it stays a wrong page. */
+export const canGoTo = (step: PlaybackStep): boolean =>
+  !isMessage(step) &&
+  isGoHost(patternHost(step.urlPattern)) &&
+  switchUrlFor(step.urlPattern) !== null;
+
+/** The site a Message step's Go opens: set when it sits right before a Site switch (X6). */
+export function switchAfter(
+  steps: readonly PlaybackStep[],
+  index: number
+): string | null {
+  const next = steps[index + 1];
+  if (!isMessage(steps[index]) || !next || isMessage(next)) return null;
+  const before = steps
+    .slice(0, index)
+    .filter((s) => !isMessage(s))
+    .at(-1);
+  const site = patternHost(next.urlPattern);
+  return before && patternHost(before.urlPattern) !== site && canGoTo(next)
+    ? site
+    : null;
+}
+
+/** The step is across a Site switch from `url`: the targeted step before or after it plays on that page's site (X1); anywhere else is a wrong page. */
+export function onOtherSite(
+  steps: readonly PlaybackStep[],
+  step: PlaybackStep,
+  url: string
+): boolean {
+  if (!canGoTo(step)) return false;
+  const here = urlHost(url);
+  if (!here || here === patternHost(step.urlPattern)) return false;
+  const index = steps.indexOf(step);
+  const before = steps
+    .slice(0, Math.max(0, index))
+    .filter((s) => !isMessage(s))
+    .at(-1);
+  const after = steps[targetedFrom(steps, index + 1)];
+  return [before, after].some((s) => !!s && patternHost(s.urlPattern) === here);
+}
+
+/** Whether a step plays on `url`; a Message step reads as the next targeted step's page, so moving on and catch-up see through it. */
+const onPageOf =
+  (steps: readonly PlaybackStep[]) =>
+  (s: PlaybackStep, url: string): boolean => {
+    if (!isMessage(s)) return matchesUrlPattern(s.urlPattern, url);
+    const next = steps[targetedFrom(steps, steps.indexOf(s) + 1)];
+    return !!next && matchesUrlPattern(next.urlPattern, url);
+  };
+
+function pageStatus(
+  state: PlaybackState,
+  step: PlaybackStep | undefined,
+  url: string
+): PlaybackStatus {
+  if (!step) return 'wrong-page';
+  if (isMessage(step)) return 'shown';
+  if (matchesUrlPattern(step.urlPattern, url)) return 'seeking';
+  return onOtherSite(state.tour.steps, step, url) ? 'switch' : 'wrong-page';
+}
+
+/** A Message step counts as found the moment it shows, so a check run passes it (X12). */
+function settled(state: PlaybackState): PlaybackState {
+  const step = state.tour.steps[state.index];
+  if (!step || !isMessage(step) || state.status !== 'shown') return state;
+  if (state.matched[step.id] === 'role') return state;
+  return { ...state, matched: { ...state.matched, [step.id]: 'role' } };
+}
+
+/** The status for a step entered with no fresh address: a message shows, another site offers Go, else it is sought. */
+function blindStatus(state: PlaybackState, step: PlaybackStep): PlaybackStatus {
+  if (isMessage(step)) return 'shown';
+  return state.at && onOtherSite(state.tour.steps, step, state.at)
+    ? 'switch'
+    : 'seeking';
+}
 
 function enterStep(
   state: PlaybackState,
@@ -111,11 +223,15 @@ function enterStep(
   // Going forward onto a step its showWhen leaves out on this page: on to the next (E6).
   if (index >= state.index && skipsOnPage(step, url))
     return enterStep(conditionSkip(state, step.id), index + 1, url);
-  return {
-    ...enterRun(state, state.tour.steps, index),
+  const entered = enterRun(state, state.tour.steps, index);
+  return settled({
+    ...entered,
     furthest: Math.max(state.furthest, index),
-    status: url === null ? 'seeking' : pageStatus(step, url),
-  };
+    status:
+      url === null
+        ? blindStatus(entered, step)
+        : pageStatus(entered, step, url),
+  });
 }
 
 /** Records a step a condition left out, once. */
@@ -169,6 +285,12 @@ export function reducePlayback(
   event: PlaybackEvent
 ): PlaybackState {
   if (state.status === 'exited') return state;
+  if (event.type === 'page') state = { ...state, at: event.url };
+  else if ('url' in event && event.url) state = { ...state, at: event.url };
+  return reduce(state, event);
+}
+
+function reduce(state: PlaybackState, event: PlaybackEvent): PlaybackState {
   if (
     state.status === 'done' &&
     event.type !== 'back' &&
@@ -180,14 +302,24 @@ export function reducePlayback(
   if (state.status === 'armed') {
     // Sign-in, SSO and MFA pages are ignored until the start step's page loads.
     if (event.type === 'exit') return { ...state, status: 'exited' };
-    if (event.type === 'page' && matchesUrlPattern(step.urlPattern, event.url))
-      return { ...state, status: 'seeking' };
+    // A tour that opens on a Message step waits on the first targeted step's site (X8).
+    const first = state.tour.steps[targetedFrom(state.tour.steps, state.index)];
+    if (
+      event.type === 'page' &&
+      first &&
+      matchesUrlPattern(first.urlPattern, event.url)
+    )
+      return settled({ ...state, status: pageStatus(state, step, event.url) });
     return state;
   }
   switch (event.type) {
     case 'page': {
       // The address its doneWhen names finishes the step (E6).
-      if (state.status !== 'wrong-page' && doneOnPage(step, event.url))
+      if (
+        state.status !== 'wrong-page' &&
+        state.status !== 'switch' &&
+        doneOnPage(step, event.url)
+      )
         return enterStep(state, state.index + 1, event.url);
       if (state.status === 'shown' || state.status === 'fallback') {
         // The learner's action moved them to the next step's page.
@@ -195,7 +327,7 @@ export function reducePlayback(
         if (
           next &&
           !matchesUrlPattern(step.urlPattern, event.url) &&
-          matchesUrlPattern(next.urlPattern, event.url) &&
+          onPageOf(state.tour.steps)(next, event.url) &&
           step.action !== 'observe'
         ) {
           return enterStep(state, state.index + 1, event.url);
@@ -206,18 +338,23 @@ export function reducePlayback(
         state.tour.steps,
         state.index,
         event.url,
-        (s, url) => matchesUrlPattern(s.urlPattern, url),
+        onPageOf(state.tour.steps),
         leadsAway,
         LOOKAHEAD_STEPS
       );
       if (ahead !== null) return caughtUp(state, ahead, event.url);
-      return { ...state, status: pageStatus(step, event.url) };
+      return settled({ ...state, status: pageStatus(state, step, event.url) });
     }
     case 'found':
-      if (state.status === 'wrong-page') return state;
+      if (
+        state.status === 'wrong-page' ||
+        state.status === 'switch' ||
+        isMessage(step)
+      )
+        return state;
       return { ...state, status: 'shown', matched: record(state, event.match) };
     case 'lost':
-      if (state.status !== 'shown') return state;
+      if (state.status !== 'shown' || isMessage(step)) return state;
       // A step done when its target goes away (E6).
       if (doneWhenLost(step)) return enterStep(state, state.index + 1, null);
       return { ...state, status: 'seeking' };

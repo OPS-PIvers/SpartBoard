@@ -5,8 +5,8 @@ import { requestRecordTour } from '@/components/tours/tourState';
 import { TourRecordingHost } from './TourRecordingHost';
 
 vi.mock('./RecordingSession', () => ({
-  default: ({ onEnd }: { onEnd: () => void }) => (
-    <button type="button" onClick={onEnd}>
+  default: ({ onEnd, origin }: { onEnd: () => void; origin?: string }) => (
+    <button type="button" onClick={onEnd} data-origin={origin}>
       Stub session
     </button>
   ),
@@ -27,5 +27,18 @@ describe('TourRecordingHost', () => {
     await screen.findByText('Stub session');
     act(() => requestRecordTour());
     expect(screen.getAllByText('Stub session')).toHaveLength(1);
+  });
+
+  it('passes where the recording started to the session', async () => {
+    render(<TourRecordingHost />);
+    act(() => requestRecordTour('help-center'));
+    const session = await screen.findByText('Stub session');
+    expect(session).toHaveAttribute('data-origin', 'help-center');
+    fireEvent.click(session);
+    act(() => requestRecordTour());
+    expect(await screen.findByText('Stub session')).toHaveAttribute(
+      'data-origin',
+      'widget'
+    );
   });
 });

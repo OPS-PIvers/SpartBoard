@@ -83,6 +83,43 @@ describe('PublicTourPage', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
+  it('draws a Message step as words with no picture, and a divider where the tour changes site', async () => {
+    vi.stubGlobal(
+      'fetch',
+      respond(200, {
+        ...tour,
+        steps: [
+          ...tour.steps,
+          {
+            id: 's3',
+            title: 'Over to Claude',
+            text: 'Next we switch.',
+            onlyIfAppears: false,
+            observe: false,
+            picture: null,
+            message: true,
+          },
+          {
+            id: 's4',
+            title: 'Upload it',
+            text: 'Click Upload.',
+            onlyIfAppears: false,
+            observe: false,
+            picture: null,
+            continueOn: 'claude.ai',
+          },
+        ],
+      })
+    );
+    render(<PublicTourPage />);
+    expect(await screen.findByText('Over to Claude')).toBeInTheDocument();
+    expect(screen.getByText('Next we switch.')).toBeInTheDocument();
+    expect(screen.getAllByTestId('steps-article-step')).toHaveLength(4);
+    expect(screen.getByTestId('steps-site-switch')).toHaveTextContent(
+      'Continue on claude.ai'
+    );
+  });
+
   it('offers Start tour to staff whose extension can play web tours', async () => {
     ext.playable = true;
     vi.stubGlobal('fetch', respond(200, tour));

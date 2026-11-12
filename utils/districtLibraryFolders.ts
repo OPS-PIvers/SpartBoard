@@ -76,6 +76,15 @@ export const itemFolderId = (
   item: Pick<DistrictLibraryItem, 'folderId'>
 ): string | null => liveFolderId(folders, item.folderId);
 
+/** The audience of a folder chain with no audience set: nobody, as the admin view shows it. */
+export const NO_FOLDER_AUDIENCE: Readonly<FolderAudience> = {
+  everyone: false,
+  targetBuildings: [],
+  targetGrades: [],
+  targetEmails: [],
+  gradeBuildings: [],
+};
+
 /** The nearest folder from `folderId` up that has an audience. */
 export function folderAudienceFor(
   folders: FolderMap,

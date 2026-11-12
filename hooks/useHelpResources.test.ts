@@ -48,27 +48,29 @@ const makeAuthWrapper = (extra: Partial<AuthContextType> = {}) => {
 };
 
 const rawGlobalItem = {
-  kind: 'embed',
+  kind: 'guided-learning',
   title: 'Global item',
   categoryId: 'getting-started',
   order: 0,
   visible: true,
   orgId: null,
   widgetTypes: ['clock'],
-  url: 'https://example.com',
-  embedType: 'other',
+  url: null,
+  embedType: null,
+  setId: 'set-1',
 };
 
 const rawOrgItem = {
-  kind: 'embed',
+  kind: 'guided-learning',
   title: 'Org item',
   categoryId: 'admin',
   order: 0,
   visible: true,
   orgId: 'orono',
   widgetTypes: ['clock'],
-  url: 'https://example.com',
-  embedType: 'other',
+  url: null,
+  embedType: null,
+  setId: 'set-1',
 };
 
 describe('useHelpResources', () => {
@@ -211,6 +213,57 @@ describe('useHelpResources', () => {
     );
     await waitFor(() => expect(withHidden.current.loading).toBe(false));
     expect(withHidden.current.items).toHaveLength(1);
+  });
+
+  it('keeps Unfiled items and embeds from teachers but not from admins', async () => {
+    const unfiled = { ...rawGlobalItem, title: 'Unfiled', categoryId: '' };
+    const embed = {
+      ...rawGlobalItem,
+      title: 'Embed',
+      kind: 'embed',
+      setId: null,
+      url: 'https://example.com',
+      embedType: 'other',
+    };
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: { clauses?: unknown[] } | string,
+        onNext: (snap: { data?: () => unknown; docs?: unknown[] }) => void
+      ) => {
+        if (ref === 'help_center/config-ref') {
+          queueMicrotask(() => onNext({ data: () => undefined }));
+        } else {
+          queueMicrotask(() =>
+            onNext({
+              docs: [
+                { id: 'g1', data: () => rawGlobalItem },
+                { id: 'u1', data: () => unfiled },
+                { id: 'e1', data: () => embed },
+              ],
+            })
+          );
+        }
+        return () => undefined;
+      }
+    );
+
+    const { result: teacher } = renderHook(
+      () => useHelpResources({ includeHidden: false }),
+      { wrapper: makeAuthWrapper() }
+    );
+    await waitFor(() => expect(teacher.current.loading).toBe(false));
+    expect(teacher.current.items.map((i) => i.id)).toEqual(['g1']);
+
+    const { result: admin } = renderHook(
+      () => useHelpResources({ includeHidden: true }),
+      { wrapper: makeAuthWrapper() }
+    );
+    await waitFor(() => expect(admin.current.loading).toBe(false));
+    expect(admin.current.items.map((i) => i.id).sort()).toEqual([
+      'e1',
+      'g1',
+      'u1',
+    ]);
   });
 
   it('tolerates permission-denied on the org query and keeps global results', async () => {
@@ -372,6 +425,42 @@ describe('useHelpItemsForWidget', () => {
       expect(mockOnSnapshot).toHaveBeenCalled();
     });
     expect(result.current).toHaveLength(0);
+  });
+
+  it('keeps Hidden, Unfiled and embed items out of the shared teacher list', async () => {
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: { clauses: unknown[] },
+        onNext: (snap: { docs: unknown[] }) => void
+      ) => {
+        const [, , value] = ref.clauses[0] as [string, string, unknown];
+        const docs =
+          value === null
+            ? [
+                { id: 'w1', data: () => rawGlobalItem },
+                {
+                  id: 'h1',
+                  data: () => ({ ...rawGlobalItem, visible: false }),
+                },
+                {
+                  id: 'u1',
+                  data: () => ({ ...rawGlobalItem, categoryId: '' }),
+                },
+                { id: 'e1', data: () => ({ ...rawGlobalItem, kind: 'embed' }) },
+              ]
+            : [];
+        queueMicrotask(() => onNext({ docs }));
+        return () => undefined;
+      }
+    );
+
+    const { result } = renderHook(() => useHelpItemsForWidget('clock'), {
+      wrapper: makeAuthWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(result.current.map((i) => i.id)).toEqual(['w1'])
+    );
   });
 
   it('tears down the shared listener when the last subscriber unmounts', async () => {

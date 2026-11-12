@@ -15,7 +15,11 @@ import {
   type TourSurfaceDef,
 } from '@/config/tourSurfaces';
 import { TOUR_ANCHOR_SURFACES } from '@/config/tourAnchorSurfaces.generated';
-import { openerSurface, surfacePath } from '@/config/tourAnchorRoutes';
+import {
+  openerSurface,
+  surfaceShowing,
+  surfacePath,
+} from '@/config/tourAnchorRoutes';
 import {
   anchorKeys,
   anchorRenderFiles,
@@ -258,4 +262,20 @@ describe('tour surfaces', () => {
       });
     }
   );
+});
+
+describe('surfaceShowing', () => {
+  it('reads a list as open when another control on its surface shows', () => {
+    const shown = new Set(['plcs.new-plc']);
+    expect(
+      surfaceShowing('plcs.open-plc:plcs#row-*', (id) => shown.has(id))
+    ).toBe(true);
+    expect(surfaceShowing('plcs.open-plc:plcs#row-*', () => false)).toBe(false);
+    expect(
+      surfaceShowing(
+        'plcs.open-plc:plcs#row-*',
+        (id) => id === 'dock.open-tools'
+      )
+    ).toBe(false);
+  });
 });

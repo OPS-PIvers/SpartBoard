@@ -31,13 +31,13 @@ import {
   scoreVisibilityFromRules,
 } from '@/components/common/library/assignStepper/flashcardsRuleValues';
 import {
+  availabilityBackwards,
   resolveAvailability,
   type AssignAvailability,
 } from '@/utils/assignAvailability';
 import { periodAccessClassEdits } from '@/utils/periodPlan';
 import {
   assignmentWindowEdit,
-  windowBackwards,
   windowBaselineFor,
 } from '@/utils/assignmentWindowEdit';
 import {
@@ -97,8 +97,9 @@ export const FlashcardAssignmentSettingsModal: React.FC<
   );
   const perPeriod = hasPeriodAccess(assignment);
 
+  const windowKind = isCheck ? undefined : 'resource';
   const [baseline] = useState(() =>
-    windowBaselineFor(assignment, selectedRosters)
+    windowBaselineFor(assignment, selectedRosters, windowKind)
   );
   const [availability, setAvailability] = useState<AssignAvailability>(
     baseline.value
@@ -130,7 +131,12 @@ export const FlashcardAssignmentSettingsModal: React.FC<
         periodAccess: assignment.periodAccess ?? {},
         accessMode: assignment.accessMode,
         rosters: selectedRosters,
-        window: resolveAvailability(availability, selectedRosters, undefined),
+        window: resolveAvailability(
+          availability,
+          selectedRosters,
+          undefined,
+          windowKind
+        ),
       }),
     };
   };
@@ -142,6 +148,7 @@ export const FlashcardAssignmentSettingsModal: React.FC<
       baseline,
       availability,
       rosters: selectedRosters,
+      workKind: windowKind,
     });
     const rulesChanged = JSON.stringify(rules) !== JSON.stringify(initialRules);
     const visibility = scoreVisibilityFromRules(rules);
@@ -301,7 +308,11 @@ export const FlashcardAssignmentSettingsModal: React.FC<
       submitIcon={Save}
       onSubmit={handleSave}
       disabled={
-        windowBackwards(availability, selectedRosters) ||
+        availabilityBackwards(
+          { availability, workKind: windowKind },
+          selectedRosters,
+          undefined
+        ) ||
         (classesEditable &&
           initialClassIds.length > 0 &&
           selectedRosters.length === 0)

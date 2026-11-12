@@ -273,6 +273,7 @@ describe('district_library reads', () => {
     );
     for (const db of [asOutsider(), asStudent(), asAnon()]) {
       await assertFails(getDoc(doc(db, 'district_library_index/folders')));
+      await assertFails(getDoc(doc(db, 'district_library_index/audiences')));
     }
   });
 
@@ -402,6 +403,26 @@ describe('district_library writes', () => {
         items: {},
         updatedAt: 2,
       })
+    );
+    const others = [
+      asStudent(),
+      asAnon(),
+      asOutsider(),
+      as('building-admin-uid', BUILDING_ADMIN_EMAIL),
+    ];
+    for (const db of others) {
+      for (const id of ['folders', 'audiences']) {
+        await assertFails(
+          setDoc(doc(db, `district_library_index/${id}`), {
+            folders: {},
+            updatedAt: 3,
+          })
+        );
+        await assertFails(deleteDoc(doc(db, `district_library_index/${id}`)));
+      }
+    }
+    await assertSucceeds(
+      deleteDoc(doc(asAdmin(), 'district_library_index/folders'))
     );
   });
 });
@@ -630,6 +651,12 @@ describe('teacher bank links', () => {
     );
     await assertFails(
       getDoc(doc(asHigh(), `users/${MIDDLE_UID}/district_links/item-1`))
+    );
+    await assertFails(
+      setDoc(doc(asMiddle(), `users/${MIDDLE_UID}/district_links/item-1`), {
+        ...link,
+        folderId: 5,
+      })
     );
   });
 

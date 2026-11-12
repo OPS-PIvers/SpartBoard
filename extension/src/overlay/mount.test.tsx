@@ -342,6 +342,75 @@ describe('web tour states', () => {
     ).not.toBeNull();
   });
 
+  it('draws a Message step as a tip with Next and no spotlight or picture (X7)', () => {
+    captureShadow();
+    const onAction = vi.fn();
+    handle = mountOverlay(STYLED, onAction);
+    act(() =>
+      handle?.render({
+        ...state,
+        title: 'Welcome',
+        text: 'We start in Gemini.',
+        targetHere: false,
+        observe: true,
+        message: true,
+      })
+    );
+    const tip = shadow?.querySelector('[data-testid="tour-callout"]');
+    expect(tip?.textContent).toContain('Welcome');
+    expect(tip?.textContent).toContain('We start in Gemini.');
+    expect(shadow?.querySelector('[data-testid="tour-spotlight"]')).toBeNull();
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-picture"]')
+    ).toBeNull();
+    const next = shadow?.querySelector<HTMLButtonElement>(
+      '[data-testid="tour-tip-next"]'
+    );
+    expect(next?.textContent).toBe('Next');
+    act(() => next?.click());
+    expect(onAction).toHaveBeenCalledWith('next');
+  });
+
+  it('offers Go to the next site on a switch tip and on a message before a switch (X2, X6)', () => {
+    captureShadow();
+    const onAction = vi.fn();
+    handle = mountOverlay(STYLED, onAction);
+    act(() =>
+      handle?.render({
+        ...state,
+        title: '',
+        text: '',
+        status: 'switch',
+        targetHere: false,
+        go: 'claude.ai',
+      })
+    );
+    const tip = shadow?.querySelector('[data-testid="tour-callout"]');
+    expect(tip?.textContent).toContain('Next we continue on claude.ai');
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-other-page"]')
+    ).toBeNull();
+    const go = shadow?.querySelector<HTMLButtonElement>(
+      '[data-testid="tour-tip-next"]'
+    );
+    expect(go?.textContent).toBe('Go to claude.ai');
+    act(() => go?.click());
+    expect(onAction).toHaveBeenLastCalledWith('go');
+    act(() =>
+      handle?.render({
+        ...state,
+        title: 'Now Claude',
+        targetHere: false,
+        observe: true,
+        message: true,
+        go: 'claude.ai',
+      })
+    );
+    expect(
+      shadow?.querySelector('[data-testid="tour-tip-next"]')?.textContent
+    ).toBe('Go to claude.ai');
+  });
+
   it('draws only the spotlight in a frame that holds the target', () => {
     captureShadow();
     handle = mountOverlay(STYLED, vi.fn());

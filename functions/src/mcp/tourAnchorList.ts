@@ -11,6 +11,7 @@ export interface TourAnchorEntry {
   keys?: readonly string[];
   key_pattern?: string;
   key_hint?: string;
+  row_wildcard?: true;
   cycles?: string;
   opens_empty?: string;
   closes?: string;
@@ -1724,6 +1725,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board",
         "kind": "board",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "board.help-center-toast-open",
+    "label": "Open in Help Center button on the recorded-tour notice",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.tours",
+        "kind": "shared",
         "path": []
       }
     ]
@@ -6455,6 +6469,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "assign-availability.bell",
     "label": "Start or end of class button in the Assign window availability",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-modal",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-availability.open-ended",
+    "label": "Opens now or Available until manually ended choice in the Assign window",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -11947,6 +11974,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#banks"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-banks.district-preview",
+    "label": "Preview on a District library bank row in the Quiz library, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.banks",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#banks"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]
@@ -24882,6 +24936,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.card-open",
     "label": "Library item card body (open)",
     "scope": "field",
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -24895,6 +24950,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Primary action button on a library item card",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -24963,6 +25019,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Primary action button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.assignments",
@@ -25465,6 +25522,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Edit class button in My Classes",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25498,6 +25556,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Link to Google Classroom button in My Classes",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25531,6 +25590,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class actions menu in My Classes",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25547,6 +25607,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Course row in the Link to Google Classroom modal",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25565,6 +25626,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Open a team card in My Teams",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -25581,6 +25643,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Team actions kebab in My Teams",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -25597,6 +25660,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Edit/View PLC action in the PLC actions menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -27146,6 +27210,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-assessments.open",
     "label": "Open button in the PLC assessments tab",
     "scope": "field",
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27207,6 +27272,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Assign button in the PLC assessments tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27228,6 +27294,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Menu button in the PLC assessments tab",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "plc.assessments",
@@ -35341,12 +35408,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       },
@@ -35893,26 +35961,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.add-item",
-    "label": "Add item button in Help Center admin",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.sort-by-opens",
-    "label": "Sort by opens button in Help Center admin",
+    "label": "New button in Help Center admin",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -35931,7 +35980,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.item-toggle",
-    "label": "Visible switch on a Help Center admin item",
+    "label": "Publish or Hide button on the selected Help Center item",
     "scope": "field",
     "panel": true,
     "persists": true,
@@ -35951,7 +36000,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.item-edit",
-    "label": "Edit button on a Help Center admin item",
+    "label": "Edit button on the selected Help Center item",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -35970,7 +36019,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.item-delete",
-    "label": "Delete button on a Help Center admin item",
+    "label": "Delete button on the selected Help Center item",
     "scope": "field",
     "panel": true,
     "destructive": true,
@@ -35989,66 +36038,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "admin.help-center.item-web-change",
-    "label": "Change link button on a Help Center admin item that links a web tour",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.item-web-remove",
-    "label": "Remove button on a Help Center admin item that links a web tour",
-    "scope": "field",
-    "panel": true,
-    "destructive": true,
-    "routes": [
-      {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.category-toggle",
-    "label": "Category collapse button in Help Center admin",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.category-name",
-    "label": "New category name box in Help Center admin",
+    "id": "admin.help-center.search",
+    "label": "Search box in Help Center admin",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -36066,8 +36057,186 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "admin.help-center.category-add",
-    "label": "Add category button in Help Center admin",
+    "id": "admin.help-center.show",
+    "label": "Show select in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.categories",
+    "label": "Categories button in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.web-tours-link",
+    "label": "Web tours link in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.new-record-tour",
+    "label": "Record a Live tour in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item"
+        ],
+        "reveal": "admin.help-center.add-item",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.new-move",
+    "label": "Move from library in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item"
+        ],
+        "reveal": "admin.help-center.add-item",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.new-picture-guide",
+    "label": "New Picture guide in the Help Center New menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item"
+        ],
+        "reveal": "admin.help-center.add-item",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.item-row",
+    "label": "Item row in the Help Center admin list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.item-drag",
+    "label": "Drag handle on a Help Center admin item",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.detail-back",
+    "label": "Back button on the Help Center item detail (phone)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.detail-title",
+    "label": "Title box on the selected Help Center item",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -36086,6 +36255,315 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.detail-description",
+    "label": "Description box on the selected Help Center item",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.detail-category",
+    "label": "Category select on the selected Help Center item",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.detail-scope",
+    "label": "Scope select on the selected Help Center item",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.view-steps",
+    "label": "View steps button on the selected Live tour",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.copy-to-library",
+    "label": "Copy to my library button on the selected Picture guide",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.move-search",
+    "label": "Search box in Move from library",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.move",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item",
+          "admin.help-center.new-move"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.move-type",
+    "label": "Type select in Move from library",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.move",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item",
+          "admin.help-center.new-move"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.move-owner",
+    "label": "Owner select in Move from library",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.move",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item",
+          "admin.help-center.new-move"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.move-pick",
+    "label": "Checkbox on a guide in Move from library",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.move",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item",
+          "admin.help-center.new-move"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.move-cancel",
+    "label": "Cancel button in Move from library",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.move",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item",
+          "admin.help-center.new-move"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.move-confirm",
+    "label": "Move button in Move from library",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.move",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.add-item",
+          "admin.help-center.new-move"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.category-reorder",
+    "label": "Drag handle on a Help Center category",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.categories-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.categories"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.category-rename",
+    "label": "Name box on a Help Center category",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.categories-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.categories"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.category-name",
+    "label": "New category name box in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.categories-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.categories"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.category-add",
+    "label": "Add category button in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.categories-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.categories"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.category-delete",
     "label": "Delete button on a Help Center admin category",
     "scope": "field",
@@ -36093,70 +36571,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "destructive": true,
     "routes": [
       {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.tour-health-toggle",
-    "label": "Tour health section button in Help Center admin",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.record-tour",
-    "label": "Record tour button in Help Center admin",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.tour-health",
-        "kind": "panel",
+        "surface": "admin.help-center.categories-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.record-web-tour",
-    "label": "Record web tour button in Help Center admin",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.tour-health",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
+          "admin.help-center.categories"
         ],
         "needs": [
           "admin"
@@ -36166,7 +36586,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.check-live",
-    "label": "Check live button in Help Center admin",
+    "label": "Check live button in a Live tour's Help Center health",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -36176,7 +36596,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
+          "admin.help-center.show"
         ],
         "needs": [
           "admin"
@@ -36186,7 +36606,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.edit-step",
-    "label": "Edit step button in the tour health table",
+    "label": "Edit button on a step in a Live tour's Help Center health",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -36196,7 +36616,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
+          "admin.help-center.show"
         ],
         "needs": [
           "admin"
@@ -36211,13 +36631,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "admin.help-center.tour-health",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
-        ],
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
         "needs": [
           "admin"
         ]
@@ -36236,7 +36653,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
+          "admin.help-center.show"
         ],
         "needs": [
           "admin"
@@ -36257,7 +36674,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
+          "admin.help-center.show"
         ],
         "needs": [
           "admin"
@@ -36278,289 +36695,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#help-center",
-          "admin.help-center.tour-health-toggle"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.keep-all-in-help",
-    "label": "Keep all in Help button for linked library sets",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.keep-in-help",
-    "label": "Keep in Help button for a linked library set",
-    "scope": "field",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "admin.help-center",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.form-visible",
-    "label": "Visible to teachers switch in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.form-title",
-    "label": "Title box in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.form-category",
-    "label": "Category select in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.form-description",
-    "label": "Description box in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.form-cancel",
-    "label": "Cancel button in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.form-save",
-    "label": "Save button in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.gl-open-editor",
-    "label": "Open editor button for the chosen activity",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.gl-change",
-    "label": "Change button for the chosen activity",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.gl-choose",
-    "label": "Choose activity button in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.gl-new",
-    "label": "New activity button in the Help item form",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.gl-search",
-    "label": "Search box in the activity menu",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
-        ],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "admin.help-center.gl-option",
-    "label": "Activity row in the activity menu",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
+          "admin.help-center.show"
         ],
         "needs": [
           "admin"
@@ -46872,17 +47007,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.help-center.related-widgets",
-    "label": "Related widgets picker in Help Center item form",
+    "label": "Widgets picker on the selected Help Center item",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "admin.help-center.item-form",
-        "kind": "modal",
+        "surface": "admin.help-center",
+        "kind": "panel",
         "path": [
           "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.add-item"
+          "admin.settings.tab:admin#help-center"
         ],
         "needs": [
           "admin"
@@ -54035,14 +54169,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.tab-settings"
         ],
         "reveal": "web-tour-editor.tab-settings",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54056,12 +54188,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54076,14 +54209,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54097,12 +54228,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54116,12 +54248,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54208,6 +54341,86 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.new",
+    "label": "New web tour button on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.edit",
+    "label": "Edit button for a web tour on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.check",
+    "label": "Check tour button for a web tour on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.play",
+    "label": "Play button for a published web tour on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.copy-link",
+    "label": "Copy link button for a web tour on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
     "scope": "board",
@@ -54215,14 +54428,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.tab-settings"
         ],
         "reveal": "web-tour-editor.tab-settings",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54236,12 +54447,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54256,14 +54468,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54277,12 +54487,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54296,12 +54507,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54316,12 +54528,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54338,14 +54551,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54359,12 +54570,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54380,14 +54592,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.menu"
         ],
         "reveal": "web-tour-editor.menu",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54401,12 +54611,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.add-message",
+    "label": "Add a message button under the web tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "path": [
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
+        "needs": [
           "admin"
         ]
       }
@@ -54420,12 +54651,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54439,12 +54671,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54458,12 +54691,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54477,12 +54711,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item"
+          "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54497,14 +54732,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54519,14 +54752,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54541,14 +54772,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54563,14 +54792,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54585,14 +54812,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54607,14 +54832,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54629,14 +54852,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54652,14 +54873,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54674,14 +54893,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture-markup"
         ],
         "reveal": "web-tour-editor.picture-markup",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54696,14 +54913,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54719,14 +54934,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "board.web-tour-editor",
         "kind": "editor",
-        "widget_type": "guided-learning",
         "path": [
-          "library-shell.secondary-menu-item",
+          "web-tours.new",
           "web-tour-editor.picture"
         ],
         "reveal": "web-tour-editor.picture",
         "needs": [
-          "widget-on-stage",
           "admin"
         ]
       }
@@ -54761,6 +54974,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1"
         ],
         "reveal": "library-shell.card-open:guided-learning#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-manager.open-in-help-center",
+    "label": "Open in Help Center button on the moved-to-Help-Center notice",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.face",
+        "kind": "widget",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-menu:guided-learning#row-1"
+        ],
+        "reveal": "library-shell.card-menu:guided-learning#row-1",
         "needs": [
           "widget-on-stage"
         ]

@@ -253,4 +253,21 @@ describe('HelpResourceViewer live tours', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('player')).not.toBeInTheDocument();
   });
+
+  it('never frames a retired embed', () => {
+    const embed = {
+      ...item,
+      kind: 'embed',
+      setId: null,
+      url: 'https://www.youtube.com/watch?v=abc123defgh',
+      embedType: 'youtube',
+    } as unknown as HelpResourceItem;
+    render(<HelpResourceViewer item={embed} onBack={vi.fn()} />);
+    expect(document.querySelector('iframe')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(
+      screen.getByText('This activity is no longer available')
+    ).toBeInTheDocument();
+    expect(h.loadBuildingSet).not.toHaveBeenCalled();
+  });
 });

@@ -1,29 +1,19 @@
-import React, {
-  lazy,
-  Suspense,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   CheckCircle2,
-  Circle,
-  Globe,
   Loader2,
   OctagonAlert,
   PanelTopOpen,
   Radar,
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
-import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
+import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import { TOOLS } from '@/config/tools';
-import { requestRecordTour } from '@/components/tours/tourState';
 import { loadPublishedTour } from '@/components/tours/publishedTours';
 import { loadTourRuns } from '@/components/tours/tourRuns';
 import {
@@ -38,32 +28,10 @@ import {
   type TourFieldStats,
   type TourHealthState,
 } from '@/components/tours/tourHealth';
-import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
-import { WebTourHealthSection } from './WebTourHealthSection';
-import { AuthContext } from '@/context/AuthContextValue';
-import { createWebTourDraft } from '@/components/tours/webTours';
-import { logError } from '@/utils/logError';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
-import {
-  isLiveTourSet,
-  isWebTourSet,
-} from '@/components/widgets/GuidedLearning/utils/liveTour';
-
-const GuidedLearningStudio = lazy(() =>
-  import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
-    (m) => ({ default: m.GuidedLearningStudio })
-  )
-);
-
-const WebTourEditor = lazy(() =>
-  import('@/components/tours/web/WebTourEditor').then((m) => ({
-    default: m.WebTourEditor,
-  }))
-);
+import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 
 interface LoadedTour {
-  /** The saved set, which the Studio edits. */
-  draft: GuidedLearningSet;
   /** What teachers run: the published snapshot, or the saved set before its first publish. */
   runs: GuidedLearningSet;
   published: boolean;
@@ -127,37 +95,28 @@ async function loadTour(id: string): Promise<LoadedTour | null> {
     return null;
   const version = published?.publishedAt ?? draft.updatedAt;
   return {
-    draft,
     runs: published?.set ?? draft,
     published: !!published,
     field: runs ? fieldStatsOf(runs, version) : null,
   };
 }
 
-/** Admin view of every live tour's health: OK, needs a widget or panel open, or broken. */
-const TourHealthPanel: React.FC = () => {
+interface TourHealthPanelProps {
+  setId: string;
+  /** The set's last save; a change reloads its health. */
+  updatedAt?: number;
+}
+
+/** One Live tour's health in the Help Center detail pane: state, real runs and each step's verdict (H18). */
+const TourHealthPanel: React.FC<TourHealthPanelProps> = ({
+  setId,
+  updatedAt,
+}) => {
   const { t } = useTranslation();
-  const { buildingSets, buildingLoading, saveBuildingSet } =
-    useGuidedLearning(undefined);
-  const [live, setLive] = useState<Map<string, boolean> | null>(null);
-  // Held once, so a snapshot after an autosave doesn't hand the Studio a new set.
-  const [studio, setStudio] = useState<{
-    set: GuidedLearningSet;
-    stepId: string;
+  const [live, setLive] = useState<{
+    key: string;
+    found: Map<string, boolean>;
   } | null>(null);
-  const canCreateWebTour =
-    useContext(AuthContext)?.canAccessFeature('web-tours') ?? false;
-  const [webTour, setWebTour] = useState<GuidedLearningSet | null>(null);
-  const [webTourFailed, setWebTourFailed] = useState(false);
-  const createWebTour = async () => {
-    setWebTourFailed(false);
-    try {
-      setWebTour(await createWebTourDraft());
-    } catch (err) {
-      logError('TourHealthPanel.createWebTour', err);
-      setWebTourFailed(true);
-    }
-  };
 
   const rosters = useContext(DashboardContext)?.rosters;
   const matcher = useMemo(
@@ -165,53 +124,22 @@ const TourHealthPanel: React.FC = () => {
     [rosters]
   );
 
-  // The index says which sets have tours; only those are fetched, with their snapshot and runs.
-  const tourKey = buildingSets
-    .filter((entry) => entry.hasLiveTour)
-    .map((entry) => `${entry.id}@${entry.updatedAt}`)
-    .join(',');
+  const loadKey = `${setId}@${updatedAt ?? ''}`;
   const [loaded, setLoaded] = useState<{
     key: string;
-    tours: LoadedTour[];
+    tour: LoadedTour | null;
   } | null>(null);
   useEffect(() => {
-    if (buildingLoading) return;
     let cancelled = false;
-    const ids = tourKey ? tourKey.split(',').map((k) => k.split('@')[0]) : [];
-    void Promise.all(ids.map(loadTour)).then((tours) => {
-      if (!cancelled) {
-        setLoaded({
-          key: tourKey,
-          tours: tours.filter((x): x is LoadedTour => !!x),
-        });
-      }
+    void loadTour(setId).then((tour) => {
+      if (!cancelled) setLoaded({ key: loadKey, tour });
     });
     return () => {
       cancelled = true;
     };
-  }, [tourKey, buildingLoading]);
+  }, [setId, loadKey]);
 
-  const tours = (loaded?.tours ?? [])
-    .map((tour) => ({ ...tour, steps: tourHealthOf(tour.runs) }))
-    .filter((tour) => tour.steps.length > 0);
-
-  const titles = new Map(buildingSets.map((entry) => [entry.id, entry.title]));
-  const openStep = async (setId: string, stepId: string) => {
-    const set =
-      loaded?.tours.find((tour) => tour.draft.id === setId)?.draft ??
-      (await loadBuildingSet(setId).catch(() => null));
-    if (!set) return;
-    // Tours open in the board editor; the Studio stays for ordinary sets.
-    if (isLiveTourSet(set)) requestEditTour({ setId, stepId });
-    else setStudio({ set: { ...set, isBuilding: true }, stepId });
-  };
-
-  const checkLive = () =>
-    setLive(
-      checkAnchorsLive(tours.flatMap((tour) => tour.steps.map((h) => h.step)))
-    );
-
-  if (buildingLoading || loaded?.key !== tourKey) {
+  if (loaded?.key !== loadKey) {
     return (
       <p className="flex items-center gap-2 text-sm text-slate-500">
         <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -220,224 +148,141 @@ const TourHealthPanel: React.FC = () => {
     );
   }
 
+  const tour = loaded.tour;
+  if (!tour) return null;
+  const { runs: set, published, field } = tour;
+  const steps = tourHealthOf(set);
+  if (steps.length === 0) return null;
+
+  // A check from before the set changed would mark the wrong steps.
+  const found = live?.key === loadKey ? live.found : undefined;
+  const title = set.title || t('tourHealth.untitledSet');
+  const verdicts = steps.map((h) =>
+    stepVerdict(h, set.tourSetup, field, found?.get(h.step.id))
+  );
+  const state = worstState(verdicts.map((v) => v.state));
+
+  const checkLive = () =>
+    setLive({
+      key: loadKey,
+      found: checkAnchorsLive(steps.map((h) => h.step)),
+    });
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">{t('tourHealth.intro')}</p>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={requestRecordTour}
-            {...tourAttr('admin.help-center.record-tour')}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
+    <section aria-label={title} className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="min-w-0">
+          <span
+            data-testid="tour-state"
+            className="flex items-center gap-1 text-sm font-semibold text-slate-800"
           >
-            <Circle className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
-            {t('tourHealth.recordTour')}
-          </button>
-          {canCreateWebTour && (
-            <button
-              type="button"
-              onClick={() => void createWebTour()}
-              {...tourAttr('admin.help-center.record-web-tour')}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
-            >
-              <Globe className="w-3.5 h-3.5" aria-hidden="true" />
-              {t('tourHealth.recordWebTour')}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={checkLive}
-            {...tourAttr('admin.help-center.check-live')}
-            disabled={tours.length === 0}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            <Radar className="w-4 h-4" aria-hidden="true" />
-            {t('tourHealth.checkLive')}
-          </button>
+            <StateIcon state={state} />
+            {t(STATE_KEY[state])}
+          </span>
+          <p className="text-xs text-slate-500">
+            {published
+              ? t('tourHealth.published')
+              : t('tourHealth.notPublished')}
+            {' · '}
+            {field
+              ? t('tourHealth.runSummary', {
+                  runs: field.runs,
+                  done: field.done,
+                })
+              : t('tourHealth.runsUnavailable')}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={checkLive}
+          {...tourAttr('admin.help-center.check-live')}
+          className="flex shrink-0 items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
+        >
+          <Radar className="w-4 h-4" aria-hidden="true" />
+          {t('tourHealth.checkLive')}
+        </button>
       </div>
 
-      {webTourFailed && (
-        <p role="alert" className="text-sm text-red-700">
-          {t('tourHealth.recordWebTourFailed')}
-        </p>
-      )}
-
-      <UnmappedAnchorsSection
-        titles={titles}
-        onOpenStep={(setId, stepId) => void openStep(setId, stepId)}
-        loadSet={loadBuildingSet}
-        saveSet={saveBuildingSet}
-      />
-
-      {tours.length === 0 && (
-        <p className="text-sm text-slate-500">{t('tourHealth.empty')}</p>
-      )}
-
-      {tours.map(({ draft, runs: set, published, field, steps }) => {
-        const title = set.title || t('tourHealth.untitledSet');
-        const verdicts = steps.map((h) =>
-          stepVerdict(h, set.tourSetup, field, live?.get(h.step.id))
-        );
-        const state = worstState(verdicts.map((v) => v.state));
-        return (
-          <section
-            key={draft.id}
-            aria-label={title}
-            className="border border-slate-200 rounded-lg bg-white"
-          >
-            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 border-b border-slate-100">
-              <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-slate-900">
-                  {title}
-                </h4>
-                <p className="text-xs text-slate-500">
-                  {published
-                    ? t('tourHealth.published')
-                    : t('tourHealth.notPublished')}
-                  {' · '}
-                  {field
-                    ? t('tourHealth.runSummary', {
-                        runs: field.runs,
-                        done: field.done,
-                      })
-                    : t('tourHealth.runsUnavailable')}
+      <ol className="divide-y divide-slate-100 text-xs">
+        {steps.map(({ step, number }, i) => {
+          const { state: stepState, reason } = verdicts[i];
+          const onScreen = found?.get(step.id);
+          const warning = valueWarning(step.tour, matcher);
+          const stepTitle = step.label?.trim()
+            ? step.label
+            : t('tourHealth.untitledStep');
+          return (
+            <li
+              key={step.id}
+              data-testid="tour-step"
+              className="flex items-start gap-3 py-2"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-slate-800">
+                  {number}. {stepTitle}
                 </p>
+                <p className="font-mono text-slate-500 break-all">
+                  {step.tour.anchor}
+                </p>
+                <p className="flex flex-wrap items-center gap-x-2 text-slate-700">
+                  <span className="flex items-center gap-1 font-semibold">
+                    <StateIcon state={stepState} />
+                    {t(STATE_KEY[stepState])}
+                  </span>
+                  <span className="text-slate-500">
+                    {onScreen === undefined
+                      ? t('tourHealth.notChecked')
+                      : onScreen
+                        ? t('tourHealth.found')
+                        : t('tourHealth.notFound')}
+                  </span>
+                </p>
+                {reason && (
+                  <p className="text-slate-500">
+                    {t(REASON_KEY[reason], {
+                      misses: field?.misses.get(step.id) ?? 0,
+                      runs: field?.runs ?? 0,
+                      widgets: widgetNames(set),
+                    })}
+                  </p>
+                )}
+                {warning && (
+                  <p
+                    data-testid="tour-value-warning"
+                    className="flex items-center gap-1 font-semibold text-amber-800"
+                  >
+                    <AlertTriangle
+                      className="w-3.5 h-3.5 shrink-0 text-amber-600"
+                      aria-hidden="true"
+                    />
+                    {t(VALUE_WARNING_KEY[warning])}
+                  </p>
+                )}
               </div>
-              <span
-                data-testid="tour-state"
-                className="flex items-center gap-1 text-xs font-semibold text-slate-700"
+              <button
+                type="button"
+                {...tourFieldAttr(
+                  'admin.help-center.edit-step',
+                  'help',
+                  step.id
+                )}
+                onClick={() =>
+                  requestEditTour({
+                    setId,
+                    stepId: step.id,
+                    origin: 'help-center',
+                  })
+                }
+                aria-label={t('tourHealth.editStepLabel', { number, title })}
+                className="shrink-0 rounded-md px-2 py-1 font-semibold text-brand-blue-primary hover:bg-slate-100"
               >
-                <StateIcon state={state} />
-                {t(STATE_KEY[state])}
-              </span>
-            </header>
-            <table className="w-full text-left text-xs">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="px-3 py-1.5 font-semibold">
-                    {t('tourHealth.colStep')}
-                  </th>
-                  <th className="px-3 py-1.5 font-semibold">
-                    {t('tourHealth.colAnchor')}
-                  </th>
-                  <th className="px-3 py-1.5 font-semibold">
-                    {t('tourHealth.colStatus')}
-                  </th>
-                  <th className="px-3 py-1.5 font-semibold">
-                    {t('tourHealth.colOnScreen')}
-                  </th>
-                  <th className="px-3 py-1.5">
-                    <span className="sr-only">
-                      {t('tourHealth.colActions')}
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {steps.map(({ step, number }, i) => {
-                  const { state: stepState, reason } = verdicts[i];
-                  const found = live?.get(step.id);
-                  const warning = valueWarning(step.tour, matcher);
-                  const stepTitle = step.label?.trim()
-                    ? step.label
-                    : t('tourHealth.untitledStep');
-                  return (
-                    <tr key={step.id} className="border-t border-slate-100">
-                      <td className="px-3 py-1.5 text-slate-700">
-                        {number}. {stepTitle}
-                      </td>
-                      <td className="px-3 py-1.5 font-mono text-slate-600">
-                        {step.tour.anchor}
-                      </td>
-                      <td className="px-3 py-1.5 text-slate-700">
-                        <span className="flex items-center gap-1 font-semibold">
-                          <StateIcon state={stepState} />
-                          {t(STATE_KEY[stepState])}
-                        </span>
-                        {reason && (
-                          <span className="block text-slate-500">
-                            {t(REASON_KEY[reason], {
-                              misses: field?.misses.get(step.id) ?? 0,
-                              runs: field?.runs ?? 0,
-                              widgets: widgetNames(set),
-                            })}
-                          </span>
-                        )}
-                        {warning && (
-                          <span
-                            data-testid="tour-value-warning"
-                            className="mt-0.5 flex items-center gap-1 font-semibold text-amber-800"
-                          >
-                            <AlertTriangle
-                              className="w-3.5 h-3.5 shrink-0 text-amber-600"
-                              aria-hidden="true"
-                            />
-                            {t(VALUE_WARNING_KEY[warning])}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-1.5 text-slate-700">
-                        {found === undefined
-                          ? t('tourHealth.notChecked')
-                          : found
-                            ? t('tourHealth.found')
-                            : t('tourHealth.notFound')}
-                      </td>
-                      <td className="px-3 py-1.5 text-right">
-                        <button
-                          type="button"
-                          {...tourFieldAttr(
-                            'admin.help-center.edit-step',
-                            'help',
-                            step.id
-                          )}
-                          onClick={() =>
-                            requestEditTour({
-                              setId: draft.id,
-                              stepId: step.id,
-                            })
-                          }
-                          aria-label={t('tourHealth.editStepLabel', {
-                            number,
-                            title,
-                          })}
-                          className="rounded-md px-2 py-1 font-semibold text-brand-blue-primary hover:bg-slate-100"
-                        >
-                          {t('tourHealth.editStep')}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </section>
-        );
-      })}
-
-      <WebTourHealthSection />
-
-      {webTour && (
-        <Suspense fallback={null}>
-          <WebTourEditor initial={webTour} onClose={() => setWebTour(null)} />
-        </Suspense>
-      )}
-
-      {studio && (
-        <Suspense fallback={null}>
-          <GuidedLearningStudio
-            key={studio.set.id}
-            set={studio.set}
-            meta={null}
-            initialStepId={studio.stepId}
-            onClose={() => setStudio(null)}
-            onSave={(next, _driveFileId, guard) => saveBuildingSet(next, guard)}
-          />
-        </Suspense>
-      )}
-    </div>
+                {t('tourHealth.editStep')}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 };
 

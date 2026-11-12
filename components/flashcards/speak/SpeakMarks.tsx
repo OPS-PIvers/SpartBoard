@@ -68,8 +68,9 @@ export const SpeakMarks: React.FC<SpeakMarksProps> = ({
       aria-label={label(mark)}
       aria-expanded={openId === mark.id}
       title={t('flashcards.speak.verdict.showHint')}
+      // Inline target (WCAG 2.5.8 exception): touch-target-expand here would cover the neighbouring letters.
       className={cx(
-        'touch-target-expand mx-[0.05em] inline-flex items-center justify-center rounded-full border align-super font-black leading-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
+        'mx-[0.05em] inline-flex items-center justify-center rounded-full border align-super font-black leading-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
         mark.emphasised
           ? dark
             ? 'border-rose-300 text-rose-100'

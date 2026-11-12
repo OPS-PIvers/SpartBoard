@@ -9,9 +9,9 @@ export const appOrigin = (): string =>
 export const publicTourLink = (token: string): string =>
   `${appOrigin()}/tour-steps/${token}`;
 
-/** The board with a web tour open in its editor (`WebTourEditorHost`). */
-export const editTourLink = (setId: string): string => {
-  const url = new URL(appOrigin());
-  url.searchParams.set('edit-web-tour', setId);
+/** The Web tours page, with `setId` open in its editor when given (`EDIT_WEB_TOUR_PARAM`). */
+export const webToursUrl = (setId?: string, origin = appOrigin()): string => {
+  const url = new URL('/web-tours', origin);
+  if (setId) url.searchParams.set('edit-web-tour', setId);
   return url.toString();
 };

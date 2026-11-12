@@ -9,7 +9,7 @@ import {
 } from '@/components/common/lightChrome';
 import { StepsView } from '@/components/tours/steps/StepsView';
 import { STEPS_LABELS_EN } from '@/components/tours/steps/stepsModel';
-import { editTourLink, publicTourLink } from '../appOrigin';
+import { publicTourLink, webToursUrl } from '../appOrigin';
 import type { ListedTour } from '../tourList';
 import type { TourStepsReply } from '../tourSteps';
 import { FAILURE_TEXT } from './failureText';
@@ -132,7 +132,7 @@ export const TourStepsPane: React.FC<{
               type="button"
               className={`${secondaryBtn} inline-flex items-center gap-1.5 border border-slate-200`}
               onClick={() =>
-                void chrome.tabs.create({ url: editTourLink(tour.id) })
+                void chrome.tabs.create({ url: webToursUrl(tour.id) })
               }
             >
               <Pencil className="h-4 w-4" aria-hidden="true" />

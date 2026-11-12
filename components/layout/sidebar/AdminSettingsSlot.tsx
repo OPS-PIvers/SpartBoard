@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { loadAdminSettings } from './adminSettingsLoader';
+import type { AdminSettingsTabRequest } from '@/components/admin/AdminSettings';
 
 // Lazy: AdminSettings pulls in recharts + the admin surface (~1.2MB) but only admins open it.
 const AdminSettings = React.lazy(() =>
@@ -19,9 +20,10 @@ const Spinner: React.FC<{ label: string }> = ({ label }) => (
   </div>
 );
 
-export const AdminSettingsSlot: React.FC<{ onClose: () => void }> = ({
-  onClose,
-}) => {
+export const AdminSettingsSlot: React.FC<{
+  onClose: () => void;
+  tabRequest?: AdminSettingsTabRequest;
+}> = ({ onClose, tabRequest }) => {
   const { t } = useTranslation();
   const loadingLabel = t('sidebar.header.adminSettingsLoading');
   return (
@@ -65,7 +67,7 @@ export const AdminSettingsSlot: React.FC<{ onClose: () => void }> = ({
       }
     >
       <React.Suspense fallback={<Spinner label={loadingLabel} />}>
-        <AdminSettings onClose={onClose} />
+        <AdminSettings onClose={onClose} tabRequest={tabRequest} />
       </React.Suspense>
     </LazyChunkErrorBoundary>
   );

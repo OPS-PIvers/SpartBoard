@@ -119,6 +119,15 @@ describe('teacherMustClick', () => {
     ).toBe(true);
   });
 
+  it('leaves a wildcard row click that persists to the teacher under every policy', () => {
+    const ref = 'plc-assessments.assign:plc#row-*';
+    for (const p of ['tour-safe', 'destructive-only', 'confirm'] as const)
+      expect(autopilotGate({ anchor: ref }, p, true), p).toBe('teacher');
+    expect(
+      autopilotGate({ anchor: 'plcs.open-plc:plcs#row-*' }, 'confirm')
+    ).toBe('perform');
+  });
+
   it('confirm asks before destructive and persists anchors and blocks nothing else', () => {
     const p = 'confirm';
     expect(autopilotGate({ anchor: 'widget.close' }, p)).toBe('confirm');

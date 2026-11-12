@@ -53,6 +53,7 @@ import {
 import { BlurBoxes } from '@/components/tours/web/BlurBoxes';
 import { cropScreenshot, finishPicture } from './pictures';
 import { loadUnsent, saveUnsent, type PanelStep, type Unsent } from './unsent';
+import { webToursUrl } from '../appOrigin';
 
 const KEEP_ALIVE_MS = 20_000;
 const SAVE_DELAY_MS = 400;
@@ -603,9 +604,7 @@ export const SidePanel: React.FC = () => {
   const openSaved = async () => {
     const saved = intake?.saved;
     if (!saved) return;
-    const url = new URL(saved.origin);
-    url.searchParams.set('edit-web-tour', saved.setId);
-    await chrome.tabs.create({ url: url.toString() });
+    await chrome.tabs.create({ url: webToursUrl(saved.setId, saved.origin) });
     await send({ type: 'rec/intakeIdle' });
   };
 

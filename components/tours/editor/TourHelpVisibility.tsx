@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { doc, updateDoc } from 'firebase/firestore';
 import { CheckCircle2, Eye, EyeOff } from 'lucide-react';
-import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useHelpResources } from '@/hooks/useHelpResources';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import { logError } from '@/utils/logError';
+import { publishHelpItem } from '@/utils/helpCenterItems';
 import {
-  buildVisibilityPayload,
-  HELP_RESOURCES_COLLECTION,
-} from '@/components/admin/HelpCenter/helpCenterAdmin';
+  HELP_PUBLISH_REFUSAL_TEXT,
+  type HelpPublishRefusal,
+} from '@/types/helpCenter';
 import { secondaryBtn } from '@/components/tours/tourButtons';
 
 /** Whether teachers can find this Help Center tour in Help, with a one-click Show in Help. */
@@ -32,6 +31,7 @@ export const TourHelpVisibility: React.FC<{
   });
   const [showing, setShowing] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [refused, setRefused] = useState<HelpPublishRefusal | null>(null);
 
   if (loading) return null;
   const linked = items.filter(
@@ -42,15 +42,15 @@ export const TourHelpVisibility: React.FC<{
   const showInHelp = async () => {
     setShowing(true);
     setFailed(false);
+    setRefused(null);
     try {
-      await Promise.all(
-        hidden.map((item) =>
-          updateDoc(
-            doc(db, HELP_RESOURCES_COLLECTION, item.id),
-            buildVisibilityPayload(true)
-          )
-        )
+      if (!user) return;
+      // Same Publish as the Help Center, so an Unfiled item or failing step is refused here too.
+      const results = await Promise.all(
+        hidden.map((item) => publishHelpItem(item, user.uid))
       );
+      const refusal = results.find((r) => !r.ok);
+      if (refusal && !refusal.ok) setRefused(refusal.reason);
     } catch (err) {
       logError('TourHelpVisibility', err, { setId });
       setFailed(true);
@@ -102,6 +102,11 @@ export const TourHelpVisibility: React.FC<{
             ? t('glStudio.tourPublish.help_showing')
             : t('glStudio.tourPublish.help_show')}
         </button>
+      )}
+      {refused && (
+        <p role="alert" className="text-xs text-slate-600">
+          {HELP_PUBLISH_REFUSAL_TEXT[refused]}
+        </p>
       )}
       {failed && (
         <p

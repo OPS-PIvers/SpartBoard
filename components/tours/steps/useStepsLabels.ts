@@ -14,6 +14,7 @@ export function useStepsLabels(): StepsLabels {
       stepNumber: (number) => t('tourSteps.stepNumber', { number }),
       onlyIfAppears: t('tourSteps.onlyIfAppears'),
       untitledStep: t('tourSteps.untitledStep'),
+      continueOn: (host) => t('tourSteps.continueOn', { host }),
       pictureAlt: (number) => t('tourSteps.pictureAlt', { number }),
       pictureLoading: t('tourSteps.pictureLoading'),
       noPicture: t('tourSteps.noPicture'),

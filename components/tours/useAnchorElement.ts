@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { GuidedLearningTourBinding } from '@/types';
+import { isRowWildcardRef } from '@/config/tourAnchors';
 import {
   anchorInView,
+  clipBox,
   findTourAnchor,
+  findTourAnchors,
   isAnchorReachable,
   scrollParent,
   type TourAnchorScope,
@@ -42,9 +45,41 @@ export interface AnchorState {
   status: 'idle' | 'searching' | 'found' | 'missing';
   /** A settings-drawer anchor that has been scrolled to the drawer's centre. */
   centred?: boolean;
+  /** Every row a `#row-*` step can take, `element` first; `rect` then covers them all. */
+  matches?: readonly HTMLElement[];
 }
 
 const IDLE: AnchorState = { element: null, rect: null, status: 'idle' };
+
+const sameMatches = (
+  a: readonly HTMLElement[] | undefined,
+  b: readonly HTMLElement[] | undefined
+) =>
+  a === b ||
+  (!!a && !!b && a.length === b.length && a.every((el, i) => el === b[i]));
+
+/** The smallest box around every rect. */
+const unionRect = (rects: readonly DOMRect[]): DOMRect => {
+  const left = Math.min(...rects.map((r) => r.left));
+  const top = Math.min(...rects.map((r) => r.top));
+  const right = Math.max(...rects.map((r) => r.right));
+  const bottom = Math.max(...rects.map((r) => r.bottom));
+  return new DOMRect(left, top, right - left, bottom - top);
+};
+
+/** The part of an element its scrolling panels let show. */
+const shownPart = (el: Element): DOMRect => {
+  const r = el.getBoundingClientRect();
+  const box = clipBox(el);
+  const left = Math.max(r.left, box.left);
+  const top = Math.max(r.top, box.top);
+  return new DOMRect(
+    left,
+    top,
+    Math.max(0, Math.min(r.right, box.right) - left),
+    Math.max(0, Math.min(r.bottom, box.bottom) - top)
+  );
+};
 
 const sameRect = (a: DOMRect | null, b: DOMRect | null) =>
   a === b ||
@@ -112,6 +147,7 @@ export function useAnchorElement(
   const scopeKey = (scope.widgetIds ?? []).join(',');
   // An empty anchor goes straight to the role/name fallback.
   const searchable = !!anchor || !!(fallbackRole && fallbackName);
+  const anyRow = !!anchor && isRowWildcardRef(anchor);
   const requestKey = [
     anchor,
     fallbackRole,
@@ -168,6 +204,7 @@ export function useAnchorElement(
         prev.status === next.status &&
         prev.element === next.element &&
         prev.centred === next.centred &&
+        sameMatches(prev.matches, next.matches) &&
         sameRect(prev.rect, next.rect)
           ? prev
           : { ...next, key }
@@ -187,8 +224,27 @@ export function useAnchorElement(
 
     const measure = () => {
       raf = 0;
+      if (cancelled || !element) return;
+      // A wildcard step follows whichever of its rows is on screen, so scrolling the list never loses it.
+      if (anyRow && scroll !== 'pending' && scroll !== 'scrolling') {
+        const cur = element;
+        const shown = (m: Element) =>
+          m.isConnected && isAnchorReachable(m) && anchorInView(m) !== 'none';
+        if (!shown(cur)) {
+          const row = findTourAnchors(target, {
+            widgetIds,
+            slots,
+            accept: shown,
+          })[0];
+          if (row) {
+            element = row;
+            lastRect = null;
+            resizeObserver?.disconnect();
+            resizeObserver?.observe(row);
+          }
+        }
+      }
       const el = element;
-      if (cancelled || !el) return;
       // Faded, click-through, or off-screen with no panel to scroll reads as searching.
       if (!el.isConnected || !isAnchorReachable(el)) {
         lose();
@@ -218,10 +274,22 @@ export function useAnchorElement(
         if (!waiting && missTimer === undefined) startMissTimer();
       } else {
         stopMissTimer();
+        // A wildcard step lights every row on screen, so the teacher can pick any of them.
+        const rows = anyRow
+          ? findTourAnchors(target, {
+              widgetIds,
+              slots,
+              accept: (m) => isAnchorReachable(m) && anchorInView(m) !== 'none',
+            })
+          : [];
+        const matches = rows.includes(el)
+          ? [el, ...rows.filter((m) => m !== el)]
+          : [el, ...rows];
         publish({
           element: el,
-          rect: next,
+          rect: matches.length > 1 ? unionRect(matches.map(shownPart)) : next,
           status: 'found',
+          ...(anyRow ? { matches } : {}),
           ...(centred ? { centred } : {}),
         });
       }
@@ -335,7 +403,8 @@ export function useAnchorElement(
     const mutations = new MutationObserver((records) => {
       if (records.every((r) => isTourUi(r.target))) return;
       if (!element) requestSearch();
-      else if (affectsElement(records, element)) schedule();
+      // Rows can come and go anywhere in a wildcard step's list.
+      else if (anyRow || affectsElement(records, element)) schedule();
     });
     // Panels portal to <body>, so the whole page is the board root.
     mutations.observe(document.body, {
@@ -409,6 +478,7 @@ export function useAnchorElement(
     scopeKey,
     boundId,
     requestKey,
+    anyRow,
   ]);
 
   if (!searchable) return IDLE;
@@ -419,6 +489,7 @@ export function useAnchorElement(
     element: state.element,
     rect: state.rect,
     status: state.status,
+    ...(state.matches ? { matches: state.matches } : {}),
     ...(state.centred ? { centred: true } : {}),
   };
 }

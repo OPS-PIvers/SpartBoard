@@ -25,6 +25,7 @@ import {
   childFolders,
   folderAudienceFor,
   isInFolder,
+  NO_FOLDER_AUDIENCE,
   itemFolderId,
   nextFolderOrder,
   sameAudience,
@@ -182,7 +183,9 @@ async function writeItem(
       update.ownTargeting = fields.ownTargeting ? true : deleteField();
       merged.ownTargeting = fields.ownTargeting || undefined;
     }
-    if (fields.audience) {
+    const keepsOwn =
+      fields.ownTargeting === undefined && current.ownTargeting === true;
+    if (fields.audience && !keepsOwn) {
       const { everyone, targetBuildings, targetGrades, targetEmails } =
         fields.audience;
       const audience = {
@@ -213,9 +216,11 @@ async function applyFolderAudiences(
     const home = itemFolderId(folders, item);
     if (home === null) continue;
     if (rootId !== null && !isInFolder(folders, home, rootId)) continue;
-    const found = folderAudienceFor(folders, audiences, home);
-    if (found && !sameAudience(found.audience, item)) {
-      await writeItem(item.id, { audience: found.audience }, uid);
+    const audience =
+      folderAudienceFor(folders, audiences, home)?.audience ??
+      NO_FOLDER_AUDIENCE;
+    if (!sameAudience(audience, item)) {
+      await writeItem(item.id, { audience }, uid);
     }
   }
 }
@@ -258,16 +263,15 @@ export async function moveDistrictItems(
     uid: string;
   }
 ): Promise<void> {
-  const found = folderAudienceFor(ctx.folders, ctx.audiences, folderId);
+  const audience =
+    folderAudienceFor(ctx.folders, ctx.audiences, folderId)?.audience ??
+    NO_FOLDER_AUDIENCE;
   for (const id of itemIds) {
     const item = ctx.items.find((i) => i.id === id);
     const follows = !item?.ownTargeting && folderId !== null;
     await writeItem(
       id,
-      {
-        folderId,
-        ...(follows && found ? { audience: found.audience } : {}),
-      },
+      { folderId, ...(follows ? { audience } : {}) },
       ctx.uid
     );
   }
@@ -322,12 +326,13 @@ export async function setDistrictItemFollowsFolder(
     uid: string;
   }
 ): Promise<void> {
-  const found = follows
-    ? folderAudienceFor(ctx.folders, ctx.audiences, item.folderId ?? null)
+  const audience = follows
+    ? (folderAudienceFor(ctx.folders, ctx.audiences, item.folderId ?? null)
+        ?.audience ?? NO_FOLDER_AUDIENCE)
     : null;
   await writeItem(
     item.id,
-    { ownTargeting: !follows, ...(found ? { audience: found.audience } : {}) },
+    { ownTargeting: !follows, ...(audience ? { audience } : {}) },
     ctx.uid
   );
 }

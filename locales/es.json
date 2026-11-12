@@ -4197,7 +4197,9 @@
     "reviewRemoveAllBlur": "Quitar todo el difuminado",
     "reviewFrames": "Imágenes",
     "reviewBlurredCount": "Difuminado en {{count}} de {{total}} imágenes",
-    "reviewAddSteps": "Añadir pasos"
+    "reviewAddSteps": "Añadir pasos",
+    "helpCenterNoOrg": "El recorrido está guardado, pero necesitas una organización para añadirlo al Centro de ayuda.",
+    "helpCenterFailed": "El recorrido está guardado, pero no se pudo añadir al Centro de ayuda."
   },
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",
@@ -4344,6 +4346,8 @@
     "webGoToStart": "Ir al inicio",
     "webArmedExit": "Detener el recorrido",
     "webMoved": "Su recorrido pasó a la otra pestaña.",
+    "webSwitchTitle": "Seguimos en {{host}}",
+    "webGoTo": "Ir a {{host}}",
     "webStopped": "Recorrido detenido. Haga clic en el icono de SpartBoard para empezarlo de nuevo.",
     "webDismiss": "Cerrar",
     "webPictureAlt": "Imagen de este paso",
@@ -4387,7 +4391,9 @@
       "fact_district_account": "Sesión con una cuenta del distrito",
       "fact_classlink_on": "La importación de ClassLink está activada",
       "needsText": "Necesita texto"
-    }
+    },
+    "savedToHelpCenter": "Guardado en el Centro de ayuda como Oculto.",
+    "openInHelpCenter": "Abrir en el Centro de ayuda"
   },
   "glPlayer": {
     "modeChip": {
@@ -4582,8 +4588,6 @@
     "loading": "Cargando recorridos...",
     "intro": "Compara los recorridos publicados con el registro de anclajes.",
     "recordTour": "Grabar un recorrido",
-    "recordWebTour": "Grabar un recorrido web",
-    "recordWebTourFailed": "No se pudo crear el recorrido web.",
     "checkLive": "Comprobar en vivo",
     "empty": "Ningún conjunto de Guided Learning tiene pasos de recorrido en vivo todavía.",
     "untitledSet": "Conjunto sin título",
@@ -4789,6 +4793,11 @@
     "getExtension": "Obtener la extensión de SpartBoard",
     "wrongProfile": "Este recorrido solo funciona en un perfil de Chrome con tu cuenta de personal de Orono. Por ahora, sigue las imágenes de abajo.",
     "oldExtension": "Tu extensión de SpartBoard necesita una actualización para este recorrido. Por ahora, sigue las imágenes de abajo.",
+    "needsUpdate": "Este recorrido necesita una versión más reciente de la extensión de SpartBoard. Se actualiza sola en unas horas, o cierra y vuelve a abrir Chrome para obtenerla ahora.",
+    "needsUpdateShort": "Este recorrido necesita una versión más reciente de la extensión de SpartBoard.",
+    "updateNow": "Actualizar ahora",
+    "upToDate": "Ya está actualizada",
+    "updateLater": "Inténtalo de nuevo en unos minutos",
     "openSite": "Abrir {{site}}",
     "currentStep": "Paso actual",
     "stepDone": "Hecho",
@@ -4811,6 +4820,7 @@
     "stepNumber": "Paso {{number}}",
     "onlyIfAppears": "Solo si aparece",
     "untitledStep": "Paso sin título",
+    "continueOn": "Continuar en {{host}}",
     "pictureAlt": "Imagen del paso {{number}}",
     "pictureLoading": "Cargando imagen",
     "noPicture": "Sin imagen para este paso",

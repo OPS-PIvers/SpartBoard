@@ -37,6 +37,35 @@ describe('parsePromptInline', () => {
     }
   });
 
+  it('reads bold inside italic and italic inside bold', () => {
+    expect(parsePromptInline('Read *this **very** carefully*.')).toEqual([
+      'Read ',
+      {
+        tag: 'i',
+        children: ['this ', { tag: 'b', children: ['very'] }, ' carefully'],
+      },
+      '.',
+    ]);
+    expect(parsePromptInline('*a **b***')).toEqual([
+      { tag: 'i', children: ['a ', { tag: 'b', children: ['b'] }] },
+    ]);
+    expect(parsePromptInline('**a *b* c**')).toEqual([
+      { tag: 'b', children: ['a ', { tag: 'i', children: ['b'] }, ' c'] },
+    ]);
+  });
+
+  it('stays fast on many unclosed marks', () => {
+    const start = performance.now();
+    for (const s of [
+      '*a **b '.repeat(300),
+      '*a **b ++c '.repeat(200),
+      '*a **b *c **d '.repeat(150),
+    ]) {
+      parsePromptInline(s);
+    }
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
   it('never splits an equation', () => {
     expect(parsePromptInline('**solve ⟦a*b*c⟧**')).toEqual([
       { tag: 'b', children: ['solve ⟦a*b*c⟧'] },

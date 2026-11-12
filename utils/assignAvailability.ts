@@ -31,6 +31,8 @@ export interface AssignAvailability {
   allowLate: boolean;
   /** Study Resource only: no close date, the resource stays available. */
   noEnd?: boolean;
+  /** Study Resource only: no open date, students see it as soon as it's assigned. */
+  opensNow?: boolean;
 }
 
 /** The kind's default, and whether the teacher may change it. */
@@ -135,6 +137,17 @@ export function closesBeforeOpens(
   });
 }
 
+/** The spec with its open moved to this minute, for a window that opens now. */
+export function opensFromNow(
+  spec: AvailabilitySpec,
+  now: Date = new Date()
+): AvailabilitySpec {
+  return {
+    ...spec,
+    opens: { day: getLocalIsoDate(now), time: localTime(now) },
+  };
+}
+
 /** True when the targeting's window closes at or before it opens for any checked class; Assign stays off until it's fixed. */
 export function availabilityBackwards(
   value: Pick<AssignTargetingValue, 'availability' | 'workKind'>,
@@ -143,12 +156,19 @@ export function availabilityBackwards(
 ): boolean {
   const availability = value.availability;
   if (!availability) return false;
-  if (value.workKind === 'resource' && availability.noEnd) return false;
+  const resource = value.workKind === 'resource';
+  if (resource && availability.noEnd) return false;
+  const spec = (s: AvailabilitySpec): AvailabilitySpec =>
+    resource && availability.opensNow ? opensFromNow(s) : s;
   return rosters.length > 1 && availability.byRoster
     ? rosters.some((r) =>
-        closesBeforeOpens(specForRoster(availability, r.id), [r], bellWindow)
+        closesBeforeOpens(
+          spec(specForRoster(availability, r.id)),
+          [r],
+          bellWindow
+        )
       )
-    : closesBeforeOpens(availability.all, rosters, bellWindow);
+    : closesBeforeOpens(spec(availability.all), rosters, bellWindow);
 }
 
 /** True when the spec has already closed for any of the classes. */
@@ -169,10 +189,13 @@ export function resolveAvailability(
   availability: AssignAvailability,
   rosters: readonly PeriodRoster[],
   bellWindow: BellWindowFn | undefined,
-  workKind?: WorkKind
+  workKind?: WorkKind,
+  /** When a window that opens now opens. */
+  now: Date = new Date()
 ): ResolvedAvailability {
   const resource = workKind === 'resource';
   const noEnd = resource && !!availability.noEnd;
+  const opensNow = resource && !!availability.opensNow;
   // A resource has no due date and no late work; its close is where it leaves the student view.
   const keepsOpen = resource ? noEnd : availability.allowLate;
   // "Each class" only applies while two or more classes are checked, as the section shows it.
@@ -194,7 +217,9 @@ export function resolveAvailability(
         : availability.all;
     return {
       roster,
-      openAt: resolvePoint(spec.opens, 'opens', roster, bellWindow),
+      openAt: opensNow
+        ? now.getTime()
+        : resolvePoint(spec.opens, 'opens', roster, bellWindow),
       dueAt: resolvePoint(spec.closes, 'closes', roster, bellWindow),
       closeAt: resolvePoint(spec.closes, 'closes', roster, cushioned),
     };
@@ -258,7 +283,8 @@ export function applyAvailability(
       defaultAvailability(now, !!bellWindow, workKind, { rosters, bellWindow }),
     rosters,
     bellWindow,
-    workKind
+    workKind,
+    now
   );
   return {
     targeting: {
@@ -333,6 +359,28 @@ export function availabilityFromStored(
   };
 }
 
+/** Like availabilityFromStored, but a study resource that nothing closes reads as Manually ended instead of a made-up 11:59 PM. */
+export function storedResourceAvailability(
+  stored: Parameters<typeof availabilityFromStored>[0],
+  rosterIds: readonly string[],
+  workKind: WorkKind | undefined
+): AssignAvailability {
+  const value = availabilityFromStored(stored, rosterIds);
+  const rows = Object.values(stored.periodAccess ?? {});
+  const openEnded =
+    workKind === 'resource' &&
+    stored.closeAt == null &&
+    stored.dueAt == null &&
+    rows.every((row) => row.closeAt == null);
+  if (!openEnded) return value;
+  const rowOpens = new Set(rows.map((row) => row.openAt ?? null));
+  const { byRoster, ...rest } = value;
+  // Classes that only differ by a close the resource never had share one Opens.
+  return rowOpens.size <= 1 || !byRoster
+    ? { ...rest, noEnd: true }
+    : { ...rest, byRoster, noEnd: true };
+}
+
 const rowsByRosterId = (
   periodAccess: Record<string, PeriodAccess> | undefined
 ): Record<string, PeriodAccess> =>
@@ -397,18 +445,21 @@ export function changedWindow(
 export function applyWindowEdit(
   value: AssignTargetingValue,
   stored: Parameters<typeof availabilityFromStored>[0],
-  withDue: boolean
+  withDue: boolean,
+  /** 'resource' keeps a close the teacher left as Manually ended unwritten. */
+  workKind?: WorkKind
 ): AssignTargetingValue {
   const { availability, ...rest } = value;
   if (!availability) return rest;
   const before = resolveAvailability(
-    availabilityFromStored(stored, []),
+    storedResourceAvailability(stored, [], workKind),
     [],
-    undefined
+    undefined,
+    workKind
   );
   const edit = changedWindow(
     before,
-    resolveAvailability(availability, [], undefined)
+    resolveAvailability(availability, [], undefined, workKind)
   );
   return {
     ...rest,

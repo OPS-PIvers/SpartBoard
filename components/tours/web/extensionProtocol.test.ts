@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isOpenableUrl,
   parseExtensionMessage,
+  parseWebTourStartTour,
   profileFromEmail,
 } from './extensionProtocol';
 
@@ -75,5 +76,71 @@ describe('profileFromEmail', () => {
   it('reports no signed-in profile for an empty email (R2-6)', () => {
     expect(profileFromEmail('')).toBe('none');
     expect(profileFromEmail(undefined)).toBe('none');
+  });
+});
+
+describe('parseWebTourStartTour, Message steps (X9, X13)', () => {
+  const target = {
+    id: 'a',
+    web: {
+      urlPattern: 'https://gemini.google.com/app',
+      action: 'click',
+      locator: { role: 'button', name: 'New' },
+    },
+  };
+  const tour = (steps: unknown[]) => ({
+    setId: 'set1',
+    version: 1,
+    title: 'Make a skill',
+    steps,
+  });
+
+  it('accepts a Message step with no web, in order', () => {
+    const parsed = parseWebTourStartTour(
+      tour([{ id: 'm0', label: 'Hi', text: 'Start', message: true }, target])
+    );
+    expect(parsed?.steps).toEqual([
+      { id: 'm0', label: 'Hi', text: 'Start', message: true },
+      target,
+    ]);
+  });
+
+  it('still rejects a step with neither web nor message: true, as protocol 13 did', () => {
+    expect(
+      parseWebTourStartTour(tour([{ id: 'm0', text: 'x' }, target]))
+    ).toBeNull();
+    expect(
+      parseWebTourStartTour(tour([{ id: 'm0', message: false }, target]))
+    ).toBeNull();
+  });
+
+  it('rejects a Message step with a target or picture, and a tour of messages only', () => {
+    expect(
+      parseWebTourStartTour(tour([{ ...target, id: 'm0', message: true }]))
+    ).toBeNull();
+    expect(
+      parseWebTourStartTour(
+        tour([
+          {
+            id: 'm0',
+            message: true,
+            picture: { mime: 'image/png', data: 'AAAA', w: 1, h: 1 },
+          },
+          target,
+        ])
+      )
+    ).toBeNull();
+    expect(
+      parseWebTourStartTour(tour([{ id: 'm0', message: true }]))
+    ).toBeNull();
+  });
+
+  it('rejects conditions or markup that name a Message step', () => {
+    expect(
+      parseWebTourStartTour({
+        ...tour([{ id: 'm0', message: true }, target]),
+        conditions: { m0: { doneWhen: { kind: 'target' } } },
+      })
+    ).toBeNull();
   });
 });

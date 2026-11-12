@@ -395,7 +395,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
     return (
       <div key={key} className="grid grid-cols-2 gap-3">
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          <MathText text={english} />
+          <MathText text={english} format={key === 'text'} />
         </p>
         <textarea
           value={translated}

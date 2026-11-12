@@ -5406,7 +5406,9 @@
     "reviewRemoveAllBlur": "Remove all blur",
     "reviewFrames": "Frames",
     "reviewBlurredCount": "Blur on {{count}} of {{total}} frames",
-    "reviewAddSteps": "Add steps"
+    "reviewAddSteps": "Add steps",
+    "helpCenterNoOrg": "The tour is saved, but you need an organization to add it to the Help Center.",
+    "helpCenterFailed": "The tour is saved, but it couldn't be added to the Help Center."
   },
   "tours": {
     "unavailable": "This tour isn't available right now.",
@@ -5553,6 +5555,8 @@
     "webGoToStart": "Go to the start",
     "webArmedExit": "Stop the tour",
     "webMoved": "Your tour moved to the other tab.",
+    "webSwitchTitle": "Next we continue on {{host}}",
+    "webGoTo": "Go to {{host}}",
     "webStopped": "Tour stopped. Click the SpartBoard icon to start it again.",
     "webDismiss": "Dismiss",
     "webPictureAlt": "Picture of this step",
@@ -5596,7 +5600,9 @@
       "fact_district_account": "Signed in with a district account",
       "fact_classlink_on": "ClassLink import is on",
       "needsText": "Needs text"
-    }
+    },
+    "savedToHelpCenter": "Saved to the Help Center as Hidden.",
+    "openInHelpCenter": "Open in Help Center"
   },
   "glPlayer": {
     "modeChip": {
@@ -5791,8 +5797,6 @@
     "loading": "Loading tours...",
     "intro": "Checks published tours against the anchor registry.",
     "recordTour": "Record a tour",
-    "recordWebTour": "Record a web tour",
-    "recordWebTourFailed": "The web tour couldn't be created.",
     "checkLive": "Check live",
     "empty": "No Guided Learning set has live-tour steps yet.",
     "untitledSet": "Untitled set",
@@ -5998,6 +6002,11 @@
     "getExtension": "Get the SpartBoard extension",
     "wrongProfile": "This tour plays only in a Chrome profile signed in with your Orono staff account. For now, follow the pictures below.",
     "oldExtension": "Your SpartBoard extension needs an update to play this tour. For now, follow the pictures below.",
+    "needsUpdate": "This tour needs a newer version of the SpartBoard extension. It updates on its own within a few hours, or close and reopen Chrome to get it now.",
+    "needsUpdateShort": "This tour needs a newer version of the SpartBoard extension.",
+    "updateNow": "Update now",
+    "upToDate": "Already up to date",
+    "updateLater": "Try again in a few minutes",
     "openSite": "Open {{site}}",
     "currentStep": "Current step",
     "stepDone": "Done",
@@ -6139,6 +6148,7 @@
     "stepNumber": "Step {{number}}",
     "onlyIfAppears": "Only if it appears",
     "untitledStep": "Untitled step",
+    "continueOn": "Continue on {{host}}",
     "pictureAlt": "Picture of step {{number}}",
     "pictureLoading": "Loading picture",
     "noPicture": "No picture for this step",

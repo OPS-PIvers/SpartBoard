@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useEffectEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '@/context/useDialog';
 import {
@@ -66,9 +66,13 @@ import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 import { tourAttr } from '@/config/tourAnchors';
 import {
+  HELP_CENTER_OPEN_EVENT,
   TOUR_RECORD_EVENT,
   TOUR_START_EVENT,
+  type HelpCenterOpenRequest,
 } from '@/components/tours/tourState';
+import { writeHelpCenterSelection } from '@/components/admin/HelpCenter/helpCenterSelection';
+import type { AdminSettingsTabRequest } from '@/components/admin/AdminSettings';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { useTourFrameHold } from '@/components/tours/tourFrame';
 import { AdminSettingsSlot } from './AdminSettingsSlot';
@@ -212,11 +216,18 @@ export const Sidebar: React.FC = () => {
   }, []);
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
+  const [adminTabRequest, setAdminTabRequest] =
+    useState<AdminSettingsTabRequest>();
+  const closeAdminSettings = () => {
+    setShowAdminSettings(false);
+    setAdminTabRequest(undefined);
+  };
 
   // Recording, editing and live tours can start from Admin Settings; get out of the way of the board.
   useEffect(() => {
     const clearBoard = () => {
       setShowAdminSettings(false);
+      setAdminTabRequest(undefined);
       setIsOpen(false);
     };
     window.addEventListener(TOUR_RECORD_EVENT, clearBoard);
@@ -227,6 +238,21 @@ export const Sidebar: React.FC = () => {
       window.removeEventListener(TOUR_START_EVENT, clearBoard);
       window.removeEventListener(TOUR_EDIT_EVENT, clearBoard);
     };
+  }, []);
+  // Only admins who see the Help Center tab can be sent to it (H2, H13).
+  const onOpenHelpCenter = useEffectEvent((e: Event) => {
+    if (isAdmin !== true || orgOnlyAdmin) return;
+    const selectId = (e as CustomEvent<HelpCenterOpenRequest | null>).detail
+      ?.selectId;
+    if (selectId) writeHelpCenterSelection(selectId);
+    setAdminTabRequest({ tab: 'help-center' });
+    setShowAdminSettings(true);
+    setIsOpen(false);
+  });
+  useEffect(() => {
+    const open = (e: Event) => onOpenHelpCenter(e);
+    window.addEventListener(HELP_CENTER_OPEN_EVENT, open);
+    return () => window.removeEventListener(HELP_CENTER_OPEN_EVENT, open);
   }, []);
   // A live tour starts with the menu closed and leaves it closed, as a tour start always has (C1).
   useTourFrameHold(() => {
@@ -405,7 +431,10 @@ export const Sidebar: React.FC = () => {
       </GlassCard>
 
       {showAdminSettings && (
-        <AdminSettingsSlot onClose={() => setShowAdminSettings(false)} />
+        <AdminSettingsSlot
+          onClose={closeAdminSettings}
+          tabRequest={adminTabRequest}
+        />
       )}
 
       {settingsModalSection && (

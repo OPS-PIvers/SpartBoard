@@ -6,6 +6,12 @@ import type { GuidedLearningSet } from '@/types';
 import type { GuidedLearningSaveGuard } from '@/components/widgets/GuidedLearning/utils/saveConflict';
 import { TOOLS } from '@/config/tools';
 import {
+  loadBuildingSet,
+  saveBuildingSetDoc,
+  useGuidedLearning,
+} from '@/hooks/useGuidedLearning';
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
+import {
   canRebind,
   needsTypeToRebind,
   formatUnmappedAnchors,
@@ -50,25 +56,31 @@ const widgetLabel = (type: string | null) =>
   type ? (TOOLS.find((tool) => tool.type === type)?.label ?? type) : null;
 
 interface UnmappedAnchorsSectionProps {
-  /** Set titles by id, for the "clicked in" links. */
-  titles: ReadonlyMap<string, string>;
-  onOpenStep: (setId: string, stepId: string) => void;
-  loadSet: (setId: string) => Promise<GuidedLearningSet | null>;
-  saveSet: (
+  /** Set titles by id, for the "clicked in" links; defaults to the building library's. */
+  titles?: ReadonlyMap<string, string>;
+  onOpenStep?: (setId: string, stepId: string) => void;
+  loadSet?: (setId: string) => Promise<GuidedLearningSet | null>;
+  saveSet?: (
     set: GuidedLearningSet,
     guard: GuidedLearningSaveGuard
   ) => Promise<void>;
 }
 
-/** Tour Health's list of untagged recorded clicks: status, PR, where they were clicked, and Rebind. */
+const openStepInEditor = (setId: string, stepId: string) =>
+  requestEditTour({ setId, stepId, origin: 'help-center' });
+
+/** The Help Center's Unmapped controls view: untagged recorded clicks with status, PR, where they were clicked, and Rebind (H18). */
 export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
-  titles,
-  onOpenStep,
-  loadSet,
-  saveSet,
+  titles: titlesProp,
+  onOpenStep = openStepInEditor,
+  loadSet = loadBuildingSet,
+  saveSet = saveBuildingSetDoc,
 }) => {
   const { t } = useTranslation();
   const { items, loading, error } = useTourAnchorQueue();
+  const { buildingSets } = useGuidedLearning(undefined);
+  const titles =
+    titlesProp ?? new Map(buildingSets.map((entry) => [entry.id, entry.title]));
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [failed, setFailed] = useState<{
@@ -114,17 +126,14 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
   };
 
   return (
-    <section
-      aria-labelledby="tour-health-unmapped"
-      className="border border-slate-200 rounded-lg bg-white"
-    >
-      <header className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-100">
-        <h4
+    <section aria-labelledby="tour-health-unmapped" className="space-y-2">
+      <header className="flex items-center justify-between gap-3">
+        <h3
           id="tour-health-unmapped"
           className="text-sm font-semibold text-slate-900"
         >
           {t('tourHealth.unmapped.title')}
-        </h4>
+        </h3>
         <button
           type="button"
           onClick={copyAll}
@@ -140,16 +149,16 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
       </header>
 
       {loading ? (
-        <p className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500">
+        <p className="flex items-center gap-2 py-2 text-xs text-slate-500">
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
           {t('tourHealth.loading')}
         </p>
       ) : error ? (
-        <p role="alert" className="px-3 py-2 text-xs text-red-700">
+        <p role="alert" className="py-2 text-xs text-red-700">
           {t('tourHealth.unmapped.loadFailed')}
         </p>
       ) : rows.length === 0 ? (
-        <p className="px-3 py-2 text-xs text-slate-500">
+        <p className="py-2 text-xs text-slate-500">
           {t('tourHealth.unmapped.empty')}
         </p>
       ) : (
@@ -168,7 +177,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
               <li
                 key={item.fingerprint}
                 data-testid="unmapped-item"
-                className="px-3 py-2 text-xs space-y-1"
+                className="py-2 text-xs space-y-1"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <code className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-slate-800">

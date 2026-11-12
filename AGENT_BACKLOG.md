@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-204**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-206**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -208,10 +208,32 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-181 Quiz PDF import: no "added as a picture" note when the whole-question crop also failed** (S, from release #5534 review). In `utils/quizDocumentImport/pdfPictures.ts` `resolveChoicePictures`, when the per-choice crops are lost and `choiceFallbackId` has no crop either (whole-PDF crop failure), the question still gets `CHOICES_AS_LETTERS`, which says the whole question was added as a picture, though none was. Only reachable with `quiz-ordering-images` on, and the import-level `PDF_PICTURES_FAILED` warning also shows. Fix: add that note only when `whole` exists; any new wording needs Paul's OK. Optional in the same PR: skip cropping the whole-question fallback when every choice crop succeeded (extra crop work today).
 - **AB-201 Release 2026.11.12 review leftovers (flag-on minors)** (S-M). Found in the #5630 slice reviews, none reachable with the flags off; fix before each flag opens. (1) `hooks/useInputSignals.ts`: the question-change and visibility-hidden flushes skip the `BIG_LOG_BYTES` one-a-minute throttle, so a student with a long writing log re-sends it on every question change and the teacher monitor re-downloads the doc. (2) `functions/src/subLaunchAssignment.ts`: sub launches don't run `blankTypeProblem`, so a dropdown blank whose answer isn't among its choices can launch. (3) Blocked on PT-183: if Paul says hide them, move `targetEmails`, `updatedBy` and `sourceName` off the `district_library` item doc that targeted teachers can read. (4) `components/plc/bodies/MembersBody.tsx` shows Remove to co-leads, which the server (and the old rules) refuse; gate it on the lead. (5) `useDistrictLibraryForTeacher` opens its listeners once per Quiz widget; share one. (6) CodeQL still flags the tag-stripping regexes in `scripts/mca-package/lib/html.mjs` and `parse.mjs`; replace them with a small tag scanner so the alerts close. (7) `touch-target-expand` needs a positioned element (its `::after` is `width/height: 100%`); on an unpositioned button the hit area grows to the nearest positioned ancestor, which made every District library row open the last row's delete. Twelve older sites still lack `relative` (grep `touch-target-expand` without `relative|absolute|fixed|sticky`); check each and add a static test.
 
+- **AB-204 District library folders: safer folder writes** (S, from release #5678 review, admin flag `district-library-folders`). In `hooks/useDistrictLibraryFolders.ts`: (1) `applyFolderAudiences` stops at the first failed item; keep going and report the failures, and use `itemsNeedingFolderAudience` (`utils/districtLibraryFolders.ts`, tests only today) to show a "some items need the folder's audience" repair banner in `DistrictLibraryFolderView`. (2) `renameDistrictFolder`/`moveDistrictFolder` merge-write `folders[id]`, so a folder another admin just deleted comes back without a name; check it still exists in a transaction. (3) `deleteDistrictFolder` writes the folders and audiences docs separately; use one batch. (4) Moving a published item into a folder with no audience now hides it from teachers; ask first. (5) `DistrictLibraryPanel` publishes then moves in one try, so a failed move leaves items at the top level and a retry never files them.
+- **AB-205 Prompt formatting leftovers** (S, from release #5678 review, admin flag `quiz-prompt-formatting`). Paper answer sheet labels use raw `question.text` (`utils/paperSheetPlan.ts`, `functions/src/paperBatchPlan.ts`), so marks show; use `stripPromptFormat`/`plainPromptText`. Numbered lines renumber when edited (`5. a` / `3. b` saves as 5, 6); keep the typed numbers. A literal `*word*` typed in the editor only turns italic after reload.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-iv86b0
+claude/ab112-wildcard
+claude/project-thread-2n195f
+claude/project-thread-2n195f-branches
+claude/project-thread-7mpti9
+claude/project-thread-7mpti9-ab112
+claude/project-thread-pxr7js
+claude/ab112-pxr7js
+claude/project-thread-vcq9je
+docs/ab112-s2-branch
+claude/project-thread-7matnt
+claude/ab112-s1-7matnt
+claude/project-thread-fab08e
+docs/ab112-fab08e
+claude/project-thread-p5qz9y
+docs/ab112-p5qz9y
+claude/project-thread-g77dp4
+claude/project-thread-g77dp4-ab112
+claude/project-thread-24dy3v
+claude/project-thread-24dy3v-ab112
 claude/project-thread-cxubid
 docs/ab112-cxubid
 claude/project-thread-dmb90p
@@ -230,6 +252,8 @@ nightly/widgets-2026-11-12
 nightly/unifier-log-2026-11-12
 claude/project-thread-ov98y6
 claude/project-thread-ov98y6-branchlog
+claude/project-thread-bd1fel
+claude/project-thread-bd1fel-ab112
 claude/project-thread-l8b36b
 claude/project-thread-shwk3a
 claude/project-thread-anub7c
@@ -313,6 +337,10 @@ git push origin --delete claude/project-thread-47qx31
 git push origin --delete claude/project-thread-gbykry
 git push origin --delete nightly/unifier-log-2026-11-11 claude/project-thread-ryu6co claude/project-thread-ryu6co-ab112
 git push origin --delete claude/project-thread-jn07pu claude/project-thread-jn07pu-ab112
+git push origin --delete claude/project-thread-4o47oj claude/project-thread-4o47oj-ab112
+git push origin --delete claude/project-thread-05ocrk claude/s4-ab112
+git push origin --delete claude/project-thread-98ewth docs/ab112-98ewth
+git push origin --delete claude/project-thread-ny32f4 claude/project-thread-ny32f4-ab112
 ```
 
   </details>
