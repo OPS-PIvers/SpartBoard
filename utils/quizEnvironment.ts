@@ -81,7 +81,10 @@ export async function detectQuizEnvironment(
   } catch {
     embedded = true;
   }
-  const status: ExtensionStatus = embedded ? { kind: 'none' } : await ping();
+  let status: ExtensionStatus = { kind: 'none' };
+  // A sleeping extension can miss the first ping, so silence is only believed twice.
+  for (let i = 0; i < 2 && !embedded && status.kind === 'none'; i += 1)
+    status = await ping();
   return {
     browser: describeBrowser(navigator.userAgent, navigator.maxTouchPoints),
     profile: profileState(status, embedded),

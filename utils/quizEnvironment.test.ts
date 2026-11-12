@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { describeBrowser, profileState } from './quizEnvironment';
+import { describe, expect, it, vi } from 'vitest';
+import type { ExtensionStatus } from '@/components/tours/web/extensionClient';
+import {
+  describeBrowser,
+  detectQuizEnvironment,
+  profileState,
+} from './quizEnvironment';
 
 describe('describeBrowser', () => {
   it('names common browsers and systems', () => {
@@ -59,5 +64,30 @@ describe('profileState', () => {
     expect(profileState(ready({ protocol: 12 }), false)).toBe('unknown');
     expect(profileState(ready({}), false)).toBe('unknown');
     expect(profileState({ kind: 'none' }, false)).toBe('no-extension');
+  });
+});
+
+describe('detectQuizEnvironment', () => {
+  it('asks a silent extension a second time before calling it missing', async () => {
+    const ping = vi
+      .fn<() => Promise<ExtensionStatus>>()
+      .mockResolvedValueOnce({ kind: 'none' })
+      .mockResolvedValueOnce({
+        kind: 'ready',
+        protocol: 13,
+        version: '0.1.35',
+        profile: 'staff',
+        install: 'policy',
+      });
+    await expect(detectQuizEnvironment(ping)).resolves.toMatchObject({
+      profile: 'managed',
+    });
+    const silent = vi.fn(() =>
+      Promise.resolve<ExtensionStatus>({ kind: 'none' })
+    );
+    await expect(detectQuizEnvironment(silent)).resolves.toMatchObject({
+      profile: 'no-extension',
+    });
+    expect(silent).toHaveBeenCalledTimes(2);
   });
 });

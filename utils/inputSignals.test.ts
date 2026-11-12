@@ -426,6 +426,9 @@ describe('browser and profile', () => {
       browser: 'Chrome 141, macOS|Edge 140, Windows',
       profile: 'managed|unmanaged',
     });
+    expect(
+      describeInputSignals(merged, undefined, undefined, true)[0].text
+    ).toMatch(/^For part of the attempt, not in/);
     const read = readAttemptSignals(
       { '0': { _: { browser: '<img src=x>|Chrome 141, macOS', profile: 7 } } },
       0

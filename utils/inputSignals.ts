@@ -646,14 +646,18 @@ export function describeInputSignals(
     });
   }
   const env = perQuestion[NO_QUESTION];
-  const outside = (env?.profile?.split('|') ?? []).filter(
+  const profiles = env?.profile?.split('|') ?? [];
+  const outside = profiles.some(
     (p) => p === 'unmanaged' || p === 'no-extension'
   );
-  if (expectManaged && outside.length > 0) {
+  if (expectManaged && outside) {
     const browsers = env?.browser?.split('|').join('; ');
+    const part = profiles.includes('managed')
+      ? 'For part of the attempt, not'
+      : 'Not';
     out.push({
       id: 'unmanaged-profile',
-      text: `Not in a school-managed Chrome profile${browsers ? ` (${browsers})` : ''}.`,
+      text: `${part} in a school-managed Chrome profile${browsers ? ` (${browsers})` : ''}.`,
       questions: [],
       otherCauses:
         'An iPad, phone or other browser, or a device the extension has not reached yet.',
