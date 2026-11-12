@@ -520,6 +520,32 @@ describe('runFinalizeIdleQuizAttempts - ended sessions', () => {
     expect(responses[0].data.status).toBe('in-progress');
   });
 
+  it('waits for a teacher-reopened attempt until the run is over', async () => {
+    const seedReopen = (session: Record<string, unknown>) =>
+      makeStubDb({
+        responses: [
+          {
+            id: 'reopened',
+            sid: 'sess1',
+            data: stale({ unlocked: true, unlockKind: 'reopen' }),
+          },
+          { id: 'unlocked', sid: 'sess1', data: stale({ unlocked: true }) },
+        ],
+        sessions: { sess1: { createdAt: T - 2 * IDLE_MS, ...session } },
+      });
+    const live = seedReopen({ status: 'active' });
+    const liveResult = await runFinalizeIdleQuizAttempts(live.db, T);
+    expect(liveResult.finalized).toBe(1);
+    expect(live.responses.map((r) => r.data.status)).toEqual([
+      'in-progress',
+      'completed',
+    ]);
+
+    const ended = seedReopen({ status: 'ended', endedAt: ENDED_AT });
+    const endedResult = await runFinalizeIdleQuizAttempts(ended.db, T);
+    expect(endedResult.finalized).toBe(2);
+  });
+
   it('keeps skipping a paused session even after an earlier End', async () => {
     const { db } = seed({ status: 'paused', endedAt: null });
     const result = await runFinalizeIdleQuizAttempts(db, T);

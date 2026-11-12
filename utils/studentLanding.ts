@@ -63,6 +63,8 @@ export function landingRowState(
   if (isClosedProjectRun(a) || turnIn === 'turned-in') return 'turned-in';
 
   if (isClosed(a, nowMs)) {
+    if (check?.reopened && a.channel !== 'ended' && a.endedAt === undefined)
+      return 'in-progress';
     // Ended rows wait for their check; one the student never opened needs a deadline to count as Missing.
     if (!checkable || !check) return null;
     const deadline = a.dueAt ?? a.closeAt;

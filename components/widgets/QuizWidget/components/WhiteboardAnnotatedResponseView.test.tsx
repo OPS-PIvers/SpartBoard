@@ -76,4 +76,33 @@ describe('WhiteboardAnnotatedResponseView', () => {
     expect(await screen.findByTestId('replay')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+
+  it('revokes take files that finish loading after the view unmounts', async () => {
+    const revoke = vi.fn();
+    const spy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(revoke);
+    try {
+      const resolvers: Array<(url: string) => void> = [];
+      const audio = archived(artifact('voice', 'audio'));
+      const { unmount } = render(
+        <WhiteboardAnnotatedResponseView
+          take={takeWith(audio)}
+          resolveTakeUrl={() =>
+            new Promise<string>((resolve) => resolvers.push(resolve))
+          }
+          annotations={[]}
+          onChange={vi.fn()}
+          authorUid="t1"
+          activeId={null}
+          onActiveIdChange={vi.fn()}
+        />
+      );
+      expect(resolvers.length).toBeGreaterThan(0);
+      unmount();
+      resolvers.forEach((resolve, i) => resolve(`blob:late-${i}`));
+      await new Promise((r) => setTimeout(r, 0));
+      expect(revoke).toHaveBeenCalledTimes(resolvers.length);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

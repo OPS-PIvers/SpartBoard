@@ -186,7 +186,7 @@ export const RemoteActivityWallControl: React.FC<
         Activity Wall
       </div>
 
-      <button
+      <button /* no-tour-anchor: phone remote page, never on the board */
         onClick={toggleOpen}
         disabled={!canToggle}
         style={{ touchAction: 'manipulation' }}
@@ -210,7 +210,7 @@ export const RemoteActivityWallControl: React.FC<
       </button>
 
       {canOfferAnonymousJoin && (
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={() => setShowQr((v) => !v)}
           style={{ touchAction: 'manipulation' }}
           className={`touch-manipulation flex items-center justify-center gap-2 px-6 py-3 rounded-xl border font-bold transition-all active:scale-95 ${
@@ -261,7 +261,7 @@ export const RemoteActivityWallControl: React.FC<
           className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-red-500/20 border border-red-400/50 text-red-200 text-sm"
         >
           <span className="flex-1">{actionError}</span>
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={() => setActionError(null)}
             style={{ touchAction: 'manipulation' }}
             className="touch-manipulation shrink-0 text-red-200/80 hover:text-red-100 font-black leading-none"
@@ -307,7 +307,7 @@ export const RemoteActivityWallControl: React.FC<
                   {submission.content}
                 </div>
               </div>
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 onClick={() => approve(submission.id)}
                 style={{ touchAction: 'manipulation' }}
                 className="touch-manipulation shrink-0 w-11 h-11 rounded-xl bg-green-500/20 border border-green-400/50 text-green-300 flex items-center justify-center transition-all active:scale-95 hover:bg-green-500/30"
@@ -315,7 +315,7 @@ export const RemoteActivityWallControl: React.FC<
               >
                 <Check className="w-5 h-5" />
               </button>
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 onClick={() => remove(submission.id)}
                 style={{ touchAction: 'manipulation' }}
                 className="touch-manipulation shrink-0 w-11 h-11 rounded-xl bg-red-500/20 border border-red-400/50 text-red-300 flex items-center justify-center transition-all active:scale-95 hover:bg-red-500/30"

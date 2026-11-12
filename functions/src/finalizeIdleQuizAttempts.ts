@@ -114,6 +114,15 @@ interface QuizResponseDoc {
   servedQuestionIds?: unknown;
   /** True while the student waits at a quiz Stop; absent on older responses. */
   partHeld?: unknown;
+  unlocked?: unknown;
+  unlockKind?: unknown;
+}
+
+/** A Stop hold or a teacher reopen waits for the student, possibly for days. */
+function waitsForStudent(d: QuizResponseDoc): boolean {
+  return (
+    d.partHeld === true || (d.unlocked === true && d.unlockKind === 'reopen')
+  );
 }
 
 interface QuizSessionDoc {
@@ -448,7 +457,7 @@ export async function runFinalizeIdleQuizAttempts(
     // A student held at a Stop waits for the next part, possibly for days.
     // Neither can resume once the run has ended, so both are turned in then.
     const heldOrFrozen =
-      docSnap.data()?.partHeld === true ||
+      waitsForStudent(docSnap.data() ?? {}) ||
       isPeriodFrozen(meta.periodGate, docSnap.data() ?? {}, finalizedAt);
     if (meta.status === 'paused' || (heldOrFrozen && !meta.runOver)) {
       skippedPaused++;
@@ -480,10 +489,10 @@ export async function runFinalizeIdleQuizAttempts(
         if (fresh.status !== 'joined' && fresh.status !== 'in-progress') {
           return 'raced-status' as const;
         }
-        if (fresh.partHeld === true && !meta.runOver)
+        if (waitsForStudent(fresh) && !meta.runOver)
           return 'raced-status' as const;
         // A Reopen since the batch read makes held and frozen rows resumable again.
-        if (heldOrFrozen || fresh.partHeld === true) {
+        if (heldOrFrozen || waitsForStudent(fresh)) {
           const parent = await tx.get(db.doc(`quiz_sessions/${sid}`));
           if (parent.data()?.status !== 'ended') return 'raced-status' as const;
         }

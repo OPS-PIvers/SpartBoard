@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import { useAuth } from '@/context/useAuth';
 import type {
   AuthMethod,
@@ -83,14 +78,14 @@ export const useOrgDomains = (orgId: string | null) => {
       users: 0,
       addedAt: new Date().toISOString(),
     };
-    await setDoc(doc(db, 'organizations', orgId, 'domains', id), record);
+    await callOrgAdmin({ action: 'addDomain', orgId, record: { ...record } });
   };
 
   const removeDomain = async (id: string): Promise<void> => {
     if (!orgId) {
       throw new Error('No organization selected.');
     }
-    await deleteDoc(doc(db, 'organizations', orgId, 'domains', id));
+    await callOrgAdmin({ action: 'removeDomain', orgId, id });
   };
 
   return {
