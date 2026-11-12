@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-11_
+_Last audited: 2026-11-12_
 _Last action: never_
+
+_2026-11-12: Daily audit (Thursday). `pnpm type-check` exit 0 and `pnpm lint` (root, functions, extension) exit 0 with 0 warnings. 0 new issues._
 
 _2026-11-11: Daily audit (Wednesday). `pnpm type-check`: 4 errors, `pnpm lint`: 40 errors, all in `mcpApps/quizPreview/main.tsx`, all caused by `@modelcontextprotocol/ext-apps` (in `package.json` ^1.7.5) missing from this sandbox's `node_modules` (stale install, not a code defect). Re-run after `pnpm run install:all`. 0 new issues._
 
