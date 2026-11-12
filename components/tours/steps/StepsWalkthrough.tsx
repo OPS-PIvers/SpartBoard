@@ -9,6 +9,7 @@ import { TourBar } from '@/components/tours/TourBar';
 import { stageScale } from '@/components/tours/web/pictureTarget';
 import { TourPictureMarkup } from '@/components/tours/TourPictureMarkup';
 import { PreviewTip, RingAndTip } from './picturePreview';
+import { SiteSwitchDivider } from './SiteSwitchDivider';
 import { TIP_H, TIP_W, useMeasured } from './previewMeasure';
 import type { WalkthroughProps } from './StepsView';
 
@@ -122,66 +123,71 @@ export const StepsWalkthrough: React.FC<WalkthroughProps> = ({
           {labels.onlyIfAppears}
         </p>
       )}
-      <div
-        data-testid="steps-walkthrough-picture"
-        data-state={
-          failed ? 'failed' : src ? 'ready' : pic ? 'loading' : 'none'
-        }
-        className="relative overflow-hidden rounded-xl bg-slate-700 shadow-2xl [transform:translateZ(0)]"
-        style={{ width: shown.w, height: shown.h }}
-      >
-        {!pic ? (
-          <Message text={labels.noPicture} />
-        ) : failed ? (
-          <Message text={labels.pictureFailed} />
-        ) : src ? (
-          <>
-            <img
-              src={src}
-              alt={labels.pictureAlt(index + 1)}
-              decoding="async"
-              className="absolute inset-0 h-full w-full object-contain"
-              onError={() => setBrokenSrc(src)}
+      {step.continueOn && (
+        <SiteSwitchDivider label={labels.continueOn(step.continueOn)} dark />
+      )}
+      {!step.message && (
+        <div
+          data-testid="steps-walkthrough-picture"
+          data-state={
+            failed ? 'failed' : src ? 'ready' : pic ? 'loading' : 'none'
+          }
+          className="relative overflow-hidden rounded-xl bg-slate-700 shadow-2xl [transform:translateZ(0)]"
+          style={{ width: shown.w, height: shown.h }}
+        >
+          {!pic ? (
+            <Message text={labels.noPicture} />
+          ) : failed ? (
+            <Message text={labels.pictureFailed} />
+          ) : src ? (
+            <>
+              <img
+                src={src}
+                alt={labels.pictureAlt(index + 1)}
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-contain"
+                onError={() => setBrokenSrc(src)}
+              />
+              {pic.target && (
+                <RingAndTip
+                  step={{
+                    title: step.title,
+                    text: step.text,
+                    observe: step.observe,
+                  }}
+                  index={index}
+                  total={total}
+                  size={shown}
+                  frac={pic.target}
+                  withTip={false}
+                />
+              )}
+              {pic.markup && (
+                <TourPictureMarkup
+                  shapes={pic.markup}
+                  width={pic.w}
+                  height={pic.h}
+                  overDim
+                />
+              )}
+              {renderMarkup && (
+                <div
+                  data-testid="step-picture-markup"
+                  className="pointer-events-none absolute inset-0"
+                >
+                  {renderMarkup(step)}
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              role="status"
+              aria-label={labels.pictureLoading}
+              className="absolute inset-0 animate-pulse bg-slate-600 motion-reduce:animate-none"
             />
-            {pic.target && (
-              <RingAndTip
-                step={{
-                  title: step.title,
-                  text: step.text,
-                  observe: step.observe,
-                }}
-                index={index}
-                total={total}
-                size={shown}
-                frac={pic.target}
-                withTip={false}
-              />
-            )}
-            {pic.markup && (
-              <TourPictureMarkup
-                shapes={pic.markup}
-                width={pic.w}
-                height={pic.h}
-                overDim
-              />
-            )}
-            {renderMarkup && (
-              <div
-                data-testid="step-picture-markup"
-                className="pointer-events-none absolute inset-0"
-              >
-                {renderMarkup(step)}
-              </div>
-            )}
-          </>
-        ) : (
-          <div
-            role="status"
-            aria-label={labels.pictureLoading}
-            className="absolute inset-0 animate-pulse bg-slate-600 motion-reduce:animate-none"
-          />
-        )}
-      </div>
+          )}
+        </div>
+      )}
       <div
         className="relative [transform:translateZ(0)]"
         style={{ width: tipW, height: tipH }}

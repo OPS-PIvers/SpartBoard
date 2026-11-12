@@ -249,6 +249,44 @@ describe('WebTourHubPage', () => {
     expect(screen.getByTestId('steps-article')).toBeTruthy();
   });
 
+  it('lists Message steps and the site change in the Steps view, and counts them', async () => {
+    h.ping = { kind: 'none' };
+    const tour = webTour();
+    tour.set.steps = [
+      {
+        id: 'm1',
+        label: 'Welcome',
+        text: 'We start on Schoology.',
+        message: true,
+      },
+      tour.set.steps[0],
+      {
+        id: 'm2',
+        label: 'Over to Claude',
+        text: 'Next we switch.',
+        message: true,
+      },
+      {
+        id: 'c',
+        label: 'Upload',
+        text: '',
+        web: {
+          urlPattern: 'https://claude.ai/customize',
+          locator: { text: 'Upload' },
+          action: 'click',
+        },
+      },
+    ] as unknown as typeof tour.set.steps;
+    h.published = tour;
+    render(<WebTourHubPage />);
+    expect(await screen.findAllByTestId('steps-article-step')).toHaveLength(4);
+    expect(screen.getByText('We start on Schoology.')).toBeTruthy();
+    expect(screen.getByText('Next we switch.')).toBeTruthy();
+    expect(screen.getByTestId('steps-site-switch').textContent).toBe(
+      'Continue on claude.ai'
+    );
+  });
+
   it('shows a step picture it loaded, and says so when one did not load', async () => {
     URL.createObjectURL = vi.fn(() => 'blob:picture');
     URL.revokeObjectURL = vi.fn();

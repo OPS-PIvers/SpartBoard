@@ -72,6 +72,68 @@ describe('stepsFromWebTour', () => {
   });
 });
 
+describe('stepsFromWebTour across sites and messages', () => {
+  const on = (id: string, host: string) =>
+    webStep(id, { urlPattern: `https://${host}/page` });
+  const message = (id: string, text = `Message ${id}`) =>
+    ({
+      id,
+      label: `Title ${id}`,
+      text,
+      message: true,
+    }) as unknown as WebTourStep;
+
+  it('draws a Message step as words only', () => {
+    const [step] = stepsFromWebTour([message('m')]);
+    expect(step).toEqual({
+      id: 'm',
+      title: 'Title m',
+      text: 'Message m',
+      onlyIfAppears: false,
+      observe: false,
+      picture: null,
+      message: true,
+    });
+  });
+
+  it('marks where the tour moves to another site, after any messages in between', () => {
+    const steps = stepsFromWebTour([
+      on('a', 'gemini.google.com'),
+      on('b', 'gemini.google.com'),
+      message('m'),
+      on('c', 'claude.ai'),
+      on('d', 'claude.ai'),
+      on('e', 'gemini.google.com'),
+    ]);
+    expect(steps.map((s) => s.continueOn)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      'claude.ai',
+      undefined,
+      'gemini.google.com',
+    ]);
+    expect(steps.map((s) => !!s.message)).toEqual([
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('keeps messages at the start and end, and draws no divider for one site', () => {
+    const steps = stepsFromWebTour([
+      message('m1'),
+      on('a', 'app.example.com'),
+      message('m2'),
+    ]);
+    expect(steps.map((s) => s.id)).toEqual(['m1', 'a', 'm2']);
+    expect(steps.some((s) => s.continueOn)).toBe(false);
+  });
+});
+
 const liveStep = (
   id: string,
   tour: Record<string, unknown>

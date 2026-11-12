@@ -3,8 +3,8 @@ import {
   freshTourPictureUrl,
   isWebTourSet,
   isLiveTourSet,
-  webTourStepsOf,
 } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import { webTourSequenceOf } from '@/components/tours/web/tourSequence';
 import { liveTourStepsOf } from '@/components/tours/tourSession';
 import { markupKey } from '@/components/tours/web/pictureChange';
 
@@ -48,8 +48,8 @@ export function pictureFingerprint(
   if (!set || !kind) return null;
   const keys =
     kind === 'web'
-      ? webTourStepsOf(set).flatMap((step) => {
-          const pic = step.web.picture;
+      ? webTourSequenceOf(set).flatMap((step) => {
+          const pic = step.web?.picture;
           return pic?.path ? [`w ${pic.path} ${markupKey(pic.markup)}`] : [];
         })
       : liveTourStepsOf(set).flatMap((step) => {

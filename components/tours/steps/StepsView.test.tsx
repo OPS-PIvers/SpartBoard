@@ -141,6 +141,39 @@ describe('StepsView article', () => {
   });
 });
 
+describe('StepsView messages and site switches', () => {
+  const steps = [
+    step(1),
+    step(2, { message: true, picture: null }),
+    step(3, { continueOn: 'claude.ai' }),
+  ];
+
+  it('shows a Message step as text and a one-line divider where the site changes', () => {
+    render(view({ steps }));
+    const items = screen.getAllByTestId('steps-article-step');
+    expect(items).toHaveLength(3);
+    expect(items[1].textContent).toContain('Tip 2');
+    expect(items[1].querySelector('[data-testid="step-picture"]')).toBeNull();
+    const dividers = screen.getAllByTestId('steps-site-switch');
+    expect(dividers).toHaveLength(1);
+    expect(dividers[0].textContent).toBe('Continue on claude.ai');
+    expect(items[2].contains(dividers[0])).toBe(true);
+  });
+
+  it('walks through a message with no picture stage, and the divider before the next site', () => {
+    render(view({ steps, initialMode: 'walkthrough' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Step 2 of 3')).toBeTruthy();
+    expect(screen.queryByTestId('steps-walkthrough-picture')).toBeNull();
+    expect(screen.queryByText('No picture for this step')).toBeNull();
+    expect(screen.getByRole('dialog').textContent).toContain('Tip 2');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByTestId('steps-site-switch').textContent).toBe(
+      'Continue on claude.ai'
+    );
+  });
+});
+
 describe('StepsView walk through', () => {
   const open = () => {
     render(view());

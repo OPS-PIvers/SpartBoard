@@ -6146,6 +6146,7 @@
     "stepNumber": "Step {{number}}",
     "onlyIfAppears": "Only if it appears",
     "untitledStep": "Untitled step",
+    "continueOn": "Continue on {{host}}",
     "pictureAlt": "Picture of step {{number}}",
     "pictureLoading": "Loading picture",
     "noPicture": "No picture for this step",

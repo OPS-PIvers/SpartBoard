@@ -70,6 +70,10 @@ export function parsePublicTour(body: unknown): PublicTourView | null {
         text: typeof s.text === 'string' ? s.text : '',
         onlyIfAppears: s.onlyIfAppears === true,
         observe: s.observe === true,
+        ...(s.message === true ? { message: true as const } : {}),
+        ...(typeof s.continueOn === 'string' && s.continueOn
+          ? { continueOn: s.continueOn }
+          : {}),
         picture: p
           ? {
               w: num(p.w) ?? 0,

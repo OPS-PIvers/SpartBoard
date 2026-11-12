@@ -66,6 +66,18 @@ describe('pictureFingerprint', () => {
     ).toBe(f);
   });
 
+  it('ignores Message steps, which have no picture', () => {
+    const withMessages = {
+      ...base,
+      steps: [
+        { id: 'm1', text: 'Welcome', message: true },
+        ...base.steps,
+        { id: 'm2', text: 'Done', message: true },
+      ],
+    } as unknown as GuidedLearningSet;
+    expect(pictureFingerprint(withMessages)).toBe(pictureFingerprint(base));
+  });
+
   it('changes with a new file from a crop, blur, retake or replace', () => {
     expect(
       pictureFingerprint(
