@@ -23,6 +23,7 @@ import {
   Circle,
   GripVertical,
   Loader2,
+  MessageSquarePlus,
   MousePointerClick,
   PenLine,
   Play,
@@ -246,7 +247,13 @@ export const TourShellOutlineFoot: React.FC<{
   extra?: React.ReactNode;
 }> = ({ adapter, extra }) => {
   const { t } = useTranslation();
-  if (!adapter.onAddStep && !adapter.onRecord && !extra) return null;
+  if (
+    !adapter.onAddStep &&
+    !adapter.onAddMessage &&
+    !adapter.onRecord &&
+    !extra
+  )
+    return null;
   return (
     <div
       data-testid="tour-shell-outline-foot"
@@ -262,6 +269,17 @@ export const TourShellOutlineFoot: React.FC<{
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           {t('tourPicker.addStep')}
+        </button>
+      )}
+      {adapter.onAddMessage && (
+        <button
+          type="button"
+          onClick={() => adapter.onAddMessage?.(adapter.steps.length)}
+          className={`${secondaryBtn} flex items-center gap-1 whitespace-nowrap px-2`}
+          {...adapter.anchors?.['add-message']}
+        >
+          <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
+          {adapter.addMessageLabel}
         </button>
       )}
       {adapter.onRecord && (
@@ -358,17 +376,48 @@ export const TourShellOutline: React.FC<{ adapter: TourShellAdapter }> = ({
           className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 pb-3 pt-1.5"
         >
           {steps.map((step, i) => (
-            <OutlineRow
-              key={step.id}
-              step={step}
-              index={i}
-              selected={i === adapter.selected}
-              adapter={adapter}
-            />
+            <React.Fragment key={step.id}>
+              {i === 0 && <MessageGap index={0} adapter={adapter} />}
+              <OutlineRow
+                step={step}
+                index={i}
+                selected={i === adapter.selected}
+                adapter={adapter}
+              />
+              {i < steps.length - 1 && (
+                <MessageGap index={i + 1} adapter={adapter} />
+              )}
+            </React.Fragment>
           ))}
         </ol>
       </SortableContext>
     </DndContext>
+  );
+};
+
+/** A hairline between rows that adds a message there; it shows on hover, focus and touch. */
+const MessageGap: React.FC<{ index: number; adapter: TourShellAdapter }> = ({
+  index,
+  adapter,
+}) => {
+  if (!adapter.onAddMessage) return null;
+  return (
+    <li
+      data-testid="tour-editor-add-message-gap"
+      className="relative h-0 shrink-0"
+    >
+      {/* no-tour-anchor: repeats between every step; the Add a message button is the anchor */}
+      <button
+        type="button"
+        onClick={() => adapter.onAddMessage?.(index)}
+        aria-label={adapter.addMessageLabel}
+        className={`absolute inset-x-1.5 -top-1.5 z-10 flex h-3 items-center gap-2 text-[11px] font-semibold text-brand-blue-primary opacity-0 hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 ${focusRing}`}
+      >
+        <span className="h-px flex-1 bg-brand-blue-primary/30" />
+        {adapter.addMessageLabel}
+        <span className="h-px flex-1 bg-brand-blue-primary/30" />
+      </button>
+    </li>
   );
 };
 

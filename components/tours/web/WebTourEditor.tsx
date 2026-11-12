@@ -85,6 +85,8 @@ import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLi
 import { PictureCache } from './webPictures';
 import {
   CHECK_LABEL,
+  insertAt,
+  newMessageStep,
   showWhenProblem,
   webStepNeedsText,
   webTargetLabel,
@@ -92,6 +94,8 @@ import {
 } from './webEditorModel';
 import { WebPictureStage } from './WebPictureStage';
 import { WebStepCard } from './WebStepCard';
+import { WebMessageCard } from './WebMessageCard';
+import { isMessageStep } from './tourSequence';
 import { WebTourGoalField, WebWritingStrip } from './WebTourWriting';
 import { useWebTourWriting } from './useWebTourWriting';
 import { useWebTourDraft } from './useWebTourDraft';
@@ -342,6 +346,8 @@ const WebTourEditorBody: React.FC<{
   const blockers = publishBlockers(set, matcher);
   const unchecked = blockers.some((b) => b.kind === 'unchecked');
   const notWeb = blockers.some((b) => b.kind === 'not-web');
+  const noTarget = blockers.some((b) => b.kind === 'no-target');
+  const emptyMessage = blockers.some((b) => b.kind === 'empty-message');
   const checkResults = currentCheckResults(set);
   const confirmed = new Set(
     checkResults
@@ -396,8 +402,22 @@ const WebTourEditorBody: React.FC<{
     }));
   };
 
+  const addMessage = (index: number) => {
+    const created = newMessageStep();
+    change((cur) => ({ ...cur, steps: insertAt(cur.steps, index, created) }));
+    setTab('steps');
+    select(created.id);
+    focusStepTitle(created.id);
+  };
+
   const addStep = () => {
-    const created = newWebStep(selected);
+    // A new step starts on the page of the nearest recorded step at or before the selection.
+    const created = newWebStep(
+      steps
+        .slice(0, selectedIndex + 1)
+        .reverse()
+        .find((s) => s.web) ?? undefined
+    );
     change((cur) => ({
       ...cur,
       steps: insertAfter(cur.steps, selected?.id ?? null, created),
@@ -566,10 +586,16 @@ const WebTourEditorBody: React.FC<{
     stepCount: steps.length,
     stepsWithoutText: steps.filter(webStepNeedsText).length,
     publish: pub,
-    checkNeeded: unchecked,
+    checkNeeded: unchecked && !noTarget,
     checking,
     canCheck,
-    other: notWeb ? 'A step has no website target' : null,
+    other: notWeb
+      ? 'A step has no website target'
+      : noTarget
+        ? 'A tour needs a step with a website target'
+        : emptyMessage
+          ? 'A message is empty'
+          : null,
     busy: busy || writing.busy,
   });
   // A Check tour this browser can't run, or one waiting on weak matches, says why on the status line.
@@ -661,7 +687,9 @@ const WebTourEditorBody: React.FC<{
         step,
         i,
         matcher,
-        confirmed.has(step.id) ? 'found' : checkResults?.[step.id],
+        confirmed.has(step.id) || (isMessageStep(step) && checkResults)
+          ? 'found'
+          : checkResults?.[step.id],
         fixes.has(step.id)
       )
     ),
@@ -672,6 +700,15 @@ const WebTourEditorBody: React.FC<{
       const step = steps.find((s) => s.id === stepId);
       if (!step) return null;
       const index = steps.indexOf(step);
+      if (isMessageStep(step))
+        return (
+          <WebMessageCard
+            key={step.id}
+            step={step}
+            onChange={(s, field) => updateStep(step.id, s, field)}
+            onDelete={() => deleteStep(step.id)}
+          />
+        );
       return (
         <WebStepCard
           key={step.id}
@@ -697,6 +734,8 @@ const WebTourEditorBody: React.FC<{
       );
     },
     onAddStep: addStep,
+    onAddMessage: addMessage,
+    addMessageLabel: 'Add a message',
     onRecord: record,
     recordLabel:
       recorder.link === 'connected'
@@ -710,6 +749,7 @@ const WebTourEditorBody: React.FC<{
       play: tourAttr('web-tour-editor.play'),
       menu: tourAttr('web-tour-editor.menu'),
       'add-step': tourAttr('web-tour-editor.add-step'),
+      'add-message': tourAttr('web-tour-editor.add-message'),
       record: tourAttr('web-tour-editor.record'),
     },
     undo: {
@@ -914,6 +954,20 @@ const outlineStep = (
   const studentData = reviewEntries(step, matcher).some((e) =>
     e.hits.some(isHardHit)
   );
+  if (isMessageStep(step)) {
+    const empty = label.length === 0 && !step.text?.trim();
+    return {
+      id: step.id,
+      title: label.length > 0 ? label : 'Message',
+      titleIsFallback: label.length === 0,
+      status: result ?? undefined,
+      subtitle: studentData
+        ? { text: 'Student data', tone: 'warn' }
+        : empty
+          ? { text: 'Needs text', tone: 'warn' }
+          : { text: 'Message', tone: 'muted' },
+    };
+  }
   const neverPlays = showWhenProblem(step.web);
   const subtitle: TourShellStep['subtitle'] = !step.web
     ? { text: 'No website target', tone: 'error' }
