@@ -5406,7 +5406,9 @@
     "reviewRemoveAllBlur": "Remove all blur",
     "reviewFrames": "Frames",
     "reviewBlurredCount": "Blur on {{count}} of {{total}} frames",
-    "reviewAddSteps": "Add steps"
+    "reviewAddSteps": "Add steps",
+    "helpCenterNoOrg": "The tour is saved, but you need an organization to add it to the Help Center.",
+    "helpCenterFailed": "The tour is saved, but it couldn't be added to the Help Center."
   },
   "tours": {
     "unavailable": "This tour isn't available right now.",
@@ -5598,7 +5600,9 @@
       "fact_district_account": "Signed in with a district account",
       "fact_classlink_on": "ClassLink import is on",
       "needsText": "Needs text"
-    }
+    },
+    "savedToHelpCenter": "Saved to the Help Center as Hidden.",
+    "openInHelpCenter": "Open in Help Center"
   },
   "glPlayer": {
     "modeChip": {

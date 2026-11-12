@@ -363,6 +363,11 @@ export const TOUR_ANCHORS = {
     label: 'Show button on the "Claude is editing" notice',
     panel: true,
   },
+  // Help Center round trip: the recorded-tour toast (workstream B).
+  'board.help-center-toast-open': {
+    label: 'Open in Help Center button on the recorded-tour notice',
+    panel: true,
+  },
   'board-actions.zoom': { label: 'Zoom level button' },
   'board-actions.zoom-reset': { label: 'Reset zoom button' },
   'board-actions.help': { label: 'Help button' },
@@ -8375,45 +8380,136 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.help-center.add-item': {
-    label: 'Add item button in Help Center admin',
-    panel: true,
-  },
-  'admin.help-center.sort-by-opens': {
-    label: 'Sort by opens button in Help Center admin',
+    label: 'New button in Help Center admin',
     panel: true,
   },
   'admin.help-center.item-toggle': {
-    label: 'Visible switch on a Help Center admin item',
+    label: 'Publish or Hide button on the selected Help Center item',
     perField: true,
     persists: true,
     panel: true,
   },
   'admin.help-center.item-edit': {
-    label: 'Edit button on a Help Center admin item',
+    label: 'Edit button on the selected Help Center item',
     perField: true,
     panel: true,
   },
   'admin.help-center.item-delete': {
-    label: 'Delete button on a Help Center admin item',
+    label: 'Delete button on the selected Help Center item',
     perField: true,
     destructive: true,
     panel: true,
   },
-  'admin.help-center.item-web-change': {
-    label:
-      'Change link button on a Help Center admin item that links a web tour',
+  'admin.help-center.search': {
+    label: 'Search box in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.show': {
+    label: 'Show select in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.categories': {
+    label: 'Categories button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.web-tours-link': {
+    label: 'Web tours link in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.new-record-tour': {
+    label: 'Record a Live tour in the Help Center New menu',
+    panel: true,
+  },
+  'admin.help-center.new-move': {
+    label: 'Move from library in the Help Center New menu',
+    panel: true,
+  },
+  'admin.help-center.new-picture-guide': {
+    label: 'New Picture guide in the Help Center New menu',
+    creates: true,
+    panel: true,
+  },
+  'admin.help-center.item-row': {
+    label: 'Item row in the Help Center admin list',
     perField: true,
     panel: true,
   },
-  'admin.help-center.item-web-remove': {
-    label: 'Remove button on a Help Center admin item that links a web tour',
+  'admin.help-center.item-drag': {
+    label: 'Drag handle on a Help Center admin item',
     perField: true,
-    destructive: true,
+    persists: true,
     panel: true,
   },
-  'admin.help-center.category-toggle': {
-    label: 'Category collapse button in Help Center admin',
+  'admin.help-center.detail-back': {
+    label: 'Back button on the Help Center item detail (phone)',
+    panel: true,
+  },
+  'admin.help-center.detail-title': {
+    label: 'Title box on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-description': {
+    label: 'Description box on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-category': {
+    label: 'Category select on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-scope': {
+    label: 'Scope select on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.view-steps': {
+    label: 'View steps button on the selected Live tour',
+    panel: true,
+  },
+  'admin.help-center.copy-to-library': {
+    label: 'Copy to my library button on the selected Picture guide',
+    persists: true,
+    creates: true,
+    panel: true,
+  },
+  'admin.help-center.move-search': {
+    label: 'Search box in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-type': {
+    label: 'Type select in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-owner': {
+    label: 'Owner select in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-pick': {
+    label: 'Checkbox on a guide in Move from library',
     perField: true,
+    panel: true,
+  },
+  'admin.help-center.move-cancel': {
+    label: 'Cancel button in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-confirm': {
+    label: 'Move button in Move from library',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.category-reorder': {
+    label: 'Drag handle on a Help Center category',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.category-rename': {
+    label: 'Name box on a Help Center category',
+    perField: true,
+    persists: true,
     panel: true,
   },
   'admin.help-center.category-name': {
@@ -8431,24 +8527,12 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'admin.help-center.tour-health-toggle': {
-    label: 'Tour health section button in Help Center admin',
-    panel: true,
-  },
-  'admin.help-center.record-tour': {
-    label: 'Record tour button in Help Center admin',
-    panel: true,
-  },
-  'admin.help-center.record-web-tour': {
-    label: 'Record web tour button in Help Center admin',
-    panel: true,
-  },
   'admin.help-center.check-live': {
-    label: 'Check live button in Help Center admin',
+    label: "Check live button in a Live tour's Help Center health",
     panel: true,
   },
   'admin.help-center.edit-step': {
-    label: 'Edit step button in the tour health table',
+    label: "Edit button on a step in a Live tour's Help Center health",
     perField: true,
     panel: true,
   },
@@ -8469,68 +8553,6 @@ export const TOUR_ANCHORS = {
   'admin.help-center.unmapped-dismiss': {
     label: 'Dismiss button for a needs-a-person unmapped anchor',
     persists: true,
-    panel: true,
-  },
-  'admin.help-center.keep-all-in-help': {
-    label: 'Keep all in Help button for linked library sets',
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.keep-in-help': {
-    label: 'Keep in Help button for a linked library set',
-    perField: true,
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.form-visible': {
-    label: 'Visible to teachers switch in the Help item form',
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.form-title': {
-    label: 'Title box in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-category': {
-    label: 'Category select in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-description': {
-    label: 'Description box in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-cancel': {
-    label: 'Cancel button in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-save': {
-    label: 'Save button in the Help item form',
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.gl-open-editor': {
-    label: 'Open editor button for the chosen activity',
-    panel: true,
-  },
-  'admin.help-center.gl-change': {
-    label: 'Change button for the chosen activity',
-    panel: true,
-  },
-  'admin.help-center.gl-choose': {
-    label: 'Choose activity button in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.gl-new': {
-    label: 'New activity button in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.gl-search': {
-    label: 'Search box in the activity menu',
-    panel: true,
-  },
-  'admin.help-center.gl-option': {
-    label: 'Activity row in the activity menu',
-    perField: true,
     panel: true,
   },
   'admin.features.filter-enabled': {
@@ -10659,7 +10681,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.help-center.related-widgets': {
-    label: 'Related widgets picker in Help Center item form',
+    label: 'Widgets picker on the selected Help Center item',
     panel: true,
   },
   'admin.gradebook-settings.district-buildings': {
@@ -12344,6 +12366,10 @@ export const TOUR_ANCHORS = {
   },
   'gl-manager.preview-play': {
     label: 'Play preview button in the Guided Learning library',
+  },
+  'gl-manager.open-in-help-center': {
+    label: 'Open in Help Center button on the moved-to-Help-Center notice',
+    panel: true,
   },
   'gl-player.read-aloud': { label: 'Read aloud button in the player' },
   'gl-player.prev': { label: 'Previous step button in the player' },

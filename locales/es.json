@@ -4197,7 +4197,9 @@
     "reviewRemoveAllBlur": "Quitar todo el difuminado",
     "reviewFrames": "Imágenes",
     "reviewBlurredCount": "Difuminado en {{count}} de {{total}} imágenes",
-    "reviewAddSteps": "Añadir pasos"
+    "reviewAddSteps": "Añadir pasos",
+    "helpCenterNoOrg": "El recorrido está guardado, pero necesitas una organización para añadirlo al Centro de ayuda.",
+    "helpCenterFailed": "El recorrido está guardado, pero no se pudo añadir al Centro de ayuda."
   },
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",
@@ -4389,7 +4391,9 @@
       "fact_district_account": "Sesión con una cuenta del distrito",
       "fact_classlink_on": "La importación de ClassLink está activada",
       "needsText": "Necesita texto"
-    }
+    },
+    "savedToHelpCenter": "Guardado en el Centro de ayuda como Oculto.",
+    "openInHelpCenter": "Abrir en el Centro de ayuda"
   },
   "glPlayer": {
     "modeChip": {

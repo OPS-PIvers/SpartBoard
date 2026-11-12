@@ -4197,7 +4197,9 @@
     "reviewRemoveAllBlur": "Retirer tout le flou",
     "reviewFrames": "Images",
     "reviewBlurredCount": "Flou sur {{count}} images sur {{total}}",
-    "reviewAddSteps": "Ajouter les étapes"
+    "reviewAddSteps": "Ajouter les étapes",
+    "helpCenterNoOrg": "La visite est enregistrée, mais il vous faut une organisation pour l'ajouter au Centre d'aide.",
+    "helpCenterFailed": "La visite est enregistrée, mais elle n'a pas pu être ajoutée au Centre d'aide."
   },
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",
@@ -4389,7 +4391,9 @@
       "fact_district_account": "Connecté avec un compte du district",
       "fact_classlink_on": "L'import ClassLink est activé",
       "needsText": "Texte manquant"
-    }
+    },
+    "savedToHelpCenter": "Enregistré dans le Centre d'aide comme Masqué.",
+    "openInHelpCenter": "Ouvrir dans le Centre d'aide"
   },
   "glPlayer": {
     "modeChip": {
