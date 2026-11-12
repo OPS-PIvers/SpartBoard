@@ -61,7 +61,6 @@ import {
 import { MoveFromLibraryDialog } from './MoveFromLibraryDialog';
 import { PictureGuideStudio } from './PictureGuideStudio';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
-import { WebTourHealthSection } from './WebTourHealthSection';
 import { useHelpCenterSelection } from './helpCenterSelection';
 import { useHelpItemSets } from './useHelpItemSets';
 import { tourNeedsAttention } from './tourAttention';
@@ -77,8 +76,7 @@ import {
   type HelpItemFieldPatch,
 } from './helpCenterAdmin';
 
-type ShowFilter =
-  'all' | 'hidden' | 'published' | 'attention' | 'unmapped' | 'web-health';
+type ShowFilter = 'all' | 'hidden' | 'published' | 'attention' | 'unmapped';
 
 const UNFILED_SECTION: HelpListSection = { id: '', name: 'Unfiled' };
 
@@ -548,9 +546,6 @@ export const HelpCenterManager: React.FC = () => {
               <option value="published">Published</option>
               <option value="attention">Needs attention</option>
               <option value="unmapped">Unmapped controls</option>
-              {webToursOn && (
-                <option value="web-health">Web tour health</option>
-              )}
             </Select>
           </label>
         </div>
@@ -593,9 +588,6 @@ export const HelpCenterManager: React.FC = () => {
 
       {show === 'unmapped' ? (
         <UnmappedAnchorsSection />
-      ) : show === 'web-health' && webToursOn ? (
-        // Stays here until Web tours get their own page.
-        <WebTourHealthSection />
       ) : loading ? (
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

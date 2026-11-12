@@ -36617,13 +36617,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "admin.help-center.tour-health",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#help-center",
-          "admin.help-center.show"
-        ],
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
         "needs": [
           "admin"
         ]
@@ -54332,17 +54329,50 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "web-tours.new",
     "label": "New web tour button on the Web tours page",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "web-tours.edit",
     "label": "Edit button for a web tour on the Web tours page",
-    "scope": "field"
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "web-tours.check",
     "label": "Check tour button for a web tour on the Web tours page",
-    "scope": "field"
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "web-tours.play",
@@ -54363,7 +54393,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "web-tours.copy-link",
     "label": "Copy link button for a web tour on the Web tours page",
-    "scope": "field"
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
   },
   {
     "id": "web-tour-editor.title",
