@@ -88,7 +88,12 @@ export interface StimulusRendererProps {
   cqScaled?: boolean;
   /** Builds a selectable text layer on PDF pages, for passage quotes. */
   selectableText?: boolean;
+  /** In the side panel: an image fits the panel's width and scrolls inside its height. */
+  fill?: boolean;
 }
+
+// How far a small image may grow to fill the side panel.
+const FILL_MAX_UPSCALE = 2;
 
 /** `min(Xpx, Ycqmin)`, only meaningful when the caller passes `cqScaled`. */
 const mm = (px: number, cqmin: number) => `min(${px}px, ${cqmin}cqmin)`;
@@ -198,7 +203,7 @@ const PlaysRemainingNote: React.FC<{
 
 const ImageStimulus: React.FC<
   StimulusRendererProps & { retryNonce: number }
-> = ({ stimulus, onLoadError, retryNonce, cqScaled, light = false }) => {
+> = ({ stimulus, onLoadError, retryNonce, cqScaled, light = false, fill }) => {
   const [failed, setFailed] = useState(false);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const [box, setBox] = useState<{ w: number; maxH: number } | null>(null);
@@ -215,8 +220,11 @@ const ImageStimulus: React.FC<
     if (!scroller) return;
     const measure = () => {
       const maxH = parseFloat(getComputedStyle(scroller).maxHeight);
+      // clientWidth rounds up on fractional layouts, which overflows by a sliver.
+      const rectW = scroller.getBoundingClientRect().width;
+      const barW = scroller.offsetWidth - scroller.clientWidth;
       setBox({
-        w: scroller.clientWidth,
+        w: rectW > 0 ? Math.floor(rectW) - barW : scroller.clientWidth,
         maxH: Number.isFinite(maxH) ? maxH : window.innerHeight / 2,
       });
     };
@@ -228,19 +236,29 @@ const ImageStimulus: React.FC<
 
   if (failed) return null;
 
-  // The fitted size at 100%, scaled by zoom; never upscales past the file at 100%.
+  // The fitted size at 100%, scaled by zoom; inline it never upscales, in the panel it fills the width.
   const fit =
     natural && natural.w > 0 && natural.h > 0 && box && box.w > 0
-      ? Math.min(1, box.w / natural.w, box.maxH / natural.h)
+      ? fill
+        ? Math.min(FILL_MAX_UPSCALE, box.w / natural.w)
+        : Math.min(1, box.w / natural.w, box.maxH / natural.h)
       : null;
   const size =
     natural && fit !== null
-      ? { width: natural.w * fit * zoom, height: natural.h * fit * zoom }
+      ? {
+          width: Math.floor(natural.w * fit * zoom),
+          height: Math.floor(natural.h * fit * zoom),
+        }
       : null;
+  const capCls = cqScaled
+    ? ''
+    : fill
+      ? 'max-h-[50vh] lg:max-h-none'
+      : 'max-h-[50vh]';
 
   return (
     <div
-      className={`flex flex-col w-full rounded-xl overflow-hidden ${surfaceCls(light)}`}
+      className={`flex flex-col w-full rounded-xl overflow-hidden ${fill ? 'min-h-0' : ''} ${surfaceCls(light)}`}
     >
       <StimulusZoomBar
         zoom={zoom}
@@ -253,7 +271,7 @@ const ImageStimulus: React.FC<
       <div
         ref={scrollerRef}
         data-testid="image-stimulus-viewport"
-        className={`overflow-auto ${cqScaled ? '' : 'max-h-[50vh]'}`}
+        className={`overflow-auto ${fill ? 'flex-1 min-h-0 [scrollbar-gutter:stable]' : ''} ${capCls}`}
         style={{
           touchAction: 'pan-x pan-y',
           ...(cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined),
@@ -265,7 +283,7 @@ const ImageStimulus: React.FC<
           alt="Question stimulus"
           draggable={false}
           className={`block mx-auto object-contain ${
-            size ? 'max-w-none' : `max-w-full ${cqScaled ? '' : 'max-h-[50vh]'}`
+            size ? 'max-w-none' : `max-w-full ${capCls}`
           }`}
           style={
             size ?? (cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined)
@@ -922,7 +940,7 @@ const StimulusReadAloudPane: React.FC<{
 };
 
 export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
-  const { stimulus, light = false, readAloud, cqScaled } = props;
+  const { stimulus, light = false, readAloud, cqScaled, fill } = props;
   const [retryNonce, setRetryNonce] = useState(0);
   const [failed, setFailed] = useState(false);
 
@@ -972,7 +990,7 @@ export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
 
   return (
     <div
-      className={`flex flex-col h-full ${cqScaled ? '' : 'gap-2'}`}
+      className={`flex flex-col h-full ${fill ? 'min-h-0' : ''} ${cqScaled ? '' : 'gap-2'}`}
       style={cqScaled ? { gap: mm(8, 2) } : undefined}
       data-stimulus-id={stimulus.id}
       data-stimulus-quotable={
