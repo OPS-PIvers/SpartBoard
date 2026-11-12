@@ -433,7 +433,10 @@ describe('WebTourEditor', () => {
     expect(publishButton()).toBeEnabled();
     expect(storage.setWebTourCheckRun).toHaveBeenLastCalledWith(
       't1',
-      expect.objectContaining({ results: { s1: 'weak' }, accepted: ['s1'] })
+      expect.objectContaining({
+        results: { s1: 'weak' },
+        accepted: { s1: expect.any(String) as string },
+      })
     );
     expect(storage.saveWebTourDraft).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Undo confirm' }));

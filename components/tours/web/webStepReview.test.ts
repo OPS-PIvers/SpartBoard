@@ -397,18 +397,51 @@ describe('check signature', () => {
     expect(checkPasses(recordCheckResult(ok, sig, 'b', 'none'))).toBe(false);
   });
 
-  it('keeps a confirmation across re-checks of the same targets, not after a change', () => {
-    const set = tourOf([step('a', {})]);
+  it("keeps a step's confirmation until that step's own target changes", () => {
+    const set = tourOf([step('a', {}), step('b', { urlPattern: '*' })]);
     const started = startCheckRun(set, 'u1');
     const sig = started.webTourChecked?.sig ?? '';
     const ok = acceptWeakMatch(
-      recordCheckResult(started, sig, 'a', 'weak'),
+      recordCheckResult(
+        recordCheckResult(started, sig, 'a', 'weak'),
+        sig,
+        'b',
+        'found'
+      ),
       'a',
       true
     );
     const again = startCheckRun(ok, 'u1');
-    expect(again.webTourChecked?.accepted).toEqual(['a']);
-    expect(checkPasses(recordCheckResult(again, sig, 'a', 'weak'))).toBe(true);
+    expect(Object.keys(again.webTourChecked?.accepted ?? {})).toEqual(['a']);
+    const rechecked = recordCheckResult(
+      recordCheckResult(again, sig, 'a', 'weak'),
+      sig,
+      'b',
+      'found'
+    );
+    expect(checkPasses(rechecked)).toBe(true);
+    // Fixing another step keeps this one confirmed.
+    const otherFixed = withStep(ok, 'b', (s) => ({
+      ...s,
+      web: {
+        ...(s.web as WebTourBinding),
+        locator: { role: 'link', name: 'Assignments' },
+      },
+    }));
+    const next = startCheckRun(otherFixed, 'u1');
+    const nextSig = next.webTourChecked?.sig ?? '';
+    expect(nextSig).not.toBe(sig);
+    expect(
+      checkPasses(
+        recordCheckResult(
+          recordCheckResult(next, nextSig, 'a', 'weak'),
+          nextSig,
+          'b',
+          'found'
+        )
+      )
+    ).toBe(true);
+    // Changing this step's own target drops its confirmation.
     const edited = withStep(ok, 'a', (s) => ({
       ...s,
       web: {
@@ -417,7 +450,6 @@ describe('check signature', () => {
       },
     }));
     expect(weakAccepted(edited, 'a')).toBe(false);
-    expect(checkPasses(edited)).toBe(false);
     expect(
       startCheckRun(edited, 'u1').webTourChecked?.accepted
     ).toBeUndefined();

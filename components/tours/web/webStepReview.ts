@@ -4,8 +4,10 @@ import {
   type GuidedLearningStep,
   type WebTourBinding,
   type WebTourCheckResult,
+  type WebTourCheckRun,
   type WebTourStableAttrs,
 } from '@/types';
+import { fixKey } from './fixClues';
 import { markupKey } from './pictureChange';
 import type { NameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
@@ -212,15 +214,24 @@ export const currentCheckResults = (
   return run && run.sig === targetsSignature(set) ? run.results : null;
 };
 
+/** Whether the run's latest result for the step is weak and the admin confirmed its target as it is now. */
+export const isConfirmedWeak = (
+  run: WebTourCheckRun | undefined,
+  step: Pick<WebStep, 'id' | 'web'>
+): boolean =>
+  run?.results[step.id] === 'weak' &&
+  run.accepted?.[step.id] === fixKey(step.web?.locator);
+
 /** Whether the admin confirmed this step's weak match in the current check run. */
 export const weakAccepted = (
   set: Pick<GuidedLearningSet, 'steps' | 'webTourChecked'>,
   stepId: string
 ): boolean => {
-  const results = currentCheckResults(set);
+  const step = (set.steps as WebStep[]).find((s) => s.id === stepId);
   return (
-    results?.[stepId] === 'weak' &&
-    !!set.webTourChecked?.accepted?.includes(stepId)
+    !!step &&
+    !!currentCheckResults(set) &&
+    isConfirmedWeak(set.webTourChecked, step)
   );
 };
 
@@ -236,21 +247,24 @@ export const checkPasses = (
     (set.steps as WebStep[]).every(
       (s) =>
         results[s.id] === 'found' ||
-        (results[s.id] === 'weak' &&
-          !!set.webTourChecked?.accepted?.includes(s.id)) ||
+        isConfirmedWeak(set.webTourChecked, s) ||
         (!!s.web?.showWhen && results[s.id] === undefined)
     )
   );
 };
 
-/** Starts a check run of the targets as they are now, clearing earlier results but keeping confirmed weak matches of the same targets. */
+/** Starts a check run of the targets as they are now, clearing earlier results but keeping each confirmation whose step target is unchanged. */
 export const startCheckRun = (
   set: GuidedLearningSet,
   uid: string,
   sig = targetsSignature(set)
 ): GuidedLearningSet => {
-  const prior = set.webTourChecked;
-  const accepted = prior?.sig === sig ? prior.accepted : undefined;
+  const kept = Object.fromEntries(
+    (set.steps as WebStep[]).flatMap((s) => {
+      const key = set.webTourChecked?.accepted?.[s.id];
+      return key && key === fixKey(s.web?.locator) ? [[s.id, key]] : [];
+    })
+  );
   return {
     ...set,
     webTourChecked: {
@@ -258,7 +272,7 @@ export const startCheckRun = (
       at: Date.now(),
       sig,
       results: {},
-      ...(accepted?.length ? { accepted } : {}),
+      ...(Object.keys(kept).length ? { accepted: kept } : {}),
     },
   };
 };
@@ -270,9 +284,11 @@ export const acceptWeakMatch = (
   on: boolean
 ): GuidedLearningSet => {
   const run = set.webTourChecked;
-  if (!run || currentCheckResults(set)?.[stepId] !== 'weak') return set;
-  const rest = (run.accepted ?? []).filter((id) => id !== stepId);
-  const accepted = on ? [...rest, stepId] : rest;
+  const step = (set.steps as WebStep[]).find((s) => s.id === stepId);
+  if (!run || !step || currentCheckResults(set)?.[stepId] !== 'weak')
+    return set;
+  const { [stepId]: _was, ...rest } = run.accepted ?? {};
+  const accepted = on ? { ...rest, [stepId]: fixKey(step.web?.locator) } : rest;
   return { ...set, webTourChecked: { ...run, accepted } };
 };
 

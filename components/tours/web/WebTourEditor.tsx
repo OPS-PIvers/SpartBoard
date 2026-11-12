@@ -71,6 +71,7 @@ import {
   confirmPictures,
   currentCheckResults,
   hideStudentData,
+  isConfirmedWeak,
   needsFixOnSite,
   picturesNeedConfirm,
   publishBlockers,
@@ -343,9 +344,11 @@ const WebTourEditorBody: React.FC<{
   const notWeb = blockers.some((b) => b.kind === 'not-web');
   const checkResults = currentCheckResults(set);
   const confirmed = new Set(
-    (checkResults ? (set.webTourChecked?.accepted ?? []) : []).filter(
-      (id) => checkResults?.[id] === 'weak'
-    )
+    checkResults
+      ? steps
+          .filter((s) => isConfirmedWeak(set.webTourChecked, s))
+          .map((s) => s.id)
+      : []
   );
   const weakLeft =
     !!checkResults &&
