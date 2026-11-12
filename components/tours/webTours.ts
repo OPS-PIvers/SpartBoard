@@ -204,14 +204,6 @@ export async function deleteWebTourDraft(setId: string): Promise<void> {
   await deleteDoc(draftRef(setId));
 }
 
-/** Files the tour under the Help Center or back in the library, without counting as an edit. */
-export async function setWebTourHelpCenter(
-  setId: string,
-  helpCenter: boolean
-): Promise<void> {
-  await updateDoc(draftRef(setId), { helpCenter });
-}
-
 /** Saves the draft's check run (C13) without counting as an edit. */
 export async function setWebTourCheckRun(
   setId: string,
