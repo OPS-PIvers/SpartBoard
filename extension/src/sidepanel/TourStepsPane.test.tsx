@@ -163,7 +163,7 @@ describe('TourStepsPane', () => {
     render(pane({ admin: true }));
     fireEvent.click(await screen.findByRole('button', { name: 'Edit tour' }));
     expect(createTab).toHaveBeenCalledWith({
-      url: 'https://spartboard.web.app/?edit-web-tour=set1',
+      url: 'https://spartboard.web.app/web-tours?edit-web-tour=set1',
     });
   });
 });

@@ -4588,8 +4588,6 @@
     "loading": "Touren werden geladen...",
     "intro": "Prüft veröffentlichte Touren anhand des Anker-Verzeichnisses.",
     "recordTour": "Tour aufnehmen",
-    "recordWebTour": "Web-Tour aufnehmen",
-    "recordWebTourFailed": "Die Web-Tour konnte nicht erstellt werden.",
     "checkLive": "Live prüfen",
     "empty": "Noch kein Guided-Learning-Set hat Live-Tour-Schritte.",
     "untitledSet": "Unbenanntes Set",

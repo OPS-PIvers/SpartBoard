@@ -12262,6 +12262,26 @@ export const TOUR_ANCHORS = {
   'tour-editor.step-more': {
     label: "More toggle on the selected step's card in the tour editor",
   },
+  'web-tours.new': {
+    label: 'New web tour button on the Web tours page',
+    creates: true,
+  },
+  'web-tours.edit': {
+    label: 'Edit button for a web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.check': {
+    label: 'Check tour button for a web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.play': {
+    label: 'Play button for a published web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.copy-link': {
+    label: 'Copy link button for a web tour on the Web tours page',
+    perField: true,
+  },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',

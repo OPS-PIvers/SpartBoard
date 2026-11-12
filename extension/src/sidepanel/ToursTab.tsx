@@ -1,6 +1,6 @@
 // The side panel's help center (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5, H9).
 import React, { useEffect, useState } from 'react';
-import { ListOrdered, Play, RefreshCw, Search } from 'lucide-react';
+import { ListOrdered, Play, RefreshCw, Search, Settings2 } from 'lucide-react';
 import {
   chromeMuted,
   focusRing,
@@ -15,6 +15,7 @@ import {
   type TourListReply,
   type TourStartReply,
 } from '../tourList';
+import { webToursUrl } from '../appOrigin';
 import { FAILURE_TEXT } from './failureText';
 import { TourStepsPane } from './TourStepsPane';
 
@@ -91,6 +92,21 @@ const TourRow: React.FC<{
     </span>
   </li>
 );
+
+/** Opens SpartBoard's Web tours page; shown only once the server says this account is an admin (H10). */
+export const ManageToursButton: React.FC<{ reply: TourListReply | null }> = ({
+  reply,
+}) =>
+  reply?.ok && reply.list.admin ? (
+    <button
+      type="button"
+      className={`${secondaryBtn} inline-flex items-center gap-1.5 border border-slate-200`}
+      onClick={() => void chrome.tabs.create({ url: webToursUrl() })}
+    >
+      <Settings2 className="h-4 w-4" aria-hidden="true" />
+      Manage tours
+    </button>
+  ) : null;
 
 export const ToursTab: React.FC<{
   reply: TourListReply | null;
