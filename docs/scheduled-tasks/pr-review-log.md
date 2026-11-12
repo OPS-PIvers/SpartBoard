@@ -5085,3 +5085,13 @@ rather than "no data") is also still open.
   - Ready: #5601, #5595, #5594, #5593, #5592.
   - Ready with minor notes: #5596. Its backlog already marks the #5595 lead "fixed", so merge it after #5592-#5595.
 - Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.
+
+## 2026-11-12
+
+- PRs reviewed: #5648 docs: nightly debugger run 121 log; #5647 Fix Schoology categories panel offering defaults after a failed load; #5646 Fix group resize committing a collapsed size when the pointer is cancelled; #5645 Quiz grading: revoke whiteboard take files that load after the view closes; #5636 docs: unifier run 144 log (aligned); #5624 docs: AB-112 add merged branches from #5623
+- Comments processed: 3 total. 0 fixed, 0 newly explained. None of the PRs had inline review threads. The claude[bot] summaries on #5645 and #5646 and its review on #5624 found no issues and needed no reply.
+- Fixes pushed: none.
+- Reviews posted: 6
+  - Ready: #5647, #5646, #5645, #5636, #5624.
+  - Ready with minor notes: #5648 (a stray blank line splits the Notes bullet list above `Run count: **120**`).
+- Notes: GitHub access went through MCP. For #5646, I confirmed that clearing overrides on cancel also undoes `onMove`'s direct style writes, because `DraggableWindow` re-renders through `useSyncExternalStore`. I ran no local checks because no fixes were made.
