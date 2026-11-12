@@ -2249,7 +2249,8 @@
   "quizStimulusTabs": {
     "sources": "Fuentes",
     "calculator": "Calculadora",
-    "numbered": "Pestaña {{n}}"
+    "numbered": "Pestaña {{n}}",
+    "resize": "Cambiar el tamaño del panel de fuentes"
   },
   "quizTimeLimit": {
     "label": "Límite de tiempo",

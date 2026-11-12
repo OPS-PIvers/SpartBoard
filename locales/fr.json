@@ -2249,7 +2249,8 @@
   "quizStimulusTabs": {
     "sources": "Sources",
     "calculator": "Calculatrice",
-    "numbered": "Onglet {{n}}"
+    "numbered": "Onglet {{n}}",
+    "resize": "Redimensionner le panneau des sources"
   },
   "quizTimeLimit": {
     "label": "Limite de temps",

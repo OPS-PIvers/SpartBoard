@@ -2249,7 +2249,8 @@
   "quizStimulusTabs": {
     "sources": "Quellen",
     "calculator": "Taschenrechner",
-    "numbered": "Tab {{n}}"
+    "numbered": "Tab {{n}}",
+    "resize": "Größe des Quellenbereichs ändern"
   },
   "quizTimeLimit": {
     "label": "Zeitlimit",

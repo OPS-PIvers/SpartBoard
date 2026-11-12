@@ -3566,7 +3566,8 @@
   "quizStimulusTabs": {
     "sources": "Sources",
     "calculator": "Calculator",
-    "numbered": "Tab {{n}}"
+    "numbered": "Tab {{n}}",
+    "resize": "Resize the sources panel"
   },
   "quizReadAloud": {
     "label": "Read aloud",

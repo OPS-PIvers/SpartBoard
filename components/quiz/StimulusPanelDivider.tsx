@@ -5,6 +5,7 @@ import {
   PANEL_PCT_DEFAULT,
   PANEL_PCT_MAX,
   PANEL_PCT_MIN,
+  clampPanelPct,
   panelPctForKey,
 } from '@/utils/quizStimulusPanel';
 
@@ -14,12 +15,21 @@ export const StimulusPanelDivider: React.FC<{
   light: boolean;
 }> = ({ pct, onChange, light }) => {
   const { t } = useTranslation();
-  const dragging = React.useRef(false);
+  // A drag moves only the panel's CSS width; the page re-renders once, when the drag ends.
+  const drag = React.useRef<number | null>(null);
 
   const moveTo = (e: React.PointerEvent<HTMLDivElement>) => {
     const row = e.currentTarget.parentElement?.getBoundingClientRect();
-    if (!row || row.width <= 0) return;
-    onChange(((e.clientX - row.left) / row.width) * 100);
+    const panel = e.currentTarget.previousElementSibling;
+    if (!row || row.width <= 0 || !(panel instanceof HTMLElement)) return;
+    const next = clampPanelPct(((e.clientX - row.left) / row.width) * 100);
+    drag.current = next;
+    panel.style.setProperty('--stimulus-panel-w', `${next}%`);
+  };
+  const endDrag = () => {
+    const final = drag.current;
+    drag.current = null;
+    if (final !== null && final !== pct) onChange(final);
   };
 
   return (
@@ -35,18 +45,17 @@ export const StimulusPanelDivider: React.FC<{
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();
-        dragging.current = true;
+        drag.current = pct;
         e.currentTarget.setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
-        if (dragging.current) moveTo(e);
+        if (drag.current === null) return;
+        if (e.buttons === 0) endDrag();
+        else moveTo(e);
       }}
-      onPointerUp={() => {
-        dragging.current = false;
-      }}
-      onPointerCancel={() => {
-        dragging.current = false;
-      }}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
       onDoubleClick={() => onChange(PANEL_PCT_DEFAULT)}
       onKeyDown={(e) => {
         const next = panelPctForKey(e.key, pct);
