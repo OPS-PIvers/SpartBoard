@@ -433,6 +433,15 @@ function obj(raw: Data, key: string): Data {
   return v as Data;
 }
 
+// Firestore reads a dotted update key as a field path, which the planners' top-level merge can't see.
+function patchOf(raw: Data): Data {
+  const p = obj(raw, 'patch');
+  if (Object.keys(p).some((k) => k.includes('.'))) {
+    throw new OrgAdminError('invalidArgument');
+  }
+  return p;
+}
+
 function idList(raw: Data, key: string): string[] {
   const v = raw[key];
   if (!Array.isArray(v) || v.length > MAX_IDS) {
@@ -467,7 +476,7 @@ export function parseOrgAdminAction(input: unknown): OrgAdminAction {
       return {
         action: 'updateOrg',
         orgId: str(raw, 'orgId'),
-        patch: obj(raw, 'patch'),
+        patch: patchOf(raw),
       };
     case 'addBuilding':
     case 'addDomain':
@@ -481,7 +490,7 @@ export function parseOrgAdminAction(input: unknown): OrgAdminAction {
         action: 'updateBuilding',
         orgId: str(raw, 'orgId'),
         id: str(raw, 'id'),
-        patch: obj(raw, 'patch'),
+        patch: patchOf(raw),
       };
     case 'removeBuilding':
     case 'removeDomain':
@@ -512,7 +521,7 @@ export function parseOrgAdminAction(input: unknown): OrgAdminAction {
         action: 'updateMembers',
         orgId: str(raw, 'orgId'),
         ids: idList(raw, 'ids'),
-        patch: obj(raw, 'patch'),
+        patch: patchOf(raw),
       };
     case 'removeMembers':
       return {

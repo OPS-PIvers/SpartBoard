@@ -388,6 +388,16 @@ describe('buildingListsOverlap', () => {
 });
 
 describe('parseOrgAdminAction', () => {
+  it('refuses a dotted patch key, which Firestore would read as a field path', () => {
+    expect(() =>
+      parseOrgAdminAction({
+        action: 'updateOrg',
+        orgId: 'o',
+        patch: { 'claudeManagedAuth.issuer': 'x' },
+      })
+    ).toThrow(expect.objectContaining({ reason: 'invalidArgument' }));
+  });
+
   it('refuses unknown actions and path-breaking ids', () => {
     expect(() => parseOrgAdminAction({ action: 'nope' })).toThrow(
       expect.objectContaining({ reason: 'invalidArgument' })
