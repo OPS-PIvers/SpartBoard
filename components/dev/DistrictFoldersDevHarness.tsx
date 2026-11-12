@@ -766,14 +766,8 @@ const folderMeta = (id: string) => {
 
 const AddDialog: React.FC = () => {
   const narrow = params.get('narrow') === '1';
-  const level =
-    (
-      {
-        root: null,
-        science: 'sci',
-        'one-folder': 'sci-8',
-      } as Record<string, string | null>
-    )[state] ?? 'sci-8';
+  const level: string | null =
+    state === 'root' ? null : state === 'science' ? 'sci' : 'sci-8';
   const searching = state === 'search' || state === 'search-empty';
   const oneFolder = state === 'one-folder';
 
