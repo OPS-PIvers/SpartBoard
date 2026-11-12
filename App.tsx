@@ -417,6 +417,13 @@ const LibraryManagersDevHarness =
         }))
       )
     : null;
+const DistrictFoldersDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/DistrictFoldersDevHarness').then((module) => ({
+        default: module.DistrictFoldersDevHarness,
+      }))
+    )
+  : null;
 const SidebarListsDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
     ? lazy(() =>
@@ -1405,6 +1412,22 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LibraryManagersDevHarness />
+      </Suspense>
+    );
+  }
+
+  // District library folders design mockup; auth-bypass only.
+  if (
+    DistrictFoldersDevHarness &&
+    isAuthBypass &&
+    pathname === '/district-folders-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <DialogProvider>
+          <DistrictFoldersDevHarness />
+          <DialogContainer />
+        </DialogProvider>
       </Suspense>
     );
   }
