@@ -257,6 +257,35 @@ describe('StepsView walk through', () => {
 });
 
 describe('StepsView print', () => {
+  it('keeps the spotlight in the printed copy, which is never measured on screen', () => {
+    vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    render(
+      view({
+        steps: [
+          step(1),
+          step(2, { picture: { w: 800, h: 450, cssW: 800, target: null } }),
+          step(3, {
+            picture: {
+              w: 0,
+              h: 0,
+              cssW: 0,
+              target: { x: 0.4, y: 0.4, w: 0.2, h: 0.1 },
+            },
+          }),
+        ],
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }));
+    const layer = document.querySelector('[data-steps-print]');
+    const spots = layer?.querySelectorAll(
+      '[data-testid="step-picture-print-spotlight"]'
+    );
+    expect(spots).toHaveLength(2);
+    expect(spots?.[0].getAttribute('viewBox')).toBe('0 0 680 383');
+    expect(spots?.[1].getAttribute('viewBox')).toBe('0 0 680 383');
+    vi.restoreAllMocks();
+  });
+
   it('prints the article alone on its own layer, then takes the layer away', () => {
     vi.useFakeTimers();
     const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
