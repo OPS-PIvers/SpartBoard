@@ -20,6 +20,8 @@ const AUTO_OPENED = new Set([
 const WIDGET_TYPES = new Set(WIDGET_TYPE_LIST);
 // A row in a teacher's own list; menu item positions and Help Center rows are the same for everyone.
 const POSITIONAL = /(^|[#-])row-\d+/;
+// A field key that binds a step to whichever row of a list the teacher picks.
+const ROW_WILDCARD = 'row-*';
 const SHARED_LISTS = new Set(['help-center']);
 // Settings field kinds that hold no list of options, with the action that does work on them.
 const NOT_CHOICE: Record<string, string> = {
@@ -394,7 +396,20 @@ function checkAnchor(
       `"${ref.id}" is one control per field; write "${ref.id}:<type>#<key>".`
     );
   const keys = 'keys' in entry ? entry.keys : undefined;
-  if (keys && (entry.scope === 'widget type' || entry.scope === 'field')) {
+  const wildcard = ref.key === ROW_WILDCARD;
+  if (wildcard && entry.destructive)
+    return fail(
+      `"${ref.id}" can't be undone, so a step can't bind it to whichever row the teacher picks; point at the control that opens it instead.`
+    );
+  if (wildcard && !entry.row_wildcard)
+    return fail(
+      `"${ref.id}" is not a list of rows, so it doesn't take "#${ROW_WILDCARD}". Anchors with row_wildcard do.`
+    );
+  if (wildcard)
+    warn(
+      `"${b.anchor}" waits for whichever row the teacher picks. A teacher with an empty list skips this step, so word it and the steps after it without naming one item.`
+    );
+  else if (keys && (entry.scope === 'widget type' || entry.scope === 'field')) {
     const suffix =
       entry.scope === 'field' ? `${ref.type}#${ref.key}` : `${ref.type}`;
     if (!keys.includes(suffix)) {

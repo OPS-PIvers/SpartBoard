@@ -411,3 +411,39 @@ describe('useAnchorElement', () => {
     expect(result.current.rect?.y).toBe(300);
   });
 });
+
+describe('useAnchorElement with a #row-* ref', () => {
+  const addRow = (n: number) => {
+    const el = document.createElement('button');
+    el.setAttribute('data-tour', 'plcs.open-plc');
+    el.setAttribute('data-tour-widget-type', 'plcs');
+    el.setAttribute('data-tour-field', `row-${n}`);
+    el.dataset.x = String(n * 50);
+    act(() => {
+      document.body.appendChild(el);
+    });
+    return el;
+  };
+
+  it('lights every row, follows rows added later, and reports missing for an empty list', async () => {
+    const wild = { anchor: 'plcs.open-plc:plcs#row-*' };
+    const empty = renderHook(() => useAnchorElement(wild, scope));
+    await advance(ANCHOR_SEARCH_MS + 10);
+    expect(empty.result.current.status).toBe('missing');
+    empty.unmount();
+
+    const first = addRow(1);
+    const second = addRow(2);
+    const { result } = renderHook(() => useAnchorElement(wild, scope));
+    await advance(50);
+    expect(result.current.status).toBe('found');
+    expect(result.current.element).toBe(first);
+    expect(result.current.matches).toEqual([first, second]);
+    expect(result.current.rect?.x).toBe(50);
+    expect(result.current.rect?.width).toBe(90);
+    const third = addRow(3);
+    await advance(50);
+    expect(result.current.matches).toEqual([first, second, third]);
+    expect(result.current.rect?.width).toBe(140);
+  });
+});

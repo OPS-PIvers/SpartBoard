@@ -89,7 +89,12 @@ import {
 } from './tourSession';
 import { endTourFrame, startTourFrame, useTourFrameHold } from './tourFrame';
 import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
-import { findTourAnchor, isAnchorReachable } from './resolveTourAnchor';
+import {
+  findTourAnchor,
+  findTourAnchors,
+  isAnchorReachable,
+  pickedRowRef,
+} from './resolveTourAnchor';
 import {
   prerequisiteWidgetId,
   satisfyPrerequisite,
@@ -99,6 +104,7 @@ import { fieldSettingsTab } from './settingsTab';
 import {
   anchorPrerequisite,
   isCreatesAnchor,
+  isRowWildcardRef,
   WHOLE_BOARD_ANCHOR,
 } from '@/config/tourAnchors';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
@@ -241,6 +247,8 @@ interface ActiveTour {
   made?: RunMade;
   /** Steps a catch-up passed over (TOURS_10X.md P3); set only with tour pacing on. */
   skipped?: readonly string[];
+  /** Wildcard row steps left out because the teacher's list was empty; all sit before `index`. */
+  dropped?: readonly string[];
 }
 
 interface RunMade {
@@ -426,6 +434,12 @@ const claimsFromIds = (
 };
 
 /** Runs a Guided Learning set's live-tour steps against the real app. */
+/** Records the row a wildcard step was answered with, under its route form `id:type`. */
+function notePick(picks: Record<string, string>, ref: string, el: Element) {
+  const picked = pickedRowRef(ref, el);
+  if (picked) picks[ref.slice(0, ref.indexOf('#'))] = picked;
+}
+
 export const LiveTourRunner: React.FC = () => {
   const { t } = useTranslation();
   const { canAccessFeature, user, featurePermissions } = useAuth();
@@ -471,6 +485,8 @@ export const LiveTourRunner: React.FC = () => {
   const cueSeq = useRef(0);
   const startingRef = useRef(false);
   const lastStepClickAt = useRef(0);
+  // The row each wildcard step was answered with, so a replayed route reopens that row.
+  const rowPicks = useRef<Record<string, string>>({});
   const lastStepCreated = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   // Tour pacing (TOURS_10X.md F1): catch-up, the settle-tick-glide rhythm and the waiting chip.
@@ -680,7 +696,8 @@ export const LiveTourRunner: React.FC = () => {
     tour?.phase === 'running' && !tour.edit
       ? {
           setId: tour.set.id,
-          index: tour.index,
+          // A reload rebuilds the full step list, so the dropped steps count again.
+          index: tour.index + (tour.dropped?.length ?? 0),
           // Unsaved tour widgets do not survive a reload, so only saved ones are listed.
           addedIds: legacyAdded,
           ...(tour.draft ? { draft: true } : {}),
@@ -961,6 +978,7 @@ export const LiveTourRunner: React.FC = () => {
         : { set: rawSet, steps: rawSteps };
     healTried.current.clear();
     takeBackUsed.current.clear();
+    rowPicks.current = {};
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -1583,6 +1601,8 @@ export const LiveTourRunner: React.FC = () => {
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
   const stepCreates = isCreatesAnchor(step?.tour?.anchor ?? '');
+  const stepAnchor = step?.tour?.anchor ?? '';
+  const stepMatches = anchor.matches;
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   const advanceFrom = useEffectEvent((from: number) => {
     if (tour?.phase !== 'running' || tour.index !== from) return;
@@ -1660,6 +1680,8 @@ export const LiveTourRunner: React.FC = () => {
         return;
       lastStepClickAt.current = Date.now();
       lastStepCreated.current = stepCreates;
+      if (e.currentTarget instanceof Element)
+        notePick(rowPicks.current, stepAnchor, e.currentTarget);
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
       const signal = clickWait.current?.signal;
@@ -1678,7 +1700,9 @@ export const LiveTourRunner: React.FC = () => {
           });
       });
     };
-    el.addEventListener(eventName, onClick, true);
+    // A wildcard step answers to a click on any of its rows.
+    const targets = stepMatches?.length ? stepMatches : [el];
+    for (const t of targets) t.addEventListener(eventName, onClick, true);
     // A type step with a recorded value also moves on once the field holds it, without a blur.
     const typed =
       action === 'type' && stepValue !== undefined && String(stepValue) !== '';
@@ -1695,7 +1719,7 @@ export const LiveTourRunner: React.FC = () => {
     if (typed) el.addEventListener('input', onInput, true);
     return () => {
       clearTimeout(typing);
-      el.removeEventListener(eventName, onClick, true);
+      for (const t of targets) t.removeEventListener(eventName, onClick, true);
       el.removeEventListener('input', onInput, true);
     };
   }, [
@@ -1706,6 +1730,8 @@ export const LiveTourRunner: React.FC = () => {
     stepIndex,
     doneFact,
     stepCreates,
+    stepAnchor,
+    stepMatches,
   ]);
 
   // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
@@ -1732,7 +1758,9 @@ export const LiveTourRunner: React.FC = () => {
     if (tour?.phase !== 'running' || autoClicking.current) return;
     const hit = e.target instanceof Element ? e.target : null;
     if (!hit || hit.closest('[data-tour-ignore]')) return;
-    const inAnchor = !!anchor.element?.contains(hit);
+    const inAnchor = (
+      anchor.matches ?? (anchor.element ? [anchor.element] : [])
+    ).some((m) => m.contains(hit));
     // The current step's own listener handles its control, even when a later step reuses it.
     if (inAnchor && tour.steps[tour.index]?.tour?.action !== 'observe') return;
     // While a step is lit the dim swallows clicks outside its control and any menu beside it.
@@ -1745,13 +1773,14 @@ export const LiveTourRunner: React.FC = () => {
       const b = s.tour;
       if (!b || b.doneWhen || !kinds.includes(b.action)) return false;
       if (i === tour.index && anchor.status === 'found') return false;
-      const at = findTourAnchor(b, scope);
-      if (!at?.contains(hit)) return false;
+      const at = findTourAnchors(b, scope).find((m) => m.contains(hit));
+      if (!at) return false;
       found.el = at;
       return true;
     });
     const el = found.el;
     if (matched === null || !el) return;
+    notePick(rowPicks.current, tour.steps[matched]?.tour?.anchor ?? '', el);
     const p = pendingCatch.current;
     if (p && p.from === tour.index) {
       // A quick burst lands once, on the step after the furthest one done.
@@ -2013,9 +2042,47 @@ export const LiveTourRunner: React.FC = () => {
     !!binding?.anchor
       ? stepKey
       : null;
+  const dropEmptyRows = (index: number) => {
+    if (tour?.phase !== 'running' || tour.index !== index) return;
+    const gone = tour.steps[index];
+    const steps = tour.steps.filter((_, i) => i !== index);
+    if (!gone || index >= steps.length) {
+      finish(true);
+      return;
+    }
+    const shift = (set: Set<number>) => {
+      const kept = [...set].flatMap((i) =>
+        i < index ? [i] : i > index ? [i - 1] : []
+      );
+      set.clear();
+      kept.forEach((i) => set.add(i));
+    };
+    shift(healTried.current);
+    shift(takeBackUsed.current);
+    autoWait.current?.abort();
+    manualStep.current = null;
+    setAuto(null);
+    setAttempt(0);
+    setVisit((n) => n + 1);
+    const boardIds = (
+      latest.current.dashboard.activeDashboard?.widgets ?? []
+    ).map((w) => w.id);
+    const next = { ...tour, steps };
+    setTour({
+      ...next,
+      dropped: [...(tour.dropped ?? []), gone.id],
+      spawnWatch: watchSpawn(next, index, boardIds),
+    });
+  };
+  // A wildcard step whose list is still empty after self-heal drops out, like a showWhen step.
+  const healGaveUp = useEffectEvent((index: number, at: string) => {
+    if (isRowWildcardRef(binding?.anchor ?? '')) dropEmptyRows(index);
+    else setHealOver(at);
+  });
   const healAnchorScope = useEffectEvent(() => ({
     widgetIds: added,
     slots: tour?.slots,
+    picks: rowPicks.current,
   }));
   useEffect(() => {
     if (!healKey || !binding) return;
@@ -2040,11 +2107,12 @@ export const LiveTourRunner: React.FC = () => {
         settled = true;
         if (ctrl.signal.aborted) return;
         if (ok) setAttempt((n) => n + 1);
-        else setHealOver(`${stepIndex}:${visit}`);
+        else healGaveUp(stepIndex, `${stepIndex}:${visit}`);
       })
       .catch((err: unknown) => {
         settled = true;
-        if (!ctrl.signal.aborted) setHealOver(`${stepIndex}:${visit}`);
+        if (!ctrl.signal.aborted)
+          healGaveUp(stepIndex, `${stepIndex}:${visit}`);
         console.warn('Live tour self-heal failed', err);
       });
     return () => {

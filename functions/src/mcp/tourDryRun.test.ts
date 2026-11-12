@@ -465,3 +465,55 @@ describe('dryRunTour authoring checks', () => {
     expect(messages(report.errors).join('\n')).toMatch(/web tour step/);
   });
 });
+
+describe('wildcard row refs', () => {
+  const plcTour = [
+    step('board.whole'),
+    step('sidebar.open-menu', 'click'),
+    step('sidebar.plcs', 'click'),
+    step('plcs.open-plc:plcs#row-*', 'click'),
+    step('plc-dashboard.section-tab:plc#assessments', 'click'),
+    step('plc-assessments.assign:plc#row-*', 'click'),
+    step('board.whole'),
+  ];
+
+  it('takes row-* on a list anchor, and its click opens the route for later steps', () => {
+    const report = dryRunTour(plcTour, board, { bookends: 'error' });
+    expect(report.errors).toEqual([]);
+    const warned = messages(report.warnings);
+    expect(warned.filter((m) => m.includes('empty list')).length).toBe(2);
+    expect(warned.some((m) => m.includes('changes the teacher'))).toBe(true);
+    expect(warned.some((m) => m.includes('position in a list'))).toBe(false);
+  });
+
+  it('refuses row-* on an anchor that is not a list', () => {
+    const report = dryRunTour(
+      [
+        step('board.whole'),
+        step('sidebar.open-menu', 'click'),
+        step('sidebar.plcs', 'click'),
+        step('plc-dashboard.section-tab:plc#row-*', 'click'),
+      ],
+      board
+    );
+    expect(messages(report.errors).join('\n')).toContain(
+      'is not a list of rows'
+    );
+  });
+
+  it('refuses row-* on a destructive anchor', () => {
+    for (const anchor of [
+      'plcs.delete-plc:plcs#row-*',
+      'plcs.leave-plc:plcs#row-*',
+      'plc-assessments.menu-archive:plc#row-*',
+    ]) {
+      const report = dryRunTour(
+        [step('board.whole'), step(anchor, 'click')],
+        board
+      );
+      expect(messages(report.errors).join('\n'), anchor).toContain(
+        "can't be undone"
+      );
+    }
+  });
+});

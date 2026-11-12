@@ -84,6 +84,8 @@ The result lists it in `inserted_steps`, with the id of the step it went before.
 
 **Positions in a list.** A row in the teacher's own library (`#row-1`) points at whatever sits there on their board, so use it only in a tour with materials. Menu items (`#item-2`) and Help Center rows are the same for everyone.
 
+**Whichever row the teacher picks.** An anchor with `row_wildcard` also takes `#row-*`, such as `plcs.open-plc:plcs#row-*`: the step lights every row and moves on when the teacher clicks any of them, so the tour works on their own teams, classes or library items without materials. That click opens the row's panel for later steps, Autopilot clicks the first row, and a click that `persists` stays with the teacher. A teacher whose list is empty skips the step. The text can't know which row they'll pick, so word it and every step after it generically: "Click one of your teams.", not "Click **Grade 6 Math**." Destructive anchors never take `#row-*`.
+
 ## Staging
 
 - `tour_widgets`: widget types on the board when the tour starts. The runner clears the stage (the teacher's widgets step aside) and adds these. A widget the tour adds from the Dock (`dock.item:<type>`) doesn't belong here.
@@ -146,6 +148,7 @@ Write for a busy teacher reading a small card on a projected board.
 `dry_run` reports what playback would hit. **Errors refuse the save:**
 
 - an anchor that isn't registered, a per-type or per-field ref without its suffix, or a suffix that isn't one of its `keys` or doesn't match its `key_pattern`
+- `#row-*` on an anchor without `row_wildcard`, or on a destructive one
 - `select` on a control that isn't a choice: a cycle button, a switch, or a text, number or list field
 - a control on a panel no earlier step opens (the error lists the clicks from the board)
 - a widget control when that widget isn't staged or added from the Dock first
@@ -155,7 +158,7 @@ Write for a busy teacher reading a small card on a projected board.
 
 **Warnings save but need a look:**
 
-- a step without text, a step without an anchor, a row in the teacher's own list outside a tour with materials, a click Autopilot hands back because it changes the teacher's real account, a `type` or `select` step with no `value` (fine when the answer is the teacher's own, like a calendar ID), a `slot` that no layout or earlier `spawns` binds, and a tour shorter than 3 or longer than 15 steps
+- a step without text, a step without an anchor, a row in the teacher's own list outside a tour with materials, a `#row-*` step (the teacher's list can be empty), a click Autopilot hands back because it changes the teacher's real account, a `type` or `select` step with no `value` (fine when the answer is the teacher's own, like a calendar ID), a `slot` that no layout or earlier `spawns` binds, and a tour shorter than 3 or longer than 15 steps
 - voice: text over 30 words, an em dash, a "Tip:" or "Note:" prefix, "simply", "just" or "easily"; a label under 2 or over 5 words, or one starting with "a", "an", "the", "your" or "this"
 - staging: a widget in `tour_widgets` that a step also adds with `dock.item` (the board ends up with two), a staged widget no step points at (unless every step observes `board.whole`), and a material no step opens
 - panels: a step inside a panel an earlier step closed (with its **Close**, **Cancel** or **Save** button) when no step opens it again, and settings steps on two different widgets back to back, which makes the runner shut the first drawer with no step showing it

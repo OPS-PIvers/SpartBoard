@@ -11,6 +11,7 @@ export interface TourAnchorEntry {
   keys?: readonly string[];
   key_pattern?: string;
   key_hint?: string;
+  row_wildcard?: true;
   cycles?: string;
   opens_empty?: string;
   closes?: string;
@@ -24935,6 +24936,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.card-open",
     "label": "Library item card body (open)",
     "scope": "field",
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -24948,6 +24950,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Primary action button on a library item card",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -24986,6 +24989,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.card-menu",
     "label": "Kebab menu button on a library item card",
     "scope": "field",
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -25016,6 +25020,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Primary action button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.assignments",
@@ -25028,6 +25033,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.archive-menu",
     "label": "Kebab menu button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.shell",
@@ -25518,6 +25524,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Edit class button in My Classes",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25551,6 +25558,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Link to Google Classroom button in My Classes",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25584,6 +25592,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class actions menu in My Classes",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25600,6 +25609,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Course row in the Link to Google Classroom modal",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25618,6 +25628,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Open a team card in My Teams",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -25634,6 +25645,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Team actions kebab in My Teams",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -25650,6 +25662,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Edit/View PLC action in the PLC actions menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -27199,6 +27212,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-assessments.open",
     "label": "Open button in the PLC assessments tab",
     "scope": "field",
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27260,6 +27274,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Assign button in the PLC assessments tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27281,6 +27296,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Menu button in the PLC assessments tab",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "plc.assessments",
