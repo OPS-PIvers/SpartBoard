@@ -86,6 +86,14 @@ _Avoid_: walkthrough (for the object), guide (Sparty is the guide), Guided Learn
 A walkthrough that runs on another website through the SpartBoard Chrome extension, pointing at that site's real controls while the teacher uses them.
 _Avoid_: extension tour, site guide
 
+**Message step**:
+A Web tour step with no Target: words in the middle of the page with Back and Next, shown on whatever page the learner is on. Used to open or close a tour, or to say what comes next.
+_Avoid_: info step, popover, intro card
+
+**Site switch**:
+The moment a Web tour's next step is on a different website. The tip offers a button that opens that site in a new tab, and the tour carries on there; the tab left behind stays open.
+_Avoid_: redirect, hop, handoff
+
 **Target**:
 The control a tour step points at, in a Live tour or a Web tour.
 _Avoid_: anchor (in anything an author reads; it is the developer word for a Live tour's registered control), element, hotspot
