@@ -1,16 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  updateDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 import type { MemberRecord, UserRecord } from '@/types/organization';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 
 // Response shape returned by the `createOrganizationInvites` callable
 // (see `functions/src/organizationInvites.ts`). Mirrored here so view code
@@ -75,11 +70,8 @@ export interface BulkInviteIntent {
   name?: string;
 }
 
-// Firestore caps each writeBatch commit at 500 operations; 400 keeps a
-// safety margin so future additions to the same batch (e.g. audit-log
-// writes) can be appended without risking the limit. Matches the chunk
-// size used by useFolders.
-const BATCH_CHUNK = 400;
+// Ids per orgAdminV1 call; the server takes up to 5,000.
+const BATCH_CHUNK = 1000;
 
 const chunk = <T>(items: T[], size: number): T[][] => {
   const chunks: T[][] = [];
@@ -287,10 +279,12 @@ export const useOrgMembers = (orgId: string | null) => {
     }
     const memberPatch = userPatchToMemberPatch(patch);
     if (Object.keys(memberPatch).length === 0) return;
-    await updateDoc(
-      doc(db, 'organizations', orgId, 'members', id),
-      memberPatch
-    );
+    await callOrgAdmin({
+      action: 'updateMembers',
+      orgId,
+      ids: [id],
+      patch: memberPatch,
+    });
   };
 
   const bulkUpdateMembers = async (
@@ -302,18 +296,14 @@ export const useOrgMembers = (orgId: string | null) => {
     }
     const memberPatch = userPatchToMemberPatch(patch);
     if (Object.keys(memberPatch).length === 0 || ids.length === 0) return;
-    await Promise.all(
-      chunk(ids, BATCH_CHUNK).map((batchIds) => {
-        const batch = writeBatch(db);
-        for (const id of batchIds) {
-          batch.update(
-            doc(db, 'organizations', orgId, 'members', id),
-            memberPatch
-          );
-        }
-        return batch.commit();
-      })
-    );
+    for (const part of chunk(ids, BATCH_CHUNK)) {
+      await callOrgAdmin({
+        action: 'updateMembers',
+        orgId,
+        ids: part,
+        patch: memberPatch,
+      });
+    }
   };
 
   const removeMembers = async (ids: string[]): Promise<void> => {
@@ -321,18 +311,9 @@ export const useOrgMembers = (orgId: string | null) => {
       throw new Error('No organization selected.');
     }
     if (ids.length === 0) return;
-    await Promise.all(
-      chunk(ids, BATCH_CHUNK / 2).map((batchIds) => {
-        const batch = writeBatch(db);
-        for (const id of batchIds) {
-          batch.delete(doc(db, 'organizations', orgId, 'members', id));
-          batch.set(doc(db, 'organizations', orgId, 'removedMembers', id), {
-            removedAt: new Date().toISOString(),
-          });
-        }
-        return batch.commit();
-      })
-    );
+    for (const part of chunk(ids, BATCH_CHUNK)) {
+      await callOrgAdmin({ action: 'removeMembers', orgId, ids: part });
+    }
   };
 
   // Full account deletion via the `deleteOrganizationUser` callable: the

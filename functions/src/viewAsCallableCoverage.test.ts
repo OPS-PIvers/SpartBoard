@@ -59,6 +59,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   gradebookDemoV1: 'write',
   importPaperResponsesV1: 'write',
   plcMembershipV1: 'write',
+  orgAdminV1: 'write',
   paperRewordSyncV1: 'write',
   leaveSyncedQuizGroup: 'write',
   leaveSyncedVideoActivityGroup: 'write',

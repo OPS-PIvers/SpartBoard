@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 import type { OrgRecord } from '@/types/organization';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 
 /**
  * Subscribes to a single `/organizations/{orgId}` doc. Reads are gated at the
@@ -59,14 +60,18 @@ export const useOrganization = (orgId: string | null) => {
     // Never let a client clobber the doc id field.
     const { id: _omit, ...rest } = patch;
     if (Object.keys(rest).length === 0) return;
-    await updateDoc(doc(db, 'organizations', orgId), rest);
+    await callOrgAdmin({ action: 'updateOrg', orgId, patch: rest });
   };
 
   const archiveOrg = async (): Promise<void> => {
     if (!orgId) {
       throw new Error('No organization selected.');
     }
-    await updateDoc(doc(db, 'organizations', orgId), { status: 'archived' });
+    await callOrgAdmin({
+      action: 'updateOrg',
+      orgId,
+      patch: { status: 'archived' },
+    });
   };
 
   return {
