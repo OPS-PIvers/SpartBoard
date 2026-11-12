@@ -3,9 +3,11 @@ import type {
   GuidedLearningSet,
 } from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
+import type { TourAnchorId } from '@/config/tourAnchors';
 
-// Library source-filter value that lists only the Help Center's own sets.
-export const HELP_CENTER_SOURCE = 'help';
+// The Open in Help Center button on the toast after a library move.
+export const openHelpCenterTourId =
+  'gl-manager.open-in-help-center' satisfies TourAnchorId;
 
 export const helpCenterSetIdsOf = (
   items: readonly HelpResourceItem[]
