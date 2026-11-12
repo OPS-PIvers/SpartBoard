@@ -4818,6 +4818,7 @@
     "stepNumber": "Paso {{number}}",
     "onlyIfAppears": "Solo si aparece",
     "untitledStep": "Paso sin título",
+    "continueOn": "Continuar en {{host}}",
     "pictureAlt": "Imagen del paso {{number}}",
     "pictureLoading": "Cargando imagen",
     "noPicture": "Sin imagen para este paso",

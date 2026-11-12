@@ -41,6 +41,43 @@ const loaded = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('panelStepsOf', () => {
+  it('keeps Message steps in order and marks where the tour changes site', () => {
+    const msg = {
+      id: 'm',
+      label: 'Over to Claude',
+      text: 'Next we switch.',
+      message: true,
+    };
+    const out = panelStepsOf(
+      loaded({
+        steps: [
+          msg,
+          ...(loaded().steps as object[]),
+          {
+            id: 'c',
+            label: 'Upload',
+            text: '',
+            web: {
+              urlPattern: 'https://claude.ai/customize',
+              action: 'click',
+              locator: {},
+            },
+          },
+          { id: 'e', label: 'Done', text: 'All set.', message: true },
+        ],
+      })
+    );
+    expect(out?.host).toBe('app.example.com');
+    expect(out?.steps.map((s) => [s.id, !!s.message, s.continueOn])).toEqual([
+      ['m', true, undefined],
+      ['a', false, undefined],
+      ['b', false, undefined],
+      ['c', false, 'claude.ai'],
+      ['e', true, undefined],
+    ]);
+    expect(out?.steps[0].picture).toBeNull();
+  });
+
   it('keeps a well-formed public link token and drops anything else', () => {
     const token = 'a'.repeat(32);
     expect(panelStepsOf({ ...loaded(), link: token })?.link).toBe(token);

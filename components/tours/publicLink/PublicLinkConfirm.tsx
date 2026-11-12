@@ -10,7 +10,7 @@ import {
 } from '@/components/common/lightChrome';
 import { tourAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
-import { webTourStepsOf } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import { webTourSequenceOf } from '@/components/tours/web/tourSequence';
 import { loadPublishedTour } from '@/components/tours/publishedTours';
 import { isWebTourPicturePath } from '@/components/tours/webTours';
 import { StepsArticle } from '@/components/tours/steps/StepsArticle';
@@ -66,10 +66,10 @@ function pictureSources(
       live: true,
     };
   }
-  const steps = webTourStepsOf(set);
+  const steps = webTourSequenceOf(set);
   const sources = new Map<string, string>();
   for (const step of steps) {
-    const path = step.web.picture?.path;
+    const path = step.web?.picture?.path;
     if (path && isWebTourPicturePath(setId, path)) sources.set(step.id, path);
   }
   return { steps: stepsFromWebTour(steps), sources, live: false };

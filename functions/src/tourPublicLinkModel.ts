@@ -71,6 +71,10 @@ export interface PublicStep {
   onlyIfAppears: boolean;
   observe: boolean;
   picture: PublicStepPicture | null;
+  /** A Message step: words only. */
+  message?: true;
+  /** The host this step is on when the tour just moved there from another site. */
+  continueOn?: string;
 }
 
 export interface PublicTour {
@@ -142,7 +146,32 @@ export function livePictureUrl(step: Rec, set: Rec): string | null {
   return url && kinds[index] !== 'video' ? url : null;
 }
 
-const webSteps = (set: Rec) => stepsOf(set).filter((s) => !!rec(s.web));
+/** A web set's steps by the set's surface: targeted steps and Message steps, in order (components/tours/web/tourSequence.ts). */
+const isMessage = (s: Rec) => s.message === true && !rec(s.web);
+const webSteps = (set: Rec) =>
+  stepsOf(set).filter((s) => !!rec(s.web) || isMessage(s));
+
+/** A web urlPattern's host, lowercased with any port; null when it isn't an http(s) address (tourSequence.ts hostOf). */
+const hostOf = (urlPattern: unknown): string | null => {
+  const m = /^https?:\/\/([^/?#]+)/i.exec(str(urlPattern).trim());
+  return m ? m[1].toLowerCase() : null;
+};
+
+/** The host each step is on when the tour just moved there from another site, by step index (tourSequence.ts siteSwitchesOf). */
+const switchHosts = (steps: readonly Rec[]): Map<number, string> => {
+  const out = new Map<number, string>();
+  let prev: string | null = null;
+  let seen = false;
+  steps.forEach((step, i) => {
+    const web = rec(step.web);
+    if (!web) return;
+    const host = hostOf(web.urlPattern);
+    if (seen && prev && host && host !== prev) out.set(i, host);
+    prev = host;
+    seen = true;
+  });
+  return out;
+};
 const liveSteps = (set: Rec) => stepsOf(set).filter((s) => !s.web);
 
 /** Every picture a reader of this published tour would see, as one comparable string; null when it isn't a tour. */
@@ -320,13 +349,17 @@ export function publicTourOf(
   const raw = kind === 'web' ? webSteps(set) : liveSteps(set);
   if (raw.length > MAX_PUBLIC_STEPS) return null;
   const steps: PublicStep[] = [];
-  for (const step of raw) {
+  const joins = kind === 'web' ? switchHosts(raw) : new Map<number, string>();
+  for (const [at, step] of raw.entries()) {
     const id = str(step.id);
     if (!PUBLIC_STEP_ID_RE.test(id)) continue;
     let picture: PublicStepPicture | null = null;
     let onlyIfAppears: boolean;
     let observe: boolean;
-    if (kind === 'web') {
+    if (kind === 'web' && isMessage(step)) {
+      onlyIfAppears = false;
+      observe = false;
+    } else if (kind === 'web') {
       const web = rec(step.web) as Rec;
       onlyIfAppears = hasCondition(web.showWhen);
       observe = web.action === 'observe';
@@ -376,6 +409,8 @@ export function publicTourOf(
       onlyIfAppears,
       observe,
       picture,
+      ...(kind === 'web' && isMessage(step) ? { message: true as const } : {}),
+      ...(joins.get(at) ? { continueOn: joins.get(at) } : {}),
     });
   }
   return { tour: { kind, title: title(set.title), steps }, sources };

@@ -8,7 +8,7 @@ import {
 import { pictureFingerprint } from '@/components/tours/publicLink/publicLinkModel';
 import { stepsFromWebTour } from '@/components/tours/steps/stepsModel';
 import { stepsFromLiveTour } from '@/components/tours/steps/liveSteps';
-import { webTourStepsOf } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import { webTourSequenceOf } from '@/components/tours/web/tourSequence';
 
 const BUCKET = 'spartboard.appspot.com';
 const url = (path: string) =>
@@ -72,6 +72,49 @@ const webTour = {
   ],
 } as unknown as GuidedLearningSet;
 
+const crossSite = {
+  id: 'x1',
+  title: 'Across sites',
+  surface: 'web',
+  steps: [
+    { id: 'm1', label: 'Welcome', text: 'We start on Gemini.', message: true },
+    {
+      id: 'a',
+      label: 'Gemini',
+      text: 'One',
+      web: {
+        urlPattern: 'https://gemini.google.com/app',
+        action: 'click',
+        locator: { role: 'button', name: 'Go' },
+        picture: { path: 'web_tour_pictures/x1/a.png', w: 900, h: 500 },
+      },
+    },
+    {
+      id: 'm2',
+      label: 'Over to Claude',
+      text: 'Next we switch.',
+      message: true,
+    },
+    {
+      id: 'b',
+      label: 'Claude',
+      text: 'Two',
+      web: {
+        urlPattern: 'https://claude.ai/customize/skills',
+        action: 'observe',
+        locator: { role: 'link', name: 'Skills' },
+      },
+    },
+    {
+      id: 'c',
+      label: 'Claude again',
+      text: 'Three',
+      web: { urlPattern: 'https://claude.ai/chat/*', action: 'click' },
+    },
+    { id: 'm3', label: 'All done', text: 'That is the tour.', message: true },
+  ],
+} as unknown as GuidedLearningSet;
+
 const liveTour = {
   id: 'l1',
   title: 'Live',
@@ -130,9 +173,24 @@ describe('public link parity', () => {
   });
 
   it('draws web steps the way the function serves them', () => {
-    const app = stepsFromWebTour(webTourStepsOf(webTour));
+    const app = stepsFromWebTour(webTourSequenceOf(webTour));
     const served = publicTourOf('w1', webTour, BUCKET)?.tour.steps;
     expect(served).toEqual(app);
+  });
+
+  it('keeps Message steps and Site switch dividers the same on both sides', () => {
+    const app = stepsFromWebTour(webTourSequenceOf(crossSite));
+    const served = publicTourOf('x1', crossSite, BUCKET)?.tour.steps;
+    expect(served).toEqual(app);
+    expect(served?.map((s) => [s.id, !!s.message, s.continueOn])).toEqual([
+      ['m1', true, undefined],
+      ['a', false, undefined],
+      ['m2', true, undefined],
+      ['b', false, 'claude.ai'],
+      ['c', false, undefined],
+      ['m3', true, undefined],
+    ]);
+    expect(pictureFingerprint(crossSite)).toBe(serverFingerprint(crossSite));
   });
 
   it('draws Live steps the way the function serves them', () => {

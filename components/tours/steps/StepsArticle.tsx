@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
 import { StepPicture } from './StepPicture';
+import { SiteSwitchDivider } from './SiteSwitchDivider';
 import type { StepPictures, StepsLabels, StepsViewStep } from './stepsModel';
 
 /** Every step in order, each with its title, tip and picture; prints one step to a block. */
@@ -19,8 +20,12 @@ export const StepsArticle: React.FC<{
         <li
           key={step.id}
           data-testid="steps-article-step"
+          data-message={step.message ? 'true' : undefined}
           className="flex min-w-0 flex-col gap-3 print:mb-8 print:break-inside-avoid"
         >
+          {step.continueOn && (
+            <SiteSwitchDivider label={labels.continueOn(step.continueOn)} />
+          )}
           <header className="min-w-0">
             <p className="flex flex-wrap items-baseline gap-x-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
               <span>{labels.stepNumber(i + 1)}</span>

@@ -4818,6 +4818,7 @@
     "stepNumber": "Étape {{number}}",
     "onlyIfAppears": "Seulement s'il apparaît",
     "untitledStep": "Étape sans titre",
+    "continueOn": "Continuer sur {{host}}",
     "pictureAlt": "Image de l'étape {{number}}",
     "pictureLoading": "Chargement de l'image",
     "noPicture": "Aucune image pour cette étape",
