@@ -6,6 +6,8 @@ import { render, waitFor } from '@testing-library/react';
 import { GuidedLearningWidget } from '@/components/widgets/GuidedLearning/Widget';
 import type { GuidedLearningManagerProps } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { HELP_CENTER_OPEN_EVENT } from '@/components/tours/tourState';
+import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
+import { takeFiledHelpItem } from '@/components/tours/helpCenterReturn';
 import type {
   WidgetData,
   GuidedLearningBuildingSetIndex,
@@ -61,6 +63,7 @@ vi.mock('@/context/useDialog', () => ({
 const helpItems = vi.hoisted(() => ({
   moveSetToHelpCenter: vi.fn(),
   finishPendingMove: vi.fn(),
+  createHiddenHelpItem: vi.fn(),
 }));
 vi.mock('@/utils/helpCenterItems', async (importOriginal) => {
   const actual =
@@ -71,8 +74,12 @@ vi.mock('@/utils/helpCenterItems', async (importOriginal) => {
 const sets = vi.hoisted(() => ({ list: [] as GuidedLearningSetMetadata[] }));
 const deleteSet = vi.fn().mockResolvedValue(undefined);
 const loadSetData = vi.fn();
-vi.mock('@/hooks/useGuidedLearning', () => ({
+const glHook = vi.hoisted(() => ({
   loadBuildingSet: vi.fn(),
+  saveBuildingSet: vi.fn(),
+}));
+vi.mock('@/hooks/useGuidedLearning', () => ({
+  loadBuildingSet: glHook.loadBuildingSet,
   useGuidedLearning: () => ({
     sets: sets.list,
     buildingSets: [],
@@ -83,7 +90,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     loadSetData,
     deleteSet,
     duplicateSet: vi.fn(),
-    saveBuildingSet: vi.fn(),
+    saveBuildingSet: glHook.saveBuildingSet,
     deleteBuildingSet: vi.fn(),
     watchSetRevision: () => () => () => undefined,
     duplicateBuildingSet: vi.fn(),
@@ -249,5 +256,43 @@ describe('GuidedLearningWidget Help Center moves', () => {
     rerender(<GuidedLearningWidget widget={widget} />);
     await waitFor(() => expect(captured.props).toBeDefined());
     expect(helpItems.finishPendingMove).toHaveBeenCalledTimes(1);
+  });
+
+  it('files a converted Live tour Hidden in the Help Center and keeps it out of the library', async () => {
+    glHook.loadBuildingSet.mockResolvedValue({
+      id: 'b-1',
+      title: 'Seating chart guide',
+      imageUrls: [],
+      steps: [],
+      mode: 'structured',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    glHook.saveBuildingSet.mockResolvedValue(undefined);
+    helpItems.createHiddenHelpItem.mockResolvedValue({ ...item, id: 'item-t' });
+    const edits = vi.fn();
+    window.addEventListener(TOUR_EDIT_EVENT, edits);
+    render(<GuidedLearningWidget widget={widget} />);
+    await waitFor(() => expect(captured.props).toBeDefined());
+    void captured.props?.onConvertToLiveTour?.('b-1', undefined, {
+      id: 'b-1',
+      updatedAt: 1,
+    } as GuidedLearningBuildingSetIndex);
+    await waitFor(() => expect(edits).toHaveBeenCalled());
+    window.removeEventListener(TOUR_EDIT_EVENT, edits);
+    const [saved] = glHook.saveBuildingSet.mock.calls[0] as [
+      { id: string; helpCenter?: boolean; mode: string },
+    ];
+    expect(saved.helpCenter).toBe(true);
+    expect(saved.mode).toBe('tour');
+    expect(helpItems.createHiddenHelpItem).toHaveBeenCalledWith(
+      saved,
+      expect.objectContaining({ uid: 'admin-1', orgId: 'org-1' })
+    );
+    expect((edits.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      setId: saved.id,
+      origin: 'widget',
+    });
+    expect(takeFiledHelpItem(saved.id)).toBe('item-t');
   });
 });

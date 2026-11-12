@@ -396,11 +396,10 @@ const listsBuilding = (entry: GuidedLearningBuildingSetIndex): boolean =>
 
 const LIBRARY_FILTER_PREDICATES = {
   source: (item: LibraryEntry, value: string): boolean =>
-    !item.helpCenter &&
-    (value === '' ||
-      item.source === value ||
-      // Web tours are building-wide, so the Building filter lists them.
-      (value === 'building' && item.source === 'web')),
+    value === '' ||
+    item.source === value ||
+    // Web tours are building-wide, so the Building filter lists them.
+    (value === 'building' && item.source === 'web'),
   type: (item: LibraryEntry, value: string): boolean =>
     isTourEntry(item) === (value === TOUR_TYPE),
 };
@@ -548,7 +547,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onError,
 }) => {
   const { t } = useTranslation();
-  const sets = useMemo(() => allSets.filter(listsPersonal), [allSets]);
+  // Only admins can move a personal tour into the Help Center, so teachers keep theirs listed.
+  const sets = useMemo(
+    () => (isAdmin ? allSets.filter(listsPersonal) : allSets),
+    [allSets, isAdmin]
+  );
   const buildingSets = useMemo(
     () => allBuildingSets.filter(listsBuilding),
     [allBuildingSets]
@@ -749,11 +752,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
-  // The "All" view skips the source predicate, so Help Center sets are dropped here too.
-  const libraryItems = useMemo(
-    () => view.visibleItems.filter((entry) => !entry.helpCenter),
-    [view.visibleItems]
-  );
+  // Only Web tours still carry the flag; they stay listed until they get their own page.
+  const libraryItems = view.visibleItems;
 
   // Adjust-during-render: on import success, show the Personal view the set landed in.
   const [seenImportFocus, setSeenImportFocus] = useState(importFocusCounter);
@@ -1879,7 +1879,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       tab={tab}
       onTabChange={setTab}
       counts={{
-        library: allEntries.filter((entry) => !entry.helpCenter).length,
+        library: allEntries.length,
         active: activeAssignments.length,
         archive: archivedAssignments.length,
       }}

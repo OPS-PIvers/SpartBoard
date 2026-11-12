@@ -1,4 +1,12 @@
-import { collection, doc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   GuidedLearningBuildingSetIndex,
@@ -130,14 +138,32 @@ export interface MoveResult {
   original: MoveOutcome;
 }
 
+/** Items in the author's scope that already point at this set; scoped so an org admin's query passes the rules. */
+export async function findHelpItemsForSet(
+  setId: string,
+  author: HelpAuthor
+): Promise<HelpResourceItem[]> {
+  const scope = helpScopeFor(author);
+  const filters = [where('setId', '==', setId)];
+  if (!author.isSuperAdmin) filters.push(where('orgId', '==', scope));
+  const snap = await getDocs(
+    query(collection(db, HELP_ITEMS_COLLECTION), ...filters)
+  );
+  return snap.docs.map((d) => d.data() as HelpResourceItem);
+}
+
 const itemFor = async (
   set: ItemSource,
   author: HelpAuthor,
   existing: readonly HelpResourceItem[] | undefined
-): Promise<HelpResourceItem> =>
-  existing?.find(
-    (item) => item.kind === 'guided-learning' && item.setId === set.id
-  ) ?? createHiddenHelpItem(set, author);
+): Promise<HelpResourceItem> => {
+  const known = existing ?? (await findHelpItemsForSet(set.id, author));
+  return (
+    known.find(
+      (item) => item.kind === 'guided-learning' && item.setId === set.id
+    ) ?? createHiddenHelpItem(set, author)
+  );
+};
 
 /** Moves a library set into the Help Center in one step (H4-H6). */
 export async function moveSetToHelpCenter(
@@ -145,9 +171,12 @@ export async function moveSetToHelpCenter(
   author: HelpAuthor,
   deps: MoveDeps
 ): Promise<MoveResult> {
+  // Fails before anything is written when the author can't file items.
+  helpScopeFor(author);
   if (source.kind === 'building') {
-    await setHelpCenterFlag(source.set.id, true);
+    // Filed before the flag, so a failed filing never leaves a set that no screen lists.
     const item = await itemFor(source.set, author, deps.existingItems);
+    await setHelpCenterFlag(source.set.id, true);
     return { item, setId: source.set.id, original: 'flagged' };
   }
 
@@ -222,7 +251,8 @@ export function publishRefusalOf(
   set: GuidedLearningSet | null
 ): HelpPublishRefusal | null {
   if (isUnfiled(item)) return 'unfiled';
-  if (item.kind !== 'guided-learning') return null;
+  // Embeds are retired (H8), so one can't be published again.
+  if (item.kind !== 'guided-learning') return 'missing-set';
   if (!item.setId || !set) return 'missing-set';
   if (isWebTourSet(set)) return 'web-tour';
   if (!isLiveTourSet(set)) return set.steps.length > 0 ? null : 'no-steps';

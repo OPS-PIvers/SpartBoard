@@ -18,10 +18,7 @@ import {
   type HelpAuthor,
   type MoveSource,
 } from '@/utils/helpCenterItems';
-import {
-  helpCenterSetIdsOf,
-  isHelpCenterSet,
-} from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
+import { helpCenterSetIdsOf } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 
 type Owner = 'mine' | 'building';
 type TypeFilter = 'all' | HelpItemKind;
@@ -80,9 +77,9 @@ export const MoveFromLibraryDialog: React.FC<MoveFromLibraryDialogProps> = ({
         owner: 'mine',
         source: { kind: 'personal', set },
       })),
-    // Index entries never include Web tours, which live in their own collection.
+    // Index entries never include Web tours; a flagged set with no item stays here so it can be filed.
     ...library.buildingSets
-      .filter((set) => !isHelpCenterSet(set) && !filed.has(set.id))
+      .filter((set) => !filed.has(set.id))
       .map((set): Row => ({
         key: `building:${set.id}`,
         title: set.title || 'Untitled guide',

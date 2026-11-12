@@ -6,6 +6,8 @@ const fs = vi.hoisted(() => ({
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
   nextId: 'item-new',
+  found: [] as unknown[],
+  queries: [] as unknown[][],
 }));
 const gl = vi.hoisted(() => ({
   loadBuildingSet: vi.fn(),
@@ -26,6 +28,13 @@ vi.mock('firebase/firestore', () => ({
   }),
   setDoc: fs.setDoc,
   updateDoc: fs.updateDoc,
+  where: (...args: unknown[]) => args,
+  query: (...args: unknown[]) => {
+    fs.queries.push(args);
+    return args;
+  },
+  getDocs: () =>
+    Promise.resolve({ docs: fs.found.map((data) => ({ data: () => data })) }),
 }));
 vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: gl.loadBuildingSet,
@@ -97,6 +106,8 @@ const deps = () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   gl.openIds = [];
+  fs.found = [];
+  fs.queries = [];
   gl.loadBuildingSet.mockResolvedValue(null);
 });
 
@@ -169,6 +180,34 @@ describe('moveSetToHelpCenter', () => {
     expect(gl.setHelpCenterFlag).toHaveBeenCalledWith('b1', true);
     expect(result).toMatchObject({ setId: 'b1', original: 'flagged' });
     expect(result.item).toMatchObject({ setId: 'b1', visible: false });
+  });
+
+  it('finds an earlier item in the author scope when none are passed', async () => {
+    const existing = item({ id: 'old', setId: 'b1' });
+    fs.found = [existing];
+    const result = await moveSetToHelpCenter(
+      { kind: 'building', set: { id: 'b1', title: 'Seating' } },
+      orgAdmin,
+      deps()
+    );
+    expect(result.item).toEqual(existing);
+    expect(fs.setDoc).not.toHaveBeenCalled();
+    expect(fs.queries[0].slice(1)).toEqual([
+      ['setId', '==', 'b1'],
+      ['orgId', '==', 'org-1'],
+    ]);
+  });
+
+  it('writes nothing for an org admin with no org', async () => {
+    await expect(
+      moveSetToHelpCenter(
+        { kind: 'building', set: { id: 'b1', title: 'Seating' } },
+        { ...orgAdmin, orgId: null },
+        deps()
+      )
+    ).rejects.toThrow();
+    expect(gl.setHelpCenterFlag).not.toHaveBeenCalled();
+    expect(fs.setDoc).not.toHaveBeenCalled();
   });
 
   it('reuses an item that already points at the set', async () => {
@@ -301,6 +340,12 @@ describe('publishRefusalOf', () => {
         ])
       )
     ).toBeNull();
+  });
+
+  it('refuses a retired embed', () => {
+    expect(
+      publishRefusalOf(item({ categoryId: 'admin', kind: 'embed' }), null)
+    ).toBe('missing-set');
   });
 
   it('allows a filed Picture guide with steps', () => {

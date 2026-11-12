@@ -292,6 +292,11 @@ describe('GuidedLearningManager tours', () => {
     expect(screen.queryByText("Can't run live")).toBeNull();
   });
 
+  it('keeps a teacher personal tour listed, since only admins can move it', async () => {
+    renderManager(false, { sets: [personalTour, personalSet] });
+    expect(await screen.findByText('My recorded tour')).toBeTruthy();
+  });
+
   describe('web tours', () => {
     const webTour = (id: string, title: string, extra = {}) =>
       ({
@@ -378,13 +383,16 @@ describe('GuidedLearningManager tours', () => {
       expect(webTourStore.setWebTourHelpCenter).not.toHaveBeenCalled();
     });
 
-    it('keeps a web tour already in the Help Center out of the library', async () => {
+    it('keeps a web tour already in the Help Center listed so it can come back', async () => {
       webDrafts.list = [webTour('w-1', 'Docs tour', { helpCenter: true })];
       renderManager(true, { features: ['web-tours'] });
       showTours();
-      await screen.findByLabelText('Type');
-      expect(screen.queryByText('Docs tour')).toBeNull();
+      expect(await screen.findByText('Docs tour')).toBeTruthy();
       expect(screen.queryByRole('option', { name: 'Help Center' })).toBeNull();
+      await cardMenu('Docs tour');
+      expect(
+        screen.getByRole('menuitem', { name: 'Move to library' })
+      ).toBeTruthy();
     });
 
     it('opens the editor from Edit and keeps Play off until published', async () => {

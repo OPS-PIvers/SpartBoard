@@ -25,12 +25,11 @@ export interface LiveTourPublish {
   publishedSet: GuidedLearningSet | null | undefined;
   publishing: boolean;
   failed: boolean;
-  /** Steps with broken links, listed before an admin publishes anyway. */
+  /** Steps with broken links, which block publishing. */
   broken: TourStepHealth[];
   confirming: boolean;
-  /** Publishes, or first asks to confirm when steps have broken links. */
+  /** Publishes, or lists the broken links that block it. */
   publish: () => void;
-  publishAnyway: () => void;
   cancel: () => void;
 }
 
@@ -73,7 +72,6 @@ export function useLiveTourPublish(
     broken,
     confirming,
     publish: () => (broken.length > 0 ? setConfirming(true) : void run()),
-    publishAnyway: () => void run(),
     cancel: () => setConfirming(false),
   };
 }

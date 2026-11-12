@@ -65,6 +65,16 @@ describe('planMigration', () => {
     expect(plan).toEqual({ create: [], flag: [] });
   });
 
+  it('takes an older set the index marks as a tour by its stored flag', () => {
+    const plan = planMigration(
+      [{ id: 'old', title: 'Old tour', mode: 'guided', hasLiveTour: true }],
+      [],
+      NOW
+    );
+    expect(plan.create.map((item) => item.setId)).toEqual(['old']);
+    expect(plan.flag).toEqual(['old']);
+  });
+
   it('does not flag a tour already marked helpCenter', () => {
     const plan = planMigration([tour('t1', { helpCenter: true })], [], NOW);
     expect(plan.create.map((item) => item.setId)).toEqual(['t1']);

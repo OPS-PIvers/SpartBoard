@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { ExternalLink, Loader2, Plus, Search } from 'lucide-react';
 import { db } from '@/config/firebase';
+import { GETTING_STARTED_SETTINGS_DOC } from '@/config/gettingStarted';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useHelpResources } from '@/hooks/useHelpResources';
@@ -60,6 +61,7 @@ import {
 import { MoveFromLibraryDialog } from './MoveFromLibraryDialog';
 import { PictureGuideStudio } from './PictureGuideStudio';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
+import { WebTourHealthSection } from './WebTourHealthSection';
 import { useHelpCenterSelection } from './helpCenterSelection';
 import { useHelpItemSets } from './useHelpItemSets';
 import { tourNeedsAttention } from './tourAttention';
@@ -75,7 +77,8 @@ import {
   type HelpItemFieldPatch,
 } from './helpCenterAdmin';
 
-type ShowFilter = 'all' | 'hidden' | 'published' | 'attention' | 'unmapped';
+type ShowFilter =
+  'all' | 'hidden' | 'published' | 'attention' | 'unmapped' | 'web-health';
 
 const UNFILED_SECTION: HelpListSection = { id: '', name: 'Unfiled' };
 
@@ -270,7 +273,7 @@ export const HelpCenterManager: React.FC = () => {
   ) => {
     if (!user || nextOrgId === item.orgId) return;
     const confirmed = await showConfirm(
-      `Move "${item.title}" to ${nextOrgId === null ? 'Everyone' : (orgNames.get(nextOrgId) ?? nextOrgId)}? Its open count starts again at 0.`,
+      `Move "${item.title}" to ${nextOrgId === null ? 'Everyone' : (orgNames.get(nextOrgId) ?? nextOrgId)}? Its open count starts again at 0 and links copied before the move stop working.`,
       { confirmLabel: 'Move' }
     );
     if (!confirmed) return;
@@ -281,6 +284,17 @@ export const HelpCenterManager: React.FC = () => {
       buildScopeMovePayload(item, { id: ref.id, orgId: nextOrgId, user })
     );
     batch.delete(doc(db, HELP_RESOURCES_COLLECTION, item.id));
+    // Getting Started points at items by id, so its entries follow the new one.
+    const gsRef = doc(db, 'admin_settings', GETTING_STARTED_SETTINGS_DOC);
+    const gs = (await getDoc(gsRef)).data() as
+      { tours?: { itemId?: unknown }[] } | undefined;
+    if (gs?.tours?.some((entry) => entry.itemId === item.id)) {
+      batch.update(gsRef, {
+        tours: gs.tours.map((entry) =>
+          entry.itemId === item.id ? { ...entry, itemId: ref.id } : entry
+        ),
+      });
+    }
     await batch.commit();
     setSelectedId(ref.id);
   };
@@ -408,7 +422,11 @@ export const HelpCenterManager: React.FC = () => {
     if (!filing) {
       filing = createHiddenHelpItem(set, author);
       filedRef.current.set(set.id, filing);
-      const item = await filing;
+      // A failed filing is forgotten, so the next save tries again.
+      const item = await filing.catch((err: unknown) => {
+        filedRef.current.delete(set.id);
+        throw err;
+      });
       select(item.id);
     }
   };
@@ -530,6 +548,9 @@ export const HelpCenterManager: React.FC = () => {
               <option value="published">Published</option>
               <option value="attention">Needs attention</option>
               <option value="unmapped">Unmapped controls</option>
+              {webToursOn && (
+                <option value="web-health">Web tour health</option>
+              )}
             </Select>
           </label>
         </div>
@@ -572,6 +593,9 @@ export const HelpCenterManager: React.FC = () => {
 
       {show === 'unmapped' ? (
         <UnmappedAnchorsSection />
+      ) : show === 'web-health' && webToursOn ? (
+        // Stays here until Web tours get their own page.
+        <WebTourHealthSection />
       ) : loading ? (
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

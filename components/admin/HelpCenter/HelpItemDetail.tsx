@@ -321,7 +321,7 @@ export const HelpItemDetail: React.FC<HelpItemDetailProps> = ({
             />
           }
         >
-          <TourHealthPanel setId={item.setId} />
+          <TourHealthPanel setId={item.setId} updatedAt={set?.updatedAt} />
         </Suspense>
       )}
 

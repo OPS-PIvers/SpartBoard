@@ -48,6 +48,7 @@ import { useAuth } from '@/context/useAuth';
 import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import {
   finishPendingMove,
+  createHiddenHelpItem,
   isPendingHelpCenterMove,
   moveSetToHelpCenter,
   type MoveOutcome,
@@ -55,6 +56,7 @@ import {
 } from '@/utils/helpCenterItems';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import { requestOpenHelpCenter } from '@/components/tours/tourState';
+import { noteFiledHelpItem } from '@/components/tours/helpCenterReturn';
 import { openHelpCenterTourId } from './utils/helpCenterSets';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
@@ -1731,16 +1733,37 @@ const TeacherGuidedLearningWidget: React.FC<{
                                 buildingEntry
                               );
                               if (!source) throw new Error('Set not found');
-                              const tour = glSetToLiveTour(source, {
-                                id: crypto.randomUUID(),
-                                now: Date.now(),
-                                authorUid: user?.uid,
-                              });
+                              // Live tours live only in the Help Center (H1).
+                              const tour = {
+                                ...glSetToLiveTour(source, {
+                                  id: crypto.randomUUID(),
+                                  now: Date.now(),
+                                  authorUid: user?.uid,
+                                }),
+                                helpCenter: true,
+                              };
                               // A guard keeps tour.updatedAt, the revision the board editor saves against.
                               await saveBuildingSet(tour, {
                                 expectedUpdatedAt: undefined,
                               });
-                              requestEditTour({ setId: tour.id });
+                              const author = helpAuthor();
+                              const filed = author
+                                ? await createHiddenHelpItem(
+                                    tour,
+                                    author
+                                  ).catch((err: unknown) => {
+                                    console.error(
+                                      '[GuidedLearning] Filing the tour failed:',
+                                      err
+                                    );
+                                    return null;
+                                  })
+                                : null;
+                              if (filed) noteFiledHelpItem(tour.id, filed.id);
+                              requestEditTour({
+                                setId: tour.id,
+                                origin: 'widget',
+                              });
                             } catch (err) {
                               console.error(
                                 '[GuidedLearning] Convert to live tour failed:',

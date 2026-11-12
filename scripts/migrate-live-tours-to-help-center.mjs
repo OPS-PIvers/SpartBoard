@@ -40,10 +40,14 @@ export function hiddenHelpItem(id, set, now) {
   };
 }
 
+/** The library hides a set the index marks as a tour, so the migration takes the same ones (functions/src/glBuildingIndex.ts). */
+export const isLiveTour = (set) =>
+  (set?.mode === 'tour' || set?.hasLiveTour === true) && set.surface !== 'web';
+
 /** Sets and items are { id, ...data }; returns the items to create and the tour ids still missing helpCenter: true. */
 export function planMigration(sets, items, now) {
   const at = Math.trunc(now);
-  const tours = sets.filter((s) => s?.mode === 'tour' && s.surface !== 'web');
+  const tours = sets.filter(isLiveTour);
   const linked = new Set(
     items.map((item) => item?.setId).filter((id) => typeof id === 'string')
   );
@@ -112,14 +116,18 @@ async function main() {
   initializeApp({ credential: credential(project), projectId: project });
   const db = getFirestore();
 
-  const [setSnap, itemSnap] = await Promise.all([
+  const [modeSnap, flagSnap, itemSnap] = await Promise.all([
     db.collection(SETS).where('mode', '==', 'tour').get(),
+    db.collection(SETS).where('hasLiveTour', '==', true).get(),
     db.collection(ITEMS).get(),
   ]);
-  const sets = setSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
+  const byId = new Map();
+  for (const d of [...modeSnap.docs, ...flagSnap.docs])
+    byId.set(d.id, { ...d.data(), id: d.id });
+  const sets = [...byId.values()];
   const items = itemSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
   const plan = planMigration(sets, items, Date.now());
-  const tours = sets.filter((s) => s.surface !== 'web');
+  const tours = sets.filter(isLiveTour);
 
   console.log(
     `${project}: ${tours.length} Live tours, ${items.length} Help Center items.`

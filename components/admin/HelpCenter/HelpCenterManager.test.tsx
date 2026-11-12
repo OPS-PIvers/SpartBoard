@@ -17,7 +17,9 @@ const firestoreMocks = vi.hoisted(() => ({
   setDoc: vi.fn<(ref: unknown, data: Record<string, unknown>) => Promise<void>>(
     () => Promise.resolve(undefined)
   ),
-  getDoc: vi.fn(() => Promise.resolve({ exists: () => true })),
+  getDoc: vi.fn(() =>
+    Promise.resolve({ exists: () => true, data: (): unknown => undefined })
+  ),
   batchUpdate:
     vi.fn<(ref: { id: string }, data: Record<string, unknown>) => void>(),
   batchSet:
@@ -408,6 +410,39 @@ describe('HelpCenterManager', () => {
     });
     expect(firestoreMocks.batchDelete.mock.calls[0][0].id).toBe('a');
     expect(readHelpCenterSelection()).toBe('new-id');
+  });
+
+  it('moves Getting Started entries to the recreated item', async () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha' })];
+    firestoreMocks.getDoc.mockImplementation((ref: { path?: string }) =>
+      Promise.resolve({
+        exists: () => true,
+        data: (): unknown =>
+          ref.path === 'admin_settings/getting_started'
+            ? {
+                tours: [
+                  { itemId: 'a', tier: 'essentials', doneWhen: 'finished' },
+                  { itemId: 'b', tier: 'next', doneWhen: 'finished' },
+                ],
+              }
+            : undefined,
+      })
+    );
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.change(screen.getByLabelText('Scope'), {
+      target: { value: 'orono' },
+    });
+    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
+    expect(firestoreMocks.batchUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'admin_settings/getting_started' }),
+      {
+        tours: [
+          { itemId: 'new-id', tier: 'essentials', doneWhen: 'finished' },
+          { itemId: 'b', tier: 'next', doneWhen: 'finished' },
+        ],
+      }
+    );
   });
 
   it('offers the three New actions and records from Admin Settings', () => {
