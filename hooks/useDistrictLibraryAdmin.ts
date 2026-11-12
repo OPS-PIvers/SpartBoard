@@ -326,6 +326,8 @@ export interface PublishProgress {
 
 export interface PublishPackageResult {
   added: string[];
+  /** Item ids of `added`, for filing new items in a folder. */
+  addedIds: string[];
   updated: string[];
   failed: UploadProblem[];
 }
@@ -382,7 +384,8 @@ export async function publishDistrictPackage(
     existing,
     options.onlyIds
   );
-  if (problems.length > 0) return { added: [], updated: [], failed: problems };
+  if (problems.length > 0)
+    return { added: [], addedIds: [], updated: [], failed: problems };
 
   const entries = publishOrder(manifest.entries).filter(
     (e) => !options.onlyIds || options.onlyIds.has(e.id)
@@ -401,7 +404,12 @@ export async function publishDistrictPackage(
       title: item.title,
     });
   }
-  const result: PublishPackageResult = { added: [], updated: [], failed: [] };
+  const result: PublishPackageResult = {
+    added: [],
+    addedIds: [],
+    updated: [],
+    failed: [],
+  };
   const attemptId = crypto.randomUUID().slice(0, 8);
   let done = 0;
   for (const entry of entries) {
@@ -457,6 +465,7 @@ export async function publishDistrictPackage(
         now
       );
       (isNew ? result.added : result.updated).push(entry.title);
+      if (isNew) result.addedIds.push(entry.id);
     } catch (err) {
       logError('publishDistrictPackage.entry', err, { itemId: entry.id });
       result.failed.push({
@@ -476,11 +485,14 @@ export async function saveDistrictLibraryTargeting(
   itemId: string,
   targeting: DistrictLibraryTargeting,
   buildings: readonly TargetingBuilding[],
-  uid: string
+  uid: string,
+  /** True for an item in a folder that now keeps its own audience. */
+  ownTargeting = false
 ): Promise<void> {
   const clean = normalizeTargeting(targeting, buildings);
   await updateItemAndIndex(itemId, () => ({
     ...clean,
+    ...(ownTargeting ? { ownTargeting: true } : {}),
     updatedAt: Date.now(),
     updatedBy: uid,
   }));

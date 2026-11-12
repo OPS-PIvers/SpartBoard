@@ -36,6 +36,9 @@ import { DistrictLibraryTargetingEditor } from '@/components/admin/DistrictLibra
 import { BUILDINGS } from '@/config/buildings';
 import type { LibraryFolder } from '@/types';
 import type { DistrictLibraryItem } from '@/types/districtLibrary';
+import { DistrictLibraryFolderView } from '@/components/admin/DistrictLibrary/DistrictLibraryFolderView';
+import { DistrictLibraryModal } from '@/components/widgets/QuizWidget/components/DistrictLibraryModal';
+import type { FolderMap } from '@/utils/districtLibraryFolders';
 
 const params = new URLSearchParams(window.location.search);
 const part = params.get('part') ?? 'admin';
@@ -1152,7 +1155,78 @@ const BanksView: React.FC = () => {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
+// ─── The built components on the same fixtures ──────────────────────────────
+
+const REAL_FOLDERS: FolderMap = Object.fromEntries(
+  TREE.map((f, i) => [f.id, { name: f.name, parentId: f.parent, order: i }])
+);
+const REAL_ITEMS: DistrictLibraryItem[] = ITEMS.map((fx) => ({
+  ...asItem(fx),
+  folderId: fx.folder,
+  ...(fx.own ? { ownTargeting: true, targetGrades: ['7'] } : {}),
+}));
+const REAL_AUDIENCES = {
+  'sci-8': {
+    everyone: false,
+    targetBuildings: ['middle'],
+    targetGrades: ['8'],
+    targetEmails: [],
+    gradeBuildings: [],
+  },
+};
+
+const RealAdmin: React.FC = () => {
+  const [place, setPlace] = useState<string>(state || 'all');
+  return (
+    <div className="max-w-4xl p-6">
+      <DistrictLibraryFolderView
+        uid="mock-user-id"
+        items={REAL_ITEMS}
+        folders={REAL_FOLDERS}
+        audiences={REAL_AUDIENCES}
+        buildings={BUILDINGS}
+        buildingName={(id) => BUILDINGS.find((b) => b.id === id)?.name ?? id}
+        place={place}
+        onPlaceChange={setPlace}
+        isBusy={() => false}
+        replaceDisabled={false}
+        onTogglePublished={noop}
+        onReplace={noop}
+        onRemove={noop}
+        onError={noop}
+      />
+    </div>
+  );
+};
+
+const RealAdd: React.FC = () => {
+  const only = params.get('only');
+  const items = REAL_ITEMS.filter(
+    (i) => i.status === 'published' && (!only || i.folderId === only)
+  );
+  const added = new Set(items.slice(0, 3).map((i) => i.id));
+  return (
+    <DistrictLibraryModal
+      isOpen
+      onClose={noop}
+      items={items}
+      addedQuizItemIds={new Set()}
+      addedBankIds={added}
+      onAdd={() => Promise.resolve()}
+      onRemoveBank={() => Promise.resolve()}
+      folders={params.get('flat') === '1' ? null : REAL_FOLDERS}
+    />
+  );
+};
+
 export const DistrictFoldersDevHarness: React.FC = () => {
+  if (part === 'admin-real')
+    return (
+      <div className="min-h-screen bg-white">
+        <RealAdmin />
+      </div>
+    );
+  if (part === 'add-real') return <RealAdd />;
   if (part === 'add') return <AddDialog />;
   if (part === 'banks')
     return (

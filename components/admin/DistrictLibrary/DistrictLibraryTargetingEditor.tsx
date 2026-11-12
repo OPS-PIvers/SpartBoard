@@ -11,7 +11,7 @@ import type {
 } from '@/types/districtLibrary';
 
 interface Props {
-  item: DistrictLibraryItem;
+  item: Pick<DistrictLibraryItem, 'id'> & DistrictLibraryTargeting;
   buildings: readonly Building[];
   onSave: (targeting: DistrictLibraryTargeting) => Promise<void>;
   onCancel: () => void;

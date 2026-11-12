@@ -11321,6 +11321,8 @@ export type GlobalFeature =
   | 'getting-started'
   /** District library: admin-published quizzes and banks teachers add as linked copies (docs/plans/QUIZ_MCA_PRACTICE.md M26-M31). */
   | 'district-library'
+  /** Folders in the District library: admin folders with a folder audience, mirrored for teachers. */
+  | 'district-library-folders'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */

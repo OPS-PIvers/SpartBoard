@@ -177,6 +177,8 @@ export interface BankSource {
   sharedByName?: string;
   /** district only: the item was unpublished, retargeted away or deleted. */
   unavailable?: boolean;
+  /** district only: the teacher's own Quiz library folder for this bank. */
+  districtFolderId?: string;
 }
 
 export interface SharedBankRow {
@@ -252,6 +254,7 @@ export function withDistrictBankSources(
       targetIds: link.targetIds ?? [],
       targetCounts: {},
       ...(link.unavailable ? { unavailable: true } : {}),
+      ...(link.folderId ? { districtFolderId: link.folderId } : {}),
     });
   }
   return out;

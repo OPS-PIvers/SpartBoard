@@ -64,6 +64,8 @@ import {
   ScanText,
   Library,
   CopyPlus,
+  FolderInput,
+  FolderMinus,
 } from 'lucide-react';
 import {
   AssignmentAudience,
@@ -86,6 +88,13 @@ import { QuizBanksTab } from './QuizBanksTab';
 import { useBankMenuActions } from './useBankMenuActions';
 import { LibraryKindIcon } from './LibraryKindIcon';
 import { visibleTeammateBanks } from './teammateBankRows';
+import {
+  DISTRICT_SOURCE_FOLDER,
+  districtBankFolderId,
+  districtSourceFolders,
+  isDistrictSourceFolder,
+} from './districtBankFolders';
+import { shortTitle, type FolderMap } from '@/utils/districtLibraryFolders';
 import type { LibraryLocation } from '@/components/common/library/folderView';
 import { useCopyBankFoldersToLibrary } from './useCopyBankFoldersToLibrary';
 import {
@@ -459,6 +468,15 @@ interface QuizManagerProps {
   /** District library banks the teacher added (kind 'district'). */
   districtBankSources?: BankSource[];
   onRemoveDistrictBank?: (source: BankSource) => void | Promise<void>;
+  /** District folders when district banks file into the library's folders; null keeps them in Question banks. */
+  districtFolders?: FolderMap | null;
+  /** District folder of each added district item, by item id. */
+  districtItemFolderIds?: ReadonlyMap<string, string | null>;
+  /** Files a district bank in one of the teacher's folders; null returns it to the District library folder. */
+  onMoveDistrictBank?: (
+    source: BankSource,
+    folderId: string | null
+  ) => Promise<void>;
   onNewBank?: () => void;
   onImportBank?: () => void;
   /** Quizzes and banks the extension sent from Schoology, waiting for review. */
@@ -786,6 +804,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   sharedBankSources,
   districtBankSources,
   onRemoveDistrictBank,
+  districtFolders = null,
+  districtItemFolderIds,
+  onMoveDistrictBank,
   onNewBank,
   onImportBank,
   schoologyInboxCount = 0,
@@ -1119,17 +1140,71 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     () => new Map(libraryBanks.map((b) => [b.id, b])),
     [libraryBanks]
   );
+  // District banks file into a pinned District library folder that mirrors the district folders.
+  const districtBanks = useMemo(
+    () =>
+      banksInLibrary && districtFolders
+        ? (districtBankSources ?? []).filter((s) => s.kind === 'district')
+        : [],
+    [banksInLibrary, districtFolders, districtBankSources]
+  );
+  const districtByKey = useMemo(
+    () => new Map(districtBanks.map((s) => [s.key, s])),
+    [districtBanks]
+  );
+  const districtFolderOf = useCallback(
+    (source: BankSource): string =>
+      districtBankFolderId(
+        districtFolders ?? {},
+        districtItemFolderIds?.get(source.bankId),
+        source.districtFolderId,
+        quizFolderIds
+      ),
+    [districtFolders, districtItemFolderIds, quizFolderIds]
+  );
+  const libraryFolders = useMemo(() => {
+    const pinned = districtFolders
+      ? districtSourceFolders(
+          districtFolders,
+          districtBanks.map((s) => districtItemFolderIds?.get(s.bankId))
+        )
+      : [];
+    return pinned.length > 0
+      ? [...pinned, ...folderState.folders]
+      : folderState.folders;
+  }, [
+    districtFolders,
+    districtBanks,
+    districtItemFolderIds,
+    folderState.folders,
+  ]);
   const bankFolderIds = useMemo(
-    () => (banksInLibrary ? libraryBanks.map(bankFolderOf) : undefined),
-    [banksInLibrary, libraryBanks, bankFolderOf]
+    () =>
+      banksInLibrary
+        ? [
+            ...libraryBanks.map(bankFolderOf),
+            ...districtBanks.map(districtFolderOf),
+          ]
+        : undefined,
+    [
+      banksInLibrary,
+      libraryBanks,
+      bankFolderOf,
+      districtBanks,
+      districtFolderOf,
+    ]
   );
   const bankFolderIdOf = useCallback(
     (id: string): string | null => {
       const bank = bankById.get(id);
-      return bank ? bankFolderOf(bank) : null;
+      if (bank) return bankFolderOf(bank);
+      const source = districtByKey.get(id);
+      return source ? districtFolderOf(source) : null;
     },
-    [bankById, bankFolderOf]
+    [bankById, bankFolderOf, districtByKey, districtFolderOf]
   );
+  const [districtMoveTarget, setDistrictMoveTarget] =
+    useState<BankSource | null>(null);
   const [bankPickerTarget, setBankPickerTarget] =
     useState<QuestionBankMetadata | null>(null);
   const { buildActions: buildBankActions } = useBankMenuActions({
@@ -1204,7 +1279,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     folderView: {
       library: 'quiz',
       userId,
-      folders: folderState.folders,
+      folders: libraryFolders,
       foldersLoading: folderState.loading,
       reorderSiblings: folderState.reorderSiblings,
       getId: QUIZ_GET_ID,
@@ -2410,7 +2485,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     (managerTab === 'library' || banksOpen) && userId ? (
       <FolderSidebar
         widget="quiz"
-        folders={folderState.folders}
+        folders={libraryFolders}
         loading={folderState.loading}
         error={folderState.error}
         selectedFolderId={libraryView.selectedFolderId}
@@ -2496,7 +2571,71 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       meta={bank}
     />
   );
-  const bankRows = visibleBanks.map((bank) => renderBankRow(bank));
+  const visibleDistrictBanks =
+    managerTab === 'library' && quizFolderView && districtBanks.length > 0
+      ? visibleTeammateBanks(
+          districtBanks,
+          quizFolderView,
+          libraryView.state.search,
+          (key) => {
+            const source = districtByKey.get(key);
+            return source ? districtFolderOf(source) : null;
+          }
+        )
+      : [];
+  const renderDistrictBankRow = (source: BankSource): React.ReactElement => {
+    const inDistrict =
+      !libraryView.state.search.trim() &&
+      isDistrictSourceFolder(libraryView.selectedFolderId);
+    return (
+      <LibraryItemCard<BankSource>
+        key={source.key}
+        id={source.key}
+        title={inDistrict ? shortTitle(source.title) : source.title}
+        thumbnail={<LibraryKindIcon kind="bank" />}
+        subtitle={
+          <span>
+            Question bank · {source.questionCount} question
+            {source.questionCount === 1 ? '' : 's'} · Read-only
+            {source.unavailable ? ' · No longer shared with you' : ''}
+          </span>
+        }
+        badges={inDistrict ? [] : [{ label: 'District library', tone: 'info' }]}
+        secondaryActions={[
+          ...(onMoveDistrictBank
+            ? [
+                {
+                  id: 'move-district-bank',
+                  label: 'Move to folder',
+                  icon: FolderInput,
+                  onClick: () => setDistrictMoveTarget(source),
+                },
+              ]
+            : []),
+          ...(onRemoveDistrictBank
+            ? [
+                {
+                  id: 'remove-district-bank',
+                  label: 'Remove from my banks',
+                  icon: FolderMinus,
+                  onClick: () =>
+                    void Promise.resolve(onRemoveDistrictBank(source)).catch(
+                      () => onError?.('Could not remove that bank. Try again.')
+                    ),
+                },
+              ]
+            : []),
+        ]}
+        viewMode="list"
+        sortable={false}
+        meta={source}
+      />
+    );
+  };
+  const bankRows = [
+    ...visibleBanks.map((bank) => renderBankRow(bank)),
+    ...visibleDistrictBanks.map(renderDistrictBankRow),
+  ];
 
   // ─── Shell header actions ─────────────────────────────────────────────────
   // New Quiz always opens a menu so every create path starts in one place.
@@ -2664,6 +2803,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         sharedBankSources={sharedBankSources ?? []}
         districtBankSources={districtBankSources}
         onRemoveDistrictBank={onRemoveDistrictBank}
+        onOpenDistrictFolder={
+          districtBanks.length > 0
+            ? () => {
+                onTabChange?.('library');
+                libraryView.onSelectFolder(DISTRICT_SOURCE_FOLDER);
+              }
+            : undefined
+        }
         plcs={plcs}
         shell={{
           widgetLabel: 'Quiz',
@@ -2917,6 +3064,32 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }}
           onClose={() => setBankPickerTarget(null)}
           title={`Move "${bankPickerTarget.title}" to…`}
+          rootAnchor={tourTypeAttr('quiz-library.folder-picker-root', 'quiz')}
+          rowAnchor={(id) =>
+            tourFieldAttr('quiz-library.folder-picker-folder', 'quiz', id)
+          }
+        />
+      )}
+
+      {districtMoveTarget && onMoveDistrictBank && (
+        <FolderPickerPopover
+          variant="dialog"
+          folders={folderState.folders}
+          selectedFolderId={
+            isDistrictSourceFolder(districtFolderOf(districtMoveTarget))
+              ? null
+              : districtFolderOf(districtMoveTarget)
+          }
+          onSelect={(folderId) => {
+            const source = districtMoveTarget;
+            setDistrictMoveTarget(null);
+            void onMoveDistrictBank(source, folderId).catch(() =>
+              onError?.('That question bank could not be moved.')
+            );
+          }}
+          onClose={() => setDistrictMoveTarget(null)}
+          title={`Move "${districtMoveTarget.title}" to…`}
+          rootLabel="District library"
           rootAnchor={tourTypeAttr('quiz-library.folder-picker-root', 'quiz')}
           rowAnchor={(id) =>
             tourFieldAttr('quiz-library.folder-picker-folder', 'quiz', id)

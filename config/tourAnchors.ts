@@ -999,6 +999,36 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz.district-library.search': {
+    label: 'Search box in the District library dialog',
+    panel: true,
+  },
+  'quiz.district-library.folder': {
+    label: 'A folder in the District library folder list, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'quiz.district-library.open-folder': {
+    label: 'A folder row in the District library dialog, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'quiz.district-library.crumb': {
+    label: 'A step in the District library folder path, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'quiz.district-library.back': {
+    label: 'Back link in the District library dialog on a narrow screen',
+    panel: true,
+  },
+  'quiz.district-library.add-all': {
+    label: 'Add all button for a District library folder, by folder id',
+    perField: true,
+    persists: true,
+    creates: true,
+    panel: true,
+  },
   'quiz.district-library.remove': {
     label: 'Remove a District library bank from your banks, by item',
     perField: true,
@@ -9765,6 +9795,110 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.district-library.upload-folder': {
+    label: 'Put new items in folder menu after reviewing a package file',
+    panel: true,
+  },
+  'admin.district-library.new-folder': {
+    label: 'New folder button in District library folders',
+    panel: true,
+  },
+  'admin.district-library.folder-name': {
+    label: 'Folder name field in District library folders',
+    persists: true,
+    creates: true,
+    panel: true,
+  },
+  'admin.district-library.all-items': {
+    label: 'All items in District library folders',
+    panel: true,
+  },
+  'admin.district-library.drafts': {
+    label: 'Drafts in District library folders',
+    panel: true,
+  },
+  'admin.district-library.folder': {
+    label: 'A folder in the District library folder list, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.folder-expand': {
+    label:
+      'Expand or collapse arrow on a District library folder, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.open-folder': {
+    label: 'A folder row in the open District library folder, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.folder-targeting': {
+    label: 'Who sees this folder button, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.folder-menu': {
+    label:
+      'More actions menu for the open District library folder, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.folder-rename': {
+    label: 'Rename in a District library folder menu, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.folder-new-inside': {
+    label: 'New folder inside in a District library folder menu, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.folder-move': {
+    label: 'Move to folder in a District library folder menu, by folder id',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.folder-delete': {
+    label: 'Delete in a District library folder menu, by folder id',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.district-library.row-menu': {
+    label: 'More actions menu in a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.move': {
+    label: 'Move to folder in a District library row menu',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.move-target': {
+    label:
+      'A folder in the District library Move to folder picker, by folder id',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.district-library.same-as-folder': {
+    label: 'Same as folder choice in a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.own-audience': {
+    label: 'Choose for this item choice in a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.save-same-as-folder': {
+    label: 'Save button for Same as folder in a District library row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.import-block-list.new-pattern': {
     label: 'New blocked address field in Import block list',
     panel: true,
@@ -16238,6 +16372,10 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.banks-link': {
     label: 'Question banks link in the Quiz library sidebar',
+    panel: true,
+  },
+  'quiz-library.district-folder': {
+    label: 'District library folder row in Question banks',
     panel: true,
   },
   'quiz-banks.folder-root': {

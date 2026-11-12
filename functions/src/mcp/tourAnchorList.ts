@@ -4289,6 +4289,43 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz.district-library.search",
+    "label": "Search box in the District library dialog",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "quiz.district-library.folder",
+    "label": "A folder in the District library folder list, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "quiz.district-library.open-folder",
+    "label": "A folder row in the District library dialog, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "quiz.district-library.crumb",
+    "label": "A step in the District library folder path, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "quiz.district-library.back",
+    "label": "Back link in the District library dialog on a narrow screen",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "quiz.district-library.add-all",
+    "label": "Add all button for a District library folder, by folder id",
+    "scope": "field",
+    "panel": true,
+    "persists": true
+  },
+  {
     "id": "quiz.district-library.remove",
     "label": "Remove a District library bank from your banks, by item",
     "scope": "field",
@@ -43015,6 +43052,131 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.district-library.upload-folder",
+    "label": "Put new items in folder menu after reviewing a package file",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.new-folder",
+    "label": "New folder button in District library folders",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-name",
+    "label": "Folder name field in District library folders",
+    "scope": "board",
+    "panel": true,
+    "persists": true
+  },
+  {
+    "id": "admin.district-library.all-items",
+    "label": "All items in District library folders",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.drafts",
+    "label": "Drafts in District library folders",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder",
+    "label": "A folder in the District library folder list, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-expand",
+    "label": "Expand or collapse arrow on a District library folder, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.open-folder",
+    "label": "A folder row in the open District library folder, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-targeting",
+    "label": "Who sees this folder button, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-menu",
+    "label": "More actions menu for the open District library folder, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-rename",
+    "label": "Rename in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-new-inside",
+    "label": "New folder inside in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-move",
+    "label": "Move to folder in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.folder-delete",
+    "label": "Delete in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true
+  },
+  {
+    "id": "admin.district-library.row-menu",
+    "label": "More actions menu in a District library row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.move",
+    "label": "Move to folder in a District library row menu",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.move-target",
+    "label": "A folder in the District library Move to folder picker, by folder id",
+    "scope": "field",
+    "panel": true,
+    "persists": true
+  },
+  {
+    "id": "admin.district-library.same-as-folder",
+    "label": "Same as folder choice in a District library row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.own-audience",
+    "label": "Choose for this item choice in a District library row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.district-library.save-same-as-folder",
+    "label": "Save button for Same as folder in a District library row",
+    "scope": "field",
+    "panel": true,
+    "persists": true
+  },
+  {
     "id": "admin.import-block-list.new-pattern",
     "label": "New blocked address field in Import block list",
     "scope": "board",
@@ -72187,6 +72349,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       }
     ]
+  },
+  {
+    "id": "quiz-library.district-folder",
+    "label": "District library folder row in Question banks",
+    "scope": "board",
+    "panel": true
   },
   {
     "id": "quiz-banks.folder-root",

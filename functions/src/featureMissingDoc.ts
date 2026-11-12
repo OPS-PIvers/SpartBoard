@@ -46,6 +46,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'sparty',
   'getting-started',
   'district-library',
+  'district-library-folders',
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',
