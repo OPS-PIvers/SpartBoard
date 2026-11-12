@@ -185,7 +185,7 @@ export const QuizReviewScreen: React.FC<{
                     {row.index + 1}
                   </span>
                   <span className="flex-1 min-w-0 text-sm text-slate-800 line-clamp-2">
-                    <MathText text={row.text} />
+                    <MathText text={row.text} format />
                   </span>
                   {row.marked && (
                     <Bookmark

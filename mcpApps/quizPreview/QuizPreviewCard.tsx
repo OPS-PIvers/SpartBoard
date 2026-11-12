@@ -270,7 +270,7 @@ const QuestionBlock: React.FC<{
         {(pub.blankCount ?? 0) >= 2 ? (
           <NumberedBlanksText text={pub.text} light />
         ) : (
-          <MathText text={pub.text} />
+          <MathText text={pub.text} format />
         )}
       </h2>
 
