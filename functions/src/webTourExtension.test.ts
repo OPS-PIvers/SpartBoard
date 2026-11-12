@@ -342,7 +342,7 @@ describe('loadTour', () => {
       storeOf(3)
     );
     expect(tour.conditions).toEqual({ a: { showWhen: { kind: 'target' } } });
-    expect(tour.steps[0].web).not.toHaveProperty('showWhen');
+    expect(tour.steps[0]).not.toHaveProperty('web.showWhen');
   });
 
   it('sends picture markup with the pictures it sends, never on the steps (TOURS_10X.md E5)', async () => {
@@ -359,7 +359,7 @@ describe('loadTour', () => {
     );
     expect(tour.pictures.a.markup).toEqual(shapes);
     expect(tour.pictures).not.toHaveProperty('b');
-    expect(tour.steps[0].web).not.toHaveProperty('picture');
+    expect(tour.steps[0]).not.toHaveProperty('web.picture');
   });
 
   it("never reads a picture outside the set's folder", async () => {
