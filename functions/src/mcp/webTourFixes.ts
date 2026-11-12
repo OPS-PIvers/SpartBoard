@@ -157,6 +157,7 @@ export function stepFixes(
   const dismissed = isObj(draft.webFixDismissed) ? draft.webFixDismissed : {};
   const checked = isObj(draft.webTourChecked) ? draft.webTourChecked : {};
   const results = isObj(checked.results) ? checked.results : {};
+  const accepted = isObj(checked.accepted) ? checked.accepted : {};
   const out = new Map<string, StepFix>();
   for (const step of draft.steps) {
     const own = step.web?.locator;
@@ -167,6 +168,8 @@ export function stepFixes(
     const check = checks[step.id];
     if (
       results[step.id] !== 'found' &&
+      // An admin-confirmed weak match counts as found, as in the editor.
+      !(results[step.id] === 'weak' && accepted[step.id] === current) &&
       isObj(check) &&
       isObj(check.locator) &&
       check.base === current &&

@@ -345,7 +345,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                           )}
                           title="Remove from your banks"
                           aria-label={`Remove ${s.title} from your banks`}
-                          className="touch-target-expand shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
+                          className="touch-target-expand relative shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
                         >
                           <X className="w-4 h-4" aria-hidden />
                         </button>

@@ -409,6 +409,40 @@ describe('WebTourEditor', () => {
     expect(main()).toHaveAttribute('data-state', 'check');
   });
 
+  it('publishes a weak match once the admin confirms it is the right element', async () => {
+    ext.protocol = 6;
+    renderEditor(tour('Biology 7'));
+    const button = screen.getByRole('button', { name: 'Check tour' });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(ext.startWebTour).toHaveBeenCalled());
+    const runId = (ext.startWebTour.mock.calls[0] as unknown as string[])[3];
+    act(() =>
+      ext.onCheck?.({
+        type: 'web-tour/check-step',
+        setId: 't1',
+        runId,
+        stepIndex: 0,
+        stepId: 's1',
+        result: 'weak',
+      })
+    );
+    expect(main()).toHaveAttribute('data-state', 'check');
+    fireEvent.click(screen.getByRole('button', { name: "Yes, it's right" }));
+    expect(screen.getByText('Weak match, confirmed')).toBeInTheDocument();
+    expect(publishButton()).toBeEnabled();
+    expect(storage.setWebTourCheckRun).toHaveBeenLastCalledWith(
+      't1',
+      expect.objectContaining({
+        results: { s1: 'weak' },
+        accepted: { s1: expect.any(String) as string },
+      })
+    );
+    expect(storage.saveWebTourDraft).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo confirm' }));
+    expect(main()).toHaveAttribute('data-state', 'check');
+  });
+
   it('saves a check run fix, and using it replaces the target and expires the check (C14)', async () => {
     ext.protocol = 7;
     renderEditor(tour('Biology 7'));
