@@ -20,7 +20,7 @@ export const SAVE_DELAY_MS = 800;
 
 type Update = (s: GuidedLearningSet) => GuidedLearningSet;
 
-/** Fields saved on their own (check runs, fixes, picture confirms); undo never rolls them back. */
+/** Fields saved on their own (check runs, fixes, picture confirms, Claude's revision pictures); undo never rolls them back. */
 const keepOnUndo = (
   restored: GuidedLearningSet,
   now: GuidedLearningSet
@@ -31,6 +31,7 @@ const keepOnUndo = (
     'webSuggestions',
     'webFixDismissed',
     'webPicturesChecked',
+    'webRevisionPictures',
   ] as const) {
     if (now[key] === undefined) delete out[key];
     else (out as unknown as Record<string, unknown>)[key] = now[key];

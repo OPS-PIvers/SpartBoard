@@ -401,6 +401,8 @@ export function applyWebStepList(
       throw new ToolError(`steps names step "${entry.id}" twice.`);
     seen.add(entry.id);
     if (entry.title === undefined && entry.tip === undefined) return step;
+    if (isMessageStep(step) && entry.tip !== undefined && !entry.tip.trim())
+      throw new ToolError(`${at} is a message, so its tip can't be empty.`);
     const edited = applyWebStepText(
       [step],
       [{ id: entry.id, title: entry.title, tip: entry.tip }]

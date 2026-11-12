@@ -23,6 +23,7 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   WebTourCheckRun,
+  WebTourRevisionPicture,
 } from '@/types';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
@@ -87,34 +88,63 @@ export function webTourPicturePaths(
   return out;
 }
 
+// The server sets `until`; a browser clock running ahead must not sweep a picture a restore still needs.
+const CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
+
+/** The draft's live revision picture entries (X18); expired or malformed ones drop out. */
+const liveRevisionPictures = (
+  kept: unknown,
+  now: number
+): WebTourRevisionPicture[] =>
+  (Array.isArray(kept) ? (kept as unknown[]) : []).flatMap((entry) => {
+    const { path, until } = (entry ?? {}) as {
+      path?: unknown;
+      until?: unknown;
+    };
+    return typeof path === 'string' &&
+      typeof until === 'number' &&
+      until + CLOCK_SKEW_MS > now
+      ? [{ path, until }]
+      : [];
+  });
+
 /** Pictures a Claude step-list revision still references, until that revision expires (X18). */
 export function revisionPicturePaths(
   setId: string,
   set: { webRevisionPictures?: unknown } | null | undefined,
   now = Date.now()
 ): Set<string> {
-  const out = new Set<string>();
-  const kept = set?.webRevisionPictures;
-  if (!Array.isArray(kept)) return out;
-  for (const entry of kept as unknown[]) {
-    const { path, until } = (entry ?? {}) as {
-      path?: unknown;
-      until?: unknown;
-    };
-    if (
-      typeof path === 'string' &&
-      typeof until === 'number' &&
-      until > now &&
-      isWebTourPicturePath(setId, path)
-    )
-      out.add(path);
-  }
-  return out;
+  return new Set(
+    liveRevisionPictures(set?.webRevisionPictures, now)
+      .map((e) => e.path)
+      .filter((p) => isWebTourPicturePath(setId, p))
+  );
 }
 
 /** Saves a web tour draft. Admins only (rules). */
 export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
-  const data = { ...stored(set), surface: 'web', updatedAt: Date.now() };
+  // A copy loaded before a Claude step edit lacks its revision pictures, so the stored list is merged in.
+  const now = Date.now();
+  const current = await getDoc(draftRef(set.id));
+  const byPath = new Map<string, number>();
+  for (const e of [
+    ...liveRevisionPictures(set.webRevisionPictures, now),
+    ...liveRevisionPictures(
+      current.exists() ? current.get('webRevisionPictures') : undefined,
+      now
+    ),
+  ])
+    byPath.set(e.path, Math.max(e.until, byPath.get(e.path) ?? 0));
+  const webRevisionPictures = [...byPath].map(([path, until]) => ({
+    path,
+    until,
+  }));
+  const data = {
+    ...stored({ ...set, webRevisionPictures: undefined }),
+    ...(webRevisionPictures.length ? { webRevisionPictures } : {}),
+    surface: 'web',
+    updatedAt: now,
+  };
   assertGuidedLearningDocFits(`${WEB_TOURS_COLLECTION}/${set.id}`, data);
   await setDoc(draftRef(set.id), data);
 }

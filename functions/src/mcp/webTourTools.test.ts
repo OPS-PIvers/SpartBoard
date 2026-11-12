@@ -899,6 +899,19 @@ describe('web tour connector tools', () => {
     ).toThrow(/Step 2 tip looks like it holds student data/);
   });
 
+  it("won't empty a Message step's tip", () => {
+    const steps = [
+      ...(tour().steps as Parameters<typeof applyWebStepList>[0]),
+      { id: 'm', label: 'Hi', text: 'Welcome', message: true },
+    ];
+    expect(() =>
+      applyWebStepList(steps, [{ id: 'a' }, { id: 'm', tip: ' ' }])
+    ).toThrow("Step 2 is a message, so its tip can't be empty.");
+    expect(
+      applyWebStepList(steps, [{ id: 'b', tip: '' }, { id: 'm' }]).steps[0].text
+    ).toBe('');
+  });
+
   it('warns when no step points at a control any more', () => {
     const steps = tour().steps as Parameters<typeof applyWebStepList>[0];
     const out = applyWebStepList(
