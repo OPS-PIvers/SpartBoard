@@ -6,6 +6,7 @@ type Box = { x: number; y: number; w: number; h: number };
 const isDialogLayer = (el: Element): el is HTMLElement =>
   el instanceof HTMLElement &&
   el.closest('[data-tour-ignore]') === null &&
+  el.querySelector('[data-tour-keep-layer]') === null &&
   (el.dataset.tourDialogLift !== undefined ||
     getComputedStyle(el).zIndex === String(Z_INDEX.dialog));
 
@@ -31,6 +32,10 @@ export function useDialogLift(active: boolean): Box[] {
     const lifted = new Map<HTMLElement, string>();
     let frame = 0;
     let settle = 0;
+    const sizes =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => queue());
     const scan = () => {
       frame = 0;
       const layers = Array.from(document.body.children).filter(isDialogLayer);
@@ -39,8 +44,13 @@ export function useDialogLift(active: boolean): Box[] {
         lifted.set(el, el.style.zIndex);
         el.dataset.tourDialogLift = '';
         el.style.zIndex = String(Z_INDEX.tourLift);
+        sizes?.observe(el.firstElementChild ?? el);
       }
-      for (const el of lifted.keys()) if (!el.isConnected) lifted.delete(el);
+      for (const el of lifted.keys()) {
+        if (el.isConnected) continue;
+        lifted.delete(el);
+        sizes?.unobserve(el.firstElementChild ?? el);
+      }
       const next = layers.flatMap((el) => panelBox(el) ?? []);
       setBoxes((cur) => (sameBoxes(cur, next) ? cur : next));
     };
@@ -59,6 +69,7 @@ export function useDialogLift(active: boolean): Box[] {
     window.addEventListener('resize', queue);
     return () => {
       observer.disconnect();
+      sizes?.disconnect();
       window.removeEventListener('resize', queue);
       window.clearTimeout(settle);
       if (frame) cancelAnimationFrame(frame);

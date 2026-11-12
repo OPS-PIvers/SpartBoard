@@ -1890,6 +1890,21 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     prompt.remove();
   });
 
+  it('leaves a dialog the tour itself opened above its own layers', async () => {
+    await launch(makeSet([{ anchor: 'dock.open-tools', action: 'observe' }]));
+    const confirm = document.createElement('div');
+    confirm.style.zIndex = String(Z_INDEX.dialog);
+    const panel = document.createElement('div');
+    panel.setAttribute('data-tour-keep-layer', '');
+    confirm.appendChild(panel);
+    act(() => {
+      document.body.appendChild(confirm);
+    });
+    await frames(300);
+    expect(confirm.style.zIndex).toBe(String(Z_INDEX.dialog));
+    confirm.remove();
+  });
+
   it('shakes the callout and hints early on a click outside the cutout', async () => {
     const animate = stubAnimate();
     await launch(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));

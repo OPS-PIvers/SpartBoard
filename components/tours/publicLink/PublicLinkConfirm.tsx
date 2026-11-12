@@ -308,6 +308,8 @@ export const PublicLinkConfirm: React.FC<{
       <div
         ref={review}
         data-testid="public-link-review"
+        // Stays above the Live editor panel while a tour runs.
+        data-tour-keep-layer=""
         aria-label={t('tourPublicLink.confirmTitle')}
         className="flex flex-col gap-6 pb-4"
       >
