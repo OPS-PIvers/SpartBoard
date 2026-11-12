@@ -446,4 +446,33 @@ describe('useAnchorElement with a #row-* ref', () => {
     expect(result.current.matches).toEqual([first, second, third]);
     expect(result.current.rect?.width).toBe(140);
   });
+
+  it('stays found on another row when the first one scrolls out of its panel', async () => {
+    const panel = document.createElement('div');
+    panel.style.overflowY = 'auto';
+    panel.dataset.x = '0';
+    Object.defineProperty(panel, 'scrollHeight', { value: 500 });
+    Object.defineProperty(panel, 'clientHeight', { value: 100 });
+    document.body.appendChild(panel);
+    const first = addRow(1);
+    const second = addRow(2);
+    act(() => {
+      panel.append(first, second);
+    });
+    first.dataset.x = '0';
+    second.dataset.x = '0';
+    const { result } = renderHook(() =>
+      useAnchorElement({ anchor: 'plcs.open-plc:plcs#row-*' }, scope)
+    );
+    await advance(50);
+    expect(result.current.element).toBe(first);
+    first.dataset.x = '-500';
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await advance(ANCHOR_SEARCH_MS + 50);
+    expect(result.current.status).toBe('found');
+    expect(result.current.element).toBe(second);
+    expect(result.current.matches).toEqual([second]);
+  });
 });

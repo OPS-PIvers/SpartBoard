@@ -433,7 +433,6 @@ const claimsFromIds = (
   return claims;
 };
 
-/** Runs a Guided Learning set's live-tour steps against the real app. */
 /** A step's index in the full run, counting the dropped steps (full-run indices, ascending) back in. */
 function fullRunIndex(index: number, dropped: readonly number[] = []): number {
   let at = index;
@@ -447,6 +446,7 @@ function notePick(picks: Record<string, string>, ref: string, el: Element) {
   if (picked) picks[ref.slice(0, ref.indexOf('#'))] = picked;
 }
 
+/** Runs a Guided Learning set's live-tour steps against the real app. */
 export const LiveTourRunner: React.FC = () => {
   const { t } = useTranslation();
   const { canAccessFeature, user, featurePermissions } = useAuth();
@@ -2118,6 +2118,10 @@ export const LiveTourRunner: React.FC = () => {
         // The list's own panel is open, so its rows are missing because there are none.
         const listShowing =
           !ok &&
+          findTourAnchors(binding, {
+            ...healAnchorScope(),
+            accept: isAnchorReachable,
+          }).length === 0 &&
           surfaceShowing(
             binding.anchor,
             (id) =>

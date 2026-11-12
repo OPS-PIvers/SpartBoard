@@ -224,8 +224,27 @@ export function useAnchorElement(
 
     const measure = () => {
       raf = 0;
+      if (cancelled || !element) return;
+      // A wildcard step follows whichever of its rows is on screen, so scrolling the list never loses it.
+      if (anyRow && scroll !== 'pending' && scroll !== 'scrolling') {
+        const cur = element;
+        const shown = (m: Element) =>
+          m.isConnected && isAnchorReachable(m) && anchorInView(m) !== 'none';
+        if (!shown(cur)) {
+          const row = findTourAnchors(target, {
+            widgetIds,
+            slots,
+            accept: shown,
+          })[0];
+          if (row) {
+            element = row;
+            lastRect = null;
+            resizeObserver?.disconnect();
+            resizeObserver?.observe(row);
+          }
+        }
+      }
       const el = element;
-      if (cancelled || !el) return;
       // Faded, click-through, or off-screen with no panel to scroll reads as searching.
       if (!el.isConnected || !isAnchorReachable(el)) {
         lose();
