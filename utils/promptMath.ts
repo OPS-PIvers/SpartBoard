@@ -29,6 +29,10 @@ export function splitPromptMath(text: string): PromptPart[] {
   return parts;
 }
 
+/** Answer or choice text with each equation as its plain math; asterisks and plus signs stay as typed. */
+export const plainMathText = (text: string): string =>
+  text.replace(PROMPT_MATH_RE, '$1');
+
 /** Question text with each equation as its plain math and no bold, italic or underline marks, for lists, exports and titles. */
 export const plainPromptText = (text: string): string =>
   stripPromptFormat(text).replace(PROMPT_MATH_RE, '$1');

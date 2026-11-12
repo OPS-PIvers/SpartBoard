@@ -18,6 +18,7 @@ export const PromptText: React.FC<{
     return (
       <MathText
         text={text}
+        format
         onEquationClick={onEquationClick}
         equationLabel={equationLabel}
       />
@@ -35,6 +36,7 @@ export const PromptText: React.FC<{
         const body = (
           <MathText
             text={line.text}
+            format
             onEquationClick={onEquationClick}
             equationLabel={equationLabel}
             equationOffset={equationOffset}

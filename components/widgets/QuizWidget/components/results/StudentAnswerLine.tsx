@@ -224,7 +224,7 @@ export const StudentAnswerLine: React.FC<{
           className="font-sans font-medium text-brand-gray-darkest flex-1 min-w-0 wrap-break-word"
           style={BODY_TEXT}
         >
-          <MathText text={line.text} />
+          <MathText text={line.text} format />
         </p>
         {onOpenGrader && (
           <button

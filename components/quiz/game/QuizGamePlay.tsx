@@ -1078,7 +1078,7 @@ const SectionDivider: React.FC<{
                     {on && <Check className="h-3.5 w-3.5" />}
                   </span>
                   <span className="line-clamp-3">
-                    <MathText text={q.text} />
+                    <MathText text={q.text} format />
                   </span>
                 </button>
               );

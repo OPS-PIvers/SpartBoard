@@ -719,7 +719,7 @@ const QuestionRow = React.memo(function QuestionRow({
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="text-sm text-slate-700 truncate">
           {question.text ? (
-            <MathText text={question.text} />
+            <MathText text={question.text} format />
           ) : (
             <span className="italic text-slate-400">Untitled question</span>
           )}
@@ -989,7 +989,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         </div>
         <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
           {q.text.trim() ? (
-            <MathText text={q.text} />
+            <MathText text={q.text} format />
           ) : (
             `Question ${selectedIndex + 1}`
           )}

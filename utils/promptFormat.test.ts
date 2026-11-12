@@ -4,7 +4,7 @@ import {
   promptFormatHtml,
   stripPromptFormat,
 } from './promptFormat';
-import { plainPromptText } from './promptMath';
+import { plainMathText, plainPromptText } from './promptMath';
 import { fillPromptEditor, readPromptEditor } from './promptEditorDom';
 
 describe('parsePromptInline', () => {
@@ -22,7 +22,17 @@ describe('parsePromptInline', () => {
   });
 
   it('leaves multiplication, C++ and lone marks alone', () => {
-    for (const s of ['3*x*y', '2 * 3 * 4', 'C++ and C++', '* note', 'a ** b']) {
+    for (const s of [
+      '3*x*y',
+      '2 * 3 * 4',
+      'C++ and C++',
+      '* note',
+      'a ** b',
+      'What is 2**3 + 3**2?',
+      '(3+2)*5*(1+1)',
+      'i++; j++',
+      'x**2 + y**2',
+    ]) {
       expect(parsePromptInline(s)).toEqual([s]);
     }
   });
@@ -49,13 +59,14 @@ describe('stripPromptFormat and plainPromptText', () => {
       'Read the text\n• one\n1. two'
     );
     expect(plainPromptText('**Solve** ⟦x+1=2⟧')).toBe('Solve x+1=2');
+    expect(plainMathText('I *think* ⟦x+1⟧')).toBe('I *think* x+1');
   });
 });
 
 describe('promptFormatHtml', () => {
   it('escapes text and turns marks into tags', () => {
-    expect(promptFormatHtml('<b>**x**</b> & *y*')).toBe(
-      '&lt;b&gt;<strong>x</strong>&lt;/b&gt; &amp; <em>y</em>'
+    expect(promptFormatHtml('<b> **x** </b> & *y*')).toBe(
+      '&lt;b&gt; <strong>x</strong> &lt;/b&gt; &amp; <em>y</em>'
     );
   });
 });
@@ -77,6 +88,23 @@ describe('prompt editor DOM', () => {
       '1) typed by hand\n- dash',
     ]) {
       expect(roundTrip(text)).toBe(text);
+    }
+  });
+
+  it('keeps part-word and touching formats readable', () => {
+    for (const html of [
+      '<p><i>un</i>happy</p>',
+      '<p><i>a</i><b>b</b></p>',
+      '<p>re<b>do</b>ne and <u>x</u>, <b>y</b>.</p>',
+    ]) {
+      const el = document.createElement('div');
+      el.innerHTML = html;
+      const text = readPromptEditor(el);
+      const back = document.createElement('div');
+      fillPromptEditor(back, text);
+      expect(back.innerHTML).toBe(el.innerHTML);
+      expect(readPromptEditor(back)).toBe(text);
+      expect(stripPromptFormat(text)).toBe(el.textContent);
     }
   });
 

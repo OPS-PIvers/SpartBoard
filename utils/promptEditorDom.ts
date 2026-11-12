@@ -1,7 +1,10 @@
 // Converts a question prompt between its stored text marks and the rich prompt editor's DOM.
 import {
   classifyPromptLine,
+  markMayCloseBefore,
+  markMayOpenAfter,
   parsePromptInline,
+  PROMPT_MARK_JOINER,
   type PromptFormatNode,
   type PromptFormatTag,
 } from './promptFormat';
@@ -13,7 +16,8 @@ function appendInline(el: HTMLElement, nodes: PromptFormatNode[]): void {
   const doc = el.ownerDocument;
   for (const node of nodes) {
     if (typeof node === 'string') {
-      el.appendChild(doc.createTextNode(node));
+      const text = node.replaceAll(PROMPT_MARK_JOINER, '');
+      if (text) el.appendChild(doc.createTextNode(text));
       continue;
     }
     const child = doc.createElement(DOM_TAG[node.tag]);
@@ -94,9 +98,47 @@ function wrap(inner: string, mark: string): string {
 
 const BLOCK = new Set(['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'BLOCKQUOTE']);
 
+interface Piece {
+  text: string;
+  formatted: boolean;
+}
+
+// A mark beside a letter or another mark would not parse, so an invisible joiner goes between them.
+function joinPieces(pieces: Piece[]): string {
+  let out = '';
+  let prevFormatted = false;
+  for (const { text, formatted } of pieces) {
+    if (!text) continue;
+    const last = out[out.length - 1];
+    const first = text[0];
+    const isMark = (ch: string | undefined) => ch === '*' || ch === '+';
+    const needs =
+      out !== '' &&
+      ((prevFormatted && isMark(last) && !markMayCloseBefore(first)) ||
+        (formatted && isMark(first) && !markMayOpenAfter(last)));
+    out += (needs ? PROMPT_MARK_JOINER : '') + text;
+    prevFormatted = formatted;
+  }
+  return out;
+}
+
+function childPieces(
+  parent: Node,
+  active: ReadonlySet<PromptFormatTag>
+): Piece[] {
+  return Array.from(parent.childNodes).map((child) => ({
+    text: inlineText(child, active),
+    formatted:
+      child instanceof HTMLElement &&
+      formatOf(child).some((t) => !active.has(t)),
+  }));
+}
+
 function inlineText(node: Node, active: ReadonlySet<PromptFormatTag>): string {
   if (node.nodeType === Node.TEXT_NODE) {
-    return (node.textContent ?? '').replace(/\u00a0/g, ' ');
+    return (node.textContent ?? '')
+      .replace(/\u00a0/g, ' ')
+      .replaceAll(PROMPT_MARK_JOINER, '');
   }
   if (!(node instanceof HTMLElement)) return '';
   if (node.tagName === 'BR') return '\n';
@@ -105,10 +147,7 @@ function inlineText(node: Node, active: ReadonlySet<PromptFormatTag>): string {
   }
   const own = formatOf(node).filter((t) => !active.has(t));
   const next = new Set([...active, ...own]);
-  let inner = '';
-  node.childNodes.forEach((child) => {
-    inner += inlineText(child, next);
-  });
+  let inner = joinPieces(childPieces(node, next));
   if (BLOCK.has(node.tagName) && inner && !inner.startsWith('\n')) {
     inner = `\n${inner}`;
   }
@@ -120,10 +159,7 @@ function inlineText(node: Node, active: ReadonlySet<PromptFormatTag>): string {
 }
 
 function blockText(el: HTMLElement): string {
-  let text = '';
-  el.childNodes.forEach((child) => {
-    text += inlineText(child, new Set());
-  });
+  const text = joinPieces(childPieces(el, new Set()));
   // A trailing <br> only keeps an empty block open; it is not a line of its own.
   return text.replace(/\n$/, '').replace(/^\n/, '');
 }

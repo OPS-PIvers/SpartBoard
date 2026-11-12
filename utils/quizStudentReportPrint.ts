@@ -1,5 +1,5 @@
 import { splitPictureLabels } from './quizAnswerImages';
-import { plainPromptText, promptPrintHtml } from './promptMath';
+import { plainMathText, promptPrintHtml } from './promptMath';
 import {
   escapeHtml,
   printHtmlDocument,
@@ -385,11 +385,11 @@ const numbered = (items: readonly string[], line: StudentQuestionLine) =>
 
 /** Escaped answer text with each picture-only label printed as its picture and label. */
 function answerTextHtml(text: string, line: StudentQuestionLine): string {
-  if (!line.pictures) return escapeHtml(plainPromptText(text));
+  if (!line.pictures) return escapeHtml(plainMathText(text));
   return splitPictureLabels(text, line.pictures)
     .map((part) =>
       part.kind === 'text'
-        ? escapeHtml(plainPromptText(part.text))
+        ? escapeHtml(plainMathText(part.text))
         : `<span class="pic"><img src="${escapeHtml(part.picture.url)}" alt="${escapeHtml(part.picture.alt ?? '')}">${escapeHtml(part.label)}</span>`
     )
     .join('');

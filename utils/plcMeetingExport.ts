@@ -16,6 +16,7 @@
  * `PlcAssessmentAggregate` (team/per-class rollups, never student names).
  */
 
+import { plainPromptText } from './promptMath';
 import type {
   PlcAssessmentAggregate,
   PlcCommonAssessment,
@@ -165,7 +166,9 @@ export function buildMeetingExportRows(
           return a.questionId.localeCompare(b.questionId);
         })
         .slice(0, 3)
-        .map((q) => `${q.text} (${Math.round(q.correctPercent)}%)`)
+        .map(
+          (q) => `${plainPromptText(q.text)} (${Math.round(q.correctPercent)}%)`
+        )
         .join('; ');
       rows.push([
         title,

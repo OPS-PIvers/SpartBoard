@@ -18,24 +18,33 @@ const MARKS: { mark: string; tags: PromptFormatTag[] }[] = [
   { mark: '*', tags: ['i'] },
 ];
 
-const isWord = (ch: string | undefined) => !!ch && /[\p{L}\p{N}]/u.test(ch);
-const isSpace = (ch: string | undefined) => !ch || /\s/.test(ch);
+const ZWSP = '\u200b';
+const isSpace = (ch: string | undefined) => !!ch && /\s/.test(ch);
+// A mark only opens after a space, a line start or opening punctuation, and only closes before a space,
+// a line end or closing punctuation, so 2**3, (3+2)*5*(1+1) and i++ stay as written.
+const OPEN_BEFORE = new Set([...'([{"\'“‘«/-–—', ZWSP]);
+const CLOSE_AFTER = new Set([...'.,;:!?)]}"\'”’»/-–—', ZWSP]);
+
+/** Whether a mark may close right before `ch` (undefined = line end). */
+export const markMayCloseBefore = (ch: string | undefined): boolean =>
+  ch === undefined || isSpace(ch) || CLOSE_AFTER.has(ch);
+
+/** Whether a mark may open right after `ch` (undefined = line start). */
+export const markMayOpenAfter = (ch: string | undefined): boolean =>
+  ch === undefined || isSpace(ch) || OPEN_BEFORE.has(ch);
 
 /** Cheap test for any formatting mark, so plain prompts skip parsing. */
 export const mayHavePromptFormat = (text: string): boolean =>
   /\*|\+\+|^• |^\d{1,3}\. /m.test(text);
 
-// Single * never opens or closes inside a word, so 3*x*y stays multiplication.
-const intraword = (mark: string) => mark !== '*';
-
 const canOpen = (s: string, i: number, from: number, mark: string) => {
   const next = s[i + mark.length];
   const prev = i > from ? s[i - 1] : undefined;
   return (
+    next !== undefined &&
     !isSpace(next) &&
     next !== mark[0] &&
-    prev !== mark[0] &&
-    (intraword(mark) || !isWord(prev))
+    markMayOpenAfter(prev)
   );
 };
 
@@ -53,8 +62,7 @@ function findClose(s: string, from: number, to: number, mark: string): number {
       k > from &&
       s.startsWith(mark, k) &&
       !isSpace(s[k - 1]) &&
-      (intraword(mark) || !isWord(after)) &&
-      after !== mark[0]
+      markMayCloseBefore(after)
     ) {
       return k;
     }
@@ -121,9 +129,12 @@ export function stripPromptFormat(text: string): string {
   if (!/\*|\+\+/.test(text)) return text;
   return text
     .split('\n')
-    .map((line) => flatten(parsePromptInline(line)))
+    .map((line) => flatten(parsePromptInline(line)).replaceAll(ZWSP, ''))
     .join('\n');
 }
+
+/** The editor's spacer between a mark and a letter or another mark; invisible, so drop it from text output. */
+export const PROMPT_MARK_JOINER = ZWSP;
 
 const escapeHtml = (s: string) =>
   s

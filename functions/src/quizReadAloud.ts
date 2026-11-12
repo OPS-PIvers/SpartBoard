@@ -259,7 +259,7 @@ export function normalizeReadAloudText(raw: string): string {
   s = s.replace(/_{3,}/g, ' blank ');
   s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
   s = s.replace(/(\*\*|__)(.+?)\1/g, '$2');
-  s = s.replace(/\+\+(\S(?:.*?\S)?)\+\+/g, '$1');
+  s = s.replace(/(^|\s)\+\+(\S(?:.*?\S)?)\+\+(?=\s|$|[.,;:!?])/g, '$1$2');
   s = s.replace(/^• /gm, '');
   s = s.replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|$|[.,;:!?])/g, '$1$2');
   s = s.replace(/`([^`]*)`/g, '$1');
