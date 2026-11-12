@@ -359,6 +359,28 @@ export function availabilityFromStored(
   };
 }
 
+/** Like availabilityFromStored, but a study resource that nothing closes reads as Manually ended instead of a made-up 11:59 PM. */
+export function storedResourceAvailability(
+  stored: Parameters<typeof availabilityFromStored>[0],
+  rosterIds: readonly string[],
+  workKind: WorkKind | undefined
+): AssignAvailability {
+  const value = availabilityFromStored(stored, rosterIds);
+  const rows = Object.values(stored.periodAccess ?? {});
+  const openEnded =
+    workKind === 'resource' &&
+    stored.closeAt == null &&
+    stored.dueAt == null &&
+    rows.every((row) => row.closeAt == null);
+  if (!openEnded) return value;
+  const rowOpens = new Set(rows.map((row) => row.openAt ?? null));
+  const { byRoster, ...rest } = value;
+  // Classes that only differ by a close the resource never had share one Opens.
+  return rowOpens.size <= 1 || !byRoster
+    ? { ...rest, noEnd: true }
+    : { ...rest, byRoster, noEnd: true };
+}
+
 const rowsByRosterId = (
   periodAccess: Record<string, PeriodAccess> | undefined
 ): Record<string, PeriodAccess> =>
@@ -423,18 +445,21 @@ export function changedWindow(
 export function applyWindowEdit(
   value: AssignTargetingValue,
   stored: Parameters<typeof availabilityFromStored>[0],
-  withDue: boolean
+  withDue: boolean,
+  /** 'resource' keeps a close the teacher left as Manually ended unwritten. */
+  workKind?: WorkKind
 ): AssignTargetingValue {
   const { availability, ...rest } = value;
   if (!availability) return rest;
   const before = resolveAvailability(
-    availabilityFromStored(stored, []),
+    storedResourceAvailability(stored, [], workKind),
     [],
-    undefined
+    undefined,
+    workKind
   );
   const edit = changedWindow(
     before,
-    resolveAvailability(availability, [], undefined)
+    resolveAvailability(availability, [], undefined, workKind)
   );
   return {
     ...rest,

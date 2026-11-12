@@ -80,7 +80,7 @@ export const AssignWhenStep: React.FC<{
     onChange({ ...value, availability: next });
   // A study resource can open now and stay until the teacher ends it; Each class keeps dates.
   const opensNow = available && !eachClass && !!availability.opensNow;
-  const noEnd = available && !eachClass && !!availability.noEnd;
+  const noEnd = available && !!availability.noEnd;
   const sharedSpec = opensNow
     ? opensFromNow(availability.all, new Date(openedAt))
     : availability.all;
@@ -200,6 +200,7 @@ export const AssignWhenStep: React.FC<{
                   }
                   resource={available}
                   hideOpens={sharedOpens}
+                  noEnd={noEnd}
                 />
               </div>
             ))

@@ -30,9 +30,10 @@ import {
 } from '@/utils/buildAssignmentRosterRows';
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import {
   applyWindowEdit,
-  availabilityFromStored,
+  storedResourceAvailability,
   closesBeforeOpens,
 } from '@/utils/assignAvailability';
 import { AssignmentStatusChip } from './AssignmentStatusChip';
@@ -120,6 +121,18 @@ const RosterRow: React.FC<{
   );
 };
 
+/** Study rows, and GL or Mini App rows nothing closes, edit as a resource so no close is made up. */
+function rowWorkKind(row: UnifiedAssignmentRow): WorkKind | undefined {
+  if (row.kind === 'flashcards')
+    return row.flashcardKind === 'study' ? 'resource' : undefined;
+  if (row.kind !== 'guided-learning' && row.kind !== 'mini-app')
+    return undefined;
+  const openEnded =
+    row.closeAt == null &&
+    Object.values(row.periodAccess ?? {}).every((p) => p.closeAt == null);
+  return openEnded ? 'resource' : undefined;
+}
+
 export const AssignmentDetailPane: React.FC<{
   row: UnifiedAssignmentRow;
   /** Quiz-only PLC results actions (D12); absent hides the controls. */
@@ -164,7 +177,7 @@ export const AssignmentDetailPane: React.FC<{
   // changes, instead of an effect that would cause a redundant extra render.
   const toDraft = (r: UnifiedAssignmentRow): AssignTargetingValue => ({
     ...assignmentRowToTargetingValue(r),
-    availability: availabilityFromStored(r, []),
+    availability: storedResourceAvailability(r, [], rowWorkKind(r)),
   });
   const [prevRowId, setPrevRowId] = useState(row.id);
   const [editing, setEditing] = useState(false);
@@ -183,7 +196,12 @@ export const AssignmentDetailPane: React.FC<{
     setSaving(true);
     setSaveError(null);
     try {
-      const next = applyWindowEdit(draft, row, row.kind === 'quiz');
+      const next = applyWindowEdit(
+        draft,
+        row,
+        row.kind === 'quiz',
+        rowWorkKind(row)
+      );
       const result = await saveEdit(row, user.uid, next, classContext);
       if (result.skipped.length > 0) {
         const base = t('assignmentsHub.detail.editSkipped', {
@@ -663,6 +681,11 @@ export const AssignmentDetailPane: React.FC<{
               value={draft}
               onChange={setDraft}
               kind={row.kind}
+              workKind={
+                rowWorkKind(row)
+                  ? { default: 'resource', locked: true }
+                  : undefined
+              }
               availabilityEachClass={false}
               readAloudAvailable={readAloudAvailable}
             />

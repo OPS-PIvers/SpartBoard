@@ -1,12 +1,13 @@
 // The window part of an assignment Settings save, shared by Quiz and Flashcards.
 import type { ClassRoster, PeriodAccess } from '@/types';
 import {
-  availabilityFromStored,
+  type availabilityFromStored,
   changedWindow,
   closesBeforeOpens,
   periodAccessWindowEdits,
   resolveAvailability,
   specForRoster,
+  storedResourceAvailability,
   type AssignAvailability,
   type PeriodAccessWindowEdits,
   type ResolvedAvailability,
@@ -19,20 +20,17 @@ export interface WindowBaseline {
   resolved: ResolvedAvailability;
 }
 
-/** The window as saved, resolved the same way as the edit so unchanged fields are never rewritten. A resource with no close shows "Manually ended". */
+/** The window as saved, resolved the same way as the edit so unchanged fields are never rewritten. */
 export function windowBaselineFor(
   stored: Parameters<typeof availabilityFromStored>[0],
   rosters: readonly ClassRoster[],
   workKind?: WorkKind
 ): WindowBaseline {
-  const fromStored = availabilityFromStored(
+  const value = storedResourceAvailability(
     stored,
-    rosters.map((r) => r.id)
+    rosters.map((r) => r.id),
+    workKind
   );
-  const value: AssignAvailability =
-    workKind === 'resource' && stored.closeAt == null && !fromStored.byRoster
-      ? { ...fromStored, noEnd: true }
-      : fromStored;
   return {
     value,
     resolved: resolveAvailability(value, rosters, undefined, workKind),
