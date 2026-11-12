@@ -1,13 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useOrgSubscriptionReset } from '@/hooks/useOrgSubscriptionReset';
 import type { BuildingRecord, BuildingType } from '@/types/organization';
@@ -105,7 +99,7 @@ export const useOrgBuildings = (orgId: string | null) => {
       users: 0,
       adminEmails: building.adminEmails ?? [],
     };
-    await setDoc(doc(db, 'organizations', orgId, 'buildings', id), record);
+    await callOrgAdmin({ action: 'addBuilding', orgId, record: { ...record } });
   };
 
   const updateBuilding = async (
@@ -119,14 +113,14 @@ export const useOrgBuildings = (orgId: string | null) => {
     // via the field whitelist, but filtering client-side avoids the round-trip.
     const { id: _omitId, orgId: _omitOrg, users: _omitUsers, ...rest } = patch;
     if (Object.keys(rest).length === 0) return;
-    await updateDoc(doc(db, 'organizations', orgId, 'buildings', id), rest);
+    await callOrgAdmin({ action: 'updateBuilding', orgId, id, patch: rest });
   };
 
   const removeBuilding = async (id: string): Promise<void> => {
     if (!orgId) {
       throw new Error('No organization selected.');
     }
-    await deleteDoc(doc(db, 'organizations', orgId, 'buildings', id));
+    await callOrgAdmin({ action: 'removeBuilding', orgId, id });
   };
 
   return {
