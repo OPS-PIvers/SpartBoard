@@ -32,6 +32,63 @@ export const TargetRing: React.FC<{
     </span>
   );
 
+/** About the width a picture prints at, so the ring keeps the size it has on screen. */
+const PRINT_W = 680;
+const PAD = 6;
+const RADIUS = 10;
+
+/** The spotlight as it prints: drawn in the picture's own space, so it needs no measuring (the print copy is never laid out on screen). */
+export const PrintSpotlight: React.FC<{
+  target: NonNullable<NonNullable<StepsViewStep['picture']>['target']>;
+  ratio: number;
+}> = ({ target, ratio }) => {
+  const w = PRINT_W;
+  const h = Math.round(PRINT_W * ratio);
+  const x = target.x * w - PAD;
+  const y = target.y * h - PAD;
+  const bw = target.w * w + PAD * 2;
+  const bh = target.h * h + PAD * 2;
+  const r = Math.min(RADIUS, bw / 2, bh / 2);
+  const hole = `M${x + r},${y} H${x + bw - r} A${r},${r} 0 0,1 ${x + bw},${y + r} V${y + bh - r} A${r},${r} 0 0,1 ${x + bw - r},${y + bh} H${x + r} A${r},${r} 0 0,1 ${x},${y + bh - r} V${y + r} A${r},${r} 0 0,1 ${x + r},${y} Z`;
+  return (
+    <svg
+      data-testid="step-picture-print-spotlight"
+      aria-hidden="true"
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-0 hidden h-full w-full print:block"
+    >
+      <path
+        d={`M0,0 H${w} V${h} H0 Z ${hole}`}
+        fillRule="evenodd"
+        fill="rgba(2,6,23,0.55)"
+      />
+      <rect
+        x={x}
+        y={y}
+        width={bw}
+        height={bh}
+        rx={r}
+        fill="none"
+        stroke="rgba(255,255,255,0.2)"
+        strokeWidth={10}
+        vectorEffect="non-scaling-stroke"
+      />
+      <rect
+        x={x}
+        y={y}
+        width={bw}
+        height={bh}
+        rx={r}
+        fill="none"
+        stroke="white"
+        strokeWidth={3}
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+};
+
 /** One step's picture in the article: loading, ready with its target ringed, or a one-line notice when it can't show. Draws nothing for a step with no picture. */
 export const StepPicture: React.FC<{
   step: StepsViewStep;
@@ -88,19 +145,24 @@ export const StepPicture: React.FC<{
             className="absolute inset-0 h-full w-full object-contain"
             onError={() => setBrokenSrc(src)}
           />
+          {pic.target && sized && (
+            <PrintSpotlight target={pic.target} ratio={pic.h / pic.w} />
+          )}
           {pic.target && frame.w > 0 && (
-            <RingAndTip
-              step={{
-                title: step.title,
-                text: step.text,
-                observe: step.observe,
-              }}
-              index={index}
-              total={1}
-              size={frame}
-              frac={pic.target}
-              withTip={false}
-            />
+            <div className="print:hidden">
+              <RingAndTip
+                step={{
+                  title: step.title,
+                  text: step.text,
+                  observe: step.observe,
+                }}
+                index={index}
+                total={1}
+                size={frame}
+                frac={pic.target}
+                withTip={false}
+              />
+            </div>
           )}
           {pic.markup && (
             <TourPictureMarkup
