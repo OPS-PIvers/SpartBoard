@@ -2,7 +2,13 @@
 
 /** Why a call failed, in words the side panel can show. */
 export type ApiFailure =
-  'signed-out' | 'no-access' | 'not-set-up' | 'not-found' | 'offline';
+  | 'signed-out'
+  | 'no-access'
+  | 'not-set-up'
+  | 'not-found'
+  | 'offline'
+  /** The tour needs a newer extension (WEB_TOURS_CROSS_SITE.md X14). */
+  | 'needs-update';
 
 export type ApiResult<T> =
   | { ok: true; value: T }
@@ -11,14 +17,22 @@ export type ApiResult<T> =
 
 const MAX_MESSAGE_CHARS = 200;
 
-/** The `{ error }` text SpartBoard's functions send with a refusal, if any. */
-async function refusalMessage(res: Response): Promise<string | undefined> {
+/** The `{ error, code }` SpartBoard's functions send with a refusal, if any. */
+async function refusalOf(
+  res: Response
+): Promise<{ message?: string; needsUpdate: boolean }> {
   try {
-    const body = (await res.json()) as { error?: unknown } | null;
+    const body = (await res.json()) as {
+      error?: unknown;
+      code?: unknown;
+    } | null;
     const text = typeof body?.error === 'string' ? body.error.trim() : '';
-    return text ? text.slice(0, MAX_MESSAGE_CHARS) : undefined;
+    return {
+      ...(text ? { message: text.slice(0, MAX_MESSAGE_CHARS) } : {}),
+      needsUpdate: body?.code === 'needs-update',
+    };
   } catch {
-    return undefined;
+    return { needsUpdate: false };
   }
 }
 
@@ -75,10 +89,11 @@ export async function callSpartBoard<T>(
       continue;
     }
     if (!res.ok) {
-      const message = res.status < 500 ? await refusalMessage(res) : undefined;
+      const { message, needsUpdate } =
+        res.status < 500 ? await refusalOf(res) : { needsUpdate: false };
       return {
         ok: false,
-        why: failureFor(res.status),
+        why: needsUpdate ? 'needs-update' : failureFor(res.status),
         ...(message ? { message } : {}),
       };
     }

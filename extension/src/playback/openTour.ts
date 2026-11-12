@@ -11,7 +11,7 @@ import {
 import {
   buildStartTour,
   startUrlOf,
-  type HandoffStep,
+  type HandoffTargetStep,
 } from '@/components/tours/web/handoff';
 import type { WebTourLocator } from '@/types';
 import { toPlayback, type ParsedStart } from './startMessage';
@@ -29,7 +29,7 @@ interface MessageStep {
   message: true;
 }
 
-const isTargeted = (s: unknown): s is HandoffStep =>
+const isTargeted = (s: unknown): s is HandoffTargetStep =>
   isObj(s) &&
   typeof s.id === 'string' &&
   isObj(s.web) &&
@@ -57,7 +57,10 @@ function pictureOf(v: unknown): WebTourPictureBytes | null {
 }
 
 /** The step with the conditions the server sent beside it (E6); anything malformed is left off. */
-function withConditions(step: HandoffStep, raw: unknown): HandoffStep {
+function withConditions(
+  step: HandoffTargetStep,
+  raw: unknown
+): HandoffTargetStep {
   if (!isObj(raw)) return step;
   const showWhen = parseWebTourCondition(raw.showWhen);
   const doneWhen = parseWebTourCondition(raw.doneWhen);
@@ -73,7 +76,7 @@ function withConditions(step: HandoffStep, raw: unknown): HandoffStep {
 }
 
 /** The step with the markup and target the server sent with its picture; anything malformed is left off. */
-function withMarkup(step: HandoffStep, raw: unknown): HandoffStep {
+function withMarkup(step: HandoffTargetStep, raw: unknown): HandoffTargetStep {
   if (!isObj(raw)) return step;
   const markup =
     raw.markup === undefined ? null : parseMarkupShapes(raw.markup);
@@ -107,11 +110,12 @@ export function openedTour(
   // Message steps stay in their place (X9); a step that is neither is dropped.
   const kept = raw.steps
     .filter(
-      (s): s is HandoffStep | MessageStep => isTargeted(s) || isMessageOf(s)
+      (s): s is HandoffTargetStep | MessageStep =>
+        isTargeted(s) || isMessageOf(s)
     )
     .slice(0, MAX_STEPS);
   const steps = kept
-    .filter((s): s is HandoffStep => !isMessageOf(s))
+    .filter((s): s is HandoffTargetStep => !isMessageOf(s))
     .map((s) =>
       withMarkup(withConditions(s, conditions[s.id]), pictureMarkup(s.id))
     );

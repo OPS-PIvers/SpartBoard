@@ -163,6 +163,19 @@ export interface SchoologySignInReply {
   signedIn: boolean;
 }
 
+/** Protocol 14, staff only: Chrome checks the store for a newer extension and reloads into it (WEB_TOURS_CROSS_SITE.md X15). */
+export interface ExtensionUpdateMessage {
+  type: 'extension/update';
+}
+
+/** `available` means the extension is about to reload into the new version. */
+export type ExtensionUpdateStatus = 'available' | 'none' | 'throttled';
+
+export interface ExtensionUpdateReply {
+  ok: true;
+  update: ExtensionUpdateStatus;
+}
+
 export interface WebTourStartReply {
   ok: true;
   tabId: number;
@@ -228,7 +241,8 @@ export type ExtensionMessage =
   | WebTourStartMessage
   | WebTourCheckStartMessage
   | WebTourOpenMessage
-  | SchoologySignInMessage;
+  | SchoologySignInMessage
+  | ExtensionUpdateMessage;
 export type ExtensionMessageType = ExtensionMessage['type'];
 
 export interface PingReply {
@@ -250,7 +264,11 @@ export interface ExtensionErrorReply {
 }
 
 export type ExtensionReply =
-  PingReply | WebTourStartReply | SchoologySignInReply | ExtensionErrorReply;
+  | PingReply
+  | WebTourStartReply
+  | SchoologySignInReply
+  | ExtensionUpdateReply
+  | ExtensionErrorReply;
 
 interface MessageSpec {
   /** Refused unless the Chrome profile is a staff account (D3). */
@@ -286,6 +304,7 @@ const MESSAGE_SPECS: Record<ExtensionMessageType, MessageSpec> = {
   'web-tour/open': { staffOnly: true, fields: { setId: isTourSetId } },
   'schoology/signed-in': { staffOnly: true, fields: {} },
   'schoology/connect': { staffOnly: true, fields: {} },
+  'extension/update': { staffOnly: true, fields: {} },
 };
 
 export type ParsedMessage =

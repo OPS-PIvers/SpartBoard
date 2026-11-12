@@ -32,6 +32,7 @@ import {
   openWebTour,
   pingExtension,
   startWebTour,
+  updateExtension,
   watchWebTour,
   WEB_TOUR_PROTOCOL,
   type ExtensionStatus,
@@ -43,15 +44,21 @@ import {
 } from './extensionProtocol';
 import {
   buildHandoff,
+  hubGateOf,
   loadPictures,
   eventFitsTour,
   pageUrlOf,
   reducePlay,
   startUrlOf,
   type HubPlay,
-  type HubStep,
   type LoadedPicture,
 } from './webTourHub';
+import {
+  isMessageStep,
+  webTourSequenceOf,
+  type WebTourSequenceStep,
+} from './tourSequence';
+import type { ExtensionUpdateStatus } from './extensionProtocol';
 import { FROM_PUBLIC_LINK_PATH, parseTourPath, START_PARAM } from './tourLinks';
 import { setIdForPublicLink } from './publicLinkStart';
 import { scrubLocator } from './recordedSteps';
@@ -65,7 +72,7 @@ import {
 import { useStepsLabels } from '@/components/tours/steps/useStepsLabels';
 import {
   isWebTourSet,
-  webTourStepsOf,
+  type WebTourStep,
 } from '@/components/widgets/GuidedLearning/utils/liveTour';
 
 const SignInPage = lazy(() =>
@@ -77,7 +84,8 @@ const SignInPage = lazy(() =>
 interface HubTour {
   title: string;
   version: number;
-  steps: HubStep[];
+  /** Targeted and Message steps in order, as the extension plays them (X9). */
+  steps: WebTourSequenceStep[];
   startUrl: string;
 }
 
@@ -143,7 +151,7 @@ async function loadHubTour(setId: string): Promise<HubTour | null> {
   const published = await loadPublishedTour(setId);
   const set = published?.set;
   if (!published || !set || !isWebTourSet(set)) return null;
-  const steps = webTourStepsOf(set);
+  const steps = webTourSequenceOf(set);
   const startUrl = startUrlOf(steps);
   if (steps.length === 0 || !startUrl) return null;
   return { title: set.title, version: published.publishedAt, steps, startUrl };
@@ -386,14 +394,19 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
   const storeId = extensionId();
   const tour = load.kind === 'ready' ? load.tour : null;
   const viewSteps = useMemo(
-    () => (tour ? stepsFromWebTour(tour.steps) : []),
+    () =>
+      tour
+        ? stepsFromWebTour(
+            tour.steps.filter((s): s is WebTourStep => !isMessageStep(s))
+          )
+        : [],
     [tour]
   );
   const viewPictures = useMemo<StepPictures>(
     () =>
       Object.fromEntries(
         (tour?.steps ?? []).flatMap<[string, StepPictures[string]]>((step) => {
-          if (!step.web.picture) return [];
+          if (!step.web?.picture) return [];
           const src = pictureUrls.get(step.id);
           return [
             [
@@ -414,7 +427,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
     if (!tour || !eventFitsTour(event, tour.steps)) return;
     failures.current = 0;
     if (event.type === 'web-tour/suggest') {
-      const own = tour.steps[event.stepIndex]?.web.locator;
+      const own = tour.steps[event.stepIndex]?.web?.locator;
       // Only the site's own clues are kept; page words come from the published step (C15).
       if (own)
         log.current?.suggest(
@@ -500,7 +513,8 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
     play.kind === 'closed' || play.kind === 'exited' ? play.index : null;
   const furthest = 'furthest' in play ? play.furthest : -1;
   const current = play.kind === 'playing' ? play.index : null;
-  const showPictures = extension !== null && !playable;
+  const gate = hubGateOf(extensionProtocol, tour.steps);
+  const showPictures = extension !== null && (!playable || gate !== 'play');
 
   const start = async (stepIndex: number, fresh: boolean) => {
     if (!tour || play.kind === 'starting') return;
@@ -569,6 +583,11 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
               <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
               {t('webTourHub.checking')}
             </p>
+          ) : playable && gate !== 'play' ? (
+            <NeedsUpdate
+              canUpdate={gate === 'update-now'}
+              onUpdated={() => void pingExtension().then(setExtension)}
+            />
           ) : playable ? (
             <>
               {wantsStart &&
@@ -637,7 +656,7 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
                 title: tour.title || t('webTourHub.untitled'),
                 subtitle: t('webTourHub.summary', {
                   site,
-                  count: tour.steps.length,
+                  count: viewSteps.length,
                 }),
               }}
             />
@@ -689,6 +708,66 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
         )}
       </div>
     </main>
+  );
+};
+
+const RELOAD_WAIT_MS = 3000;
+
+/** The X14 notice; an extension that can fetch its own update gets Update now instead of the restart advice (X15). */
+const NeedsUpdate: React.FC<{
+  canUpdate: boolean;
+  onUpdated: () => void;
+}> = ({ canUpdate, onUpdated }) => {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<ExtensionUpdateStatus | null>(null);
+  if (!canUpdate) {
+    return (
+      <p className="text-sm text-slate-700">{t('webTourHub.needsUpdate')}</p>
+    );
+  }
+  const update = async () => {
+    setBusy(true);
+    setResult(null);
+    const got = await updateExtension();
+    // A found update reloads the extension, which may drop the reply; look again once it is back.
+    if (got === 'available' || got === null) {
+      window.setTimeout(() => {
+        setBusy(false);
+        onUpdated();
+      }, RELOAD_WAIT_MS);
+      return;
+    }
+    setBusy(false);
+    setResult(got);
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-700">
+        {t('webTourHub.needsUpdateShort')}
+      </p>
+      {result && (
+        <p className="text-sm text-slate-700">
+          {result === 'none'
+            ? t('webTourHub.upToDate')
+            : t('webTourHub.updateLater')}
+        </p>
+      )}
+      {/* no-tour-anchor: the /tour page is outside the board, where live tours never run */}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void update()}
+        className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-50"
+      >
+        {busy ? (
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <RotateCcw className="w-4 h-4" aria-hidden="true" />
+        )}
+        {t('webTourHub.updateNow')}
+      </button>
+    </div>
   );
 };
 

@@ -33,7 +33,9 @@ const SET_ID = /^[A-Za-z0-9_-]{1,128}$/;
 export class ExtensionCallError extends Error {
   constructor(
     readonly status: number,
-    message: string
+    message: string,
+    /** A machine-readable reason a newer extension can act on. */
+    readonly code?: 'needs-update'
   ) {
     super(message);
   }
@@ -115,6 +117,7 @@ interface StoredStep {
   id?: unknown;
   label?: unknown;
   text?: unknown;
+  message?: unknown;
   web?: {
     urlPattern?: unknown;
     action?: unknown;
@@ -156,18 +159,64 @@ interface StoredSnapshot {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
-const webSteps = (snap: StoredSnapshot): StoredStep[] =>
-  (Array.isArray(snap.set?.steps) ? (snap.set.steps as StoredStep[]) : [])
-    .filter((s) => !!s && typeof s.web === 'object' && !!s.web)
-    .slice(0, MAX_STEPS);
+// Same protocol as CROSS_SITE_PROTOCOL in components/tours/web/extensionProtocol.ts.
+export const CROSS_SITE_PROTOCOL = 14;
 
-/** The host a tour starts on, from its first step's address; null when it can't be opened. */
+// Wording approved in docs/plans/WEB_TOURS_CROSS_SITE.md X14.
+export const NEEDS_UPDATE_MESSAGE =
+  'This tour needs a newer version of the SpartBoard extension. It updates on its own within a few hours, or close and reopen Chrome to get it now.';
+
+const isTargeted = (s: StoredStep): boolean =>
+  !!s && typeof s.web === 'object' && !!s.web;
+
+/** A Message step (X9): `message: true` and no `web`. */
+const isMessage = (s: StoredStep): boolean =>
+  !!s && s.message === true && !s.web;
+
+/** Every targeted and Message step in authored order (X9). */
+const allWebSteps = (snap: StoredSnapshot): StoredStep[] =>
+  (Array.isArray(snap.set?.steps)
+    ? (snap.set.steps as StoredStep[])
+    : []
+  ).filter((s) => isTargeted(s) || isMessage(s));
+
+/** The steps the extension gets. */
+const webSteps = (snap: StoredSnapshot): StoredStep[] =>
+  allWebSteps(snap).slice(0, MAX_STEPS);
+
+// Same rule as hostOf in components/tours/web/tourSequence.ts.
+const hostOfPattern = (pattern: string): string | null =>
+  /^https?:\/\/([^/?#]+)/i.exec(pattern.trim())?.[1]?.toLowerCase() ?? null;
+
+/** The host a tour starts on, from its first targeted step's address (X8); null when it can't be opened. */
 export function startHostOf(snap: StoredSnapshot): string | null {
-  const pattern = str(webSteps(snap)[0]?.web?.urlPattern);
-  const host = /^https:\/\/([^/?#]*)/.exec(pattern)?.[1];
-  return host && !host.includes('*') && !host.includes('@')
-    ? host.toLowerCase()
-    : null;
+  const pattern = str(webSteps(snap).find(isTargeted)?.web?.urlPattern);
+  const host = pattern.startsWith('https://') ? hostOfPattern(pattern) : null;
+  return host && !host.includes('*') && !host.includes('@') ? host : null;
+}
+
+/** Whether a tour has a Message step or a Site switch, so only protocol 14 plays it (X13). */
+export function needsCrossSite(snap: StoredSnapshot): boolean {
+  const steps = allWebSteps(snap);
+  if (steps.some(isMessage)) return true;
+  const hosts = steps
+    .filter(isTargeted)
+    .map((s) => hostOfPattern(str(s.web?.urlPattern)));
+  return hosts.some(
+    (h, i) => i > 0 && !!h && !!hosts[i - 1] && h !== hosts[i - 1]
+  );
+}
+
+/** The protocol an extension says it reads; an extension before 14 sends none. */
+export function callerProtocol(body: unknown): number {
+  const p = (body as { protocol?: unknown } | null)?.protocol;
+  return Number.isInteger(p) && (p as number) > 0 ? (p as number) : 0;
+}
+
+/** Refuses a tour this extension can't play (X14); 403 reads closest in an old side panel. */
+export function assertPlayable(snap: StoredSnapshot, protocol: number): void {
+  if (protocol < CROSS_SITE_PROTOCOL && needsCrossSite(snap))
+    throw new ExtensionCallError(403, NEEDS_UPDATE_MESSAGE, 'needs-update');
 }
 
 export interface ListedTour {
@@ -178,15 +227,18 @@ export interface ListedTour {
   version: number;
 }
 
-/** Every published web tour that can start somewhere, for the badge and the Tours tab. */
+/** Every published web tour that can start somewhere and this extension can play, for the badge and the Tours tab. */
 export function listTours(
-  docs: readonly { id: string; data: StoredSnapshot }[]
+  docs: readonly { id: string; data: StoredSnapshot }[],
+  protocol = 0
 ): ListedTour[] {
   return docs.flatMap(({ id, data }) => {
     const host = startHostOf(data);
     const version = data.publishedAt;
     if (!isWebTourSnapshot(data) || !host || !Number.isInteger(version))
       return [];
+    // An old side panel can't say why a cross-site tour won't start, so it doesn't list one.
+    if (protocol < CROSS_SITE_PROTOCOL && needsCrossSite(data)) return [];
     return [
       {
         id,
@@ -286,16 +338,20 @@ function targetOf(v: unknown): LoadedTourPicture['target'] {
     : undefined;
 }
 
+export type LoadedTourStep =
+  | {
+      id: string;
+      label: string;
+      text: string;
+      web: { urlPattern: string; action: unknown; locator: unknown };
+    }
+  | { id: string; label: string; text: string; message: true };
+
 export interface LoadedTour {
   setId: string;
   version: number;
   title: string;
-  steps: {
-    id: string;
-    label: string;
-    text: string;
-    web: { urlPattern: string; action: unknown; locator: unknown };
-  }[];
+  steps: LoadedTourStep[];
   pictures: Record<string, LoadedTourPicture>;
   /** Step conditions by id, beside the steps so an extension before protocol 12 never sees them. */
   conditions?: Record<
@@ -308,10 +364,12 @@ export interface LoadedTour {
 export async function loadTour(
   setId: string,
   snap: StoredSnapshot | null,
-  store: PictureStore
+  store: PictureStore,
+  protocol = 0
 ): Promise<LoadedTour> {
   if (!snap || !isWebTourSnapshot(snap) || !startHostOf(snap))
     throw fail(404, 'That tour is no longer published.');
+  assertPlayable(snap, protocol);
   const steps = webSteps(snap);
   const wanted: {
     id: string;
@@ -387,16 +445,22 @@ export async function loadTour(
     setId,
     version: Number(snap.publishedAt) || 0,
     title: str(snap.set?.title),
-    steps: steps.map((step) => ({
-      id: str(step.id),
-      label: str(step.label),
-      text: str(step.text),
-      web: {
-        urlPattern: str(step.web?.urlPattern),
-        action: step.web?.action,
-        locator: step.web?.locator ?? {},
-      },
-    })),
+    steps: steps.map((step): LoadedTourStep => {
+      const base = {
+        id: str(step.id),
+        label: str(step.label),
+        text: str(step.text),
+      };
+      if (isMessage(step)) return { ...base, message: true };
+      return {
+        ...base,
+        web: {
+          urlPattern: str(step.web?.urlPattern),
+          action: step.web?.action,
+          locator: step.web?.locator ?? {},
+        },
+      };
+    }),
     pictures,
   };
 }
@@ -544,7 +608,10 @@ const extensionEndpoint = (handler: Handler, memory: '256MiB' | '512MiB') =>
         res.json(await handler(req.body, caller, db, deps));
       } catch (error) {
         if (error instanceof ExtensionCallError) {
-          res.status(error.status).json({ error: error.message });
+          res.status(error.status).json({
+            error: error.message,
+            ...(error.code ? { code: error.code } : {}),
+          });
           return;
         }
         console.error('[webTourExtension] failed:', error);
@@ -554,14 +621,17 @@ const extensionEndpoint = (handler: Handler, memory: '256MiB' | '512MiB') =>
   );
 
 export const webToursListV1 = extensionEndpoint(
-  async (_body, caller, db, deps) => {
+  async (body, caller, db, deps) => {
     const snap = await db
       .collection(GL_TOURS_COLLECTION)
       .where('set.surface', '==', 'web')
       .select('publishedAt', 'set.title', 'set.surface', 'set.steps')
       .get();
     return {
-      tours: listTours(snap.docs.map((d) => ({ id: d.id, data: d.data() }))),
+      tours: listTours(
+        snap.docs.map((d) => ({ id: d.id, data: d.data() })),
+        callerProtocol(body)
+      ),
       // Admins also get the side panel's Record tab (H5).
       admin: await deps.isAdmin(caller.email),
     };
@@ -575,7 +645,8 @@ export const webTourLoadV1 = extensionEndpoint(async (body, caller, db) => {
   const loaded = await loadTour(
     setId,
     snap.exists ? (snap.data() as StoredSnapshot) : null,
-    pictureStore
+    pictureStore,
+    callerProtocol(body)
   );
   // The side panel's steps view asks for the public link too; playback doesn't.
   if ((body as { link?: unknown }).link !== true) return loaded;
