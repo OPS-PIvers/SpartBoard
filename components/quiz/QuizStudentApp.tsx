@@ -135,6 +135,8 @@ import {
   stimulusUseCounts,
 } from '@/utils/quizStimulusTabs';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
+import { StimulusPanelDivider } from './StimulusPanelDivider';
+import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
 import {
   MarkForReviewButton,
   QuizReviewScreen,
@@ -2754,6 +2756,7 @@ export const ActiveQuiz: React.FC<{
   const { submitted, timeLeft } = step;
   const autoSubmitTriggeredFor = step.timedOutFor;
   const [stimulusDrawerOpen, setStimulusDrawerOpen] = useState(false);
+  const [panelPct, setPanelPct] = useStimulusPanelWidth();
 
   // ─── Gamification state ─────────────────────────────────────────────────────
   const [answerFeedback, setAnswerFeedback] = useState<
@@ -3716,6 +3719,8 @@ export const ActiveQuiz: React.FC<{
   const recordingConfig = studentRecordingFor(currentQuestion, session);
   const whiteboardConfig = whiteboardQuestion ? recordingConfig : undefined;
   const sideStimuli = whiteboardConfig ? [] : docStimuli;
+  // Even split with a drag divider; ships with the stimulus tabs preview.
+  const splitPanel = stimulusTabsOn && sideStimuli.length > 0;
   const questionGap = whiteboardConfig ? 'mb-4' : 'mb-8';
   const aboveStimuli = whiteboardConfig ? [] : inlineStimuli;
   const answersForQuestion = currentQuestion
@@ -4239,9 +4244,11 @@ export const ActiveQuiz: React.FC<{
       <ReviewSwap
         review={reviewScreen}
         className={
-          sideStimuli.length > 0
-            ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
-            : 'contents'
+          splitPanel
+            ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1920px]'
+            : sideStimuli.length > 0
+              ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
+              : 'contents'
         }
       >
         {/* Doc-shaped stimuli: resizable left panel on wide screens,
@@ -4249,7 +4256,18 @@ export const ActiveQuiz: React.FC<{
           narrow ones. One DOM node for both breakpoints so crossing a
           breakpoint never remounts a viewer mid-read. */}
         {sideStimuli.length > 0 && (
-          <div className="shrink-0 w-full lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:resize-x lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3">
+          <div
+            className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
+              splitPanel
+                ? 'lg:w-[var(--stimulus-panel-w)] lg:pr-3'
+                : 'lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] lg:resize-x'
+            }`}
+            style={
+              splitPanel
+                ? { ['--stimulus-panel-w' as string]: `${panelPct}%` }
+                : undefined
+            }
+          >
             {stimulusTabsOn ? (
               <StimulusTabsPanel
                 stimuli={sideStimuli}
@@ -4280,12 +4298,19 @@ export const ActiveQuiz: React.FC<{
             )}
           </div>
         )}
+        {splitPanel && (
+          <StimulusPanelDivider
+            pct={panelPct}
+            onChange={setPanelPct}
+            light={light}
+          />
+        )}
 
         <div
           {...clipboardGuards}
           className={`flex flex-col w-full min-w-0 ${
             whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
-          } ${sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
+          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
             // Free Response gets elbow room for long-form writing; structured
             // inputs read worse stretched across a widescreen.
             whiteboardConfig
@@ -4298,7 +4323,9 @@ export const ActiveQuiz: React.FC<{
                       currentQuestion.type === 'Ordering'
                     )
                   ? 'max-w-2xl lg:max-w-7xl'
-                  : 'max-w-2xl'
+                  : splitPanel
+                    ? 'max-w-2xl lg:max-w-4xl'
+                    : 'max-w-2xl'
           }`}
         >
           {/* Header */}
