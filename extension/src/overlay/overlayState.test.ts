@@ -107,4 +107,21 @@ describe('parseOverlayState', () => {
     expect(parseOverlayState(null)).toBeNull();
     expect(parseOverlayState('state')).toBeNull();
   });
+
+  it('accepts a Message step and a switch tip with the site Go opens', () => {
+    expect(parseOverlayState({ ...valid, message: true })).toEqual({
+      ...valid,
+      message: true,
+    });
+    const sw = { ...valid, status: 'switch', go: 'claude.ai' };
+    expect(parseOverlayState(sw)).toEqual(sw);
+  });
+
+  it('rejects a switch tip without a site, and a site that is not a host', () => {
+    expect(parseOverlayState({ ...valid, status: 'switch' })).toBeNull();
+    expect(
+      parseOverlayState({ ...valid, go: 'https://claude.ai/x' })
+    ).toBeNull();
+    expect(parseOverlayState({ ...valid, message: 'yes' })).toBeNull();
+  });
 });

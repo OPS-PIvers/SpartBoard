@@ -4344,6 +4344,8 @@
     "webGoToStart": "Ir al inicio",
     "webArmedExit": "Detener el recorrido",
     "webMoved": "Su recorrido pasó a la otra pestaña.",
+    "webSwitchTitle": "Seguimos en {{host}}",
+    "webGoTo": "Ir a {{host}}",
     "webStopped": "Recorrido detenido. Haga clic en el icono de SpartBoard para empezarlo de nuevo.",
     "webDismiss": "Cerrar",
     "webPictureAlt": "Imagen de este paso",

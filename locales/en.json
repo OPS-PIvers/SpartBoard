@@ -5553,6 +5553,8 @@
     "webGoToStart": "Go to the start",
     "webArmedExit": "Stop the tour",
     "webMoved": "Your tour moved to the other tab.",
+    "webSwitchTitle": "Next we continue on {{host}}",
+    "webGoTo": "Go to {{host}}",
     "webStopped": "Tour stopped. Click the SpartBoard icon to start it again.",
     "webDismiss": "Dismiss",
     "webPictureAlt": "Picture of this step",

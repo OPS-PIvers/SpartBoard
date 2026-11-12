@@ -109,4 +109,39 @@ describe('openedTour', () => {
     );
     expect(opened?.start.pictures).toEqual({});
   });
+
+  it('keeps Message steps in their place and opens on the first targeted step (X8, X9)', () => {
+    const base = reply();
+    const opened = openedTour(
+      'set1',
+      reply({
+        steps: [
+          { id: 'm0', label: 'Welcome', text: 'Here we go.', message: true },
+          base.steps[0],
+          { id: 'm1', label: 'Now Claude', message: true },
+          base.steps[1],
+        ],
+      })
+    );
+    expect(opened?.start.tour.steps.map((s) => [s.id, !!s.message])).toEqual([
+      ['m0', true],
+      ['a', false],
+      ['m1', true],
+      ['b', false],
+    ]);
+    expect(opened?.start.tour.startUrl).toBe('https://app.example.com/');
+    expect(opened?.start.tour.steps[0]).toMatchObject({
+      title: 'Welcome',
+      text: 'Here we go.',
+      urlPattern: '',
+      hasPicture: false,
+    });
+    expect(Object.keys(opened?.locators ?? {})).toEqual(['a', 'b']);
+  });
+
+  it('refuses a tour of Message steps only', () => {
+    expect(
+      openedTour('set1', reply({ steps: [{ id: 'm0', message: true }] }))
+    ).toBeNull();
+  });
 });
