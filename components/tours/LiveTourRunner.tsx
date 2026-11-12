@@ -450,6 +450,8 @@ export const LiveTourRunner: React.FC = () => {
   const [attempt, setAttempt] = useState(0);
   // Counts step entries, so going Back to a step opens it afresh.
   const [visit, setVisit] = useState(0);
+  // The editor's visit whose last step was just finished; the stage stops looking for its control.
+  const [editEndVisit, setEditEndVisit] = useState<number | null>(null);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
   // The bar's Autopilot switch; handsOn marks a teacher who turned it off this run.
   const [autoOn, setAutoOn] = useState(false);
@@ -698,8 +700,10 @@ export const LiveTourRunner: React.FC = () => {
   }, [savedKey, ended]);
   const step =
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
+  const editAtEnd =
+    !!tour?.edit && tour.phase === 'running' && editEndVisit === visit;
   const anchor = useAnchorElement(
-    step?.tour ?? null,
+    editAtEnd ? null : (step?.tour ?? null),
     { widgetIds: added, slots: tour?.slots },
     attempt
   );
@@ -1421,6 +1425,7 @@ export const LiveTourRunner: React.FC = () => {
     setAuto(null);
     if (index >= tour.steps.length) {
       if (!tour.edit) finish(true);
+      else setEditEndVisit(visit);
       return;
     }
     if (caught === undefined) noteMiss();
@@ -2799,13 +2804,14 @@ export const LiveTourRunner: React.FC = () => {
         !autoBusy &&
         (!acted || action === 'type' || isMissing) &&
         !(tour.edit && tour.index + 1 === total);
-    const doneStatus: TourTipStatus | null = doneNow
-      ? {
-          text: t(metAtOpen ? 'tours.stepAlreadyDone' : 'tours.stepDone'),
-          kind: 'done',
-          testId: 'tour-step-done',
-        }
-      : null;
+    const doneStatus: TourTipStatus | null =
+      doneNow || editAtEnd
+        ? {
+            text: t(metAtOpen ? 'tours.stepAlreadyDone' : 'tours.stepDone'),
+            kind: 'done',
+            testId: 'tour-step-done',
+          }
+        : null;
     const status: TourTipStatus | null =
       doneStatus ??
       (waitingOnFact && found
