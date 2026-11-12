@@ -20,6 +20,7 @@
  */
 
 import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import React, {
   useState,
   useEffect,
@@ -5812,7 +5813,7 @@ const ReviewPhase: React.FC<{
           {totalQuestions ?? session.totalQuestions}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          <MathText text={currentQuestion.text} />
+          <PromptText text={currentQuestion.text} />
         </h2>
 
         {/* Correct answer */}

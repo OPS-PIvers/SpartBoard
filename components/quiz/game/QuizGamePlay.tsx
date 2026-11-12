@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import { httpsCallable } from 'firebase/functions';
 import {
   ArrowRight,
@@ -741,7 +742,7 @@ const GameQuestion: React.FC<{
         {multiBlank ? (
           <NumberedBlanksText text={question.text} light />
         ) : (
-          <MathText text={question.text} />
+          <PromptText text={question.text} />
         )}
       </h2>
 

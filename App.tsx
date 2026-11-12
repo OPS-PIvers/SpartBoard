@@ -473,6 +473,13 @@ const WhiteboardReplayDevHarness = import.meta.env.DEV
     )
   : null;
 
+const PromptFormattingDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/PromptFormattingDevHarness').then((module) => ({
+        default: module.PromptFormattingDevHarness,
+      }))
+    )
+  : null;
 const StudentKeyboardsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/StudentKeyboardsDevHarness').then((module) => ({
@@ -1513,6 +1520,18 @@ const App: React.FC = () => {
   }
 
   // DEV-ONLY: the student whiteboard canvas with fixture starting pages.
+  if (
+    import.meta.env.DEV &&
+    PromptFormattingDevHarness &&
+    pathname === '/prompt-formatting-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PromptFormattingDevHarness />
+      </Suspense>
+    );
+  }
+
   if (
     import.meta.env.DEV &&
     StudentKeyboardsDevHarness &&

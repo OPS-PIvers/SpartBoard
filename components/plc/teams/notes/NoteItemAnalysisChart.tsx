@@ -1,5 +1,6 @@
 // Compact item analysis for a note Data block; wraps long question and answer text instead of cutting it.
 
+import { plainPromptText } from '@/utils/promptMath';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ItemAnalysisQuestion } from '@/utils/plcDataOverview';
@@ -23,7 +24,9 @@ export const NoteItemAnalysisChart: React.FC<{
           <span className="w-7 shrink-0 font-bold tabular-nums text-slate-800">
             Q{q.number}
           </span>
-          <span className="min-w-0 wrap-break-word leading-snug">{q.text}</span>
+          <span className="min-w-0 wrap-break-word leading-snug">
+            {plainPromptText(q.text)}
+          </span>
         </span>
       ),
       value: (

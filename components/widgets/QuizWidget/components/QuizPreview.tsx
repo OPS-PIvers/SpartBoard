@@ -4,6 +4,7 @@
  */
 
 import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -248,7 +249,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
               {isMultiBlank(question) ? (
                 <NumberedBlanksText text={question.text} light />
               ) : (
-                <MathText text={question.text} />
+                <PromptText text={question.text} />
               )}
             </p>
           </div>

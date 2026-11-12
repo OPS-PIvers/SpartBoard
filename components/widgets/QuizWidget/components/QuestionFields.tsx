@@ -34,6 +34,10 @@ import {
   PromptMathPreview,
   type PromptEquationDraft,
 } from './PromptEquations';
+import {
+  PromptRichEditor,
+  type PromptRichEditorHandle,
+} from './PromptRichEditor';
 
 const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
@@ -51,6 +55,8 @@ interface QuestionPromptFieldProps {
   promptAccents?: AccentSetId;
   /** Shows the Equation link that puts drawn equations in the prompt. */
   promptMath?: boolean;
+  /** A formatted prompt box with bold, italic, underline and lists. */
+  promptFormat?: boolean;
 }
 
 export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
@@ -62,7 +68,9 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   anchor = tourTypeAttr('quiz-editor.prompt', 'quiz'),
   promptAccents,
   promptMath = false,
+  promptFormat = false,
 }) => {
+  const richRef = React.useRef<PromptRichEditorHandle>(null);
   const [accents, setAccents] = React.useState<AccentSetId | null>(null);
   const [equation, setEquation] = React.useState<PromptEquationDraft | null>(
     null
@@ -70,6 +78,10 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   const setText = (text: string) =>
     onChange(allowBlanks ? fibPromptUpdate(q, text) : { text });
   const openNewEquation = () => {
+    if (promptFormat) {
+      setEquation({ start: -1, end: -1, math: '', editing: false });
+      return;
+    }
     const el = textareaRef.current;
     const start = el?.selectionStart ?? q.text.length;
     const end = el?.selectionEnd ?? start;
@@ -90,13 +102,28 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   const saveEquation = () => {
     if (!equation) return;
     const math = equation.math.trim();
+    if (equation.start < 0) {
+      setEquation(null);
+      if (math) richRef.current?.insertText(wrapPromptMath(math), true);
+      return;
+    }
     const before = q.text.slice(0, equation.start);
     const after = q.text.slice(equation.end);
     const pad = math && before && !/\s$/.test(before) ? ' ' : '';
     setText(`${before}${pad}${math ? wrapPromptMath(math) : ''}${after}`);
     setEquation(null);
   };
-  const textarea = (
+  const textarea = promptFormat ? (
+    <PromptRichEditor
+      ref={richRef}
+      value={q.text}
+      onChange={setText}
+      onBlur={onBlur}
+      readOnly={equation !== null && equation.start >= 0}
+      placeholder="e.g. What is the capital of France?"
+      anchor={anchor}
+    />
+  ) : (
     <textarea
       ref={textareaRef}
       value={q.text}
@@ -111,7 +138,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       readOnly={equation !== null}
       rows={3}
       placeholder="e.g. What is the capital of France?"
-      className={`${inputClass} resize-none`}
+      className={`${inputClass} resize-y min-h-[4.75rem] max-h-[60vh]`}
       {...anchor}
     />
   );
@@ -144,6 +171,10 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
             <button
               type="button"
               onClick={() => {
+                if (promptFormat) {
+                  richRef.current?.insertText('___', true);
+                  return;
+                }
                 const el = textareaRef.current;
                 const at = el?.selectionStart ?? q.text.length;
                 const end = el?.selectionEnd ?? at;

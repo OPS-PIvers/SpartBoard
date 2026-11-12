@@ -847,6 +847,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const uploadWhiteboardImage = useWhiteboardImageUpload();
   const answerImagesOn = canAccessFeature('quiz-ordering-images');
   const keyboardsOn = canAccessFeature(STUDENT_KEYBOARDS_FEATURE);
+  const promptFormatOn = canAccessFeature('quiz-prompt-formatting');
   const blankTypesOn = canAccessFeature('quiz-blank-types');
   const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
@@ -862,10 +863,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   );
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
-  const readPrompt = useCallback(() => promptRef.current?.value, []);
+  const promptTextRef = useRef(selectedQuestion?.text);
+  // The formatted prompt box has no textarea, so fall back to the saved text.
+  const readPrompt = useCallback(
+    () => promptRef.current?.value ?? promptTextRef.current,
+    []
+  );
   const targetsRef = useRef(selectedQuestion?.targets);
   useLayoutEffect(() => {
     targetsRef.current = selectedQuestion?.targets;
+    promptTextRef.current = selectedQuestion?.text;
   });
   const readTargets = useCallback(() => targetsRef.current, []);
   const promptStandards = useStandardsFromPrompt(
@@ -1000,6 +1007,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           textareaRef={promptRef}
           promptAccents={keyboardsOn ? defaultAccents : undefined}
           promptMath={keyboardsOn}
+          promptFormat={promptFormatOn}
         />
 
         {/* Learning targets */}

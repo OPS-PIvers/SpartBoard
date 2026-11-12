@@ -1,6 +1,6 @@
 // Equations in the question prompt: the insert/edit panel and the drawn preview under the prompt box.
 import React from 'react';
-import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import { tourTypeAttr } from '@/config/tourAnchors';
 
 const MathAnswerField = React.lazy(
@@ -62,7 +62,7 @@ export const PromptMathPreview: React.FC<{
     className="mt-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 whitespace-pre-line wrap-break-word"
     {...tourTypeAttr('quiz-editor.prompt-math-preview', 'quiz')}
   >
-    <MathText
+    <PromptText
       text={text}
       onEquationClick={onEdit}
       equationLabel="Edit equation"
