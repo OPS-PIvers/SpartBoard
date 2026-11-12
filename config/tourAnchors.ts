@@ -12274,6 +12274,10 @@ export const TOUR_ANCHORS = {
     label: 'Check tour button for a web tour on the Web tours page',
     perField: true,
   },
+  'web-tours.play': {
+    label: 'Play button for a published web tour on the Web tours page',
+    perField: true,
+  },
   'web-tours.copy-link': {
     label: 'Copy link button for a web tour on the Web tours page',
     perField: true,

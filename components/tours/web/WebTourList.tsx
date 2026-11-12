@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Globe, Link2, Loader2, Pencil, Radar } from 'lucide-react';
+import {
+  Check,
+  Globe,
+  Link2,
+  Loader2,
+  Pencil,
+  Play,
+  Radar,
+} from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { chromeMuted, focusRing } from '@/components/common/lightChrome';
@@ -7,7 +15,7 @@ import { usePublishedTour } from '@/components/tours/publishedTours';
 import { usePublicLinkControls } from '@/components/tours/publicLink/usePublicLinkControls';
 import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { logError } from '@/utils/logError';
-import { webTourSite } from './tourLinks';
+import { buildTourUrl, webTourSite } from './tourLinks';
 import { useCopyWebTourLink } from './useCopyWebTourLink';
 import { checkPasses, currentCheckResults } from './webStepReview';
 
@@ -156,6 +164,20 @@ const WebTourRow: React.FC<{
         >
           <Radar className="h-4 w-4" aria-hidden="true" />
           Check tour
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            window.open(buildTourUrl(set.id), '_blank', 'noopener,noreferrer')
+          }
+          disabled={!live}
+          aria-label={`Play ${title}`}
+          title={live ? undefined : 'Publish the tour to play it'}
+          className={rowBtn}
+          {...tourFieldAttr('web-tours.play', 'web-tours', set.id)}
+        >
+          <Play className="h-4 w-4" aria-hidden="true" />
+          Play
         </button>
         <button
           type="button"

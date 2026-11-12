@@ -35397,6 +35397,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54177,6 +54180,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54214,6 +54220,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54230,6 +54239,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
           "admin"
@@ -54333,6 +54345,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field"
   },
   {
+    "id": "web-tours.play",
+    "label": "Play button for a published web tour on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tours.copy-link",
     "label": "Copy link button for a web tour on the Web tours page",
     "scope": "field"
@@ -54366,6 +54394,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
           "admin"
@@ -54404,6 +54435,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54420,6 +54454,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
           "admin"
@@ -54438,6 +54475,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
           "admin"
@@ -54478,6 +54518,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54516,6 +54559,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54532,6 +54578,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
           "admin"
@@ -54550,6 +54599,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54566,6 +54618,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
           "admin"
@@ -54584,6 +54639,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "web-tours.new"
         ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
+        ],
         "needs": [
           "admin"
         ]
@@ -54600,6 +54658,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "web-tours.new"
+        ],
+        "opened_by": [
+          "web-tours.edit:web-tours"
         ],
         "needs": [
           "admin"

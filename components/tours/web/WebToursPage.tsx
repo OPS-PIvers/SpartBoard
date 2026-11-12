@@ -12,7 +12,6 @@ import { logError } from '@/utils/logError';
 import { EDIT_WEB_TOUR_PARAM } from './tourLinks';
 import { WebTourList } from './WebTourList';
 import { WebTourHealthSection } from './WebTourHealthSection';
-import { WebTourEditorRosters } from './WebTourEditorRosters';
 
 const WebTourEditor = lazy(() =>
   import('./WebTourEditor').then((m) => ({ default: m.WebTourEditor }))
@@ -27,6 +26,8 @@ export const WebToursPage: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [listFailed, setListFailed] = useState(false);
+  // Bumped when the editor closes, so health reloads after a publish or delete.
+  const [healthRev, setHealthRev] = useState(0);
   // Read once, so an effect run twice still knows which tour to open.
   const [linkedId] = useState(() =>
     new URL(window.location.href).searchParams.get(EDIT_WEB_TOUR_PARAM)
@@ -138,13 +139,19 @@ export const WebToursPage: React.FC = () => {
             onCopyFailed={() => setMessage("The link couldn't be copied.")}
           />
         )}
-        <WebTourHealthSection />
+        <WebTourHealthSection
+          key={`${healthRev}:${(tours ?? []).map((t) => t.id).join(',')}`}
+        />
       </div>
       {open && (
         <Suspense fallback={null}>
-          <WebTourEditorRosters>
-            <WebTourEditor initial={open} onClose={() => setOpen(null)} />
-          </WebTourEditorRosters>
+          <WebTourEditor
+            initial={open}
+            onClose={() => {
+              setOpen(null);
+              setHealthRev((n) => n + 1);
+            }}
+          />
         </Suspense>
       )}
     </main>

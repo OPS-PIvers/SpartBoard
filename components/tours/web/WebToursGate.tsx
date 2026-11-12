@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
+import { WebTourEditorRosters } from './WebTourEditorRosters';
 
 const SignInPage = lazy(() =>
   import('@/components/auth/SignInPage').then((m) => ({
@@ -36,13 +37,15 @@ export const WebToursGate: React.FC = () => {
     return (
       <main className="flex h-screen h-dvh items-center justify-center bg-white px-4">
         <p role="status" className="text-sm font-semibold text-slate-700">
-          Web tours are for admins.
+          {isAdmin ? 'Web tours are turned off.' : 'Web tours are for admins.'}
         </p>
       </main>
     );
   return (
-    <Suspense fallback={<Spinner />}>
-      <WebToursPage />
-    </Suspense>
+    <WebTourEditorRosters>
+      <Suspense fallback={<Spinner />}>
+        <WebToursPage />
+      </Suspense>
+    </WebTourEditorRosters>
   );
 };

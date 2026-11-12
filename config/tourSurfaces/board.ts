@@ -274,6 +274,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'editor',
     parent: 'board.web-tours-page',
     opensWith: 'web-tours.new',
+    alsoOpensWith: ['web-tours.edit:web-tours'],
     needs: ['admin'],
     files: [
       'components/tours/web/WebTourEditor.tsx',

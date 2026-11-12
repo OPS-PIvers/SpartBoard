@@ -2889,6 +2889,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'web-tours.new': ['board.web-tours-page'],
     'web-tours.edit': ['board.web-tours-page'],
     'web-tours.check': ['board.web-tours-page'],
+    'web-tours.play': ['board.web-tours-page'],
     'web-tours.copy-link': ['board.web-tours-page'],
     'web-tour-editor.title': ['board.web-tour-editor'],
     'web-tour-editor.play': ['board.web-tour-editor'],

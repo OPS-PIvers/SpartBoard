@@ -116,6 +116,17 @@ describe('WebToursPage', () => {
     expect(rows[0]).toHaveTextContent('Published');
     expect(rows[0]).toHaveTextContent('1 step · example.com');
     expect(rows[1]).toHaveTextContent('Draft');
+    expect(
+      screen.getByRole('button', { name: 'Play Older tour' })
+    ).toBeDisabled();
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    fireEvent.click(screen.getByRole('button', { name: 'Play Newer tour' }));
+    expect(open).toHaveBeenCalledWith(
+      `${window.location.origin}/tour/b`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+    open.mockRestore();
     expect(screen.getByTestId('health')).toBeInTheDocument();
   });
 
