@@ -258,6 +258,8 @@ claude/project-thread-l8b36b
 claude/project-thread-shwk3a
 claude/project-thread-anub7c
 claude/project-thread-ae8ce7
+claude/project-thread-r8cbhe
+claude/ab112-district-folders
 claude/project-thread-9krwwi
 claude/project-thread-848bcg
 docs/va-editor-arrows-followups
