@@ -12270,6 +12270,9 @@ export const TOUR_ANCHORS = {
   'web-tour-editor.add-step': {
     label: 'Add step button under the web tour editor outline',
   },
+  'web-tour-editor.add-message': {
+    label: 'Add a message button under the web tour editor outline',
+  },
   'web-tour-editor.step-more': {
     label: "More toggle on the selected web step's card",
   },

@@ -9,6 +9,7 @@ import {
 } from '@/types';
 import { fixKey } from './fixClues';
 import { markupKey } from './pictureChange';
+import { isMessageStep } from './tourSequence';
 import type { NameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
   findStudentData,
@@ -192,16 +193,18 @@ export const targetsSignature = (
 ): string =>
   fnv(
     JSON.stringify(
-      (set.steps as WebStep[]).map((s) => [
-        s.id,
-        s.web?.urlPattern ?? null,
-        s.web?.action ?? null,
-        s.web?.locator ?? null,
-        // Only a step with conditions adds them, so older check runs stay current (E6).
-        ...(s.web?.showWhen || s.web?.doneWhen
-          ? [s.web.showWhen ?? null, s.web.doneWhen ?? null]
-          : []),
-      ]),
+      (set.steps as WebStep[])
+        .filter((s) => !isMessageStep(s))
+        .map((s) => [
+          s.id,
+          s.web?.urlPattern ?? null,
+          s.web?.action ?? null,
+          s.web?.locator ?? null,
+          // Only a step with conditions adds them, so older check runs stay current (E6).
+          ...(s.web?.showWhen || s.web?.doneWhen
+            ? [s.web.showWhen ?? null, s.web.doneWhen ?? null]
+            : []),
+        ]),
       sortedKeys
     )
   );
@@ -246,6 +249,7 @@ export const checkPasses = (
     // A conditional step the check skipped because its condition didn't hold has no result.
     (set.steps as WebStep[]).every(
       (s) =>
+        isMessageStep(s) ||
         results[s.id] === 'found' ||
         isConfirmedWeak(set.webTourChecked, s) ||
         (!!s.web?.showWhen && results[s.id] === undefined)
@@ -357,6 +361,8 @@ export type PublishBlocker =
   | { kind: 'no-steps' }
   | { kind: 'title-data' }
   | { kind: 'not-web'; stepId: string }
+  | { kind: 'no-target' }
+  | { kind: 'empty-message'; stepId: string }
   | { kind: 'student-data'; stepId: string; field: ReviewField }
   | { kind: 'unchecked' };
 
@@ -372,8 +378,13 @@ export function publishBlockers(
   const out: PublishBlocker[] = [];
   if (findStudentData(set.title ?? '', matcher).some(isHardHit))
     out.push({ kind: 'title-data' });
+  // A tour of messages alone has no site to open (X8).
+  if (steps.every(isMessageStep)) out.push({ kind: 'no-target' });
   for (const step of steps) {
-    if (!step.web) {
+    if (isMessageStep(step)) {
+      if (!step.label?.trim() && !step.text?.trim())
+        out.push({ kind: 'empty-message', stepId: step.id });
+    } else if (!step.web) {
       out.push({ kind: 'not-web', stepId: step.id });
       continue;
     }

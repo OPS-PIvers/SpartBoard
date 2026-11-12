@@ -2885,6 +2885,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'web-tour-editor.menu': ['board.web-tour-editor'],
     'web-tour-editor.duplicate': ['board.web-tour-editor'],
     'web-tour-editor.add-step': ['board.web-tour-editor'],
+    'web-tour-editor.add-message': ['board.web-tour-editor'],
     'web-tour-editor.step-more': ['board.web-tour-editor'],
     'web-tour-editor.tab-steps': ['board.web-tour-editor'],
     'web-tour-editor.tab-settings': ['board.web-tour-editor'],

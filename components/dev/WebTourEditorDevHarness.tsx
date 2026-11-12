@@ -196,6 +196,7 @@ const STATES = [
   'tools',
   'older',
   'conditions',
+  'messages',
 ] as const;
 type State = (typeof STATES)[number];
 
@@ -353,6 +354,46 @@ const withMarkup = (
     : step;
 };
 
+const messageStep = (
+  id: string,
+  label: string,
+  text: string
+): GuidedLearningStep => ({
+  id,
+  xPct: 50,
+  yPct: 50,
+  imageIndex: 0,
+  interactionType: 'tooltip',
+  label,
+  text,
+  message: true,
+});
+
+// Messages at the start, in the middle and at the end of the tour.
+const withMessages = (set: GuidedLearningSet): GuidedLearningSet => {
+  const [a, b, c, d] = set.steps;
+  return {
+    ...set,
+    steps: [
+      messageStep(
+        'm1',
+        'Before you start',
+        'You will need a course to add to.'
+      ),
+      a,
+      b,
+      messageStep(
+        'm2',
+        'Now we continue on another site',
+        'Open the second site in a new tab.'
+      ),
+      c,
+      d,
+      messageStep('m3', 'All done', 'Your handout is in the course.'),
+    ],
+  };
+};
+
 const tourFor = (state: State): GuidedLearningSet => {
   const set: GuidedLearningSet = {
     id: 'web-tour-editor-dev',
@@ -366,6 +407,8 @@ const tourFor = (state: State): GuidedLearningSet => {
     steps: FIXTURES.map((f, i) => withMarkup(stepOf(f, state, i), i)),
   };
   switch (state) {
+    case 'messages':
+      return checkedRun(withMessages(set));
     case 'publish':
     case 'published':
     case 'student':
@@ -430,6 +473,7 @@ const SEEDS: Record<State, WebTourEditorDevSeed> = {
   tools: { canCheck: true, canFix: true },
   older: { canCheck: true, canFix: true },
   conditions: { ...ready, publish: 'changed' },
+  messages: { ...ready, publish: 'changed' },
 };
 
 // One roster, so the student-name scan runs as it does for a teacher with classes.

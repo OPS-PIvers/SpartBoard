@@ -54440,6 +54440,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tour-editor.add-message",
+    "label": "Add a message button under the web tour editor outline",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.step-more",
     "label": "More toggle on the selected web step's card",
     "scope": "board",
