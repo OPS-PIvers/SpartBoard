@@ -65,6 +65,7 @@ import {
   suggestionFor,
 } from './webTourFixes';
 import {
+  acceptWeakMatch,
   assertPublishable,
   checkPasses,
   confirmPictures,
@@ -76,6 +77,7 @@ import {
   recordCheckResult,
   reviewEntries,
   startCheckRun,
+  weakAccepted,
   type HiddenText,
 } from './webStepReview';
 import { PublishCheck } from './webEditorParts';
@@ -341,6 +343,12 @@ const WebTourEditorBody: React.FC<{
   const unchecked = blockers.some((b) => b.kind === 'unchecked');
   const notWeb = blockers.some((b) => b.kind === 'not-web');
   const checkResults = currentCheckResults(set);
+  const confirmed = new Set(
+    steps.filter((s) => weakAccepted(set, s.id)).map((s) => s.id)
+  );
+  const weakLeft =
+    !!checkResults &&
+    steps.some((s) => checkResults[s.id] === 'weak' && !confirmed.has(s.id));
   const fromRuns = useMemo(
     () =>
       runs && live
@@ -560,7 +568,7 @@ const WebTourEditorBody: React.FC<{
     other: notWeb ? 'A step has no website target' : null,
     busy: busy || writing.busy,
   });
-  // A Check tour this browser can't run says why on the status line.
+  // A Check tour this browser can't run, or one waiting on weak matches, says why on the status line.
   const main =
     computed.state === 'check' && !canCheck && !checking
       ? {
@@ -570,7 +578,15 @@ const WebTourEditorBody: React.FC<{
             label: 'Checking needs the SpartBoard extension',
           },
         }
-      : computed;
+      : computed.state === 'check' && weakLeft && !checking
+        ? {
+            ...computed,
+            blocker: {
+              kind: 'other' as const,
+              label: 'Confirm or fix each weak match',
+            },
+          }
+        : computed;
   const mainAnchor =
     main.state === 'write'
       ? tourAttr('web-tour-editor.write-with-claude')
@@ -637,7 +653,13 @@ const WebTourEditorBody: React.FC<{
     menuFooter: publicLink.footer,
     statusNote: publicLink.statusNote,
     steps: steps.map((step, i) =>
-      outlineStep(step, i, matcher, checkResults?.[step.id], fixes.has(step.id))
+      outlineStep(
+        step,
+        i,
+        matcher,
+        confirmed.has(step.id) ? 'found' : checkResults?.[step.id],
+        fixes.has(step.id)
+      )
     ),
     selected: selectedIndex,
     onSelect: (i) => select(steps[i]?.id ?? null),
@@ -654,6 +676,8 @@ const WebTourEditorBody: React.FC<{
           canFix={canFix}
           fix={fixes.get(step.id) ?? null}
           result={checkResults?.[step.id] ?? null}
+          confirmed={confirmed.has(step.id)}
+          onConfirm={(on) => saveCheck((s) => acceptWeakMatch(s, step.id, on))}
           onChange={(s, field) => updateStep(step.id, s, field)}
           onDelete={() => deleteStep(step.id)}
           onFix={() => fixOnSite(step, index)}

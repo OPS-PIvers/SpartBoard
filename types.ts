@@ -9070,6 +9070,8 @@ export interface WebTourCheckRun {
   sig: string;
   /** By step id; a step the run never reached has none. */
   results: Record<string, WebTourCheckResult>;
+  /** Steps whose weak match the admin confirmed is the right element; kept while the targets are unchanged. */
+  accepted?: string[];
 }
 
 /** Better clues the extension found for a step that missed or played weak (C14); the admin accepts or dismisses them. */

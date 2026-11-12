@@ -212,7 +212,19 @@ export const currentCheckResults = (
   return run && run.sig === targetsSignature(set) ? run.results : null;
 };
 
-/** Whether the draft has a check run of these targets in which every step was found clearly. */
+/** Whether the admin confirmed this step's weak match in the current check run. */
+export const weakAccepted = (
+  set: Pick<GuidedLearningSet, 'steps' | 'webTourChecked'>,
+  stepId: string
+): boolean => {
+  const results = currentCheckResults(set);
+  return (
+    results?.[stepId] === 'weak' &&
+    !!set.webTourChecked?.accepted?.includes(stepId)
+  );
+};
+
+/** Whether the draft has a check run of these targets in which every step was found clearly, or weakly and confirmed by the admin. */
 export const checkPasses = (
   set: Pick<GuidedLearningSet, 'steps' | 'webTourChecked'>
 ): boolean => {
@@ -224,20 +236,45 @@ export const checkPasses = (
     (set.steps as WebStep[]).every(
       (s) =>
         results[s.id] === 'found' ||
+        (results[s.id] === 'weak' &&
+          !!set.webTourChecked?.accepted?.includes(s.id)) ||
         (!!s.web?.showWhen && results[s.id] === undefined)
     )
   );
 };
 
-/** Starts a check run of the targets as they are now, clearing any earlier results. */
+/** Starts a check run of the targets as they are now, clearing earlier results but keeping confirmed weak matches of the same targets. */
 export const startCheckRun = (
   set: GuidedLearningSet,
   uid: string,
   sig = targetsSignature(set)
-): GuidedLearningSet => ({
-  ...set,
-  webTourChecked: { by: uid, at: Date.now(), sig, results: {} },
-});
+): GuidedLearningSet => {
+  const prior = set.webTourChecked;
+  const accepted = prior?.sig === sig ? prior.accepted : undefined;
+  return {
+    ...set,
+    webTourChecked: {
+      by: uid,
+      at: Date.now(),
+      sig,
+      results: {},
+      ...(accepted?.length ? { accepted } : {}),
+    },
+  };
+};
+
+/** Marks (or unmarks) a weak step of the current check run as the right element. */
+export const acceptWeakMatch = (
+  set: GuidedLearningSet,
+  stepId: string,
+  on: boolean
+): GuidedLearningSet => {
+  const run = set.webTourChecked;
+  if (!run || currentCheckResults(set)?.[stepId] !== 'weak') return set;
+  const rest = (run.accepted ?? []).filter((id) => id !== stepId);
+  const accepted = on ? [...rest, stepId] : rest;
+  return { ...set, webTourChecked: { ...run, accepted } };
+};
 
 /** Records one step's result for the run started with `sig`; a result from an older run is dropped. */
 export const recordCheckResult = (

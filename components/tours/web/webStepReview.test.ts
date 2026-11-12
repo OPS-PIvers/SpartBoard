@@ -7,6 +7,7 @@ import type {
 } from '@/types';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
+  acceptWeakMatch,
   assertPublishable,
   checkPasses,
   confirmPictures,
@@ -20,6 +21,7 @@ import {
   setReviewField,
   startCheckRun,
   targetsSignature,
+  weakAccepted,
 } from './webStepReview';
 
 const roster = buildNameMatcher([{ firstName: 'Alice', lastName: 'Nguyen' }]);
@@ -370,5 +372,54 @@ describe('check signature', () => {
     const later = recordCheckResult(found, sig, 'a', 'ambiguous');
     expect(later.webTourChecked?.results.a).toBe('ambiguous');
     expect(checkPasses(later)).toBe(false);
+  });
+
+  it('passes a weak match only once the admin confirms it', () => {
+    const set = tourOf([step('a', {}), step('b', { urlPattern: '*' })]);
+    const started = startCheckRun(set, 'u1');
+    const sig = started.webTourChecked?.sig ?? '';
+    const weak = recordCheckResult(
+      recordCheckResult(started, sig, 'a', 'found'),
+      sig,
+      'b',
+      'weak'
+    );
+    expect(checkPasses(weak)).toBe(false);
+    expect(publishBlockers(weak, null)).toEqual([{ kind: 'unchecked' }]);
+    // Only a weak step can be confirmed.
+    expect(acceptWeakMatch(weak, 'a', true)).toBe(weak);
+    const ok = acceptWeakMatch(weak, 'b', true);
+    expect(weakAccepted(ok, 'b')).toBe(true);
+    expect(checkPasses(ok)).toBe(true);
+    expect(publishBlockers(ok, null)).toEqual([]);
+    expect(checkPasses(acceptWeakMatch(ok, 'b', false))).toBe(false);
+    // A later miss of the same step outranks the confirmation.
+    expect(checkPasses(recordCheckResult(ok, sig, 'b', 'none'))).toBe(false);
+  });
+
+  it('keeps a confirmation across re-checks of the same targets, not after a change', () => {
+    const set = tourOf([step('a', {})]);
+    const started = startCheckRun(set, 'u1');
+    const sig = started.webTourChecked?.sig ?? '';
+    const ok = acceptWeakMatch(
+      recordCheckResult(started, sig, 'a', 'weak'),
+      'a',
+      true
+    );
+    const again = startCheckRun(ok, 'u1');
+    expect(again.webTourChecked?.accepted).toEqual(['a']);
+    expect(checkPasses(recordCheckResult(again, sig, 'a', 'weak'))).toBe(true);
+    const edited = withStep(ok, 'a', (s) => ({
+      ...s,
+      web: {
+        ...(s.web as WebTourBinding),
+        locator: { role: 'button', name: 'Grades' },
+      },
+    }));
+    expect(weakAccepted(edited, 'a')).toBe(false);
+    expect(checkPasses(edited)).toBe(false);
+    expect(
+      startCheckRun(edited, 'u1').webTourChecked?.accepted
+    ).toBeUndefined();
   });
 });
