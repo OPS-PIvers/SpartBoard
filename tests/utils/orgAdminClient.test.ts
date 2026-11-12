@@ -38,9 +38,8 @@ describe('callOrgAdmin', () => {
       id: 'd',
     }).catch((e: unknown) => e);
     expect((err as Error).message).toBe('Missing or insufficient permissions.');
-    expect((err as { code?: unknown }).code).toBe(
-      'functions/permission-denied'
-    );
+    // Bare Firestore code, as the old direct writes threw.
+    expect((err as { code?: unknown }).code).toBe('permission-denied');
   });
 
   it('sends calls one at a time, in order, even after a failure', async () => {

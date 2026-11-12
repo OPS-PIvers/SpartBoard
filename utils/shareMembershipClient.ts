@@ -36,7 +36,12 @@ export async function callShareMembership(
         : undefined;
     if (typeof reason !== 'string' || !(reason in MESSAGES)) throw err;
     throw Object.assign(new Error(MESSAGES[reason]), {
-      code: (err as { code?: unknown }).code,
+      code: firestoreCode((err as { code?: unknown }).code),
     });
   }
+}
+
+// Callable codes carry a "functions/" prefix; callers compare against the bare Firestore codes.
+function firestoreCode(code: unknown): unknown {
+  return typeof code === 'string' ? code.replace(/^functions\//, '') : code;
 }

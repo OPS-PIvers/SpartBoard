@@ -67,7 +67,12 @@ async function send(req: OrgAdminRequest): Promise<void> {
     const message = orgAdminErrorMessage(err);
     if (message === null) throw err;
     throw Object.assign(new Error(message), {
-      code: (err as { code?: unknown }).code,
+      code: firestoreCode((err as { code?: unknown }).code),
     });
   }
+}
+
+// Callable codes carry a "functions/" prefix; callers compare against the bare Firestore codes.
+function firestoreCode(code: unknown): unknown {
+  return typeof code === 'string' ? code.replace(/^functions\//, '') : code;
 }

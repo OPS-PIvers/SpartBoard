@@ -122,6 +122,65 @@ describe('useOrganization', () => {
     });
   });
 
+  it('shows a typed edit at once and keeps it until the snapshot carries it', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
+    let emit: (data: OrgRecord) => void = () => undefined;
+    mockOnSnapshot.mockImplementation(
+      (_ref: unknown, onNext: (snap: unknown) => void) => {
+        emit = (data) =>
+          onNext({ exists: () => true, id: data.id, data: () => data });
+        return () => undefined;
+      }
+    );
+    let finish: () => void = () => undefined;
+    mockCall.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+
+    const { result } = renderHook(() => useOrganization('orono'));
+    act(() => emit(mockOrg));
+
+    let call: Promise<void> = Promise.resolve();
+    act(() => {
+      call = result.current.updateOrg({ name: 'Orono P' });
+    });
+    expect(result.current.organization?.name).toBe('Orono P');
+
+    // An older snapshot doesn't pull the field back.
+    act(() => emit({ ...mockOrg, name: 'Orono' }));
+    expect(result.current.organization?.name).toBe('Orono P');
+
+    await act(async () => {
+      finish();
+      await call;
+    });
+    act(() => emit({ ...mockOrg, name: 'Orono P' }));
+    expect(result.current.organization?.name).toBe('Orono P');
+  });
+
+  it('drops a refused edit', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
+    let emit: (data: OrgRecord) => void = () => undefined;
+    mockOnSnapshot.mockImplementation(
+      (_ref: unknown, onNext: (snap: unknown) => void) => {
+        emit = (data) =>
+          onNext({ exists: () => true, id: data.id, data: () => data });
+        return () => undefined;
+      }
+    );
+    mockCall.mockImplementation(() => Promise.reject(new Error('no')));
+
+    const { result } = renderHook(() => useOrganization('orono'));
+    act(() => emit(mockOrg));
+    await act(async () => {
+      await result.current.updateOrg({ name: 'Nope' }).catch(() => undefined);
+    });
+    expect(result.current.organization?.name).toBe(mockOrg.name);
+  });
+
   it('updateOrg rejects when orgId is null', async () => {
     mockUseAuth.mockReturnValue({ user: null });
     const { result } = renderHook(() => useOrganization(null));
