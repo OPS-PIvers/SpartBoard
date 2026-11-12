@@ -214,6 +214,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-7mpti9
+claude/project-thread-7mpti9-ab112
 claude/project-thread-pxr7js
 claude/ab112-pxr7js
 claude/project-thread-vcq9je
