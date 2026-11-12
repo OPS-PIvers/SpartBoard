@@ -482,5 +482,7 @@ export const PlcRecoveryPanel: React.FC = () => {
  * old one.
  */
 function eligibleNewLeads(plc: Plc): PlcMember[] {
-  return getPlcMembers(plc).filter((m) => m.uid !== plc.leadUid);
+  return getPlcMembers(plc).filter(
+    (m) => m.uid !== plc.leadUid && plc.memberUids.includes(m.uid)
+  );
 }

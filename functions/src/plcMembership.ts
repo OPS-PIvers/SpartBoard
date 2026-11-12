@@ -329,6 +329,7 @@ export function planPlcChange(
       const toUid = action.uid;
       const members = readMembersForWrite(data, ts);
       const fromUid = currentLead(data, members);
+      backfillArrayMember(members, data, toUid, ts);
       const target = members[toUid];
       if (
         !target ||
