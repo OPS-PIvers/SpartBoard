@@ -77,7 +77,6 @@ import {
   recordCheckResult,
   reviewEntries,
   startCheckRun,
-  weakAccepted,
   type HiddenText,
 } from './webStepReview';
 import { PublishCheck } from './webEditorParts';
@@ -344,7 +343,9 @@ const WebTourEditorBody: React.FC<{
   const notWeb = blockers.some((b) => b.kind === 'not-web');
   const checkResults = currentCheckResults(set);
   const confirmed = new Set(
-    steps.filter((s) => weakAccepted(set, s.id)).map((s) => s.id)
+    (checkResults ? (set.webTourChecked?.accepted ?? []) : []).filter(
+      (id) => checkResults?.[id] === 'weak'
+    )
   );
   const weakLeft =
     !!checkResults &&
