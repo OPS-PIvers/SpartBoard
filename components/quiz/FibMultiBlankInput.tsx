@@ -6,8 +6,6 @@ const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
 );
 
-const BLANK_RUN = /(_{2,})/;
-
 const badgeCls = (light: boolean) =>
   light ? 'bg-amber-100 text-amber-800' : 'bg-amber-500/20 text-amber-300';
 
@@ -23,28 +21,18 @@ const BlankBadge: React.FC<{ n: number; light: boolean }> = ({ n, light }) => (
 export const NumberedBlanksText: React.FC<{ text: string; light: boolean }> = ({
   text,
   light,
-}) => {
-  // split() with a capture group puts every blank at an odd index.
-  return (
-    <>
-      {text.split(BLANK_RUN).map((part, i) => {
-        if (i % 2 === 0) {
-          return (
-            <React.Fragment key={i}>
-              <MathText text={part} />
-            </React.Fragment>
-          );
-        }
-        return (
-          <span key={i} className="whitespace-nowrap">
-            <BlankBadge n={(i + 1) / 2} light={light} />
-            {part}
-          </span>
-        );
-      })}
-    </>
-  );
-};
+}) => (
+  <MathText
+    text={text}
+    format
+    renderBlank={(n, raw) => (
+      <span className="whitespace-nowrap">
+        <BlankBadge n={n} light={light} />
+        {raw}
+      </span>
+    )}
+  />
+);
 
 /** One text box per blank; the value is the blanks joined by `FIB_BLANK_SEP`. */
 export const FibMultiBlankInput: React.FC<{

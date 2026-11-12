@@ -1,4 +1,4 @@
-import { plainPromptText } from './promptMath';
+import { plainMathText, plainPromptText } from './promptMath';
 /**
  * Renders paper answer sheets as a print document and hands it to the browser.
  *
@@ -377,7 +377,7 @@ function sheetChoiceHtml(
 ) {
   return picture?.only
     ? `<img src="${escapeHtml(picture.url)}" alt="${escapeHtml(picture.alt ?? '')}" style="height:100%;width:auto;object-fit:contain">`
-    : escapeHtml(plainPromptText(text));
+    : escapeHtml(plainMathText(text));
 }
 
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;

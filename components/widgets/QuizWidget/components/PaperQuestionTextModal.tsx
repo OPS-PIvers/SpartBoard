@@ -8,7 +8,7 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { plainPromptText } from '@/utils/promptMath';
+import { plainMathText } from '@/utils/promptMath';
 import { CloudDownload, FileUp, Loader2, ScanText, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -484,7 +484,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
                               : undefined
                           }
                         >
-                          {plainPromptText(choice)}
+                          {plainMathText(choice)}
                           {choice === fills[row].correctAnswer && ' (answer)'}
                         </span>
                       </React.Fragment>

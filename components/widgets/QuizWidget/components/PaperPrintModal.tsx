@@ -1231,7 +1231,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           return [
             {
               row: r.row,
-              text: plainPromptText(q.text),
+              text: q.text,
               choices,
               ...choicePictureFields(q, choices),
               ...(r.written ? { written: true } : {}),

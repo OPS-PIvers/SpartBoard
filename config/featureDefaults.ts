@@ -1,12 +1,14 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  FolderTree,
   ArrowLeftRight,
   RotateCcw,
   Camera,
   PenLine,
   BarChart,
   BellRing,
+  Bold,
   Bot,
   Building2,
   Cast,
@@ -679,6 +681,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Prompt formatting toolbar. Admin-only until Paul has tested it in prod.
+  'quiz-prompt-formatting': {
+    label: 'Question prompt formatting',
+    icon: Bold,
+    description:
+      'Bold, italic, underline and lists in the question prompt of quizzes and video activities.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -1156,6 +1170,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'sharing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'district-library-folders': {
+    label: 'District library folders',
+    icon: FolderTree,
+    description:
+      'Folders in the District library, with one audience per folder, shown to teachers as folders.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

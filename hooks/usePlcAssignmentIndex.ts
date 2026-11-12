@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
+  getDoc,
   limit as limitTo,
   onSnapshot,
   orderBy,
@@ -186,40 +187,50 @@ export async function writePlcAssignmentIndexEntry(
  * `not-found` here is benign: it means the index entry was deleted (or
  * the PLC was) between the canonical write and this mirror call. The
  * In-progress / Completed sub-tabs will simply not show the entry — same
- * end state as a successful mirror to a deleted row.
+ * end state as a successful mirror to a deleted row. Quiz assignments made
+ * since quiz rows left the index (#2955) have no entry at all; rules deny
+ * that update, so a denial on a missing entry is benign too.
  */
 export async function mirrorPlcAssignmentStatus(
   plcId: string,
   assignmentId: string,
   status: QuizAssignmentStatus
 ): Promise<void> {
+  const ref = doc(
+    db,
+    PLCS_COLLECTION,
+    plcId,
+    ASSIGNMENT_INDEX_SUBCOLLECTION,
+    assignmentId
+  );
   try {
-    await updateDoc(
-      doc(
-        db,
-        PLCS_COLLECTION,
-        plcId,
-        ASSIGNMENT_INDEX_SUBCOLLECTION,
-        assignmentId
-      ),
-      { status }
-    );
+    await updateDoc(ref, { status });
   } catch (err) {
-    // `not-found` here is part of the documented benign-state contract
-    // (entry was deleted between canonical write and mirror); don't toast
-    // for that case to avoid spurious noise. Genuine permission/network
-    // failures still surface.
-    const code =
-      err instanceof Error && 'code' in err
-        ? (err as { code?: string }).code
-        : undefined;
+    const code = errorCode(err);
+    if (code === 'not-found') return;
+    // Rules deny an update to a missing doc, so quizzes assigned since the index stopped taking quiz rows land here.
+    if (code === 'permission-denied' && !(await indexEntryExists(ref))) return;
     logError('mirrorPlcAssignmentStatus.write', err, {
       plcId,
       assignmentId,
       status,
     });
-    if (code !== 'not-found') {
-      notifyPlcWriteFailure({ scope: 'assignmentStatusMirror', plcId });
-    }
+    notifyPlcWriteFailure({ scope: 'assignmentStatusMirror', plcId });
+  }
+}
+
+function errorCode(err: unknown): string | undefined {
+  return err instanceof Error && 'code' in err
+    ? (err as { code?: string }).code
+    : undefined;
+}
+
+// False when the entry is missing or the caller can no longer read the PLC (left or removed).
+async function indexEntryExists(ref: ReturnType<typeof doc>): Promise<boolean> {
+  try {
+    return (await getDoc(ref)).exists();
+  } catch (err) {
+    if (errorCode(err) === 'permission-denied') return false;
+    return true;
   }
 }

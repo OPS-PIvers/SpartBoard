@@ -212,6 +212,20 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-g77dp4
+claude/project-thread-g77dp4-ab112
+claude/project-thread-24dy3v
+claude/project-thread-24dy3v-ab112
+claude/project-thread-cxubid
+docs/ab112-cxubid
+claude/project-thread-dmb90p
+claude/ab112-prompt-formatting
+claude/project-thread-kwulpx
+
+claude/project-thread-oakw56
+claude/project-thread-oakw56-ab112
+claude/project-thread-jrytph
+claude/ab112-grader-copy
 claude/tour-anchors-2026-11-12
 nightly/debugger-log-2026-11-12
 nightly/admin-config-2026-11-12
@@ -220,6 +234,8 @@ nightly/widgets-2026-11-12
 nightly/unifier-log-2026-11-12
 claude/project-thread-ov98y6
 claude/project-thread-ov98y6-branchlog
+claude/project-thread-bd1fel
+claude/project-thread-bd1fel-ab112
 claude/project-thread-l8b36b
 claude/project-thread-shwk3a
 claude/project-thread-anub7c

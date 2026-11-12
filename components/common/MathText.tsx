@@ -1,6 +1,11 @@
-// Question text with its ⟦equations⟧ drawn; text without equations renders as-is and loads nothing.
+// Question text with its ⟦equations⟧ drawn and, for prompts, its **bold**, *italic* and ++underline++ marks applied.
 import React, { useEffect, useState } from 'react';
 import { hasPromptMath, splitPromptMath } from '@/utils/promptMath';
+import {
+  mayHavePromptFormat,
+  parsePromptInline,
+  type PromptFormatNode,
+} from '@/utils/promptFormat';
 import { loadMathLive } from '@/components/student/keyboards/loadMathLive';
 import { sanitizeMathMarkup } from '@/components/student/keyboards/mathChips';
 
@@ -66,38 +71,94 @@ const Equation: React.FC<{
   );
 };
 
+const FORMAT_TAG = { b: 'strong', i: 'em', u: 'u' } as const;
+const BLANK_RUN = /(_{2,})/;
+
 export const MathText: React.FC<{
   text: string;
   /** Makes each equation a button, e.g. to edit it in the question editor. */
   onEquationClick?: (index: number) => void;
   equationLabel?: string;
-}> = ({ text, onEquationClick, equationLabel }) => {
+  /** Equations drawn before this text, so click indexes count across lines. */
+  equationOffset?: number;
+  /** Question prompts only: applies **bold**, *italic* and ++underline++ marks. */
+  format?: boolean;
+  /** Draws each ___ blank, numbered from 1 across the whole text. */
+  renderBlank?: (n: number, raw: string) => React.ReactNode;
+}> = ({
+  text,
+  onEquationClick,
+  equationLabel,
+  equationOffset = 0,
+  format = false,
+  renderBlank,
+}) => {
   const needed = hasPromptMath(text);
   const ml = useMathLive(needed);
-  if (!needed) return <>{text}</>;
-  const parts = splitPromptMath(text);
-  const mathIndex = parts.map(
-    (_, i) => parts.slice(0, i).filter((p) => p.kind === 'math').length
-  );
+  const formatted = format && mayHavePromptFormat(text);
+  if (!needed && !formatted && !renderBlank) return <>{text}</>;
+  let mathCount = equationOffset;
+  let blankCount = 0;
+  const renderPlain = (run: string, key: string | number): React.ReactNode => {
+    if (!renderBlank) return <React.Fragment key={key}>{run}</React.Fragment>;
+    // split() with a capture group puts every blank at an odd index.
+    return (
+      <React.Fragment key={key}>
+        {run
+          .split(BLANK_RUN)
+          .map((part, i) =>
+            i % 2 === 0 ? (
+              <React.Fragment key={i}>{part}</React.Fragment>
+            ) : (
+              <React.Fragment key={i}>
+                {renderBlank(++blankCount, part)}
+              </React.Fragment>
+            )
+          )}
+      </React.Fragment>
+    );
+  };
+  const renderRun = (run: string, key: string): React.ReactNode => {
+    if (!hasPromptMath(run)) return renderPlain(run, key);
+    return (
+      <React.Fragment key={key}>
+        {splitPromptMath(run).map((part, i) => {
+          if (part.kind === 'text') return renderPlain(part.text, i);
+          const index = mathCount++;
+          return (
+            <Equation
+              key={i}
+              math={part.math}
+              ml={ml}
+              label={equationLabel}
+              onClick={
+                onEquationClick ? () => onEquationClick(index) : undefined
+              }
+            />
+          );
+        })}
+      </React.Fragment>
+    );
+  };
+  const renderNodes = (
+    nodes: PromptFormatNode[],
+    path: string
+  ): React.ReactNode[] =>
+    nodes.map((node, i) => {
+      const key = `${path}.${i}`;
+      if (typeof node === 'string') return renderRun(node, key);
+      const Tag = FORMAT_TAG[node.tag];
+      return <Tag key={key}>{renderNodes(node.children, key)}</Tag>;
+    });
+  if (!formatted) return <>{renderRun(text, 'r')}</>;
   return (
     <>
-      {parts.map((part, i) =>
-        part.kind === 'text' ? (
-          <React.Fragment key={i}>{part.text}</React.Fragment>
-        ) : (
-          <Equation
-            key={i}
-            math={part.math}
-            ml={ml}
-            label={equationLabel}
-            onClick={
-              onEquationClick
-                ? () => onEquationClick(mathIndex[i] ?? 0)
-                : undefined
-            }
-          />
-        )
-      )}
+      {text.split('\n').map((line, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && '\n'}
+          {renderNodes(parsePromptInline(line), String(i))}
+        </React.Fragment>
+      ))}
     </>
   );
 };

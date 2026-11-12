@@ -1,5 +1,6 @@
 // "Manage targets" (T17): the team's learning targets and cutoffs on today's list doc, plus each question's tag.
 
+import { plainPromptText } from '@/utils/promptMath';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
@@ -331,7 +332,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
                     Q{i + 1}
                   </span>
                   <span className="min-w-0 flex-1 wrap-break-word text-sm text-slate-700">
-                    {q.text}
+                    {plainPromptText(q.text)}
                   </span>
                   <span
                     className={`shrink-0 text-sm ${q.targetId ? 'font-semibold text-slate-800' : 'text-slate-500'}`}

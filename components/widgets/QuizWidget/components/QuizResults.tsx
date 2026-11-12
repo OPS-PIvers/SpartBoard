@@ -5,7 +5,7 @@
  */
 
 import { MathText } from '@/components/common/MathText';
-import { plainPromptText } from '@/utils/promptMath';
+import { plainMathText } from '@/utils/promptMath';
 import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
 import {
   imageOnlyPictures,
@@ -3613,7 +3613,7 @@ const QuestionDrilldownPanel: React.FC<{
                         correct={row.isCorrect}
                         countLabel={`${row.students.length}`}
                         students={row.students}
-                        studentsLabel={`Answered ${plainPromptText(row.label)}`}
+                        studentsLabel={`Answered ${plainMathText(row.label)}`}
                       />
                     ))}
               </ul>
@@ -3902,7 +3902,7 @@ const QuestionsScreen: React.FC<{
                 className="block font-sans text-brand-gray-dark truncate"
                 style={{ fontSize: 'min(13px, 4.5cqmin)' }}
               >
-                <MathText text={q.text} />
+                <MathText text={q.text} format />
               </span>
             </button>
 

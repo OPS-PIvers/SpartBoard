@@ -11194,6 +11194,8 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Math keyboard and accent keys on student answer boxes, set per quiz. */
   | 'student-keyboards'
+  /** Bold, italic, underline and lists in the question prompt box of the Quiz and Video Activity editors. */
+  | 'quiz-prompt-formatting'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
@@ -11319,6 +11321,8 @@ export type GlobalFeature =
   | 'getting-started'
   /** District library: admin-published quizzes and banks teachers add as linked copies (docs/plans/QUIZ_MCA_PRACTICE.md M26-M31). */
   | 'district-library'
+  /** Folders in the District library: admin folders with a folder audience, mirrored for teachers. */
+  | 'district-library-folders'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */

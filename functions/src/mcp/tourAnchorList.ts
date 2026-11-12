@@ -4289,6 +4289,115 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz.district-library.search",
+    "label": "Search box in the District library dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz.district-library.folder",
+    "label": "A folder in the District library folder list, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz.district-library.open-folder",
+    "label": "A folder row in the District library dialog, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz.district-library.crumb",
+    "label": "A step in the District library folder path, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz.district-library.back",
+    "label": "Back link in the District library dialog on a narrow screen",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz.district-library.add-all",
+    "label": "Add all button for a District library folder, by folder id",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.district-library",
+        "kind": "modal",
+        "path": [
+          "quiz.district-library"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz.district-library.remove",
     "label": "Remove a District library bank from your banks, by item",
     "scope": "field",
@@ -9714,6 +9823,116 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.prompt-bold",
+    "label": "Bold button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-italic",
+    "label": "Italic button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-underline",
+    "label": "Underline button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-bullets",
+    "label": "Bulleted list button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-numbers",
+    "label": "Numbered list button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.prompt-accents",
     "label": "Accents switch on the question prompt in the Quiz editor",
     "scope": "widget type",
@@ -11728,6 +11947,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#banks"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-banks.district-preview",
+    "label": "Preview on a District library bank row in the Quiz library, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.banks",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#banks"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]
@@ -15944,6 +16190,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.annotate-copy",
+    "label": "Copy selected or highlighted text in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.annotate-close",
     "label": "Close annotation editor in the Quiz grader",
     "scope": "widget type",
@@ -17442,6 +17713,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.copy-response",
+    "label": "Copy the whole student response in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
     "keys": [
       "quiz"
     ],
@@ -42840,6 +43136,391 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in District library targeting",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.upload-folder",
+    "label": "Put new items in folder menu after reviewing a package file",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.new-folder",
+    "label": "New folder button in District library folders",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-name",
+    "label": "Folder name field in District library folders",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.all-items",
+    "label": "All items in District library folders",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.drafts",
+    "label": "Drafts in District library folders",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder",
+    "label": "A folder in the District library folder list, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-expand",
+    "label": "Expand or collapse arrow on a District library folder, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.open-folder",
+    "label": "A folder row in the open District library folder, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-targeting",
+    "label": "Who sees this folder button, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-menu",
+    "label": "More actions menu for the open District library folder, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-rename",
+    "label": "Rename in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-new-inside",
+    "label": "New folder inside in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-move",
+    "label": "Move to folder in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.folder-delete",
+    "label": "Delete in a District library folder menu, by folder id",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.row-menu",
+    "label": "More actions menu in a District library row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.move",
+    "label": "Move to folder in a District library row menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.move-target",
+    "label": "A folder in the District library Move to folder picker, by folder id",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.same-as-folder",
+    "label": "Same as folder choice in a District library row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.own-audience",
+    "label": "Choose for this item choice in a District library row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.save-same-as-folder",
+    "label": "Save button for Same as folder in a District library row",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "admin.district-library",
@@ -72022,6 +72703,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "widget",
         "widget_type": "quiz",
         "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.district-folder",
+    "label": "District library folder row in Question banks",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.banks",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#banks"
+        ],
         "needs": [
           "widget-on-stage"
         ]

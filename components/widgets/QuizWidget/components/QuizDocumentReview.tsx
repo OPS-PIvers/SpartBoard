@@ -14,7 +14,7 @@ import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { MathText } from '@/components/common/MathText';
 import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
 import type { AnswerPicture } from '@/utils/quizAnswerImages';
-import { hasPromptMath, plainPromptText } from '@/utils/promptMath';
+import { hasPromptMath, plainMathText } from '@/utils/promptMath';
 import type {
   QuestionTargetTag,
   QuizData,
@@ -458,7 +458,7 @@ const ReviewTable: React.FC<
                     />
                     {hasPromptMath(q.text) && (
                       <p className="text-sm text-slate-800 whitespace-pre-line wrap-break-word">
-                        <MathText text={q.text} />
+                        <MathText text={q.text} format />
                       </p>
                     )}
                     {stemSpill && <SpillNote warning={stemSpill} />}
@@ -516,7 +516,7 @@ const ReviewTable: React.FC<
                                   })
                                 }
                                 className="shrink-0 accent-brand-blue-primary"
-                                aria-label={`Question ${index + 1}, correct answer: ${plainPromptText(choice)}`}
+                                aria-label={`Question ${index + 1}, correct answer: ${plainMathText(choice)}`}
                               />
                               <span
                                 className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}
@@ -584,7 +584,7 @@ const ReviewTable: React.FC<
                                 })
                               }
                               className="shrink-0 accent-brand-blue-primary"
-                              aria-label={`Question ${index + 1}, answer: ${plainPromptText(choice)}`}
+                              aria-label={`Question ${index + 1}, answer: ${plainMathText(choice)}`}
                             />
                             <span
                               className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'wrap-break-word' : 'truncate'}`}

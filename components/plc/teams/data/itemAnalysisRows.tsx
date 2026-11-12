@@ -1,5 +1,6 @@
 // Item-analysis bar rows like the mock kit's, but question and answer text wrap instead of truncating.
 
+import { plainPromptText } from '@/utils/promptMath';
 import React from 'react';
 import type { TFunction } from 'i18next';
 import { RotateCcw } from 'lucide-react';
@@ -58,7 +59,7 @@ export function buildItemRows(
           <span className="w-7 shrink-0 font-bold tabular-nums text-slate-800">
             Q{q.number}
           </span>
-          <span className="min-w-0 wrap-break-word">{q.text}</span>
+          <span className="min-w-0 wrap-break-word">{plainPromptText(q.text)}</span>
           {q.reteach && (
             <span className="inline-flex shrink-0 items-center gap-1 pt-0.5 text-xxs font-bold uppercase tracking-wider text-brand-red-primary">
               <RotateCcw className="h-3 w-3" aria-hidden="true" />
@@ -82,7 +83,7 @@ export function buildItemRows(
       ),
       ariaLabel: `Q${q.number}, ${correct}%${chose ? `, ${chose}` : ''}`,
       tip: {
-        heading: `Q${q.number} · ${q.text}`,
+        heading: `Q${q.number} · ${plainPromptText(q.text)}`,
         rows: [
           {
             value: `${correct}%`,

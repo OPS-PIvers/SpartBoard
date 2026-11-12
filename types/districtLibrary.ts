@@ -43,6 +43,31 @@ export interface DistrictLibraryItem extends DistrictLibraryTargeting {
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
+  /** District folder; absent means the top level. */
+  folderId?: string;
+  /** True when the item keeps its own audience instead of its folder's. */
+  ownTargeting?: boolean;
+}
+
+/** One folder in `district_library_index/folders`; names only, so any staff member may read it. */
+export interface DistrictLibraryFolder {
+  name: string;
+  parentId: string | null;
+  order: number;
+}
+
+export interface DistrictLibraryFolders {
+  folders: Record<string, DistrictLibraryFolder>;
+  updatedAt: number;
+}
+
+/** `district_library_index/audiences`: each folder's audience; admins only, since it names teachers. */
+export interface DistrictLibraryFolderAudiences {
+  folders: Record<
+    string,
+    DistrictLibraryTargeting & { gradeBuildings: string[] }
+  >;
+  updatedAt: number;
 }
 
 /** One published item in `district_library_index/published`: targeting without names. */
@@ -69,6 +94,8 @@ export interface DistrictLibraryBankLink {
   questionCount: number;
   targetIds: string[];
   addedAt: number;
+  /** The teacher's own Quiz library folder; absent keeps it in the District library folder. */
+  folderId?: string;
 }
 
 /** A link as the teacher sees it; `unavailable` is computed on read and never stored. */

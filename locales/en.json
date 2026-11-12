@@ -3983,6 +3983,9 @@
         "spoken": "Spoken",
         "whiteboard": "Whiteboard"
       },
+      "copy": "Copy",
+      "copyResponse": "Copy response",
+      "copied": "Copied",
       "responseLabel": "Student response",
       "timedOutUnderMinimum": "Timed out under minimum",
       "noTextAnswer": "The student didn't answer this question.",

@@ -276,9 +276,11 @@ import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
 import {
   addDistrictBank,
   removeDistrictBank,
+  moveDistrictBank,
   useDistrictLibraryForTeacher,
 } from '@/hooks/useDistrictLibrary';
 import { DistrictLibraryModal } from './components/DistrictLibraryModal';
+import { useDistrictFolders } from '@/hooks/useDistrictLibraryFolders';
 
 const QuizStudentView = lazy(() =>
   import('@/components/quiz/QuizStudentView').then((m) => ({
@@ -800,6 +802,15 @@ const TeacherQuizWidget: React.FC<{
     districtViewer,
     districtLibraryOn && variant === 'quiz'
   );
+  const districtFoldersOn =
+    districtLibraryOn &&
+    variant === 'quiz' &&
+    canAccessFeature('district-library-folders');
+  const districtFolders = useDistrictFolders(districtFoldersOn);
+  const districtItemFolderIds = useMemo(
+    () => new Map(districtItems.map((i) => [i.id, i.folderId ?? null])),
+    [districtItems]
+  );
   // Bank links already come through useBankSources; reuse them instead of a second listener.
   const districtBankItemIds = useMemo(
     () =>
@@ -1146,6 +1157,30 @@ const TeacherQuizWidget: React.FC<{
     },
     [updateWidget, widget.id, config]
   );
+
+  // Shared and District library banks open read-only, the same way district quiz copies do.
+  const previewBankSource = async (source: BankSource) => {
+    setLoadingQuizData(true);
+    try {
+      const content = await loadBankContent(source);
+      setLoadedQuizData({
+        id: content.id,
+        title: content.title || source.title,
+        questions: content.questions,
+        ...(content.stimuli ? { stimuli: content.stimuli } : {}),
+        createdAt: 0,
+        updatedAt: 0,
+      });
+      setView('preview');
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Could not open that bank.',
+        'error'
+      );
+    } finally {
+      setLoadingQuizData(false);
+    }
+  };
 
   const loadQuiz = useCallback(
     async (
@@ -4246,6 +4281,15 @@ const TeacherQuizWidget: React.FC<{
         sharedBankSources={sharedBankSources}
         districtBankSources={districtBankSources}
         onRemoveDistrictBank={removeDistrictSource}
+        onPreviewBank={previewBankSource}
+        districtFolders={districtFoldersOn ? districtFolders : null}
+        districtItemFolderIds={districtItemFolderIds}
+        onMoveDistrictBank={
+          user
+            ? (source, folderId) =>
+                moveDistrictBank(user.uid, source.bankId, folderId)
+            : undefined
+        }
         onImportBank={() => setBankImportOpen(true)}
         schoologyInboxCount={schoologyInbox.items.length}
         onOpenSchoologyInbox={() => setSchoologyReviewOpen(true)}
@@ -4705,14 +4749,20 @@ const TeacherQuizWidget: React.FC<{
             )
           }
           addedBankIds={districtBankItemIds}
-          onAdd={async (item) => {
+          folders={districtFoldersOn ? districtFolders : null}
+          onAdd={async (item, quiet) => {
             if (item.kind === 'bank') {
               await addDistrictBank(user.uid, item);
-              addToast(`"${item.title}" is in your question banks.`, 'success');
+              if (!quiet)
+                addToast(
+                  `"${item.title}" is in your question banks.`,
+                  'success'
+                );
               return;
             }
             const meta = await addLinkedDistrictQuiz(item);
-            addToast(`"${meta.title}" is in your library.`, 'success');
+            if (!quiet)
+              addToast(`"${meta.title}" is in your library.`, 'success');
           }}
           onRemoveBank={(item) => removeDistrictBank(user.uid, item.id)}
         />

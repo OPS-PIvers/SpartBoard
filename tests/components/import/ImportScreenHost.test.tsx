@@ -66,7 +66,7 @@ describe('ImportScreenHost', () => {
       />
     );
 
-  it('shows a corner notice for waiting pages that opens Import, and hides it', () => {
+  it('shows a corner notice for waiting pages that opens Import, and discards them', () => {
     inboxItems.push({
       id: 's1',
       url: 'https://example.org/a',
@@ -81,8 +81,10 @@ describe('ImportScreenHost', () => {
     expect(
       screen.getByText('1 page sent from your browser')
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    inboxRemove.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(screen.queryByText('1 page sent from your browser')).toBeNull();
+    expect(inboxRemove).toHaveBeenCalledWith('s1');
     act(() => openImportScreen());
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     act(() => closeImportScreen());
@@ -92,6 +94,36 @@ describe('ImportScreenHost', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add to board' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.queryByText('1 page sent from your browser')).toBeNull();
+  });
+
+  it('shows a discarded page again when the same page is sent again', () => {
+    const page: ImportInboxItem = {
+      id: 's1',
+      url: 'https://example.org/a',
+      title: 'Cells',
+      platform: 'generic',
+      selectionOnly: false,
+      receivedAt: 1,
+      images: [],
+      blocks: [],
+    };
+    inboxItems.push(page);
+    const host = () => (
+      <ImportScreenHost
+        placeAt={() => ({ x: 0, y: 0 })}
+        placePdf={vi.fn()}
+        placeNotebook={vi.fn()}
+      />
+    );
+    const { rerender } = render(host());
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    inboxItems.length = 0;
+    rerender(host());
+    inboxItems.push(page);
+    rerender(host());
+    expect(
+      screen.getByText('1 page sent from your browser')
+    ).toBeInTheDocument();
   });
 
   it('opens Import when the extension fires the inbox event, and cancels it', () => {

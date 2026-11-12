@@ -11,6 +11,7 @@ import { act, renderHook } from '@testing-library/react';
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -28,6 +29,7 @@ import type { PlcAssignmentIndexEntry } from '@/types';
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
+  getDoc: vi.fn(),
   onSnapshot: vi.fn(),
   orderBy: vi.fn((field: string, dir: 'asc' | 'desc') => ({
     __orderBy: { field, dir },
@@ -58,6 +60,7 @@ const mockOrderBy = orderBy as Mock;
 const mockQuery = query as Mock;
 const mockSetDoc = setDoc as Mock;
 const mockUpdateDoc = updateDoc as Mock;
+const mockGetDoc = getDoc as Mock;
 const mockLogError = logError as unknown as Mock;
 
 const TEACHER_UID = 'teacher-1';
@@ -535,5 +538,56 @@ describe('mirrorPlcAssignmentStatus', () => {
       err,
       { plcId: PLC_ID, assignmentId: 'asn-1', status: 'inactive' }
     );
+  });
+});
+
+describe('mirrorPlcAssignmentStatus toast on denial', () => {
+  const denied = Object.assign(
+    new Error('Missing or insufficient permissions.'),
+    {
+      code: 'permission-denied',
+    }
+  );
+  let toasts: Event[];
+  const onToast = (e: Event) => toasts.push(e);
+
+  beforeEach(() => {
+    toasts = [];
+    window.addEventListener('spartboard:plc-write-failed', onToast);
+  });
+  afterEach(() => {
+    window.removeEventListener('spartboard:plc-write-failed', onToast);
+    mockGetDoc.mockReset();
+  });
+
+  it('stays quiet when the quiz has no index entry (quiz rows left the index)', async () => {
+    mockUpdateDoc.mockRejectedValueOnce(denied);
+    mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+    await mirrorPlcAssignmentStatus(PLC_ID, 'asn-1', 'inactive');
+    expect(toasts).toHaveLength(0);
+    expect(mockLogError).not.toHaveBeenCalled();
+  });
+
+  it('stays quiet when the teacher can no longer read the PLC', async () => {
+    mockUpdateDoc.mockRejectedValueOnce(denied);
+    mockGetDoc.mockRejectedValueOnce(denied);
+    await mirrorPlcAssignmentStatus(PLC_ID, 'asn-1', 'inactive');
+    expect(toasts).toHaveLength(0);
+  });
+
+  it('still warns when an existing entry refuses the update', async () => {
+    mockUpdateDoc.mockRejectedValueOnce(denied);
+    mockGetDoc.mockResolvedValueOnce({ exists: () => true });
+    await mirrorPlcAssignmentStatus(PLC_ID, 'asn-1', 'inactive');
+    expect(toasts).toHaveLength(1);
+  });
+
+  it('still warns on other failures without a lookup', async () => {
+    mockUpdateDoc.mockRejectedValueOnce(
+      Object.assign(new Error('unavailable'), { code: 'unavailable' })
+    );
+    await mirrorPlcAssignmentStatus(PLC_ID, 'asn-1', 'paused');
+    expect(toasts).toHaveLength(1);
+    expect(mockGetDoc).not.toHaveBeenCalled();
   });
 });

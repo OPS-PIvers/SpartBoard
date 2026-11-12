@@ -261,6 +261,22 @@ describe('district_library reads', () => {
     await assertSucceeds(getDocs(collection(asAdmin(), 'district_library')));
   });
 
+  it('staff read folder names but only admins read folder audiences', async () => {
+    await assertSucceeds(
+      getDoc(doc(asMiddle(), 'district_library_index/folders'))
+    );
+    await assertFails(
+      getDoc(doc(asMiddle(), 'district_library_index/audiences'))
+    );
+    await assertSucceeds(
+      getDoc(doc(asAdmin(), 'district_library_index/audiences'))
+    );
+    for (const db of [asOutsider(), asStudent(), asAnon()]) {
+      await assertFails(getDoc(doc(db, 'district_library_index/folders')));
+      await assertFails(getDoc(doc(db, 'district_library_index/audiences')));
+    }
+  });
+
   it('district staff read the index doc', async () => {
     await assertSucceeds(
       getDoc(doc(asMiddle(), 'district_library_index/published'))
@@ -283,6 +299,32 @@ describe('district_library writes', () => {
       )
     );
     await assertSucceeds(deleteDoc(doc(asAdmin(), 'district_library/new-1')));
+  });
+
+  it('a site admin files an item in a folder with its own audience', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asAdmin(), 'district_library/new-7'),
+        item({ id: 'new-7', folderId: 'f1', ownTargeting: true })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asAdmin(), 'district_library/new-8'),
+        item({ id: 'new-8', folderPath: 'MCA Science' })
+      )
+    );
+  });
+
+  it('a building admin cannot read folder audiences', async () => {
+    await assertFails(
+      getDoc(
+        doc(
+          as('building-admin-uid', BUILDING_ADMIN_EMAIL),
+          'district_library_index/audiences'
+        )
+      )
+    );
   });
 
   it('teachers and building admins cannot write', async () => {
@@ -332,11 +374,55 @@ describe('district_library writes', () => {
     await assertFails(
       setDoc(doc(asAdmin(), 'district_library_index/other'), { items: {} })
     );
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), 'district_library_index/folders'), {
+        folders: { f1: { name: 'MCA Science', parentId: null, order: 0 } },
+        updatedAt: 2,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), 'district_library_index/audiences'), {
+        folders: { f1: { everyone: true } },
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(asMiddle(), 'district_library_index/folders'), {
+        folders: {},
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(asMiddle(), 'district_library_index/audiences'), {
+        folders: {},
+        updatedAt: 2,
+      })
+    );
     await assertFails(
       setDoc(doc(asMiddle(), 'district_library_index/published'), {
         items: {},
         updatedAt: 2,
       })
+    );
+    const others = [
+      asStudent(),
+      asAnon(),
+      asOutsider(),
+      as('building-admin-uid', BUILDING_ADMIN_EMAIL),
+    ];
+    for (const db of others) {
+      for (const id of ['folders', 'audiences']) {
+        await assertFails(
+          setDoc(doc(db, `district_library_index/${id}`), {
+            folders: {},
+            updatedAt: 3,
+          })
+        );
+        await assertFails(deleteDoc(doc(db, `district_library_index/${id}`)));
+      }
+    }
+    await assertSucceeds(
+      deleteDoc(doc(asAdmin(), 'district_library_index/folders'))
     );
   });
 });
@@ -552,6 +638,27 @@ describe('teacher bank links', () => {
     targetIds: [],
     addedAt: 1,
   };
+
+  it('a teacher files their own link in one of their folders', async () => {
+    await assertSucceeds(
+      setDoc(doc(asMiddle(), `users/${MIDDLE_UID}/district_links/item-1`), {
+        ...link,
+        folderId: 'my-folder',
+      })
+    );
+    await assertSucceeds(
+      getDoc(doc(asMiddle(), `users/${MIDDLE_UID}/district_links/item-1`))
+    );
+    await assertFails(
+      getDoc(doc(asHigh(), `users/${MIDDLE_UID}/district_links/item-1`))
+    );
+    await assertFails(
+      setDoc(doc(asMiddle(), `users/${MIDDLE_UID}/district_links/item-1`), {
+        ...link,
+        folderId: 5,
+      })
+    );
+  });
 
   it('a teacher writes and removes their own links only', async () => {
     await assertSucceeds(

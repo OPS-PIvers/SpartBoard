@@ -1,4 +1,6 @@
 // Equations in question text are stored as plain math between ⟦ and ⟧, e.g. "Solve ⟦(x+1)/2=3⟧".
+import { promptFormatHtml, stripPromptFormat } from './promptFormat';
+
 export const PROMPT_MATH_OPEN = '⟦';
 export const PROMPT_MATH_CLOSE = '⟧';
 
@@ -27,9 +29,17 @@ export function splitPromptMath(text: string): PromptPart[] {
   return parts;
 }
 
-/** Question text with each equation as its plain math, for lists, exports and titles. */
-export const plainPromptText = (text: string): string =>
+/** Answer or choice text with each equation as its plain math; asterisks and plus signs stay as typed. */
+export const plainMathText = (text: string): string =>
   text.replace(PROMPT_MATH_RE, '$1');
+
+/** Question text with each equation as its plain math and no bold, italic or underline marks, for lists, exports and titles. */
+export const plainPromptText = (text: string): string =>
+  stripPromptFormat(text).replace(PROMPT_MATH_RE, '$1');
 
 export const wrapPromptMath = (math: string): string =>
   `${PROMPT_MATH_OPEN}${math.replace(/[⟦⟧]/g, '')}${PROMPT_MATH_CLOSE}`;
+
+/** Escaped print HTML for a prompt: bold, italic and underline kept, each equation as its plain math. */
+export const promptPrintHtml = (text: string): string =>
+  promptFormatHtml(text, (run) => run.replace(PROMPT_MATH_RE, '$1'));

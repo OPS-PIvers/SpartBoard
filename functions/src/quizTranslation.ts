@@ -747,6 +747,7 @@ export function buildSystemInstruction(
     'Preserve every qualifier and hedge exactly (may, might, probably, appear to, some, many, most, all, only, not). They often decide which answer is correct.',
     'Keep the full meaning of every answer choice; never shorten, merge or generalize a choice.',
     'Copy every equation between ⟦ and ⟧ exactly as written, keeping the ⟦ and ⟧ marks.',
+    'Keep the formatting marks around the same translated words: **bold**, *italic* and ++underline++. Keep each line that starts with "• " or a number and ". " as its own line with that start.',
     `Copy ${PICTURE_TOKEN} exactly as written; it stands for a picture.`,
     'When a question asks what an English word or phrase means, keep that word or phrase in English inside quotation marks and translate everything else, including the answer choices.',
     'Write personal names in the target script with standard transliteration, followed by the original spelling in parentheses the first time each appears in a question; in Latin-script languages keep names unchanged. Brand and product names (for example YouTube, Meta) stay as written.',

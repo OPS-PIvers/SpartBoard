@@ -417,6 +417,13 @@ const LibraryManagersDevHarness =
         }))
       )
     : null;
+const DistrictFoldersDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/DistrictFoldersDevHarness').then((module) => ({
+        default: module.DistrictFoldersDevHarness,
+      }))
+    )
+  : null;
 const SidebarListsDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
     ? lazy(() =>
@@ -473,6 +480,13 @@ const WhiteboardReplayDevHarness = import.meta.env.DEV
     )
   : null;
 
+const PromptFormattingDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/PromptFormattingDevHarness').then((module) => ({
+        default: module.PromptFormattingDevHarness,
+      }))
+    )
+  : null;
 const StudentKeyboardsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/StudentKeyboardsDevHarness').then((module) => ({
@@ -1402,6 +1416,22 @@ const App: React.FC = () => {
     );
   }
 
+  // District library folders design mockup; auth-bypass only.
+  if (
+    DistrictFoldersDevHarness &&
+    isAuthBypass &&
+    pathname === '/district-folders-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <DialogProvider>
+          <DistrictFoldersDevHarness />
+          <DialogContainer />
+        </DialogProvider>
+      </Suspense>
+    );
+  }
+
   // My Classes and My Teams panels on fixtures; auth-bypass only, so never on a deployed site.
   if (
     SidebarListsDevHarness &&
@@ -1513,6 +1543,18 @@ const App: React.FC = () => {
   }
 
   // DEV-ONLY: the student whiteboard canvas with fixture starting pages.
+  if (
+    import.meta.env.DEV &&
+    PromptFormattingDevHarness &&
+    pathname === '/prompt-formatting-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PromptFormattingDevHarness />
+      </Suspense>
+    );
+  }
+
   if (
     import.meta.env.DEV &&
     StudentKeyboardsDevHarness &&

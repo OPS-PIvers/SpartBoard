@@ -12,6 +12,7 @@
  * view uses, so student feedback and the gradebook stay in lock-step.
  */
 
+import { PromptText } from '@/components/common/PromptText';
 import React, { useMemo, useState } from 'react';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { logError } from '@/utils/logError';
@@ -404,8 +405,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
 
       {/* Question */}
       <div className="px-5 pt-5 pb-3">
-        <p className="text-base font-semibold text-slate-900 leading-snug">
-          {question.text}
+        <p className="text-base font-semibold text-slate-900 leading-snug whitespace-pre-line wrap-break-word">
+          <PromptText text={question.text} />
         </p>
         <StopPicture
           fileId={question.imageDriveFileId}

@@ -3,6 +3,7 @@
  * Adapted from QuizResults. Shows per-student scores and per-question accuracy.
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import { tourAttr } from '@/config/tourAnchors';
 import React, { useMemo, useState } from 'react';
 import { staffResultsLabel } from '@/utils/staffAudience';
@@ -889,7 +890,7 @@ export const Results: React.FC<ResultsProps> = ({
                           className="text-slate-700 font-medium truncate"
                           style={{ fontSize: 'min(12px, 3.5cqmin)' }}
                         >
-                          {idx + 1}. {q.text}
+                          {idx + 1}. {plainPromptText(q.text)}
                         </p>
                       </div>
 

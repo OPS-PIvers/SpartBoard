@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PromptText } from '@/components/common/PromptText';
 import {
   CheckCircle2,
   Hourglass,
@@ -330,8 +331,8 @@ const QuestionShell: React.FC<{
       </span>
     </div>
     <div className="px-5 pt-5 pb-3">
-      <p className="text-base font-semibold text-slate-900 leading-snug">
-        {question.text}
+      <p className="text-base font-semibold text-slate-900 leading-snug whitespace-pre-line wrap-break-word">
+        <PromptText text={question.text} />
       </p>
       <StopPicture
         fileId={question.imageDriveFileId}

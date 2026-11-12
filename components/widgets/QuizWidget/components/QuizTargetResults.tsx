@@ -159,7 +159,7 @@ const MasteryRow: React.FC<{ row: TargetStat }> = ({ row }) => {
                 Q{question.index + 1}
               </span>
               <span className="min-w-0 flex-1 truncate">
-                <MathText text={question.text} />
+                <MathText text={question.text} format />
               </span>
               {question.lowSample && <LowSampleBadge />}
               <span className="shrink-0 tabular-nums text-slate-500">
