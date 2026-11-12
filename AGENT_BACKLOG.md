@@ -214,6 +214,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 claude/project-thread-kwulpx
 
+claude/project-thread-oakw56
+claude/project-thread-oakw56-ab112
 claude/tour-anchors-2026-11-12
 nightly/debugger-log-2026-11-12
 nightly/admin-config-2026-11-12
