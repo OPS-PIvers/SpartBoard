@@ -2092,6 +2092,8 @@ export const ActiveQuiz: React.FC<{
   // false→true edge so the prompt re-opens when the teacher unlocks
   // while the student is still on the active quiz screen.
   const isUnlockedNow = !!myResponse?.unlocked;
+  const reopened = isUnlockedNow && myResponse?.unlockKind === 'reopen';
+  const unlockedOneExit = isUnlockedNow && !reopened;
   const [prevUnlocked, setPrevUnlocked] = useState(isUnlockedNow);
   if (prevUnlocked !== isUnlockedNow) {
     setPrevUnlocked(isUnlockedNow);
@@ -2176,6 +2178,8 @@ export const ActiveQuiz: React.FC<{
   useEffect(() => {
     if (typeof closeAtForAttempt !== 'number') return;
     if (myResponse?.status === 'completed') return;
+    // A teacher reopen extends the attempt past the close time.
+    if (reopened) return;
     if (closeAutoSubmitTriggeredRef.current) return;
     const check = () => {
       if (closeAutoSubmitTriggeredRef.current) return;
@@ -2185,7 +2189,7 @@ export const ActiveQuiz: React.FC<{
     check();
     const id = window.setInterval(check, 5000);
     return () => window.clearInterval(id);
-  }, [closeAtForAttempt, myResponse?.status, attemptCloseAutoSubmit]);
+  }, [closeAtForAttempt, myResponse?.status, reopened, attemptCloseAutoSubmit]);
 
   // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
   const attemptDeadline =
@@ -2321,8 +2325,8 @@ export const ActiveQuiz: React.FC<{
         return false;
       }
       // Teacher-unlocked attempts skip the warning: the student was told the
-      // next exit submits their work.
-      if (myResponse?.unlocked) {
+      // next exit submits their work. A teacher reopen has no such rule.
+      if (unlockedOneExit) {
         setShowCheatWarning(false);
         // A failed submit (e.g. offline) must not leave detection armed-off.
         void handleAutoSubmit('post-unlock').finally(tabTracker.release);
@@ -4066,20 +4070,28 @@ export const ActiveQuiz: React.FC<{
         <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
-            Attempt Unlocked
+            {reopened ? 'Your teacher reopened your quiz' : 'Attempt Unlocked'}
           </h2>
-          <p className="text-emerald-100 text-lg max-w-md mb-2">
-            Your answers are still here.
-          </p>
-          <p className="text-amber-200 text-sm max-w-md mb-8">
-            ⚠ Leave this tab or open the quiz in another window and your quiz
-            submits right away.
-          </p>
+          {reopened ? (
+            <p className="text-emerald-100 text-lg max-w-md mb-8">
+              Your answers are saved. Make your changes and submit again.
+            </p>
+          ) : (
+            <>
+              <p className="text-emerald-100 text-lg max-w-md mb-2">
+                Your answers are still here.
+              </p>
+              <p className="text-amber-200 text-sm max-w-md mb-8">
+                ⚠ Leave this tab or open the quiz in another window and your
+                quiz submits right away.
+              </p>
+            </>
+          )}
           <button
             onClick={() => setShowResumeModal(false)}
             className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
-            Resume Quiz
+            {reopened ? 'Keep working' : 'Resume Quiz'}
           </button>
         </div>
       )}
@@ -4143,7 +4155,7 @@ export const ActiveQuiz: React.FC<{
 
       {/* Persistent "one strike and you're out" banner — visible for the
           duration of the resumed attempt so the rule stays top-of-mind. */}
-      {myResponse?.unlocked && !showResumeModal && (
+      {unlockedOneExit && !showResumeModal && (
         <div
           className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
         >

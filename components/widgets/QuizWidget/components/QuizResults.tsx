@@ -85,7 +85,10 @@ import {
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
-import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
+import {
+  REOPEN_ENDED_REASON,
+  canTeacherSubmit,
+} from '@/utils/quizTeacherSubmit';
 import { getResponseDocKey, type ResponseDocKey } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -1244,9 +1247,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     return true;
   };
   const reopenBlockedReason =
-    session?.status === 'ended'
-      ? 'This assignment has ended. Reopen the assignment first.'
-      : null;
+    session?.status === 'ended' ? REOPEN_ENDED_REASON : null;
   const [printSelection, setPrintSelection] = useState<
     readonly string[] | null | undefined
   >(undefined);

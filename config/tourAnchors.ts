@@ -4443,6 +4443,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-reopen': {
+    label: 'Reopen item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-monitor.student-submit': {
     label: 'Submit for student item in the Quiz monitor student menu',
     perWidgetType: true,

@@ -69,3 +69,7 @@ export function buildTeacherSubmitUpdate(
   }
   return update;
 }
+
+/** Why a teacher can't reopen a student's quiz on an ended assignment. */
+export const REOPEN_ENDED_REASON =
+  'This assignment has ended. Reopen the assignment first.';
