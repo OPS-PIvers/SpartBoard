@@ -18,13 +18,7 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, {
-  useCallback,
-  useMemo,
-  useState,
-  lazy,
-  Suspense,
-} from 'react';
+import React, { useCallback, useMemo, useState, lazy, Suspense } from 'react';
 import {
   Plus,
   Play,
@@ -560,9 +554,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     sourceKey?: string;
   } | null>(null);
   const buildingSourceKeys = useMemo(
-    () => [
-      ...buildingSets.map((set) => `building:${set.id}`),
-    ],
+    () => [...buildingSets.map((set) => `building:${set.id}`)],
     [buildingSets]
   );
   // Building set entry ids double as their placement source keys.

@@ -1,12 +1,6 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { AuthContext } from '@/context/AuthContextValue';
 import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
@@ -154,14 +148,6 @@ const renderLibrary = (isAdmin = true, extras: Extras = {}) =>
       />
     </AuthContext.Provider>
   );
-
-const cardMenu = async (title: string) => {
-  let card: HTMLElement | null = await screen.findByText(title);
-  while (card && !within(card).queryByRole('button', { name: 'More actions' }))
-    card = card.parentElement;
-  if (!card) throw new Error(`No menu for ${title}`);
-  fireEvent.click(within(card).getByRole('button', { name: 'More actions' }));
-};
 
 const listeners: [string, EventListener][] = [];
 const listen = (type: string) => {
