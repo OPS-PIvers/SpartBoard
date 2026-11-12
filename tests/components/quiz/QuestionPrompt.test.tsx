@@ -24,6 +24,14 @@ describe('QuestionPrompt', () => {
     expect(h2?.className).not.toContain('font-bold');
   });
 
+  it('keeps table rows and list items one per line', () => {
+    const text =
+      'Use the table.\nMetal | Mass\nIron | 5 g\nI. It melts.\nII. It boils.\nWhich is true?';
+    expect(spacedPrompt(text)).toBe(
+      'Use the table.\n\nMetal | Mass\nIron | 5 g\nI. It melts.\nII. It boils.\n\nWhich is true?'
+    );
+  });
+
   it('treats one long paragraph as body text without adding breaks', () => {
     const text = 'word '.repeat(60).trim();
     expect(isLongPrompt(text)).toBe(true);

@@ -456,7 +456,10 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                 id: 'remove-district-bank',
                 label: 'Remove from my banks',
                 icon: FolderMinus,
-                onClick: () => void onRemoveDistrictBank(source),
+                onClick: () =>
+                  void Promise.resolve(onRemoveDistrictBank(source)).catch(() =>
+                    onError?.('Could not remove that bank. Try again.')
+                  ),
               },
             ]
           : []
@@ -608,7 +611,9 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       districtQuery
         ? s.title.toLowerCase().includes(districtQuery)
         : !libraryView.folderView ||
-          libraryView.folderView.location.kind === 'all'
+          libraryView.folderView.location.kind === 'all' ||
+          (libraryView.folderView.location.kind === 'folder' &&
+            libraryView.folderView.location.folderId === null)
     )
     .map(renderDistrictRow);
 

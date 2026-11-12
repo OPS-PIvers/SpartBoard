@@ -218,18 +218,18 @@ const ImageStimulus: React.FC<
 
   useEffect(() => {
     if (!scroller) return;
-    const measure = () => {
+    // clientWidth rounds up on fractional layouts and overflows by a sliver; the observer's width is exact and unscaled.
+    const measure = (exactW?: number) => {
       const maxH = parseFloat(getComputedStyle(scroller).maxHeight);
-      // clientWidth rounds up on fractional layouts, which overflows by a sliver.
-      const rectW = scroller.getBoundingClientRect().width;
-      const barW = scroller.offsetWidth - scroller.clientWidth;
       setBox({
-        w: rectW > 0 ? Math.floor(rectW) - barW : scroller.clientWidth,
+        w: exactW && exactW > 0 ? Math.floor(exactW) : scroller.clientWidth,
         maxH: Number.isFinite(maxH) ? maxH : window.innerHeight / 2,
       });
     };
     measure();
-    const ro = new ResizeObserver(measure);
+    const ro = new ResizeObserver((entries) =>
+      measure(entries[0]?.contentBoxSize?.[0]?.inlineSize)
+    );
     ro.observe(scroller);
     return () => ro.disconnect();
   }, [scroller]);

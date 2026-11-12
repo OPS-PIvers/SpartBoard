@@ -86,7 +86,7 @@ export const StimulusTabsPanel: React.FC<{
               tabIndex={selected ? 0 : -1}
               onClick={() => setChosen(s.id)}
               onKeyDown={(e) => onKeyDown(e, i)}
-              className={`shrink-0 min-h-[40px] px-4 rounded-lg text-sm font-bold whitespace-nowrap transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${tabCls(selected)}`}
+              className={`shrink-0 min-h-[44px] px-4 rounded-lg text-sm font-bold whitespace-nowrap transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${tabCls(selected)}`}
             >
               {labels[i]}
             </button>
