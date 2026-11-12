@@ -166,9 +166,9 @@ const seedPendingInvite = async (emailLower: string, status = 'pending') => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId} update — isAcceptingPlcInvite', () => {
-  it('a non-member with a pending invite can self-append to members', async () => {
+  it('client write refused (plcMembershipV1 does it): a non-member with a pending invite can self-append to members', async () => {
     await seedPendingInvite(NON_MEMBER_EMAIL);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asNonMemberVerified(), `plcs/${PLC_ID}`), {
         memberUids: [MEMBER_A_UID, MEMBER_B_UID, NON_MEMBER_UID],
         memberEmails: {
@@ -269,8 +269,8 @@ describe('plcs/{plcId} update — isAcceptingPlcInvite', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId} update — isLeavingPlc', () => {
-  it('a non-lead member can self-remove (drops only themselves)', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): a non-lead member can self-remove (drops only themselves)', async () => {
+    await assertFails(
       updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
         memberUids: [MEMBER_A_UID],
         memberEmails: {
@@ -491,13 +491,13 @@ describe('plcs/{plcId} update — lead broad-update guard', () => {
     );
   });
 
-  it('lets the lead transfer leadership to a member via a bare leadUid write (legacy transferLead path)', async () => {
+  it('client write refused (plcMembershipV1 does it): lets the lead transfer leadership to a member via a bare leadUid write (legacy transferLead path)', async () => {
     // This legacy-shape fixture carries no `members` map, so
     // isTransferringPlcLead falls back to its leadUid-only path: the sitting
     // lead may hand the crown to an EXISTING member. (The canonical members-map
     // transfer — where a bare leadUid change WITHOUT the paired role flips is
     // rejected by the lockstep guard — is covered in plcRootDocMembers.test.ts.)
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
         leadUid: MEMBER_B_UID,
         updatedAt: 2,

@@ -135,8 +135,8 @@ describe('isAcceptingPlcInvite() requires a verified email claim', () => {
     );
   });
 
-  it('allows the real invitee to accept once their token carries email_verified: true', async () => {
-    await assertSucceeds(
+  it('client write refused (plcMembershipV1 does it): allows the real invitee to accept once their token carries email_verified: true', async () => {
+    await assertFails(
       updateDoc(
         doc(asVerified(REAL_INVITEE_UID, INVITEE_EMAIL), `plcs/${PLC_ID}`),
         acceptedUpdate
