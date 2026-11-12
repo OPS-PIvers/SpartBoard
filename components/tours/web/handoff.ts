@@ -22,7 +22,6 @@ import {
 /** The parts of a published web step a handoff reads. */
 export interface HandoffTargetStep {
   id: string;
-  message?: undefined;
   label?: string;
   text?: string;
   web: {

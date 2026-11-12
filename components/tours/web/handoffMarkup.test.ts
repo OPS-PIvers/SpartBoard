@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildStartTour, type HandoffStep } from './handoff';
+import {
+  buildStartTour,
+  type HandoffStep,
+  type HandoffTargetStep,
+} from './handoff';
 import { parseWebTourStartTour, parseMarkupShapes } from './extensionProtocol';
 
 const box = { id: 'm1', kind: 'box' as const, x: 0.1, y: 0.2, w: 0.3, h: 0.2 };
 
-const step = (id: string, markup?: unknown[]): HandoffStep => ({
+const step = (id: string, markup?: unknown[]): HandoffTargetStep => ({
   id,
   label: id,
   text: '',
