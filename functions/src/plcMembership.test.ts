@@ -361,6 +361,36 @@ describe('planPlcChange', () => {
     expect(update).not.toHaveProperty('memberEmails');
   });
 
+  it('adminReassignLead refuses a map entry missing from memberUids', () => {
+    const data = plc({ memberUids: ['lead', 'mem'] });
+    expect(
+      reasonOf(() =>
+        planPlcChange(
+          data,
+          { action: 'adminReassignLead', plcId: 'p', uid: 'co' },
+          ctx('a', true)
+        )
+      )
+    ).toBe('targetNotActiveMember');
+  });
+
+  it('adminReassignLead can promote a member who joined by invite', () => {
+    const data = plc({
+      memberUids: ['lead', 'co', 'mem', 'joiner'],
+      memberEmails: { joiner: 'joiner@x.edu' },
+    });
+    const { update } = planPlcChange(
+      data,
+      { action: 'adminReassignLead', plcId: 'p', uid: 'joiner' },
+      ctx('a', true)
+    );
+    expect(update?.leadUid).toBe('joiner');
+    expect((update?.members as StubData).joiner).toMatchObject({
+      role: 'lead',
+      status: 'active',
+    });
+  });
+
   it('adminSetMember with no email sent keeps the stored one', () => {
     const { update } = planPlcChange(
       plc(),

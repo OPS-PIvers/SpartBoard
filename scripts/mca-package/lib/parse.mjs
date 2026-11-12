@@ -15,7 +15,8 @@ const strip = (html) =>
   html
     .replace(/<div class="attribute athk">[\s\S]*?<\/div>/, '')
     .replace(/<div class="quesId">[\s\S]*?<\/div>/, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/, '');
+    .replace(/<iframe[\s\S]*?<\/iframe>/g, '')
+    .replace(/<iframe\b[^>]*>/gi, '');
 
 /** The part of a scoring guide after its "Rubric:" label (all of it when there is no label). */
 const afterRubric = (guide0) => {

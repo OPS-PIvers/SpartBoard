@@ -244,15 +244,26 @@ describe('blankTypeProblem', () => {
 
 describe('blankTypeUpdate', () => {
   it('seeds dropdown choices and the word bank from the answers', () => {
-    expect(blankTypeUpdate(fib({}), 'dropdown').blankChoices).toEqual([
-      { choices: ['melts', '', ''] },
-      { choices: ['heated', '', ''] },
+    const lists = blankTypeUpdate(fib({}), 'dropdown').blankChoices ?? [];
+    expect(lists.map((l) => l.choices.length)).toEqual([3, 3]);
+    expect(lists.map((l) => l.choices.filter(Boolean))).toEqual([
+      ['melts'],
+      ['heated'],
     ]);
     expect(blankTypeUpdate(fib({}), 'drag').wordBank).toEqual([
       'melts',
       'heated',
       '',
     ]);
+  });
+
+  it('seeds the dropdown answer in a random slot', () => {
+    const slots = new Set<number>();
+    for (let i = 0; i < 60; i++) {
+      const [first] = blankTypeUpdate(fib({}), 'dropdown').blankChoices ?? [];
+      slots.add(first.choices.indexOf('melts'));
+    }
+    expect(slots.size).toBeGreaterThan(1);
   });
 
   it('keeps the key and clears the lists when going back to typed', () => {

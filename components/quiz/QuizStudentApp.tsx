@@ -27,6 +27,7 @@ import React, {
   useMemo,
   useReducer,
   useRef,
+  useLayoutEffect,
   useEffectEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -2987,8 +2988,12 @@ export const ActiveQuiz: React.FC<{
     !isAttemptSubmitted(myResponse);
   // With the review step, a last-question timeout opens the review screen instead (M23).
   const timeoutOpensReviewRef = useRef(false);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  timeoutOpensReviewRef.current = reviewOn && timeoutFinishesQuizRef.current;
+  const lastQuestionOpen =
+    currentIndex >= effectiveTotalQuestions - 1 &&
+    !isAttemptSubmitted(myResponse);
+  useLayoutEffect(() => {
+    timeoutOpensReviewRef.current = reviewOn && lastQuestionOpen;
+  }, [reviewOn, lastQuestionOpen]);
   const onCompleteRef = useRef(onComplete);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCompleteRef.current = onComplete;

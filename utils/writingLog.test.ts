@@ -120,6 +120,14 @@ describe('WritingLogWriter', () => {
     expect(w.write('a', 'ab', 10, 'typed', 0)).toBe(0);
     expect(parseWritingLog(w.value).cutOff).toBe(true);
   });
+
+  it('drops one huge paste instead of letting it overrun the budget', () => {
+    const w = new WritingLogWriter(undefined);
+    w.write('', 'a', 0, 'typed', 1e6);
+    w.write('a', 'a' + 'b'.repeat(WRITING_LOG_MAX + 10), 10, 'pasted', 1e6);
+    expect(w.size).toBeLessThan(64);
+    expect(parseWritingLog(w.value).cutOff).toBe(true);
+  });
 });
 
 describe('parseWritingLog', () => {

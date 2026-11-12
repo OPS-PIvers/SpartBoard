@@ -6,6 +6,7 @@ import {
   explainableOptions,
   explanationsForQuestion,
   rekeyOptionExplanations,
+  withoutBlankOptionKeys,
 } from '@/utils/quizExplanations';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 
@@ -150,6 +151,30 @@ describe('rekeyOptionExplanations', () => {
     expect(
       rekeyOptionExplanations({ ...cleared, optionExplanations: step }, retyped)
     ).toEqual({ Paris: 'Right.', London: 'England.' });
+  });
+
+  it('follows a clear and retype when another option is blank too', () => {
+    const withBlank = { ...base, incorrectAnswers: ['London', ''] };
+    const cleared = { ...withBlank, correctAnswer: '' };
+    const step = rekeyOptionExplanations(withBlank, cleared);
+    expect(step).toEqual({ '': 'Right.', London: 'England.' });
+    const retyped = { ...cleared, correctAnswer: 'Paris' };
+    expect(
+      rekeyOptionExplanations({ ...cleared, optionExplanations: step }, retyped)
+    ).toEqual({ Paris: 'Right.', London: 'England.' });
+  });
+
+  it('never saves an explanation under a blank option', () => {
+    expect(
+      withoutBlankOptionKeys({
+        optionExplanations: { '': 'Right.', ' ': 'x', London: 'England.' },
+      })
+    ).toEqual({ optionExplanations: { London: 'England.' } });
+    expect(withoutBlankOptionKeys({ optionExplanations: { '': 'x' } })).toEqual(
+      {}
+    );
+    const q = { optionExplanations: { London: 'England.' } };
+    expect(withoutBlankOptionKeys(q)).toBe(q);
   });
 
   it('drops the explanation of a deleted option', () => {

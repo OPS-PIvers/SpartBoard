@@ -41,6 +41,7 @@ import { useQuizEditorState } from './useQuizEditorState';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { QuizLanguageField } from './QuizLanguageField';
 import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
+import { withoutBlankOptionKeys } from '@/utils/quizExplanations';
 import { quizOrder, quizServedQuestionCount } from '@/utils/questionBanks';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
@@ -437,7 +438,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       await translations.saveAll();
       // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
       // live, but a save must never persist a dangling pointer.
-      const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);
+      const cleanQuestions = sanitizeStimulusPointers(
+        questions.map(withoutBlankOptionKeys),
+        stimuli
+      );
       const cleanSlots = sanitizeStimulusPointers(bankSlots, stimuli);
       // `order` only carries information when a slot or a section sits between questions.
       const cleanOrder = quizOrder({

@@ -27,6 +27,7 @@ export const text = (html) =>
       .replace(/<\/(div|p|li|tr)>|<br\s*\/?>/g, '\n')
       .replace(/<\/(td|th)>/g, ' | ')
       .replace(/<[^>]+>/g, '')
+      .replace(/</g, '')
   )
     .split('\n')
     .map((l) =>
