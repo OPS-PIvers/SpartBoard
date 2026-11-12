@@ -54,6 +54,18 @@ describe('parsePromptInline', () => {
     ]);
   });
 
+  it('stays fast on many unclosed marks', () => {
+    const start = performance.now();
+    for (const s of [
+      '*a **b '.repeat(300),
+      '*a **b ++c '.repeat(200),
+      '*a **b *c **d '.repeat(150),
+    ]) {
+      parsePromptInline(s);
+    }
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
   it('never splits an equation', () => {
     expect(parsePromptInline('**solve ⟦a*b*c⟧**')).toEqual([
       { tag: 'b', children: ['solve ⟦a*b*c⟧'] },
