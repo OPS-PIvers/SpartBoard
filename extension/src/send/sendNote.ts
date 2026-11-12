@@ -18,6 +18,7 @@ const WHY: Record<ApiFailure | 'blocked', string> = {
   'not-found': 'SpartBoard could not take this page.',
   offline:
     "Couldn't reach SpartBoard. Check your connection and send it again.",
+  'needs-update': 'Send to SpartBoard is not set up yet.',
   blocked: 'Your district turned off sending from this page.',
 };
 

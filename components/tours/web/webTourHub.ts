@@ -6,10 +6,12 @@ import {
   loadWebTourPicture,
 } from '@/components/tours/webTours';
 import type { WebTourMatch } from '@/components/tours/tourRuns';
-import type {
-  WebTourPictureBytes,
-  WebTourStartTour,
+import {
+  CROSS_SITE_PROTOCOL,
+  type WebTourPictureBytes,
+  type WebTourStartTour,
 } from './extensionProtocol';
+import { needsCrossSite, type WebTourSequenceStep } from './tourSequence';
 import type { WebTourPortEvent } from './extensionClient';
 import { buildStartTour } from './handoff';
 
@@ -20,10 +22,20 @@ export type HubStep = WebTourStep;
 export const hubStepsOf = (steps: readonly GuidedLearningStep[]): HubStep[] =>
   steps.filter((s): s is HubStep => !!s.web);
 
+/** Whether the hub can hand these steps over (X13, X14): `update` when only a newer extension plays them, `update-now` when this one can fetch it itself (X15). */
+export function hubGateOf(
+  protocol: number,
+  steps: readonly WebTourSequenceStep[]
+): 'play' | 'update' | 'update-now' {
+  const needed = needsCrossSite(steps) ? CROSS_SITE_PROTOCOL : 0;
+  if (protocol >= needed) return 'play';
+  return protocol >= CROSS_SITE_PROTOCOL ? 'update-now' : 'update';
+}
+
 /** Ignores extension events that name a step this tour doesn't have. */
 export function eventFitsTour(
   event: WebTourPortEvent,
-  steps: readonly HubStep[]
+  steps: readonly { id: string }[]
 ): boolean {
   if (event.type === 'web-tour/done') return true;
   if (event.stepIndex >= steps.length) return false;
@@ -63,13 +75,13 @@ const sniffMime = (b: Uint8Array): LoadedPicture['mime'] | null => {
 /** Each step's picture, read through the SDK; a picture outside this tour's folder is skipped. */
 export async function loadPictures(
   setId: string,
-  steps: readonly HubStep[],
+  steps: readonly WebTourSequenceStep[],
   read: (path: string) => Promise<ArrayBuffer> = loadWebTourPicture
 ): Promise<Map<string, LoadedPicture>> {
   const out = new Map<string, LoadedPicture>();
   await Promise.all(
     steps.map(async (step) => {
-      const pic = step.web.picture;
+      const pic = step.web?.picture;
       if (!pic || !isWebTourPicturePath(setId, pic.path)) return;
       try {
         const bytes = new Uint8Array(await read(pic.path));
@@ -98,7 +110,7 @@ export function buildHandoff(
   setId: string,
   version: number,
   title: string,
-  steps: readonly HubStep[],
+  steps: readonly WebTourSequenceStep[],
   pictures: ReadonlyMap<string, LoadedPicture>,
   scored = false,
   withConditions = false

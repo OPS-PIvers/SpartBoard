@@ -9,6 +9,7 @@ import {
   WEB_TOUR_PORT,
   type ExtensionInstall,
   type ExtensionProfile,
+  type ExtensionUpdateStatus,
   type WebTourCheckProgress,
   type WebTourProgressMessage,
   type WebTourStartTour,
@@ -177,6 +178,18 @@ export async function openWebTour(setId: string): Promise<StartResult> {
         ? reply.error
         : 'no-reply',
   };
+}
+
+/** Asks the extension to update itself (X15); null when it didn't answer, as when it reloads first. */
+export async function updateExtension(): Promise<ExtensionUpdateStatus | null> {
+  const reply = await send({ type: 'extension/update' }, 30_000);
+  return isRecord(reply) &&
+    reply.ok === true &&
+    (reply.update === 'available' ||
+      reply.update === 'none' ||
+      reply.update === 'throttled')
+    ? reply.update
+    : null;
 }
 
 /** Whether a staff profile's extension can be signed in from the page (protocol 11). */
