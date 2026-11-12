@@ -116,14 +116,35 @@ jobs:
                   per_page: 5,
                 })
               ).data.workflow_runs;
+            // A run counts once every check job passed or was skipped; its deploy jobs may fail (a Google 503) or still be going.
+            const checksPassed = async (run) => {
+              if (run.conclusion === 'success') return true;
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+                filter: 'latest',
+                per_page: 100,
+              });
+              const checks = jobs.filter((j) => !/^deploy/.test(j.name));
+              return (
+                checks.some((j) => j.conclusion === 'success') &&
+                checks.every((j) => j.status === 'completed' && ['success', 'skipped'].includes(j.conclusion))
+              );
+            };
+            const findPassed = async (runs) => {
+              for (const r of runs) if (await checksPassed(r)) return r;
+              return undefined;
+            };
             // A release PR is usually opened while dev-paul's own run is still going: wait up to 25 min for it.
             let runs = await list();
-            for (let i = 0; i < 50 && !runs.some((r) => r.conclusion === 'success') && runs.some((r) => r.status !== 'completed'); i++) {
+            let run = await findPassed(runs);
+            for (let i = 0; i < 50 && !run && runs.some((r) => r.status !== 'completed'); i++) {
               core.info(`Waiting for the in-progress dev-branch run on ${headSha}...`);
               await new Promise((r) => setTimeout(r, 30000));
               runs = await list();
+              run = await findPassed(runs);
             }
-            const run = runs.find((r) => r.conclusion === 'success');
             if (run) {
               core.info(`Reusing dev-branch validation for ${headSha}: ${run.html_url}`);
               await core.summary
