@@ -238,6 +238,29 @@ describe('public link parity', () => {
     ]);
   });
 
+  it('counts only targeted steps toward the public step limit', () => {
+    const targeted = Array.from({ length: 200 }, (_, i) => ({
+      id: `t${i}`,
+      label: 't',
+      text: 't',
+      web: { urlPattern: 'https://claude.ai/x', action: 'observe' },
+    }));
+    const set = (extra: object[]) =>
+      ({
+        id: 'x3',
+        title: 'Long',
+        surface: 'web',
+        steps: [...targeted, ...extra],
+      }) as unknown as GuidedLearningSet;
+    const message = { id: 'm', label: 'm', text: 'm', message: true };
+    expect(publicTourOf('x3', set([message]), BUCKET)?.tour.steps).toHaveLength(
+      201
+    );
+    expect(
+      publicTourOf('x3', set([{ ...targeted[0], id: 'extra' }]), BUCKET)
+    ).toBeNull();
+  });
+
   it('draws Live steps the way the function serves them', () => {
     const app = stepsFromLiveTour(liveTour).steps;
     const served = publicTourOf('l1', liveTour, BUCKET)?.tour.steps;

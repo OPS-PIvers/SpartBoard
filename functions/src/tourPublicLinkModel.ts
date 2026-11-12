@@ -350,7 +350,8 @@ export function publicTourOf(
   if (!set || !kind) return null;
   const sources: PublicPictureSources = new Map();
   const raw = kind === 'web' ? webSteps(set) : liveSteps(set);
-  if (raw.length > MAX_PUBLIC_STEPS) return null;
+  // Message steps carry no picture, so only the other steps count toward the cap.
+  if (raw.filter((s) => !isMessage(s)).length > MAX_PUBLIC_STEPS) return null;
   const steps: PublicStep[] = [];
   const served = raw.filter((s) => PUBLIC_STEP_ID_RE.test(str(s.id)));
   const joins =
