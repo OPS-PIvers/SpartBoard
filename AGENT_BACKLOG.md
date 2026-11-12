@@ -212,6 +212,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-kwulpx
+
 claude/tour-anchors-2026-11-12
 nightly/debugger-log-2026-11-12
 nightly/admin-config-2026-11-12
