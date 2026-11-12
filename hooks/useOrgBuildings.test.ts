@@ -4,14 +4,8 @@ import React from 'react';
 import { useOrgBuildings } from './useOrgBuildings';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import type { User } from 'firebase/auth';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import type { BuildingRecord } from '@/types/organization';
 
 vi.mock('firebase/firestore', () => ({
@@ -21,6 +15,10 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
+}));
+
+vi.mock('@/utils/orgAdminClient', () => ({
+  callOrgAdmin: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -57,9 +55,7 @@ describe('useOrgBuildings', () => {
   const mockCollection = collection as Mock;
   const mockOnSnapshot = onSnapshot as Mock;
   const mockDoc = doc as Mock;
-  const mockSetDoc = setDoc as Mock;
-  const mockUpdateDoc = updateDoc as Mock;
-  const mockDeleteDoc = deleteDoc as Mock;
+  const mockCall = callOrgAdmin as Mock;
 
   const withUser = makeAuthWrapper({ uid: 'u' });
   const withoutUser = makeAuthWrapper(null);
@@ -70,9 +66,7 @@ describe('useOrgBuildings', () => {
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
-    mockSetDoc.mockResolvedValue(undefined);
-    mockUpdateDoc.mockResolvedValue(undefined);
-    mockDeleteDoc.mockResolvedValue(undefined);
+    mockCall.mockResolvedValue(undefined);
   });
 
   it('skips subscription when orgId is null', () => {
@@ -328,10 +322,13 @@ describe('useOrgBuildings', () => {
       });
     });
 
-    expect(mockSetDoc).toHaveBeenCalledTimes(1);
-    const [ref, payload] = mockSetDoc.mock.calls[0] as [string, unknown];
-    expect(ref).toBe('organizations/orono/buildings/new-school');
-    expect(payload).toMatchObject({
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    const [req] = mockCall.mock.calls[0] as [
+      { action: string; orgId: string; record: unknown },
+    ];
+    expect(req.action).toBe('addBuilding');
+    expect(req.orgId).toBe('orono');
+    expect(req.record).toMatchObject({
       id: 'new-school',
       orgId: 'orono',
       name: 'New School',
@@ -358,10 +355,12 @@ describe('useOrgBuildings', () => {
       });
     });
 
-    expect(mockUpdateDoc).toHaveBeenCalledWith(
-      'organizations/orono/buildings/schumann',
-      { address: '456 Oak' }
-    );
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'updateBuilding',
+      orgId: 'orono',
+      id: 'schumann',
+      patch: { address: '456 Oak' },
+    });
   });
 
   it('removeBuilding deletes the doc', async () => {
@@ -375,9 +374,11 @@ describe('useOrgBuildings', () => {
       await result.current.removeBuilding('schumann');
     });
 
-    expect(mockDeleteDoc).toHaveBeenCalledWith(
-      'organizations/orono/buildings/schumann'
-    );
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'removeBuilding',
+      orgId: 'orono',
+      id: 'schumann',
+    });
   });
 
   it('writes reject when orgId is null', async () => {

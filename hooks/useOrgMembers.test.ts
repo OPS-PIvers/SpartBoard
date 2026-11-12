@@ -2,22 +2,19 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useOrgMembers } from './useOrgMembers';
 import { useAuth } from '@/context/useAuth';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  updateDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import { callOrgAdmin } from '@/utils/orgAdminClient';
 import type { MemberRecord } from '@/types/organization';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
   onSnapshot: vi.fn(),
-  updateDoc: vi.fn(),
-  writeBatch: vi.fn(),
+}));
+
+vi.mock('@/utils/orgAdminClient', () => ({
+  callOrgAdmin: vi.fn(),
 }));
 
 vi.mock('firebase/functions', () => ({
@@ -49,12 +46,7 @@ describe('useOrgMembers', () => {
   const mockCollection = collection as Mock;
   const mockOnSnapshot = onSnapshot as Mock;
   const mockDoc = doc as Mock;
-  const mockUpdateDoc = updateDoc as Mock;
-  const mockWriteBatch = writeBatch as Mock;
-  const batchUpdate = vi.fn();
-  const batchDelete = vi.fn();
-  const batchSet = vi.fn();
-  const batchCommit = vi.fn();
+  const mockCall = callOrgAdmin as Mock;
   const mockHttpsCallable = httpsCallable as Mock;
 
   beforeEach(() => {
@@ -63,17 +55,7 @@ describe('useOrgMembers', () => {
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
-    mockUpdateDoc.mockResolvedValue(undefined);
-    batchUpdate.mockReset();
-    batchDelete.mockReset();
-    batchSet.mockReset();
-    batchCommit.mockReset().mockResolvedValue(undefined);
-    mockWriteBatch.mockReturnValue({
-      update: batchUpdate,
-      delete: batchDelete,
-      set: batchSet,
-      commit: batchCommit,
-    });
+    mockCall.mockResolvedValue(undefined);
     // Default: any callable resolves with an empty activity payload. Tests that
     // exercise a specific callable (e.g. bulkInviteMembers) override this.
     mockHttpsCallable.mockReturnValue(
@@ -134,10 +116,12 @@ describe('useOrgMembers', () => {
       });
     });
 
-    expect(mockUpdateDoc).toHaveBeenCalledWith(
-      'organizations/orono/members/paul@x.com',
-      { roleId: 'teacher', status: 'inactive' }
-    );
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'updateMembers',
+      orgId: 'orono',
+      ids: ['paul@x.com'],
+      patch: { roleId: 'teacher', status: 'inactive' },
+    });
   });
 
   it('updateMember no-ops when patch is empty', async () => {
@@ -150,10 +134,10 @@ describe('useOrgMembers', () => {
       await result.current.updateMember('paul@x.com', {});
     });
 
-    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(mockCall).not.toHaveBeenCalled();
   });
 
-  it('bulkUpdateMembers batches writes via writeBatch', async () => {
+  it('bulkUpdateMembers sends every id in one server call', async () => {
     mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
@@ -165,38 +149,35 @@ describe('useOrgMembers', () => {
       });
     });
 
-    expect(mockWriteBatch).toHaveBeenCalledTimes(1);
-    expect(batchUpdate).toHaveBeenCalledTimes(2);
-    expect(batchUpdate).toHaveBeenCalledWith(
-      'organizations/orono/members/a@x.com',
-      { status: 'inactive' }
-    );
-    expect(batchUpdate).toHaveBeenCalledWith(
-      'organizations/orono/members/b@x.com',
-      { status: 'inactive' }
-    );
-    expect(batchCommit).toHaveBeenCalledTimes(1);
-    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(mockCall).toHaveBeenCalledTimes(1);
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'updateMembers',
+      orgId: 'orono',
+      ids: ['a@x.com', 'b@x.com'],
+      patch: { status: 'inactive' },
+    });
   });
 
-  it('bulkUpdateMembers chunks batches at the 400-op ceiling', async () => {
+  it('bulkUpdateMembers splits large selections into calls of 1,000', async () => {
     mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
     const { result } = renderHook(() => useOrgMembers('orono'));
 
-    const ids = Array.from({ length: 450 }, (_, i) => `u${i}@x.com`);
+    const ids = Array.from({ length: 1500 }, (_, i) => `u${i}@x.com`);
 
     await act(async () => {
       await result.current.bulkUpdateMembers(ids, { status: 'inactive' });
     });
 
-    expect(mockWriteBatch).toHaveBeenCalledTimes(2);
-    expect(batchUpdate).toHaveBeenCalledTimes(450);
-    expect(batchCommit).toHaveBeenCalledTimes(2);
+    expect(mockCall).toHaveBeenCalledTimes(2);
+    const sizes = mockCall.mock.calls.map(
+      (c) => (c[0] as { ids: string[] }).ids.length
+    );
+    expect(sizes).toEqual([1000, 500]);
   });
 
-  it('removeMembers batches deletes via writeBatch', async () => {
+  it('removeMembers sends the ids to the server, which also writes the tombstones', async () => {
     mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
@@ -206,35 +187,11 @@ describe('useOrgMembers', () => {
       await result.current.removeMembers(['a@x.com', 'b@x.com']);
     });
 
-    expect(mockWriteBatch).toHaveBeenCalledTimes(1);
-    expect(batchDelete).toHaveBeenCalledTimes(2);
-    expect(batchDelete).toHaveBeenCalledWith(
-      'organizations/orono/members/a@x.com'
-    );
-    expect(batchDelete).toHaveBeenCalledWith(
-      'organizations/orono/members/b@x.com'
-    );
-    expect(batchSet).toHaveBeenCalledTimes(2);
-    expect(batchSet).toHaveBeenCalledWith(
-      'organizations/orono/removedMembers/a@x.com',
-      { removedAt: expect.any(String) as string }
-    );
-    expect(batchCommit).toHaveBeenCalledTimes(1);
-  });
-
-  it('removeMembers keeps each batch under 500 writes (delete + tombstone per id)', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
-    mockOnSnapshot.mockReturnValue(() => undefined);
-    const { result } = renderHook(() => useOrgMembers('orono'));
-    const ids = Array.from({ length: 300 }, (_, i) => `u${i}@x.com`);
-    await act(async () => {
-      await result.current.removeMembers(ids);
+    expect(mockCall).toHaveBeenCalledWith({
+      action: 'removeMembers',
+      orgId: 'orono',
+      ids: ['a@x.com', 'b@x.com'],
     });
-    expect(mockWriteBatch).toHaveBeenCalledTimes(2);
-    expect(batchDelete.mock.calls.length + batchSet.mock.calls.length).toBe(
-      600
-    );
-    expect(batchCommit).toHaveBeenCalledTimes(2);
   });
 
   it('inviteMembers calls the createOrganizationInvites callable with the correct payload', async () => {

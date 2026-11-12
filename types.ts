@@ -6335,6 +6335,8 @@ export interface QuizResponse extends StaffResponseFields {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /** 'reopen' when a teacher reopened a turned-in attempt; that unlock skips the one-exit submit. */
+  unlockKind?: 'reopen';
   /**
    * Set by `importPaperResponsesV1` on a response read from a scanned answer
    * sheet. Its presence is the paper-sourced flag: no speed or streak bonus,
@@ -11262,6 +11264,8 @@ export type GlobalFeature =
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
+  /** Teachers reopen a student's turned-in quiz so they keep working on the same answers. */
+  | 'quiz-reopen-submission'
   /** Quiz answers of every type: a picture on each, plus pasting images into a question. */
   | 'quiz-ordering-images'
   /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */

@@ -56,18 +56,18 @@ export const StimulusTabsPanel: React.FC<{
   const tabCls = (selected: boolean) =>
     selected
       ? light
-        ? 'bg-white text-brand-blue-primary border-slate-300 border-b-white'
-        : 'bg-slate-800 text-white border-slate-600 border-b-slate-800'
+        ? 'bg-white text-brand-blue-primary shadow-sm'
+        : 'bg-slate-600 text-white shadow-sm'
       : light
-        ? 'bg-slate-100 text-slate-600 border-transparent hover:text-slate-900'
-        : 'bg-slate-900/60 text-slate-300 border-transparent hover:text-white';
+        ? 'text-slate-600 hover:text-slate-900'
+        : 'text-slate-300 hover:text-white';
 
   return (
     <div className="flex-1 min-h-[280px] flex flex-col">
       <div
         role="tablist"
         aria-label={t('quizStimulusTabs.sources', 'Sources')}
-        className={`flex gap-1 overflow-x-auto shrink-0 border-b ${light ? 'border-slate-300' : 'border-slate-600'}`}
+        className={`flex gap-1 p-1 max-w-full self-start overflow-x-auto overflow-y-hidden shrink-0 rounded-xl ${light ? 'bg-slate-200/70' : 'bg-slate-800'}`}
       >
         {stimuli.map((s, i) => {
           const selected = s.id === active;
@@ -86,7 +86,7 @@ export const StimulusTabsPanel: React.FC<{
               tabIndex={selected ? 0 : -1}
               onClick={() => setChosen(s.id)}
               onKeyDown={(e) => onKeyDown(e, i)}
-              className={`shrink-0 min-h-[44px] px-4 -mb-px rounded-t-xl border text-sm font-bold whitespace-nowrap transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${tabCls(selected)}`}
+              className={`shrink-0 min-h-[44px] px-4 rounded-lg text-sm font-bold whitespace-nowrap transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${tabCls(selected)}`}
             >
               {labels[i]}
             </button>
@@ -100,9 +100,7 @@ export const StimulusTabsPanel: React.FC<{
           id={`${baseId}-panel-${i}`}
           aria-labelledby={`${baseId}-tab-${i}`}
           hidden={s.id !== active}
-          className={
-            s.id === active ? 'flex-1 min-h-[280px] flex flex-col pt-3' : ''
-          }
+          className={s.id === active ? 'flex-1 min-h-0 flex flex-col pt-3' : ''}
         >
           {renderStimulus(s)}
         </div>

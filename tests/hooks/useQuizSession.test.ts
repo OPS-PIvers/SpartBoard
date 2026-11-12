@@ -4816,3 +4816,69 @@ describe('useQuizSessionTeacher — per-period content', () => {
     expect(result.current.session?.publicQuestions).toHaveLength(1);
   });
 });
+
+describe('useQuizSessionTeacher — reopenStudentAttempt vs unlockStudentAttempt', () => {
+  let env: TeacherMockEnv;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    env = setupTeacherMocks();
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { exists: () => false }
+    );
+  });
+
+  function mountWithTurnedIn() {
+    const hook = renderHook(() => useQuizSessionTeacher('sess-1'));
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => buildSession({ status: 'active' }),
+      });
+    });
+    act(() => {
+      env.responsesCallback?.({
+        docs: buildResponseDocs([
+          {
+            id: 'stu-1',
+            data: {
+              studentUid: 'stu-1',
+              status: 'completed',
+              answers: [{ questionId: 'q1', answer: 'a' }],
+              completedAttempts: 1,
+            } as unknown as QuizResponse,
+          },
+        ]),
+      });
+    });
+    return hook;
+  }
+
+  it('reopen keeps answers, refunds the attempt and marks the unlock as a reopen', async () => {
+    const { result } = mountWithTurnedIn();
+    await act(async () => {
+      await result.current.reopenStudentAttempt('stu-1');
+    });
+    const patch = env.batch.update.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch).toMatchObject({
+      status: 'in-progress',
+      completedAttempts: 0,
+      unlocked: true,
+      unlockKind: 'reopen',
+    });
+    expect(patch).not.toHaveProperty('answers');
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlock clears a leftover reopen marker so the one-exit rule applies', async () => {
+    const { result } = mountWithTurnedIn();
+    await act(async () => {
+      await result.current.unlockStudentAttempt('stu-1');
+    });
+    const patch = env.batch.update.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch).toMatchObject({
+      unlocked: true,
+      unlockKind: DELETE_FIELD_SENTINEL,
+    });
+  });
+});
