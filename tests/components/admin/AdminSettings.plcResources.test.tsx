@@ -76,6 +76,9 @@ vi.mock('@/components/admin/PresetSubEmailsManager', () => ({
 vi.mock('@/components/admin/PlcResourcesManager/PlcResourcesManager', () => ({
   PlcResourcesManager: () => <div data-testid="plc-resources-manager" />,
 }));
+vi.mock('@/components/admin/HelpCenter/HelpCenterManager', () => ({
+  HelpCenterManager: () => <div data-testid="help-center-manager" />,
+}));
 
 import { AdminSettings } from '@/components/admin/AdminSettings';
 
@@ -152,5 +155,33 @@ describe('AdminSettings — PLC Resources tab wiring', () => {
     } finally {
       Object.assign(auth, { isAdmin: true, roleId: null, orgId: 'orono' });
     }
+  });
+});
+
+describe('AdminSettings — tab requests (Help Center round trip)', () => {
+  it('opens on the requested tab and remembers it for a reload', () => {
+    window.localStorage.setItem('spart.adminSettings.lastTab', 'widgets');
+    try {
+      render(
+        <AdminSettings onClose={vi.fn()} tabRequest={{ tab: 'help-center' }} />
+      );
+      expect(screen.getByTestId('help-center-manager')).toBeInTheDocument();
+      expect(window.localStorage.getItem('spart.adminSettings.lastTab')).toBe(
+        'help-center'
+      );
+    } finally {
+      window.localStorage.removeItem('spart.adminSettings.lastTab');
+    }
+  });
+
+  it('switches an open Admin Settings to a new request', () => {
+    const { rerender } = render(<AdminSettings onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: /plc resources/i }));
+    expect(screen.getByTestId('plc-resources-manager')).toBeInTheDocument();
+    rerender(
+      <AdminSettings onClose={vi.fn()} tabRequest={{ tab: 'help-center' }} />
+    );
+    expect(screen.getByTestId('help-center-manager')).toBeInTheDocument();
+    window.localStorage.removeItem('spart.adminSettings.lastTab');
   });
 });

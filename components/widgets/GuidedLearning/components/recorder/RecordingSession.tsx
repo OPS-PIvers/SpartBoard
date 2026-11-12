@@ -25,6 +25,13 @@ import { boardLayoutOf, type RecordedBoardWidget } from './recordedLayouts';
 import type { UnmappedQueueEntry } from '@/components/tours/anchorQueue';
 import { enqueueUnmappedAnchors } from '@/components/tours/anchorQueueStore';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
+import {
+  requestOpenHelpCenter,
+  type TourOrigin,
+} from '@/components/tours/tourState';
+import { noteFiledHelpItem } from '@/components/tours/helpCenterReturn';
+import { createHiddenHelpItem, type HelpAuthor } from '@/utils/helpCenterItems';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 
 type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
 
@@ -47,14 +54,17 @@ const newId = () =>
 
 interface RecordingSessionProps {
   onEnd: () => void;
+  /** Where the recording started; a Help Center start goes back there when it ends (H13). */
+  origin?: TourOrigin;
 }
 
 /** Start, record, review, upload and open in the board editor: one real-board tour recording. */
 export const RecordingSession: React.FC<RecordingSessionProps> = ({
   onEnd,
+  origin = 'widget',
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, userRoles, roleId, orgId } = useAuth();
   const canDraftText =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('guided-learning-ai');
@@ -74,6 +84,8 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
     queue: UnmappedQueueEntry[];
   } | null>(null);
   const queued = useRef(false);
+  // The Help Center item is filed once; a Retry after a later failure reuses it.
+  const filed = useRef<string | null>(null);
   const [setId] = useState(newId);
 
   const rosters = dashboard?.rosters ?? [];
@@ -82,6 +94,52 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   boardRef.current = dashboard?.activeDashboard?.widgets ?? [];
   const snapshot = () => boardLayoutOf(boardRef.current);
+
+  // Ending without saving still takes a Help Center start back to Admin Settings.
+  const cancel = () => {
+    onEnd();
+    if (origin === 'help-center') requestOpenHelpCenter();
+  };
+
+  // Every recording gets its Help Center item, Hidden and Unfiled (H1); a failure keeps the saved tour.
+  const fileInHelpCenter = async (set: GuidedLearningSet) => {
+    if (filed.current || !user) return;
+    const author: HelpAuthor = {
+      uid: user.uid,
+      email: user.email ?? null,
+      orgId: orgId ?? null,
+      isSuperAdmin: isSuperAdminActor(
+        user.email,
+        userRoles?.superAdmins,
+        roleId,
+        orgId
+      ),
+    };
+    if (!author.isSuperAdmin && !author.orgId) {
+      dashboard?.addToast(
+        t('glRecorder.helpCenterNoOrg', {
+          defaultValue:
+            'The tour is saved, but you need an organization to add it to the Help Center.',
+        }),
+        'error'
+      );
+      return;
+    }
+    try {
+      const item = await createHiddenHelpItem(set, author);
+      filed.current = item.id;
+      noteFiledHelpItem(set.id, item.id);
+    } catch (err) {
+      console.error('[TourRecorder] Filing the Help Center item failed:', err);
+      dashboard?.addToast(
+        t('glRecorder.helpCenterFailed', {
+          defaultValue:
+            "The tour is saved, but it couldn't be added to the Help Center.",
+        }),
+        'error'
+      );
+    }
+  };
 
   const begin = () => {
     // Built once, before recording starts; the roster names never leave this matcher.
@@ -112,8 +170,9 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
           console.error('[TourRecorder] Queueing untagged clicks failed:', err)
         );
       }
+      await fileInHelpCenter(set);
       onEnd();
-      requestEditTour({ setId: set.id });
+      requestEditTour({ setId: set.id, origin });
     } catch (err) {
       console.error('[TourRecorder] Saving the recorded set failed:', err);
       setError(t('glRecorder.saveFailed'));
@@ -220,9 +279,9 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
                 startBoard,
                 endBoard: snapshot(),
               })
-            : onEnd()
+            : cancel()
         }
-        onDiscard={onEnd}
+        onDiscard={cancel}
       />
     );
   }
@@ -240,7 +299,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
             title: t('glRecorder.reviewDiscard'),
             variant: 'danger',
             confirmLabel: t('glRecorder.reviewDiscard'),
-          }).then((ok) => ok && onEnd())
+          }).then((ok) => ok && cancel())
         }
       />
     );
@@ -303,7 +362,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={onEnd}
+            onClick={cancel}
             className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
           >
             {t('glRecorder.cancel')}
