@@ -10,8 +10,12 @@ const isDialogLayer = (el: Element): el is HTMLElement =>
   (el.dataset.tourDialogLift !== undefined ||
     getComputedStyle(el).zIndex === String(Z_INDEX.dialog));
 
+// The visible panel: an inner dialog, else the last child (backdrop buttons and close icons come first).
+const panelOf = (el: HTMLElement): Element =>
+  el.querySelector('[role="dialog"]') ?? el.lastElementChild ?? el;
+
 const panelBox = (el: HTMLElement): Box | null => {
-  const r = (el.firstElementChild ?? el).getBoundingClientRect();
+  const r = panelOf(el).getBoundingClientRect();
   return r.width > 0 && r.height > 0
     ? { x: r.x, y: r.y, w: r.width, h: r.height }
     : null;
@@ -44,12 +48,12 @@ export function useDialogLift(active: boolean): Box[] {
         lifted.set(el, el.style.zIndex);
         el.dataset.tourDialogLift = '';
         el.style.zIndex = String(Z_INDEX.tourLift);
-        sizes?.observe(el.firstElementChild ?? el);
+        sizes?.observe(panelOf(el));
       }
       for (const el of lifted.keys()) {
         if (el.isConnected) continue;
         lifted.delete(el);
-        sizes?.unobserve(el.firstElementChild ?? el);
+        sizes?.unobserve(panelOf(el));
       }
       const next = layers.flatMap((el) => panelBox(el) ?? []);
       setBoxes((cur) => (sameBoxes(cur, next) ? cur : next));
