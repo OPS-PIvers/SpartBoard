@@ -15944,6 +15944,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.annotate-copy",
+    "label": "Copy selected or highlighted text in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.annotate-close",
     "label": "Close annotation editor in the Quiz grader",
     "scope": "widget type",
@@ -17442,6 +17467,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.copy-response",
+    "label": "Copy the whole student response in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
     "keys": [
       "quiz"
     ],

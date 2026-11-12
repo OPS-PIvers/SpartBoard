@@ -2686,6 +2686,9 @@
         "spoken": "Gesprochen",
         "whiteboard": "Whiteboard"
       },
+      "copy": "Kopieren",
+      "copyResponse": "Antwort kopieren",
+      "copied": "Kopiert",
       "responseLabel": "Antwort des Schülers",
       "timedOutUnderMinimum": "Zeit abgelaufen unter dem Minimum",
       "noTextAnswer": "Der Schüler hat diese Frage nicht beantwortet.",

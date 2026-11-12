@@ -3833,6 +3833,11 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-grading.annotate-copy': {
+    label: 'Copy selected or highlighted text in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.annotate-close': {
     label: 'Close annotation editor in the Quiz grader',
     perWidgetType: true,
@@ -4152,6 +4157,11 @@ export const TOUR_ANCHORS = {
     label: 'Points input in the Quiz grader',
     perWidgetType: true,
     persists: true,
+    panel: true,
+  },
+  'quiz-grading.copy-response': {
+    label: 'Copy the whole student response in the Quiz grader',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-grading.comment': {
