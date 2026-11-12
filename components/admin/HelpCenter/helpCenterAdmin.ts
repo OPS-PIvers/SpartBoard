@@ -1,62 +1,33 @@
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
 import type { User } from 'firebase/auth';
+import type { GuidedLearningSet } from '@/types';
 
 export const HELP_RESOURCES_COLLECTION = 'help_resources';
 
-export interface HelpItemDraft {
-  kind: HelpResourceItem['kind'];
-  title: string;
-  description: string;
-  categoryId: string;
-  widgetTypes: HelpResourceItem['widgetTypes'];
-  visible: boolean;
-  url: string | null;
-  embedType: HelpResourceItem['embedType'];
-  setId: string | null;
-}
+export type HelpItemFieldPatch = Partial<
+  Pick<
+    HelpResourceItem,
+    'title' | 'description' | 'categoryId' | 'widgetTypes' | 'visible' | 'order'
+  >
+>;
 
-// Field list must match the rules `hasOnly` allowlist exactly.
-export const buildHelpItemCreatePayload = (
-  draft: HelpItemDraft,
-  opts: {
-    id: string;
-    orgId: string | null;
-    user: Pick<User, 'uid' | 'email'>;
-    order: number;
-  }
-): Record<string, unknown> => ({
+// Updates never carry openCount, orgId or createdBy: the rules reject those.
+export const buildHelpItemFieldsPayload = (
+  patch: HelpItemFieldPatch
+): Record<string, unknown> => ({ ...patch, updatedAt: Date.now() });
+
+// orgId can't change on update, so a scope change recreates the item under a new id.
+export const buildScopeMovePayload = (
+  item: HelpResourceItem,
+  opts: { id: string; orgId: string | null; user: Pick<User, 'uid' | 'email'> }
+): HelpResourceItem => ({
+  ...item,
   id: opts.id,
-  kind: draft.kind,
-  title: draft.title.trim(),
-  description: draft.description.trim(),
-  categoryId: draft.categoryId,
-  order: opts.order,
-  visible: draft.visible,
   orgId: opts.orgId,
-  widgetTypes: draft.widgetTypes,
-  url: draft.kind === 'embed' ? draft.url : null,
-  embedType: draft.kind === 'embed' ? draft.embedType : null,
-  setId: draft.kind === 'guided-learning' ? draft.setId : null,
   openCount: 0,
   createdBy: opts.user.uid,
   createdByEmail: opts.user.email ?? '',
   createdAt: Date.now(),
-  updatedAt: Date.now(),
-});
-
-// Updates never carry openCount, orgId or createdBy — the rules reject those.
-export const buildHelpItemUpdatePayload = (
-  draft: HelpItemDraft
-): Record<string, unknown> => ({
-  kind: draft.kind,
-  title: draft.title.trim(),
-  description: draft.description.trim(),
-  categoryId: draft.categoryId,
-  visible: draft.visible,
-  widgetTypes: draft.widgetTypes,
-  url: draft.kind === 'embed' ? draft.url : null,
-  embedType: draft.kind === 'embed' ? draft.embedType : null,
-  setId: draft.kind === 'guided-learning' ? draft.setId : null,
   updatedAt: Date.now(),
 });
 
@@ -82,11 +53,6 @@ export const buildVisibilityPayload = (
   visible: boolean
 ): Record<string, unknown> => ({ visible, updatedAt: Date.now() });
 
-export const buildOrderPayload = (order: number): Record<string, unknown> => ({
-  order,
-  updatedAt: Date.now(),
-});
-
 export const buildCategoriesPayload = (
   categories: HelpCategory[],
   uid: string
@@ -100,3 +66,20 @@ export const buildSeedPayload = (
   categories: HelpCategory[],
   uid: string
 ): Record<string, unknown> => buildCategoriesPayload(categories, uid);
+
+/** A blank building set filed in the Help Center, as New Picture guide starts it. */
+export const newPictureGuide = (
+  uid: string | undefined,
+  now = Date.now()
+): GuidedLearningSet => ({
+  id: crypto.randomUUID(),
+  title: '',
+  imageUrls: [],
+  steps: [],
+  mode: 'structured',
+  createdAt: now,
+  updatedAt: now,
+  authorUid: uid,
+  isBuilding: true,
+  helpCenter: true,
+});

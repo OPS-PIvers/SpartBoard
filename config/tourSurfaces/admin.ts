@@ -639,20 +639,29 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: [
       'components/admin/HelpCenter/HelpCenterManager.tsx',
-      'components/admin/HelpCenter/HelpCategoryEditor.tsx',
-      'components/admin/HelpCenter/LinkedLibrarySets.tsx',
+      'components/admin/HelpCenter/HelpItemList.tsx',
+      'components/admin/HelpCenter/HelpItemDetail.tsx',
     ],
     opensWith: 'admin.settings.tab:admin#help-center',
     needs: ['admin'],
+    inner: {
+      'admin.help-center.new-record-tour': 'admin.help-center.add-item',
+      'admin.help-center.new-move': 'admin.help-center.add-item',
+      'admin.help-center.new-picture-guide': 'admin.help-center.add-item',
+    },
   },
-  'admin.help-center.item-form': {
-    label: 'Help item editor',
+  'admin.help-center.move': {
+    label: 'Move from library',
     kind: 'modal',
-    files: [
-      'components/admin/HelpCenter/HelpItemForm.tsx',
-      'components/admin/HelpCenter/GuidedLearningPicker.tsx',
-    ],
-    opensWith: 'admin.help-center.add-item',
+    files: ['components/admin/HelpCenter/MoveFromLibraryDialog.tsx'],
+    opensWith: 'admin.help-center.new-move',
+    needs: ['admin'],
+  },
+  'admin.help-center.categories-dialog': {
+    label: 'Help Center categories',
+    kind: 'modal',
+    files: ['components/admin/HelpCenter/HelpCategoryEditor.tsx'],
+    opensWith: 'admin.help-center.categories',
     needs: ['admin'],
   },
   'admin.help-center.tour-health': {
@@ -663,7 +672,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/admin/HelpCenter/UnmappedAnchorsSection.tsx',
       'components/admin/HelpCenter/WebTourHealthSection.tsx',
     ],
-    opensWith: 'admin.help-center.tour-health-toggle',
+    opensWith: 'admin.help-center.show',
     needs: ['admin'],
   },
   'admin.standards': {
