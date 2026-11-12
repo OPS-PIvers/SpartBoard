@@ -379,16 +379,14 @@ describe('teacher and phone disagreement', () => {
 describe('hidden results and locked questions', () => {
   it('holds tallies back until the teacher reveals the question', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ hideResults: true, revealedQuestions: [] })),
-      'me'
+      ready('idle', makeSession({ hideResults: true, revealedQuestions: [] }))
     );
     expect(view.k === 'open' && view.ballot.resultsHidden).toBe(true);
   });
 
   it('shows revealed results to everyone', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ hideResults: true, revealedQuestions: [0] })),
-      'me'
+      ready('idle', makeSession({ hideResults: true, revealedQuestions: [0] }))
     );
     expect(view.k === 'open' && view.ballot).toMatchObject({
       resultsHidden: false,
@@ -398,14 +396,13 @@ describe('hidden results and locked questions', () => {
 
   it('closes a locked question without closing the session', () => {
     const session = makeSession({ lockedQuestions: [0] });
-    expect(derivePollPhoneView(ready('idle', session), 'me')).toMatchObject({
+    expect(derivePollPhoneView(ready('idle', session))).toMatchObject({
       k: 'closed',
       reason: 'locked',
     });
     expect(
       derivePollPhoneView(
-        ready('idle', { ...session, currentQuestionIndex: 1 }),
-        'me'
+        ready('idle', { ...session, currentQuestionIndex: 1 })
       ).k
     ).toBe('open');
   });
@@ -418,22 +415,20 @@ describe('hidden results and locked questions', () => {
 
 describe('shown answers', () => {
   it('keeps correct answers off the ballot until the teacher shows them', () => {
-    const view = derivePollPhoneView(ready('idle', makeSession()), 'me');
+    const view = derivePollPhoneView(ready('idle', makeSession()));
     expect(view.k === 'open' && view.ballot.correctIndexes).toBeNull();
   });
 
   it('marks the current question’s correct options once shown', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ shownAnswers: ['q1:o2', 'q2:o3'] })),
-      'me'
+      ready('idle', makeSession({ shownAnswers: ['q1:o2', 'q2:o3'] }))
     );
     expect(view.k === 'open' && view.ballot.correctIndexes).toEqual([1]);
   });
 
   it('ignores answer keys for options the session snapshot does not have', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ shownAnswers: ['q1:gone'] })),
-      'me'
+      ready('idle', makeSession({ shownAnswers: ['q1:gone'] }))
     );
     expect(view.k === 'open' && view.ballot.correctIndexes).toBeNull();
   });
