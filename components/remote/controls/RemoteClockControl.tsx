@@ -11,7 +11,7 @@ const ToggleRow: React.FC<{
   value: boolean;
   onToggle: () => void;
 }> = ({ label, value, onToggle }) => (
-  <button
+  <button /* no-tour-anchor: phone remote page, never on the board */
     onClick={onToggle}
     // touch-action:manipulation prevents the 300 ms ghost-click delay on mobile
     // and stops double-fire events that would immediately re-toggle the value.

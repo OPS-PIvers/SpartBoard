@@ -349,7 +349,7 @@ export const MobileRemoteView: React.FC = () => {
           paddingBottom: '0.5rem',
         }}
       >
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={() => {
             if (dashboards.length > 1 && dashboardIndex > 0) {
               handleLoadDashboard(dashboards[dashboardIndex - 1].id);
@@ -365,7 +365,7 @@ export const MobileRemoteView: React.FC = () => {
         </button>
 
         <div className="flex flex-col items-center gap-0.5">
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             type="button"
             onClick={() => setIsBoardPickerOpen(true)}
             aria-haspopup="dialog"
@@ -404,7 +404,7 @@ export const MobileRemoteView: React.FC = () => {
         </div>
 
         {/* Sync button — manually pull the latest board state from Firestore */}
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={handleSync}
           disabled={syncing}
           className="p-2 text-white/40 hover:text-white transition-colors disabled:opacity-40"
@@ -416,7 +416,7 @@ export const MobileRemoteView: React.FC = () => {
           />
         </button>
 
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={() => {
             if (
               dashboards.length > 1 &&
@@ -469,7 +469,7 @@ export const MobileRemoteView: React.FC = () => {
           }}
         >
           {remoteWidgets.map((_, i) => (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               key={i}
               onClick={() => scrollToIndex(i)}
               className={`rounded-full transition-all ${
@@ -502,7 +502,7 @@ export const MobileRemoteView: React.FC = () => {
               <span className="text-white font-black text-sm">
                 {t('remote.boardPicker.title')}
               </span>
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 type="button"
                 onClick={() => setIsBoardPickerOpen(false)}
                 aria-label={t('remote.boardPicker.close')}
@@ -515,7 +515,7 @@ export const MobileRemoteView: React.FC = () => {
               {dashboards.map((board) => {
                 const isActive = board.id === activeDashboard.id;
                 return (
-                  <button
+                  <button /* no-tour-anchor: phone remote page, never on the board */
                     key={board.id}
                     type="button"
                     aria-current={isActive ? 'true' : undefined}
