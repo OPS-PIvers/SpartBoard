@@ -456,6 +456,9 @@ interface QuizManagerProps {
   banksLoading?: boolean;
   /** Teammates' PLC-shared banks (kind 'plc'). */
   sharedBankSources?: BankSource[];
+  /** District library banks the teacher added (kind 'district'). */
+  districtBankSources?: BankSource[];
+  onRemoveDistrictBank?: (source: BankSource) => void | Promise<void>;
   onNewBank?: () => void;
   onImportBank?: () => void;
   /** Quizzes and banks the extension sent from Schoology, waiting for review. */
@@ -781,6 +784,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   banks,
   banksLoading = false,
   sharedBankSources,
+  districtBankSources,
+  onRemoveDistrictBank,
   onNewBank,
   onImportBank,
   schoologyInboxCount = 0,
@@ -2657,6 +2662,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         banks={banks}
         loading={banksLoading}
         sharedBankSources={sharedBankSources ?? []}
+        districtBankSources={districtBankSources}
+        onRemoveDistrictBank={onRemoveDistrictBank}
         plcs={plcs}
         shell={{
           widgetLabel: 'Quiz',

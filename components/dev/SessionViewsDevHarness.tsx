@@ -306,6 +306,7 @@ const SessionView: React.FC<{
         onResume={noop}
         onRemoveStudent={noop}
         onUnlockStudent={noop}
+        onReopenStudent={noop}
         onSubmitForStudent={noop}
         onUnlockResultsForStudent={noop}
         onRevealAnswer={noop}

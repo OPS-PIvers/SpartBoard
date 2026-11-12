@@ -17,7 +17,7 @@ import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { studentCanEnter } from '@/utils/periodAccess';
-import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
+import { canTeacherSubmit, isTabLockedOut } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
 import { MonitorFilterBy, MonitorSortBy, orderRoster } from './monitorUtils';
@@ -58,6 +58,8 @@ interface RosterListProps {
   onUpdateConfig: (updates: Partial<QuizConfig>) => void;
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
+  /** Reopens a turned-in attempt with its answers kept. */
+  onReopen?: (key: string) => void;
   /** Turns in a student's saved answers for them. */
   onSubmitForStudent?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
@@ -104,6 +106,7 @@ const RowMenu: React.FC<{
   now: number;
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
+  onReopen?: (key: string) => void;
   onSubmitForStudent?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onLetIn?: (studentUid: string) => void;
@@ -116,6 +119,7 @@ const RowMenu: React.FC<{
   now,
   onRemove,
   onUnlockAttempt,
+  onReopen,
   onSubmitForStudent,
   onUnlockResults,
   onLetIn,
@@ -131,13 +135,15 @@ const RowMenu: React.FC<{
     overridesBySourcedId,
     targetRefKeyByStudentUid
   );
+  const tabLocked = isTabLockedOut(r, tabThreshold);
   const locked =
     !r.unlocked &&
-    ((r.status === 'completed' &&
-      hasReachedTabWarningThreshold(r.tabSwitchWarnings ?? 0, tabThreshold)) ||
+    (tabLocked ||
       (typeof attemptLimit === 'number' &&
         attemptLimit > 0 &&
         (r.completedAttempts ?? 0) >= attemptLimit));
+  // A turned-in attempt reopens without the one-exit rule; a tab lockout still unlocks with it.
+  const canReopen = !!onReopen && r.status === 'completed' && !tabLocked;
 
   const items: RosterMenuItem[] = [];
   if (
@@ -161,7 +167,14 @@ const RowMenu: React.FC<{
       onClick: () => onOpenPart(student.key, part),
     });
   }
-  if (locked && onUnlockAttempt)
+  if (canReopen)
+    items.push({
+      label: 'Reopen',
+      closes: true,
+      tour: tourTypeAttr('quiz-monitor.student-reopen', 'quiz'),
+      onClick: () => onReopen?.(student.key),
+    });
+  else if (locked && onUnlockAttempt)
     items.push({
       label: 'Unlock attempt',
       tour: tourTypeAttr('quiz-monitor.student-unlock-attempt', 'quiz'),
@@ -211,6 +224,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUpdateConfig,
   onRemove,
   onUnlockAttempt,
+  onReopen,
   onSubmitForStudent,
   onUnlockResults,
   onClearHand,
@@ -517,6 +531,7 @@ export const RosterList: React.FC<RosterListProps> = ({
               onOpenPart={onOpenPart}
               onRemove={onRemove}
               onUnlockAttempt={onUnlockAttempt}
+              onReopen={onReopen}
               onSubmitForStudent={onSubmitForStudent}
               onUnlockResults={onUnlockResults}
               overridesBySourcedId={overridesBySourcedId}

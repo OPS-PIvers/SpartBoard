@@ -50,14 +50,14 @@ export const RemoteChecklistControl: React.FC<RemoteChecklistControlProps> = ({
           </span>
         </div>
         <div className="flex gap-2">
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={checkAll}
             className="touch-manipulation px-3 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-bold transition-all active:scale-95"
             aria-label="Check all"
           >
             All Done
           </button>
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={resetAll}
             className="touch-manipulation flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white/60 text-xs font-bold transition-all active:scale-95"
             aria-label="Reset all"
@@ -75,7 +75,7 @@ export const RemoteChecklistControl: React.FC<RemoteChecklistControlProps> = ({
       ) : (
         <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
           {items.map((item) => (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               key={item.id}
               onClick={() => toggleItem(item.id)}
               className={`touch-manipulation flex items-center gap-3 w-full px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.98] ${

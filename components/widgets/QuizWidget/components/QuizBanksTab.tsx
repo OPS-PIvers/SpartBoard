@@ -58,6 +58,9 @@ export interface QuizBanksTabProps {
   loading: boolean;
   /** Teammates' shared banks (kind 'plc'); own banks are excluded upstream. */
   sharedBankSources: BankSource[];
+  /** District library banks the teacher added (kind 'district'); read-only. */
+  districtBankSources?: BankSource[];
+  onRemoveDistrictBank?: (source: BankSource) => void | Promise<void>;
   plcs: readonly Plc[];
   shell: Pick<
     LibraryShellProps,
@@ -107,6 +110,7 @@ const SEARCH_FIELDS = (b: QuestionBankMetadata): string =>
 const INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const GET_ID = (b: QuestionBankMetadata): string => b.id;
+const NO_DISTRICT_BANKS: BankSource[] = [];
 const BANK_NOUN = ['question bank', 'question banks'] as const;
 
 const SORT_COMPARATORS: Record<
@@ -143,6 +147,8 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   banks,
   loading,
   sharedBankSources,
+  districtBankSources = NO_DISTRICT_BANKS,
+  onRemoveDistrictBank,
   plcs,
   shell,
   onNewBank,
@@ -431,6 +437,39 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     );
   };
 
+  const renderDistrictRow = (source: BankSource): React.ReactElement => (
+    <LibraryItemCard<BankSource>
+      key={source.key}
+      id={source.key}
+      title={source.title}
+      subtitle={
+        <span>
+          {plural(source.questionCount, 'question')} · Read-only
+          {source.unavailable ? ' · No longer shared with you' : ''}
+        </span>
+      }
+      badges={[{ label: 'District library', tone: 'info' }]}
+      secondaryActions={
+        onRemoveDistrictBank
+          ? [
+              {
+                id: 'remove-district-bank',
+                label: 'Remove from my banks',
+                icon: FolderMinus,
+                onClick: () =>
+                  void Promise.resolve(onRemoveDistrictBank(source)).catch(() =>
+                    onError?.('Could not remove that bank. Try again.')
+                  ),
+              },
+            ]
+          : []
+      }
+      viewMode="list"
+      sortable={false}
+      meta={source}
+    />
+  );
+
   const renderCard = (
     bank: QuestionBankMetadata,
     overlay = false,
@@ -565,6 +604,18 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     libraryView.state.search,
     folderIdOf
   ).map(({ source, key }) => renderSharedRow(source, key));
+  // District library banks list on the top level and in search, never inside a folder.
+  const districtQuery = libraryView.state.search.trim().toLowerCase();
+  const districtRows = districtBankSources
+    .filter((s) =>
+      districtQuery
+        ? s.title.toLowerCase().includes(districtQuery)
+        : !libraryView.folderView ||
+          libraryView.folderView.location.kind === 'all' ||
+          (libraryView.folderView.location.kind === 'folder' &&
+            libraryView.folderView.location.folderId === null)
+    )
+    .map(renderDistrictRow);
 
   const body = loading ? (
     <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary gap-3 py-10">
@@ -594,7 +645,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         }
         layout="list"
         emptyState={emptyState}
-        trailingRows={sharedRows}
+        trailingRows={[...sharedRows, ...districtRows]}
         useExternalDndContext={enableCardDrag}
         renderCard={(bank, index) => renderCard(bank, false, index)}
       />

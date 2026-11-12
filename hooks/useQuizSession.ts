@@ -1318,6 +1318,8 @@ export interface UseQuizSessionTeacherResult {
    * without showing the "Warning N of 3" modal.
    */
   unlockStudentAttempt: (responseKey: string) => Promise<void>;
+  /** Reopen a turned-in attempt with its answers kept and no one-exit submit rule. */
+  reopenStudentAttempt: (responseKey: string) => Promise<void>;
   /** Turn in a student's saved answers for them, as the idle auto-submit would. */
   submitForStudent: (responseKey: string) => Promise<void>;
   /**
@@ -1731,8 +1733,8 @@ export const useQuizSessionTeacher = (
     [sessionId, responses]
   );
 
-  const unlockStudentAttempt = useCallback(
-    async (responseKey: string) => {
+  const unlockOrReopen = useCallback(
+    async (responseKey: string, reopen: boolean) => {
       if (!sessionId) {
         throw new Error('No active session — cannot unlock.');
       }
@@ -1787,6 +1789,7 @@ export const useQuizSessionTeacher = (
         scoredOnSubmitAttempt: deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
+        unlockKind: reopen ? 'reopen' : deleteField(),
         // An attempt whose time already ran out reopens with a fresh limit.
         ...(clockRanOut
           ? { timeUp: deleteField(), attemptStartedAt: serverTimestamp() }
@@ -1808,6 +1811,14 @@ export const useQuizSessionTeacher = (
       await batch.commit();
     },
     [sessionId, responses, rawSession?.timeLimitMinutes, rawSession?.pauseSpans]
+  );
+  const unlockStudentAttempt = useCallback(
+    (responseKey: string) => unlockOrReopen(responseKey, false),
+    [unlockOrReopen]
+  );
+  const reopenStudentAttempt = useCallback(
+    (responseKey: string) => unlockOrReopen(responseKey, true),
+    [unlockOrReopen]
   );
 
   const submitForStudent = useCallback(
@@ -2008,6 +2019,7 @@ export const useQuizSessionTeacher = (
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    reopenStudentAttempt,
     submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
