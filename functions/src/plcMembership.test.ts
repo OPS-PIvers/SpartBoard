@@ -361,6 +361,19 @@ describe('planPlcChange', () => {
     expect(update).not.toHaveProperty('memberEmails');
   });
 
+  it('adminReassignLead refuses a map entry missing from memberUids', () => {
+    const data = plc({ memberUids: ['lead', 'mem'] });
+    expect(
+      reasonOf(() =>
+        planPlcChange(
+          data,
+          { action: 'adminReassignLead', plcId: 'p', uid: 'co' },
+          ctx('a', true)
+        )
+      )
+    ).toBe('targetNotActiveMember');
+  });
+
   it('adminSetMember with no email sent keeps the stored one', () => {
     const { update } = planPlcChange(
       plc(),

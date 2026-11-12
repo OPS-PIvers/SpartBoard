@@ -168,7 +168,7 @@ export function blankTypeUpdate(
       blankChoices: answers.map((answer, i) => {
         const kept = q.blankChoices?.[i]?.choices ?? [];
         return {
-          choices: kept.length > 0 ? kept : [answer, '', ''],
+          choices: kept.length > 0 ? kept : seededChoices(answer),
         };
       }),
     };
@@ -180,6 +180,13 @@ export function blankTypeUpdate(
         ? q.wordBank
         : [...answers.filter(Boolean), ''],
   };
+}
+
+/** Puts the answer in a random slot so a teacher who keeps the seed order doesn't give it away. */
+function seededChoices(answer: string): string[] {
+  const out = ['', '', ''];
+  out[Math.floor(Math.random() * out.length)] = answer;
+  return out;
 }
 
 /** True when the public question carries a usable dropdown or drag layout. */

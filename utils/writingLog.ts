@@ -204,6 +204,7 @@ export class WritingLogWriter {
   ): number {
     if (this.closed) return 0;
     const before = this.bytes;
+    const beforeLog = this.log;
     const dt = this.lastT === null ? 0 : Math.min(t - this.lastT, 86_400_000);
     // The box held something the log never saw: edits lost to a reload, or text set by a script.
     if (this.text !== prev)
@@ -212,6 +213,9 @@ export class WritingLogWriter {
     this.push(prev, next, dt, kind);
     this.lastT = t;
     if (this.bytes > WRITING_LOG_MAX || this.bytes - before > room) {
+      // Drop the edit that broke the budget so one huge paste can't bloat the response doc.
+      this.log = beforeLog;
+      this.bytes = before;
       this.append(END_MARK);
       this.closed = true;
     }

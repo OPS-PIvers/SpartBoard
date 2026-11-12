@@ -330,7 +330,11 @@ export function planPlcChange(
       const members = readMembersForWrite(data, ts);
       const fromUid = currentLead(data, members);
       const target = members[toUid];
-      if (!target || target.status !== 'active')
+      if (
+        !target ||
+        target.status !== 'active' ||
+        !strUids(data).includes(toUid)
+      )
         throw new MembershipError('targetNotActiveMember');
       if (toUid === fromUid) throw new MembershipError('alreadyLead');
       for (const [uid, m] of Object.entries(members)) {
