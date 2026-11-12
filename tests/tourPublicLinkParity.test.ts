@@ -193,6 +193,18 @@ describe('public link parity', () => {
     expect(pictureFingerprint(crossSite)).toBe(serverFingerprint(crossSite));
   });
 
+  it('keeps the divider when the endpoint skips a step with an unusable id', () => {
+    const odd = {
+      ...crossSite,
+      steps: (crossSite.steps as { id: string }[]).map((s) =>
+        s.id === 'b' ? { ...s, id: 'b.1' } : s
+      ),
+    } as unknown as GuidedLearningSet;
+    const served = publicTourOf('x1', odd, BUCKET)?.tour.steps;
+    expect(served?.map((s) => s.id)).toEqual(['m1', 'a', 'm2', 'c', 'm3']);
+    expect(served?.find((s) => s.id === 'c')?.continueOn).toBe('claude.ai');
+  });
+
   it('draws Live steps the way the function serves them', () => {
     const app = stepsFromLiveTour(liveTour).steps;
     const served = publicTourOf('l1', liveTour, BUCKET)?.tour.steps;

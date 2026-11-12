@@ -349,10 +349,11 @@ export function publicTourOf(
   const raw = kind === 'web' ? webSteps(set) : liveSteps(set);
   if (raw.length > MAX_PUBLIC_STEPS) return null;
   const steps: PublicStep[] = [];
-  const joins = kind === 'web' ? switchHosts(raw) : new Map<number, string>();
-  for (const [at, step] of raw.entries()) {
+  const served = raw.filter((s) => PUBLIC_STEP_ID_RE.test(str(s.id)));
+  const joins =
+    kind === 'web' ? switchHosts(served) : new Map<number, string>();
+  for (const [at, step] of served.entries()) {
     const id = str(step.id);
-    if (!PUBLIC_STEP_ID_RE.test(id)) continue;
     let picture: PublicStepPicture | null = null;
     let onlyIfAppears: boolean;
     let observe: boolean;
