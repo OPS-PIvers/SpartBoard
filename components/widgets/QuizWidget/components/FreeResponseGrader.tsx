@@ -1952,7 +1952,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           'quiz-grading.copy-response',
                           'quiz'
                         )}
-                        className="ml-auto inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30"
+                        className="touch-target-expand relative ml-auto inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30"
                       />
                     )}
                   </div>
