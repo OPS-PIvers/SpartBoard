@@ -17,7 +17,7 @@ const firestoreMocks = vi.hoisted(() => ({
   setDoc: vi.fn<(ref: unknown, data: Record<string, unknown>) => Promise<void>>(
     () => Promise.resolve(undefined)
   ),
-  getDoc: vi.fn(() =>
+  getDoc: vi.fn((_ref: { path?: string }) =>
     Promise.resolve({ exists: () => true, data: (): unknown => undefined })
   ),
   batchUpdate:
