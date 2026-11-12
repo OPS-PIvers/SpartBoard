@@ -64,6 +64,9 @@
       "closeMenu": "Fermer le menu",
       "back": "Retour",
       "adminSettings": "Paramètres admin",
+      "adminSettingsLoading": "Chargement des paramètres admin",
+      "adminSettingsLoadFailed": "Les paramètres admin ne se sont pas chargés.",
+      "adminSettingsReload": "Recharger la page",
       "enterFullscreen": "Plein écran",
       "exitFullscreen": "Quitter le plein écran",
       "annotateScreen": "Annoter l'écran",
@@ -2183,11 +2186,70 @@
       "barLabel": "Score moyen {{pct}} %"
     }
   },
+  "quizExplanations": {
+    "label": "Afficher les explications",
+    "hint": "Les élèves voient les explications avec les résultats publiés. Un changement s’applique à la prochaine publication.",
+    "heading": "Explication",
+    "placeholder": "Pourquoi la réponse est correcte",
+    "optionPlaceholder": "Pourquoi correcte ou incorrecte",
+    "optionLabel": "Explication pour {{option}}"
+  },
+  "quizDok": {
+    "level": "Niveau DOK",
+    "none": "Sans DOK",
+    "any": "Tout niveau DOK",
+    "levelOption": "DOK {{level}}",
+    "groupBy": "Regrouper par",
+    "target": "Objectif",
+    "dok": "DOK"
+  },
   "quizScoreOnSubmit": {
     "label": "Afficher le score à la remise",
     "on": "Les élèves voient leur score dès qu'ils remettent.",
     "off": "Les élèves voient leur score quand tu publies les résultats.",
     "unavailable": "Indisponible avec des questions à réponse libre."
+  },
+  "quizBlanks": {
+    "blankN": "Blanc {{n}}",
+    "theBlank": "Le blanc",
+    "yourAnswer": "Ta réponse",
+    "choose": "Choisir…",
+    "dropHere": "Dépose un mot ici",
+    "emptyBlank": "{{blank}}, vide",
+    "inBlank": "{{word}}, dans {{blank}}",
+    "inBank": "{{word}}, dans la banque de mots",
+    "wordBank": "Banque de mots",
+    "reset": "Réinitialiser",
+    "clearAll": "Vider tous les blancs",
+    "allPlaced": "Tous les mots sont placés.",
+    "picked": "{{word}} sélectionné. Choisis un blanc.",
+    "placed": "{{word}} placé dans {{blank}}.",
+    "returned": "{{word}} remis dans la banque de mots."
+  },
+  "quizReview": {
+    "reviewButton": "VÉRIFIER",
+    "reviewLink": "Vérifier",
+    "mark": "Marquer pour vérifier",
+    "marked": "Marquée pour vérifier",
+    "markedShort": "marquée pour vérifier",
+    "title": "Vérifie avant de rendre",
+    "answered": "Répondue",
+    "unanswered": "Sans réponse",
+    "locked": "Verrouillée",
+    "countAnswered_one": "{{count}} répondue",
+    "countAnswered_other": "{{count}} répondues",
+    "countUnanswered_one": "{{count}} sans réponse",
+    "countUnanswered_other": "{{count}} sans réponse",
+    "countMarked_one": "{{count}} marquée",
+    "countMarked_other": "{{count}} marquées",
+    "questionN": "Question {{n}}",
+    "backToLast": "Revenir à la dernière question",
+    "submit": "RENDRE LE QUIZ"
+  },
+  "quizStimulusTabs": {
+    "sources": "Sources",
+    "calculator": "Calculatrice",
+    "numbered": "Onglet {{n}}"
   },
   "quizTimeLimit": {
     "label": "Limite de temps",

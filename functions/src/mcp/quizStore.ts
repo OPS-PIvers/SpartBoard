@@ -548,6 +548,33 @@ export const stripUndefined = <T extends Record<string, unknown>>(
     Object.entries(value).filter(([, v]) => v !== undefined)
   ) as T;
 
+const markOf = (v: unknown): string | null => {
+  const id = (v as { districtItemId?: unknown } | null)?.districtItemId;
+  return typeof id === 'string' && id !== '' ? id : null;
+};
+
+/** District library origin, mirroring utils/districtLibraryOrigin.ts: it only grows, so a rewrite never clears it. */
+export function districtOriginFor(
+  content: QuizContent,
+  existing: Record<string, unknown> | null
+): string[] | undefined {
+  const ids = new Set<string>();
+  const prior = existing?.districtOrigin;
+  if (Array.isArray(prior)) {
+    for (const id of prior) if (typeof id === 'string' && id) ids.add(id);
+  }
+  for (const q of content.questions) {
+    const id = markOf(q);
+    if (id) ids.add(id);
+  }
+  const slots = Array.isArray(content.bankSlots) ? content.bankSlots : [];
+  for (const slot of slots) {
+    const id = markOf(slot);
+    if (id) ids.add(id);
+  }
+  return ids.size > 0 ? [...ids].sort() : undefined;
+}
+
 /** Mirrors the metadata doc useQuiz.saveQuiz / buildBankMetadata write, plus preserved library fields. */
 export function buildMetadata(
   kind: QuizKind,
@@ -598,6 +625,9 @@ export function buildMetadata(
       content.questions
     ),
     language: content.language,
+    // Keeps library content off share links after a connector edit (M30).
+    districtOrigin: districtOriginFor(content, existing),
+    districtLinkedItemId: existing?.districtLinkedItemId,
     ...preserved,
   });
 }

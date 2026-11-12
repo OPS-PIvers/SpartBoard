@@ -31,6 +31,8 @@ export function reconcileBankSlotsForPlcShare(
   let changed = false;
   const bankSlots = (quiz.bankSlots ?? []).map((slot) => {
     if (slot.mode !== 'random') return slot;
+    // District library banks are readable by every district teammate already.
+    if (slot.districtItemId && slot.syncGroupId) return slot;
     const own = ownBanks.find((b) => b.id === slot.bankId);
     if (own) {
       const sync = own.sync;

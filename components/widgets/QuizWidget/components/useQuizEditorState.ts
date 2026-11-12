@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { rekeyOptionExplanations } from '@/utils/quizExplanations';
 import {
   QuizBankSlot,
   QuizData,
@@ -277,6 +278,18 @@ export function useQuizEditorState({
           const next = { ...q, ...updates } as Record<string, unknown>;
           for (const [key, value] of Object.entries(updates)) {
             if (value === undefined) delete next[key];
+          }
+          if (
+            q.optionExplanations &&
+            !('optionExplanations' in updates) &&
+            ('correctAnswer' in updates || 'incorrectAnswers' in updates)
+          ) {
+            const kept = rekeyOptionExplanations(
+              q,
+              next as unknown as QuizQuestion
+            );
+            if (kept) next.optionExplanations = kept;
+            else delete next.optionExplanations;
           }
           return next as unknown as QuizQuestion;
         })

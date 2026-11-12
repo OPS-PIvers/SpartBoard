@@ -18,6 +18,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import type { SyncedParticipant } from './syncedQuizGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertNotDistrictGroup } from './districtLibraryGuard';
 import {
   assertGroupLinkedToPlc,
   assertPlcContentEditor,
@@ -107,6 +108,7 @@ export async function handleJoinPlcAssignmentSyncGroup(
     if (!alreadyJoined) {
       assertPlcContentEditor(plcSnap.data(), uid);
       assertGroupLinkedToPlc(plcId, plcSnap, templateSnap, groupSnap);
+      assertNotDistrictGroup(groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

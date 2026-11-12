@@ -12,6 +12,7 @@ import {
 } from '@/utils/questionBanks';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { BankTargetFilter } from './BankTargetFilter';
+import { BankDokFilter } from './BankDokFilter';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { QuizEditorBankApi } from './QuizEditorModal';
 
@@ -55,6 +56,24 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
   const [count, setCount] = useState(5);
   const [points, setPoints] = useState(1);
   const [targetFilter, setTargetFilter] = useState<string[]>([]);
+  const [dokFilter, setDokFilter] = useState<number[]>([]);
+  const [removingKey, setRemovingKey] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const removeDistrict = async (s: BankSource) => {
+    if (!bankApi.removeDistrictSource) return;
+    setRemovingKey(s.key);
+    setRemoveError(null);
+    try {
+      await bankApi.removeDistrictSource(s);
+    } catch (err) {
+      setRemoveError(
+        err instanceof Error ? err.message : 'Could not remove this bank.'
+      );
+    } finally {
+      setRemovingKey(null);
+    }
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -101,6 +120,9 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
   const shared = bankApi.sources.filter(
     (s) => s.kind === 'plc' && sourceMatches(s, q)
   );
+  const district = bankApi.sources.filter(
+    (s) => s.kind === 'district' && sourceMatches(s, q)
+  );
 
   const content = load.status === 'ready' ? load.content : null;
   const pq = pickQuery.trim().toLowerCase();
@@ -114,7 +136,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
     [content, pq]
   );
   const eligible = content
-    ? eligibleBankQuestions(content, targetFilter).length
+    ? eligibleBankQuestions(content, targetFilter, undefined, dokFilter).length
     : 0;
   const randomValid = count >= 1 && count <= eligible;
 
@@ -138,7 +160,14 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
     if (!source || !content) return;
     if (mode === 'pick') {
       const copied = copyBankQuestions(content, [...picked]);
-      onInsertQuestions(copied.questions, copied.stimuli);
+      const districtItemId = content.districtItemId;
+      // Library questions keep their origin so the quiz can never go on a share link.
+      onInsertQuestions(
+        districtItemId
+          ? copied.questions.map((q) => ({ ...q, districtItemId }))
+          : copied.questions,
+        copied.stimuli
+      );
     } else {
       if (!randomValid) return;
       onAddSlot({
@@ -149,9 +178,13 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
           ? { syncOwnerUid: content.syncOwnerUid ?? source.syncOwnerUid }
           : {}),
         bankTitle: source.title,
+        ...(source.kind === 'district' || content.districtItemId
+          ? { districtItemId: content.districtItemId ?? source.bankId }
+          : {}),
         mode: 'random',
         count,
         ...(targetFilter.length > 0 ? { targetFilter } : {}),
+        ...(dokFilter.length > 0 ? { dokFilter } : {}),
         points,
       });
     }
@@ -274,11 +307,60 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                   {shared.map(sourceRow)}
                 </section>
               )}
-              {personal.length === 0 && shared.length === 0 && (
-                <p className="px-2 py-4 text-sm text-slate-500 text-center">
-                  No banks match.
-                </p>
+              {district.length > 0 && (
+                <section className="mb-3">
+                  <h5 className="px-2 mb-1 text-xxs font-bold uppercase tracking-wider text-slate-500">
+                    District library
+                  </h5>
+                  {removeError && (
+                    <p role="alert" className="px-2 mb-1 text-xs text-red-600">
+                      {removeError}
+                    </p>
+                  )}
+                  {district.map((s) => (
+                    <div key={s.key} className="flex items-center gap-1">
+                      <div className="min-w-0 flex-1">
+                        {s.unavailable ? (
+                          <div className="px-3 py-2 text-left">
+                            <span className="block text-sm font-semibold text-slate-500 truncate">
+                              {s.title}
+                            </span>
+                            <span className="block text-xs text-slate-500">
+                              No longer available
+                            </span>
+                          </div>
+                        ) : (
+                          sourceRow(s)
+                        )}
+                      </div>
+                      {bankApi.removeDistrictSource && (
+                        <button
+                          type="button"
+                          disabled={removingKey === s.key}
+                          onClick={() => void removeDistrict(s)}
+                          {...tourFieldAttr(
+                            'quiz-banks.picker-remove-district',
+                            'quiz',
+                            s.key
+                          )}
+                          title="Remove from your banks"
+                          aria-label={`Remove ${s.title} from your banks`}
+                          className="touch-target-expand shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
+                        >
+                          <X className="w-4 h-4" aria-hidden />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </section>
               )}
+              {personal.length === 0 &&
+                shared.length === 0 &&
+                district.length === 0 && (
+                  <p className="px-2 py-4 text-sm text-slate-500 text-center">
+                    No banks match.
+                  </p>
+                )}
             </div>
           </>
         ) : (
@@ -430,6 +512,11 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                       onChange={setTargetFilter}
                     />
                   </div>
+                  <BankDokFilter
+                    questions={content.questions}
+                    value={dokFilter}
+                    onChange={setDokFilter}
+                  />
                   <p
                     role="status"
                     className={`text-sm font-semibold ${randomValid ? 'text-slate-700' : 'text-brand-red-dark'}`}

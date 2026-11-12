@@ -22,9 +22,21 @@ describe('createExternalHandler', () => {
     const { handle } = handlerWith('none');
     await expect(handle({ type: 'ping' }, top)).resolves.toEqual({
       ok: true,
-      protocol: 12,
+      protocol: 13,
       version: '0.1.0',
       profile: 'none',
+    });
+  });
+
+  it('says how the extension was installed when Chrome tells it', async () => {
+    const handle = createExternalHandler({
+      origins: [ORIGIN],
+      version: '0.1.0',
+      getProfile: () => Promise.resolve('staff'),
+      getInstall: () => Promise.resolve('policy'),
+    });
+    await expect(handle({ type: 'ping' }, top)).resolves.toMatchObject({
+      install: 'policy',
     });
   });
 

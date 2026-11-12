@@ -7,6 +7,8 @@ import {
   type WrittenAnswerGrade,
 } from '@/types';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
+import { explanationsForQuestion } from '@/utils/quizExplanations';
+import type { RevealedExplanations } from '@/types';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { formatQuizAnswerText } from '@/utils/assignmentExportShared';
 import { isQuestionExcused, readSlotGrade } from '@/utils/mediaGrading';
@@ -45,6 +47,8 @@ export interface StudentQuestionLine {
   correctAnswerText: string | null;
   /** Written or recorded: graded by the teacher in the grader. */
   manual: boolean;
+  /** The question's explanations, set only when the drilldown is built with them. */
+  explanation?: RevealedExplanations[string];
   /** MC/MA: every option in the order it prints, with the student's picks and the key. */
   options?: StudentOptionLine[];
   /** Matching: one row per prompt the key lists. */
@@ -90,6 +94,8 @@ export interface StudentDrilldownOptions {
   choiceOrder?: Record<string, string[]>;
   /** The batch's wording when printed, which answers scanned before a reword still hold. */
   recordedChoices?: Record<string, string[]>;
+  /** Carry each question's explanations on its line (teacher print). */
+  includeExplanations?: boolean;
   /** The rubric after per-student overrides; defaults to the question's snapshot. */
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
 }
@@ -235,6 +241,7 @@ export function computeStudentDrilldown(
       | 'type'
       | 'manual'
       | 'correctAnswerText'
+      | 'explanation'
       | 'options'
       | 'pairs'
       | 'order'
@@ -257,6 +264,10 @@ export function computeStudentDrilldown(
         : null,
     };
     if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
+    if (options.includeExplanations) {
+      const explained = explanationsForQuestion(q);
+      if (explained) base.explanation = explained;
+    }
     const pictures = imageOnlyPictures(q);
     if (pictures.size > 0) base.pictures = pictures;
     if (q.type === 'MC') {

@@ -197,6 +197,13 @@ describe('isEmptyGroup', () => {
     expect(isEmptyGroup({ participants: 'oops' })).toBe(true);
   });
 
+  it('never reaps a District library canonical, even with no participants', () => {
+    expect(isEmptyGroup({ participants: {}, districtItemId: 'item-1' })).toBe(
+      false
+    );
+    expect(isEmptyGroup({ participants: {}, districtItemId: '' })).toBe(true);
+  });
+
   it('is NOT empty when at least one participant remains', () => {
     expect(isEmptyGroup({ participants: { uidA: { joinedAt: 1 } } })).toBe(
       false

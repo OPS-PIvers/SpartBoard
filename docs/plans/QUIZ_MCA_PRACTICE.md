@@ -66,6 +66,7 @@ No code in Quiz knows about MCA. If MDE changes its site, only the script breaks
 - **M8.** Choices are student-facing and travel with the public question; the key does not. The word bank shuffles; a dropdown keeps the authored order. On save, every blank's answer must be among its choices. PR 1 covers every producer and reader of the public FIB question, not only the client's `toPublicQuestion`: the server copy for sub-launched quizzes (`publicQuestionFromKey` in `functions/src/subLaunchAssignment.ts`) and the read-aloud part resolver (`functions/src/quizReadAloud.ts`) both keep only the fields they list.
 - **M9.** No any-order setting. A word bank whose words are used once cannot produce "heat, heat, heat", so "any order" is each blank accepting the other words through the existing accepted-alternates list. Known gap: typed blanks still cannot be graded as a set.
 - **M10.** Drag reuses the dnd-kit base, tap-to-place and keyboard support from Matching. Read-aloud reads the sentence, then the choices. Paper answer sheets print dropdown choices in brackets after the blank and the word bank under the sentence.
+  - The paper clause is deferred to AB-199: paper sheets print no fill-in-the-blank today, so dropdown and drag stay excluded like typed blanks.
 
 ### Stimulus tabs (PR 2)
 
@@ -152,5 +153,5 @@ Coverage of the 48 grade 8 science items in their real format: 24 today; 42 afte
 - **Terms of use.** MDE publishes released items for classroom use. Paul to confirm that covers redistribution inside the district through the District library. M30 keeps them internal either way.
 - **State results as numbers.** The API returns only a chart picture, so comparing a class to the state is not planned. It would need the numbers read off the picture or supplied by MDE.
 - **Math and reading item types** have not been looked at (equation entry, number lines, long passages). Survey them before the second package.
-- **Where District library files live.** D28 points at `synced_quizzes`; whether the pictures sit in an admin's Drive or elsewhere is settled in PR 6's design.
+- **Where District library files live.** Settled in PRs 6–7: content in `synced_quizzes` / `synced_question_banks` at a random `syncGroupId` minted with the draft header (marked `districtItemId`, written by any site admin), pictures in Firebase Storage at `district_library/{itemId}/v{version}-{attemptId}/`, never in an admin's Drive. Each upload attempt writes a new folder and old ones are kept, so live sessions and frozen copies keep their pictures.
 - **Changelog.** Each flagged piece gets its `public/changelog.json` entry when its flag opens to everyone, not when it merges.

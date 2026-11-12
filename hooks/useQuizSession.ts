@@ -70,6 +70,7 @@ import {
   ArtifactUploadState,
   UnrespondedReason,
   TabExit,
+  InputSignalCounts,
   isFreeResponseType,
 } from '@/types';
 import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
@@ -128,6 +129,7 @@ import {
   timestampMillis,
 } from '@/utils/quizTimeLimit';
 import { withNotChosen } from '@/utils/quizSections';
+import { publicBlankFields } from '@/utils/quizBlankTypes';
 import {
   sessionClassPredicate,
   targetingKey,
@@ -706,6 +708,7 @@ export function toPublicQuestion(
     }
   }
   if (isMultiBlank(q)) base.blankCount = fibBlankCount(q);
+  if (q.type === 'FIB') Object.assign(base, publicBlankFields(q));
   const imageOnly = publicImageOnlyAnswers(q.imageOnlyAnswers, [
     { labels: base.choices ?? [], images: base.choiceImages },
     { labels: base.matchingLeft ?? [], images: base.matchingLeftImages },
@@ -2122,6 +2125,11 @@ export interface UseQuizSessionStudentResult {
   reportTabSwitch: () => Promise<number>;
   /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
   saveTabExits: (exits: TabExit[]) => Promise<void>;
+  /** Writes one attempt's input counters (utils/inputSignals.ts). */
+  saveInputSignals: (
+    attempt: number,
+    counts: Record<string, InputSignalCounts>
+  ) => Promise<void>;
   /**
    * Raise (true) or lower (false) the student's hand on their response doc.
    * Server-stamps `handRaisedAt` when raising; writes null when lowering.
@@ -4187,6 +4195,28 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     );
   }, []);
 
+  const saveInputSignals = useCallback(
+    async (
+      attempt: number,
+      counts: Record<string, InputSignalCounts>
+    ): Promise<void> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return;
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        { [`inputSignals.${attempt}`]: counts }
+      );
+    },
+    []
+  );
+
   const subscribeForReview = useCallback(
     async (code: string, teacherUid?: string): Promise<void> => {
       setLoading(true);
@@ -4296,6 +4326,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     completeQuiz,
     reportTabSwitch,
     saveTabExits,
+    saveInputSignals,
     setHandRaised,
     startAttemptClock,
     submitPart,

@@ -40,3 +40,23 @@ export const isOrgOnlyAdmin = (
   !!memberOrgId &&
   !!memberRoleId &&
   ORG_ADMIN_ROLE_IDS.includes(memberRoleId);
+
+/** Provenance fields on an /admins doc that the rules' siteAdminDoc() reads. */
+export interface AdminDocProvenance {
+  source?: string;
+  orgId?: string;
+  roleId?: string;
+}
+
+// Client mirror of the rules' isSiteAdmin(): an /admins doc counts unless organizationMembersSync made it for a non-district-admin role.
+export const isSiteAdminActor = (
+  isAdmin: boolean | null,
+  adminDoc: AdminDocProvenance | null | undefined
+): boolean => {
+  if (isAdmin !== true) return false;
+  if (adminDoc?.source !== 'organizationMembersSync') return true;
+  return (
+    adminDoc.orgId === OPERATOR_ORG_ID &&
+    (adminDoc.roleId === 'super_admin' || adminDoc.roleId === 'domain_admin')
+  );
+};

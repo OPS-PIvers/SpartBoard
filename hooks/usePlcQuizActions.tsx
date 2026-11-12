@@ -49,6 +49,7 @@ import {
 } from '@/components/plc/plcQuizStepperAssign';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
 
 /** The slice of an assessment row these actions need. */
 export interface PlcQuizActionTarget {
@@ -249,7 +250,8 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
   const sharePickerItems = useMemo<PlcSharePickerItem[]>(
     () =>
       personalQuizzes
-        .slice()
+        // A District library copy's sync group belongs to the district; nobody could join it.
+        .filter((meta) => !isDistrictLinkedCopy(meta))
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .map((meta) => ({
           id: meta.id,
@@ -773,6 +775,11 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
         if (!user) throw new Error('Not authenticated.');
         const meta = personalQuizzes.find((q) => q.id === personalQuizId);
         if (!meta) throw new Error('Quiz no longer in your library.');
+        if (isDistrictLinkedCopy(meta)) {
+          throw new Error(
+            'District library quizzes stay with the district. Make your own copy to share it.'
+          );
+        }
         if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
           addToast(
             t('plcDashboard.quizLibrary.sharePicker.alreadySharedToast', {

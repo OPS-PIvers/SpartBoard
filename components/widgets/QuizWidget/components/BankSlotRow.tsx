@@ -10,6 +10,7 @@ import {
 import { findSlotSource, slotEligibleFromSource } from './bankSlotHelpers';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { BankTargetFilter } from './BankTargetFilter';
+import { BankDokFilter } from './BankDokFilter';
 import type { QuizEditorBankApi } from './QuizEditorModal';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
@@ -154,8 +155,12 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
 
   const content = load.status === 'ready' ? load.content : null;
   const eligible = content
-    ? eligibleBankQuestions(content, slot.targetFilter, randomSlotPool(slot))
-        .length
+    ? eligibleBankQuestions(
+        content,
+        slot.targetFilter,
+        randomSlotPool(slot),
+        slot.dokFilter
+      ).length
     : slotEligibleFromSource(source, slot);
   const count = slot.count ?? 0;
   const overdrawn = eligible != null && count > eligible;
@@ -300,6 +305,18 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
             </p>
           )}
         </div>
+
+        {content && (
+          <BankDokFilter
+            questions={content.questions}
+            value={slot.dokFilter ?? []}
+            onChange={(next) =>
+              onUpdate(slot.id, {
+                dokFilter: next.length > 0 ? next : undefined,
+              })
+            }
+          />
+        )}
 
         {stimulusSection}
 

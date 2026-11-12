@@ -7,6 +7,7 @@ import {
   SCHOOLOGY_CONNECT_PROTOCOL,
   SCORED_MATCH_PROTOCOL,
   WEB_TOUR_PORT,
+  type ExtensionInstall,
   type ExtensionProfile,
   type WebTourCheckProgress,
   type WebTourProgressMessage,
@@ -31,6 +32,7 @@ export type ExtensionStatus =
       protocol: number;
       version: string;
       profile: ExtensionProfile;
+      install?: ExtensionInstall;
     };
 
 interface ChromePort {
@@ -92,7 +94,7 @@ function send(message: unknown, timeoutMs: number): Promise<unknown> {
 /** Reads a ping reply; anything malformed counts as no extension. */
 export function parsePing(reply: unknown): ExtensionStatus {
   if (!isRecord(reply) || reply.ok !== true) return { kind: 'none' };
-  const { protocol, version, profile } = reply;
+  const { protocol, version, profile, install } = reply;
   if (!Number.isInteger(protocol) || typeof version !== 'string') {
     return { kind: 'none' };
   }
@@ -101,6 +103,9 @@ export function parsePing(reply: unknown): ExtensionStatus {
     protocol: protocol as number,
     version,
     profile: profile === 'staff' || profile === 'other' ? profile : 'none',
+    ...(install === 'policy' || install === 'user' || install === 'dev'
+      ? { install }
+      : {}),
   };
 }
 

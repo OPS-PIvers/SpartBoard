@@ -1,6 +1,7 @@
 import {
   EXTENSION_PROTOCOL_VERSION,
   parseExtensionMessage,
+  type ExtensionInstall,
   type ExtensionProfile,
   type ExtensionReply,
   type WebTourCheckStartMessage,
@@ -12,6 +13,8 @@ interface HandlerDeps {
   origins: readonly string[];
   version: string;
   getProfile: () => Promise<ExtensionProfile>;
+  /** How Chrome got this extension; undefined when it can't be read. */
+  getInstall?: () => Promise<ExtensionInstall | undefined>;
   /** Opens the tour's first page and starts playback there; resolves to the new tab's id. */
   startWebTour?: (
     message: WebTourStartMessage | WebTourCheckStartMessage
@@ -27,6 +30,7 @@ export function createExternalHandler({
   origins,
   version,
   getProfile,
+  getInstall,
   startWebTour,
   openWebTour,
   signIn,
@@ -43,13 +47,16 @@ export function createExternalHandler({
       return { ok: false, error: 'refused' };
     }
     switch (parsed.message.type) {
-      case 'ping':
+      case 'ping': {
+        const install = await getInstall?.();
         return {
           ok: true,
           protocol: EXTENSION_PROTOCOL_VERSION,
           version,
           profile,
+          ...(install ? { install } : {}),
         };
+      }
       case 'web-tour/start':
       case 'web-tour/check':
         if (!startWebTour) return { ok: false, error: 'unsupported' };

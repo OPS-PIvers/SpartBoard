@@ -14,6 +14,7 @@ export const retireIssueUrl = (featureId: GlobalFeature): string => {
     `- Remove \`${featureId}\` from \`GlobalFeature\` in \`types.ts\`, \`FEATURE_DEFAULTS\` in \`config/featureDefaults.ts\`, and \`functions/src/featureMissingDoc.ts\`.`,
     '- Add a `public/changelog.json` entry if the feature never got one (docs/DEV_WORKFLOW.md).',
     '- Leave the `global_permissions` doc alone; nothing reads it once the gate is gone.',
+    '- If the old path had its own Firestore collection or `admin_settings` doc, delete its rules in `firestore.rules` and flip its rules tests to `assertFails` (`tests/rulesDeadPaths.test.ts` fails until you do).',
   ].join('\n');
   const params = new URLSearchParams({
     title: `Retire flag: ${label}`,

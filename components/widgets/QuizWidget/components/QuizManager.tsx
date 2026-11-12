@@ -63,6 +63,7 @@ import {
   ScanLine,
   ScanText,
   Library,
+  CopyPlus,
 } from 'lucide-react';
 import {
   AssignmentAudience,
@@ -543,6 +544,12 @@ interface QuizManagerProps {
    * useQuizAssignments.syncAssignmentToLatest.
    */
   onSyncAssignment?: (a: QuizAssignment) => void | Promise<void>;
+  /** District library items that target this teacher; the toolbar button shows only when above zero. */
+  districtLibraryCount?: number;
+  onOpenDistrictLibrary?: () => void;
+  /** True for a linked, read-only District library copy: no Edit or Share, and "Make my own copy". */
+  isDistrictCopy?: (quiz: QuizMetadata) => boolean;
+  onMakeOwnCopy?: (quiz: QuizMetadata) => void | Promise<void>;
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
@@ -808,6 +815,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onPullSyncedQuiz,
   onDetachSyncedQuiz,
   onSyncAssignment,
+  districtLibraryCount = 0,
+  onOpenDistrictLibrary,
+  isDistrictCopy,
+  onMakeOwnCopy,
   assignmentMode = 'submissions',
   onCreateViewOnlyShare,
   activeAssignmentLockedCount = 0,
@@ -1398,6 +1409,36 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         },
       });
     }
+    if (isDistrictCopy?.(quiz)) {
+      // Linked District library copy: an allowlist, so actions added later stay off until reviewed.
+      const allowed = new Set([
+        'preview',
+        'assign-paper',
+        'import-paper',
+        'sync-now',
+      ]);
+      const kept = actions.filter((a) => allowed.has(a.id));
+      actions.length = 0;
+      actions.push(...kept);
+      if (onMakeOwnCopy) {
+        actions.push({
+          id: 'make-own-copy',
+          label: 'Make my own copy',
+          icon: CopyPlus,
+          anchor: tourTypeAttr('quiz-library.make-own-copy', 'quiz'),
+          onClick: async () => {
+            const ok = await showConfirm(
+              `Make your own copy of "${quiz.title}"? You can edit your copy, but it won't get the district's corrections and its results won't be grouped with other teachers'.`,
+              {
+                title: 'Make my own copy',
+                confirmLabel: 'Make a copy',
+              }
+            );
+            if (ok) await onMakeOwnCopy(quiz);
+          },
+        });
+      }
+    }
     actions.push(
       buildMoveToFolderAction({
         onOpenPicker: () => setFolderPickerTarget(quiz),
@@ -1501,6 +1542,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       ];
     }
 
+    if (isDistrictCopy?.(quiz)) {
+      return [{ label: 'District library', tone: 'info' as const }];
+    }
     const group = syncedGroups?.get(quiz.sync.groupId);
     if (group && group.version > quiz.sync.lastSyncedVersion) {
       // Actionable badge: click pulls the canonical content into the local
@@ -2276,7 +2320,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const handleBulkMerge = useCallback(async (): Promise<void> => {
     if (!onMergeQuizzes) return;
     const metas = getSelectedMetas();
-    if (metas.length < 2) return;
+    if (metas.length < 2 || metas.some((q) => isDistrictCopy?.(q))) return;
     setBulkBusy(true);
     try {
       const merged = await onMergeQuizzes(metas);
@@ -2287,15 +2331,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [onMergeQuizzes, getSelectedMetas, selection]);
+  }, [onMergeQuizzes, getSelectedMetas, selection, isDistrictCopy]);
 
   const handleBulkSharePlc = useCallback((): void => {
     if (!onBulkShareWithPlc) return;
     const metas = getSelectedMetas();
-    if (metas.length === 0) return;
+    if (metas.length === 0 || metas.some((q) => isDistrictCopy?.(q))) return;
     onBulkShareWithPlc(metas);
-  }, [onBulkShareWithPlc, getSelectedMetas]);
+  }, [onBulkShareWithPlc, getSelectedMetas, isDistrictCopy]);
 
+  const selectionHasDistrictCopy =
+    !!isDistrictCopy && getSelectedMetas().some((q) => isDistrictCopy(q));
   const extraBulkActions: BulkAction[] = [
     ...(onMergeQuizzes
       ? [
@@ -2304,7 +2350,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             label: 'Merge',
             icon: Combine,
             onClick: () => void handleBulkMerge(),
-            disabled: selection.count < 2,
+            disabled: selection.count < 2 || selectionHasDistrictCopy,
+
             anchor: tourTypeAttr('quiz-library.bulk-merge', 'quiz'),
           },
         ]
@@ -2316,6 +2363,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             label: 'Share with PLC',
             icon: Users2,
             onClick: handleBulkSharePlc,
+            disabled: selectionHasDistrictCopy,
+
             anchor: tourTypeAttr('quiz-library.bulk-share-plc', 'quiz'),
           },
         ]
@@ -2522,6 +2571,29 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     aria-hidden="true"
                   />
                   {schoologyInboxCount} from Schoology
+                </button>
+              )}
+              {districtLibraryCount > 0 && onOpenDistrictLibrary && (
+                <button
+                  type="button"
+                  onClick={onOpenDistrictLibrary}
+                  {...tourAttr('quiz.district-library', widgetId, 'quiz')}
+                  className="inline-flex items-center rounded-lg bg-white/70 font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(11px, 4cqmin)',
+                  }}
+                  title="Quizzes and banks from your district"
+                >
+                  <Library
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                    aria-hidden="true"
+                  />
+                  District · {districtLibraryCount}
                 </button>
               )}
               <button

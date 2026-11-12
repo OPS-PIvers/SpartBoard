@@ -1,8 +1,7 @@
 // Firestore rules regression coverage for the new PLC Overview /
 // Notes / To-Dos surfaces shipped alongside Phase 5 of the PLC Dashboard
 // roadmap. Pins the security invariants the dashboard depends on:
-//   - `users/{uid}/plc_layouts/{plcId}` is owner-only with a closed schema
-//     so a malicious extension can't smuggle extra fields.
+//   - `users/{uid}/plc_layouts/{plcId}` is retired: no client access.
 //   - `plcs/{plcId}/notes` and `plcs/{plcId}/todos` are membership-gated
 //     for reads — non-members must not be able to peek into a community's
 //     shared documents. `todos` is legacy: create is denied and update
@@ -98,112 +97,17 @@ beforeEach(async () => {
 // users/{uid}/plc_layouts/{plcId}
 // ---------------------------------------------------------------------------
 
-describe('users/{uid}/plc_layouts — owner-only', () => {
-  const validLayout = (overrides: Record<string, unknown> = {}) => ({
-    tiles: [{ kind: 'todos', size: 'lg' }],
-    updatedAt: 100,
-    ...overrides,
-  });
-
-  it('owner can write their own layout doc', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`),
-        validLayout()
-      )
-    );
-  });
-
-  it('owner can read their own layout doc', async () => {
+describe('users/{uid}/plc_layouts — retired, no client access', () => {
+  it('even the owner cannot read or write a layout doc', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`),
-        validLayout()
+        { tiles: [], updatedAt: 100 }
       );
     });
-    await assertSucceeds(
-      getDoc(doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`))
-    );
-  });
-
-  it("a different user cannot read or write someone else's layout", async () => {
-    // Even fellow PLC members can't see each other's layout — this is
-    // strictly view preferences, scoped by uid.
-    await assertFails(
-      setDoc(
-        doc(asMemberB(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`),
-        validLayout()
-      )
-    );
-    await assertFails(
-      getDoc(doc(asMemberB(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`))
-    );
-  });
-
-  it('rejects an extra field (schema lock-down via keys().hasOnly)', async () => {
-    await assertFails(
-      setDoc(doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`), {
-        ...validLayout(),
-        unexpected: 'extra-field',
-      })
-    );
-  });
-
-  it('rejects when tiles is not a list', async () => {
-    await assertFails(
-      setDoc(doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`), {
-        tiles: 'not-a-list',
-        updatedAt: 1,
-      })
-    );
-  });
-
-  it('owner can write and read back the Home v2 spotlight and seen counts', async () => {
     const ref = doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`);
-    await assertSucceeds(
-      setDoc(ref, {
-        tiles: [{ id: 't1', kind: 'results' }],
-        heroTileId: 't1',
-        seenCounts: { a1: 12 },
-        updatedAt: 1,
-      })
-    );
-    await assertSucceeds(
-      setDoc(ref, { heroTileId: null, updatedAt: 2 }, { merge: true })
-    );
-    await assertSucceeds(getDoc(ref));
-    await assertFails(
-      getDoc(doc(asMemberB(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`))
-    );
-  });
-
-  it('rejects a non-string spotlight and an oversized seenCounts map', async () => {
-    const ref = doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`);
-    await assertFails(setDoc(ref, { tiles: [], heroTileId: 7, updatedAt: 1 }));
-    const seenCounts = Object.fromEntries(
-      Array.from({ length: 201 }, (_, i) => [`a${i}`, i])
-    );
-    await assertFails(setDoc(ref, { tiles: [], seenCounts, updatedAt: 1 }));
-    await assertFails(
-      setDoc(ref, { tiles: [], seenCounts: 'lots', updatedAt: 1 })
-    );
-  });
-
-  it('rejects an oversized tiles list (> 50 entries)', async () => {
-    // Defense-in-depth size cap. Per-tile interior validation is delegated
-    // to the client parser, but the rule must still bound the doc size so
-    // a malicious extension can't weaponize the layout doc as unbounded
-    // storage on the user's own quota.
-    const oversized = Array.from({ length: 51 }, () => ({
-      kind: 'todos',
-      size: 'sm',
-    }));
-    await assertFails(
-      setDoc(doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`), {
-        tiles: oversized,
-        updatedAt: 1,
-      })
-    );
+    await assertFails(getDoc(ref));
+    await assertFails(setDoc(ref, { tiles: [], updatedAt: 200 }));
   });
 });
 

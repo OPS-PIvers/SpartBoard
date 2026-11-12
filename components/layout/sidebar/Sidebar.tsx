@@ -29,7 +29,6 @@ import {
   BookOpenCheck,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
-import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { DevSyncFromProdButton } from './DevSyncFromProdButton';
@@ -72,15 +71,13 @@ import {
 } from '@/components/tours/tourState';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { useTourFrameHold } from '@/components/tours/tourFrame';
+import { AdminSettingsSlot } from './AdminSettingsSlot';
+import {
+  preloadAdminSettings,
+  usePreloadAdminSettings,
+} from './adminSettingsLoader';
 
 declare const __APP_VERSION__: string;
-
-// Lazy: AdminSettings pulls in recharts + the admin surface (~1.2MB) but only admins open it.
-const AdminSettings = React.lazy(() =>
-  import('@/components/admin/AdminSettings').then((m) => ({
-    default: m.AdminSettings,
-  }))
-);
 
 type MenuSection = 'main' | 'classes' | 'plcs' | 'google-drive';
 
@@ -137,6 +134,7 @@ export const Sidebar: React.FC = () => {
     orgId,
   } = useAuth();
   const orgOnlyAdmin = isOrgOnlyAdmin(isAdmin, roleId, orgId);
+  usePreloadAdminSettings(isAdmin === true || orgOnlyAdmin);
   const {
     dashboards,
     activeDashboard,
@@ -321,6 +319,8 @@ export const Sidebar: React.FC = () => {
           <IconButton
             {...tourAttr('sidebar.admin-settings')}
             onClick={() => setShowAdminSettings(true)}
+            onPointerEnter={preloadAdminSettings}
+            onFocus={preloadAdminSettings}
             icon={<Settings className="w-5 h-5" />}
             label={t('sidebar.header.adminSettings')}
             variant="brand-ghost"
@@ -405,11 +405,7 @@ export const Sidebar: React.FC = () => {
       </GlassCard>
 
       {showAdminSettings && (
-        <LazyChunkErrorBoundary>
-          <React.Suspense fallback={null}>
-            <AdminSettings onClose={() => setShowAdminSettings(false)} />
-          </React.Suspense>
-        </LazyChunkErrorBoundary>
+        <AdminSettingsSlot onClose={() => setShowAdminSettings(false)} />
       )}
 
       {settingsModalSection && (
