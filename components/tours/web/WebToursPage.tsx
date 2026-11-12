@@ -139,9 +139,11 @@ export const WebToursPage: React.FC = () => {
             onCopyFailed={() => setMessage("The link couldn't be copied.")}
           />
         )}
-        <WebTourHealthSection
-          key={`${healthRev}:${(tours ?? []).map((t) => t.id).join(',')}`}
-        />
+        {tours !== null && (
+          <WebTourHealthSection
+            key={`${healthRev}:${tours.map((t) => t.id).join(',')}`}
+          />
+        )}
       </div>
       {open && (
         <Suspense fallback={null}>
