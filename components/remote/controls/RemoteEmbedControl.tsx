@@ -39,7 +39,7 @@ export const RemoteEmbedControl: React.FC<RemoteEmbedControlProps> = ({
         Embed
       </div>
 
-      <button
+      <button /* no-tour-anchor: phone remote page, never on the board */
         onClick={handleFeature}
         // touch-action:manipulation removes the 300 ms mobile tap delay.
         style={{ touchAction: 'manipulation' }}

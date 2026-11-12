@@ -60,7 +60,7 @@ export const RemoteNextUpControl: React.FC<RemoteNextUpControlProps> = ({
       </div>
 
       {/* Toggle button */}
-      <button
+      <button /* no-tour-anchor: phone remote page, never on the board */
         onClick={toggleSession}
         className={`touch-manipulation flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 ${
           config.isActive
@@ -86,7 +86,7 @@ export const RemoteNextUpControl: React.FC<RemoteNextUpControlProps> = ({
           Students Displayed
         </div>
         <div className="flex items-center gap-4">
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={() => setDisplayCount(-1)}
             disabled={(config.displayCount ?? 5) <= 1}
             className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
@@ -97,7 +97,7 @@ export const RemoteNextUpControl: React.FC<RemoteNextUpControlProps> = ({
             <Users className="w-5 h-5 text-white/40" />
             {config.displayCount ?? 5}
           </div>
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={() => setDisplayCount(1)}
             disabled={(config.displayCount ?? 5) >= 20}
             className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
