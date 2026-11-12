@@ -2759,6 +2759,9 @@ const TeacherQuizWidget: React.FC<{
           onReopenStudent={
             canReopenSubmission ? reopenStudentAttempt : unlockStudentAttempt
           }
+          onUnlockTabLockedStudent={
+            canReopenSubmission ? unlockStudentAttempt : undefined
+          }
           onSubmitStudent={canSubmitForStudent ? submitForStudent : undefined}
           onPlcSheetUrlReplaced={async (newUrl) => {
             // After QuizResults regenerates a stale PLC sheet (404

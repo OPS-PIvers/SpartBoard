@@ -17,7 +17,7 @@ import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { studentCanEnter } from '@/utils/periodAccess';
-import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
+import { canTeacherSubmit, isTabLockedOut } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
 import { MonitorFilterBy, MonitorSortBy, orderRoster } from './monitorUtils';
@@ -135,9 +135,7 @@ const RowMenu: React.FC<{
     overridesBySourcedId,
     targetRefKeyByStudentUid
   );
-  const tabLocked =
-    r.status === 'completed' &&
-    hasReachedTabWarningThreshold(r.tabSwitchWarnings ?? 0, tabThreshold);
+  const tabLocked = isTabLockedOut(r, tabThreshold);
   const locked =
     !r.unlocked &&
     (tabLocked ||

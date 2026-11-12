@@ -1,4 +1,5 @@
 import type { QuizResponse, QuizResponseAnswer } from '@/types';
+import { hasReachedTabWarningThreshold } from '@/utils/tabWarningThreshold';
 
 /** Only a response the student hasn't turned in yet can be submitted for them. */
 export function canTeacherSubmit(
@@ -73,3 +74,14 @@ export function buildTeacherSubmitUpdate(
 /** Why a teacher can't reopen a student's quiz on an ended assignment. */
 export const REOPEN_ENDED_REASON =
   'This assignment has ended. Reopen the assignment first.';
+
+/** A turned-in attempt the student lost for leaving the tab; it unlocks with the one-exit rule instead of reopening. */
+export function isTabLockedOut(
+  response: Pick<QuizResponse, 'status' | 'tabSwitchWarnings'>,
+  threshold: number | 'off'
+): boolean {
+  return (
+    response.status === 'completed' &&
+    hasReachedTabWarningThreshold(response.tabSwitchWarnings ?? 0, threshold)
+  );
+}
