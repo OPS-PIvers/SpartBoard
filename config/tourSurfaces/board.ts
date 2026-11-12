@@ -264,6 +264,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/tours/web/WebToursPage.tsx',
       'components/tours/web/WebToursGate.tsx',
+      'components/tours/web/WebTourHealthSection.tsx',
     ],
   },
   'board.web-tour-editor': {
