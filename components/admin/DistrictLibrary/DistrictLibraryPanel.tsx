@@ -60,7 +60,7 @@ interface PendingUpload {
 }
 
 const iconButton =
-  'touch-target-expand inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50';
+  'touch-target-expand relative inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50';
 
 export const DistrictLibraryPanel: React.FC = () => {
   const { user, isAdmin, adminDoc } = useAuth();

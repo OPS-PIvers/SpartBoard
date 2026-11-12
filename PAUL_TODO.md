@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-183.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-184.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-1, PT-115, PT-126 (2026-11-11 morning cleanup), PT-4, PT-7, PT-12, PT-16, PT-17, PT-19, PT-52, PT-53, PT-54, PT-55, PT-57, PT-58, PT-59, PT-66, PT-67, PT-69, PT-70, PT-71, PT-72, PT-76, PT-92, PT-100, PT-103, PT-104, PT-129, PT-132, PT-135, PT-137, PT-142 (2026-11-10 morning cleanup), PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -80,6 +80,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 ### 2d. Checks before opening an item above
 
+- [ ] **PT-183 You: decide whether District library targets stay visible to the teachers they name** (before opening PT-182). A teacher named on a District library item can read the item's whole target list, so they see which colleagues it went to, and who uploaded it. Reply "keep" or "hide them" and an agent does AB-201 part 3.
 - [ ] **PT-156 You: tours in real Chrome on dev** (TOURS_10X). Before opening PT-154 or PT-155: load extension 0.1.31 from a dev build, record a short web tour on a real site and check the editor stage rings the right control, crop from the whole screen works and markup shows; play it and click two steps ahead; close a control mid-step and use Show me where and Take me back. Then make one published tour public on spartboard-dev, open the link signed out, change a picture, publish, and confirm the link stops working.
 - [ ] **PT-158 You: retake Live tour thumbnails.** Live tours published before this work show no ring in the Steps view, because their thumbnails did not store where the control sits. Retake each step's thumbnail in the editor for the tours you want read in the Help Center or made public.
 - [ ] **PT-56 You: PowerPoint import** (#4938). On spartboard-dev, signed in, import one PowerPoint into Notebook or Guided Learning to confirm Drive converts it.
