@@ -364,7 +364,12 @@ body:has([data-tour-bar]) [data-toast-stack] {
 
 /* WCAG 2.5.8 — Minimum 44×44px touch target for small interactive elements.
    Applied via ::after to expand the hit area without affecting visual layout.
-   The element must already be positioned (relative, absolute, etc.). */
+   Self-positioned in the components layer so absolute/fixed/sticky utilities still win. */
+@layer components {
+  .touch-target-expand {
+    position: relative;
+  }
+}
 .touch-target-expand::after {
   content: '';
   position: absolute;
