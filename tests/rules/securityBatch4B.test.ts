@@ -203,6 +203,16 @@ describe('poll votes', () => {
     await assertFails(setDoc(voteRef(asAnon(), `0_${ANON_UID}`), vote()));
   });
 
+  it('refuses every vote id when the join has no voter id', async () => {
+    await seed(`poll_joins/${SESSION_ID}__${ANON_UID}`, {
+      sessionId: SESSION_ID,
+      uid: ANON_UID,
+    });
+    await assertFails(setDoc(voteRef(asAnon(), `0_${ANON_UID}`), vote()));
+    await assertFails(setDoc(voteRef(asAnon(), `0_${ANON_VOTER}`), vote()));
+    await assertSucceeds(getDocs(votesCol(asAnon())));
+  });
+
   it('refuses a device that never joined, under any id', async () => {
     const stranger = asAnon(STRANGER_UID);
     await assertFails(setDoc(voteRef(stranger, `0_${STRANGER_UID}`), vote()));
