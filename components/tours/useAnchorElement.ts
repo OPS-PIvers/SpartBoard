@@ -3,6 +3,7 @@ import type { GuidedLearningTourBinding } from '@/types';
 import { isRowWildcardRef } from '@/config/tourAnchors';
 import {
   anchorInView,
+  clipBox,
   findTourAnchor,
   findTourAnchors,
   isAnchorReachable,
@@ -64,6 +65,20 @@ const unionRect = (rects: readonly DOMRect[]): DOMRect => {
   const right = Math.max(...rects.map((r) => r.right));
   const bottom = Math.max(...rects.map((r) => r.bottom));
   return new DOMRect(left, top, right - left, bottom - top);
+};
+
+/** The part of an element its scrolling panels let show. */
+const shownPart = (el: Element): DOMRect => {
+  const r = el.getBoundingClientRect();
+  const box = clipBox(el);
+  const left = Math.max(r.left, box.left);
+  const top = Math.max(r.top, box.top);
+  return new DOMRect(
+    left,
+    top,
+    Math.max(0, Math.min(r.right, box.right) - left),
+    Math.max(0, Math.min(r.bottom, box.bottom) - top)
+  );
 };
 
 const sameRect = (a: DOMRect | null, b: DOMRect | null) =>
@@ -253,10 +268,7 @@ export function useAnchorElement(
           : [el, ...rows];
         publish({
           element: el,
-          rect:
-            matches.length > 1
-              ? unionRect(matches.map((m) => m.getBoundingClientRect()))
-              : next,
+          rect: matches.length > 1 ? unionRect(matches.map(shownPart)) : next,
           status: 'found',
           ...(anyRow ? { matches } : {}),
           ...(centred ? { centred } : {}),

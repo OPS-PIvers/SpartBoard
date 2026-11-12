@@ -19,9 +19,17 @@ export function pickedRowRef(ref: string, el: Element): string | null {
   return key ? `${ref.slice(0, ref.indexOf('#'))}#${key}` : null;
 }
 
-/** A route entry with no key, swapped for the row the teacher picked on it earlier. */
-const pickedRef = (anchor: string, scope: TourAnchorScope): string =>
-  !anchor.includes('#') && scope.picks?.[anchor] ? scope.picks[anchor] : anchor;
+/** A route entry with no key or a row position, swapped for the row the teacher picked on it earlier. */
+const pickedRef = (anchor: string, scope: TourAnchorScope): string => {
+  const picks = scope.picks;
+  if (!picks) return anchor;
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(anchor);
+  if (fieldKey !== undefined && !/^row-\d+$/.test(fieldKey)) return anchor;
+  const pick = widgetType
+    ? picks[`${id}:${widgetType}`]
+    : Object.entries(picks).find(([k]) => k.startsWith(`${id}:`))?.[1];
+  return pick ?? anchor;
+};
 
 export const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
 

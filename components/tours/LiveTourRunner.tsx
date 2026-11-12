@@ -247,8 +247,8 @@ interface ActiveTour {
   made?: RunMade;
   /** Steps a catch-up passed over (TOURS_10X.md P3); set only with tour pacing on. */
   skipped?: readonly string[];
-  /** Wildcard row steps left out because the teacher's list was empty; all sit before `index`. */
-  dropped?: readonly string[];
+  /** Where wildcard row steps left out for an empty list sat in the full run, ascending. */
+  dropped?: readonly number[];
 }
 
 interface RunMade {
@@ -434,6 +434,13 @@ const claimsFromIds = (
 };
 
 /** Runs a Guided Learning set's live-tour steps against the real app. */
+/** A step's index in the full run, counting the dropped steps (full-run indices, ascending) back in. */
+function fullRunIndex(index: number, dropped: readonly number[] = []): number {
+  let at = index;
+  for (const d of dropped) if (d <= at) at++;
+  return at;
+}
+
 /** Records the row a wildcard step was answered with, under its route form `id:type`. */
 function notePick(picks: Record<string, string>, ref: string, el: Element) {
   const picked = pickedRowRef(ref, el);
@@ -697,7 +704,7 @@ export const LiveTourRunner: React.FC = () => {
       ? {
           setId: tour.set.id,
           // A reload rebuilds the full step list, so the dropped steps count again.
-          index: tour.index + (tour.dropped?.length ?? 0),
+          index: fullRunIndex(tour.index, tour.dropped),
           // Unsaved tour widgets do not survive a reload, so only saved ones are listed.
           addedIds: legacyAdded,
           ...(tour.draft ? { draft: true } : {}),
@@ -2070,15 +2077,21 @@ export const LiveTourRunner: React.FC = () => {
     const next = { ...tour, steps };
     setTour({
       ...next,
-      dropped: [...(tour.dropped ?? []), gone.id],
+      dropped: [
+        ...(tour.dropped ?? []),
+        fullRunIndex(index, tour.dropped),
+      ].sort((a, b) => a - b),
       spawnWatch: watchSpawn(next, index, boardIds),
     });
   };
-  // A wildcard step whose list is still empty after self-heal drops out, like a showWhen step.
-  const healGaveUp = useEffectEvent((index: number, at: string) => {
-    if (isRowWildcardRef(binding?.anchor ?? '')) dropEmptyRows(index);
-    else setHealOver(at);
-  });
+  // A wildcard step whose list shows with no rows, even after self-heal, drops out like a showWhen step.
+  const healGaveUp = useEffectEvent(
+    (index: number, at: string, listShowing: boolean) => {
+      if (listShowing && isRowWildcardRef(binding?.anchor ?? ''))
+        dropEmptyRows(index);
+      else setHealOver(at);
+    }
+  );
   const healAnchorScope = useEffectEvent(() => ({
     widgetIds: added,
     slots: tour?.slots,
@@ -2095,24 +2108,36 @@ export const LiveTourRunner: React.FC = () => {
     const ctrl = new AbortController();
     let settled = false;
     void import('@/config/tourAnchorRoutes')
-      .then(({ tourAnchorRoutes }) =>
-        healAnchor(
+      .then(async ({ tourAnchorRoutes, surfaceShowing }) => {
+        const ok = await healAnchor(
           binding.anchor,
           tourAnchorRoutes,
           healAnchorScope(),
           ctrl.signal
-        )
-      )
-      .then((ok) => {
+        );
+        // The list's own panel is open, so its rows are missing because there are none.
+        const listShowing =
+          !ok &&
+          surfaceShowing(
+            binding.anchor,
+            (id) =>
+              !!findTourAnchor(
+                { anchor: id },
+                { accept: isAnchorReachable, ...healAnchorScope() }
+              )
+          );
+        return { ok, listShowing };
+      })
+      .then(({ ok, listShowing }) => {
         settled = true;
         if (ctrl.signal.aborted) return;
         if (ok) setAttempt((n) => n + 1);
-        else healGaveUp(stepIndex, `${stepIndex}:${visit}`);
+        else healGaveUp(stepIndex, `${stepIndex}:${visit}`, listShowing);
       })
       .catch((err: unknown) => {
         settled = true;
         if (!ctrl.signal.aborted)
-          healGaveUp(stepIndex, `${stepIndex}:${visit}`);
+          healGaveUp(stepIndex, `${stepIndex}:${visit}`, false);
         console.warn('Live tour self-heal failed', err);
       });
     return () => {

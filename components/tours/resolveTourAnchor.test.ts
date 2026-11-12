@@ -311,4 +311,19 @@ describe('wildcard row refs', () => {
       findTourAnchor({ anchor: 'plcs.open-plc:plcs' })?.dataset.tourField
     ).toBe('row-1');
   });
+
+  it('replays the pick for a route entry that names a row position or no type', () => {
+    mount(rows('library-shell.card-menu', 'quiz', 3));
+    const picks = {
+      'library-shell.card-menu:quiz': 'library-shell.card-menu:quiz#row-3',
+    };
+    for (const anchor of [
+      'library-shell.card-menu:quiz#row-1',
+      'library-shell.card-menu',
+    ])
+      expect(
+        findTourAnchor({ anchor }, { picks })?.dataset.tourField,
+        anchor
+      ).toBe('row-3');
+  });
 });
