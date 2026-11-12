@@ -1,7 +1,8 @@
 import type { TourMarkupShape, WebTourAction, WebTourFrame } from '@/types';
 import type { WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
-import { hostOf } from '@/components/tours/web/tourSequence';
+import { hostOf, switchUrlFor } from '@/components/tours/web/tourSequence';
+import { isGoHost } from '../overlay/overlayState';
 import type { WebStepConditions } from '@/components/tours/web/extensionProtocol';
 import {
   doneOnPage,
@@ -133,6 +134,12 @@ export const targetedFrom = (
   return -1;
 };
 
+/** A targeted step Go can open: its site has a plain host and an https address to open (X2); otherwise it stays a wrong page. */
+export const canGoTo = (step: PlaybackStep): boolean =>
+  !isMessage(step) &&
+  isGoHost(patternHost(step.urlPattern)) &&
+  switchUrlFor(step.urlPattern) !== null;
+
 /** The site a Message step's Go opens: set when it sits right before a Site switch (X6). */
 export function switchAfter(
   steps: readonly PlaybackStep[],
@@ -145,7 +152,9 @@ export function switchAfter(
     .filter((s) => !isMessage(s))
     .at(-1);
   const site = patternHost(next.urlPattern);
-  return before && patternHost(before.urlPattern) !== site ? site : null;
+  return before && patternHost(before.urlPattern) !== site && canGoTo(next)
+    ? site
+    : null;
 }
 
 /** The step is across a Site switch from `url`: the targeted step before or after it plays on that page's site (X1); anywhere else is a wrong page. */
@@ -154,7 +163,7 @@ export function onOtherSite(
   step: PlaybackStep,
   url: string
 ): boolean {
-  if (isMessage(step)) return false;
+  if (!canGoTo(step)) return false;
   const here = urlHost(url);
   if (!here || here === patternHost(step.urlPattern)) return false;
   const index = steps.indexOf(step);

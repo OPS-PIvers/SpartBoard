@@ -577,7 +577,8 @@ export function createPlaybackController(host: PlaybackHost) {
     if (!step) return null;
     if (state.status === 'switch')
       return { host: patternHost(step.urlPattern), index: state.index };
-    if (!isMessage(step) || finishedStatus(state)) return null;
+    if (!isMessage(step) || finishedStatus(state) || state.status === 'armed')
+      return null;
     const index = targetedFrom(state.tour.steps, state.index);
     const goStep = state.tour.steps[index];
     if (!goStep) return null;
@@ -611,8 +612,11 @@ export function createPlaybackController(host: PlaybackHost) {
       const next = rec ? nextSiteOf(rec) : null;
       if (!rec || !next || next.host !== hostOf(url)) return null;
       const before = rec.state;
-      while (rec.state.index < next.index && !finishedStatus(rec.state))
+      while (rec.state.index < next.index && !finishedStatus(rec.state)) {
+        const was = rec.state.index;
         rec.state = reducePlayback(rec.state, { type: 'next', url: rec.url });
+        if (rec.state.index === was) return null;
+      }
       postProgress(rec, before);
       return moveRun(rec, toTabId, { url: 'about:blank' });
     });

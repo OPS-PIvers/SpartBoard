@@ -98,7 +98,9 @@ const MIMES: readonly WebTourPictureBytes['mime'][] = [
   'image/webp',
 ];
 
-const HOST = /^[a-z0-9.-]+(:\d+)?$/;
+/** A site Go can name: letters, digits, dots, dashes and underscores, with an optional port. */
+const HOST = /^[a-z0-9._-]+(:\d+)?$/;
+export const isGoHost = (v: string): boolean => v.length <= 253 && HOST.test(v);
 const isText = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v.length <= max;
 const isCount = (v: unknown): v is number =>

@@ -1796,4 +1796,45 @@ describe('playback across sites (WEB_TOURS_CROSS_SITE.md)', () => {
       current: 1,
     });
   });
+
+  it('keeps a wrong page when the next site has no address Go can open', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([step('g1', GEMINI), step('w1', 'https://*.example.com/x')])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'wrong-page' });
+    expect(h.lastRenderIn(7)).not.toHaveProperty('go');
+  });
+
+  it('offers Go to a site whose host has an underscore', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        step('u1', 'https://my_lms.example.org/home'),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'switch',
+      go: 'my_lms.example.org',
+    });
+  });
+
+  it('never moves an armed run to a tab on a later site', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({
+      ...crossSite([step('g1', GEMINI), message('m1'), step('c1', CLAUDE)]),
+      stepIndex: 1,
+    });
+    h.clock.now += ARM_MS + 1;
+    await c.committed(9, 0, CLAUDE);
+    expect(await c.isPlaying(9)).toBe(false);
+  });
 });
