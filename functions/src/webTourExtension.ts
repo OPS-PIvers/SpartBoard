@@ -173,25 +173,31 @@ const isTargeted = (s: StoredStep): boolean =>
 const isMessage = (s: StoredStep): boolean =>
   !!s && s.message === true && !s.web;
 
-/** Targeted and Message steps in authored order (X9). */
-const webSteps = (snap: StoredSnapshot): StoredStep[] =>
-  (Array.isArray(snap.set?.steps) ? (snap.set.steps as StoredStep[]) : [])
-    .filter((s) => isTargeted(s) || isMessage(s))
-    .slice(0, MAX_STEPS);
+/** Every targeted and Message step in authored order (X9). */
+const allWebSteps = (snap: StoredSnapshot): StoredStep[] =>
+  (Array.isArray(snap.set?.steps)
+    ? (snap.set.steps as StoredStep[])
+    : []
+  ).filter((s) => isTargeted(s) || isMessage(s));
 
+/** The steps the extension gets. */
+const webSteps = (snap: StoredSnapshot): StoredStep[] =>
+  allWebSteps(snap).slice(0, MAX_STEPS);
+
+// Same rule as hostOf in components/tours/web/tourSequence.ts.
 const hostOfPattern = (pattern: string): string | null =>
-  /^https:\/\/([^/?#]*)/.exec(pattern)?.[1]?.toLowerCase() ?? null;
+  /^https?:\/\/([^/?#]+)/i.exec(pattern.trim())?.[1]?.toLowerCase() ?? null;
 
 /** The host a tour starts on, from its first targeted step's address (X8); null when it can't be opened. */
 export function startHostOf(snap: StoredSnapshot): string | null {
-  const first = webSteps(snap).find(isTargeted);
-  const host = hostOfPattern(str(first?.web?.urlPattern));
+  const pattern = str(webSteps(snap).find(isTargeted)?.web?.urlPattern);
+  const host = pattern.startsWith('https://') ? hostOfPattern(pattern) : null;
   return host && !host.includes('*') && !host.includes('@') ? host : null;
 }
 
 /** Whether a tour has a Message step or a Site switch, so only protocol 14 plays it (X13). */
 export function needsCrossSite(snap: StoredSnapshot): boolean {
-  const steps = webSteps(snap);
+  const steps = allWebSteps(snap);
   if (steps.some(isMessage)) return true;
   const hosts = steps
     .filter(isTargeted)

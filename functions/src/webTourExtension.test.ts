@@ -511,6 +511,9 @@ describe('cross-site tours (X13, X14)', () => {
     expect(needsCrossSite(snapshot([step('a', gemini), message('m')]))).toBe(
       true
     );
+    expect(
+      needsCrossSite(snapshot([step('a', gemini), step('b', 'http://b.test/')]))
+    ).toBe(true);
   });
 
   it('starts on the first targeted step, past an opening message (X8)', () => {
