@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-11-09_
+_Last audited: 2026-11-13_
 _Last action: 2026-10-30 — MEDIUM `transcribeVideoWithGemini` kill-switch gap verified already fixed in code; moved to Completed (journal only). Prior: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
@@ -48,6 +48,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-11-13: Daily audit (Friday). Weekly light pass. Gemini model strings in `functions/src` are centralized in `aiModelConfig.ts` (gemini-3.7-flash / 3.5-flash-lite); no per-type hardcoded model strings outside shared.ts legacy references. Per-type rate limit / UI state / permission gate and AI opportunity scans not re-run. 0 new issues._
 
 ### MEDIUM 8 of 10 per-feature AI rate-limit docs are unconfigurable, and `dashboard-layout` reads a different doc than the `magic-layout` toggle
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-11-11_
+_Last audited: 2026-11-13_
 _Last action: 2026-05-01_
 
 _2026-11-11: Weekly audit (Wednesday, light pass). `Object.assign` defaults pattern in `DashboardContext.tsx`: 0 (extracted to `utils/adminBuildingConfig.ts`). `as unknown as` across components/context/hooks/utils: 1138. Existing Open items unchanged. 0 new issues._
@@ -62,6 +62,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-11-13: Daily audit (Friday). Weekly light pass. `Object.assign({}, defaults` in `DashboardContext.tsx`: 0. `as WidgetConfig`: 8 non-test; `as unknown as`: 227 non-test (213 on 2026-11-09, growth consistent with the tracked settings-schema cast cluster). Top hooks: `useQuizSession` 30, `useVideoActivitySession` 24, `useMeetingRecorder` 24, `useWhiteboardRecording` 23, `useLinkedCollectionSync` 23, `useAudioRecording` 23, all tracked. Nested-ternary and passthrough scans not re-run. 0 new issues._
 
 ### LOW `hooks/usePlcUpdates.ts` has 7 useState/useRef calls
 - **Detected:** 2026-10-09
