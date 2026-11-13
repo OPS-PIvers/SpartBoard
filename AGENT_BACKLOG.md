@@ -218,6 +218,15 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/claude-security-fix-find_01hdwd6jykvej5w2jqqm7yvi-3zioml
+nightly/widgets-2026-11-13
+nightly/dashboard-2026-11-13
+nightly/admin-2026-11-13
+nightly/build-2026-11-13
+nightly/debugger-log-2026-11-13
+nightly/unifier-log-2026-11-13
+claude/tour-anchors-2026-11-13
+claude/project-thread-7cvy7s
 claude/project-thread-csyhd9
 claude/project-thread-lvqzbz
 claude/project-thread-lvqzbz-docs
