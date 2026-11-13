@@ -1763,10 +1763,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
   const lookahead =
-    tour?.phase === 'running' &&
-    !tour.edit &&
-    !tour.test &&
-    !editRecording;
+    tour?.phase === 'running' && !tour.edit && !tour.test && !editRecording;
   const pendingCatch = useRef<{
     from: number;
     matched: number;

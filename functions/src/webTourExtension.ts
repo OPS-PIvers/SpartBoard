@@ -661,9 +661,10 @@ export const webTourLoadV1 = extensionEndpoint(async (body, _caller, db) => {
   if ((body as { link?: unknown }).link !== true) return loaded;
   const { defaultPublicLinkDeps, workingLinkTokenFor } =
     await import('./tourPublicLink');
-  const link = await workingLinkTokenFor(setId, defaultPublicLinkDeps(db)).catch(
-    () => null
-  );
+  const link = await workingLinkTokenFor(
+    setId,
+    defaultPublicLinkDeps(db)
+  ).catch(() => null);
   return link ? { ...loaded, link } : loaded;
 }, '512MiB');
 

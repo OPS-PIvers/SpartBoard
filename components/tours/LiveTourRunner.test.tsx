@@ -4171,7 +4171,6 @@ describe('LiveTourRunner with tour pacing', () => {
     expect(progress()).toBe('1 / 6');
     expect(skipped()).toBeNull();
   });
-
 });
 
 // Tour pacing (TOURS_10X.md P1, P3, P4, P5): the rhythm, the step dots and the waiting chip.
@@ -4442,5 +4441,4 @@ describe('LiveTourRunner pacing feel', () => {
     expect(chip()).toHaveTextContent('Step 2 is waiting');
     expect(screen.queryByTestId('tour-take-me-back')).toBeNull();
   });
-
 });

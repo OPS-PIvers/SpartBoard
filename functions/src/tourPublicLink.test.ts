@@ -432,9 +432,7 @@ describe('workingLinkTokenFor', () => {
   });
 
   it('gives the token of a link that is served now', async () => {
-    expect(await workingLinkTokenFor(SET, withLink(record(set)))).toBe(
-      TOKEN
-    );
+    expect(await workingLinkTokenFor(SET, withLink(record(set)))).toBe(TOKEN);
   });
 
   it('gives nothing for a tour with no link or another tour', async () => {
