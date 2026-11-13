@@ -1470,6 +1470,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           </span>
         </>
       )}
+      {activeClass !== 'all' && (
+        <>
+          <span className="text-slate-300">·</span>
+          <span>{activeClass}</span>
+        </>
+      )}
     </span>
   );
 

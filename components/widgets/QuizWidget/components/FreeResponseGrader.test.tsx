@@ -305,6 +305,8 @@ describe('FreeResponseGrader class filter', () => {
     expect(rail.textContent).toContain('Ada Lovelace');
     expect(rail.textContent).not.toContain('Grace Hopper');
     expect(screen.getByText('Student 1 of 1')).toBeTruthy();
+    // The header names the class so a collapsed list still shows it.
+    expect(screen.getByText('Period 1', { selector: 'span' })).toBeTruthy();
   });
 
   it('keeps the filter reachable when a class has nothing to grade', async () => {
