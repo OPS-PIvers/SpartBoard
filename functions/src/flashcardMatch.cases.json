@@ -206,5 +206,21 @@
     "language": "es-US",
     "strict": true,
     "result": "exact"
+  },
+  {
+    "name": "keeps whole alternates of unequal length whole",
+    "response": "buenos hola",
+    "expected": "buenos días / hola",
+    "language": "es-US",
+    "strict": true,
+    "result": "wrong"
+  },
+  {
+    "name": "does not splice a non-article lead word",
+    "response": "lo perdón",
+    "expected": "lo siento / perdón",
+    "language": "es-US",
+    "strict": true,
+    "result": "wrong"
   }
 ]

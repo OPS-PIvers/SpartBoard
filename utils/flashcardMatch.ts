@@ -195,6 +195,23 @@ export const expandSlashWords = (text: string, spanish: boolean): string[] => {
 
 const wordsOf = (text: string): string[] => text.split(/\s+/u).filter(Boolean);
 
+// Infinitive markers and articles that can lead either side of a one-word swap.
+const SHARED_LEADS = new Set([
+  'to',
+  'a',
+  'an',
+  'the',
+  'el',
+  'la',
+  'los',
+  'las',
+  'un',
+  'una',
+  'le',
+  'les',
+  'une',
+]);
+
 /** "sacar una buena / mala nota" and "to start / begin" also mean the whole phrase with either word. */
 export const spacedSlashSwaps = (expected: string): string[] => {
   const parts = expected
@@ -203,10 +220,15 @@ export const spacedSlashSwaps = (expected: string): string[] => {
     .map(wordsOf);
   if (parts.length !== 2) return [];
   const [left, right] = parts;
-  // Equal sides are whole alternates; a lone word before the slash ("hola / buenos días") is too.
-  if (left.length < 2 || left.length === right.length) return [];
+  // Splice only around shared words: a tail ("buena / mala nota") or a short lead ("to start / begin").
+  if (left.length <= right.length) return [];
   const withHead = [...left.slice(0, -1), ...right].join(' ');
-  if (right.length === 1) return [withHead];
+  if (right.length === 1) {
+    const lead = left.slice(0, -1);
+    return lead.every((word) => SHARED_LEADS.has(word.toLowerCase()))
+      ? [withHead]
+      : [];
+  }
   return [[...left, ...right.slice(1)].join(' '), withHead];
 };
 
