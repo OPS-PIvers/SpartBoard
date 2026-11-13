@@ -13,13 +13,19 @@ type ChipHandlers = Omit<
 interface ChipGridProps {
   students: LunchStudent[];
   flowIntoParent?: boolean;
+  fontSize?: string;
   draggingIds: Set<string>;
   handlers: ChipHandlers;
 }
 
 // One text size for labels, entree and chips keeps the board calm.
 export const ZONE_TEXT = 'clamp(12px, calc(3.4cqmin - 0.5px), 30px)';
+// Count row height: a stacked zone never shrinks past its count and label.
+export const ZONE_HEAD =
+  'calc(clamp(32px, calc(20cqmin - 40px), 120px) + clamp(6px, calc(4cqmin - 8px), 18px) + clamp(3px, calc(3cqmin - 9px), 12px))';
 export const CHIP_HEIGHT = 'max(36px, min(64px, 2.4em))';
+// The Unassigned tray's text, which useTrayFit may shrink so every name fits.
+export const TRAY_TEXT = `max(12px, calc(${ZONE_TEXT} * var(--tray-scale, 1)))`;
 
 export const CHIP_CLASS =
   'flex items-center max-w-full rounded-xl bg-white text-slate-800 font-bold leading-tight shadow-xs wrap-anywhere transition-colors hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
@@ -27,6 +33,7 @@ export const CHIP_CLASS =
 export const ChipGrid: React.FC<ChipGridProps> = ({
   students,
   flowIntoParent = false,
+  fontSize = ZONE_TEXT,
   draggingIds,
   handlers,
 }) => {
@@ -46,7 +53,7 @@ export const ChipGrid: React.FC<ChipGridProps> = ({
           {...handlers}
           className={CHIP_CLASS}
           style={{
-            fontSize: ZONE_TEXT,
+            fontSize,
             minHeight: CHIP_HEIGHT,
             padding: '0.35em 0.6em',
           }}
@@ -112,14 +119,16 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
       data-drop-zone={zone}
       data-testid={testId}
       aria-label={label}
-      className={`flex flex-col min-h-0 min-w-0 flex-1 [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] ${zone === 'hot' ? '[@container_(max-width:1199px)_and_(min-aspect-ratio:0.71)]:flex-[1.8_1_0%]' : ''} rounded-2xl transition-colors ${
+      className={`flex flex-col min-w-0 flex-1 [@container(max-height:349px)]:min-h-0 [@container(max-height:349px)]:overflow-y-auto [@container(max-height:349px)]:custom-scrollbar [@container_(max-aspect-ratio:0.7)_and_(min-height:350px)]:min-h-[var(--zone-head)] [@container(max-aspect-ratio:0.7)]:overflow-y-auto [@container(max-aspect-ratio:0.7)]:custom-scrollbar [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] ${zone === 'hot' ? '[@container_(max-width:1199px)_and_(min-aspect-ratio:0.71)]:flex-[1.8_1_0%]' : ''} rounded-2xl transition-colors ${
         isOver ? tone.over : tone.fill
       }`}
+      style={{ '--zone-head': ZONE_HEAD } as React.CSSProperties}
     >
       <div
-        className="flex items-center shrink-0"
+        className="flex flex-wrap items-center shrink-0"
         style={{
-          gap: 'clamp(8px, 2.5cqmin, 20px)',
+          columnGap: 'clamp(8px, 2.5cqmin, 20px)',
+          rowGap: 'clamp(4px, 1.2cqmin, 10px)',
           padding:
             'clamp(6px, calc(4cqmin - 8px), 18px) clamp(8px, calc(4cqmin - 8px), 24px) 0',
         }}
@@ -132,21 +141,20 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
           {count}
         </span>
         <span
-          className={`font-black leading-tight min-w-0 wrap-anywhere ${tone.label}`}
+          className={`flex-[1_1_min-content] font-black leading-tight min-w-0 wrap-break-word ${tone.label}`}
           style={{ fontSize: ZONE_TEXT }}
         >
           {label}
         </span>
       </div>
-      <div
-        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
-        style={{
-          gap: 'clamp(6px, calc(3cqmin - 6px), 18px)',
-          padding:
-            'clamp(4px, calc(3cqmin - 8px), 14px) clamp(8px, calc(4cqmin - 8px), 24px) clamp(8px, calc(4cqmin - 8px), 24px)',
-        }}
-      >
-        {line !== null ? (
+      {line !== null ? (
+        <div
+          className="shrink-0"
+          style={{
+            padding:
+              'clamp(4px, calc(3cqmin - 8px), 14px) clamp(8px, calc(4cqmin - 8px), 24px) 0',
+          }}
+        >
           <div
             className="flex items-center"
             style={{ gap: 'clamp(8px, 2cqmin, 14px)' }}
@@ -203,7 +211,21 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
               ) : null}
             </div>
           </div>
-        ) : null}
+        </div>
+      ) : null}
+      {/* Zero base height: the zone's minimum is its count and menu, so the Unassigned tray can take the rest. */}
+      <div
+        className="grow h-0 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
+        style={{
+          fontSize: ZONE_TEXT,
+          padding: `${students.length > 0 ? 'clamp(6px, calc(3cqmin - 6px), 18px)' : '0px'} clamp(8px, calc(4cqmin - 8px), 24px) clamp(8px, calc(4cqmin - 8px), 24px)`,
+          // Keep one row of this zone's names visible so a mis-sorted child can be dragged back.
+          minHeight:
+            students.length > 0
+              ? `calc(${CHIP_HEIGHT} + clamp(6px, calc(3cqmin - 6px), 18px) + clamp(8px, calc(4cqmin - 8px), 24px))`
+              : undefined,
+        }}
+      >
         <ChipGrid
           students={students}
           draggingIds={draggingIds}
