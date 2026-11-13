@@ -1280,6 +1280,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       if (
         el instanceof HTMLInputElement ||
         el instanceof HTMLTextAreaElement ||
+        el instanceof HTMLSelectElement ||
         el?.isContentEditable
       )
         return;

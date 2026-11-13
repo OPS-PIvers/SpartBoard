@@ -335,6 +335,20 @@ describe('FreeResponseGrader class filter', () => {
     ).toBeTruthy();
   });
 
+  it('leaves arrow keys to the class picker', async () => {
+    render(
+      <Harness
+        responses={[inClass('ada', 'Period 1'), inClass('grace', 'Period 2')]}
+      />
+    );
+    expect(await screen.findByText('Student 1 of 2')).toBeTruthy();
+    fireEvent.keyDown(
+      screen.getByRole('combobox', { name: 'Filter by class' }),
+      { key: 'ArrowRight' }
+    );
+    expect(screen.getByText('Student 1 of 2')).toBeTruthy();
+  });
+
   it('shows every class when the picked class is gone', async () => {
     render(
       <FreeResponseGrader
