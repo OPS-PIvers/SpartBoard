@@ -8,7 +8,7 @@ import {
 import { pictureFingerprint } from '@/components/tours/publicLink/publicLinkModel';
 import { stepsFromWebTour } from '@/components/tours/steps/stepsModel';
 import { stepsFromLiveTour } from '@/components/tours/steps/liveSteps';
-import { webTourStepsOf } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import { webTourSequenceOf } from '@/components/tours/web/tourSequence';
 
 const BUCKET = 'spartboard.appspot.com';
 const url = (path: string) =>
@@ -72,6 +72,49 @@ const webTour = {
   ],
 } as unknown as GuidedLearningSet;
 
+const crossSite = {
+  id: 'x1',
+  title: 'Across sites',
+  surface: 'web',
+  steps: [
+    { id: 'm1', label: 'Welcome', text: 'We start on Gemini.', message: true },
+    {
+      id: 'a',
+      label: 'Gemini',
+      text: 'One',
+      web: {
+        urlPattern: 'https://gemini.google.com/app',
+        action: 'click',
+        locator: { role: 'button', name: 'Go' },
+        picture: { path: 'web_tour_pictures/x1/a.png', w: 900, h: 500 },
+      },
+    },
+    {
+      id: 'm2',
+      label: 'Over to Claude',
+      text: 'Next we switch.',
+      message: true,
+    },
+    {
+      id: 'b',
+      label: 'Claude',
+      text: 'Two',
+      web: {
+        urlPattern: 'https://claude.ai/customize/skills',
+        action: 'observe',
+        locator: { role: 'link', name: 'Skills' },
+      },
+    },
+    {
+      id: 'c',
+      label: 'Claude again',
+      text: 'Three',
+      web: { urlPattern: 'https://claude.ai/chat/*', action: 'click' },
+    },
+    { id: 'm3', label: 'All done', text: 'That is the tour.', message: true },
+  ],
+} as unknown as GuidedLearningSet;
+
 const liveTour = {
   id: 'l1',
   title: 'Live',
@@ -130,9 +173,92 @@ describe('public link parity', () => {
   });
 
   it('draws web steps the way the function serves them', () => {
-    const app = stepsFromWebTour(webTourStepsOf(webTour));
+    const app = stepsFromWebTour(webTourSequenceOf(webTour));
     const served = publicTourOf('w1', webTour, BUCKET)?.tour.steps;
     expect(served).toEqual(app);
+  });
+
+  it('keeps Message steps and Site switch dividers the same on both sides', () => {
+    const app = stepsFromWebTour(webTourSequenceOf(crossSite));
+    const served = publicTourOf('x1', crossSite, BUCKET)?.tour.steps;
+    expect(served).toEqual(app);
+    expect(served?.map((s) => [s.id, !!s.message, s.continueOn])).toEqual([
+      ['m1', true, undefined],
+      ['a', false, undefined],
+      ['m2', true, undefined],
+      ['b', false, 'claude.ai'],
+      ['c', false, undefined],
+      ['m3', true, undefined],
+    ]);
+    expect(pictureFingerprint(crossSite)).toBe(serverFingerprint(crossSite));
+  });
+
+  it('keeps the divider when the endpoint skips a step with an unusable id', () => {
+    const odd = {
+      ...crossSite,
+      steps: (crossSite.steps as { id: string }[]).map((s) =>
+        s.id === 'b' ? { ...s, id: 'b.1' } : s
+      ),
+    } as unknown as GuidedLearningSet;
+    const served = publicTourOf('x1', odd, BUCKET)?.tour.steps;
+    expect(served?.map((s) => s.id)).toEqual(['m1', 'a', 'm2', 'c', 'm3']);
+    expect(served?.find((s) => s.id === 'c')?.continueOn).toBe('claude.ai');
+  });
+
+  it('reads hosts the same way: default ports and userinfo are not a new site', () => {
+    const step = (id: string, urlPattern: string) => ({
+      id,
+      label: id,
+      text: id,
+      web: { urlPattern, action: 'observe' },
+    });
+    const set = {
+      id: 'x2',
+      title: 'Hosts',
+      surface: 'web',
+      steps: [
+        step('a', 'https://claude.ai/x'),
+        step('b', 'https://claude.ai:443/y'),
+        step('c', 'https://me@Claude.AI/z'),
+        step('d', 'http://claude.ai:80/z'),
+        step('e', 'https://claude.ai:8443/z'),
+        step('f', 'https://claude.ai/z'),
+      ],
+    } as unknown as GuidedLearningSet;
+    const app = stepsFromWebTour(webTourSequenceOf(set));
+    const served = publicTourOf('x2', set, BUCKET)?.tour.steps;
+    expect(served).toEqual(app);
+    expect(served?.map((s) => s.continueOn)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'claude.ai:8443',
+      'claude.ai',
+    ]);
+  });
+
+  it('counts only targeted steps toward the public step limit', () => {
+    const targeted = Array.from({ length: 200 }, (_, i) => ({
+      id: `t${i}`,
+      label: 't',
+      text: 't',
+      web: { urlPattern: 'https://claude.ai/x', action: 'observe' },
+    }));
+    const set = (extra: object[]) =>
+      ({
+        id: 'x3',
+        title: 'Long',
+        surface: 'web',
+        steps: [...targeted, ...extra],
+      }) as unknown as GuidedLearningSet;
+    const message = { id: 'm', label: 'm', text: 'm', message: true };
+    expect(publicTourOf('x3', set([message]), BUCKET)?.tour.steps).toHaveLength(
+      201
+    );
+    expect(
+      publicTourOf('x3', set([{ ...targeted[0], id: 'extra' }]), BUCKET)
+    ).toBeNull();
   });
 
   it('draws Live steps the way the function serves them', () => {

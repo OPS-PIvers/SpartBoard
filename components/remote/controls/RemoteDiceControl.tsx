@@ -152,7 +152,7 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
       </div>
 
       {/* Roll Button */}
-      <button
+      <button /* no-tour-anchor: phone remote page, never on the board */
         onClick={roll}
         disabled={isRolling}
         className="touch-manipulation flex items-center gap-3 px-8 py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-black text-lg shadow-lg transition-all active:scale-95"
@@ -164,7 +164,7 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
 
       {/* Count control */}
       <div className="flex items-center gap-4">
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={() => changeCount(-1)}
           disabled={count <= 1}
           className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
@@ -175,7 +175,7 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
         <span className="text-white/80 font-bold text-sm w-16 text-center">
           {count} {count === 1 ? 'die' : 'dice'}
         </span>
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={() => changeCount(1)}
           disabled={count >= 6}
           className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"

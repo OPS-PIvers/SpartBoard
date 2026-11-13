@@ -309,7 +309,7 @@ describe('PollVoteApp', () => {
     });
     snapshotDocs = [
       {
-        id: '0_voter-1',
+        id: '0_vid-1',
         data: { questionIndex: 0, optionIndex: 3, votedAt: 1 },
       },
       {
@@ -322,7 +322,7 @@ describe('PollVoteApp', () => {
     expect(await screen.findByTestId('poll-scale-ballot')).toBeInTheDocument();
     expect(screen.getByText('Not sure')).toBeInTheDocument();
     expect(screen.getByText('Very sure')).toBeInTheDocument();
-    // A uid-keyed vote from the previous app still shows as this device's; the uid arrives after sign-in.
+    // This device's earlier vote, keyed by its voter id, shows as pressed.
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^4/ })).toHaveAttribute(
         'aria-pressed',
@@ -337,20 +337,20 @@ describe('PollVoteApp', () => {
       expect.anything(),
       expect.objectContaining({ questionIndex: 0, optionIndex: 4 })
     );
-    // The change overwrites the uid-keyed vote instead of adding a second one.
+    // The change overwrites the voter-id vote; nothing is keyed by the account.
     expect(mockDoc).toHaveBeenCalledWith(
       {},
       'poll_sessions',
       'teacher-1_K3F9Q',
       'votes',
-      '0_voter-1'
+      '0_vid-1'
     );
     expect(mockDoc).not.toHaveBeenCalledWith(
       {},
       'poll_sessions',
       'teacher-1_K3F9Q',
       'votes',
-      '0_vid-1'
+      '0_voter-1'
     );
   });
 

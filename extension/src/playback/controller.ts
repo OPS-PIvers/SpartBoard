@@ -1,12 +1,17 @@
 import type { AheadStep, FrameCommand, FrameReport } from './frameScript';
 import {
   type FoundMatch,
+  isMessage,
+  patternHost,
   type PlaybackStep,
   reducePlayback,
   startPlayback,
+  switchAfter,
+  targetedFrom,
   type PlaybackEvent,
   type PlaybackState,
 } from './progress';
+import { switchUrlFor } from '@/components/tours/web/tourSequence';
 import {
   parseWebTourLocator,
   type WebTourPictureBytes,
@@ -52,6 +57,10 @@ export type ProgressPost = WebTourPortPost;
 /** The Chrome APIs playback needs, so the controller runs against a fake in tests. */
 export interface PlaybackHost {
   openTab(url: string): Promise<number>;
+  /** Brings an open tab and its window to the front; false when the tab is gone. */
+  focusTab(tabId: number): Promise<boolean>;
+  /** An open tab's top address, or null when the tab is gone. */
+  tabUrl(tabId: number): Promise<string | null>;
   navigate(tabId: number, url: string): Promise<void>;
   closeTab(tabId: number): Promise<void>;
   frames(tabId: number): Promise<HostFrame[]>;
@@ -83,6 +92,8 @@ interface ArmState {
   navigated: boolean;
   /** The chip offers "Go to the start" instead of navigating again. */
   goStart: boolean;
+  /** The page it waits for when that isn't the tour's start, e.g. a start on a later site's step. */
+  url?: string;
 }
 
 interface TabRecord {
@@ -125,6 +136,8 @@ interface TabRecord {
   visited?: string[];
   /** Steps whose Take me back was used; it navigates once per step so it can't loop. */
   tookBack?: string[];
+  /** The tab this run last used on each of the tour's sites, so a switch back reuses it (X3). */
+  siteTabs?: Record<string, number>;
 }
 
 /** How long a step looks for its target before the tip folds into the waiting chip (P4). */
@@ -166,6 +179,10 @@ const hostOf = (url: string) => {
     return '';
   }
 };
+
+const statusOf = (rec: { state: PlaybackState }) => rec.state.status;
+const finishedStatus = (s: PlaybackState) =>
+  s.status === 'done' || s.status === 'exited';
 
 /** A step's check result from how it was found; an unfound step whose candidates tied is `ambiguous`. */
 export const checkResultOf = (
@@ -284,11 +301,23 @@ export function createPlaybackController(host: PlaybackHost) {
       });
       return;
     }
-    const shownIn = state.status === 'shown' ? rec.targetFrameId : null;
+    const shownIn =
+      state.status === 'shown' && !isMessage(step) ? rec.targetFrameId : null;
     const settled = state.status === 'shown' || state.status === 'fallback';
+    const switching = state.status === 'switch';
+    const ahead =
+      state.status === 'shown'
+        ? switchAfter(state.tour.steps, state.index)
+        : null;
+    // A message before a switch whose site the learner is already on keeps plain Next.
+    const go = switching
+      ? patternHost(step.urlPattern)
+      : ahead && hostOf(rec.url) !== ahead
+        ? ahead
+        : null;
     const base = {
-      title: step.title.slice(0, MAX_TITLE),
-      text: step.text,
+      title: switching ? '' : step.title.slice(0, MAX_TITLE),
+      text: switching ? '' : step.text,
       current: state.index + 1,
       total: state.tour.steps.length,
       status: state.status,
@@ -311,6 +340,8 @@ export function createPlaybackController(host: PlaybackHost) {
         ...(next ? { ahead: next } : {}),
         skipped: skippedIndices(state, state.tour.steps),
         ...(back ? { takeBack: true } : {}),
+        ...(isMessage(step) ? { message: true } : {}),
+        ...(go ? { go } : {}),
       },
     });
     // While seeking inside one subframe, its overlay mounts early so the spotlight there needn't wait for it.
@@ -393,7 +424,7 @@ export function createPlaybackController(host: PlaybackHost) {
     const trim = (u: string) => u.replace(/\/$/, '');
     return (
       hostOf(url) === rec.arm.host &&
-      trim(url) === trim(rec.state.tour.startUrl)
+      trim(url) === trim(rec.arm.url ?? rec.state.tour.startUrl)
     );
   }
 
@@ -405,7 +436,7 @@ export function createPlaybackController(host: PlaybackHost) {
       rec.arm = { ...arm, leftHost: true, goStart: false };
     } else if (arm.leftHost && !arm.navigated) {
       rec.arm = { ...arm, leftHost: false, navigated: true, goStart: false };
-      await host.navigate(rec.tabId, rec.state.tour.startUrl);
+      await host.navigate(rec.tabId, arm.url ?? rec.state.tour.startUrl);
     } else {
       rec.arm = { ...arm, leftHost: false, goStart: true };
     }
@@ -460,54 +491,184 @@ export function createPlaybackController(host: PlaybackHost) {
     return null;
   }
 
+  /** Moves the run's pictures to another tab one at a time, so two full copies never share the session quota; false if it failed and was undone. */
+  async function movePictures(
+    rec: TabRecord,
+    toTabId: number
+  ): Promise<boolean> {
+    const done: string[] = [];
+    try {
+      for (const s of rec.state.tour.steps) {
+        if (!s.hasPicture) continue;
+        const pic = await host.load<WebTourPictureBytes>(
+          picKey(rec.tabId, s.id)
+        );
+        if (!pic) continue;
+        await host.save({ [picKey(toTabId, s.id)]: pic });
+        done.push(s.id);
+        await host.remove([picKey(rec.tabId, s.id)]);
+      }
+      return true;
+    } catch {
+      for (const id of done) {
+        const pic = await host.load<WebTourPictureBytes>(picKey(toTabId, id));
+        if (pic) await host.save({ [picKey(rec.tabId, id)]: pic });
+        await host.remove([picKey(toTabId, id)]);
+      }
+      return false;
+    }
+  }
+
+  /** Hands the run to another tab; the tab left behind shows the moved notice (H3, X3). Runs inside the old tab's queue. */
+  async function moveRun(
+    rec: TabRecord,
+    toTabId: number,
+    changes: Partial<TabRecord>
+  ): Promise<TabRecord | null> {
+    const fromTabId = rec.tabId;
+    if (!(await movePictures(rec, toTabId))) return null;
+    const left = hostOf(rec.url);
+    const moved: TabRecord = {
+      ...rec,
+      tabId: toTabId,
+      targetFrameId: null,
+      litFrameId: null,
+      idleFrameId: null,
+      overlayFrames: {},
+      ...(left ? { siteTabs: { ...rec.siteTabs, [left]: fromTabId } } : {}),
+      ...changes,
+    };
+    await store(moved);
+    await trackTab(toTabId, true);
+    await host.remove([
+      tabKey(fromTabId),
+      ...rec.state.tour.steps.map((s) => picKey(fromTabId, s.id)),
+    ]);
+    await trackTab(fromTabId, false);
+    for (const f of await host.frames(fromTabId)) {
+      host.sendToFrame(fromTabId, f.frameId, { type: 'wt:stop' });
+      if (f.frameId !== 0)
+        host.sendToFrame(fromTabId, f.frameId, { type: 'overlay/unmount' });
+    }
+    host.sendToFrame(fromTabId, 0, {
+      type: 'overlay/render',
+      state: notice(rec, 'moved'),
+    });
+    return moved;
+  }
+
   /** Moves an armed tour to the tab that reached its site, e.g. one LaunchPad opened (H3). */
   function adopt(fromTabId: number, toTabId: number) {
     return serial(fromTabId, async (): Promise<TabRecord | null> => {
       const rec = await load(fromTabId);
       if (!rec?.arm || rec.state.status !== 'armed' || armedOut(rec))
         return null;
-      // Pictures move one at a time so two full copies never share the session quota.
-      const done: string[] = [];
-      try {
-        for (const s of rec.state.tour.steps) {
-          if (!s.hasPicture) continue;
-          const pic = await host.load<WebTourPictureBytes>(
-            picKey(fromTabId, s.id)
-          );
-          if (!pic) continue;
-          await host.save({ [picKey(toTabId, s.id)]: pic });
-          done.push(s.id);
-          await host.remove([picKey(fromTabId, s.id)]);
-        }
-      } catch {
-        for (const id of done) {
-          const pic = await host.load<WebTourPictureBytes>(picKey(toTabId, id));
-          if (pic) await host.save({ [picKey(fromTabId, id)]: pic });
-          await host.remove([picKey(toTabId, id)]);
-        }
-        return null;
-      }
       // Arriving from elsewhere counts as a trip off the site, so a landing page goes to the start once.
-      const moved: TabRecord = {
-        ...rec,
-        tabId: toTabId,
-        targetFrameId: null,
-        litFrameId: null,
+      return moveRun(rec, toTabId, {
         arm: { ...rec.arm, leftHost: true, navigated: false, goStart: false },
-      };
-      await store(moved);
-      await trackTab(toTabId, true);
-      await host.remove([
-        tabKey(fromTabId),
-        ...rec.state.tour.steps.map((s) => picKey(fromTabId, s.id)),
-      ]);
-      await trackTab(fromTabId, false);
-      host.sendToFrame(fromTabId, 0, {
-        type: 'overlay/render',
-        state: notice(rec, 'moved'),
       });
-      return moved;
     });
+  }
+
+  /** The site a running tour moves on to next: the switch tip's, or the one after the Message steps it is on (X4). */
+  function nextSiteOf(rec: TabRecord): { host: string; index: number } | null {
+    const { state } = rec;
+    const step = state.tour.steps[state.index];
+    if (!step) return null;
+    if (state.status === 'switch')
+      return { host: patternHost(step.urlPattern), index: state.index };
+    if (!isMessage(step) || finishedStatus(state) || state.status === 'armed')
+      return null;
+    const index = targetedFrom(state.tour.steps, state.index);
+    const goStep = state.tour.steps[index];
+    if (!goStep) return null;
+    const site = patternHost(goStep.urlPattern);
+    // Only Message steps sit between this and the step before the switch.
+    const before = state.tour.steps
+      .slice(0, state.index)
+      .filter((s) => !isMessage(s))
+      .at(-1);
+    return before && patternHost(before.urlPattern) !== site
+      ? { host: site, index }
+      : null;
+  }
+
+  /** The running tour whose next site this tab just opened, if any (X4). */
+  async function switchTabFor(tabId: number, url: string) {
+    const site = hostOf(url);
+    for (const other of (await host.load<number[]>(TABS_KEY)) ?? []) {
+      if (other === tabId) continue;
+      const rec = await load(other);
+      if (rec && nextSiteOf(rec)?.host === site && hostOf(rec.url) !== site)
+        return other;
+    }
+    return null;
+  }
+
+  /** Moves a running tour to the tab the learner opened on its next site, on that site's first step (X4). */
+  function follow(fromTabId: number, toTabId: number, url: string) {
+    return serial(fromTabId, async (): Promise<TabRecord | null> => {
+      const rec = await load(fromTabId);
+      const next = rec ? nextSiteOf(rec) : null;
+      if (!rec || !next || next.host !== hostOf(url)) return null;
+      const before = rec.state;
+      while (rec.state.index < next.index && !finishedStatus(rec.state)) {
+        const was = rec.state.index;
+        rec.state = reducePlayback(rec.state, { type: 'next', url: rec.url });
+        if (rec.state.index === was) return null;
+      }
+      postProgress(rec, before);
+      return moveRun(rec, toTabId, { url: 'about:blank' });
+    });
+  }
+
+  /** Go to {host} (X2, X3, X6): finishes a message before a switch, then reuses the run's tab on that site or opens one. */
+  async function goSite(given: TabRecord): Promise<void> {
+    let rec = given;
+    if (
+      rec.state.status === 'shown' &&
+      switchAfter(rec.state.tour.steps, rec.state.index)
+    ) {
+      await dispatch(rec, { type: 'next' });
+      // A check run may already have crossed inside that dispatch (X5), leaving this tab.
+      const now = await load(rec.tabId);
+      if (!now) return;
+      rec = now;
+    }
+    if (statusOf(rec) !== 'switch') return;
+    const step = rec.state.tour.steps[rec.state.index];
+    const site = patternHost(step.urlPattern);
+    const url = switchUrlFor(step.urlPattern);
+    if (!url) return;
+    const known = rec.siteTabs?.[site];
+    if (known !== undefined && known !== rec.tabId) {
+      const at = await host.tabUrl(known).catch(() => null);
+      if (at !== null && hostOf(at) === site) {
+        const moved = await moveRun(rec, known, { url: at });
+        if (!moved) return;
+        await host.focusTab(known).catch(() => false);
+        if (!matchesUrlPattern(step.urlPattern, at)) {
+          await host.navigate(known, url);
+          return;
+        }
+        // In the reused tab's own queue, so a find reported there sees this seek; not awaited, so the two queues never wait on each other.
+        void serial(known, async () => {
+          const there = await load(known);
+          if (!there) return;
+          await host.inject(known, [0], true);
+          there.url = at;
+          await dispatch(there, { type: 'page', url: at });
+        }).catch(() => undefined);
+        return;
+      }
+    }
+    const tabId = await host.openTab('about:blank');
+    const moved = await moveRun(rec, tabId, { url: 'about:blank' });
+    if (!moved) {
+      await host.closeTab(tabId).catch(() => undefined);
+      return;
+    }
+    await host.navigate(tabId, url);
   }
 
   /** Posts a candidate's clues for a step that missed or played weak; pages before protocol 7 never get it. */
@@ -858,11 +1019,15 @@ export function createPlaybackController(host: PlaybackHost) {
   ) {
     if (event.type === 'page' && leavesArm(rec, event.url))
       rec.state = { ...rec.state, status: 'seeking' };
-    if (event.type === 'page' && isWebPage(event.url))
+    if (event.type === 'page' && isWebPage(event.url)) {
       rec.visited = [
         ...(rec.visited ?? []).filter((u) => u !== event.url),
         event.url,
       ].slice(-VISITED_KEPT);
+      const site = hostOf(event.url);
+      if (rec.siteTabs?.[site] !== rec.tabId)
+        rec.siteTabs = { ...rec.siteTabs, [site]: rec.tabId };
+    }
     const before = rec.state;
     const withUrl: PlaybackEvent =
       event.type === 'next' || event.type === 'back' || event.type === 'ahead'
@@ -892,6 +1057,8 @@ export function createPlaybackController(host: PlaybackHost) {
       await forget(rec);
     } else {
       await store(rec);
+      // A check run crosses to the next site by itself, so one Check tour covers every site (X5).
+      if (rec.check && rec.state.status === 'switch') await goSite(rec);
     }
   }
 
@@ -903,11 +1070,13 @@ export function createPlaybackController(host: PlaybackHost) {
     await forget(rec);
   }
 
-  /** A finished tour lets go of the tab once the learner leaves its last page (T8). */
+  /** A finished tour lets go of the tab once the learner leaves its last targeted step's page (T8). */
   const leftFinished = (rec: TabRecord, url: string) => {
-    const last = rec.state.tour.steps[rec.state.tour.steps.length - 1];
+    const last = rec.state.tour.steps.filter((s) => !isMessage(s)).at(-1);
     return (
-      rec.state.status === 'done' && !matchesUrlPattern(last.urlPattern, url)
+      rec.state.status === 'done' &&
+      !!last &&
+      !matchesUrlPattern(last.urlPattern, url)
     );
   };
 
@@ -936,6 +1105,14 @@ export function createPlaybackController(host: PlaybackHost) {
     }
     // The record is saved before the page loads, so its first commit always finds it.
     const tabId = inTab ?? (await host.openTab('about:blank'));
+    // A start on a later site's step waits on that site instead of the tour's start (X8).
+    const first =
+      parsed.tour.steps[targetedFrom(parsed.tour.steps, parsed.stepIndex)];
+    const later =
+      first && patternHost(first.urlPattern) !== hostOf(parsed.tour.startUrl)
+        ? switchUrlFor(first.urlPattern)
+        : null;
+    const armUrl = later ?? parsed.tour.startUrl;
     return serial(tabId, async () => {
       const state = startPlayback(
         parsed.tour,
@@ -960,10 +1137,11 @@ export function createPlaybackController(host: PlaybackHost) {
         postedIndex: -1,
         arm: {
           since: host.now(),
-          host: hostOf(parsed.tour.startUrl),
+          host: hostOf(armUrl),
           leftHost: false,
           navigated: false,
           goStart: false,
+          ...(later ? { url: later } : {}),
         },
         ...(parsed.check
           ? { check: true, runId: parsed.runId ?? '', results: {} }
@@ -992,7 +1170,7 @@ export function createPlaybackController(host: PlaybackHost) {
           await host.closeTab(tabId).catch(() => undefined);
         throw err;
       }
-      await host.navigate(tabId, parsed.tour.startUrl);
+      await host.navigate(tabId, armUrl);
       host.backstop();
       host.setTimer(ARM_MS, () => void expireArmed());
       return tabId;
@@ -1013,6 +1191,11 @@ export function createPlaybackController(host: PlaybackHost) {
         if (!rec && frameId === 0) {
           const from = await armedTabFor(tabId, url);
           if (from !== null) rec = (await adopt(from, tabId)) ?? undefined;
+        }
+        if (!rec && frameId === 0) {
+          const from = await switchTabFor(tabId, url);
+          if (from !== null)
+            rec = (await follow(from, tabId, url)) ?? undefined;
         }
         if (!rec) return;
         if (frameId === 0 && leftFinished(rec, url)) {
@@ -1141,10 +1324,15 @@ export function createPlaybackController(host: PlaybackHost) {
         }
         if (action === 'start') {
           if (rec.state.status !== 'armed' || !rec.arm) return;
+          const url = rec.arm.url ?? rec.state.tour.startUrl;
           rec.arm = { ...rec.arm, navigated: true, goStart: false };
           await store(rec);
           await render(rec);
-          await host.navigate(tabId, rec.state.tour.startUrl);
+          await host.navigate(tabId, url);
+          return;
+        }
+        if (action === 'go') {
+          await goSite(rec);
           return;
         }
         await dispatch(rec, { type: action });

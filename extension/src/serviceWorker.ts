@@ -1,4 +1,5 @@
 import {
+  EXTENSION_PROTOCOL_VERSION,
   parseWebTourPortMessage,
   progressForPage,
   WEB_TOUR_PORT,
@@ -59,6 +60,7 @@ import {
   type TourStartReply,
 } from './tourList';
 import { createTourListWorker } from './tourListWorker';
+import { createUpdateCheck } from './updateCheck';
 import { panelStepsOf, type TourStepsReply } from './tourSteps';
 import { createSchoologyWorker, STATUS_KEY } from './schoology/worker';
 import { SCHOOLOGY_CONTENT_FILE } from './schoology/messages';
@@ -125,7 +127,12 @@ async function openPublished(
   tab?: chrome.tabs.Tab | null
 ): Promise<{ ok: true; tabId: number } | { ok: false; why: ApiFailure }> {
   // Interactive, since a click started it and Chrome may need to ask once.
-  const loaded = await callSpartBoard(api, 'webTourLoadV1', { setId }, true);
+  const loaded = await callSpartBoard(
+    api,
+    'webTourLoadV1',
+    { setId, protocol: EXTENSION_PROTOCOL_VERSION },
+    true
+  );
   if (!loaded.ok) return loaded;
   const opened = openedTour(setId, loaded.value);
   if (!opened) return { ok: false, why: 'not-found' };
@@ -142,7 +149,14 @@ const loadList = async () =>
     TourListCache | undefined;
 
 const tourList = createTourListWorker({
-  list: (interactive) => callSpartBoard(api, 'webToursListV1', {}, interactive),
+  // The protocol lets the server list cross-site tours only to an extension that plays them (X13).
+  list: (interactive) =>
+    callSpartBoard(
+      api,
+      'webToursListV1',
+      { protocol: EXTENSION_PROTOCOL_VERSION },
+      interactive
+    ),
   load: loadList,
   save: (list) =>
     list
@@ -202,19 +216,24 @@ const send = createSendWorker({
     const tabs = await chrome.tabs.query({
       url: origins.map((o) => `${o}/*`),
     });
-    return tabs
-      .filter((t) => t.id !== undefined && t.url)
-      .sort(
-        (a, b) =>
-          (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
-          Number(b.active) - Number(a.active)
-      )
-      .map((t) => ({
-        id: t.id as number,
-        windowId: t.windowId,
-        origin: new URL(t.url as string).origin,
-        ready: t.status === 'complete' && !t.discarded,
-      }));
+    return (
+      tabs
+        // Board tabs only, so the inbox never replaces /web-tours or another page.
+        .filter(
+          (t) => t.id !== undefined && t.url && new URL(t.url).pathname === '/'
+        )
+        .sort(
+          (a, b) =>
+            (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
+            Number(b.active) - Number(a.active)
+        )
+        .map((t) => ({
+          id: t.id as number,
+          windowId: t.windowId,
+          origin: new URL(t.url as string).origin,
+          ready: t.status === 'complete' && !t.discarded,
+        }))
+    );
   },
   focus: async ({ id, windowId }) => {
     await chrome.tabs.update(id, { active: true });
@@ -424,6 +443,11 @@ const handle = createExternalHandler({
       await chrome.storage.session.remove([STATUS_KEY, SEND_STATUS_KEY]);
     return signedIn;
   },
+  checkForUpdate: createUpdateCheck({
+    requestUpdateCheck: () => chrome.runtime.requestUpdateCheck(),
+    reload: () => chrome.runtime.reload(),
+    later: (fn) => setTimeout(fn, 500),
+  }),
 });
 
 chrome.runtime.onMessageExternal.addListener(
@@ -551,7 +575,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
       const loaded = await callSpartBoard(
         api,
         'webTourLoadV1',
-        { setId: msg.setId, link: true },
+        { setId: msg.setId, link: true, protocol: EXTENSION_PROTOCOL_VERSION },
         true
       );
       if (!loaded.ok) return loaded;

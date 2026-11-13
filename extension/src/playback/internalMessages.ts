@@ -8,6 +8,7 @@ const ACTIONS: readonly OverlayAction[] = [
   'exit',
   'start',
   'takeBack',
+  'go',
 ];
 
 /** A frame's clues for a fix: a valid locator without frames, which the step keeps. */

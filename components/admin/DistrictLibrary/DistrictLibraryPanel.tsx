@@ -42,6 +42,16 @@ import {
 import { canonicalBuildingId } from '@/config/buildings';
 import type { DistrictLibraryItem } from '@/types/districtLibrary';
 import { DistrictLibraryTargetingEditor } from './DistrictLibraryTargetingEditor';
+import {
+  DistrictLibraryFolderView,
+  type AdminPlace,
+} from './DistrictLibraryFolderView';
+import {
+  moveDistrictItems,
+  useDistrictFolderAudiences,
+  useDistrictFolders,
+} from '@/hooks/useDistrictLibraryFolders';
+import { childFolders, folderChain } from '@/utils/districtLibraryFolders';
 
 const formatDate = (ms: number): string =>
   new Date(ms).toLocaleDateString(undefined, {
@@ -63,11 +73,16 @@ const iconButton =
   'touch-target-expand relative inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50';
 
 export const DistrictLibraryPanel: React.FC = () => {
-  const { user, isAdmin, adminDoc } = useAuth();
+  const { user, isAdmin, adminDoc, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
   const buildings = useAdminBuildings();
   const siteAdmin = isSiteAdminActor(isAdmin, adminDoc);
   const { items, loading, error } = useDistrictLibraryItems(siteAdmin);
+  const foldersOn = siteAdmin && canAccessFeature('district-library-folders');
+  const folders = useDistrictFolders(foldersOn);
+  const audiences = useDistrictFolderAudiences(foldersOn);
+  const [place, setPlace] = useState<AdminPlace>('all');
+  const [uploadFolder, setUploadFolder] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const replaceTarget = useRef<string | null>(null);
   const [pending, setPending] = useState<PendingUpload | null>(null);
@@ -114,6 +129,7 @@ export const DistrictLibraryPanel: React.FC = () => {
     try {
       const changes = await previewPackageChanges(result.pkg, byId);
       setPending({ fileName: file.name, pkg: result.pkg, onlyId, changes });
+      setUploadFolder(place !== 'all' && place !== 'drafts' ? place : null);
     } catch (err) {
       setProblems([
         err instanceof Error
@@ -152,6 +168,14 @@ export const DistrictLibraryPanel: React.FC = () => {
       ].filter(Boolean);
       setMessage(parts.length > 0 ? `${parts.join(', ')}.` : null);
       setFailed(result.failed);
+      if (foldersOn && uploadFolder && result.addedIds.length > 0) {
+        await moveDistrictItems(result.addedIds, uploadFolder, {
+          folders,
+          audiences,
+          items,
+          uid: user.uid,
+        });
+      }
       // Keep the review open on failure so Add to library retries with the same ids.
       if (result.failed.length === 0) setPending(null);
     } catch (err) {
@@ -225,6 +249,19 @@ export const DistrictLibraryPanel: React.FC = () => {
     : [];
   // Rows in the package being saved can't be published, retargeted or replaced until it finishes.
   const uploadingIds = new Set(progress ? plan.map((p) => p.entry.id) : []);
+  const folderOptions: { id: string; label: string }[] = [];
+  const addOptions = (parentId: string | null) => {
+    for (const f of childFolders(folders, parentId)) {
+      folderOptions.push({
+        id: f.id,
+        label: folderChain(folders, f.id)
+          .map((c) => c.name)
+          .join(' / '),
+      });
+      addOptions(f.id);
+    }
+  };
+  if (foldersOn) addOptions(null);
 
   return (
     <div className="p-6 max-w-4xl">
@@ -388,6 +425,25 @@ export const DistrictLibraryPanel: React.FC = () => {
               questions unless the teacher chooses Sync to latest.
             </p>
           )}
+          {foldersOn && plan.some((p) => p.action === 'add') && (
+            <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+              Put new items in
+              <select
+                value={uploadFolder ?? ''}
+                onChange={(e) => setUploadFolder(e.target.value || null)}
+                disabled={!!progress}
+                {...tourAttr('admin.district-library.upload-folder')}
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
+              >
+                <option value="">Top level</option>
+                {folderOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
@@ -425,6 +481,23 @@ export const DistrictLibraryPanel: React.FC = () => {
         <p role="alert" className="text-sm text-red-600">
           {error}
         </p>
+      ) : foldersOn && user ? (
+        <DistrictLibraryFolderView
+          uid={user.uid}
+          items={items}
+          folders={folders}
+          audiences={audiences}
+          buildings={buildings}
+          buildingName={buildingName}
+          place={place}
+          onPlaceChange={setPlace}
+          isBusy={(id) => busyId === id || uploadingIds.has(id)}
+          replaceDisabled={!!pending}
+          onTogglePublished={(item) => void togglePublished(item)}
+          onReplace={(id) => pickFile(id)}
+          onRemove={(item) => void remove(item)}
+          onError={setActionError}
+        />
       ) : items.length === 0 ? (
         <div className="py-10 text-center">
           <p className="text-sm font-semibold text-slate-700">

@@ -201,7 +201,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
 
         <div className="flex items-center gap-2">
           {/* Spotlight toggle */}
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={handleSpotlight}
             style={{ touchAction: 'manipulation' }}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
@@ -223,7 +223,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
           </button>
 
           {/* Full Screen toggle */}
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={handleMaximize}
             style={{ touchAction: 'manipulation' }}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${

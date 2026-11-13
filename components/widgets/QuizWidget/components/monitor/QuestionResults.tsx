@@ -58,7 +58,7 @@ export const ItemResultsList: React.FC<{
             className="font-sans text-brand-gray-dark truncate"
             style={{ fontSize: 'min(13px, 4.5cqmin)' }}
           >
-            <MathText text={item.text} />
+            <MathText text={item.text} format />
           </p>
         </div>
         <div
@@ -141,7 +141,7 @@ export const ItemDetailView: React.FC<{
         className="font-sans font-semibold text-brand-blue-dark"
         style={{ fontSize: 'min(15px, 5.5cqmin)', lineHeight: 1.3 }}
       >
-        <MathText text={text} />
+        <MathText text={text} format />
       </p>
     </div>
 

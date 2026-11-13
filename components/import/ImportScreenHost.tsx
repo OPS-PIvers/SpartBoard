@@ -94,13 +94,18 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
     window.addEventListener(IMPORT_INBOX_EVENT, onRequest);
     return () => window.removeEventListener(IMPORT_INBOX_EVENT, onRequest);
   }, [sendOn]);
-  // The notice stays mounted under the window, so a hidden notice stays hidden.
   return (
     <>
       <ImportInboxNotice
         items={inbox.items}
         suppressed={!!request}
         onOpen={() => openImportScreen()}
+        onDiscard={(ids) => {
+          for (const id of ids)
+            void inbox.remove(id).catch((err: unknown) => {
+              console.error('[Import] could not discard a sent page', err);
+            });
+        }}
       />
       {request && (
         <OpenImportScreen

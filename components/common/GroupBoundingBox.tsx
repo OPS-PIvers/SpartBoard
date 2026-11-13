@@ -254,6 +254,14 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         const rs = resizeState.current;
         if (!rs) return;
 
+        // A cancelled gesture reports 0,0; revert instead of committing from it.
+        if (ue.type === 'pointercancel') {
+          for (const w of rs.widgets) setWidgetOverride(w.id, null);
+          resizeState.current = null;
+          resizeCleanupRef.current = null;
+          return;
+        }
+
         const fdx = (ue.clientX - rs.startPointerX) / zoom;
         const fdy = (ue.clientY - rs.startPointerY) / zoom;
         let fScaleX = 1;

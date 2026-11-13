@@ -253,12 +253,14 @@ function speakPromptMath(math: string): string {
 
 /** R11: plain speech text from quiz markup; blanks become the word "blank". */
 export function normalizeReadAloudText(raw: string): string {
-  let s = raw;
+  let s = raw.replace(/\u200b/g, '');
   s = s.replace(/⟦([^⟦⟧]*)⟧/g, (_m, math: string) => speakPromptMath(math));
   s = s.replace(/<[^>]+>/g, ' ');
   s = s.replace(/_{3,}/g, ' blank ');
   s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
   s = s.replace(/(\*\*|__)(.+?)\1/g, '$2');
+  s = s.replace(/(^|\s)\+\+(\S(?:.*?\S)?)\+\+(?=\s|$|[.,;:!?])/g, '$1$2');
+  s = s.replace(/^• /gm, '');
   s = s.replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|$|[.,;:!?])/g, '$1$2');
   s = s.replace(/`([^`]*)`/g, '$1');
   s = s.replace(/^\s{0,3}#{1,6}\s+/gm, '');

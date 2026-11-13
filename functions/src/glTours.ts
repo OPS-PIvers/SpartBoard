@@ -34,6 +34,7 @@ const NOT_PUBLISHED = new Set([
   'webTourChecked',
   'webSuggestions',
   'webFixDismissed',
+  'webRevisionPictures',
 ]);
 
 /** The published copy of a stored building set: everything a tour run shows. */

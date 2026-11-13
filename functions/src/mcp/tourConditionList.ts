@@ -48,6 +48,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'dashboard-layout',
   'dashboard-sharing',
   'district-library',
+  'district-library-folders',
   'document-camera-pro',
   'drawing-ai',
   'embed-mini-app',
@@ -125,7 +126,9 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-ordering-images',
   'quiz-ordering-list',
   'quiz-ordering-results',
+  'quiz-prompt-formatting',
   'quiz-read-aloud',
+  'quiz-reopen-submission',
   'quiz-results-tools',
   'quiz-review-step',
   'quiz-score-on-submit',
@@ -166,4 +169,5 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'webcam-ai',
   'whiteboard-pro',
   'widget-connections',
+  'youtube-paste-picker',
 ];

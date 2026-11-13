@@ -20,6 +20,7 @@
  */
 
 import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import React, {
   useState,
   useEffect,
@@ -135,6 +136,8 @@ import {
   stimulusUseCounts,
 } from '@/utils/quizStimulusTabs';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
+import { StimulusPanelDivider } from './StimulusPanelDivider';
+import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
 import {
   MarkForReviewButton,
   QuizReviewScreen,
@@ -296,7 +299,8 @@ import {
   FIB_BLANK_SEP,
   revealedBlanksMatch,
 } from '@/utils/quizFibBlanks';
-import { FibMultiBlankInput, NumberedBlanksText } from './FibMultiBlankInput';
+import { FibMultiBlankInput } from './FibMultiBlankInput';
+import { QuestionPrompt } from './QuestionPrompt';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
 import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
@@ -2092,6 +2096,8 @@ export const ActiveQuiz: React.FC<{
   // false→true edge so the prompt re-opens when the teacher unlocks
   // while the student is still on the active quiz screen.
   const isUnlockedNow = !!myResponse?.unlocked;
+  const reopened = isUnlockedNow && myResponse?.unlockKind === 'reopen';
+  const unlockedOneExit = isUnlockedNow && !reopened;
   const [prevUnlocked, setPrevUnlocked] = useState(isUnlockedNow);
   if (prevUnlocked !== isUnlockedNow) {
     setPrevUnlocked(isUnlockedNow);
@@ -2176,6 +2182,8 @@ export const ActiveQuiz: React.FC<{
   useEffect(() => {
     if (typeof closeAtForAttempt !== 'number') return;
     if (myResponse?.status === 'completed') return;
+    // A teacher reopen extends the attempt past the close time.
+    if (reopened) return;
     if (closeAutoSubmitTriggeredRef.current) return;
     const check = () => {
       if (closeAutoSubmitTriggeredRef.current) return;
@@ -2185,7 +2193,7 @@ export const ActiveQuiz: React.FC<{
     check();
     const id = window.setInterval(check, 5000);
     return () => window.clearInterval(id);
-  }, [closeAtForAttempt, myResponse?.status, attemptCloseAutoSubmit]);
+  }, [closeAtForAttempt, myResponse?.status, reopened, attemptCloseAutoSubmit]);
 
   // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
   const attemptDeadline =
@@ -2321,8 +2329,8 @@ export const ActiveQuiz: React.FC<{
         return false;
       }
       // Teacher-unlocked attempts skip the warning: the student was told the
-      // next exit submits their work.
-      if (myResponse?.unlocked) {
+      // next exit submits their work. A teacher reopen has no such rule.
+      if (unlockedOneExit) {
         setShowCheatWarning(false);
         // A failed submit (e.g. offline) must not leave detection armed-off.
         void handleAutoSubmit('post-unlock').finally(tabTracker.release);
@@ -2753,6 +2761,7 @@ export const ActiveQuiz: React.FC<{
   const { submitted, timeLeft } = step;
   const autoSubmitTriggeredFor = step.timedOutFor;
   const [stimulusDrawerOpen, setStimulusDrawerOpen] = useState(false);
+  const [panelPct, setPanelPct] = useStimulusPanelWidth();
 
   // ─── Gamification state ─────────────────────────────────────────────────────
   const [answerFeedback, setAnswerFeedback] = useState<
@@ -3715,6 +3724,8 @@ export const ActiveQuiz: React.FC<{
   const recordingConfig = studentRecordingFor(currentQuestion, session);
   const whiteboardConfig = whiteboardQuestion ? recordingConfig : undefined;
   const sideStimuli = whiteboardConfig ? [] : docStimuli;
+  // Even split with a drag divider; ships with the stimulus tabs preview.
+  const splitPanel = stimulusTabsOn && sideStimuli.length > 0;
   const questionGap = whiteboardConfig ? 'mb-4' : 'mb-8';
   const aboveStimuli = whiteboardConfig ? [] : inlineStimuli;
   const answersForQuestion = currentQuestion
@@ -4066,20 +4077,28 @@ export const ActiveQuiz: React.FC<{
         <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
-            Attempt Unlocked
+            {reopened ? 'Your teacher reopened your quiz' : 'Attempt Unlocked'}
           </h2>
-          <p className="text-emerald-100 text-lg max-w-md mb-2">
-            Your answers are still here.
-          </p>
-          <p className="text-amber-200 text-sm max-w-md mb-8">
-            ⚠ Leave this tab or open the quiz in another window and your quiz
-            submits right away.
-          </p>
+          {reopened ? (
+            <p className="text-emerald-100 text-lg max-w-md mb-8">
+              Your answers are saved. Make your changes and submit again.
+            </p>
+          ) : (
+            <>
+              <p className="text-emerald-100 text-lg max-w-md mb-2">
+                Your answers are still here.
+              </p>
+              <p className="text-amber-200 text-sm max-w-md mb-8">
+                ⚠ Leave this tab or open the quiz in another window and your
+                quiz submits right away.
+              </p>
+            </>
+          )}
           <button
             onClick={() => setShowResumeModal(false)}
             className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
-            Resume Quiz
+            {reopened ? 'Keep working' : 'Resume Quiz'}
           </button>
         </div>
       )}
@@ -4143,7 +4162,7 @@ export const ActiveQuiz: React.FC<{
 
       {/* Persistent "one strike and you're out" banner — visible for the
           duration of the resumed attempt so the rule stays top-of-mind. */}
-      {myResponse?.unlocked && !showResumeModal && (
+      {unlockedOneExit && !showResumeModal && (
         <div
           className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
         >
@@ -4238,9 +4257,11 @@ export const ActiveQuiz: React.FC<{
       <ReviewSwap
         review={reviewScreen}
         className={
-          sideStimuli.length > 0
-            ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
-            : 'contents'
+          splitPanel
+            ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1920px]'
+            : sideStimuli.length > 0
+              ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
+              : 'contents'
         }
       >
         {/* Doc-shaped stimuli: resizable left panel on wide screens,
@@ -4248,7 +4269,18 @@ export const ActiveQuiz: React.FC<{
           narrow ones. One DOM node for both breakpoints so crossing a
           breakpoint never remounts a viewer mid-read. */}
         {sideStimuli.length > 0 && (
-          <div className="shrink-0 w-full lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:resize-x lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3">
+          <div
+            className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
+              splitPanel
+                ? 'lg:w-[var(--stimulus-panel-w)] lg:pr-3'
+                : 'lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] lg:resize-x'
+            }`}
+            style={
+              splitPanel
+                ? { ['--stimulus-panel-w' as string]: `${panelPct}%` }
+                : undefined
+            }
+          >
             {stimulusTabsOn ? (
               <StimulusTabsPanel
                 stimuli={sideStimuli}
@@ -4260,6 +4292,7 @@ export const ActiveQuiz: React.FC<{
                     onLoadError={handleStimulusLoadError}
                     readAloud={stimulusReadAloudFor(s)}
                     selectableText={session.allowStimulusQuotes === true}
+                    fill
                   />
                 )}
               />
@@ -4278,12 +4311,19 @@ export const ActiveQuiz: React.FC<{
             )}
           </div>
         )}
+        {splitPanel && (
+          <StimulusPanelDivider
+            pct={panelPct}
+            onChange={setPanelPct}
+            light={light}
+          />
+        )}
 
         <div
           {...clipboardGuards}
           className={`flex flex-col w-full min-w-0 ${
             whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
-          } ${sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
+          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
             // Free Response gets elbow room for long-form writing; structured
             // inputs read worse stretched across a widescreen.
             whiteboardConfig
@@ -4296,7 +4336,9 @@ export const ActiveQuiz: React.FC<{
                       currentQuestion.type === 'Ordering'
                     )
                   ? 'max-w-2xl lg:max-w-7xl'
-                  : 'max-w-2xl'
+                  : splitPanel
+                    ? 'max-w-2xl lg:max-w-4xl'
+                    : 'max-w-2xl'
           }`}
         >
           {/* Header */}
@@ -4416,18 +4458,12 @@ export const ActiveQuiz: React.FC<{
             <div
               className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
             >
-              <h2
-                className={`flex-1 text-xl font-bold leading-snug wrap-break-word whitespace-pre-line ${headingText}`}
-              >
-                {(currentQuestion.blankCount ?? 0) >= 2 ? (
-                  <NumberedBlanksText
-                    text={displayQuestion.text}
-                    light={light}
-                  />
-                ) : (
-                  <MathText text={displayQuestion.text} />
-                )}
-              </h2>
+              <QuestionPrompt
+                text={displayQuestion.text}
+                blankCount={currentQuestion.blankCount}
+                light={light}
+                className={`flex-1 ${headingText}`}
+              />
               <ReadAloudButton
                 variant="prominent"
                 label={t('quizReadAloud.readPrompt', 'Read question aloud')}
@@ -4437,15 +4473,12 @@ export const ActiveQuiz: React.FC<{
               />
             </div>
           ) : (
-            <h2
-              className={`text-xl font-bold ${questionGap} leading-snug wrap-break-word whitespace-pre-line ${headingText}`}
-            >
-              {(currentQuestion.blankCount ?? 0) >= 2 ? (
-                <NumberedBlanksText text={displayQuestion.text} light={light} />
-              ) : (
-                <MathText text={displayQuestion.text} />
-              )}
-            </h2>
+            <QuestionPrompt
+              text={displayQuestion.text}
+              blankCount={currentQuestion.blankCount}
+              light={light}
+              className={`${questionGap} ${headingText}`}
+            />
           )}
 
           {/* Answer area */}
@@ -5780,7 +5813,7 @@ const ReviewPhase: React.FC<{
           {totalQuestions ?? session.totalQuestions}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          <MathText text={currentQuestion.text} />
+          <PromptText text={currentQuestion.text} />
         </h2>
 
         {/* Correct answer */}

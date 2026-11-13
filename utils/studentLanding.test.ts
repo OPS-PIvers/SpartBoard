@@ -48,6 +48,27 @@ describe('landingRowState', () => {
     expect(landingRowState(row, {}, NOW)).toBe('open');
   });
 
+  it('keeps a teacher-reopened quiz open after its close time, not after End', () => {
+    const row = a({ dueAt: NOW - 2 * DAY, closeAt: NOW - DAY });
+    const reopened: TurnInMap = {
+      [row.compositeId]: {
+        turnIn: 'in-progress',
+        reopened: true,
+        lockedOut: false,
+        resultsOverride: null,
+      },
+    };
+    expect(landingRowState(row, reopened, NOW)).toBe('in-progress');
+    const ended = a({ dueAt: NOW - 2 * DAY, endedAt: NOW - DAY });
+    expect(
+      landingRowState(
+        ended,
+        { [ended.compositeId]: reopened[row.compositeId] },
+        NOW
+      )
+    ).toBe('missing');
+  });
+
   it('marks past-due open work as missing still open, never before its check', () => {
     const row = a({ dueAt: NOW - DAY, closeAt: NOW + DAY });
     expect(landingRowState(row, {}, NOW)).toBe('open');

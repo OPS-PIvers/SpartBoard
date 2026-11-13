@@ -6335,6 +6335,8 @@ export interface QuizResponse extends StaffResponseFields {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /** 'reopen' when a teacher reopened a turned-in attempt; that unlock skips the one-exit submit. */
+  unlockKind?: 'reopen';
   /**
    * Set by `importPaperResponsesV1` on a response read from a scanned answer
    * sheet. Its presence is the paper-sourced flag: no speed or streak bonus,
@@ -8895,6 +8897,8 @@ export interface GuidedLearningStep {
   tour?: GuidedLearningTourBinding;
   /** Web-tour binding (a set with `surface: 'web'`); such a step has no `tour`. */
   web?: WebTourBinding;
+  /** Message step in a `surface: 'web'` set (cross-site X9): text only, has no `web`. */
+  message?: true;
   /** AI-drafted text the author has not yet edited or marked reviewed. Editor-only. */
   aiDraft?: boolean;
 }
@@ -8952,6 +8956,12 @@ export type GuidedLearningTourAction =
 
 /** Where a live tour plays; absent = 'spartboard'. */
 export type GuidedLearningTourSurface = 'spartboard' | 'web';
+
+/** A web tour step that only shows words: no `web` binding, never played against a page. */
+export type WebTourMessageStep = GuidedLearningStep & {
+  message: true;
+  web?: undefined;
+};
 
 /** A hint for the tip only; the extension never performs it. */
 export type WebTourAction = 'observe' | 'click' | 'type' | 'select';
@@ -9292,6 +9302,14 @@ export interface GuidedLearningSet {
   webSuggestions?: Record<string, WebTourSuggestion>;
   /** Web tours: the fingerprint of the fix the admin dismissed, by step id; never published. */
   webFixDismissed?: Record<string, string>;
+  /** Web tours: pictures a Claude step-list revision still needs, kept until `until` (X18); never published. */
+  webRevisionPictures?: WebTourRevisionPicture[];
+}
+
+/** A picture path a stored Claude revision of a web tour references, and when that revision expires (ms). */
+export interface WebTourRevisionPicture {
+  path: string;
+  until: number;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */
@@ -9352,6 +9370,8 @@ export interface GuidedLearningSetMetadata {
   claudeEditedAt?: number;
   /** Claude made or changed this set and the teacher hasn't opened it since. */
   claudeReviewPendingAt?: number;
+  /** Copied into the Help Center while students had it open; removed once none do (H5). */
+  movedToHelpCenterAt?: number;
 }
 
 /** Library entry for a building set, written only by the glBuildingIndexMirror function. */
@@ -11192,6 +11212,8 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Math keyboard and accent keys on student answer boxes, set per quiz. */
   | 'student-keyboards'
+  /** Bold, italic, underline and lists in the question prompt box of the Quiz and Video Activity editors. */
+  | 'quiz-prompt-formatting'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
@@ -11262,6 +11284,8 @@ export type GlobalFeature =
   | 'mini-app-results'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
+  /** Teachers reopen a student's turned-in quiz so they keep working on the same answers. */
+  | 'quiz-reopen-submission'
   /** Quiz answers of every type: a picture on each, plus pasting images into a question. */
   | 'quiz-ordering-images'
   /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
@@ -11315,6 +11339,8 @@ export type GlobalFeature =
   | 'getting-started'
   /** District library: admin-published quizzes and banks teachers add as linked copies (docs/plans/QUIZ_MCA_PRACTICE.md M26-M31). */
   | 'district-library'
+  /** Folders in the District library: admin folders with a folder audience, mirrored for teachers. */
+  | 'district-library-folders'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
@@ -11340,7 +11366,9 @@ export type GlobalFeature =
   | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
-  | 'video-activity-editor-arrows';
+  | 'video-activity-editor-arrows'
+  /** Pasting a YouTube link asks Embed or Video Activity. */
+  | 'youtube-paste-picker';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

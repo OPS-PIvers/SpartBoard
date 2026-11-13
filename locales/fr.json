@@ -2686,6 +2686,9 @@
         "spoken": "Orale",
         "whiteboard": "Tableau blanc"
       },
+      "copy": "Copier",
+      "copyResponse": "Copier la réponse",
+      "copied": "Copié",
       "responseLabel": "Réponse de l'élève",
       "timedOutUnderMinimum": "Temps écoulé sous le minimum",
       "noTextAnswer": "L'élève n'a pas répondu à cette question.",
@@ -4194,7 +4197,9 @@
     "reviewRemoveAllBlur": "Retirer tout le flou",
     "reviewFrames": "Images",
     "reviewBlurredCount": "Flou sur {{count}} images sur {{total}}",
-    "reviewAddSteps": "Ajouter les étapes"
+    "reviewAddSteps": "Ajouter les étapes",
+    "helpCenterNoOrg": "La visite est enregistrée, mais il vous faut une organisation pour l'ajouter au Centre d'aide.",
+    "helpCenterFailed": "La visite est enregistrée, mais elle n'a pas pu être ajoutée au Centre d'aide."
   },
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",
@@ -4341,6 +4346,8 @@
     "webGoToStart": "Aller au début",
     "webArmedExit": "Arrêter la visite",
     "webMoved": "Votre visite est passée dans l'autre onglet.",
+    "webSwitchTitle": "La suite se passe sur {{host}}",
+    "webGoTo": "Aller sur {{host}}",
     "webStopped": "Visite arrêtée. Cliquez sur l’icône SpartBoard pour la relancer.",
     "webDismiss": "Fermer",
     "webPictureAlt": "Image de cette étape",
@@ -4384,7 +4391,9 @@
       "fact_district_account": "Connecté avec un compte du district",
       "fact_classlink_on": "L'import ClassLink est activé",
       "needsText": "Texte manquant"
-    }
+    },
+    "savedToHelpCenter": "Enregistré dans le Centre d'aide comme Masqué.",
+    "openInHelpCenter": "Ouvrir dans le Centre d'aide"
   },
   "glPlayer": {
     "modeChip": {
@@ -4579,8 +4588,6 @@
     "loading": "Chargement des visites...",
     "intro": "Vérifie les visites publiées par rapport au registre des ancres.",
     "recordTour": "Enregistrer une visite",
-    "recordWebTour": "Enregistrer une visite web",
-    "recordWebTourFailed": "La visite web n'a pas pu être créée.",
     "checkLive": "Vérifier en direct",
     "empty": "Aucun ensemble Guided Learning n'a encore d'étapes de visite en direct.",
     "untitledSet": "Ensemble sans titre",
@@ -4786,6 +4793,11 @@
     "getExtension": "Obtenir l'extension SpartBoard",
     "wrongProfile": "Cette visite ne fonctionne que dans un profil Chrome connecté avec votre compte du personnel d'Orono. En attendant, suivez les images ci-dessous.",
     "oldExtension": "Votre extension SpartBoard doit être mise à jour pour cette visite. En attendant, suivez les images ci-dessous.",
+    "needsUpdate": "Cette visite nécessite une version plus récente de l'extension SpartBoard. Elle se met à jour d'elle-même en quelques heures, ou fermez et rouvrez Chrome pour l'obtenir maintenant.",
+    "needsUpdateShort": "Cette visite nécessite une version plus récente de l'extension SpartBoard.",
+    "updateNow": "Mettre à jour maintenant",
+    "upToDate": "Déjà à jour",
+    "updateLater": "Réessayez dans quelques minutes",
     "openSite": "Ouvrir {{site}}",
     "currentStep": "Étape en cours",
     "stepDone": "Terminé",
@@ -4808,6 +4820,7 @@
     "stepNumber": "Étape {{number}}",
     "onlyIfAppears": "Seulement s'il apparaît",
     "untitledStep": "Étape sans titre",
+    "continueOn": "Continuer sur {{host}}",
     "pictureAlt": "Image de l'étape {{number}}",
     "pictureLoading": "Chargement de l'image",
     "noPicture": "Aucune image pour cette étape",

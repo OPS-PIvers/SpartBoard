@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTeacherSubmitUpdate,
   canTeacherSubmit,
+  isTabLockedOut,
 } from '@/utils/quizTeacherSubmit';
 import type { QuizResponse } from '@/types';
 
@@ -97,5 +98,22 @@ describe('buildTeacherSubmitUpdate', () => {
     );
     expect(update?.status).toBe('completed');
     expect(update).not.toHaveProperty('completedAttempts');
+  });
+});
+
+describe('isTabLockedOut', () => {
+  it('flags a turned-in attempt at the tab-warning threshold', () => {
+    expect(
+      isTabLockedOut({ status: 'completed', tabSwitchWarnings: 3 }, 3)
+    ).toBe(true);
+    expect(
+      isTabLockedOut({ status: 'completed', tabSwitchWarnings: 2 }, 3)
+    ).toBe(false);
+    expect(
+      isTabLockedOut({ status: 'in-progress', tabSwitchWarnings: 5 }, 3)
+    ).toBe(false);
+    expect(
+      isTabLockedOut({ status: 'completed', tabSwitchWarnings: 9 }, 'off')
+    ).toBe(false);
   });
 });

@@ -5,6 +5,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dock } from '@/components/layout/Dock';
 import { Z_INDEX } from '@/config/zIndex';
 import { clearTourHidden, setTourHidden } from '@/context/dashboardCanvasStore';
+import {
+  resetImportHandoffsForTest,
+  takeImportHandoff,
+} from '@/components/import/importHandoff';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -160,6 +164,19 @@ vi.mock('@/components/layout/dock/UrlPickerModal', () => ({
 
 vi.mock('@/components/layout/dock/ImagePastePickerModal', () => ({
   ImagePastePickerModal: () => <div data-testid="image-paste-picker-modal" />,
+}));
+
+vi.mock('@/components/layout/dock/VideoPastePickerModal', () => ({
+  VideoPastePickerModal: ({
+    onSelect,
+  }: {
+    onSelect: (type: 'embed' | 'video-activity') => void;
+  }) => (
+    <div data-testid="video-paste-picker-modal">
+      <button onClick={() => onSelect('embed')}>pick-embed</button>
+      <button onClick={() => onSelect('video-activity')}>pick-va</button>
+    </div>
+  ),
 }));
 
 vi.mock('@/components/layout/ClassRosterMenu', () => ({
@@ -1039,6 +1056,106 @@ describe('Dock smart-paste – two-column lists become flashcards', () => {
     expect(addWidget).toHaveBeenCalledWith('flashcards', {
       config: { view: 'library', pasteDraftId: expect.any(String) },
     });
+  });
+});
+
+describe('Dock smart-paste – YouTube links offer Embed or Video Activity', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetImportHandoffsForTest();
+  });
+
+  const pasteText = (text: string) => {
+    const event = new Event('paste', { bubbles: true }) as ClipboardEvent;
+    Object.defineProperty(event, 'clipboardData', {
+      value: { getData: () => text, files: [] },
+    });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+  };
+  const YT = 'https://youtu.be/dQw4w9WgXcQ?t=5';
+
+  it('shows the picker instead of adding an Embed', () => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget });
+    render(<Dock />);
+    pasteText(YT);
+    expect(addWidget).not.toHaveBeenCalled();
+    expect(screen.getByTestId('video-paste-picker-modal')).toBeInTheDocument();
+  });
+
+  it('Embed adds the same Embed widget as before', () => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget });
+    render(<Dock />);
+    pasteText(YT);
+    fireEvent.click(screen.getByText('pick-embed'));
+    expect(addWidget).toHaveBeenCalledWith('embed', {
+      config: { url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', mode: 'url' },
+    });
+  });
+
+  it('Video Activity adds the widget and hands it the video', () => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget });
+    render(<Dock />);
+    pasteText(YT);
+    fireEvent.click(screen.getByText('pick-va'));
+    expect(addWidget).toHaveBeenCalledWith('video-activity', {
+      id: expect.any(String),
+    });
+    const [, { id }] = addWidget.mock.calls[0] as [string, { id: string }];
+    expect(takeImportHandoff(id)).toMatchObject({
+      widgetType: 'video-activity',
+      target: 'videoActivity',
+      source: { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+    });
+  });
+
+  it('adds an Embed straight away when the preview flag is off', () => {
+    const addWidget = vi.fn();
+    setupMocks({
+      addWidget,
+      canAccessFeature: vi.fn((id: string) => id !== 'youtube-paste-picker'),
+    });
+    render(<Dock />);
+    pasteText(YT);
+    expect(screen.queryByTestId('video-paste-picker-modal')).toBeNull();
+    expect(addWidget).toHaveBeenCalledWith('embed', expect.anything());
+  });
+
+  it('adds an Embed straight away without Video Activity access', () => {
+    const addWidget = vi.fn();
+    setupMocks({
+      addWidget,
+      canAccessWidget: vi.fn((t: string) => t !== 'video-activity'),
+    });
+    render(<Dock />);
+    pasteText(YT);
+    expect(screen.queryByTestId('video-paste-picker-modal')).toBeNull();
+    expect(addWidget).toHaveBeenCalledWith('embed', expect.anything());
+  });
+
+  it.each([
+    'https://www.youtube.com/embed/videoseries?list=PL1234567890',
+    'https://www.youtube.com/embed/live_stream?channel=UC1234567890',
+  ])('sends a playlist or live-stream embed (%s) straight to Embed', (url) => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget });
+    render(<Dock />);
+    pasteText(url);
+    expect(screen.queryByTestId('video-paste-picker-modal')).toBeNull();
+    expect(addWidget).toHaveBeenCalledWith('embed', expect.anything());
+  });
+
+  it('keeps other Embed links (Vimeo) going straight to Embed', () => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget });
+    render(<Dock />);
+    pasteText('https://vimeo.com/76979871');
+    expect(screen.queryByTestId('video-paste-picker-modal')).toBeNull();
+    expect(addWidget).toHaveBeenCalledWith('embed', expect.anything());
   });
 });
 

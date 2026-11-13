@@ -1,7 +1,7 @@
-// Help Center activities stay out of the Guided Learning library; admins reach them through the Source filter.
+// Help Center sets never show in the Guided Learning library; admins move sets there from the kebab.
 
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
@@ -44,6 +44,21 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0 }),
 }));
 
+const confirm = vi.hoisted(() => ({ result: true, calls: [] as string[] }));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showConfirm: (message: string) => {
+      confirm.calls.push(message);
+      return Promise.resolve(confirm.result);
+    },
+  }),
+}));
+
+afterEach(() => {
+  confirm.result = true;
+  confirm.calls.length = 0;
+});
+
 const personalSet: GuidedLearningSetMetadata = {
   id: 'set-1',
   title: 'Personal Set',
@@ -53,6 +68,14 @@ const personalSet: GuidedLearningSetMetadata = {
   driveFileId: 'drive-1',
   createdAt: 1000,
   updatedAt: 2000,
+};
+
+const pendingSet: GuidedLearningSetMetadata = {
+  ...personalSet,
+  id: 'set-2',
+  title: 'Moving Set',
+  driveFileId: 'drive-2',
+  movedToHelpCenterAt: 3000,
 };
 
 const building = (
@@ -77,13 +100,15 @@ const buildingSets = [
   building('h-2', 'Second Help Guide', { helpCenter: true }),
 ];
 
+type MoveHandler = NonNullable<
+  React.ComponentProps<typeof GuidedLearningManager>['onMoveToHelpCenter']
+>;
+
 const renderManager = (
   isAdmin: boolean,
   onOpenAIAuthoring: (library: 'personal' | 'building') => void = vi.fn(),
-  onSetBuildingHelpCenter: (
-    setId: string,
-    helpCenter: boolean
-  ) => void = vi.fn()
+  onMoveToHelpCenter: MoveHandler | undefined = vi.fn(),
+  sets: GuidedLearningSetMetadata[] = [personalSet]
 ) =>
   render(
     <AuthContext.Provider
@@ -99,7 +124,7 @@ const renderManager = (
     >
       <GuidedLearningManager
         userId="teacher-1"
-        sets={[personalSet]}
+        sets={sets}
         buildingSets={buildingSets.map(toBuildingIndexEntry)}
         assignments={[]}
         loading={false}
@@ -113,7 +138,7 @@ const renderManager = (
         onDeletePersonal={vi.fn()}
         onBulkDeletePersonal={vi.fn()}
         onDeleteBuilding={vi.fn()}
-        onSetBuildingHelpCenter={onSetBuildingHelpCenter}
+        onMoveToHelpCenter={isAdmin ? onMoveToHelpCenter : undefined}
         onCreateNewPersonal={vi.fn()}
         onCreateNewBuilding={vi.fn()}
         onOpenAIAuthoring={onOpenAIAuthoring}
@@ -147,24 +172,14 @@ describe('GuidedLearningManager — Help Center activities', () => {
     expect(screen.queryByLabelText('Source')).not.toBeInTheDocument();
   });
 
-  it('lists only Help Center sets under the admin Help Center filter', async () => {
+  it('gives admins no Help Center source filter', async () => {
     renderManager(true);
     await screen.findByText('Personal Set');
-
-    fireEvent.change(screen.getByLabelText('Source'), {
-      target: { value: 'help' },
-    });
-    await openBuildingFolder();
-
-    expect(await screen.findByText('Flagged Help Guide')).toBeInTheDocument();
-    expect(screen.getByText('Second Help Guide')).toBeInTheDocument();
-    expect(screen.queryByText('Building Lesson')).not.toBeInTheDocument();
-    expect(screen.queryByText('Personal Set')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Help Center').length).toBeGreaterThan(0);
-
-    fireEvent.change(screen.getByLabelText('Source'), {
-      target: { value: 'building' },
-    });
+    const source = screen.getByLabelText('Source');
+    expect(
+      within(source).queryByRole('option', { name: 'Help Center' })
+    ).toBeNull();
+    fireEvent.change(source, { target: { value: 'building' } });
     await openBuildingFolder();
     expect(await screen.findByText('Building Lesson')).toBeInTheDocument();
     expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
@@ -179,40 +194,62 @@ const cardMenu = async (title: string) => {
   fireEvent.click(within(card).getByRole('button', { name: 'More actions' }));
 };
 
-describe('GuidedLearningManager — moving building sets to and from the Help Center', () => {
-  it('lets an admin move a library building set to the Help Center', async () => {
+const moveItem = () =>
+  screen.findByRole('menuitem', { name: /Move to Help Center/ });
+
+describe('GuidedLearningManager — Move to Help Center', () => {
+  it("moves an admin's own personal set without asking", async () => {
+    const onMove = vi.fn();
+    renderManager(true, vi.fn(), onMove);
+    await cardMenu('Personal Set');
+    fireEvent.click(await moveItem());
+    await vi.waitFor(() =>
+      expect(onMove).toHaveBeenCalledWith('set-1', 'drive-1', undefined)
+    );
+    expect(confirm.calls).toHaveLength(0);
+  });
+
+  it('confirms that a building set leaves every library before moving it', async () => {
     const onMove = vi.fn();
     renderManager(true, vi.fn(), onMove);
     await openBuildingFolder();
     await cardMenu('Building Lesson');
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: /Move to Help Center/ })
+    fireEvent.click(await moveItem());
+    await vi.waitFor(() =>
+      expect(onMove).toHaveBeenCalledWith(
+        'b-1',
+        undefined,
+        expect.objectContaining({ id: 'b-1' })
+      )
     );
-    expect(onMove).toHaveBeenCalledWith('b-1', true);
+    expect(confirm.calls[0]).toMatch(/every teacher's building library/);
   });
 
-  it('lets an admin move a Help Center set back to the library', async () => {
+  it('keeps a building set when the admin cancels the confirm', async () => {
+    confirm.result = false;
     const onMove = vi.fn();
     renderManager(true, vi.fn(), onMove);
-    await screen.findByText('Personal Set');
-    fireEvent.change(screen.getByLabelText('Source'), {
-      target: { value: 'help' },
-    });
     await openBuildingFolder();
-    await cardMenu('Flagged Help Guide');
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: /Move to library/ })
-    );
-    expect(onMove).toHaveBeenCalledWith('h-1', false);
+    await cardMenu('Building Lesson');
+    fireEvent.click(await moveItem());
+    await vi.waitFor(() => expect(confirm.calls).toHaveLength(1));
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('offers no way back to the library', async () => {
+    renderManager(true);
+    await cardMenu('Personal Set');
+    await moveItem();
+    expect(
+      screen.queryByRole('menuitem', { name: /Move to library/ })
+    ).toBeNull();
   });
 
   it('offers the move only to admins', async () => {
     renderManager(false);
+    await screen.findByText('Personal Set');
     await openBuildingFolder();
     await screen.findByText('Building Lesson');
-    expect(
-      screen.queryByRole('menuitem', { name: /Move to Help Center/ })
-    ).toBeNull();
     for (const more of screen.queryAllByRole('button', {
       name: 'More actions',
     })) {
@@ -221,6 +258,21 @@ describe('GuidedLearningManager — moving building sets to and from the Help Ce
     expect(
       screen.queryByRole('menuitem', { name: /Move to Help Center/ })
     ).toBeNull();
+  });
+
+  it('tags a set moved while students had it open, with no second move', async () => {
+    renderManager(true, vi.fn(), vi.fn(), [personalSet, pendingSet]);
+    expect(await screen.findByText('Moved to Help Center')).toBeInTheDocument();
+    await cardMenu('Moving Set');
+    expect(
+      screen.queryByRole('menuitem', { name: /Move to Help Center/ })
+    ).toBeNull();
+  });
+
+  it('drops the tag once the set is edited after the move', async () => {
+    renderManager(true, vi.fn(), vi.fn(), [{ ...pendingSet, updatedAt: 4000 }]);
+    await screen.findByText('Moving Set');
+    expect(screen.queryByText('Moved to Help Center')).toBeNull();
   });
 });
 

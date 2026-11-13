@@ -13,6 +13,9 @@ import { AuthProvider } from '@/context/AuthContext';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
 import type { QuizManagerTab } from '@/components/widgets/QuizWidget/components/QuizManager';
+import { QuizPreview } from '@/components/widgets/QuizWidget/components/QuizPreview';
+import type { BankSource } from '@/utils/questionBankRecords';
+import type { QuizData } from '@/types';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
@@ -269,7 +272,61 @@ const PERIOD_ACCESS: AssignPeriodAccessContext = {
   onTagRoster: noop,
 };
 
+// ?district=1 adds District library banks and their read-only preview.
+const WITH_DISTRICT =
+  new URLSearchParams(window.location.search).get('district') === '1';
+const DISTRICT_FOLDERS = {
+  science: { name: 'Grade 8 Science', parentId: null, order: 0 },
+};
+const DISTRICT_SOURCES: BankSource[] = [
+  ['Arizona Meteor (2025)', 3],
+  ['Barn Bluff Formation (2025)', 4],
+  ['Carbon Capture (2025)', 4],
+].map(([title, count], i) => ({
+  key: `district-group-${i}`,
+  kind: 'district' as const,
+  bankId: `district-item-${i}`,
+  syncGroupId: `district-group-${i}`,
+  syncOwnerUid: 'admin-1',
+  title: title as string,
+  questionCount: count as number,
+  targetIds: [],
+  targetCounts: {},
+}));
+const DISTRICT_FOLDER_IDS = new Map(
+  DISTRICT_SOURCES.map((s) => [s.bankId, 'science'])
+);
+const districtPreview = (source: BankSource): QuizData => ({
+  id: source.bankId,
+  title: source.title,
+  createdAt: 0,
+  updatedAt: 0,
+  questions: [
+    {
+      id: 'q1',
+      timeLimit: 0,
+      type: 'MC',
+      text: 'About how fast was the meteor moving when it entered the atmosphere?',
+      correctAnswer: '15 kilometers per second',
+      incorrectAnswers: [
+        '15 meters per second',
+        '150 kilometers per hour',
+        '1,500 kilometers per second',
+      ],
+    },
+    {
+      id: 'q2',
+      timeLimit: 0,
+      type: 'FIB',
+      text: 'The crater it left is called Meteor ______.',
+      correctAnswer: 'Crater',
+      incorrectAnswers: [],
+    },
+  ],
+});
+
 const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
+  const [previewing, setPreviewing] = useState<QuizData | null>(null);
   const [tab, setTab] = useState<QuizManagerTab>('library');
   const [quizzes, setQuizzes] = useState(QUIZZES);
   const [banks, setBanks] = useState(BANKS);
@@ -283,6 +340,9 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
   };
   const reorderQuizzes = (ids: string[]): void =>
     setQuizzes((prev) => prev.map((q) => ({ ...q, order: ids.indexOf(q.id) })));
+  if (previewing) {
+    return <QuizPreview quiz={previewing} onBack={() => setPreviewing(null)} />;
+  }
   return (
     <QuizManager
       variant={variant}
@@ -313,6 +373,15 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       onMoveBankToLibraryFolder={moveBank}
       banksLoading={false}
       sharedBankSources={[]}
+      {...(WITH_DISTRICT
+        ? {
+            districtBankSources: DISTRICT_SOURCES,
+            districtFolders: DISTRICT_FOLDERS,
+            districtItemFolderIds: DISTRICT_FOLDER_IDS,
+            onPreviewBank: (source: BankSource) =>
+              setPreviewing(districtPreview(source)),
+          }
+        : {})}
       onNewBank={noop}
       onImportBank={noop}
       onEditBank={noop}

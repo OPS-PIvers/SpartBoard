@@ -1,6 +1,21 @@
 // Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in functions/src/aiModelConfig.ts; the AI tab writes to global_permissions/gemini-functions.
 export const KNOWN_GEMINI_MODELS = [
   {
+    value: 'gemini-4-hydrogen',
+    label: 'Gemini 4 Hydrogen',
+    tier: 'advanced',
+  },
+  {
+    value: 'gemini-4-carbon',
+    label: 'Gemini 4 Carbon',
+    tier: 'advanced',
+  },
+  {
+    value: 'gemini-4-argon',
+    label: 'Gemini 4 Argon',
+    tier: 'advanced',
+  },
+  {
     value: 'gemini-3.8-flash',
     label: 'Gemini 3.8 Flash',
     tier: 'advanced',

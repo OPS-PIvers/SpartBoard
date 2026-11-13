@@ -11,7 +11,7 @@ Creating or editing the **admin-level widget configuration modals** accessed via
 
 **Admin Settings → Widgets tab → ⚙️ (gear) button on a widget card**
 
-This is **not** the user-level settings panel (the small panel that opens when a teacher clicks the gear on their own widget). This is the global admin config that sets **building-level defaults** and **admin-only controls** that users cannot see or edit.
+This is **not** the user-level settings drawer (the drawer that opens when a teacher clicks the gear on their own widget, built from the widget's `settings.schema.ts`). This is the global admin config that sets **building-level defaults** and **admin-only controls** that users cannot see or edit.
 
 ---
 
@@ -57,27 +57,26 @@ This is the **gold standard**. Prefer this path when:
 }
 ```
 
-Also add the type to the exclusion array above `GenericConfigurationModal`:
+Also add the type to `CUSTOM_MODAL_TYPES` near the top of the same file. `GenericConfigurationModal` renders for every type that is not in that list, so without the entry both modals open:
 
 ```tsx
-{activeModalTool &&
-  !['instructionalRoutines', 'stickers', 'calendar', 'specialist-schedule', 'miniApp', 'starter-pack', 'your-widget-type'].includes(activeModalTool.type) && (
-    <GenericConfigurationModal ... />
-  )}
+const CUSTOM_MODAL_TYPES: readonly string[] = [
+  // existing entries, kept alphabetical...
+  'your-widget-type',
+];
 ```
 
 #### Path B — Panel Inside Generic Modal (prefer for simpler widgets)
 
 A `*ConfigurationPanel.tsx` component rendered inside the shared `GenericConfigurationModal`.
 
-**Wiring location 1:** Register in `BUILDING_CONFIG_PANELS` map in `components/admin/FeatureConfigurationPanel.tsx`:
+**Wiring location 1:** Register in the `BUILDING_CONFIG_PANELS` map in `components/admin/FeatureConfigurationPanel.tsx`. The map is keyed by plain string, and a panel with typed `config` props is cast on the way in:
 
 ```tsx
-const BUILDING_CONFIG_PANELS: Partial<
-  Record<WidgetType | InternalToolType, BuildingConfigPanel>
-> = {
+const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   // existing entries...
-  'your-widget-type': YourWidgetConfigurationPanel,
+  'your-widget-type':
+    YourWidgetConfigurationPanel as unknown as BuildingConfigPanel,
 };
 ```
 
@@ -87,18 +86,7 @@ const BUILDING_CONFIG_PANELS: Partial<
 import { YourWidgetConfigurationPanel } from './YourWidgetConfigurationPanel';
 ```
 
-**Wiring location 3:** Add to the exclusion list in `FeatureConfigurationPanel.tsx` at the bottom (the `![]includes(tool.type)` guard that shows the "No global settings available" placeholder):
-
-```tsx
-![
-  'lunchCount',
-  'weather' /* ... existing ... */,
-  ,
-  ...Object.keys(BUILDING_CONFIG_PANELS),
-].includes(tool.type);
-```
-
-Note: Since BUILDING_CONFIG_PANELS already covers this with `Object.keys(...)`, you usually only need to register in the map.
+That is all the wiring Path B needs. The "No admin settings." placeholder at the bottom of `FeatureConfigurationPanel.tsx` hides for every key of `BUILDING_CONFIG_PANELS` (its guard ends in `...Object.keys(BUILDING_CONFIG_PANELS)`). Add a type to the literal list in that guard only when its settings render elsewhere in the file without a map entry.
 
 ---
 
@@ -107,14 +95,16 @@ Note: Since BUILDING_CONFIG_PANELS already covers this with `Object.keys(...)`, 
 ### For Path A (Dedicated Modal):
 
 - [ ] **CREATE** `components/admin/YourWidgetConfigurationModal.tsx`
-- [ ] **EDIT** `components/admin/FeaturePermissionsManager.tsx` — add import + conditional render + update exclusion array
+- [ ] **EDIT** `components/admin/FeaturePermissionsManager.tsx` — add import + conditional render + add the type to `CUSTOM_MODAL_TYPES`
 - [ ] **EDIT** `types.ts` — add `YourWidgetGlobalConfig` interface if not already present
+- [ ] **EDIT** `utils/adminBuildingConfig.ts` — add a `case` so building defaults reach new widgets (see "How Configs Reach the Widget")
 
 ### For Path B (Panel in Generic Modal):
 
 - [ ] **CREATE** `components/admin/YourWidgetConfigurationPanel.tsx`
 - [ ] **EDIT** `components/admin/FeatureConfigurationPanel.tsx` — add import + register in `BUILDING_CONFIG_PANELS`
 - [ ] **EDIT** `types.ts` — add `YourWidgetGlobalConfig` interface if not already present
+- [ ] **EDIT** `utils/adminBuildingConfig.ts` — add a `case` so building defaults reach new widgets (see "How Configs Reach the Widget")
 
 ---
 
@@ -124,15 +114,24 @@ Study `components/admin/SpecialistScheduleConfigurationModal.tsx` carefully befo
 
 ### Modal shell
 
+Use the shared `Modal` from `@/components/common/Modal`. It owns the overlay, Escape, focus handling and the close button, so never hand-roll a `fixed inset-0` shell:
+
 ```tsx
-<div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-white/20 animate-in zoom-in-95 duration-200">
-    {/* Header */}
-    {/* Content - flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar */}
-    {/* Footer with Save button */}
-  </div>
-</div>
+<Modal
+  isOpen={isOpen}
+  onClose={onClose}
+  maxWidth="max-w-5xl"
+  customHeader={header}
+  footer={footer}
+  className="p-0!"
+  contentClassName=""
+  footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
+>
+  <div className="p-6 space-y-8">{/* loading state, then the sections */}</div>
+</Modal>
 ```
+
+`header` holds the title and close button; `footer` holds the Save button.
 
 ### Firestore read pattern
 
@@ -142,55 +141,85 @@ const fetchConfig = useCallback(async () => {
     setLoading(false);
     return;
   }
-  const docRef = doc(db, 'feature_permissions', 'your-widget-type');
-  const snap = await getDoc(docRef);
-  if (snap.exists()) {
-    const data = snap.data() as FeaturePermission;
-    if (data.config)
-      setConfig(data.config as unknown as YourWidgetGlobalConfig);
+  try {
+    const docRef = doc(db, 'feature_permissions', 'your-widget-type');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data() as FeaturePermission;
+      if (data.config)
+        setConfig(data.config as unknown as YourWidgetGlobalConfig);
+    }
+  } catch (err) {
+    console.error('Failed to fetch your-widget config:', err);
+  } finally {
+    setLoading(false);
   }
-  setLoading(false);
 }, []);
 ```
 
 ### Firestore write pattern
 
 ```tsx
-await setDoc(
-  doc(db, 'feature_permissions', 'your-widget-type'),
-  {
-    type: 'your-widget-type',
-    config: config as unknown as Record<string, unknown>,
-    updatedAt: Date.now(),
-  },
-  { merge: true }
-);
+const { addToast } = useDashboard();
+
+try {
+  await setDoc(
+    doc(db, 'feature_permissions', 'your-widget-type'),
+    {
+      type: 'your-widget-type',
+      config: config as unknown as Record<string, unknown>,
+      updatedAt: Date.now(),
+    },
+    { merge: true }
+  );
+  addToast('Configuration saved!', 'success');
+} catch (err) {
+  console.error('Failed to save your-widget config:', err);
+  addToast('Failed to save configuration.', 'error');
+}
 ```
 
 ### Building selector
 
-Always use `BUILDINGS` from `@/config/buildings` for the building list. Use a tab or sidebar selector so admins can configure each building independently. Store per-building data as:
+Get the building list from `useAdminBuildings()`, not the static `BUILDINGS` array: admins manage buildings in Admin Settings > Organization > Buildings, and the hook returns the organization's own list. Track the selection with `useBuildingSelection` and render the shared `BuildingSelector`, which carries its own tour anchors:
 
 ```tsx
-config.buildingDefaults[canonicalBuildingId(buildingId)] = {
-  /* building-specific config */
-};
+const BUILDINGS = useAdminBuildings();
+const [selectedBuildingId, setSelectedBuildingId] =
+  useBuildingSelection(BUILDINGS);
+// The hook can return a legacy long-form id; key buildingDefaults off the canonical one.
+const canonicalId = canonicalBuildingId(selectedBuildingId);
+
+<BuildingSelector
+  selectedId={selectedBuildingId}
+  onSelect={setSelectedBuildingId}
+/>;
 ```
 
-Always key by `canonicalBuildingId(buildingId)` from `@/config/buildings`, never the raw selector ID. Before spreading the record back on save, run it through `canonicalizeBuildingKeyedRecord(config.buildingDefaults ?? {})` so legacy keys don't linger beside canonical ones. See `TimeToolConfigurationPanel.tsx`.
+Store per-building data as:
+
+```tsx
+config.buildingDefaults[canonicalId] = {/* building-specific config */};
+```
+
+Always key by `canonicalBuildingId(buildingId)` from `@/config/buildings`, never the raw selector ID. Before spreading the record back on save, run it through `canonicalizeBuildingKeyedRecord(config.buildingDefaults ?? {})` so legacy keys don't linger beside canonical ones. See `ClockConfigurationPanel.tsx` and `TimeToolConfigurationPanel.tsx`.
 
 ### Required imports
 
 ```tsx
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import {
-  BUILDINGS,
   canonicalBuildingId,
   canonicalizeBuildingKeyedRecord,
 } from '@/config/buildings';
+import { BuildingSelector } from './BuildingSelector';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { Toast } from '../common/Toast';
-import { Button } from '../common/Button';
+import { Modal } from '@/components/common/Modal';
+import { Button } from '@/components/common/Button';
+import { useDashboard } from '@/context/useDashboard';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 ```
 
 ---
@@ -199,11 +228,9 @@ import { Button } from '../common/Button';
 
 ### Type 1 — Standardized Defaults (mirroring user settings)
 
-Any setting that exists in the user-level widget settings (`components/widgets/YourWidget/Settings.tsx`) should be replicated here as a per-building **default value**. When a teacher adds the widget, it initializes from this config based on their assigned building.
+Any setting that exists in the widget's user-level settings (`components/widgets/YourWidget/settings.schema.ts`) should be replicated here as a per-building **default value**. When a teacher adds the widget, it initializes from this config based on their assigned building.
 
-> Read the user-level `Settings.tsx` file for the widget first to inventory all configurable fields.
-
-Common pattern: check `featurePermissions` in `AuthContext` / `useAuth()` to hydrate widget initial state from global config.
+> Read the widget's `settings.schema.ts` first to inventory all configurable fields. There are no hand-written `Settings.tsx` files any more.
 
 ### Type 2 — Admin-Only Controls
 
@@ -220,21 +247,33 @@ Settings that should **not** be exposed to users at all:
 
 ## How Configs Reach the Widget
 
-When a widget is added to a dashboard, its initial `config` is typically populated from:
+### On a new widget
 
-1. The user's `selectedBuildings[0]` from `useAuth()`
-2. The `featurePermissions` array from `useAuth()` → find the permission for the widget type → read `.config.buildingDefaults` (canonicalized)
+When a teacher adds a widget, `DashboardContext` layers its initial `config` as widget defaults, then the building's admin defaults, then any explicit overrides. The building layer comes from `getAdminBuildingConfig` in `utils/adminBuildingConfig.ts`, which canonicalizes `buildingDefaults`, picks the teacher's first selected building, and copies fields through a `switch` on the widget type.
 
-Make sure the widget's initialization code in `DashboardContext.tsx` or the widget component itself reads from `featurePermissions`. `getAdminBuildingConfig` in `utils/adminBuildingConfig.ts` is the real read path and canonicalizes the record. Reference how `components/widgets/SpecialistSchedule/settingsFields.tsx` reads `featurePermissions` for a working example:
+**A widget with no `case` in that switch gets nothing**: the `default` branch returns an empty object. Add one that validates each field before copying it:
+
+```ts
+case 'your-widget-type': {
+  if (typeof raw.someToggle === 'boolean') out.someToggle = raw.someToggle;
+  if (raw.fontFamily) out.fontFamily = raw.fontFamily;
+  break;
+}
+```
+
+### Live, inside the widget
+
+For a value that should follow the admin config after the widget exists (an option list, a schedule), read `featurePermissions` in the component. `useWidgetBuildingId(widget)` (`@/hooks/useWidgetBuildingId`) returns the widget's effective building, already canonical:
 
 ```tsx
+const { featurePermissions } = useAuth();
+const buildingId = useWidgetBuildingId(widget) ?? 'schumann';
 const globalConfig = useMemo(() => {
   const perm = featurePermissions.find(
     (p) => p.widgetType === 'your-widget-type'
   );
   return perm?.config as YourWidgetGlobalConfig | undefined;
 }, [featurePermissions]);
-const buildingId = canonicalBuildingId(selectedBuildings[0] ?? 'schumann');
 const buildingConfig =
   canonicalizeBuildingKeyedRecord(globalConfig?.buildingDefaults ?? {})[
     buildingId
@@ -267,18 +306,51 @@ Update `FeaturePermission` if it doesn't already have a union type for your conf
 
 ## Panel Pattern (Path B)
 
-For simpler configs, the panel component receives:
+For simpler configs, the panel takes its own typed config and reports changes upward:
 
 ```tsx
 interface YourWidgetConfigurationPanelProps {
-  config: Record<string, unknown>;
-  onChange: (newConfig: Record<string, unknown>) => void;
+  config: YourWidgetGlobalConfig;
+  onChange: (newConfig: YourWidgetGlobalConfig) => void;
 }
 ```
 
-It renders building selector tabs + config fields. The parent `GenericConfigurationModal` handles Save/Cancel and Firestore persistence via `FeaturePermissionsManager`'s `updatePermission` → `savePermission` flow.
+It renders the `BuildingSelector` and the config fields, and updates one building at a time:
+
+```tsx
+const buildingDefaults = canonicalizeBuildingKeyedRecord(
+  config.buildingDefaults ?? {}
+);
+const current = buildingDefaults[canonicalId] ?? {};
+
+const handleUpdateBuilding = (updates: Partial<YourWidgetBuildingConfig>) =>
+  onChange({
+    ...config,
+    buildingDefaults: {
+      ...buildingDefaults,
+      [canonicalId]: { ...current, ...updates },
+    },
+  });
+```
+
+The parent `GenericConfigurationModal` handles Save/Cancel and Firestore persistence via `FeaturePermissionsManager`'s `updatePermission` → `savePermission` flow, so the panel never touches Firestore.
 
 See `ClockConfigurationPanel.tsx`, `ScheduleConfigurationPanel.tsx`, or `DiceConfigurationPanel.tsx` for simple examples.
+
+---
+
+## Tour Anchors
+
+Every control an admin could be walked to needs a live tour anchor (`components/CLAUDE.md`, "Live tour anchors"), and the `Live Tour Anchors` PR check fails on a new control without one. Admin config uses a shared set of ids that are already registered in `config/tourAnchors.ts`, so no new registry entry is needed:
+
+| Control                 | Anchor                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| A config field          | `tourFieldAttr('admin.widget-config.field', 'your-widget-type', '<fieldKey>')` |
+| Save / Close            | `tourTypeAttr('admin.widget-config.save' \| '.close', 'your-widget-type')`     |
+| Add / remove row button | `tourTypeAttr('admin.widget-config.add' \| '.remove', 'your-widget-type')`     |
+| Building selector       | Built into `BuildingSelector`                                                  |
+
+Spread the result onto the element (`<input {...tourFieldAttr(...)} />`); `Toggle` takes it through its `anchor` prop.
 
 ---
 
@@ -286,29 +358,34 @@ See `ClockConfigurationPanel.tsx`, `ScheduleConfigurationPanel.tsx`, or `DiceCon
 
 Match the specialist-schedule modal's visual quality:
 
-- **Section headers:** `text-sm font-black text-slate-700 uppercase tracking-widest`
-- **Cards/sections:** `bg-slate-50 p-5 rounded-2xl border border-slate-200`
-- **Building tabs:** Tab strip across the top of content area using `BUILDINGS` array
+- **Section headers:** `SettingsLabel` from `@/components/common/SettingsLabel`
+- **Cards/sections:** `Card` from `@/components/common/Card` (`rounded="xl" shadow="none" className="bg-slate-50"`), or `bg-slate-50 p-5 rounded-2xl border border-slate-200`
+- **Building picker:** the shared `BuildingSelector`, fed by `useAdminBuildings()`
 - **Input fields:** `px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-[color]-500 outline-none font-bold`
 - **Primary button:** `bg-brand-blue-primary text-white` or widget-specific accent color
-- **Toast feedback:** Use `<Toast>` component for save confirmations/errors
+- **Save feedback:** `addToast(message, 'success' | 'error')` from `useDashboard()`
 - **Loading state:** Show spinner or "Loading..." while fetching from Firestore
 - **isAuthBypass guard:** Always skip Firestore ops when `isAuthBypass` is true (dev mode)
+- **Copy:** follow "On-screen copy" in `components/CLAUDE.md` (a label and its control need no sentence under them)
 
 ---
 
 ## Common Mistakes to Avoid
 
-1. **Wrong location** — Do NOT put this in `components/widgets/YourWidget/Settings.tsx`. That is the user-level panel. Admin config goes in `components/admin/`.
+1. **Wrong location** — Do NOT put this in the widget's `settings.schema.ts`. That is the user-level settings drawer. Admin config goes in `components/admin/`.
 
 2. **Not wiring in FeaturePermissionsManager** — Creating the modal file is not enough. You MUST add the conditional render block in `FeaturePermissionsManager.tsx`. Without this, the gear button does nothing.
 
-3. **Not adding to the exclusion array** — If you create a dedicated modal but forget to exclude the widget type from the `GenericConfigurationModal` fallback, both will try to render.
+3. **Not adding to `CUSTOM_MODAL_TYPES`** — If you create a dedicated modal but leave the widget type out of that list, `GenericConfigurationModal` renders too.
 
 4. **Missing isAuthBypass guard** — Dev/test environments use `isAuthBypass = true` to skip Firebase. Always check this before Firestore reads/writes.
 
-5. **Hardcoding building IDs** — Always import and iterate over `BUILDINGS` from `@/config/buildings` rather than hardcoding building IDs.
+5. **Hardcoding building IDs or importing `BUILDINGS`** — Use `useAdminBuildings()`; the static array is only the seed list.
 
 6. **Forgetting to update types.ts** — If you add new config fields, add them to the interface in `types.ts`. The `config` field on `FeaturePermission` accepts `Record<string, unknown>` and is cast at the callsite.
 
 7. **Using local widget state** — Admin configs are global. Ensure saves go to Firestore, not just component state.
+
+8. **No `case` in `getAdminBuildingConfig`** — The admin saves defaults and new widgets ignore them.
+
+9. **Controls without tour anchors** — The `Live Tour Anchors` check fails the PR.

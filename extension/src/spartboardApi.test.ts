@@ -35,6 +35,16 @@ describe('callSpartBoard', () => {
     );
   });
 
+  it('names a tour that needs a newer extension (X14)', async () => {
+    expect(
+      await callSpartBoard(
+        deps([reply(403, { error: 'Needs newer.', code: 'needs-update' })]).d,
+        'webTourLoadV1',
+        {}
+      )
+    ).toEqual({ ok: false, why: 'needs-update', message: 'Needs newer.' });
+  });
+
   it("keeps the server's wording for a refusal, not for a server error", async () => {
     expect(
       await callSpartBoard(

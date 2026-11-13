@@ -191,3 +191,31 @@ describe('requestWebTourWriting', () => {
     );
   });
 });
+
+describe('Message steps', () => {
+  const message = step(
+    'm1',
+    { message: true, label: '', text: '', web: undefined },
+    {}
+  );
+
+  it('are never sent to Claude, in any mode', () => {
+    const set = tour([step('starter'), message]);
+    for (const mode of ['blanks', 'all', 'questions'] as const)
+      expect(writingRequests(set, mode).map((r) => r.id)).not.toContain('m1');
+  });
+
+  it('keep their words when Claude answers for every step', () => {
+    const typed = { ...message, label: 'Switching', text: 'Go to Gemini.' };
+    const set = tour([step('starter'), typed]);
+    const { set: out } = applyWriting(
+      set,
+      [
+        { id: 'starter', title: 'New', tip: 'Tip' },
+        { id: 'm1', title: 'Claude title', tip: 'Claude tip' },
+      ],
+      'all'
+    );
+    expect(out.steps[1]).toEqual(typed);
+  });
+});

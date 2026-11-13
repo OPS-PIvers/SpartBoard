@@ -7,7 +7,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ToursTab } from './ToursTab';
+import { ManageToursButton, ToursTab } from './ToursTab';
 import type { TourListReply } from '../tourList';
 
 const send = vi.fn<(msg: { type: string }) => Promise<unknown>>();
@@ -158,5 +158,31 @@ describe('ToursTab', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start tour' }));
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.getByText('Open the gradebook')).toBeTruthy();
+  });
+});
+
+describe('ManageToursButton', () => {
+  it('opens the Web tours page for admins only', () => {
+    const create = vi.fn(() => Promise.resolve({}));
+    (
+      globalThis as { chrome: { tabs: { create?: unknown } } }
+    ).chrome.tabs.create = create;
+    const { unmount } = render(<ManageToursButton reply={reply} />);
+    expect(screen.queryByRole('button', { name: 'Manage tours' })).toBeNull();
+    unmount();
+    render(<ManageToursButton reply={{ ok: false, why: 'offline' }} />);
+    expect(screen.queryByRole('button', { name: 'Manage tours' })).toBeNull();
+    cleanup();
+    render(
+      <ManageToursButton
+        reply={
+          reply.ok ? { ...reply, list: { ...reply.list, admin: true } } : reply
+        }
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Manage tours' }));
+    expect(create).toHaveBeenCalledWith({
+      url: 'https://spartboard.web.app/web-tours',
+    });
   });
 });

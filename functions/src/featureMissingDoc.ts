@@ -46,6 +46,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'sparty',
   'getting-started',
   'district-library',
+  'district-library-folders',
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',
@@ -53,6 +54,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-stimulus-quotes',
   'quiz-cross-out',
   'quiz-submit-for-student',
+  'quiz-reopen-submission',
   'quiz-ordering-images',
   'quiz-ordering-list',
   'quiz-ordering-results',
@@ -63,6 +65,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-review-step',
   'quiz-calculator-stimulus',
   'student-keyboards',
+  'quiz-prompt-formatting',
   'lunch-count-redesign',
   'lunch-count-resend',
   'weather-details',
@@ -100,6 +103,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-missed-cards',
   'flashcards-check-sync',
   'video-activity-editor-arrows',
+  'youtube-paste-picker',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

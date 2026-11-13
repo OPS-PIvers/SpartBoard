@@ -93,6 +93,7 @@ export const SURFACES: TourSurfaceMap = {
       `${C}AnswerKeyboardControls.tsx`,
       `${C}AnswerKeyKeyboard.tsx`,
       `${C}PromptEquations.tsx`,
+      `${C}PromptRichEditor.tsx`,
       `${C}ChoiceOptionsEditor.tsx`,
       `${C}FibBlanksEditor.tsx`,
       `${C}FibBlankTypeEditor.tsx`,
@@ -411,6 +412,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-monitor.student-let-in': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-attempt':
         'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-reopen': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-submit': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-results':
         'quiz-monitor.roster-row-actions:quiz',

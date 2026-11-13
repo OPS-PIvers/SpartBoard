@@ -2686,6 +2686,9 @@
         "spoken": "Gesprochen",
         "whiteboard": "Whiteboard"
       },
+      "copy": "Kopieren",
+      "copyResponse": "Antwort kopieren",
+      "copied": "Kopiert",
       "responseLabel": "Antwort des Schülers",
       "timedOutUnderMinimum": "Zeit abgelaufen unter dem Minimum",
       "noTextAnswer": "Der Schüler hat diese Frage nicht beantwortet.",
@@ -4194,7 +4197,9 @@
     "reviewRemoveAllBlur": "Alle Unschärfe entfernen",
     "reviewFrames": "Bilder",
     "reviewBlurredCount": "Unschärfe auf {{count}} von {{total}} Bildern",
-    "reviewAddSteps": "Schritte hinzufügen"
+    "reviewAddSteps": "Schritte hinzufügen",
+    "helpCenterNoOrg": "Die Tour ist gespeichert, aber du brauchst eine Organisation, um sie zum Hilfe-Center hinzuzufügen.",
+    "helpCenterFailed": "Die Tour ist gespeichert, konnte aber nicht zum Hilfe-Center hinzugefügt werden."
   },
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",
@@ -4341,6 +4346,8 @@
     "webGoToStart": "Zum Anfang",
     "webArmedExit": "Tour beenden",
     "webMoved": "Ihre Tour wurde in den anderen Tab verschoben.",
+    "webSwitchTitle": "Weiter geht es auf {{host}}",
+    "webGoTo": "Zu {{host}}",
     "webStopped": "Tour beendet. Klicken Sie auf das SpartBoard-Symbol, um sie neu zu starten.",
     "webDismiss": "Schließen",
     "webPictureAlt": "Bild dieses Schritts",
@@ -4384,7 +4391,9 @@
       "fact_district_account": "Mit einem Schulkonto angemeldet",
       "fact_classlink_on": "ClassLink-Import ist an",
       "needsText": "Braucht Text"
-    }
+    },
+    "savedToHelpCenter": "Im Hilfe-Center als Ausgeblendet gespeichert.",
+    "openInHelpCenter": "Im Hilfe-Center öffnen"
   },
   "glPlayer": {
     "modeChip": {
@@ -4579,8 +4588,6 @@
     "loading": "Touren werden geladen...",
     "intro": "Prüft veröffentlichte Touren anhand des Anker-Verzeichnisses.",
     "recordTour": "Tour aufnehmen",
-    "recordWebTour": "Web-Tour aufnehmen",
-    "recordWebTourFailed": "Die Web-Tour konnte nicht erstellt werden.",
     "checkLive": "Live prüfen",
     "empty": "Noch kein Guided-Learning-Set hat Live-Tour-Schritte.",
     "untitledSet": "Unbenanntes Set",
@@ -4786,6 +4793,11 @@
     "getExtension": "SpartBoard-Erweiterung holen",
     "wrongProfile": "Diese Tour läuft nur in einem Chrome-Profil, das mit Ihrem Orono-Personalkonto angemeldet ist. Folgen Sie bis dahin den Bildern unten.",
     "oldExtension": "Ihre SpartBoard-Erweiterung braucht ein Update für diese Tour. Folgen Sie bis dahin den Bildern unten.",
+    "needsUpdate": "Diese Tour braucht eine neuere Version der SpartBoard-Erweiterung. Sie aktualisiert sich innerhalb weniger Stunden selbst, oder schließen und öffnen Sie Chrome erneut, um sie sofort zu erhalten.",
+    "needsUpdateShort": "Diese Tour braucht eine neuere Version der SpartBoard-Erweiterung.",
+    "updateNow": "Jetzt aktualisieren",
+    "upToDate": "Bereits aktuell",
+    "updateLater": "Versuchen Sie es in ein paar Minuten erneut",
     "openSite": "{{site}} öffnen",
     "currentStep": "Aktueller Schritt",
     "stepDone": "Erledigt",
@@ -4808,6 +4820,7 @@
     "stepNumber": "Schritt {{number}}",
     "onlyIfAppears": "Nur wenn es erscheint",
     "untitledStep": "Schritt ohne Titel",
+    "continueOn": "Weiter auf {{host}}",
     "pictureAlt": "Bild zu Schritt {{number}}",
     "pictureLoading": "Bild wird geladen",
     "noPicture": "Kein Bild für diesen Schritt",

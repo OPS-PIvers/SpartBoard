@@ -44,6 +44,7 @@ export const FOCUS_FAILURE_TEXT: Record<ApiFailure, string> = {
   'not-found': 'That session has ended.',
   offline:
     "Focus couldn't reach SpartBoard. Check your connection and try again.",
+  'needs-update': "Focus isn't set up yet.",
 };
 
 export const failureText = (r: { why: ApiFailure; message?: string }) =>

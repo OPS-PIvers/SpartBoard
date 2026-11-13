@@ -17,6 +17,7 @@ const WHY: Record<ApiFailure, string> = {
   'not-found': 'SpartBoard could not take this quiz.',
   offline:
     "Couldn't reach SpartBoard. Check your connection and send it again.",
+  'needs-update': 'Schoology import is not set up yet.',
 };
 
 const isReply = (v: unknown): v is SendReply =>

@@ -743,7 +743,7 @@ const SaveAlert: React.FC<{ state: TourEditorSession['saveState'] }> = ({
   );
 };
 
-/** Under the header: broken links to confirm before publishing, or a failed publish. */
+/** Under the header: broken links that block publishing, or a failed publish. */
 const PublishNotice: React.FC<{ publish: LiveTourPublish }> = ({ publish }) => {
   const { t } = useTranslation();
   if (publish.confirming)
@@ -772,14 +772,8 @@ const PublishNotice: React.FC<{ publish: LiveTourPublish }> = ({ publish }) => {
             </li>
           ))}
         </ul>
+        {/* Failing steps never publish (H15), so the only way on is to fix them. */}
         <div className="flex gap-1">
-          <button
-            type="button"
-            onClick={publish.publishAnyway}
-            className={primaryBtn}
-          >
-            {t('glStudio.tourPublish.publishAnyway')}
-          </button>
           <button
             type="button"
             onClick={publish.cancel}

@@ -2,11 +2,14 @@ import { useSyncExternalStore } from 'react';
 import type { GuidedLearningSet, GuidedLearningTourBinding } from '@/types';
 import type { TourSlots } from '@/components/tours/tourSession';
 import type { RecordedPlacement } from '@/components/widgets/GuidedLearning/components/recorder/resolveAnchor';
+import type { TourOrigin } from '@/components/tours/tourState';
 
 export interface TourEditRequest {
   setId: string;
   /** Opens the editor with this step selected. */
   stepId?: string;
+  /** 'help-center' reopens Admin Settings > Help Center on Done; absent means a board start. */
+  origin?: TourOrigin;
 }
 
 export const TOUR_EDIT_EVENT = 'spart:edit-tour';

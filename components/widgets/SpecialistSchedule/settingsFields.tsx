@@ -9,6 +9,7 @@ import type {
   SpecialistScheduleGlobalConfig,
 } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { resolveBuildingConfig } from './utils';
 
 const DAYS_OF_WEEK = [
   'sunday',
@@ -33,11 +34,11 @@ const smallButtonClass =
 
 const useSpecialistScheduleContext = (ctx: CustomRenderCtx) => {
   const { featurePermissions } = useAuth();
-  const buildingId = useWidgetBuildingId(ctx.widget) ?? 'schumann-elementary';
+  const buildingId = useWidgetBuildingId(ctx.widget);
   const globalConfig = featurePermissions.find(
     (permission) => permission.widgetType === 'specialist-schedule'
   )?.config as SpecialistScheduleGlobalConfig | undefined;
-  const buildingConfig = globalConfig?.buildingDefaults?.[buildingId];
+  const buildingConfig = resolveBuildingConfig(globalConfig, buildingId);
 
   return {
     cycleLength: Math.max(1, buildingConfig?.cycleLength ?? 6),

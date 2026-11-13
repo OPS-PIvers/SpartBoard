@@ -66,7 +66,7 @@ export const RemoteMusicControl: React.FC<RemoteMusicControlProps> = ({
           {stations.map((station) => {
             const isActive = config.stationId === station.id;
             return (
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 key={station.id}
                 onClick={() => selectStation(station.id)}
                 className={`touch-manipulation flex items-center gap-3 w-full px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.98] ${

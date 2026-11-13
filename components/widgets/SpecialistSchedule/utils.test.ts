@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTime } from './utils';
+import { parseTime, resolveBuildingConfig } from './utils';
 import {
   parseScheduleTime,
   parseScheduleTimeSeconds,
@@ -16,5 +16,28 @@ describe('time parsers reject partial input', () => {
   it('still parses valid times', () => {
     expect(parseTime('9:30')).toBe(570);
     expect(parseScheduleTime('09:30')).toBe(570);
+  });
+});
+
+describe('resolveBuildingConfig', () => {
+  const schumann = { cycleLength: 4, specialistOptions: ['🎵 Music'] };
+  const config = (key: string) =>
+    ({ buildingDefaults: { [key]: schumann } }) as never;
+
+  it.each([
+    ['schumann', 'schumann-elementary'],
+    ['schumann-elementary', 'schumann'],
+    ['schumann', 'schumann'],
+  ])('finds a %s widget in a record keyed %s', (buildingId, key) => {
+    expect(resolveBuildingConfig(config(key), buildingId)).toBe(schumann);
+  });
+
+  it('uses Schumann when the widget has no building', () => {
+    expect(resolveBuildingConfig(config('schumann'), undefined)).toBe(schumann);
+  });
+
+  it('returns undefined for a building with no saved config', () => {
+    expect(resolveBuildingConfig(config('schumann'), 'high')).toBeUndefined();
+    expect(resolveBuildingConfig(undefined, 'schumann')).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import { plainPromptText } from './promptMath';
+import { plainMathText, promptPrintHtml } from './promptMath';
 /**
  * Prints the test paper that goes with a batch of answer sheets: every
  * bubbled question, numbered to match the sheet, with its choices lettered in
@@ -67,9 +67,9 @@ const STYLES = `
 `;
 
 function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
-  if (!picture) return escapeHtml(plainPromptText(text));
+  if (!picture) return escapeHtml(plainMathText(text));
   const img = `<img class="cpic" src="${escapeHtml(picture.url)}" alt="${escapeHtml(picture.alt ?? '')}">`;
-  return picture.only ? img : `${img}${escapeHtml(plainPromptText(text))}`;
+  return picture.only ? img : `${img}${escapeHtml(plainMathText(text))}`;
 }
 
 function questionHtml(q: PaperTestQuestion): string {
@@ -89,7 +89,7 @@ function questionHtml(q: PaperTestQuestion): string {
         q.section.directions ? `<p>${escapeHtml(q.section.directions)}</p>` : ''
       }${q.section.chooseLine ? `<p><strong>${escapeHtml(q.section.chooseLine)}</strong></p>` : ''}</li>`
     : '';
-  return `${section}<li><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${escapeHtml(plainPromptText(q.text))}</div>${choices}</div></li>`;
+  return `${section}<li><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${promptPrintHtml(q.text)}</div>${choices}</div></li>`;
 }
 
 function testHtml(

@@ -2,18 +2,29 @@ import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TourAnchorQueueItem } from '@/components/tours/anchorQueue';
+import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
 
 const h = vi.hoisted(() => ({
   items: [] as TourAnchorQueueItem[],
   rebind: vi.fn(),
   dismiss: vi.fn(),
+  loadBuildingSet: vi.fn(),
+  saveBuildingSetDoc: vi.fn(),
 }));
 
 vi.mock('@/components/tours/anchorQueueStore', () => ({
   useTourAnchorQueue: () => ({ items: h.items, loading: false, error: false }),
   rebindQueueItem: h.rebind,
   dismissQueueItem: h.dismiss,
+}));
+
+vi.mock('@/hooks/useGuidedLearning', () => ({
+  useGuidedLearning: () => ({
+    buildingSets: [{ id: 'set-1', title: 'Library tour', updatedAt: 1 }],
+  }),
+  loadBuildingSet: h.loadBuildingSet,
+  saveBuildingSetDoc: h.saveBuildingSetDoc,
 }));
 
 const item = (
@@ -149,7 +160,7 @@ describe('UnmappedAnchorsSection', () => {
     );
   });
 
-  it('opens a clicked-in step in the Studio', () => {
+  it('opens a clicked-in step through the given handler', () => {
     const props = renderSection();
     fireEvent.click(
       within(rowFor('open')).getByRole('button', {
@@ -173,5 +184,35 @@ describe('UnmappedAnchorsSection', () => {
     expect(
       await screen.findByRole('button', { name: 'Copied' })
     ).toBeInTheDocument();
+  });
+
+  it('works with no props: library titles, building saves and the tour editor', async () => {
+    h.items = [
+      item('mapped', { status: 'pr-open', anchorId: 'sidebar.boards' }),
+    ];
+    const onEdit = vi.fn();
+    window.addEventListener(TOUR_EDIT_EVENT, onEdit);
+    render(<UnmappedAnchorsSection />);
+    fireEvent.click(
+      within(rowFor('mapped')).getByRole('button', {
+        name: 'Edit Library tour',
+      })
+    );
+    window.removeEventListener(TOUR_EDIT_EVENT, onEdit);
+    expect((onEdit.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      setId: 'set-1',
+      stepId: 'step-mapped',
+      origin: 'help-center',
+    });
+    await act(async () => {
+      fireEvent.click(
+        within(rowFor('mapped')).getByRole('button', { name: /Rebind/ })
+      );
+      await Promise.resolve();
+    });
+    expect(h.rebind).toHaveBeenCalledWith(
+      expect.objectContaining({ fingerprint: 'mapped' }),
+      { load: h.loadBuildingSet, save: h.saveBuildingSetDoc }
+    );
   });
 });

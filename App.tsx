@@ -195,6 +195,11 @@ const WebTourHubPage = lazy(() =>
     default: module.WebTourHubPage,
   }))
 );
+const WebToursGate = lazy(() =>
+  import('./components/tours/web/WebToursGate').then((module) => ({
+    default: module.WebToursGate,
+  }))
+);
 const SignInPage = lazy(() =>
   import('./components/auth/SignInPage').then((module) => ({
     default: module.SignInPage,
@@ -417,6 +422,13 @@ const LibraryManagersDevHarness =
         }))
       )
     : null;
+const DistrictFoldersDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/DistrictFoldersDevHarness').then((module) => ({
+        default: module.DistrictFoldersDevHarness,
+      }))
+    )
+  : null;
 const SidebarListsDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
     ? lazy(() =>
@@ -473,6 +485,13 @@ const WhiteboardReplayDevHarness = import.meta.env.DEV
     )
   : null;
 
+const PromptFormattingDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/PromptFormattingDevHarness').then((module) => ({
+        default: module.PromptFormattingDevHarness,
+      }))
+    )
+  : null;
 const StudentKeyboardsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/StudentKeyboardsDevHarness').then((module) => ({
@@ -1150,6 +1169,20 @@ const App: React.FC = () => {
     );
   }
 
+  // Web tours admin page (HELP_CENTER_HOME.md H9): auth and dialogs only, no board.
+  if (pathname === '/web-tours') {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <WebToursGate />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
   // A tour an admin made public (TOURS_10X.md S6): anyone, signed out, so no providers at all.
   if (pathname.startsWith('/tour-steps/')) {
     return (
@@ -1402,6 +1435,22 @@ const App: React.FC = () => {
     );
   }
 
+  // District library folders design mockup; auth-bypass only.
+  if (
+    DistrictFoldersDevHarness &&
+    isAuthBypass &&
+    pathname === '/district-folders-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <DialogProvider>
+          <DistrictFoldersDevHarness />
+          <DialogContainer />
+        </DialogProvider>
+      </Suspense>
+    );
+  }
+
   // My Classes and My Teams panels on fixtures; auth-bypass only, so never on a deployed site.
   if (
     SidebarListsDevHarness &&
@@ -1513,6 +1562,18 @@ const App: React.FC = () => {
   }
 
   // DEV-ONLY: the student whiteboard canvas with fixture starting pages.
+  if (
+    import.meta.env.DEV &&
+    PromptFormattingDevHarness &&
+    pathname === '/prompt-formatting-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PromptFormattingDevHarness />
+      </Suspense>
+    );
+  }
+
   if (
     import.meta.env.DEV &&
     StudentKeyboardsDevHarness &&

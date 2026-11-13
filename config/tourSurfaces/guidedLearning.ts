@@ -11,9 +11,15 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     widgetType: 'guided-learning',
     needs: ['widget-on-stage'],
-    files: [GL, `${GLC}GuidedLearningManager.tsx`],
+    files: [
+      GL,
+      `${GLC}GuidedLearningManager.tsx`,
+      `${GL}utils/helpCenterSets.ts`,
+    ],
     inner: {
       'gl-manager.show-older': 'library-shell.tab:guided-learning#archive',
+      'gl-manager.open-in-help-center':
+        'library-shell.card-menu:guided-learning#row-1',
       'library-shell.archive-edit-classes':
         'library-shell.card-menu:guided-learning#row-1',
       'gl-manager.folder-name': 'gl-manager.folder-new',

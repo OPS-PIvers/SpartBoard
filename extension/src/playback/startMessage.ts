@@ -1,10 +1,11 @@
 import {
+  isStartMessageStep,
   MAX_PICTURE_TOTAL_CHARS,
   type WebTourCheckStartMessage,
   type WebTourPictureBytes,
   type WebTourStartMessage,
 } from '@/components/tours/web/extensionProtocol';
-import type { PlaybackTour } from './progress';
+import type { PlaybackStep, PlaybackTour } from './progress';
 
 export interface ParsedStart {
   tour: PlaybackTour;
@@ -23,7 +24,20 @@ export function toPlayback(
 ): ParsedStart {
   const pictures: Record<string, WebTourPictureBytes> = {};
   let pictureChars = 0;
-  const steps = msg.tour.steps.map((s) => {
+  const steps = msg.tour.steps.map((s): PlaybackStep => {
+    // A Message step is never sought: no address, clues, picture or conditions (X7).
+    if (isStartMessageStep(s))
+      return {
+        id: s.id,
+        title: s.label ?? '',
+        text: s.text ?? '',
+        urlPattern: '',
+        frames: [],
+        clues: {},
+        action: 'observe',
+        hasPicture: false,
+        message: true,
+      };
     const { frames = [], ...clues } = s.web.locator;
     let hasPicture = false;
     // Past the store's room a step simply has no picture fallback.

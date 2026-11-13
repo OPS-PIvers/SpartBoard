@@ -63,6 +63,8 @@ import type { GlobalFeature } from '@/types';
 
 interface AdminSettingsProps {
   onClose: () => void;
+  /** Opens on this tab; a new request switches an open Admin Settings to it. */
+  tabRequest?: AdminSettingsTabRequest;
 }
 
 // Tabs are grouped into labelled sections so the vertical rail reads as
@@ -126,6 +128,7 @@ const TAB_GROUPS = [
         label: 'Help Center',
         icon: LifeBuoy,
         component: HelpCenterManager,
+        fillHeight: true,
       },
       {
         id: 'getting-started',
@@ -251,6 +254,11 @@ const TAB_GROUPS = [
 
 type TabId = (typeof TAB_GROUPS)[number]['tabs'][number]['id'];
 
+/** A fresh object per request, so asking for the same tab again still switches to it. */
+export interface AdminSettingsTabRequest {
+  tab: TabId;
+}
+
 interface TabConfig {
   id: TabId;
   label: string;
@@ -329,7 +337,10 @@ const RailTab: React.FC<{
   </button>
 );
 
-export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
+export const AdminSettings: React.FC<AdminSettingsProps> = ({
+  onClose,
+  tabRequest,
+}) => {
   const {
     isAdmin,
     user,
@@ -360,24 +371,35 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         canAccessFeature
       );
   const tabs = groups.flatMap((group) => group.tabs);
-  const [storedTab, setActiveTabState] = useState<TabId>(readLastTab);
+  const [storedTab, setActiveTabState] = useState<TabId>(
+    () => tabRequest?.tab ?? readLastTab()
+  );
   // A remembered tab this admin can't open falls back to their first tab.
   const activeTab: TabId = tabs.some((t) => t.id === storedTab)
     ? storedTab
     : orgOnly
       ? 'organization'
       : 'widgets';
-  const setActiveTab = (tab: TabId) => {
-    setActiveTabState(tab);
+  const setActiveTab = (tab: TabId) => setActiveTabState(tab);
+  // Remembered with the tab, so a reload after the Help Center round trip lands back here.
+  React.useEffect(() => {
     try {
-      window.localStorage.setItem(LAST_TAB_KEY, tab);
+      window.localStorage.setItem(LAST_TAB_KEY, storedTab);
     } catch {
       // Storage can be blocked; the tab still switches.
     }
-  };
+  }, [storedTab]);
   // Mobile only: the drill-in list (true) vs. the selected panel (false).
   // The desktop rail is always visible, so this flag is inert there.
-  const [showMobileMenu, setShowMobileMenu] = useState(true);
+  const [showMobileMenu, setShowMobileMenu] = useState(!tabRequest);
+  const [seenRequest, setSeenRequest] = useState(tabRequest);
+  if (tabRequest !== seenRequest) {
+    setSeenRequest(tabRequest);
+    if (tabRequest) {
+      setActiveTabState(tabRequest.tab);
+      setShowMobileMenu(false);
+    }
+  }
   const activeTabFills =
     TABS.find((t) => t.id === activeTab)?.fillHeight === true;
 

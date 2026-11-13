@@ -10,6 +10,23 @@ export function chromeHost(post: PlaybackHost['post']): PlaybackHost {
       if (tab.id === undefined) throw new Error('tab has no id');
       return tab.id;
     },
+    focusTab: async (tabId) => {
+      try {
+        const tab = await chrome.tabs.update(tabId, { active: true });
+        if (tab?.windowId !== undefined)
+          await chrome.windows.update(tab.windowId, { focused: true });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    tabUrl: async (tabId) => {
+      try {
+        return (await chrome.tabs.get(tabId)).url ?? null;
+      } catch {
+        return null;
+      }
+    },
     navigate: async (tabId, url) => {
       await chrome.tabs.update(tabId, { url });
     },

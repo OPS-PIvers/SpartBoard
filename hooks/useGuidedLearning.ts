@@ -313,6 +313,8 @@ export const useGuidedLearning = (
         imagePaths: metadata.imagePaths ?? deleteField(),
         // A teacher's own save counts as a review.
         [CLAUDE_REVIEW_FIELD]: deleteField(),
+        // An edit after a Help Center move keeps the set, whatever the device clock says (H5).
+        movedToHelpCenterAt: deleteField(),
         // An empty list marks the set as recorded; absent means saved before ids were kept.
         driveFileIds: metadata.driveFileIds ?? [],
       };

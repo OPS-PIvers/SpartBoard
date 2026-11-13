@@ -103,3 +103,62 @@ describe('QuizBanksTab drop-on-folder', () => {
     );
   });
 });
+
+describe('QuizBanksTab District library banks', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useFolders as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      folders: [],
+      loading: false,
+      error: null,
+      moveItem: vi.fn(),
+      createFolder: vi.fn(),
+      renameFolder: vi.fn(),
+      moveFolder: vi.fn(),
+      deleteFolder: vi.fn(),
+    });
+  });
+
+  it('opens a read-only preview of a district bank', () => {
+    const onPreviewBank = vi.fn();
+    const source = {
+      key: 'group-1',
+      kind: 'district' as const,
+      bankId: 'item-1',
+      syncGroupId: 'group-1',
+      syncOwnerUid: 'admin-1',
+      title: 'Arizona Meteor (2025)',
+      questionCount: 5,
+      targetIds: [],
+      targetCounts: {},
+    };
+    renderTab({ banks: [], districtBankSources: [source], onPreviewBank });
+
+    const preview = screen.getByRole('button', { name: 'Preview' });
+    expect(preview.outerHTML).toContain('quiz-banks.district-preview');
+    fireEvent.click(preview);
+    expect(onPreviewBank).toHaveBeenCalledWith(source);
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('offers no preview once the bank is no longer shared', () => {
+    renderTab({
+      banks: [],
+      districtBankSources: [
+        {
+          key: 'group-1',
+          kind: 'district',
+          bankId: 'item-1',
+          syncGroupId: 'group-1',
+          title: 'Withdrawn bank',
+          questionCount: 5,
+          targetIds: [],
+          targetCounts: {},
+          unavailable: true,
+        },
+      ],
+      onPreviewBank: vi.fn(),
+    });
+    expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull();
+  });
+});

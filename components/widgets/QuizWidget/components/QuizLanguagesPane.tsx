@@ -256,7 +256,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                       className="min-w-0 flex-1 text-left"
                     >
                       <span className="line-clamp-2 text-xs text-slate-700">
-                        {index + 1}. <MathText text={question.text} />
+                        {index + 1}. <MathText text={question.text} format />
                       </span>
                     </button>
                     <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xxs font-bold text-slate-600">
@@ -395,7 +395,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
     return (
       <div key={key} className="grid grid-cols-2 gap-3">
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          <MathText text={english} />
+          <MathText text={english} format={key === 'text'} />
         </p>
         <textarea
           value={translated}

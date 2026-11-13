@@ -44,6 +44,7 @@ function expected() {
             ...(def.keyHint ? { key_hint: def.keyHint } : {}),
           }
         : {}),
+      ...(def.rows ? { row_wildcard: true } : {}),
       ...(def.cycles ? { cycles: def.cycles } : {}),
       ...(def.opensEmpty ? { opens_empty: def.opensEmpty } : {}),
       ...closesOf(def),
@@ -105,7 +106,7 @@ describe('connector tour anchor list', () => {
       await writeGenerated(
         FILE,
         // Parsed JSON, because an array literal this varied is too complex for the type checker to infer.
-        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  key_pattern?: string;\n  key_hint?: string;\n  cycles?: string;\n  opens_empty?: string;\n  closes?: string;\n  closes_path?: readonly string[];\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    opened_by?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
+        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  key_pattern?: string;\n  key_hint?: string;\n  row_wildcard?: true;\n  cycles?: string;\n  opens_empty?: string;\n  closes?: string;\n  closes_path?: readonly string[];\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    opened_by?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
       );
       return;
     }
@@ -232,6 +233,14 @@ describe('tour anchor key patterns and cycle buttons', () => {
       const pattern = new RegExp(`^(?:${def.keyPattern})$`);
       for (const key of SCANNED_KEYS.get(id)?.keys ?? [])
         expect(pattern.test(key), `${id} ${key}`).toBe(true);
+    }
+  });
+
+  it('gives row-* only to per-field lists that are not destructive', () => {
+    for (const [id, def] of defs) {
+      if (!def.rows) continue;
+      expect(def.perField, id).toBe(true);
+      expect(def.destructive, id).toBeUndefined();
     }
   });
 

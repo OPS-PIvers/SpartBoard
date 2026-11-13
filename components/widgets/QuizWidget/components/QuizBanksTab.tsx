@@ -8,6 +8,8 @@ import {
   Loader2,
   Plus,
   FolderMinus,
+  Folder,
+  FolderOpen,
 } from 'lucide-react';
 import type { Plc, QuestionBankMetadata } from '@/types';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -58,6 +60,11 @@ export interface QuizBanksTabProps {
   loading: boolean;
   /** Teammates' shared banks (kind 'plc'); own banks are excluded upstream. */
   sharedBankSources: BankSource[];
+  /** District library banks the teacher added (kind 'district'); read-only. */
+  districtBankSources?: BankSource[];
+  onRemoveDistrictBank?: (source: BankSource) => void | Promise<void>;
+  /** Set when district banks live in the library's District library folder: they list as that one folder. */
+  onOpenDistrictFolder?: () => void;
   plcs: readonly Plc[];
   shell: Pick<
     LibraryShellProps,
@@ -86,7 +93,7 @@ export interface QuizBanksTabProps {
     meta: QuestionBankMetadata,
     plcId: string
   ) => void | Promise<void>;
-  onPreviewSharedBank?: (source: BankSource) => void;
+  onPreviewBank?: (source: BankSource) => void;
   /** Surfaces a failed folder move (drag or bulk) as a toast. */
   onError?: (message: string) => void;
   /** Set when banks share the Quiz library's folders. */
@@ -107,6 +114,7 @@ const SEARCH_FIELDS = (b: QuestionBankMetadata): string =>
 const INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const GET_ID = (b: QuestionBankMetadata): string => b.id;
+const NO_DISTRICT_BANKS: BankSource[] = [];
 const BANK_NOUN = ['question bank', 'question banks'] as const;
 
 const SORT_COMPARATORS: Record<
@@ -143,6 +151,9 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   banks,
   loading,
   sharedBankSources,
+  districtBankSources = NO_DISTRICT_BANKS,
+  onRemoveDistrictBank,
+  onOpenDistrictFolder,
   plcs,
   shell,
   onNewBank,
@@ -155,7 +166,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onReorderBanks,
   onShareBankWithPlc,
   onUnshareBankFromPlc,
-  onPreviewSharedBank,
+  onPreviewBank,
   onError,
   libraryFolders,
 }) => {
@@ -412,17 +423,20 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         }
         badges={chip ? [{ label: chip, tone: 'neutral' }] : undefined}
         primaryAction={
-          onPreviewSharedBank
+          onPreviewBank
             ? {
                 label: 'Preview',
                 icon: Eye,
-                onClick: () => onPreviewSharedBank(source),
+                onClick: () => onPreviewBank(source),
+                anchor: tourFieldAttr('quiz-banks.shared-preview', 'quiz', key),
               }
             : undefined
         }
         secondaryActions={actions}
         onDoubleClick={
-          onPreviewSharedBank ? () => onPreviewSharedBank(source) : undefined
+          onPreviewBank && !source.unavailable
+            ? () => onPreviewBank(source)
+            : undefined
         }
         viewMode="list"
         sortable={false}
@@ -430,6 +444,58 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       />
     );
   };
+
+  const renderDistrictRow = (source: BankSource): React.ReactElement => (
+    <LibraryItemCard<BankSource>
+      key={source.key}
+      id={source.key}
+      title={source.title}
+      subtitle={
+        <span>
+          {plural(source.questionCount, 'question')} · Read-only
+          {source.unavailable ? ' · No longer shared with you' : ''}
+        </span>
+      }
+      badges={[{ label: 'District library', tone: 'info' }]}
+      primaryAction={
+        onPreviewBank && !source.unavailable
+          ? {
+              label: 'Preview',
+              icon: Eye,
+              onClick: () => onPreviewBank(source),
+              anchor: tourFieldAttr(
+                'quiz-banks.district-preview',
+                'quiz',
+                source.key
+              ),
+            }
+          : undefined
+      }
+      onDoubleClick={
+        onPreviewBank && !source.unavailable
+          ? () => onPreviewBank(source)
+          : undefined
+      }
+      secondaryActions={
+        onRemoveDistrictBank
+          ? [
+              {
+                id: 'remove-district-bank',
+                label: 'Remove from my banks',
+                icon: FolderMinus,
+                onClick: () =>
+                  void Promise.resolve(onRemoveDistrictBank(source)).catch(() =>
+                    onError?.('Could not remove that bank. Try again.')
+                  ),
+              },
+            ]
+          : []
+      }
+      viewMode="list"
+      sortable={false}
+      meta={source}
+    />
+  );
 
   const renderCard = (
     bank: QuestionBankMetadata,
@@ -565,6 +631,44 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     libraryView.state.search,
     folderIdOf
   ).map(({ source, key }) => renderSharedRow(source, key));
+  // District library banks list on the top level and in search, never inside a folder.
+  const districtQuery = libraryView.state.search.trim().toLowerCase();
+  const districtRows = districtBankSources
+    .filter((s) =>
+      districtQuery
+        ? s.title.toLowerCase().includes(districtQuery)
+        : !libraryView.folderView ||
+          libraryView.folderView.location.kind === 'all' ||
+          (libraryView.folderView.location.kind === 'folder' &&
+            libraryView.folderView.location.folderId === null)
+    )
+    .map(renderDistrictRow);
+  const districtFolderRow =
+    onOpenDistrictFolder && districtBankSources.length > 0 ? (
+      <LibraryItemCard<null>
+        key="district-library-folder"
+        id="district-library-folder"
+        title="District library"
+        thumbnail={<Folder className="h-5 w-5 text-slate-400" aria-hidden />}
+        subtitle={<span>{plural(districtBankSources.length, 'bank')}</span>}
+        primaryAction={{
+          label: 'Open',
+          icon: FolderOpen,
+          onClick: onOpenDistrictFolder,
+          anchor: tourTypeAttr('quiz-library.district-folder', 'quiz'),
+        }}
+        onDoubleClick={onOpenDistrictFolder}
+        viewMode="list"
+        sortable={false}
+        meta={null}
+      />
+    ) : null;
+  const districtTrailing =
+    onOpenDistrictFolder && !districtQuery
+      ? districtFolderRow
+        ? [districtFolderRow]
+        : []
+      : districtRows;
 
   const body = loading ? (
     <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary gap-3 py-10">
@@ -594,7 +698,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         }
         layout="list"
         emptyState={emptyState}
-        trailingRows={sharedRows}
+        trailingRows={[...sharedRows, ...districtTrailing]}
         useExternalDndContext={enableCardDrag}
         renderCard={(bank, index) => renderCard(bank, false, index)}
       />
@@ -628,7 +732,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                     {source.plcName ? ` · ${source.plcName}` : ''}
                   </span>
                 </span>
-                {onPreviewSharedBank && (
+                {onPreviewBank && (
                   <button
                     type="button"
                     {...tourFieldAttr(
@@ -636,7 +740,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                       'quiz',
                       source.key
                     )}
-                    onClick={() => onPreviewSharedBank(source)}
+                    onClick={() => onPreviewBank(source)}
                     className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />

@@ -6,4 +6,6 @@ export const FAILURE_TEXT: Record<ApiFailure, string> = {
   'not-set-up': "Web tours aren't set up yet.",
   'not-found': 'That tour is no longer published.',
   offline: "Tours couldn't load. Check your connection and try again.",
+  'needs-update':
+    'This tour needs a newer version of the SpartBoard extension. It updates on its own within a few hours, or close and reopen Chrome to get it now.',
 };

@@ -88,7 +88,7 @@ export const SubmitBlockedNotice: React.FC<{
                   light ? 'text-slate-800' : 'text-slate-100'
                 }`}
               >
-                <MathText text={q.text} />
+                <MathText text={q.text} format />
               </span>
               <ArrowRight
                 aria-hidden

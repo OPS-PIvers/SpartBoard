@@ -1,16 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Fuse from 'fuse.js';
-import {
-  FileText,
-  Footprints,
-  GraduationCap,
-  Link2,
-  Loader2,
-  Play,
-  Presentation,
-  X,
-} from 'lucide-react';
+import { Footprints, GraduationCap, Loader2, X } from 'lucide-react';
 import { TOOLS } from '@/config/tools';
 import type { WidgetType } from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
@@ -39,39 +30,8 @@ interface HelpGuidesTabProps {
   itemId?: string;
 }
 
-type HelpKindFilter = 'docs' | 'slides' | 'videos' | 'activities' | 'other';
-type HelpChip = HelpKindFilter | 'tours';
-
-const KIND_FILTERS: {
-  id: HelpChip;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { id: 'docs', icon: FileText },
-  { id: 'slides', icon: Presentation },
-  { id: 'videos', icon: Play },
-  { id: 'activities', icon: GraduationCap },
-  { id: 'other', icon: Link2 },
-  { id: 'tours', icon: Footprints },
-];
-
-const kindOf = (item: HelpResourceItem): HelpKindFilter => {
-  if (item.kind === 'guided-learning') return 'activities';
-  if (item.embedType === 'youtube') return 'videos';
-  if (item.embedType === 'doc') return 'docs';
-  if (item.embedType === 'slides') return 'slides';
-  return 'other';
-};
-
-const KIND_ICONS: Record<
-  HelpKindFilter,
-  React.ComponentType<{ className?: string }>
-> = {
-  docs: FileText,
-  slides: Presentation,
-  videos: Play,
-  activities: GraduationCap,
-  other: Link2,
-};
+// Embeds are retired (H8), so every guide is an activity; the one filter left is Live tours.
+type HelpChip = 'tours';
 
 const widgetLabel = (type: WidgetType): string =>
   TOOLS.find((tool) => tool.type === type)?.label ?? type;
@@ -230,7 +190,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     [fuse, trimmedQuery, scopedItems]
   );
 
-  // A category that loses all its items (snapshot change, kind chips, widget filter) falls back to All.
+  // A category that loses all its items (snapshot change, tours chip, widget filter) falls back to All.
   const effectiveCategoryId =
     categoryId !== 'all' &&
     !visibleCategories.some((category) => category.id === categoryId)
@@ -243,12 +203,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
       item.categoryId !== effectiveCategoryId
     )
       return false;
-    if (
-      kinds.length > 0 &&
-      !kinds.includes(kindOf(item)) &&
-      !(kinds.includes('tours') && isTour(item))
-    )
-      return false;
+    if (kinds.includes('tours') && !isTour(item)) return false;
     return true;
   });
 
@@ -287,9 +242,10 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
 
   // The tours chip shows only while some guide in view is a tour.
   const hasTours = scopedItems.some((item) => isTour(item));
-  const chips = KIND_FILTERS.filter(
-    ({ id }) => id !== 'tours' || hasTours || kinds.includes('tours')
-  );
+  const chips: { id: HelpChip; icon: typeof Footprints }[] =
+    hasTours || kinds.includes('tours')
+      ? [{ id: 'tours', icon: Footprints }]
+      : [];
 
   const categoryOptions = [
     { id: 'all', name: t('helpCenter.guides.allCategories') },
@@ -398,7 +354,6 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
         ) : (
           <ul className="flex flex-col gap-2">
             {filtered.map((item, index) => {
-              const Icon = KIND_ICONS[kindOf(item)];
               return (
                 <li key={item.id} className="relative">
                   <button
@@ -414,7 +369,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                       `row-${index + 1}`
                     )}
                   >
-                    <Icon className="w-4 h-4 mt-0.5 shrink-0 text-slate-500" />
+                    <GraduationCap className="w-4 h-4 mt-0.5 shrink-0 text-slate-500" />
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-semibold text-slate-900">
                         {item.title}

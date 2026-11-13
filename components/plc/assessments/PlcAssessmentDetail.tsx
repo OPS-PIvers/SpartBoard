@@ -7,6 +7,7 @@
  * Reads the server-written aggregate only; no student names exist in it.
  */
 
+import { plainPromptText } from '@/utils/promptMath';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -104,7 +105,7 @@ const QuestionRow: React.FC<{
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm text-slate-800 truncate">
             <span className="text-slate-400 mr-2">{index + 1}.</span>
-            {question.text ||
+            {plainPromptText(question.text) ||
               (card
                 ? t('plcDashboard.assessmentDetail.untitledCard', {
                     defaultValue: 'Untitled card',
@@ -279,7 +280,7 @@ const TargetAggregateRow: React.FC<{
               className="flex items-center gap-3 px-4 py-2 pl-10 text-xs text-slate-600"
             >
               <span className="min-w-0 flex-1 truncate">
-                {question.text || 'Untitled question'}
+                {plainPromptText(question.text) || 'Untitled question'}
               </span>
               <span className="shrink-0 tabular-nums text-slate-500">
                 {question.servedCount ?? question.answered ?? 0} served

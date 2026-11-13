@@ -1,11 +1,14 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  FolderTree,
   ArrowLeftRight,
+  RotateCcw,
   Camera,
   PenLine,
   BarChart,
   BellRing,
+  Bold,
   Bot,
   Building2,
   Cast,
@@ -678,6 +681,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Prompt formatting toolbar. Admin-only until Paul has tested it in prod.
+  'quiz-prompt-formatting': {
+    label: 'Question prompt formatting',
+    icon: Bold,
+    description:
+      'Bold, italic, underline and lists in the question prompt of quizzes and video activities.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -1159,6 +1174,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'district-library-folders': {
+    label: 'District library folders',
+    icon: FolderTree,
+    description:
+      'Folders in the District library, with one audience per folder, shown to teachers as folders.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',
@@ -1210,6 +1236,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Submit quiz for a student',
     icon: Send,
     description: "Turn in a student's saved quiz answers.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'quiz-reopen-submission': {
+    label: 'Reopen a submitted quiz',
+    icon: RotateCcw,
+    description: "Reopen a student's submitted quiz with their answers kept.",
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
@@ -1753,6 +1790,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Video,
     description:
       'The video fills the editor and arrows step through questions in place of the question list.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'youtube-paste-picker': {
+    label: 'Paste a YouTube link: pick a widget',
+    icon: Video,
+    description:
+      'Pasting a YouTube link on the board asks whether to add it as an Embed or a Video Activity.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

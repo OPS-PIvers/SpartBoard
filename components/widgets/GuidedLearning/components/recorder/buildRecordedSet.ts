@@ -226,6 +226,8 @@ export async function buildRecordedSet(
     createdAt: now,
     updatedAt: now,
     isBuilding: true,
+    // Live tours live only in the Help Center, never in the library (H1).
+    helpCenter: true,
     tourSetup: {
       widgets: setupWidgets,
       ...(recorded && recorded.layouts.length > 0

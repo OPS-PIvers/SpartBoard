@@ -999,10 +999,10 @@ service cloud.firestore {
     match /users/{userId}/district_links/{itemId} {
       allow read, delete: if ownsUserTeacher(userId);
       allow create, update: if ownsUserTeacher(userId)
-        && newKeys().hasOnly(['itemId', 'kind', 'syncGroupId', 'ownerUid', 'title', 'questionCount', 'targetIds', 'addedAt'])
+        && newKeys().hasOnly(['itemId', 'kind', 'syncGroupId', 'ownerUid', 'title', 'questionCount', 'targetIds', 'addedAt', 'folderId'])
         && incoming().itemId == itemId
         && isStr('syncGroupId') && isStr('ownerUid')
-        && isInt('addedAt');
+        && isInt('addedAt') && optString(incoming(), 'folderId');
     }
 
     // Activity Wall library - per-user reusable activity definitions.
@@ -2286,7 +2286,8 @@ service cloud.firestore {
         'id', 'kind', 'title', 'description', 'tags', 'questionCount', 'status',
         'everyone', 'targetBuildings', 'targetGrades', 'targetEmails', 'gradeBuildings',
         'syncGroupId', 'contentVersion', 'packageTitle', 'packageGeneratedAt',
-        'sourceName', 'questionNotes', 'createdAt', 'updatedAt', 'updatedBy'
+        'sourceName', 'questionNotes', 'createdAt', 'updatedAt', 'updatedBy',
+        'folderId', 'ownTargeting'
       ]);
     }
     // Building and grade picks are the teacher's profile; no grades picked falls back to the buildings that teach the grade.
@@ -2326,10 +2327,11 @@ service cloud.firestore {
       allow delete: if isSiteAdmin();
     }
     // One doc ('published') mapping each published item id to its building/grade/everyone targeting, without names.
+    // 'folders' holds folder names for staff; 'audiences' holds folder audiences, which name teachers, for admins only.
     match /district_library_index/{indexId} {
-      allow get: if isDistrictStaff() || isSiteAdmin();
+      allow get: if (isDistrictStaff() && indexId != 'audiences') || isSiteAdmin();
       allow list: if false;
-      allow write: if isSiteAdmin() && indexId == 'published';
+      allow write: if isSiteAdmin() && indexId in ['published', 'folders', 'audiences'];
     }
 
     // ---- Shared / Synced VIDEO ACTIVITY parallel collections (PR3) ----
@@ -6491,7 +6493,7 @@ service cloud.firestore {
         // The vote ids this caller may write; get() fails, denying, when it never joined.
         function pollVoteIds() {
           let q = string(incoming().questionIndex) + '_';
-          return [q + dbGet('poll_joins', pollJid()).data.get('voterId', authUid()), q + authUid()];
+          return [q + dbGet('poll_joins', pollJid()).data.voterId];
         }
 
         // A joined device may create/update ONLY the vote doc whose id ==
@@ -6500,7 +6502,6 @@ service cloud.firestore {
         // [0, optionCounts[questionIndex]); only while active and the question
         // isn't in lockedQuestions. Re-voting the
         // same question overwrites (one per device per question).
-        // The `_{uid}` id is for tabs still on the previous app; drop it after the next main release (AB-165).
         allow create, update: if signedIn() &&
           newKeys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
           isInt('questionIndex') &&

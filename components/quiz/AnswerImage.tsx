@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ZoomIn } from 'lucide-react';
 import { ImageLightbox } from '@/components/common/ImageLightbox';
-import { plainPromptText } from '@/utils/promptMath';
+import { plainMathText } from '@/utils/promptMath';
 
 /** Tile: picture across the top of a word-bank chip. Row: beside an answer row. Compact: smaller row for placed items and terms. */
 export type AnswerImageLayout = 'tile' | 'row' | 'compact';
@@ -64,7 +64,7 @@ export const AnswerImageZoomButton: React.FC<{
   label: string;
   className?: string;
 }> = ({ src, label: raw, className = '' }) => {
-  const label = plainPromptText(raw);
+  const label = plainMathText(raw);
   const [open, setOpen] = useState(false);
   return (
     <>

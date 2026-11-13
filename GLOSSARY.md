@@ -78,13 +78,41 @@ _Avoid_: bundle, export
 
 ## Getting Started
 
+**Help Center**:
+Where teachers find help inside SpartBoard, and the only home of every Live tour. An admin manages it from Admin Settings; nothing in it reaches teachers until an admin publishes it.
+_Avoid_: help library, help resources
+
+**Hidden**:
+A Help Center item teachers can't see yet. Everything arrives Hidden, whether recorded or moved in.
+_Avoid_: draft, unpublished
+
+**Published**:
+A Help Center item teachers can find and open. It is the only other state besides Hidden: publishing an item also publishes its tour.
+_Avoid_: live, visible (for the state)
+
+**Unfiled**:
+A Help Center item with no category yet. It can't be published until it has one.
+_Avoid_: uncategorized, inbox
+
 **Live tour**:
-A walkthrough that runs on the real app, pointing at real controls while the teacher uses them.
+A walkthrough that runs on the real app, pointing at real controls while the teacher uses them. It lives in the Help Center, never in anyone's library.
 _Avoid_: walkthrough (for the object), guide (Sparty is the guide), Guided Learning (the tour's authoring format, not what a teacher sees)
+
+**Picture guide**:
+A Help Center item made of pictures of the app with spots to click, read step by step. Unlike a Live tour it never touches the real app.
+_Avoid_: walkthrough, screenshot guide, Guided Learning activity (in the Help Center)
 
 **Web tour**:
 A walkthrough that runs on another website through the SpartBoard Chrome extension, pointing at that site's real controls while the teacher uses them.
 _Avoid_: extension tour, site guide
+
+**Message step**:
+A Web tour step with no Target: words in the middle of the page with Back and Next, shown on whatever page the learner is on. Used to open or close a tour, or to say what comes next.
+_Avoid_: info step, popover, intro card
+
+**Site switch**:
+The moment a Web tour's next step is on a different website. The tip offers a button that opens that site in a new tab, and the tour carries on there; the tab left behind stays open.
+_Avoid_: redirect, hop, handoff
 
 **Target**:
 The control a tour step points at, in a Live tour or a Web tour.

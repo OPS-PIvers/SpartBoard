@@ -1,5 +1,6 @@
 import React from 'react';
 import { MathText } from '@/components/common/MathText';
+import { PromptText } from '@/components/common/PromptText';
 import { Check } from 'lucide-react';
 import { QuizLeaderboardEntry, QuizQuestion, QuizResponse } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
@@ -47,7 +48,7 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
         className={`font-sans font-semibold max-w-[80vw] leading-snug ${t.strong}`}
         style={{ fontSize: 'clamp(1.2rem, 3.2vw, 3rem)', textWrap: 'balance' }}
       >
-        <MathText text={question.text} />
+        <PromptText text={question.text} />
       </p>
       <div
         className="w-full max-w-[70vw] flex flex-col"

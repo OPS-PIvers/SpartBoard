@@ -1414,3 +1414,162 @@ describe('WebTourEditor markup and crop guides', () => {
     ).toEqual(['Step 2, changed', 'Step 1']);
   });
 });
+
+describe('WebTourEditor Message steps', () => {
+  const two = () => {
+    const set = checked(tour('Biology 7'));
+    set.steps.push({ ...set.steps[0], id: 's2', label: 'Second' });
+    return checked(set);
+  };
+  const ids = () =>
+    screen
+      .getAllByTestId('tour-editor-step')
+      .map((r) => r.getAttribute('data-step-id'));
+  const addMessageButton = () =>
+    within(screen.getByTestId('tour-shell-outline-foot')).getByRole('button', {
+      name: 'Add a message',
+    });
+  // Edits autosave after a pause; wait it out with real timers.
+  const saved = async () => {
+    await waitFor(() => expect(storage.saveWebTourDraft).toHaveBeenCalled(), {
+      timeout: 3000,
+    });
+    return storage.saveWebTourDraft.mock.calls.at(-1)?.[0];
+  };
+
+  it('adds a message at the end, between steps and at the start, as a text-only card', async () => {
+    renderEditor(two());
+    const foot = within(screen.getByTestId('tour-shell-outline-foot'));
+    fireEvent.click(foot.getByRole('button', { name: 'Add a message' }));
+    expect(ids()).toHaveLength(3);
+    const added = screen.getAllByTestId('tour-editor-step')[2];
+    expect(added).toHaveAttribute('aria-current', 'step');
+    const card = screen.getByTestId('tour-editor-card');
+    expect(within(card).getByLabelText('Title')).toHaveValue('');
+    expect(within(card).getByLabelText('Tip')).toBeInTheDocument();
+    expect(within(card).queryByText('Fix on site')).toBeNull();
+    expect(within(card).queryByText('Step type')).toBeNull();
+    expect(within(card).queryByTestId('tour-step-more')).toBeNull();
+    const gaps = screen.getAllByTestId('tour-editor-add-message-gap');
+    expect(gaps).toHaveLength(3);
+    fireEvent.click(within(gaps[1]).getByRole('button'));
+    expect(ids()[1]).not.toBe('s2');
+    expect(ids().slice(0, 1)).toEqual(['s1']);
+    fireEvent.click(
+      within(screen.getAllByTestId('tour-editor-add-message-gap')[0]).getByRole(
+        'button'
+      )
+    );
+    expect(ids()[1]).toBe('s1');
+    expect(ids()).toHaveLength(5);
+    expect((await saved())?.steps.filter((s) => s.message)).toHaveLength(3);
+  });
+
+  it('saves a message with its words and no target', async () => {
+    renderEditor(two());
+    fireEvent.click(addMessageButton());
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Now we move to Gemini' },
+    });
+    fireEvent.change(screen.getByLabelText('Tip'), {
+      target: { value: 'Open gemini.google.com.' },
+    });
+    const message = (await saved())?.steps.at(-1);
+    expect(message).toMatchObject({
+      message: true,
+      label: 'Now we move to Gemini',
+      text: 'Open gemini.google.com.',
+    });
+    expect(message?.web).toBeUndefined();
+    expect(screen.getByTestId('web-stage-message')).toHaveTextContent(
+      'Now we move to Gemini'
+    );
+  });
+
+  it('deletes a message', async () => {
+    const set = two();
+    set.steps.splice(1, 0, {
+      ...set.steps[0],
+      id: 'm1',
+      label: 'Switching sites',
+      message: true,
+      web: undefined,
+    });
+    renderEditor(checked(set));
+    expect(ids()).toEqual(['s1', 'm1', 's2']);
+    fireEvent.click(screen.getByText('Switching sites'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete step' }));
+    expect(ids()).toEqual(['s1', 's2']);
+    expect((await saved())?.steps.map((s) => s.id)).toEqual(['s1', 's2']);
+  });
+
+  it('keeps the check passing when a message is added, and counts it as found', () => {
+    renderEditor(two());
+    expect(publishButton()).toBeEnabled();
+    fireEvent.click(addMessageButton());
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Welcome' },
+    });
+    expect(main()).toHaveAttribute('data-state', 'publish');
+    expect(main()).toBeEnabled();
+    expect(screen.getAllByTestId('tour-editor-step').at(-1)).toHaveAttribute(
+      'data-status',
+      'found'
+    );
+  });
+
+  it('never asks Write with Claude for a message', () => {
+    const set = two();
+    set.steps.push({
+      id: 'm1',
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
+      interactionType: 'tooltip',
+      label: '',
+      text: '',
+      message: true,
+    });
+    renderEditor(checked(set));
+    expect(main()).not.toHaveAttribute('data-state', 'write');
+  });
+
+  it('blocks Publish, saying why, when no step has a target', () => {
+    const set = checked(tour('Biology 7'));
+    set.steps = [
+      {
+        id: 'm1',
+        xPct: 50,
+        yPct: 50,
+        imageIndex: 0,
+        interactionType: 'tooltip',
+        label: 'Hello',
+        text: 'Welcome.',
+        message: true,
+      },
+    ];
+    renderEditor(set);
+    expect(main()).toHaveAttribute('data-state', 'publish');
+    expect(main()).toBeDisabled();
+    expect(statusLine()).toHaveTextContent(
+      'A tour needs a step with a website target'
+    );
+  });
+
+  it('blocks Publish on an empty message', () => {
+    const set = two();
+    set.steps.push({
+      id: 'm1',
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
+      interactionType: 'tooltip',
+      label: '',
+      text: '',
+      message: true,
+    });
+    renderEditor(checked(set));
+    expect(main()).toBeDisabled();
+    expect(statusLine()).toHaveTextContent('A message is empty');
+  });
+});

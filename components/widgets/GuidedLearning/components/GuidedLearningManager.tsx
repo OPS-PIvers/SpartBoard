@@ -18,16 +18,7 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-  lazy,
-  Suspense,
-} from 'react';
+import React, { useCallback, useMemo, useState, lazy, Suspense } from 'react';
 import {
   Plus,
   Play,
@@ -35,7 +26,6 @@ import {
   Trash2,
   Link2,
   BarChart2,
-  Check,
   Wand2,
   Building2,
   BookOpen,
@@ -50,11 +40,8 @@ import {
   Download,
   Upload,
   Circle,
-  Globe,
-  Footprints,
   LifeBuoy,
   MousePointerClick,
-  Library,
   FolderMinus,
   Users,
 } from 'lucide-react';
@@ -68,8 +55,8 @@ import type {
   GuidedLearningSetMetadata,
 } from '@/types';
 import { thumbnailUrl } from '@/utils/guidedLearningMedia';
-import { logError } from '@/utils/logError';
-import { HELP_CENTER_SOURCE, isHelpCenterSet } from '../utils/helpCenterSets';
+import { isHelpCenterSet } from '../utils/helpCenterSets';
+import { isPendingHelpCenterMove } from '@/utils/helpCenterItems';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
@@ -106,30 +93,12 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
-import {
-  requestRecordTour,
-  requestStartTour,
-} from '@/components/tours/tourState';
-import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
-import {
-  getToursVersion,
-  isTourRunnable,
-  readPublishedTour,
-  watchTours,
-} from '@/components/tours/publishedTours';
-import { buildTourUrl, webTourSite } from '@/components/tours/web/tourLinks';
-import { CopyWebTourLinkTask } from '@/components/tours/web/useCopyWebTourLink';
-import { isWebTourSet } from '../utils/liveTour';
+import { requestRecordTour } from '@/components/tours/tourState';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
-const LazyWebTourEditor = lazy(() =>
-  import('@/components/tours/web/WebTourEditor').then((m) => ({
-    default: m.WebTourEditor,
-  }))
-);
 const LazyGuidedLearningPlayer = lazy(() =>
   import('./GuidedLearningPlayer').then((m) => ({
     default: m.GuidedLearningPlayer,
@@ -145,7 +114,7 @@ const LazyGuidedLearningPlayer = lazy(() =>
  */
 interface LibraryEntry {
   id: string;
-  source: 'personal' | 'building' | 'web';
+  source: 'personal' | 'building';
   title: string;
   description?: string;
   stepCount: number;
@@ -158,14 +127,12 @@ interface LibraryEntry {
   driveFileId?: string;
   /** Building-only: the index entry; the full set is fetched when opened. */
   buildingEntry?: GuidedLearningBuildingSetIndex;
-  /** Web-only: the saved draft (admins only); its published copy is watched separately. */
-  webTour?: GuidedLearningSet;
-  /** Building or web: owned by the Help Center, so only the Help Center filter lists it. */
-  helpCenter?: boolean;
   /** Personal-only: current folder assignment (`null` = root). */
   folderId?: string | null;
   /** Personal-only: Claude changed it and the teacher hasn't opened it since. */
   claudeReviewPendingAt?: number;
+  /** Personal-only: copied into the Help Center while students had it open (H5). */
+  movedToHelpCenter?: boolean;
 }
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
@@ -260,13 +227,6 @@ export interface GuidedLearningManagerProps {
   onDeleteBuilding: (setId: string) => void | Promise<void>;
   /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
   folderDeleteActions?: FolderDeleteActions;
-  /** Admin-only: copies a personal live tour into the building library, where tours run. */
-  onCopyTourToBuilding?: (
-    setId: string,
-    driveFileId: string
-  ) => void | Promise<void>;
-  /** Busy-state probe for the copy-to-building kebab item. */
-  isCopyingTourToBuilding?: (setId: string) => boolean;
   /** Admin-only: drafts a new building live tour from this set and opens it on the board. */
   onConvertToLiveTour?: (
     setId: string,
@@ -275,11 +235,14 @@ export interface GuidedLearningManagerProps {
   ) => void | Promise<void>;
   /** Busy-state probe for the convert-to-live-tour kebab item. */
   isConvertingToLiveTour?: (setId: string) => boolean;
-  /** Admin-only: moves a building set into (true) or out of (false) the Help Center. */
-  onSetBuildingHelpCenter?: (
+  /** Admin-only: moves a personal or building set into the Help Center (H4). */
+  onMoveToHelpCenter?: (
     setId: string,
-    helpCenter: boolean
+    driveFileId?: string,
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => void | Promise<void>;
+  /** Busy-state probe for the Move to Help Center kebab item. */
+  isMovingToHelpCenter?: (setId: string) => boolean;
   /** Export a set to a self-contained .gl.json file. Same routing as onPlay. */
   onExport?: (
     setId: string,
@@ -391,21 +354,18 @@ const LIBRARY_SORT_COMPARATORS = {
 };
 
 const TOUR_TYPE = 'tour';
-const NO_WEB_TOURS: GuidedLearningSet[] = [];
 
-const isTourEntry = (e: LibraryEntry): boolean =>
-  e.mode === 'tour' || !!e.buildingEntry?.hasLiveTour;
+const isTourEntry = (e: LibraryEntry): boolean => e.mode === 'tour';
 
-// Help Center sets live in Admin Settings, so every view but their own hides them.
+// Live tours and Help Center sets live only in the Help Center (H1).
+const listsPersonal = (meta: GuidedLearningSetMetadata): boolean =>
+  meta.mode !== 'tour';
+const listsBuilding = (entry: GuidedLearningBuildingSetIndex): boolean =>
+  entry.mode !== 'tour' && !entry.hasLiveTour && !isHelpCenterSet(entry);
+
 const LIBRARY_FILTER_PREDICATES = {
   source: (item: LibraryEntry, value: string): boolean =>
-    value === HELP_CENTER_SOURCE
-      ? !!item.helpCenter
-      : !item.helpCenter &&
-        (value === '' ||
-          item.source === value ||
-          // Web tours are building-wide, so the Building filter lists them.
-          (value === 'building' && item.source === 'web')),
+    value === '' || item.source === value,
   type: (item: LibraryEntry, value: string): boolean =>
     isTourEntry(item) === (value === TOUR_TYPE),
 };
@@ -420,8 +380,7 @@ const SET_NOUN = ['set', 'sets'] as const;
 // affordance is admin-gated (handled at the component level).
 const buildLibraryEntries = (
   sets: GuidedLearningSetMetadata[],
-  buildingSets: GuidedLearningBuildingSetIndex[],
-  webTours: readonly GuidedLearningSet[]
+  buildingSets: GuidedLearningBuildingSetIndex[]
 ): LibraryEntry[] => {
   const personal: LibraryEntry[] = sets.map((meta) => ({
     id: `personal:${meta.id}`,
@@ -437,6 +396,7 @@ const buildLibraryEntries = (
     driveFileId: meta.driveFileId,
     folderId: meta.folderId ?? null,
     claudeReviewPendingAt: meta.claudeReviewPendingAt,
+    movedToHelpCenter: isPendingHelpCenterMove(meta),
   }));
 
   const building: LibraryEntry[] = buildingSets.map((entry) => ({
@@ -453,22 +413,9 @@ const buildLibraryEntries = (
       ? { order: entry.order }
       : {}),
     buildingEntry: entry,
-    helpCenter: isHelpCenterSet(entry),
   }));
 
-  const web: LibraryEntry[] = webTours.map((set) => ({
-    id: `web:${set.id}`,
-    source: 'web',
-    title: set.title,
-    stepCount: set.steps.length,
-    mode: 'tour',
-    updatedAt: set.updatedAt ?? set.createdAt ?? 0,
-    createdAt: set.createdAt ?? 0,
-    webTour: set,
-    helpCenter: isHelpCenterSet(set),
-  }));
-
-  return [...personal, ...building, ...web];
+  return [...personal, ...building];
 };
 
 const formatDate = (ms: number): string =>
@@ -504,9 +451,9 @@ const ViewCountSubtitle: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
 export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   userId,
-  sets,
+  sets: allSets,
   reviewBadge,
-  buildingSets,
+  buildingSets: allBuildingSets,
   assignments,
   loading,
   buildingLoading,
@@ -528,11 +475,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   isDuplicatingBuilding,
   onDeleteBuilding,
   folderDeleteActions,
-  onCopyTourToBuilding,
-  isCopyingTourToBuilding,
   onConvertToLiveTour,
   isConvertingToLiveTour,
-  onSetBuildingHelpCenter,
+  onMoveToHelpCenter,
+  isMovingToHelpCenter,
   onExport,
   onImport,
   importFocusCounter = 0,
@@ -554,62 +500,22 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onError,
 }) => {
   const { t } = useTranslation();
+  // Only admins can move a personal tour into the Help Center, so teachers keep theirs listed.
+  const sets = useMemo(
+    () => (isAdmin ? allSets.filter(listsPersonal) : allSets),
+    [allSets, isAdmin]
+  );
+  const buildingSets = useMemo(
+    () => allBuildingSets.filter(listsBuilding),
+    [allBuildingSets]
+  );
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
-  const canRunLiveTour = useCanRunLiveTour();
   // Same gate as the Studio's AI button.
   const auth = React.useContext(AuthContext);
   const aiAuthoring =
     !!auth?.canAccessFeature('gemini-functions') &&
     !!auth?.canAccessFeature('guided-learning-ai');
-  const canCreateWebTour = isAdmin && !!auth?.canAccessFeature('web-tours');
-  const [webTours, setWebTours] = useState<GuidedLearningSet[]>([]);
-  const webToursFailed = useEffectEvent(() =>
-    onError?.("Web tours couldn't load.")
-  );
-  useEffect(() => {
-    if (!canCreateWebTour) return;
-    let stop: (() => void) | null = null;
-    let cancelled = false;
-    void import('@/components/tours/webTours').then((m) => {
-      if (cancelled) return;
-      stop = m.watchWebTourDrafts(setWebTours, () => webToursFailed());
-    });
-    return () => {
-      cancelled = true;
-      stop?.();
-    };
-  }, [canCreateWebTour]);
-  const visibleWebTours = canCreateWebTour ? webTours : NO_WEB_TOURS;
-  // Only a published snapshot runs from the library; the shared watchers read each tour once per page.
-  const liveTourKey = [
-    ...buildingSets.filter((e) => e.hasLiveTour).map((e) => e.id),
-    ...visibleWebTours.map((set) => set.id),
-  ].join(',');
-  const watchLiveTours = useCallback(
-    (onChange: () => void) =>
-      liveTourKey
-        ? watchTours(liveTourKey.split(','), onChange)
-        : () => undefined,
-    [liveTourKey]
-  );
-  useSyncExternalStore(watchLiveTours, getToursVersion, getToursVersion);
-  const [openWebTour, setOpenWebTour] = useState<GuidedLearningSet | null>(
-    null
-  );
-  const [copyingWebTour, setCopyingWebTour] =
-    useState<GuidedLearningSet | null>(null);
-  const [copiedWebTourId, setCopiedWebTourId] = useState<string | null>(null);
-  const createWebTour = async () => {
-    try {
-      const { createWebTourDraft } =
-        await import('@/components/tours/webTours');
-      setOpenWebTour(await createWebTourDraft());
-    } catch (err) {
-      logError('GuidedLearningManager.createWebTour', err);
-      onError?.('The web tour could not be created.');
-    }
-  };
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -648,15 +554,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     sourceKey?: string;
   } | null>(null);
   const buildingSourceKeys = useMemo(
-    () => [
-      ...buildingSets
-        .filter((set) => !isHelpCenterSet(set))
-        .map((set) => `building:${set.id}`),
-      ...visibleWebTours
-        .filter((set) => !isHelpCenterSet(set))
-        .map((set) => `web:${set.id}`),
-    ],
-    [buildingSets, visibleWebTours]
+    () => [...buildingSets.map((set) => `building:${set.id}`)],
+    [buildingSets]
   );
   // Building set entry ids double as their placement source keys.
   const sourceFolders = useSourceFolders({
@@ -673,7 +572,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     [folderIdOf]
   );
 
-  // Building sets and web tours have no folderId; fold them into the root bucket so "All items" counts them.
+  // Building sets have no folderId; fold them into the root bucket so "All items" counts them.
   const libraryBuildingCount = buildingSourceKeys.length;
   const folderItemCounts = useMemo(() => {
     const counts = countItemsByFolder(sets);
@@ -693,8 +592,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   });
 
   const allEntries = useMemo(
-    () => buildLibraryEntries(sets, buildingSets, visibleWebTours),
-    [sets, buildingSets, visibleWebTours]
+    () => buildLibraryEntries(sets, buildingSets),
+    [sets, buildingSets]
   );
   const lastAssignedAt = useMemo(
     () => latestAssignedAt(assignments, (a) => `personal:${a.setId}`),
@@ -713,18 +612,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     options: [
       { value: 'personal', label: 'Personal' },
       { value: 'building', label: 'Building' },
-      { value: HELP_CENTER_SOURCE, label: 'Help Center' },
     ],
     // Building filter is admin-gated. Non-admins never see this control.
     visible: isAdmin,
   };
-
-  // Teachers never see Help Center sets in the library, so their tours don't count.
-  // Admins with web tours always get the filter, since web tours are listed under it.
-  const hasTours =
-    (isAdmin && !!auth?.canAccessFeature('web-tours')) ||
-    sets.some((s) => s.mode === 'tour') ||
-    buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
 
   const view = useFolderLibraryView<LibraryEntry>({
     items: allEntries,
@@ -756,29 +647,18 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       { value: TOUR_TYPE, label: 'Live tours' },
       { value: 'activity', label: 'Activities' },
     ],
-    visible: hasTours || activeTypeFilter !== '',
+    visible: activeTypeFilter !== '',
   };
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
-  const isHelpCenterFiltered = activeSourceFilter === HELP_CENTER_SOURCE;
-  // Admins' "Live tours" view lists every tour, so Help Center tours are findable from the library.
-  const showHelpCenterTours =
-    isAdmin && activeTypeFilter === TOUR_TYPE && activeSourceFilter === '';
-  // The "All" view skips the source predicate, so Help Center sets are dropped here too.
-  const libraryItems = useMemo(
-    () =>
-      isHelpCenterFiltered || showHelpCenterTours
-        ? view.visibleItems
-        : view.visibleItems.filter((entry) => !entry.helpCenter),
-    [view.visibleItems, isHelpCenterFiltered, showHelpCenterTours]
-  );
+  const libraryItems = view.visibleItems;
 
   // Adjust-during-render: on import success, show the Personal view the set landed in.
   const [seenImportFocus, setSeenImportFocus] = useState(importFocusCounter);
   if (importFocusCounter !== seenImportFocus) {
     setSeenImportFocus(importFocusCounter);
-    if (isBuildingFiltered || isHelpCenterFiltered) {
+    if (isBuildingFiltered) {
       view.toolbarProps.onFilterChange?.('source', 'personal');
     }
   }
@@ -836,7 +716,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const handleDropOnFolder = useCallback(
     async (itemId: string, folderId: string | null): Promise<void> => {
       // Building sets are filed privately (D22); own sets never go into a source folder.
-      if (itemId.startsWith('building:') || itemId.startsWith('web:')) {
+      if (itemId.startsWith('building:')) {
         await fileBuildingSet(itemId, folderId);
         return;
       }
@@ -945,23 +825,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             label: 'Record a tour',
             icon: Circle,
             onClick: requestRecordTour,
-            // With web tours on, the button asks which kind of tour to record.
-            menuItems: canCreateWebTour
-              ? [
-                  {
-                    id: 'spartboard',
-                    label: 'SpartBoard tour',
-                    icon: Circle,
-                    onClick: requestRecordTour,
-                  },
-                  {
-                    id: 'web',
-                    label: 'Web tour',
-                    icon: Globe,
-                    onClick: () => void createWebTour(),
-                  },
-                ]
-              : undefined,
           },
         ]
       : []),
@@ -992,217 +855,48 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // ─── Drive disconnected banner ────────────────────────────────────────────
   const showDriveBanner =
-    tab === 'library' &&
-    !isDriveConnected &&
-    !isBuildingFiltered &&
-    !isHelpCenterFiltered;
+    tab === 'library' && !isDriveConnected && !isBuildingFiltered;
 
   /* ─── Rendering helpers ─────────────────────────────────────────────────── */
 
-  const runWebTourAction = async (
-    setId: string,
-    failed: string,
-    action: (m: typeof import('@/components/tours/webTours')) => Promise<void>
-  ) => {
-    try {
-      await action(await import('@/components/tours/webTours'));
-    } catch (err) {
-      logError('GuidedLearningManager.webTour', err, { setId });
-      onError?.(failed);
-    }
-  };
-
-  const removeWebTour = async (setId: string) => {
-    const ok = await showConfirm(
-      'This deletes the web tour, its pictures and its published copy.',
-      { title: 'Delete web tour', variant: 'danger', confirmLabel: 'Delete' }
-    );
-    if (!ok) return;
-    await runWebTourAction(setId, "The tour couldn't be deleted.", (m) =>
-      m.deleteWebTourDraft(setId)
-    );
-  };
-
-  const webTourLinkCopied = (setId: string, copied: boolean) => {
-    setCopyingWebTour(null);
-    if (!copied) {
-      onError?.("The link couldn't be copied.");
-      return;
-    }
-    setCopiedWebTourId(setId);
-    window.setTimeout(
-      () => setCopiedWebTourId((id) => (id === setId ? null : id)),
-      1500
-    );
-  };
-
-  const renderWebTourCard = (
-    entry: LibraryEntry,
-    set: GuidedLearningSet,
-    index?: number
-  ): React.ReactElement => {
-    const published = readPublishedTour(set.id);
-    const snapshot =
-      published.tour && isWebTourSet(published.tour.set)
-        ? published.tour
-        : null;
-    const live = snapshot !== null;
-    const site = webTourSite(set);
-    const badges: LibraryBadge[] = [
-      { label: site ?? 'Web tour', tone: 'info' },
-    ];
-    if (entry.helpCenter) badges.push({ label: 'Help Center', tone: 'warn' });
-    if (published.loaded) {
-      badges.push(
-        !snapshot
-          ? { label: 'Draft', tone: 'neutral' }
-          : (set.updatedAt ?? 0) > snapshot.publishedAt
-            ? { label: 'Changed since publish', tone: 'warn' }
-            : { label: 'Published', tone: 'success' }
-      );
-    }
-    const placedChip = sourceFolders.placedChip(entry.id);
-    const edit = () => setOpenWebTour(set);
-    const secondary: LibraryMenuAction[] = [
-      { id: 'edit', label: 'Edit', icon: Pencil, onClick: edit },
-      buildDuplicateAction(
-        { id: set.id, title: set.title },
-        () =>
-          void runWebTourAction(
-            set.id,
-            "The tour couldn't be duplicated.",
-            async (m) => void (await m.duplicateWebTourDraft(set))
-          )
-      ),
-    ];
-    if (!entry.helpCenter) {
-      secondary.push(
-        buildMoveToFolderAction({
-          onOpenPicker: () =>
-            setFolderPickerTarget({
-              rawId: set.id,
-              title: set.title,
-              folderId: placedChip ? folderIdOf(entry.id) : null,
-              sourceKey: entry.id,
-            }),
-          disabled: !userId,
-        })
-      );
-    }
-    // A web tour already in the Help Center can still come back; none can be moved in.
-    if (entry.helpCenter) {
-      secondary.push({
-        id: 'help-center',
-        label: 'Move to library',
-        icon: Library,
-        onClick: () =>
-          void runWebTourAction(
-            set.id,
-            "The tour couldn't be moved.",
-            async (m) => void (await m.setWebTourHelpCenter(set.id, false))
-          ),
-      });
-    }
-    if (placedChip) {
-      secondary.push({
-        id: 'remove-from-folder',
-        label: 'Remove from folder',
-        icon: FolderMinus,
-        onClick: () => void fileBuildingSet(entry.id, null),
-      });
-    }
-    secondary.push({
-      id: 'delete',
-      label: 'Delete',
-      icon: Trash2,
-      destructive: true,
-      onClick: () => void removeWebTour(set.id),
-    });
-
-    return (
-      <LibraryItemCard<LibraryEntry>
-        key={entry.id}
-        id={entry.id}
-        title={entry.title}
-        subtitle={
-          <span>
-            {entry.stepCount} step{entry.stepCount === 1 ? '' : 's'}
-            {' · Updated '}
-            {formatDate(entry.updatedAt)}
-          </span>
+  const moveToHelpCenter = async (entry: LibraryEntry, rawId: string) => {
+    if (!onMoveToHelpCenter) return;
+    // A building set leaves every teacher's library, so confirm first (H6).
+    if (entry.buildingEntry) {
+      const ok = await showConfirm(
+        "It leaves every teacher's building library and is hidden in the Help Center until you publish it.",
+        {
+          title: 'Move to Help Center',
+          confirmLabel: 'Move',
         }
-        thumbnail={
-          <Globe
-            className="text-slate-400"
-            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
-            aria-hidden="true"
-          />
-        }
-        badges={badges}
-        secondaryPrimaryAction={{
-          label: 'Play',
-          icon: Play,
-          disabled: !live,
-          onClick: () =>
-            window.open(buildTourUrl(set.id), '_blank', 'noopener,noreferrer'),
-        }}
-        primaryAction={{
-          label: copiedWebTourId === set.id ? 'Link copied' : 'Copy link',
-          icon: copiedWebTourId === set.id ? Check : Link2,
-          disabled: copyingWebTour !== null,
-          onClick: () => setCopyingWebTour(set),
-        }}
-        secondaryActions={secondary}
-        onDoubleClick={edit}
-        sortable={!entry.helpCenter && enableCardDrag && !selectionMode}
-        viewMode={view.state.viewMode}
-        meta={entry}
-        tourIndex={index}
-        tourWidgetType="guided-learning"
-      />
-    );
+      );
+      if (!ok) return;
+    }
+    setPreviewEntryId(null);
+    await onMoveToHelpCenter(rawId, entry.driveFileId, entry.buildingEntry);
   };
 
   const renderLibraryCard = (
     entry: LibraryEntry,
     index?: number
   ): React.ReactElement => {
-    if (entry.webTour) return renderWebTourCard(entry, entry.webTour, index);
     const rawId =
       entry.source === 'personal'
         ? entry.id.slice('personal:'.length)
         : entry.id.slice('building:'.length);
-    const isTour = isTourEntry(entry);
     const badges: LibraryBadge[] = [
-      isTour
-        ? { label: 'Live tour', tone: 'info' }
-        : { label: MODE_LABELS[entry.mode], tone: 'info' },
+      { label: MODE_LABELS[entry.mode], tone: 'info' },
     ];
     if (entry.source === 'building') {
-      badges.push({
-        label: entry.helpCenter ? 'Help Center' : 'Building',
-        tone: 'warn',
-      });
+      badges.push({ label: 'Building', tone: 'warn' });
+    }
+    if (entry.movedToHelpCenter) {
+      badges.push({ label: 'Moved to Help Center', tone: 'neutral' });
     }
     const review = reviewBadge?.(entry, () =>
       onEdit(rawId, entry.driveFileId, entry.buildingEntry)
     );
     if (review) badges.push(review);
-    // Authors see where a tour stands: only a published building tour reaches teachers.
-    if (isTour && isAdmin) {
-      if (entry.source === 'personal') {
-        badges.push({ label: "Can't run live", tone: 'danger' });
-      } else {
-        const runnable = isTourRunnable(rawId);
-        if (runnable !== undefined) {
-          badges.push(
-            runnable
-              ? { label: 'Published', tone: 'success' }
-              : { label: 'Draft', tone: 'neutral' }
-          );
-        }
-      }
-    }
 
     const isBuildingEntry = entry.source === 'building';
     const placedChip = isBuildingEntry
@@ -1236,53 +930,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
-    // A published tour plays live as teachers see it; authors try drafts in the board editor.
-    let runLive: LibraryMenuAction | null = null;
-    if (entry.buildingEntry?.hasLiveTour) {
-      if (isTourRunnable(rawId) === true) {
-        runLive = {
-          id: 'run-live',
-          label: t('glStudio.runLive'),
-          icon: Footprints,
-          onClick: () => requestStartTour({ setId: rawId }),
-        };
-      }
-    }
     const play = () => onPlay(rawId, entry.driveFileId, entry.buildingEntry);
-    // On a board, a runnable tour's Play runs it live; tour-mode sets have no slides to play.
-    const playsLive = runLive !== null && canRunLiveTour;
-    if (runLive && playsLive) {
-      if (entry.mode !== 'tour') {
-        secondary.push({
-          id: 'play-slides',
-          label: 'Play as slides',
-          icon: Play,
-          onClick: play,
-        });
-      }
-    } else if (runLive) {
-      secondary.push(runLive);
-    }
 
-    if (
-      isTour &&
-      isAdmin &&
-      entry.source === 'personal' &&
-      entry.driveFileId &&
-      onCopyTourToBuilding
-    ) {
-      const fileId = entry.driveFileId;
-      secondary.push({
-        id: 'copy-tour-to-building',
-        label: 'Copy to building to run live',
-        icon: Library,
-        disabled: isCopyingTourToBuilding?.(rawId),
-        disabledReason: 'Copying…',
-        onClick: () => void onCopyTourToBuilding(rawId, fileId),
-      });
-    }
-
-    if (isAdmin && entry.mode !== 'tour' && onConvertToLiveTour) {
+    if (isAdmin && onConvertToLiveTour) {
       secondary.push({
         id: 'convert-to-live-tour',
         label: t('glStudio.convertToLiveTour'),
@@ -1357,29 +1007,29 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           )
         );
       }
-      if (!entry.helpCenter) {
-        secondary.push(
-          buildMoveToFolderAction({
-            onOpenPicker: () =>
-              setFolderPickerTarget({
-                rawId,
-                title: entry.title,
-                folderId: placedChip ? folderIdOf(entry.id) : null,
-                sourceKey: entry.id,
-              }),
-            disabled: !userId,
-          })
-        );
-      }
+      secondary.push(
+        buildMoveToFolderAction({
+          onOpenPicker: () =>
+            setFolderPickerTarget({
+              rawId,
+              title: entry.title,
+              folderId: placedChip ? folderIdOf(entry.id) : null,
+              sourceKey: entry.id,
+            }),
+          disabled: !userId,
+        })
+      );
     }
 
-    if (isBuildingEntry && isAdmin && onSetBuildingHelpCenter) {
-      const toHelp = !entry.helpCenter;
+    // Admins file their own sets and building sets in the Help Center; a tagged set is already there.
+    if (isAdmin && onMoveToHelpCenter && !entry.movedToHelpCenter) {
       secondary.push({
         id: 'help-center',
-        label: toHelp ? 'Move to Help Center' : 'Move to library',
-        icon: toHelp ? LifeBuoy : Library,
-        onClick: () => void onSetBuildingHelpCenter(rawId, toHelp),
+        label: 'Move to Help Center',
+        icon: LifeBuoy,
+        disabled: isMovingToHelpCenter?.(rawId),
+        disabledReason: 'Moving…',
+        onClick: () => void moveToHelpCenter(entry, rawId),
       });
     }
 
@@ -1443,15 +1093,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         subtitle={subtitle}
         thumbnail={thumbnail}
         badges={badges}
-        secondaryPrimaryAction={
-          playsLive && runLive
-            ? {
-                label: 'Play live',
-                icon: Footprints,
-                onClick: runLive.onClick,
-              }
-            : { label: 'Play', icon: Play, onClick: play }
-        }
+        secondaryPrimaryAction={{ label: 'Play', icon: Play, onClick: play }}
         primaryAction={{
           label: primaryActionLabel,
           icon: Link2,
@@ -1477,9 +1119,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
               }
             : undefined
         }
-        sortable={
-          (isPersonal || !entry.helpCenter) && enableCardDrag && !selectionMode
-        }
+        sortable={enableCardDrag && !selectionMode}
         viewMode={view.state.viewMode}
         meta={entry}
         selectionMode={selectable}
@@ -1775,13 +1415,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 icon={BookOpen}
                 title="No sets yet"
                 subtitle={
-                  isHelpCenterFiltered
-                    ? 'Add them in Admin Settings > Help Center.'
-                    : isBuildingFiltered
-                      ? isAdmin
-                        ? 'Use New Building Set or AI to add one.'
-                        : undefined
-                      : 'Click New Set to make one.'
+                  isBuildingFiltered
+                    ? isAdmin
+                      ? 'Use New Building Set or AI to add one.'
+                      : undefined
+                    : 'Click New Set to make one.'
                 }
               />
             }
@@ -1958,7 +1596,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       tab={tab}
       onTabChange={setTab}
       counts={{
-        library: allEntries.filter((entry) => !entry.helpCenter).length,
+        library: allEntries.length,
         active: activeAssignments.length,
         archive: archivedAssignments.length,
       }}
@@ -2044,21 +1682,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       {tab === 'library' && renderLibraryTab()}
       {tab === 'active' && renderAssignmentTab('active')}
       {tab === 'archive' && renderAssignmentTab('archive')}
-      {copyingWebTour && (
-        <CopyWebTourLinkTask
-          setId={copyingWebTour.id}
-          title={copyingWebTour.title}
-          onDone={(copied) => webTourLinkCopied(copyingWebTour.id, copied)}
-        />
-      )}
-      {openWebTour && (
-        <Suspense fallback={null}>
-          <LazyWebTourEditor
-            initial={openWebTour}
-            onClose={() => setOpenWebTour(null)}
-          />
-        </Suspense>
-      )}
     </LibraryShell>
   );
 

@@ -14,7 +14,7 @@
  * `submittedAt` + derive a `status` string.
  */
 
-import { plainPromptText } from '@/utils/promptMath';
+import { plainMathText, plainPromptText } from '@/utils/promptMath';
 import type {
   StaffResponseFields,
   GradeResult,
@@ -449,4 +449,4 @@ export function buildResultsSheetData<
 
 /** `formatQuizAnswerText` with equations as their plain math, for CSV and Sheets cells. */
 export const formatQuizAnswerPlain: typeof formatQuizAnswerText = (...args) =>
-  plainPromptText(formatQuizAnswerText(...args)).replace(/[⟦⟧]/g, '');
+  plainMathText(formatQuizAnswerText(...args)).replace(/[⟦⟧]/g, '');

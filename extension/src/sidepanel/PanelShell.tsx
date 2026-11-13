@@ -5,7 +5,7 @@ import type { TourListReply } from '../tourList';
 import { isDefiniteNonAdmin } from './recordTab';
 import { isRecorderInternal, type RecorderStatus } from '../recorder/messages';
 import { SidePanel } from './SidePanel';
-import { ToursTab } from './ToursTab';
+import { ManageToursButton, ToursTab } from './ToursTab';
 import { SendSection } from './SendSection';
 import { FocusTab, sendFocus } from './FocusTab';
 import {
@@ -132,7 +132,10 @@ export const PanelShell: React.FC = () => {
       {current === 'tours' && <SendSection />}
       {current === 'tours' && (
         <div className="flex flex-1 flex-col gap-3 p-4">
-          <h1 className="text-base font-semibold">Tours</h1>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-base font-semibold">Tours</h1>
+            <ManageToursButton reply={reply} />
+          </div>
           <ToursTab
             viewing={viewing}
             onView={setViewing}

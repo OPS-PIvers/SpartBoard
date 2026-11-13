@@ -20,6 +20,7 @@ export type OverlayCheck = WebTourCheckResult | 'pending';
 /** `armed`, `moved` and `stopped` draw only a small notice chip (WEB_TOURS_HELP_PANEL.md H1-H3). */
 export type OverlayStatus =
   | 'wrong-page'
+  | 'switch'
   | 'seeking'
   | 'shown'
   | 'fallback'
@@ -56,6 +57,10 @@ export interface OverlayState {
   markup?: TourMarkupShape[];
   /** Where the control sits in `picture`, ringed; only with a picture. */
   target?: PictureTarget;
+  /** A Message step (X7): a centered tip with no spotlight or picture. */
+  message?: boolean;
+  /** The site Go opens: on a `switch` tip, or a Message step right before one (X2, X6). */
+  go?: string;
 }
 
 export interface OverlayAhead {
@@ -65,11 +70,13 @@ export interface OverlayAhead {
   observe: boolean;
 }
 
-export type OverlayAction = 'next' | 'back' | 'exit' | 'start' | 'takeBack';
+export type OverlayAction =
+  'next' | 'back' | 'exit' | 'start' | 'takeBack' | 'go';
 
 const MAX_TEXT = 4000;
 const STATUSES: readonly OverlayStatus[] = [
   'wrong-page',
+  'switch',
   'seeking',
   'shown',
   'fallback',
@@ -91,6 +98,9 @@ const MIMES: readonly WebTourPictureBytes['mime'][] = [
   'image/webp',
 ];
 
+/** A site Go can name: letters, digits, dots, dashes and underscores, with an optional port. */
+const HOST = /^[a-z0-9._-]+(:\d+)?$/;
+export const isGoHost = (v: string): boolean => v.length <= 253 && HOST.test(v);
 const isText = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v.length <= max;
 const isCount = (v: unknown): v is number =>
@@ -158,6 +168,8 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   const returning = 'takeBack' in raw;
   const marked = 'markup' in raw;
   const aimed = 'target' in raw;
+  const messaging = 'message' in raw;
+  const going = 'go' in raw;
   const keys = [
     ...KEYS,
     ...(checking ? ['check'] : []),
@@ -167,6 +179,8 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     ...(returning ? ['takeBack'] : []),
     ...(marked ? ['markup'] : []),
     ...(aimed ? ['target'] : []),
+    ...(messaging ? ['message'] : []),
+    ...(going ? ['go'] : []),
   ];
   if (!hasExactKeys(raw, keys)) return null;
   const r = raw as Record<string, unknown>;
@@ -191,6 +205,9 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
   if (marked && (!markup || r.picture === null)) return null;
   const target = aimed ? parsePictureTarget(r.target) : null;
   if (aimed && (!target || r.picture === null)) return null;
+  if (messaging && typeof r.message !== 'boolean') return null;
+  if (going && !(isText(r.go, 253) && HOST.test(r.go))) return null;
+  if (r.status === 'switch' && !going) return null;
   const status = STATUSES.find((s) => s === r.status);
   const picture = parsePicture(r.picture);
   if (
@@ -225,5 +242,7 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     ...(returning ? { takeBack: r.takeBack as boolean } : {}),
     ...(markup ? { markup } : {}),
     ...(target ? { target } : {}),
+    ...(messaging ? { message: r.message as boolean } : {}),
+    ...(going ? { go: r.go as string } : {}),
   };
 }

@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   afterWrite: null as null | (() => void),
   files: [] as string[],
   created: new Map<string, number>(),
+  readFails: false,
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, storage: {} }));
@@ -17,6 +18,10 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(),
   doc: (_db: unknown, coll: string, id: string) => ({ path: `${coll}/${id}` }),
   getDoc: ({ path }: { path: string }) => {
+    if (h.readFails) {
+      h.readFails = false;
+      return Promise.reject(new Error('client is offline'));
+    }
     const data = h.docs.get(path);
     return Promise.resolve({
       exists: () => data !== undefined,
@@ -55,6 +60,7 @@ import {
   isWebTourPicturePath,
   ORPHAN_GRACE_MS,
   publishWebTour,
+  saveWebTourDraft,
   sweepWebTourPictures,
   uploadWebTourPicture,
   webTourPicturePaths,
@@ -208,6 +214,79 @@ describe('publishWebTour', () => {
   it('fails when there is no draft', async () => {
     await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow();
   });
+
+  it('refuses a tour with no targeted step (X8) and writes nothing', async () => {
+    h.docs.set(
+      'building_web_tours/w1',
+      draft([{ id: 'm1', message: true, label: 'Hi', text: 'Welcome' }])
+    );
+    await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow(
+      'at least one step with a target'
+    );
+    expect(h.writes).toEqual([]);
+  });
+
+  it('keeps a picture a Claude revision references until it expires (X18)', async () => {
+    h.docs.set('building_guided_learning_tours/w1', {
+      surface: 'web',
+      set: { steps: [pic('removed.png'), pic('expired.png')] },
+    });
+    h.docs.set('building_web_tours/w1', {
+      ...draft([pic('new.png')]),
+      webRevisionPictures: [
+        {
+          path: 'web_tour_pictures/w1/removed.png',
+          until: Date.now() + 60_000,
+        },
+        {
+          path: 'web_tour_pictures/w1/expired.png',
+          until: Date.now() - 2 * 86_400_000,
+        },
+      ],
+    });
+    await publishWebTour('w1', 'admin-uid');
+    expect(h.deleted).toEqual(['web_tour_pictures/w1/expired.png']);
+    const write = h.writes.find(
+      (w) => w.path === 'building_guided_learning_tours/w1'
+    );
+    expect(write?.data.set).not.toHaveProperty('webRevisionPictures');
+  });
+});
+
+describe('saveWebTourDraft', () => {
+  it("keeps the stored revision pictures when saving a copy loaded before Claude's edit", async () => {
+    const until = Date.now() + 60_000;
+    h.docs.set('building_web_tours/w1', {
+      ...draft([]),
+      webRevisionPictures: [
+        { path: 'web_tour_pictures/w1/kept.png', until },
+        { path: 'web_tour_pictures/w1/old.png', until: 1 },
+      ],
+    });
+    await saveWebTourDraft(draft([pic('a.png')]) as never);
+    expect(h.docs.get('building_web_tours/w1')?.webRevisionPictures).toEqual([
+      { path: 'web_tour_pictures/w1/kept.png', until },
+    ]);
+  });
+
+  it('still writes when the stored copy cannot be read (offline)', async () => {
+    const until = Date.now() + 60_000;
+    h.readFails = true;
+    await saveWebTourDraft({
+      ...draft([]),
+      webRevisionPictures: [{ path: 'web_tour_pictures/w1/k.png', until }],
+    } as never);
+    expect(h.docs.get('building_web_tours/w1')?.webRevisionPictures).toEqual([
+      { path: 'web_tour_pictures/w1/k.png', until },
+    ]);
+  });
+
+  it('writes no revision pictures when there are none', async () => {
+    await saveWebTourDraft(draft([]) as never);
+    expect(h.docs.get('building_web_tours/w1')).not.toHaveProperty(
+      'webRevisionPictures'
+    );
+  });
 });
 
 describe('duplicateWebTourDraft', () => {
@@ -287,6 +366,28 @@ describe('sweepWebTourPictures', () => {
       NOW
     );
     expect(h.deleted).toEqual([P('blurred-over.png')]);
+  });
+
+  it('keeps a picture a Claude revision references, and drops it once the revision expires (X18)', async () => {
+    h.docs.set('building_web_tours/w1', {
+      ...draft([pic('draft.png')]),
+      webRevisionPictures: [
+        { path: P('orphan.png'), until: NOW + 1 },
+        { path: P('blurred-over.png'), until: NOW + 1 },
+        { path: 'web_tour_pictures/other/x.png', until: NOW + 1 },
+      ],
+    });
+    await sweepWebTourPictures(
+      'w1',
+      { replaced: [P('blurred-over.png')] },
+      NOW
+    );
+    expect(h.deleted).toEqual([]);
+    // A day of grace covers a browser clock running ahead of the server's.
+    await sweepWebTourPictures('w1', {}, NOW + 86_400_000);
+    expect(h.deleted).not.toContain(P('orphan.png'));
+    await sweepWebTourPictures('w1', {}, NOW + 86_400_000 + 1);
+    expect(h.deleted).toContain(P('orphan.png'));
   });
 
   it('leaves a deleted tour to the server', async () => {

@@ -44,6 +44,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { logError } from '@/utils/logError';
+import { REOPEN_ENDED_REASON } from '@/utils/quizTeacherSubmit';
 import {
   playPodiumFanfare,
   playQuizCompleteCelebration,
@@ -105,6 +106,8 @@ export interface QuizLiveMonitorProps {
   onRemoveStudent?: (responseKey: string) => Promise<void>;
   /** Unlock a locked/auto-submitted attempt by response-doc key. */
   onUnlockStudent?: (responseKey: string) => Promise<void>;
+  /** Reopen a turned-in attempt, answers kept, by response-doc key. */
+  onReopenStudent?: (responseKey: string) => Promise<void>;
   /** Turn in a student's saved answers by response-doc key. */
   onSubmitForStudent?: (responseKey: string) => Promise<void>;
   /** Unlock a results-view lockout by response-doc key. */
@@ -166,6 +169,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onUpdateConfig,
     onRemoveStudent,
     onUnlockStudent,
+    onReopenStudent,
     onSubmitForStudent,
     onUnlockResultsForStudent,
     onClearHand,
@@ -196,7 +200,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     ]
   );
 
-  const { showConfirm } = useDialog();
+  const { showConfirm, showAlert } = useDialog();
   const outward = useViewAsOutward();
   const { addToast } = useDashboard();
   // Read via context so a provider-less (sub portal) mount keeps today's behavior.
@@ -517,6 +521,29 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       }
     },
     [onUnlockStudent, showConfirm, addToast]
+  );
+
+  const sessionEnded = session.status === 'ended';
+  const handleReopen = useCallback(
+    async (key: string) => {
+      if (sessionEnded) {
+        await showAlert(REOPEN_ENDED_REASON, { title: 'Reopen quiz' });
+        return;
+      }
+      const ok = await showConfirm(
+        'Let this student change their answers and submit again? Their score is cleared until they do.',
+        { title: 'Reopen quiz?', confirmLabel: 'Reopen' }
+      );
+      if (!ok) return;
+      try {
+        await onReopenStudent?.(key);
+        addToast('Quiz reopened.', 'success');
+      } catch (err) {
+        logError('QuizLiveMonitor.reopen', err);
+        addToast('Could not reopen the quiz. Try again.', 'error');
+      }
+    },
+    [sessionEnded, onReopenStudent, showAlert, showConfirm, addToast]
   );
 
   const handleSubmitForStudent = useCallback(
@@ -920,6 +947,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onUnlockAttempt={
                   onUnlockStudent ? handleUnlockAttempt : undefined
                 }
+                onReopen={onReopenStudent ? handleReopen : undefined}
                 onSubmitForStudent={
                   onSubmitForStudent ? handleSubmitForStudent : undefined
                 }

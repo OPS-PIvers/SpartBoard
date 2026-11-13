@@ -141,6 +141,39 @@ describe('StepsView article', () => {
   });
 });
 
+describe('StepsView messages and site switches', () => {
+  const steps = [
+    step(1),
+    step(2, { message: true, picture: null }),
+    step(3, { continueOn: 'claude.ai' }),
+  ];
+
+  it('shows a Message step as text and a one-line divider where the site changes', () => {
+    render(view({ steps }));
+    const items = screen.getAllByTestId('steps-article-step');
+    expect(items).toHaveLength(3);
+    expect(items[1].textContent).toContain('Tip 2');
+    expect(items[1].querySelector('[data-testid="step-picture"]')).toBeNull();
+    const dividers = screen.getAllByTestId('steps-site-switch');
+    expect(dividers).toHaveLength(1);
+    expect(dividers[0].textContent).toBe('Continue on claude.ai');
+    expect(items[2].contains(dividers[0])).toBe(true);
+  });
+
+  it('walks through a message with no picture stage, and the divider before the next site', () => {
+    render(view({ steps, initialMode: 'walkthrough' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Step 2 of 3')).toBeTruthy();
+    expect(screen.queryByTestId('steps-walkthrough-picture')).toBeNull();
+    expect(screen.queryByText('No picture for this step')).toBeNull();
+    expect(screen.getByRole('dialog').textContent).toContain('Tip 2');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByTestId('steps-site-switch').textContent).toBe(
+      'Continue on claude.ai'
+    );
+  });
+});
+
 describe('StepsView walk through', () => {
   const open = () => {
     render(view());
@@ -257,6 +290,35 @@ describe('StepsView walk through', () => {
 });
 
 describe('StepsView print', () => {
+  it('keeps the spotlight in the printed copy, which is never measured on screen', () => {
+    vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    render(
+      view({
+        steps: [
+          step(1),
+          step(2, { picture: { w: 800, h: 450, cssW: 800, target: null } }),
+          step(3, {
+            picture: {
+              w: 0,
+              h: 0,
+              cssW: 0,
+              target: { x: 0.4, y: 0.4, w: 0.2, h: 0.1 },
+            },
+          }),
+        ],
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }));
+    const layer = document.querySelector('[data-steps-print]');
+    const spots = layer?.querySelectorAll(
+      '[data-testid="step-picture-print-spotlight"]'
+    );
+    expect(spots).toHaveLength(2);
+    expect(spots?.[0].getAttribute('viewBox')).toBe('0 0 680 383');
+    expect(spots?.[1].getAttribute('viewBox')).toBe('0 0 680 383');
+    vi.restoreAllMocks();
+  });
+
   it('prints the article alone on its own layer, then takes the layer away', () => {
     vi.useFakeTimers();
     const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);

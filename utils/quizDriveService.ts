@@ -9,7 +9,7 @@
  * - Exporting quiz results to a new Google Sheet
  */
 
-import { plainPromptText } from '@/utils/promptMath';
+import { plainMathText, plainPromptText } from '@/utils/promptMath';
 import {
   QuizData,
   VideoActivityData,
@@ -942,7 +942,7 @@ export class QuizDriveService {
         plainPromptText(q.text).substring(0, 60),
         q.type,
         String(q.points ?? 1),
-        plainPromptText(displayFibAnswer(q.correctAnswer)).substring(0, 40),
+        plainMathText(displayFibAnswer(q.correctAnswer)).substring(0, 40),
         isAuto ? String(stats?.correct ?? 0) : '',
         String(stats?.answered ?? 0),
         isAuto ? `${correctPct}%` : '',

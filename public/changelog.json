@@ -2711,6 +2711,33 @@
       "date": "2026-10-25",
       "text": "Camera now works like a document camera. Zoom in, turn the picture, freeze it, draw on it, compare two photos side by side, and pick a sharper resolution.",
       "feature": "document-camera-pro"
+    },
+    {
+      "id": "quiz-grader-copy-2026-11-12",
+      "widget": "quiz",
+      "date": "2026-11-12",
+      "text": "Copy a student's whole written answer, or just the part you highlight, while you grade. You can also preview a question bank a teammate shared before you add it."
+    },
+    {
+      "id": "quiz-prompt-formatting-2026-11-12",
+      "widget": "quiz",
+      "date": "2026-11-12",
+      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller.",
+      "feature": "quiz-prompt-formatting"
+    },
+    {
+      "id": "quiz-district-folders-2026-11-12",
+      "widget": "quiz",
+      "date": "2026-11-12",
+      "text": "District library quizzes and question banks now sit in folders, and you can preview a district question bank before you add it.",
+      "feature": "district-library-folders"
+    },
+    {
+      "id": "video-activity-prompt-formatting-2026-11-12",
+      "widget": "video-activity",
+      "date": "2026-11-12",
+      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller.",
+      "feature": "quiz-prompt-formatting"
     }
   ]
 }

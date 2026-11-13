@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-204**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-210**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -53,7 +53,6 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 - **AB-126 Flashcards Check: hand off after a Schoology pop out** (S, rules change). #5317 makes a framed Quiz or Video Activity copy stop its away timer and show "This activity is open in another tab" once the new tab closes its open `tabExits` entry (`hooks/useTabAwayTracker.ts`, `utils/attemptHandOff.ts`). Flashcards Check passes `serverExits: undefined` (`components/flashcards/FlashcardAssignmentPage.tsx`), so after Schoology's pop out the framed copy can still time out and force-submit. Write `tabExits` on the flashcard progress doc (add it to the allowed keys in `firestore.rules`, with rules tests for reads and writes) and pass it to the tracker. Done when a framed Check hands off like a quiz.
 
-- **AB-165 Drop uid-keyed poll votes after the next main release** (S, security). Batch 4B keys poll votes by a per-session voter id from `resolvePollCodeV1`, but `firestore.rules` `poll_sessions/{sessionId}/votes` still accepts a `{questionIndex}_{uid}` id (the second entry of `pollVoteIds()`) so tabs open on the previous app keep voting. Once the release carrying batch 4B has been live on prod a few days, return only `q + dbGet('poll_joins', pollJid()).data.voterId` there, drop the uid fallback in `derivePollPhoneView` (`components/poll/pollPhoneState.ts`) and the `hasUidVote` overwrite in `components/poll/PollVoteApp.tsx` `saveAnswer`, and change the "still takes a uid-keyed vote" case in `tests/rules/securityBatch4B.test.ts` to a refusal. Old uid-keyed vote docs stay and still count. Done when rules tests refuse a uid-keyed vote and pass `check:rules-size`.
 - **AB-118 Roster-owner ClassLink check: dedupe and error caching** (S, LOW). Release #5189 review minors. In `functions/src/studentIdentity.ts` `candidateTaughtClasses`, cache the in-flight promise so a class logging in at once makes one ClassLink call per candidate owner, and cache a thrown error for about 30 seconds instead of the 5-minute TTL. In the gradebook, give `getGradebookRosterV1` and the project grade triggers a `timeoutSeconds` at or above `CLASSLINK_TOTAL_BUDGET_MS`, or a smaller budget there. Delete Mini App `receipts` docs when an assignment is wiped. Done when tests cover the dedupe, the short error cache and the receipt cleanup.
 - **AB-117 PLC bank import trusts any doc at the group id** (S, LOW). `handleImport` in `components/plc/bodies/PlcQuestionBanksBody.tsx` copies whatever `synced_question_banks/{groupId}` holds into the importer's own library. The header's `sharedBy` is not a safe owner hint (any PLC editor can write a header), so tie the header create rule to the synced doc's `ownerUid` with a get(), then pass it as the expected owner. Done when a header pointing at someone else's group is refused and import checks the owner, with rules tests for reads and writes.
 - **AB-107 Connect lets student member docs connect Claude** (S, MEDIUM). `isActiveOrgMemberOrAdmin` (`functions/src/mcp/eligibility.ts`) checks only that a member doc exists and isn't inactive, never `roleId`, so a Google-signed-in student with a `roleId: 'student'` member doc passes `checkEligibility` for the Connect flow. Managed sign-in already refuses them (#5116, `isStaffMemberData` in `managedAuth.ts`). Done when `checkEligibility` requires `isStaffMemberData` (admins in `/admins` still pass), with a test for a student member doc. Keep the staff member doc check in `managedAuth.ts`: it is what refuses an `/admins` email with no staff member doc there.
@@ -140,6 +139,10 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Tours and extension
 
+- **AB-206 Send to SpartBoard opens a second tab from a PLC or gradebook page** (S). Release #5707 review. `boardTabs` in `extension/src/serviceWorker.ts` now keeps only tabs whose path is exactly `/`, so a teacher whose SpartBoard tab is on `/plc/...` or the gradebook overlay (both still mount `DashboardView`) gets a new tab instead of reusing theirs. Exclude only routes that are not board pages (`/web-tours`, standalone and student routes). Raise the extension version in the same PR. Done when a test covers a PLC-path tab being reused and a `/web-tours` tab being skipped.
+- **AB-207 Convert to live tour hides a set when filing fails** (S). Release #5707 review. `components/widgets/GuidedLearning/Widget.tsx` saves the set with `helpCenter: true` before `createHiddenHelpItem`; when filing rejects (no org, rules or network) it only logs, so the set leaves the library with no Help Center item and no message. File the item first, as `moveSetToHelpCenter` does, or show the recorder's `glRecorder.helpCenterNoOrg` / `glRecorder.helpCenterFailed` toasts. Done when a test covers a failed filing.
+- **AB-208 Web tour step-count and message rules disagree** (S, minor). Release #5707 review. (1) `extension/src/tourSteps.ts` slices to `MAX_STEPS` counting Message steps while the public link does not count them toward `MAX_PUBLIC_STEPS`; pick one rule. (2) `publishBlockers` in `components/tours/web/webStepReview.ts` accepts a title-only Message step while the editor and MCP tools require text; align them. (3) `useWebTourCheck.ts` runs a check without the cross-site protocol gate. Done when each has a test.
+
 - **AB-187 Tour routes for assignment-row side menus** (S). #5576 moved Share, PLC results, Publish/Unpublish scores and paper import/print rows on In Progress and Completed into side menus (Paper, Share, Published scores). Give each group row a registered `tourAttr` anchor, point the inner routes in `config/tourSurfaces/quiz.ts` (and VA, Mini App, Flashcards where they share the menu) at it, regenerate `functions/src/mcp/tourAnchorList.ts`, and rebind the prod tour steps that click these rows by position (prod edit needs Paul's OK). Done when `tests/tourAnchorRoutes.test.ts` shows each moved anchor's path through its side-menu row.
 - **AB-183 Links in web tour tips look like plain text in the extension** (S, release #5550 review). `extension/src/overlay/OverlayRoot.tsx` now renders tips with `renderStepText` (`components/widgets/GuidedLearning/utils/richText.tsx`), but `extension/scripts/tailwind.overlay.config.ts` content globs don't include `richText.tsx`, so its `underline underline-offset-2` classes are never generated and a `[label](https://...)` link shows with no underline or color. Add the file to the overlay content list, check a link in a tip, and bump the extension version.
 - **AB-184 Print the tour Steps article with the new spotlight** (S, release #5550 review). `components/tours/steps/StepPicture.tsx` now draws `RingAndTip` sized by `useMeasured`, and `TourSpotlight` paints a 55% dim. `PrintCopy` in `StepsView.tsx` prints 150ms after portaling the article, so a picture may print with no ring (unmeasured) or with the dim over it. Print a Live tour and a web tour with targets on spartboard-dev; if either is wrong, hide the dim and draw the ring from percentages in print.
@@ -157,6 +160,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Widgets and UI
 
+- **AB-209 YouTube paste picker: read-only board and start time** (S, minor; release 2026.11.13b review, before `youtube-paste-picker` opens). In `components/layout/Dock.tsx` the Video Activity choice (1) calls `offerImportHandoff` even when `addWidget` no-ops on a read-only board or with no active board, leaving an orphaned handoff; skip the offer, as `ImportScreenHost` does with `refuseReadOnly()`. (2) It rebuilds the URL as `watch?v=<id>`, dropping a pasted `&t=` start time; pass the pasted URL through. Done when a test covers each.
 - **AB-188 Flashcards check sync: retry and don't block the save on rescore** (S, release 2026.11.10 (5) review). `hooks/useFlashcardSets.ts` `rewriteOpenCheckSessions` awaits every `rescoreFlashcardCheckV1` call inside the final save, so editor Close waits on cold starts, and a failed call is only logged: the cards are already committed, so the next save sees no change and never rescores. Fire the rescore after the save resolves, and mark the session (for example `rescorePending`) so a later save or the next open retries it. Skip the call for Flashcards and Speak Checks.
 - **AB-189 Term-only cards through the connector and results views** (S, before `flashcards-term-only` opens; release 2026.11.10 (5) review). `functions/src/mcp/tools.ts` `update_flashcard_set` requires `definition.min(1)`, so sending back a sight-word set from `get_flashcard_set` fails validation; allow an empty definition for sets the owner's flag allows. Blank definitions also leave a dangling separator or blank line in `FlashcardStudyResults.tsx`, `FlashcardCardResults.tsx`, `FlashcardsCardsStep.tsx`, `PlcFlashcardsBody.tsx` and `flashcardPrompt` in `utils/flashcardResults.ts`.
 - **AB-190 Stepper written-answer selects need their own tour routes** (S, release 2026.11.10 (5) review). `components/common/library/assignStepper/WrittenAnswersStep.tsx` renders the `quiz-print.written-box-*` selects with `assign-N` keys, but those id literals live only in `PaperWrittenBoxControls.tsx`, which sits on the `quiz.paper-print` surface, so a tour step on a stepper select opens the Assign on paper dialog instead. Give the stepper its own registered ids (or pass anchor attrs from each caller), keep the dialog's ids, and regenerate the surface map.
@@ -208,12 +212,64 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-181 Quiz PDF import: no "added as a picture" note when the whole-question crop also failed** (S, from release #5534 review). In `utils/quizDocumentImport/pdfPictures.ts` `resolveChoicePictures`, when the per-choice crops are lost and `choiceFallbackId` has no crop either (whole-PDF crop failure), the question still gets `CHOICES_AS_LETTERS`, which says the whole question was added as a picture, though none was. Only reachable with `quiz-ordering-images` on, and the import-level `PDF_PICTURES_FAILED` warning also shows. Fix: add that note only when `whole` exists; any new wording needs Paul's OK. Optional in the same PR: skip cropping the whole-question fallback when every choice crop succeeded (extra crop work today).
 - **AB-201 Release 2026.11.12 review leftovers (flag-on minors)** (S-M). Found in the #5630 slice reviews, none reachable with the flags off; fix before each flag opens. (1) `hooks/useInputSignals.ts`: the question-change and visibility-hidden flushes skip the `BIG_LOG_BYTES` one-a-minute throttle, so a student with a long writing log re-sends it on every question change and the teacher monitor re-downloads the doc. (2) `functions/src/subLaunchAssignment.ts`: sub launches don't run `blankTypeProblem`, so a dropdown blank whose answer isn't among its choices can launch. (3) Blocked on PT-183: if Paul says hide them, move `targetEmails`, `updatedBy` and `sourceName` off the `district_library` item doc that targeted teachers can read. (4) `components/plc/bodies/MembersBody.tsx` shows Remove to co-leads, which the server (and the old rules) refuse; gate it on the lead. (5) `useDistrictLibraryForTeacher` opens its listeners once per Quiz widget; share one. (6) CodeQL still flags the tag-stripping regexes in `scripts/mca-package/lib/html.mjs` and `parse.mjs`; replace them with a small tag scanner so the alerts close. (7) `touch-target-expand` needs a positioned element (its `::after` is `width/height: 100%`); on an unpositioned button the hit area grows to the nearest positioned ancestor, which made every District library row open the last row's delete. Twelve older sites still lack `relative` (grep `touch-target-expand` without `relative|absolute|fixed|sticky`); check each and add a static test.
 
+- **AB-204 District library folders: safer folder writes** (S, from release #5678 review, admin flag `district-library-folders`). In `hooks/useDistrictLibraryFolders.ts`: (1) `applyFolderAudiences` stops at the first failed item; keep going and report the failures, and use `itemsNeedingFolderAudience` (`utils/districtLibraryFolders.ts`, tests only today) to show a "some items need the folder's audience" repair banner in `DistrictLibraryFolderView`. (2) `renameDistrictFolder`/`moveDistrictFolder` merge-write `folders[id]`, so a folder another admin just deleted comes back without a name; check it still exists in a transaction. (3) `deleteDistrictFolder` writes the folders and audiences docs separately; use one batch. (4) Moving a published item into a folder with no audience now hides it from teachers; ask first. (5) `DistrictLibraryPanel` publishes then moves in one try, so a failed move leaves items at the top level and a retry never files them.
+- **AB-205 Prompt formatting leftovers** (S, from release #5678 review, admin flag `quiz-prompt-formatting`). Paper answer sheet labels use raw `question.text` (`utils/paperSheetPlan.ts`, `functions/src/paperBatchPlan.ts`), so marks show; use `stripPromptFormat`/`plainPromptText`. Numbered lines renumber when edited (`5. a` / `3. b` saves as 5, 6); keep the typed numbers. A literal `*word*` typed in the editor only turns italic after reload.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-csyhd9
+claude/project-thread-lvqzbz
+claude/project-thread-lvqzbz-docs
+claude/project-thread-qom41c
+docs/ab112-qom41c
+claude/project-thread-87riou
+claude/project-thread-iv86b0
+claude/ab112-wildcard
+claude/project-thread-2n195f
+claude/project-thread-2n195f-branches
+claude/project-thread-7mpti9
+claude/project-thread-7mpti9-ab112
+claude/project-thread-pxr7js
+claude/ab112-pxr7js
+claude/project-thread-vcq9je
+docs/ab112-s2-branch
+claude/project-thread-7matnt
+claude/ab112-s1-7matnt
+claude/project-thread-fab08e
+docs/ab112-fab08e
+claude/project-thread-p5qz9y
+docs/ab112-p5qz9y
+claude/project-thread-g77dp4
+claude/project-thread-g77dp4-ab112
+claude/project-thread-24dy3v
+claude/project-thread-24dy3v-ab112
+claude/project-thread-cxubid
+docs/ab112-cxubid
+claude/project-thread-dmb90p
+claude/ab112-prompt-formatting
+claude/project-thread-kwulpx
+
+claude/project-thread-oakw56
+claude/project-thread-oakw56-ab112
+claude/project-thread-jrytph
+claude/ab112-grader-copy
+claude/tour-anchors-2026-11-12
+nightly/debugger-log-2026-11-12
+nightly/admin-config-2026-11-12
+nightly/dashboard-layout-2026-11-12
+nightly/widgets-2026-11-12
+nightly/unifier-log-2026-11-12
+claude/project-thread-ov98y6
+claude/project-thread-ov98y6-branchlog
+claude/project-thread-bd1fel
+claude/project-thread-bd1fel-ab112
+claude/project-thread-l8b36b
+claude/project-thread-shwk3a
 claude/project-thread-anub7c
 claude/project-thread-ae8ce7
+claude/project-thread-r8cbhe
+claude/ab112-district-folders
 claude/project-thread-9krwwi
 claude/project-thread-848bcg
 docs/va-editor-arrows-followups
@@ -291,6 +347,10 @@ git push origin --delete claude/project-thread-47qx31
 git push origin --delete claude/project-thread-gbykry
 git push origin --delete nightly/unifier-log-2026-11-11 claude/project-thread-ryu6co claude/project-thread-ryu6co-ab112
 git push origin --delete claude/project-thread-jn07pu claude/project-thread-jn07pu-ab112
+git push origin --delete claude/project-thread-4o47oj claude/project-thread-4o47oj-ab112
+git push origin --delete claude/project-thread-05ocrk claude/s4-ab112
+git push origin --delete claude/project-thread-98ewth docs/ab112-98ewth
+git push origin --delete claude/project-thread-ny32f4 claude/project-thread-ny32f4-ab112
 ```
 
   </details>

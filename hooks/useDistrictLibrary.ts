@@ -9,6 +9,7 @@ import {
   query,
   setDoc,
   updateDoc,
+  deleteField,
   where,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -226,9 +227,16 @@ export function useDistrictBankLinks(
 
   return useMemo(() => {
     if (!on) return NO_LINKS;
-    return stored
-      .map((l) => (checked[l.itemId] ? { ...l, ...checked[l.itemId] } : l))
-      .sort((a, b) => a.title.localeCompare(b.title));
+    return (
+      stored
+        // The check runs once per link version; folderId always comes from the stored link.
+        .map((l) =>
+          checked[l.itemId]
+            ? { ...l, ...checked[l.itemId], folderId: l.folderId }
+            : l
+        )
+        .sort((a, b) => a.title.localeCompare(b.title))
+    );
   }, [on, stored, checked]);
 }
 
@@ -254,6 +262,17 @@ export async function addDistrictBank(
     doc(db, 'users', uid, DISTRICT_LINKS_SUBCOLLECTION, item.id),
     link
   );
+}
+
+/** Files an added district bank in one of the teacher's Quiz library folders; null returns it to the District library folder. */
+export async function moveDistrictBank(
+  uid: string,
+  itemId: string,
+  folderId: string | null
+): Promise<void> {
+  await updateDoc(doc(db, 'users', uid, DISTRICT_LINKS_SUBCOLLECTION, itemId), {
+    folderId: folderId ?? deleteField(),
+  });
 }
 
 export async function removeDistrictBank(
