@@ -75,13 +75,13 @@ export const MARK_LABEL: Record<StudentOutcome, string> = {
   notChosen: 'Not chosen',
 };
 
-/** "Not counted" for an answer left out of a choose-N section, else the mark's label. */
+/** "Extra, not scored" for an answer left out of a choose-N section, else the mark's label. */
 export const markLabel = (line: {
   mark: StudentOutcome;
   answerText?: string;
 }): string =>
   line.mark === 'notChosen' && line.answerText
-    ? 'Not counted'
+    ? 'Extra, not scored'
     : MARK_LABEL[line.mark];
 
 const BAND_LABEL: Record<string, string> = {

@@ -303,7 +303,7 @@ export function computeStudentDrilldown(
     }
 
     if (response._notChosen?.includes(q.id)) {
-      // An answer that doesn't count stays readable; it shows as "Not counted".
+      // An answer that doesn't count stays readable; it shows as "Extra, not scored".
       const written =
         entry && (!entry.unresponded || entry.unresponded === 'passed')
           ? readableAnswer(q, { ...entry, unresponded: undefined })
