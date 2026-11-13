@@ -24,10 +24,6 @@ import {
   VideoActivityQuizContextPane,
   VideoActivityQuizDetailPane,
 } from './VideoActivityQuizLayout';
-import {
-  LegacyVideoActivityQuizContextPane,
-  LegacyVideoActivityQuizDetailPane,
-} from './VideoActivityQuizLayoutLegacy';
 import type { TimelineHandle } from './Timeline';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 import { notesEqual } from '@/utils/videoActivityClip';
@@ -119,20 +115,11 @@ export const VideoActivityEditorModal: React.FC<
   const canUseAi =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('video-activity-ai');
-  const stopsEnabled = canAccessFeature('video-activity-stops');
-  const arrowsEnabled = canAccessFeature('video-activity-editor-arrows');
-  const ContextPane = arrowsEnabled
-    ? VideoActivityQuizContextPane
-    : LegacyVideoActivityQuizContextPane;
-  const DetailPane = arrowsEnabled
-    ? VideoActivityQuizDetailPane
-    : LegacyVideoActivityQuizDetailPane;
   const timelineRef = useRef<TimelineHandle>(null);
 
   const editorState = useVideoActivityEditorState({
     activity,
     startWithAi: startWithAi && canUseAi,
-    keepQuestionOpen: arrowsEnabled,
   });
 
   const {
@@ -198,9 +185,10 @@ export const VideoActivityEditorModal: React.FC<
         title,
         youtubeUrl,
         questions,
-        ...(stopsEnabled ? { clip, notes } : {}),
+        clip,
+        notes,
       }),
-    [title, youtubeUrl, questions, clip, notes, stopsEnabled]
+    [title, youtubeUrl, questions, clip, notes]
   );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
@@ -318,14 +306,19 @@ export const VideoActivityEditorModal: React.FC<
       contextPaneClassName="bg-slate-50 border-r border-slate-200 overflow-hidden!"
       contextPane={
         <div className="flex flex-col h-full">
-          <ContextPane
+          <VideoActivityQuizContextPane
             state={editorState}
             timelineRef={timelineRef}
             aiEnabled={canUseAi}
           />
         </div>
       }
-      detailPane={<DetailPane state={editorState} timelineRef={timelineRef} />}
+      detailPane={
+        <VideoActivityQuizDetailPane
+          state={editorState}
+          timelineRef={timelineRef}
+        />
+      }
       overlay={<VideoActivityAiOverlay state={editorState} />}
     />
   );
