@@ -27,7 +27,6 @@ import {
   quizUpdatesToVa,
   vaToQuizQuestion,
 } from '@/utils/vaQuestionAdapter';
-import { useAuth } from '@/context/useAuth';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { ChoiceOptionsEditor } from '@/components/widgets/QuizWidget/components/ChoiceOptionsEditor';
@@ -293,8 +292,6 @@ export const VideoActivityQuizDetailPane = React.memo(
       deleteQuestion,
       duplicateQuestion,
     } = state;
-    const { canAccessFeature } = useAuth();
-    const promptFormatOn = canAccessFeature('quiz-prompt-formatting');
     const [pickerOpen, setPickerOpen] = useState(false);
     const promptRef = useRef<HTMLTextAreaElement>(null);
     const promptTextRef = useRef(selectedQuestion?.text);
@@ -457,7 +454,7 @@ export const VideoActivityQuizDetailPane = React.memo(
             textareaRef={promptRef}
             allowBlanks={false}
             anchor={tourAttr('video-activity.editor-question-text')}
-            promptFormat={promptFormatOn}
+            promptFormat
           />
 
           <VideoActivityPictureField

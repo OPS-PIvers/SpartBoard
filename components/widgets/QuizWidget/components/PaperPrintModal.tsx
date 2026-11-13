@@ -311,7 +311,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const { canAccessFeature } = useAuth();
   // The caller already checked the paper sheets rollout and gate; this adds the written-box flag.
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
-  const versionsOn = canAccessFeature('quiz-import-versions');
   // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
   const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
   const [boxStyles, setBoxStyles] = useState<Record<string, PaperBoxStylePick>>(
@@ -322,7 +321,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     [savedQuiz, boxSizes, boxStyles]
   );
   const versionPlan = useMemo(() => {
-    if (!versionsOn || !banks || !quiz.bankSlots?.length) return null;
+    if (!banks || !quiz.bankSlots?.length) return null;
     try {
       return planPaperVersions(
         quiz,
@@ -335,7 +334,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     } catch {
       return null;
     }
-  }, [versionsOn, banks, quiz, writtenOn, boxSizes, boxStyles]);
+  }, [banks, quiz, writtenOn, boxSizes, boxStyles]);
   const analysis = useMemo(() => {
     if (versionPlan) return versionPlan.template;
     return promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn }));

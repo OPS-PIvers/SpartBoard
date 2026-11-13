@@ -392,8 +392,6 @@ const TeacherQuizWidget: React.FC<{
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
     canUseQuizAi;
-  const canImportVersions =
-    canImportDocuments && canAccessFeature('quiz-import-versions');
   const googleDocAsPdf =
     canImportDocuments && canAccessFeature('quiz-import-google-doc-pdf');
   const config = widget.config as QuizConfig;
@@ -2450,14 +2448,12 @@ const TeacherQuizWidget: React.FC<{
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
       pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
-      answerPictures: canAccessFeature('quiz-ordering-images'),
       equations:
         canAccessFeature('quiz-import-equations') &&
         canAccessFeature(STUDENT_KEYBOARDS_FEATURE),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
-      ...(canImportVersions
+      ...(canImportDocuments
         ? {
-            importVersions: true,
             plainVersions: canAccessFeature('quiz-import-versions-plain'),
             saveVersionImport,
             ...(canUseAiReader
@@ -3279,11 +3275,11 @@ const TeacherQuizWidget: React.FC<{
                 const data = await loadQuiz(meta);
                 if (!data) return;
                 // A bank that will not load leaves its slots off the sheet, as before.
-                const banks =
-                  canAccessFeature('quiz-import-versions') &&
-                  data.bankSlots?.some((s) => s.dealing === 'balanced')
-                    ? await loadBankContentsForQuiz(data).catch(() => null)
-                    : null;
+                const banks = data.bankSlots?.some(
+                  (s) => s.dealing === 'balanced'
+                )
+                  ? await loadBankContentsForQuiz(data).catch(() => null)
+                  : null;
                 setPaperPrintMeta(meta);
                 setPaperPrintBanks(banks);
                 setPaperPrintQuiz(data);
