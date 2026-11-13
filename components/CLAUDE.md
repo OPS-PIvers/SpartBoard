@@ -21,7 +21,7 @@ Loaded when working under `components/`.
 
 ## Worst-case data
 
-- A Demo / Worst case data toggle (the `break-ui` skill) goes on a `/*-dev` harness page (`components/dev/`, routed in `App.tsx` behind `import.meta.env.DEV`, served by `vite-harness`), never in a widget's shipped UI.
+- A Demo / Worst case data toggle (the `break-ui` skill, from the `pauls-skills` plugin that `.claude/settings.json` enables) goes on a `/*-dev` harness page (`components/dev/`, routed in `App.tsx` behind `import.meta.env.DEV`, served by `vite-harness`), never in a widget's shipped UI.
 - Realistic worst cases here: roster names from ClassLink (long hyphenated surnames, one-letter first names, non-Latin scripts), classes of 35+ students, a teacher's long custom labels, 20 widgets on one board.
 - Check a widget at its minimum and a maximized size, and read it as if projected across a room, rather than only at 320px.
 
