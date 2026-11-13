@@ -30,6 +30,8 @@ export interface TourAnchorDef {
   opensEmpty?: string;
   /** Surface id its click closes, or 'own' for the dialog it sits in; the dry run warns on a later step inside it. */
   closes?: string;
+  /** One element per row of a list, so a step can bind `#row-*` to whichever row the teacher picks. */
+  rows?: true;
 }
 
 export const TOUR_ANCHOR_PREREQUISITES = [
@@ -361,6 +363,11 @@ export const TOUR_ANCHORS = {
   'board.whole': { label: 'The whole board, for opening and closing steps' },
   'board.claude-editing-show': {
     label: 'Show button on the "Claude is editing" notice',
+    panel: true,
+  },
+  // Help Center round trip: the recorded-tour toast (workstream B).
+  'board.help-center-toast-open': {
+    label: 'Open in Help Center button on the recorded-tour notice',
     panel: true,
   },
   'board-actions.zoom': { label: 'Zoom level button' },
@@ -1574,6 +1581,12 @@ export const TOUR_ANCHORS = {
   },
   'assign-availability.bell': {
     label: 'Start or end of class button in the Assign window availability',
+    perField: true,
+    panel: true,
+  },
+  'assign-availability.open-ended': {
+    label:
+      'Opens now or Available until manually ended choice in the Assign window',
     perField: true,
     panel: true,
   },
@@ -6003,11 +6016,13 @@ export const TOUR_ANCHORS = {
   'library-shell.card-open': {
     label: 'Library item card body (open)',
     perField: true,
+    rows: true,
   },
   'library-shell.card-primary-action': {
     label: 'Primary action button on a library item card',
     persists: true,
     perField: true,
+    rows: true,
   },
   'library-shell.card-secondary-action': {
     label: 'Secondary primary action button on a library item card',
@@ -6034,6 +6049,7 @@ export const TOUR_ANCHORS = {
       'Primary action button on an assignment row (In Progress or Archive tab)',
     persists: true,
     perField: true,
+    rows: true,
   },
   'library-shell.archive-menu': {
     label:
@@ -6184,6 +6200,7 @@ export const TOUR_ANCHORS = {
     label: 'Edit class button in My Classes',
     perField: true,
     panel: true,
+    rows: true,
   },
   'classes.sync-classlink': {
     label: 'Sync with ClassLink button in My Classes',
@@ -6195,6 +6212,7 @@ export const TOUR_ANCHORS = {
     label: 'Link to Google Classroom button in My Classes',
     perField: true,
     panel: true,
+    rows: true,
   },
   'classes.delete-roster': {
     label: 'Delete class button in My Classes',
@@ -6206,26 +6224,31 @@ export const TOUR_ANCHORS = {
     label: 'Class actions menu in My Classes',
     perField: true,
     panel: true,
+    rows: true,
   },
   'classes.classroom-course-row': {
     label: 'Course row in the Link to Google Classroom modal',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.open-plc': {
     label: 'Open a team card in My Teams',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.actions-menu': {
     label: 'Team actions kebab in My Teams',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.edit-plc': {
     label: 'Edit/View PLC action in the PLC actions menu',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plcs.delete-plc': {
     label: 'Delete PLC action in the PLC actions menu',
@@ -6582,6 +6605,7 @@ export const TOUR_ANCHORS = {
   'plc-assessments.open': {
     label: 'Open button in the PLC assessments tab',
     perField: true,
+    rows: true,
   },
   'plc-assessments.status': {
     label: 'Status chip on a PLC assessment row',
@@ -6595,11 +6619,13 @@ export const TOUR_ANCHORS = {
     label: 'Assign button in the PLC assessments tab',
     persists: true,
     perField: true,
+    rows: true,
   },
   'plc-assessments.menu': {
     label: 'Menu button in the PLC assessments tab',
     perField: true,
     panel: true,
+    rows: true,
   },
   'plc-assessments.menu-item': {
     label: 'Menu item button in the PLC assessments tab',
@@ -8369,45 +8395,136 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.help-center.add-item': {
-    label: 'Add item button in Help Center admin',
-    panel: true,
-  },
-  'admin.help-center.sort-by-opens': {
-    label: 'Sort by opens button in Help Center admin',
+    label: 'New button in Help Center admin',
     panel: true,
   },
   'admin.help-center.item-toggle': {
-    label: 'Visible switch on a Help Center admin item',
+    label: 'Publish or Hide button on the selected Help Center item',
     perField: true,
     persists: true,
     panel: true,
   },
   'admin.help-center.item-edit': {
-    label: 'Edit button on a Help Center admin item',
+    label: 'Edit button on the selected Help Center item',
     perField: true,
     panel: true,
   },
   'admin.help-center.item-delete': {
-    label: 'Delete button on a Help Center admin item',
+    label: 'Delete button on the selected Help Center item',
     perField: true,
     destructive: true,
     panel: true,
   },
-  'admin.help-center.item-web-change': {
-    label:
-      'Change link button on a Help Center admin item that links a web tour',
+  'admin.help-center.search': {
+    label: 'Search box in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.show': {
+    label: 'Show select in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.categories': {
+    label: 'Categories button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.web-tours-link': {
+    label: 'Web tours link in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.new-record-tour': {
+    label: 'Record a Live tour in the Help Center New menu',
+    panel: true,
+  },
+  'admin.help-center.new-move': {
+    label: 'Move from library in the Help Center New menu',
+    panel: true,
+  },
+  'admin.help-center.new-picture-guide': {
+    label: 'New Picture guide in the Help Center New menu',
+    creates: true,
+    panel: true,
+  },
+  'admin.help-center.item-row': {
+    label: 'Item row in the Help Center admin list',
     perField: true,
     panel: true,
   },
-  'admin.help-center.item-web-remove': {
-    label: 'Remove button on a Help Center admin item that links a web tour',
+  'admin.help-center.item-drag': {
+    label: 'Drag handle on a Help Center admin item',
     perField: true,
-    destructive: true,
+    persists: true,
     panel: true,
   },
-  'admin.help-center.category-toggle': {
-    label: 'Category collapse button in Help Center admin',
+  'admin.help-center.detail-back': {
+    label: 'Back button on the Help Center item detail (phone)',
+    panel: true,
+  },
+  'admin.help-center.detail-title': {
+    label: 'Title box on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-description': {
+    label: 'Description box on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-category': {
+    label: 'Category select on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.detail-scope': {
+    label: 'Scope select on the selected Help Center item',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.view-steps': {
+    label: 'View steps button on the selected Live tour',
+    panel: true,
+  },
+  'admin.help-center.copy-to-library': {
+    label: 'Copy to my library button on the selected Picture guide',
+    persists: true,
+    creates: true,
+    panel: true,
+  },
+  'admin.help-center.move-search': {
+    label: 'Search box in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-type': {
+    label: 'Type select in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-owner': {
+    label: 'Owner select in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-pick': {
+    label: 'Checkbox on a guide in Move from library',
     perField: true,
+    panel: true,
+  },
+  'admin.help-center.move-cancel': {
+    label: 'Cancel button in Move from library',
+    panel: true,
+  },
+  'admin.help-center.move-confirm': {
+    label: 'Move button in Move from library',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.category-reorder': {
+    label: 'Drag handle on a Help Center category',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.category-rename': {
+    label: 'Name box on a Help Center category',
+    perField: true,
+    persists: true,
     panel: true,
   },
   'admin.help-center.category-name': {
@@ -8425,24 +8542,12 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'admin.help-center.tour-health-toggle': {
-    label: 'Tour health section button in Help Center admin',
-    panel: true,
-  },
-  'admin.help-center.record-tour': {
-    label: 'Record tour button in Help Center admin',
-    panel: true,
-  },
-  'admin.help-center.record-web-tour': {
-    label: 'Record web tour button in Help Center admin',
-    panel: true,
-  },
   'admin.help-center.check-live': {
-    label: 'Check live button in Help Center admin',
+    label: "Check live button in a Live tour's Help Center health",
     panel: true,
   },
   'admin.help-center.edit-step': {
-    label: 'Edit step button in the tour health table',
+    label: "Edit button on a step in a Live tour's Help Center health",
     perField: true,
     panel: true,
   },
@@ -8463,68 +8568,6 @@ export const TOUR_ANCHORS = {
   'admin.help-center.unmapped-dismiss': {
     label: 'Dismiss button for a needs-a-person unmapped anchor',
     persists: true,
-    panel: true,
-  },
-  'admin.help-center.keep-all-in-help': {
-    label: 'Keep all in Help button for linked library sets',
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.keep-in-help': {
-    label: 'Keep in Help button for a linked library set',
-    perField: true,
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.form-visible': {
-    label: 'Visible to teachers switch in the Help item form',
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.form-title': {
-    label: 'Title box in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-category': {
-    label: 'Category select in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-description': {
-    label: 'Description box in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-cancel': {
-    label: 'Cancel button in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.form-save': {
-    label: 'Save button in the Help item form',
-    persists: true,
-    panel: true,
-  },
-  'admin.help-center.gl-open-editor': {
-    label: 'Open editor button for the chosen activity',
-    panel: true,
-  },
-  'admin.help-center.gl-change': {
-    label: 'Change button for the chosen activity',
-    panel: true,
-  },
-  'admin.help-center.gl-choose': {
-    label: 'Choose activity button in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.gl-new': {
-    label: 'New activity button in the Help item form',
-    panel: true,
-  },
-  'admin.help-center.gl-search': {
-    label: 'Search box in the activity menu',
-    panel: true,
-  },
-  'admin.help-center.gl-option': {
-    label: 'Activity row in the activity menu',
-    perField: true,
     panel: true,
   },
   'admin.features.filter-enabled': {
@@ -10653,7 +10696,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.help-center.related-widgets': {
-    label: 'Related widgets picker in Help Center item form',
+    label: 'Widgets picker on the selected Help Center item',
     panel: true,
   },
   'admin.gradebook-settings.district-buildings': {
@@ -12234,6 +12277,26 @@ export const TOUR_ANCHORS = {
   'tour-editor.step-more': {
     label: "More toggle on the selected step's card in the tour editor",
   },
+  'web-tours.new': {
+    label: 'New web tour button on the Web tours page',
+    creates: true,
+  },
+  'web-tours.edit': {
+    label: 'Edit button for a web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.check': {
+    label: 'Check tour button for a web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.play': {
+    label: 'Play button for a published web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.copy-link': {
+    label: 'Copy link button for a web tour on the Web tours page',
+    perField: true,
+  },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',
@@ -12269,6 +12332,9 @@ export const TOUR_ANCHORS = {
   },
   'web-tour-editor.add-step': {
     label: 'Add step button under the web tour editor outline',
+  },
+  'web-tour-editor.add-message': {
+    label: 'Add a message button under the web tour editor outline',
   },
   'web-tour-editor.step-more': {
     label: "More toggle on the selected web step's card",
@@ -12335,6 +12401,10 @@ export const TOUR_ANCHORS = {
   },
   'gl-manager.preview-play': {
     label: 'Play preview button in the Guided Learning library',
+  },
+  'gl-manager.open-in-help-center': {
+    label: 'Open in Help Center button on the moved-to-Help-Center notice',
+    panel: true,
   },
   'gl-player.read-aloud': { label: 'Read aloud button in the player' },
   'gl-player.prev': { label: 'Previous step button in the player' },
@@ -17671,6 +17741,17 @@ export const tourAnchorRef = (
     : widgetType
       ? `${id}:${widgetType}`
       : id;
+
+/** The field key that binds a step to every row of a `rows` anchor. */
+export const ROW_WILDCARD = 'row-*';
+
+/** Whether a ref binds to whichever row the teacher picks; never on a destructive anchor. */
+export const isRowWildcardRef = (ref: string): boolean => {
+  const { id, fieldKey } = parseTourAnchorRef(ref);
+  if (fieldKey !== ROW_WILDCARD || !isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.rows && !def.destructive;
+};
 
 export const parseTourAnchorRef = (
   ref: string

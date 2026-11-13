@@ -17,9 +17,12 @@ function fakeHost(
 ) {
   const store = new Map<string, unknown>();
   const sent: {
+    tabId: number;
     frameId: number;
     msg: { type: string } & Record<string, unknown>;
   }[] = [];
+  const tabUrls = new Map<number, string>();
+  const focused: number[] = [];
   const posts: ProgressPost[] = [];
   const timers: (() => void)[] = [];
   const injected: { frameIds: number[]; overlay: boolean }[] = [];
@@ -38,6 +41,11 @@ function fakeHost(
       return Promise.resolve();
     },
     closeTab: () => Promise.resolve(),
+    focusTab: (tabId) => {
+      focused.push(tabId);
+      return Promise.resolve(tabUrls.has(tabId));
+    },
+    tabUrl: (tabId) => Promise.resolve(tabUrls.get(tabId) ?? null),
     backstop: () => {
       backstops += 1;
     },
@@ -46,7 +54,8 @@ function fakeHost(
       injected.push({ frameIds, overlay });
       return Promise.resolve();
     },
-    sendToFrame: (_t, frameId, msg) => sent.push({ frameId, msg: { ...msg } }),
+    sendToFrame: (tabId, frameId, msg) =>
+      sent.push({ tabId, frameId, msg: { ...msg } }),
     load: <T>(k: string) => Promise.resolve(structuredClone(store.get(k)) as T),
     save: (e) => {
       for (const [k, v] of Object.entries(e)) store.set(k, structuredClone(v));
@@ -60,6 +69,17 @@ function fakeHost(
     setTimer: (_ms, cb) => timers.push(cb),
     now: () => clock.now,
   };
+  const lastRenderIn = (tabId: number) =>
+    (
+      [...sent]
+        .reverse()
+        .find(
+          (s) =>
+            s.tabId === tabId &&
+            s.frameId === 0 &&
+            s.msg.type === 'overlay/render'
+        )!.msg as unknown as { state: Record<string, unknown> }
+    ).state;
   const lastSeek = () =>
     [...sent].reverse().find((s) => s.msg.type === 'wt:seek')!;
   const lastRender = (frameId = 0) =>
@@ -81,6 +101,9 @@ function fakeHost(
     clock,
     lastSeek,
     lastRender,
+    lastRenderIn,
+    tabUrls,
+    focused,
     backstops: () => backstops,
   };
 }
@@ -1366,5 +1389,452 @@ describe('playback controller, waiting through sign-in (H1-H3)', () => {
     await c.overlayAction(7, 0, 'exit');
     expect(await c.isPlaying(7)).toBe(false);
     expect(h.posts.map((p) => p.type)).toEqual(['web-tour/exit']);
+  });
+});
+
+const step = (
+  id: string,
+  urlPattern: string,
+  extra: Partial<ParsedStart['tour']['steps'][number]> = {}
+): ParsedStart['tour']['steps'][number] => ({
+  id,
+  title: id,
+  text: `Do ${id}`,
+  urlPattern,
+  frames: [],
+  clues: { role: 'button', name: id },
+  action: 'click',
+  hasPicture: false,
+  ...extra,
+});
+
+const message = (id: string): ParsedStart['tour']['steps'][number] => ({
+  id,
+  title: `Say ${id}`,
+  text: `Words for ${id}`,
+  urlPattern: '',
+  frames: [],
+  clues: {},
+  action: 'observe',
+  hasPicture: false,
+  message: true,
+});
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+const GEMINI = 'https://gemini.google.com/app';
+const CLAUDE = 'https://claude.ai/customize/skills';
+
+/** Gemini > Claude > Gemini, with a picture on the Claude step. */
+const crossSite = (
+  steps: ParsedStart['tour']['steps'],
+  check = false
+): ParsedStart => ({
+  version: 1,
+  stepIndex: 0,
+  pictures: { c1: { mime: 'image/png', data: 'AAAA', w: 10, h: 10 } },
+  tour: { id: 'set1', title: 'Make a skill', startUrl: GEMINI, steps },
+  ...(check ? { check: true, runId: 'run1' } : {}),
+});
+
+const threeSites = () => [
+  step('g1', GEMINI),
+  step('c1', CLAUDE, { hasPicture: true }),
+  step('g2', GEMINI),
+];
+
+async function found(
+  h: ReturnType<typeof fakeHost>,
+  c: ReturnType<typeof createPlaybackController>,
+  tabId: number
+) {
+  const seek = [...h.sent]
+    .reverse()
+    .find((s) => s.tabId === tabId && s.msg.type === 'wt:seek')!;
+  await c.frameReport(tabId, 0, {
+    type: 'wt:found',
+    token: seek.msg.token as string,
+    weak: false,
+    url: '',
+  });
+}
+
+describe('playback across sites (WEB_TOURS_CROSS_SITE.md)', () => {
+  it('plays Gemini > Claude > Gemini, opening Claude in a new tab and reusing the first tab on the way back', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(crossSite(threeSites()));
+    await c.committed(7, 0, GEMINI);
+    await found(h, c, 7);
+    await c.frameReport(7, 0, {
+      type: 'wt:acted',
+      token: h.lastSeek().msg.token as string,
+    });
+    // Finishing the last Gemini step offers the switch, not a wrong page.
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'switch',
+      go: 'claude.ai',
+      current: 2,
+    });
+    await c.overlayAction(7, 0, 'go');
+    expect(h.opened.at(-1)).toBe('about:blank');
+    expect(h.navigated.at(-1)).toMatchObject({ tabId: 8, url: CLAUDE });
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'moved' });
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(h.store.has('wt:pic:8:c1')).toBe(true);
+    await c.committed(8, 0, CLAUDE);
+    expect(h.lastRenderIn(8)).toMatchObject({ status: 'seeking', current: 2 });
+    await found(h, c, 8);
+    await c.frameReport(8, 0, {
+      type: 'wt:acted',
+      token: [...h.sent].reverse().find((s) => s.msg.type === 'wt:seek')!.msg
+        .token as string,
+    });
+    expect(h.lastRenderIn(8)).toMatchObject({
+      status: 'switch',
+      go: 'gemini.google.com',
+    });
+    // The Gemini tab is still on its page, so the run moves back and plays there without loading it again.
+    h.tabUrls.set(7, GEMINI);
+    const opened = h.opened.length;
+    await c.overlayAction(8, 0, 'go');
+    await flush();
+    expect(h.opened.length).toBe(opened);
+    expect(h.focused).toEqual([7]);
+    expect(h.navigated.at(-1)).toMatchObject({ tabId: 8, url: CLAUDE });
+    expect(h.lastRenderIn(8)).toMatchObject({ status: 'moved' });
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'seeking', current: 3 });
+    expect(await c.isPlaying(7)).toBe(true);
+  });
+
+  it('navigates the reused tab when its page no longer matches', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        step('c1', CLAUDE),
+        step('g2', 'https://gemini.google.com/gems/*'),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    await c.overlayAction(7, 0, 'go');
+    await c.committed(8, 0, CLAUDE);
+    await c.overlayAction(8, 0, 'next');
+    h.tabUrls.set(7, GEMINI);
+    await c.overlayAction(8, 0, 'go');
+    expect(h.focused).toEqual([7]);
+    expect(h.navigated.at(-1)).toMatchObject({
+      tabId: 7,
+      url: 'https://gemini.google.com/gems',
+    });
+  });
+
+  it("opens a new tab when the run's old tab on that site was closed", async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(crossSite(threeSites()));
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    await c.overlayAction(7, 0, 'go');
+    await c.committed(8, 0, CLAUDE);
+    await c.overlayAction(8, 0, 'next');
+    await c.overlayAction(8, 0, 'go');
+    expect(h.navigated.at(-1)).toMatchObject({ tabId: 9, url: GEMINI });
+  });
+
+  it("follows a tab the learner opens on the next step's site", async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(crossSite(threeSites()));
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'switch' });
+    await c.committed(9, 0, 'https://claude.ai/new');
+    expect(await c.isPlaying(9)).toBe(true);
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'moved' });
+    expect(h.store.has('wt:pic:9:c1')).toBe(true);
+    expect(h.lastRenderIn(9)).toMatchObject({
+      status: 'wrong-page',
+      current: 2,
+    });
+  });
+
+  it("ignores a tab opened on a site that is not the next step's", async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(crossSite(threeSites()));
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    await c.committed(9, 0, 'https://www.google.com/search?q=claude');
+    expect(await c.isPlaying(9)).toBe(false);
+    expect(await c.isPlaying(7)).toBe(true);
+    // Nor does a Claude tab before the tour reaches the switch.
+    const h2 = fakeHost();
+    const c2 = createPlaybackController(h2.host);
+    await c2.start(crossSite(threeSites()));
+    await c2.committed(7, 0, GEMINI);
+    await c2.committed(9, 0, CLAUDE);
+    expect(await c2.isPlaying(9)).toBe(false);
+  });
+
+  it("shows a message at the start once the first targeted step's site loads", async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(crossSite([message('m0'), step('g1', GEMINI)]));
+    expect(h.navigated.at(-1)).toMatchObject({ url: GEMINI });
+    await c.committed(7, 0, 'https://accounts.google.com/signin');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'armed' });
+    await c.committed(7, 0, GEMINI);
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'shown',
+      message: true,
+      title: 'Say m0',
+      targetHere: false,
+      current: 1,
+    });
+    expect(h.lastRenderIn(7)).not.toHaveProperty('go');
+    // A message is never sought.
+    expect(h.sent.filter((s) => s.msg.type === 'wt:seek')).toHaveLength(0);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'seeking', current: 2 });
+  });
+
+  it('shows a message in the middle on any page and at the end before done', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        message('m1'),
+        step('g2', GEMINI),
+        message('m2'),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'shown',
+      message: true,
+      current: 2,
+    });
+    // Another page doesn't turn a message into a wrong page.
+    await c.historyChanged(7, 0, 'https://gemini.google.com/settings');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'shown', message: true });
+    await c.overlayAction(7, 0, 'next');
+    await c.historyChanged(7, 0, GEMINI);
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'seeking', current: 3 });
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'shown',
+      message: true,
+      current: 4,
+    });
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'done' });
+    expect(h.posts.map((p) => p.type)).toContain('web-tour/done');
+    // A finished tour still lets go once the learner leaves the last targeted step's page.
+    await c.historyChanged(7, 0, 'https://gemini.google.com/elsewhere');
+    expect(await c.isPlaying(7)).toBe(false);
+  });
+
+  it('puts Go on a message right before a switch, and one click makes the switch', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        message('m1'),
+        message('m2'),
+        step('c1', CLAUDE),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ message: true, current: 2 });
+    expect(h.lastRenderIn(7)).not.toHaveProperty('go');
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      message: true,
+      current: 3,
+      go: 'claude.ai',
+    });
+    await c.overlayAction(7, 0, 'go');
+    expect(h.navigated.at(-1)).toMatchObject({ tabId: 8, url: CLAUDE });
+    await c.committed(8, 0, CLAUDE);
+    expect(h.lastRenderIn(8)).toMatchObject({ status: 'seeking', current: 4 });
+  });
+
+  it('crosses sites by itself in a check run and passes message steps as found', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([step('g1', GEMINI), message('m1'), step('c1', CLAUDE)], true)
+    );
+    await c.committed(7, 0, GEMINI);
+    await found(h, c, 7);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.posts).toContainEqual(
+      expect.objectContaining({
+        type: 'web-tour/check-step',
+        stepId: 'm1',
+        result: 'found',
+      })
+    );
+    // Next on the message lands on the switch, which a check run makes without a click.
+    await c.overlayAction(7, 0, 'next');
+    expect(h.navigated.at(-1)).toMatchObject({ tabId: 8, url: CLAUDE });
+    await c.committed(8, 0, CLAUDE);
+    await found(h, c, 8);
+    expect(h.posts).toContainEqual(
+      expect.objectContaining({
+        type: 'web-tour/check-step',
+        stepId: 'c1',
+        result: 'found',
+      })
+    );
+    expect(h.posts.filter((p) => p.type.startsWith('web-tour/step'))).toEqual(
+      []
+    );
+  });
+
+  it('keeps a stray site a wrong page in a one-site tour', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.historyChanged(7, 0, 'https://elsewhere.example/x');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'wrong-page' });
+    expect(h.lastRenderIn(7)).not.toHaveProperty('go');
+  });
+
+  it('crosses once when a check run presses Go on the message before a switch', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([step('g1', GEMINI), message('m1'), step('c1', CLAUDE)], true)
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ message: true, go: 'claude.ai' });
+    const opened = h.opened.length;
+    await c.overlayAction(7, 0, 'go');
+    expect(h.opened.length).toBe(opened + 1);
+    expect(await c.isPlaying(8)).toBe(true);
+    expect(await c.isPlaying(9)).toBe(false);
+  });
+
+  it('shows a message that follows a step whose action loaded the next page', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        message('m1'),
+        step('g2', 'https://gemini.google.com/gems/*'),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await found(h, c, 7);
+    // The new page commits before the click report arrives.
+    await c.committed(7, 0, 'https://gemini.google.com/gems/123');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'shown',
+      message: true,
+      current: 2,
+    });
+  });
+
+  it('shows a message after a link that crossed to the next site in the same tab', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([step('g1', GEMINI), message('m1'), step('c1', CLAUDE)])
+    );
+    await c.committed(7, 0, GEMINI);
+    await found(h, c, 7);
+    await c.committed(7, 0, CLAUDE);
+    expect(h.lastRenderIn(7)).toMatchObject({ message: true, current: 2 });
+    // Already on claude.ai, so the message keeps plain Next.
+    expect(h.lastRenderIn(7)).not.toHaveProperty('go');
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'seeking', current: 3 });
+  });
+
+  it('keeps wandering onto a later site a wrong page before the switch', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        step('g2', 'https://gemini.google.com/gems'),
+        step('c1', CLAUDE),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.historyChanged(7, 0, 'https://claude.ai/new');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'wrong-page',
+      current: 1,
+    });
+  });
+
+  it('offers Go back across a switch on Back', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(crossSite(threeSites()));
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    await c.overlayAction(7, 0, 'go');
+    await c.committed(8, 0, CLAUDE);
+    await c.overlayAction(8, 0, 'back');
+    expect(h.lastRenderIn(8)).toMatchObject({
+      status: 'switch',
+      go: 'gemini.google.com',
+      current: 1,
+    });
+  });
+
+  it('keeps a wrong page when the next site has no address Go can open', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([step('g1', GEMINI), step('w1', 'https://*.example.com/x')])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({ status: 'wrong-page' });
+    expect(h.lastRenderIn(7)).not.toHaveProperty('go');
+  });
+
+  it('offers Go to a site whose host has an underscore', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(
+      crossSite([
+        step('g1', GEMINI),
+        step('u1', 'https://my_lms.example.org/home'),
+      ])
+    );
+    await c.committed(7, 0, GEMINI);
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRenderIn(7)).toMatchObject({
+      status: 'switch',
+      go: 'my_lms.example.org',
+    });
+  });
+
+  it('never moves an armed run to a tab on a later site', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({
+      ...crossSite([step('g1', GEMINI), message('m1'), step('c1', CLAUDE)]),
+      stepIndex: 1,
+    });
+    h.clock.now += ARM_MS + 1;
+    await c.committed(9, 0, CLAUDE);
+    expect(await c.isPlaying(9)).toBe(false);
   });
 });

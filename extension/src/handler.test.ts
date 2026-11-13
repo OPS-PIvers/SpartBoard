@@ -22,7 +22,7 @@ describe('createExternalHandler', () => {
     const { handle } = handlerWith('none');
     await expect(handle({ type: 'ping' }, top)).resolves.toEqual({
       ok: true,
-      protocol: 13,
+      protocol: 14,
       version: '0.1.0',
       profile: 'none',
     });

@@ -1,13 +1,5 @@
-import React, {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import React, { useEffect, useRef, useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   collection,
   deleteDoc,
@@ -17,70 +9,85 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import {
-  ChevronDown,
-  ChevronRight,
-  Eye,
-  GraduationCap,
-  GripVertical,
-  Link2,
-  LifeBuoy,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { ExternalLink, Loader2, Plus, Search } from 'lucide-react';
 import { db } from '@/config/firebase';
+import { GETTING_STARTED_SETTINGS_DOC } from '@/config/gettingStarted';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useHelpResources } from '@/hooks/useHelpResources';
-import { useLiveTourSetIds } from '@/hooks/useGuidedLearning';
 import {
-  getToursVersion,
-  isTourRunnable,
-  watchTours,
-} from '@/components/tours/publishedTours';
+  loadBuildingSet,
+  useGuidedLearning,
+  useLiveTourSetIds,
+} from '@/hooks/useGuidedLearning';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useWebTourSites } from '@/components/tours/web/useWebTourSites';
-import { watchWebTourDrafts } from '@/components/tours/webTours';
-import type { GuidedLearningSet } from '@/types';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import {
-  SortableList,
-  type SortableListDragHandleProps,
-} from '@/components/common/SortableList';
-import { Toggle } from '@/components/common/Toggle';
-import { DEFAULT_HELP_CATEGORIES } from '@/types/helpCenter';
-import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
+  Btn,
+  CellPopover,
+  Select,
+} from '@/components/admin/Organization/components/primitives';
+import { Modal } from '@/components/common/Modal';
+import { TourStepList } from '@/components/tours/TourStepList';
+import { requestRecordTour } from '@/components/tours/tourState';
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
+import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import type { GuidedLearningSet } from '@/types';
+import {
+  DEFAULT_HELP_CATEGORIES,
+  HELP_PUBLISH_REFUSAL_TEXT,
+  isUnfiled,
+  type HelpCategory,
+  type HelpPublishRefusal,
+  type HelpResourceItem,
+} from '@/types/helpCenter';
+import {
+  copyHelpItemToLibrary,
+  createHiddenHelpItem,
+  hideHelpItem,
+  publishHelpItem,
+  publishRefusalOf,
+  type HelpAuthor,
+} from '@/utils/helpCenterItems';
 import { logError } from '@/utils/logError';
 import { isSuperAdminActor } from '@/utils/superAdmin';
-import { HelpCategoryEditor } from './HelpCategoryEditor';
-import { HelpItemForm } from './HelpItemForm';
-import { LinkedLibrarySets } from './LinkedLibrarySets';
-import { helpCenterSetIdsOf } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
+import { HelpCategoriesDialog } from './HelpCategoryEditor';
+import { HelpItemDetail, type ScopeOption } from './HelpItemDetail';
 import {
-  buildHelpItemCreatePayload,
-  buildHelpItemUpdatePayload,
+  HelpItemList,
+  type HelpListSection,
+  type HelpRowInfo,
+} from './HelpItemList';
+import { MoveFromLibraryDialog } from './MoveFromLibraryDialog';
+import { PictureGuideStudio } from './PictureGuideStudio';
+import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
+import { useHelpCenterSelection } from './helpCenterSelection';
+import { useHelpItemSets } from './useHelpItemSets';
+import { tourNeedsAttention } from './tourAttention';
+import {
   buildCategoriesPayload,
-  buildOrderPayload,
+  buildHelpItemFieldsPayload,
+  buildScopeMovePayload,
   buildSeedPayload,
-  buildVisibilityPayload,
   HELP_RESOURCES_COLLECTION,
+  newPictureGuide,
   nextOrderInCategory,
   sortCategories,
-  type HelpItemDraft,
+  type HelpItemFieldPatch,
 } from './helpCenterAdmin';
 
-const TourHealthPanel = lazy(() => import('./TourHealthPanel'));
+type ShowFilter = 'all' | 'hidden' | 'published' | 'attention' | 'unmapped';
 
-const UNCATEGORIZED: HelpCategory = {
-  id: '',
-  name: 'Uncategorized',
-  order: Number.MAX_SAFE_INTEGER,
-};
+const UNFILED_SECTION: HelpListSection = { id: '', name: 'Unfiled' };
+
+const byOrder = (a: HelpResourceItem, b: HelpResourceItem) =>
+  a.order - b.order || a.title.localeCompare(b.title);
+
+const message = (err: unknown) =>
+  err instanceof Error ? err.message : String(err);
 
 export const HelpCenterManager: React.FC = () => {
-  const { user, userRoles, orgId, roleId, canAccessWidget, canAccessFeature } =
+  const { user, userRoles, orgId, roleId, isAdmin, canAccessFeature } =
     useAuth();
   const { showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(
@@ -94,26 +101,36 @@ export const HelpCenterManager: React.FC = () => {
     categories,
     loading,
     error: hookError,
-  } = useHelpResources({
-    includeHidden: true,
-    allOrgs: isSuperAdmin,
-  });
+  } = useHelpResources({ includeHidden: true, allOrgs: isSuperAdmin });
   const { organizations } = useOrganizations();
   const { organization } = useOrganization(orgId);
-  const seededRef = useRef(false);
-
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<HelpResourceItem | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [sortByOpens, setSortByOpens] = useState(false);
-  const [tourHealthOpen, setTourHealthOpen] = useState(false);
-  const [webDrafts, setWebDrafts] = useState<GuidedLearningSet[] | null>(null);
-  const webToursOn = canAccessFeature('web-tours');
-  useEffect(
-    () => (webToursOn ? watchWebTourDrafts(setWebDrafts) : undefined),
-    [webToursOn]
+  const library = useGuidedLearning(user?.uid);
+  const tourSetIds = useLiveTourSetIds();
+  const sets = useHelpItemSets(
+    items.flatMap((item) =>
+      item.kind === 'guided-learning' && item.setId ? [item.setId] : []
+    ),
+    library.buildingSets
   );
+  const [selectedId, setSelectedId] = useHelpCenterSelection();
+
+  const [search, setSearch] = useState('');
+  const [show, setShow] = useState<ShowFilter>('all');
+  const [newOpen, setNewOpen] = useState(false);
+  const newButtonRef = useRef<HTMLSpanElement>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [phoneDetail, setPhoneDetail] = useState(false);
+  const [highlighted, setHighlighted] = useState<ReadonlySet<string>>(
+    new Set()
+  );
+  const [studio, setStudio] = useState<GuidedLearningSet | null>(null);
+  const [viewing, setViewing] = useState<GuidedLearningSet | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Sets filed during this Studio session, so an autosave never files one twice.
+  const filedRef = useRef(new Map<string, Promise<HelpResourceItem>>());
+  const seededRef = useRef(false);
 
   // Seed the shared category list once, so the first super admin to open the tab creates the config doc.
   useEffect(() => {
@@ -139,36 +156,190 @@ export const HelpCenterManager: React.FC = () => {
   if (organization) {
     orgNames.set(organization.id, organization.shortName || organization.name);
   }
+  const scopeLabel = (item: HelpResourceItem): string =>
+    item.orgId === null ? 'Everyone' : (orgNames.get(item.orgId) ?? item.orgId);
+  const scopeOptions: ScopeOption[] | null = isSuperAdmin
+    ? [
+        { id: '', label: 'Everyone' },
+        ...[...orgNames.entries()]
+          .map(([id, label]) => ({ id, label }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      ]
+    : null;
 
   const canPublish = isSuperAdmin || Boolean(orgId);
+  const author: HelpAuthor | null = user
+    ? {
+        uid: user.uid,
+        email: user.email,
+        orgId: orgId ?? null,
+        isSuperAdmin,
+      }
+    : null;
+  const webToursOn = isAdmin === true && canAccessFeature('web-tours');
   const orderedCategories = sortCategories(categories);
-  const hasCategories = orderedCategories.length > 0;
   // Rules allow a global item only for super admins and an org item only for that org's admins.
   const canWriteItem = (item: HelpResourceItem): boolean =>
     isSuperAdmin || (item.orgId !== null && item.orgId === orgId);
-  const sections = [...orderedCategories, UNCATEGORIZED].filter(
-    (category) =>
-      category.id !== '' || items.some((item) => item.categoryId === '')
-  );
-  const flatByOpens = [...items].sort((a, b) => b.openCount - a.openCount);
-  const helpCenterSetIds = helpCenterSetIdsOf(items);
-  const tourSetIds = useLiveTourSetIds();
-  // Rows show each linked tour's publish state, so a hidden draft doesn't look ready.
-  const linkedTourKey = [...helpCenterSetIds]
-    .filter((id) => tourSetIds.has(id))
-    .sort()
-    .join(',');
-  const watchLinkedTours = useCallback(
-    (onChange: () => void) =>
-      linkedTourKey
-        ? watchTours(linkedTourKey.split(','), onChange)
-        : () => undefined,
-    [linkedTourKey]
-  );
-  useSyncExternalStore(watchLinkedTours, getToursVersion, getToursVersion);
 
-  const scopeLabel = (item: HelpResourceItem): string =>
-    item.orgId === null ? 'Everyone' : (orgNames.get(item.orgId) ?? item.orgId);
+  const setOf = (
+    item: HelpResourceItem
+  ): GuidedLearningSet | null | undefined =>
+    item.setId ? (sets ? (sets.get(item.setId) ?? null) : undefined) : null;
+  const refusalOf = (
+    item: HelpResourceItem
+  ): HelpPublishRefusal | null | undefined => {
+    if (isUnfiled(item)) return 'unfiled';
+    const set = setOf(item);
+    return set === undefined ? undefined : publishRefusalOf(item, set);
+  };
+  const infoOf = (item: HelpResourceItem): HelpRowInfo => {
+    const set = setOf(item);
+    const tour =
+      !!item.setId &&
+      (tourSetIds.has(item.setId) || (!!set && isLiveTourSet(set)));
+    const refusal = refusalOf(item);
+    return {
+      kind: tour ? 'live-tour' : 'picture-guide',
+      published: item.visible,
+      attention:
+        (refusal !== null && refusal !== undefined) ||
+        (tour && !!set && tourNeedsAttention(set)),
+    };
+  };
+
+  const query = search.trim().toLowerCase();
+  const filtering = query !== '' || show !== 'all';
+  const shownItems = items.filter((item) => {
+    if (query && !item.title.toLowerCase().includes(query)) return false;
+    if (show === 'hidden') return !item.visible;
+    if (show === 'published') return item.visible;
+    if (show === 'attention') return infoOf(item).attention;
+    return true;
+  });
+  const known = new Set(orderedCategories.map((c) => c.id));
+  const orphanSections: HelpListSection[] = [
+    ...new Set(
+      items
+        .map((item) => item.categoryId)
+        .filter((id) => id !== '' && !known.has(id))
+    ),
+  ].map((id) => ({ id, name: id }));
+  const sections = [
+    UNFILED_SECTION,
+    ...orderedCategories,
+    ...orphanSections,
+  ].filter((section) => {
+    const count = shownItems.filter(
+      (item) => item.categoryId === section.id
+    ).length;
+    return count > 0 || (!filtering && section.id !== '');
+  });
+
+  const selected = items.find((item) => item.id === selectedId) ?? null;
+
+  const select = (id: string | null) => {
+    setSelectedId(id);
+    setHighlighted(new Set());
+    setNotice(null);
+    setPhoneDetail(id !== null);
+  };
+
+  const updateItem = (id: string, patch: HelpItemFieldPatch) =>
+    updateDoc(
+      doc(db, HELP_RESOURCES_COLLECTION, id),
+      buildHelpItemFieldsPayload(patch)
+    );
+
+  const handlePatch = async (
+    item: HelpResourceItem,
+    patch: HelpItemFieldPatch
+  ) => {
+    const next = { ...patch };
+    if (next.categoryId !== undefined && next.categoryId !== item.categoryId) {
+      next.order = nextOrderInCategory(items, next.categoryId);
+      // An Unfiled item can't be Published, so filing it away hides it.
+      if (next.categoryId === '' && item.visible) next.visible = false;
+    }
+    await updateItem(item.id, next);
+  };
+
+  // orgId is fixed once written, so a scope change recreates the item and drops the old one.
+  const handleScopeChange = async (
+    item: HelpResourceItem,
+    nextOrgId: string | null
+  ) => {
+    if (!user || nextOrgId === item.orgId) return;
+    const confirmed = await showConfirm(
+      `Move "${item.title}" to ${nextOrgId === null ? 'Everyone' : (orgNames.get(nextOrgId) ?? nextOrgId)}? Its open count starts again at 0 and links copied before the move stop working.`,
+      { confirmLabel: 'Move' }
+    );
+    if (!confirmed) return;
+    const ref = doc(collection(db, HELP_RESOURCES_COLLECTION));
+    const batch = writeBatch(db);
+    batch.set(
+      ref,
+      buildScopeMovePayload(item, { id: ref.id, orgId: nextOrgId, user })
+    );
+    batch.delete(doc(db, HELP_RESOURCES_COLLECTION, item.id));
+    // Getting Started points at items by id, so its entries follow the new one.
+    const gsRef = doc(db, 'admin_settings', GETTING_STARTED_SETTINGS_DOC);
+    const gs = (await getDoc(gsRef)).data() as
+      { tours?: { itemId?: unknown }[] } | undefined;
+    if (gs?.tours?.some((entry) => entry.itemId === item.id)) {
+      batch.update(gsRef, {
+        tours: gs.tours.map((entry) =>
+          entry.itemId === item.id ? { ...entry, itemId: ref.id } : entry
+        ),
+      });
+    }
+    await batch.commit();
+    setSelectedId(ref.id);
+  };
+
+  // Order values are shared with read-only items from other scopes, so the new
+  // numbers come from the merged category sequence, not the own-items index.
+  const handleMove = async (
+    itemId: string,
+    categoryId: string,
+    orderedIds: string[]
+  ) => {
+    const moved = items.find((item) => item.id === itemId);
+    if (!moved) return;
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const slots = items
+      .filter((item) => item.categoryId === categoryId && item.id !== itemId)
+      .concat(moved.categoryId === categoryId ? [moved] : [])
+      .sort(byOrder);
+    const queue = orderedIds.flatMap((id) => byId.get(id) ?? []);
+    let cursor = 0;
+    const merged = slots.map((slot) =>
+      canWriteItem(slot) ? (queue[cursor++] ?? slot) : slot
+    );
+    merged.push(...queue.slice(cursor));
+    try {
+      const batch = writeBatch(db);
+      let writes = 0;
+      merged.forEach((item, index) => {
+        if (!canWriteItem(item)) return;
+        const patch: HelpItemFieldPatch = {};
+        if (item.order !== index) patch.order = index;
+        if (item.id === itemId && item.categoryId !== categoryId) {
+          patch.categoryId = categoryId;
+          if (categoryId === '' && item.visible) patch.visible = false;
+        }
+        if (Object.keys(patch).length === 0) return;
+        batch.update(
+          doc(db, HELP_RESOURCES_COLLECTION, item.id),
+          buildHelpItemFieldsPayload(patch)
+        );
+        writes++;
+      });
+      if (writes > 0) await batch.commit();
+    } catch (err) {
+      setError(message(err));
+    }
+  };
 
   const saveCategories = async (next: HelpCategory[]) => {
     if (!user) return;
@@ -179,351 +350,234 @@ export const HelpCenterManager: React.FC = () => {
     );
   };
 
-  const handleSave = async (draft: HelpItemDraft) => {
-    if (!user) throw new Error('Not signed in.');
-    if (editing) {
-      await updateDoc(
-        doc(db, HELP_RESOURCES_COLLECTION, editing.id),
-        buildHelpItemUpdatePayload(draft)
+  // Its items become Unfiled first, so none is left Published under a missing category.
+  const deleteCategory = async (
+    category: HelpCategory,
+    rest: HelpCategory[]
+  ) => {
+    const orphans = items.filter((item) => item.categoryId === category.id);
+    if (orphans.length > 0) {
+      const batch = writeBatch(db);
+      let order = nextOrderInCategory(items, '');
+      orphans.forEach((item) =>
+        batch.update(
+          doc(db, HELP_RESOURCES_COLLECTION, item.id),
+          buildHelpItemFieldsPayload({
+            categoryId: '',
+            visible: false,
+            order: order++,
+          })
+        )
       );
-    } else {
-      const ref = doc(collection(db, HELP_RESOURCES_COLLECTION));
-      await setDoc(
-        ref,
-        buildHelpItemCreatePayload(draft, {
-          id: ref.id,
-          orgId: isSuperAdmin ? null : orgId,
-          user,
-          order: nextOrderInCategory(items, draft.categoryId),
-        })
-      );
+      await batch.commit();
     }
-    setFormOpen(false);
-    setEditing(null);
+    await saveCategories(rest);
+  };
+
+  const handlePublish = async (item: HelpResourceItem) => {
+    if (!user) return;
+    const result = await publishHelpItem(item, user.uid);
+    if (!result.ok) throw new Error(HELP_PUBLISH_REFUSAL_TEXT[result.reason]);
   };
 
   const handleDelete = async (item: HelpResourceItem) => {
-    const confirmed = await showConfirm(`Delete "${item.title}"?`);
-    if (!confirmed) return;
-    try {
-      await deleteDoc(doc(db, HELP_RESOURCES_COLLECTION, item.id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const handleToggleVisible = async (item: HelpResourceItem) => {
-    try {
-      await updateDoc(
-        doc(db, HELP_RESOURCES_COLLECTION, item.id),
-        buildVisibilityPayload(!item.visible)
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  // Order values are shared with read-only items from other scopes, so the new
-  // numbers must come from the merged section sequence, not the own-items index.
-  const handleReorder = async (
-    next: HelpResourceItem[],
-    sectionItems: HelpResourceItem[]
-  ) => {
-    try {
-      const slots = [...sectionItems].sort(
-        (a, b) => a.order - b.order || a.title.localeCompare(b.title)
-      );
-      let cursor = 0;
-      const merged = slots.map((slot) =>
-        canWriteItem(slot) ? next[cursor++] : slot
-      );
-      const batch = writeBatch(db);
-      merged.forEach((item, index) => {
-        if (item.order === index || !canWriteItem(item)) return;
-        batch.update(
-          doc(db, HELP_RESOURCES_COLLECTION, item.id),
-          buildOrderPayload(index)
-        );
-      });
-      await batch.commit();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const toggleCollapsed = (categoryId: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(categoryId)) next.delete(categoryId);
-      else next.add(categoryId);
-      return next;
+    const confirmed = await showConfirm(`Delete "${item.title}"?`, {
+      variant: 'danger',
+      confirmLabel: 'Delete',
     });
-
-  // Web tours left the Help Center, so an item that still links one is hidden from teachers.
-  const webSites = useWebTourSites(
-    items.flatMap((item) =>
-      item.kind === 'guided-learning' &&
-      item.setId &&
-      !tourSetIds.has(item.setId)
-        ? [item.setId]
-        : []
-    )
-  );
-  const linksWebTour = (item: HelpResourceItem): boolean =>
-    item.kind === 'guided-learning' &&
-    !!item.setId &&
-    (webSites.has(item.setId) ||
-      !!webDrafts?.some((set) => set.id === item.setId));
-
-  // Undefined while loading or when the item links no live tour.
-  const tourStateOf = (
-    item: HelpResourceItem
-  ): 'draft' | 'hidden' | 'live' | undefined => {
-    if (item.kind !== 'guided-learning' || !item.setId) return undefined;
-    if (!tourSetIds.has(item.setId)) return undefined;
-    const runnable = isTourRunnable(item.setId, canAccessWidget);
-    if (runnable === undefined) return undefined;
-    if (!runnable) return 'draft';
-    return item.visible ? 'live' : 'hidden';
+    if (!confirmed) return;
+    await deleteDoc(doc(db, HELP_RESOURCES_COLLECTION, item.id));
+    select(null);
   };
 
-  const TOUR_NEXT_STEP = {
-    draft:
-      'Not published yet: press Edit, then Edit activity, then Publish tour in Settings.',
-    hidden: 'Published: turn on Visible so teachers can find it in Help.',
-  } as const;
-
-  const renderTourStatus = (state: 'draft' | 'hidden' | 'live') => {
-    const ready = state === 'live';
-    return (
-      <span
-        className={`px-2 py-0.5 rounded-full text-xs shrink-0 ${
-          ready
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-amber-50 text-amber-800'
-        }`}
-      >
-        {state === 'draft'
-          ? 'Live tour · Draft'
-          : state === 'hidden'
-            ? 'Live tour · Hidden'
-            : 'Live tour · Live'}
-      </span>
-    );
+  const handleEdit = async (item: HelpResourceItem) => {
+    if (!item.setId) return;
+    if (infoOf(item).kind === 'live-tour') {
+      requestEditTour({ setId: item.setId, origin: 'help-center' });
+      return;
+    }
+    try {
+      const full = await loadBuildingSet(item.setId);
+      if (!full) setError(HELP_PUBLISH_REFUSAL_TEXT['missing-set']);
+      else setStudio({ ...full, isBuilding: true });
+    } catch (err) {
+      setError(message(err));
+    }
   };
 
-  // handle is null where rows are not draggable; canWrite gates the edit controls independently.
-  const renderRow = (
-    item: HelpResourceItem,
-    handle: SortableListDragHandleProps | null,
-    canWrite: boolean
-  ) => {
-    const tourState = tourStateOf(item);
-    const webLinked = linksWebTour(item);
-    return (
-      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-2">
-        {handle ? (
-          <button
-            type="button"
-            aria-label={`Reorder ${item.title}`}
-            className="text-slate-400 cursor-grab"
-            {...handle.attributes}
-            {...handle.listeners}
-          >
-            <GripVertical className="w-4 h-4" />
-          </button>
-        ) : (
-          <span className="w-4 h-4 shrink-0" aria-hidden="true" />
-        )}
-        {item.kind === 'embed' ? (
-          <Link2 className="w-4 h-4 text-slate-500" />
-        ) : (
-          <GraduationCap className="w-4 h-4 text-slate-500" />
-        )}
-        <span className="flex-1 min-w-0">
-          <span className="block text-sm text-slate-900 truncate">
-            {item.title}
-          </span>
-          {item.description && (
-            <span className="block text-xs text-slate-500 truncate">
-              {item.description}
-            </span>
-          )}
-          {webLinked && (
-            <span
-              data-testid="help-item-web-linked"
-              className="flex items-center gap-2 text-xs text-amber-800"
-            >
-              Hidden: web tours no longer show in Help.
-              {canWrite && (
-                <>
-                  <button
-                    type="button"
-                    className="font-semibold underline"
-                    {...tourFieldAttr(
-                      'admin.help-center.item-web-change',
-                      'help',
-                      item.id
-                    )}
-                    onClick={() => {
-                      setEditing(item);
-                      setFormOpen(true);
-                    }}
-                  >
-                    Change
-                  </button>
-                  <button
-                    type="button"
-                    className="font-semibold text-red-700 underline"
-                    {...tourFieldAttr(
-                      'admin.help-center.item-web-remove',
-                      'help',
-                      item.id
-                    )}
-                    onClick={() => void handleDelete(item)}
-                  >
-                    Remove
-                  </button>
-                </>
-              )}
-            </span>
-          )}
-          {(tourState === 'draft' || tourState === 'hidden') && (
-            <span className="block text-xs text-amber-800">
-              {TOUR_NEXT_STEP[tourState]}
-            </span>
-          )}
-        </span>
-        {tourState && renderTourStatus(tourState)}
-        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs shrink-0">
-          {scopeLabel(item)}
-        </span>
-        <span className="flex items-center gap-1 text-xs text-slate-500 shrink-0">
-          <Eye className="w-3.5 h-3.5" />
-          {item.openCount}
-        </span>
-        {canWrite ? (
-          <>
-            <Toggle
-              checked={item.visible && !webLinked}
-              disabled={webLinked}
-              onChange={() => void handleToggleVisible(item)}
-              anchor={tourFieldAttr(
-                'admin.help-center.item-toggle',
-                'help',
-                item.id
-              )}
-              label={
-                webLinked
-                  ? `Visible: ${item.title} (off: web tours no longer show in Help)`
-                  : `Visible: ${item.title}`
-              }
-              size="sm"
-              showLabels={false}
-            />
-            <button
-              type="button"
-              aria-label={`Edit ${item.title}`}
-              {...tourFieldAttr('admin.help-center.item-edit', 'help', item.id)}
-              onClick={() => {
-                setEditing(item);
-                setFormOpen(true);
-              }}
-              className="text-slate-400 hover:text-slate-900"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete ${item.title}`}
-              {...tourFieldAttr(
-                'admin.help-center.item-delete',
-                'help',
-                item.id
-              )}
-              onClick={() => void handleDelete(item)}
-              className="text-slate-400 hover:text-red-600"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </>
-        ) : (
-          <span className="text-xs text-slate-400 shrink-0">Read only</span>
-        )}
-      </div>
-    );
+  const handleCopyToLibrary = async (item: HelpResourceItem) => {
+    if (!user) return;
+    await copyHelpItemToLibrary(item, user.uid, library.saveSet);
+    setNotice('Copied to your library.');
+  };
+
+  // A new Picture guide is filed on its first save, so closing an empty one leaves nothing behind.
+  const handleStudioSave = async (set: GuidedLearningSet) => {
+    await library.saveBuildingSet(set);
+    if (!author) return;
+    if (items.some((item) => item.setId === set.id)) return;
+    let filing = filedRef.current.get(set.id);
+    if (!filing) {
+      filing = createHiddenHelpItem(set, author);
+      filedRef.current.set(set.id, filing);
+      // A failed filing is forgotten, so the next save tries again.
+      const item = await filing.catch((err: unknown) => {
+        filedRef.current.delete(set.id);
+        throw err;
+      });
+      select(item.id);
+    }
+  };
+
+  const startPictureGuide = () => {
+    setNewOpen(false);
+    setStudio(newPictureGuide(user?.uid));
+  };
+
+  const newMenu = [
+    {
+      label: 'Record a Live tour',
+      anchor: tourAttr('admin.help-center.new-record-tour'),
+      onClick: () => {
+        setNewOpen(false);
+        requestRecordTour('help-center');
+      },
+    },
+    {
+      label: 'Move from library',
+      anchor: tourAttr('admin.help-center.new-move'),
+      onClick: () => {
+        setNewOpen(false);
+        setMoveOpen(true);
+      },
+    },
+    {
+      label: 'New Picture guide',
+      anchor: tourAttr('admin.help-center.new-picture-guide'),
+      onClick: startPictureGuide,
+    },
+  ];
+
+  const handleMenuKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const buttons = [
+      ...e.currentTarget.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]'
+      ),
+    ];
+    const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    const step = e.key === 'ArrowDown' ? 1 : -1;
+    buttons[(at + step + buttons.length) % buttons.length]?.focus();
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-            <LifeBuoy className="w-5 h-5 text-brand-blue-primary" />
-            Help Center
-          </h2>
-          <p className="text-sm text-slate-500">
-            Guides teachers see in the Help modal.
-          </p>
+    <div className="space-y-4 pb-6">
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-900">Help Center</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {webToursOn && (
+              <a
+                href="/web-tours"
+                target="_blank"
+                rel="noopener"
+                {...tourAttr('admin.help-center.web-tours-link')}
+                className="flex h-11 items-center gap-1 px-2 text-sm font-semibold text-slate-600 hover:text-slate-900 hover:underline"
+              >
+                Web tours
+                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+              </a>
+            )}
+            {isSuperAdmin && (
+              <Btn
+                size="lg"
+                className="h-11!"
+                onClick={() => setCategoriesOpen(true)}
+                {...tourAttr('admin.help-center.categories')}
+              >
+                Categories
+              </Btn>
+            )}
+            <span ref={newButtonRef} className="inline-flex">
+              <Btn
+                variant="primary"
+                size="lg"
+                className="h-11!"
+                aria-haspopup="menu"
+                aria-expanded={newOpen}
+                disabled={!canPublish || !author}
+                onClick={() => setNewOpen((open) => !open)}
+                {...tourAttr('admin.help-center.add-item')}
+                icon={<Plus className="w-4 h-4" aria-hidden="true" />}
+              >
+                New
+              </Btn>
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-pressed={sortByOpens}
-            {...tourAttr('admin.help-center.sort-by-opens')}
-            onClick={() => setSortByOpens((prev) => !prev)}
-            className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm ${
-              sortByOpens
-                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                : 'bg-white text-slate-600 border-slate-200'
-            }`}
-          >
-            <Eye className="w-4 h-4" />
-            Sort by opens
-          </button>
-          <button
-            type="button"
-            disabled={!canPublish || !hasCategories}
-            {...tourAttr('admin.help-center.add-item')}
-            onClick={() => {
-              setEditing(null);
-              setFormOpen(true);
-            }}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-brand-blue-primary text-white text-sm disabled:opacity-50"
-          >
-            <Plus className="w-4 h-4" />
-            Add item
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-48 flex-1">
+            <Search
+              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search"
+              aria-label="Search help items"
+              {...tourAttr('admin.help-center.search')}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm focus:outline-hidden focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            Show
+            <Select
+              aria-label="Show"
+              value={show}
+              onChange={(e) => setShow(e.target.value as ShowFilter)}
+              {...tourAttr('admin.help-center.show')}
+              className="h-11! w-auto!"
+            >
+              <option value="all">All</option>
+              <option value="hidden">Hidden</option>
+              <option value="published">Published</option>
+              <option value="attention">Needs attention</option>
+              <option value="unmapped">Unmapped controls</option>
+            </Select>
+          </label>
         </div>
       </header>
 
-      {canPublish && !hasCategories && (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          No categories yet. A super admin needs to open this tab first.
-        </p>
-      )}
+      <CellPopover
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        anchorRef={newButtonRef}
+        className="w-56"
+      >
+        <div role="menu" aria-label="New" onKeyDown={handleMenuKey}>
+          {newMenu.map((entry, index) => (
+            <button
+              key={entry.label}
+              type="button"
+              role="menuitem"
+              autoFocus={index === 0}
+              onClick={entry.onClick}
+              {...entry.anchor}
+              className="flex h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-hidden"
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      </CellPopover>
 
       {!canPublish && (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          You must belong to an organization to publish help items.
+        <p className="text-sm text-amber-800">
+          You must belong to an organization to add help items.
         </p>
-      )}
-
-      {isSuperAdmin ? (
-        <HelpCategoryEditor
-          categories={orderedCategories}
-          items={items}
-          onSave={saveCategories}
-        />
-      ) : (
-        <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-          <h3 className="text-sm font-semibold text-slate-900 mb-1">
-            Categories
-          </h3>
-          <p className="text-sm text-slate-500">
-            {orderedCategories.map((c) => c.name).join(' · ')}
-          </p>
-        </div>
       )}
 
       {(error ?? hookError) && (
@@ -532,143 +586,118 @@ export const HelpCenterManager: React.FC = () => {
         </p>
       )}
 
-      {loading ? (
+      {show === 'unmapped' ? (
+        <UnmappedAnchorsSection />
+      ) : loading ? (
         <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
           Loading help items...
         </div>
-      ) : sortByOpens ? (
-        <div className="border border-slate-200 rounded-lg p-3 space-y-1">
-          {flatByOpens.length === 0 && (
-            <p className="text-sm text-slate-500">No items yet.</p>
-          )}
-          {flatByOpens.map((item) => (
-            <div key={item.id}>{renderRow(item, null, canWriteItem(item))}</div>
-          ))}
-        </div>
       ) : (
-        <div className="space-y-3">
-          {sections.map((category) => {
-            const sectionItems = items.filter(
-              (item) => item.categoryId === category.id
-            );
-            const isCollapsed = collapsed.has(category.id);
-            const ownItems = sectionItems.filter(canWriteItem);
-            const readOnlyItems = sectionItems.filter(
-              (item) => !canWriteItem(item)
-            );
-            const categoryOpens = sectionItems.reduce(
-              (sum, item) => sum + item.openCount,
-              0
-            );
-            return (
-              <section
-                key={category.id || 'uncategorized'}
-                className="border border-slate-200 rounded-lg"
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleCollapsed(category.id)}
-                  aria-expanded={!isCollapsed}
-                  {...tourFieldAttr(
-                    'admin.help-center.category-toggle',
-                    'help',
-                    category.id || 'uncategorized'
-                  )}
-                  className="w-full flex items-center justify-between px-3 py-2 text-left"
-                >
-                  <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    {isCollapsed ? (
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    )}
-                    {category.name}
-                  </span>
-                  <span className="flex items-center gap-2 text-xs text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-3.5 h-3.5" />
-                      {categoryOpens}
-                    </span>
-                    {sectionItems.length} item
-                    {sectionItems.length === 1 ? '' : 's'}
-                  </span>
-                </button>
-                {!isCollapsed && (
-                  <div className="px-3 pb-3 space-y-1">
-                    {sectionItems.length === 0 && (
-                      <p className="text-sm text-slate-500">
-                        No items in this category yet.
-                      </p>
-                    )}
-                    {readOnlyItems.map((item) => (
-                      <div key={item.id}>{renderRow(item, null, false)}</div>
-                    ))}
-                    {ownItems.length > 0 && (
-                      <SortableList
-                        items={ownItems}
-                        getId={(item) => item.id}
-                        onReorder={(next) =>
-                          void handleReorder(next, sectionItems)
-                        }
-                        className="space-y-1"
-                        renderItem={(item, handle) =>
-                          renderRow(item, handle, true)
-                        }
-                      />
-                    )}
-                  </div>
-                )}
-              </section>
-            );
-          })}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+          <div className={phoneDetail && selected ? 'hidden md:block' : ''}>
+            {items.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No help items yet. Press New to add one.
+              </p>
+            ) : sections.length === 0 ? (
+              <p className="text-sm text-slate-500">No matching items.</p>
+            ) : (
+              <HelpItemList
+                sections={sections}
+                items={shownItems}
+                draggable={!filtering}
+                canWrite={canWriteItem}
+                infoOf={infoOf}
+                selectedId={selectedId}
+                highlighted={highlighted}
+                onSelect={select}
+                onMove={(id, categoryId, ids) =>
+                  void handleMove(id, categoryId, ids)
+                }
+              />
+            )}
+          </div>
+          <div
+            className={`self-start md:sticky md:top-0 ${phoneDetail && selected ? '' : 'hidden md:block'}`}
+          >
+            {notice && (
+              <p role="status" className="pb-3 text-sm text-emerald-700">
+                {notice}
+              </p>
+            )}
+            {selected ? (
+              <HelpItemDetail
+                key={selected.id}
+                item={selected}
+                info={infoOf(selected)}
+                set={setOf(selected)}
+                refusal={refusalOf(selected)}
+                categories={orderedCategories}
+                canWrite={canWriteItem(selected)}
+                scopeLabel={scopeLabel(selected)}
+                scopeOptions={scopeOptions}
+                onBack={() => setPhoneDetail(false)}
+                onPatch={(patch) => handlePatch(selected, patch)}
+                onScopeChange={(next) => handleScopeChange(selected, next)}
+                onEdit={() => void handleEdit(selected)}
+                onViewSteps={() => setViewing(setOf(selected) ?? null)}
+                onCopyToLibrary={() => handleCopyToLibrary(selected)}
+                onPublish={() => handlePublish(selected)}
+                onHide={() => hideHelpItem(selected)}
+                onDelete={() => handleDelete(selected)}
+              />
+            ) : (
+              items.length > 0 && (
+                <p className="text-sm text-slate-500">Select an item.</p>
+              )
+            )}
+          </div>
         </div>
       )}
 
-      {!loading && (
-        <LinkedLibrarySets linkedSetIds={helpCenterSetIds} onError={setError} />
+      {moveOpen && author && (
+        <MoveFromLibraryDialog
+          library={library}
+          items={items}
+          author={author}
+          onClose={() => setMoveOpen(false)}
+          onMoved={(ids) => {
+            setMoveOpen(false);
+            select(ids[0] ?? null);
+            setHighlighted(new Set(ids));
+          }}
+        />
       )}
 
-      <section className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">
-        <button
-          type="button"
-          aria-expanded={tourHealthOpen}
-          {...tourAttr('admin.help-center.tour-health-toggle')}
-          onClick={() => setTourHealthOpen((open) => !open)}
-          className="flex items-center gap-1 text-sm font-semibold text-slate-900"
-        >
-          {tourHealthOpen ? (
-            <ChevronDown className="w-4 h-4" aria-hidden="true" />
-          ) : (
-            <ChevronRight className="w-4 h-4" aria-hidden="true" />
-          )}
-          Live tour health
-        </button>
-        {tourHealthOpen && (
-          <Suspense
-            fallback={
-              <Loader2
-                className="w-4 h-4 animate-spin text-slate-500"
-                aria-hidden="true"
-              />
-            }
-          >
-            <TourHealthPanel />
-          </Suspense>
-        )}
-      </section>
-
-      {formOpen && (
-        <HelpItemForm
-          key={editing?.id ?? 'new'}
-          isOpen={formOpen}
-          editing={editing}
+      {categoriesOpen && isSuperAdmin && (
+        <HelpCategoriesDialog
           categories={orderedCategories}
-          onClose={() => {
-            setFormOpen(false);
-            setEditing(null);
-          }}
-          onSave={handleSave}
+          items={items}
+          onSave={saveCategories}
+          onDelete={deleteCategory}
+          onClose={() => setCategoriesOpen(false)}
+        />
+      )}
+
+      {viewing && (
+        <Modal
+          isOpen
+          onClose={() => setViewing(null)}
+          title={viewing.title || 'Steps'}
+          maxWidth="max-w-2xl"
+          className="max-h-[88vh]"
+          contentClassName="px-6 pb-6 overflow-y-auto"
+        >
+          <TourStepList set={viewing} />
+        </Modal>
+      )}
+
+      {studio && (
+        <PictureGuideStudio
+          set={studio}
+          onSave={handleStudioSave}
+          onClose={() => setStudio(null)}
         />
       )}
     </div>

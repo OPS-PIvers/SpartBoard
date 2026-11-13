@@ -21,6 +21,8 @@ import {
 } from '@/components/tours/steps/previewMeasure';
 import type { WebStep } from './webEditorModel';
 import { stagePlacement, stageScale } from './pictureTarget';
+import { WebMessageStage } from './WebMessageStage';
+import { isMessageStep } from './tourSequence';
 
 /** A picture tool's layer over the stage picture, given the picture's box as shown. */
 export interface StageEditing {
@@ -120,6 +122,8 @@ export const WebPictureStage: React.FC<{
             Record steps on the website to start.
           </p>
         </div>
+      ) : isMessageStep(step) ? (
+        <WebMessageStage step={step} index={index} total={total} />
       ) : !picture ? (
         <StageMessage
           title="No picture for this step"

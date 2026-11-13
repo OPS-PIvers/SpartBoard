@@ -84,6 +84,8 @@ The result lists it in `inserted_steps`, with the id of the step it went before.
 
 **Positions in a list.** A row in the teacher's own library (`#row-1`) points at whatever sits there on their board, so use it only in a tour with materials. Menu items (`#item-2`) and Help Center rows are the same for everyone.
 
+**Whichever row the teacher picks.** An anchor with `row_wildcard` also takes `#row-*`, such as `plcs.open-plc:plcs#row-*`: the step lights every row and moves on when the teacher clicks any of them, so the tour works on their own teams, classes or library items without materials. That click opens the row's panel for later steps, Autopilot clicks the first row, and a click that `persists` stays with the teacher. A teacher whose list is empty skips the step. The text can't know which row they'll pick, so word it and every step after it generically: "Click one of your teams.", not "Click **Grade 6 Math**." Destructive anchors never take `#row-*`.
+
 ## Staging
 
 - `tour_widgets`: widget types on the board when the tour starts. The runner clears the stage (the teacher's widgets step aside) and adds these. A widget the tour adds from the Dock (`dock.item:<type>`) doesn't belong here.
@@ -146,6 +148,7 @@ Write for a busy teacher reading a small card on a projected board.
 `dry_run` reports what playback would hit. **Errors refuse the save:**
 
 - an anchor that isn't registered, a per-type or per-field ref without its suffix, or a suffix that isn't one of its `keys` or doesn't match its `key_pattern`
+- `#row-*` on an anchor without `row_wildcard`, or on a destructive one
 - `select` on a control that isn't a choice: a cycle button, a switch, or a text, number or list field
 - a control on a panel no earlier step opens (the error lists the clicks from the board)
 - a widget control when that widget isn't staged or added from the Dock first
@@ -155,7 +158,7 @@ Write for a busy teacher reading a small card on a projected board.
 
 **Warnings save but need a look:**
 
-- a step without text, a step without an anchor, a row in the teacher's own list outside a tour with materials, a click Autopilot hands back because it changes the teacher's real account, a `type` or `select` step with no `value` (fine when the answer is the teacher's own, like a calendar ID), a `slot` that no layout or earlier `spawns` binds, and a tour shorter than 3 or longer than 15 steps
+- a step without text, a step without an anchor, a row in the teacher's own list outside a tour with materials, a `#row-*` step (the teacher's list can be empty), a click Autopilot hands back because it changes the teacher's real account, a `type` or `select` step with no `value` (fine when the answer is the teacher's own, like a calendar ID), a `slot` that no layout or earlier `spawns` binds, and a tour shorter than 3 or longer than 15 steps
 - voice: text over 30 words, an em dash, a "Tip:" or "Note:" prefix, "simply", "just" or "easily"; a label under 2 or over 5 words, or one starting with "a", "an", "the", "your" or "this"
 - staging: a widget in `tour_widgets` that a step also adds with `dock.item` (the board ends up with two), a staged widget no step points at (unless every step observes `board.whole`), and a material no step opens
 - panels: a step inside a panel an earlier step closed (with its **Close**, **Cancel** or **Save** button) when no step opens it again, and settings steps on two different widgets back to back, which makes the runner shut the first drawer with no step showing it
@@ -200,7 +203,11 @@ When the admin has played the tour or left notes ("finish the tour", "I played i
 
 ## Web tours
 
-A web tour plays on another website through the SpartBoard Chrome extension. An admin records it; Claude can only finish its words. Find it with `list_web_tours`, read it with `get_web_tour`, look at each step with `get_web_tour_step_picture`, then save new titles and tips with `update_web_tour_text`. Write each tip for what the picture shows, in the same voice as a live tour. Read the tour's `goal` and each step's `note` first: they are the admin's words for why the tour and the step exist. When you still can't tell why a step happens, ask the admin in chat rather than guess. Claude can't change where a step points, re-record, reorder or publish: hand those back to the admin, who publishes in SpartBoard.
+A web tour plays on another website through the SpartBoard Chrome extension. An admin records it; Claude finishes it. Find it with `list_web_tours`, read it with `get_web_tour`, look at each step with `get_web_tour_step_picture`, then save new titles and tips with `update_web_tour_text`. Write each tip for what the picture shows, in the same voice as a live tour. Read the tour's `goal` and each step's `note` first: they are the admin's words for why the tour and the step exist. When you still can't tell why a step happens, ask the admin in chat rather than guess.
+
+Each step is `recorded` (it points at a control on a page and has a picture) or a `message` (its `kind`). A **Message step** says something without pointing at anything: a centered tip with a title and text, no picture, shown on whatever page the teacher is on. Use one for an opening, a closing, or a word before the tour moves to another site. A tour can cross sites: wherever the next recorded step is on another website (another `url_pattern` host), the extension shows "Next we continue on claude.ai" with a **Go to claude.ai** button and follows the teacher to the new tab. That **Site switch** is automatic and its wording is fixed; a Message step just before it gets the Go button instead of Next, so it is the place for the author's own words about the move.
+
+`update_web_tour_steps` takes the whole new step list in play order: `{ "id": "..." }` keeps a step (with an optional new `title` or `tip`), `{ "new_message": true, "title": "...", "tip": "..." }` adds a Message step, and any step left out is removed, recorded steps included. Use it to drop a duplicate click, reorder steps, or add the messages the admin asks for. In the finish pass, add no intro, outro or switch message unless the admin asks for one. A tour needs at least one recorded step to publish. Every call keeps the whole old list, targets and pictures included, so `restore_revision` puts back a removed recorded step exactly. Claude can't record a step, change where one points, or publish: hand those back to the admin, who publishes in SpartBoard.
 
 A step that missed or matched weakly when someone played the tour may carry a `suggested_fix`: the clues the extension found on the page instead, which clues differ from the step's (`changed`), where they came from (`check` for the admin's Check tour, `admin` for an admin's own run, `teacher` once at least two teachers' runs agree) and how many `runs` found them. A fix never carries words from the page it was found on or its page title, since those can name a student: its name, text and heading are the step's own. Compare it with the step's `locator` and its picture, and tell the admin which fixes look right and why. Claude can't use a fix: the admin presses **Use this fix** on the step in SpartBoard, checks the tour again and republishes. `update_web_tour_text` never changes a step's clues.
 

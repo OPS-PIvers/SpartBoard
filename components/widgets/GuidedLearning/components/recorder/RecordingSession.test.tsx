@@ -16,6 +16,9 @@ import { RecordingSession } from './RecordingSession';
 import type { NameMatcher } from './redaction';
 import type { TourRecording } from './useTourCapture';
 import type { UnmappedQueueEntry } from '@/components/tours/anchorQueue';
+import type { TourEditRequest } from '@/components/tours/editor/tourEditStore';
+import { HELP_CENTER_OPEN_EVENT } from '@/components/tours/tourState';
+import { takeFiledHelpItem } from '@/components/tours/helpCenterReturn';
 
 const h = vi.hoisted(() => ({
   upload: vi.fn(),
@@ -25,13 +28,20 @@ const h = vi.hoisted(() => ({
   recording: null as TourRecording | null,
   enqueue: vi.fn(),
   edits: [] as string[],
+  editRequests: [] as TourEditRequest[],
   aiAllowed: true,
+  orgId: null as string | null,
+  createItem: vi.fn(),
+  toast: vi.fn(),
 }));
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    user: { uid: 'admin-1' },
+    user: { uid: 'admin-1', email: 'admin@school.org' },
     canAccessFeature: () => h.aiAllowed,
+    userRoles: { superAdmins: [] },
+    roleId: 'admin',
+    orgId: h.orgId,
   }),
 }));
 vi.mock('@/context/useDialog', () => ({
@@ -67,12 +77,21 @@ vi.mock('./TourRecorder', () => ({
   },
 }));
 vi.mock('@/components/tours/editor/tourEditStore', () => ({
-  requestEditTour: (req: { setId: string }) => h.edits.push(req.setId),
+  requestEditTour: (req: TourEditRequest) => {
+    h.edits.push(req.setId);
+    h.editRequests.push(req);
+  },
+}));
+vi.mock('@/utils/helpCenterItems', () => ({
+  createHiddenHelpItem: h.createItem,
 }));
 
 const frames = [new Blob(['blurred one']), new Blob(['blurred two'])];
 
 const dashboard = {
+  addToast: (...args: unknown[]) => {
+    h.toast(...args);
+  },
   rosters: [
     {
       id: 'r1',
@@ -119,10 +138,13 @@ const expectEditorOpened = async (title: string, drafted: number) => {
   expect(saved.steps.filter((s) => s.aiDraft)).toHaveLength(drafted);
 };
 
-const renderSession = (onEnd = vi.fn()) => {
+const renderSession = (
+  onEnd = vi.fn(),
+  origin: 'widget' | 'help-center' = 'widget'
+) => {
   render(
     <DashboardContext.Provider value={dashboard}>
-      <RecordingSession onEnd={onEnd} />
+      <RecordingSession onEnd={onEnd} origin={origin} />
     </DashboardContext.Provider>
   );
   return onEnd;
@@ -130,6 +152,13 @@ const renderSession = (onEnd = vi.fn()) => {
 
 beforeEach(() => {
   h.edits = [];
+  h.editRequests = [];
+  h.orgId = 'org-1';
+  h.toast.mockReset();
+  h.createItem.mockReset();
+  h.createItem.mockImplementation((set: GuidedLearningSet) =>
+    Promise.resolve({ id: `item-${set.id}`, setId: set.id })
+  );
   h.upload.mockReset();
   h.upload.mockImplementation((_uid: string, file: File) =>
     Promise.resolve({
@@ -393,6 +422,98 @@ describe('RecordingSession', () => {
     expect(saved.steps[0]).toMatchObject({
       id: 'step-1',
       tour: { thumbnail: { url: 'https://storage.example/tour-step-1.png' } },
+    });
+  });
+
+  describe('Help Center filing (H1, H13)', () => {
+    const finishAndUpload = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: 'Upload and open' })
+        );
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(h.edits).toHaveLength(1));
+      return h.save.mock.calls[0][0] as GuidedLearningSet;
+    };
+
+    it('files a widget recording as a hidden item for the author and carries the origin to the editor', async () => {
+      renderSession();
+      const saved = await finishAndUpload();
+      expect(saved.helpCenter).toBe(true);
+      expect(h.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: saved.id }),
+        {
+          uid: 'admin-1',
+          email: 'admin@school.org',
+          orgId: 'org-1',
+          isSuperAdmin: false,
+        }
+      );
+      expect(h.editRequests[0]).toEqual({ setId: saved.id, origin: 'widget' });
+      expect(takeFiledHelpItem(saved.id)).toBe(`item-${saved.id}`);
+      expect(h.toast).not.toHaveBeenCalled();
+    });
+
+    it('carries a Help Center start to the editor so Done goes back there', async () => {
+      renderSession(vi.fn(), 'help-center');
+      const saved = await finishAndUpload();
+      expect(h.editRequests[0]).toEqual({
+        setId: saved.id,
+        origin: 'help-center',
+      });
+      takeFiledHelpItem(saved.id);
+    });
+
+    it('keeps the saved tour and says why when an org admin has no organization', async () => {
+      h.orgId = null;
+      renderSession();
+      const saved = await finishAndUpload();
+      expect(h.createItem).not.toHaveBeenCalled();
+      expect(h.toast).toHaveBeenCalledWith(
+        'The tour is saved, but you need an organization to add it to the Help Center.',
+        'error'
+      );
+      expect(h.editRequests[0].setId).toBe(saved.id);
+      expect(takeFiledHelpItem(saved.id)).toBeUndefined();
+    });
+
+    it('still opens the editor when filing the item fails', async () => {
+      h.createItem.mockRejectedValue(new Error('denied'));
+      renderSession();
+      await finishAndUpload();
+      expect(h.toast).toHaveBeenCalledWith(
+        "The tour is saved, but it couldn't be added to the Help Center.",
+        'error'
+      );
+    });
+
+    it('goes back to the Help Center when a Help Center start is cancelled', () => {
+      const opened = vi.fn();
+      window.addEventListener(HELP_CENTER_OPEN_EVENT, opened);
+      try {
+        const onEnd = renderSession(vi.fn(), 'help-center');
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(onEnd).toHaveBeenCalled();
+        expect(opened).toHaveBeenCalledTimes(1);
+      } finally {
+        window.removeEventListener(HELP_CENTER_OPEN_EVENT, opened);
+      }
+    });
+
+    it('ends on the board when a widget start is cancelled', () => {
+      const opened = vi.fn();
+      window.addEventListener(HELP_CENTER_OPEN_EVENT, opened);
+      try {
+        renderSession();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(opened).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener(HELP_CENTER_OPEN_EVENT, opened);
+      }
     });
   });
 });

@@ -12,7 +12,11 @@ import { db, isConfigured } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { AuthContext } from '@/context/AuthContextValue';
 import type { WidgetType } from '@/types';
-import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
+import {
+  isUnfiled,
+  type HelpCategory,
+  type HelpResourceItem,
+} from '@/types/helpCenter';
 import {
   normalizeHelpCenterConfig,
   normalizeHelpResourceItem,
@@ -37,6 +41,10 @@ export interface UseHelpResourcesResult {
   loading: boolean;
   error: string | null;
 }
+
+/** What teachers may see: Published, filed, and not a retired embed (H8, H16). */
+export const isTeacherFacingHelpItem = (item: HelpResourceItem): boolean =>
+  item.visible !== false && !isUnfiled(item) && item.kind !== 'embed';
 
 const mergeById = (
   globalItems: HelpResourceItem[],
@@ -176,7 +184,7 @@ export const useHelpResources = ({
   const merged = allOrgs ? allItems : mergeById(globalItems, effectiveOrgItems);
   const visible = includeHidden
     ? merged
-    : merged.filter((item) => item.visible !== false);
+    : merged.filter(isTeacherFacingHelpItem);
   if (isTestRunProject() && !allOrgs) {
     const sampleCategories = sampleHelpCategories();
     return {
@@ -221,7 +229,7 @@ const sharedSubscribers = new Set<(state: SharedHelpState) => void>();
 const notifySharedSubscribers = () => {
   sharedState = {
     items: mergeById(sharedGlobalItems, sharedOrgItems).filter(
-      (item) => item.visible !== false
+      isTeacherFacingHelpItem
     ),
     loading: !sharedGlobalLoaded || !sharedOrgLoaded,
   };
@@ -281,7 +289,7 @@ const startSharedOrgListener = (orgId: string | null) => {
   );
 };
 
-/** Every visible help item and whether it's still loading, from the listener shared with the widget help buttons. */
+/** Every teacher-facing help item and whether it's still loading, from the listener shared with the widget help buttons. */
 export const useSharedHelpState = (): SharedHelpState => {
   // Read the context directly so the settings panel still renders outside an AuthProvider (tests, standalone surfaces).
   const orgId = useContext(AuthContext)?.orgId ?? null;

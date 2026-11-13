@@ -1,5 +1,9 @@
-import type { TourMarkupShape } from '@/types';
+import type { TourMarkupShape, WebTourMessageStep } from '@/types';
 import type { WebTourStep } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import {
+  isMessageStep,
+  siteSwitchesOf,
+} from '@/components/tours/web/tourSequence';
 import {
   stagePlacement,
   type FracRect,
@@ -28,6 +32,10 @@ export interface StepsViewStep {
   observe: boolean;
   /** Null when the step has no picture at all. */
   picture: StepsPicture | null;
+  /** A Message step: words only, with no target. */
+  message?: true;
+  /** The host this step is on when the tour just moved there from another site. */
+  continueOn?: string;
 }
 
 export type StepPictureState =
@@ -46,6 +54,7 @@ export interface StepsLabels {
   stepNumber: (n: number) => string;
   onlyIfAppears: string;
   untitledStep: string;
+  continueOn: (host: string) => string;
   pictureAlt: (n: number) => string;
   pictureLoading: string;
   noPicture: string;
@@ -62,6 +71,7 @@ export const STEPS_LABELS_EN: StepsLabels = {
   stepNumber: (n) => `Step ${n}`,
   onlyIfAppears: 'Only if it appears',
   untitledStep: 'Untitled step',
+  continueOn: (host) => `Continue on ${host}`,
   pictureAlt: (n) => `Picture of step ${n}`,
   pictureLoading: 'Loading picture',
   noPicture: 'No picture for this step',
@@ -74,17 +84,31 @@ export const STEPS_LABELS_EN: StepsLabels = {
 export const hasCondition = (v: unknown): boolean =>
   Array.isArray(v) ? v.length > 0 : !!v && typeof v === 'object';
 
-/** A web tour's steps as the Steps view draws them; the ring comes from the recorded place, else an estimate that passes its checks. */
+/** A web tour's steps (targeted and Message steps, in order) as the Steps view draws them; the ring comes from the recorded place, else an estimate that passes its checks. */
 export function stepsFromWebTour(
-  steps: readonly WebTourStep[]
+  steps: readonly (WebTourStep | WebTourMessageStep)[]
 ): StepsViewStep[] {
-  return steps.map((step) => {
-    const pic = step.web.picture;
-    const placed = pic ? stagePlacement(pic, step.web.locator) : null;
-    return {
+  const joins = new Map(siteSwitchesOf(steps).map((s) => [s.toIndex, s.host]));
+  return steps.map((step, i) => {
+    const continueOn = joins.get(i);
+    const base = {
       id: step.id,
       title: step.label ?? '',
       text: step.text ?? '',
+      ...(continueOn ? { continueOn } : {}),
+    };
+    if (isMessageStep(step))
+      return {
+        ...base,
+        onlyIfAppears: false,
+        observe: false,
+        picture: null,
+        message: true as const,
+      };
+    const pic = step.web.picture;
+    const placed = pic ? stagePlacement(pic, step.web.locator) : null;
+    return {
+      ...base,
       onlyIfAppears: hasCondition(step.web.showWhen),
       observe: step.web.action === 'observe',
       picture:

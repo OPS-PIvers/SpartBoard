@@ -185,7 +185,7 @@ export const PollVoteApp: React.FC = () => {
     };
   }, [sessionId]);
 
-  const view = derivePollPhoneView(state, uid);
+  const view = derivePollPhoneView(state);
   const openBallot =
     view.k === 'open' || view.k === 'closed' ? view.ballot : null;
   const answerKey =
@@ -236,14 +236,7 @@ export const PollVoteApp: React.FC = () => {
         setUid(voterUid);
       }
       // Votes are keyed by the session's voter id, never the account; typed answers stay owner-only.
-      // A vote this device cast under its uid is overwritten in place, so it isn't counted twice.
-      const hasUidVote =
-        target === 'votes' &&
-        state.phase === 'ready' &&
-        state.votes.some((v) => v.id === `${questionIndex}_${voterUid}`) &&
-        !state.votes.some((v) => v.id === `${questionIndex}_${voterId}`);
-      const key =
-        target === 'votes' && voterId && !hasUidVote ? voterId : voterUid;
+      const key = target === 'votes' && voterId ? voterId : voterUid;
       await setDoc(
         doc(db, 'poll_sessions', sessionId, target, `${questionIndex}_${key}`),
         {

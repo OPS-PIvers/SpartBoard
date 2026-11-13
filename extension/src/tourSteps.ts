@@ -1,5 +1,10 @@
 // A published web tour read as steps for the side panel (docs/plans/shipped/TOURS_10X.md S4).
 import type { TourMarkupShape, WebTourLocator } from '@/types';
+import {
+  hostOf,
+  siteSwitchesOf,
+  type WebTourSequenceStep,
+} from '@/components/tours/web/tourSequence';
 import { stagePlacement } from '@/components/tours/web/pictureTarget';
 import {
   hasCondition,
@@ -38,14 +43,6 @@ const markupOf = (v: unknown): TourMarkupShape[] =>
 
 const MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-const hostOf = (urlPattern: string): string => {
-  try {
-    return new URL(urlPattern.replace(/\*/g, 'x')).host.toLowerCase();
-  } catch {
-    return '';
-  }
-};
-
 /** What `webTourLoadV1` returned, as steps the Steps view draws; null when it isn't a tour. */
 export function panelStepsOf(raw: unknown): PanelTourSteps | null {
   if (!isObj(raw) || !Array.isArray(raw.steps)) return null;
@@ -57,9 +54,36 @@ export function panelStepsOf(raw: unknown): PanelTourSteps | null {
   )
     ? (raw.conditions as Record<string, { showWhen?: unknown }>)
     : {};
-  for (const s of raw.steps.slice(0, MAX_STEPS)) {
-    if (!isObj(s) || typeof s.id !== 'string' || !isObj(s.web)) continue;
-    const raw = loaded[s.id];
+  const kept = raw.steps
+    .slice(0, MAX_STEPS)
+    .filter(
+      (s): s is Record<string, unknown> =>
+        isObj(s) &&
+        typeof s.id === 'string' &&
+        (isObj(s.web) || s.message === true)
+    );
+  const joins = new Map(
+    siteSwitchesOf(kept as unknown as WebTourSequenceStep[]).map((j) => [
+      j.toIndex,
+      j.host,
+    ])
+  );
+  for (const [at, s] of kept.entries()) {
+    const continueOn = joins.get(at);
+    if (!isObj(s.web)) {
+      steps.push({
+        id: s.id as string,
+        title: str(s.label),
+        text: str(s.text),
+        onlyIfAppears: false,
+        observe: false,
+        picture: null,
+        message: true,
+        ...(continueOn ? { continueOn } : {}),
+      });
+      continue;
+    }
+    const raw = loaded[s.id as string];
     const pic = isObj(raw) ? raw : null;
     const w = num(pic?.w);
     const h = num(pic?.h);
@@ -91,10 +115,11 @@ export function panelStepsOf(raw: unknown): PanelTourSteps | null {
       : null;
     const marked = markupOf(pic?.markup);
     steps.push({
-      id: s.id,
+      id: s.id as string,
       title: str(s.label),
       text: str(s.text),
-      onlyIfAppears: hasCondition(conditions[s.id]?.showWhen),
+      ...(continueOn ? { continueOn } : {}),
+      onlyIfAppears: hasCondition(conditions[s.id as string]?.showWhen),
       observe: s.web.action === 'observe',
       picture: placed
         ? {
@@ -107,14 +132,23 @@ export function panelStepsOf(raw: unknown): PanelTourSteps | null {
         : null,
     });
     if (placed)
-      pictures[s.id] = { status: 'ready', src: `data:${mime};base64,${data}` };
+      pictures[s.id as string] = {
+        status: 'ready',
+        src: `data:${mime};base64,${data}`,
+      };
   }
   if (steps.length === 0) return null;
   return {
     title: str(raw.title),
-    host: hostOf(
-      str((raw.steps[0] as { web?: { urlPattern?: unknown } })?.web?.urlPattern)
-    ),
+    host:
+      hostOf(
+        str(
+          (
+            kept.find((s) => isObj(s.web))?.web as
+              { urlPattern?: unknown } | undefined
+          )?.urlPattern
+        )
+      ) ?? '',
     steps,
     pictures,
     ...(typeof raw.link === 'string' && /^[0-9a-f]{32}$/.test(raw.link)

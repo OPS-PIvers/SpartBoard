@@ -127,6 +127,8 @@ function fakeHost() {
       return Promise.resolve();
     },
     closeTab: () => Promise.resolve(),
+    focusTab: () => Promise.resolve(false),
+    tabUrl: () => Promise.resolve(null),
     backstop: () => undefined,
     frames: () => Promise.resolve(frames),
     inject: () => Promise.resolve(),

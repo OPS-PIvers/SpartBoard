@@ -1,5 +1,5 @@
 import type { GuidedLearningTourBinding } from '@/types';
-import { parseTourAnchorRef } from '@/config/tourAnchors';
+import { isRowWildcardRef, parseTourAnchorRef } from '@/config/tourAnchors';
 
 export interface TourAnchorScope {
   /** Widgets the tour added; per-widget anchors prefer these. */
@@ -8,7 +8,28 @@ export interface TourAnchorScope {
   slots?: Readonly<Record<number, string>>;
   /** Extra check a match must pass, such as being clickable on screen. */
   accept?: (el: Element) => boolean;
+  /** The row each wildcard step was answered with, by `id:type`, so a replayed route reopens the same row. */
+  picks?: Readonly<Record<string, string>>;
 }
+
+/** The `id:type#row-N` ref a wildcard click landed on, read from the clicked element. */
+export function pickedRowRef(ref: string, el: Element): string | null {
+  if (!isRowWildcardRef(ref)) return null;
+  const key = el.getAttribute('data-tour-field');
+  return key ? `${ref.slice(0, ref.indexOf('#'))}#${key}` : null;
+}
+
+/** A route entry with no key or a row position, swapped for the row the teacher picked on it earlier. */
+const pickedRef = (anchor: string, scope: TourAnchorScope): string => {
+  const picks = scope.picks;
+  if (!picks) return anchor;
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(anchor);
+  if (fieldKey !== undefined && !/^row-\d+$/.test(fieldKey)) return anchor;
+  const pick = widgetType
+    ? picks[`${id}:${widgetType}`]
+    : Object.entries(picks).find(([k]) => k.startsWith(`${id}:`))?.[1];
+  return pick ?? anchor;
+};
 
 export const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
 
@@ -169,6 +190,41 @@ export function anchorInView(el: Element): 'full' | 'part' | 'none' {
   return fitsX && fitsY ? 'full' : 'part';
 }
 
+/** Every usable element tagged with `ref`; a `#row-*` ref takes each row of its list. */
+function taggedAnchors(
+  ref: string,
+  usable: (el: Element) => boolean,
+  scope: TourAnchorScope,
+  root: ParentNode
+): HTMLElement[] {
+  const anchor = pickedRef(ref, scope);
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(anchor);
+  if (!id) return [];
+  const anyRow = isRowWildcardRef(anchor);
+  const selector =
+    `[data-tour=${quote(id)}]` +
+    (widgetType ? `[data-tour-widget-type=${quote(widgetType)}]` : '') +
+    (fieldKey && !anyRow ? `[data-tour-field=${quote(fieldKey)}]` : '');
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(
+    usable
+  );
+}
+
+/** Every row a wildcard step can take, in page order; just the one match for any other step. */
+export function findTourAnchors(
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'fallback' | 'slot'>,
+  scope: TourAnchorScope = {},
+  root: ParentNode = document
+): HTMLElement[] {
+  if (!isRowWildcardRef(binding.anchor)) {
+    const one = findTourAnchor(binding, scope, root);
+    return one ? [one] : [];
+  }
+  const usable = (el: Element) =>
+    !ignored(el) && isAnchorVisible(el) && (scope.accept?.(el) ?? true);
+  return taggedAnchors(binding.anchor, usable, scope, root);
+}
+
 const FALLBACK_CANDIDATES = '[role], button, a[href], input, select, textarea';
 
 /** Finds a tour step's element: `data-tour` first, then role plus accessible name. */
@@ -181,18 +237,11 @@ export function findTourAnchor(
     binding.slot === undefined ? undefined : scope.slots?.[binding.slot];
   const usable = (el: Element) =>
     !ignored(el) && isAnchorVisible(el) && (scope.accept?.(el) ?? true);
-  const { id, widgetType, fieldKey } = parseTourAnchorRef(binding.anchor);
-  const selector =
-    `[data-tour=${quote(id)}]` +
-    (widgetType ? `[data-tour-widget-type=${quote(widgetType)}]` : '') +
-    (fieldKey ? `[data-tour-field=${quote(fieldKey)}]` : '');
-  const tagged = id
-    ? Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(usable)
-    : [];
+  const tagged = taggedAnchors(binding.anchor, usable, scope, root);
   // Field rows carry no widget id; the drawer around them does.
   const widgetOf = (el: Element) =>
     el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ?? '';
-  if (boundId && id) {
+  if (boundId && parseTourAnchorRef(binding.anchor).id) {
     return tagged.find((el) => widgetOf(el) === boundId) ?? null;
   }
   if (tagged.length > 0) {

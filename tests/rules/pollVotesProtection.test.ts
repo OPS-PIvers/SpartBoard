@@ -181,9 +181,11 @@ beforeEach(async () => {
       TEXT_SESSION_ID,
     ]) {
       for (const uid of [VOTER_UID, OTHER_UID]) {
+        // Voter id equals the uid here so these cases keep their readable ids.
         await setDoc(doc(db, `poll_joins/${session}__${uid}`), {
           sessionId: session,
           uid,
+          voterId: uid,
         });
       }
     }

@@ -185,7 +185,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
   // Placement uses the tip's full height, so capping the body never flips it to the other side.
   const tipH = boxH - bodyH + useHeight(contentRef, 0);
   // A target inside a frame is lit there; the tip waits low on the screen so it doesn't cover the frame.
-  const away = state.status === 'shown' && !state.targetHere;
+  const away = state.status === 'shown' && !state.targetHere && !state.message;
   const chromeH = boxH - bodyH;
   // A capped side must hold the title, buttons and a few lines of text, or the tip overflows it.
   const placed = placeTip(
@@ -256,6 +256,8 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
       )
     : null;
   const last = state.current === state.total;
+  const goLabel = state.go ? t('tours.webGoTo', { host: state.go }) : null;
+  const switching = state.status === 'switch';
   // Check mode: Next moves on from any step without the real click (C12).
   const checking = state.check !== undefined;
   const result = state.check && state.check !== 'pending' ? state.check : null;
@@ -315,15 +317,23 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
           plain={!rect}
           animate
           clearOfChrome
-          title={done ? t('tours.completeTitle') : state.title}
+          title={
+            done
+              ? t('tours.completeTitle')
+              : switching && state.go
+                ? t('tours.webSwitchTitle', { host: state.go })
+                : state.title
+          }
           looking={looking}
           status={null}
           next={
             done
               ? { onNext: () => onAction('exit'), last: true }
-              : checking || state.observe || state.status === 'fallback'
-                ? { onNext: () => onAction('next'), last }
-                : undefined
+              : goLabel
+                ? { onNext: () => onAction('go'), last: false, label: goLabel }
+                : checking || state.observe || state.status === 'fallback'
+                  ? { onNext: () => onAction('next'), last }
+                  : undefined
           }
         >
           {!done && (
@@ -346,7 +356,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({
                     {t(CHECK_KEYS[result])}
                   </p>
                 )}
-                {!done && (
+                {!done && state.text.trim() !== '' && (
                   <p className="whitespace-pre-line text-sm text-slate-700">
                     {renderStepText(state.text.trim())}
                   </p>

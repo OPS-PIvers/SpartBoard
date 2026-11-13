@@ -455,3 +455,70 @@ describe('check signature', () => {
     ).toBeUndefined();
   });
 });
+
+describe('Message steps', () => {
+  const message = (id: string, extra: Partial<GuidedLearningStep> = {}) =>
+    step(id, null, {
+      message: true,
+      label: 'Hello',
+      text: 'Welcome.',
+      ...extra,
+    });
+
+  it('pass the check without a result of their own', () => {
+    const steps = [message('m0'), step('a', {}), message('m1')];
+    const set = {
+      steps,
+      webTourChecked: {
+        by: 'u1',
+        at: 1,
+        sig: targetsSignature({ steps }),
+        results: { a: 'found' as const },
+      },
+    };
+    expect(checkPasses(set)).toBe(true);
+    expect(publishBlockers(set, roster)).toEqual([]);
+  });
+
+  it('never expire a check when added, moved or edited', () => {
+    const base = passed({ steps: [step('a', {}), step('b', {})] });
+    const withMessages = {
+      ...base,
+      steps: [message('m0'), base.steps[0], message('m1'), base.steps[1]],
+    };
+    expect(checkPasses(withMessages)).toBe(true);
+    const moved = {
+      ...withMessages,
+      steps: [
+        withMessages.steps[1],
+        withMessages.steps[0],
+        ...withMessages.steps.slice(2),
+      ],
+    };
+    expect(checkPasses(moved)).toBe(true);
+  });
+
+  it('block Publish when no step has a target', () => {
+    const only = { steps: [message('m0')] };
+    expect(publishBlockers(only, roster)).toContainEqual({ kind: 'no-target' });
+    expect(() => assertPublishable(only, roster)).toThrow(/no-target/);
+  });
+
+  it('block Publish on an empty message and on student data in one', () => {
+    const base = passed({ steps: [step('a', {})] });
+    const empty = {
+      ...base,
+      steps: [...base.steps, message('m0', { label: '', text: '' })],
+    };
+    expect(publishBlockers(empty, roster)).toEqual([
+      { kind: 'empty-message', stepId: 'm0' },
+    ]);
+    const named = {
+      ...base,
+      steps: [...base.steps, message('m0', { text: 'Ask Alice Nguyen' })],
+    };
+    expect(publishBlockers(named, roster)).toEqual([
+      { kind: 'student-data', stepId: 'm0', field: 'text' },
+    ]);
+  });
+});

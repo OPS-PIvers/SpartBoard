@@ -1,9 +1,14 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
-import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -12,7 +17,6 @@ import TourHealthPanel from './TourHealthPanel';
 
 const h = vi.hoisted(() => ({
   sets: [] as GuidedLearningSet[],
-  saveBuildingSet: vi.fn(),
   loadBuildingSet: vi.fn(),
   published: new Map<string, unknown>(),
   runs: new Map<string, unknown[]>(),
@@ -26,37 +30,9 @@ vi.mock('@/components/tours/tourRuns', () => ({
   loadTourRuns: (id: string) => Promise.resolve(h.runs.get(id) ?? []),
 }));
 
-// The panel lists index entries and fetches only the sets marked as tours.
 vi.mock('@/hooks/useGuidedLearning', () => ({
-  useGuidedLearning: () => ({
-    buildingSets: h.sets.map((set) => ({
-      id: set.id,
-      title: set.title,
-      updatedAt: 1,
-      hasLiveTour: set.steps.some((step) => !!step.tour),
-    })),
-    buildingLoading: false,
-    saveBuildingSet: h.saveBuildingSet,
-  }),
   loadBuildingSet: h.loadBuildingSet,
 }));
-
-vi.mock(
-  '@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio',
-  () => ({
-    GuidedLearningStudio: ({
-      set,
-      initialStepId,
-    }: {
-      set: GuidedLearningSet;
-      initialStepId?: string;
-    }) => (
-      <div data-testid="studio">
-        {set.id}:{initialStepId}:{String(set.isBuilding)}
-      </div>
-    ),
-  })
-);
 
 const tourSet = {
   id: 'set-1',
@@ -104,13 +80,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const renderPanel = (setId = 'set-1') =>
+  render(<TourHealthPanel setId={setId} />);
+
 describe('TourHealthPanel', () => {
-  it('lists only sets with tour steps and flags unregistered anchors', async () => {
-    render(<TourHealthPanel />);
+  it("shows one tour's state and flags unregistered anchors", async () => {
+    renderPanel();
     const section = await screen.findByRole('region', { name: 'Clock tour' });
-    expect(
-      screen.queryByRole('region', { name: 'No tour' })
-    ).not.toBeInTheDocument();
     expect(h.loadBuildingSet).toHaveBeenCalledTimes(1);
     expect(h.loadBuildingSet).toHaveBeenCalledWith('set-1');
     expect(within(section).getByTestId('tour-state')).toHaveTextContent(
@@ -119,11 +95,18 @@ describe('TourHealthPanel', () => {
     expect(
       within(section).getByText(/Not published: showing the saved set/)
     ).toBeInTheDocument();
-    const rows = within(section).getAllByRole('row');
-    expect(within(rows[1]).getByText('OK')).toBeInTheDocument();
+    const steps = within(section).getAllByTestId('tour-step');
+    expect(steps).toHaveLength(2);
+    expect(within(steps[0]).getByText('OK')).toBeInTheDocument();
     expect(
-      within(rows[2]).getByText('Not in the anchor registry')
+      within(steps[1]).getByText('Not in the anchor registry')
     ).toBeInTheDocument();
+  });
+
+  it('renders nothing for a set without tour steps', async () => {
+    const { container } = renderPanel('set-2');
+    await waitFor(() => expect(h.loadBuildingSet).toHaveBeenCalled());
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 
   it('warns on typed text that is empty or matches a roster name', async () => {
@@ -159,33 +142,33 @@ describe('TourHealthPanel', () => {
     } as unknown as DashboardContextValue;
     render(
       <DashboardContext.Provider value={dashboard}>
-        <TourHealthPanel />
+        <TourHealthPanel setId="set-1" />
       </DashboardContext.Provider>
     );
     const section = await screen.findByRole('region', { name: 'Clock tour' });
-    const rows = within(section).getAllByRole('row');
-    expect(within(rows[1]).getByTestId('tour-value-warning')).toHaveTextContent(
-      'No text for Autopilot to type'
-    );
-    expect(within(rows[2]).getByTestId('tour-value-warning')).toHaveTextContent(
-      "The typed text matches a student's name"
-    );
-    expect(within(rows[3]).queryByTestId('tour-value-warning')).toBeNull();
+    const steps = within(section).getAllByTestId('tour-step');
+    expect(
+      within(steps[0]).getByTestId('tour-value-warning')
+    ).toHaveTextContent('No text for Autopilot to type');
+    expect(
+      within(steps[1]).getByTestId('tour-value-warning')
+    ).toHaveTextContent("The typed text matches a student's name");
+    expect(within(steps[2]).queryByTestId('tour-value-warning')).toBeNull();
   });
 
   it('checks anchors against the page on Check live', async () => {
     render(
       <>
         <button data-tour="sidebar.boards">Boards</button>
-        <TourHealthPanel />
+        <TourHealthPanel setId="set-1" />
       </>
     );
     const section = await screen.findByRole('region', { name: 'Clock tour' });
     expect(within(section).getAllByText('Not checked')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Check live' }));
-    const rows = within(section).getAllByRole('row');
-    expect(within(rows[1]).getByText('Found')).toBeInTheDocument();
-    expect(within(rows[2]).getByText('Not found')).toBeInTheDocument();
+    const steps = within(section).getAllByTestId('tour-step');
+    expect(within(steps[0]).getByText('Found')).toBeInTheDocument();
+    expect(within(steps[1]).getByText('Not found')).toBeInTheDocument();
   });
 
   it('reads the published snapshot and counts misses from its runs only', async () => {
@@ -215,7 +198,7 @@ describe('TourHealthPanel', () => {
       // A run of an older version: its miss no longer counts.
       { v: 5, startedAt: 0, furthest: 0, done: false, misses: ['a'] },
     ]);
-    render(<TourHealthPanel />);
+    renderPanel();
     const section = await screen.findByRole('region', { name: 'Clock tour' });
     expect(
       within(section).getByText(
@@ -224,12 +207,12 @@ describe('TourHealthPanel', () => {
     ).toBeInTheDocument();
     // The draft's retired anchor isn't in the snapshot teachers run.
     expect(within(section).queryByText('sidebar.retired')).toBeNull();
-    const rows = within(section).getAllByRole('row');
-    expect(rows).toHaveLength(3);
-    expect(within(rows[1]).getByText('OK')).toBeInTheDocument();
-    expect(within(rows[2]).getByText('Broken')).toBeInTheDocument();
+    const steps = within(section).getAllByTestId('tour-step');
+    expect(steps).toHaveLength(2);
+    expect(within(steps[0]).getByText('OK')).toBeInTheDocument();
+    expect(within(steps[1]).getByText('Broken')).toBeInTheDocument();
     expect(
-      within(rows[2]).getByText('Not found in 1 of 2 real runs')
+      within(steps[1]).getByText('Not found in 1 of 2 real runs')
     ).toBeInTheDocument();
   });
 
@@ -248,29 +231,29 @@ describe('TourHealthPanel', () => {
     render(
       <>
         <button data-tour="sidebar.open-menu">Menu</button>
-        <TourHealthPanel />
+        <TourHealthPanel setId="set-1" />
       </>
     );
     const section = await screen.findByRole('region', { name: 'Clock tour' });
     expect(within(section).getByTestId('tour-state')).toHaveTextContent('OK');
     fireEvent.click(screen.getByRole('button', { name: 'Check live' }));
-    const rows = within(section).getAllByRole('row');
-    expect(within(rows[1]).getByText('OK')).toBeInTheDocument();
+    const steps = within(section).getAllByTestId('tour-step');
+    expect(within(steps[0]).getByText('OK')).toBeInTheDocument();
     expect(
-      within(rows[2]).getByText('Needs its menu or panel open')
+      within(steps[1]).getByText('Needs its menu or panel open')
     ).toBeInTheDocument();
     expect(
-      within(rows[3]).getByText('Needs Clock on the board')
+      within(steps[2]).getByText('Needs Clock on the board')
     ).toBeInTheDocument();
     expect(within(section).getByTestId('tour-state')).toHaveTextContent(
       'Needs widget or panel open'
     );
   });
 
-  it('opens the board editor at the step', async () => {
+  it('opens the board editor at the step, from the Help Center', async () => {
     const onEdit = vi.fn();
     window.addEventListener(TOUR_EDIT_EVENT, onEdit);
-    render(<TourHealthPanel />);
+    renderPanel();
     fireEvent.click(
       await screen.findByRole('button', {
         name: 'Edit step 3 of Clock tour',
@@ -280,18 +263,13 @@ describe('TourHealthPanel', () => {
     expect((onEdit.mock.calls[0][0] as CustomEvent).detail).toEqual({
       setId: 'set-1',
       stepId: 'b',
+      origin: 'help-center',
     });
   });
 
-  it('starts a recording from Record a tour', async () => {
-    h.sets = [];
-    const onRecord = vi.fn();
-    window.addEventListener(TOUR_RECORD_EVENT, onRecord);
-    render(<TourHealthPanel />);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Record a tour' })
-    );
-    expect(onRecord).toHaveBeenCalledTimes(1);
-    window.removeEventListener(TOUR_RECORD_EVENT, onRecord);
+  it('has no record buttons', async () => {
+    renderPanel();
+    await screen.findByRole('region', { name: 'Clock tour' });
+    expect(screen.queryByRole('button', { name: /Record/ })).toBeNull();
   });
 });

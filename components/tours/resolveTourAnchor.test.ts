@@ -3,7 +3,9 @@ import { parseTourAnchorRef, tourAnchorRef } from '@/config/tourAnchors';
 import {
   accessibleName,
   findTourAnchor,
+  findTourAnchors,
   isAnchorVisible,
+  pickedRowRef,
   roleOf,
 } from './resolveTourAnchor';
 import {
@@ -247,5 +249,81 @@ describe('tour session helpers', () => {
     const replaced = [{ id: 'teacher', type: 'dice' as WidgetType }];
     const again = claimTourWidgets(replaced, before, ['dice'], claims);
     expect(tourWidgetIds(replaced, again)).toEqual([]);
+  });
+});
+
+describe('wildcard row refs', () => {
+  const rows = (id: string, type: string, n: number) =>
+    Array.from(
+      { length: n },
+      (_, i) =>
+        `<button data-tour="${id}" data-tour-widget-type="${type}" data-tour-field="row-${i + 1}">${i + 1}</button>`
+    ).join('');
+
+  it('matches every row, and the first one alone for a single find', () => {
+    mount(rows('plcs.open-plc', 'plcs', 3));
+    const all = findTourAnchors({ anchor: 'plcs.open-plc:plcs#row-*' });
+    expect(all.map((el) => el.dataset.tourField)).toEqual([
+      'row-1',
+      'row-2',
+      'row-3',
+    ]);
+    expect(
+      findTourAnchor({ anchor: 'plcs.open-plc:plcs#row-*' })?.dataset.tourField
+    ).toBe('row-1');
+  });
+
+  it('matches rows keyed by item id', () => {
+    mount(
+      '<button data-tour="plc-assessments.assign" data-tour-widget-type="plc" data-tour-field="a1"></button><button data-tour="plc-assessments.assign" data-tour-widget-type="plc" data-tour-field="b2"></button>'
+    );
+    expect(
+      findTourAnchors({ anchor: 'plc-assessments.assign:plc#row-*' })
+    ).toHaveLength(2);
+  });
+
+  it('finds nothing in an empty list', () => {
+    mount('<div></div>');
+    expect(findTourAnchors({ anchor: 'plcs.open-plc:plcs#row-*' })).toEqual([]);
+    expect(findTourAnchor({ anchor: 'plcs.open-plc:plcs#row-*' })).toBeNull();
+  });
+
+  it('never widens a destructive anchor or one that is not a list', () => {
+    mount(rows('plcs.delete-plc', 'plcs', 2) + rows('dock.item', 'clock', 2));
+    expect(findTourAnchors({ anchor: 'plcs.delete-plc:plcs#row-*' })).toEqual(
+      []
+    );
+    expect(findTourAnchors({ anchor: 'dock.item:clock#row-*' })).toEqual([]);
+  });
+
+  it('records the picked row and replays it for a keyless route entry', () => {
+    mount(rows('plcs.open-plc', 'plcs', 3));
+    const third = document.querySelectorAll('button')[2];
+    const picked = pickedRowRef('plcs.open-plc:plcs#row-*', third);
+    expect(picked).toBe('plcs.open-plc:plcs#row-3');
+    expect(pickedRowRef('plcs.open-plc:plcs#row-2', third)).toBeNull();
+    const picks = { 'plcs.open-plc:plcs': picked as string };
+    expect(
+      findTourAnchor({ anchor: 'plcs.open-plc:plcs' }, { picks })?.dataset
+        .tourField
+    ).toBe('row-3');
+    expect(
+      findTourAnchor({ anchor: 'plcs.open-plc:plcs' })?.dataset.tourField
+    ).toBe('row-1');
+  });
+
+  it('replays the pick for a route entry that names a row position or no type', () => {
+    mount(rows('library-shell.card-menu', 'quiz', 3));
+    const picks = {
+      'library-shell.card-menu:quiz': 'library-shell.card-menu:quiz#row-3',
+    };
+    for (const anchor of [
+      'library-shell.card-menu:quiz#row-1',
+      'library-shell.card-menu',
+    ])
+      expect(
+        findTourAnchor({ anchor }, { picks })?.dataset.tourField,
+        anchor
+      ).toBe('row-3');
   });
 });

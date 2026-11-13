@@ -15,11 +15,12 @@ import {
   type PictureTarget,
   type WebStepConditions,
   type WebTourPictureBytes,
+  type WebTourStartStep,
   type WebTourStartTour,
 } from './extensionProtocol';
 
 /** The parts of a published web step a handoff reads. */
-export interface HandoffStep {
+export interface HandoffTargetStep {
   id: string;
   label?: string;
   text?: string;
@@ -34,13 +35,27 @@ export interface HandoffStep {
   };
 }
 
+/** A Message step (WEB_TOURS_CROSS_SITE.md X9): words only, no `web`. */
+export interface HandoffMessageStep {
+  id: string;
+  label?: string;
+  text?: string;
+  message: true;
+  web?: undefined;
+}
+
+export type HandoffStep = HandoffTargetStep | HandoffMessageStep;
+
+const targetsOf = (steps: readonly HandoffStep[]): HandoffTargetStep[] =>
+  steps.slice(0, MAX_STEPS).filter((s): s is HandoffTargetStep => !!s.web);
+
 /** Where each sent picture's control sits, for Show me where's ring (MARKUP_PROTOCOL). */
 export function handoffTargets(
   steps: readonly HandoffStep[],
   sent: ReadonlySet<string>
 ): Record<string, PictureTarget> | undefined {
   const out: Record<string, PictureTarget> = {};
-  for (const step of steps.slice(0, MAX_STEPS)) {
+  for (const step of targetsOf(steps)) {
     if (!sent.has(step.id)) continue;
     const t = parsePictureTarget(step.web.picture?.target);
     if (t) out[step.id] = t;
@@ -54,7 +69,7 @@ export function handoffMarkup(
   sent: ReadonlySet<string>
 ): Record<string, TourMarkupShape[]> | undefined {
   const out: Record<string, TourMarkupShape[]> = {};
-  for (const step of steps.slice(0, MAX_STEPS)) {
+  for (const step of targetsOf(steps)) {
     if (!sent.has(step.id)) continue;
     const shapes = parseMarkupShapes(step.web.picture?.markup ?? []);
     if (shapes?.length) out[step.id] = shapes;
@@ -79,7 +94,7 @@ export function handoffConditions(
   steps: readonly HandoffStep[]
 ): Record<string, WebStepConditions> | undefined {
   const out: Record<string, WebStepConditions> = {};
-  for (const step of steps.slice(0, MAX_STEPS)) {
+  for (const step of targetsOf(steps)) {
     const showWhen = handoffCondition(step.web.showWhen);
     const doneWhen = handoffCondition(step.web.doneWhen);
     if (showWhen || doneWhen)
@@ -140,12 +155,27 @@ function handoffLocator(
   return out;
 }
 
+/** The step whose page a step opens on: itself, or for a Message step the next targeted step, else the last one before it. */
+function pageStepOf(
+  steps: readonly HandoffStep[],
+  index: number
+): HandoffTargetStep | undefined {
+  const own = steps[index];
+  if (!own || own.web) return own;
+  const next = steps.slice(index + 1).find((s) => !!s.web);
+  const before = steps
+    .slice(0, index)
+    .reverse()
+    .find((s) => !!s.web);
+  return next ?? before;
+}
+
 /** The page a step opens on: its address, or its site when the path has wildcards. */
 export function pageUrlOf(
   steps: readonly HandoffStep[],
   index: number
 ): string | null {
-  const pattern = steps[index]?.web.urlPattern;
+  const pattern = pageStepOf(steps, index)?.web.urlPattern;
   // A wildcard in the host can't be opened.
   const host = pattern ? /^https:\/\/([^/?#]*)/.exec(pattern)?.[1] : undefined;
   if (!pattern || !host || host.includes('*')) return null;
@@ -159,7 +189,7 @@ export function pageUrlOf(
   return pattern.includes('*') ? `${url.origin}/` : url.href;
 }
 
-/** The page a tour opens on. */
+/** The page a tour opens on: the first targeted step's (X8). */
 export const startUrlOf = (steps: readonly HandoffStep[]): string | null =>
   pageUrlOf(steps, 0);
 
@@ -182,7 +212,14 @@ export function buildStartTour(
     setId,
     version,
     title: title.slice(0, MAX_TITLE),
-    steps: steps.slice(0, MAX_STEPS).map((step) => {
+    steps: steps.slice(0, MAX_STEPS).map((step): WebTourStartStep => {
+      if (!step.web)
+        return {
+          id: step.id,
+          label: (step.label ?? '').slice(0, MAX_TEXT),
+          text: (step.text ?? '').slice(0, MAX_TEXT),
+          message: true,
+        };
       const { urlPattern, action, locator } = step.web;
       const pic = pictures.get(step.id);
       const sized = !!pic && pic.w > 0 && pic.h > 0;

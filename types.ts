@@ -8897,6 +8897,8 @@ export interface GuidedLearningStep {
   tour?: GuidedLearningTourBinding;
   /** Web-tour binding (a set with `surface: 'web'`); such a step has no `tour`. */
   web?: WebTourBinding;
+  /** Message step in a `surface: 'web'` set (cross-site X9): text only, has no `web`. */
+  message?: true;
   /** AI-drafted text the author has not yet edited or marked reviewed. Editor-only. */
   aiDraft?: boolean;
 }
@@ -8954,6 +8956,12 @@ export type GuidedLearningTourAction =
 
 /** Where a live tour plays; absent = 'spartboard'. */
 export type GuidedLearningTourSurface = 'spartboard' | 'web';
+
+/** A web tour step that only shows words: no `web` binding, never played against a page. */
+export type WebTourMessageStep = GuidedLearningStep & {
+  message: true;
+  web?: undefined;
+};
 
 /** A hint for the tip only; the extension never performs it. */
 export type WebTourAction = 'observe' | 'click' | 'type' | 'select';
@@ -9294,6 +9302,14 @@ export interface GuidedLearningSet {
   webSuggestions?: Record<string, WebTourSuggestion>;
   /** Web tours: the fingerprint of the fix the admin dismissed, by step id; never published. */
   webFixDismissed?: Record<string, string>;
+  /** Web tours: pictures a Claude step-list revision still needs, kept until `until` (X18); never published. */
+  webRevisionPictures?: WebTourRevisionPicture[];
+}
+
+/** A picture path a stored Claude revision of a web tour references, and when that revision expires (ms). */
+export interface WebTourRevisionPicture {
+  path: string;
+  until: number;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */
@@ -9354,6 +9370,8 @@ export interface GuidedLearningSetMetadata {
   claudeEditedAt?: number;
   /** Claude made or changed this set and the teacher hasn't opened it since. */
   claudeReviewPendingAt?: number;
+  /** Copied into the Help Center while students had it open; removed once none do (H5). */
+  movedToHelpCenterAt?: number;
 }
 
 /** Library entry for a building set, written only by the glBuildingIndexMirror function. */

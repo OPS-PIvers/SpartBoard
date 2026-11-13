@@ -7,6 +7,7 @@ import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   closesBeforeOpens,
   closesInPast,
+  opensFromNow,
   specForRoster,
   type AssignAvailability,
   type AssignWhenMode,
@@ -77,8 +78,15 @@ export const AssignWhenStep: React.FC<{
   const bellWindow = periodAccess?.bellWindow;
   const setAvailability = (next: AssignAvailability) =>
     onChange({ ...value, availability: next });
+  // A study resource can open now and stay until the teacher ends it; Each class keeps dates.
+  const opensNow = available && !eachClass && !!availability.opensNow;
+  const noEnd = available && !!availability.noEnd;
+  const sharedSpec = opensNow
+    ? opensFromNow(availability.all, new Date(openedAt))
+    : availability.all;
   const usesBell = (spec: AvailabilitySpec) =>
-    spec.opens.time === 'bell' || spec.closes.time === 'bell';
+    (!opensNow && spec.opens.time === 'bell') ||
+    (!noEnd && spec.closes.time === 'bell');
   const untagged =
     periodAccess && bellAvailable && !manual
       ? rosters.filter(
@@ -192,6 +200,7 @@ export const AssignWhenStep: React.FC<{
                   }
                   resource={available}
                   hideOpens={sharedOpens}
+                  noEnd={noEnd}
                 />
               </div>
             ))
@@ -199,19 +208,22 @@ export const AssignWhenStep: React.FC<{
             <SpecRows
               spec={availability.all}
               bellAvailable={bellAvailable}
-              backwards={closesBeforeOpens(
-                availability.all,
-                rosters,
-                bellWindow
-              )}
-              closed={closesInPast(
-                availability.all,
-                rosters,
-                bellWindow,
-                openedAt
-              )}
+              backwards={
+                !noEnd && closesBeforeOpens(sharedSpec, rosters, bellWindow)
+              }
+              closed={
+                !noEnd &&
+                closesInPast(availability.all, rosters, bellWindow, openedAt)
+              }
               onChange={(all) => setAvailability({ ...availability, all })}
               resource={available}
+              opensNow={opensNow}
+              noEnd={noEnd}
+              onOpenEnded={
+                available
+                  ? (next) => setAvailability({ ...availability, ...next })
+                  : undefined
+              }
             />
           )}
 
@@ -236,6 +248,8 @@ export const AssignWhenStep: React.FC<{
                       }
                     : {
                         ...availability,
+                        opensNow: false,
+                        noEnd: false,
                         byRoster: Object.fromEntries(
                           rosters.map((r) => [
                             r.id,

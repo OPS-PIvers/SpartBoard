@@ -3,6 +3,7 @@ import {
   parseExtensionMessage,
   type WebTourCheckStartMessage,
   type WebTourStartMessage,
+  type WebTourStartTargetStep,
 } from '@/components/tours/web/extensionProtocol';
 import { toPlayback } from './startMessage';
 
@@ -101,7 +102,7 @@ describe('web-tour/start', () => {
     const m = valid() as WebTourStartMessage;
     const big = 'A'.repeat(2_000_000);
     m.tour.steps = Array.from({ length: 6 }, (_, i) => ({
-      ...m.tour.steps[0],
+      ...(m.tour.steps[0] as WebTourStartTargetStep),
       id: `p${i}`,
       picture: { mime: 'image/png' as const, data: big, w: 1, h: 1 },
     }));

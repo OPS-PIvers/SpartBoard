@@ -45,11 +45,19 @@ import { guidedLearningShareView } from '@/utils/bundleSubShareContent';
 import type { SharedBoardGuidedLearningPayload } from '@/utils/sharedBoardItems';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
+import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import {
-  loadBuildingSet,
-  setHelpCenterFlag,
-  useGuidedLearning,
-} from '@/hooks/useGuidedLearning';
+  finishPendingMove,
+  createHiddenHelpItem,
+  isPendingHelpCenterMove,
+  moveSetToHelpCenter,
+  type MoveOutcome,
+  type MoveSource,
+} from '@/utils/helpCenterItems';
+import { isSuperAdminActor } from '@/utils/superAdmin';
+import { requestOpenHelpCenter } from '@/components/tours/tourState';
+import { noteFiledHelpItem } from '@/components/tours/helpCenterReturn';
+import { openHelpCenterTourId } from './utils/helpCenterSets';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
@@ -167,6 +175,14 @@ const GuidedLearningAIGenerator = lazy(() =>
 
 const GL_PERSONAL_COLLECTION = 'guided_learning';
 
+const HELP_MOVE_TOAST: Record<MoveOutcome, string> = {
+  flagged: 'Moved to Help Center. It left every building library.',
+  removed: 'Moved to Help Center.',
+  tagged:
+    'Copied to Help Center. Your set leaves the library once students close it.',
+  kept: 'Help Center has the earlier copy. Your edited set stays in the library.',
+};
+
 const LazySpinner: React.FC = () => (
   <div className="h-full flex items-center justify-center">
     <Loader2
@@ -243,8 +259,16 @@ const TeacherGuidedLearningWidget: React.FC<{
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
   const confirmLibraryDelete = useLibraryDeleteConfirm();
-  const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
-    useAuth();
+  const {
+    user,
+    isAdmin,
+    getAssignmentMode,
+    canAccessFeature,
+    appSettings,
+    userRoles,
+    orgId,
+    roleId,
+  } = useAuth();
   const gradebookOn = canAccessFeature('gradebook');
   const { driveService } = useGoogleDrive();
   const slidesImportOn =
@@ -359,7 +383,7 @@ const TeacherGuidedLearningWidget: React.FC<{
   // See `hooks/useBusyIdSet.ts`.
   const personalDuplicateBusy = useBusyIdSet();
   const buildingDuplicateBusy = useBusyIdSet();
-  const tourCopyBusy = useBusyIdSet();
+  const helpMoveBusy = useBusyIdSet();
   const tourConvertBusy = useBusyIdSet();
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
@@ -723,6 +747,75 @@ const TeacherGuidedLearningWidget: React.FC<{
       addToast(msg, 'error');
     }
   };
+
+  const helpAuthor = () =>
+    user
+      ? {
+          uid: user.uid,
+          email: user.email,
+          orgId,
+          isSuperAdmin: isSuperAdminActor(
+            user.email,
+            userRoles?.superAdmins,
+            roleId,
+            orgId
+          ),
+        }
+      : null;
+
+  const handleMoveToHelpCenter = (
+    setId: string,
+    buildingEntry?: GuidedLearningBuildingSetIndex
+  ) => {
+    const author = helpAuthor();
+    const meta = sets.find((s) => s.id === setId);
+    const source: MoveSource | null = buildingEntry
+      ? { kind: 'building', set: buildingEntry }
+      : meta
+        ? { kind: 'personal', set: meta }
+        : null;
+    if (!author || !source) return;
+    void helpMoveBusy.run(setId, async () => {
+      try {
+        const result = await moveSetToHelpCenter(source, author, {
+          loadSetData,
+          deleteSet: (id, driveFileId) =>
+            deletePersonalSet(id, driveFileId, []),
+        });
+        addToast(HELP_MOVE_TOAST[result.original], 'success', {
+          label: 'Open in Help Center',
+          onClick: () => requestOpenHelpCenter({ selectId: result.item.id }),
+          tourId: openHelpCenterTourId,
+        });
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Move failed', 'error');
+      }
+    });
+  };
+
+  // Each load retries tagged sets once; the set leaves when no student has it open (H5).
+  const pendingMoves =
+    user && config.view === 'library' && !loading
+      ? sets.filter(isPendingHelpCenterMove)
+      : [];
+  const pendingMoveKey = pendingMoves.map((meta) => meta.id).join(',');
+  const triedPendingMovesRef = useRef(new Set<string>());
+  const finishPendingMoves = useEffectEvent(() => {
+    const uid = user?.uid;
+    if (!uid) return;
+    for (const meta of pendingMoves) {
+      if (triedPendingMovesRef.current.has(meta.id)) continue;
+      triedPendingMovesRef.current.add(meta.id);
+      void finishPendingMove(uid, meta, (id, driveFileId) =>
+        deletePersonalSet(id, driveFileId, [])
+      ).catch((err: unknown) =>
+        logError('GuidedLearning.finishPendingMove', err, { setId: meta.id })
+      );
+    }
+  });
+  useEffect(() => {
+    if (pendingMoveKey) finishPendingMoves();
+  }, [pendingMoveKey]);
 
   const handleBulkDeletePersonal = async (
     targets: { setId: string; driveFileId: string }[]
@@ -1629,33 +1722,6 @@ const TeacherGuidedLearningWidget: React.FC<{
                     });
                   }}
                   isDuplicatingBuilding={buildingDuplicateBusy.isBusy}
-                  onCopyTourToBuilding={(setId, driveFileId) => {
-                    // Drive sets can't run live, so the building library keeps its own copy.
-                    void tourCopyBusy.run(setId, async () => {
-                      try {
-                        const loaded = await loadSetData(driveFileId);
-                        const now = Date.now();
-                        await saveBuildingSet({
-                          ...loaded,
-                          id: crypto.randomUUID(),
-                          isBuilding: true,
-                          authorUid: user?.uid,
-                          createdAt: now,
-                          updatedAt: now,
-                        });
-                        addToast(
-                          `Copied "${loaded.title}" to the building library. Edit it and press Publish tour so teachers can run it.`,
-                          'success'
-                        );
-                      } catch (err) {
-                        addToast(
-                          err instanceof Error ? err.message : 'Copy failed',
-                          'error'
-                        );
-                      }
-                    });
-                  }}
-                  isCopyingTourToBuilding={tourCopyBusy.isBusy}
                   onConvertToLiveTour={
                     canEditToursOnBoard
                       ? (setId, driveFileId, buildingEntry) => {
@@ -1667,16 +1733,37 @@ const TeacherGuidedLearningWidget: React.FC<{
                                 buildingEntry
                               );
                               if (!source) throw new Error('Set not found');
-                              const tour = glSetToLiveTour(source, {
-                                id: crypto.randomUUID(),
-                                now: Date.now(),
-                                authorUid: user?.uid,
-                              });
+                              // Live tours live only in the Help Center (H1).
+                              const tour = {
+                                ...glSetToLiveTour(source, {
+                                  id: crypto.randomUUID(),
+                                  now: Date.now(),
+                                  authorUid: user?.uid,
+                                }),
+                                helpCenter: true,
+                              };
                               // A guard keeps tour.updatedAt, the revision the board editor saves against.
                               await saveBuildingSet(tour, {
                                 expectedUpdatedAt: undefined,
                               });
-                              requestEditTour({ setId: tour.id });
+                              const author = helpAuthor();
+                              const filed = author
+                                ? await createHiddenHelpItem(
+                                    tour,
+                                    author
+                                  ).catch((err: unknown) => {
+                                    console.error(
+                                      '[GuidedLearning] Filing the tour failed:',
+                                      err
+                                    );
+                                    return null;
+                                  })
+                                : null;
+                              if (filed) noteFiledHelpItem(tour.id, filed.id);
+                              requestEditTour({
+                                setId: tour.id,
+                                origin: 'widget',
+                              });
                             } catch (err) {
                               console.error(
                                 '[GuidedLearning] Convert to live tour failed:',
@@ -1695,22 +1782,13 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onDeleteBuilding={(setId) => {
                     void handleDeleteBuilding(setId);
                   }}
-                  onSetBuildingHelpCenter={async (setId, helpCenter) => {
-                    try {
-                      await setHelpCenterFlag(setId, helpCenter);
-                      addToast(
-                        helpCenter
-                          ? 'Moved to Help Center.'
-                          : 'Moved to library.',
-                        'success'
-                      );
-                    } catch (err) {
-                      addToast(
-                        err instanceof Error ? err.message : 'Move failed',
-                        'error'
-                      );
-                    }
-                  }}
+                  onMoveToHelpCenter={
+                    isAdmin
+                      ? (setId, _driveFileId, buildingEntry) =>
+                          handleMoveToHelpCenter(setId, buildingEntry)
+                      : undefined
+                  }
+                  isMovingToHelpCenter={helpMoveBusy.isBusy}
                   onCreateNewPersonal={handleCreateNew}
                   onCreateNewBuilding={handleCreateNewBuilding}
                   onOpenAIAuthoring={setAiLibrary}

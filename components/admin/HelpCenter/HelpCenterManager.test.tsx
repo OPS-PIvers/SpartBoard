@@ -8,17 +8,23 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import type { GuidedLearningSet } from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
 
 const firestoreMocks = vi.hoisted(() => ({
-  addDoc: vi.fn(() => Promise.resolve({ id: 'new-id' })),
   updateDoc: vi.fn(() => Promise.resolve(undefined)),
   deleteDoc: vi.fn(() => Promise.resolve(undefined)),
   setDoc: vi.fn<(ref: unknown, data: Record<string, unknown>) => Promise<void>>(
     () => Promise.resolve(undefined)
   ),
-  getDoc: vi.fn(() => Promise.resolve({ exists: () => false })),
-  batchUpdate: vi.fn<(ref: unknown, data: Record<string, unknown>) => void>(),
+  getDoc: vi.fn((_ref: { path?: string }) =>
+    Promise.resolve({ exists: () => true, data: (): unknown => undefined })
+  ),
+  batchUpdate:
+    vi.fn<(ref: { id: string }, data: Record<string, unknown>) => void>(),
+  batchSet:
+    vi.fn<(ref: { id: string }, data: Record<string, unknown>) => void>(),
+  batchDelete: vi.fn<(ref: { id: string }) => void>(),
   batchCommit: vi.fn(() => Promise.resolve(undefined)),
 }));
 
@@ -31,24 +37,44 @@ const authState = vi.hoisted(() => ({
   },
 }));
 
-const tourState = vi.hoisted(() => ({
-  tourSetIds: new Set<string>(),
-  runnable: new Map<string, boolean>(),
-  web: new Set<string>(),
-  gated: false,
-}));
-
 const helpState = vi.hoisted(() => ({
   items: [] as HelpResourceItem[],
   categories: [
     { id: 'getting-started', name: 'Getting started', order: 0 },
+    { id: 'admin', name: 'Admin', order: 1 },
   ] as { id: string; name: string; order: number }[],
-  error: null as string | null,
-  allOrgs: false,
+}));
+
+const glState = vi.hoisted(() => ({
+  tourSetIds: new Set<string>(),
+  sets: new Map<string, unknown>(),
+  personal: [] as {
+    id: string;
+    title: string;
+    mode: string;
+    driveFileId: string;
+    updatedAt: number;
+  }[],
+  saveSet: vi.fn(() => Promise.resolve({})),
+  saveBuildingSet: vi.fn(() => Promise.resolve()),
+  loadSetData: vi.fn(),
+  deleteSet: vi.fn(() => Promise.resolve()),
+}));
+
+const itemMocks = vi.hoisted(() => ({
+  publishHelpItem: vi.fn(() => Promise.resolve({ ok: true })),
+  hideHelpItem: vi.fn(() => Promise.resolve()),
+  moveSetToHelpCenter: vi.fn(),
+  createHiddenHelpItem: vi.fn(),
+  copyHelpItemToLibrary: vi.fn(() => Promise.resolve({})),
+}));
+
+const tourMocks = vi.hoisted(() => ({
+  requestRecordTour: vi.fn(),
+  requestEditTour: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', () => ({
-  addDoc: firestoreMocks.addDoc,
   updateDoc: firestoreMocks.updateDoc,
   deleteDoc: firestoreMocks.deleteDoc,
   setDoc: firestoreMocks.setDoc,
@@ -60,6 +86,8 @@ vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, name: string) => ({ name }),
   writeBatch: () => ({
     update: firestoreMocks.batchUpdate,
+    set: firestoreMocks.batchSet,
+    delete: firestoreMocks.batchDelete,
     commit: firestoreMocks.batchCommit,
   }),
 }));
@@ -68,8 +96,9 @@ vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    isAdmin: true,
     canAccessFeature: () => true,
-    canAccessWidget: () => false,
+    canAccessWidget: () => true,
     ...authState.value,
   }),
 }));
@@ -79,119 +108,110 @@ vi.mock('@/context/useDialog', () => ({
 }));
 
 vi.mock('@/hooks/useHelpResources', () => ({
-  useHelpResources: (opts: { allOrgs?: boolean }) => {
-    helpState.allOrgs = Boolean(opts.allOrgs);
-    return {
-      items: helpState.items,
-      categories: helpState.categories,
-      loading: false,
-      error: helpState.error,
-    };
-  },
+  useHelpResources: () => ({
+    items: helpState.items,
+    categories: helpState.categories,
+    loading: false,
+    error: null,
+  }),
 }));
 
 vi.mock('@/hooks/useOrganizations', () => ({
-  useOrganizations: () => ({ organizations: [] }),
+  useOrganizations: () => ({
+    organizations: [{ id: 'orono', name: 'Orono', shortName: 'Orono' }],
+  }),
 }));
 
 vi.mock('@/hooks/useOrganization', () => ({
   useOrganization: () => ({ organization: null }),
 }));
 
-const glState = vi.hoisted(() => ({
-  buildingSets: [] as { id: string; title: string; helpCenter?: boolean }[],
-  markHelpCenterSets: vi.fn<(ids: readonly string[]) => Promise<void>>(() =>
-    Promise.resolve()
+vi.mock('@/hooks/useGuidedLearning', () => ({
+  useGuidedLearning: () => ({
+    sets: glState.personal,
+    buildingSets: [],
+    loading: false,
+    buildingLoading: false,
+    loadSetData: glState.loadSetData,
+    deleteSet: glState.deleteSet,
+    saveSet: glState.saveSet,
+    saveBuildingSet: glState.saveBuildingSet,
+  }),
+  useLiveTourSetIds: () => glState.tourSetIds,
+  loadBuildingSet: (id: string) =>
+    Promise.resolve(glState.sets.get(id) ?? null),
+}));
+
+vi.mock('./useHelpItemSets', () => ({
+  useHelpItemSets: () => glState.sets,
+}));
+
+vi.mock('@/utils/helpCenterItems', () => ({
+  ...itemMocks,
+  publishRefusalOf: (
+    item: { categoryId: string },
+    set: unknown
+  ): string | null =>
+    item.categoryId === '' ? 'unfiled' : set ? null : 'missing-set',
+  helpCopyIdFor: (id: string) => `help-${id}`,
+  isPendingHelpCenterMove: () => false,
+}));
+
+vi.mock('@/components/tours/tourState', () => ({
+  requestRecordTour: tourMocks.requestRecordTour,
+}));
+
+vi.mock('@/components/tours/editor/tourEditStore', () => ({
+  requestEditTour: tourMocks.requestEditTour,
+}));
+
+vi.mock('@/components/tours/TourStepList', () => ({
+  TourStepList: () => <div data-testid="tour-step-list" />,
+}));
+
+vi.mock('./TourHealthPanel', () => ({
+  default: ({ setId }: { setId: string }) => (
+    <div data-testid="tour-health">{setId}</div>
   ),
 }));
 
-vi.mock('@/hooks/useGuidedLearning', () => ({
-  useGuidedLearning: () => ({
-    sets: [],
-    buildingSets: glState.buildingSets,
-    loadSetData: vi.fn(),
-    saveBuildingSet: vi.fn(),
-  }),
-  markHelpCenterSets: glState.markHelpCenterSets,
-  useLiveTourSetIds: () => tourState.tourSetIds,
+vi.mock('./UnmappedAnchorsSection', () => ({
+  UnmappedAnchorsSection: () => <div data-testid="unmapped" />,
 }));
 
-vi.mock('@/components/tours/webTours', () => ({
-  watchWebTourDrafts: () => () => undefined,
-}));
-
-vi.mock('@/components/tours/publishedTours', () => ({
-  readPublishedTour: (id: string) => ({
-    loaded: true,
-    tour: tourState.web.has(id)
-      ? { set: { surface: 'web', steps: [] }, publishedAt: 1 }
-      : null,
-  }),
-  watchTours: () => () => undefined,
-  getToursVersion: () => 0,
-  isTourRunnable: (id: string, canUse?: (type: string) => boolean) =>
-    tourState.gated && canUse && !canUse('timer')
-      ? false
-      : tourState.runnable.get(id),
-}));
-
-vi.mock('@/components/common/SortableList', () => ({
-  SortableList: <T,>({
-    items,
-    onReorder,
-    getId,
-    renderItem,
+vi.mock('./PictureGuideStudio', () => ({
+  PictureGuideStudio: ({
+    set,
+    onSave,
   }: {
-    items: T[];
-    onReorder: (next: T[], movedId: string) => void;
-    getId: (item: T) => string;
-    renderItem: (
-      item: T,
-      handle: {
-        attributes: Record<string, unknown>;
-        listeners: Record<string, unknown>;
-        isDragging: boolean;
-      },
-      index: number
-    ) => React.ReactNode;
+    set: GuidedLearningSet;
+    onSave: (set: GuidedLearningSet) => Promise<void>;
   }) => (
-    <div>
-      <button
-        type="button"
-        onClick={() =>
-          onReorder([...items].reverse(), getId(items[items.length - 1]))
-        }
-      >
-        reverse
-      </button>
-      {items.map((item, index) => (
-        <div key={getId(item)}>
-          {renderItem(
-            item,
-            { attributes: {}, listeners: {}, isDragging: false },
-            index
-          )}
-        </div>
-      ))}
-    </div>
+    <button type="button" onClick={() => void onSave(set)}>
+      studio save
+    </button>
   ),
 }));
 
 import { HelpCenterManager } from './HelpCenterManager';
+import {
+  readHelpCenterSelection,
+  writeHelpCenterSelection,
+} from './helpCenterSelection';
 
 const makeItem = (over: Partial<HelpResourceItem>): HelpResourceItem => ({
   id: 'i1',
-  kind: 'embed',
+  kind: 'guided-learning',
   title: 'Item',
   description: '',
   categoryId: 'getting-started',
   order: 0,
-  visible: true,
+  visible: false,
   orgId: null,
   widgetTypes: [],
-  url: 'https://docs.google.com/document/d/abc/edit',
-  embedType: 'doc',
-  setId: null,
+  url: null,
+  embedType: null,
+  setId: 's1',
   openCount: 0,
   createdBy: 'u1',
   createdByEmail: 'super@school.org',
@@ -200,14 +220,8 @@ const makeItem = (over: Partial<HelpResourceItem>): HelpResourceItem => ({
   ...over,
 });
 
-const asSuperAdmin = () => {
-  authState.value = {
-    user: { uid: 'u1', email: 'super@school.org' },
-    userRoles: { superAdmins: ['super@school.org'] },
-    orgId: null,
-    roleId: null,
-  };
-};
+const pictureSet = (id: string) =>
+  ({ id, title: 'Set', mode: 'structured', steps: [] }) as unknown;
 
 const asOrgAdmin = () => {
   authState.value = {
@@ -218,462 +232,361 @@ const asOrgAdmin = () => {
   };
 };
 
-// The rules also accept a member doc with roleId super_admin.
-const asMemberSuperAdmin = () => {
-  authState.value = {
-    user: { uid: 'u3', email: 'member-super@school.org' },
-    userRoles: { superAdmins: ['super@school.org'] },
-    orgId: 'orono',
-    roleId: 'super_admin',
-  };
-};
-
-const createCall = () =>
-  firestoreMocks.setDoc.mock.calls.find(
-    (call) => (call[1] as { kind?: string }).kind !== undefined
+const selectRow = (title: string) =>
+  fireEvent.click(
+    screen.getByRole('button', { name: new RegExp(`^${title}`) })
   );
-
-const fillAndSave = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Add a link' }));
-  fireEvent.change(screen.getByLabelText('Link'), {
-    target: { value: 'https://docs.google.com/document/d/abc/edit' },
-  });
-  fireEvent.change(screen.getByLabelText('Title'), {
-    target: { value: 'Getting started guide' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-};
 
 describe('HelpCenterManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    firestoreMocks.getDoc.mockResolvedValue({ exists: () => false });
+    writeHelpCenterSelection(null);
+    authState.value = {
+      user: { uid: 'u1', email: 'super@school.org' },
+      userRoles: { superAdmins: ['super@school.org'] },
+      orgId: null,
+      roleId: null,
+    };
     helpState.items = [];
     helpState.categories = [
       { id: 'getting-started', name: 'Getting started', order: 0 },
+      { id: 'admin', name: 'Admin', order: 1 },
     ];
-    helpState.error = null;
-    glState.buildingSets = [];
-    tourState.tourSetIds = new Set();
-    tourState.runnable = new Map();
-    tourState.web = new Set();
-    tourState.gated = false;
-    asSuperAdmin();
+    glState.tourSetIds = new Set();
+    glState.sets = new Map([['s1', pictureSet('s1')]]);
+    glState.personal = [];
   });
 
   afterEach(() => cleanup());
 
-  it('seeds the category config once for a super admin', async () => {
-    render(<HelpCenterManager />);
-    await waitFor(() => expect(firestoreMocks.setDoc).toHaveBeenCalledTimes(1));
-    const [, payload] = firestoreMocks.setDoc.mock.calls[0];
-    expect((payload as { categories: { id: string }[] }).categories[0].id).toBe(
-      'getting-started'
-    );
-  });
-
-  it('does not seed the category config for an org admin', async () => {
-    asOrgAdmin();
-    render(<HelpCenterManager />);
-    await waitFor(() => expect(firestoreMocks.getDoc).not.toHaveBeenCalled());
-    expect(firestoreMocks.setDoc).not.toHaveBeenCalled();
-  });
-
-  it('stamps orgId null when a super admin creates an item', async () => {
-    render(<HelpCenterManager />);
-    fillAndSave();
-    await waitFor(() => expect(createCall()).toBeDefined());
-    expect(createCall()?.[1]).toMatchObject({
-      orgId: null,
-      embedType: 'doc',
-      openCount: 0,
-    });
-  });
-
-  it('creates with setDoc on a pre-generated ref whose id is in the payload', async () => {
-    render(<HelpCenterManager />);
-    fillAndSave();
-    await waitFor(() => expect(createCall()).toBeDefined());
-    const call = createCall();
-    expect(firestoreMocks.addDoc).not.toHaveBeenCalled();
-    expect((call?.[0] as { id: string }).id).toBe('new-id');
-    expect((call?.[1] as { id: string }).id).toBe('new-id');
-  });
-
-  it("stamps the admin's orgId when an org admin creates an item", async () => {
-    asOrgAdmin();
-    render(<HelpCenterManager />);
-    fillAndSave();
-    await waitFor(() => expect(createCall()).toBeDefined());
-    expect(createCall()?.[1]).toMatchObject({ orgId: 'orono' });
-  });
-
-  it('hides edit and delete on out-of-scope items for an org admin', () => {
-    asOrgAdmin();
+  it('lists Unfiled first with a count, then each category', () => {
     helpState.items = [
-      makeItem({ id: 'g1', title: 'Global', orgId: null }),
-      makeItem({ id: 'o1', title: 'Ours', orgId: 'orono' }),
+      makeItem({ id: 'a', title: 'Filed', categoryId: 'admin' }),
+      makeItem({ id: 'b', title: 'Loose one', categoryId: '' }),
+      makeItem({ id: 'c', title: 'Loose two', categoryId: '' }),
     ];
     render(<HelpCenterManager />);
-    expect(screen.queryByRole('button', { name: 'Edit Global' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Delete Global' })).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Edit Ours' })
-    ).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 3 });
+    expect(headings[0]).toHaveTextContent('Unfiled');
+    expect(headings[0]).toHaveTextContent('2');
+    expect(headings.map((h) => h.textContent)).toEqual([
+      'Unfiled2',
+      'Getting started0',
+      'Admin1',
+    ]);
   });
 
-  it('reorders only own-org docs for an org admin', async () => {
-    asOrgAdmin();
+  it('shows kind and status on each row and marks one that needs attention', () => {
+    glState.tourSetIds = new Set(['t1']);
+    glState.sets.set('t1', pictureSet('t1'));
     helpState.items = [
-      makeItem({ id: 'g1', title: 'Global', orgId: null, order: 0 }),
-      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', order: 0 }),
-      makeItem({ id: 'o2', title: 'Ours B', orgId: 'orono', order: 1 }),
+      makeItem({ id: 'a', title: 'Tour', setId: 't1', visible: true }),
+      makeItem({ id: 'b', title: 'Loose', categoryId: '' }),
     ];
     render(<HelpCenterManager />);
-    const reverseButtons = screen.getAllByRole('button', { name: 'reverse' });
-    fireEvent.click(reverseButtons[reverseButtons.length - 1]);
-    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
-    const paths = firestoreMocks.batchUpdate.mock.calls.map(
-      (call) => (call[0] as { path: string }).path
-    );
-    expect(paths).toEqual(['help_resources/o1']);
+    const tour = screen.getByRole('button', { name: /^Tour/ });
+    expect(tour).toHaveTextContent('Live tour · Published');
+    expect(within(tour).queryByLabelText('Needs attention')).toBeNull();
+    const loose = screen.getByRole('button', { name: /^Loose/ });
+    expect(loose).toHaveTextContent('Picture guide · Hidden');
+    expect(within(loose).getByLabelText('Needs attention')).toBeTruthy();
   });
 
-  it('surfaces the hook error in the alert banner', () => {
-    helpState.error = 'Missing or insufficient permissions.';
+  it('keeps the selection in storage and opens its detail', () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha' })];
     render(<HelpCenterManager />);
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Missing or insufficient permissions.'
-    );
+    selectRow('Alpha');
+    expect(readHelpCenterSelection()).toBe('a');
+    expect(screen.getByLabelText('Title')).toHaveValue('Alpha');
   });
 
-  it('blocks adding when no categories are configured', () => {
-    helpState.categories = [];
+  it('lands on the stored selection after a reload', () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha' })];
+    writeHelpCenterSelection('a');
     render(<HelpCenterManager />);
-    expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled();
-    expect(
-      screen.getByText(
-        'No categories yet. A super admin needs to open this tab first.'
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Title')).toHaveValue('Alpha');
   });
 
-  it('previews a pasted URL', async () => {
+  it('refuses Publish while the item is Unfiled', () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha', categoryId: '' })];
+    writeHelpCenterSelection('a');
     render(<HelpCenterManager />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add a link' }));
-    fireEvent.change(screen.getByLabelText('Link'), {
-      target: { value: 'https://www.youtube.com/watch?v=abc' },
-    });
-    expect(await screen.findByTitle('Help item preview')).toBeInTheDocument();
+    expect(screen.getByText('Pick a category to publish.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Publish' })).toBeNull();
   });
 
-  it('blocks saving an http URL', () => {
+  it('publishes a filed item with publishHelpItem', async () => {
+    const item = makeItem({ id: 'a', title: 'Alpha' });
+    helpState.items = [item];
+    writeHelpCenterSelection('a');
     render(<HelpCenterManager />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add a link' }));
-    fireEvent.change(screen.getByLabelText('Link'), {
-      target: { value: 'http://example.com/guide' },
-    });
-    fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'Insecure' },
-    });
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    expect(firestoreMocks.addDoc).not.toHaveBeenCalled();
-  });
-
-  it('asks for every org when the viewer is a super admin', () => {
-    render(<HelpCenterManager />);
-    expect(helpState.allOrgs).toBe(true);
-  });
-
-  it('does not ask for every org when the viewer is an org admin', () => {
-    asOrgAdmin();
-    render(<HelpCenterManager />);
-    expect(helpState.allOrgs).toBe(false);
-  });
-
-  it('treats a super_admin member doc as a super admin, like the rules do', () => {
-    asMemberSuperAdmin();
-    render(<HelpCenterManager />);
-    expect(helpState.allOrgs).toBe(true);
-  });
-
-  it('writes new order values on reorder', async () => {
-    helpState.items = [
-      makeItem({ id: 'a', title: 'A', order: 0 }),
-      makeItem({ id: 'b', title: 'B', order: 1 }),
-    ];
-    render(<HelpCenterManager />);
-    const reverseButtons = screen.getAllByRole('button', { name: 'reverse' });
-    fireEvent.click(reverseButtons[reverseButtons.length - 1]);
-    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
-    expect(firestoreMocks.batchUpdate).toHaveBeenCalledTimes(2);
-    expect(firestoreMocks.batchUpdate.mock.calls[0][1]).toMatchObject({
-      order: 0,
-    });
-    expect(firestoreMocks.batchUpdate.mock.calls[1][1]).toMatchObject({
-      order: 1,
-    });
-  });
-
-  it('shows a per-category open total in the section header', () => {
-    helpState.items = [
-      makeItem({ id: 'a', title: 'A', openCount: 3 }),
-      makeItem({ id: 'b', title: 'B', openCount: 4 }),
-    ];
-    render(<HelpCenterManager />);
-    expect(screen.getByText('7')).toBeInTheDocument();
-  });
-
-  it('sorts all visible items by open count when toggled', () => {
-    asOrgAdmin();
-    helpState.items = [
-      makeItem({ id: 'g1', title: 'Global', orgId: null, openCount: 1 }),
-      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', openCount: 9 }),
-      makeItem({ id: 'o2', title: 'Ours B', orgId: 'orono', openCount: 5 }),
-    ];
-    render(<HelpCenterManager />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by opens' }));
-    const titles = screen
-      .getAllByText(/^(Global|Ours A|Ours B)$/)
-      .map((el) => el.textContent);
-    expect(titles).toEqual(['Ours A', 'Ours B', 'Global']);
-  });
-
-  it('keeps write controls on owned items while sorted by opens', () => {
-    asOrgAdmin();
-    helpState.items = [
-      makeItem({ id: 'g1', title: 'Global', orgId: null, openCount: 1 }),
-      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', openCount: 9 }),
-    ];
-    render(<HelpCenterManager />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by opens' }));
-    expect(
-      screen.getByRole('button', { name: 'Edit Ours A' })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Delete Ours A' })
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText('Visible: Ours A')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit Global' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Delete Global' })).toBeNull();
-    expect(screen.queryByLabelText('Visible: Global')).toBeNull();
-  });
-
-  it('assigns reorder positions from the merged section, not the own-item index', async () => {
-    asOrgAdmin();
-    helpState.items = [
-      makeItem({ id: 'g1', title: 'Global', orgId: null, order: 0 }),
-      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', order: 0 }),
-      makeItem({ id: 'o2', title: 'Ours B', orgId: 'orono', order: 1 }),
-    ];
-    render(<HelpCenterManager />);
-    const reverseButtons = screen.getAllByRole('button', { name: 'reverse' });
-    fireEvent.click(reverseButtons[reverseButtons.length - 1]);
-    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
-    const writes = firestoreMocks.batchUpdate.mock.calls.map((call) => ({
-      path: (call[0] as { path: string }).path,
-      order: (call[1] as { order: number }).order,
-    }));
-    // Merged sequence is [Global, Ours B, Ours A]; Ours B already sits at 1.
-    expect(writes).toEqual([{ path: 'help_resources/o1', order: 2 }]);
-    expect(writes.some((w) => w.order === 0)).toBe(false);
-  });
-
-  it('toggling sort by opens off restores the category sections', () => {
-    render(<HelpCenterManager />);
-    const toggle = screen.getByRole('button', { name: 'Sort by opens' });
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByText('Getting started')).toBeInTheDocument();
-  });
-
-  it('lists linked activities still in the library and moves one to Help only', async () => {
-    helpState.items = [
-      makeItem({
-        id: 'gl1',
-        kind: 'guided-learning',
-        title: 'Rosters guide',
-        url: null,
-        embedType: null,
-        setId: 'set-linked',
-      }),
-      makeItem({
-        id: 'gl2',
-        kind: 'guided-learning',
-        title: 'Paste guide',
-        url: null,
-        embedType: null,
-        setId: 'set-flagged',
-      }),
-    ];
-    glState.buildingSets = [
-      { id: 'set-linked', title: 'Class Rosters' },
-      { id: 'set-flagged', title: 'Smart Paste', helpCenter: true },
-      { id: 'set-unlinked', title: 'Fractions Lesson' },
-    ];
-    render(<HelpCenterManager />);
-
-    const notice = screen.getByRole('region', {
-      name: 'Linked activities in the Guided Learning library',
-    });
-    expect(within(notice).getByText('Class Rosters')).toBeInTheDocument();
-    expect(within(notice).queryByText('Smart Paste')).not.toBeInTheDocument();
-    expect(
-      within(notice).queryByText('Fractions Lesson')
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(
-      within(notice).getByRole('button', {
-        name: 'Move Class Rosters to Help only',
-      })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
     await waitFor(() =>
-      expect(glState.markHelpCenterSets).toHaveBeenCalledWith(['set-linked'])
+      expect(itemMocks.publishHelpItem).toHaveBeenCalledWith(item, 'u1')
     );
   });
 
-  it('shows no library notice when every linked activity is Help only', () => {
-    helpState.items = [
-      makeItem({
-        id: 'gl2',
-        kind: 'guided-learning',
-        url: null,
-        embedType: null,
-        setId: 'set-flagged',
-      }),
-    ];
-    glState.buildingSets = [
-      { id: 'set-flagged', title: 'Smart Paste', helpCenter: true },
-    ];
+  it('shows the refusal when publishHelpItem refuses', async () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha' })];
+    itemMocks.publishHelpItem.mockResolvedValueOnce({
+      ok: false,
+      reason: 'failing-steps',
+    } as never);
+    writeHelpCenterSelection('a');
     render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
     expect(
-      screen.queryByRole('region', {
-        name: 'Linked activities in the Guided Learning library',
+      await screen.findByText('Fix the failing steps to publish.')
+    ).toBeTruthy();
+  });
+
+  it('hides a published item', async () => {
+    const item = makeItem({ id: 'a', title: 'Alpha', visible: true });
+    helpState.items = [item];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    await waitFor(() =>
+      expect(itemMocks.hideHelpItem).toHaveBeenCalledWith(item)
+    );
+  });
+
+  it('opens the tour editor from Edit on a Live tour', async () => {
+    glState.tourSetIds = new Set(['t1']);
+    glState.sets.set('t1', pictureSet('t1'));
+    helpState.items = [makeItem({ id: 'a', title: 'Tour', setId: 't1' })];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    expect(await screen.findByTestId('tour-health')).toHaveTextContent('t1');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(tourMocks.requestEditTour).toHaveBeenCalledWith({
+      setId: 't1',
+      origin: 'help-center',
+    });
+  });
+
+  it('copies a Picture guide to the library', async () => {
+    const item = makeItem({ id: 'a', title: 'Alpha' });
+    helpState.items = [item];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy to my library' }));
+    await waitFor(() =>
+      expect(itemMocks.copyHelpItemToLibrary).toHaveBeenCalledWith(
+        item,
+        'u1',
+        glState.saveSet
+      )
+    );
+  });
+
+  it('hides an item when it is filed back to Unfiled', async () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha', visible: true })];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.change(screen.getByLabelText('Category'), {
+      target: { value: '' },
+    });
+    await waitFor(() => expect(firestoreMocks.updateDoc).toHaveBeenCalled());
+    expect(firestoreMocks.updateDoc.mock.calls[0]).toEqual([
+      expect.objectContaining({ id: 'a' }),
+      expect.objectContaining({ categoryId: '', visible: false }),
+    ]);
+  });
+
+  it('changes scope by recreating the item and deleting the old one', async () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha', openCount: 4 })];
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.change(screen.getByLabelText('Scope'), {
+      target: { value: 'orono' },
+    });
+    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
+    expect(firestoreMocks.batchSet.mock.calls[0][1]).toMatchObject({
+      id: 'new-id',
+      orgId: 'orono',
+      openCount: 0,
+      title: 'Alpha',
+    });
+    expect(firestoreMocks.batchDelete.mock.calls[0][0].id).toBe('a');
+    expect(readHelpCenterSelection()).toBe('new-id');
+  });
+
+  it('moves Getting Started entries to the recreated item', async () => {
+    helpState.items = [makeItem({ id: 'a', title: 'Alpha' })];
+    firestoreMocks.getDoc.mockImplementation((ref: { path?: string }) =>
+      Promise.resolve({
+        exists: () => true,
+        data: (): unknown =>
+          ref.path === 'admin_settings/getting_started'
+            ? {
+                tours: [
+                  { itemId: 'a', tier: 'essentials', doneWhen: 'finished' },
+                  { itemId: 'b', tier: 'next', doneWhen: 'finished' },
+                ],
+              }
+            : undefined,
       })
-    ).not.toBeInTheDocument();
+    );
+    writeHelpCenterSelection('a');
+    render(<HelpCenterManager />);
+    fireEvent.change(screen.getByLabelText('Scope'), {
+      target: { value: 'orono' },
+    });
+    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
+    expect(firestoreMocks.batchUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'admin_settings/getting_started' }),
+      {
+        tours: [
+          { itemId: 'new-id', tier: 'essentials', doneWhen: 'finished' },
+          { itemId: 'b', tier: 'next', doneWhen: 'finished' },
+        ],
+      }
+    );
   });
 
-  it('labels a tour that teachers cannot run as Draft, using the same widget gate as the Help tab', () => {
-    tourState.tourSetIds = new Set(['tour1']);
-    tourState.runnable = new Map([['tour1', true]]);
-    tourState.gated = true;
+  it('offers the three New actions and records from Admin Settings', () => {
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'New' }));
+    const items = screen.getAllByRole('menuitem').map((m) => m.textContent);
+    expect(items).toEqual([
+      'Record a Live tour',
+      'Move from library',
+      'New Picture guide',
+    ]);
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Record a Live tour' })
+    );
+    expect(tourMocks.requestRecordTour).toHaveBeenCalledWith('help-center');
+  });
+
+  it('files a new Picture guide on its first save and selects it', async () => {
+    itemMocks.createHiddenHelpItem.mockResolvedValue(
+      makeItem({ id: 'filed', setId: 'new-guide', categoryId: '' })
+    );
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'New' }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'New Picture guide' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'studio save' }));
+    await waitFor(() => expect(readHelpCenterSelection()).toBe('filed'));
+    fireEvent.click(screen.getByRole('button', { name: 'studio save' }));
+    await waitFor(() =>
+      expect(glState.saveBuildingSet).toHaveBeenCalledTimes(2)
+    );
+    expect(itemMocks.createHiddenHelpItem).toHaveBeenCalledTimes(1);
+    expect(itemMocks.createHiddenHelpItem.mock.calls[0][1]).toEqual({
+      uid: 'u1',
+      email: 'super@school.org',
+      orgId: null,
+      isSuperAdmin: true,
+    });
+  });
+
+  it('moves picked library guides and selects the moved item', async () => {
+    const existing = makeItem({ id: 'a', title: 'Alpha' });
+    helpState.items = [existing];
+    glState.personal = [
+      {
+        id: 'p1',
+        title: 'My guide',
+        mode: 'structured',
+        driveFileId: 'f1',
+        updatedAt: 1,
+      },
+    ];
+    itemMocks.moveSetToHelpCenter.mockResolvedValue({
+      item: makeItem({ id: 'moved', setId: 'help-p1', categoryId: '' }),
+      setId: 'help-p1',
+      original: 'removed',
+    });
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'New' }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Move from library' })
+    );
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('checkbox'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move 1' }));
+    await waitFor(() =>
+      expect(itemMocks.moveSetToHelpCenter).toHaveBeenCalledTimes(1)
+    );
+    const [source, author, deps] = itemMocks.moveSetToHelpCenter.mock
+      .calls[0] as unknown as [
+      { kind: string; set: { id: string } },
+      { uid: string },
+      { existingItems: HelpResourceItem[]; deleteSet: unknown },
+    ];
+    expect(source.kind).toBe('personal');
+    expect(source.set.id).toBe('p1');
+    expect(author.uid).toBe('u1');
+    expect(deps.existingItems).toEqual([existing]);
+    expect(deps.deleteSet).toBe(glState.deleteSet);
+    await waitFor(() => expect(readHelpCenterSelection()).toBe('moved'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('makes a deleted category’s items Unfiled', async () => {
     helpState.items = [
-      makeItem({
-        kind: 'guided-learning',
-        setId: 'tour1',
-        url: null,
-        embedType: null,
-        visible: true,
-        title: 'Clock tour',
-      }),
+      makeItem({ id: 'a', title: 'Alpha', categoryId: 'admin', visible: true }),
     ];
     render(<HelpCenterManager />);
-    expect(screen.getByText('Live tour · Draft')).toBeInTheDocument();
-  });
-
-  it.each([
-    [false, true, 'Live tour · Draft', /Publish tour in Settings/],
-    [true, false, 'Live tour · Hidden', /turn on Visible/],
-    [true, true, 'Live tour · Live', null],
-  ])(
-    'labels a linked tour (published %s, visible %s) with its state and next step',
-    (published, visible, label, nextStep) => {
-      tourState.tourSetIds = new Set(['tour1']);
-      tourState.runnable = new Map([['tour1', published]]);
-      helpState.items = [
-        makeItem({
-          kind: 'guided-learning',
-          setId: 'tour1',
-          url: null,
-          embedType: null,
-          visible,
-          title: 'Clock tour',
-        }),
-      ];
-      render(<HelpCenterManager />);
-      expect(screen.getByText(label)).toBeInTheDocument();
-      if (nextStep) expect(screen.getByText(nextStep)).toBeInTheDocument();
-      else
-        expect(screen.queryByText(/turn on Visible|Publish tour/)).toBeNull();
-    }
-  );
-
-  describe('an item that still links a web tour', () => {
-    const webItem = () =>
-      makeItem({
-        id: 'w1',
-        title: 'Old web guide',
-        kind: 'guided-learning',
-        setId: 'web-set',
-        url: null,
-        embedType: null,
-        visible: true,
-      });
-
-    beforeEach(() => {
-      tourState.web = new Set(['web-set']);
-      helpState.items = [webItem()];
+    fireEvent.click(screen.getByRole('button', { name: 'Categories' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Admin' }));
+    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
+    expect(firestoreMocks.batchUpdate.mock.calls[0][0].id).toBe('a');
+    expect(firestoreMocks.batchUpdate.mock.calls[0][1]).toMatchObject({
+      categoryId: '',
+      visible: false,
     });
-
-    it('says it is hidden from teachers and shows Visible off, with no way to switch it on', () => {
-      render(<HelpCenterManager />);
-      expect(
-        screen.getByText(/Hidden: web tours no longer show in Help/)
-      ).toBeTruthy();
-      const visible = screen.getByRole('switch', {
-        name: /Visible: Old web guide/,
-      });
-      expect(visible.getAttribute('aria-checked')).toBe('false');
-      expect((visible as HTMLButtonElement).disabled).toBe(true);
-    });
-
-    it('removes the item in one click after the existing confirm', async () => {
-      render(<HelpCenterManager />);
-      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
-      await waitFor(() =>
-        expect(firestoreMocks.deleteDoc).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      const saved = firestoreMocks.setDoc.mock.calls.find(
+        (call) => 'categories' in call[1]
       );
-      expect(firestoreMocks.deleteDoc).toHaveBeenCalledWith(
-        expect.objectContaining({ path: 'help_resources/w1' })
-      );
-    });
-
-    it('writes nothing until the admin acts', () => {
-      render(<HelpCenterManager />);
-      expect(firestoreMocks.deleteDoc).not.toHaveBeenCalled();
-      expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
-    });
-
-    it('leaves a normal item alone', () => {
-      helpState.items = [
-        makeItem({ id: 'ok', title: 'Fine guide', visible: true }),
-      ];
-      render(<HelpCenterManager />);
-      expect(screen.queryByText(/Hidden: web tours/)).toBeNull();
-      expect(
-        screen
-          .getByRole('switch', { name: /Visible: Fine guide/ })
-          .getAttribute('aria-checked')
-      ).toBe('true');
+      expect(saved?.[1].categories).toEqual([
+        { id: 'getting-started', name: 'Getting started', order: 0 },
+      ]);
     });
   });
 
-  it('shows no tour label on an activity that is not a live tour', () => {
-    tourState.runnable = new Map([['set1', true]]);
+  it('filters to items that need attention', () => {
     helpState.items = [
-      makeItem({
-        kind: 'guided-learning',
-        setId: 'set1',
-        url: null,
-        embedType: null,
-      }),
+      makeItem({ id: 'a', title: 'Fine' }),
+      makeItem({ id: 'b', title: 'Loose', categoryId: '' }),
     ];
     render(<HelpCenterManager />);
-    expect(screen.queryByText(/Live tour ·/)).toBeNull();
+    fireEvent.change(screen.getByLabelText('Show'), {
+      target: { value: 'attention' },
+    });
+    expect(screen.queryByRole('button', { name: /^Fine/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Loose/ })).toBeTruthy();
+  });
+
+  it('swaps the list for unmapped controls', () => {
+    render(<HelpCenterManager />);
+    fireEvent.change(screen.getByLabelText('Show'), {
+      target: { value: 'unmapped' },
+    });
+    expect(screen.getByTestId('unmapped')).toBeTruthy();
+  });
+
+  it('keeps Categories for super admins and other scopes read only for an org admin', () => {
+    asOrgAdmin();
+    helpState.items = [makeItem({ id: 'g', title: 'Global', orgId: null })];
+    writeHelpCenterSelection('g');
+    render(<HelpCenterManager />);
+    expect(screen.queryByRole('button', { name: 'Categories' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Publish' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+    expect(screen.getByText('Everyone')).toBeTruthy();
+  });
+
+  it('links to Web tours', () => {
+    render(<HelpCenterManager />);
+    expect(screen.getByRole('link', { name: /Web tours/ })).toHaveAttribute(
+      'href',
+      '/web-tours'
+    );
   });
 });

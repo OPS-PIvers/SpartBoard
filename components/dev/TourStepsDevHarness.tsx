@@ -1,6 +1,10 @@
 // The Steps view on seeded tours with drawn pictures, for screenshots. Dev builds only; reads nothing from any backend.
 import React, { useEffect, useMemo, useState } from 'react';
-import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
+import type {
+  GuidedLearningSet,
+  GuidedLearningStep,
+  WebTourMessageStep,
+} from '@/types';
 import { StepsView, type StepsMode } from '@/components/tours/steps/StepsView';
 import { StepsWalkthrough } from '@/components/tours/steps/StepsWalkthrough';
 import { stepsFromLiveTour } from '@/components/tours/steps/liveSteps';
@@ -28,6 +32,10 @@ interface Fixture {
   broken?: boolean;
   /** Picture with no place for the target (older recordings). */
   unplaced?: boolean;
+  /** A Message step: words only. */
+  message?: boolean;
+  /** The site this step is on; defaults to the first tour's. */
+  host?: string;
 }
 
 const WEB: Fixture[] = [
@@ -84,6 +92,69 @@ const WEB: Fixture[] = [
     action: 'observe',
     name: 'Materials',
     box: { x: 0.2, y: 0.55, w: 0.55, h: 0.3 },
+  },
+];
+
+const NOBOX = { x: 0.4, y: 0.4, w: 0.1, h: 0.05 };
+const GEMINI = 'gemini.google.com';
+const CLAUDE = 'claude.ai';
+
+const CROSS: Fixture[] = [
+  {
+    title: 'Welcome',
+    text: 'In this tour you build a skill in Gemini and add it to Claude.',
+    action: 'observe',
+    name: '',
+    box: NOBOX,
+    message: true,
+  },
+  {
+    title: 'Ask Gemini to write the skill',
+    text: 'Describe what the skill should do, then send it.',
+    action: 'type',
+    name: 'Ask Gemini',
+    box: { x: 0.3, y: 0.78, w: 0.4, h: 0.07 },
+    host: GEMINI,
+  },
+  {
+    title: 'Download the file',
+    text: 'Choose the download button under the reply.',
+    action: 'click',
+    name: 'Download',
+    box: { x: 0.62, y: 0.55, w: 0.1, h: 0.045 },
+    host: GEMINI,
+  },
+  {
+    title: 'Now we move over to Claude',
+    text: 'Keep the file you just downloaded handy.',
+    action: 'observe',
+    name: '',
+    box: NOBOX,
+    message: true,
+  },
+  {
+    title: 'Open Skills',
+    text: 'It is in the Customize menu.',
+    action: 'click',
+    name: 'Skills',
+    box: { x: 0.43, y: 0.27, w: 0.12, h: 0.04 },
+    host: CLAUDE,
+  },
+  {
+    title: 'Upload the skill',
+    text: 'Pick the file from your Downloads folder.',
+    action: 'click',
+    name: 'Upload',
+    box: { x: 0.43, y: 0.42, w: 0.12, h: 0.04 },
+    host: CLAUDE,
+  },
+  {
+    title: 'You are done',
+    text: 'The skill now shows in your list. Turn it on to use it.',
+    action: 'observe',
+    name: '',
+    box: NOBOX,
+    message: true,
   },
 ];
 
@@ -220,7 +291,7 @@ const many = (list: Fixture[]): Fixture[] =>
 
 const stepId = (kind: string, i: number) => `${kind}-${i}`;
 
-const webTour = (list: Fixture[]): WebTourStep[] =>
+const webTour = (list: Fixture[]): (WebTourStep | WebTourMessageStep)[] =>
   list.map(
     (f, i) =>
       ({
@@ -231,25 +302,32 @@ const webTour = (list: Fixture[]): WebTourStep[] =>
         interactionType: 'tooltip',
         label: f.title,
         text: f.text,
-        web: {
-          urlPattern: 'https://learning.example.org/course/*/materials',
-          action: f.action,
-          locator: {
-            role: 'button',
-            name: f.name,
-            ...(f.unplaced ? {} : { box: f.box }),
-          },
-          ...(f.only ? { showWhen: [{ kind: 'present' }] } : {}),
-          ...(f.bare
-            ? {}
-            : {
-                picture: {
-                  path: `p/${i}`,
-                  ...placedIn(f.box),
-                  ...(f.unplaced ? { target: undefined, cssW: undefined } : {}),
+        ...(f.message ? { message: true } : {}),
+        ...(f.message
+          ? {}
+          : {
+              web: {
+                urlPattern: `https://${f.host ?? 'learning.example.org'}/course/*/materials`,
+                action: f.action,
+                locator: {
+                  role: 'button',
+                  name: f.name,
+                  ...(f.unplaced ? {} : { box: f.box }),
                 },
-              }),
-        },
+                ...(f.only ? { showWhen: [{ kind: 'present' }] } : {}),
+                ...(f.bare
+                  ? {}
+                  : {
+                      picture: {
+                        path: `p/${i}`,
+                        ...placedIn(f.box),
+                        ...(f.unplaced
+                          ? { target: undefined, cssW: undefined }
+                          : {}),
+                      },
+                    }),
+              },
+            }),
       }) as unknown as WebTourStep
   );
 
@@ -304,11 +382,12 @@ export const TourStepsDevHarness: React.FC = () => {
   const state = param('state') ?? 'normal';
   const mode: StepsMode = param('mode') === 'walk' ? 'walkthrough' : 'steps';
   const crowded = param('many') === '1';
+  const cross = param('cross') === '1';
   const labels = useStepsLabels();
   const fixtures = useMemo(() => {
-    const base = kind === 'web' ? WEB : LIVE;
+    const base = kind === 'web' ? (cross ? CROSS : WEB) : LIVE;
     return crowded ? many(base) : base;
-  }, [kind, crowded]);
+  }, [kind, crowded, cross]);
   const [urls, setUrls] = useState<Record<string, string> | null>(null);
 
   useEffect(() => {
@@ -362,15 +441,19 @@ export const TourStepsDevHarness: React.FC = () => {
           {kind === 'web' ? 'Web tour' : 'Live tour'}
         </p>
         <h1 className="mt-1 text-2xl font-semibold text-slate-900">
-          {kind === 'web' ? 'Post materials to a course' : 'Run a timer'}
+          {kind === 'web'
+            ? cross
+              ? 'Add a Gemini skill to Claude'
+              : 'Post materials to a course'
+            : 'Run a timer'}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          {kind === 'web' ? 'On learning.example.org · ' : ''}
+          {kind === 'web' && !cross ? 'On learning.example.org · ' : ''}
           {steps.length} steps
         </p>
         <div className="mt-8">
           <StepsView
-            key={`${kind}-${mode}-${crowded}`}
+            key={`${kind}-${mode}-${crowded}-${cross}`}
             steps={steps}
             pictures={pictures}
             labels={labels}

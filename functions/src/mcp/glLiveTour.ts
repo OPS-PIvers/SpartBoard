@@ -931,7 +931,7 @@ export function registerLiveTourTools(
     {
       title: 'Create a live tour',
       description:
-        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Read get_live_tour_guide first. Every step needs a tour binding (list_tour_anchors). The first step observes "board.whole" and the last is an observe. The Dock starts collapsed: a tour into it gets an Open Tools step first unless one clicks "dock.open-tools", and inserted_steps lists it. The tour is checked the way playback will meet it: problems that would break it refuse the save, others come back as warnings; pass dry_run to check without saving. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
+        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Read get_live_tour_guide first. Every step needs a tour binding (list_tour_anchors). The first step observes "board.whole" and the last is an observe. The Dock starts collapsed: a tour into it gets an Open Tools step first unless one clicks "dock.open-tools", and inserted_steps lists it. The tour is checked the way playback will meet it: problems that would break it refuse the save, others come back as warnings; pass dry_run to check without saving. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it and presses Publish on the item in Admin Settings > Help Center. Without help_center, an admin files it from Admin Settings > Help Center > New > Move from library.',
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),
@@ -1021,14 +1021,14 @@ export function registerLiveTourTools(
           ...insertedNote(opened.inserted),
           where_to_find_it: help
             ? 'SpartBoard > Admin Settings > Help Center (hidden)'
-            : 'SpartBoard > Guided Learning widget > library, building sets',
+            : 'SpartBoard > Admin Settings > Help Center > New > Move from library',
           ...(help
             ? { help_item_id: helpItemId, help_item_shown_to: help.label }
             : {}),
           ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: help
-            ? 'Saved as a hidden draft. In Admin Settings > Help Center, open the item and edit its activity to run it live and publish it in the Studio, then make the item visible.'
-            : 'Saved as a draft. Try it with Run live on my board (draft) in the library; teachers see it after it is published in the Studio.',
+            ? 'Saved as a hidden draft. In Admin Settings > Help Center, select the item, pick a category, then press Publish.'
+            : 'Saved as a draft. In Admin Settings > Help Center, use New > Move from library to file it, then pick a category and press Publish.',
         };
       })
   );

@@ -132,7 +132,7 @@ vi.mock(
 const makeItem = (
   overrides: Partial<HelpResourceItem> & { id: string }
 ): HelpResourceItem => ({
-  kind: 'embed',
+  kind: 'guided-learning',
   title: 'Item',
   description: '',
   categoryId: 'getting-started',
@@ -140,9 +140,9 @@ const makeItem = (
   visible: true,
   orgId: null,
   widgetTypes: [],
-  url: 'https://www.youtube.com/watch?v=abc123defgh',
-  embedType: 'youtube',
-  setId: null,
+  url: null,
+  embedType: null,
+  setId: `set-${overrides.id}`,
   openCount: 0,
   createdBy: 'u1',
   createdByEmail: 'a@b.c',
@@ -155,6 +155,7 @@ describe('HelpGuidesTab', () => {
   beforeEach(() => {
     firestoreMocks.updateDoc.mockClear();
     glMocks.loadBuildingSet.mockReset();
+    glMocks.loadBuildingSet.mockResolvedValue(null);
     glMocks.playerProps.length = 0;
     glMocks.tourSetIds = new Set();
     glMocks.published = new Set();
@@ -167,8 +168,6 @@ describe('HelpGuidesTab', () => {
         id: 'd1',
         title: 'Board basics',
         categoryId: 'boards-widgets',
-        url: 'https://docs.google.com/document/d/1/edit',
-        embedType: 'doc',
         widgetTypes: ['clock'],
       }),
     ];
@@ -200,14 +199,11 @@ describe('HelpGuidesTab', () => {
     expect(screen.queryByRole('button', { name: 'Admin' })).toBeNull();
   });
 
-  it('filters the list by kind chips', async () => {
-    const user = userEvent.setup();
+  it('offers no embed kind filters', () => {
     render(<HelpGuidesTab query="" />);
-    expect(screen.getByText('Board basics')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Videos' }));
-    expect(screen.getByText('Welcome video')).toBeInTheDocument();
-    expect(screen.queryByText('Board basics')).toBeNull();
+    for (const name of ['Docs', 'Slides', 'Videos', 'Activities', 'Other']) {
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
   });
 
   it('badges live tours and filters to them with the tours chip', async () => {
@@ -397,19 +393,10 @@ describe('HelpGuidesTab', () => {
     expect(screen.getByText('Welcome video')).toBeInTheDocument();
   });
 
-  it('renders a sandboxed iframe for an embed and counts the open once per id', async () => {
+  it('counts the open once per id', async () => {
     const user = userEvent.setup();
     const { unmount } = render(<HelpGuidesTab query="" />);
     await user.click(screen.getByText('Welcome video'));
-
-    const frame = document.querySelector('iframe');
-    expect(frame).not.toBeNull();
-    expect(frame?.getAttribute('sandbox')).toBe(
-      'allow-scripts allow-forms allow-popups allow-same-origin'
-    );
-    expect(frame?.getAttribute('referrerpolicy')).toBe(
-      'strict-origin-when-cross-origin'
-    );
     await waitFor(() =>
       expect(firestoreMocks.updateDoc).toHaveBeenCalledTimes(1)
     );
@@ -467,47 +454,6 @@ describe('HelpGuidesTab', () => {
         screen.getByText('This activity is no longer available')
       ).toBeInTheDocument()
     );
-  });
-
-  it('ignores a stored embedType that the url does not support', async () => {
-    // The rules only require embedType to be a string, so the sandbox is
-    // derived from the url instead of the stored hint.
-    helpState.items = [
-      makeItem({
-        id: 'x1',
-        title: 'Lying embed type',
-        url: 'https://drive.google.com/open?id=abc123',
-        embedType: 'drive',
-      }),
-    ];
-    const user = userEvent.setup();
-    render(<HelpGuidesTab query="" />);
-    await user.click(screen.getByText('Lying embed type'));
-
-    const frame = document.querySelector('iframe');
-    expect(frame).not.toBeNull();
-    expect(frame?.getAttribute('sandbox')).toBe(
-      'allow-scripts allow-forms allow-popups'
-    );
-  });
-
-  it('links out instead of framing an arbitrary-host pdf', async () => {
-    helpState.items = [
-      makeItem({
-        id: 'p1',
-        title: 'Raw pdf',
-        url: 'https://example.com/guide.pdf',
-        embedType: 'pdf',
-      }),
-    ];
-    const user = userEvent.setup();
-    render(<HelpGuidesTab query="" />);
-    await user.click(screen.getByText('Raw pdf'));
-
-    expect(document.querySelector('iframe')).toBeNull();
-    expect(
-      screen.getByRole('link', { name: 'Open in a new tab' })
-    ).toHaveAttribute('href', 'https://example.com/guide.pdf');
   });
 
   it('falls back to All when the selected category loses its items', async () => {
@@ -588,8 +534,10 @@ describe('HelpGuidesTab', () => {
     await user.click(screen.getByRole('button', { name: 'Full screen' }));
 
     expect(requestFullscreen).toHaveBeenCalledTimes(1);
-    const frame = document.querySelector('iframe');
-    expect(frame && fs.el?.contains(frame)).toBe(true);
+    const message = await screen.findByText(
+      'This activity is no longer available'
+    );
+    expect(fs.el?.contains(message)).toBe(true);
     await user.click(screen.getByRole('button', { name: 'Exit full screen' }));
     expect(exitFullscreen).toHaveBeenCalledTimes(1);
     await waitFor(() =>

@@ -199,8 +199,18 @@ describe('poll votes', () => {
     );
   });
 
-  it('still takes a uid-keyed vote from a joined tab on the previous app', async () => {
-    await assertSucceeds(setDoc(voteRef(asAnon(), `0_${ANON_UID}`), vote()));
+  it('refuses a uid-keyed vote from a joined device', async () => {
+    await assertFails(setDoc(voteRef(asAnon(), `0_${ANON_UID}`), vote()));
+  });
+
+  it('refuses every vote id when the join has no voter id', async () => {
+    await seed(`poll_joins/${SESSION_ID}__${ANON_UID}`, {
+      sessionId: SESSION_ID,
+      uid: ANON_UID,
+    });
+    await assertFails(setDoc(voteRef(asAnon(), `0_${ANON_UID}`), vote()));
+    await assertFails(setDoc(voteRef(asAnon(), `0_${ANON_VOTER}`), vote()));
+    await assertSucceeds(getDocs(votesCol(asAnon())));
   });
 
   it('refuses a device that never joined, under any id', async () => {

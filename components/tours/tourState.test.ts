@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  HELP_CENTER_OPEN_EVENT,
+  recordOriginOf,
+  requestOpenHelpCenter,
   requestRecordTour,
   requestStartTour,
   setTourRunning,
@@ -38,5 +41,31 @@ describe('tourState', () => {
     const record = listen(TOUR_RECORD_EVENT);
     requestRecordTour();
     expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a record request with where it started', () => {
+    const record = listen(TOUR_RECORD_EVENT);
+    requestRecordTour('help-center');
+    expect(detailOf(record)).toEqual({ origin: 'help-center' });
+    expect(recordOriginOf(record.mock.calls[0][0] as Event)).toBe(
+      'help-center'
+    );
+  });
+
+  it('treats a click event or no argument as a widget start', () => {
+    const record = listen(TOUR_RECORD_EVENT);
+    (requestRecordTour as (arg?: unknown) => void)(new MouseEvent('click'));
+    requestRecordTour();
+    expect(detailOf(record, 0)).toEqual({ origin: 'widget' });
+    expect(detailOf(record, 1)).toEqual({ origin: 'widget' });
+    expect(recordOriginOf(new Event(TOUR_RECORD_EVENT))).toBe('widget');
+  });
+
+  it('asks Admin Settings to open the Help Center on an item', () => {
+    const open = listen(HELP_CENTER_OPEN_EVENT);
+    requestOpenHelpCenter({ selectId: 'item-1' });
+    requestOpenHelpCenter();
+    expect(detailOf(open, 0)).toEqual({ selectId: 'item-1' });
+    expect(detailOf(open, 1)).toEqual({});
   });
 });

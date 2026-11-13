@@ -35,7 +35,13 @@ export type TourAnchorAttrs = ReturnType<typeof tourAttr>;
 
 /** Shell controls whose anchor a kind can replace, so its saved tour ids keep rendering. */
 export type TourShellAnchorSlot =
-  'main' | 'play' | 'menu' | 'add-step' | 'record' | 'step-more';
+  | 'main'
+  | 'play'
+  | 'menu'
+  | 'add-step'
+  | 'add-message'
+  | 'record'
+  | 'step-more';
 
 export interface TourShellMenuItem {
   id: TourShellMenuId;
@@ -80,6 +86,10 @@ export interface TourShellAdapter {
   /** A small action shown on the selected row (e.g. Copy for Claude). */
   rowAction?: (stepId: string) => React.ReactNode;
   onAddStep?: () => void;
+  /** Adds a text-only step at this position (0 = first, steps.length = last); absent hides the controls. */
+  onAddMessage?: (index: number) => void;
+  /** The add-a-message controls' text. */
+  addMessageLabel?: string;
   onRecord?: () => void;
   /** Overrides the Record button's label, e.g. "Stop receiving steps". */
   recordLabel?: string;

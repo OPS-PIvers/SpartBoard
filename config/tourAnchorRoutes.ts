@@ -64,6 +64,20 @@ export function surfacePath(
   return { path, needs: [...needs] };
 }
 
+/** Whether a surface `ref` renders on is open: another anchor on it shows. */
+export function surfaceShowing(
+  ref: string,
+  shows: (anchorId: string) => boolean,
+  anchorSurfaces: AnchorSurfaces = TOUR_ANCHOR_SURFACES
+): boolean {
+  const { id } = parseTourAnchorRef(ref);
+  const on = new Set(anchorSurfaces[id] ?? []);
+  return Object.entries(anchorSurfaces).some(
+    ([other, surfaces]) =>
+      other !== id && surfaces.some((s) => on.has(s)) && shows(other)
+  );
+}
+
 /** Every way to reach an anchor: one route per surface it renders on. */
 export function tourAnchorRoutes(ref: string): TourAnchorRoute[] {
   const { id } = parseTourAnchorRef(ref);

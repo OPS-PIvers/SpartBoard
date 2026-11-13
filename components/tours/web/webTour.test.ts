@@ -15,6 +15,7 @@ import {
   parseWebTourPortMessage,
   parseWebTourStartTour,
   progressForPage,
+  type WebTourStartTargetStep,
 } from './extensionProtocol';
 import {
   buildHandoff,
@@ -321,7 +322,7 @@ describe('hub', () => {
         ['a', { mime: 'image/png', bytes: new Uint8Array(PNG), w: 0, h: 5 }],
       ])
     );
-    const { locator } = handoff.steps[0].web;
+    const { locator } = (handoff.steps[0] as WebTourStartTargetStep).web;
     expect(locator.name).toHaveLength(500);
     expect(locator.css).toHaveLength(500);
     expect(locator.frames).toHaveLength(10);
@@ -347,12 +348,14 @@ describe('hub', () => {
       attrs: { href: '/course/*/materials', testId: 'nav' },
     };
     const before = buildHandoff('s', 1, 'T', [rich], new Map());
-    expect(before.steps[0].web.locator).toEqual({
+    expect((before.steps[0] as WebTourStartTargetStep).web.locator).toEqual({
       role: 'link',
       name: 'Materials',
     });
     const scored = buildHandoff('s', 1, 'T', [rich], new Map(), true);
-    expect(scored.steps[0].web.locator).toEqual(rich.web.locator);
+    expect((scored.steps[0] as WebTourStartTargetStep).web.locator).toEqual(
+      rich.web.locator
+    );
     expect(parseWebTourStartTour(before)).not.toBeNull();
     expect(parseWebTourStartTour(scored)).not.toBeNull();
     expect(

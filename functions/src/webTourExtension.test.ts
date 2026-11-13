@@ -17,11 +17,15 @@ vi.mock('./glTours', () => ({
 }));
 
 import {
+  CROSS_SITE_PROTOCOL,
   ExtensionCallError,
   MAX_PICTURE_TOTAL_CHARS,
+  NEEDS_UPDATE_MESSAGE,
   bearerToken,
+  callerProtocol,
   listTours,
   loadTour,
+  needsCrossSite,
   parseRun,
   parseSetId,
   startHostOf,
@@ -338,7 +342,7 @@ describe('loadTour', () => {
       storeOf(3)
     );
     expect(tour.conditions).toEqual({ a: { showWhen: { kind: 'target' } } });
-    expect(tour.steps[0].web).not.toHaveProperty('showWhen');
+    expect(tour.steps[0]).not.toHaveProperty('web.showWhen');
   });
 
   it('sends picture markup with the pictures it sends, never on the steps (TOURS_10X.md E5)', async () => {
@@ -355,7 +359,7 @@ describe('loadTour', () => {
     );
     expect(tour.pictures.a.markup).toEqual(shapes);
     expect(tour.pictures).not.toHaveProperty('b');
-    expect(tour.steps[0].web).not.toHaveProperty('picture');
+    expect(tour.steps[0]).not.toHaveProperty('web.picture');
   });
 
   it("never reads a picture outside the set's folder", async () => {
@@ -475,5 +479,111 @@ describe('parseSetId', () => {
     expect(parseSetId({ setId: 'abc_1-2' })).toBe('abc_1-2');
     expect(() => parseSetId({ setId: '../x' })).toThrow();
     expect(() => parseSetId({})).toThrow();
+  });
+});
+
+describe('cross-site tours (X13, X14)', () => {
+  const message = (id: string) => ({
+    id,
+    label: `Message ${id}`,
+    text: 'Now we move on',
+    message: true,
+  });
+  const store = {
+    meta: vi.fn(() => Promise.resolve(null)),
+    download: vi.fn(() => Promise.resolve('')),
+  };
+  const gemini = 'https://gemini.google.com/app';
+  const claude = 'https://claude.ai/customize/skills';
+  const crossSite = snapshot([
+    message('intro'),
+    step('a', gemini),
+    message('switch'),
+    step('b', claude),
+  ]);
+  const oneSite = snapshot([step('a', gemini), step('b', gemini)]);
+
+  it('spots a Message step or a Site switch', () => {
+    expect(needsCrossSite(oneSite)).toBe(false);
+    expect(
+      needsCrossSite(snapshot([step('a', gemini), step('b', claude)]))
+    ).toBe(true);
+    expect(needsCrossSite(snapshot([step('a', gemini), message('m')]))).toBe(
+      true
+    );
+    expect(
+      needsCrossSite(snapshot([step('a', gemini), step('b', 'http://b.test/')]))
+    ).toBe(true);
+  });
+
+  it('treats a default port or userinfo as the same site', () => {
+    expect(
+      needsCrossSite(
+        snapshot([
+          step('a', gemini),
+          step('b', 'https://gemini.google.com:443/app'),
+          step('c', 'https://me@Gemini.google.com/app'),
+        ])
+      )
+    ).toBe(false);
+  });
+
+  it('starts on the first targeted step, past an opening message (X8)', () => {
+    expect(startHostOf(crossSite)).toBe('gemini.google.com');
+    expect(startHostOf(snapshot([message('m')]))).toBe(null);
+  });
+
+  it('refuses a cross-site tour to an extension with no or an old protocol', async () => {
+    for (const protocol of [0, 13]) {
+      const err = await loadTour('set1', crossSite, store, protocol).catch(
+        (e: unknown) => e
+      );
+      expect(err).toBeInstanceOf(ExtensionCallError);
+      expect((err as ExtensionCallError).status).toBe(403);
+      expect((err as ExtensionCallError).code).toBe('needs-update');
+      expect((err as ExtensionCallError).message).toBe(NEEDS_UPDATE_MESSAGE);
+    }
+    expect(await status(loadTour('set1', oneSite, store, 0))).toBe(200);
+  });
+
+  it('serves it at protocol 14 with Message steps in order', async () => {
+    const tour = await loadTour('set1', crossSite, store, CROSS_SITE_PROTOCOL);
+    expect(tour.steps.map((s) => s.id)).toEqual(['intro', 'a', 'switch', 'b']);
+    expect(tour.steps[0]).toEqual({
+      id: 'intro',
+      label: 'Message intro',
+      text: 'Now we move on',
+      message: true,
+    });
+    expect('web' in tour.steps[1]).toBe(true);
+    expect(tour.conditions).toBeUndefined();
+  });
+
+  it('drops a step with neither a target nor message: true', async () => {
+    const tour = await loadTour(
+      'set1',
+      snapshot([step('a', gemini), { id: 'x', label: 'Stray' }]),
+      store
+    );
+    expect(tour.steps.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('lists a cross-site tour only to an extension that can play it', () => {
+    const docs = [
+      { id: 'cross', data: crossSite },
+      { id: 'one', data: oneSite },
+    ];
+    expect(listTours(docs).map((t) => t.id)).toEqual(['one']);
+    expect(listTours(docs, 13).map((t) => t.id)).toEqual(['one']);
+    const both = listTours(docs, CROSS_SITE_PROTOCOL);
+    expect(both.map((t) => t.id)).toEqual(['cross', 'one']);
+    expect(both[0].steps).toBe(4);
+  });
+
+  it('reads the caller protocol only when it is a whole number', () => {
+    expect(callerProtocol({ setId: 'x' })).toBe(0);
+    expect(callerProtocol({ protocol: 14 })).toBe(14);
+    expect(callerProtocol({ protocol: '14' })).toBe(0);
+    expect(callerProtocol(null)).toBe(0);
   });
 });
