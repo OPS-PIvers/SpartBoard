@@ -104,7 +104,7 @@ const FlagsPanel: React.FC<{
                   </p>
                 </div>
               </div>
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 onClick={() => void handleClear(s.key)}
                 disabled={clearing === s.key}
                 style={{ touchAction: 'manipulation' }}

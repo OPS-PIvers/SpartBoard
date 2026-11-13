@@ -67,7 +67,7 @@ export const UnlockDialog: React.FC<UnlockDialogProps> = ({
         )}
         <label className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
           Reason
-          <textarea
+          <textarea /* no-tour-anchor: admin View as tab, never on a teacher board */
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             maxLength={UNLOCK_REASON_MAX}
@@ -82,7 +82,7 @@ export const UnlockDialog: React.FC<UnlockDialogProps> = ({
           </p>
         )}
         <div className="flex justify-end gap-2">
-          <button
+          <button /* no-tour-anchor: admin View as tab, never on a teacher board */
             type="button"
             onClick={onClose}
             disabled={busy}
@@ -90,7 +90,7 @@ export const UnlockDialog: React.FC<UnlockDialogProps> = ({
           >
             Cancel
           </button>
-          <button
+          <button /* no-tour-anchor: admin View as tab, never on a teacher board */
             type="submit"
             disabled={!valid || busy}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
