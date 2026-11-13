@@ -11284,10 +11284,6 @@ export type GlobalFeature =
   | 'quiz-blank-types'
   /** Quiz stimuli as named tabs in the panel beside the question (M11). */
   | 'quiz-stimulus-tabs'
-  /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
-  | 'lunch-count-redesign'
-  /** Lunch Count: send a corrected count that replaces the day's row for that class. */
-  | 'lunch-count-resend'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */

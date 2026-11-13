@@ -109,7 +109,7 @@ Widgets use a two-mode scaling system configured in `components/widgets/WidgetRe
    renderCatalystIcon(iconName, 32); // Fixed (for settings panels only)
    ```
 
-**Reference implementations:** `WeatherWidget.tsx`, `RecessGearWidget.tsx`, `LunchCount/Widget.tsx`
+**Reference implementations:** `WeatherWidget.tsx`, `RecessGearWidget.tsx`, `LunchCount/redesign/RedesignedLunchCount.tsx`
 
 ## Audio
 

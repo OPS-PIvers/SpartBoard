@@ -17,7 +17,7 @@ import type { LunchZoneId } from './useLunchCountModel';
 import { COUNT_COLOR, isMiddleHighSite, menuLine } from './lunchCountFormat';
 import { CHIP_HEIGHT, ChipGrid, LunchZone, ZONE_TEXT } from './LunchZone';
 import { PhotoPeek } from './PhotoPeek';
-import { LunchCountWidget as LegacyLunchCountWidget } from '../Widget';
+import { MiddleHighLunchCount } from '../MiddleHighLunchCount';
 
 // Bands are container queries on the widget body: compact (count board), wide (tray left), tall (zones stacked).
 export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
@@ -61,7 +61,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
   }, []);
 
   if (isMiddleHighSite(schoolSite)) {
-    return <LegacyLunchCountWidget widget={widget} />;
+    return <MiddleHighLunchCount widget={widget} />;
   }
 
   const overZones = new Set(drags.map((d) => d.over));

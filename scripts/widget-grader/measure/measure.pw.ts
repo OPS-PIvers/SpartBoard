@@ -10,7 +10,12 @@ import {
 import type { FixtureName } from '../types';
 import { resolveWidgetFiles } from '../widgetFiles';
 import { chunkBytes, distSize, loadManifest } from './chunks';
-import { loadThresholds, PARTIAL_COVERAGE, REPO_ROOT } from './constants';
+import {
+  G4_SHARED_LABELS,
+  loadThresholds,
+  PARTIAL_COVERAGE,
+  REPO_ROOT,
+} from './constants';
 import { measureExtras } from './extras';
 import { accountLibraryText, rosterListText } from './sharedLibrary';
 import { HarnessUnsupported, measureWidget } from './measureWidget';
@@ -35,7 +40,8 @@ const sharedRosterText = (type: string): string => {
     ])
     .join(' ');
   const library = accountLibraryText(typical?.firestoreDocs, type);
-  return `${rosters} ${rosterListText(type)} ${library}`.trim();
+  const labels = (G4_SHARED_LABELS[type] ?? []).join(' ');
+  return `${rosters} ${rosterListText(type)} ${library} ${labels}`.trim();
 };
 const outDir =
   process.env.GRADER_OUT ?? join(REPO_ROOT, 'scripts/widget-grader/out/adhoc');

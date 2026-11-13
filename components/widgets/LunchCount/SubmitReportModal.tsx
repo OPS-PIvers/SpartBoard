@@ -3,7 +3,6 @@ import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import { useAuth } from '@/context/useAuth';
 import { CheckCircle2, FileSpreadsheet, X, Send } from 'lucide-react';
 
 /**
@@ -56,7 +55,6 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   const [notes, setNotes] = useState('');
   const [extraPizza, setExtraPizza] = useState<number | ''>('');
   const [resending, setResending] = useState(false);
-  const { canAccessFeature } = useAuth();
 
   // Parent closes on success without going through handleClose.
   if (!isOpen && resending) setResending(false);
@@ -73,8 +71,8 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   if (!isOpen) return null;
 
   if (alreadySubmitted && !isSubmitting && !resending) {
-    // A send made without the flag has no sheet key, so a resend would add a second row.
-    const canResend = canAccessFeature('lunch-count-resend') && !!sentDetails;
+    // A send saved without details has no sheet key, so a resend would add a second row.
+    const canResend = !!sentDetails;
     return (
       <Modal
         isOpen={isOpen}
