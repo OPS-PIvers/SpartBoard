@@ -507,12 +507,15 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   );
 
   const showClassFilter = !!onClassFilterChange && classOptions.length > 1;
+  // A class whose last response is gone falls back to every class.
+  const activeClass =
+    showClassFilter && classOptions.includes(classFilter) ? classFilter : 'all';
   const responses = useMemo(
     () =>
-      showClassFilter && classFilter !== 'all'
-        ? allResponses.filter((r) => r.classPeriod === classFilter)
+      activeClass !== 'all'
+        ? allResponses.filter((r) => r.classPeriod === activeClass)
         : allResponses,
-    [allResponses, showClassFilter, classFilter]
+    [allResponses, activeClass]
   );
 
   const classCounts = useMemo(() => {
@@ -1356,7 +1359,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
   const classFilterSelect = showClassFilter ? (
     <select
-      value={classFilter}
+      value={activeClass}
       onChange={(e) => changeClassFilter(e.target.value)}
       aria-label={tg('classFilter')}
       title={tg('classFilter')}
@@ -1383,7 +1386,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         <div
           aria-hidden
           className="absolute inset-0 cursor-default"
-          onClick={onClose}
+          onClick={handleClose}
         />
         <div className="relative w-full max-w-lg rounded-2xl bg-white p-10 text-center text-slate-600 shadow-2xl">
           <Pencil aria-hidden className="mx-auto mb-3 h-8 w-8 text-slate-400" />
@@ -1393,12 +1396,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           <p className="mt-2 text-sm text-slate-500">
             {tg(noQuestions ? 'emptyQuestions.body' : 'empty.body')}
           </p>
-          {!noQuestions && classFilter !== 'all' && classFilterSelect && (
+          {!noQuestions && activeClass !== 'all' && classFilterSelect && (
             <div className="mx-auto mt-4 max-w-xs">{classFilterSelect}</div>
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             {...tourTypeAttr('quiz-grading.empty-close', 'quiz')}
             className="mt-6 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
           >

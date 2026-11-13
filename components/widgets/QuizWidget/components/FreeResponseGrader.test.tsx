@@ -333,6 +333,29 @@ describe('FreeResponseGrader class filter', () => {
     ).toBeTruthy();
   });
 
+  it('shows every class when the picked class is gone', async () => {
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[inClass('ada', 'Period 1'), inClass('grace', 'Period 2')]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={() => Promise.resolve()}
+        classFilter="Period 4"
+        classOptions={['Period 1', 'Period 2']}
+        onClassFilterChange={() => undefined}
+        onClose={() => undefined}
+      />
+    );
+    expect(await screen.findByText('Student 1 of 2')).toBeTruthy();
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', {
+        name: 'Filter by class',
+      }).value
+    ).toBe('all');
+  });
+
   it('hides the filter with only one class', async () => {
     render(
       <FreeResponseGrader
