@@ -1964,7 +1964,7 @@ service cloud.firestore {
       // expiresAt cutoff on /shared_boards and /shared_collections - without it the
       // "Available until X" / revoke UX is cosmetic, since a caller bypassing the client
       // could keep reading a gallery's title/prompt/sessionId forever after revoke.
-      allow read: if signedIn() && (
+      allow get: if signedIn() && (
         isOrigAuthor()
         || isAdmin()
         || (
@@ -1973,6 +1973,10 @@ service cloud.firestore {
               || existing().get('expiresAt', 0) > nowMs())
         )
       );
+      // LIST is query-scoped (see /shared_boards list): unpinned revoked/expiresAt
+      // fall back to their permissive defaults, so the viewer branch would let any
+      // caller enumerate every share. Viewers only ever `get` one share by id.
+      allow list: if signedIn() && authorOrAdmin();
 
       // Identity fields + the sessionId-ownership check force the doc to be
       // created by the teacher who owns the underlying session (can't publish
