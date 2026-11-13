@@ -314,15 +314,11 @@ const TeacherVideoActivityWidget: React.FC<{
     const now = Date.now();
     const importedFrom = attributionFor(handoff.source);
     const lesson = handoff.source.inboxItem?.video;
-    const stops = canAccessFeature('video-activity-stops');
     let pictures = new Map<string, string>();
     if (lesson) {
-      const kept = stops
-        ? lesson
-        : { ...lesson, stops: lesson.stops.filter((s) => s.kind === 'choice') };
-      if (kept.stops.some((s) => s.image)) {
+      if (lesson.stops.some((s) => s.image)) {
         const copied = driveService
-          ? await copyLessonPictures(kept, {
+          ? await copyLessonPictures(lesson, {
               fetchImage: fetchImageThroughServer,
               uploader: driveStimulusUploader(driveService),
             })
@@ -338,7 +334,7 @@ const TeacherVideoActivityWidget: React.FC<{
       }
     }
     const { leftOut = null, ...content } = lesson
-      ? videoContentFromLesson(lesson, { stops, pictures })
+      ? videoContentFromLesson(lesson, { pictures })
       : {};
     const activity: VideoActivityData = {
       id: crypto.randomUUID(),

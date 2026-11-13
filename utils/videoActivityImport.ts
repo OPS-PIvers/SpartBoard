@@ -27,10 +27,7 @@ export interface ImportedVideoContent {
 }
 
 type LeftOutCounts = Partial<
-  Record<
-    ImportVideoLeftOut | 'shortAnswer' | 'note' | 'clip' | 'extraChoice',
-    number
-  >
+  Record<ImportVideoLeftOut | 'extraChoice', number>
 >;
 
 const plural = (n: number, one: string, many: string) =>
@@ -43,10 +40,6 @@ const PHRASES: Record<keyof LeftOutCounts, (n: number) => string> = {
       'question SpartBoard has no kind for',
       'questions SpartBoard has no kind for'
     ),
-  shortAnswer: (n) =>
-    plural(n, 'short-answer question', 'short-answer questions'),
-  note: (n) => plural(n, 'note', 'notes'),
-  clip: () => 'the start and end times',
   voiceover: () => 'voiceover narration',
   feedback: () => 'answer feedback',
   choicePicture: (n) => plural(n, 'picture in a choice', 'pictures in choices'),
@@ -120,21 +113,16 @@ function questionFrom(
   };
 }
 
-/** Questions, notes and clip for a new activity; with `stops` off only the choice questions come over. */
+/** Questions, notes and clip for a new activity. */
 export function videoContentFromLesson(
   video: ImportVideoLesson,
-  {
-    stops,
-    pictures = new Map(),
-  }: { stops: boolean; pictures?: ReadonlyMap<string, string> }
+  { pictures = new Map() }: { pictures?: ReadonlyMap<string, string> } = {}
 ): ImportedVideoContent {
   const picture: PictureFor = (stop) => {
     const id = stop.image ? pictures.get(stop.image) : undefined;
     return id ? { imageDriveFileId: id } : {};
   };
-  // Short answer, note stops and clips share one preview flag (D35).
-  const kept = video.stops.filter((s) => stops || s.kind !== 'open');
-  const extraChoice = kept.reduce(
+  const extraChoice = video.stops.reduce(
     (n, s) =>
       s.kind === 'choice'
         ? n +
@@ -144,36 +132,23 @@ export function videoContentFromLesson(
         : n,
     0
   );
-  const questions = kept
+  const questions = video.stops
     .map((s) => questionFrom(s, picture))
     .filter((q): q is VideoActivityQuestion => q !== null);
-  const notes: VideoActivityNote[] = stops
-    ? video.stops
-        .filter((s) => s.kind === 'note')
-        .map((s) => ({
-          id: crypto.randomUUID(),
-          timestamp: s.time,
-          text: s.text,
-          ...picture(s),
-        }))
-    : [];
-  const clip = stops
-    ? normalizeClip({ start: video.start, end: video.end })
-    : undefined;
-  const count = (kind: ImportVideoStop['kind']) =>
-    video.stops.filter((s) => s.kind === kind).length;
-  const hidden = stops
-    ? {}
-    : {
-        shortAnswer: count('open'),
-        note: count('note'),
-        clip: normalizeClip({ start: video.start, end: video.end }) ? 1 : 0,
-      };
+  const notes: VideoActivityNote[] = video.stops
+    .filter((s) => s.kind === 'note')
+    .map((s) => ({
+      id: crypto.randomUUID(),
+      timestamp: s.time,
+      text: s.text,
+      ...picture(s),
+    }));
+  const clip = normalizeClip({ start: video.start, end: video.end });
   return {
     youtubeUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,
     questions,
     notes,
     ...(clip ? { clip } : {}),
-    leftOut: leftOutSummary({ ...video.leftOut, ...hidden, extraChoice }),
+    leftOut: leftOutSummary({ ...video.leftOut, extraChoice }),
   };
 }

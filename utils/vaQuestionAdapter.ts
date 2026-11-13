@@ -7,12 +7,11 @@ import type {
 } from '@/types';
 import { FIB_BLANK_SEP } from '@/utils/quizFibBlanks';
 
-/** Question types the Quiz editor offers for a Video Activity. */
-export const VA_EDITOR_TYPES: readonly QuizQuestionType[] = ['MC', 'FIB', 'MA'];
-
-/** With short answer on, the Quiz editor's written type stands in for VA 'SA'. */
-export const VA_EDITOR_TYPES_WITH_SHORT_ANSWER: readonly QuizQuestionType[] = [
-  ...VA_EDITOR_TYPES,
+/** Question types the Quiz editor offers for a Video Activity; its written type stands in for VA 'SA'. */
+export const VA_EDITOR_TYPES: readonly QuizQuestionType[] = [
+  'MC',
+  'FIB',
+  'MA',
   'free-response',
 ];
 

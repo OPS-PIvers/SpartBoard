@@ -51658,23 +51658,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.editor-question-pill",
-    "label": "Question button in the editor question list",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.editor-question-delete",
     "label": "Delete button for a question in the video activity editor",
     "scope": "field",
@@ -51845,23 +51828,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.editor-question-select",
-    "label": "Select checkbox on a question in the video activity editor",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.editor-question-duplicate",
     "label": "Duplicate button for a question in the video activity editor",
     "scope": "field",
@@ -51934,43 +51900,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "video-activity.editor-question-jump",
     "label": "Question menu in the video activity editor",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-bulk-delete",
-    "label": "Delete button for selected questions in the video activity editor",
-    "scope": "board",
-    "destructive": true,
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-bulk-clear",
-    "label": "Clear selection button in the video activity editor",
     "scope": "board",
     "routes": [
       {
