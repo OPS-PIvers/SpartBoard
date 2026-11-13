@@ -509,12 +509,6 @@ const withThumbnails = (
   ),
 });
 
-const miniPlayerSrc = () =>
-  screen
-    .getByTestId('tour-mini-player')
-    .querySelector('img')
-    ?.getAttribute('src');
-
 describe('LiveTourRunner', () => {
   it('adds a missing setup widget, anchors to it, and removes it on teardown', async () => {
     h.board.widgets = [{ id: 'mine', type: 'dice' }];
