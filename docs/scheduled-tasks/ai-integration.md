@@ -59,13 +59,6 @@ _2026-11-13: Daily audit (Friday). Weekly light pass. Gemini model strings in `f
 - **Updated:** 2026-09-28 — `GEMINI_FEATURES` moved from `GlobalPermissionsManager.tsx` to `components/admin/access/useGlobalPermissionsEditor.ts:21-28` (Admin Access reorg, PR #3476); same 5 ids, plus a new unrelated 6th (`PAPER_HANDWRITTEN_FEATURE`, for the handwritten-paper-answers feature, not an AI-generation type). Finding and fix unchanged.
 - **Fix:** Either (a) add these ids to `GlobalFeature` + `GEMINI_FEATURES` + `GLOBAL_FEATURES` so admins get real per-feature toggles and caps (which also unblocks the fix above), or (b) at minimum rename the server's `dashboard-layout` id to `magic-layout` so the existing toggle governs it, and document that the other seven are usage-tracking suffixes with no configurable cap.
 
-### MEDIUM `transcribeVideoWithGemini` ignores `gemini-functions` access level and doesn't require admin server-side
-
-- **Detected:** 2026-08-24 (narrowed 2026-11-03 in release review #5072)
-- **File:** `functions/src/aiGeneration.ts` ~1980-2010; `components/widgets/VideoActivityWidget/Widget.tsx` ~377
-- **Detail:** The kill switch (`enabled === false`) is enforced, but `gemini-functions` `accessLevel`/`betaUsers` are never read, so limiting AI to admins or beta users does not stop a staff teacher from calling transcription when its own perm is public. The client still requires `isAdmin === true`; the server does not.
-- **Fix:** Run the `gemini-functions` doc through the same `assertPermissionAllows` that `enforceAiFeatureAccess` uses, and either require admin server-side or drop the client `isAdmin` check so the two agree.
-
 ### LOW Client `AIGenerationType` union diverges from the server `AIData['type']` union in both directions
 
 - **Detected:** 2026-08-24
@@ -179,6 +172,9 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+### Resolved 2026-11-13: `transcribeVideoWithGemini` now applies `gemini-functions` accessLevel/betaUsers/audience for non-admins via `assertPermissionAllows`/`assertAudienceAllows` (`functions/src/aiGeneration.ts`). Client `isAdmin` check left in place. Server-side admin-only requirement not added. PR opened to `dev-paul`.
+
 
 ### MEDIUM `transcribeVideoWithGemini` ignores the global `gemini-functions` kill switch and doesn't require admin server-side
 
