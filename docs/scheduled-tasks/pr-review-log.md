@@ -5085,3 +5085,23 @@ rather than "no data") is also still open.
   - Ready: #5601, #5595, #5594, #5593, #5592.
   - Ready with minor notes: #5596. Its backlog already marks the #5595 lead "fixed", so merge it after #5592-#5595.
 - Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.
+
+## 2026-11-12
+
+- PRs reviewed: #5648 docs: nightly debugger run 121 log; #5647 Fix Schoology categories panel offering defaults after a failed load; #5646 Fix group resize committing a collapsed size when the pointer is cancelled; #5645 Quiz grading: revoke whiteboard take files that load after the view closes; #5636 docs: unifier run 144 log (aligned); #5624 docs: AB-112 add merged branches from #5623
+- Comments processed: 3 total. 0 fixed, 0 newly explained. None of the PRs had inline review threads. The claude[bot] summaries on #5645 and #5646 and its review on #5624 found no issues and needed no reply.
+- Fixes pushed: none.
+- Reviews posted: 6
+  - Ready: #5647, #5646, #5645, #5636, #5624.
+  - Ready with minor notes: #5648 (a stray blank line splits the Notes bullet list above `Run count: **120**`).
+- Notes: GitHub access went through MCP. For #5646, I confirmed that clearing overrides on cancel also undoes `onMove`'s direct style writes, because `DraggableWindow` re-renders through `useSyncExternalStore`. I ran no local checks because no fixes were made.
+
+## 2026-11-13
+
+- PRs reviewed: #5745 fix: transcribeVideoWithGemini honors gemini-functions access level; #5744 docs: nightly debugger run 122 log; #5743 fix: Edpuzzle import survives a bad numeric entity; #5742 fix: Calendar admin modal no longer offers defaults after a failed load; #5741 fix: Move to Collection menu lists Collections whose parent is missing; #5740 fix: Focus saved site list name no longer splits an emoji at the 80-character cap; #5732 docs: unifier run 145 (aligned); #5711 fix(rules): stop anyone listing shared_activity_walls
+- Comments processed: 6 total. 0 fixed, 0 newly explained. None of the PRs had inline review threads. The claude[bot] summaries on #5745, #5743, #5741, #5740 and #5711, and its review on #5711, found no issues and needed no reply.
+- Fixes pushed: none.
+- Reviews posted: 8
+  - Ready: #5744, #5743, #5742, #5741, #5740, #5732, #5711 (rules change, so Paul should still sign off).
+  - Ready with minor notes: #5745 (no functions test for the new non-admin `gemini-functions` check; the PR bundles audit-log docs with the backend change).
+- Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.

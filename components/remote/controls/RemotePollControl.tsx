@@ -173,7 +173,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         </div>
         <div className="flex items-center gap-2">
           {showNavigation && (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               onClick={() => goToQuestion(currentQuestionIndex - 1)}
               disabled={!canGoPrev || foreignSession}
               style={{ touchAction: 'manipulation' }}
@@ -187,7 +187,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
             {currentQuestion?.question}
           </p>
           {showNavigation && (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               onClick={() => goToQuestion(currentQuestionIndex + 1)}
               disabled={!canGoNext || foreignSession}
               style={{ touchAction: 'manipulation' }}
@@ -203,7 +203,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
       {/* Start / Stop live voting */}
       <div className="px-4 pt-3 shrink-0 flex flex-col gap-3">
         {isLive ? (
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={() => void handleStopClick()}
             disabled={foreignSession}
             style={{ touchAction: 'manipulation' }}
@@ -221,14 +221,14 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
               Starting fresh clears the tallies and issues a new join code.
             </p>
             <div className="grid grid-cols-2 gap-2">
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 onClick={() => void beginSession('resume')}
                 style={{ touchAction: 'manipulation' }}
                 className="touch-manipulation py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all active:scale-95"
               >
                 Resume previous
               </button>
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 onClick={() => void beginSession('fresh')}
                 style={{ touchAction: 'manipulation' }}
                 className="touch-manipulation py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold transition-all active:scale-95"
@@ -236,7 +236,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                 Start fresh
               </button>
             </div>
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               onClick={() => setShowResumePopover(false)}
               style={{ touchAction: 'manipulation' }}
               className="touch-manipulation py-2 text-white/50 hover:text-white/70 text-xs font-semibold"
@@ -245,7 +245,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
             </button>
           </div>
         ) : (
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={handleStartClick}
             disabled={options.length === 0 && !isText}
             style={{ touchAction: 'manipulation' }}
@@ -418,7 +418,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                   />
                 </div>
                 <div className="flex gap-2">
-                  <button
+                  <button /* no-tour-anchor: phone remote page, never on the board */
                     onClick={() => adjustVote(i, -1)}
                     disabled={(opt.votes ?? 0) <= 0}
                     className="touch-manipulation flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 font-bold flex items-center justify-center transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
@@ -426,7 +426,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                   >
                     <Minus className="w-4 h-4" />
                   </button>
-                  <button
+                  <button /* no-tour-anchor: phone remote page, never on the board */
                     onClick={() => adjustVote(i, 1)}
                     className="touch-manipulation flex-1 py-2 rounded-xl bg-white/20 hover:bg-white/30 font-bold flex items-center justify-center transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
                     aria-label={`Add vote to ${opt.label}`}
@@ -443,7 +443,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
       {/* Footer Reset — manual mode only */}
       {options.length > 0 && !isLive && (
         <div className="px-4 pb-3 shrink-0">
-          <button
+          <button /* no-tour-anchor: phone remote page, never on the board */
             onClick={resetVotes}
             className="touch-manipulation w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
           >

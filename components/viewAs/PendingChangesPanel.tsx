@@ -115,7 +115,7 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
         <h2 className="text-sm font-bold flex-1">
           Pending changes ({changes.length})
         </h2>
-        <button
+        <button /* no-tour-anchor: admin View as tab, never on a teacher board */
           type="button"
           disabled={readOnly || busy !== null || approvable.length === 0}
           onClick={() => void approveAll()}
@@ -129,7 +129,7 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
           )}
           Approve all
         </button>
-        <button
+        <button /* no-tour-anchor: admin View as tab, never on a teacher board */
           type="button"
           onClick={onClose}
           aria-label="Close"
@@ -196,7 +196,7 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                         </p>
                       )}
                       <div className="flex justify-end gap-1.5">
-                        <button
+                        <button /* no-tour-anchor: admin View as tab, never on a teacher board */
                           type="button"
                           disabled={busy !== null}
                           onClick={() => discardViewAsChange(change)}
@@ -205,7 +205,7 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                           <Undo2 size={12} />
                           Discard
                         </button>
-                        <button
+                        <button /* no-tour-anchor: admin View as tab, never on a teacher board */
                           type="button"
                           disabled={readOnly || stale || busy !== null}
                           title={

@@ -88,7 +88,7 @@ export const RemoteScheduleControl: React.FC<RemoteScheduleControlProps> = ({
             {doneCount} / {items.length} done
           </div>
         </div>
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={resetAll}
           className="touch-manipulation flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white/60 text-xs font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
         >
@@ -105,7 +105,7 @@ export const RemoteScheduleControl: React.FC<RemoteScheduleControlProps> = ({
       ) : (
         <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
           {items.map((item, index) => (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               key={item.id ?? index}
               onClick={() => toggleItem(index)}
               className={`touch-manipulation flex items-start gap-3 w-full px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-blue-400/60 ${

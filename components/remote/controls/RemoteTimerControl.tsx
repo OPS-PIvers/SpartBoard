@@ -106,14 +106,14 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
 
       {/* Play/Pause & Reset */}
       <div className="flex gap-4">
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={resetTimer}
           className="touch-manipulation w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
           aria-label="Reset"
         >
           <RotateCcw className="w-6 h-6" />
         </button>
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={togglePlay}
           disabled={isExpired}
           className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg focus-visible:ring-2 focus-visible:ring-blue-400/60 disabled:opacity-30 disabled:cursor-not-allowed ${
@@ -136,7 +136,7 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
       {isTimer && (
         <div className="flex gap-2 flex-wrap justify-center">
           {PRESET_SECONDS.map((s) => (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               key={s}
               onClick={() => setPreset(s)}
               className={`touch-manipulation px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${

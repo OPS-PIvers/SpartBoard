@@ -54,7 +54,7 @@ export const RemoteTrafficLightControl: React.FC<
         {LIGHTS.map(({ color, label, bg, glow, border }) => {
           const isActive = active === color;
           return (
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               key={color}
               onClick={() => setLight(color)}
               className={`touch-manipulation w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center gap-2 font-bold text-white transition-all active:scale-95 ${
