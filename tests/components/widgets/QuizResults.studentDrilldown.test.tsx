@@ -274,9 +274,7 @@ describe('QuizResults — student drill-down', () => {
 
   it('opens a student from item analysis', () => {
     renderResults(undefined, /question results/i);
-    fireEvent.click(
-      screen.getByRole('button', { name: /Capital of France/ })
-    );
+    fireEvent.click(screen.getByRole('button', { name: /Capital of France/ }));
     const incorrect = screen.getByTestId('drilldown-column-incorrect');
     fireEvent.click(
       within(incorrect).getByRole('button', { name: 'PIN 1111' })
