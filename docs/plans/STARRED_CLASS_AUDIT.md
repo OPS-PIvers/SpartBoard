@@ -32,11 +32,11 @@ and the Classes widget is effectively unused.
 
 ### Silently fall back to `rosters[0]`
 
-| Widget                     | Where                                  | Problem                                                                |
-| -------------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
-| Stations                   | `Stations/Widget.tsx:80-86`            | Uses first roster; chip hidden, so no class shown and no way to switch |
-| Lunch Count                | `LunchCount/Widget.tsx:349-367`        | Same; the cafeteria report counts whichever class is first             |
-| Scoreboard (import groups) | `Scoreboard/settingsFields.tsx:77-128` | Imports from first roster                                              |
+| Widget                     | Where                                       | Problem                                                                |
+| -------------------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
+| Stations                   | `Stations/Widget.tsx:80-86`                 | Uses first roster; chip hidden, so no class shown and no way to switch |
+| Lunch Count                | `LunchCount/redesign/useLunchCountModel.ts` | Same; the cafeteria report counts whichever class is first             |
+| Scoreboard (import groups) | `Scoreboard/settingsFields.tsx:77-128`      | Imports from first roster                                              |
 
 ### Outside widgets
 
@@ -86,7 +86,7 @@ and the Classes widget is effectively unused.
   render a one-line "Classes moved to the sidebar" card with an Open sidebar button. Everything it
   did besides starring already lives in the sidebar.
 - **S10. Lunch Count's report is unchanged.** The cafeteria Apps Script parses the
-  `"{lunchTime} - {Grade} - {Teacher}"` label (`LunchCount/Widget.tsx:535`); only the roster source
+  `"{lunchTime} - {Grade} - {Teacher}"` label (`LunchCount/redesign/useLunchCountModel.ts`); only the roster source
   changes.
 - **S11. Sub shares bundle every class the board uses**: each widget's `rosterId`, the board's
   `defaultRosterId`, and the existing `lastRosterIdsBy*` maps. `collectShareRosterIds`

@@ -55,8 +55,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-stimulus-tabs',
   'quiz-calculator-stimulus',
   'student-keyboards',
-  'lunch-count-redesign',
-  'lunch-count-resend',
   'weather-details',
   'checklist-small-card',
   'seating-chart-plans',
