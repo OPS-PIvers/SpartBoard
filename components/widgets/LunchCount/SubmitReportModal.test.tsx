@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SubmitReportModal } from './SubmitReportModal';
-import { useAuth } from '@/context/useAuth';
 
-vi.mock('@/context/useAuth');
 
 const data = {
   date: '11/09/2026',
@@ -17,11 +15,6 @@ const data = {
   gradeLabel: 'GR1',
   submissionLabel: '11:30 - GR1 - A. Teacher',
 };
-
-const allowResend = (allowed: boolean) =>
-  vi.mocked(useAuth).mockReturnValue({
-    canAccessFeature: () => allowed,
-  } as unknown as ReturnType<typeof useAuth>);
 
 const modal = (
   isOpen = true,
@@ -44,22 +37,13 @@ const modal = (
 describe('SubmitReportModal resend', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('keeps the one-a-day screen when the flag is off', () => {
-    allowResend(false);
-    render(modal());
-    expect(screen.getByText('Lunch Count Already Submitted')).toBeTruthy();
-    expect(screen.queryByText('Review and Resend')).toBeNull();
-  });
-
-  it('offers no resend for a count sent without the flag', () => {
-    allowResend(true);
+  it('offers no resend for a count sent without its details', () => {
     render(modal(true, null));
     expect(screen.getByText('Lunch Count Already Submitted')).toBeTruthy();
     expect(screen.queryByText('Review and Resend')).toBeNull();
   });
 
   it('opens the review form from the already-sent screen', () => {
-    allowResend(true);
     render(modal());
     expect(screen.getByText('Lunch Count Already Sent')).toBeTruthy();
     fireEvent.click(screen.getByText('Review and Resend'));
@@ -68,7 +52,6 @@ describe('SubmitReportModal resend', () => {
   });
 
   it('prefills what was sent earlier when resending', () => {
-    allowResend(true);
     render(
       <SubmitReportModal
         isOpen
@@ -86,7 +69,6 @@ describe('SubmitReportModal resend', () => {
   });
 
   it('returns to the already-sent screen after the parent closes it', () => {
-    allowResend(true);
     const { rerender } = render(modal());
     fireEvent.click(screen.getByText('Review and Resend'));
     rerender(modal(false));

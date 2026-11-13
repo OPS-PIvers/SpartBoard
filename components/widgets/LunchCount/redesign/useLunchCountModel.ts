@@ -35,11 +35,11 @@ export interface LunchStudent {
 
 export type LunchZoneId = 'hot' | 'bento' | 'home';
 
-// The legacy face's state and handlers (../Widget.tsx), unchanged, for the redesigned face.
+// State and handlers for the elementary Lunch Count face.
 export function useLunchCountModel(widget: WidgetData) {
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
-  const { user, featurePermissions, selectedBuildings, canAccessFeature } =
+  const { user, featurePermissions, selectedBuildings } =
     useAuth();
   const subShareHost = useSubShareHost();
   const reportName = subShareHost
@@ -240,7 +240,6 @@ export function useLunchCountModel(widget: WidgetData) {
   const { drags, handlers: dragHandlers } = useMultiDrag(handleDrop, handleTap);
 
   const handleSubmitReport = async (notes: string, extraPizza?: number) => {
-    const canResend = canAccessFeature('lunch-count-resend');
     const { submissionUrl, schumannSheetId, intermediateSheetId } =
       lunchGlobalConfig;
 
@@ -283,9 +282,7 @@ export function useLunchCountModel(widget: WidgetData) {
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
-        ...(canResend
-          ? { classKey: sheetRowKey(sentClass, user?.uid ?? 'anon') }
-          : {}),
+        classKey: sheetRowKey(sentClass, user?.uid ?? 'anon'),
       };
 
       const response = await fetch(submissionUrl, {
@@ -311,7 +308,7 @@ export function useLunchCountModel(widget: WidgetData) {
           widget.id,
           dayKey,
           sentClass,
-          canResend ? { notes, extraPizza: payload.extraPizza } : undefined
+          { notes, extraPizza: payload.extraPizza }
         ),
       });
       addToast('Lunch report submitted successfully!', 'success');
