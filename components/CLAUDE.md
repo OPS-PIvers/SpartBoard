@@ -2,6 +2,15 @@
 
 Loaded when working under `components/`.
 
+## Live tour anchors
+
+- Live-tour anchors are `data-tour` ids from the typed registry in `config/tourAnchors.ts`; tag with `tourAttr`, and `tests/tourAnchors.test.ts` fails on a registered id that is no longer rendered or an unregistered one.
+- **Every UI change keeps live tours working.** Give each new button, field, tab, menu item, select or switch a teacher could be walked to a `tourAttr` anchor (registered in `config/tourAnchors.ts`), and when you move or rebuild a control, carry its existing anchor id over instead of renaming it. The PR check `Live Tour Anchors` (`pnpm run check:tour-anchors`) fails when an anchor in `config/tourAnchorsInUse.json` (what saved tours use, refreshed with `node scripts/snapshot-tour-anchors.mjs --project prod`) disappears, and on a new control without one unless a `no-tour-anchor: <why>` comment on its line or the line above says no tour would point at it. A new file that renders anchors also goes on a surface in `config/tourSurfaces/<area>.ts`, with the anchor that opens it; `tests/tourAnchorRoutes.test.ts` fails otherwise (rerun it with `UPDATE_TOUR_ANCHOR_LIST=1` to refresh the generated map).
+
+## Scroll panels
+
+- **Scroll panels keep bottom padding.** Put the end padding on the element that scrolls (`overflow-y-auto pb-*`), or on a child that grows with its content. Never pad a box pinned to `h-full` inside a scroller: its padding lands at the viewport edge and long content runs flush to the bottom (shipped three times, last in Admin Settings > Features). An Admin Settings tab that owns its own scroll opts in with `fillHeight: true`. `tests/e2e/scroll-end-padding.spec.ts` measures every Admin Settings tab, Profile & Settings section, the settings drawer and every widget library tab (via the `/library-managers-dev` fixture page); add any new tabbed panel surface to it. `tests/scrollEndPadding.static.test.ts` fails when a scroller's direct child is `h-full`/`h-screen`. A full page needs its own `h-screen [height:100dvh] overflow-y-auto` root (`h-dvh` so phone toolbars don't hide the end): `body` is `overflow: hidden`, so a `min-h-screen` page never scrolls.
+
 ## Text contrast and motion
 
 - Muted text on dark surfaces (dashboard `slate-900` / semi-transparent widgets over user backgrounds): use `text-slate-300` for body/label text and `text-slate-200` for headings/emphasis (both clear WCAG AA on `slate-900`). Do NOT use `text-slate-400`/`text-slate-500` for real text on dark surfaces — once rendered over translucent/over-background surfaces they erode below the AA 4.5:1 minimum. `text-slate-400`/`500` stay fine for (a) decorative/icon glyphs (give purely decorative icons `aria-hidden`) and (b) text on LIGHT surfaces (admin/library/student/login UI), where bumping toward white would REDUCE contrast — leave those untouched.
