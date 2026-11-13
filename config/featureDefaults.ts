@@ -1774,28 +1774,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'video-activity-stops': {
-    label: 'Video Activity: short answer, notes and clips',
-    icon: Video,
-    description:
-      'Short-answer questions the teacher marks, note stops that pause the video on text, and a start and end time for the video.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'video-activity-editor-arrows': {
-    label: 'Video Activity editor: question arrows',
-    icon: Video,
-    description:
-      'The video fills the editor and arrows step through questions in place of the question list.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'youtube-paste-picker': {
     label: 'Paste a YouTube link: pick a widget',
     icon: Video,

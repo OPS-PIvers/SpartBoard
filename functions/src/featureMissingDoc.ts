@@ -96,13 +96,11 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-embed',
   'import-link',
   'import-schoology-course',
-  'video-activity-stops',
   'video-import-ai',
   'embed-mini-app',
   'schoology-push-due-date',
   'flashcards-missed-cards',
   'flashcards-check-sync',
-  'video-activity-editor-arrows',
   'youtube-paste-picker',
 ];
 

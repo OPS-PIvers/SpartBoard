@@ -34,7 +34,7 @@ const LESSON: ImportVideoLesson = {
 
 describe('videoContentFromLesson', () => {
   it('maps every stop kind and keeps the options in their order', () => {
-    const out = videoContentFromLesson(LESSON, { stops: true });
+    const out = videoContentFromLesson(LESSON);
     expect(out.youtubeUrl).toBe('https://www.youtube.com/watch?v=WjqqUjDkh1c');
     expect(out.clip).toEqual({ start: 12, end: 140 });
     expect(out.notes.map(({ timestamp, text }) => [timestamp, text])).toEqual([
@@ -64,13 +64,6 @@ describe('videoContentFromLesson', () => {
     expect(sa).toMatchObject({ type: 'SA', correctAnswer: '', timestamp: 60 });
   });
 
-  it('brings only the choice questions when short answer, notes and clips are off', () => {
-    const out = videoContentFromLesson(LESSON, { stops: false });
-    expect(out.notes).toEqual([]);
-    expect(out).not.toHaveProperty('clip');
-    expect(out.questions.map((q) => q.type)).toEqual(['MC', 'MA', 'MC']);
-  });
-
   it('drops wrong options past the editor cap but never a right one', () => {
     const many = Array.from({ length: 8 }, (_, i) => choice(`w${i}`));
     const out = videoContentFromLesson(
@@ -84,8 +77,7 @@ describe('videoContentFromLesson', () => {
             choices: [...many, choice('right', true)],
           },
         ],
-      },
-      { stops: true }
+      }
     );
     expect(out.questions[0].correctAnswer).toBe('right');
     expect(out.questions[0].incorrectAnswers).toEqual(['w0', 'w1', 'w2', 'w3']);
@@ -119,7 +111,6 @@ describe('videoContentFromLesson pictures', () => {
         ],
       },
       {
-        stops: true,
         pictures: new Map([['https://a.example/1.png', 'drive-file-1']]),
       }
     );
@@ -140,23 +131,18 @@ describe('leftOutSummary', () => {
     );
   });
 
-  it('names what the preview flag held back', () => {
-    const out = videoContentFromLesson(
-      {
-        youtubeId: 'WjqqUjDkh1c',
-        start: 5,
-        stops: [
-          { kind: 'open', time: 10, text: 'Why?' },
-          { kind: 'note', time: 20, text: 'Look' },
-        ],
-        leftOut: { voiceover: 1 },
-      },
-      { stops: false }
-    );
-    expect(out.leftOut).toBe(
-      'Left out: 1 short-answer question, 1 note, the start and end times and voiceover narration.'
-    );
-    expect(videoContentFromLesson(LESSON, { stops: true }).leftOut).toBe(null);
+  it('passes on what the reader left out', () => {
+    const out = videoContentFromLesson({
+      youtubeId: 'WjqqUjDkh1c',
+      start: 5,
+      stops: [
+        { kind: 'open', time: 10, text: 'Why?' },
+        { kind: 'note', time: 20, text: 'Look' },
+      ],
+      leftOut: { voiceover: 1 },
+    });
+    expect(out.leftOut).toBe('Left out: voiceover narration.');
+    expect(videoContentFromLesson(LESSON).leftOut).toBe(null);
   });
   it('counts answer choices past what a keyless question can hold', () => {
     const out = videoContentFromLesson(
@@ -173,8 +159,7 @@ describe('leftOutSummary', () => {
             })),
           },
         ],
-      },
-      { stops: true }
+      }
     );
     expect(out.leftOut).toBe(
       'Left out: 2 answer choices past the most a question can hold.'

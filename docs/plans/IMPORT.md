@@ -119,13 +119,13 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
 - **D34 YouTube entry.** The Send button on YouTube watch pages and youtu.be links offers Video activity or Embed. Video activity opens the Video Activity editor prefilled with title, link and length; nothing saves until the teacher saves (D3). Shorts and the right-click menu are out of scope. The block list (D16) applies.
 - **D35 Flags.**
   - Edpuzzle and YouTube Send ride `universal-import` (D29).
-  - A new preview flag `video-activity-stops` gates short answer, note stops and the clip range in the editor and player.
+  - Short answer, note stops and the clip range shipped behind a preview flag, since retired.
   - A new admin-only flag `video-import-ai` shows "Generate questions with AI" on a YouTube import, using the existing `generateVideoActivity` with its existing `video-activity-ai` permission and daily caps.
 - **D36 Edpuzzle fixture (revised 2026-10-31).** Two public lessons were probed read-only on 2026-10-31. Send fetches `edpuzzle.com/api/v3/media/<id>` from the lesson page with the teacher's own Edpuzzle sign-in.
   - **Video:** `source` is `youtube` with `videoId` the YouTube id, or `edpuzzle` for a video Edpuzzle hosts (refused, D26).
   - **Trim:** `sections[]` are back-to-back kept pieces; the first start and last end against `originalVideoDuration` give the clip, and a cut in the middle plays through.
   - **Content:** `questions[]` (`multiple-choice` with `choices[].isCorrect`, `open-ended`) and `notes[]` carry a `time` in seconds and HTML bodies, read as plain text. The first https `<img>` in a question or note prompt is copied through `fetchImportImage` into the teacher's Drive (`Assets/QuizStimuli`, shared by link like quiz stimuli) and shown with the stop; pictures in choices are left out. No real lesson with a picture has been probed yet, so the `<img>` source shape is unconfirmed.
-  - **Left out:** the reader counts questions of other kinds (audio and the rest), voiceovers, answer feedback, pictures in choices and cuts in the middle of the video, and the editor says once, under the attribution line, what didn't come over, including what the `video-activity-stops` flag held back. A middle cut plays through, so the line says students see that part.
+  - **Left out:** the reader counts questions of other kinds (audio and the rest), voiceovers, answer feedback, pictures in choices and cuts in the middle of the video, and the editor says once, under the attribution line, what didn't come over. A middle cut plays through, so the line says students see that part.
   - **Polls:** a multiple-choice question with no correct choice imports as "Needs answer" (no ungraded multiple-choice type yet); the teacher marks one or changes it to short answer.
   - **Video only:** a YouTube lesson with no questions or notes imports as a watch-only activity, where `video-import-ai` can add questions.
   - **Keys:** public data marks every choice `isCorrect: false`. A question with no marked choice imports with `needsKey`; it saves, and Assign stays blocked until the teacher marks it.
