@@ -20,6 +20,9 @@ interface ChipGridProps {
 
 // One text size for labels, entree and chips keeps the board calm.
 export const ZONE_TEXT = 'clamp(12px, calc(3.4cqmin - 0.5px), 30px)';
+// Count row height: a stacked zone never shrinks past its count and label.
+export const ZONE_HEAD =
+  'calc(clamp(32px, calc(20cqmin - 40px), 120px) + clamp(6px, calc(4cqmin - 8px), 18px) + clamp(3px, calc(3cqmin - 9px), 12px))';
 export const CHIP_HEIGHT = 'max(36px, min(64px, 2.4em))';
 // The Unassigned tray's text, which useTrayFit may shrink so every name fits.
 export const TRAY_TEXT = `max(12px, calc(${ZONE_TEXT} * var(--tray-scale, 1)))`;
@@ -116,9 +119,10 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
       data-drop-zone={zone}
       data-testid={testId}
       aria-label={label}
-      className={`flex flex-col min-w-0 flex-1 [@container(max-height:349px)]:min-h-0 [@container(max-height:349px)]:overflow-y-auto [@container(max-height:349px)]:custom-scrollbar [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] ${zone === 'hot' ? '[@container_(max-width:1199px)_and_(min-aspect-ratio:0.71)]:flex-[1.8_1_0%]' : ''} rounded-2xl transition-colors ${
+      className={`flex flex-col min-w-0 flex-1 [@container(max-height:349px)]:min-h-0 [@container(max-height:349px)]:overflow-y-auto [@container(max-height:349px)]:custom-scrollbar [@container_(max-aspect-ratio:0.7)_and_(min-height:350px)]:min-h-[var(--zone-head)] [@container(max-aspect-ratio:0.7)]:overflow-y-auto [@container(max-aspect-ratio:0.7)]:custom-scrollbar [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] ${zone === 'hot' ? '[@container_(max-width:1199px)_and_(min-aspect-ratio:0.71)]:flex-[1.8_1_0%]' : ''} rounded-2xl transition-colors ${
         isOver ? tone.over : tone.fill
       }`}
+      style={{ '--zone-head': ZONE_HEAD } as React.CSSProperties}
     >
       <div
         className="flex flex-wrap items-center shrink-0"

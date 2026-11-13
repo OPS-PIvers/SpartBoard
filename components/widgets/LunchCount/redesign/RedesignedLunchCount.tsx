@@ -15,7 +15,13 @@ import { MissingInfoModal } from '../MissingInfoModal';
 import { useLunchCountModel } from './useLunchCountModel';
 import type { LunchZoneId } from './useLunchCountModel';
 import { COUNT_COLOR, isMiddleHighSite, menuLine } from './lunchCountFormat';
-import { CHIP_HEIGHT, ChipGrid, LunchZone, TRAY_TEXT } from './LunchZone';
+import {
+  CHIP_HEIGHT,
+  ChipGrid,
+  LunchZone,
+  TRAY_TEXT,
+  ZONE_HEAD,
+} from './LunchZone';
 import { PhotoPeek } from './PhotoPeek';
 import { useTrayFit } from './useTrayFit';
 import { MiddleHighLunchCount } from '../MiddleHighLunchCount';
@@ -51,7 +57,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
   useTrayFit(
     boardRef,
     trayRef,
-    `${schoolSite}|${allRosterStudents.length}|${hiddenRemaining}|${groupedStudents.unassigned.map((s) => s.name).join()}`
+    `${schoolSite}|${allRosterStudents.length}|${hiddenRemaining}|${stats.hotLunch},${stats.bentoBox},${stats.homeLunch}|${cachedMenu?.hotLunch?.name ?? ''}|${cachedMenu?.bentoBox?.name ?? ''}|${isSyncing}|${groupedStudents.unassigned.map((s) => s.name).join()}`
   );
 
   const [peekedItem, setPeekedItem] = useState<LunchMenuItem | null>(null);
@@ -348,8 +354,13 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                 style={{ gap: 'clamp(8px, 2.4cqmin, 20px)' }}
               >
                 <div
-                  className="flex flex-[1_1_0%] min-w-0 flex-row [@container(max-aspect-ratio:0.7)]:flex-col [@container(max-height:349px)]:min-h-0"
-                  style={{ gap: 'clamp(8px, 2.4cqmin, 20px)' }}
+                  className="flex flex-[1_1_0%] min-w-0 flex-row [@container(max-aspect-ratio:0.7)]:flex-col [@container_(max-aspect-ratio:0.7)_and_(min-height:350px)]:min-h-[var(--zones-min)] [@container(max-height:349px)]:min-h-0"
+                  style={
+                    {
+                      gap: 'clamp(8px, 2.4cqmin, 20px)',
+                      '--zones-min': `calc(3 * ${ZONE_HEAD} + 2 * clamp(8px, 2.4cqmin, 20px))`,
+                    } as React.CSSProperties
+                  }
                 >
                   <LunchZone
                     {...zoneCommon}
