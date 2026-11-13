@@ -1,6 +1,6 @@
 ---
 name: new-widget
-description: Use this skill whenever building a new widget for the SPART Board or making significant structural changes to an existing widget. Covers the complete widget creation workflow including type registration, file structure, component architecture, CSS container query scaling rules, settings panels, appearance panels, admin config wiring, and all required config file updates. Follow the step-by-step checklist and refer to the provided templates and reference implementations to ensure your widget integrates seamlessly with the SPART Board's architecture and design standards.
+description: Use this skill whenever building a new widget for the SPART Board or making significant structural changes to an existing widget. Covers the complete widget creation workflow including type registration, file structure, component architecture, CSS container query scaling rules, the settings schema, admin config wiring, and all required config file updates. Follow the step-by-step checklist and refer to the provided templates and reference implementations to ensure your widget integrates seamlessly with the SPART Board's architecture and design standards.
 ---
 
 # SPART Board — New Widget Skill
@@ -26,9 +26,9 @@ transparency ownership rule:
 | --- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `types.ts`                                                | `WidgetType` union member, config interface, `WidgetConfig` union, `ConfigForWidget` branch                                                                                                                                                                                            |
 | 2   | `config/tools.ts`                                         | Entry in `TOOLS` array                                                                                                                                                                                                                                                                 |
-| 3   | `components/widgets/YourWidget/`                          | Subdirectory with `Widget.tsx`, `Settings.tsx`, `index.ts`                                                                                                                                                                                                                             |
-| 3.5 | `pnpm run new-widget-settings your-widget`                | Scaffolds `settings.schema.ts` (schema-first settings drawer path) — see Step 3.5                                                                                                                                                                                                      |
-| 4   | `components/widgets/WidgetRegistry.ts`                    | Entries in `WIDGET_COMPONENTS`, `WIDGET_SETTINGS_COMPONENTS`, `WIDGET_APPEARANCE_COMPONENTS`, `WIDGET_SCALING_CONFIG` (plus `WIDGET_SETTINGS_SCHEMAS` for the schema from Step 3.5)                                                                                                    |
+| 3   | `components/widgets/YourWidget/`                          | Subdirectory with `Widget.tsx`, `settings.schema.ts`, `index.ts`                                                                                                                                                                                                                       |
+| 3.5 | `pnpm run new-widget-settings your-widget`                | Scaffolds `settings.schema.ts`, the only way a widget gets settings (run after row 4's `WIDGET_COMPONENTS` entry) — see Step 3.5                                                                                                                                                       |
+| 4   | `components/widgets/WidgetRegistry.ts`                    | Entries in `WIDGET_COMPONENTS`, `WIDGET_SCALING_CONFIG` and `WIDGET_SETTINGS_SCHEMAS`                                                                                                                                                                                                  |
 | 5   | `config/widgetDefaults.ts`                                | Entry in `WIDGET_DEFAULTS`                                                                                                                                                                                                                                                             |
 | 6   | `config/widgetGradeLevels.ts`                             | Entry in `WIDGET_GRADE_LEVELS`                                                                                                                                                                                                                                                         |
 | 7   | `components/admin/`                                       | Admin config panel or modal (see admin-widget-config skill)                                                                                                                                                                                                                            |
@@ -139,17 +139,15 @@ for all current widgets and enables clean co-location of widget logic.
 
 ```
 components/widgets/YourWidget/
-├── Widget.tsx       ← main front-face component
-├── Settings.tsx     ← back-face settings + appearance panels
-└── index.ts         ← re-exports (optional but clean)
+├── Widget.tsx            ← main front-face component
+├── settings.schema.ts    ← settings drawer schema (scaffolded in Step 3.5)
+└── index.ts              ← re-exports the front face
 ```
 
 ### index.ts (keep it simple)
 
 ```ts
-export { YourWidget } from './Widget';
-export { YourWidgetSettings } from './Settings';
-export { YourWidgetAppearanceSettings } from './Settings'; // if needed
+export * from './Widget';
 ```
 
 ### Widget.tsx — Full Template
@@ -174,7 +172,7 @@ export const YourWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <ScaledEmptyState
         icon={YourIcon}
         title="Not Configured"
-        subtitle="Flip to set up this widget."
+        subtitle="Open settings to set up this widget."
       />
     );
   }
@@ -253,70 +251,18 @@ If a widget truly needs a stage surface, constrain it to the actual canvas,
 image frame, or media area and prefer translucent treatment first. Full-widget
 opaque fills should be rare and explicitly justified.
 
-### Settings.tsx — Template
-
-```tsx
-import React from 'react';
-import { WidgetData } from '@/types';
-import { YourWidgetConfig } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
-
-// SETTINGS — normal Tailwind classes, NO cqmin needed
-export const YourWidgetSettings: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
-  const { updateWidget } = useDashboard();
-  const config = widget.config as YourWidgetConfig;
-
-  const update = (updates: Partial<YourWidgetConfig>) => {
-    updateWidget(widget.id, { config: { ...config, ...updates } });
-  };
-
-  return (
-    <div className="p-4 space-y-4">
-      <div>
-        <label className="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">
-          Some Setting
-        </label>
-        <input
-          type="text"
-          value={config.someText ?? ''}
-          onChange={(e) => update({ someText: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-          placeholder="Enter value..."
-        />
-      </div>
-    </div>
-  );
-};
-
-// APPEARANCE SETTINGS — only export if your widget has style/appearance controls
-// (font, color theme, opacity beyond the universal transparency slider, etc.)
-export const YourWidgetAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
-  const { updateWidget } = useDashboard();
-  const config = widget.config as YourWidgetConfig;
-  const update = (updates: Partial<YourWidgetConfig>) => {
-    updateWidget(widget.id, { config: { ...config, ...updates } });
-  };
-
-  return (
-    <div className="p-4 space-y-4">
-      {/* Color, font, theme controls here */}
-    </div>
-  );
-};
-```
-
 ---
 
-## Step 3.5 — Settings schema (schema-first path)
+## Step 3.5 — Settings schema
 
-The Widget Settings Drawer (`docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`) renders
-settings from a declarative schema instead of a hand-written `Settings.tsx`
-panel. After the widget's `*Config` type exists in `types.ts` (Step 1) and the
-widget folder exists (Step 3), scaffold its schema:
+A widget's settings are never a hand-written panel. The settings drawer
+(`docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`) renders them from a declarative
+schema, `settings.schema.ts`. There are no `Settings.tsx` or `Appearance.tsx`
+files in the repo.
+
+Scaffold the schema once the widget's `*Config` type exists in `types.ts`
+(Step 1) and its `WIDGET_COMPONENTS` entry exists (Step 4): the script finds the
+widget's folder from that registry entry and stops if it is missing.
 
 ```bash
 pnpm run new-widget-settings your-widget
@@ -325,31 +271,61 @@ pnpm run new-widget-settings your-widget
 This generates, idempotently:
 
 - `components/widgets/YourWidget/settings.schema.ts` — a `defineSettings<YourWidgetConfig>({...})`
-  module with an empty `content` group; fill in `groups`/`fields` per the field
-  kit in `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md` §4.2–4.3.
+  module with an empty `content` group.
 - `components/widgets/YourWidget/settings.schema.test.ts` — asserts
   `validateSchema` reports no errors.
 - `tests/fixtures/widgetConfigs/your-widget.json` — a migration fixture stub.
-- the `widgetSettings.your-widget` stub namespace in `locales/en.json` (the
-  one script that writes `en.json` directly — review the diff before
-  committing it, same as any other file the scaffold touches).
+- the `widgetSettings.your-widget` stub namespace in `locales/en.json` (review
+  the diff before committing it, same as any other file the scaffold touches).
 
-Use `--dry-run` to preview without writing. Register the finished schema in
-`WIDGET_SETTINGS_SCHEMAS` in `components/widgets/WidgetRegistry.ts`
-(orchestrator-owned during the drawer migration waves — coordinate before
-editing it directly).
+Use `--dry-run` to preview without writing. Then fill in the schema:
 
-**Schema-only settings:** every widget in `WIDGET_SETTINGS_SCHEMAS` (the
-authoritative list) has no `Settings.tsx` file and no
-`WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` entry (both maps
-are now empty). Don't use them as legacy-panel references.
+```ts
+import { defineSettings } from '@/components/settings/schema/defineSettings';
+import type { YourWidgetConfig } from '@/types';
+
+export default defineSettings<YourWidgetConfig>({
+  groups: [
+    {
+      id: 'content',
+      fields: [{ key: 'someText', type: 'text', label: 'someText' }],
+    },
+    {
+      id: 'behavior',
+      fields: [{ key: 'isEnabled', type: 'toggle', label: 'isEnabled' }],
+    },
+    {
+      id: 'display',
+      fields: [{ key: 'accent', type: 'color', label: 'accent' }],
+    },
+  ],
+  styleKeys: ['fontFamily', 'fontColor', 'textSizePreset', 'cardColor'],
+});
+```
+
+- **Groups decide the tab.** `content` and `behavior` render on the drawer's
+  Settings tab; `display` is the widget's own section of the Style tab.
+- **`styleKeys` add the shared appearance fields** (`fontFamily`, `fontColor`,
+  `textSizePreset`, `cardColor` with its opacity) to the Style tab, so don't
+  redeclare them as fields. See the Widget Appearance Standard in
+  `components/widgets/CLAUDE.md`.
+- **`label` is a key**, resolved in the `widgetSettings.your-widget` namespace
+  of `locales/en.json`.
+- **Field types** are listed in `components/settings/schema/types.ts` (`toggle`,
+  `text`, `number`, `select`, `segmented`, `slider`, `color`, `list`,
+  `rosterPicker` and more). Anything the kit can't express is a `custom` field
+  with a `render` function, kept in a `settingsFields.tsx` beside the schema
+  (see `components/widgets/SpecialistSchedule/`).
+- The field kit and its rules are in `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`
+  §4.2–4.3.
+
+Register the finished schema in `WIDGET_SETTINGS_SCHEMAS` (Step 4).
 
 ---
 
 ## Step 4 — WidgetRegistry.ts
 
-Add entries to **all four** of these exports (skip `WIDGET_APPEARANCE_COMPONENTS`
-only if the widget genuinely has no appearance/style settings):
+Add entries to these three exports:
 
 ```ts
 // WIDGET_COMPONENTS
@@ -358,17 +334,9 @@ only if the widget genuinely has no appearance/style settings):
   'YourWidget'
 ),
 
-// WIDGET_SETTINGS_COMPONENTS
-'your-widget': lazyNamed(
-  () => import('./YourWidget/Settings'),
-  'YourWidgetSettings'
-),
-
-// WIDGET_APPEARANCE_COMPONENTS (omit only if no appearance tab needed)
-'your-widget': lazyNamed(
-  () => import('./YourWidget/Settings'),
-  'YourWidgetAppearanceSettings'
-),
+// WIDGET_SETTINGS_SCHEMAS (after Step 3.5 has scaffolded the schema)
+'your-widget': () =>
+  import('./YourWidget/settings.schema').then((m) => m.default),
 
 // WIDGET_SCALING_CONFIG
 'your-widget': {
@@ -380,6 +348,10 @@ only if the widget genuinely has no appearance/style settings):
 },
 ```
 
+Never add to `WIDGET_SETTINGS_COMPONENTS` or `WIDGET_APPEARANCE_COMPONENTS`.
+Both are empty legacy maps kept only for the old panel slot; a widget in
+`WIDGET_SETTINGS_SCHEMAS` must not appear in either.
+
 **`canSpread` guidance:**
 
 - `true` — widget content fills the full container naturally (most widgets)
@@ -390,15 +362,15 @@ intentionally omit it are `drawing` (canvas coordinates) and `seating-chart`
 (absolute-positioned nodes). All new widgets use container queries.
 
 > **`WIDGET_SCALING_CONFIG` is exhaustive — omitting an entry is a compile error,
-> not a silent runtime fallback.** Unlike `WIDGET_COMPONENTS`,
-> `WIDGET_SETTINGS_COMPONENTS`, and `WIDGET_APPEARANCE_COMPONENTS` (all typed
-> `Partial<Record<WidgetType, …>>`, so a missing entry only surfaces at runtime),
-> `WIDGET_SCALING_CONFIG` is a full `Record<WidgetType, ScalingConfig>`. Adding a
-> new `WidgetType` to `types.ts` without a matching entry here fails
-> `pnpm type-check` and blocks CI. `WIDGET_DEFAULTS` and `WIDGET_GRADE_LEVELS` are
-> exhaustive in the same way. The runtime `?? DEFAULT_SCALING_CONFIG` fallback in
-> `WidgetRenderer.tsx` can never fire for a shipped widget because the compiler
-> rejects the omission first.
+> not a silent runtime fallback.** Unlike `WIDGET_COMPONENTS` and
+> `WIDGET_SETTINGS_SCHEMAS` (both typed `Partial<Record<WidgetType, …>>`, so a
+> missing entry only surfaces at runtime), `WIDGET_SCALING_CONFIG` is a full
+> `Record<WidgetType, ScalingConfig>`. Adding a new `WidgetType` to `types.ts`
+> without a matching entry here fails `pnpm type-check` and blocks CI.
+> `WIDGET_DEFAULTS` and `WIDGET_GRADE_LEVELS` are exhaustive in the same way.
+> The runtime `?? DEFAULT_SCALING_CONFIG` fallback in `WidgetRenderer.tsx` can
+> never fire for a shipped widget because the compiler rejects the omission
+> first.
 
 ---
 
@@ -445,8 +417,10 @@ Every new widget needs at least a stub admin config. See the
 
 At minimum, register in `FeatureConfigurationPanel.tsx`'s `BUILDING_CONFIG_PANELS`
 map — even if the panel is initially empty — so the gear button in Admin
-Settings → Widgets renders something instead of the
-"No global settings available" placeholder.
+Settings → Widgets renders something instead of the "No admin settings."
+placeholder. Building defaults only reach a new widget once
+`getAdminBuildingConfig` in `utils/adminBuildingConfig.ts` has a `case` for the
+widget type; without one they are saved and ignored.
 
 For widgets with meaningful building-level defaults (fonts, preloaded content,
 feature flags), invest in a proper config panel using the specialist-schedule
@@ -687,13 +661,14 @@ style={{ fontSize: '28cqmin' }}
 style={{ fontSize: 'clamp(24px, 25cqmin, 120px)' }}
 ```
 
-### Settings Panel Exception
+### Settings Exception
 
-The settings panel (`Settings.tsx`) flips to the **back face** of the widget
-and does NOT use container queries. Normal Tailwind classes are correct there:
+Settings render in the settings drawer from the schema, outside the widget's
+container, so they never use container query units. A `custom` field component
+(`settingsFields.tsx`) uses normal Tailwind classes:
 
 ```tsx
-// Settings.tsx — Tailwind is fine here
+// settingsFields.tsx — Tailwind is fine here
 <label className="text-xs font-bold text-slate-600">Label</label>
 <input className="w-full px-3 py-2 text-sm border rounded-xl" />
 ```
@@ -703,7 +678,7 @@ and does NOT use container queries. Normal Tailwind classes are correct there:
 ## File Naming Conventions
 
 - Widget directory: `PascalCase/` matching the component name
-- Component exports: `YourWidget`, `YourWidgetSettings`, `YourWidgetAppearanceSettings`
+- Component export: `YourWidget`. Settings are the default export of `settings.schema.ts`
 - `lazyNamed` second argument must **exactly match** the exported name
 - Widget type string in `WidgetType`: match existing style — newer widgets use
   kebab-case (`'your-widget'`), older ones use camelCase (`yourWidget`). Prefer
@@ -730,49 +705,67 @@ import { WidgetData } from '../../types';
 
 ## Common Mistakes That Break Things
 
-| Mistake                                                             | Consequence                                                                                                                    | Fix                                                                                                                |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Skipping `WIDGET_SCALING_CONFIG` entry                              | `pnpm type-check` fails and CI blocks the PR — the map is an exhaustive `Record<WidgetType, …>`, NOT a silent runtime fallback | Add entry with `skipScaling: true`                                                                                 |
-| Using `text-sm` in Widget.tsx                                       | Content doesn't scale; looks broken at small sizes                                                                             | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`                                                                  |
-| Using `size={24}` on icons                                          | Icon stays 24px regardless of widget size                                                                                      | Use `style={{ width/height }}`                                                                                     |
-| `lazyNamed` export name mismatch                                    | Silent runtime crash, widget shows loading spinner forever                                                                     | Match export name exactly                                                                                          |
-| Forgetting `WIDGET_GRADE_LEVELS` entry                              | TypeScript error, widget may not appear in filtered dock                                                                       | Add entry to map                                                                                                   |
-| Using `as YourWidgetConfig` on defaults                             | Mismatched fields silently accepted                                                                                            | Use `satisfies YourWidgetConfig`                                                                                   |
-| Relative imports                                                    | Module resolution fails in some build contexts                                                                                 | Always use `@/`                                                                                                    |
-| Forgetting `ConfigForWidget` branch                                 | TypeScript narrows to `never` for your type                                                                                    | Add ternary branch                                                                                                 |
-| Hand-rolling empty states                                           | Inconsistent design across widgets                                                                                             | Use `ScaledEmptyState`                                                                                             |
-| Mixing `cqw`/`cqh` instead of `cqmin`                               | Scaling breaks when widget is non-square                                                                                       | Always use `cqmin`                                                                                                 |
-| `skipScaling: false` on new widgets                                 | Widget uses legacy CSS-transform, scales inconsistently                                                                        | Set `skipScaling: true`                                                                                            |
-| Full-widget root background in `Widget.tsx`                         | Masks the glass shell; global/per-widget Transparency slider looks broken.                                                     | Keep the root transparent. Apply `hexToRgba(cardColor, cardOpacity)` only to internal surfaces (rows/cells/cards). |
-| Opaque `contentClassName` on `WidgetLayout`                         | Reintroduces a full-widget shell even if content is otherwise correct                                                          | Keep `contentClassName` structurally neutral; put backgrounds on smaller child surfaces                            |
-| Loading/empty/error state uses full-bleed opaque fill               | Transparency works in the default view but breaks in edge states                                                               | Apply the same transparent-root rule to all widget states                                                          |
-| Lifecycle tracked with booleans (`isRunning`, `submitted`, `ended`) | Impossible combinations (`isRunning` with no start time) reach the screen                                                      | One union + reducer (Step 9)                                                                                       |
-| `status === 'ended'` checks spread across files                     | Two screens disagree about the same session                                                                                    | Check `kind` on the derived state in one place                                                                     |
-| `useEffect` that sets state from other state                        | Extra renders, stale or looping state                                                                                          | Derive during render, or dispatch from the subscription                                                            |
-| Teacher-only action hidden in the UI but not in rules               | A scripted student can end, reveal or reopen                                                                                   | Mirror it in `firestore.rules` with a rules test                                                                   |
+| Mistake                                                                  | Consequence                                                                                                                    | Fix                                                                                                                |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Skipping `WIDGET_SCALING_CONFIG` entry                                   | `pnpm type-check` fails and CI blocks the PR — the map is an exhaustive `Record<WidgetType, …>`, NOT a silent runtime fallback | Add entry with `skipScaling: true`                                                                                 |
+| Using `text-sm` in Widget.tsx                                            | Content doesn't scale; looks broken at small sizes                                                                             | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`                                                                  |
+| Using `size={24}` on icons                                               | Icon stays 24px regardless of widget size                                                                                      | Use `style={{ width/height }}`                                                                                     |
+| `lazyNamed` export name mismatch                                         | Silent runtime crash, widget shows loading spinner forever                                                                     | Match export name exactly                                                                                          |
+| Writing a `Settings.tsx` panel or adding to `WIDGET_SETTINGS_COMPONENTS` | Nothing renders it: the legacy maps are empty and the drawer reads schemas                                                     | Declare the settings in `settings.schema.ts` and register it in `WIDGET_SETTINGS_SCHEMAS`                          |
+| Forgetting `WIDGET_GRADE_LEVELS` entry                                   | TypeScript error, widget may not appear in filtered dock                                                                       | Add entry to map                                                                                                   |
+| Using `as YourWidgetConfig` on defaults                                  | Mismatched fields silently accepted                                                                                            | Use `satisfies YourWidgetConfig`                                                                                   |
+| Relative imports                                                         | Module resolution fails in some build contexts                                                                                 | Always use `@/`                                                                                                    |
+| Forgetting `ConfigForWidget` branch                                      | TypeScript narrows to `never` for your type                                                                                    | Add ternary branch                                                                                                 |
+| Hand-rolling empty states                                                | Inconsistent design across widgets                                                                                             | Use `ScaledEmptyState`                                                                                             |
+| Mixing `cqw`/`cqh` instead of `cqmin`                                    | Scaling breaks when widget is non-square                                                                                       | Always use `cqmin`                                                                                                 |
+| `skipScaling: false` on new widgets                                      | Widget uses legacy CSS-transform, scales inconsistently                                                                        | Set `skipScaling: true`                                                                                            |
+| Full-widget root background in `Widget.tsx`                              | Masks the glass shell; global/per-widget Transparency slider looks broken.                                                     | Keep the root transparent. Apply `hexToRgba(cardColor, cardOpacity)` only to internal surfaces (rows/cells/cards). |
+| Opaque `contentClassName` on `WidgetLayout`                              | Reintroduces a full-widget shell even if content is otherwise correct                                                          | Keep `contentClassName` structurally neutral; put backgrounds on smaller child surfaces                            |
+| Loading/empty/error state uses full-bleed opaque fill                    | Transparency works in the default view but breaks in edge states                                                               | Apply the same transparent-root rule to all widget states                                                          |
+| Lifecycle tracked with booleans (`isRunning`, `submitted`, `ended`)      | Impossible combinations (`isRunning` with no start time) reach the screen                                                      | One union + reducer (Step 9)                                                                                       |
+| `status === 'ended'` checks spread across files                          | Two screens disagree about the same session                                                                                    | Check `kind` on the derived state in one place                                                                     |
+| `useEffect` that sets state from other state                             | Extra renders, stale or looping state                                                                                          | Derive during render, or dispatch from the subscription                                                            |
+| Teacher-only action hidden in the UI but not in rules                    | A scripted student can end, reveal or reopen                                                                                   | Mirror it in `firestore.rules` with a rules test                                                                   |
 
 ---
 
 ## Reading Existing Global Config in Widget.tsx
 
-If the widget has admin-level building defaults, read them in the component:
+Admin building defaults reach a widget two ways. See the `admin-widget-config`
+skill for both.
+
+**When the widget is added.** `getAdminBuildingConfig` in
+`utils/adminBuildingConfig.ts` layers the teacher's building defaults between
+`WIDGET_DEFAULTS` and explicit overrides. It copies fields through a `switch` on
+the widget type, so add a `case` for yours; no component code is needed.
+
+**Live, in the component.** For a value that should keep following the admin
+config (an option list, a schedule), read it in the component.
+`useWidgetBuildingId(widget)` returns the widget's effective building, already
+canonical:
 
 ```tsx
 import { useAuth } from '@/context/useAuth';
+import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
+import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 
-const { featurePermissions, selectedBuildings } = useAuth();
-const buildingId = selectedBuildings[0] ?? 'schumann-elementary';
+const { featurePermissions } = useAuth();
+const buildingId = useWidgetBuildingId(widget) ?? 'schumann';
 
 const globalConfig = useMemo(() => {
   const perm = featurePermissions.find((p) => p.widgetType === 'your-widget');
   return perm?.config as YourWidgetGlobalConfig | undefined;
 }, [featurePermissions]);
 
-const buildingDefaults = globalConfig?.buildingDefaults?.[buildingId] ?? {};
+const buildingDefaults =
+  canonicalizeBuildingKeyedRecord(globalConfig?.buildingDefaults ?? {})[
+    buildingId
+  ] ?? {};
 ```
 
-Then merge `buildingDefaults` with widget-instance `config` when the widget is
-first added (or read both in the component and let instance config override).
+Building ids are the short canonical form (`'schumann'`, not
+`'schumann-elementary'`); the long forms are legacy aliases, which is why the
+record is canonicalized before the lookup.
 
 ---
 
@@ -797,12 +790,7 @@ gold standard for each pattern:
 | Small phone-side reducer                           | `components/poll/pollPhoneState.ts`                                                                                                       |
 
 > **SpecialistSchedule file layout (reference note):** SpecialistSchedule is
-> the canonical building-defaults example, but it does **not** follow the
-> standard two-file layout and has **no** separate `Appearance.tsx`. It is
-> schema-driven settings, not a hand-written `Settings.tsx`: its files are
-> `SpecialistScheduleWidget.tsx` (front face — non-standard filename, don't
-> imitate), `index.ts`, `utils.ts`, `settings.schema.ts`, and
-> `settingsFields.tsx`. The barrel `index.ts`
-> (`export * from './SpecialistScheduleWidget';`) re-exports only the front
-> face; settings are registered in `WIDGET_SETTINGS_SCHEMAS` in
-> `WidgetRegistry.ts` via `settings.schema.ts`, not `lazyNamed()`.
+> the canonical building-defaults example, but its front face is
+> `SpecialistScheduleWidget.tsx`, a non-standard filename; don't imitate it. Its
+> other files are `index.ts`, `utils.ts`, `settings.schema.ts` and
+> `settingsFields.tsx` (the `custom` field components the schema renders).
