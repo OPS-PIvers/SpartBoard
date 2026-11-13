@@ -7,8 +7,10 @@ description: Use this skill whenever building a new widget for the SPART Board o
 
 ## The Complete Checklist (do these in order)
 
-Every new widget touches **9 locations**. Missing any one causes TypeScript
-errors, broken dock entries, invisible gear buttons, or scaling failures.
+Every new widget touches **10 locations**, and a lifecycle widget adds an 11th
+(see Step 0). Missing any one causes TypeScript errors, broken dock entries,
+invisible gear buttons, scaling failures, a red CI run, or student data in a
+tour recording.
 
 Before shipping the widget, also verify the front-face component follows the
 transparency ownership rule:
@@ -20,21 +22,22 @@ transparency ownership rule:
 - never add a full-size opaque inner shell that visually replaces the widget
   window background.
 
-| #   | File                                             | What to add                                                                                                                                                                                                                                                                            |
-| --- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `types.ts`                                       | `WidgetType` union member, config interface, `WidgetConfig` union, `ConfigForWidget` branch                                                                                                                                                                                            |
-| 2   | `config/tools.ts`                                | Entry in `TOOLS` array                                                                                                                                                                                                                                                                 |
-| 3   | `components/widgets/YourWidget/`                 | Subdirectory with `Widget.tsx`, `Settings.tsx`, `index.ts`                                                                                                                                                                                                                             |
-| 3.5 | `pnpm run new-widget-settings your-widget`       | Scaffolds `settings.schema.ts` (schema-first settings drawer path) — see Step 3.5                                                                                                                                                                                                      |
-| 4   | `components/widgets/WidgetRegistry.ts`           | Entries in `WIDGET_COMPONENTS`, `WIDGET_SETTINGS_COMPONENTS`, `WIDGET_APPEARANCE_COMPONENTS`, `WIDGET_SCALING_CONFIG` (plus `WIDGET_SETTINGS_SCHEMAS` for the schema from Step 3.5)                                                                                                    |
-| 5   | `config/widgetDefaults.ts`                       | Entry in `WIDGET_DEFAULTS`                                                                                                                                                                                                                                                             |
-| 6   | `config/widgetGradeLevels.ts`                    | Entry in `WIDGET_GRADE_LEVELS`                                                                                                                                                                                                                                                         |
-| 7   | `components/admin/`                              | Admin config panel or modal (see spart-widget-admin-config skill)                                                                                                                                                                                                                      |
-| 8   | `components/admin/FeaturePermissionsManager.tsx` | Wire admin config modal if using dedicated modal path                                                                                                                                                                                                                                  |
-| 9   | `config/tourAnchors.ts`                          | Tag the widget's primary actions with `tourAttr` (add item, start, reset, main settings toggles) and register them as `<widgetType>.<action>`; set `requires` when one only shows after setup (selected, scrolled into view, `settings-open` for an anchor inside the settings drawer) |
-| 10  | `components/widgets/YourWidget/`                 | Tag elements that show student faces, photos or free-form student content with `data-pii`, so tour recordings blur them                                                                                                                                                                |
+| #   | File                                                      | What to add                                                                                                                                                                                                                                                                            |
+| --- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `types.ts`                                                | `WidgetType` union member, config interface, `WidgetConfig` union, `ConfigForWidget` branch                                                                                                                                                                                            |
+| 2   | `config/tools.ts`                                         | Entry in `TOOLS` array                                                                                                                                                                                                                                                                 |
+| 3   | `components/widgets/YourWidget/`                          | Subdirectory with `Widget.tsx`, `Settings.tsx`, `index.ts`                                                                                                                                                                                                                             |
+| 3.5 | `pnpm run new-widget-settings your-widget`                | Scaffolds `settings.schema.ts` (schema-first settings drawer path) — see Step 3.5                                                                                                                                                                                                      |
+| 4   | `components/widgets/WidgetRegistry.ts`                    | Entries in `WIDGET_COMPONENTS`, `WIDGET_SETTINGS_COMPONENTS`, `WIDGET_APPEARANCE_COMPONENTS`, `WIDGET_SCALING_CONFIG` (plus `WIDGET_SETTINGS_SCHEMAS` for the schema from Step 3.5)                                                                                                    |
+| 5   | `config/widgetDefaults.ts`                                | Entry in `WIDGET_DEFAULTS`                                                                                                                                                                                                                                                             |
+| 6   | `config/widgetGradeLevels.ts`                             | Entry in `WIDGET_GRADE_LEVELS`                                                                                                                                                                                                                                                         |
+| 7   | `components/admin/`                                       | Admin config panel or modal (see admin-widget-config skill)                                                                                                                                                                                                                            |
+| 8   | `components/admin/FeaturePermissionsManager.tsx`          | Wire admin config modal if using dedicated modal path                                                                                                                                                                                                                                  |
+| 9   | `config/tourAnchors.ts`                                   | Tag the widget's primary actions with `tourAttr` (add item, start, reset, main settings toggles) and register them as `<widgetType>.<action>`; set `requires` when one only shows after setup (selected, scrolled into view, `settings-open` for an anchor inside the settings drawer) |
+| 10  | `components/widgets/YourWidget/`                          | Tag elements that show student faces, photos or free-form student content with `data-pii`, so tour recordings blur them                                                                                                                                                                |
+| 11  | `components/widgets/YourWidget/yourWidgetState.ts` + test | **Lifecycle widgets only:** state union, reducer, derive function and transition tests (Step 9)                                                                                                                                                                                        |
 
-Tour anchors (row 9): tag a click that assigns, shares, publishes, starts a live session or changes account settings `persists: true`, and one that deletes or clears `destructive: true`.
+Tour anchors (row 9, Step 8): tag a click that assigns, shares, publishes, starts a live session or changes account settings `persists: true`, and one that deletes or clears `destructive: true`.
 
 **Rubric scorecard (required before the PR).** A new widget needs a scorecard of B or better under the widget quality rubric (`docs/plans/WIDGET_RUBRIC.md`, R24):
 
@@ -42,6 +45,23 @@ Tour anchors (row 9): tag a click that assigns, shares, publishes, starts a live
 2. Grade it with `/grade-widget <type>`.
 3. `node scripts/widget-grader/loop.ts new-widget --type <type>` must pass: every dimension graded, no gate failure, B or better. Fix the lowest dimension first and re-grade until it does.
 4. Commit the scorecard with the widget and put the letter and dimension scores in the PR description.
+
+---
+
+## Step 0 — Classify the widget first
+
+Decide which kind of widget you are building before writing any code. The kind
+decides whether Step 9 applies.
+
+| Kind         | Test                                                                                                | Examples                                           | Step 9?                                                                |
+| ------------ | --------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------- |
+| Static       | Only reads and writes its own `config`                                                              | Checklist, Clock, Text                             | No                                                                     |
+| Simple async | Loads or saves external data, no stages                                                             | Weather, PdfWidget, Calendar                       | No, but give every listener an error callback and show the error state |
+| Lifecycle    | Has stages (start, pause, end, reveal), runs on a timer, or syncs a teacher view with student views | Quiz, Video Activity, Poll, TimeTool, Live Session | **Yes**                                                                |
+
+If you can name two or more states the widget moves between, it is a lifecycle
+widget. When in doubt, treat it as one: a reducer costs one file, and scattered
+booleans cost a bug in front of a class.
 
 ---
 
@@ -421,7 +441,7 @@ Grade level guidance:
 ## Step 7 — Admin Config
 
 Every new widget needs at least a stub admin config. See the
-`spart-widget-admin-config` skill for the full admin config workflow.
+`admin-widget-config` skill for the full admin config workflow.
 
 At minimum, register in `FeatureConfigurationPanel.tsx`'s `BUILDING_CONFIG_PANELS`
 map — even if the panel is initially empty — so the gear button in Admin
@@ -431,6 +451,163 @@ Settings → Widgets renders something instead of the
 For widgets with meaningful building-level defaults (fonts, preloaded content,
 feature flags), invest in a proper config panel using the specialist-schedule
 modal as the gold standard.
+
+---
+
+## Step 8 — Tour Anchors and PII Tags
+
+**Tour anchors.** Tag the widget's primary actions (add item, start, reset,
+main settings toggles) with `tourAttr('<widgetType>.<action>')` from
+`config/tourAnchors.ts`, and register each id in `TOUR_ANCHORS`. A board can
+hold several copies of a widget, so pass the instance id and mark the entry
+`perWidget: true`:
+
+```tsx
+// config/tourAnchors.ts
+'your-widget.start': { label: 'Start button in Your Widget', perWidget: true },
+
+// Widget.tsx
+<button {...tourAttr('your-widget.start', widget.id)} onClick={start}>
+```
+
+`tests/tourAnchors.test.ts` fails CI if a registered anchor isn't rendered in
+source, or if a `data-tour` literal isn't registered. It finds uses by
+grepping, so always pass the id as a string literal. Set `requires`,
+`persists` and `destructive` as the checklist above describes. The rest of the
+tour rules (the `Live Tour Anchors` PR check, `config/tourSurfaces/`, and
+`no-tour-anchor:` comments) are in `components/CLAUDE.md` under "Live tour
+anchors".
+
+**PII.** Tag elements that show student faces, photos or free-form student
+content with `data-pii` (`<div data-pii="">`) so tour recordings blur them.
+Roster names in DOM text are matched automatically; `data-pii` covers what
+text matching can't see, like `<video>`, `<img>` and drawing `<canvas>`
+elements. See `components/widgets/ActivityWall/Widget.tsx`.
+
+---
+
+## Step 9 — Lifecycle Widgets: Reducer and Transition Tests First
+
+Lifecycle state goes in a plain `useReducer` over a discriminated union, kept in
+a pure module beside the widget. No XState or other library unless the widget
+truly needs nested or parallel states; ask Paul first. Write the transition
+tests before (or with) the component.
+
+### Before you write a new state module, reuse the shared ones
+
+| Need                                                                                                                                        | Use                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Assigned session run state (active, paused, ended), assignment-to-session status mirror, end patch, "does this session accept student work" | `utils/sessionLifecycle.ts` (`deriveRunState`, `transition`, `endSessionPatch`, `assignmentLifecyclePatches`, `acceptsStudents`)                  |
+| A countdown or stopwatch (start, pause, reset, expired)                                                                                     | `utils/timeToolClock.ts` (`clockStateOf`, `secondsAt`, `timeToolClockReducer`, `startFreshClock`). Never hand-roll `isRunning` + `startTime` math |
+| A student screen built from a session doc plus local UI state                                                                               | Copy the shape of `utils/quizStudentPhase.ts` or `components/miniApp/miniAppViewState.ts`                                                         |
+
+### The state module (`yourWidgetState.ts`)
+
+```ts
+// One union: each state carries only the fields that exist in it.
+export type YourWidgetState =
+  | { kind: 'idle' }
+  | { kind: 'running'; startedAt: number }
+  | { kind: 'paused'; elapsedMs: number }
+  | { kind: 'ended'; endedAt: number };
+
+export type YourWidgetEvent =
+  | { type: 'start'; now: number }
+  | { type: 'pause'; now: number }
+  | { type: 'resume'; now: number }
+  | { type: 'end'; now: number };
+
+export function yourWidgetReducer(
+  state: YourWidgetState,
+  event: YourWidgetEvent
+): YourWidgetState {
+  switch (state.kind) {
+    case 'idle':
+      return event.type === 'start'
+        ? { kind: 'running', startedAt: event.now }
+        : state; // disallowed: return the SAME object
+    case 'running':
+      if (event.type === 'pause')
+        return { kind: 'paused', elapsedMs: event.now - state.startedAt };
+      if (event.type === 'end') return { kind: 'ended', endedAt: event.now };
+      return state;
+    case 'paused':
+      if (event.type === 'resume')
+        return { kind: 'running', startedAt: event.now - state.elapsedMs };
+      if (event.type === 'end') return { kind: 'ended', endedAt: event.now };
+      return state;
+    case 'ended':
+      return state;
+  }
+}
+```
+
+Rules:
+
+- **Pure.** Pass `now` in on the event, never call `Date.now()` inside the reducer.
+- **Disallowed events return the same object** (not a copy), so React skips the
+  render and tests can assert `toBe(state)`.
+- **Exhaustive `switch` on `kind`**, no `default`, so a new state is a compile error.
+- **No `useEffect` to derive or sync state.** Effects only subscribe to
+  Firestore, timers or the DOM and `dispatch` the result.
+- **Dispatch during render only when the event changes state**, otherwise React
+  re-renders forever.
+- **Never use a config field as an event** (an incrementing `trigger` counter).
+  Every open tab or device acts on it, so the action happens twice. Have the
+  writer apply it, or record the applied id.
+
+### Persisted and Firestore state: derive, don't store a new shape
+
+What lives in widget `config` or a session doc stays the flat, Firestore-friendly
+shape. Read it through one `deriveYourWidgetState(doc, now)` function that returns
+the union, and build writes with patch functions (`startPatch(state, now)`). That
+way no data migration is needed, and impossible combinations of stored fields
+map to one defined state instead of crashing the UI. Changing the stored shape of
+existing session or response docs needs a migration plan Paul approves first.
+
+### Teacher/student widgets
+
+- List the disagreement cases before coding: teacher ends while a student is
+  mid-submit, a student reloads after the end, two teacher tabs, an offline
+  student, the close time passing. Each one gets a reducer or derive test.
+- Teacher-only transitions (start, end, pause, advance, reveal) are enforced in
+  `firestore.rules`, not just hidden in the UI. Students may write only their own
+  response; the rules also refuse their writes after the session ends and refuse
+  moving their own status backwards.
+- Add rules tests in `tests/rules/` for **reads and writes**: a student denied
+  each teacher-only field, the teacher allowed, and a student write after the end
+  denied. Give the suite its own `PROJECT_ID`, and run
+  `pnpm run check:rules-size` (the compiled ruleset has a size cliff).
+- Teacher writes that depend on the current state (resume, advance) check the
+  expected from-state with `transition()` before writing, so a stale tab cannot
+  revive an ended session.
+
+### Transition tests (`tests/.../yourWidgetState.test.ts`)
+
+```ts
+const ALL_EVENTS: YourWidgetEvent[] = [
+  { type: 'start', now: 1 },
+  { type: 'pause', now: 2 },
+  { type: 'resume', now: 3 },
+  { type: 'end', now: 4 },
+];
+
+it('idle -> running on start', () => {
+  expect(yourWidgetReducer({ kind: 'idle' }, ALL_EVENTS[0])).toEqual({
+    kind: 'running',
+    startedAt: 1,
+  });
+});
+
+it('ended ignores every event', () => {
+  const ended = { kind: 'ended', endedAt: 9 } as const;
+  for (const e of ALL_EVENTS) expect(yourWidgetReducer(ended, e)).toBe(ended);
+});
+```
+
+Cover every allowed transition, assert `toBe(state)` for every disallowed
+event in every state (loop over `ALL_EVENTS`), and add one test per
+disagreement case. Run `pnpm exec vitest related --run <files>`.
 
 ---
 
@@ -553,22 +730,26 @@ import { WidgetData } from '../../types';
 
 ## Common Mistakes That Break Things
 
-| Mistake                                               | Consequence                                                                                                                    | Fix                                                                                                                |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Skipping `WIDGET_SCALING_CONFIG` entry                | `pnpm type-check` fails and CI blocks the PR — the map is an exhaustive `Record<WidgetType, …>`, NOT a silent runtime fallback | Add entry with `skipScaling: true`                                                                                 |
-| Using `text-sm` in Widget.tsx                         | Content doesn't scale; looks broken at small sizes                                                                             | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`                                                                  |
-| Using `size={24}` on icons                            | Icon stays 24px regardless of widget size                                                                                      | Use `style={{ width/height }}`                                                                                     |
-| `lazyNamed` export name mismatch                      | Silent runtime crash, widget shows loading spinner forever                                                                     | Match export name exactly                                                                                          |
-| Forgetting `WIDGET_GRADE_LEVELS` entry                | TypeScript error, widget may not appear in filtered dock                                                                       | Add entry to map                                                                                                   |
-| Using `as YourWidgetConfig` on defaults               | Mismatched fields silently accepted                                                                                            | Use `satisfies YourWidgetConfig`                                                                                   |
-| Relative imports                                      | Module resolution fails in some build contexts                                                                                 | Always use `@/`                                                                                                    |
-| Forgetting `ConfigForWidget` branch                   | TypeScript narrows to `never` for your type                                                                                    | Add ternary branch                                                                                                 |
-| Hand-rolling empty states                             | Inconsistent design across widgets                                                                                             | Use `ScaledEmptyState`                                                                                             |
-| Mixing `cqw`/`cqh` instead of `cqmin`                 | Scaling breaks when widget is non-square                                                                                       | Always use `cqmin`                                                                                                 |
-| `skipScaling: false` on new widgets                   | Widget uses legacy CSS-transform, scales inconsistently                                                                        | Set `skipScaling: true`                                                                                            |
-| Full-widget root background in `Widget.tsx`           | Masks the glass shell; global/per-widget Transparency slider looks broken.                                                     | Keep the root transparent. Apply `hexToRgba(cardColor, cardOpacity)` only to internal surfaces (rows/cells/cards). |
-| Opaque `contentClassName` on `WidgetLayout`           | Reintroduces a full-widget shell even if content is otherwise correct                                                          | Keep `contentClassName` structurally neutral; put backgrounds on smaller child surfaces                            |
-| Loading/empty/error state uses full-bleed opaque fill | Transparency works in the default view but breaks in edge states                                                               | Apply the same transparent-root rule to all widget states                                                          |
+| Mistake                                                             | Consequence                                                                                                                    | Fix                                                                                                                |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Skipping `WIDGET_SCALING_CONFIG` entry                              | `pnpm type-check` fails and CI blocks the PR — the map is an exhaustive `Record<WidgetType, …>`, NOT a silent runtime fallback | Add entry with `skipScaling: true`                                                                                 |
+| Using `text-sm` in Widget.tsx                                       | Content doesn't scale; looks broken at small sizes                                                                             | Use `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`                                                                  |
+| Using `size={24}` on icons                                          | Icon stays 24px regardless of widget size                                                                                      | Use `style={{ width/height }}`                                                                                     |
+| `lazyNamed` export name mismatch                                    | Silent runtime crash, widget shows loading spinner forever                                                                     | Match export name exactly                                                                                          |
+| Forgetting `WIDGET_GRADE_LEVELS` entry                              | TypeScript error, widget may not appear in filtered dock                                                                       | Add entry to map                                                                                                   |
+| Using `as YourWidgetConfig` on defaults                             | Mismatched fields silently accepted                                                                                            | Use `satisfies YourWidgetConfig`                                                                                   |
+| Relative imports                                                    | Module resolution fails in some build contexts                                                                                 | Always use `@/`                                                                                                    |
+| Forgetting `ConfigForWidget` branch                                 | TypeScript narrows to `never` for your type                                                                                    | Add ternary branch                                                                                                 |
+| Hand-rolling empty states                                           | Inconsistent design across widgets                                                                                             | Use `ScaledEmptyState`                                                                                             |
+| Mixing `cqw`/`cqh` instead of `cqmin`                               | Scaling breaks when widget is non-square                                                                                       | Always use `cqmin`                                                                                                 |
+| `skipScaling: false` on new widgets                                 | Widget uses legacy CSS-transform, scales inconsistently                                                                        | Set `skipScaling: true`                                                                                            |
+| Full-widget root background in `Widget.tsx`                         | Masks the glass shell; global/per-widget Transparency slider looks broken.                                                     | Keep the root transparent. Apply `hexToRgba(cardColor, cardOpacity)` only to internal surfaces (rows/cells/cards). |
+| Opaque `contentClassName` on `WidgetLayout`                         | Reintroduces a full-widget shell even if content is otherwise correct                                                          | Keep `contentClassName` structurally neutral; put backgrounds on smaller child surfaces                            |
+| Loading/empty/error state uses full-bleed opaque fill               | Transparency works in the default view but breaks in edge states                                                               | Apply the same transparent-root rule to all widget states                                                          |
+| Lifecycle tracked with booleans (`isRunning`, `submitted`, `ended`) | Impossible combinations (`isRunning` with no start time) reach the screen                                                      | One union + reducer (Step 9)                                                                                       |
+| `status === 'ended'` checks spread across files                     | Two screens disagree about the same session                                                                                    | Check `kind` on the derived state in one place                                                                     |
+| `useEffect` that sets state from other state                        | Extra renders, stale or looping state                                                                                          | Derive during render, or dispatch from the subscription                                                            |
+| Teacher-only action hidden in the UI but not in rules               | A scripted student can end, reveal or reopen                                                                                   | Mirror it in `firestore.rules` with a rules test                                                                   |
 
 ---
 
@@ -600,15 +781,20 @@ first added (or read both in the component and let instance config override).
 Study these before writing new widget code — they represent the current
 gold standard for each pattern:
 
-| Pattern                             | Reference File                                                                                                                            |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Clean scaling (hero number)         | `components/widgets/ClockWidget/Widget.tsx`                                                                                               |
-| Icon + text layout                  | `components/widgets/Weather/Widget.tsx`                                                                                                   |
-| List with cqmin rows                | `components/widgets/LunchCount/Widget.tsx`                                                                                                |
-| Building-defaults consumption       | `components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx` (exception to the standard `Widget.tsx` convention — do not imitate) |
-| Schema-driven settings              | `components/widgets/Checklist/settings.schema.ts`                                                                                         |
-| Good empty state usage              | `components/widgets/QRWidget/Widget.tsx`                                                                                                  |
-| Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx`                                                                                        |
+| Pattern                                            | Reference File                                                                                                                            |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Clean scaling (hero number)                        | `components/widgets/ClockWidget/Widget.tsx`                                                                                               |
+| Icon + text layout                                 | `components/widgets/Weather/Widget.tsx`                                                                                                   |
+| List with cqmin rows                               | `components/widgets/LunchCount/Widget.tsx`                                                                                                |
+| Building-defaults consumption                      | `components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx` (exception to the standard `Widget.tsx` convention — do not imitate) |
+| Schema-driven settings                             | `components/widgets/Checklist/settings.schema.ts`                                                                                         |
+| Good empty state usage                             | `components/widgets/QRWidget/Widget.tsx`                                                                                                  |
+| Transparent-root front-face pattern                | `components/widgets/ExpectationsWidget/Widget.tsx`                                                                                        |
+| Student view union + reducer + tests               | `components/miniApp/miniAppViewState.ts`, `tests/components/miniApp/miniAppViewState.test.ts`                                             |
+| Session phase derived from a Firestore doc         | `utils/quizSessionPhase.ts`, `utils/videoActivityState.ts`                                                                                |
+| Shared assigned-session lifecycle                  | `utils/sessionLifecycle.ts`                                                                                                               |
+| Timer clock (pure functions over persisted config) | `utils/timeToolClock.ts`                                                                                                                  |
+| Small phone-side reducer                           | `components/poll/pollPhoneState.ts`                                                                                                       |
 
 > **SpecialistSchedule file layout (reference note):** SpecialistSchedule is
 > the canonical building-defaults example, but it does **not** follow the
