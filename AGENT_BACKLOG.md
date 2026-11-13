@@ -218,6 +218,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-dff8t3
+claude/ab112-crossout-preview
 retire/spell-check-setting
 retire/video-activity
 retire/lunch-count
