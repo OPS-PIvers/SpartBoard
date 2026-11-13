@@ -96,4 +96,34 @@ describe('SpecialistScheduleCycleDaysField', () => {
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
     expect(screen.getByLabelText(/activity/i)).toBeInTheDocument();
   });
+
+  it("finds the building's choices when they were saved under its legacy id", () => {
+    vi.mocked(useWidgetBuildingId).mockReturnValue('schumann');
+
+    render(<SpecialistScheduleCycleDaysField ctx={makeCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: /add item/i }));
+
+    expect(screen.getByRole('radio', { name: '🎵 Music' })).toBeInTheDocument();
+  });
+
+  it("falls back to Schumann's choices when the teacher has no building", () => {
+    vi.mocked(useWidgetBuildingId).mockReturnValue(undefined);
+    vi.mocked(useAuth).mockReturnValue({
+      featurePermissions: [
+        {
+          widgetType: 'specialist-schedule',
+          config: {
+            buildingDefaults: {
+              schumann: { cycleLength: 6, specialistOptions: ['🎨 Art'] },
+            },
+          },
+        },
+      ],
+    } as never);
+
+    render(<SpecialistScheduleCycleDaysField ctx={makeCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: /add item/i }));
+
+    expect(screen.getByRole('radio', { name: '🎨 Art' })).toBeInTheDocument();
+  });
 });
