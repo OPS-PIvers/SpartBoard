@@ -254,7 +254,7 @@ export interface AuthContextType {
   spartyEnabled: boolean;
   /** Teacher's own alignment guides switch. */
   alignmentGuidesEnabled: boolean;
-  /** Teacher's own spell check switch; only turns it off where `spell-check-setting` allows. */
+  /** Teacher's own spell check switch. */
   spellCheckEnabled: boolean;
   /** Teacher's own starting length for new timers, in seconds; 0 or absent means the building default. */
   timeToolStartSeconds?: number;

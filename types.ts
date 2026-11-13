@@ -10855,7 +10855,7 @@ export interface UserProfile {
   spartyEnabled?: boolean;
   /** Alignment guides while moving or resizing widgets; absent means off. */
   alignmentGuidesEnabled?: boolean;
-  /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
+  /** Browser spell check in the teacher's text boxes; absent means on. */
   spellCheckEnabled?: boolean;
   /** Starting length in seconds for the teacher's new timers. 0 or absent means the building default. */
   timeToolStartSeconds?: number;
@@ -11318,8 +11318,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Flashcards study: students study just the cards they missed, in every mode. */
   | 'flashcards-missed-cards'
-  /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
-  | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */

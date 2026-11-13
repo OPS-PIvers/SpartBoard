@@ -150,7 +150,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'smart-paste',
   'smart-poll',
   'sparty',
-  'spell-check-setting',
   'staff-audience',
   'student-gradebook',
   'student-keyboards',

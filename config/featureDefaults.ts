@@ -18,7 +18,6 @@ import {
   ScanLine,
   Download,
   Eye,
-  SpellCheck,
   FileText,
   FileUp,
   Gauge,
@@ -1488,18 +1487,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // The flag only hides the Behavior switch; teachers turn spell check off themselves.
-  'spell-check-setting': {
-    label: 'Spell check switch',
-    icon: SpellCheck,
-    description:
-      'Teachers can turn off browser spell check in their own text boxes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
