@@ -28,6 +28,7 @@ Each is explained in `CLAUDE.md`.
 - Reuse `Button`, `Modal`, `Toggle`, `SettingsLabel` and `MagicInput` from `components/common/` instead of hand-rolling them.
 - Widgets that talk to each other use the Nexus system; document every active connection in `docs/nexus.md`.
 - Never set a widget's z-index by hand. Use `bringToFront(id)`.
+- Hidden inputs (such as file uploads) need an `aria-label`, and icon-only buttons need an `aria-label` or a `title`.
 
 ## Testing
 
