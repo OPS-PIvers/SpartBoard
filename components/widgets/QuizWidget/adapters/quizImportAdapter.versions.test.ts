@@ -43,7 +43,7 @@ const doc = {
 describe('createQuizImportAdapter with versions', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('asks for versions only while the flag is on', async () => {
+  it('passes the versioned AI call to the reader', async () => {
     readTestAndKey.mockResolvedValue({
       title: 'T',
       questions: [],
@@ -52,13 +52,7 @@ describe('createQuizImportAdapter with versions', () => {
     });
     const aiExtractVersions = vi.fn();
     await createQuizImportAdapter(deps({ aiExtractVersions })).parse(doc);
-    expect(readTestAndKey.mock.calls[0][1]).not.toHaveProperty(
-      'aiExtractVersions'
-    );
-    await createQuizImportAdapter(
-      deps({ aiExtractVersions, importVersions: true })
-    ).parse(doc);
-    expect(readTestAndKey.mock.calls[1][1]).toMatchObject({
+    expect(readTestAndKey.mock.calls[0][1]).toMatchObject({
       aiExtractVersions,
     });
   });
@@ -76,7 +70,6 @@ describe('createQuizImportAdapter with versions', () => {
     const onDocumentImages = vi.fn();
     const adapter = createQuizImportAdapter(
       deps({
-        importVersions: true,
         aiExtractVersions: vi.fn(),
         saveVersionImport,
         onDocumentImages,
@@ -129,12 +122,8 @@ describe('createQuizImportAdapter with versions', () => {
       images: [],
       warnings: [],
     });
-    const on = await createQuizImportAdapter(
-      deps({ importVersions: true })
-    ).parse(doc);
-    expect(on.warnings[0]).toBe(VERSIONS_NEED_AI);
-    const off = await createQuizImportAdapter(deps()).parse(doc);
-    expect(off.warnings).not.toContain(VERSIONS_NEED_AI);
+    const parsed = await createQuizImportAdapter(deps()).parse(doc);
+    expect(parsed.warnings[0]).toBe(VERSIONS_NEED_AI);
   });
 
   it('splits versions in the plain read only with the plain flag, and offers AI after it', async () => {
@@ -147,27 +136,23 @@ describe('createQuizImportAdapter with versions', () => {
       warnings: [],
       testSet,
     });
-    await createQuizImportAdapter(deps({ importVersions: true })).parse(doc);
+    await createQuizImportAdapter(deps()).parse(doc);
     expect(readTestAndKey.mock.calls[0][1]).not.toHaveProperty('plainVersions');
-    // The flag means nothing without the versions flag it rides on.
-    await createQuizImportAdapter(deps({ plainVersions: true })).parse(doc);
-    expect(readTestAndKey.mock.calls[1][1]).not.toHaveProperty('plainVersions');
 
     const plain = await createQuizImportAdapter(
       deps({
-        importVersions: true,
         plainVersions: true,
         aiExtractVersions: vi.fn(),
       })
     ).parse({ ...doc, useAi: false });
-    expect(readTestAndKey.mock.calls[2][1]).toMatchObject({
+    expect(readTestAndKey.mock.calls[1][1]).toMatchObject({
       plainVersions: true,
     });
     expect(plain.note).toBe('Converted without AI.');
     expect(plain.aiRetry).toBe(true);
 
     const noAi = await createQuizImportAdapter(
-      deps({ importVersions: true, plainVersions: true, aiExtract: undefined })
+      deps({ plainVersions: true, aiExtract: undefined })
     ).parse(doc);
     expect(noAi.aiRetry).toBeUndefined();
   });

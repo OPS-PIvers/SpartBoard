@@ -176,7 +176,6 @@ function makeDeps(over: Partial<ExtractDocumentDeps> = {}) {
     chargeQuiz: vi.fn(() => Promise.resolve()),
     pdfPageCount: vi.fn(() => Promise.resolve(4)),
     extract: vi.fn(() => Promise.resolve(GOOD_RESPONSE)),
-    isVersionsGranted: vi.fn(() => Promise.resolve(true)),
     generate: vi.fn(() => Promise.reject(new Error('not expected'))),
     slicePdf: vi.fn((bytes: Buffer) => Promise.resolve(bytes)),
     now: () => now,
@@ -1185,18 +1184,6 @@ describe('extractQuizFromDocument, versioned mode', () => {
       deps
     );
     expect('kind' in quiz).toBe(false);
-  });
-
-  it('ignores the versions request without the flag, keeping today’s cap', async () => {
-    const { deps } = makeDeps({
-      isVersionsGranted: vi.fn(() => Promise.resolve(false)),
-      pdfPageCount: vi.fn(() => Promise.resolve(26)),
-    });
-    await expect(
-      extractQuizFromDocument(versionedRequest(), teacher, deps)
-    ).rejects.toThrow(/limit is 20/);
-    expect(deps.generate).not.toHaveBeenCalled();
-    expect(deps.chargeQuiz).not.toHaveBeenCalled();
   });
 
   it('refuses a file over the versioned ceiling before any charge (V12)', async () => {

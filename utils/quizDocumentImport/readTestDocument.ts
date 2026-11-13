@@ -40,7 +40,7 @@ export const AI_READER_FELL_BACK =
 export interface ReadTestDocumentOptions {
   /** Supplied only when the teacher has AI access; absent means browser-only. */
   aiExtract?: AiExtractFn;
-  /** The versioned AI call, given only when `quiz-import-versions` is on (QUIZ_IMPORT_VERSIONS V7). */
+  /** The versioned AI call, given only with AI access (QUIZ_IMPORT_VERSIONS V7). */
   aiExtractVersions?: AiExtractVersionsFn;
   /** A typed PDF with version headings splits in the plain read (QUIZ_IMPORT_VERSIONS V13). */
   plainVersions?: boolean;
@@ -52,7 +52,7 @@ export interface ReadTestDocumentOptions {
   passages?: boolean;
   /** A PDF's bold, underlined or highlighted choice is its answer (`quiz-import-pdf-answer-marks`). */
   pdfMarks?: boolean;
-  /** A PDF choice printed only as a picture comes in as that picture (`quiz-ordering-images`). */
+  /** A PDF choice printed only as a picture comes in as that picture. */
   answerPictures?: boolean;
   /** Photos of the test, one per page in order; `file` is the first (R30). */
   pages?: readonly Blob[];
