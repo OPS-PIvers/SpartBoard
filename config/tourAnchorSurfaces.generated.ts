@@ -815,6 +815,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-results.show-results-cancel': ['quiz.student-results-control'],
     'quiz-results.show-results-confirm': ['quiz.student-results-control'],
     'quiz-grading.answer-grade': ['quiz.student-answer-line'],
+    'quiz-grading.count-instead': ['quiz.grader'],
     'quiz-results.counted-answers': ['quiz.student-answer-line'],
     'quiz-results.count-instead': ['quiz.student-answer-line'],
     'quiz-results.drilldown-open-student': ['quiz.results'],

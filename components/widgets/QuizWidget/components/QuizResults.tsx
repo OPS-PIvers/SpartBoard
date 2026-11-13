@@ -3024,6 +3024,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         <FreeResponseGrader
           quiz={quiz}
           responses={graderResponses}
+          countedChoices={
+            saveCountedChoicesFor && graderAttempt === null && session?.sections
+              ? { sections: session.sections, onSave: saveCountedChoicesFor }
+              : undefined
+          }
           displayNameByResponseKey={
             hideNames ? maskedNameByResponseKey : displayNameByResponseKey
           }

@@ -57,6 +57,13 @@ import {
   type WrittenAnswerRubricScore,
   isFreeResponseType,
 } from '@/types';
+import type { QuizSessionSection } from '@/types';
+import { overAnsweredResponseSections } from '@/utils/quizSections';
+import {
+  countedChoiceSections,
+  type SaveCountedChoices,
+} from '@/utils/quizCountedChoices';
+import { CountedChoicesPicker } from './results/CountedChoicesPicker';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useDialog } from '@/context/useDialog';
@@ -151,6 +158,8 @@ interface QueueRow {
   response: QuizResponse;
   responseKey: string | undefined;
   targets: GradeTarget[];
+  /** An extra answer in a choose-N section that doesn't count; shown so the teacher can swap it in. */
+  notCounted?: boolean;
 }
 
 /** Which control last touched the draft; decides when the write happens. */
@@ -217,6 +226,11 @@ export interface FreeResponseGraderProps {
   classFilter?: string;
   classOptions?: readonly string[];
   onClassFilterChange?: (next: string) => void;
+  /** The session's sections and the save for which answers count; absent hides extra answers. */
+  countedChoices?: {
+    sections: readonly QuizSessionSection[];
+    onSave: SaveCountedChoices;
+  };
   onClose: () => void;
 }
 
@@ -307,6 +321,11 @@ const targetVocabulary = (
   };
 };
 
+const NOT_COUNTED_VOCABULARY = {
+  key: 'quizMediaResponse.grading.state.not-counted',
+  chip: 'bg-slate-200 text-slate-600',
+};
+
 const strandTagsEqual = (
   a: WrittenAnswerAnnotation['rubricCriteria'],
   b: WrittenAnswerAnnotation['rubricCriteria']
@@ -379,13 +398,39 @@ const draftFromGrade = (grade: WrittenAnswerGrade | undefined): GradeDraft => ({
 /** Every student with something to grade on this question. */
 function buildQueue(
   question: QuizQuestion | undefined,
-  responses: QuizResponse[]
+  responses: QuizResponse[],
+  sections?: readonly QuizSessionSection[]
 ): QueueRow[] {
   if (!question) return [];
   const rows: QueueRow[] = [];
   for (const response of responses) {
-    // A question left out of a choose-N section is never graded (E14).
-    if (response._notChosen?.includes(question.id)) continue;
+    // A question left out of a choose-N section is never graded (E14), but an extra answer stays in view.
+    if (response._notChosen?.includes(question.id)) {
+      const extra = sections
+        ? overAnsweredResponseSections(response, sections).some((o) =>
+            o.answeredIds.includes(question.id)
+          )
+        : false;
+      const entry = extra
+        ? response.answers.find((a) => a.questionId === question.id)
+        : undefined;
+      if (entry && !question.recording) {
+        rows.push({
+          response,
+          responseKey: responseKeyOf(response),
+          notCounted: true,
+          targets: [
+            {
+              kind: 'text',
+              key: question.id,
+              entry: { ...entry, unresponded: undefined },
+              grade: response.grading?.[question.id],
+            },
+          ],
+        });
+      }
+      continue;
+    }
     let targets: GradeTarget[];
     if (question.recording) {
       targets = collectMediaSlots(question, response).map((slot) => ({
@@ -485,11 +530,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   classFilter = 'all',
   classOptions = [],
   onClassFilterChange,
+  countedChoices,
   onClose,
 }) => {
   const { t } = useTranslation();
   const auth = useContext(AuthContext);
-  const { showConfirm } = useDialog();
+  const { showConfirm, showAlert } = useDialog();
   const whiteboardEnabled = auth
     ? canAccessQuizWhiteboardResponse(auth)
     : false;
@@ -564,9 +610,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   }
   const question = questions[questionIdx];
 
+  const extraSections = countedChoices?.sections;
   const queuesByQuestion = useMemo(
-    () => questions.map((q) => buildQueue(q, responses)),
-    [questions, responses]
+    () => questions.map((q) => buildQueue(q, responses, extraSections)),
+    [questions, responses, extraSections]
   );
   const queue = queuesByQuestion[questionIdx] ?? [];
   // An unanswered question must not trap the teacher in the modal-level empty state.
@@ -580,7 +627,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           studentKey: row.responseKey ?? '',
           slots: row.targets.map((x) => ({
             slot: targetSlot(x),
-            isGraded: targetIsGraded(questions[qi], x),
+            // Nothing is owed on an answer that doesn't count.
+            isGraded: !!row.notCounted || targetIsGraded(questions[qi], x),
           })),
         })),
       })),
@@ -1426,7 +1474,26 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     key ? (paperPrivate?.get(paperPrivateKey(key, question.id)) ?? null) : null;
   const privateDoc = isPaperAnswer ? paperDocFor(responseKey) : null;
   const paperCrop = textEntry ? handwritingArtifact(textEntry) : null;
-  const headerVocabulary = targetVocabulary(target, privateDoc?.status);
+  const headerVocabulary = row?.notCounted
+    ? NOT_COUNTED_VOCABULARY
+    : targetVocabulary(target, privateDoc?.status);
+  // The over-answered section this answer belongs to, for the counted-answers menu.
+  const extraSection =
+    countedChoices && response && question
+      ? countedChoiceSections(
+          response,
+          countedChoices.sections,
+          quiz.questions
+        ).find((o) => o.options.some((x) => x.questionId === question.id))
+      : undefined;
+  const saveCounted = async (sectionId: string, ids: string[] | null) => {
+    if (!countedChoices || !responseKey) return;
+    try {
+      await countedChoices.onSave(responseKey, sectionId, ids);
+    } catch (err) {
+      void showAlert(err instanceof Error ? err.message : 'Could not save.');
+    }
+  };
   const paperBadge = (
     <span className="inline-flex shrink-0 items-center gap-0.5 rounded-sm bg-slate-200 px-1 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
       <FileScan aria-hidden className="h-3 w-3" />
@@ -1663,10 +1730,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     return {
       entry,
       paper,
-      vocabulary: targetVocabulary(
-        entryTarget,
-        paper ? paperDocFor(entryRow?.responseKey)?.status : undefined
-      ),
+      vocabulary: entryRow?.notCounted
+        ? NOT_COUNTED_VOCABULARY
+        : targetVocabulary(
+            entryTarget,
+            paper ? paperDocFor(entryRow?.responseKey)?.status : undefined
+          ),
     };
   });
   // In question mode a row flags this question's marks; in student mode, any of the student's.
@@ -1679,6 +1748,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     ({ vocabulary }) =>
       vocabulary.key.endsWith('.scored') ||
       vocabulary.key.endsWith('.excused') ||
+      vocabulary.key.endsWith('.not-counted') ||
       vocabulary.key.endsWith('.paper-blank')
   ).length;
   const gradedCountLabel = tg('gradedCountLabel', {
@@ -1920,6 +1990,31 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
           <div className="flex flex-col gap-4 p-6">
             {studentStatusRow}
+            {extraSection && (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <CountedChoicesPicker
+                  sectionId={extraSection.sectionId}
+                  sectionTitle={extraSection.title}
+                  count={extraSection.count}
+                  options={extraSection.options}
+                  counted={extraSection.counted}
+                  teacherPicked={extraSection.teacherPicked}
+                  onSave={(ids) => saveCounted(extraSection.sectionId, ids)}
+                />
+                {row?.notCounted && extraSection.count === 1 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void saveCounted(extraSection.sectionId, [question.id])
+                    }
+                    {...tourTypeAttr('quiz-grading.count-instead', 'quiz')}
+                    className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-bold text-brand-blue-primary hover:bg-slate-50"
+                  >
+                    {tg('countInstead')}
+                  </button>
+                )}
+              </div>
+            )}
             {!target && (
               <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                 {tg('noAnswersOnQuestion')}

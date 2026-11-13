@@ -16028,8 +16028,34 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.count-instead",
+    "label": "Count this instead button in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-results.counted-answers",
-    "label": "Answers that count menu in a student report in Quiz results, by section",
+    "label": "Answers that count menu in Quiz results and the grader, by section",
     "scope": "field",
     "persists": true,
     "routes": [

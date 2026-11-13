@@ -3871,9 +3871,14 @@ export const TOUR_ANCHORS = {
       'Grade button beside a question in a student report in Quiz results, by question',
     perField: true,
   },
+  'quiz-grading.count-instead': {
+    label: 'Count this instead button in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
   'quiz-results.counted-answers': {
-    label:
-      'Answers that count menu in a student report in Quiz results, by section',
+    label: 'Answers that count menu in Quiz results and the grader, by section',
     perField: true,
     persists: true,
   },

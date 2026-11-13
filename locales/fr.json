@@ -2572,7 +2572,8 @@
         "paper-failed": "Échec",
         "paper-over-quota": "Limite quotidienne",
         "paper-blank": "Vide",
-        "paper-image": "Non transcrit"
+        "paper-image": "Non transcrit",
+        "not-counted": "Ne compte pas"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2833,7 +2834,8 @@
         "rail": "Marques non enregistrées"
       },
       "classFilter": "Filtrer par classe",
-      "allClasses": "Toutes les classes"
+      "allClasses": "Toutes les classes",
+      "countInstead": "Compter celle-ci à la place"
     },
     "results": {
       "gradeButton": "Noter les réponses libres"
