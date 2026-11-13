@@ -16028,6 +16028,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-results.counted-answers",
+    "label": "Answers that count menu in a student report in Quiz results, by section",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.student-answer-line",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.count-instead",
+    "label": "Count this instead button beside a question in a student report in Quiz results, by question",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.student-answer-line",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-results.drilldown-open-student",
     "label": "Student name button in Quiz results, by student",
     "scope": "field",

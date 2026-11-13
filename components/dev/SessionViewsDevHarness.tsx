@@ -27,6 +27,8 @@ import { SavedWidgetsProvider } from '@/context/SavedWidgetsContext';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
+import { withNotChosen } from '@/utils/quizSections';
+import { countedChoicesPatch } from '@/utils/quizCountedChoices';
 import { QuizAttemptSourceContext } from '@/hooks/useQuizResponseAttempts';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
 import { VideoAssignmentSettingsModal } from '@/components/widgets/VideoActivityWidget/components/VideoAssignmentSettingsModal';
@@ -65,6 +67,9 @@ import {
   makeReviewGameResponses,
   makeReviewGameSession,
   makeQuizData,
+  makeChooseNQuizData,
+  makeChooseNResponses,
+  makeChooseNSession,
   makeQuizFrqData,
   makeQuizFrqClassResponses,
   makeOrderingQuizData,
@@ -120,6 +125,44 @@ const HARNESS_RESULTS_ACTIONS = {
   publish: () => Promise.resolve({ responsesUpdated: 0, skipped: 0 }),
   hide: noop,
   clear: noop,
+};
+
+/** Quiz Results with an over-answered choose-N section; picks save in memory. */
+const ChooseNResultsDev: React.FC = () => {
+  const [session] = useState(makeChooseNSession);
+  const [raw, setRaw] = useState(makeChooseNResponses);
+  const responses = withNotChosen(raw, session.sections);
+  return (
+    <QuizResults
+      quiz={makeChooseNQuizData()}
+      responses={responses}
+      config={makeQuizConfig()}
+      session={session}
+      onBack={() => undefined}
+      onSubmitStudent={noop}
+      studentResultsActions={HARNESS_RESULTS_ACTIONS}
+      countedChoicesSaver={(key, sectionId, picked) => {
+        setRaw((list) =>
+          list.map((r) => {
+            if (r._responseKey !== key) return r;
+            const patch = countedChoicesPatch(
+              r,
+              session.sections,
+              sectionId,
+              picked
+            );
+            if (!patch) throw new Error('Could not save.');
+            return {
+              ...r,
+              answers: patch.answers,
+              countedChoices: patch.countedChoices ?? undefined,
+            };
+          })
+        );
+        return Promise.resolve();
+      }}
+    />
+  );
 };
 
 /** Holds monitor config so header/settings toggles (e.g. Board view) work in the harness. */
@@ -376,6 +419,10 @@ const SessionView: React.FC<{
         variant="review"
       />
     );
+  }
+
+  if (view === 'quiz-results' && state === 'choose-n') {
+    return <ChooseNResultsDev />;
   }
 
   if (view === 'quiz-results' && state === 'picture-only') {

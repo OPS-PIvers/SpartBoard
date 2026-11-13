@@ -1116,6 +1116,8 @@ export function gradeResponseForPublish(
         answers,
         servedQuestionIds: baseServed ? [...baseServed] : undefined,
         status: data.status,
+        countedChoices: data.countedChoices,
+        completedAttempts: data.completedAttempts,
       },
       ctx.sections
     )

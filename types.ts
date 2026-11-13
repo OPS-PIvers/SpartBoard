@@ -4838,6 +4838,14 @@ export interface QuizSessionSection extends QuizSection {
   questionIds: string[];
 }
 
+/** The teacher's pick of which answers count in over-answered choose-N sections. */
+export interface QuizCountedChoices {
+  /** The response's `completedAttempts` when picked; a later attempt ignores the pick. */
+  attempt: number;
+  /** Section id to the question ids that count. */
+  bySection: Record<string, string[]>;
+}
+
 /** Frozen slot on a session; the student draws `count` ids from `poolQuestionIds`. */
 export interface QuizSessionBankSlot {
   id: string;
@@ -6242,6 +6250,8 @@ export interface QuizResponse extends StaffResponseFields {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Teacher-written; which answers count where the student answered more than a section's N. */
+  countedChoices?: QuizCountedChoices;
   /** Pool ids balanced bank slots have dealt this student across attempts; never cleared by a retake. */
   dealtQuestionIds?: string[];
   /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
@@ -11337,7 +11347,9 @@ export type GlobalFeature =
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */
-  | 'youtube-paste-picker';
+  | 'youtube-paste-picker'
+  /** Teachers pick which answers count when a student answers more than a section asks. */
+  | 'choose-n-pick-counted';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

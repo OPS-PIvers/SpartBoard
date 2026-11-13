@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { notChosenIds, parseChooseSections } from './quizSectionsChosen';
+import {
+  notChosenIds,
+  parseChooseSections,
+  parseCountedChoices,
+} from './quizSectionsChosen';
 import {
   computeAssessmentAggregate,
   resolveGroupQuestions,
@@ -18,7 +22,7 @@ describe('parseChooseSections', () => {
         'junk',
       ])
     ).toEqual([
-      { chooseCount: 1, questionIds: ['a', 'b'] },
+      { id: 's', chooseCount: 1, questionIds: ['a', 'b'] },
       { questionIds: ['c'] },
     ]);
     expect(parseChooseSections(undefined)).toEqual([]);
@@ -110,5 +114,93 @@ describe('PLC aggregate with a choose-N section', () => {
   it('is unchanged for a session without sections', () => {
     const q3 = run().perQuestion.find((q) => q.questionId === 'q3');
     expect(q3?.servedCount).toBe(1);
+  });
+});
+
+describe('teacher picks (countedChoices)', () => {
+  const twoOfThree = [
+    { id: 's1', chooseCount: 2, questionIds: ['a', 'b', 'c'] },
+  ];
+  const all = [
+    { questionId: 'a', answer: 'x' },
+    { questionId: 'b', answer: 'y' },
+    { questionId: 'c', answer: 'z' },
+  ];
+
+  it('counts the first N without a pick', () => {
+    expect([...notChosenIds(twoOfThree, all)]).toEqual(['c']);
+  });
+
+  it('counts the picked questions instead', () => {
+    expect([
+      ...notChosenIds(twoOfThree, all, undefined, { s1: ['a', 'c'] }),
+    ]).toEqual(['b']);
+  });
+
+  it('tops up a short pick with answered questions in order', () => {
+    expect([
+      ...notChosenIds(twoOfThree, all, undefined, { s1: ['c'] }),
+    ]).toEqual(['b']);
+  });
+
+  it('keeps picks only for the current attempt', () => {
+    const choices = { attempt: 1, bySection: { s1: ['a', 'c'], x: [] } };
+    expect(
+      parseCountedChoices({ completedAttempts: 1, countedChoices: choices })
+    ).toEqual({ s1: ['a', 'c'] });
+    expect(
+      parseCountedChoices({ completedAttempts: 2, countedChoices: choices })
+    ).toBeUndefined();
+    expect(parseCountedChoices({ countedChoices: 'junk' })).toBeUndefined();
+  });
+
+  it('PLC math scores the question the teacher picked', () => {
+    const groupQuestions = resolveGroupQuestions(
+      {
+        questions: [
+          { id: 'q1', type: 'FIB', text: 'One?', correctAnswer: '1' },
+          { id: 'q2', type: 'FIB', text: 'Two?', correctAnswer: '2' },
+        ],
+      },
+      [
+        { id: 'q1', type: 'FIB', text: 'One?' },
+        { id: 'q2', type: 'FIB', text: 'Two?' },
+      ]
+    );
+    const run = (countedChoices?: Record<string, string[]>) =>
+      computeAssessmentAggregate({
+        assessmentId: 'a1',
+        title: 'Test',
+        kind: 'quiz',
+        groupQuestions,
+        sessions: [
+          {
+            id: 's1',
+            teacherUid: 't1',
+            teacherName: 'T',
+            publicQuestions: [
+              { id: 'q1', type: 'FIB', text: 'One?' },
+              { id: 'q2', type: 'FIB', text: 'Two?' },
+            ],
+            responses: [
+              {
+                studentUid: 'u1',
+                score: null,
+                answers: [
+                  { questionId: 'q1', answer: 'wrong' },
+                  { questionId: 'q2', answer: '2' },
+                ],
+                ...(countedChoices ? { countedChoices } : {}),
+              },
+            ],
+            scorePublishedAt: null,
+            sections: [
+              { id: 'sec', chooseCount: 1, questionIds: ['q1', 'q2'] },
+            ],
+          },
+        ],
+      });
+    expect(run().teamAveragePercent).toBe(0);
+    expect(run({ sec: ['q2'] }).teamAveragePercent).toBe(100);
   });
 });

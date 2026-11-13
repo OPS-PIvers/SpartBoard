@@ -3871,6 +3871,18 @@ export const TOUR_ANCHORS = {
       'Grade button beside a question in a student report in Quiz results, by question',
     perField: true,
   },
+  'quiz-results.counted-answers': {
+    label:
+      'Answers that count menu in a student report in Quiz results, by section',
+    perField: true,
+    persists: true,
+  },
+  'quiz-results.count-instead': {
+    label:
+      'Count this instead button beside a question in a student report in Quiz results, by question',
+    perField: true,
+    persists: true,
+  },
   'quiz-results.drilldown-open-student': {
     label: 'Student name button in Quiz results, by student',
     perField: true,

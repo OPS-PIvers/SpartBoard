@@ -32,6 +32,8 @@ export function attemptAsResponse(
     score: copy.score ?? null,
     submittedAt: copy.submittedAt ?? null,
     _notChosen: notChosen.length > 0 ? notChosen : undefined,
+    // The teacher's picks belong to the live attempt only.
+    countedChoices: undefined,
     tabSwitchWarnings: copy.tabSwitchWarnings,
     tabExits: copy.tabExits,
     autoSubmitted: copy.autoSubmitted,

@@ -303,12 +303,17 @@ export function computeStudentDrilldown(
     }
 
     if (response._notChosen?.includes(q.id)) {
+      // An answer that doesn't count stays readable; it shows as "Not counted".
+      const written =
+        entry && (!entry.unresponded || entry.unresponded === 'passed')
+          ? readableAnswer(q, { ...entry, unresponded: undefined })
+          : '';
       lines.push({
         ...base,
         mark: 'notChosen',
         pointsEarned: 0,
         pointsMax: 0,
-        answerText: '',
+        answerText: written.trim() ? written : '',
       });
       return;
     }

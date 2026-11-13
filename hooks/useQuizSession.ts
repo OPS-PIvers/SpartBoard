@@ -1787,6 +1787,8 @@ export const useQuizSessionTeacher = (
         score: null,
         completedAttempts: refundedAttempts,
         scoredOnSubmitAttempt: deleteField(),
+        // A reopened attempt can change its answers, so the teacher picks again.
+        countedChoices: deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
         unlockKind: reopen ? 'reopen' : deleteField(),
