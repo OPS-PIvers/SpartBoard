@@ -345,7 +345,7 @@ describe('QuizStudentApp — question timer runs out', () => {
   }, 10000);
 });
 
-describe('QuizStudentApp — question timer with the review step (quiz-review-step)', () => {
+describe('QuizStudentApp — question timer with the review step', () => {
   const withReview = (questions: QuizPublicQuestion[]) => {
     startQuiz(questions);
     hookState.session = {
