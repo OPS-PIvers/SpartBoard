@@ -17215,6 +17215,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-library.archive-student-view': {
+    label: 'Student view item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-library.archive-settings': {
     label: 'Settings item in a quiz assignment row menu',
     perWidgetType: true,

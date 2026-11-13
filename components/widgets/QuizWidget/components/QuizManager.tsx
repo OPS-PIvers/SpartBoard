@@ -502,6 +502,8 @@ interface QuizManagerProps {
   assignmentsLoading?: boolean;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
   onArchiveMonitor?: (assignment: QuizAssignment) => void | Promise<void>;
+  /** Opens the frozen copy students have; absent without the quiz-student-view flag. */
+  onArchiveStudentView?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Start a paused assignment: resume + navigate to monitor. */
   onArchiveStart?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveResults?: (assignment: QuizAssignment) => void | Promise<void>;
@@ -823,6 +825,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   assignmentsLoading = false,
   onArchiveCopyUrl,
   onArchiveMonitor,
+  onArchiveStudentView,
   onArchiveStart,
   onArchiveResults,
   onArchiveEditSettings,
@@ -1866,6 +1869,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           icon: Monitor,
           onClick: () => void (onArchiveMonitor ?? noop)(a),
           anchor: tourTypeAttr('quiz-library.archive-monitor', 'quiz'),
+        });
+      }
+      if (onArchiveStudentView && a.status !== 'inactive') {
+        secondaries.push({
+          id: 'student-view',
+          label: 'Student view',
+          icon: Eye,
+          anchor: tourTypeAttr('quiz-library.archive-student-view', 'quiz'),
+          onClick: () => void onArchiveStudentView(a),
         });
       }
       secondaries.push({

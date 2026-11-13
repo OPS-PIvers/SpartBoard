@@ -4128,6 +4128,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-library.import-questions': ['quiz.face'],
     'quiz-library.make-own-copy': ['quiz.face'],
     'quiz-library.archive-monitor': ['quiz.face'],
+    'quiz-library.archive-student-view': ['quiz.face'],
     'quiz-library.archive-settings': ['quiz.face'],
     'quiz-library.archive-plc-results': ['quiz.face'],
     'quiz-library.archive-results': ['quiz.face'],

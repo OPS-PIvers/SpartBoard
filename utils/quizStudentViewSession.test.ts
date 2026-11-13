@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { QuizBehaviorSettings, QuizData } from '@/types';
+import type { QuizBehaviorSettings, QuizData, QuizSession } from '@/types';
 import {
+  STUDENT_VIEW_SESSION_ID,
+  buildAssignedStudentView,
   buildStudentViewSession,
   focusSettingsFrom,
+  focusSettingsFromSession,
   withFocusSettings,
 } from './quizStudentViewSession';
 
@@ -142,5 +145,70 @@ describe('buildStudentViewSession cross-out', () => {
       crossOut: true,
     });
     expect(s.allowCrossOut).toBe(true);
+  });
+});
+
+describe('buildAssignedStudentView', () => {
+  const live = {
+    ...buildStudentViewSession(QUIZ, BEHAVIOR, true),
+    id: 'real-session',
+    assignmentId: 'real-session',
+    teacherUid: 'teacher-1',
+    code: 'ABC123',
+    status: 'paused',
+    closeAt: 5,
+    inputSignals: true,
+    tabWarningThreshold: 4,
+  } as QuizSession;
+
+  it('keeps the assigned questions and settings but nothing that gates or writes', () => {
+    const { session, drawIds } = buildAssignedStudentView(live, null);
+    expect(session.id).toBe(STUDENT_VIEW_SESSION_ID);
+    expect(session.teacherUid).toBe('');
+    expect(session.status).toBe('active');
+    expect(session.closeAt).toBeUndefined();
+    expect(session.inputSignals).toBeUndefined();
+    expect(session.publicQuestions).toEqual(live.publicQuestions);
+    expect(focusSettingsFromSession(session).tabWarningThreshold).toBe(4);
+    expect(drawIds).toBeUndefined();
+  });
+
+  it('reads a per-period assignment from its content doc', () => {
+    const { session } = buildAssignedStudentView(
+      {
+        ...live,
+        publicQuestions: [],
+        questionsInContent: true,
+        periodAccess: {},
+      },
+      { publicQuestions: live.publicQuestions }
+    );
+    expect(session.publicQuestions).toHaveLength(1);
+    expect(session.questionsInContent).toBeUndefined();
+    expect(session.periodAccess).toBeUndefined();
+  });
+
+  it('serves one sample draw for question-bank slots', () => {
+    const pool = ['a', 'b', 'c'].map((id) => ({
+      ...live.publicQuestions[0],
+      id,
+    }));
+    const { drawIds } = buildAssignedStudentView(
+      {
+        ...live,
+        publicQuestions: pool,
+        bankSlots: [
+          {
+            id: 's1',
+            count: 2,
+            points: 1,
+            poolQuestionIds: ['a', 'b', 'c'],
+            position: 0,
+          },
+        ],
+      },
+      null
+    );
+    expect(drawIds).toHaveLength(2);
   });
 });
