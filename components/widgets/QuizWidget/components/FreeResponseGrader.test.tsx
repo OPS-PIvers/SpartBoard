@@ -262,6 +262,124 @@ describe('FreeResponseGrader queue shape', () => {
   });
 });
 
+describe('FreeResponseGrader class filter', () => {
+  const inClass = (key: string, period: string): QuizResponse =>
+    ({
+      ...(recorded(key, 1) as unknown as Record<string, unknown>),
+      classPeriod: period,
+    }) as unknown as QuizResponse;
+
+  const Harness: React.FC<{ responses: QuizResponse[] }> = ({ responses }) => {
+    const [filter, setFilter] = React.useState('all');
+    return (
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={responses}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={() => Promise.resolve()}
+        classFilter={filter}
+        classOptions={['Period 1', 'Period 2']}
+        onClassFilterChange={setFilter}
+        onClose={() => undefined}
+      />
+    );
+  };
+
+  it('narrows the student list to one class', async () => {
+    render(
+      <Harness
+        responses={[inClass('ada', 'Period 1'), inClass('grace', 'Period 2')]}
+      />
+    );
+    const rail = await screen.findByRole('navigation', {
+      name: /students on this question/i,
+    });
+    expect(rail.textContent).toContain('Grace Hopper');
+    const select = screen.getByRole('combobox', { name: 'Filter by class' });
+    expect(
+      Array.from((select as HTMLSelectElement).options).map((o) => o.text)
+    ).toEqual(['All classes (2)', 'Period 1 (1)', 'Period 2 (1)']);
+    fireEvent.change(select, { target: { value: 'Period 1' } });
+    expect(rail.textContent).toContain('Ada Lovelace');
+    expect(rail.textContent).not.toContain('Grace Hopper');
+    expect(screen.getByText('Student 1 of 1')).toBeTruthy();
+    // The header names the class so a collapsed list still shows it.
+    expect(screen.getByText('Period 1', { selector: 'span' })).toBeTruthy();
+  });
+
+  it('keeps the filter reachable when a class has nothing to grade', async () => {
+    const noAnswers = {
+      _responseKey: 'grace',
+      studentUid: 'u-grace',
+      status: 'completed',
+      answers: [],
+      classPeriod: 'Period 2',
+    } as unknown as QuizResponse;
+    render(<Harness responses={[inClass('ada', 'Period 1'), noAnswers]} />);
+    fireEvent.change(
+      await screen.findByRole('combobox', { name: 'Filter by class' }),
+      { target: { value: 'Period 2' } }
+    );
+    expect(
+      screen.getByText(/No Free Response answers to grade yet/i)
+    ).toBeTruthy();
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Filter by class' }),
+      { target: { value: 'all' } }
+    );
+    expect(await screen.findByText('Student 1 of 1')).toBeTruthy();
+    expect(
+      screen.getByText('Ada Lovelace', { selector: 'nav *' })
+    ).toBeTruthy();
+  });
+
+  it('shows every class when the picked class is gone', async () => {
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[inClass('ada', 'Period 1'), inClass('grace', 'Period 2')]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={() => Promise.resolve()}
+        classFilter="Period 4"
+        classOptions={['Period 1', 'Period 2']}
+        onClassFilterChange={() => undefined}
+        onClose={() => undefined}
+      />
+    );
+    expect(await screen.findByText('Student 1 of 2')).toBeTruthy();
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', {
+        name: 'Filter by class',
+      }).value
+    ).toBe('all');
+  });
+
+  it('hides the filter with only one class', async () => {
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[inClass('ada', 'Period 1')]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={() => Promise.resolve()}
+        classFilter="all"
+        classOptions={['Period 1']}
+        onClassFilterChange={() => undefined}
+        onClose={() => undefined}
+      />
+    );
+    expect(await screen.findByText('Student 1 of 1')).toBeTruthy();
+    expect(
+      screen.queryByRole('combobox', { name: 'Filter by class' })
+    ).toBeNull();
+  });
+});
+
 describe('FreeResponseGrader graded take', () => {
   const renderPerTake = (response: QuizResponse) => {
     const onSaveGrade = vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>

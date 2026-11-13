@@ -213,6 +213,10 @@ export interface FreeResponseGraderProps {
   sessionId?: string;
   /** Reads a printed stack for its page maps; defaults to the teacher's Firestore copy. */
   loadPaperBatch?: PaperBatchLoader;
+  /** Class filter shared with the results view; hidden with fewer than two classes. */
+  classFilter?: string;
+  classOptions?: readonly string[];
+  onClassFilterChange?: (next: string) => void;
   onClose: () => void;
 }
 
@@ -457,7 +461,7 @@ function initialIndexes(
 
 export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   quiz,
-  responses,
+  responses: allResponses,
   displayNameByResponseKey,
   teacherUid,
   resolveTakeUrl,
@@ -478,6 +482,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onConnectDrive,
   sessionId,
   loadPaperBatch,
+  classFilter = 'all',
+  classOptions = [],
+  onClassFilterChange,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -498,6 +505,27 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       t(`quizMediaResponse.grading.${key}`, params),
     [t]
   );
+
+  const showClassFilter = !!onClassFilterChange && classOptions.length > 1;
+  // A class whose last response is gone falls back to every class.
+  const activeClass =
+    showClassFilter && classOptions.includes(classFilter) ? classFilter : 'all';
+  const responses = useMemo(
+    () =>
+      activeClass !== 'all'
+        ? allResponses.filter((r) => r.classPeriod === activeClass)
+        : allResponses,
+    [allResponses, activeClass]
+  );
+
+  const classCounts = useMemo(() => {
+    const counts = new Map<string, number>([['all', allResponses.length]]);
+    for (const r of allResponses) {
+      if (r.classPeriod)
+        counts.set(r.classPeriod, (counts.get(r.classPeriod) ?? 0) + 1);
+    }
+    return counts;
+  }, [allResponses]);
 
   const mediaEnabled = !!resolveTakeUrl;
   const questions = useMemo(
@@ -1201,6 +1229,14 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     },
     [leaveTarget]
   );
+  const changeClassFilter = useCallback(
+    (next: string) => {
+      leaveTarget();
+      setStudentIdx(0);
+      onClassFilterChange?.(next);
+    },
+    [leaveTarget, onClassFilterChange]
+  );
   const selectSlot = useCallback(
     (next: ArtifactSlot) => {
       leaveTarget();
@@ -1321,6 +1357,23 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     });
   }, [leaveTarget, flushAll, tg, showConfirm]);
 
+  const classFilterSelect = showClassFilter ? (
+    <select
+      value={activeClass}
+      onChange={(e) => changeClassFilter(e.target.value)}
+      aria-label={tg('classFilter')}
+      title={tg('classFilter')}
+      {...tourTypeAttr('quiz-grading.class-filter', 'quiz')}
+      className="w-full rounded-sm border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none"
+    >
+      {['all', ...classOptions].map((p) => (
+        <option key={p} value={p}>
+          {`${p === 'all' ? tg('allClasses') : p} (${classCounts.get(p) ?? 0})`}
+        </option>
+      ))}
+    </select>
+  ) : null;
+
   if (questions.length === 0 || !hasAnyQueue || !question) {
     const noQuestions = questions.length === 0;
     return (
@@ -1333,7 +1386,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         <div
           aria-hidden
           className="absolute inset-0 cursor-default"
-          onClick={onClose}
+          onClick={handleClose}
         />
         <div className="relative w-full max-w-lg rounded-2xl bg-white p-10 text-center text-slate-600 shadow-2xl">
           <Pencil aria-hidden className="mx-auto mb-3 h-8 w-8 text-slate-400" />
@@ -1343,9 +1396,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           <p className="mt-2 text-sm text-slate-500">
             {tg(noQuestions ? 'emptyQuestions.body' : 'empty.body')}
           </p>
+          {!noQuestions && activeClass !== 'all' && classFilterSelect && (
+            <div className="mx-auto mt-4 max-w-xs">{classFilterSelect}</div>
+          )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             {...tourTypeAttr('quiz-grading.empty-close', 'quiz')}
             className="mt-6 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
           >
@@ -1412,6 +1468,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               total: students.length,
             })}
           </span>
+        </>
+      )}
+      {activeClass !== 'all' && (
+        <>
+          <span className="text-slate-300">·</span>
+          <span>{activeClass}</span>
         </>
       )}
     </span>
@@ -1673,48 +1735,53 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             aria-label={tg('queueLabel')}
             className="overflow-y-auto border-r border-slate-200 bg-slate-50 pb-2"
           >
-            <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur-sm">
-              <button
-                type="button"
-                onClick={toggleRail}
-                aria-label={tg('collapseList')}
-                {...tourTypeAttr('quiz-grading.rail-collapse', 'quiz')}
-                title={tg('collapseList')}
-                aria-expanded
-                className={`${stepperButton} -ml-2`}
-              >
-                <PanelLeftClose aria-hidden className="h-4 w-4" />
-              </button>
-              <p className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                <span title={gradedCountLabel}>
-                  {tg('gradedCount', {
-                    graded: gradedCount,
-                    total: railRows.length,
-                  })}
-                </span>
-              </p>
-              <button
-                type="button"
-                onClick={goPrevStudent}
-                disabled={studentIdx === 0}
-                aria-label={tg('prevStudent')}
-                {...tourTypeAttr('quiz-grading.student-prev', 'quiz')}
-                title={tg('prevStudent')}
-                className={stepperButton}
-              >
-                <ChevronLeft aria-hidden className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={goNextStudent}
-                disabled={studentIdx >= students.length - 1}
-                aria-label={tg('nextStudent')}
-                {...tourTypeAttr('quiz-grading.student-next', 'quiz')}
-                title={tg('nextStudent')}
-                className={stepperButton}
-              >
-                <ChevronRight aria-hidden className="h-4 w-4" />
-              </button>
+            <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur-sm">
+              <div className="flex items-center gap-1 py-1.5 pl-4 pr-2">
+                <button
+                  type="button"
+                  onClick={toggleRail}
+                  aria-label={tg('collapseList')}
+                  {...tourTypeAttr('quiz-grading.rail-collapse', 'quiz')}
+                  title={tg('collapseList')}
+                  aria-expanded
+                  className={`${stepperButton} -ml-2`}
+                >
+                  <PanelLeftClose aria-hidden className="h-4 w-4" />
+                </button>
+                <p className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span title={gradedCountLabel}>
+                    {tg('gradedCount', {
+                      graded: gradedCount,
+                      total: railRows.length,
+                    })}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={goPrevStudent}
+                  disabled={studentIdx === 0}
+                  aria-label={tg('prevStudent')}
+                  {...tourTypeAttr('quiz-grading.student-prev', 'quiz')}
+                  title={tg('prevStudent')}
+                  className={stepperButton}
+                >
+                  <ChevronLeft aria-hidden className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={goNextStudent}
+                  disabled={studentIdx >= students.length - 1}
+                  aria-label={tg('nextStudent')}
+                  {...tourTypeAttr('quiz-grading.student-next', 'quiz')}
+                  title={tg('nextStudent')}
+                  className={stepperButton}
+                >
+                  <ChevronRight aria-hidden className="h-4 w-4" />
+                </button>
+              </div>
+              {showClassFilter && (
+                <div className="px-2 pb-1.5">{classFilterSelect}</div>
+              )}
             </div>
             <ul>
               {railRows.map(({ entry, paper, vocabulary }, idx) => {

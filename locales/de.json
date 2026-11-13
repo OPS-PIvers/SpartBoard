@@ -2831,7 +2831,9 @@
         "goBack": "Zurück",
         "closeAnyway": "Trotzdem schließen",
         "rail": "Markierungen nicht gespeichert"
-      }
+      },
+      "classFilter": "Nach Klasse filtern",
+      "allClasses": "Alle Klassen"
     },
     "results": {
       "gradeButton": "Freie Antworten bewerten"

@@ -878,6 +878,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-grading.advance-next': ['quiz.grader'],
     'quiz-grading.rail-expand': ['quiz.grader'],
     'quiz-grading.rail-collapse': ['quiz.grader'],
+    'quiz-grading.class-filter': ['quiz.grader'],
     'quiz-grading.student-prev': ['quiz.grader'],
     'quiz-grading.student-next': ['quiz.grader'],
     'quiz-grading.student-select': ['quiz.grader'],

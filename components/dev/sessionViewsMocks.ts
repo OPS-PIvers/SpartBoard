@@ -1093,3 +1093,62 @@ export function makeOrderingResponses(): QuizResponse[] {
     };
   });
 }
+
+/* ─── Quiz results: Free Response answers across two classes ─────────────── */
+
+const QUIZ_FR_ID = 'q-fr';
+
+export function makeQuizFrqData(): QuizData {
+  const base = makeQuizData();
+  return {
+    ...base,
+    questions: [
+      ...base.questions,
+      {
+        id: QUIZ_FR_ID,
+        type: 'free-response',
+        text: 'Explain how you found a common denominator.',
+        timeLimit: 0,
+        correctAnswer: '',
+        incorrectAnswers: [],
+        points: 4,
+      },
+    ],
+  };
+}
+
+export function makeQuizFrqClassResponses(): QuizResponse[] {
+  const answers = [
+    'I doubled the 2 so both fractions were fourths.',
+    'I listed multiples of 2 and 4 and found 4 first.',
+    'Four is a multiple of two so I used four.',
+    'I multiplied the denominators together.',
+    'I changed 1/2 into 2/4 then added.',
+    'I drew a picture with four equal parts.',
+  ];
+  return answers.map((text, i) => {
+    const period = i % 2 === 0 ? 'Period 1' : 'Period 3';
+    const pin = String(2001 + i);
+    const key = `pin-${period}-${pin}`;
+    return {
+      _responseKey: key,
+      studentUid: key,
+      pin,
+      joinedAt: NOW - 540_000,
+      status: 'completed',
+      answers: [
+        { questionId: QUIZ_Q1_ID, answer: '3/4', answeredAt: NOW - 480_000 },
+        { questionId: QUIZ_Q2_ID, answer: '1/2', answeredAt: NOW - 450_000 },
+        {
+          questionId: QUIZ_FR_ID,
+          answer: `<p>${text}</p>`,
+          answeredAt: NOW - 420_000,
+        },
+      ],
+      score: null,
+      submittedAt: NOW - 400_000,
+      classPeriod: period,
+      completedAttempts: 1,
+    };
+  });
+}

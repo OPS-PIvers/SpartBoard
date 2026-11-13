@@ -3039,6 +3039,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               quizGraderAutoAdvance: enabled,
             }).catch(() => undefined)
           }
+          {...(graderAttempt === null
+            ? {
+                classFilter: periodFilter,
+                classOptions: availablePeriods,
+                onClassFilterChange: setPeriodFilter,
+              }
+            : {})}
           onClose={() => {
             setShowGrader(false);
             setGraderTarget(undefined);

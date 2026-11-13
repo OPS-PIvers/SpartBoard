@@ -4132,7 +4132,9 @@
         "goBack": "Go back",
         "closeAnyway": "Close anyway",
         "rail": "Marks not saved"
-      }
+      },
+      "classFilter": "Filter by class",
+      "allClasses": "All classes"
     },
     "results": {
       "gradeButton": "Grade Free Response"
