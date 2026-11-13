@@ -5,7 +5,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
-- **Next free ID: PT-189.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
+- **Next free ID: PT-192.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
 Last audited 2026-11-01. Items removed as done: PT-1, PT-115, PT-126 (2026-11-11 morning cleanup), PT-4, PT-7, PT-12, PT-16, PT-17, PT-19, PT-52, PT-53, PT-54, PT-55, PT-57, PT-58, PT-59, PT-66, PT-67, PT-69, PT-70, PT-71, PT-72, PT-76, PT-92, PT-100, PT-103, PT-104, PT-129, PT-132, PT-135, PT-137, PT-142 (2026-11-10 morning cleanup), PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
@@ -18,6 +18,12 @@ Last audited 2026-11-01. Items removed as done: PT-1, PT-115, PT-126 (2026-11-11
 - [ ] **PT-6 You: `ORG_REPO_TOKEN` secret on OPS-PIvers/claude-skills** (F42, claude-skills #24). Fine-grained PAT: owner Orono-Public-Schools, repo claude-skills only, Contents read and write. Then tell an agent "merge claude-skills #24". Without the secret, the first mirror run after merge fails.
 
 ## 2. Waiting on your prod test
+
+- [ ] **PT-189 You: publish the "Find help in SpartBoard" live tour** (release #5707). Its "Filter by type" step clicked a Docs chip the new Help Center no longer shows, so an agent removed that step from the prod draft. Teachers keep the old published copy, which stalls on that step, until you open the tour in Admin Settings > Help Center, play it once and press Publish.
+
+- [ ] **PT-190 You: file and publish the moved Live tours** (release #5707, Help Center home). The move script filed 8 building Live tours in the Help Center as Hidden and Unfiled: Connect the Timer to other widgets, Class Rosters & Groups, Group-Maker, Use a custom roster with the Group Maker widget, Build a Mini App with AI, Schedule & Timer, Run the Group Maker, Timer and Music together, Syncing your Google Calendar. Teachers see none of them until each has a category and is published in Admin Settings > Help Center. Also tell admins to reload any SpartBoard tab left open from before the release.
+
+- [ ] **PT-191 You: try a Gemini 4 model on dev before picking it on prod** (#5690). Hydrogen, Carbon and Argon are now in the AI model pickers, but nobody has confirmed Vertex serves them in our region. Pick one for a low-stakes integration on spartboard-dev, run it once, then use it on prod.
 
 - [ ] **PT-160 You: OK the Student Overview release note** (shipped in release #5534, 2026-11-10). It now shows in What's New: "When students open My Assignments, the Overview now lists the resources you have shared from every class under Up next. They can open one right there or see all of them." Reply OK or send new wording and an agent updates `public/changelog.json`.
 
