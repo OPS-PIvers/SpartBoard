@@ -3,7 +3,6 @@ import type React from 'react';
 import {
   FolderTree,
   ArrowLeftRight,
-  RotateCcw,
   Camera,
   PenLine,
   BarChart,
@@ -63,7 +62,6 @@ import {
   Workflow,
   SquareChevronDown,
   PanelLeft,
-  ListTodo,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1231,46 +1229,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'quiz-submit-for-student': {
-    label: 'Submit quiz for a student',
-    icon: Send,
-    description: "Turn in a student's saved quiz answers.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'quiz-reopen-submission': {
-    label: 'Reopen a submitted quiz',
-    icon: RotateCcw,
-    description: "Reopen a student's submitted quiz with their answers kept.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'quiz-ordering-images': {
     label: 'Quiz answer images',
     icon: ImagePlus,
     description:
       'Add or paste an image on any answer, and paste images into a question.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Ordering as one drag-to-order list. Admin-only until Paul has tested it in prod.
-  'quiz-ordering-list': {
-    label: 'Ordering: one list',
-    icon: ListOrdered,
-    description:
-      'Students drag one list into order instead of moving items from a word bank into numbered slots.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
@@ -1297,19 +1260,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: PanelLeft,
     description:
       'Questions with two or more stimuli show them as named tabs beside the question, with the calculator last.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Review before submit and Mark for review. Admin-only until Paul has tested it in prod.
-  'quiz-review-step': {
-    label: 'Review before submit',
-    icon: ListTodo,
-    description:
-      'Self-paced quizzes end on a review screen of answered, unanswered and marked questions before students submit.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
