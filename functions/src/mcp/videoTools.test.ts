@@ -375,7 +375,12 @@ describe('short answer through the connector', () => {
     const kept = await call('update_video_activity', {
       activity_id: made.activity_id,
       questions: [
-        { id: sa?.id, type: 'short_answer', text: 'Why?', timestamp_seconds: 9 },
+        {
+          id: sa?.id,
+          type: 'short_answer',
+          text: 'Why?',
+          timestamp_seconds: 9,
+        },
       ],
     });
     expect(kept.error).toBeUndefined();

@@ -66,19 +66,17 @@ describe('videoContentFromLesson', () => {
 
   it('drops wrong options past the editor cap but never a right one', () => {
     const many = Array.from({ length: 8 }, (_, i) => choice(`w${i}`));
-    const out = videoContentFromLesson(
-      {
-        youtubeId: 'WjqqUjDkh1c',
-        stops: [
-          {
-            kind: 'choice',
-            time: 5,
-            text: 'Lots',
-            choices: [...many, choice('right', true)],
-          },
-        ],
-      }
-    );
+    const out = videoContentFromLesson({
+      youtubeId: 'WjqqUjDkh1c',
+      stops: [
+        {
+          kind: 'choice',
+          time: 5,
+          text: 'Lots',
+          choices: [...many, choice('right', true)],
+        },
+      ],
+    });
     expect(out.questions[0].correctAnswer).toBe('right');
     expect(out.questions[0].incorrectAnswers).toEqual(['w0', 'w1', 'w2', 'w3']);
   });
@@ -145,22 +143,20 @@ describe('leftOutSummary', () => {
     expect(videoContentFromLesson(LESSON).leftOut).toBe(null);
   });
   it('counts answer choices past what a keyless question can hold', () => {
-    const out = videoContentFromLesson(
-      {
-        youtubeId: 'WjqqUjDkh1c',
-        stops: [
-          {
-            kind: 'choice',
-            time: 10,
-            text: 'Pick',
-            choices: Array.from({ length: 7 }, (_, i) => ({
-              text: `c${i}`,
-              correct: false,
-            })),
-          },
-        ],
-      }
-    );
+    const out = videoContentFromLesson({
+      youtubeId: 'WjqqUjDkh1c',
+      stops: [
+        {
+          kind: 'choice',
+          time: 10,
+          text: 'Pick',
+          choices: Array.from({ length: 7 }, (_, i) => ({
+            text: `c${i}`,
+            correct: false,
+          })),
+        },
+      ],
+    });
     expect(out.leftOut).toBe(
       'Left out: 2 answer choices past the most a question can hold.'
     );

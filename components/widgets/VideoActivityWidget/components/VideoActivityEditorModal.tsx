@@ -313,7 +313,12 @@ export const VideoActivityEditorModal: React.FC<
           />
         </div>
       }
-      detailPane={<VideoActivityQuizDetailPane state={editorState} timelineRef={timelineRef} />}
+      detailPane={
+        <VideoActivityQuizDetailPane
+          state={editorState}
+          timelineRef={timelineRef}
+        />
+      }
       overlay={<VideoActivityAiOverlay state={editorState} />}
     />
   );
