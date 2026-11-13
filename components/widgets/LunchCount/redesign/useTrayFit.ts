@@ -32,6 +32,14 @@ export function useTrayFit(
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(board);
-    return () => observer.disconnect();
+    observer.observe(tray);
+    let live = true;
+    void document.fonts?.ready.then(() => {
+      if (live) fit();
+    });
+    return () => {
+      live = false;
+      observer.disconnect();
+    };
   }, [boardRef, trayRef, contentKey]);
 }
