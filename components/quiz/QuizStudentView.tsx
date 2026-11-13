@@ -47,6 +47,8 @@ interface QuizStudentViewProps {
   tabAwayTimerOn: boolean;
   /** Teacher has quiz-stimulus-tabs, so the preview matches what Assign stamps. */
   stimulusTabsOn?: boolean;
+  /** Teacher has quiz-cross-out, so choices get the cross-out button as Assign stamps it. */
+  crossOutOn?: boolean;
   onExit: () => void;
 }
 
@@ -72,6 +74,7 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   behavior,
   tabAwayTimerOn,
   stimulusTabsOn = false,
+  crossOutOn = false,
   onExit,
 }) => {
   const saved = useMemo(() => focusSettingsFrom(behavior), [behavior]);
@@ -81,8 +84,9 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
     () =>
       buildStudentViewSession(quiz, behavior, tabAwayTimerOn, {
         stimulusTabs: stimulusTabsOn,
+        crossOut: crossOutOn,
       }),
-    [quiz, behavior, tabAwayTimerOn, stimulusTabsOn]
+    [quiz, behavior, tabAwayTimerOn, stimulusTabsOn, crossOutOn]
   );
   const session = useMemo(
     () => withFocusSettings(base, focus, tabAwayTimerOn),

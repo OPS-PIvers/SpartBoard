@@ -130,3 +130,17 @@ describe('buildStudentViewSession stimulus tabs', () => {
     expect(s.stimulusTabs).toBe(true);
   });
 });
+
+describe('buildStudentViewSession cross-out', () => {
+  it('leaves cross-out off without the teacher’s flag', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
+    expect(s).not.toHaveProperty('allowCrossOut');
+  });
+
+  it('stamps cross-out with the flag, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, {
+      crossOut: true,
+    });
+    expect(s.allowCrossOut).toBe(true);
+  });
+});

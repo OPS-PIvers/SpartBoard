@@ -43,7 +43,7 @@ export function buildStudentViewSession(
   quiz: QuizData,
   behavior: QuizBehaviorSettings,
   tabAwayTimerOn: boolean,
-  flags: { stimulusTabs?: boolean } = {}
+  flags: { stimulusTabs?: boolean; crossOut?: boolean } = {}
 ): QuizSession {
   const opts = behavior.sessionOptions;
   const questions = dedupeQuestionsById(quiz.questions);
@@ -92,6 +92,7 @@ export function buildStudentViewSession(
     ...(opts.handRaiseEnabled ? { handRaiseEnabled: true } : {}),
     orderingList: true,
     ...(flags.stimulusTabs ? { stimulusTabs: true } : {}),
+    ...(flags.crossOut ? { allowCrossOut: true } : {}),
     reviewStep: true,
     ...focusSessionFields(focusSettingsFrom(behavior), tabAwayTimerOn),
     showResultToStudent: opts.showResultToStudent ?? false,
