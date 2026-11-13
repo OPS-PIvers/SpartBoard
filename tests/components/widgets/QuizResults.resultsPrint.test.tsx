@@ -14,7 +14,6 @@ import type {
   ResultsPrintJob,
 } from '@/utils/quizStudentReportPrint';
 
-let toolsOn = false;
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     activeDashboard: { widgets: [] },
@@ -53,7 +52,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
     isExternalUser: false,
-    canAccessFeature: (id: string) => toolsOn && id === 'quiz-results-tools',
+    canAccessFeature: () => false,
     updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -196,7 +195,6 @@ const ticked = () =>
 
 describe('QuizResults — results print', () => {
   beforeEach(() => {
-    toolsOn = false;
     namesLoading = false;
     printQuizResults.mockReset();
     printStudentReport.mockReset();
@@ -218,7 +216,7 @@ describe('QuizResults — results print', () => {
       null,
       null,
     ]);
-    expect(options.keyMode).toBe('off');
+    expect(options.keyMode).toBe('all');
   });
 
   it('holds print and export while student names are loading', () => {
@@ -267,8 +265,6 @@ describe('QuizResults — results print', () => {
       d.getByText(/2 students have ungraded written answers/)
     ).toBeInTheDocument();
     expect(d.getByText(/2 students have no roster name/)).toBeInTheDocument();
-    expect(d.queryByText(/printed keys may circulate/)).toBeNull();
-    fireEvent.click(d.getByRole('radio', { name: 'Missed only' }));
     expect(
       d.getByText("1 student hasn't finished, so printed keys may circulate.")
     ).toBeInTheDocument();
@@ -308,8 +304,7 @@ describe('QuizResults — results print', () => {
     ]);
   });
 
-  it('leads with Full report or Missed only when the results tools are on', () => {
-    toolsOn = true;
+  it('leads with Full report or Missed only', () => {
     renderResults();
     fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
     const report = within(dialog()).getByRole('radiogroup', { name: 'Report' });
@@ -323,23 +318,6 @@ describe('QuizResults — results print', () => {
       keyMode: 'all',
       showWrittenFeedback: true,
     });
-  });
-
-  it('drops a saved missed-only scope when the results tools are off', () => {
-    localStorage.setItem(
-      'spartboard.quizResults.printOptions',
-      JSON.stringify({
-        preset: 'missed-only',
-        options: { keyMode: 'all', questionScope: 'missed' },
-      })
-    );
-    renderResults();
-    fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
-    expect(
-      within(dialog()).queryByRole('radiogroup', { name: 'Report' })
-    ).toBeNull();
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Print' }));
-    expect(printQuizResults.mock.calls[0][1].questionScope).toBeUndefined();
   });
 
   it('remembers the last preset on this browser', () => {

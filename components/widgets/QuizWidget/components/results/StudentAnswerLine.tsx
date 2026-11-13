@@ -171,15 +171,10 @@ function answerLabel(line: StudentQuestionLine): string {
 export const StudentAnswerLine: React.FC<{
   line: StudentQuestionLine;
   onOpenGrader?: () => void;
-  /** Teacher comment and rubric levels under a written answer. */
-  showFeedback?: boolean;
-  /** Ordering answers list each item and mark the ones out of order (quiz-ordering-results). */
-  orderingByItem?: boolean;
-}> = ({ line, onOpenGrader, showFeedback = false, orderingByItem = false }) => {
+}> = ({ line, onOpenGrader }) => {
   const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
   const answer = answerLabel(line);
   const orderSpots =
-    orderingByItem &&
     line.type === 'Ordering' &&
     line.order &&
     line.order.given.length > 0 &&
@@ -188,7 +183,7 @@ export const StudentAnswerLine: React.FC<{
       line.mark === 'incorrect')
       ? line.order
       : null;
-  const grade = showFeedback ? line.writtenGrade : undefined;
+  const grade = line.writtenGrade;
   const comment = grade?.overallComment?.trim();
   const rubricRows =
     line.rubric && grade?.rubricScores?.length

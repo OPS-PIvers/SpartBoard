@@ -11216,8 +11216,6 @@ export type GlobalFeature =
   | 'quiz-prompt-formatting'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
-  | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
@@ -11290,8 +11288,6 @@ export type GlobalFeature =
   | 'quiz-ordering-images'
   /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
   | 'quiz-ordering-list'
-  /** Ordering results: each item's spot, with the items students put out of order marked. */
-  | 'quiz-ordering-results'
   /** Quiz explanations on questions and answers, shown with published results. */
   | 'quiz-explanations'
   /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */

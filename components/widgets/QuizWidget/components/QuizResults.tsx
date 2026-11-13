@@ -1150,19 +1150,17 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [hideNames, maskedNameByResponseKey]
   );
 
-  const resultsTools = canAccessFeature('quiz-results-tools');
   // Group actions feed the Students screen's bulk bar (D20).
   const handleSelectStudents = useMemo(
     () =>
       selection && studentResultsActions && !plcView
         ? (keys: string[]) => {
-            // With the tools on, the bar acts on exactly this group.
-            if (resultsTools) selection.setSelection(keys);
-            else selection.addToSelection(keys);
+            // The bar acts on exactly this group.
+            selection.setSelection(keys);
             setScreen('students');
           }
         : undefined,
-    [selection, studentResultsActions, plcView, resultsTools, setScreen]
+    [selection, studentResultsActions, plcView, setScreen]
   );
 
   // The Students screen's open row, lifted so item analysis can jump to a student.
@@ -1172,14 +1170,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const [focusStudentKey, setFocusStudentKey] = useState<string | null>(null);
   const handleOpenStudent = useMemo(
     () =>
-      resultsTools && !plcView
+      !plcView
         ? (responseKey: string) => {
             setExpandedStudentKey(responseKey);
             setFocusStudentKey(responseKey);
             setScreen('students');
           }
         : undefined,
-    [resultsTools, plcView, setScreen]
+    [plcView, setScreen]
   );
 
   // Printing to hand back (docs/plans/shipped/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
@@ -2623,7 +2621,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               showStudentNames={!plcView}
               onSelectStudents={handleSelectStudents}
               onOpenStudent={handleOpenStudent}
-              orderingByItem={canAccessFeature('quiz-ordering-results')}
               explanationsOn={canAccessFeature('quiz-explanations')}
             />
           )}
@@ -2663,9 +2660,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               fibGrading={fibGrading}
               studentResultsActions={studentResultsActions}
               onPrintStudents={canPrintResults ? openPrint : undefined}
-              showStudentFeedback={resultsTools}
               onReopenStudents={
-                resultsTools && !plcView && !isReview && onReopenStudent
+                !plcView && !isReview && onReopenStudent
                   ? handleReopenStudents
                   : undefined
               }
@@ -2969,7 +2965,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
-          reportChoice={resultsTools}
+          reportChoice
           teacherUid={user?.uid ?? null}
           sessionId={session?.id}
           writtenReturnMode={session?.writtenReturnMode}
@@ -3464,7 +3460,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName: (student: DrilldownStudent) => string;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
-  orderingByItem?: boolean;
+  isOrdering: boolean;
   pictures: ReadonlyMap<string, AnswerPicture>;
   /** The question's explanations, shown to the teacher when the feature is on. */
   explanation?: ReturnType<typeof explanationsForQuestion>;
@@ -3477,7 +3473,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName,
   onSelectStudents,
   onOpenStudent,
-  orderingByItem = false,
+  isOrdering,
 }) => {
   const { t } = useTranslation();
   const openStudent = showStudentNames ? onOpenStudent : undefined;
@@ -3542,7 +3538,7 @@ const QuestionDrilldownPanel: React.FC<{
         )}
 
         {servedCount > 0 &&
-          orderingByItem &&
+          isOrdering &&
           (drilldown.orderingItems?.length ?? 0) > 0 && (
             <div>
               <p
@@ -3570,7 +3566,7 @@ const QuestionDrilldownPanel: React.FC<{
           )}
 
         {servedCount > 0 &&
-          !orderingByItem &&
+          !isOrdering &&
           distribution.kind !== 'none' &&
           distribution.rows.length > 0 && (
             <div>
@@ -3707,8 +3703,6 @@ const QuestionsScreen: React.FC<{
   showStudentNames: boolean;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
-  /** Ordering lists each item and who had it out of order (quiz-ordering-results). */
-  orderingByItem?: boolean;
   /** Teachers see each question's explanations (quiz-explanations). */
   explanationsOn?: boolean;
 }> = ({
@@ -3720,7 +3714,6 @@ const QuestionsScreen: React.FC<{
   showStudentNames,
   onSelectStudents,
   onOpenStudent,
-  orderingByItem = false,
   explanationsOn = false,
 }) => {
   const { t } = useTranslation();
@@ -3828,7 +3821,7 @@ const QuestionsScreen: React.FC<{
                 n: stats.graded,
                 m: stats.manualTotal,
               });
-        const byItem = orderingByItem && q.type === 'Ordering';
+        const byItem = q.type === 'Ordering';
         const commonWrong = byItem
           ? null
           : (drilldown?.commonWrongAnswer ?? null);
@@ -4055,7 +4048,7 @@ const QuestionsScreen: React.FC<{
                 formatStudentName={formatStudentName}
                 onSelectStudents={onSelectStudents}
                 onOpenStudent={onOpenStudent}
-                orderingByItem={byItem}
+                isOrdering={byItem}
                 pictures={imageOnlyPictures(q)}
                 explanation={explanationsOn ? explanationsForQuestion(q) : null}
               />
@@ -4103,7 +4096,6 @@ const StudentDrilldownPanel: React.FC<{
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
   /** Opens the print modal; absent keeps the one-checkbox report. */
   onPrintStudents?: (responseKeys: string[]) => void;
-  showFeedback: boolean;
   /** The session whose saved attempts the attempt picker lists. */
   sessionId?: string;
   /** The session's sections, so an earlier attempt's choose-N picks are its own. */
@@ -4123,14 +4115,11 @@ const StudentDrilldownPanel: React.FC<{
   resultsControl,
   addToast,
   onPrintStudents,
-  showFeedback,
   sessionId,
   sections,
   paperWrittenQuestionIds,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
-  const { canAccessFeature } = useAuth();
-  const orderingByItem = canAccessFeature('quiz-ordering-results');
   const liveKey = getResponseDocKey(liveResponse) as string;
   const copies = useQuizResponseAttempts(sessionId, liveKey, true);
   const earlier = useMemo(
@@ -4259,8 +4248,6 @@ const StudentDrilldownPanel: React.FC<{
               <StudentAnswerLine
                 key={line.questionId}
                 line={line}
-                showFeedback={showFeedback}
-                orderingByItem={orderingByItem}
                 onOpenGrader={
                   gradable
                     ? () =>
@@ -4340,8 +4327,6 @@ const StudentsScreen: React.FC<{
   fibGrading?: FibGradingContext | null;
   studentResultsActions?: StudentResultsActions;
   onPrintStudents?: (responseKeys: string[]) => void;
-  /** Show written-answer comments and rubric levels in the open row. */
-  showStudentFeedback: boolean;
   onReopenStudents?: (responseKeys: string[]) => Promise<boolean>;
   reopenBlockedReason?: string | null;
   onSubmitStudents?: (responseKeys: string[]) => Promise<boolean>;
@@ -4374,7 +4359,6 @@ const StudentsScreen: React.FC<{
   fibGrading = null,
   studentResultsActions,
   onPrintStudents,
-  showStudentFeedback,
   onReopenStudents,
   reopenBlockedReason,
   onSubmitStudents,
@@ -5124,7 +5108,6 @@ const StudentsScreen: React.FC<{
                   onOpenGrader={onOpenGrader}
                   addToast={addToast}
                   onPrintStudents={onPrintStudents}
-                  showFeedback={showStudentFeedback}
                   sessionId={session?.id}
                   sections={session?.sections}
                   paperWrittenQuestionIds={session?.paperWrittenQuestionIds}

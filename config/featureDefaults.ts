@@ -50,7 +50,6 @@ import {
   MousePointerClick,
   TextCursorInput,
   Timer,
-  UserSearch,
   UsersRound,
   Video,
   Volume2,
@@ -704,17 +703,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Quiz results teacher tools. Admin-only until Paul has used them on a real class.
-  'quiz-results-tools': {
-    label: 'Quiz results teacher tools',
-    icon: UserSearch,
-    description: 'Extra quiz results tools.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-docs-toolbar': {
     label: 'Google Docs toolbar in group docs',
     icon: StickyNote,
@@ -1311,19 +1299,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListTodo,
     description:
       'Self-paced quizzes end on a review screen of answered, unanswered and marked questions before students submit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Ordering results by item. Admin-only until Paul has tested it in prod.
-  'quiz-ordering-results': {
-    label: 'Ordering results by item',
-    icon: ListOrdered,
-    description:
-      'Question and student results list each Ordering item and mark the ones students put out of order.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
