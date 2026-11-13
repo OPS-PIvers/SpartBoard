@@ -30,6 +30,17 @@ export const PROTECTED_ALLOWED_LABELS: Record<string, string[]> = {
   lunchCount: ['Field Trips / Absent'],
 };
 
+// UI labels a widget shows for any instance holding the board's roster, so they aren't a G4 leak.
+export const G4_SHARED_LABELS: Record<string, string[]> = {
+  lunchCount: [
+    'Assign More Students',
+    'Bento',
+    'Home',
+    'Other',
+    'Field Trips / Absent',
+  ],
+};
+
 // Widgets whose harness fixtures show only part of the widget; their measurements cover what renders.
 export const PARTIAL_COVERAGE: Record<string, string> = {
   'car-rider-pro': 'always renders disabled without Firestore data',
