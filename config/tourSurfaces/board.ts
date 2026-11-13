@@ -471,6 +471,14 @@ export const SURFACES: TourSurfaceMap = {
       'Pasting an image onto the board (paste handler in components/layout/Dock.tsx); no clickable control',
     parent: 'board',
   },
+  'board.video-paste': {
+    label: 'YouTube link paste picker',
+    kind: 'modal',
+    files: ['components/layout/dock/VideoPastePickerModal.tsx'],
+    openerMissing:
+      'Pasting a YouTube link onto the board (paste handler in components/layout/Dock.tsx); no clickable control',
+    parent: 'board',
+  },
   'board.url-paste': {
     label: 'Link paste picker',
     kind: 'modal',

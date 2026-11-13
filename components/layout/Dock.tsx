@@ -41,6 +41,7 @@ import {
   DockItem,
   MiniAppItem,
   InternalToolType,
+  WidgetConfig,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { useToolLabel } from '@/hooks/useToolLabel';
@@ -71,6 +72,9 @@ import { stashPastedFlashcards } from '@/components/widgets/Flashcards/utils/pas
 import { SmartPastePickerModal } from './dock/SmartPastePickerModal';
 import { UrlPickerModal } from './dock/UrlPickerModal';
 import { ImagePastePickerModal } from './dock/ImagePastePickerModal';
+import { VideoPastePickerModal } from './dock/VideoPastePickerModal';
+import { extractYouTubeId } from '@/utils/youtube';
+import { offerImportHandoff } from '@/components/import/importHandoff';
 import { useImageUpload } from '@/hooks/useImageUpload';
 import {
   getImageDimensionsFromFile,
@@ -392,6 +396,10 @@ export const Dock: React.FC = () => {
     null
   );
   const [imagePastePending, setImagePastePending] = useState<File | null>(null);
+  const [videoPastePending, setVideoPastePending] = useState<{
+    embedConfig: WidgetConfig;
+    videoId: string;
+  } | null>(null);
 
   // Ref for the GlassCard scroll container — used by the drag-scroll hook.
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -495,7 +503,12 @@ export const Dock: React.FC = () => {
       // navigate away mid-stroke.
       if (annotationActive) return;
       // Prevent multiple paste modals from stacking
-      if (imagePastePending || smartPastePending || urlPastePending) {
+      if (
+        imagePastePending ||
+        smartPastePending ||
+        urlPastePending ||
+        videoPastePending
+      ) {
         return;
       }
 
@@ -550,7 +563,18 @@ export const Dock: React.FC = () => {
       if (text) {
         const result = detectWidgetType(text);
         if (result) {
-          if (result.action === 'create-widget') {
+          const videoId =
+            result.action === 'create-widget' && result.type === 'embed'
+              ? extractYouTubeId(text.trim())
+              : null;
+          if (
+            result.action === 'create-widget' &&
+            videoId &&
+            canAccessFeature('youtube-paste-picker') &&
+            canAccessWidget('video-activity')
+          ) {
+            setVideoPastePending({ embedConfig: result.config, videoId });
+          } else if (result.action === 'create-widget') {
             addWidget(result.type, {
               config: result.config,
               ...(result.title ? { customTitle: result.title } : {}),
@@ -633,6 +657,7 @@ export const Dock: React.FC = () => {
     imagePastePending,
     smartPastePending,
     urlPastePending,
+    videoPastePending,
     setPendingQuizShareId,
     setPendingAssignmentShareId,
     importSharedNotebookCopy,
@@ -1034,6 +1059,30 @@ export const Dock: React.FC = () => {
             } else {
               addToast('Failed to process image', 'error');
             }
+          }}
+        />
+      )}
+
+      {videoPastePending !== null && (
+        <VideoPastePickerModal
+          globalStyle={globalStyle}
+          onClose={() => setVideoPastePending(null)}
+          onSelect={(type) => {
+            const { embedConfig, videoId } = videoPastePending;
+            setVideoPastePending(null);
+            if (type === 'embed') {
+              addWidget('embed', { config: embedConfig });
+              addToast('Added Embed widget!', 'success');
+              return;
+            }
+            const widgetId = crypto.randomUUID();
+            addWidget('video-activity', { id: widgetId });
+            offerImportHandoff({
+              widgetId,
+              widgetType: 'video-activity',
+              target: 'videoActivity',
+              source: { url: `https://www.youtube.com/watch?v=${videoId}` },
+            });
           }}
         />
       )}
