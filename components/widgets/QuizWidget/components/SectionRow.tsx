@@ -9,7 +9,7 @@ interface SectionRowProps {
   section: QuizSection;
   /** Questions a student sees under this heading, bank draws counted. */
   questionCount: number;
-  /** Offer the "After this section" Stop menu (quiz-import-versions, not on the last section). */
+  /** Offer the "After this section" Stop menu (not on the last section). */
   canStop?: boolean;
   onUpdate: (id: string, patch: Partial<QuizSection>) => void;
   onRemove: (id: string) => void;

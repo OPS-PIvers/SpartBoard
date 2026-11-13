@@ -86,7 +86,6 @@ beforeEach(() => {
 
 describe('Quiz editor sections', () => {
   it('keeps "Wait for teacher" after picking it', () => {
-    features.add('quiz-import-versions');
     render(
       <QuizEditorModal isOpen quiz={quiz} onClose={vi.fn()} onSave={vi.fn()} />
     );

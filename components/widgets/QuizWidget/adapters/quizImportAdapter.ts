@@ -137,17 +137,13 @@ export interface QuizImportAdapterDeps {
    * the browser reader still runs, because half a quiz to fix beats an error.
    */
   aiExtract?: AiExtractFn;
-  /** True when `quiz-import-versions` is on; a test with versions then gets the version review (QUIZ_IMPORT_VERSIONS V17). */
-  importVersions?: boolean;
   /** `quiz-import-versions-plain` is on, so a typed PDF splits into versions without AI. */
   plainVersions?: boolean;
   /** `quiz-import-pdf-answer-marks` is on, so a PDF's bold, underlined or highlighted choice is its answer. */
   pdfMarks?: boolean;
-  /** `quiz-ordering-images` is on, so a PDF choice printed only as a picture comes in as that picture. */
-  answerPictures?: boolean;
   /** `quiz-import-equations` is on, so math in a question's text comes in as drawn equations. */
   equations?: boolean;
-  /** The versioned AI call; given only with `importVersions` and AI access. */
+  /** The versioned AI call; given only with AI access. */
   aiExtractVersions?: AiExtractVersionsFn;
   /** Creates the folder, bank and quizzes a version review settled on, pictures already attached (V6). */
   saveVersionImport?: (build: VersionImportBuild) => Promise<void>;
@@ -457,18 +453,16 @@ export function createQuizImportAdapter(
           },
           {
             aiExtract: deps.aiExtract,
-            ...(deps.importVersions && deps.aiExtractVersions
+            ...(deps.aiExtractVersions
               ? { aiExtractVersions: deps.aiExtractVersions }
               : {}),
-            ...(deps.importVersions && deps.plainVersions
-              ? { plainVersions: true }
-              : {}),
+            ...(deps.plainVersions ? { plainVersions: true } : {}),
             key: source.keyFile,
             ...(source.useAi === false ? { useAi: false } : {}),
             multiAnswer: true,
             passages: true,
             ...(deps.pdfMarks ? { pdfMarks: true } : {}),
-            ...(deps.answerPictures ? { answerPictures: true } : {}),
+            answerPictures: true,
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }
               : {}),
@@ -492,7 +486,6 @@ export function createQuizImportAdapter(
         }
         // A plain read that didn’t split may still hold versions the AI reader finds (V13).
         const versionsNeedAi =
-          deps.importVersions &&
           extracted.readBy !== 'ai' &&
           looksVersioned([
             extracted.title,

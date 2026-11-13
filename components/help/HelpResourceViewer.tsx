@@ -52,9 +52,8 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   fill,
 }) => {
   const { t } = useTranslation();
-  const { isAdmin, canAccessFeature } = useAuth();
-  const stepsViewOn = canAccessFeature('tour-steps-view');
-  const published = usePublishedTour(setId, stepsViewOn);
+  const { isAdmin } = useAuth();
+  const published = usePublishedTour(setId);
   const [state, setState] = useState<GlState>({ status: 'loading' });
   const canRunLive = useCanRunLiveTour();
   const hasTour = useFirstRunnableTour([setId], !fill && canRunLive) !== null;
@@ -112,12 +111,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
       : isAdmin
         ? state.set
         : null;
-  if (
-    stepsViewOn &&
-    published.loaded &&
-    stepsSet &&
-    liveTourStepsOf(stepsSet).length > 0
-  ) {
+  if (published.loaded && stepsSet && liveTourStepsOf(stepsSet).length > 0) {
     const start = hasTour || editDraft;
     return (
       <div

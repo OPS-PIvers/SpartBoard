@@ -175,17 +175,13 @@ export function readPublishedTour(id: string): {
 }
 
 /** Watches one tour's published snapshot and re-renders when it changes. */
-export function usePublishedTour(
-  setId: string,
-  enabled = true
-): {
+export function usePublishedTour(setId: string): {
   loaded: boolean;
   tour: PublishedTour | null;
 } {
   const subscribe = useCallback(
-    (onChange: () => void) =>
-      enabled ? watchTours([setId], onChange) : () => undefined,
-    [setId, enabled]
+    (onChange: () => void) => watchTours([setId], onChange),
+    [setId]
   );
   useSyncExternalStore(subscribe, getToursVersion, getToursVersion);
   return readPublishedTour(setId);

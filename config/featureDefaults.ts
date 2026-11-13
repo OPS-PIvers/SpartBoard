@@ -7,7 +7,6 @@ import {
   PenLine,
   BarChart,
   BellRing,
-  Bold,
   Bot,
   Building2,
   Cast,
@@ -36,7 +35,6 @@ import {
   Printer,
   RefreshCw,
   Send,
-  ImagePlus,
   ListOrdered,
   Share2,
   Smartphone,
@@ -499,18 +497,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Multi-version test import (QUIZ_IMPORT_VERSIONS V26). Admin-only until Paul has imported with it.
-  'quiz-import-versions': {
-    label: 'Multi-version test import',
-    icon: Layers,
-    description:
-      'Splits a test with several versions into a bank, rubrics and quizzes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Swap terms and definitions button in the Flashcards set editor. Admin-only until Paul has tried it in prod.
   'flashcards-swap-sides': {
     label: 'Flashcards: swap terms and definitions',
@@ -677,18 +663,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Prompt formatting toolbar. Admin-only until Paul has tested it in prod.
-  'quiz-prompt-formatting': {
-    label: 'Question prompt formatting',
-    icon: Bold,
-    description:
-      'Bold, italic, underline and lists in the question prompt of quizzes and video activities.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -846,30 +820,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'integrations',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Live tour playback that keeps pace with the learner (TOURS_10X.md P1-P5). Admin-only until Paul has played tours with it.
-  'tour-pacing': {
-    label: 'Tour pacing',
-    icon: Footprints,
-    description:
-      'Live tours keep up when someone clicks ahead and wait calmly for a missing control.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // The read-only Steps view for Live tours, opened from the Help Center (TOURS_10X.md S1-S2). Admin-only until Paul has read tours with it.
-  'tour-steps-view': {
-    label: 'Tour steps view',
-    icon: ListOrdered,
-    description:
-      'Live tours open as a readable list of steps in the Help Center, with Start Live Tour at the top.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1213,18 +1163,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'miniApp',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'quiz-ordering-images': {
-    label: 'Quiz answer images',
-    icon: ImagePlus,
-    description:
-      'Add or paste an image on any answer, and paste images into a question.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

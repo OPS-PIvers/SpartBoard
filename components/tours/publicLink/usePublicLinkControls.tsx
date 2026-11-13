@@ -54,7 +54,7 @@ export function usePublicLinkControls({
   const auth = useContext(AuthContext);
   const seed = publicLinkDevSeed();
   const admin = seed ? seed.admin !== false : auth?.isAdmin === true;
-  const enabled = auth?.canAccessFeature?.('tour-steps-view') ?? false;
+  const enabled = auth !== undefined;
   const [watched, setWatched] = useState<{
     setId: string;
     record: PublicLinkRecord | null;

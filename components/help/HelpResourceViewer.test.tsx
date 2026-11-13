@@ -11,7 +11,6 @@ const h = vi.hoisted(() => ({
   published: true,
   isAdmin: false,
   publishedSet: null as GuidedLearningSet | null,
-  features: new Set<string>(),
   loadBuildingSet: vi.fn(),
 }));
 
@@ -42,7 +41,6 @@ vi.mock('@/hooks/useHelpResources', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     isAdmin: h.isAdmin,
-    canAccessFeature: (id: string) => h.features.has(id),
   }),
 }));
 
@@ -76,7 +74,6 @@ beforeEach(() => {
   h.published = true;
   h.isAdmin = false;
   h.publishedSet = null;
-  h.features = new Set();
   h.loadBuildingSet.mockReset();
 });
 
@@ -150,7 +147,7 @@ describe('HelpResourceViewer live tours', () => {
     expect(await screen.findByText('player')).toBeInTheDocument();
   });
 
-  describe('with the steps view on', () => {
+  describe('the steps view', () => {
     const stepsSet = () =>
       ({
         id: 'set-1',
@@ -180,7 +177,6 @@ describe('HelpResourceViewer live tours', () => {
       }) as unknown as GuidedLearningSet;
 
     beforeEach(() => {
-      h.features = new Set(['tour-steps-view']);
       h.publishedSet = stepsSet();
     });
 

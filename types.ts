@@ -11185,9 +11185,7 @@ export type GlobalFeature =
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'
-  /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md). */
-  | 'quiz-import-versions'
-  /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
+  /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
   | 'flashcards-swap-sides'
   /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
@@ -11198,10 +11196,6 @@ export type GlobalFeature =
   | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
-  /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/shipped/TOURS_10X.md F1). */
-  | 'tour-pacing'
-  /** Steps view for Live tours, and Live tours opening it in the Help Center (docs/plans/shipped/TOURS_10X.md F3). */
-  | 'tour-steps-view'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -11212,8 +11206,6 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Math keyboard and accent keys on student answer boxes, set per quiz. */
   | 'student-keyboards'
-  /** Bold, italic, underline and lists in the question prompt box of the Quiz and Video Activity editors. */
-  | 'quiz-prompt-formatting'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -11280,8 +11272,6 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Quiz answers of every type: a picture on each, plus pasting images into a question. */
-  | 'quiz-ordering-images'
   /** Quiz explanations on questions and answers, shown with published results. */
   | 'quiz-explanations'
   /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */

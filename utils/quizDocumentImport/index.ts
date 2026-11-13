@@ -157,7 +157,7 @@ export interface ReadDocumentOptions {
   versions?: boolean;
   /** A PDF's bold, underlined or highlighted choice is its answer (`quiz-import-pdf-answer-marks`). */
   pdfMarks?: boolean;
-  /** A PDF choice printed only as a picture comes in as that picture (`quiz-ordering-images`). */
+  /** A PDF choice printed only as a picture comes in as that picture. */
   answerPictures?: boolean;
   /** Decodes a cropped picture so versions can share identical ones (V4). */
   decodePixels?: (blob: Blob) => Promise<Pixels | null>;
