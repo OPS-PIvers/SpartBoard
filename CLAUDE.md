@@ -17,6 +17,7 @@ are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 - Every AI model call goes through `generateAi` in `functions/src/aiRouter.ts` with an integration id registered in `functions/src/aiIntegrations.ts` and `config/aiIntegrations.ts`; admins pick each one's model (Gemini or Claude) on Admin Settings > Access > AI. See `docs/AI_MODELS.md`.
 - The one exception is Flashcards Speak's pinned pronunciation models (on-device wav2vec2 from our own Storage, server-side espeak-ng); see `docs/AI_MODELS.md` "Pronunciation models".
 - `extension/` is the Chrome extension (web tours): its own package, tsconfig and ESLint pass, wired into `install:all`, `type-check:all` and `lint`. See `extension/README.md`.
+- **UI rules live in `components/CLAUDE.md`**, including two that reach outside that folder: every new control gets a live tour anchor (`tourAttr`, registered in `config/tourAnchors.ts` and `config/tourSurfaces/`), and scroll panels and full pages keep bottom padding. Read it before adding a control or a page from anywhere.
 
 ## Commands
 
