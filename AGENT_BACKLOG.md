@@ -218,6 +218,14 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+retire/spell-check-setting
+retire/video-activity
+retire/lunch-count
+retire/tours
+retire/quiz-editor
+retire/quiz-assigning
+retire/quiz-results
+claude/project-thread-mclg4c
 claude/claude-security-fix-find_01hdwd6jykvej5w2jqqm7yvi-3zioml
 nightly/widgets-2026-11-13
 nightly/dashboard-2026-11-13
