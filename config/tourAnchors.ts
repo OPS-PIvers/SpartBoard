@@ -4192,6 +4192,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.class-filter': {
+    label: 'Class filter in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.student-prev': {
     label: 'Previous student in the Quiz grader',
     perWidgetType: true,

@@ -72,6 +72,18 @@ _Avoid_: rationale, feedback (which means a teacher's comments on a student's wr
 A student's own marker on a question they want to come back to before submitting. Teachers never see it.
 _Avoid_: flag (which means a feature flag or a flagged answer)
 
+**Student view**:
+A teacher trying a quiz themselves as a student would see it. Nothing they do is saved, and no student is involved.
+_Avoid_: preview (alone), test mode
+
+**Live view**:
+A teacher looking at one student's in-progress attempt as it happens, redrawn from what the student has saved rather than a picture of their screen. The teacher can't change anything, and the student isn't told unless the teacher or the district chooses.
+_Avoid_: watch, observe, screen share, mirror, View as student (that is the admin tool)
+
+**Nudge**:
+A brief colored border on a student's quiz, sent by the teacher from Live view to get their attention, with an optional short note from a fixed list.
+_Avoid_: ping, alert, message, buzz
+
 **Package file**:
 One file holding quizzes or question banks with their pictures, which an admin uploads to the District library.
 _Avoid_: bundle, export
