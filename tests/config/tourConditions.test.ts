@@ -44,6 +44,13 @@ describe('tour conditions', () => {
     );
   });
 
+  it('holds for a feature retired since the tour was saved', () => {
+    const retired = 'feature:spell-check-setting' as Parameters<
+      typeof checkTourCondition
+    >[0];
+    expect(checkTourCondition(retired, facts, () => false)).toBe(true);
+  });
+
   it('holds when every condition holds or is still loading', () => {
     const check = (ref: Parameters<typeof checkTourCondition>[0]) =>
       checkTourCondition(ref, facts, () => true);

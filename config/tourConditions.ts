@@ -50,7 +50,7 @@ const isFeatureRef = (
   ref: TourConditionRef
 ): ref is `feature:${GlobalFeature}` => ref.startsWith(FEATURE_PREFIX);
 
-/** Answers a ref from the teacher's facts and feature access; a feature removed since the save never holds. */
+/** Answers a ref from the teacher's facts and feature access; a feature retired since the save is on for everyone, so it holds. */
 export const checkTourCondition = (
   ref: TourConditionRef,
   facts: Record<TourFact, boolean | undefined>,
@@ -60,7 +60,7 @@ export const checkTourCondition = (
   const feature = ALL_GLOBAL_FEATURES.find(
     (id) => id === ref.slice(FEATURE_PREFIX.length)
   );
-  return feature ? canAccessFeature(feature) : false;
+  return feature ? canAccessFeature(feature) : true;
 };
 
 /** Answers one fact or feature; undefined while it is still loading. */
