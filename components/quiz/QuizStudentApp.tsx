@@ -248,6 +248,7 @@ import {
   crossOutStorageKey,
   useCrossedOutChoices,
 } from './useCrossedOutChoices';
+import { STUDENT_VIEW_SESSION_ID } from '@/utils/quizStudentViewSession';
 import { StudentAccommodationBar } from './StudentAccommodationBar';
 import {
   highlightClass,
@@ -2567,8 +2568,9 @@ export const ActiveQuiz: React.FC<{
   const crossOutUid =
     session.allowCrossOut === true ? myResponse?.studentUid : undefined;
   const crossOutOn = !!crossOutUid;
+  // Student view keeps cross-outs in memory, since it writes nothing anywhere.
   const crossedOut = useCrossedOutChoices(
-    crossOutUid
+    crossOutUid && session.id !== STUDENT_VIEW_SESSION_ID
       ? crossOutStorageKey(
           session.id,
           crossOutUid,
