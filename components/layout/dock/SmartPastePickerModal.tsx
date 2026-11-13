@@ -1,10 +1,8 @@
 import React from 'react';
-import { AlignLeft, CheckSquare, X } from 'lucide-react';
-import { GlassCard } from '@/components/common/GlassCard';
-import { Modal } from '@/components/common/Modal';
+import { AlignLeft, CheckSquare } from 'lucide-react';
 import { GlobalStyle } from '@/types';
-import { tourAttr } from '@/config/tourAnchors';
 import { clipText } from '@/utils/clipText';
+import { PasteChoice, PastePickerModal } from './PastePickerModal';
 
 interface SmartPastePickerModalProps {
   text: string;
@@ -27,29 +25,11 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
       : text;
 
   return (
-    <Modal isOpen={true} onClose={onClose} variant="bare" zIndex="z-critical">
-      <GlassCard
-        globalStyle={globalStyle}
-        className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4">
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">
-              How should this be pasted?
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            {...tourAttr('dock.smart-paste-close')}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Text preview — React renders {preview} as a text node, so no XSS risk */}
+    <PastePickerModal
+      closeTourId="dock.smart-paste-close"
+      onClose={onClose}
+      globalStyle={globalStyle}
+      preview={
         <div className="mx-6 mb-5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
           <p className="text-xs text-slate-500 font-black uppercase tracking-widest mb-1.5">
             Pasted text
@@ -58,43 +38,23 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
             {preview}
           </p>
         </div>
-
-        {/* Choice buttons */}
-        <div className="px-6 pb-6 grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onSelect('text')}
-            {...tourAttr('dock.smart-paste-text')}
-            className="group flex flex-col items-center gap-3 p-5 bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 hover:border-amber-400 rounded-2xl transition-all active:scale-95 text-left"
-          >
-            <div className="w-11 h-11 rounded-xl bg-amber-400 flex items-center justify-center shadow-md shadow-amber-300/40 group-hover:scale-110 transition-transform">
-              <AlignLeft className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-amber-800">
-                Text Widget
-              </p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => onSelect('checklist')}
-            {...tourAttr('dock.smart-paste-checklist')}
-            className="group flex flex-col items-center gap-3 p-5 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 hover:border-emerald-400 rounded-2xl transition-all active:scale-95 text-left"
-          >
-            <div className="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md shadow-emerald-400/40 group-hover:scale-110 transition-transform">
-              <CheckSquare className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-emerald-800">
-                Checklist
-              </p>
-              <p className="text-xxs text-emerald-600 font-bold mt-0.5 leading-tight">
-                Each line becomes a task
-              </p>
-            </div>
-          </button>
-        </div>
-      </GlassCard>
-    </Modal>
+      }
+    >
+      <PasteChoice
+        tourId="dock.smart-paste-text"
+        tone="amber"
+        icon={AlignLeft}
+        label="Text Widget"
+        onClick={() => onSelect('text')}
+      />
+      <PasteChoice
+        tourId="dock.smart-paste-checklist"
+        tone="emerald"
+        icon={CheckSquare}
+        label="Checklist"
+        hint="Each line becomes a task"
+        onClick={() => onSelect('checklist')}
+      />
+    </PastePickerModal>
   );
 };
