@@ -1741,6 +1741,11 @@
       "activityPlaceholder": "Type activity name...",
       "startTime": "Start time",
       "endTime": "End time",
+      "warnBefore": "Warn before end",
+      "warnOff": "Off",
+      "warnMinutes": "{{count}} min before",
+      "warnSound": "Warning sound",
+      "warnNeedsEnd": "Add an end time to set a warning.",
       "saveItem": "Save item",
       "cancel": "Cancel",
       "everyDay": "Every day",
@@ -6308,6 +6313,9 @@
       },
       "schedule": {
         "next-block": "Wait for next block",
+        "warn": "Warn when a block is ending"
+      },
+      "specialist-schedule": {
         "warn": "Warn when a block is ending"
       },
       "work-symbols": {

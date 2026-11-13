@@ -22425,6 +22425,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.specialist-schedule.warn-minutes",
+    "label": "Warn before the end choice in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
+  },
+  {
+    "id": "widget-settings.specialist-schedule.warn-sound",
+    "label": "Warning sound choice in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
+  },
+  {
     "id": "widget-settings.specialist-schedule.save-item",
     "label": "Save item button in Specialist Schedule settings",
     "scope": "widget",

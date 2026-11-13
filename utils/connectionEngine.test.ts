@@ -509,3 +509,28 @@ describe('block warning Sequence', () => {
     expect(moved.finished).toBe(true);
   });
 });
+
+describe('Connect from a Daily Schedule to a Timer', () => {
+  it('warns first and counts the Timer down to the end of the block', () => {
+    const draft = draftFromPicks([
+      { id: 'd', type: 'specialist-schedule' },
+      { id: 't', type: 'time-tool' },
+    ]);
+    expect(draft.sequence?.steps.map((s) => s.actions[0].action)).toEqual([
+      'warn',
+      'start-to-block-end',
+    ]);
+    expect(draft.sequence?.repeat).toBe('once');
+  });
+
+  it('leaves a Timer after a plain Schedule on Start', () => {
+    const draft = draftFromPicks([
+      { id: 's', type: 'schedule' },
+      { id: 't', type: 'time-tool' },
+    ]);
+    expect(draft.sequence?.steps.map((s) => s.actions[0].action)).toEqual([
+      'next-block',
+      'restart',
+    ]);
+  });
+});

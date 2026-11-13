@@ -1,4 +1,9 @@
-import type { ConnectionBlock, ScheduleConfig, ScheduleItem } from '@/types';
+import type {
+  ConnectionBlock,
+  ScheduleConfig,
+  ScheduleItem,
+  ScheduleItemWarning,
+} from '@/types';
 import {
   computeEffectiveTimes,
   resolveActiveSchedule,
@@ -19,7 +24,45 @@ export interface DueWarning {
   block: ConnectionBlock;
 }
 
+/** A block of today with its start and end in seconds since midnight (-1 when unknown). */
+export interface WarnableBlock {
+  key: string;
+  task: string;
+  startSec: number;
+  endSec: number;
+  warning?: ScheduleItemWarning;
+}
+
 // The block whose warning is due now and hasn't fired today; a throttled tab fires late while the block still runs.
+export const pickDueWarning = (
+  blocks: WarnableBlock[],
+  warningsFired: Record<string, string> | undefined,
+  nowMs: number
+): DueWarning | null => {
+  const now = new Date(nowMs);
+  const today = dayString(now);
+  const midnight = new Date(now).setHours(0, 0, 0, 0);
+  const nowSec = (nowMs - midnight) / 1000;
+  for (const b of blocks) {
+    const minutes = b.warning?.minutes ?? 0;
+    if (!b.warning || minutes <= 0) continue;
+    if (b.endSec === -1 || b.startSec === -1) continue;
+    const warnAt = Math.max(b.startSec, b.endSec - minutes * 60);
+    if (nowSec < warnAt || nowSec >= b.endSec) continue;
+    if (warningsFired?.[b.key] === today) continue;
+    return {
+      key: b.key,
+      block: {
+        endsAt: midnight + b.endSec * 1000,
+        task: b.task,
+        minutes,
+        sound: b.warning.sound ?? DEFAULT_WARNING.sound,
+      },
+    };
+  }
+  return null;
+};
+
 export const findDueWarning = (
   config: ScheduleConfig,
   nowMs: number
@@ -36,34 +79,23 @@ export const findDueWarning = (
     (i) => !i.oneOffDate || i.oneOffDate === today
   );
   const times = computeEffectiveTimes(items);
-  const midnight = new Date(now).setHours(0, 0, 0, 0);
-  const nowSec = (nowMs - midnight) / 1000;
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  const blocks = items.map((item, i): WarnableBlock => {
     const eff = times[i];
-    const minutes = item.warning?.minutes ?? 0;
-    if (!item.warning || minutes <= 0 || !eff || eff.isIdle) continue;
-    if (eff.endSec === -1 || eff.startSec === -1) continue;
-    const warnAt = Math.max(eff.startSec, eff.endSec - minutes * 60);
-    if (nowSec < warnAt || nowSec >= eff.endSec) continue;
-    const key = warningKey(item);
-    if (config.warningsFired?.[key] === today) continue;
+    const usable = !!eff && !eff.isIdle;
     return {
-      key,
-      block: {
-        endsAt: midnight + eff.endSec * 1000,
-        task: item.task,
-        minutes,
-        sound: item.warning.sound ?? DEFAULT_WARNING.sound,
-      },
+      key: warningKey(item),
+      task: item.task,
+      startSec: usable ? eff.startSec : -1,
+      endSec: usable ? eff.endSec : -1,
+      warning: item.warning,
     };
-  }
-  return null;
+  });
+  return pickDueWarning(blocks, config.warningsFired, nowMs);
 };
 
 // Keeps only today's marks so the saved list never grows.
 export const markWarningFired = (
-  config: ScheduleConfig,
+  config: { warningsFired?: Record<string, string> },
   key: string,
   nowMs: number
 ): Record<string, string> => {

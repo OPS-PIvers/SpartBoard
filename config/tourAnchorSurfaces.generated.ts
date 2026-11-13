@@ -1180,6 +1180,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.specialist-schedule.end-time': [
       'widgets.specialist-schedule.settings',
     ],
+    'widget-settings.specialist-schedule.warn-minutes': [
+      'widgets.specialist-schedule.face',
+    ],
+    'widget-settings.specialist-schedule.warn-sound': [
+      'widgets.specialist-schedule.face',
+    ],
     'widget-settings.specialist-schedule.save-item': [
       'widgets.specialist-schedule.settings',
     ],

@@ -170,6 +170,26 @@ const nextBlockStarted = (c: Config, now: number, startedAt: number) => {
   return secondsOfDay(now) >= Math.min(...starts);
 };
 
+// Plays the sound and shows the banner for the block that started this Run; its widget's own settings say when.
+const blockWarn: ConnectionActionDef = {
+  id: 'warn',
+  label: 'Warn when a block is ending',
+  apply: (_c, now, _params, block) =>
+    block
+      ? {
+          patch: {
+            warningAlert: {
+              id: `${now}`,
+              at: now,
+              task: block.task,
+              minutes: block.minutes,
+              sound: block.sound,
+            },
+          },
+        }
+      : { patch: {} },
+};
+
 export const WIDGET_CONNECTIONS: Partial<
   Record<WidgetType, WidgetConnectionDef>
 > = {
@@ -243,26 +263,10 @@ export const WIDGET_CONNECTIONS: Partial<
         isFinished: nextBlockStarted,
         waitsFor: 'next-block',
       },
-      {
-        id: 'warn',
-        label: 'Warn when a block is ending',
-        apply: (_c, now, _params, block) =>
-          block
-            ? {
-                patch: {
-                  warningAlert: {
-                    id: `${now}`,
-                    at: now,
-                    task: block.task,
-                    minutes: block.minutes,
-                    sound: block.sound,
-                  },
-                },
-              }
-            : { patch: {} },
-      },
+      blockWarn,
     ],
   },
+  'specialist-schedule': { defaultAction: 'warn', actions: [blockWarn] },
   'work-symbols': {
     defaultAction: 'show',
     actions: [

@@ -8485,6 +8485,8 @@ export interface SpecialistScheduleItem {
   endTime?: string; // HH:mm
   task: string;
   linkedWidgets?: WidgetType[];
+  /** Warn this many minutes before the block ends; needs an end time. */
+  warning?: ScheduleItemWarning;
 }
 
 export interface SpecialistScheduleRecurringItem extends SpecialistScheduleItem {
@@ -8580,6 +8582,9 @@ export interface SpecialistScheduleConfig {
   cycleDays: SpecialistScheduleCycleDay[];
   /** Items that repeat every day or on specific days of the week */
   recurringItems?: SpecialistScheduleRecurringItem[];
+  /** Block warnings already fired, item id to YYYY-MM-DD, so each fires once a day. */
+  warningsFired?: Record<string, string>;
+  warningAlert?: ScheduleWarningAlert;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;

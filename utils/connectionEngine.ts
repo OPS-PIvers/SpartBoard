@@ -64,14 +64,18 @@ export const liveConnections = (
     (c) => isValidConnection(c) && isConnectionLive(c, widgets)
   );
 
-/** The Schedule whose block warning starts this Sequence: its first step's first action is Schedule 'warn'. */
+/** The Schedule or Daily Schedule whose block warning starts this Sequence: its first step's first action is 'warn'. */
 export const warningScheduleOf = (
   seq: SequenceConnection,
   widgets: WidgetData[]
 ): WidgetData | undefined => {
   const first = liveSteps(seq, widgets)[0]?.actions[0];
   if (first?.action !== 'warn') return undefined;
-  return widgets.find((w) => w.id === first.widgetId && w.type === 'schedule');
+  return widgets.find(
+    (w) =>
+      w.id === first.widgetId &&
+      (w.type === 'schedule' || w.type === 'specialist-schedule')
+  );
 };
 
 export interface StepApplyResult {
@@ -366,7 +370,8 @@ export const draftFromPicks = (
       follows.push({ id: newId(), kind: 'follow', ...pair });
     }
   }
-  const steps: ConnectionStep[] = ordered
+  const pickTypes = new Map(picks.map((p) => [p.id, p.type]));
+  const built: ConnectionStep[] = ordered
     .filter((p) => !followerIds.has(p.id))
     .flatMap((p) => {
       const def = connectionDefFor(p.type);
@@ -387,6 +392,16 @@ export const draftFromPicks = (
         },
       ];
     });
+  // A Timer right after a block warning counts down to the end of that block.
+  const steps = built.map((s, i): ConnectionStep => {
+    const a = s.actions[0];
+    const afterWarning = i > 0 && built[i - 1].actions[0]?.action === 'warn';
+    return afterWarning &&
+      a?.action === 'restart' &&
+      pickTypes.get(a.widgetId) === 'time-tool'
+      ? { ...s, actions: [{ ...a, action: 'start-to-block-end' }] }
+      : s;
+  });
   const sequence: SequenceConnection | null =
     steps.length >= minSteps
       ? {

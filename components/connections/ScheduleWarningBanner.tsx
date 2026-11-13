@@ -29,7 +29,7 @@ export const ScheduleWarningBanner: React.FC = () => {
   let latest: ScheduleWarningAlert | undefined;
   if (enabled) {
     for (const w of activeDashboard?.widgets ?? []) {
-      if (w.type !== 'schedule') continue;
+      if (w.type !== 'schedule' && w.type !== 'specialist-schedule') continue;
       const a = (w.config as ScheduleConfig).warningAlert;
       if (a && (!latest || a.at > latest.at)) latest = a;
     }

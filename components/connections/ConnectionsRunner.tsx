@@ -6,15 +6,22 @@ import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import type {
   ChecklistConfig,
   Dashboard,
+  FeaturePermission,
   ScheduleConfig,
   SequenceConnection,
+  SpecialistScheduleConfig,
+  SpecialistScheduleGlobalConfig,
   WidgetConnection,
+  WidgetData,
 } from '@/types';
 import {
   findDueWarning,
   markWarningFired,
   type DueWarning,
 } from '@/components/widgets/Schedule/blockWarning';
+import { findDueSpecialistWarning } from '@/components/widgets/SpecialistSchedule/blockWarning';
+import { resolveBuildingConfig } from '@/components/widgets/SpecialistSchedule/utils';
+import { resolveWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { useRosterGroupsIntegrationSettingsState } from '@/hooks/useRosterGroupsIntegrationSettings';
 import { checklistUsesClassRoster } from '@/utils/checklistCurrent';
 import { engineWidgets } from '@/utils/connectionRosterView';
@@ -76,6 +83,29 @@ const write = (
   apply?.(board.id, patches, connections);
 };
 
+// A Daily Schedule's block times come from its building's rotation, so that config is read here too.
+const dueWarningFor = (
+  w: WidgetData,
+  now: number,
+  permissions: FeaturePermission[],
+  selectedBuildings: string[]
+): DueWarning | null => {
+  if (w.type !== 'specialist-schedule') {
+    return findDueWarning(w.config as unknown as ScheduleConfig, now);
+  }
+  const global = permissions.find((p) => p.widgetType === w.type)?.config as
+    SpecialistScheduleGlobalConfig | undefined;
+  const building = resolveBuildingConfig(
+    global,
+    resolveWidgetBuildingId(w, selectedBuildings)
+  );
+  return findDueSpecialistWarning(
+    w.config as unknown as SpecialistScheduleConfig,
+    building,
+    now
+  );
+};
+
 // Reads the saved-groups gate only while some Connection needs it, so most boards open no extra listener.
 const RosterGroupsGateReader: React.FC<{
   onChange: (gate: { enabled: boolean; ready: boolean }) => void;
@@ -113,7 +143,7 @@ export const ConnectionsRunner: React.FC = () => {
     rosters,
     activeRosterId,
   } = useDashboard();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, featurePermissions, selectedBuildings } = useAuth();
   const enabled = canAccessFeature('widget-connections');
   const [gate, setGate] = useState({ enabled: false, ready: false });
   const groupsEnabled = gate.enabled;
@@ -126,6 +156,8 @@ export const ConnectionsRunner: React.FC = () => {
     addToast,
     t,
     roster: { rosters, activeRosterId, groupsEnabled, groupsReady },
+    featurePermissions,
+    selectedBuildings,
   });
   useLayoutEffect(() => {
     latest.current = {
@@ -135,6 +167,8 @@ export const ConnectionsRunner: React.FC = () => {
       addToast,
       t,
       roster: { rosters, activeRosterId, groupsEnabled, groupsReady },
+      featurePermissions,
+      selectedBuildings,
     };
   });
 
@@ -456,7 +490,12 @@ export const ConnectionsRunner: React.FC = () => {
         if (!due.has(schedule.id)) {
           due.set(
             schedule.id,
-            findDueWarning(schedule.config as unknown as ScheduleConfig, now)
+            dueWarningFor(
+              schedule,
+              now,
+              latest.current.featurePermissions,
+              latest.current.selectedBuildings
+            )
           );
         }
         const warning = due.get(schedule.id);

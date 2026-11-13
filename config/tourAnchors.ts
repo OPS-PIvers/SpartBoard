@@ -5428,6 +5428,16 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.specialist-schedule.warn-minutes': {
+    label: 'Warn before the end choice in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.warn-sound': {
+    label: 'Warning sound choice in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.specialist-schedule.save-item': {
     label: 'Save item button in Specialist Schedule settings',
     perWidget: true,
