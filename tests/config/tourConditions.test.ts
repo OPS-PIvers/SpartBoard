@@ -39,7 +39,7 @@ describe('tour conditions', () => {
     expect(checkTourCondition('classlink-on', facts, can)).toBe(false);
     expect(checkTourCondition('class-added', facts, can)).toBeUndefined();
     expect(checkTourCondition('feature:sparty', facts, can)).toBe(true);
-    expect(checkTourCondition('feature:spell-check-setting', facts, can)).toBe(
+    expect(checkTourCondition('feature:flashcards-speak', facts, can)).toBe(
       false
     );
   });
