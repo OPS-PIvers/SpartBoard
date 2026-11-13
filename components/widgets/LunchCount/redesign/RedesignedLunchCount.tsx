@@ -15,8 +15,9 @@ import { MissingInfoModal } from '../MissingInfoModal';
 import { useLunchCountModel } from './useLunchCountModel';
 import type { LunchZoneId } from './useLunchCountModel';
 import { COUNT_COLOR, isMiddleHighSite, menuLine } from './lunchCountFormat';
-import { CHIP_HEIGHT, ChipGrid, LunchZone, ZONE_TEXT } from './LunchZone';
+import { CHIP_HEIGHT, ChipGrid, LunchZone, TRAY_TEXT } from './LunchZone';
 import { PhotoPeek } from './PhotoPeek';
+import { useTrayFit } from './useTrayFit';
 import { MiddleHighLunchCount } from '../MiddleHighLunchCount';
 
 // Bands are container queries on the widget body: compact (count board), wide (tray left), tall (zones stacked).
@@ -44,6 +45,14 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
     drags,
     dragHandlers,
   } = model;
+
+  const boardRef = useRef<HTMLDivElement>(null);
+  const trayRef = useRef<HTMLElement>(null);
+  useTrayFit(
+    boardRef,
+    trayRef,
+    `${schoolSite}|${allRosterStudents.length}|${hiddenRemaining}|${groupedStudents.unassigned.map((s) => s.id).join()}`
+  );
 
   const [peekedItem, setPeekedItem] = useState<LunchMenuItem | null>(null);
   const peekTriggerRef = useRef<HTMLElement | null>(null);
@@ -334,11 +343,12 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
               </div>
 
               <div
+                ref={boardRef}
                 className="flex flex-1 min-w-0 flex-col [@container(min-aspect-ratio:2.2)]:flex-row [@container_(max-width:219px)_or_(max-height:179px)]:hidden"
                 style={{ gap: 'clamp(8px, 2.4cqmin, 20px)' }}
               >
                 <div
-                  className="flex flex-1 min-h-0 min-w-0 flex-row [@container(max-aspect-ratio:0.7)]:flex-col"
+                  className="flex flex-[1_1_0%] min-w-0 flex-row [@container(max-aspect-ratio:0.7)]:flex-col"
                   style={{ gap: 'clamp(8px, 2.4cqmin, 20px)' }}
                 >
                   <LunchZone
@@ -378,23 +388,24 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                 </div>
 
                 <section
+                  ref={trayRef}
                   data-drop-zone="unassigned"
                   data-testid="unassigned-zone"
                   aria-label="Unassigned"
-                  className={`flex flex-col min-h-0 shrink-0 overflow-y-auto custom-scrollbar rounded-2xl max-h-[40%] [@container_(max-height:699px)_and_(max-aspect-ratio:2.19)]:max-h-[min(var(--tray-3-rows),50%)] [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:max-h-none [@container(min-aspect-ratio:2.2)]:w-[26%] ${
+                  className={`flex flex-col min-h-0 flex-[0_1_auto] overflow-y-auto custom-scrollbar rounded-2xl [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:shrink-0 [@container(min-aspect-ratio:2.2)]:w-[var(--tray-w,26%)] ${
                     overZones.has('unassigned')
                       ? 'bg-slate-200 ring-4 ring-inset ring-slate-500'
                       : 'bg-slate-100'
                   }`}
-                  style={
-                    {
-                      fontSize: ZONE_TEXT,
-                      gap: 'clamp(8px, 2.4cqmin, 20px)',
-                      padding: 'clamp(8px, 2.4cqmin, 20px)',
-                      // Three whole chip rows plus padding, so no half row shows below 700px tall.
-                      '--tray-3-rows': `calc(3 * ${CHIP_HEIGHT} + 4 * clamp(8px, 2.4cqmin, 20px))`,
-                    } as React.CSSProperties
-                  }
+                  style={{
+                    fontSize: TRAY_TEXT,
+                    gap: 'clamp(8px, 2.4cqmin, 20px)',
+                    padding: 'clamp(8px, 2.4cqmin, 20px)',
+                    minHeight:
+                      groupedStudents.unassigned.length > 0
+                        ? `min(100%, calc(${CHIP_HEIGHT} + 2 * clamp(8px, 2.4cqmin, 20px)))`
+                        : undefined,
+                  }}
                 >
                   <div
                     className="font-black text-slate-700 leading-tight wrap-anywhere"
@@ -406,6 +417,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   </div>
                   <ChipGrid
                     flowIntoParent
+                    fontSize={TRAY_TEXT}
                     students={groupedStudents.unassigned}
                     draggingIds={draggingIds}
                     handlers={dragHandlers}
