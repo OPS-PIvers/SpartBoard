@@ -128,6 +128,7 @@ const TAB_GROUPS = [
         label: 'Help Center',
         icon: LifeBuoy,
         component: HelpCenterManager,
+        fillHeight: true,
       },
       {
         id: 'getting-started',
