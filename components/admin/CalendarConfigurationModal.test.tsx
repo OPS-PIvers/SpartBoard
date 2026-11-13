@@ -92,3 +92,32 @@ describe('CalendarConfigurationModal sync frequency', () => {
     expect((input as HTMLInputElement).value).toBe('24');
   });
 });
+
+describe('CalendarConfigurationModal failed load', () => {
+  afterEach(() => {
+    cleanup();
+    vi.mocked(getDoc).mockReset();
+    vi.mocked(setDoc).mockReset();
+  });
+
+  it('shows an error with retry instead of editable defaults when the read fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(getDoc).mockRejectedValueOnce(new Error('unavailable'));
+    render(<CalendarConfigurationModal isOpen onClose={vi.fn()} />);
+
+    await screen.findByRole('alert');
+    const save = screen.getByText('Save Configuration').closest('button');
+    expect(save).toBeDisabled();
+    expect(screen.queryByDisplayValue('4')).toBeNull();
+
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        config: { blockedDates: ['2026-12-25'], updateFrequencyHours: 6 },
+      }),
+    } as unknown as DocumentSnapshot);
+    fireEvent.click(screen.getByText('Try again'));
+    expect(await screen.findByDisplayValue('6')).toBeTruthy();
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+});
