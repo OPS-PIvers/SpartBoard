@@ -3492,9 +3492,9 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       })
     );
 
-  it('stamps stimulus tabs and the review step on a self-paced session with the flags', async () => {
+  it('stamps stimulus tabs with the flag, and one-list Ordering and the review step on every self-paced session', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
-      wrapper: mcaWrapper(['quiz-stimulus-tabs', 'quiz-review-step']),
+      wrapper: mcaWrapper(['quiz-stimulus-tabs']),
     });
     await act(async () => {
       await result.current.createAssignment(QUIZ, {
@@ -3504,13 +3504,14 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     });
     expect(findSessionSet()).toMatchObject({
       stimulusTabs: true,
+      orderingList: true,
       reviewStep: true,
     });
   });
 
   it('never stamps the review step on a teacher-paced session', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
-      wrapper: mcaWrapper(['quiz-review-step']),
+      wrapper: mcaWrapper([]),
     });
     await act(async () => {
       await result.current.createAssignment(QUIZ, {
@@ -3519,9 +3520,10 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       });
     });
     expect(findSessionSet()).not.toHaveProperty('reviewStep');
+    expect(findSessionSet()).toMatchObject({ orderingList: true });
   });
 
-  it('stamps neither without the flags', async () => {
+  it('leaves stimulus tabs off without the flag, but still stamps the review step', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
       wrapper: mcaWrapper([]),
     });
@@ -3532,7 +3534,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       });
     });
     expect(findSessionSet()).not.toHaveProperty('stimulusTabs');
-    expect(findSessionSet()).not.toHaveProperty('reviewStep');
+    expect(findSessionSet()).toMatchObject({ reviewStep: true });
   });
 
   it('mirrors showLearningTargets and only projects tags when it is enabled', async () => {

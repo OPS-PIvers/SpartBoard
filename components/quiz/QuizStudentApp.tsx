@@ -2021,7 +2021,7 @@ export const ActiveQuiz: React.FC<{
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
-  // Review before submit (quiz-review-step): this tab's sessionStorage only, so teachers never see marks.
+  // Review before submit: this tab's sessionStorage only, so teachers never see marks.
   const reviewStoreKey = reviewStateKey(
     session.id,
     myResponse?._responseKey,
@@ -5444,7 +5444,7 @@ const StructuredQuestionInput: React.FC<{
   saveError?: string | null;
   /** Per-item speaker controls (D8); absent when read-aloud is off. */
   readAloud?: ReadAloudItemControls;
-  /** Ordering as one drag-to-order list (quiz-ordering-list flag). */
+  /** Ordering as one drag-to-order list; older sessions without the stamp use slots. */
   orderingList?: boolean;
   /** The last step's label: REVIEW with the review step, else SUBMIT. */
   finishLabel?: string;

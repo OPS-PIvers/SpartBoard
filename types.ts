@@ -5619,11 +5619,11 @@ export interface QuizSession
   allowCrossOut?: boolean;
   /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
   inputSignals?: boolean;
-  /** Stamped only with the quiz-ordering-list flag; Ordering shows one list to drag into order. */
+  /** Stamped on every new assignment; Ordering shows one list to drag into order (absent on older sessions = slots and word bank). */
   orderingList?: boolean;
   /** Stamped only with the quiz-stimulus-tabs flag; stimuli show as tabs beside the question. */
   stimulusTabs?: boolean;
-  /** Stamped only with the quiz-review-step flag; self-paced quizzes end on a review screen. */
+  /** Stamped on every new self-paced assignment; ends on a review screen (absent on older sessions = no review screen). */
   reviewStep?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
@@ -10855,7 +10855,7 @@ export interface UserProfile {
   spartyEnabled?: boolean;
   /** Alignment guides while moving or resizing widgets; absent means off. */
   alignmentGuidesEnabled?: boolean;
-  /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
+  /** Browser spell check in the teacher's text boxes; absent means on. */
   spellCheckEnabled?: boolean;
   /** Starting length in seconds for the teacher's new timers. 0 or absent means the building default. */
   timeToolStartSeconds?: number;
@@ -11282,14 +11282,8 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Teachers turn in a quiz for a student who left without submitting. */
-  | 'quiz-submit-for-student'
-  /** Teachers reopen a student's turned-in quiz so they keep working on the same answers. */
-  | 'quiz-reopen-submission'
   /** Quiz answers of every type: a picture on each, plus pasting images into a question. */
   | 'quiz-ordering-images'
-  /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
-  | 'quiz-ordering-list'
   /** Ordering results: each item's spot, with the items students put out of order marked. */
   | 'quiz-ordering-results'
   /** Quiz explanations on questions and answers, shown with published results. */
@@ -11300,8 +11294,6 @@ export type GlobalFeature =
   | 'quiz-blank-types'
   /** Quiz stimuli as named tabs in the panel beside the question (M11). */
   | 'quiz-stimulus-tabs'
-  /** Self-paced quizzes end on a review screen with Mark for review (M23). */
-  | 'quiz-review-step'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
   /** Lunch Count: send a corrected count that replaces the day's row for that class. */
@@ -11322,8 +11314,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Flashcards study: students study just the cards they missed, in every mode. */
   | 'flashcards-missed-cards'
-  /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
-  | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */

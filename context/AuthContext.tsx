@@ -3354,9 +3354,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
 
-  usePageSpellCheck(
-    !spellCheckEnabled && canAccessFeature('spell-check-setting')
-  );
+  usePageSpellCheck(!spellCheckEnabled);
 
   const canAccessWidget = useCallback(
     (widgetType: WidgetType, customBuildings?: string[]): boolean =>
