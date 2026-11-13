@@ -403,7 +403,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   data-drop-zone="unassigned"
                   data-testid="unassigned-zone"
                   aria-label="Unassigned"
-                  className={`flex flex-col min-h-0 flex-[0_1_auto] overflow-y-auto custom-scrollbar rounded-2xl [@container_(max-height:349px)_and_(max-aspect-ratio:2.19)]:max-h-[50%] [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:shrink-0 [@container(min-aspect-ratio:2.2)]:w-[var(--tray-w,26%)] ${
+                  className={`flex flex-col min-h-0 flex-[0_1_auto] overflow-y-auto custom-scrollbar rounded-2xl [@container_(max-height:349px)_and_(not_(min-aspect-ratio:2.2))]:max-h-[50%] [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:shrink-0 [@container(min-aspect-ratio:2.2)]:w-[var(--tray-w,26%)] ${
                     overZones.has('unassigned')
                       ? 'bg-slate-200 ring-4 ring-inset ring-slate-500'
                       : 'bg-slate-100'
