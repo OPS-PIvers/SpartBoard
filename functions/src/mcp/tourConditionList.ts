@@ -155,3 +155,22 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'widget-connections',
   'youtube-paste-picker',
 ];
+
+export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
+  'lunch-count-redesign',
+  'lunch-count-resend',
+  'quiz-import-versions',
+  'quiz-ordering-images',
+  'quiz-ordering-list',
+  'quiz-ordering-results',
+  'quiz-prompt-formatting',
+  'quiz-reopen-submission',
+  'quiz-results-tools',
+  'quiz-review-step',
+  'quiz-submit-for-student',
+  'spell-check-setting',
+  'tour-pacing',
+  'tour-steps-view',
+  'video-activity-editor-arrows',
+  'video-activity-stops',
+];
