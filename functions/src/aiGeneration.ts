@@ -2089,6 +2089,23 @@ export const transcribeVideoWithGemini = onCall(
     const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
 
     if (!isAdmin) {
+      if (geminiDoc.exists) {
+        const geminiPerm = geminiDoc.data() as GlobalPermission;
+        assertPermissionAllows(geminiPerm, request.auth.token, {
+          disabled:
+            'Gemini functions are currently disabled by an administrator.',
+          adminOnly:
+            'Gemini functions are currently restricted to administrators.',
+          notBeta: 'You do not have access to Gemini beta functions.',
+        });
+        await assertAudienceAllows(
+          db,
+          geminiPerm,
+          request.auth.token,
+          uid,
+          'You do not have access to Gemini functions.'
+        );
+      }
       if (perm.accessLevel === 'admin') {
         throw new HttpsError(
           'permission-denied',
