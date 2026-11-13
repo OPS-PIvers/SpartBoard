@@ -17,7 +17,17 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import {
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
+} from 'firebase/firestore';
 import { seedDistrictStaff } from './districtStaffSeed';
 
 const PROJECT_ID = 'spartboard-shared-activity-walls';
@@ -296,6 +306,101 @@ describe('shared_activity_walls — read gating (expiresAt / revoked)', () => {
     });
     await assertSucceeds(
       getDoc(doc(asAdminUser(), `shared_activity_walls/${SHARE_ID}`))
+    );
+  });
+});
+
+// A list rule is evaluated once against the query, so unpinned revoked/expiresAt
+// fall back to their permissive defaults; only the owner and admins may list.
+describe('shared_activity_walls — list is owner/admin only', () => {
+  const asStudent = () =>
+    testEnv
+      .authenticatedContext('student-uid', {
+        studentRole: true,
+        classIds: ['class-1'],
+        firebase: { sign_in_provider: 'custom' },
+      })
+      .firestore();
+
+  const asAdminUser = () =>
+    testEnv
+      .authenticatedContext('admin-uid', {
+        email: 'admin@example.com',
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'admins/admin@example.com'), {});
+      await setDoc(
+        doc(ctx.firestore(), `shared_activity_walls/${SHARE_ID}`),
+        sharedDocPayload()
+      );
+    });
+  });
+
+  it('anonymous and student callers cannot list the collection unfiltered', async () => {
+    await assertFails(
+      getDocs(collection(asAnonymous(), 'shared_activity_walls'))
+    );
+    await assertFails(
+      getDocs(collection(asStudent(), 'shared_activity_walls'))
+    );
+  });
+
+  it('anonymous and student callers cannot list live shares by revoked == false', async () => {
+    for (const db of [asAnonymous(), asStudent()]) {
+      await assertFails(
+        getDocs(
+          query(
+            collection(db, 'shared_activity_walls'),
+            where('revoked', '==', false)
+          )
+        )
+      );
+    }
+  });
+
+  it("another teacher cannot list a teacher's shares by originalAuthor", async () => {
+    const other = testEnv
+      .authenticatedContext(OTHER_TEACHER_UID, {
+        email: 'other@example.com',
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+    await assertFails(
+      getDocs(
+        query(
+          collection(other, 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  it('the owner can list their own shares and an admin can list all', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asTeacher(), 'shared_activity_walls'),
+          where('originalAuthor', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertSucceeds(
+      getDocs(collection(asAdminUser(), 'shared_activity_walls'))
+    );
+  });
+
+  it('a viewer can still get a live share by id', async () => {
+    await assertSucceeds(
+      getDoc(doc(asAnonymous(), `shared_activity_walls/${SHARE_ID}`))
+    );
+    await assertSucceeds(
+      getDoc(doc(asStudent(), `shared_activity_walls/${SHARE_ID}`))
     );
   });
 });
