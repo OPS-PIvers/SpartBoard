@@ -318,10 +318,16 @@ describe('FreeResponseGrader class filter', () => {
       classPeriod: 'Period 2',
     } as unknown as QuizResponse;
     render(<Harness responses={[inClass('ada', 'Period 1'), noAnswers]} />);
-    fireEvent.change(
-      await screen.findByRole('combobox', { name: 'Filter by class' }),
-      { target: { value: 'Period 2' } }
-    );
+    const select = await screen.findByRole<HTMLSelectElement>('combobox', {
+      name: 'Filter by class',
+    });
+    // Counts match what the grader lists, not every response.
+    expect(Array.from(select.options).map((o) => o.text)).toEqual([
+      'All classes (1)',
+      'Period 1 (1)',
+      'Period 2 (0)',
+    ]);
+    fireEvent.change(select, { target: { value: 'Period 2' } });
     expect(
       screen.getByText(/No Free Response answers to grade yet/i)
     ).toBeTruthy();

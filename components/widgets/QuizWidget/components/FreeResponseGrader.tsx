@@ -518,15 +518,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     [allResponses, activeClass]
   );
 
-  const classCounts = useMemo(() => {
-    const counts = new Map<string, number>([['all', allResponses.length]]);
-    for (const r of allResponses) {
-      if (r.classPeriod)
-        counts.set(r.classPeriod, (counts.get(r.classPeriod) ?? 0) + 1);
-    }
-    return counts;
-  }, [allResponses]);
-
   const mediaEnabled = !!resolveTakeUrl;
   const questions = useMemo(
     () =>
@@ -538,6 +529,22 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       ),
     [quiz.questions, mediaEnabled, whiteboardEnabled]
   );
+
+  // Option counts match the rail: students with something to grade, per class.
+  const classCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!showClassFilter) return counts;
+    const gradable = new Set<QuizResponse>();
+    for (const q of questions) {
+      for (const row of buildQueue(q, allResponses)) gradable.add(row.response);
+    }
+    counts.set('all', gradable.size);
+    for (const r of gradable) {
+      if (r.classPeriod)
+        counts.set(r.classPeriod, (counts.get(r.classPeriod) ?? 0) + 1);
+    }
+    return counts;
+  }, [showClassFilter, questions, allResponses]);
 
   const [mode, setMode] = useState<GraderMode>(graderMode);
   const [autoAdvanceOn, setAutoAdvanceOn] = useState(autoAdvance);
