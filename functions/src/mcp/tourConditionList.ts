@@ -169,4 +169,5 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'webcam-ai',
   'whiteboard-pro',
   'widget-connections',
+  'youtube-paste-picker',
 ];

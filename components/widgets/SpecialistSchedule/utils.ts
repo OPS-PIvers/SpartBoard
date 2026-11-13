@@ -1,3 +1,21 @@
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
+import type {
+  SpecialistScheduleBuildingConfig,
+  SpecialistScheduleGlobalConfig,
+} from '@/types';
+
+/** A building's admin config, whichever form of its id the widget and the saved record use. */
+export const resolveBuildingConfig = (
+  globalConfig: SpecialistScheduleGlobalConfig | undefined,
+  buildingId: string | undefined
+): SpecialistScheduleBuildingConfig | undefined =>
+  canonicalizeBuildingKeyedRecord(globalConfig?.buildingDefaults ?? {})[
+    canonicalBuildingId(buildingId ?? 'schumann')
+  ];
+
 /**
  * Parses an "HH:MM" time string and returns minutes since midnight.
  * Returns -1 if the string is missing, empty, or not a valid "HH:MM" value.

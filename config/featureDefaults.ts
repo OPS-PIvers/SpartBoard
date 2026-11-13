@@ -1796,6 +1796,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'youtube-paste-picker': {
+    label: 'Paste a YouTube link: pick a widget',
+    icon: Video,
+    description:
+      'Pasting a YouTube link on the board asks whether to add it as an Embed or a Video Activity.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'video-import-ai': {
     label: 'Video import: AI questions',
     icon: Sparkles,
