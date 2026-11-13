@@ -120,9 +120,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   - S5: flashcard and Activity Wall text skip the link filter.
   - S6: notebook SVGs carry a double href (memory use).
 - **AB-66 Quiz settings stale class removal** (S, _re-verify_). From #4734: adding or removing a class while another class's roster was deleted or re-imported still marks that stale class removed and hides its work. Record only classes the teacher unchecked (`nextRemovedClasses`, `hooks/useQuizAssignments.ts`). Also: GL Results can show a removed class's work for a moment before the session loads.
-- **AB-67 Video import review minors** (M). From release 2026.10.31 (#4959); all behind admin-only flags, fix before those flags open.
+- **AB-67 Video import review minors** (M). From release 2026.10.31 (#4959); short answer, notes and clips are now on for every teacher, so these reach them.
   - Re-marking a short answer after Publish leaves the stored score until the teacher republishes (`functions/src/gradebook/gradeRowMath.ts` uses `stored ?? live`). A blank mark box can't clear a mark back to unmarked (`utils/videoActivityShortAnswerMark.ts`).
-  - Clip and note stops reach PLC peers without `video-activity-stops` through sync, shared boards, sub-shares and LTI; the flag gates authoring only.
   - Note stops are silent in teacher-paced live runs (`VideoActivityLivePlayer.tsx` passes only `clip`); whether they should pause is PT-102.
   - Every synced publish writes `notes: []`; an old synced group costs one extra Drive read on its first pull (`hooks/useVideoActivity.ts`).
   - Edpuzzle pictures: copies are orphaned if the widget unmounts mid-copy; removing a picture in the editor doesn't delete its Drive file; stops past 200 aren't counted in "Left out".
