@@ -78,5 +78,109 @@
     "language": "es-US",
     "strict": true,
     "result": "wrong"
+  },
+  {
+    "name": "accepts the whole phrase with the word before a mid-phrase slash",
+    "response": "sacar una buena nota",
+    "expected": "sacar una buena / mala nota",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "accepts the whole phrase with the word after a mid-phrase slash",
+    "response": "sacar una mala nota",
+    "expected": "sacar una buena / mala nota",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "still accepts the listed half of a mid-phrase slash",
+    "response": "mala nota",
+    "expected": "sacar una buena / mala nota",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "carries a leading word across a slash",
+    "response": "to begin",
+    "expected": "to start / begin",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "carries a trailing word across a slash",
+    "response": "to get good grades",
+    "expected": "to get good / bad grades",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "does not mix words of equal-length alternates",
+    "response": "el perra",
+    "expected": "el perro / la perra",
+    "language": "es-US",
+    "strict": true,
+    "result": "wrong"
+  },
+  {
+    "name": "spells out an unspaced article and ending pair",
+    "response": "la doctora",
+    "expected": "el/la doctor/a",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "spells out the first unspaced pair",
+    "response": "el doctor",
+    "expected": "el/la doctor/a",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "does not cross unspaced pairs",
+    "response": "el doctora",
+    "expected": "el/la doctor/a",
+    "language": "es-US",
+    "strict": true,
+    "result": "wrong"
+  },
+  {
+    "name": "still accepts the unspaced slash text as written",
+    "response": "el/la doctor/a",
+    "expected": "el/la doctor/a",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "forgives a typo in a spelled-out pair in lenient mode",
+    "response": "la dotora",
+    "expected": "el/la doctor/a",
+    "language": "es-US",
+    "strict": false,
+    "result": "accepted"
+  },
+  {
+    "name": "does not split a unit with a one-letter slash part",
+    "response": "h",
+    "expected": "km/h",
+    "language": "en-US",
+    "strict": true,
+    "result": "wrong"
+  },
+  {
+    "name": "spells out a slash pair beside a one-letter word",
+    "response": "ir a la playa",
+    "expected": "ir a la/el playa",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
   }
 ]
