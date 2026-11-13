@@ -91,4 +91,9 @@ describe('spokenVariants', () => {
       'comenzar',
     ]);
   });
+  it('spells out optional words before swapping a mid-phrase slash', () => {
+    expect(
+      spokenVariants('sacar (una) buena / mala nota', 'es').texts
+    ).not.toContainEqual(expect.stringContaining('('));
+  });
 });

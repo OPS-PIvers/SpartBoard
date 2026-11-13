@@ -213,16 +213,22 @@ export const spacedSlashSwaps = (expected: string): string[] => {
 // "km/h" and "y/o" stay whole: a one-letter option is a unit or symbol, not a word.
 const spellOutSlashes = (variant: string, spanish: boolean): string[] => {
   const source = variant.split(' ');
-  return expandSlashWords(variant, spanish).filter((text) =>
+  const options = expandSlashWords(variant, spanish);
+  const loneLetter = options.some((text) =>
     text
       .split(' ')
-      .every(
+      .some(
         (word, index) =>
-          !source[index]?.includes('/') ||
-          word.replace(/[^\p{L}]/gu, '').length !== 1
+          source[index]?.includes('/') &&
+          word.replace(/[^\p{L}]/gu, '').length === 1
       )
   );
+  return loneLetter ? [] : options;
 };
+
+/** Whole-phrase swaps with their optional "(words)" spelled out. */
+export const spacedSlashSwapVariants = (expected: string): string[] =>
+  spacedSlashSwaps(expected).flatMap(expandOptional).filter(Boolean);
 
 /** Every answer a typed response may match: the listed alternates, whole-phrase swaps, then "el/la doctor/a" spelled out. */
 export const flashcardAnswerVariants = (
@@ -232,7 +238,7 @@ export const flashcardAnswerVariants = (
   const spanish = primaryLanguage(language) === 'es';
   const listed = [
     ...parseFlashcardAnswerVariants(expected),
-    ...spacedSlashSwaps(expected).flatMap(expandOptional).filter(Boolean),
+    ...spacedSlashSwapVariants(expected),
   ];
   const variants = listed.flatMap((variant) =>
     variant.includes('/')

@@ -182,5 +182,29 @@
     "language": "es-US",
     "strict": true,
     "result": "exact"
+  },
+  {
+    "name": "does not accept the first half of a unit",
+    "response": "km",
+    "expected": "km/h",
+    "language": "en-US",
+    "strict": true,
+    "result": "wrong"
+  },
+  {
+    "name": "does not split s/he",
+    "response": "he",
+    "expected": "s/he",
+    "language": "en-US",
+    "strict": true,
+    "result": "wrong"
+  },
+  {
+    "name": "spells out optional words in a whole-phrase swap",
+    "response": "sacar buena nota",
+    "expected": "sacar (una) buena / mala nota",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
   }
 ]

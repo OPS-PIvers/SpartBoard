@@ -2,7 +2,7 @@
 import {
   expandSlashWords,
   parseFlashcardAnswerVariants,
-  spacedSlashSwaps,
+  spacedSlashSwapVariants,
 } from '../flashcardMatch';
 
 export const MAX_SPOKEN_WORDS = 4;
@@ -27,7 +27,7 @@ export function spokenVariants(
   let tooManyWords = false;
   const listed = [
     ...parseFlashcardAnswerVariants(term),
-    ...spacedSlashSwaps(term),
+    ...spacedSlashSwapVariants(term),
   ];
   for (const variant of listed) {
     // "Le traigo..." marks a blank the student skips; punctuation left on its own isn't said.
