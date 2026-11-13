@@ -661,8 +661,6 @@ const TeacherQuizWidget: React.FC<{
     revealAnswer,
     hideAnswer,
   } = useQuizSessionTeacher(config.activeAssignmentId);
-  const canSubmitForStudent = canAccessFeature('quiz-submit-for-student');
-  const canReopenSubmission = canAccessFeature('quiz-reopen-submission');
 
   // Count of students in the active session whose results view is locked
   // out (tab-warning threshold breached). Surfaced on the Monitor button
@@ -2791,13 +2789,9 @@ const TeacherQuizWidget: React.FC<{
           session={liveSession}
           onDeleteResponse={removeStudent}
           onUnlockResultsForStudent={unlockResultsForStudent}
-          onReopenStudent={
-            canReopenSubmission ? reopenStudentAttempt : unlockStudentAttempt
-          }
-          onUnlockTabLockedStudent={
-            canReopenSubmission ? unlockStudentAttempt : undefined
-          }
-          onSubmitStudent={canSubmitForStudent ? submitForStudent : undefined}
+          onReopenStudent={reopenStudentAttempt}
+          onUnlockTabLockedStudent={unlockStudentAttempt}
+          onSubmitStudent={submitForStudent}
           onPlcSheetUrlReplaced={async (newUrl) => {
             // After QuizResults regenerates a stale PLC sheet (404
             // recovery), replace the URL on this widget's config so future
@@ -3146,12 +3140,8 @@ const TeacherQuizWidget: React.FC<{
           onUpdateConfig={handleUpdateQuizConfig}
           onRemoveStudent={removeStudent}
           onUnlockStudent={unlockStudentAttempt}
-          onReopenStudent={
-            canReopenSubmission ? reopenStudentAttempt : undefined
-          }
-          onSubmitForStudent={
-            canSubmitForStudent ? submitForStudent : undefined
-          }
+          onReopenStudent={reopenStudentAttempt}
+          onSubmitForStudent={submitForStudent}
           onUnlockResultsForStudent={unlockResultsForStudent}
           onClearHand={clearHandForStudent}
           onRevealAnswer={revealAnswer}
@@ -3203,9 +3193,7 @@ const TeacherQuizWidget: React.FC<{
             quiz={studentView.quiz}
             behavior={studentView.behavior}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
-            orderingListOn={canAccessFeature('quiz-ordering-list')}
             stimulusTabsOn={canAccessFeature('quiz-stimulus-tabs')}
-            reviewStepOn={canAccessFeature('quiz-review-step')}
             onExit={() => setStudentView(null)}
           />
         </Suspense>

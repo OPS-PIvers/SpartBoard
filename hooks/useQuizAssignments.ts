@@ -1349,14 +1349,10 @@ export const useQuizAssignments = (
   const stimulusQuotesOn =
     authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
   const crossOutOn = authContext?.canAccessFeature?.('quiz-cross-out') === true;
-  const orderingListOn =
-    authContext?.canAccessFeature?.('quiz-ordering-list') === true;
   const inputSignalsOn =
     authContext?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
   const stimulusTabsOn =
     authContext?.canAccessFeature?.('quiz-stimulus-tabs') === true;
-  const reviewStepOn =
-    authContext?.canAccessFeature?.('quiz-review-step') === true;
   const pageProtectionsOn =
     authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
@@ -1764,9 +1760,9 @@ export const useQuizAssignments = (
           : {}),
         ...(crossOutOn ? { allowCrossOut: true } : {}),
         ...(inputSignalsOn ? { inputSignals: true } : {}),
-        ...(orderingListOn ? { orderingList: true } : {}),
+        orderingList: true,
         ...(stimulusTabsOn ? { stimulusTabs: true } : {}),
-        ...(reviewStepOn && mode === 'student' ? { reviewStep: true } : {}),
+        ...(mode === 'student' ? { reviewStep: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
@@ -1998,10 +1994,8 @@ export const useQuizAssignments = (
       timeLimitOn,
       stimulusQuotesOn,
       crossOutOn,
-      orderingListOn,
       inputSignalsOn,
       stimulusTabsOn,
-      reviewStepOn,
       pageProtectionsOn,
     ]
   );

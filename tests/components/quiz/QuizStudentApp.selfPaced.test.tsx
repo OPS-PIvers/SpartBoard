@@ -727,7 +727,7 @@ describe('QuizStudentApp — self-paced flow', () => {
   });
 });
 
-describe('QuizStudentApp — one-list Ordering (quiz-ordering-list)', () => {
+describe('QuizStudentApp — one-list Ordering', () => {
   const ordering: QuizPublicQuestion = {
     id: 'qo',
     type: 'Ordering',
@@ -1306,7 +1306,7 @@ describe('QuizStudentApp — cross out choices', () => {
   });
 });
 
-describe('QuizStudentApp — review before submit (quiz-review-step)', () => {
+describe('QuizStudentApp — review before submit', () => {
   beforeEach(() => {
     window.sessionStorage.clear();
   });

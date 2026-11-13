@@ -1040,29 +1040,12 @@ describe('the content the session carries', () => {
     expect(written[0].data).not.toHaveProperty('allowCrossOut');
   });
 
-  it('stamps the one-list Ordering layout when the host has the flag', async () => {
-    const hostHasFeature = vi.fn(() => Promise.resolve(true));
-    const { run, written } = launch({}, SUB, input(), {
-      ...deps,
-      hostHasFeature,
-    });
-
-    await run();
-
-    expect(hostHasFeature).toHaveBeenCalledWith(
-      expect.anything(),
-      HOST,
-      'quiz-ordering-list'
-    );
-    expect(written[0].data.orderingList).toBe(true);
-  });
-
-  it('leaves the Ordering layout unstamped without the host’s flag', async () => {
+  it('always stamps the one-list Ordering layout', async () => {
     const { run, written } = launch();
 
     await run();
 
-    expect(written[0].data).not.toHaveProperty('orderingList');
+    expect(written[0].data.orderingList).toBe(true);
   });
 
   it('stamps input signals only when the host has the flag', async () => {
@@ -2145,14 +2128,14 @@ describe('handleLaunchSubAssignment stimulus tabs and review step', () => {
       Promise.resolve(on.includes(String(args[2])))
     );
 
-  it('stamps both when the host has the flags on a self-paced run', async () => {
+  it('stamps stimulus tabs with the host’s flag and the review step on a self-paced run', async () => {
     const { run, written } = launch(
       {},
       SUB,
       input({ session: session({ sessionMode: 'student' }) }),
       {
         ...deps,
-        hostHasFeature: only(['quiz-stimulus-tabs', 'quiz-review-step']),
+        hostHasFeature: only(['quiz-stimulus-tabs']),
       }
     );
     await run();
@@ -2163,16 +2146,20 @@ describe('handleLaunchSubAssignment stimulus tabs and review step', () => {
   it('never stamps the review step on a teacher-paced run', async () => {
     const { run, written } = launch({}, SUB, input(), {
       ...deps,
-      hostHasFeature: only(['quiz-review-step']),
+      hostHasFeature: only([]),
     });
     await run();
     expect(written[0].data).not.toHaveProperty('reviewStep');
   });
 
-  it('stamps neither without the host’s flags', async () => {
-    const { run, written } = launch();
+  it('stamps the review step on a self-paced run without any host flag', async () => {
+    const { run, written } = launch(
+      {},
+      SUB,
+      input({ session: session({ sessionMode: 'student' }) })
+    );
     await run();
     expect(written[0].data).not.toHaveProperty('stimulusTabs');
-    expect(written[0].data).not.toHaveProperty('reviewStep');
+    expect(written[0].data.reviewStep).toBe(true);
   });
 });
