@@ -267,8 +267,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
             value={slot.dealing === 'balanced' ? 'balanced' : 'random'}
             onChange={(e) =>
               onUpdate(slot.id, {
-                dealing:
-                  e.target.value === 'balanced' ? 'balanced' : undefined,
+                dealing: e.target.value === 'balanced' ? 'balanced' : undefined,
               })
             }
             className={inputClass}

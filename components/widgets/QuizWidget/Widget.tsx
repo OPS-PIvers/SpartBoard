@@ -3290,8 +3290,8 @@ const TeacherQuizWidget: React.FC<{
                 const banks = data.bankSlots?.some(
                   (s) => s.dealing === 'balanced'
                 )
-                    ? await loadBankContentsForQuiz(data).catch(() => null)
-                    : null;
+                  ? await loadBankContentsForQuiz(data).catch(() => null)
+                  : null;
                 setPaperPrintMeta(meta);
                 setPaperPrintBanks(banks);
                 setPaperPrintQuiz(data);
