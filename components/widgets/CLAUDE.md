@@ -69,7 +69,7 @@ Widgets use a two-mode scaling system configured in `components/widgets/WidgetRe
    </div>
    ```
 
-5. **Settings panels (back-face) don't need scaling** - use normal Tailwind classes there.
+5. **Settings don't need scaling.** They render in the settings drawer from the widget's `settings.schema.ts`, outside its container, so a `custom` field component uses normal Tailwind classes.
 
 6. **Container query unit reference:**
    - `cqmin` = 1% of the smaller dimension (width or height) - **USE THIS for almost everything**
@@ -121,7 +121,7 @@ Widgets using sound share one lazily-created `AudioContext` singleton from `util
 
 - Update widget state via `updateWidget(id, { config: {...} })`; it debounces and syncs to Firestore. `saveCurrentDashboard()` is only for rare manual saves.
 - Widget z-index starts at 1; never set it manually — use `bringToFront(id)`. Dimensions are px, not percentages.
-- The `flipped` state is managed by `DraggableWindow`, not individual widgets.
+- The `flipped` flag (it now means the widget's settings drawer is open; widgets no longer flip) is managed by `DraggableWindow` and `SettingsDrawerHost`, not individual widgets.
 - A live-tour anchor (`tourAttr`) that only shows after setup declares it with `requires` in `config/tourAnchors.ts` (`widget-selected`, `widget-restored`, `in-view`, `dock-expanded`).
 - A tour anchor whose click assigns, shares, publishes, starts a live session or changes account settings is tagged `persists: true` (`destructive: true` if it deletes or clears); `tests/tourAnchors.test.ts` fails on an assign/share/publish/delete id with neither.
 
