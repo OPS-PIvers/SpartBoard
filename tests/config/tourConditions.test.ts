@@ -49,6 +49,10 @@ describe('tour conditions', () => {
       typeof checkTourCondition
     >[0];
     expect(checkTourCondition(retired, facts, () => false)).toBe(true);
+    const unknown = 'feature:not-yet-shipped' as Parameters<
+      typeof checkTourCondition
+    >[0];
+    expect(checkTourCondition(unknown, facts, () => true)).toBe(false);
   });
 
   it('holds when every condition holds or is still loading', () => {

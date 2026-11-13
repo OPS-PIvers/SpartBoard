@@ -4,31 +4,13 @@ import {
   TOUR_CONDITION_DONE_FACTS,
   TOUR_CONDITION_FACTS,
   TOUR_CONDITION_FEATURES,
+  TOUR_CONDITION_RETIRED_FEATURES,
 } from './tourConditionList';
 
 const FACT_IDS = new Set(TOUR_CONDITION_FACTS.map((f) => f.id));
-// Retired flags are on for everyone; saved tours may still name them, and the app treats them as holding.
-const RETIRED_FEATURE_IDS = [
-  'lunch-count-redesign',
-  'lunch-count-resend',
-  'quiz-import-versions',
-  'quiz-ordering-images',
-  'quiz-ordering-list',
-  'quiz-ordering-results',
-  'quiz-prompt-formatting',
-  'quiz-reopen-submission',
-  'quiz-results-tools',
-  'quiz-review-step',
-  'quiz-submit-for-student',
-  'spell-check-setting',
-  'tour-pacing',
-  'tour-steps-view',
-  'video-activity-editor-arrows',
-  'video-activity-stops',
-];
 const FEATURE_IDS = new Set([
   ...TOUR_CONDITION_FEATURES,
-  ...RETIRED_FEATURE_IDS,
+  ...TOUR_CONDITION_RETIRED_FEATURES,
 ]);
 const DONE_IDS = new Set(TOUR_CONDITION_DONE_FACTS);
 
