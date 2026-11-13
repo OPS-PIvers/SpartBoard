@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   edpuzzleLessonId,
   firstImage,
@@ -264,5 +264,25 @@ describe('readEdpuzzleLesson', () => {
       youtubeId: 'WjqqUjDkh1c',
       stops: [],
     });
+  });
+});
+
+describe('htmlText without a DOM parser', () => {
+  it('survives out-of-range numeric entities and prototype names', () => {
+    vi.stubGlobal(
+      'DOMParser',
+      class {
+        parseFromString(): never {
+          throw new TypeError('Trusted Types');
+        }
+      }
+    );
+    try {
+      expect(htmlText('<p>a &#1114112; b &#x110000; &constructor; c</p>')).toBe(
+        'a b &constructor; c'
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

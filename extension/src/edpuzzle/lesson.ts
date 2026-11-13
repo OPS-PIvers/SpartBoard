@@ -43,6 +43,10 @@ const ENTITIES: Record<string, string> = {
   nbsp: ' ',
 };
 
+// An out-of-range numeric entity is dropped instead of throwing.
+const codePointText = (code: number): string =>
+  code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+
 /** Tags dropped and entities decoded without the page's parser, for pages that enforce Trusted Types. */
 function stripHtml(html: string): string {
   let text = html
@@ -54,11 +58,13 @@ function stripHtml(html: string): string {
     text = text.replace(/<[^>]*>/g, '');
   }
   return text
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(+n))
+    .replace(/&#(\d+);/g, (_, n: string) => codePointText(+n))
     .replace(/&#x([0-9a-f]+);/gi, (_, n: string) =>
-      String.fromCodePoint(parseInt(n, 16))
+      codePointText(parseInt(n, 16))
     )
-    .replace(/&([a-z]+);/gi, (m, name: string) => ENTITIES[name] ?? m);
+    .replace(/&([a-z]+);/gi, (m, name: string) =>
+      Object.hasOwn(ENTITIES, name) ? ENTITIES[name] : m
+    );
 }
 
 /** Edpuzzle's rich text as plain text: line breaks kept, nothing run. */
