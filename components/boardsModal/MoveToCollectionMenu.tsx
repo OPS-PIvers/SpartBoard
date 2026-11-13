@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Folder, X } from 'lucide-react';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import type { Collection } from '@/types';
+import { flattenCollections } from '@/components/layout/boardNavMenu';
 
 interface MoveToCollectionMenuProps {
   collections: Collection[];
@@ -52,28 +53,8 @@ export const MoveToCollectionMenu: React.FC<MoveToCollectionMenuProps> = ({
     return () => document.removeEventListener('keydown', handler, true);
   }, [onClose]);
 
-  // Render flat list with indentation by depth.
-  const flat = useMemo(() => {
-    const childrenByParent = new Map<string | null, Collection[]>();
-    for (const c of collections) {
-      const bucket = childrenByParent.get(c.parentCollectionId) ?? [];
-      bucket.push(c);
-      childrenByParent.set(c.parentCollectionId, bucket);
-    }
-    for (const bucket of childrenByParent.values()) {
-      bucket.sort((a, b) => a.order - b.order);
-    }
-    const out: { c: Collection; depth: number }[] = [];
-    const walk = (parent: string | null, depth: number) => {
-      const kids = childrenByParent.get(parent) ?? [];
-      for (const k of kids) {
-        out.push({ c: k, depth });
-        walk(k.id, depth + 1);
-      }
-    };
-    walk(null, 0);
-    return out;
-  }, [collections]);
+  // Tree-ordered list (orphans surfaced at root) with indentation by depth.
+  const flat = useMemo(() => flattenCollections(collections), [collections]);
 
   return (
     <div
