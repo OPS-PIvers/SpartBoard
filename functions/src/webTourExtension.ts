@@ -648,7 +648,7 @@ export const webToursListV1 = extensionEndpoint(
   '256MiB'
 );
 
-export const webTourLoadV1 = extensionEndpoint(async (body, caller, db) => {
+export const webTourLoadV1 = extensionEndpoint(async (body, _caller, db) => {
   const setId = parseSetId(body);
   const snap = await db.collection(GL_TOURS_COLLECTION).doc(setId).get();
   const loaded = await loadTour(
@@ -661,11 +661,9 @@ export const webTourLoadV1 = extensionEndpoint(async (body, caller, db) => {
   if ((body as { link?: unknown }).link !== true) return loaded;
   const { defaultPublicLinkDeps, workingLinkTokenFor } =
     await import('./tourPublicLink');
-  const link = await workingLinkTokenFor(
-    setId,
-    caller,
-    defaultPublicLinkDeps(db)
-  ).catch(() => null);
+  const link = await workingLinkTokenFor(setId, defaultPublicLinkDeps(db)).catch(
+    () => null
+  );
   return link ? { ...loaded, link } : loaded;
 }, '512MiB');
 

@@ -272,25 +272,8 @@ describe('HelpGuidesTab', () => {
       setId: 'tour-set',
     });
 
-  it('starts a live tour straight from its row on a board', async () => {
+  it('opens a live tour as its steps instead of starting it', async () => {
     const user = userEvent.setup();
-    glMocks.tourSetIds = new Set(['tour-set']);
-    glMocks.published = new Set(['tour-set']);
-    helpState.items.push(tourItem());
-    const started = vi.fn();
-    window.addEventListener(TOUR_START_EVENT, started);
-    render(<HelpGuidesTab query="" />);
-    await user.click(screen.getByText('Boards walkthrough'));
-    window.removeEventListener(TOUR_START_EVENT, started);
-    expect(
-      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
-    ).toEqual({ setId: 'tour-set' });
-    expect(glMocks.loadBuildingSet).not.toHaveBeenCalled();
-  });
-
-  it('opens the viewer for a tour row where tours cannot run live', async () => {
-    const user = userEvent.setup();
-    glMocks.canRunLive = false;
     glMocks.tourSetIds = new Set(['tour-set']);
     glMocks.published = new Set(['tour-set']);
     glMocks.loadBuildingSet.mockResolvedValue(null);
@@ -304,24 +287,7 @@ describe('HelpGuidesTab', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
-  it('opens a live tour as its steps instead of starting it when the steps view is on', async () => {
-    const user = userEvent.setup();
-    glMocks.features = new Set(['tour-steps-view']);
-    glMocks.tourSetIds = new Set(['tour-set']);
-    glMocks.published = new Set(['tour-set']);
-    glMocks.loadBuildingSet.mockResolvedValue(null);
-    helpState.items.push(tourItem());
-    const started = vi.fn();
-    window.addEventListener(TOUR_START_EVENT, started);
-    render(<HelpGuidesTab query="" />);
-    await user.click(screen.getByText('Boards walkthrough'));
-    window.removeEventListener(TOUR_START_EVENT, started);
-    expect(started).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
-  });
-
-  it('opens a shared link to a live tour as its steps when the steps view is on', () => {
-    glMocks.features = new Set(['tour-steps-view']);
+  it('opens a shared link to a live tour as its steps', () => {
     glMocks.published = new Set(['tour-set']);
     glMocks.loadBuildingSet.mockResolvedValue(null);
     helpState.items.push(tourItem());
@@ -331,34 +297,6 @@ describe('HelpGuidesTab', () => {
     window.removeEventListener(TOUR_START_EVENT, started);
     expect(started).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
-  });
-
-  it('starts a live tour from a shared link on a board', () => {
-    glMocks.published = new Set(['tour-set']);
-    helpState.items.push(tourItem());
-    const started = vi.fn();
-    window.addEventListener(TOUR_START_EVENT, started);
-    render(<HelpGuidesTab query="" itemId="g1" />);
-    window.removeEventListener(TOUR_START_EVENT, started);
-    expect(
-      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
-    ).toEqual({ setId: 'tour-set' });
-    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
-  });
-
-  it('holds a shared tour link until the board is open', () => {
-    glMocks.canRunLive = false;
-    glMocks.published = new Set(['tour-set']);
-    helpState.items.push(tourItem());
-    const started = vi.fn();
-    window.addEventListener(TOUR_START_EVENT, started);
-    const { rerender } = render(<HelpGuidesTab query="" itemId="g1" />);
-    expect(started).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
-    glMocks.canRunLive = true;
-    rerender(<HelpGuidesTab query="" itemId="g1" />);
-    window.removeEventListener(TOUR_START_EVENT, started);
-    expect(started).toHaveBeenCalledTimes(1);
   });
 
   it('opens the viewer from a shared link to an unpublished tour', () => {

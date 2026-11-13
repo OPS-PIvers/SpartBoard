@@ -25,7 +25,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-image-markup',
   'claude-connector',
   'web-tours',
-  'tour-steps-view',
   'claude-connector-guided-learning',
   'claude-connector-apps',
   'video-activity-live',

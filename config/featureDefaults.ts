@@ -865,18 +865,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // The read-only Steps view for Live tours, opened from the Help Center (TOURS_10X.md S1-S2). Admin-only until Paul has read tours with it.
-  'tour-steps-view': {
-    label: 'Tour steps view',
-    icon: ListOrdered,
-    description:
-      'Live tours open as a readable list of steps in the Help Center, with Start Live Tour at the top.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',

@@ -6,20 +6,14 @@ import { TOOLS } from '@/config/tools';
 import type { WidgetType } from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import { useAuth } from '@/context/useAuth';
-import {
-  incrementHelpOpenCount,
-  useHelpResources,
-} from '@/hooks/useHelpResources';
+import { useHelpResources } from '@/hooks/useHelpResources';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useLiveTourSetIds } from '@/hooks/useGuidedLearning';
 import { HelpResourceViewer } from './HelpResourceViewer';
 import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import { requestStartTour } from '@/components/tours/tourState';
 import { useRunnableTourIds } from '@/components/tours/useTourOffers';
-import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 import { isTourRunnable } from '@/components/tours/publishedTours';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { useWebTourSites } from '@/components/tours/web/useWebTourSites';
 import { Sparty } from '@/components/sparty/Sparty';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
@@ -43,10 +37,8 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
 }) => {
   const { t } = useTranslation();
   const showSparty = useShowSparty();
-  const { orgId, isAdmin, canAccessWidget, canAccessFeature } = useAuth();
+  const { orgId, isAdmin, canAccessWidget } = useAuth();
   const tourSetIds = useLiveTourSetIds();
-  const canRunLive = useCanRunLiveTour();
-  const isMobile = useIsMobile();
   const { organization } = useOrganization(orgId);
   const {
     items: allItems,
@@ -72,8 +64,6 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   const items = allItems.some((item) => webSiteOf(item) !== undefined)
     ? allItems.filter((item) => webSiteOf(item) === undefined)
     : allItems;
-  // A Live tour opens its Steps view, with Start Live Tour at the top, instead of starting at once.
-  const stepsViewOn = canAccessFeature('tour-steps-view');
   // A shared link names one resource; open it once the list has loaded.
   const [pendingItemId, setPendingItemId] = useState(itemId);
   const [trackedItemId, setTrackedItemId] = useState(itemId);
@@ -115,32 +105,13 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     setWidgetFilter(widgetType);
     setOpenItem(null);
   }
-  // A linked live tour waits for its published state and the board, then runs instead of opening.
-  const linkedRunnable = linkedSetId
-    ? isTourRunnable(linkedSetId, canAccessWidget)
-    : false;
-  const linkedTourId =
-    linkedRunnable === true && canRunLive && !stepsViewOn ? linkedSetId : null;
+  // A linked live tour waits for its published state, then opens its Steps view.
   const linkedWaiting =
-    linkedRunnable === undefined ||
-    (linkedRunnable && !canRunLive && !isMobile && !stepsViewOn);
-  const [linkStart, setLinkStart] = useState<{
-    itemId: string;
-    setId: string;
-  } | null>(null);
-  if (pendingItemId && linkedTourId) {
-    setPendingItemId(undefined);
-    setLinkStart({ itemId: pendingItemId, setId: linkedTourId });
-  } else if (pendingItemId && !loading && !linkedWaiting) {
+    !!linkedSetId && isTourRunnable(linkedSetId, canAccessWidget) === undefined;
+  if (pendingItemId && !loading && !linkedWaiting) {
     setPendingItemId(undefined);
     if (linked) setOpenItem(linked);
   }
-  // Dispatching starts the runner and closes Help, so it waits for commit.
-  useEffect(() => {
-    if (!linkStart) return;
-    void incrementHelpOpenCount(linkStart.itemId);
-    requestStartTour({ setId: linkStart.setId });
-  }, [linkStart]);
 
   const categoryName = useMemo(() => {
     const byId = new Map(categories.map((c) => [c.id, c.name]));
@@ -208,11 +179,6 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   });
 
   const openCard = (item: HelpResourceItem) => {
-    if (!stepsViewOn && canRunLive && isTour(item) && item.setId) {
-      void incrementHelpOpenCount(item.id);
-      requestStartTour({ setId: item.setId });
-      return;
-    }
     returnFocusId.current = item.id;
     setOpenItem(item);
   };
