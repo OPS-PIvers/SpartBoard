@@ -65,6 +65,8 @@ import {
   makeReviewGameResponses,
   makeReviewGameSession,
   makeQuizData,
+  makeQuizFrqData,
+  makeQuizFrqClassResponses,
   makeOrderingQuizData,
   makePictureOnlyQuizData,
   makePictureOnlyResponses,
@@ -344,6 +346,21 @@ const SessionView: React.FC<{
         isGamified
         classAverage={82}
         showNames={showNames}
+      />
+    );
+  }
+
+  if (view === 'quiz-results' && state === 'multi-class') {
+    return (
+      <QuizResults
+        quiz={makeQuizFrqData()}
+        responses={makeQuizFrqClassResponses()}
+        config={makeQuizConfig()}
+        session={makeQuizSession('ended')}
+        onBack={() => undefined}
+        onSubmitStudent={noop}
+        studentResultsActions={HARNESS_RESULTS_ACTIONS}
+        onPublishScores={() => undefined}
       />
     );
   }

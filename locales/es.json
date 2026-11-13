@@ -2831,7 +2831,9 @@
         "goBack": "Volver",
         "closeAnyway": "Cerrar de todos modos",
         "rail": "Marcas sin guardar"
-      }
+      },
+      "classFilter": "Filtrar por clase",
+      "allClasses": "Todas las clases"
     },
     "results": {
       "gradeButton": "Calificar respuestas libres"
