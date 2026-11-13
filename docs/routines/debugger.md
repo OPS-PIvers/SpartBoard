@@ -747,6 +747,12 @@
 | 2026-11-12 | State & Data | Clean: date/timezone helpers (DST experiment), merge/persistence utils, csv/parsers, autosave/debounce/clock hooks, `dashboardCanvasStore`; no reproducible bug. | — |
 | 2026-11-12 | Admin & Config | `SchoologyCategoriesPanel` showed editable defaults after a failed `getDoc`, so Save could overwrite the real categories. Now shows an error with Try again. (contained). | [#5647](https://github.com/OPS-PIvers/SpartBoard/pull/5647) |
 | 2026-11-12 | Build & Tooling | Clean (read-only pass): scheduled sweeps, spotifyOAuth, quiz/sub/PLC callables, schoology/lti, scripts, extension focus; no reproducible bug. | — |
+| 2026-11-13 | Baseline | `pnpm run validate` green on `dev-paul` at `10e93a4a` (25526 root tests, 5462 functions). No nightly bug-fix PRs open at dispatch. | — |
+| 2026-11-13 | Widgets | Focus `SavedLists.save` clipped the list name with `slice(0, 80)`, splitting an emoji into a lone surrogate saved as U+FFFD. Now uses `clipText`. (contained). | [#5740](https://github.com/OPS-PIvers/SpartBoard/pull/5740) |
+| 2026-11-13 | Dashboard & Layout | `MoveToCollectionMenu` walked only from `parentCollectionId === null`, hiding Collections whose parent is missing (and their subtrees). Now uses shared `flattenCollections`. (contained). | [#5741](https://github.com/OPS-PIvers/SpartBoard/pull/5741) |
+| 2026-11-13 | State & Data | Clean: ~100 pure utils, gradebook, boardLayout, timers/listeners/queue hooks, `in` chunking, `sanitizeBoardSnapshot` coverage; no reproducible bug. | — |
+| 2026-11-13 | Admin & Config | `CalendarConfigurationModal` showed editable defaults after a failed `getDoc`, so Save overwrote the real calendar config. Now shows an error with Try again. (contained). | [#5742](https://github.com/OPS-PIvers/SpartBoard/pull/5742) |
+| 2026-11-13 | Build & Tooling | Extension Edpuzzle `stripHtml` threw `RangeError` on out-of-range numeric entities (and read `Object.prototype` names) inside the `catch`, aborting the lesson read. (contained). | [#5743](https://github.com/OPS-PIvers/SpartBoard/pull/5743) |
 
 ## Backlog
 
@@ -1214,6 +1220,11 @@
 | Admin & Config | `SubjectsPanel` rename Escape may still save via blur; Add with no ASCII alphanumerics gives an empty id silently; `SchoologyCategoriesPanel` casts stored rows without validating title/weight types (2026-11-12, low). |
 | State & Data | `dueReminders` misses a pre-show that crosses midnight; `allDayDates` clamps on UTC date; `readTurnInState` ignores `completedAttempts` for guided-learning/flashcards (product call); `useSchoologyToolColumnPush.startingDueDate` misreads a UTC-midnight due time (2026-11-12, low). |
 | Build & Tooling | `listColumnGrades` maps a non-numeric grade string to 0; `paperChoiceOrder` comparator ignores `b`; `viewAsRevert.normalizeValue` would recurse a DocumentReference; `runFinalizeStaleRecordings` has no cursor past `MAX_SWEEP_PER_RUN`; `mp3DurationMs` counts the Xing frame (2026-11-12, low). |
+| Admin & Config | `SpecialistScheduleConfigurationModal.fetchConfig` and `PdfLibraryModal.fetchConfig` (~L128) swallow a failed read then Save overwrites with defaults (same as #5647/#5742); PdfLibraryModal's save-time `getDoc` (~L265) also defaults to public/enabled on a failed read. |
+| Widgets | `GuidedLearning/Widget.tsx` ~L1031 `performAssign`: unguarded `clipboard.writeText` after the session/assignment exist reports "Failed to create session" and a retry duplicates; use `copyText`. Also `VideoActivityWidget/Widget.tsx` ~L345 title `.slice(0, 200)` splits surrogates; VA `parseCsv` accepts zero/negative time limit. |
+| Dashboard & Layout | `flattenCollections`/`buildChildrenByParent`/`FolderPickerPopover.flattenFolders` hide parent cycles; `useSortableReorder` revert drops items from snapshots that arrived mid-commit; `useBoardMarqueeSelect` empty Ctrl-drag can't clear selection. |
+| State & Data | `titleCaseHandle` ASCII-only `\b\w` ("josé.garcía" → "GarcíA"); `parseMeetingCadence` accepts `weekday: NaN`; `useSeatedPeriodContent` doesn't reset on `sessionId` change and its `setTimeout(delay + 1000)` overflows past ~24.8 days. |
+| Build & Tooling | `mcp/cimd.ts` reads the whole body before the 16KB cap; `mcp/oauthEndpoints.ts` `handleToken` only compares `redirect_uri` when the client sends it (check whether intended). |
 
 ## Notes & Gotchas
 
@@ -1675,3 +1686,6 @@
 - Run count: **120** | Last run: **2026-11-11**
 - 2026-11-12: three fixes (#5645-#5647), two areas clean (State & Data, Build). Subagents ran scoped checks only (no validate); the orchestrator ran one merged-tree `validate` + `build` after rebasing, all green; baseline plus gate about 1.5 h. `pnpm install --frozen-lockfile` in the root and each worktree before dispatch worked without issues.
 - Run count: **121** | Last run: **2026-11-12**
+- 2026-11-13: four fixes (#5740-#5743), State & Data clean. Subagents ran scoped checks only; I confirmed each new test fails on the `dev-paul` source and passes on the branch, then ran one merged-tree `validate` + `build` (green). `dev-paul` moved during the run (no overlap); branches were rebased in their worktrees. Baseline about 1.3 h, gate about 1 h.
+
+- Run count: **122** | Last run: **2026-11-13**
