@@ -12995,6 +12995,20 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'dock.video-paste-close': {
+    label: 'Close button in the paste YouTube link dialog',
+    panel: true,
+  },
+  'dock.video-paste-embed': {
+    label: 'Embed choice in the paste YouTube link dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.video-paste-activity': {
+    label: 'Video Activity choice in the paste YouTube link dialog',
+    panel: true,
+    persists: true,
+  },
   'dock.url-picker-back': {
     label: 'Back button in the paste link dialog',
     panel: true,

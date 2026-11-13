@@ -58490,6 +58490,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "dock.video-paste-close",
+    "label": "Close button in the paste YouTube link dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.video-paste",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
+    "id": "dock.video-paste-embed",
+    "label": "Embed choice in the paste YouTube link dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.video-paste",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
+    "id": "dock.video-paste-activity",
+    "label": "Video Activity choice in the paste YouTube link dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.video-paste",
+        "kind": "modal"
+      }
+    ]
+  },
+  {
     "id": "dock.url-picker-back",
     "label": "Back button in the paste link dialog",
     "scope": "board",
