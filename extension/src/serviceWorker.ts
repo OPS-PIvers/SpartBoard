@@ -216,19 +216,24 @@ const send = createSendWorker({
     const tabs = await chrome.tabs.query({
       url: origins.map((o) => `${o}/*`),
     });
-    return tabs
-      .filter((t) => t.id !== undefined && t.url)
-      .sort(
-        (a, b) =>
-          (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
-          Number(b.active) - Number(a.active)
-      )
-      .map((t) => ({
-        id: t.id as number,
-        windowId: t.windowId,
-        origin: new URL(t.url as string).origin,
-        ready: t.status === 'complete' && !t.discarded,
-      }));
+    return (
+      tabs
+        // Board tabs only, so the inbox never replaces /web-tours or another page.
+        .filter(
+          (t) => t.id !== undefined && t.url && new URL(t.url).pathname === '/'
+        )
+        .sort(
+          (a, b) =>
+            (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
+            Number(b.active) - Number(a.active)
+        )
+        .map((t) => ({
+          id: t.id as number,
+          windowId: t.windowId,
+          origin: new URL(t.url as string).origin,
+          ready: t.status === 'complete' && !t.discarded,
+        }))
+    );
   },
   focus: async ({ id, windowId }) => {
     await chrome.tabs.update(id, { active: true });

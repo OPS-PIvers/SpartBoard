@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-206**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-210**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -53,7 +53,6 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 - **AB-126 Flashcards Check: hand off after a Schoology pop out** (S, rules change). #5317 makes a framed Quiz or Video Activity copy stop its away timer and show "This activity is open in another tab" once the new tab closes its open `tabExits` entry (`hooks/useTabAwayTracker.ts`, `utils/attemptHandOff.ts`). Flashcards Check passes `serverExits: undefined` (`components/flashcards/FlashcardAssignmentPage.tsx`), so after Schoology's pop out the framed copy can still time out and force-submit. Write `tabExits` on the flashcard progress doc (add it to the allowed keys in `firestore.rules`, with rules tests for reads and writes) and pass it to the tracker. Done when a framed Check hands off like a quiz.
 
-- **AB-165 Drop uid-keyed poll votes after the next main release** (S, security). Batch 4B keys poll votes by a per-session voter id from `resolvePollCodeV1`, but `firestore.rules` `poll_sessions/{sessionId}/votes` still accepts a `{questionIndex}_{uid}` id (the second entry of `pollVoteIds()`) so tabs open on the previous app keep voting. Once the release carrying batch 4B has been live on prod a few days, return only `q + dbGet('poll_joins', pollJid()).data.voterId` there, drop the uid fallback in `derivePollPhoneView` (`components/poll/pollPhoneState.ts`) and the `hasUidVote` overwrite in `components/poll/PollVoteApp.tsx` `saveAnswer`, and change the "still takes a uid-keyed vote" case in `tests/rules/securityBatch4B.test.ts` to a refusal. Old uid-keyed vote docs stay and still count. Done when rules tests refuse a uid-keyed vote and pass `check:rules-size`.
 - **AB-118 Roster-owner ClassLink check: dedupe and error caching** (S, LOW). Release #5189 review minors. In `functions/src/studentIdentity.ts` `candidateTaughtClasses`, cache the in-flight promise so a class logging in at once makes one ClassLink call per candidate owner, and cache a thrown error for about 30 seconds instead of the 5-minute TTL. In the gradebook, give `getGradebookRosterV1` and the project grade triggers a `timeoutSeconds` at or above `CLASSLINK_TOTAL_BUDGET_MS`, or a smaller budget there. Delete Mini App `receipts` docs when an assignment is wiped. Done when tests cover the dedupe, the short error cache and the receipt cleanup.
 - **AB-117 PLC bank import trusts any doc at the group id** (S, LOW). `handleImport` in `components/plc/bodies/PlcQuestionBanksBody.tsx` copies whatever `synced_question_banks/{groupId}` holds into the importer's own library. The header's `sharedBy` is not a safe owner hint (any PLC editor can write a header), so tie the header create rule to the synced doc's `ownerUid` with a get(), then pass it as the expected owner. Done when a header pointing at someone else's group is refused and import checks the owner, with rules tests for reads and writes.
 - **AB-107 Connect lets student member docs connect Claude** (S, MEDIUM). `isActiveOrgMemberOrAdmin` (`functions/src/mcp/eligibility.ts`) checks only that a member doc exists and isn't inactive, never `roleId`, so a Google-signed-in student with a `roleId: 'student'` member doc passes `checkEligibility` for the Connect flow. Managed sign-in already refuses them (#5116, `isStaffMemberData` in `managedAuth.ts`). Done when `checkEligibility` requires `isStaffMemberData` (admins in `/admins` still pass), with a test for a student member doc. Keep the staff member doc check in `managedAuth.ts`: it is what refuses an `/admins` email with no staff member doc there.
@@ -140,6 +139,10 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Tours and extension
 
+- **AB-206 Send to SpartBoard opens a second tab from a PLC or gradebook page** (S). Release #5707 review. `boardTabs` in `extension/src/serviceWorker.ts` now keeps only tabs whose path is exactly `/`, so a teacher whose SpartBoard tab is on `/plc/...` or the gradebook overlay (both still mount `DashboardView`) gets a new tab instead of reusing theirs. Exclude only routes that are not board pages (`/web-tours`, standalone and student routes). Raise the extension version in the same PR. Done when a test covers a PLC-path tab being reused and a `/web-tours` tab being skipped.
+- **AB-207 Convert to live tour hides a set when filing fails** (S). Release #5707 review. `components/widgets/GuidedLearning/Widget.tsx` saves the set with `helpCenter: true` before `createHiddenHelpItem`; when filing rejects (no org, rules or network) it only logs, so the set leaves the library with no Help Center item and no message. File the item first, as `moveSetToHelpCenter` does, or show the recorder's `glRecorder.helpCenterNoOrg` / `glRecorder.helpCenterFailed` toasts. Done when a test covers a failed filing.
+- **AB-208 Web tour step-count and message rules disagree** (S, minor). Release #5707 review. (1) `extension/src/tourSteps.ts` slices to `MAX_STEPS` counting Message steps while the public link does not count them toward `MAX_PUBLIC_STEPS`; pick one rule. (2) `publishBlockers` in `components/tours/web/webStepReview.ts` accepts a title-only Message step while the editor and MCP tools require text; align them. (3) `useWebTourCheck.ts` runs a check without the cross-site protocol gate. Done when each has a test.
+
 - **AB-187 Tour routes for assignment-row side menus** (S). #5576 moved Share, PLC results, Publish/Unpublish scores and paper import/print rows on In Progress and Completed into side menus (Paper, Share, Published scores). Give each group row a registered `tourAttr` anchor, point the inner routes in `config/tourSurfaces/quiz.ts` (and VA, Mini App, Flashcards where they share the menu) at it, regenerate `functions/src/mcp/tourAnchorList.ts`, and rebind the prod tour steps that click these rows by position (prod edit needs Paul's OK). Done when `tests/tourAnchorRoutes.test.ts` shows each moved anchor's path through its side-menu row.
 - **AB-183 Links in web tour tips look like plain text in the extension** (S, release #5550 review). `extension/src/overlay/OverlayRoot.tsx` now renders tips with `renderStepText` (`components/widgets/GuidedLearning/utils/richText.tsx`), but `extension/scripts/tailwind.overlay.config.ts` content globs don't include `richText.tsx`, so its `underline underline-offset-2` classes are never generated and a `[label](https://...)` link shows with no underline or color. Add the file to the overlay content list, check a link in a tip, and bump the extension version.
 - **AB-184 Print the tour Steps article with the new spotlight** (S, release #5550 review). `components/tours/steps/StepPicture.tsx` now draws `RingAndTip` sized by `useMeasured`, and `TourSpotlight` paints a 55% dim. `PrintCopy` in `StepsView.tsx` prints 150ms after portaling the article, so a picture may print with no ring (unmeasured) or with the dim over it. Print a Live tour and a web tour with targets on spartboard-dev; if either is wrong, hide the dim and draw the ring from percentages in print.
@@ -157,6 +160,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Widgets and UI
 
+- **AB-209 YouTube paste picker: read-only board and start time** (S, minor; release 2026.11.13b review, before `youtube-paste-picker` opens). In `components/layout/Dock.tsx` the Video Activity choice (1) calls `offerImportHandoff` even when `addWidget` no-ops on a read-only board or with no active board, leaving an orphaned handoff; skip the offer, as `ImportScreenHost` does with `refuseReadOnly()`. (2) It rebuilds the URL as `watch?v=<id>`, dropping a pasted `&t=` start time; pass the pasted URL through. Done when a test covers each.
 - **AB-188 Flashcards check sync: retry and don't block the save on rescore** (S, release 2026.11.10 (5) review). `hooks/useFlashcardSets.ts` `rewriteOpenCheckSessions` awaits every `rescoreFlashcardCheckV1` call inside the final save, so editor Close waits on cold starts, and a failed call is only logged: the cards are already committed, so the next save sees no change and never rescores. Fire the rescore after the save resolves, and mark the session (for example `rescorePending`) so a later save or the next open retries it. Skip the call for Flashcards and Speak Checks.
 - **AB-189 Term-only cards through the connector and results views** (S, before `flashcards-term-only` opens; release 2026.11.10 (5) review). `functions/src/mcp/tools.ts` `update_flashcard_set` requires `definition.min(1)`, so sending back a sight-word set from `get_flashcard_set` fails validation; allow an empty definition for sets the owner's flag allows. Blank definitions also leave a dangling separator or blank line in `FlashcardStudyResults.tsx`, `FlashcardCardResults.tsx`, `FlashcardsCardsStep.tsx`, `PlcFlashcardsBody.tsx` and `flashcardPrompt` in `utils/flashcardResults.ts`.
 - **AB-190 Stepper written-answer selects need their own tour routes** (S, release 2026.11.10 (5) review). `components/common/library/assignStepper/WrittenAnswersStep.tsx` renders the `quiz-print.written-box-*` selects with `assign-N` keys, but those id literals live only in `PaperWrittenBoxControls.tsx`, which sits on the `quiz.paper-print` surface, so a tour step on a stepper select opens the Assign on paper dialog instead. Give the stepper its own registered ids (or pass anchor attrs from each caller), keep the dialog's ids, and regenerate the surface map.
@@ -214,6 +218,16 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-csyhd9
+claude/project-thread-lvqzbz
+claude/project-thread-lvqzbz-docs
+claude/project-thread-qom41c
+docs/ab112-qom41c
+claude/project-thread-87riou
+claude/project-thread-iv86b0
+claude/ab112-wildcard
+claude/project-thread-2n195f
+claude/project-thread-2n195f-branches
 claude/project-thread-7mpti9
 claude/project-thread-7mpti9-ab112
 claude/project-thread-pxr7js
@@ -254,6 +268,8 @@ claude/project-thread-l8b36b
 claude/project-thread-shwk3a
 claude/project-thread-anub7c
 claude/project-thread-ae8ce7
+claude/project-thread-r8cbhe
+claude/ab112-district-folders
 claude/project-thread-9krwwi
 claude/project-thread-848bcg
 docs/va-editor-arrows-followups

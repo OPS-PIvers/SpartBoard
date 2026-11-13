@@ -188,6 +188,15 @@ const webSteps = (snap: StoredSnapshot): StoredStep[] =>
 const hostOfPattern = (pattern: string): string | null =>
   /^https?:\/\/([^/?#]+)/i.exec(pattern.trim())?.[1]?.toLowerCase() ?? null;
 
+/** A pattern's host without userinfo or a default port, as hostOf in tourPublicLinkModel.ts compares sites. */
+const siteOfPattern = (pattern: string): string | null => {
+  const m = /^(https?):\/\/([^/?#]+)/i.exec(pattern.trim());
+  if (!m) return null;
+  const host = m[2].slice(m[2].lastIndexOf('@') + 1).toLowerCase();
+  const defaultPort = m[1].toLowerCase() === 'https' ? ':443' : ':80';
+  return host.endsWith(defaultPort) ? host.slice(0, -defaultPort.length) : host;
+};
+
 /** The host a tour starts on, from its first targeted step's address (X8); null when it can't be opened. */
 export function startHostOf(snap: StoredSnapshot): string | null {
   const pattern = str(webSteps(snap).find(isTargeted)?.web?.urlPattern);
@@ -201,7 +210,7 @@ export function needsCrossSite(snap: StoredSnapshot): boolean {
   if (steps.some(isMessage)) return true;
   const hosts = steps
     .filter(isTargeted)
-    .map((s) => hostOfPattern(str(s.web?.urlPattern)));
+    .map((s) => siteOfPattern(str(s.web?.urlPattern)));
   return hosts.some(
     (h, i) => i > 0 && !!h && !!hosts[i - 1] && h !== hosts[i - 1]
   );

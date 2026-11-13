@@ -7,6 +7,7 @@ import {
 import {
   isDestructiveAnchor,
   isPersistsAnchor,
+  isRowWildcardRef,
   isSandboxedAnchor,
   isTourAnchorId,
   parseTourAnchorRef,
@@ -303,6 +304,9 @@ export const autopilotGate = (
   inSandbox = false
 ): 'perform' | 'confirm' | 'teacher' => {
   const fallbackOnly = !isTourAnchorId(parseTourAnchorRef(binding.anchor).id);
+  // Which row a lasting click lands on is the teacher's choice under every policy.
+  if (isRowWildcardRef(binding.anchor) && isPersistsAnchor(binding.anchor))
+    return 'teacher';
   const risky = isRisky(binding.anchor, inSandbox);
   if (policy === 'tour-safe')
     return fallbackOnly || risky || binding.teacherMustClick === true

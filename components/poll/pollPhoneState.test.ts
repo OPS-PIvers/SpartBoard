@@ -214,45 +214,41 @@ describe('pollPhoneReducer: disallowed events leave state unchanged', () => {
 
 describe('derivePollPhoneView', () => {
   it('maps loading and unavailable through', () => {
-    expect(derivePollPhoneView(initialPollPhoneState, 'u')).toEqual({
+    expect(derivePollPhoneView(initialPollPhoneState)).toEqual({
       k: 'loading',
     });
-    expect(derivePollPhoneView({ phase: 'unavailable' }, 'u')).toEqual({
+    expect(derivePollPhoneView({ phase: 'unavailable' })).toEqual({
       k: 'unavailable',
     });
   });
 
   it('is unavailable when the session has no questions', () => {
     expect(
-      derivePollPhoneView(ready('idle', makeSession({ questions: [] })), 'u').k
+      derivePollPhoneView(ready('idle', makeSession({ questions: [] }))).k
     ).toBe('unavailable');
   });
 
   it('is waiting before the teacher first opens voting', () => {
     expect(
       derivePollPhoneView(
-        ready('idle', makeSession({ startedAt: null, active: false })),
-        'u'
+        ready('idle', makeSession({ startedAt: null, active: false }))
       )
     ).toEqual({ k: 'waiting' });
   });
 
-  it('finds my vote by voter id first', () => {
-    const votes = [
-      { id: '0_vid', questionIndex: 0, optionIndex: 0 },
-      { id: '0_u', questionIndex: 0, optionIndex: 1 },
-    ];
-    const view = derivePollPhoneView(ready('idle', makeSession(), votes), 'u');
-    expect(view.k === 'open' && view.ballot.votedIndex).toBe(0);
+  it('finds my vote by voter id only, never a uid-keyed one', () => {
+    const votes = [{ id: '0_u', questionIndex: 0, optionIndex: 1 }];
+    const view = derivePollPhoneView(ready('idle', makeSession(), votes));
+    expect(view.k === 'open' && view.ballot.votedIndex).toBe(null);
   });
 
   it('is open with the tally and my vote on the current question', () => {
     const votes = [
-      { id: '0_u', questionIndex: 0, optionIndex: 1 },
+      { id: '0_vid', questionIndex: 0, optionIndex: 1 },
       { id: '0_v', questionIndex: 0, optionIndex: 1 },
-      { id: '1_u', questionIndex: 1, optionIndex: 0 },
+      { id: '1_vid', questionIndex: 1, optionIndex: 0 },
     ];
-    const view = derivePollPhoneView(ready('idle', makeSession(), votes), 'u');
+    const view = derivePollPhoneView(ready('idle', makeSession(), votes));
     expect(view.k).toBe('open');
     if (view.k !== 'open') return;
     expect(view.ballot.questionIndex).toBe(0);
@@ -264,27 +260,25 @@ describe('derivePollPhoneView', () => {
 
   it('clamps an out-of-range cursor', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ currentQuestionIndex: 9 })),
-      'u'
+      ready('idle', makeSession({ currentQuestionIndex: 9 }))
     );
     expect(view.k === 'open' && view.ballot.questionIndex).toBe(1);
   });
 
   it('shows submitting on the open ballot', () => {
-    const view = derivePollPhoneView(ready('submitting'), 'u');
+    const view = derivePollPhoneView(ready('submitting'));
     expect(view.k === 'open' && view.ballot.submitting).toBe(true);
   });
 
   it('is closed by the teacher once a started session goes inactive', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ active: false })),
-      'u'
+      ready('idle', makeSession({ active: false }))
     );
     expect(view.k === 'closed' && view.reason).toBe('teacher');
   });
 
   it('is closed as rejected while the session still reads live', () => {
-    const view = derivePollPhoneView(ready('rejected'), 'u');
+    const view = derivePollPhoneView(ready('rejected'));
     expect(view.k === 'closed' && view.reason).toBe('rejected');
   });
 });
@@ -300,10 +294,10 @@ describe('teacher and phone disagreement', () => {
         session: closedSession,
       }
     );
-    const view = derivePollPhoneView(mid, 'u');
+    const view = derivePollPhoneView(mid);
     expect(view.k === 'closed' && view.ballot.submitting).toBe(true);
     const after = run(mid, { type: 'voteRejected' });
-    expect(derivePollPhoneView(after, 'u')).toMatchObject({
+    expect(derivePollPhoneView(after)).toMatchObject({
       k: 'closed',
       reason: 'teacher',
       ballot: { submitting: false },
@@ -318,7 +312,7 @@ describe('teacher and phone disagreement', () => {
         type: 'voteRejected',
       }
     );
-    expect(derivePollPhoneView(rejected, 'u')).toMatchObject({
+    expect(derivePollPhoneView(rejected)).toMatchObject({
       k: 'closed',
       reason: 'rejected',
     });
@@ -326,7 +320,7 @@ describe('teacher and phone disagreement', () => {
       type: 'sessionSnapshot',
       session: makeSession({ active: false }),
     });
-    expect(derivePollPhoneView(closed, 'u')).toMatchObject({
+    expect(derivePollPhoneView(closed)).toMatchObject({
       k: 'closed',
       reason: 'teacher',
     });
@@ -334,12 +328,12 @@ describe('teacher and phone disagreement', () => {
       type: 'sessionSnapshot',
       session: makeSession({ active: true, updatedAt: 3000 }),
     });
-    expect(derivePollPhoneView(resumed, 'u').k).toBe('open');
+    expect(derivePollPhoneView(resumed).k).toBe('open');
   });
 
   it('network blip on a vote: phone stays open', () => {
     const next = run(ready(), { type: 'voteStarted' }, { type: 'voteFailed' });
-    expect(derivePollPhoneView(next, 'u').k).toBe('open');
+    expect(derivePollPhoneView(next).k).toBe('open');
   });
 
   it('teacher moves to the next question while a vote is in flight: the ballot follows the cursor', () => {
@@ -352,7 +346,7 @@ describe('teacher and phone disagreement', () => {
       },
       { type: 'voteSaved' }
     );
-    const view = derivePollPhoneView(next, 'u');
+    const view = derivePollPhoneView(next);
     expect(view.k === 'open' && view.ballot.questionIndex).toBe(1);
   });
 
@@ -363,7 +357,7 @@ describe('teacher and phone disagreement', () => {
       voterId: 'vid',
       session: makeSession({ active: false }),
     });
-    expect(derivePollPhoneView(next, 'u')).toMatchObject({
+    expect(derivePollPhoneView(next)).toMatchObject({
       k: 'closed',
       reason: 'teacher',
     });
@@ -378,23 +372,21 @@ describe('teacher and phone disagreement', () => {
       type: 'sessionSnapshot',
       session: makeSession(),
     });
-    expect(derivePollPhoneView(next, 'u').k).toBe('open');
+    expect(derivePollPhoneView(next).k).toBe('open');
   });
 });
 
 describe('hidden results and locked questions', () => {
   it('holds tallies back until the teacher reveals the question', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ hideResults: true, revealedQuestions: [] })),
-      'me'
+      ready('idle', makeSession({ hideResults: true, revealedQuestions: [] }))
     );
     expect(view.k === 'open' && view.ballot.resultsHidden).toBe(true);
   });
 
   it('shows revealed results to everyone', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ hideResults: true, revealedQuestions: [0] })),
-      'me'
+      ready('idle', makeSession({ hideResults: true, revealedQuestions: [0] }))
     );
     expect(view.k === 'open' && view.ballot).toMatchObject({
       resultsHidden: false,
@@ -404,14 +396,13 @@ describe('hidden results and locked questions', () => {
 
   it('closes a locked question without closing the session', () => {
     const session = makeSession({ lockedQuestions: [0] });
-    expect(derivePollPhoneView(ready('idle', session), 'me')).toMatchObject({
+    expect(derivePollPhoneView(ready('idle', session))).toMatchObject({
       k: 'closed',
       reason: 'locked',
     });
     expect(
       derivePollPhoneView(
-        ready('idle', { ...session, currentQuestionIndex: 1 }),
-        'me'
+        ready('idle', { ...session, currentQuestionIndex: 1 })
       ).k
     ).toBe('open');
   });
@@ -424,22 +415,20 @@ describe('hidden results and locked questions', () => {
 
 describe('shown answers', () => {
   it('keeps correct answers off the ballot until the teacher shows them', () => {
-    const view = derivePollPhoneView(ready('idle', makeSession()), 'me');
+    const view = derivePollPhoneView(ready('idle', makeSession()));
     expect(view.k === 'open' && view.ballot.correctIndexes).toBeNull();
   });
 
   it('marks the current question’s correct options once shown', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ shownAnswers: ['q1:o2', 'q2:o3'] })),
-      'me'
+      ready('idle', makeSession({ shownAnswers: ['q1:o2', 'q2:o3'] }))
     );
     expect(view.k === 'open' && view.ballot.correctIndexes).toEqual([1]);
   });
 
   it('ignores answer keys for options the session snapshot does not have', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ shownAnswers: ['q1:gone'] })),
-      'me'
+      ready('idle', makeSession({ shownAnswers: ['q1:gone'] }))
     );
     expect(view.k === 'open' && view.ballot.correctIndexes).toBeNull();
   });

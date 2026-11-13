@@ -61,7 +61,6 @@ import {
 import { MoveFromLibraryDialog } from './MoveFromLibraryDialog';
 import { PictureGuideStudio } from './PictureGuideStudio';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
-import { WebTourHealthSection } from './WebTourHealthSection';
 import { useHelpCenterSelection } from './helpCenterSelection';
 import { useHelpItemSets } from './useHelpItemSets';
 import { tourNeedsAttention } from './tourAttention';
@@ -77,8 +76,7 @@ import {
   type HelpItemFieldPatch,
 } from './helpCenterAdmin';
 
-type ShowFilter =
-  'all' | 'hidden' | 'published' | 'attention' | 'unmapped' | 'web-health';
+type ShowFilter = 'all' | 'hidden' | 'published' | 'attention' | 'unmapped';
 
 const UNFILED_SECTION: HelpListSection = { id: '', name: 'Unfiled' };
 
@@ -474,8 +472,8 @@ export const HelpCenterManager: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 pb-6">
-      <header className="space-y-3">
+    <div className="flex h-full flex-col gap-4">
+      <header className="shrink-0 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">Help Center</h2>
           <div className="flex flex-wrap items-center gap-2">
@@ -548,9 +546,6 @@ export const HelpCenterManager: React.FC = () => {
               <option value="published">Published</option>
               <option value="attention">Needs attention</option>
               <option value="unmapped">Unmapped controls</option>
-              {webToursOn && (
-                <option value="web-health">Web tour health</option>
-              )}
             </Select>
           </label>
         </div>
@@ -580,30 +575,32 @@ export const HelpCenterManager: React.FC = () => {
       </CellPopover>
 
       {!canPublish && (
-        <p className="text-sm text-amber-800">
+        <p className="shrink-0 text-sm text-amber-800">
           You must belong to an organization to add help items.
         </p>
       )}
 
       {(error ?? hookError) && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="shrink-0 text-sm text-red-600">
           {error ?? hookError}
         </p>
       )}
 
       {show === 'unmapped' ? (
-        <UnmappedAnchorsSection />
-      ) : show === 'web-health' && webToursOn ? (
-        // Stays here until Web tours get their own page.
-        <WebTourHealthSection />
+        <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+          <UnmappedAnchorsSection />
+        </div>
       ) : loading ? (
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
           Loading help items...
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-          <div className={phoneDetail && selected ? 'hidden md:block' : ''}>
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-6 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+          {/* List and detail scroll on their own; the 4px inset keeps focus rings unclipped. */}
+          <div
+            className={`-mx-1 -mt-1 overflow-y-auto overscroll-contain px-1 pt-1 pb-6 ${phoneDetail && selected ? 'hidden md:block' : ''}`}
+          >
             {items.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No help items yet. Press New to add one.
@@ -627,7 +624,8 @@ export const HelpCenterManager: React.FC = () => {
             )}
           </div>
           <div
-            className={`self-start md:sticky md:top-0 ${phoneDetail && selected ? '' : 'hidden md:block'}`}
+            key={selected?.id ?? 'none'}
+            className={`-mx-1 -mt-1 overflow-y-auto overscroll-contain px-1 pt-1 pb-6 ${phoneDetail && selected ? '' : 'hidden md:block'}`}
           >
             {notice && (
               <p role="status" className="pb-3 text-sm text-emerald-700">

@@ -157,12 +157,12 @@ export const WebTourHealthSection: React.FC<{
       className="space-y-3 border-t border-slate-200 pt-3"
     >
       <div>
-        <h3
+        <h2
           id="web-tour-health-title"
           className="text-sm font-semibold text-slate-900"
         >
           {t('tourHealth.web.title')}
-        </h3>
+        </h2>
         <p className="text-xs text-slate-500">{t('tourHealth.web.intro')}</p>
       </div>
       {tours === null ? (

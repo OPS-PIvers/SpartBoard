@@ -103,6 +103,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-missed-cards',
   'flashcards-check-sync',
   'video-activity-editor-arrows',
+  'youtube-paste-picker',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

@@ -516,6 +516,18 @@ describe('cross-site tours (X13, X14)', () => {
     ).toBe(true);
   });
 
+  it('treats a default port or userinfo as the same site', () => {
+    expect(
+      needsCrossSite(
+        snapshot([
+          step('a', gemini),
+          step('b', 'https://gemini.google.com:443/app'),
+          step('c', 'https://me@Gemini.google.com/app'),
+        ])
+      )
+    ).toBe(false);
+  });
+
   it('starts on the first targeted step, past an opening message (X8)', () => {
     expect(startHostOf(crossSite)).toBe('gemini.google.com');
     expect(startHostOf(snapshot([message('m')]))).toBe(null);

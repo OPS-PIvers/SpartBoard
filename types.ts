@@ -11366,7 +11366,9 @@ export type GlobalFeature =
   | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
-  | 'video-activity-editor-arrows';
+  | 'video-activity-editor-arrows'
+  /** Pasting a YouTube link asks Embed or Video Activity. */
+  | 'youtube-paste-picker';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

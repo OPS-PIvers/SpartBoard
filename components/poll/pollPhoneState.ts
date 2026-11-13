@@ -127,10 +127,7 @@ export type PollPhoneView =
       ballot: PollBallot;
     };
 
-export const derivePollPhoneView = (
-  state: PollPhoneState,
-  uid: string
-): PollPhoneView => {
+export const derivePollPhoneView = (state: PollPhoneState): PollPhoneView => {
   if (state.phase === 'loading') return { k: 'loading' };
   if (state.phase === 'unavailable') return { k: 'unavailable' };
 
@@ -152,10 +149,7 @@ export const derivePollPhoneView = (
     shown.has(`${question.id}:${o.id}`) ? [i] : []
   );
   const tally = aggregateVotes(votes, questionIndex, options.length);
-  // A uid-keyed vote is one this device cast on the previous app.
-  const mine =
-    votes.find((v) => v.id === `${questionIndex}_${state.voterId}`) ??
-    votes.find((v) => v.id === `${questionIndex}_${uid}`);
+  const mine = votes.find((v) => v.id === `${questionIndex}_${state.voterId}`);
   const ballot: PollBallot = {
     questions,
     questionIndex,

@@ -2,11 +2,28 @@
 
 Loaded when working under `components/`.
 
+## Live tour anchors
+
+- Live-tour anchors are `data-tour` ids from the typed registry in `config/tourAnchors.ts`; tag with `tourAttr`, and `tests/tourAnchors.test.ts` fails on a registered id that is no longer rendered or an unregistered one.
+- **Every UI change keeps live tours working.** Give each new button, field, tab, menu item, select or switch a teacher could be walked to a `tourAttr` anchor (registered in `config/tourAnchors.ts`), and when you move or rebuild a control, carry its existing anchor id over instead of renaming it. The PR check `Live Tour Anchors` (`pnpm run check:tour-anchors`) fails when an anchor in `config/tourAnchorsInUse.json` (what saved tours use, refreshed with `node scripts/snapshot-tour-anchors.mjs --project prod`) disappears, and on a new control without one unless a `no-tour-anchor: <why>` comment on its line or the line above says no tour would point at it. A new file that renders anchors also goes on a surface in `config/tourSurfaces/<area>.ts`, with the anchor that opens it; `tests/tourAnchorRoutes.test.ts` fails otherwise (rerun it with `UPDATE_TOUR_ANCHOR_LIST=1` to refresh the generated map).
+
+## Scroll panels
+
+- **Scroll panels keep bottom padding.** Put the end padding on the element that scrolls (`overflow-y-auto pb-*`), or on a child that grows with its content. Never pad a box pinned to `h-full` inside a scroller: its padding lands at the viewport edge and long content runs flush to the bottom (shipped three times, last in Admin Settings > Features). An Admin Settings tab that owns its own scroll opts in with `fillHeight: true`. `tests/e2e/scroll-end-padding.spec.ts` measures every Admin Settings tab, Profile & Settings section, the settings drawer and every widget library tab (via the `/library-managers-dev` fixture page); add any new tabbed panel surface to it. `tests/scrollEndPadding.static.test.ts` fails when a scroller's direct child is `h-full`/`h-screen`. A full page needs its own `h-screen [height:100dvh] overflow-y-auto` root (`h-dvh` so phone toolbars don't hide the end): `body` is `overflow: hidden`, so a `min-h-screen` page never scrolls.
+
 ## Text contrast and motion
 
 - Muted text on dark surfaces (dashboard `slate-900` / semi-transparent widgets over user backgrounds): use `text-slate-300` for body/label text and `text-slate-200` for headings/emphasis (both clear WCAG AA on `slate-900`). Do NOT use `text-slate-400`/`text-slate-500` for real text on dark surfaces — once rendered over translucent/over-background surfaces they erode below the AA 4.5:1 minimum. `text-slate-400`/`500` stay fine for (a) decorative/icon glyphs (give purely decorative icons `aria-hidden`) and (b) text on LIGHT surfaces (admin/library/student/login UI), where bumping toward white would REDUCE contrast — leave those untouched.
 - A global `prefers-reduced-motion` rule (Tailwind base-layer plugin in `tailwind.config.js`) disables decorative/looping animations. Urgency signals are color-based, not animation-based. Don't reintroduce always-on looping animations without a `motion-reduce:` guard.
 - Backgrounds can be a Tailwind class string OR a URL/data URI (handled in `components/layout/DashboardView.tsx`); custom backgrounds are set via inline style, not className.
+- No motion library is installed. Use CSS transitions and the `tailwindcss-animate` utilities; ask Paul before adding Motion.
+- Keyframes and animation names live in `tailwind.config.js`. Extend them there instead of adding a parallel set.
+
+## Worst-case data
+
+- A Demo / Worst case data toggle (the `break-ui` skill, from the `pauls-skills` plugin that `.claude/settings.json` enables) goes on a `/*-dev` harness page (`components/dev/`, routed in `App.tsx` behind `import.meta.env.DEV`, served by `vite-harness`), never in a widget's shipped UI.
+- Realistic worst cases here: roster names from ClassLink (long hyphenated surnames, one-letter first names, non-Latin scripts), classes of 35+ students, a teacher's long custom labels, 20 widgets on one board.
+- Check a widget at its minimum and a maximized size, and read it as if projected across a room, rather than only at 320px.
 
 ## Touch panels
 
@@ -14,7 +31,7 @@ Teachers run the board on 50" classroom touchscreens as well as laptops, so ever
 
 - `DraggableWindow` already handles touch: Pointer Events with pointer capture, `touchAction: 'none'` on drag and resize surfaces, a second finger freezing a drag in place, native scrolling inside scrollable panels, no context menu, and `select-none` on the widget. `html` and `body` have `overscroll-behavior: none`. Don't re-add these per widget.
 - A 600ms one-finger long-press on a widget takes a screenshot and a two-finger long-press toggles annotation, so don't build a widget gesture on long-press.
-- `hover:` and `group-hover:` only apply on devices that can hover (Tailwind `hoverOnlyWhenSupported`), so they never fire on the panel. Don't put meaning in a hover-only change.
+- `hover:` and `group-hover:` only apply on devices that can hover (Tailwind `hoverOnlyWhenSupported`), so they never fire on the panel. Don't put meaning in a hover-only change. Raw CSS `:hover` is not gated, so gate it yourself.
 - A control revealed on hover (`opacity-0 group-hover:opacity-100`) also takes `touch:opacity-100`; the `touch:` variant targets `(hover: none), (pointer: coarse)`. `tests/config/touchHover.test.ts` fails on a board control without it; hints and tooltips go on its `HOVER_ONLY` list instead.
 - Tap targets are at least 44px. `touch-target-expand` (`index.css`) enlarges a small icon button's hit area without changing its look.
 - There is no global `-webkit-tap-highlight-color` reset. A custom tap target with its own pressed state adds `[-webkit-tap-highlight-color:transparent]`.

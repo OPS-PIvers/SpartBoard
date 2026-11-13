@@ -410,6 +410,7 @@ describe('poll codes and sessions resolve only through the server', () => {
     await seed(`poll_joins/${POLL_SESSION_ID}__${ANON_UID}`, {
       sessionId: POLL_SESSION_ID,
       uid: ANON_UID,
+      voterId: 'voter-a',
     });
     await assertSucceeds(
       getDoc(doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}`))
@@ -419,7 +420,7 @@ describe('poll codes and sessions resolve only through the server', () => {
     );
     await assertSucceeds(
       setDoc(
-        doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}/votes/0_${ANON_UID}`),
+        doc(asAnon(), `poll_sessions/${POLL_SESSION_ID}/votes/0_voter-a`),
         { questionIndex: 0, optionIndex: 1, votedAt: 1 }
       )
     );

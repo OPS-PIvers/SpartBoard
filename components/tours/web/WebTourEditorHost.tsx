@@ -1,40 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import type { GuidedLearningSet } from '@/types';
-import { loadWebTourDraft } from '@/components/tours/webTours';
-import { logError } from '@/utils/logError';
-import { WebTourEditor } from './WebTourEditor';
+import React, { useEffect } from 'react';
 import { EDIT_WEB_TOUR_PARAM } from './tourLinks';
 
-const SET_ID = /^[A-Za-z0-9_-]{1,128}$/;
-
-/** Opens the web tour editor on the board for `?edit-web-tour={setId}`, the side panel's Open in SpartBoard link. */
+/** Sends an older extension's `/?edit-web-tour={setId}` link on to the Web tours page (HELP_CENTER_HOME.md H9). */
 export const WebTourEditorHost: React.FC = () => {
-  const [open, setOpen] = useState<GuidedLearningSet | null>(null);
-  // Read once, so an effect run twice still knows which tour to open.
-  const [setId] = useState(() =>
-    new URL(window.location.href).searchParams.get(EDIT_WEB_TOUR_PARAM)
-  );
-
   useEffect(() => {
-    if (!setId) return;
-    // Taken off the address so a reload doesn't reopen it.
-    const url = new URL(window.location.href);
-    url.searchParams.delete(EDIT_WEB_TOUR_PARAM);
-    window.history.replaceState(window.history.state, '', url.toString());
-    if (!SET_ID.test(setId)) return;
-    let cancelled = false;
-    loadWebTourDraft(setId).then(
-      (set) => {
-        if (!cancelled && set) setOpen(set);
-      },
-      (err: unknown) => logError('open web tour from link', err, { setId })
+    const setId = new URL(window.location.href).searchParams.get(
+      EDIT_WEB_TOUR_PARAM
     );
-    return () => {
-      cancelled = true;
-    };
-  }, [setId]);
-
-  return open ? (
-    <WebTourEditor initial={open} onClose={() => setOpen(null)} />
-  ) : null;
+    if (!setId) return;
+    const target = new URL('/web-tours', window.location.origin);
+    target.searchParams.set(EDIT_WEB_TOUR_PARAM, setId);
+    window.location.replace(target.toString());
+  }, []);
+  return null;
 };
