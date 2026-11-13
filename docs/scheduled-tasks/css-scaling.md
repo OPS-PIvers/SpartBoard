@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-11_
+_Last audited: 2026-11-13_
 _Last action: 2026-10-22 — LOW SmartNotebook Viewer page-counter `minWidth` scaled with cqmin (moved to Completed). Prior: 2026-10-21 — LOW MusicWidget landscape status row `gap-2` replaced with `min(8px, 2cqh)` gap (moved to Completed). Prior: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
+
+_2026-11-12: Daily audit (Thursday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed-px hits are the two exempt portaled DrawingWidget popovers. 0 new issues._
 
 _2026-11-11: Daily audit (Wednesday). No `max-h/max-w-[Npx]` caps in any `Widget.tsx`; only fixed px size is DrawingWidget's portaled `fixed` popover (exempt). Open items unchanged. 0 new issues._
 
@@ -105,6 +107,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-11-13: Daily audit (Friday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed-px hits are the two exempt portaled DrawingWidget popovers. 0 new issues._
 
 _2026-11-08 action: Sunday daily run. Nothing In Progress. Rebase onto `dev-paul` conflicts (unrelated histories), so the tree stays synced via the earlier ours-merge; code is identical to `dev-paul`. Only LOW items open; top item (RandomClassContextButton portaled dropdown) is viewport-level popover chrome, same design call as the 2026-11-02 note; no code change, left Open._
 
