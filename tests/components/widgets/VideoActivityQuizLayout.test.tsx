@@ -203,16 +203,18 @@ describe('Video Activity editor on the Quiz layout', () => {
     ]);
     fireEvent.click(screen.getByRole('button', { name: 'Delete question' }));
     expect(screen.getByText(/Question 1 of 1/)).toBeTruthy();
-    expect(screen.getByDisplayValue('Second')).toBeTruthy();
+    expect(
+      screen.getByRole('textbox', { name: 'Question prompt' }).textContent
+    ).toBe('Second');
     const qs = await saved(onSave);
     expect(qs.map((q) => q.id)).toEqual(['q2']);
   });
 
   it('saves prompt and option edits in the Video Activity shape', async () => {
     const onSave = renderEditor([mc()]);
-    fireEvent.change(screen.getByPlaceholderText(/capital of France/), {
-      target: { value: 'Edited prompt' },
-    });
+    const prompt = screen.getByRole('textbox', { name: 'Question prompt' });
+    prompt.innerHTML = '<p>Edited prompt</p>';
+    fireEvent.input(prompt);
     fireEvent.change(screen.getByLabelText('Option B'), {
       target: { value: 'Light' },
     });

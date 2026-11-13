@@ -8,7 +8,6 @@ import {
   PenLine,
   BarChart,
   BellRing,
-  Bold,
   Bot,
   Building2,
   Cast,
@@ -38,7 +37,6 @@ import {
   Printer,
   RefreshCw,
   Send,
-  ImagePlus,
   ListOrdered,
   Share2,
   Smartphone,
@@ -503,18 +501,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Multi-version test import (QUIZ_IMPORT_VERSIONS V26). Admin-only until Paul has imported with it.
-  'quiz-import-versions': {
-    label: 'Multi-version test import',
-    icon: Layers,
-    description:
-      'Splits a test with several versions into a bank, rubrics and quizzes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Swap terms and definitions button in the Flashcards set editor. Admin-only until Paul has tried it in prod.
   'flashcards-swap-sides': {
     label: 'Flashcards: swap terms and definitions',
@@ -677,18 +663,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Prompt formatting toolbar. Admin-only until Paul has tested it in prod.
-  'quiz-prompt-formatting': {
-    label: 'Question prompt formatting',
-    icon: Bold,
-    description:
-      'Bold, italic, underline and lists in the question prompt of quizzes and video activities.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1247,18 +1221,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Reopen a submitted quiz',
     icon: RotateCcw,
     description: "Reopen a student's submitted quiz with their answers kept.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'quiz-ordering-images': {
-    label: 'Quiz answer images',
-    icon: ImagePlus,
-    description:
-      'Add or paste an image on any answer, and paste images into a question.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',

@@ -2722,8 +2722,7 @@
       "id": "quiz-prompt-formatting-2026-11-12",
       "widget": "quiz",
       "date": "2026-11-12",
-      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller.",
-      "feature": "quiz-prompt-formatting"
+      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller."
     },
     {
       "id": "quiz-district-folders-2026-11-12",
@@ -2736,8 +2735,7 @@
       "id": "video-activity-prompt-formatting-2026-11-12",
       "widget": "video-activity",
       "date": "2026-11-12",
-      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller.",
-      "feature": "quiz-prompt-formatting"
+      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller."
     }
   ]
 }

@@ -296,7 +296,6 @@ export const VideoActivityQuizDetailPane = React.memo(
     } = state;
     const { canAccessFeature } = useAuth();
     const shortAnswerEnabled = canAccessFeature('video-activity-stops');
-    const promptFormatOn = canAccessFeature('quiz-prompt-formatting');
     const [pickerOpen, setPickerOpen] = useState(false);
     const promptRef = useRef<HTMLTextAreaElement>(null);
     const promptTextRef = useRef(selectedQuestion?.text);
@@ -464,7 +463,7 @@ export const VideoActivityQuizDetailPane = React.memo(
             textareaRef={promptRef}
             allowBlanks={false}
             anchor={tourAttr('video-activity.editor-question-text')}
-            promptFormat={promptFormatOn}
+            promptFormat
           />
 
           <VideoActivityPictureField

@@ -23,7 +23,6 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import { assertAiTeacherCaller } from './aiCallerGate';
 
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
-export const QUIZ_IMPORT_VERSIONS_FEATURE_ID = 'quiz-import-versions';
 export const GEMINI_FEATURE_ID = 'gemini-functions';
 /** D19: one import is one use; the AI reader row has its own daily limit. */
 export const QUIZ_QUOTA_FEATURE_ID = 'quiz-document-ai-reader';
@@ -121,7 +120,6 @@ export interface ExtractDocumentDeps {
     mimeType: string,
     multiAnswer: boolean
   ) => Promise<string>;
-  isVersionsGranted: (uid: string, email: string | null) => Promise<boolean>;
   /** One model call over a document with its own prompt and schema (V11). */
   generate: (
     bytes: Buffer,
@@ -1230,15 +1228,12 @@ export async function extractQuizFromDocument(
   // inside either gate.
   const email = caller.emailVerified ? caller.email : null;
 
-  const [importGranted, geminiGranted, aiReaderGranted, versioned] =
-    await Promise.all([
-      deps.isImportGranted(caller.uid, email),
-      deps.isGeminiGranted(caller.uid, email),
-      deps.isAiReaderGranted(caller.uid, email),
-      request.versions === true
-        ? deps.isVersionsGranted(caller.uid, email)
-        : Promise.resolve(false),
-    ]);
+  const [importGranted, geminiGranted, aiReaderGranted] = await Promise.all([
+    deps.isImportGranted(caller.uid, email),
+    deps.isGeminiGranted(caller.uid, email),
+    deps.isAiReaderGranted(caller.uid, email),
+  ]);
+  const versioned = request.versions === true;
   if (!importGranted)
     throw new HttpsError(
       'permission-denied',
@@ -1445,8 +1440,6 @@ export function buildDefaultExtractDocumentDeps(): ExtractDocumentDeps {
     chargeQuiz: (uid, email) => chargeQuizQuota(db, uid, email, Date.now()),
     pdfPageCount: pdfPageCountOf,
     extract: geminiExtract,
-    isVersionsGranted: (uid, email) =>
-      isGlobalFeatureGranted(db, QUIZ_IMPORT_VERSIONS_FEATURE_ID, email, uid),
     generate: geminiGenerate,
     slicePdf: slicePdfPages,
     now: () => Date.now(),
