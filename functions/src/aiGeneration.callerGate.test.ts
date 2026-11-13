@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runTransaction = vi.fn<() => Promise<void>>();
-const docGet = vi.fn(() =>
-  Promise.resolve({ exists: false, data: () => undefined })
+const docGet = vi.fn((_path?: string) =>
+  Promise.resolve<{ exists: boolean; data: () => unknown }>({
+    exists: false,
+    data: () => undefined,
+  })
 );
 const fakeDb = {
-  collection: () => ({ doc: () => ({ get: docGet, id: 'x' }) }),
+  collection: (c: string) => ({
+    doc: (d: string) => ({ get: () => docGet(`${c}/${d}`), id: 'x' }),
+  }),
   runTransaction,
 };
 
@@ -80,7 +85,8 @@ const teacher = {
 beforeEach(() => {
   __resetAiCallerGateCache();
   runTransaction.mockReset();
-  docGet.mockClear();
+  docGet.mockReset();
+  docGet.mockResolvedValue({ exists: false, data: () => undefined });
   generateAi.mockReset();
   isDistrictStaffToken.mockReset();
   isDistrictStaffToken.mockResolvedValue(true);
@@ -141,6 +147,38 @@ describe('generateWithAI quota failure', () => {
       })
     ).rejects.toMatchObject({ code: 'internal' });
     expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(generateAi).not.toHaveBeenCalled();
+  });
+});
+
+describe('transcribeVideoWithGemini gemini-functions access level', () => {
+  it('refuses a teacher when Gemini functions are admin-only', async () => {
+    const perms: Record<string, unknown> = {
+      'global_permissions/video-activity-audio-transcription': {
+        enabled: true,
+        accessLevel: 'public',
+      },
+      'global_permissions/gemini-functions': {
+        enabled: true,
+        accessLevel: 'admin',
+      },
+    };
+    docGet.mockImplementation((path?: string) =>
+      Promise.resolve({
+        exists: path !== undefined && path in perms,
+        data: () => (path === undefined ? undefined : perms[path]),
+      })
+    );
+    await expect(
+      (transcribeVideoWithGemini as unknown as Handler)({
+        auth: teacher,
+        data: {},
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Gemini functions are currently restricted to administrators.',
+    });
+    expect(runTransaction).not.toHaveBeenCalled();
     expect(generateAi).not.toHaveBeenCalled();
   });
 });
