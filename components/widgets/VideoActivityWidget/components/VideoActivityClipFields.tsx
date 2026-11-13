@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import type { VideoActivityClip } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
-import { useAuth } from '@/context/useAuth';
 import { normalizeClip } from '@/utils/videoActivityClip';
 import { mmSsToSeconds, secondsToMmSs } from './useVideoActivityEditorState';
 
@@ -61,8 +60,6 @@ const TimeField: React.FC<{
 export const VideoActivityClipFields: React.FC<
   VideoActivityClipFieldsProps
 > = ({ clip, onChange }) => {
-  const { canAccessFeature } = useAuth();
-  if (!canAccessFeature('video-activity-stops')) return null;
   return (
     <div className="flex flex-wrap items-center gap-4">
       <TimeField

@@ -14,8 +14,8 @@
  *     t('widgets.lunchCount.syncSuccess')   — line 269
  *     t('widgets.lunchCount.syncError')     — line 318
  *
- *   components/widgets/LunchCount/Widget.tsx
- *     t('widgets.lunchCount.hotLunch')      — line 573
+ *   components/widgets/LunchCount/MiddleHighLunchCount.tsx
+ *     t('widgets.lunchCount.hotLunch')      — line 84
  *
  * When a German, Spanish, or French user has the Lunch Count widget open, every
  * one of these strings renders as the raw key path (e.g.

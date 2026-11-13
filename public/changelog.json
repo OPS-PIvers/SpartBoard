@@ -2651,8 +2651,7 @@
       "id": "quiz-ordering-one-list-2026-11-06",
       "widget": "quiz",
       "date": "2026-11-06",
-      "text": "Ordering questions can show one list that students drag into order. Students drag each item by its handle or move it with the arrows.",
-      "feature": "quiz-ordering-list"
+      "text": "Ordering questions can show one list that students drag into order. Students drag each item by its handle or move it with the arrows."
     },
     {
       "id": "time-tool-bigger-buttons-2026-11-04",
@@ -2722,8 +2721,7 @@
       "id": "quiz-prompt-formatting-2026-11-12",
       "widget": "quiz",
       "date": "2026-11-12",
-      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller.",
-      "feature": "quiz-prompt-formatting"
+      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller."
     },
     {
       "id": "quiz-district-folders-2026-11-12",
@@ -2736,8 +2734,7 @@
       "id": "video-activity-prompt-formatting-2026-11-12",
       "widget": "video-activity",
       "date": "2026-11-12",
-      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller.",
-      "feature": "quiz-prompt-formatting"
+      "text": "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller."
     }
   ]
 }

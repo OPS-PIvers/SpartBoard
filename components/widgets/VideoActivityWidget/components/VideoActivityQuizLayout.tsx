@@ -24,11 +24,9 @@ import { extractYouTubeId } from '@/utils/youtube';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
 import {
   VA_EDITOR_TYPES,
-  VA_EDITOR_TYPES_WITH_SHORT_ANSWER,
   quizUpdatesToVa,
   vaToQuizQuestion,
 } from '@/utils/vaQuestionAdapter';
-import { useAuth } from '@/context/useAuth';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { ChoiceOptionsEditor } from '@/components/widgets/QuizWidget/components/ChoiceOptionsEditor';
@@ -294,9 +292,6 @@ export const VideoActivityQuizDetailPane = React.memo(
       deleteQuestion,
       duplicateQuestion,
     } = state;
-    const { canAccessFeature } = useAuth();
-    const shortAnswerEnabled = canAccessFeature('video-activity-stops');
-    const promptFormatOn = canAccessFeature('quiz-prompt-formatting');
     const [pickerOpen, setPickerOpen] = useState(false);
     const promptRef = useRef<HTMLTextAreaElement>(null);
     const promptTextRef = useRef(selectedQuestion?.text);
@@ -361,11 +356,6 @@ export const VideoActivityQuizDetailPane = React.memo(
     };
     const typeMeta = QUESTION_TYPES.find((t) => t.value === q.type);
     const isShortAnswer = selectedQuestion.type === 'SA';
-    // Short answer is offered behind its flag, but an existing one always shows.
-    const editorTypes =
-      shortAnswerEnabled || isShortAnswer
-        ? VA_EDITOR_TYPES_WITH_SHORT_ANSWER
-        : VA_EDITOR_TYPES;
     const timeValue =
       timestampInputs[id] ?? secondsToMmSs(selectedQuestion.timestamp);
 
@@ -464,7 +454,7 @@ export const VideoActivityQuizDetailPane = React.memo(
             textareaRef={promptRef}
             allowBlanks={false}
             anchor={tourAttr('video-activity.editor-question-text')}
-            promptFormat={promptFormatOn}
+            promptFormat
           />
 
           <VideoActivityPictureField
@@ -486,7 +476,7 @@ export const VideoActivityQuizDetailPane = React.memo(
               <label className={labelClass}>Type</label>
               <QuestionTypeSelect
                 question={q}
-                types={editorTypes}
+                types={VA_EDITOR_TYPES}
                 labels={VA_TYPE_LABELS}
                 onSelect={(nextType: QuizQuestionType) => {
                   const updates = questionTypeChangeUpdates(q, nextType, {

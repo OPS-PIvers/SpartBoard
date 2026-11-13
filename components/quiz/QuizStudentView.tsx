@@ -45,11 +45,10 @@ interface QuizStudentViewProps {
   behavior: QuizBehaviorSettings;
   /** Mirrors Assign: the away limit exists only with the tab-away-timer flag. */
   tabAwayTimerOn: boolean;
-  /** Teacher has quiz-ordering-list, so Ordering shows the one-list layout like a real assignment. */
-  orderingListOn?: boolean;
-  /** Teacher has quiz-stimulus-tabs and quiz-review-step, so the preview matches what Assign stamps. */
+  /** Teacher has quiz-stimulus-tabs, so the preview matches what Assign stamps. */
   stimulusTabsOn?: boolean;
-  reviewStepOn?: boolean;
+  /** Teacher has quiz-cross-out, so choices get the cross-out button as Assign stamps it. */
+  crossOutOn?: boolean;
   onExit: () => void;
 }
 
@@ -74,9 +73,8 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   quiz,
   behavior,
   tabAwayTimerOn,
-  orderingListOn = false,
   stimulusTabsOn = false,
-  reviewStepOn = false,
+  crossOutOn = false,
   onExit,
 }) => {
   const saved = useMemo(() => focusSettingsFrom(behavior), [behavior]);
@@ -84,18 +82,11 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   const [run, setRun] = useState(0);
   const base = useMemo(
     () =>
-      buildStudentViewSession(quiz, behavior, tabAwayTimerOn, orderingListOn, {
+      buildStudentViewSession(quiz, behavior, tabAwayTimerOn, {
         stimulusTabs: stimulusTabsOn,
-        reviewStep: reviewStepOn,
+        crossOut: crossOutOn,
       }),
-    [
-      quiz,
-      behavior,
-      tabAwayTimerOn,
-      orderingListOn,
-      stimulusTabsOn,
-      reviewStepOn,
-    ]
+    [quiz, behavior, tabAwayTimerOn, stimulusTabsOn, crossOutOn]
   );
   const session = useMemo(
     () => withFocusSettings(base, focus, tabAwayTimerOn),

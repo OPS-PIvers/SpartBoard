@@ -132,7 +132,7 @@ No code in Quiz knows about MCA. If MDE changes its site, only the script breaks
 | 2   | Stimulus tabs, `tabLabel`, shared pictures in the panel (M11–M15)                      | `quiz-stimulus-tabs` gates authoring and the student layout change | —                               |
 | 3   | Explanations and Show explanations (M16–M18)                                           | `quiz-explanations`                                                | —                               |
 | 4   | DOK field, Group by DOK, bank draw filter (M19–M22)                                    | `quiz-dok`                                                         | —                               |
-| 5   | Review before submit, Mark for review (M23–M25)                                        | `quiz-review-step`                                                 | —                               |
+| 5   | Review before submit, Mark for review (M23–M25)                                        | retired, on for everyone                                           | —                               |
 | 6   | District library: collection, targeting rules, linked banks and quizzes (M26–M28, M30) | `district-library`                                                 | —                               |
 | 7   | District library admin screen and package upload (M29, M31)                            | behind PR 6's flag                                                 | PR 6                            |
 | 8   | MDE script and package writer (M32–M33)                                                | none (tooling)                                                     | PR 7; PRs 1–4 for full fidelity |

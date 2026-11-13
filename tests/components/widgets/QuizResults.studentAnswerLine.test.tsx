@@ -34,18 +34,10 @@ const written: StudentQuestionLine = {
   },
 } as unknown as StudentQuestionLine;
 
-const renderLine = (
-  line: StudentQuestionLine,
-  onOpenGrader?: () => void,
-  showFeedback = true
-) =>
+const renderLine = (line: StudentQuestionLine, onOpenGrader?: () => void) =>
   render(
     <ul>
-      <StudentAnswerLine
-        line={line}
-        onOpenGrader={onOpenGrader}
-        showFeedback={showFeedback}
-      />
+      <StudentAnswerLine line={line} onOpenGrader={onOpenGrader} />
     </ul>
   );
 
@@ -58,13 +50,6 @@ describe('StudentAnswerLine', () => {
     expect(screen.getByText('Evidence')).toBeInTheDocument();
     expect(screen.getByText('Proficient · 3 pts')).toBeInTheDocument();
     expect(screen.queryByText('Correct answer')).toBeNull();
-  });
-
-  it('hides the comment and rubric levels without the feedback switch', () => {
-    renderLine(written, undefined, false);
-    expect(screen.getByText('Because it is warm.')).toBeInTheDocument();
-    expect(screen.queryByText('Add one more reason.')).toBeNull();
-    expect(screen.queryByText('Evidence')).toBeNull();
   });
 
   it('shows the key only on a missed auto-graded question', () => {

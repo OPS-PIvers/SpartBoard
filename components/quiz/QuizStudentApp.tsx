@@ -248,6 +248,7 @@ import {
   crossOutStorageKey,
   useCrossedOutChoices,
 } from './useCrossedOutChoices';
+import { STUDENT_VIEW_SESSION_ID } from '@/utils/quizStudentViewSession';
 import { StudentAccommodationBar } from './StudentAccommodationBar';
 import {
   highlightClass,
@@ -2021,7 +2022,7 @@ export const ActiveQuiz: React.FC<{
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
-  // Review before submit (quiz-review-step): this tab's sessionStorage only, so teachers never see marks.
+  // Review before submit: this tab's sessionStorage only, so teachers never see marks.
   const reviewStoreKey = reviewStateKey(
     session.id,
     myResponse?._responseKey,
@@ -2567,8 +2568,9 @@ export const ActiveQuiz: React.FC<{
   const crossOutUid =
     session.allowCrossOut === true ? myResponse?.studentUid : undefined;
   const crossOutOn = !!crossOutUid;
+  // Student view keeps cross-outs in memory, since it writes nothing anywhere.
   const crossedOut = useCrossedOutChoices(
-    crossOutUid
+    crossOutUid && session.id !== STUDENT_VIEW_SESSION_ID
       ? crossOutStorageKey(
           session.id,
           crossOutUid,
@@ -5444,7 +5446,7 @@ const StructuredQuestionInput: React.FC<{
   saveError?: string | null;
   /** Per-item speaker controls (D8); absent when read-aloud is off. */
   readAloud?: ReadAloudItemControls;
-  /** Ordering as one drag-to-order list (quiz-ordering-list flag). */
+  /** Ordering as one drag-to-order list; older sessions without the stamp use slots. */
   orderingList?: boolean;
   /** The last step's label: REVIEW with the review step, else SUBMIT. */
   finishLabel?: string;

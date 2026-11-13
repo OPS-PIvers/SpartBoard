@@ -17,7 +17,7 @@ import {
   hearItVoice,
   subscribeVoices,
 } from '@/utils/pronunciation/hearIt';
-import { parseFlashcardAnswerVariants } from '@/utils/flashcardMatch';
+import { flashcardAnswerVariants } from '@/utils/flashcardMatch';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { hearIpa } from '@/utils/pronunciation/hearIpa';
 import {
@@ -98,7 +98,7 @@ export const HearItButton: React.FC<{
   const { t } = useTranslation();
   const hasVoice = useHasVoice(dialect);
   const [failed, setFailed] = useState(false);
-  const word = parseFlashcardAnswerVariants(term)[0] ?? '';
+  const word = flashcardAnswerVariants(term, dialect ?? '')[0] ?? '';
   const typed = ipa?.trim() && ipaOverrideValid(ipa) ? ipa.trim() : undefined;
   // A failure belongs to what was pressed; editing the IPA clears it.
   const [failedFor, setFailedFor] = useState(typed);

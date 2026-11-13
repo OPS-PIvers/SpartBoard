@@ -88,7 +88,7 @@ describe('PreviewsPanel', () => {
   it('links a public retire-after-launch flag to a prefilled cleanup issue', async () => {
     savedPermissions = [
       {
-        featureId: 'quiz-results-tools',
+        featureId: 'plc-docs-toolbar',
         enabled: true,
         accessLevel: 'public',
         betaUsers: [],
@@ -96,17 +96,17 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
-    const link = screen.getByTestId('retire-quiz-results-tools');
+    const link = screen.getByTestId('retire-plc-docs-toolbar');
     const url = new URL(link.getAttribute('href') ?? '');
     expect(url.pathname).toBe('/OPS-PIvers/SpartBoard/issues/new');
     expect(url.searchParams.get('labels')).toBe('retire-flag');
     expect(url.searchParams.get('title')).toBe(
-      'Retire flag: Quiz results teacher tools'
+      'Retire flag: Google Docs toolbar in group docs'
     );
     expect(url.searchParams.get('body')).toContain(
-      "canAccessFeature('quiz-results-tools')"
+      "canAccessFeature('plc-docs-toolbar')"
     );
-    expect(screen.queryByTestId('graduate-quiz-results-tools')).toBeNull();
+    expect(screen.queryByTestId('graduate-plc-docs-toolbar')).toBeNull();
   });
 
   it('graduates a public keep flag in place and moves it off the tab', async () => {

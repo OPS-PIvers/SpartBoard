@@ -110,29 +110,37 @@ describe('withFocusSettings', () => {
     expect(s).not.toHaveProperty('whiteboardResponseEnabled');
   });
 
-  it('stamps the one-list Ordering marker only when the teacher has the flag', () => {
-    expect(buildStudentViewSession(QUIZ, BEHAVIOR, false)).not.toHaveProperty(
-      'orderingList'
-    );
-    expect(
-      buildStudentViewSession(QUIZ, BEHAVIOR, false, true).orderingList
-    ).toBe(true);
+  it('always stamps the one-list Ordering marker and the review step, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
+    expect(s.orderingList).toBe(true);
+    expect(s.reviewStep).toBe(true);
   });
 });
 
-describe('buildStudentViewSession stimulus tabs and review step', () => {
-  it('stamps neither without the teacher’s flags', () => {
+describe('buildStudentViewSession stimulus tabs', () => {
+  it('leaves stimulus tabs off without the teacher’s flag', () => {
     const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
     expect(s).not.toHaveProperty('stimulusTabs');
-    expect(s).not.toHaveProperty('reviewStep');
   });
 
-  it('stamps both with the flags, as Assign does', () => {
-    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, false, {
+  it('stamps stimulus tabs with the flag, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, {
       stimulusTabs: true,
-      reviewStep: true,
     });
     expect(s.stimulusTabs).toBe(true);
-    expect(s.reviewStep).toBe(true);
+  });
+});
+
+describe('buildStudentViewSession cross-out', () => {
+  it('leaves cross-out off without the teacher’s flag', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
+    expect(s).not.toHaveProperty('allowCrossOut');
+  });
+
+  it('stamps cross-out with the flag, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, {
+      crossOut: true,
+    });
+    expect(s.allowCrossOut).toBe(true);
   });
 });

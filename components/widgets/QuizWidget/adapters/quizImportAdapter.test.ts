@@ -374,6 +374,7 @@ describe('createQuizImportAdapter — test document source', () => {
       fileName: 'Unit 3 Test.docx',
       multiAnswer: true,
       passages: true,
+      answerPictures: true,
     });
   });
 

@@ -4,7 +4,6 @@ import { ChevronDown, Plus, StickyNote, Trash2 } from 'lucide-react';
 import type { VideoActivityNote } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { VideoActivityPictureField } from './VideoActivityPictureField';
-import { useAuth } from '@/context/useAuth';
 import { mmSsToSeconds, secondsToMmSs } from './useVideoActivityEditorState';
 
 interface VideoActivityNotesEditorProps {
@@ -53,9 +52,7 @@ const NoteTimeInput: React.FC<{
 export const VideoActivityNotesEditor: React.FC<
   VideoActivityNotesEditorProps
 > = ({ notes, onChange, getCurrentTime }) => {
-  const { canAccessFeature } = useAuth();
   const [open, setOpen] = useState(false);
-  if (!canAccessFeature('video-activity-stops')) return null;
 
   const update = (id: string, patch: Partial<VideoActivityNote>) =>
     onChange(

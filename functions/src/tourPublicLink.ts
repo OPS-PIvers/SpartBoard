@@ -23,7 +23,6 @@ import {
   type PublicTour,
 } from './tourPublicLinkModel';
 
-export const TOUR_STEPS_VIEW_FEATURE_ID = 'tour-steps-view';
 const CONTROL_IDS = new Set(['_meta', '_lock']);
 
 export interface PublicLinkDeps {
@@ -34,8 +33,6 @@ export interface PublicLinkDeps {
   loadPublished: (setId: string) => Promise<unknown>;
   /** The confirming admin still has an /admins doc. */
   isAdmin: (email: string) => Promise<boolean>;
-  /** The steps-view flag is on for that admin. */
-  flagOn: (email: string) => Promise<boolean>;
   latchOff: (setId: string, reason: PublicLinkOffReason) => Promise<void>;
   bucket: string;
   /** The Storage object's current generation, or null when it is gone. */
@@ -69,7 +66,6 @@ export async function resolvePublicTour(
     await latch(deps, setId, 'confirmer');
     return null;
   }
-  if (!(await deps.flagOn(record.confirmedBy))) return null;
   const published = await deps.loadPublished(setId);
   if (!published) return null;
   if (kindOf(published) !== record.kind) return null;
@@ -200,8 +196,6 @@ export const __resetRateLimitForTests = () => {
 
 interface WorkingLinkDeps {
   getLink: (setId: string) => Promise<PublicLinkRecord | null>;
-  /** The steps-view flag is on for the caller, building limits included. */
-  callerFlagOn: (email: string, uid: string | null) => Promise<boolean>;
 }
 
 const linksOf = (db: admin.firestore.Firestore) =>
@@ -229,20 +223,6 @@ export function defaultPublicLinkDeps(
     },
     async isAdmin(email) {
       return !!email && (await db.collection('admins').doc(email).get()).exists;
-    },
-    async flagOn(email) {
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
-      return isGlobalFeatureGranted(db, TOUR_STEPS_VIEW_FEATURE_ID, email, '');
-    },
-    async callerFlagOn(email, uid) {
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
-      // The uid lets a building-limited preview match the caller's buildings.
-      return isGlobalFeatureGranted(
-        db,
-        TOUR_STEPS_VIEW_FEATURE_ID,
-        email,
-        uid ?? ''
-      );
     },
     async latchOff(setId, reason) {
       await linksOf(db)
@@ -337,13 +317,11 @@ export async function startSetIdFor(
   return resolved?.record.kind === 'web' ? resolved.setId : null;
 }
 
-/** A tour's public link token when the link would be served now and the caller has the preview, so they can copy it; null otherwise. */
+/** A tour's public link token when the link would be served now, so the caller can copy it; null otherwise. */
 export async function workingLinkTokenFor(
   setId: string,
-  caller: { email: string; uid: string | null },
   deps: PublicLinkDeps & WorkingLinkDeps
 ): Promise<string | null> {
-  if (!(await deps.callerFlagOn(caller.email, caller.uid))) return null;
   const record = await deps.getLink(setId);
   if (!record || record.off || record.kind !== 'web') return null;
   const resolved = await resolvePublicTour(record.token, deps);
