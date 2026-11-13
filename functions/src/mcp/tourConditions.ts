@@ -26,7 +26,10 @@ const RETIRED_FEATURE_IDS = [
   'video-activity-editor-arrows',
   'video-activity-stops',
 ];
-const FEATURE_IDS = new Set([...TOUR_CONDITION_FEATURES, ...RETIRED_FEATURE_IDS]);
+const FEATURE_IDS = new Set([
+  ...TOUR_CONDITION_FEATURES,
+  ...RETIRED_FEATURE_IDS,
+]);
 const DONE_IDS = new Set(TOUR_CONDITION_DONE_FACTS);
 
 export const isTourConditionRef = (ref: string): boolean =>
