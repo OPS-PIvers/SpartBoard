@@ -1137,6 +1137,18 @@ describe('Dock smart-paste – YouTube links offer Embed or Video Activity', () 
     expect(addWidget).toHaveBeenCalledWith('embed', expect.anything());
   });
 
+  it.each([
+    'https://www.youtube.com/embed/videoseries?list=PL1234567890',
+    'https://www.youtube.com/embed/live_stream?channel=UC1234567890',
+  ])('sends a playlist or live-stream embed (%s) straight to Embed', (url) => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget });
+    render(<Dock />);
+    pasteText(url);
+    expect(screen.queryByTestId('video-paste-picker-modal')).toBeNull();
+    expect(addWidget).toHaveBeenCalledWith('embed', expect.anything());
+  });
+
   it('keeps other Embed links (Vimeo) going straight to Embed', () => {
     const addWidget = vi.fn();
     setupMocks({ addWidget });

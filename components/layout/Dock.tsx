@@ -75,6 +75,8 @@ import { ImagePastePickerModal } from './dock/ImagePastePickerModal';
 import { VideoPastePickerModal } from './dock/VideoPastePickerModal';
 import { extractYouTubeId } from '@/utils/youtube';
 import { offerImportHandoff } from '@/components/import/importHandoff';
+
+const YOUTUBE_EMBED_RESERVED = new Set(['videoseries', 'live_stream']);
 import { useImageUpload } from '@/hooks/useImageUpload';
 import {
   getImageDimensionsFromFile,
@@ -563,10 +565,13 @@ export const Dock: React.FC = () => {
       if (text) {
         const result = detectWidgetType(text);
         if (result) {
-          const videoId =
+          const parsedId =
             result.action === 'create-widget' && result.type === 'embed'
               ? extractYouTubeId(text.trim())
               : null;
+          // Playlist and channel-live embed paths look like 11-character ids but aren't videos.
+          const videoId =
+            parsedId && !YOUTUBE_EMBED_RESERVED.has(parsedId) ? parsedId : null;
           if (
             result.action === 'create-widget' &&
             videoId &&
