@@ -865,18 +865,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Live tour playback that keeps pace with the learner (TOURS_10X.md P1-P5). Admin-only until Paul has played tours with it.
-  'tour-pacing': {
-    label: 'Tour pacing',
-    icon: Footprints,
-    description:
-      'Live tours keep up when someone clicks ahead and wait calmly for a missing control.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // The read-only Steps view for Live tours, opened from the Help Center (TOURS_10X.md S1-S2). Admin-only until Paul has read tours with it.
   'tour-steps-view': {
     label: 'Tour steps view',
