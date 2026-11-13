@@ -11342,15 +11342,12 @@ export type GlobalFeature =
   | 'import-embed'
   | 'import-link'
   | 'import-schoology-course'
-  /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
-  | 'video-activity-stops'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
   /** Due date picker in the Push to Schoology dialog. */
   | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
-  | 'video-activity-editor-arrows'
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker';
 

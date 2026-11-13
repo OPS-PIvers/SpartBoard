@@ -2749,7 +2749,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'video-activity.editor-clip-end': ['library.video-activity.editor'],
     'video-activity.editor-notes-toggle': ['library.video-activity.editor'],
     'video-activity.editor-add-note': ['library.video-activity.editor'],
-    'video-activity.editor-question-pill': ['library.video-activity.editor'],
     'video-activity.editor-question-delete': ['library.video-activity.editor'],
     'video-activity.editor-question-text': ['library.video-activity.editor'],
     'video-activity.editor-question-timestamp': [
@@ -2761,7 +2760,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'video-activity.editor-fib-answer': ['library.video-activity.editor'],
     'video-activity.editor-draft-ai': ['library.video-activity.editor'],
     'video-activity.editor-add-question': ['library.video-activity.editor'],
-    'video-activity.editor-question-select': ['library.video-activity.editor'],
     'video-activity.editor-question-duplicate': [
       'library.video-activity.editor',
     ],
@@ -2769,8 +2767,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'video-activity.editor-question-prev': ['library.video-activity.editor'],
     'video-activity.editor-question-next': ['library.video-activity.editor'],
     'video-activity.editor-question-jump': ['library.video-activity.editor'],
-    'video-activity.editor-bulk-delete': ['library.video-activity.editor'],
-    'video-activity.editor-bulk-clear': ['library.video-activity.editor'],
     'video-activity.editor-targets-edit': ['library.video-activity.editor'],
     'video-activity.editor-type-select': ['library.video-activity.editor'],
     'video-activity.editor-question-use-current-time': [

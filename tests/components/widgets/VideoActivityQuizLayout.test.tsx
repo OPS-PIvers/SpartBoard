@@ -11,7 +11,7 @@ const seekTo = vi.hoisted(() => vi.fn());
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-test' },
-    canAccessFeature: (id: string) => id === 'video-activity-editor-arrows',
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -165,7 +165,11 @@ describe('Video Activity editor on the Quiz layout', () => {
         .getByRole('combobox', { name: 'Type' })
         .querySelectorAll('option'),
     ].map((o) => o.textContent);
-    expect(types).toEqual(['Multiple Choice', 'Fill in the Blank']);
+    expect(types).toEqual([
+      'Multiple Choice',
+      'Fill in the Blank',
+      'Short Answer',
+    ]);
   });
 
   it('clicking a marker opens its question and seeks the video', () => {
@@ -248,7 +252,7 @@ describe('Video Activity editor on the Quiz layout', () => {
         target: { value: 'mitosis' },
       }
     );
-    fireEvent.click(screen.getByText(/^Add (?!at)/));
+    fireEvent.click(screen.getByText(/^Add (?!at|note)/));
     fireEvent.change(screen.getAllByRole('textbox').at(-1) as HTMLElement, {
       target: { value: 'cell division' },
     });
