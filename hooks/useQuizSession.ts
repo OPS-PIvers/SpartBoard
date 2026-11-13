@@ -56,6 +56,7 @@ import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
   QuizReadAloudManifest,
+  QuizLiveState,
   QuizResponse,
   QuizResponseAnswer,
   QuizQuestion,
@@ -123,6 +124,7 @@ import {
 } from '@/utils/periodAccess';
 import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow, retryWithFreshClock } from '@/utils/serverTime';
+import { deleteLiveLog, deleteLiveState } from '@/utils/quizLiveViewStore';
 import {
   attemptClockRanOut,
   clampQuizTimeLimitMinutes,
@@ -154,6 +156,8 @@ import {
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
+export const QUIZ_LIVE_COLLECTION = 'live';
+export const QUIZ_LIVE_STATE_DOC = 'state';
 export const RESPONSES_COLLECTION = 'responses';
 
 /** `unresponded` reasons only the recording flow emits; gated on the session marker. */
@@ -1714,7 +1718,11 @@ export const useQuizSessionTeacher = (
         );
         // Strip the listener-only `_responseKey` tag before writing so
         // the archive matches the original Firestore schema.
-        const { _responseKey: _, ...archivePayload } = target;
+        const {
+          _responseKey: _,
+          liveView: _liveView,
+          ...archivePayload
+        } = target;
         batch.set(archiveRef, {
           ...archivePayload,
           archivedAt,
@@ -1729,8 +1737,20 @@ export const useQuizSessionTeacher = (
       // and would roll back the whole batch.
       if (ledgerRef && ledgerSnap?.exists()) batch.delete(ledgerRef);
       await batch.commit();
+      // Their Live view log goes with them; Drive screenshots stay in the teacher's Drive.
+      const logOwner = rawSession?.teacherUid;
+      if (logOwner === writerUid) {
+        await deleteLiveLog(logOwner, sessionId, responseKey).catch(
+          (err: unknown) =>
+            console.error('[removeStudent] live log cleanup failed:', err)
+        );
+        // A stamp left by a closed tab means a position doc may be left too.
+        if (target?.liveView) {
+          await deleteLiveState(sessionId, responseKey).catch(() => undefined);
+        }
+      }
     },
-    [sessionId, responses]
+    [sessionId, responses, rawSession?.teacherUid]
   );
 
   const unlockOrReopen = useCallback(
@@ -2137,6 +2157,8 @@ export interface UseQuizSessionStudentResult {
   reportTabSwitch: () => Promise<number>;
   /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
   saveTabExits: (exits: TabExit[]) => Promise<void>;
+  /** Writes the question on screen to `live/state` while the teacher watches. */
+  reportLivePosition: (questionId: string) => Promise<void>;
   /** Writes one attempt's input counters (utils/inputSignals.ts). */
   saveInputSignals: (
     attempt: number,
@@ -4229,6 +4251,29 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     []
   );
 
+  // Live view position goes to its own small doc, so the response triggers stay asleep.
+  const reportLivePosition = useCallback(
+    async (questionId: string): Promise<void> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey || studentPreviewBlocksWrite()) return;
+      const state: QuizLiveState = { questionId, at: getServerNow() };
+      await setDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey,
+          QUIZ_LIVE_COLLECTION,
+          QUIZ_LIVE_STATE_DOC
+        ),
+        state
+      );
+    },
+    []
+  );
+
   const subscribeForReview = useCallback(
     async (code: string, teacherUid?: string): Promise<void> => {
       setLoading(true);
@@ -4339,6 +4384,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     reportTabSwitch,
     saveTabExits,
     saveInputSignals,
+    reportLivePosition,
     setHandRaised,
     startAttemptClock,
     submitPart,

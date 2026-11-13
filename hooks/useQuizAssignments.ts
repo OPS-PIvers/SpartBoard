@@ -112,6 +112,7 @@ import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
 import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
+import { deleteLiveLog } from '@/utils/quizLiveViewStore';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -2233,6 +2234,11 @@ export const useQuizAssignments = (
           )
         );
       }
+
+      // The Live view log sits under the assignment doc; it goes first so nothing is orphaned.
+      await deleteLiveLog(userId, assignmentId).catch((err: unknown) =>
+        console.error('[deleteAssignment] live log cleanup failed:', err)
+      );
 
       // Delete the session doc and the assignment doc in one batch
       const batch = writeBatch(db);

@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   X,
+  Eye,
   Hand,
   Save,
   Loader2,
@@ -31,6 +32,7 @@ import {
   type QuizHandRaiseMode,
 } from '@/utils/quizHandRaise';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { Toggle } from '@/components/common/Toggle';
 
 interface QuizConfigurationModalProps {
   isOpen: boolean;
@@ -377,6 +379,43 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
                     </label>
                   ))}
                 </div>
+              </div>
+
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-brand-blue-primary" />
+                  {t('quizAdmin.liveView.heading', 'Live view')}
+                </h4>
+                <label className="flex items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                  <span className="text-sm font-semibold text-slate-700">
+                    {t(
+                      'quizAdmin.liveView.alwaysNotify',
+                      'Always tell students when a teacher opens Live view'
+                    )}
+                  </span>
+                  <span
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'quiz',
+                      'liveViewAlwaysNotify'
+                    )}
+                  >
+                    <Toggle
+                      checked={
+                        currentBuildingConfig.liveViewAlwaysNotify === true
+                      }
+                      onChange={(v) =>
+                        updateBuilding({ liveViewAlwaysNotify: v })
+                      }
+                      size="sm"
+                      showLabels={false}
+                      label={t(
+                        'quizAdmin.liveView.alwaysNotify',
+                        'Always tell students when a teacher opens Live view'
+                      )}
+                    />
+                  </span>
+                </label>
               </div>
             </>
           )}

@@ -2226,6 +2226,13 @@
     "placed": "{{word}} placé dans {{blank}}.",
     "returned": "{{word}} remis dans la banque de mots."
   },
+  "quizLiveView": {
+    "banner": "Ton enseignant regarde ton quiz",
+    "nudge": "Ton enseignant demande ton attention",
+    "noteSeeMe": "Viens me voir, s'il te plaît",
+    "noteOwnWork": "Regarde seulement ton propre travail",
+    "noteKeepGoing": "Continue"
+  },
   "quizReview": {
     "reviewButton": "VÉRIFIER",
     "reviewLink": "Vérifier",
@@ -3504,6 +3511,10 @@
     "cancel": "Annuler",
     "saved": "Configuration du quiz enregistrée.",
     "saveFailed": "Échec de l’enregistrement de la configuration du quiz.",
+    "liveView": {
+      "heading": "Vue en direct",
+      "alwaysNotify": "Toujours prévenir les élèves quand un enseignant ouvre la Vue en direct"
+    },
     "handRaise": {
       "heading": "Lever la main",
       "teacherChoice": "Choix de l’enseignant",

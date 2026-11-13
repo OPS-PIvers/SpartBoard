@@ -44,6 +44,11 @@ import { useDashboard } from '@/context/useDashboard';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { logError } from '@/utils/logError';
+import {
+  QUIZ_LIVE_VIEW_FEATURE,
+  liveViewSupported,
+} from '@/utils/quizLiveView';
+import { LiveViewPanel } from './LiveViewPanel';
 import { REOPEN_ENDED_REASON } from '@/utils/quizTeacherSubmit';
 import {
   playPodiumFanfare,
@@ -225,6 +230,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     !hasPeriodAccess(session) && session.sessionMode !== 'game'
   );
 
+  // Live view (QUIZ_LIVE_VIEW.md D3): only the assigning teacher, on a running self-paced quiz.
+  const canLiveView =
+    authContext?.canAccessFeature?.(QUIZ_LIVE_VIEW_FEATURE) === true &&
+    !!session.teacherUid &&
+    authContext.user?.uid === session.teacherUid &&
+    liveViewSupported(session) &&
+    session.status === 'active' &&
+    !outward.locked;
+  const [liveViewKey, setLiveViewKey] = useState<string | null>(null);
+
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
   const [presenting, setPresenting] = useState(false);
@@ -327,6 +342,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     setOpenBucket(null);
     setPresenting(false);
     setGameNames(false);
+    setLiveViewKey(null);
   }
 
   const isGame = session.sessionMode === 'game';
@@ -724,6 +740,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   return (
     <div className="h-full w-full flex flex-col bg-white text-brand-gray-dark relative">
+      {canLiveView && liveViewKey && (
+        <LiveViewPanel
+          session={session}
+          students={data.byBucket.inProgress}
+          studentKey={liveViewKey}
+          onSelect={setLiveViewKey}
+          onClose={() => setLiveViewKey(null)}
+          overridesByStudentUid={overridesByStudentUid}
+        />
+      )}
       <div
         className="flex items-center bg-brand-blue-primary text-white shrink-0"
         style={{
@@ -973,6 +999,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 overridesBySourcedId={overridesBySourcedId}
                 targetRefKeyByStudentUid={data.targetRefKeyByStudentUid}
                 boardViewChip={!!assignmentSettings}
+                onLiveView={canLiveView ? setLiveViewKey : undefined}
               />
             )}
           </div>

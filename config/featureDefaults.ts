@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   FolderTree,
+  MonitorPlay,
   ArrowLeftRight,
   Camera,
   PenLine,
@@ -880,6 +881,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'keep',
     widget: 'quiz',
     modalLabel: 'Student view',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Quiz Monitor "Live view": one student's in-progress attempt, redrawn from saved data.
+  'quiz-live-view': {
+    label: 'Quiz Live view',
+    icon: MonitorPlay,
+    description:
+      "Teachers watch one student's quiz in progress from Monitor, with Nudge and screenshots.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Live view',
     group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,

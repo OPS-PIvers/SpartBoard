@@ -77,3 +77,16 @@ Each UI control gets a `tourAttr` anchor registered in `config/tourAnchors.ts`. 
 - A true screen mirror, or anything outside the quiz page (other tabs and apps are the Chrome extension's Focus sessions, `docs/plans/CHROME_EXTENSION.md`).
 - Watching several students at once, free-text messages to a student, and Live view for Done students (Results covers them).
 - Teacher-paced and game-mode sessions, where the board sets the question.
+
+## Build notes (2026-11-13)
+
+Decisions made while building, for Paul to confirm on the mockup review:
+
+- **B1. No period picker (D7).** Every period of a per-period assignment reads the same `content/questions` doc, and nothing in the student player depends on the period, so there was nothing to pick. Student view opens straight on the assigned copy.
+- **B2. `content/readAloud` is not read (D6).** Student view shows a student with no accommodations and never plays read-aloud, so the doc would be read and unused.
+- **B3. Live view is a full-window panel over Monitor (D10)**, not a region inside the widget: the student player needs the room. The button is an eye icon on each In progress row, shown in Board view too.
+- **B4. The position doc is deleted when the panel closes**, and the student re-reports on every renewal of the stamp, so a reopened panel never starts from a stale place. Adds one delete per close and one small write per renewal (every 3 minutes) to the cost table.
+- **B5. Mark for review is hidden in the mirror by turning the review step off**, so the last question shows Submit where the student sees Review.
+- **B6. "Always tell students" is per building**, in Admin Settings > Widgets > Quiz > Behavior, next to the raise-hand setting. A teacher in several buildings gets the banner if any of them has it on.
+- **B7. "Edited since assigned" compares the library quiz's last save to the assignment's creation time** for plain quizzes; synced quizzes keep the existing pill.
+- **B8. Time on this question** counts from the student's last position report, so it shows only once they have reported.

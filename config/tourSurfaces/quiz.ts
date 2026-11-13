@@ -421,6 +421,12 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',
     },
   },
+  'quiz.monitor.live-view': {
+    label: 'Quiz Live view of one student',
+    kind: 'panel',
+    opensWith: 'quiz-monitor.live-view:quiz',
+    files: [`${C}monitor/LiveViewPanel.tsx`, `${C}monitor/LiveLogList.tsx`],
+  },
   'quiz.monitor.settings': {
     label: 'Quiz monitor settings',
     kind: 'panel',
