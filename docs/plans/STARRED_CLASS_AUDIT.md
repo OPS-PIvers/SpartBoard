@@ -32,11 +32,11 @@ and the Classes widget is effectively unused.
 
 ### Silently fall back to `rosters[0]`
 
-| Widget                     | Where                                  | Problem                                                                |
-| -------------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
-| Stations                   | `Stations/Widget.tsx:80-86`            | Uses first roster; chip hidden, so no class shown and no way to switch |
-| Lunch Count                | `LunchCount/redesign/useLunchCountModel.ts`| Same; the cafeteria report counts whichever class is first             |
-| Scoreboard (import groups) | `Scoreboard/settingsFields.tsx:77-128` | Imports from first roster                                              |
+| Widget                     | Where                                       | Problem                                                                |
+| -------------------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
+| Stations                   | `Stations/Widget.tsx:80-86`                 | Uses first roster; chip hidden, so no class shown and no way to switch |
+| Lunch Count                | `LunchCount/redesign/useLunchCountModel.ts` | Same; the cafeteria report counts whichever class is first             |
+| Scoreboard (import groups) | `Scoreboard/settingsFields.tsx:77-128`      | Imports from first roster                                              |
 
 ### Outside widgets
 

@@ -39,8 +39,7 @@ export type LunchZoneId = 'hot' | 'bento' | 'home';
 export function useLunchCountModel(widget: WidgetData) {
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
-  const { user, featurePermissions, selectedBuildings } =
-    useAuth();
+  const { user, featurePermissions, selectedBuildings } = useAuth();
   const subShareHost = useSubShareHost();
   const reportName = subShareHost
     ? (subShareHost.teacherName ?? 'Staff')
@@ -303,13 +302,10 @@ export function useLunchCountModel(widget: WidgetData) {
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(
-          config,
-          widget.id,
-          dayKey,
-          sentClass,
-          { notes, extraPizza: payload.extraPizza }
-        ),
+        config: submittedMarker(config, widget.id, dayKey, sentClass, {
+          notes,
+          extraPizza: payload.extraPizza,
+        }),
       });
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);

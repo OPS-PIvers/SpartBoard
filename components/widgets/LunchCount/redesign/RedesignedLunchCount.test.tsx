@@ -408,7 +408,7 @@ describe('LunchCountRedesign — class group pool', () => {
       (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         user: { displayName: 'Sam Substitute' },
         selectedBuildings: ['schumann'],
-              featurePermissions: [
+        featurePermissions: [
           {
             widgetType: 'lunchCount',
             config: {
@@ -551,7 +551,7 @@ describe('LunchCountRedesign — missing lunch time or grade', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { displayName: 'Kristan Nalezny' },
       selectedBuildings: auth.buildings,
-          featurePermissions: [
+      featurePermissions: [
         {
           widgetType: 'lunchCount',
           config: {

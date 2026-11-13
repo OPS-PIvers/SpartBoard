@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SubmitReportModal } from './SubmitReportModal';
 
-
 const data = {
   date: '11/09/2026',
   staffName: 'A. Teacher',

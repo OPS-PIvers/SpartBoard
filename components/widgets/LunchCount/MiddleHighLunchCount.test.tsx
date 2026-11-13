@@ -81,7 +81,7 @@ describe('MiddleHighLunchCount', () => {
     nut.isSyncing = true;
     render(<MiddleHighLunchCount widget={createWidget()} />);
     expect(
-      (screen.getByRole('button', { name: 'Refresh menu' }) as HTMLButtonElement)
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Refresh menu' })
         .disabled
     ).toBe(true);
   });
