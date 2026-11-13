@@ -22,6 +22,7 @@ import {
   computeIsPast,
   resolveRotationDayNumber,
   formatRotationDayLabel,
+  resolveBuildingConfig,
 } from './utils';
 import {
   REFERENCE_VIEWPORT,
@@ -53,7 +54,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { activeDashboard, addWidget, addToast } = useDashboard();
   const { featurePermissions } = useAuth();
-  const buildingId = useWidgetBuildingId(widget) ?? 'schumann-elementary';
+  const buildingId = useWidgetBuildingId(widget);
   const config = widget.config as SpecialistScheduleConfig;
 
   // Fetch Global Configuration
@@ -63,7 +64,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     );
     return perm?.config as SpecialistScheduleGlobalConfig | undefined;
   }, [featurePermissions]);
-  const buildingConfig = globalConfig?.buildingDefaults?.[buildingId] ?? {
+  const buildingConfig = resolveBuildingConfig(globalConfig, buildingId) ?? {
     cycleLength: 6,
     startDate: toDateStr(new Date()),
     schoolDays: [],
