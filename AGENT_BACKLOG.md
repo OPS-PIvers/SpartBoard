@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-211**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-213**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -160,6 +160,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Widgets and UI
 
+- **AB-211 Lunch Count middle/high refresh button on touch panels** (S, minor; release 2026.11.13d review). `components/widgets/LunchCount/MiddleHighLunchCount.tsx` refresh button is `opacity-0 group-hover:opacity-100`, so a middle or high school board on a touch-only panel never shows it. Pre-existing (moved unchanged). Use the repo's touch-panel pattern from `components/CLAUDE.md` (there is no `touch:` variant). Done when the button shows on a touch device and a test or screenshot proves it.
+- **AB-212 Flashcards: unspaced slash pairs accept either half** (S, decide first; release 2026.11.13d review). Since #5762, typed answers expand an unspaced slash word, so `yes/no`, `true/false`, `and/or` and `input/output` accept either half alone (the same rule that makes `el/la` work). Check with Paul whether non-gendered pairs should stay whole; if so, limit expansion in `utils/flashcardMatch.ts` and its `functions/` mirror, with cases in `flashcardMatch.cases.json`.
 - **AB-209 YouTube paste picker: read-only board and start time** (S, minor; release 2026.11.13b review, before `youtube-paste-picker` opens). In `components/layout/Dock.tsx` the Video Activity choice (1) calls `offerImportHandoff` even when `addWidget` no-ops on a read-only board or with no active board, leaving an orphaned handoff; skip the offer, as `ImportScreenHost` does with `refuseReadOnly()`. (2) It rebuilds the URL as `watch?v=<id>`, dropping a pasted `&t=` start time; pass the pasted URL through. Done when a test covers each.
 - **AB-188 Flashcards check sync: retry and don't block the save on rescore** (S, release 2026.11.10 (5) review). `hooks/useFlashcardSets.ts` `rewriteOpenCheckSessions` awaits every `rescoreFlashcardCheckV1` call inside the final save, so editor Close waits on cold starts, and a failed call is only logged: the cards are already committed, so the next save sees no change and never rescores. Fire the rescore after the save resolves, and mark the session (for example `rescorePending`) so a later save or the next open retries it. Skip the call for Flashcards and Speak Checks.
 - **AB-189 Term-only cards through the connector and results views** (S, before `flashcards-term-only` opens; release 2026.11.10 (5) review). `functions/src/mcp/tools.ts` `update_flashcard_set` requires `definition.min(1)`, so sending back a sight-word set from `get_flashcard_set` fails validation; allow an empty definition for sets the owner's flag allows. Blank definitions also leave a dangling separator or blank line in `FlashcardStudyResults.tsx`, `FlashcardCardResults.tsx`, `FlashcardsCardsStep.tsx`, `PlcFlashcardsBody.tsx` and `flashcardPrompt` in `utils/flashcardResults.ts`.
@@ -218,7 +220,9 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-9hkbs1
 claude/project-thread-dff8t3
+claude/project-thread-a1em3y
 claude/ab112-crossout-preview
 retire/spell-check-setting
 retire/video-activity
