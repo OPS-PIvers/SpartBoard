@@ -11208,8 +11208,6 @@ export type GlobalFeature =
   | 'student-keyboards'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
-  | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
@@ -11274,8 +11272,6 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Ordering results: each item's spot, with the items students put out of order marked. */
-  | 'quiz-ordering-results'
   /** Quiz explanations on questions and answers, shown with published results. */
   | 'quiz-explanations'
   /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */
