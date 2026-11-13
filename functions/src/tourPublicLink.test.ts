@@ -108,9 +108,6 @@ vi.mock('./functionsInit', () => ({}));
 vi.mock('./glTours', () => ({
   GL_TOURS_COLLECTION: 'building_guided_learning_tours',
 }));
-vi.mock('./quizMediaArchive', () => ({
-  isGlobalFeatureGranted: vi.fn(async () => true),
-}));
 
 import {
   NOT_FOUND_CACHE,
@@ -132,7 +129,6 @@ import {
   pictureFingerprint,
   type PublicLinkRecord,
 } from './tourPublicLinkModel';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const SET = 'set-1';
@@ -249,7 +245,6 @@ const deps = (
     rec && t === rec.token ? { setId: SET, record: rec } : null,
   loadPublished: async () => published,
   isAdmin: async () => true,
-  flagOn: async () => true,
   latchOff: vi.fn(async () => undefined),
   bucket: BUCKET,
   pictureGeneration: async () => '1',
@@ -269,7 +264,6 @@ describe('handlePublicRequest refusals', () => {
       TOKEN,
       deps(set, { ...ok, off: { reason: 'pictures', at: 2 } }),
     ],
-    ['flag off', TOKEN, deps(set, ok, { flagOn: async () => false })],
     [
       'confirmer no longer an admin',
       TOKEN,
@@ -345,9 +339,6 @@ describe('handlePublicRequest refusals', () => {
     const gone = deps(set, ok, { isAdmin: async () => false });
     await handlePublicRequest({ t: TOKEN }, gone);
     expect(gone.latchOff).toHaveBeenCalledWith(SET, 'confirmer');
-    const flagOff = deps(set, ok, { flagOn: async () => false });
-    await handlePublicRequest({ t: TOKEN }, flagOff);
-    expect(flagOff.latchOff).not.toHaveBeenCalled();
   });
 
   it('refuses repeated or path-like parameters before reading anything', async () => {
@@ -434,88 +425,41 @@ describe('workingLinkTokenFor', () => {
   const set = webSet();
   const withLink = (
     rec: PublicLinkRecord | null,
-    over: Partial<PublicLinkDeps> = {},
-    callerFlagOn: (
-      email: string,
-      uid: string | null
-    ) => Promise<boolean> = () => Promise.resolve(true)
+    over: Partial<PublicLinkDeps> = {}
   ) => ({
     ...deps(set, rec, over),
     getLink: async (id: string) => (id === SET ? rec : null),
-    callerFlagOn,
   });
-  const teacher = { email: 'teacher@x.org', uid: 'teacher-uid' };
 
   it('gives the token of a link that is served now', async () => {
-    expect(await workingLinkTokenFor(SET, teacher, withLink(record(set)))).toBe(
-      TOKEN
-    );
+    expect(await workingLinkTokenFor(SET, withLink(record(set)))).toBe(TOKEN);
   });
 
   it('gives nothing for a tour with no link or another tour', async () => {
-    expect(await workingLinkTokenFor(SET, teacher, withLink(null))).toBeNull();
+    expect(await workingLinkTokenFor(SET, withLink(null))).toBeNull();
     expect(
-      await workingLinkTokenFor('other', teacher, withLink(record(set)))
+      await workingLinkTokenFor('other', withLink(record(set)))
     ).toBeNull();
   });
 
   it('gives nothing for a link that is off or would be refused', async () => {
     const off = { ...record(set), off: { reason: 'pictures' as const, at: 2 } };
-    expect(await workingLinkTokenFor(SET, teacher, withLink(off))).toBeNull();
+    expect(await workingLinkTokenFor(SET, withLink(off))).toBeNull();
     expect(
       await workingLinkTokenFor(
         SET,
-        teacher,
-        withLink(record(set), { flagOn: async () => false })
-      )
-    ).toBeNull();
-    expect(
-      await workingLinkTokenFor(
-        SET,
-        teacher,
         withLink(record(set), { pictureGeneration: async () => '2' })
       )
     ).toBeNull();
-  });
-
-  it('gives nothing to a caller without the preview', async () => {
-    const callerFlagOn = vi.fn((email: string): Promise<boolean> =>
-      Promise.resolve(email !== 'teacher@x.org')
-    );
-    expect(
-      await workingLinkTokenFor(
-        SET,
-        teacher,
-        withLink(record(set), {}, callerFlagOn)
-      )
-    ).toBeNull();
-    expect(
-      await workingLinkTokenFor(
-        SET,
-        { email: 'admin@x.org', uid: 'admin-uid' },
-        withLink(record(set), {}, callerFlagOn)
-      )
-    ).toBe(TOKEN);
-  });
-
-  it('checks the caller with their uid so building limits apply', async () => {
-    const callerFlagOn = vi.fn(async () => true);
-    await workingLinkTokenFor(
-      SET,
-      teacher,
-      withLink(record(set), {}, callerFlagOn)
-    );
-    expect(callerFlagOn).toHaveBeenCalledWith('teacher@x.org', 'teacher-uid');
   });
 
   it('gives nothing for a live tour', async () => {
     const live = liveSet();
     const rec = record(live, { kind: 'live' });
     expect(
-      await workingLinkTokenFor(SET, teacher, {
+      await workingLinkTokenFor(SET, {
         ...deps(live, rec),
         getLink: async () => rec,
-        callerFlagOn: async () => true,
       })
     ).toBeNull();
   });
@@ -765,7 +709,6 @@ describe('tourPublicStepsV1', () => {
     fake.files.clear();
     fake.reads.length = 0;
     fake.updates.length = 0;
-    vi.mocked(isGlobalFeatureGranted).mockResolvedValue(true);
     const set = webSet();
     fake.tours.set(SET, { set, surface: 'web', publishedBy: 'author-uid' });
     fake.links.set(SET, { ...record(set) });
@@ -878,9 +821,6 @@ describe('tourPublicStepsV1', () => {
   it('answers every refusal with the same uncached not-found', async () => {
     const bodies: unknown[] = [];
     bodies.push((await call({ t: 'f'.repeat(32) })).body);
-    vi.mocked(isGlobalFeatureGranted).mockResolvedValueOnce(false);
-    const flagOff = await call({ t: TOKEN });
-    bodies.push(flagOff.body);
     fake.admins.clear();
     bodies.push((await call({ t: TOKEN })).body);
     fake.admins.add('admin@example.com');
@@ -889,7 +829,6 @@ describe('tourPublicStepsV1', () => {
     bodies.push(gone.body);
     expect(gone.statusCode).toBe(404);
     expect(gone.headers['Cache-Control']).toBe(NOT_FOUND_CACHE);
-    expect(flagOff.statusCode).toBe(404);
     expect(new Set(bodies.map((b) => JSON.stringify(b)))).toEqual(
       new Set(['{"error":"not-found"}'])
     );
