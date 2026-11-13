@@ -77,14 +77,14 @@ export const RemoteScoreboardControl: React.FC<
 
             {/* +/- Buttons */}
             <div className="flex flex-col gap-2 shrink-0">
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 onClick={() => adjustScore(team.id, 1)}
                 className="touch-manipulation w-12 h-12 rounded-xl bg-green-500/20 hover:bg-green-500/40 border border-green-500/30 text-green-400 flex items-center justify-center transition-all active:scale-95"
                 aria-label={`Add 1 to ${team.name}`}
               >
                 <Plus className="w-5 h-5" />
               </button>
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 onClick={() => adjustScore(team.id, -1)}
                 className="touch-manipulation w-12 h-12 rounded-xl bg-red-500/20 hover:bg-red-500/40 border border-red-500/30 text-red-400 flex items-center justify-center transition-all active:scale-95"
                 aria-label={`Remove 1 from ${team.name}`}
@@ -96,7 +96,7 @@ export const RemoteScoreboardControl: React.FC<
         ))}
       </div>
 
-      <button
+      <button /* no-tour-anchor: phone remote page, never on the board */
         onClick={resetAll}
         className="touch-manipulation flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 text-sm font-bold transition-all active:scale-95"
         aria-label="Reset all scores"

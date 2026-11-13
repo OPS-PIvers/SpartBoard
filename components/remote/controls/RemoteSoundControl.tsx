@@ -106,7 +106,7 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
             {Math.round(config.sensitivity ?? 50)}
           </span>
         </div>
-        <input
+        <input /* no-tour-anchor: phone remote page, never on the board */
           type="range"
           min={1}
           max={100}
@@ -133,7 +133,7 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
           {visuals.map(({ value, label, icon }) => {
             const isActive = shownVisual === value;
             return (
-              <button
+              <button /* no-tour-anchor: phone remote page, never on the board */
                 key={value}
                 onClick={() => setVisual(value)}
                 className={`touch-manipulation flex items-center gap-3 px-4 py-3 rounded-2xl border font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
@@ -152,7 +152,7 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
       </div>
 
       {/* Auto traffic light toggle */}
-      <button
+      <button /* no-tour-anchor: phone remote page, never on the board */
         onClick={toggleTrafficLight}
         className={`touch-manipulation flex items-center justify-between w-full px-4 py-4 rounded-2xl border transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
           trafficOn

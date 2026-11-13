@@ -164,7 +164,7 @@ export const ViewAsBanner: React.FC = () => {
         )}
         <div className="flex items-center gap-2 shrink-0">
           {pending.length > 0 && (
-            <button
+            <button /* no-tour-anchor: admin View as tab, never on a teacher board */
               type="button"
               aria-expanded={pendingOpen}
               data-testid="view-as-pending-toggle"
@@ -175,7 +175,7 @@ export const ViewAsBanner: React.FC = () => {
             </button>
           )}
           {viewAs.readOnly && viewAs.canUnlock && (
-            <button
+            <button /* no-tour-anchor: admin View as tab, never on a teacher board */
               type="button"
               disabled={busy !== null}
               onClick={() => setUnlockOpen(true)}
@@ -189,7 +189,7 @@ export const ViewAsBanner: React.FC = () => {
               <span className="text-slate-300">
                 Ends in {Math.max(1, Math.ceil(remaining / 60_000))} min
               </span>
-              <button
+              <button /* no-tour-anchor: admin View as tab, never on a teacher board */
                 type="button"
                 disabled={busy !== null}
                 onClick={() => run('renew', viewAs.renew)}
@@ -203,7 +203,7 @@ export const ViewAsBanner: React.FC = () => {
               </button>
             </>
           )}
-          <button
+          <button /* no-tour-anchor: admin View as tab, never on a teacher board */
             type="button"
             disabled={busy !== null}
             onClick={() => run('exit', viewAs.end)}

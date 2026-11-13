@@ -75,6 +75,7 @@ export const CalendarConfigurationModal: React.FC<
     updateFrequencyHours: 4,
   });
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [selectedBuildingId, setSelectedBuildingId] =
@@ -85,6 +86,7 @@ export const CalendarConfigurationModal: React.FC<
       setLoading(false);
       return;
     }
+    setLoadFailed(false);
     try {
       const docRef = doc(db, 'feature_permissions', 'calendar');
       const snap = await getDoc(docRef);
@@ -96,6 +98,8 @@ export const CalendarConfigurationModal: React.FC<
       }
     } catch (err) {
       console.error('Failed to fetch calendar config:', err);
+      // Never offer defaults after a failed read: Save would overwrite the real doc.
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -133,7 +137,7 @@ export const CalendarConfigurationModal: React.FC<
   }, [isOpen, ensureGoogleScope]);
 
   const handleSave = async (updatedConfig?: CalendarGlobalConfig) => {
-    if (isAuthBypass) return;
+    if (isAuthBypass || loadFailed) return;
     setSaving(true);
     try {
       const docRef = doc(db, 'feature_permissions', 'calendar');
@@ -336,7 +340,7 @@ export const CalendarConfigurationModal: React.FC<
         <button
           {...tourTypeAttr('admin.widget-config.save', 'calendar')}
           onClick={() => void handleSave()}
-          disabled={saving}
+          disabled={saving || loadFailed}
           className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
         >
           {saving ? (
@@ -371,6 +375,24 @@ export const CalendarConfigurationModal: React.FC<
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
               Loading Configuration...
             </p>
+          </div>
+        ) : loadFailed ? (
+          <div
+            role="alert"
+            className="flex flex-col items-center gap-3 py-20 text-sm text-brand-red-primary"
+          >
+            <p>Could not load the saved calendar configuration.</p>
+            <button
+              type="button"
+              // no-tour-anchor: shown only when the load fails
+              onClick={() => {
+                setLoading(true);
+                void fetchConfig();
+              }}
+              className="font-bold text-brand-blue-primary"
+            >
+              Try again
+            </button>
           </div>
         ) : (
           <>
