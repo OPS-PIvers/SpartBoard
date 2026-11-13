@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runTransaction = vi.fn<() => Promise<void>>();
-const docGet = vi.fn((_path?: string) =>
-  Promise.resolve<{ exists: boolean; data: () => unknown }>({
-    exists: false,
-    data: () => undefined,
-  })
-);
+const docGet = vi.fn<
+  (path?: string) => Promise<{ exists: boolean; data: () => unknown }>
+>(() => Promise.resolve({ exists: false, data: () => undefined }));
 const fakeDb = {
   collection: (c: string) => ({
     doc: (d: string) => ({ get: () => docGet(`${c}/${d}`), id: 'x' }),
