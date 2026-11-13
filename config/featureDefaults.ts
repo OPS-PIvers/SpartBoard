@@ -35,7 +35,6 @@ import {
   Printer,
   RefreshCw,
   Send,
-  ListOrdered,
   Share2,
   Smartphone,
   Smile,
