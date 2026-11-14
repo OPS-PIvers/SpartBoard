@@ -2655,6 +2655,12 @@
       "text": "Pictures and readings now show beside the question. Add them under the question, or drag a file or paste an image."
     },
     {
+      "id": "review-stimuli-under-question-2026-11-14",
+      "widget": "review",
+      "date": "2026-11-14",
+      "text": "When you edit a quiz, Stimuli now sits under the question. Drag a file or paste an image to add one."
+    },
+    {
       "id": "quiz-library-menu-2026-11-10",
       "widget": "quiz",
       "date": "2026-11-10",
