@@ -112,6 +112,7 @@ export const SURFACES: TourSurfaceMap = {
       'assign-when.mode-option': 'assign-step.when',
       'assign-when.scope': 'assign-step.when',
       'assign-when.allow-late': 'assign-step.when',
+      'assign-when.due': 'assign-step.when',
       'sharing.plc-toggle': 'assign-step.sharing',
       'sharing.plc-select': 'assign-step.sharing',
       'assign-students.search': 'assign-students.trigger:assign',

@@ -643,6 +643,7 @@ export const Results: React.FC<ResultsProps> = ({
     title: session.assignmentName || session.activityTitle,
     closeAt: session.closeAt,
     dueAt: session.dueAt,
+    endedAt: session.endedAt,
     buildPayload: async () => {
       if (keyLoading || keyFailed) {
         addToast(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST, 'info');

@@ -81,6 +81,23 @@ export function formatWhenValue(
     return t('assignWhen.liveValue', {
       defaultValue: 'You start it from the board',
     });
+  const due = value.availability.manualDue;
+  if (
+    variant === 'when' &&
+    value.mode === 'manual' &&
+    manualAvailable &&
+    due &&
+    !staff
+  )
+    return due.kind === 'date'
+      ? t('assignWhen.manualDueValue', {
+          dueDay: formatDay(due.day),
+          dueTime: formatClock(due.time),
+          defaultValue: 'Manual, due {{dueDay}}, {{dueTime}}',
+        })
+      : t('assignWhen.manualDueEndedValue', {
+          defaultValue: 'Manual, due when ended',
+        });
   if (variant === 'when' && value.mode === 'manual' && manualAvailable)
     return staff
       ? t('assignWhen.manualValueStaff', {
@@ -137,6 +154,11 @@ export function formatWhenValue(
         'Available {{openDay}}, {{openTime}} to {{closeDay}}, {{closeTime}}',
     });
   }
+  if (value.availability.opensOnAssign)
+    return t('assignWhen.openNowUntil', {
+      ...closePoint,
+      defaultValue: 'Open now to {{closeDay}}, {{closeTime}}',
+    });
   return t('assignWhen.openRange', {
     ...vars,
     defaultValue:

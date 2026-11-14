@@ -58,6 +58,7 @@ import {
   CloudSun,
   Workflow,
   SquareChevronDown,
+  CalendarClock,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1629,6 +1630,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListChecks,
     description:
       'When a student answers more questions than a section asks for, the teacher picks which answers count.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assign-due-date': {
+    label: 'Assign: due date for Manual',
+    icon: CalendarClock,
+    description:
+      "Manual assignments are due when ended or at a set date and time, which closes them. Assign remembers each teacher's When choices.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

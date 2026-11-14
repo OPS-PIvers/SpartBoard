@@ -11391,7 +11391,9 @@ export type GlobalFeature =
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker'
   /** Teachers pick which answers count when a student answers more than a section asks. */
-  | 'choose-n-pick-counted';
+  | 'choose-n-pick-counted'
+  /** Manual assignments get a due date, and Assign remembers the When step. */
+  | 'assign-due-date';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
