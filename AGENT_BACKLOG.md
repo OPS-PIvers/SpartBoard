@@ -224,8 +224,9 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-205 Prompt formatting leftovers** (S, from release #5678 review). Paper answer sheet labels use raw `question.text` (`utils/paperSheetPlan.ts`, `functions/src/paperBatchPlan.ts`), so marks show; use `stripPromptFormat`/`plainPromptText`. Numbered lines renumber when edited (`5. a` / `3. b` saves as 5, 6); keep the typed numbers. A literal `*word*` typed in the editor only turns italic after reload.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
-  <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
+  <details><summary>Branches to delete (174, checked 2026-11-01)</summary>
 
+claude/project-thread-k84rxm
 claude/project-thread-ixrgdq
 claude/project-thread-stpelc
 claude/ab112-ixrgdq
