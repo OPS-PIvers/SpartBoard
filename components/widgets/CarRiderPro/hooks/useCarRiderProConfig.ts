@@ -9,7 +9,7 @@ export const useCarRiderProConfig = () => {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      doc(db, 'feature_permissions', 'car-rider-pro'),
+      doc(db, 'feature_permissions_public', 'car-rider-pro'),
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as {

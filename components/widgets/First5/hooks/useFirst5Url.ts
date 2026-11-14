@@ -31,7 +31,7 @@ export const useFirst5Url = () => {
   // Subscribe to Firestore config
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      doc(db, 'feature_permissions', 'first-5'),
+      doc(db, 'feature_permissions_public', 'first-5'),
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as { config?: First5GlobalConfig };

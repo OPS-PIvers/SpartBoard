@@ -111,16 +111,12 @@ describe('announcements list-query tenant isolation', () => {
     await assertFails(getDoc(doc(db, 'announcements/other-org-active')));
   });
 
-  // Intentional: this asserts the OLD unscoped query SUCCEEDS and returns a foreign-org doc — Firestore does not apply resource.data-dependent rule branches as a per-doc filter for list queries (see Firebase "Secure query" / rules-are-not-filters docs). If the rules are ever tightened to block this at the rules layer, this test will fail by design, signalling the fix's rationale changed — not a regression.
-  it('LEAK (documents the Firestore quirk the fix works around): an unscoped isActive query returns a foreign-org doc the rule denies directly', async () => {
-    const db = asMember();
+  it('an unscoped isActive list is denied (cannot return foreign-org docs)', async () => {
     const q = query(
-      collection(db, 'announcements'),
+      collection(asMember(), 'announcements'),
       where('isActive', '==', true)
     );
-    const snap = await assertSucceeds(getDocs(q));
-    const ids = snap.docs.map((d) => d.id).sort();
-    expect(ids).toContain('other-org-active');
+    await assertFails(getDocs(q));
   });
 
   it('FIX: where(orgId==null) — the query AnnouncementOverlay now uses — excludes the foreign-org doc', async () => {
@@ -144,5 +140,18 @@ describe('announcements list-query tenant isolation', () => {
     const ids = snap.docs.map((d) => d.id).sort();
     expect(ids).toEqual([]);
     expect(ids).not.toContain('other-org-active');
+  });
+
+  it('an anonymous caller cannot list unfiltered, but can still list orgId==null', async () => {
+    const db = testEnv
+      .authenticatedContext('anon-uid', {
+        firebase: { sign_in_provider: 'anonymous' },
+      })
+      .firestore();
+    const col = collection(db, 'announcements');
+    await assertFails(getDocs(col));
+    await assertFails(getDocs(query(col, where('isActive', '==', true))));
+    await assertFails(getDocs(query(col, where('orgId', '==', ORONO))));
+    await assertSucceeds(getDocs(query(col, where('orgId', '==', null))));
   });
 });
