@@ -6,6 +6,7 @@ import {
   Hand,
   ImageOff,
   Lock,
+  Monitor,
   MousePointerClick,
   Unlock,
 } from 'lucide-react';
@@ -480,25 +481,32 @@ export const RosterList: React.FC<RosterListProps> = ({
               }
               studentName={s.name}
             >
-              {(count) => (
-                <span
-                  className="inline-flex items-center text-amber-700 font-sans font-semibold tabular-nums"
-                  title={`${count} unusual input ${count === 1 ? 'sign' : 'signs'}`}
-                  style={{
-                    gap: 'min(2px, 0.5cqmin)',
-                    fontSize: 'min(11px, 3.8cqmin)',
-                  }}
-                >
-                  <MousePointerClick
-                    aria-hidden
+              {(count, deviceOnly) => {
+                const SignIcon = deviceOnly ? Monitor : MousePointerClick;
+                return (
+                  <span
+                    className={`inline-flex items-center font-sans font-semibold tabular-nums ${deviceOnly ? 'text-slate-500' : 'text-amber-700'}`}
+                    title={
+                      deviceOnly
+                        ? `${count} device ${count === 1 ? 'detail' : 'details'}`
+                        : `${count} unusual input ${count === 1 ? 'sign' : 'signs'}`
+                    }
                     style={{
-                      width: 'min(12px, 4cqmin)',
-                      height: 'min(12px, 4cqmin)',
+                      gap: 'min(2px, 0.5cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
                     }}
-                  />
-                  {count}
-                </span>
-              )}
+                  >
+                    <SignIcon
+                      aria-hidden
+                      style={{
+                        width: 'min(12px, 4cqmin)',
+                        height: 'min(12px, 4cqmin)',
+                      }}
+                    />
+                    {count}
+                  </span>
+                );
+              }}
             </InputSignalsBadge>
             {locked && (
               <Lock
