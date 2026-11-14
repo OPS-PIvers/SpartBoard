@@ -692,13 +692,27 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
         entries,
         hmacSecret
       );
-      await recordRetiredPins(db, rosterRef, entries, Date.now(), true);
+      // All linked students (not just enrolled); prune only when the list isn't capped.
+      const all = linkedEntries(rosterData, students, null);
+      await recordRetiredPins(
+        db,
+        rosterRef,
+        all,
+        Date.now(),
+        all.length < PIN_INDEX_MAX_ENTRIES
+      );
     },
 
     recordRetiredPins: async (rosterRef, rosterData, students) => {
       const entries = linkedEntries(rosterData, students, null);
       if (entries.some((e) => e.formerPins)) {
-        await recordRetiredPins(db, rosterRef, entries, Date.now(), true);
+        await recordRetiredPins(
+          db,
+          rosterRef,
+          entries,
+          Date.now(),
+          entries.length < PIN_INDEX_MAX_ENTRIES
+        );
       }
     },
 

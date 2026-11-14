@@ -104,6 +104,18 @@ async function syncRosterPinIndex(
   }
 }
 
+/** Best-effort: a deleted roster's retired PINs stop blocking joins (server checks the roster doc is gone). */
+async function clearRosterRetiredPins(rosterId: string): Promise<void> {
+  try {
+    await httpsCallable(
+      functions,
+      'commitRosterPinIndexV1'
+    )({ rosterId, entries: [], rosterDeleted: true });
+  } catch (err) {
+    console.warn('[useRosters] clearing retired PINs failed:', err);
+  }
+}
+
 /**
  * Parse a raw record (from Drive JSON or Firestore doc) into a Student.
  * Returns null if required fields are missing or malformed. Centralized here so
@@ -1371,6 +1383,7 @@ export const useRosters = (user: User | null) => {
 
       const rosterRef = doc(db, 'users', user.uid, 'rosters', id);
       await viewAsDirectSave(rosterRef, null, () => deleteDoc(rosterRef));
+      void clearRosterRetiredPins(id);
       syncGroupEmailAlerts(user.uid, id, []).catch((err) =>
         console.error('Failed to clear group email alerts:', err)
       );

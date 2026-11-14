@@ -4725,7 +4725,11 @@ service cloud.firestore {
         // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one on that roster's sessions.
         function pinRetired(s, k) {
           let r = dbGet4('users', s.teacherUid, 'retired_pins', k.replace('-', '__'));
-          return r != null && r.data.get('rosterId', '') in s.get('rosterIds', []);
+          return r != null && r.data.get('rosterIds', []).hasAny(s.get('rosterIds', []));
+        }
+        // A join time is Date.now() from the student's device: pin it near server time so the teacher views' former-PIN gate can't be backdated.
+        function joinedAtOk(t) {
+          return !(t is number) || (t > request.time.toMillis() - 900000 && t < request.time.toMillis() + 900000);
         }
         function pinKeyOk(s, d) {
           let p = keySeg(d.get('pin', ''));
@@ -4822,7 +4826,7 @@ service cloud.firestore {
           joinKeyOk(sessionData(), responseKey) &&
           // The PIN is short text the hourly archive email quotes.
           incoming().get('pin', '') is string && incoming().get('pin', '').size() <= 10 &&
-          (responseKey == authUid() || pinKeyOk(sessionData(), incoming()));
+          (responseKey == authUid() || (pinKeyOk(sessionData(), incoming()) && joinedAtOk(incoming().get('joinedAt', null))));
         // The student branch runs first so a student's write skips the teacher and admin checks.
         allow update: if signedIn() && (
           // Students update only their own response (ownership via studentUid, not the key).
@@ -5606,6 +5610,16 @@ service cloud.firestore {
         function nearServerNow(t) {
           return t is number && t > request.time.toMillis() - 120000 && t < request.time.toMillis() + 120000;
         }
+        function joinedAtOk(t) {
+          return !(t is number) || (t > request.time.toMillis() - 900000 && t < request.time.toMillis() + 900000);
+        }
+        // A linked student's retired PIN (canonical form, as quiz pinRetired) seats no one on that roster's sessions.
+        function vaRetired(s) {
+          let a = responseDocId.split('-');
+          let z = a.size() == 3 ? a[2].replace('^0+', '') : 'x';
+          let r = dbGet4('users', s.teacherUid, 'retired_pins', a.size() == 3 ? a[1] + '__' + (z == '' ? '00' : (z.matches('[0-9]') ? '0' + z : z)) : 'x');
+          return a.size() == 3 && a[0] == 'pin' && r != null && r.data.get('rosterIds', []).hasAny(s.get('rosterIds', []));
+        }
 
         // A missing doc is readable only at the caller's own uid key; mirrors
         // the Quiz response read (no probing which PINs have joined).
@@ -5644,9 +5658,10 @@ service cloud.firestore {
           periodJoinOk(vaS(), incoming()) &&
           staffJoinOk(vaS(), incoming()) &&
           joinKeyOk(vaS(), responseDocId) &&
-          // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1.
+          (responseDocId == authUid() || joinedAtOk(incoming().get('joinedAt', null))) &&
+          // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1, and a retired PIN seats no one.
           (vaS().get('rosterIds', []).size() == 0 || vaS().get('classIds', []).size() == 0 ||
-           !responseDocId.matches('pin-[a-z0-9_]*-(_*[a-z0-9]){6}.*'));
+           (!responseDocId.matches('pin-[a-z0-9_]*-(_*[a-z0-9]){6}.*') && !vaRetired(vaS())));
         // Update split: TEACHER branch (PR3 publish-scores: score/isCorrect/
         // scoreVisibility; gated by parent teacherUid, admins also pass) and
         // STUDENT branch (answer-submit, append-only invariants). Mutually
