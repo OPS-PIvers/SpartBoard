@@ -2265,6 +2265,196 @@
     "left": "Temps restant {{time}}",
     "submitted": "Le temps est écoulé. Tes réponses ont été envoyées."
   },
+  "quizStudent": {
+    "common": {
+      "loading": "Chargement…",
+      "loadingQuestions": "Chargement des questions",
+      "lostConnection": "Connexion perdue avec le quiz. Actualise la page.",
+      "loadingQuiz": "Chargement de ton quiz…",
+      "joinedAs": "Connecté avec le PIN",
+      "waitingForTeacher": "En attente de l'enseignant…",
+      "quizComplete": "Quiz terminé !",
+      "responseSubmitted": "Réponse envoyée. Ton enseignant va la corriger.",
+      "backToAssignments": "Retour à mes devoirs",
+      "pin": "PIN"
+    },
+    "join": {
+      "joining": "Connexion au quiz…",
+      "unableToConnect": "Connexion impossible. Actualise la page et réessaie.",
+      "studentQuiz": "Quiz élève",
+      "title": "Rejoindre le quiz",
+      "intro": "Saisis le code et le PIN donnés par ton enseignant.",
+      "codePlaceholder": "Code du quiz (XXXXXX)",
+      "pinPlaceholder": "Ton PIN",
+      "periodTitle": "Choisis ta classe",
+      "periodIntro": "Dans quelle classe es-tu ?",
+      "goBack": "Retour",
+      "signInTitle": "Connecte-toi pour rejoindre",
+      "signInIntro": "Utilise ton compte Google de l'école.",
+      "usePin": "Tu ne peux pas te connecter ? Utilise un PIN",
+      "join": "Rejoindre",
+      "continue": "Continuer",
+      "signInGoogle": "Se connecter avec Google",
+      "closed": "Ce quiz est fermé.",
+      "loadFailed": "Nous n'avons pas pu charger ton quiz. Actualise la page et réessaie."
+    },
+    "removed": {
+      "title": "Tu as été retiré de ce quiz",
+      "body": "Ton enseignant t'a retiré de ce devoir. Demande-lui si tu penses que c'est une erreur."
+    },
+    "waiting": {
+      "title": "En attente du lancement par ton enseignant…",
+      "questionCount_one": "{{count}} question",
+      "questionCount_other": "{{count}} questions"
+    },
+    "paused": {
+      "stopped": "Arrêté pour le moment",
+      "title": "En pause. Regarde devant.",
+      "saved": "Tes réponses sont enregistrées.",
+      "keepOpen": "Garde cet onglet ouvert."
+    },
+    "locked": {
+      "opensSoon": "S'ouvre quand ton enseignant le lance.",
+      "keepOpen": "Garde cet onglet ouvert. Le quiz apparaît ici dès que ta classe peut commencer."
+    },
+    "autoSubmit": {
+      "unlocked": "Ta tentative déverrouillée a été envoyée.",
+      "strikes": "Tu as quitté la page trop de fois. Ton devoir a été envoyé. Demande à ton enseignant si tu penses que c'est une erreur.",
+      "title": "Quiz envoyé automatiquement",
+      "awayTooLong": "Tu es resté trop longtemps loin du quiz, il a donc été envoyé."
+    },
+    "errors": {
+      "saveAnswer": "Impossible d'enregistrer ta réponse. Touche pour réessayer.",
+      "submitQuiz": "Impossible d'envoyer ton quiz. Touche pour réessayer.",
+      "submitPart": "Impossible d'envoyer cette partie. Touche pour réessayer.",
+      "clearAnswer": "Impossible d'effacer ta réponse. Touche pour réessayer.",
+      "draftStillSaved": "Ta réponse enregistrée avant est toujours là. Clique sur Rendre pour l'effacer."
+    },
+    "hand": {
+      "raised": "Main levée. L'aide arrive.",
+      "raise": "Lever la main"
+    },
+    "nav": {
+      "submit": "RENDRE",
+      "retrying": "Nouvel essai…",
+      "retry": "Réessayer",
+      "previous": "Question précédente",
+      "retrySubmit": "Réessayer de rendre",
+      "next": "SUIVANT",
+      "nextQuestion": "QUESTION SUIVANTE",
+      "submitAnswer": "Rendre la réponse",
+      "submitResponse": "Rendre la réponse"
+    },
+    "unlock": {
+      "reopenedTitle": "Ton enseignant a rouvert ton quiz",
+      "title": "Tentative déverrouillée",
+      "reopenedBody": "Tes réponses sont enregistrées. Fais tes changements et rends de nouveau.",
+      "stillHere": "Tes réponses sont toujours là.",
+      "warning": "⚠ Si tu quittes cet onglet ou ouvres le quiz dans une autre fenêtre, ton quiz est rendu tout de suite.",
+      "keepWorking": "Continuer à travailler",
+      "resume": "Reprendre le quiz",
+      "banner": "Ton enseignant a déverrouillé ta tentative.",
+      "bannerStrong": "Si tu quittes cet onglet encore une fois, ton quiz sera rendu."
+    },
+    "closed": {
+      "submitted": "Ce devoir est fermé. Tes réponses ont été envoyées.",
+      "submitFailed": "Envoi impossible. Vérifie ta connexion et réessaie, ou demande plus de temps à ton enseignant."
+    },
+    "tabWarning": {
+      "title": "CHANGEMENT D'ONGLET DÉTECTÉ",
+      "body": "Tu as quitté le quiz. Cela a été noté.",
+      "warningN": "Avertissement {{n}}.",
+      "autoSubmit": "Si tu changes d'onglet trop souvent, ton quiz sera rendu automatiquement.",
+      "dismiss": "J'ai compris, retourner au quiz"
+    },
+    "timer": {
+      "secondsLeft_one": "{{count}} seconde restante",
+      "secondsLeft_other": "{{count}} secondes restantes",
+      "timeUp": "Le temps est écoulé"
+    },
+    "type": {
+      "multipleChoice": "Choix multiple",
+      "fillBlank": "Texte à trous",
+      "matching": "Association",
+      "ordering": "Classement",
+      "chooseAll": "Choisis toutes les bonnes réponses",
+      "freeResponse": "Réponse libre"
+    },
+    "answer": {
+      "label": "Ta réponse",
+      "placeholder": "Écris ta réponse…",
+      "chooseAll": "Choisis toutes les réponses qui conviennent"
+    },
+    "feedback": {
+      "correct": "Correct !",
+      "incorrect": "Incorrect",
+      "correctAnswer": "Bonne réponse :",
+      "speedBonus": "+{{n}} % de bonus de vitesse !",
+      "streak": "{{n}} de suite ! Multiplicateur {{multiplier}}"
+    },
+    "review": {
+      "progress": "Question {{current}} sur {{total}}",
+      "right": "Tu as bien répondu !",
+      "wrong": "Ce sera mieux la prochaine fois !",
+      "waiting": "En attente de la suite par ton enseignant..."
+    },
+    "results": {
+      "complete": "Quiz terminé !",
+      "greatJobPin": "Bravo, PIN",
+      "greatJob": "Bravo !",
+      "answeredOf": "sur {{total}} questions répondues",
+      "submitted": "Tes réponses ont été envoyées. Demande à ton enseignant de te montrer tes résultats.",
+      "noResponse": "Pas de réponse",
+      "lockedTitle": "Résultats verrouillés",
+      "lockedBody": "Tu as quitté la page des résultats trop de fois, elle est donc verrouillée. Demande à ton enseignant de déverrouiller tes résultats.",
+      "title": "Tes résultats",
+      "attempt": "Tentative",
+      "fullyCorrect": "{{correct}} sur {{total}} entièrement correctes",
+      "writtenPending": "Ta réponse écrite est encore en cours de correction. Reviens bientôt.",
+      "yourAnswers": "Tes réponses",
+      "otherQuestions": "Autres questions",
+      "yourAnswer": "Ta réponse :",
+      "scoreOnly": "Ton enseignant a publié ton score. Les réponses détaillées ne sont pas partagées pour ce devoir."
+    },
+    "rubric": {
+      "fallbackTitle": "Grille de notation",
+      "points_one": "{{count}} pt",
+      "points_other": "{{count}} pts",
+      "label": "Grille",
+      "stale": "Noté avec une version précédente de cette grille.",
+      "notScored": "pas encore noté"
+    },
+    "written": {
+      "teacherComment": "Commentaire de l'enseignant",
+      "score": "Score",
+      "notGraded": "Pas encore corrigé",
+      "notGradedByTeacher": "Pas encore corrigé par ton enseignant."
+    },
+    "submitted": {
+      "title": "Quiz envoyé !",
+      "greatWorkPin": "Beau travail, PIN",
+      "greatWork": "Beau travail.",
+      "autoSubmitted": "Envoyé automatiquement parce que tu as quitté l'onglet du quiz trop de fois.",
+      "waitingFinal": "En attente des résultats finaux…"
+    },
+    "dropHere": "Dépose ici",
+    "wordBank": "Banque de mots",
+    "undoReset": "Annuler la réinitialisation",
+    "resetAll": "Réinitialiser tous les placements",
+    "reset": "Réinitialiser",
+    "inWordBank": "{{name}}, dans la banque de mots",
+    "matchedTo": "{{name}}, associé à {{term}}",
+    "dropZoneFor": "Zone de dépôt pour {{term}}",
+    "thisTerm": "ce terme",
+    "allOptionsPlaced": "Toutes les options sont placées.",
+    "ordering": {
+      "position": "position {{n}}",
+      "emptySlot": "Zone de dépôt vide, {{position}}",
+      "moveUp": "Monter {{position}}",
+      "moveDown": "Descendre {{position}}"
+    },
+    "allItemsPlaced": "Tous les éléments sont placés."
+  },
   "quizSubmit": {
     "offline": "Tu es hors ligne. Garde cet onglet ouvert et tes réponses seront enregistrées à la reconnexion.",
     "undo": "Annuler",

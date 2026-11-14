@@ -2265,6 +2265,196 @@
     "left": "Tiempo restante {{time}}",
     "submitted": "Se acabó el tiempo. Tus respuestas se entregaron."
   },
+  "quizStudent": {
+    "common": {
+      "loading": "Cargando…",
+      "loadingQuestions": "Cargando preguntas",
+      "lostConnection": "Se perdió la conexión con el quiz. Actualiza la página.",
+      "loadingQuiz": "Cargando tu quiz…",
+      "joinedAs": "Entraste con el PIN",
+      "waitingForTeacher": "Esperando a tu maestro…",
+      "quizComplete": "¡Quiz completado!",
+      "responseSubmitted": "Respuesta entregada. Tu maestro la calificará.",
+      "backToAssignments": "Volver a mis tareas",
+      "pin": "PIN"
+    },
+    "join": {
+      "joining": "Entrando al quiz…",
+      "unableToConnect": "No se pudo conectar. Actualiza la página e inténtalo de nuevo.",
+      "studentQuiz": "Quiz para estudiantes",
+      "title": "Unirse al quiz",
+      "intro": "Escribe el código y el PIN que te dio tu maestro.",
+      "codePlaceholder": "Código del quiz (XXXXXX)",
+      "pinPlaceholder": "Tu PIN",
+      "periodTitle": "Elige tu clase",
+      "periodIntro": "¿En qué período de clase estás?",
+      "goBack": "Volver",
+      "signInTitle": "Inicia sesión para unirte",
+      "signInIntro": "Usa tu cuenta de Google de la escuela.",
+      "usePin": "¿No puedes iniciar sesión? Usa un PIN",
+      "join": "Unirme",
+      "continue": "Continuar",
+      "signInGoogle": "Iniciar sesión con Google",
+      "closed": "Este quiz está cerrado.",
+      "loadFailed": "No pudimos cargar tu quiz. Actualiza la página e inténtalo de nuevo."
+    },
+    "removed": {
+      "title": "Te quitaron de este quiz",
+      "body": "Tu maestro te quitó de esta tarea. Pregúntale si crees que fue un error."
+    },
+    "waiting": {
+      "title": "Esperando a que tu maestro empiece…",
+      "questionCount_one": "{{count}} pregunta",
+      "questionCount_other": "{{count}} preguntas"
+    },
+    "paused": {
+      "stopped": "Parado por ahora",
+      "title": "En pausa. Ojos al frente.",
+      "saved": "Tus respuestas están guardadas.",
+      "keepOpen": "Deja esta pestaña abierta."
+    },
+    "locked": {
+      "opensSoon": "Se abre cuando tu maestro lo empiece.",
+      "keepOpen": "Deja esta pestaña abierta. El quiz aparece aquí en cuanto tu clase pueda entrar."
+    },
+    "autoSubmit": {
+      "unlocked": "Tu intento desbloqueado se entregó.",
+      "strikes": "Saliste de la página demasiadas veces. Tu tarea se entregó. Pregunta a tu maestro si crees que fue un error.",
+      "title": "Quiz entregado automáticamente",
+      "awayTooLong": "Estuviste fuera del quiz demasiado tiempo, así que se entregó."
+    },
+    "errors": {
+      "saveAnswer": "No se pudo guardar tu respuesta. Toca para intentar de nuevo.",
+      "submitQuiz": "No se pudo entregar tu quiz. Toca para intentar de nuevo.",
+      "submitPart": "No se pudo entregar esta parte. Toca para intentar de nuevo.",
+      "clearAnswer": "No se pudo borrar tu respuesta. Toca para intentar de nuevo.",
+      "draftStillSaved": "Tu respuesta guardada antes sigue ahí. Haz clic en Entregar para borrarla."
+    },
+    "hand": {
+      "raised": "Mano levantada. Ya viene ayuda.",
+      "raise": "Levantar la mano"
+    },
+    "nav": {
+      "submit": "ENTREGAR",
+      "retrying": "Reintentando…",
+      "retry": "Reintentar",
+      "previous": "Pregunta anterior",
+      "retrySubmit": "Reintentar entrega",
+      "next": "SIGUIENTE",
+      "nextQuestion": "SIGUIENTE PREGUNTA",
+      "submitAnswer": "Entregar respuesta",
+      "submitResponse": "Entregar respuesta"
+    },
+    "unlock": {
+      "reopenedTitle": "Tu maestro volvió a abrir tu quiz",
+      "title": "Intento desbloqueado",
+      "reopenedBody": "Tus respuestas están guardadas. Haz tus cambios y entrega de nuevo.",
+      "stillHere": "Tus respuestas siguen aquí.",
+      "warning": "⚠ Si sales de esta pestaña o abres el quiz en otra ventana, tu quiz se entrega al instante.",
+      "keepWorking": "Seguir trabajando",
+      "resume": "Continuar el quiz",
+      "banner": "Tu maestro desbloqueó tu intento.",
+      "bannerStrong": "Si sales de esta pestaña una vez más, tu quiz se entregará."
+    },
+    "closed": {
+      "submitted": "Esta tarea se cerró. Tus respuestas se entregaron.",
+      "submitFailed": "No se pudo entregar. Revisa tu conexión e inténtalo de nuevo, o pide más tiempo a tu maestro."
+    },
+    "tabWarning": {
+      "title": "CAMBIO DE PESTAÑA DETECTADO",
+      "body": "Saliste del quiz. Esto quedó registrado.",
+      "warningN": "Aviso {{n}}.",
+      "autoSubmit": "Si cambias de pestaña muchas veces, tu quiz se entregará solo.",
+      "dismiss": "Entiendo, volver al quiz"
+    },
+    "timer": {
+      "secondsLeft_one": "Queda {{count}} segundo",
+      "secondsLeft_other": "Quedan {{count}} segundos",
+      "timeUp": "Se acabó el tiempo"
+    },
+    "type": {
+      "multipleChoice": "Opción múltiple",
+      "fillBlank": "Completar el espacio",
+      "matching": "Relacionar",
+      "ordering": "Ordenar",
+      "chooseAll": "Elige todas las correctas",
+      "freeResponse": "Respuesta libre"
+    },
+    "answer": {
+      "label": "Tu respuesta",
+      "placeholder": "Escribe tu respuesta…",
+      "chooseAll": "Elige todas las que correspondan"
+    },
+    "feedback": {
+      "correct": "¡Correcto!",
+      "incorrect": "Incorrecto",
+      "correctAnswer": "Respuesta correcta:",
+      "speedBonus": "¡Bono de rapidez: +{{n}}%!",
+      "streak": "¡{{n}} seguidas! Multiplicador {{multiplier}}"
+    },
+    "review": {
+      "progress": "Pregunta {{current}} de {{total}}",
+      "right": "¡Respondiste bien!",
+      "wrong": "¡Mejor suerte la próxima vez!",
+      "waiting": "Esperando a que tu maestro continúe..."
+    },
+    "results": {
+      "complete": "¡Quiz completado!",
+      "greatJobPin": "¡Buen trabajo, PIN",
+      "greatJob": "¡Buen trabajo!",
+      "answeredOf": "de {{total}} preguntas respondidas",
+      "submitted": "Tus respuestas se entregaron. Pide a tu maestro que te muestre los resultados.",
+      "noResponse": "Sin respuesta",
+      "lockedTitle": "Resultados bloqueados",
+      "lockedBody": "Saliste de la página de resultados demasiadas veces, así que se bloqueó. Pide a tu maestro que desbloquee tus resultados.",
+      "title": "Tus resultados",
+      "attempt": "Intento",
+      "fullyCorrect": "{{correct}} de {{total}} totalmente correctas",
+      "writtenPending": "Tu respuesta escrita aún se está calificando. Vuelve a mirar pronto.",
+      "yourAnswers": "Tus respuestas",
+      "otherQuestions": "Otras preguntas",
+      "yourAnswer": "Tu respuesta:",
+      "scoreOnly": "Tu maestro publicó tu puntuación. Las respuestas detalladas no se comparten en esta tarea."
+    },
+    "rubric": {
+      "fallbackTitle": "Rúbrica de calificación",
+      "points_one": "{{count}} pt",
+      "points_other": "{{count}} pts",
+      "label": "Rúbrica",
+      "stale": "Calificado con una versión anterior de esta rúbrica.",
+      "notScored": "sin calificar aún"
+    },
+    "written": {
+      "teacherComment": "Comentario del maestro",
+      "score": "Puntuación",
+      "notGraded": "Sin calificar aún",
+      "notGradedByTeacher": "Tu maestro todavía no lo ha calificado."
+    },
+    "submitted": {
+      "title": "¡Quiz entregado!",
+      "greatWorkPin": "¡Buen trabajo, PIN",
+      "greatWork": "¡Buen trabajo!",
+      "autoSubmitted": "Se entregó solo porque saliste de la pestaña del quiz demasiadas veces.",
+      "waitingFinal": "Esperando los resultados finales…"
+    },
+    "dropHere": "Suelta aquí",
+    "wordBank": "Banco de palabras",
+    "undoReset": "Deshacer restablecer",
+    "resetAll": "Quitar todo lo colocado",
+    "reset": "Restablecer",
+    "inWordBank": "{{name}}, en el banco de palabras",
+    "matchedTo": "{{name}}, emparejado con {{term}}",
+    "dropZoneFor": "Zona para soltar de {{term}}",
+    "thisTerm": "este término",
+    "allOptionsPlaced": "Todas las opciones colocadas.",
+    "ordering": {
+      "position": "posición {{n}}",
+      "emptySlot": "Zona vacía para soltar, {{position}}",
+      "moveUp": "Mover {{position}} hacia arriba",
+      "moveDown": "Mover {{position}} hacia abajo"
+    },
+    "allItemsPlaced": "Todos los elementos colocados."
+  },
   "quizSubmit": {
     "offline": "No tienes conexión. Deja esta pestaña abierta y tus respuestas se guardarán cuando vuelvas a conectarte.",
     "undo": "Deshacer",

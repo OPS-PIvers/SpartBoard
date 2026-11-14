@@ -13,11 +13,13 @@
  * The fix: skip the `submitted` reset while a submit is in flight.
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
+import i18n from '@/i18n';
+import es from '@/locales/es.json';
 
 const {
   mockAuth,
@@ -1705,5 +1707,24 @@ describe('QuizStudentApp — touch, focus and offline', () => {
     expect(
       screen.getByRole('button', { name: /Previous question/i }).className
     ).toContain('h-11');
+  });
+
+  describe('with a Spanish language accommodation', () => {
+    afterEach(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    it('shows the advance button in Spanish, not English', async () => {
+      await i18n.changeLanguage('es');
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      expect(es.quizStudent.nav.next).not.toBe('NEXT');
+      expect(
+        screen.getByRole('button', { name: es.quizStudent.nav.next })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /^NEXT/i })
+      ).not.toBeInTheDocument();
+    });
   });
 });

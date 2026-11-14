@@ -61,7 +61,6 @@
     "components/layout/DashboardView.tsx::Couldn't sync to your PLC. Your assignment is saved — retry ",
     "components/layout/sidebar/SidebarPlcs.tsx::You have pending invitations — accept one to get started.",
     "components/poll/PollVoteApp.tsx::Keep this page open — the first question appears automatical",
-    "components/quiz/QuizStudentApp.tsx::— no response",
     "components/remote/controls/RemoteChecklistControl.tsx::No items — add them in the widget settings.",
     "components/remote/controls/RemotePollControl.tsx::No options — configure in widget settings.",
     "components/share/ShareCollectionLinkCreatorModal.tsx::Copy the link below — clipboard access was blocked.",
