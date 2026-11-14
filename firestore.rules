@@ -758,9 +758,10 @@ service cloud.firestore {
             'email', 'orgId', 'roleId', 'buildingIds', 'status',
             'name', 'invitedAt', 'addedBy', 'addedBySource'
           ]);
-        // A domain admin may not remove a super_admin member.
+        // A domain admin may not remove a super_admin member, nor a deactivated legacy-list one (a missing doc counts as live).
         allow delete: if isSuperAdmin() ||
-          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin');
+          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin' &&
+           (liveStatus(existing()) || notLegacyListed(emailLower)));
         allow update: if memberStatusOk() && (isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
            unchanged('email') &&
@@ -1150,7 +1151,10 @@ service cloud.firestore {
     match /admin_audit_log/{logId} {
       // View-as entries carry teacher data: super admins read them, and only the server
       // or a view-as tab (below) writes them.
-      allow read: if (isAdmin() && !existing().get('action', '').matches('view_as_.*')) ||
+      allow get: if (isAdmin() && !existing().get('action', '').matches('view_as_.*')) ||
+                    isSuperAdmin();
+      // A list is provable only from a pinned action; an unpinned one errors and denies for non-super admins.
+      allow list: if (isAdmin() && !existing().action.matches('view_as_.*')) ||
                      isSuperAdmin();
       allow create: if isAdmin() && !incoming().get('action', '').matches('view_as_.*');
       // An unlocked view-as tab logs its own saves, approvals and outward
@@ -1181,10 +1185,19 @@ service cloud.firestore {
     // Removed because this exposes PII (emails). Need a different architecture.
     // Reverting to admin only for now.
 
-    // Feature permissions - all authenticated users can read, only admins can write
+    // Feature permissions carry betaUsers emails: admins only. Everyone else reads the stripped mirror and own beta_grants (permissionMirrors CFs).
     match /feature_permissions/{widgetType} {
+      allow read, write: if isAdmin();
+    }
+    match /feature_permissions_public/{widgetType} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+    }
+    match /global_permissions_public/{featureId} {
+      allow read: if signedIn();
+    }
+    // A caller reads only their own grant doc, never the roster.
+    match /beta_grants/{email} {
+      allow get: if signedIn() && emailVerified() && tok().get('email', '').lower() == email;
     }
 
     // Admin-created short links resolved at /r/:code.
@@ -1267,9 +1280,9 @@ service cloud.firestore {
     // enumerate, so deny all. `{document=**}` covers the contexts/{contextId} subcollection.
     // /lti_session_memberships/{sessionId}/{document=**}: no client access (default deny).
 
-    // Global permissions - all authenticated users can read, only admins can write
+    // Global permissions carry betaUsers emails: admins read; others use global_permissions_public.
     match /global_permissions/{featureId=**} {
-      allow read: if signedIn();
+      allow read: if isAdmin();
       allow write: if isAdmin() && notDomainsPath(featureId);
     }
 
@@ -1320,9 +1333,8 @@ service cloud.firestore {
     }
 
     match /building_guided_learning/{setId} {
-      // A tour draft keeps sample copies (answer keys included) in tourSetup and its steps' saved boards: staff only.
-      allow get: if signedIn() && (noDoc() || staffSignedIn() || (existing().get('tourSetup', null) == null && existing().get('hasLiveTour', false) != true && existing().get('mode', '') != 'tour'));
-      allow list: if staffSignedIn();
+      // Sets hold answer keys (and tour drafts sample copies): district staff or admins only, never anonymous, student or self-registered sessions.
+      allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
       allow write: if isAdmin();
       // A live tour's notes for Claude and its last editor playtest (LIVE_TOUR_CONSISTENT_START.md C9, C10): admins only.
       match /review/{docId} {
@@ -1333,7 +1345,7 @@ service cloud.firestore {
     // Library index of building sets (P5-1), written only by the glBuildingIndexMirror
     // function; same readers as the full sets, and no client write rule.
     match /building_guided_learning_index/{setId} {
-      allow read: if signedIn();
+      allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
     }
 
     // Web tour drafts (CHROME_EXTENSION.md T6): admins only, never anonymous or student sessions.
@@ -1364,6 +1376,10 @@ service cloud.firestore {
         }
         allow read: if isAdmin();
         allow create, update: if staffSignedIn() && uid == authUid() && validRun(incoming());
+      }
+      // Play, finish and public link view counts, written only by the tourCounts functions.
+      match /stats/{doc} {
+        allow read: if isAdmin();
       }
     }
 
@@ -5262,7 +5278,7 @@ service cloud.firestore {
       // role is itself a member doc in its own org via the same sync — so no
       // separate same-org-admin read branch is needed here (unlike plcs, which
       // has no "any org member" read branch to fall back on).
-      allow read: if signedIn()
+      allow get: if signedIn()
         && (
           // Missing orgId OR explicit orgId:null = legacy/global, any authed user.
           // (The null case avoids isOrgMember(null) hiding the doc from everyone.)
@@ -5271,6 +5287,9 @@ service cloud.firestore {
           || isOrgMember(existing().orgId)
           || isSuperAdmin()
         );
+      // A list must pin orgId to null or a member org; an unpinned query errors on existing().orgId and denies.
+      allow list: if signedIn()
+        && (existing().orgId == null || isOrgMember(existing().orgId) || isSuperAdmin());
 
       // Global/legacy (missing or null orgId) is super-admin only; an
       // org-scoped doc is writable by that org's admin or a super admin.
@@ -5884,12 +5903,14 @@ service cloud.firestore {
       // scoreVisibility + revealedAnswers onto the session so the student listener
       // can gate review without teacher-owned docs; mirrors Quiz sessions) and
       // delete (GL "Delete permanently" cleanup).
+      // teacherUid is immutable and only a site admin acts on another teacher's session (glIsTeacher trusts it).
       allow update: if signedIn() && !isStudentRoleUser() &&
-        (myOldTeacher() || isAdmin()) &&
+        (myOldTeacher() || isSiteAdmin()) &&
         sessionStaff() &&
-        subMonitorStampUnchanged();
+        subMonitorStampUnchanged() &&
+        unchanged('teacherUid');
       allow delete: if signedIn() && !isStudentRoleUser() &&
-        (myOldTeacher() || isAdmin());
+        (myOldTeacher() || isSiteAdmin());
 
       // The session doc, named once: the full path repeated a dozen times in
       // the sub-collections below is worth real bytes against the cap.

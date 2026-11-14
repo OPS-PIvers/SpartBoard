@@ -1,7 +1,7 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
-import { OPERATOR_ORG_ID } from './authz';
+import { OPERATOR_ORG_ID, isRevokedMemberStatus } from './authz';
 import {
   applyDeactivationClaim,
   deactivationClaimSyncNeeded,
@@ -30,6 +30,21 @@ export interface MemberDocFields {
 }
 
 /** Roles that mirror into `/admins/{emailLower}`. */
+/** Whether an address has a live member doc in this org. */
+async function liveOperatorMember(
+  orgId: string,
+  emailLower: string
+): Promise<boolean> {
+  const snap = await admin
+    .firestore()
+    .doc(`organizations/${orgId}/members/${emailLower}`)
+    .get();
+  return (
+    snap.exists &&
+    !isRevokedMemberStatus((snap.data() as MemberDocFields).status)
+  );
+}
+
 export const ADMIN_ROLES: readonly string[] = [
   'super_admin',
   'domain_admin',
@@ -239,7 +254,8 @@ export const organizationMembersSync = onDocumentWritten(
           admin.auth(),
           emailLower,
           afterData?.uid ?? beforeData?.uid,
-          claimChange
+          claimChange,
+          (email) => liveOperatorMember(orgId, email)
         );
         logger.info('organizationMembersSync: deactivation claim', {
           orgId,

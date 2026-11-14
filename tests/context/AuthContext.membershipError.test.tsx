@@ -135,7 +135,14 @@ function wireSnapshots(): void {
       const path = (ref as unknown as PathRef).__path ?? '';
       const fire = (snapshot: unknown) =>
         (onNext as unknown as (s: unknown) => void)(snapshot);
-      if (path === 'global_permissions' || path === 'feature_permissions') {
+      if (path.startsWith('beta_grants/')) {
+        (onNext as unknown as (s: unknown) => void)({ data: () => undefined });
+        return () => undefined;
+      }
+      if (
+        path === 'global_permissions_public' ||
+        path === 'feature_permissions_public'
+      ) {
         fire({ forEach: () => undefined });
       } else if (path === MEMBER_PATH) {
         memberOnNext = (snap: unknown) =>

@@ -41,7 +41,7 @@ export function useStudentBellSchedules(
   useEffect(() => {
     if (!enabled || isAuthBypass || cached !== undefined) return;
     let cancelled = false;
-    getDoc(doc(db, 'feature_permissions', 'schedule'))
+    getDoc(doc(db, 'feature_permissions_public', 'schedule'))
       .then((snap) => {
         const raw: unknown = snap.data()?.config;
         const config =

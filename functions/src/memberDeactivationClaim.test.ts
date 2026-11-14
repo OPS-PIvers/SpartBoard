@@ -70,6 +70,22 @@ describe('applyDeactivationClaim', () => {
     expect(auth.revokeRefreshTokens).toHaveBeenCalledWith('u1');
   });
 
+  it('leaves a linked account that now signs in as another live member', async () => {
+    auth.getUser.mockResolvedValue({ uid: 'u1', email: 'New@orono.k12.mn.us' });
+    auth.getUserByEmail.mockRejectedValue(notFound);
+    const isLive = vi.fn().mockResolvedValue(true);
+    const uids = await applyDeactivationClaim(
+      auth,
+      'old@orono.k12.mn.us',
+      'u1',
+      'set',
+      isLive
+    );
+    expect(isLive).toHaveBeenCalledWith('new@orono.k12.mn.us');
+    expect(uids).toEqual([]);
+    expect(auth.revokeRefreshTokens).not.toHaveBeenCalled();
+  });
+
   it('also claims a different account holding the address', async () => {
     auth.getUser.mockResolvedValue({ uid: 'u1' });
     auth.getUserByEmail.mockResolvedValue({ uid: 'u2' });

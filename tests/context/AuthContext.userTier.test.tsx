@@ -138,7 +138,11 @@ function deliverSnapshots(opts: {
     const path = (ref as unknown as PathRef).__path ?? '';
     const fire = (snapshot: unknown) =>
       (onNext as unknown as (s: unknown) => void)(snapshot);
-    if (path === 'global_permissions') {
+    if (path.startsWith('beta_grants/')) {
+      (onNext as unknown as (s: unknown) => void)({ data: () => undefined });
+      return () => undefined;
+    }
+    if (path === 'global_permissions_public') {
       fire({
         forEach: (cb: (doc: { id: string; data: () => unknown }) => void) => {
           opts.globalPerms.forEach((p) =>
@@ -146,7 +150,7 @@ function deliverSnapshots(opts: {
           );
         },
       });
-    } else if (path === 'feature_permissions') {
+    } else if (path === 'feature_permissions_public') {
       fire({
         forEach: (cb: (doc: { id: string; data: () => unknown }) => void) => {
           opts.featurePerms.forEach((p) =>

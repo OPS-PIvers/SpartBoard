@@ -49,6 +49,7 @@ import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizVersionReview } from '../components/QuizVersionReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { flagMissingKeys, missingKeyNumbers } from '@/utils/quizNeedsKey';
+import { formToExtractedQuiz } from '@/utils/import/googleForms';
 
 /** The kinds the AI callable takes, so only these get a "try again with AI". */
 const AI_READABLE_KINDS = new Set<string | null>(['pdf', 'docx']);
@@ -372,8 +373,8 @@ export function createQuizImportAdapter(
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: deps.canImportDocuments
-      ? ['sheet', 'csv', 'document']
-      : ['sheet', 'csv'],
+      ? ['sheet', 'csv', 'document', 'form']
+      : ['sheet', 'csv', 'form'],
     pickSheet: deps.pickSheet,
     ...(deps.canImportDocuments ? { supportsKeyFile: true } : {}),
     ...(deps.canImportDocuments && deps.aiExtract
@@ -443,6 +444,18 @@ export function createQuizImportAdapter(
       if (source.kind === 'csv') {
         const data = await deps.importFromCSV(source.text, PLACEHOLDER_TITLE);
         return withKeysFlagged(data);
+      }
+      if (source.kind === 'form') {
+        const extracted = await formToExtractedQuiz(
+          source.title,
+          source.form,
+          deps.fetchRemoteImage ?? (() => Promise.resolve(null))
+        );
+        deps.onDocumentImages?.(extracted.images);
+        return {
+          data: extractedToQuizData(extracted),
+          warnings: extracted.warnings,
+        };
       }
       if (source.kind === 'document') {
         const extracted = await readTestAndKey(

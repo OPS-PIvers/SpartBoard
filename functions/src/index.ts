@@ -196,6 +196,10 @@ export {
 } from './organizationInvites';
 export { resolveOrgForUser } from './resolveOrgForUser';
 export { organizationMembersSync } from './organizationMembersSync';
+export {
+  featurePermissionsMirror,
+  globalPermissionsMirror,
+} from './permissionMirrors';
 export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
@@ -347,6 +351,9 @@ export {
   tourPublicLinkGuard,
   tourPublicLinkStartV1,
 } from './tourPublicLink';
+
+// Tour play counts: plays, finishes and public link views for the Web tours list.
+export { tourRunCounter } from './tourCounts';
 
 // Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 export {

@@ -52,18 +52,30 @@ export async function applyDeactivationClaim(
   >,
   emailLower: string,
   uidHint: unknown,
-  change: DeactivationClaimChange
+  change: DeactivationClaimChange,
+  isLiveMember?: (emailLower: string) => Promise<boolean>
 ): Promise<string[]> {
   const users: admin.auth.UserRecord[] = [];
-  const lookups: Array<() => Promise<admin.auth.UserRecord>> = [];
+  const lookups: Array<() => Promise<admin.auth.UserRecord | null>> = [];
   if (typeof uidHint === 'string' && uidHint) {
-    lookups.push(() => auth.getUser(uidHint));
+    lookups.push(async () => {
+      const user = await auth.getUser(uidHint);
+      const current = user.email?.toLowerCase() ?? '';
+      // A linked account that moved to another live member address is that member now, not this one.
+      const movedToLive =
+        change === 'set' &&
+        !!isLiveMember &&
+        !!current &&
+        current !== emailLower &&
+        (await isLiveMember(current));
+      return movedToLive ? null : user;
+    });
   }
   if (emailLower) lookups.push(() => auth.getUserByEmail(emailLower));
   for (const lookup of lookups) {
     try {
       const user = await lookup();
-      if (!users.some((u) => u.uid === user.uid)) users.push(user);
+      if (user && !users.some((u) => u.uid === user.uid)) users.push(user);
     } catch (err) {
       if (!isUserNotFound(err)) throw err;
     }

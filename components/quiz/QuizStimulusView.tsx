@@ -270,7 +270,7 @@ const ImageStimulus: React.FC<
 
   return (
     <div
-      className={`flex flex-col w-full rounded-xl overflow-hidden ${fill ? 'flex-1 min-h-0' : ''} ${surfaceCls(light)}`}
+      className={`flex flex-col w-full rounded-xl overflow-hidden ${fill ? 'flex-1 min-h-[10rem]' : ''} ${surfaceCls(light)}`}
     >
       <StimulusZoomBar
         zoom={zoom}

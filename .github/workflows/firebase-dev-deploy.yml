@@ -500,6 +500,11 @@ jobs:
         if: needs.plan.outputs.release_rules == 'true'
         run: pnpm exec firebase setup:emulators:firestore
 
+      # Mirrors must exist before the tightened rules go live.
+      - name: Backfill permission mirrors (before rules)
+        if: needs.plan.outputs.release_rules == 'true'
+        run: node scripts/backfill-permission-mirrors.mjs --project dev
+
       # Wrapped in a retry helper: `firebase deploy` occasionally hits a transient Google API blip
       # that fails the whole deploy even though the code is fine.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
@@ -509,6 +514,11 @@ jobs:
           # Incident escape hatch: repo variable RULES_MINIFY=0 releases the unminified rules.
           RULES_MINIFY: ${{ vars.RULES_MINIFY }}
         run: ./.github/scripts/firebase-deploy-with-retry.sh "$DEV_PROJECT_ID"
+
+      # Re-run to mirror admin edits made while the deploy was in flight.
+      - name: Backfill permission mirrors (catch edits during deploy)
+        if: needs.plan.outputs.release_rules == 'true'
+        run: node scripts/backfill-permission-mirrors.mjs --project dev
 
       - name: Upload rules name map
         if: always() && needs.plan.outputs.release_rules == 'true'

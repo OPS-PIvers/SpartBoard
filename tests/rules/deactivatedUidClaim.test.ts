@@ -114,22 +114,29 @@ beforeEach(async () => {
 });
 
 describe('the deactivated claim locks the uid out whatever its email', () => {
-  const reads = (db: ReturnType<typeof asUid>) => [
-    getDoc(doc(db, `users/${UID}/dashboards/d1`)),
-    setDoc(doc(db, `users/${UID}/dashboards/d1`), {
-      id: 'd1',
-      name: 'Changed',
-    }),
-    getDoc(doc(db, `quiz_sessions/${SESSION}/responses/s1`)),
-    getDoc(doc(db, `plcs/${PLC_ID}`)),
-    getDocs(
-      query(collection(db, 'plcs'), where('memberUids', 'array-contains', UID))
-    ),
+  const reads = (
+    db: ReturnType<typeof asUid>
+  ): Array<() => Promise<unknown>> => [
+    () => getDoc(doc(db, `users/${UID}/dashboards/d1`)),
+    () =>
+      setDoc(doc(db, `users/${UID}/dashboards/d1`), {
+        id: 'd1',
+        name: 'Changed',
+      }),
+    () => getDoc(doc(db, `quiz_sessions/${SESSION}/responses/s1`)),
+    () => getDoc(doc(db, `plcs/${PLC_ID}`)),
+    () =>
+      getDocs(
+        query(
+          collection(db, 'plcs'),
+          where('memberUids', 'array-contains', UID)
+        )
+      ),
   ];
 
   for (const [label, token] of DEACTIVATED_TOKENS) {
     it(`denies boards, session responses and PLC docs with ${label}`, async () => {
-      for (const p of reads(asUid(token))) await assertFails(p);
+      for (const p of reads(asUid(token))) await assertFails(p());
     });
   }
 
@@ -137,7 +144,7 @@ describe('the deactivated claim locks the uid out whatever its email', () => {
     const db = asUid(
       google({ email: 'renamed@personal.example', email_verified: true })
     );
-    for (const p of reads(db)) await assertSucceeds(p);
+    for (const p of reads(db)) await assertSucceeds(p());
   });
 });
 
@@ -171,21 +178,23 @@ describe('isOrgMember() needs a live, non-student member doc', () => {
     await seed('announcements/a1', { orgId: 'orono', title: 'Hi' });
   });
 
-  const orgReads = (db: ReturnType<typeof as>) => [
-    getDoc(doc(db, 'organizations/orono')),
-    getDocs(collection(db, 'organizations/orono/members')),
-    getDoc(doc(db, `organizations/orono/members/${ACTIVE}`)),
-    getDocs(collection(db, 'organizations/orono/buildings')),
-    getDocs(collection(db, 'organizations/orono/domains')),
-    getDocs(collection(db, 'organizations/orono/roles')),
-    getDoc(doc(db, 'gradebook_district_configs/c1')),
-    getDoc(doc(db, 'announcements/a1')),
+  const orgReads = (
+    db: ReturnType<typeof as>
+  ): Array<() => Promise<unknown>> => [
+    () => getDoc(doc(db, 'organizations/orono')),
+    () => getDocs(collection(db, 'organizations/orono/members')),
+    () => getDoc(doc(db, `organizations/orono/members/${ACTIVE}`)),
+    () => getDocs(collection(db, 'organizations/orono/buildings')),
+    () => getDocs(collection(db, 'organizations/orono/domains')),
+    () => getDocs(collection(db, 'organizations/orono/roles')),
+    () => getDoc(doc(db, 'gradebook_district_configs/c1')),
+    () => getDoc(doc(db, 'announcements/a1')),
   ];
 
   for (const email of [DEMOTED, INACTIVE, REMOVED]) {
     it(`${email} is denied org reads but can still read their own doc`, async () => {
       const db = as(email);
-      for (const p of orgReads(db)) await assertFails(p);
+      for (const p of orgReads(db)) await assertFails(p());
       await assertSucceeds(
         getDoc(doc(db, `organizations/orono/members/${email}`))
       );
@@ -194,7 +203,7 @@ describe('isOrgMember() needs a live, non-student member doc', () => {
 
   for (const email of [ACTIVE, INVITED]) {
     it(`${email} keeps org reads`, async () => {
-      for (const p of orgReads(as(email))) await assertSucceeds(p);
+      for (const p of orgReads(as(email))) await assertSucceeds(p());
     });
   }
 });

@@ -1,5 +1,5 @@
 // Firestore security-rules regression for `/building_guided_learning_index/{setId}`:
-// readable by any signed-in user (same as the full building sets), writable by no client.
+// staff-only reads (same as the full building sets), writable by no client.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -24,7 +24,7 @@ import {
 
 const PROJECT_ID = 'spartboard-gl-building-index';
 const ADMIN_EMAIL = 'admin@example.com';
-const TEACHER_EMAIL = 'teacher@example.com';
+const TEACHER_EMAIL = 'teacher@orono.k12.mn.us';
 const INDEX = 'building_guided_learning_index';
 
 const RULES_PATH = fileURLToPath(
@@ -48,7 +48,37 @@ const asTeacher = () =>
     })
     .firestore();
 const asAnonStudent = () =>
-  testEnv.authenticatedContext('anon-student-uid').firestore();
+  testEnv
+    .authenticatedContext('anon-student-uid', {
+      firebase: { sign_in_provider: 'anonymous' },
+    })
+    .firestore();
+const asStudentRole = () =>
+  testEnv
+    .authenticatedContext('sso-student-uid', {
+      email: 'kid@example.com',
+      email_verified: true,
+      studentRole: true,
+      classIds: ['class-1'],
+      firebase: { sign_in_provider: 'custom' },
+    })
+    .firestore();
+const asSelfRegistered = () =>
+  testEnv
+    .authenticatedContext('self-uid', {
+      email: 'kid@orono.k12.mn.us',
+      email_verified: true,
+      firebase: { sign_in_provider: 'password' },
+    })
+    .firestore();
+const asOtherGoogle = () =>
+  testEnv
+    .authenticatedContext('other-uid', {
+      email: 'someone@gmail.com',
+      email_verified: true,
+      firebase: { sign_in_provider: 'google.com' },
+    })
+    .firestore();
 const asSignedOut = () => testEnv.unauthenticatedContext().firestore();
 
 const entry = {
@@ -88,16 +118,32 @@ beforeEach(async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { addedAt: 1 });
+    await setDoc(doc(db, `organizations/orono/members/${TEACHER_EMAIL}`), {
+      status: 'active',
+    });
     await setDoc(doc(db, `${INDEX}/s1`), entry);
   });
 });
 
 describe('building_guided_learning_index reads', () => {
-  it('lets teachers, admins and signed-in students read and list', async () => {
+  it('lets teachers and admins read and list', async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), `${INDEX}/s1`)));
     await assertSucceeds(getDocs(collection(asTeacher(), INDEX)));
     await assertSucceeds(getDoc(doc(asAdmin(), `${INDEX}/s1`)));
-    await assertSucceeds(getDoc(doc(asAnonStudent(), `${INDEX}/s1`)));
+  });
+
+  it('denies anonymous and student-role sessions a get or a list', async () => {
+    for (const db of [asAnonStudent(), asStudentRole()]) {
+      await assertFails(getDoc(doc(db, `${INDEX}/s1`)));
+      await assertFails(getDocs(collection(db, INDEX)));
+    }
+  });
+
+  it('denies password-provider and non-district Google tokens a get or a list', async () => {
+    for (const db of [asSelfRegistered(), asOtherGoogle()]) {
+      await assertFails(getDoc(doc(db, `${INDEX}/s1`)));
+      await assertFails(getDocs(collection(db, INDEX)));
+    }
   });
 
   it('lets clients read the _meta marker but never write it', async () => {

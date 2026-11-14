@@ -86,6 +86,7 @@ Every new user-facing feature or behaviour change reaches `main` switched **off 
 - Canvas hot path (BoardCanvas → WidgetRenderer → DraggableWindow) must use `DashboardActionsContext` / the canvas store from `context/dashboardCanvasStore.ts`, not the full `useDashboard()` value, which re-renders on every provider commit.
 - `useToolVisibility()` throws outside `DashboardProvider`. Subs portal and student apps don't mount it — guard or avoid it there.
 - `isAdmin` is `null` while loading, `true`/`false` when loaded. Admin status = a document exists at `/admins/{email}`.
+- Non-admin clients read `feature_permissions_public` / `global_permissions_public` (CF-mirrored, betaUsers stripped) plus own `beta_grants/{email}`; only admins read the originals. Keep secrets out of permission `config`.
 - Feature permissions default to public when no `feature_permissions` record exists; `enabled: false` disables a widget for everyone, admins included.
 - Dashboard IDs are UUIDs, not Firestore auto-IDs. Always check `user?.uid` before Firestore operations, and return the unsubscribe function from real-time listeners.
 - Collections and access rules: read `firestore.rules`. Students use anonymous Firebase Auth with a PIN.

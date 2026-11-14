@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useStorage } from '@/hooks/useStorage';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { GL_SLIDE_APP_PROPERTY } from '@/utils/driveAppFolder';
 
 vi.mock('firebase/storage', () => ({
   ref: vi.fn((_storage: unknown, path: string) => ({ path })),
@@ -151,9 +152,11 @@ describe('deleteDriveFile', () => {
     slideDrive.isInAppFolder.mockResolvedValue(true);
     const { result } = renderHook(() => useStorage());
     await act(() => result.current.deleteDriveFile('slideFileId1234'));
-    expect(slideDrive.isInAppFolder).toHaveBeenCalledWith('slideFileId1234', [
-      'Assets/HotspotImages',
-    ]);
+    expect(slideDrive.isInAppFolder).toHaveBeenCalledWith(
+      'slideFileId1234',
+      ['Assets/HotspotImages'],
+      GL_SLIDE_APP_PROPERTY
+    );
     expect(slideDrive.deleteFile).toHaveBeenCalledWith('slideFileId1234');
   });
 

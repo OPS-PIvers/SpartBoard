@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mirrorDelete = vi.hoisted(() => vi.fn());
 const h = vi.hoisted(() => ({
   handler: undefined as undefined | ((e: unknown) => Promise<void>),
-  options: undefined,
+  options: undefined as undefined | Record<string, unknown>,
   current: undefined as undefined | Record<string, unknown>,
   auth: {
     getUser: vi.fn(),
@@ -15,7 +15,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock('firebase-functions/v2/firestore', () => ({
   onDocumentWritten: (opts: unknown, fn: (e: unknown) => Promise<void>) => {
-    h.options = opts;
+    h.options = opts as Record<string, unknown>;
     h.handler = fn;
     return fn;
   },
