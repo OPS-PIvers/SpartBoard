@@ -9,6 +9,11 @@ import {
   formatFindingQuestions,
   inputFindingsByAttempt,
 } from '@/utils/inputSignals';
+import {
+  applyInputSignSettings,
+  hiddenFindings,
+  readInputSignSettings,
+} from '@/utils/inputSignalSettings';
 import { BadgePopover } from './BadgePopover';
 
 interface InputSignalsBadgeProps {
@@ -44,6 +49,11 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
   const enabled = auth?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
   const expectManaged =
     auth?.canAccessFeature?.(MANAGED_PROFILE_FEATURE) === true;
+  const isAdmin = auth?.isAdmin === true;
+  const settings = useMemo(
+    () => readInputSignSettings(auth?.globalPermissions),
+    [auth?.globalPermissions]
+  );
   const attempts = useMemo(() => {
     if (!enabled) return [];
     // A submit bumps the count, so the answers on the doc are the attempt before it.
@@ -55,14 +65,21 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
             answered: new Set(allAnswers.map((a) => a.questionId)),
           }
         : undefined;
-    return inputFindingsByAttempt(
-      signals,
-      current,
-      answers,
-      reading,
-      expectManaged
+    return applyInputSignSettings(
+      inputFindingsByAttempt(
+        signals,
+        current,
+        answers,
+        reading,
+        expectManaged,
+        hiddenFindings(settings, isAdmin)
+      ),
+      settings,
+      isAdmin
     );
   }, [
+    settings,
+    isAdmin,
     enabled,
     signals,
     completedAttempts,
@@ -109,6 +126,11 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
                     <p className="text-xs text-slate-600">
                       Could also be: {f.otherCauses}
                     </p>
+                    {f.hidden && (
+                      <p className="text-xs font-semibold text-slate-500">
+                        Hidden from teachers
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>

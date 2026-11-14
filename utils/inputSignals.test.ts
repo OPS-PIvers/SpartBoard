@@ -131,6 +131,25 @@ describe('InputSignalCollector typing', () => {
     expect(ids(c)).toEqual(['fast-typing']);
   });
 
+  it('checks the rhythm of fast typing when the fast-typing sign is hidden', () => {
+    const c = new InputSignalCollector(true);
+    type(
+      c,
+      120,
+      () => 5,
+      () => 30
+    );
+    const found = describeInputSignals(
+      c.snapshot(),
+      undefined,
+      undefined,
+      false,
+      new Set(['fast-typing'])
+    ).map((f) => f.id);
+    expect(found).toContain('even-typing');
+    expect(found).not.toContain('fast-typing');
+  });
+
   it('flags text that arrives with no key presses', () => {
     const c = new InputSignalCollector(true);
     c.textInput(180, 9_000, 'typed');

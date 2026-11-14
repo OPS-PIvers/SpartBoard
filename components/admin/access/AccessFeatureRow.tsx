@@ -22,6 +22,18 @@ import {
   MODEL_TIER_FEATURES,
   type AiModelTier,
 } from './useGlobalPermissionsEditor';
+import {
+  DEFAULT_OTHER_CAUSES,
+  INPUT_SIGNALS_FEATURE,
+} from '@/utils/inputSignals';
+import {
+  INPUT_SIGNS,
+  OTHER_CAUSES_MAX,
+  readInputSignSettings,
+  type InputSignId,
+  type InputSignSetting,
+  type InputSignSettings,
+} from '@/utils/inputSignalSettings';
 
 const LEVELS: { level: AccessLevel; label: string; Icon: typeof Shield }[] = [
   { level: 'admin', label: 'Admin', Icon: Shield },
@@ -253,6 +265,105 @@ export const ModelTierEditor: React.FC<{
   );
 };
 
+const SIGN_GROUPS = [...new Set(INPUT_SIGNS.map((s) => s.group))];
+
+/** One switch and one "Could also be" line per unusual-input sign; off hides it from teachers but keeps recording. */
+export const InputSignsEditor: React.FC<{
+  permission: GlobalFeaturePermission;
+  onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
+}> = ({ permission, onUpdate }) => {
+  const settings = readInputSignSettings([permission]);
+  // Raw text while a box is being edited, so it can be emptied and retyped.
+  const [drafts, setDrafts] = useState<Partial<Record<InputSignId, string>>>(
+    {}
+  );
+  const update = (id: InputSignId, next: InputSignSetting) => {
+    const signs: InputSignSettings = { ...settings };
+    const entry: InputSignSetting = {};
+    if (next.off) entry.off = true;
+    if (next.otherCauses !== undefined) entry.otherCauses = next.otherCauses;
+    if (entry.off || entry.otherCauses) signs[id] = entry;
+    else delete signs[id];
+    onUpdate({ config: { ...permission.config, signs } });
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+        Signs
+      </p>
+
+      {SIGN_GROUPS.map((group) => (
+        <div key={group} className="divide-y divide-slate-200">
+          <p className="pb-1 text-xxs font-bold text-slate-500 uppercase tracking-wider">
+            {group}
+          </p>
+          {INPUT_SIGNS.filter((s) => s.group === group).map(({ id, label }) => {
+            const s = settings[id] ?? {};
+            const causes =
+              id === 'writing-playback' ? null : DEFAULT_OTHER_CAUSES[id];
+            return (
+              <div
+                key={id}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
+              >
+                <span title="Off hides this sign from teachers but keeps recording it.">
+                  <Toggle
+                    checked={s.off !== true}
+                    onChange={(checked) => update(id, { ...s, off: !checked })}
+                    size="xs"
+                    label={`${label} shown to teachers`}
+                    anchor={tourFieldAttr(
+                      'admin.features.input-sign-toggle',
+                      'admin',
+                      id
+                    )}
+                  />
+                </span>
+                <span className="w-56 shrink-0 text-sm text-slate-700">
+                  {label}
+                </span>
+                {causes !== null && (
+                  <input
+                    type="text"
+                    maxLength={OTHER_CAUSES_MAX}
+                    aria-label={`${label}: could also be`}
+                    {...tourFieldAttr(
+                      'admin.features.input-sign-text',
+                      'admin',
+                      id
+                    )}
+                    value={drafts[id] ?? s.otherCauses ?? causes}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      setDrafts((d) => ({ ...d, [id]: text }));
+                      const trimmed = text.trim();
+                      update(id, {
+                        ...s,
+                        otherCauses:
+                          !trimmed || trimmed === causes ? undefined : trimmed,
+                      });
+                    }}
+                    onBlur={() =>
+                      setDrafts((d) => {
+                        const { [id]: _, ...rest } = d;
+                        return rest;
+                      })
+                    }
+                    title={
+                      'The "Could also be" line teachers see under this sign'
+                    }
+                    className="min-w-48 flex-1 px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 interface AccessFeatureRowProps {
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
@@ -400,6 +511,9 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
               permission={permission}
               onUpdate={onUpdate}
             />
+          )}
+          {featureId === INPUT_SIGNALS_FEATURE && (
+            <InputSignsEditor permission={permission} onUpdate={onUpdate} />
           )}
           {children}
         </div>
