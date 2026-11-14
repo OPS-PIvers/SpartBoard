@@ -67,6 +67,8 @@ export function classPreviewAssignments(
     );
     if (row.individualTargeting || !row.classIds.includes(classId)) continue;
     if (row.channel === 'ended') {
+      // The student page orders ended reads by endedAt, which drops docs without it.
+      if (KIND_CONFIG[kind].endedOrderBy && row.endedAt === undefined) continue;
       const list = endedByKind.get(kind) ?? [];
       list.push(row);
       endedByKind.set(kind, list);
@@ -136,19 +138,23 @@ export function useClassStudentPagePreview(
   useEffect(() => {
     if (isAuthBypass || !teacherUid || !classId) return;
     let cancelled = false;
-    Promise.all(SESSION_KINDS.map((k) => readKind(k, teacherUid, classId)))
-      .then((perKind) => {
-        if (cancelled) return;
-        setResult({
-          key,
-          status: 'ready',
-          assignments: classPreviewAssignments(perKind.flat(), classId),
-        });
-      })
-      .catch((err: unknown) => {
-        console.error('[useClassStudentPagePreview] read failed', err);
-        if (!cancelled) setResult({ key, status: 'error', assignments: [] });
+    void Promise.allSettled(
+      SESSION_KINDS.map((k) => readKind(k, teacherUid, classId))
+    ).then((perKind) => {
+      if (cancelled) return;
+      const failed = perKind.filter((r) => r.status === 'rejected');
+      failed.forEach((r) =>
+        console.error('[useClassStudentPagePreview] read failed', r.reason)
+      );
+      setResult({
+        key,
+        status: failed.length > 0 ? 'error' : 'ready',
+        assignments: classPreviewAssignments(
+          perKind.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])),
+          classId
+        ),
       });
+    });
     return () => {
       cancelled = true;
     };

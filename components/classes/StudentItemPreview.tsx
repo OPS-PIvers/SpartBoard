@@ -99,7 +99,6 @@ const FlashcardsPreview: React.FC<{
       seed={`${session.id}:preview`}
       testQuestionBar
       missedCards={session.missedCards === true}
-      speak={isCheck ? undefined : session.speak}
       studySettings={isCheck ? undefined : session.studySettings}
       lockedSettings={isCheck ? session.lockedSettings : undefined}
       check={

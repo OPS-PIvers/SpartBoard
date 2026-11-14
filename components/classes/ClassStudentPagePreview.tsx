@@ -101,7 +101,10 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
   useEffect(() => {
     if (itemOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // Leave Escape to an alert or menu on top of the page.
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (document.querySelectorAll('[aria-modal="true"]').length > 1) return;
+      onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -170,7 +173,8 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
     e.stopPropagation();
     if (e.type !== 'click') return;
     const href = link.getAttribute('href');
-    const row = assignments.find((a) => a.openHref === href);
+    const matches = assignments.filter((a) => a.openHref === href);
+    const row = matches.find((a) => a.channel !== 'ended') ?? matches[0];
     if (row) open(row.kind, row.sessionId);
     // A shared wall gallery is a public, read-only page.
     else if (href) window.open(href, '_blank', 'noopener');

@@ -96,4 +96,23 @@ describe('classPreviewAssignments', () => {
     expect(rows.some((r) => r.sessionId === 'e0')).toBe(false);
     expect(rows[0].sessionId).toBe('e54');
   });
+
+  it('drops ended quizzes with no end time, as the student query does', () => {
+    const rows = classPreviewAssignments(
+      [
+        {
+          kind: 'quiz',
+          id: 'no-end',
+          data: { status: 'ended', classIds: [CLASS] },
+        },
+        {
+          kind: 'quiz',
+          id: 'ended',
+          data: { status: 'ended', endedAt: 5, classIds: [CLASS] },
+        },
+      ],
+      CLASS
+    );
+    expect(rows.map((r) => r.sessionId)).toEqual(['ended']);
+  });
 });

@@ -184,22 +184,25 @@ export async function loadStudentPagePreviewItem(
     }
     case 'activity-wall': {
       const session = normalizeActivityWallSession(sessionId, data);
-      const posts =
-        session.studentsCanSeePosts === false
-          ? []
-          : (
-              await getDocs(
-                query(
-                  collection(db, COLLECTIONS[kind], sessionId, 'submissions'),
-                  where('status', '==', 'approved')
-                )
+      // Legacy walls (no layout) show students only their own posts unless shared publicly.
+      const hidden =
+        session.studentsCanSeePosts === false ||
+        (!('layout' in data) && data.publiclyShared !== true);
+      const posts = hidden
+        ? []
+        : (
+            await getDocs(
+              query(
+                collection(db, COLLECTIONS[kind], sessionId, 'submissions'),
+                where('status', '==', 'approved')
               )
-            ).docs.map((d) =>
-              normalizeActivityWallSubmission(
-                d.id,
-                d.data() as Partial<ActivityWallSubmission>
-              )
-            );
+            )
+          ).docs.map((d) =>
+            normalizeActivityWallSubmission(
+              d.id,
+              d.data() as Partial<ActivityWallSubmission>
+            )
+          );
       return { kind, session, posts };
     }
     case 'flashcards': {
