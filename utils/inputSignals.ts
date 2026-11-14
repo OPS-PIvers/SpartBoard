@@ -18,6 +18,9 @@ export const MANAGED_PROFILE_FEATURE = 'managed-profile-check' as const;
 /** Global feature that gates recording and showing input signals. */
 export const INPUT_SIGNALS_FEATURE = 'input-signals' as const;
 
+/** Saves the open attempt's counters now; sent just before a turn-in, after which the rules refuse them. */
+export const INPUT_SIGNALS_FLUSH_EVENT = 'spartboard:quiz:flush-signals';
+
 const COUNT_KEYS = [
   'clicks',
   'jumpClicks',

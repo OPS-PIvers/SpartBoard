@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { InputSignalCounts } from '@/types';
 import {
+  INPUT_SIGNALS_FLUSH_EVENT,
   InputSignalCollector,
   addSignals,
   otherLogBytes,
@@ -113,6 +114,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     };
     collectorRef.current = collector;
     flushRef.current = flush;
+    document.addEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isTrustedEvent(e) || e.pointerType !== 'mouse') return;
@@ -259,6 +261,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       document.removeEventListener('visibilitychange', onHidden);
       window.removeEventListener('resize', onResize);
       window.clearInterval(id);
+      document.removeEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
       flush();
       collectorRef.current = null;
       flushRef.current = null;

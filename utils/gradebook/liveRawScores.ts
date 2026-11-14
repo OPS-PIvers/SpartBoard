@@ -2,6 +2,7 @@ import type {
   GuidedLearningResponse,
   QuizQuestion,
   QuizResponse,
+  TurnInStamp,
   VideoActivityQuestion,
   VideoActivityResponse,
 } from '@/types';
@@ -20,6 +21,17 @@ import {
 } from '@/utils/videoActivityGrading';
 import type { LiveRawScore } from '@/utils/gradebook/finalScoreOverlay';
 
+/** The server's turn-in time when its stamp vouches for this submission, else the student-claimed time. */
+export function trustedTurnInMs(
+  claimed: number | null | undefined,
+  stamp: TurnInStamp | undefined
+): number | null {
+  if (claimed == null) return null;
+  return stamp && typeof stamp.at === 'number' && stamp.claimed === claimed
+    ? stamp.at
+    : claimed;
+}
+
 const NOT_SCORED: LiveRawScore = {
   points: null,
   max: null,
@@ -36,7 +48,7 @@ export function quizLiveRaw(
 ): LiveRawScore {
   if (r.status !== 'completed') return NOT_SCORED;
   const deduped = dedupeQuestionsById(questions);
-  const submittedAt = r.submittedAt ?? null;
+  const submittedAt = trustedTurnInMs(r.submittedAt, r.turnIn);
   if (!canScoreResponse(r, deduped)) return { ...NOT_SCORED, submittedAt };
   const max = deduped.reduce((s, q) => s + questionPointsFor(q, r), 0);
   if (isResponseAwaitingGrade(r, deduped, paperWrittenQuestionIds)) {
@@ -57,7 +69,7 @@ export function videoActivityLiveRaw(
   questions: VideoActivityQuestion[]
 ): LiveRawScore {
   if (r.completedAt === null) return NOT_SCORED;
-  const submittedAt = r.completedAt;
+  const submittedAt = trustedTurnInMs(r.completedAt, r.turnIn);
   if (!canScoreVideoActivityResponse(questions, r.answers)) {
     return { ...NOT_SCORED, submittedAt };
   }

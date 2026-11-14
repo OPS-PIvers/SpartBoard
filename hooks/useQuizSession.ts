@@ -14,6 +14,7 @@ import {
   publicImageOnlyAnswers,
 } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
+import { INPUT_SIGNALS_FLUSH_EVENT } from '@/utils/inputSignals';
 import {
   useState,
   useEffect,
@@ -3924,6 +3925,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     const quizId = quizIdRef.current;
     const teacherUid = teacherUidRef.current;
     if (!sessionId || !responseKey) return;
+    document.dispatchEvent(new CustomEvent(INPUT_SIGNALS_FLUSH_EVENT));
     // Let a just-flushed draft land first: once turned in, the rules lock the answers.
     await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
     await settleDraftsWithin(inFlightTxRef.current, DRAFT_SETTLE_MS);
