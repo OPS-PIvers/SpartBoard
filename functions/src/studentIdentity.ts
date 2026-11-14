@@ -1772,7 +1772,8 @@ async function stampRetiredPinTimes(
       const seg = retiredKeySegment(key);
       if (!has(seg) && !updates.has(seg)) updates.set(seg, now);
     }
-    if (prune) {
+    // An empty list (owner no longer confirmed) clears access, not the display stamps.
+    if (prune && keys.size > 0) {
       const kept = new Set([...keys].map(retiredKeySegment));
       for (const seg of Object.keys(existing)) {
         if (!kept.has(seg))
