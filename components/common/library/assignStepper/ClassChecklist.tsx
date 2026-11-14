@@ -55,7 +55,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
 
   return (
     <div
-      role="group"
+      role={singleSelect ? 'radiogroup' : 'group'}
       aria-label="Classes"
       {...(anchor ?? tourAttr('assign-classes.trigger'))}
       className={`rounded-lg border border-slate-300 bg-white ${disabled ? 'opacity-50' : ''}`}
@@ -75,9 +75,11 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
                 key={r.id}
                 title={unavailable ? r.loadError : undefined}
                 className={`flex items-center gap-2.5 px-3 py-2 text-sm ${
-                  off
+                  unavailable
                     ? 'cursor-not-allowed text-slate-400'
-                    : 'cursor-pointer text-slate-800 hover:bg-slate-50'
+                    : disabled
+                      ? 'cursor-not-allowed text-slate-800'
+                      : 'cursor-pointer text-slate-800 hover:bg-slate-50'
                 }`}
               >
                 <input
