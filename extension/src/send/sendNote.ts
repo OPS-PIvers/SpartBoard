@@ -90,10 +90,12 @@ export function sendNote(input: SendNoteInput): SendNote {
       text: `Sent this set to SpartBoard (${input.cards === 1 ? '1 card' : `${input.cards} cards`}).`,
     };
   if (input.questions !== undefined)
+    return { ok: true, open: 'import', text: 'Sent to SpartBoard.' };
+  if (input.fellBack === 'google-forms')
     return {
       ok: true,
       open: 'import',
-      text: `Sent this form to SpartBoard (${input.questions === 1 ? '1 question' : `${input.questions} questions`}).`,
+      text: 'Form couldn’t be read. Page text was sent to SpartBoard.',
     };
   const what = input.selectionOnly ? 'your selection' : 'this page';
   const reader =
@@ -101,9 +103,7 @@ export function sendNote(input: SendNoteInput): SendNote {
       ? 'The Edpuzzle reader'
       : input.fellBack === 'quizlet'
         ? 'The Quizlet reader'
-        : input.fellBack === 'google-forms'
-          ? 'The Google Forms reader'
-          : 'The quiz reader';
+        : 'The quiz reader';
   return {
     ok: true,
     open: 'import',

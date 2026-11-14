@@ -236,7 +236,6 @@ describe('formToExtractedQuiz', () => {
       'free-response',
       'MC',
       'MC',
-      'MC',
     ]);
     // The picture on its own and the question's picture both show with the question.
     expect(qs[0].imageIds).toHaveLength(2);
@@ -246,18 +245,20 @@ describe('formToExtractedQuiz', () => {
       correctAnswer: 'nucleus',
       blankAlternates: [{ answers: ['the nucleus'] }],
     });
-    expect(qs[4].suggestUntick).toBeTruthy();
-    expect(qs[5]).toMatchObject({
+    // The rating scale stays out of the quiz.
+    expect(qs.some((q) => q.text === 'How sure are you?')).toBe(false);
+    expect(qs[4]).toMatchObject({
       text: 'Match each to its job: Nucleus',
       correctAnswer: 'Control',
     });
-    expect(qs[6]).toMatchObject({
+    expect(qs[5]).toMatchObject({
       text: 'Match each to its job: Mitochondria',
       correctAnswer: 'Energy',
     });
     expect(extracted.images).toHaveLength(2);
     expect(extracted.warnings).toEqual([
-      'Left out: 1 date question, 1 video and 1 picture.',
+      'Rating scales are not supported in quizzes.',
+      'Not imported: 1 date question, 1 video and 1 picture.',
     ]);
   });
 
@@ -269,7 +270,6 @@ describe('formToExtractedQuiz', () => {
     expect(quiz.questions[0].stimulusIds?.every((id) => ids.has(id))).toBe(
       true
     );
-    // The scale row starts unticked.
     expect(quiz.questions).toHaveLength(6);
     expect(quiz.questions.some((q) => q.needsKey)).toBe(false);
   });
@@ -302,11 +302,9 @@ describe('formToExtractedQuiz', () => {
     const extracted = await formToExtractedQuiz('Page', page, fetchImage);
     expect(extracted.questions[0].options).toHaveLength(5);
     expect(extractedToQuizData(extracted).questions[0].needsKey).toBe(true);
-    expect(extracted.questions[0].warnings).toEqual([
-      'Left out 2 choices: f; g.',
-    ]);
+    expect(extracted.questions[0].warnings).toEqual(['Not imported: f; g.']);
     expect(extracted.warnings[0]).toBe(
-      'Left out: 2 answer choices past the most a question can hold.'
+      'Not imported: 2 answer choices past the most a question can hold.'
     );
   });
 });

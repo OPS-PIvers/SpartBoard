@@ -269,7 +269,7 @@ const LEFT_OUT: Record<keyof QuizLeftOut, (n: number) => string> = {
     `${plural(n, 'answer choice', 'answer choices')} past the most a question can hold`,
 };
 
-/** "Left out: a, b and c." in a fixed order; null when nothing was. */
+/** "Not imported: a, b and c." in a fixed order; null when nothing was. */
 export function formLeftOutSummary(counts: QuizLeftOut): string | null {
   const parts = (Object.keys(LEFT_OUT) as (keyof QuizLeftOut)[])
     .filter((k) => (counts[k] ?? 0) > 0)
@@ -279,13 +279,13 @@ export function formLeftOutSummary(counts: QuizLeftOut): string | null {
     parts.length === 1
       ? parts[0]
       : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
-  return `Left out: ${list}.`;
+  return `Not imported: ${list}.`;
 }
 
-/** A rating scale has no right answer, so its row starts unticked. */
-export const SCALE_UNTICK = 'A rating scale has no right answer.';
+/** Quizzes have no rating scale, so a form's scales and ratings stay out of a quiz. */
+export const SCALES_LEFT_OUT = 'Rating scales are not supported in quizzes.';
 /** SpartBoard knows who answered, so a form's name or email question starts unticked. */
-export const WHO_UNTICK = 'SpartBoard already knows who answered.';
+export const WHO_UNTICK = 'Not needed. SpartBoard knows who answered.';
 const ASKS_WHO =
   /^\s*(?:(?:your|student(?:'s)?)\s+)?(?:(?:full|first|last)\s+)?(?:name|e-?mail(?:\s+address)?)\s*[:?]?\s*$/i;
 
@@ -317,11 +317,7 @@ function fitChoices(
 
 /** The row note naming the choices a question couldn't hold, so the teacher can swap one back in. */
 const droppedNote = (dropped: readonly string[]): string[] =>
-  dropped.length
-    ? [
-        `Left out ${plural(dropped.length, 'choice', 'choices')}: ${dropped.join('; ')}.`,
-      ]
-    : [];
+  dropped.length ? [`Not imported: ${dropped.join('; ')}.`] : [];
 
 /** The form as the quiz reader's result, so it lands in the same review table, pictures and all. */
 export async function formToExtractedQuiz(
@@ -339,6 +335,7 @@ export async function formToExtractedQuiz(
   );
   const pictures = await copyPictures(urls, fetchImage);
   const counts: QuizLeftOut = { ...form.leftOut };
+  let scales = 0;
   const add = (k: keyof QuizLeftOut, n: number) => {
     if (n > 0) counts[k] = (counts[k] ?? 0) + n;
   };
@@ -460,17 +457,9 @@ export async function formToExtractedQuiz(
         break;
       case 'scale':
       case 'rating':
-        push({
-          text,
-          type: 'MC',
-          options: scaleSteps(item).map((t, i) => ({
-            letter: letter(i),
-            text: t,
-          })),
-          correctAnswer: '',
-          imageIds,
-          suggestUntick: SCALE_UNTICK,
-        });
+        // A rating's picture still shows, with the next question.
+        pending.push(...imageIds);
+        scales += 1;
         break;
       case 'grid':
       case 'checkboxGrid': {
@@ -501,7 +490,10 @@ export async function formToExtractedQuiz(
     title,
     questions,
     images: [...pictures.values()],
-    warnings: leftOut ? [leftOut] : [],
+    warnings: [
+      ...(scales ? [SCALES_LEFT_OUT] : []),
+      ...(leftOut ? [leftOut] : []),
+    ],
   };
 }
 

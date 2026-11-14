@@ -371,7 +371,7 @@ const OpenImportScreen: React.FC<
     if (!form || refuseReadOnly()) return;
     const { questions, over } = formToPollQuestions(form);
     if (!questions.length) {
-      addToast('This form has no questions a poll can ask.', 'error');
+      addToast('No poll questions found in this Form.', 'error');
       return;
     }
     const defaults = WIDGET_DEFAULTS.poll;
@@ -381,12 +381,12 @@ const OpenImportScreen: React.FC<
       config: withPollQuestions(base, questions),
     });
     if (over > 0)
-      addToast(`A poll holds 20 questions, so the first 20 came over.`, 'info');
-    else if (formHasPictures(form))
       addToast(
-        'Polls don’t show pictures, so the form’s pictures were left out.',
+        '20 question limit reached. Additional questions were left out.',
         'info'
       );
+    else if (formHasPictures(form))
+      addToast('Polls do not support images. Only text was imported.', 'info');
     const sentId = sentIdOf(source);
     if (sentId) removeSent(sentId);
   };
@@ -415,7 +415,7 @@ const OpenImportScreen: React.FC<
     closeImportScreen();
     if (!resolved) {
       addToast(
-        'That form couldn’t be read. Open it in Google Forms and send it again.',
+        'Form couldn’t be read. Open it in Google Forms and try sending it again.',
         'error'
       );
       return;
