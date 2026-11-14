@@ -73,6 +73,7 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
   if (prevCurrent !== current) {
     setPrevCurrent(current);
     setDraft(current);
+    setDraftEdited(false);
   }
 
   const options: Option[] = [
@@ -97,8 +98,10 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
     if (BARE_HEX_RE.test(next)) next = `#${next}`;
     if (HEX_RE.test(next)) {
       const normalized = toInputHex(next, fallback);
-      // A cleared value still needs an explicit pick even when it equals the fallback.
-      if (normalized !== current || (isCleared && edited)) onChange(normalized);
+      // A cleared or unparseable value still needs an explicit pick even when it equals the fallback.
+      const showsFallback = !(value && HEX_RE.test(value));
+      if (normalized !== current || (showsFallback && edited))
+        onChange(normalized);
       setDraft(normalized);
     } else {
       setDraft(current);
