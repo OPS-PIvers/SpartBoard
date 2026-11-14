@@ -1149,7 +1149,10 @@ service cloud.firestore {
     match /admin_audit_log/{logId} {
       // View-as entries carry teacher data: super admins read them, and only the server
       // or a view-as tab (below) writes them.
-      allow read: if (isAdmin() && !existing().get('action', '').matches('view_as_.*')) ||
+      allow get: if (isAdmin() && !existing().get('action', '').matches('view_as_.*')) ||
+                    isSuperAdmin();
+      // A list is provable only from a pinned action; an unpinned one errors and denies for non-super admins.
+      allow list: if (isAdmin() && !existing().action.matches('view_as_.*')) ||
                      isSuperAdmin();
       allow create: if isAdmin() && !incoming().get('action', '').matches('view_as_.*');
       // An unlocked view-as tab logs its own saves, approvals and outward
@@ -1180,10 +1183,19 @@ service cloud.firestore {
     // Removed because this exposes PII (emails). Need a different architecture.
     // Reverting to admin only for now.
 
-    // Feature permissions - all authenticated users can read, only admins can write
+    // Feature permissions carry betaUsers emails: admins only. Everyone else reads the stripped mirror and own beta_grants (permissionMirrors CFs).
     match /feature_permissions/{widgetType} {
+      allow read, write: if isAdmin();
+    }
+    match /feature_permissions_public/{widgetType} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+    }
+    match /global_permissions_public/{featureId} {
+      allow read: if signedIn();
+    }
+    // A caller reads only their own grant doc, never the roster.
+    match /beta_grants/{email} {
+      allow get: if signedIn() && tok().get('email', '').lower() == email;
     }
 
     // Admin-created short links resolved at /r/:code.
@@ -1266,9 +1278,9 @@ service cloud.firestore {
     // enumerate, so deny all. `{document=**}` covers the contexts/{contextId} subcollection.
     // /lti_session_memberships/{sessionId}/{document=**}: no client access (default deny).
 
-    // Global permissions - all authenticated users can read, only admins can write
+    // Global permissions carry betaUsers emails: admins read; others use global_permissions_public.
     match /global_permissions/{featureId=**} {
-      allow read: if signedIn();
+      allow read: if isAdmin();
       allow write: if isAdmin() && notDomainsPath(featureId);
     }
 
@@ -5261,7 +5273,7 @@ service cloud.firestore {
       // role is itself a member doc in its own org via the same sync — so no
       // separate same-org-admin read branch is needed here (unlike plcs, which
       // has no "any org member" read branch to fall back on).
-      allow read: if signedIn()
+      allow get: if signedIn()
         && (
           // Missing orgId OR explicit orgId:null = legacy/global, any authed user.
           // (The null case avoids isOrgMember(null) hiding the doc from everyone.)
@@ -5270,6 +5282,9 @@ service cloud.firestore {
           || isOrgMember(existing().orgId)
           || isSuperAdmin()
         );
+      // A list must pin orgId to null or a member org; an unpinned query errors on existing().orgId and denies.
+      allow list: if signedIn()
+        && (existing().orgId == null || isOrgMember(existing().orgId) || isSuperAdmin());
 
       // Global/legacy (missing or null orgId) is super-admin only; an
       // org-scoped doc is writable by that org's admin or a super admin.

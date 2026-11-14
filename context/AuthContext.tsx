@@ -422,16 +422,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [adminDoc, setAdminDoc] = useState<AdminDocProvenance | null>(null);
   const [userRoles, setUserRoles] = useState<UserRolesConfig | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
-  const [featurePermissions, setFeaturePermissions] = useState<
+  // Stripped mirrors (everyone) plus the full admin-only originals; see permissionMirrors CFs.
+  const [publicFeaturePermissions, setFeaturePermissions] = useState<
     FeaturePermission[]
   >([]);
-  const [featurePermissionsLoaded, setFeaturePermissionsLoaded] =
+  const [adminFeaturePermissions, setAdminFeaturePermissions] = useState<
+    FeaturePermission[] | null
+  >(null);
+  const [featurePermissionsLoadedRaw, setFeaturePermissionsLoaded] =
     useState(isAuthBypass);
-  const [globalPermissions, setGlobalPermissions] = useState<
+  const [publicGlobalPermissions, setGlobalPermissions] = useState<
     GlobalFeaturePermission[]
   >([]);
-  const [globalPermissionsLoaded, setGlobalPermissionsLoaded] =
+  const [adminGlobalPermissions, setAdminGlobalPermissions] = useState<
+    GlobalFeaturePermission[] | null
+  >(null);
+  const [globalPermissionsLoadedRaw, setGlobalPermissionsLoaded] =
     useState(isAuthBypass);
+  // The caller's own beta grants; null until the doc settles.
+  const [betaGrants, setBetaGrants] = useState<{
+    features: string[];
+    global: string[];
+  } | null>(null);
   const [selectedBuildings, setSelectedBuildingsState] = useState<string[]>([]);
   // null = never set; grades derive from the selected buildings until then.
   const [gradesTaught, setGradesTaughtState] = useState<string[] | null>(null);
@@ -1804,7 +1816,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!hasLiveUser) return;
 
     const unsubscribe = onSnapshot(
-      collection(db, 'feature_permissions'),
+      collection(db, 'feature_permissions_public'),
       (snapshot) => {
         const permissions: FeaturePermission[] = [];
         snapshot.forEach((doc) => {
@@ -1821,7 +1833,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     const globalUnsubscribe = onSnapshot(
-      collection(db, 'global_permissions'),
+      collection(db, 'global_permissions_public'),
       (snapshot) => {
         const permissions: GlobalFeaturePermission[] = [];
         snapshot.forEach((doc) => {
@@ -1860,6 +1872,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // `hasLiveUser` is the guard expression. `hasLiveUser` only flips when
     // `user`'s truthiness flips, so listing both adds no extra re-runs.
   }, [user, hasLiveUser]);
+
+  // Admins read the full originals (with betaUsers) for the editors.
+  useEffect(() => {
+    if (!hasLiveUser || isAdmin !== true) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- drops admin-only data when the listeners are not needed
+      setAdminFeaturePermissions(null);
+      setAdminGlobalPermissions(null);
+      return;
+    }
+    const u1 = onSnapshot(
+      collection(db, 'feature_permissions'),
+      (snap) =>
+        setAdminFeaturePermissions(
+          snap.docs.map((d) => d.data() as FeaturePermission)
+        ),
+      () => setAdminFeaturePermissions(null)
+    );
+    const u2 = onSnapshot(
+      collection(db, 'global_permissions'),
+      (snap) =>
+        setAdminGlobalPermissions(
+          snap.docs.map((d) => {
+            const data = d.data() as GlobalFeaturePermission;
+            if (!data.featureId) data.featureId = d.id as GlobalFeature;
+            return data;
+          })
+        ),
+      () => setAdminGlobalPermissions(null)
+    );
+    return () => {
+      u1();
+      u2();
+    };
+  }, [hasLiveUser, isAdmin]);
+
+  // The caller's own beta grants stand in for the hidden betaUsers rosters.
+  const grantEmail = user?.email?.toLowerCase() ?? null;
+  useEffect(() => {
+    if (!hasLiveUser || !grantEmail) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- no email means no grants to load
+      setBetaGrants({ features: [], global: [] });
+      return;
+    }
+    return onSnapshot(
+      doc(db, 'beta_grants', grantEmail),
+      (snap) => {
+        const d = snap.data();
+        const list = (v: unknown) =>
+          Array.isArray(v)
+            ? v.filter((x): x is string => typeof x === 'string')
+            : [];
+        setBetaGrants({ features: list(d?.features), global: list(d?.global) });
+      },
+      () => setBetaGrants({ features: [], global: [] })
+    );
+  }, [hasLiveUser, grantEmail]);
+
+  const featurePermissions = useMemo(() => {
+    if (isAdmin === true && adminFeaturePermissions)
+      return adminFeaturePermissions;
+    if (!grantEmail || !betaGrants) return publicFeaturePermissions;
+    return publicFeaturePermissions.map((p) =>
+      betaGrants.features.includes(p.widgetType)
+        ? { ...p, betaUsers: [grantEmail] }
+        : p
+    );
+  }, [
+    isAdmin,
+    adminFeaturePermissions,
+    publicFeaturePermissions,
+    betaGrants,
+    grantEmail,
+  ]);
+  const globalPermissions = useMemo(() => {
+    if (isAdmin === true && adminGlobalPermissions)
+      return adminGlobalPermissions;
+    if (!grantEmail || !betaGrants) return publicGlobalPermissions;
+    return publicGlobalPermissions.map((p) =>
+      betaGrants.global.includes(p.featureId)
+        ? { ...p, betaUsers: [grantEmail] }
+        : p
+    );
+  }, [
+    isAdmin,
+    adminGlobalPermissions,
+    publicGlobalPermissions,
+    betaGrants,
+    grantEmail,
+  ]);
+  // Not loaded until the caller's grants settle, so a beta teacher never sees a flicker of "off".
+  const featurePermissionsLoaded = featurePermissionsLoadedRaw && !!betaGrants;
+  const globalPermissionsLoaded = globalPermissionsLoadedRaw && !!betaGrants;
 
   // Subscribe to the active org's buildings so grade-level resolution stays
   // in sync with whatever admins configure in Admin Settings > Organization.
