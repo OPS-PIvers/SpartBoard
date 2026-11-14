@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import {
   availabilityBackwards,
   defaultAvailability,
+  manualDueAt,
   type AssignAvailability,
   type AssignWhenMode,
   type BellWindowFn,
@@ -81,6 +82,23 @@ export function formatWhenValue(
     return t('assignWhen.liveValue', {
       defaultValue: 'You start it from the board',
     });
+  const due = value.availability.manualDue;
+  if (
+    variant === 'when' &&
+    value.mode === 'manual' &&
+    manualAvailable &&
+    due &&
+    !staff
+  )
+    return due.kind === 'date'
+      ? t('assignWhen.manualDueValue', {
+          dueDay: formatDay(due.day),
+          dueTime: formatClock(due.time),
+          defaultValue: 'Manual, due {{dueDay}}, {{dueTime}}',
+        })
+      : t('assignWhen.manualDueEndedValue', {
+          defaultValue: 'Manual, due when ended',
+        });
   if (variant === 'when' && value.mode === 'manual' && manualAvailable)
     return staff
       ? t('assignWhen.manualValueStaff', {
@@ -137,6 +155,11 @@ export function formatWhenValue(
         'Available {{openDay}}, {{openTime}} to {{closeDay}}, {{closeTime}}',
     });
   }
+  if (value.availability.opensOnAssign)
+    return t('assignWhen.openNowUntil', {
+      ...closePoint,
+      defaultValue: 'Open now to {{closeDay}}, {{closeTime}}',
+    });
   return t('assignWhen.openRange', {
     ...vars,
     defaultValue:
@@ -149,9 +172,14 @@ export function whenBackwards(
   when: AssignWhenValue,
   rosters: readonly PeriodRoster[],
   bellWindow: BellWindowFn | undefined,
-  workKind?: WorkKind
+  workKind?: WorkKind,
+  now: number = Date.now()
 ): boolean {
-  if (when.mode === 'manual' && workKind !== 'resource') return false;
+  if (when.mode === 'manual' && workKind !== 'resource') {
+    // A Manual due date opens now, so one already past closes before it opens.
+    const due = manualDueAt(when.availability.manualDue);
+    return due != null && due <= now;
+  }
   return availabilityBackwards(
     { availability: when.availability, workKind },
     rosters,

@@ -55,13 +55,18 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
   const move = useCallback(
     (direction: -1 | 1): void => {
       if (cards.length === 0) return;
+      if (
+        showMarks &&
+        (index + direction < 0 || index + direction > cards.length - 1)
+      )
+        return;
       setSlideDirection(direction);
       setIndex(
         (current) => (current + direction + cards.length) % cards.length
       );
       setFlipped(false);
     },
-    [cards.length]
+    [cards.length, index, showMarks]
   );
 
   const record = useCallback(
@@ -180,7 +185,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           <div
             aria-hidden="true"
             className={cx(
-              'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center backface-hidden motion-reduce:transition-opacity motion-reduce:duration-200',
+              'absolute inset-0 flex flex-col items-center overflow-y-auto rounded-[min(30px,6cqmin)] border text-center backface-hidden motion-reduce:transition-opacity motion-reduce:duration-200',
               shown && 'motion-reduce:opacity-0',
               dark
                 ? 'border-white/15 bg-slate-950/65 text-white'
@@ -201,12 +206,14 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
             >
               {t(`flashcards.cards.${canFlip ? showFirst : 'term'}`)}
             </span>
-            <span
-              className="max-w-[22ch] text-center font-black leading-tight text-balance"
-              style={{ fontSize: 'clamp(22px, 10cqmin, 58px)' }}
-            >
-              {sides.prompt}
-            </span>
+            <div className="my-auto flex w-full flex-col items-center">
+              <span
+                className="max-w-[22ch] text-center font-black leading-tight text-balance"
+                style={{ fontSize: 'clamp(22px, 10cqmin, 58px)' }}
+              >
+                {sides.prompt}
+              </span>
+            </div>
             {canFlip && (
               <span
                 className={cx(
@@ -225,7 +232,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           <div
             aria-hidden="true"
             className={cx(
-              'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center backface-hidden transform-[rotateY(180deg)] motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-200',
+              'absolute inset-0 flex flex-col items-center overflow-y-auto rounded-[min(30px,6cqmin)] border text-center backface-hidden transform-[rotateY(180deg)] motion-reduce:transform-none motion-reduce:transition-opacity motion-reduce:duration-200',
               !shown && 'motion-reduce:opacity-0',
               dark
                 ? 'border-cyan-200/20 bg-cyan-950/65 text-white'
@@ -250,12 +257,14 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
                   : 'flashcards.cards.term'
               )}
             </span>
-            <span
-              className="max-w-[26ch] text-center font-black leading-tight text-balance"
-              style={{ fontSize: 'clamp(20px, 8cqmin, 48px)' }}
-            >
-              {sides.answer}
-            </span>
+            <div className="my-auto flex w-full flex-col items-center">
+              <span
+                className="max-w-[26ch] text-center font-black leading-tight text-balance"
+                style={{ fontSize: 'clamp(20px, 8cqmin, 48px)' }}
+              >
+                {sides.answer}
+              </span>
+            </div>
           </div>
         </button>
         {showMarks && (
@@ -270,7 +279,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
             )}
             aria-pressed={isStarred}
             className={cx(
-              'absolute rounded-full transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-amber-300',
+              'touch-target-expand absolute rounded-full transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-amber-300',
               isStarred
                 ? 'bg-amber-400 text-amber-950'
                 : dark
@@ -301,8 +310,9 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           {...tourAttr('flashcards.present-previous')}
           onClick={() => move(-1)}
           aria-label={t('flashcards.cards.previous')}
+          disabled={showMarks && index <= 0}
           className={cx(
-            'rounded-full transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
+            'touch-target-expand rounded-full transition disabled:opacity-40 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
             dark
               ? 'bg-white/10 text-white hover:bg-white/20'
               : 'bg-white text-slate-700 shadow-sm hover:bg-slate-50'
@@ -375,8 +385,9 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
           {...tourAttr('flashcards.present-next')}
           onClick={() => move(1)}
           aria-label={t('flashcards.cards.next')}
+          disabled={showMarks && index >= cards.length - 1}
           className={cx(
-            'rounded-full transition focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
+            'touch-target-expand rounded-full transition disabled:opacity-40 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-rose-300',
             dark
               ? 'bg-white/10 text-white hover:bg-white/20'
               : 'bg-white text-slate-700 shadow-sm hover:bg-slate-50'

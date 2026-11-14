@@ -28,6 +28,7 @@ interface RoundSummaryProps {
   onNextRound: () => void;
   onRestart?: () => void;
   missed?: RoundSummaryMissed;
+  nextLabel?: string;
 }
 
 export const RoundSummary: React.FC<RoundSummaryProps> = ({
@@ -38,6 +39,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
   onNextRound,
   onRestart,
   missed,
+  nextLabel,
 }) => {
   const { t } = useTranslation();
   const missedOnly = missed?.only === true;
@@ -52,7 +54,7 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
     : null;
   // A missed-only round leads with the pile; a normal round keeps Next round first.
   const primary = (missedOnly ? (studyMissed ?? studyAll) : null) ?? {
-    label: t('flashcards.summary.next'),
+    label: nextLabel ?? t('flashcards.summary.next'),
     onClick: onNextRound,
   };
   const secondary = missedOnly ? (studyMissed ? studyAll : null) : studyMissed;

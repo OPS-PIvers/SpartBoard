@@ -202,7 +202,7 @@ describe('PublishedScoreReview handwritten paper answers', () => {
       answer: paperAnswer({ answer: '', paperTranscript: 'pending' }),
     });
     expect(screen.getByText('Transcribing')).toBeInTheDocument();
-    expect(screen.queryByText('— no response')).not.toBeInTheDocument();
+    expect(screen.queryByText('No response')).not.toBeInTheDocument();
   });
 
   it('shows a blank label for a blank box', () => {

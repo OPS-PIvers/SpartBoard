@@ -86,7 +86,17 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     };
   }, [setId]);
 
-  if (state.status === 'loading') {
+  // Staff outside the district can't read building sets, so a published tour falls back to its snapshot.
+  const snapshot =
+    published.tour && !isWebTourSet(published.tour.set)
+      ? published.tour.set
+      : null;
+  const set = state.status === 'ready' ? state.set : snapshot;
+
+  if (
+    state.status === 'loading' ||
+    (state.status === 'missing' && !published.loaded)
+  ) {
     return (
       <div className="flex items-center justify-center py-16 text-slate-400">
         <Loader2 className="w-5 h-5 animate-spin" />
@@ -94,7 +104,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     );
   }
 
-  if (state.status === 'missing') {
+  if (!set) {
     return (
       <p className="py-16 text-center text-sm text-slate-500">
         {t('helpCenter.guides.activityUnavailable')}
@@ -102,15 +112,10 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     );
   }
 
-  const editDraft = draftOnly && tourStepsOf(state.set).length > 0;
+  const editDraft = draftOnly && tourStepsOf(set).length > 0;
   // The published snapshot is what Start Live Tour plays, so it is what the steps read from.
   // Only admins read an unpublished draft's steps; teachers keep the player until a snapshot exists.
-  const stepsSet =
-    published.tour && !isWebTourSet(published.tour.set)
-      ? published.tour.set
-      : isAdmin
-        ? state.set
-        : null;
+  const stepsSet = snapshot ?? (isAdmin ? set : null);
   if (published.loaded && stepsSet && liveTourStepsOf(stepsSet).length > 0) {
     const start = hasTour || editDraft;
     return (
@@ -148,13 +153,13 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   }
 
   const offBoardTour =
-    !canRunLive && (state.set.hasLiveTour ?? tourStepsOf(state.set).length > 0);
+    !canRunLive && (set.hasLiveTour ?? tourStepsOf(set).length > 0);
   if (offBoardTour) {
     return (
       <div
         className={fill ? 'h-full overflow-y-auto bg-slate-50 p-4 pb-8' : ''}
       >
-        <TourStepList set={state.set} />
+        <TourStepList set={set} />
       </div>
     );
   }
@@ -173,7 +178,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
           </div>
         }
       >
-        <GuidedLearningPlayer set={state.set} teacherMode />
+        <GuidedLearningPlayer set={set} teacherMode />
       </Suspense>
     </div>
   );

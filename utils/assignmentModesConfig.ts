@@ -78,3 +78,17 @@ export const parseAssignmentModesConfig = (
   }
   return out;
 };
+
+/** One widget's mode; Mini App submissions also need the Mini App submissions preview. */
+export const resolveAssignmentMode = (
+  rawConfig: unknown,
+  widget: AssignmentWidgetKey,
+  hasMiniAppSubmissions: boolean
+): AssignmentMode => {
+  const mode = parseAssignmentModesConfig(rawConfig)[widget] ?? 'submissions';
+  return widget === 'miniApp' &&
+    mode === 'submissions' &&
+    !hasMiniAppSubmissions
+    ? 'view-only'
+    : mode;
+};

@@ -14,20 +14,28 @@
 
 const ytPendingCallbacks: (() => void)[] = [];
 
-export const loadYouTubeApi = (callback: () => void): void => {
+const ytErrorCallbacks: (() => void)[] = [];
+
+export const loadYouTubeApi = (
+  callback: () => void,
+  onError?: () => void
+): void => {
   if (window.YT?.Player) {
     callback();
     return;
   }
   ytPendingCallbacks.push(callback);
+  if (onError) ytErrorCallbacks.push(onError);
   if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
     const previousHandler = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       if (typeof previousHandler === 'function') previousHandler();
       ytPendingCallbacks.splice(0).forEach((cb) => cb());
+      ytErrorCallbacks.length = 0;
     };
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
+    tag.onerror = () => ytErrorCallbacks.splice(0).forEach((cb) => cb());
     document.head.appendChild(tag);
   }
 };

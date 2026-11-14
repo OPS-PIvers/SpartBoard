@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useId, useMemo, useRef, useState } from 'react';
 import { Check, Flag, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FlashcardCard, FlashcardSide } from '@/types';
@@ -63,6 +63,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
   check,
 }) => {
   const { t } = useTranslation();
+  const correctId = useId();
   const [queue, setQueue] = useState(cards);
   const [index, setIndex] = useState(0);
   const [response, setResponse] = useState('');
@@ -322,7 +323,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
             placeholder={t('flashcards.write.placeholder')}
             style={{
               padding: 'min(14px, 3.5cqmin) min(18px, 4cqmin)',
-              fontSize: 'min(18px, 4.5cqmin)',
+              fontSize: 'max(16px, min(18px, 4.5cqmin))',
             }}
           />
           <div style={{ marginTop: 'min(9px, 2cqmin)' }}>
@@ -358,6 +359,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
         </form>
       ) : (
         <div
+          role="status"
           className={cx(
             'w-full rounded-[min(22px,5cqmin)] border',
             dark
@@ -376,7 +378,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                 {wrongReview.response}
               </span>
             </div>
-            <div>
+            <div id={correctId}>
               <span className="font-black">
                 {t('flashcards.write.correct')}{' '}
               </span>
@@ -408,13 +410,14 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                 setRetypeError(false);
               }}
               aria-label={t('flashcards.write.retypeLabel')}
+              aria-describedby={correctId}
               aria-invalid={retypeError}
               autoComplete="off"
               spellCheck={false}
               className={inputClass}
               style={{
                 padding: 'min(11px, 2.7cqmin) min(15px, 3.5cqmin)',
-                fontSize: 'min(16px, 4cqmin)',
+                fontSize: '16px',
               }}
             />
             <div style={{ marginTop: 'min(9px, 2cqmin)' }}>

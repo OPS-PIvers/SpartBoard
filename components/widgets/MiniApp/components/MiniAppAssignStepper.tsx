@@ -1,4 +1,5 @@
 // Mini App's assign dialog on the stepper: name, Students submit work / Study resource, Classes, When (docs/plans/shipped/ASSIGN_STEPPER.md D20).
+import { useAssignWhen } from '@/hooks/useLastAssignWhen';
 import React, { useState } from 'react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +13,7 @@ import {
   type AssignKind,
   type AssignStepDef,
 } from '@/components/common/library/assignStepper/assignSteps';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -27,7 +28,6 @@ import {
   defaultWhenValue,
   formatWhenValue,
   whenBackwards,
-  type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import {
   ModificationsLink,
@@ -84,7 +84,11 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     classIds: initialClassIds.filter((id) => rosters.some((r) => r.id === id)),
     studentsByClass: {},
   }));
-  const [when, setWhen] = useState<AssignWhenValue>(() =>
+  const {
+    when,
+    setWhen,
+    remember: rememberWhen,
+  } = useAssignWhen('miniapp', () =>
     defaultWhenValue({
       activity: 'miniapp',
       bellAvailable: !!periodAccess,
@@ -118,7 +122,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   const bodies = {
     classes: (
       <div className="space-y-3">
-        <ClassPickerMenu
+        <ClassChecklist
           rosters={rosters}
           value={classes}
           onChange={setClasses}
@@ -226,8 +230,9 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
           ? t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
           : undefined
       }
-      onSubmit={() =>
-        onSubmit(
+      onSubmit={() => {
+        if (!staff && variant === 'when') rememberWhen(when);
+        return onSubmit(
           staff
             ? {
                 kind,
@@ -238,8 +243,8 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
               }
             : { kind, classes, when, targeting },
           resultsStepOn ? results : undefined
-        )
-      }
+        );
+      }}
       overlayView={
         showMods ? (
           <ModificationsView

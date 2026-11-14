@@ -5195,6 +5195,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-when.due",
+    "label": "Due choice (When ended or Date and time) for Manual in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.when"
+        ],
+        "reveal": "assign-step.when"
+      }
+    ]
+  },
+  {
     "id": "assign-when.window",
     "label": "Schedule switch in the Assign dialog",
     "scope": "board",
@@ -5209,7 +5225,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-classes.trigger",
-    "label": "Classes menu button in the Assign dialog",
+    "label": "Class list in the Assign dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -5222,7 +5238,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-classes.option",
-    "label": "Class checkbox in the Assign dialog classes menu",
+    "label": "Class checkbox in the Assign dialog class list",
     "scope": "field",
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
@@ -5231,42 +5247,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "library.assign-stepper",
         "kind": "shared",
-        "path": [
-          "assign-classes.trigger"
-        ],
-        "reveal": "assign-classes.trigger"
+        "path": []
       }
     ]
   },
   {
     "id": "assign-classes.select-all",
-    "label": "Select all button in the Assign dialog classes menu",
+    "label": "Select all button in the Assign dialog class list",
     "scope": "board",
     "panel": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
         "kind": "shared",
-        "path": [
-          "assign-classes.trigger"
-        ],
-        "reveal": "assign-classes.trigger"
+        "path": []
       }
     ]
   },
   {
     "id": "assign-classes.clear",
-    "label": "Clear button in the Assign dialog classes menu",
+    "label": "Clear button in the Assign dialog class list",
     "scope": "board",
     "panel": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
         "kind": "shared",
-        "path": [
-          "assign-classes.trigger"
-        ],
-        "reveal": "assign-classes.trigger"
+        "path": []
       }
     ]
   },
@@ -8953,6 +8960,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.option-explanation",
+    "label": "Show or hide an answer option explanation in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A's explanation button; lowercase letters",
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.option-explanation-text",
+    "label": "Answer option explanation in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A's explanation box (open it first); lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -25831,6 +25880,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "classes.link-classroom",
     "label": "Link to Google Classroom button in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.view-student-page",
+    "label": "View Student Page button in My Classes",
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
@@ -44862,17 +44928,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.org.mode-submissions",
-    "label": "Submissions mode button for an assignment type in Organization app settings",
+    "label": "Submissions mode button for an assignment type in Admin Settings Features",
     "scope": "field",
     "panel": true,
     "routes": [
       {
-        "surface": "admin.organization.app-settings",
+        "surface": "admin.features",
         "kind": "panel",
         "path": [
           "sidebar.admin-settings",
-          "admin.settings.tab:admin#organization",
-          "admin.org.section:admin#app"
+          "admin.settings.tab:admin#features"
         ],
         "needs": [
           "admin"
@@ -44882,17 +44947,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.org.mode-view-only",
-    "label": "View only mode button for an assignment type in Organization app settings",
+    "label": "View only mode button for an assignment type in Admin Settings Features",
     "scope": "field",
     "panel": true,
     "routes": [
       {
-        "surface": "admin.organization.app-settings",
+        "surface": "admin.features",
         "kind": "panel",
         "path": [
           "sidebar.admin-settings",
-          "admin.settings.tab:admin#organization",
-          "admin.org.section:admin#app"
+          "admin.settings.tab:admin#features"
         ],
         "needs": [
           "admin"
@@ -44902,18 +44966,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.org.assignment-modes-save",
-    "label": "Save button for assignment modes in Organization app settings",
+    "label": "Save button for assignment modes in Admin Settings Features",
     "scope": "board",
     "panel": true,
     "persists": true,
     "routes": [
       {
-        "surface": "admin.organization.app-settings",
+        "surface": "admin.features",
         "kind": "panel",
         "path": [
           "sidebar.admin-settings",
-          "admin.settings.tab:admin#organization",
-          "admin.org.section:admin#app"
+          "admin.settings.tab:admin#features"
         ],
         "needs": [
           "admin"
@@ -68448,7 +68511,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "flashcards.stepper-class-picker",
-    "label": "Class picker in the Flashcards assign dialog",
+    "label": "Class list in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -68471,7 +68534,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "flashcards.stepper-class-row",
-    "label": "Class checkbox in the Flashcards assign dialog class picker",
+    "label": "Class checkbox in the Flashcards assign dialog class list",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -69533,7 +69596,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "mini-app.stepper-class-picker",
-    "label": "Class picker in the Mini App assign dialog",
+    "label": "Class list in the Mini App assign dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -69556,7 +69619,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "mini-app.stepper-class-row",
-    "label": "Class checkbox in the Mini App assign dialog class picker",
+    "label": "Class checkbox in the Mini App assign dialog class list",
     "scope": "field",
     "panel": true,
     "routes": [

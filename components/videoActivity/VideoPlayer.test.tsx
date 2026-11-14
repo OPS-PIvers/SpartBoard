@@ -1,13 +1,15 @@
-import { render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { YTPlayer } from '@/utils/youtube';
 import { VideoPlayer } from './VideoPlayer';
 
-const mockLoadYouTubeApi = vi.fn<(callback: () => void) => void>();
+const mockLoadYouTubeApi =
+  vi.fn<(callback: () => void, onError?: () => void) => void>();
 const mockExtractYouTubeId = vi.fn<(url: string) => string | null>();
 
 vi.mock('@/utils/youtube', () => ({
-  loadYouTubeApi: (callback: () => void) => mockLoadYouTubeApi(callback),
+  loadYouTubeApi: (callback: () => void, onError?: () => void) =>
+    mockLoadYouTubeApi(callback, onError),
   loadYouTubeApiIn: (_win: Window, callback: () => void) =>
     mockLoadYouTubeApi(callback),
   extractYouTubeId: (url: string) => mockExtractYouTubeId(url),
@@ -24,8 +26,12 @@ vi.mock('@/utils/youtube', () => ({
 interface MockPlayerOptions {
   events?: {
     onReady?: () => void;
+    onError?: (event: { data: number }) => void;
   };
 }
+
+let autoReady = true;
+let lastOptions: MockPlayerOptions | undefined;
 
 const createMockPlayer = (): YTPlayer => ({
   playVideo: vi.fn(),
@@ -40,7 +46,8 @@ const createMockPlayer = (): YTPlayer => ({
 
 class MockYTPlayer {
   constructor(_elementId: string, options: MockPlayerOptions) {
-    options.events?.onReady?.();
+    lastOptions = options;
+    if (autoReady) options.events?.onReady?.();
     return mockPlayerInstance;
   }
 }
@@ -65,6 +72,8 @@ describe('VideoPlayer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    autoReady = true;
+    lastOptions = undefined;
 
     player = createMockPlayer();
     mockPlayerInstance = player;
@@ -90,6 +99,9 @@ describe('VideoPlayer', () => {
   it('does not replay the same seek request when question visibility changes', () => {
     const seekRequest = { time: 12, nonce: 101 };
     const { rerender } = render(
+      <VideoPlayer {...defaultProps} questionVisible={true} />
+    );
+    rerender(
       <VideoPlayer
         {...defaultProps}
         questionVisible={true}
@@ -113,10 +125,10 @@ describe('VideoPlayer', () => {
   });
 
   it('handles a fresh seek nonce as a new rewind request', () => {
-    const { rerender } = render(
+    const { rerender } = render(<VideoPlayer {...defaultProps} />);
+    rerender(
       <VideoPlayer {...defaultProps} seekRequest={{ time: 8, nonce: 201 }} />
     );
-
     rerender(
       <VideoPlayer {...defaultProps} seekRequest={{ time: 3, nonce: 202 }} />
     );
@@ -124,6 +136,43 @@ describe('VideoPlayer', () => {
     expect(player.seekTo).toHaveBeenCalledTimes(2);
     expect(player.seekTo).toHaveBeenNthCalledWith(1, 8, true);
     expect(player.seekTo).toHaveBeenNthCalledWith(2, 3, true);
+  });
+
+  it('ignores a seek request already present at mount', () => {
+    autoReady = false;
+    render(
+      <VideoPlayer {...defaultProps} seekRequest={{ time: 90, nonce: 401 }} />
+    );
+    act(() => lastOptions?.events?.onReady?.());
+    expect(player.seekTo).not.toHaveBeenCalled();
+  });
+
+  it('applies a seek request that arrived before the player was ready, once', () => {
+    autoReady = false;
+    let finishLoad: () => void = vi.fn();
+    mockLoadYouTubeApi.mockImplementation((callback) => {
+      finishLoad = callback;
+    });
+    const { rerender } = render(<VideoPlayer {...defaultProps} />);
+    rerender(
+      <VideoPlayer {...defaultProps} seekRequest={{ time: 120, nonce: 301 }} />
+    );
+    act(() => finishLoad());
+    expect(player.seekTo).not.toHaveBeenCalled();
+
+    act(() => lastOptions?.events?.onReady?.());
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
+    expect(player.seekTo).toHaveBeenCalledWith(120, true);
+    expect(player.playVideo).not.toHaveBeenCalled();
+
+    rerender(
+      <VideoPlayer
+        {...defaultProps}
+        questionVisible={true}
+        seekRequest={{ time: 120, nonce: 301 }}
+      />
+    );
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
   });
 
   describe('RAF generation guard', () => {
@@ -301,6 +350,87 @@ describe('VideoPlayer', () => {
       render(<VideoPlayer {...defaultProps} clip={{ start: 30 }} />);
       flushFrame(1000);
       expect(player.seekTo).toHaveBeenCalledWith(30, true);
+    });
+  });
+
+  describe('load failure card', () => {
+    const FAIL = /won.t play here/;
+
+    it('shows the card for a link with no video id', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer {...defaultProps} youtubeUrl="https://example.com" />
+      );
+      expect(screen.getByText(FAIL)).toBeTruthy();
+    });
+
+    it('hides the student actions in teacher mode', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          youtubeUrl="https://example.com"
+          teacherMode
+        />
+      );
+      expect(screen.getByText(FAIL)).toBeTruthy();
+      expect(screen.queryByText('Tell your teacher.')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    });
+
+    it('shows the student actions outside teacher mode', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer {...defaultProps} youtubeUrl="https://example.com" />
+      );
+      expect(screen.getByText('Tell your teacher.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    });
+
+    it('shows no card for an empty link', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(<VideoPlayer {...defaultProps} youtubeUrl="" />);
+      expect(screen.queryByText(FAIL)).toBeNull();
+    });
+
+    it('shows the card when the player reports an error', () => {
+      render(<VideoPlayer {...defaultProps} />);
+      expect(screen.queryByText(FAIL)).toBeNull();
+      act(() => lastOptions?.events?.onError?.({ data: 150 }));
+      expect(screen.getByText(FAIL)).toBeTruthy();
+    });
+
+    it('shows the card when the player is never ready, but not when it is', () => {
+      vi.useFakeTimers();
+      try {
+        autoReady = false;
+        render(<VideoPlayer {...defaultProps} />);
+        act(() => {
+          vi.advanceTimersByTime(15000);
+        });
+        expect(screen.getByText(FAIL)).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not show the card when ready arrives before the timeout', () => {
+      vi.useFakeTimers();
+      try {
+        render(<VideoPlayer {...defaultProps} />);
+        act(() => {
+          vi.advanceTimersByTime(15000);
+        });
+        expect(screen.queryByText(FAIL)).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('shows the card when the script fails to load', () => {
+      mockLoadYouTubeApi.mockImplementation((_cb, onError) => onError?.());
+      render(<VideoPlayer {...defaultProps} />);
+      expect(screen.getByText(FAIL)).toBeTruthy();
     });
   });
 });

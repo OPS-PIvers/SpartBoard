@@ -26,6 +26,8 @@ import {
   stripPrivateFields,
   type GradeOutcome,
 } from '@/utils/miniAppGrading';
+import { SubmissionDetails } from './SubmissionDetails';
+import { answerSummary } from '@/utils/miniAppSubmissionText';
 
 type Outcome =
   | { kind: 'graded'; attempt: number; grade: GradeOutcome; sent: unknown }
@@ -34,8 +36,7 @@ type Outcome =
 
 const answerText = (answer: unknown): string => {
   if (answer === null || answer === undefined) return '';
-  if (Array.isArray(answer)) return answer.map(String).join(', ');
-  return typeof answer === 'string' ? answer : JSON.stringify(answer);
+  return typeof answer === 'string' ? answer : answerSummary(answer);
 };
 
 export const MiniAppTryAsStudent: React.FC<{
@@ -241,9 +242,9 @@ export const MiniAppTryAsStudent: React.FC<{
                     <summary className="cursor-pointer text-xs font-semibold text-slate-600">
                       What the app sent
                     </summary>
-                    <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-900 p-2 text-[11px] text-slate-100">
-                      {JSON.stringify(outcome.sent, null, 2)}
-                    </pre>
+                    <div className="mt-2 max-h-60 overflow-auto">
+                      <SubmissionDetails value={outcome.sent} />
+                    </div>
                   </details>
                 </>
               )}

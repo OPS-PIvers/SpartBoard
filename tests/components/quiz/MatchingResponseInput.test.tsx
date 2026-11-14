@@ -64,6 +64,25 @@ describe('MatchingResponseInput pictures', () => {
     );
     expect(document.querySelectorAll('img')).toHaveLength(0);
   });
+
+  it('stacks a term picture above its text on phones', () => {
+    render(
+      <MatchingResponseInput
+        question={{
+          ...makeQuestion(['Check for Task Understanding'], ['Mammal']),
+          matchingLeftImages: ['https://img/task'],
+        }}
+        savedAnswer={null}
+        onChange={vi.fn()}
+      />
+    );
+    const wrapper = document
+      .querySelector('img[src="https://img/task"]')
+      ?.closest('[data-testid="matching-term"]');
+    expect(wrapper).toHaveTextContent('Check for Task Understanding');
+    expect(wrapper?.className).toContain('flex-col');
+    expect(wrapper?.className).toContain('sm:flex-row');
+  });
 });
 
 describe('MatchingResponseInput', () => {
@@ -174,5 +193,71 @@ describe('MatchingResponseInput', () => {
       screen.getByRole('button', { name: /Drop zone for breakfast/ })
     );
     expect(onChange).toHaveBeenLastCalledWith('breakfast:9:00 AM');
+  });
+});
+
+describe('MatchingResponseInput undo reset', () => {
+  const q = () => makeQuestion(['France', 'Germany'], ['Paris', 'Berlin']);
+
+  it('Undo brings the placements back and emits them', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <MatchingResponseInput
+        question={q()}
+        savedAnswer="France:Paris|Germany:"
+        onChange={onChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Reset/ }));
+    expect(onChange).toHaveBeenLastCalledWith('France:|Germany:');
+    await user.click(screen.getByRole('button', { name: 'Undo reset' }));
+    expect(onChange).toHaveBeenLastCalledWith('France:Paris|Germany:');
+    expect(
+      screen.getByRole('button', { name: /Paris, matched to France/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Undo reset' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('a new placement after Reset removes Undo', async () => {
+    const user = userEvent.setup();
+    render(
+      <MatchingResponseInput
+        question={q()}
+        savedAnswer="France:Paris|Germany:"
+        onChange={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Reset/ }));
+    expect(
+      screen.getByRole('button', { name: 'Undo reset' })
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: /Paris, in word bank/ })
+    );
+    await user.click(
+      screen.getByRole('button', { name: /Drop zone for France/ })
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Undo reset' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('Reset with nothing placed does not offer Undo', async () => {
+    const user = userEvent.setup();
+    render(
+      <MatchingResponseInput
+        question={q()}
+        savedAnswer={null}
+        onChange={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Reset/ }));
+    expect(
+      screen.queryByRole('button', { name: 'Undo reset' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reset/ })).toBeInTheDocument();
   });
 });

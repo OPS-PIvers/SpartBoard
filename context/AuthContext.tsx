@@ -100,7 +100,7 @@ import {
   pickAppearanceKeys,
   type SavedWidgetConfigMap,
 } from '@/utils/widgetConfigPersistence';
-import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
+import { resolveAssignmentMode } from '@/utils/assignmentModesConfig';
 import {
   canWriteLastActive,
   stampLastActive,
@@ -3495,14 +3495,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const permission = globalPermissions.find(
         (p) => p.featureId === 'assignment-modes'
       );
-      // parseAssignmentModesConfig is the trust boundary: it drops unknown
-      // widget keys and warns + drops unrecognized mode values, returning a
-      // clean AssignmentModesConfig. The cast is gone; defaulting to
-      // 'submissions' here keeps the legacy-fallthrough behavior.
-      const config = parseAssignmentModesConfig(permission?.config);
-      return config[widget] ?? 'submissions';
+      return resolveAssignmentMode(
+        permission?.config,
+        widget,
+        widget === 'miniApp' && canAccessFeature('mini-app-results')
+      );
     },
-    [globalPermissions]
+    [globalPermissions, canAccessFeature]
   );
 
   const canSeeShareTracking = useCallback((): boolean => {

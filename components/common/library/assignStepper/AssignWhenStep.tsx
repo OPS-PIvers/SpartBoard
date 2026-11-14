@@ -7,13 +7,21 @@ import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   closesBeforeOpens,
   closesInPast,
+  manualDueAt,
+  type ManualDue,
   opensFromNow,
   specForRoster,
   type AssignAvailability,
   type AssignWhenMode,
   type AvailabilitySpec,
 } from '@/utils/assignAvailability';
-import { SpecRows } from '../AssignAvailabilitySection';
+import {
+  OpenEndedField,
+  PointField,
+  SpecRows,
+} from '../AssignAvailabilitySection';
+import { getLocalIsoDate } from '@/utils/localDate';
+import { DEFAULT_DUE_TIME } from '@/hooks/useLastAssignWhen';
 import type { AssignWhenValue, AssignWhenVariant } from './assignWhenValue';
 import {
   TagPrompt,
@@ -27,6 +35,64 @@ const StateLine: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     {children}
   </p>
 );
+
+/** Manual's due date: when the teacher ends it, or a set date and time that closes it. */
+const DueRow: React.FC<{
+  due: ManualDue;
+  onChange: (due: ManualDue) => void;
+  openedAt: number;
+  lastTime: string;
+}> = ({ due, onChange, openedAt, lastTime }) => {
+  const { t } = useTranslation();
+  const label = t('assignWhen.due', { defaultValue: 'Due' });
+  const endedLabel = t('assignWhen.dueWhenEnded', {
+    defaultValue: 'When ended',
+  });
+  if (due.kind === 'ended')
+    return (
+      <OpenEndedField
+        label={label}
+        side="closes"
+        valueLabel={endedLabel}
+        setDateLabel={t('assignWhen.dueDateTime', {
+          defaultValue: 'Date & time',
+        })}
+        onSetDate={() =>
+          onChange({
+            kind: 'date',
+            day: getLocalIsoDate(new Date(openedAt)),
+            time: lastTime,
+          })
+        }
+        anchor={tourAttr('assign-when.due')}
+      />
+    );
+  const dueAt = manualDueAt(due);
+  return (
+    <div className="space-y-2">
+      <PointField
+        label={label}
+        side="closes"
+        fieldKey="due"
+        point={{ day: due.day, time: due.time }}
+        minDay={getLocalIsoDate(new Date(openedAt))}
+        bellAvailable={false}
+        onChange={(point) =>
+          onChange({ kind: 'date', day: point.day, time: point.time })
+        }
+        clear={{
+          label: endedLabel,
+          onClear: () => onChange({ kind: 'ended' }),
+        }}
+      />
+      {dueAt != null && dueAt <= openedAt && (
+        <p role="alert" className="text-xs font-medium text-brand-red-primary">
+          {t('assignAvailability.alreadyClosed', 'Already closed.')}
+        </p>
+      )}
+    </div>
+  );
+};
 
 /** The When (Manual / Scheduled) or Available step body of the assign stepper. */
 export const AssignWhenStep: React.FC<{
@@ -79,7 +145,12 @@ export const AssignWhenStep: React.FC<{
   const setAvailability = (next: AssignAvailability) =>
     onChange({ ...value, availability: next });
   // A study resource can open now and stay until the teacher ends it; Each class keeps dates.
-  const opensNow = available && !eachClass && !!availability.opensNow;
+  // Submit work can open when assigned too, with the due date flag on.
+  const opensOnAssignOffered =
+    !available && availability.opensOnAssign !== undefined;
+  const opensNow =
+    !eachClass &&
+    (available ? !!availability.opensNow : !!availability.opensOnAssign);
   const noEnd = available && !!availability.noEnd;
   const sharedSpec = opensNow
     ? opensFromNow(availability.all, new Date(openedAt))
@@ -140,15 +211,28 @@ export const AssignWhenStep: React.FC<{
       )}
 
       {manual ? (
-        <StateLine>
-          {staff
-            ? t('assignWhen.manualStateStaff', {
-                defaultValue: 'Starts paused. You start and pause it.',
-              })
-            : t('assignWhen.manualState', {
-                defaultValue: 'Starts paused. You start and pause each class.',
-              })}
-        </StateLine>
+        <>
+          <StateLine>
+            {staff
+              ? t('assignWhen.manualStateStaff', {
+                  defaultValue: 'Starts paused. You start and pause it.',
+                })
+              : t('assignWhen.manualState', {
+                  defaultValue:
+                    'Starts paused. You start and pause each class.',
+                })}
+          </StateLine>
+          {availability.manualDue && !staff && (
+            <DueRow
+              due={availability.manualDue}
+              onChange={(manualDue) =>
+                setAvailability({ ...availability, manualDue })
+              }
+              openedAt={openedAt}
+              lastTime={DEFAULT_DUE_TIME}
+            />
+          )}
+        </>
       ) : (
         <>
           {eachClass && sharedOpens && (
@@ -222,8 +306,15 @@ export const AssignWhenStep: React.FC<{
               onOpenEnded={
                 available
                   ? (next) => setAvailability({ ...availability, ...next })
-                  : undefined
+                  : opensOnAssignOffered
+                    ? (next) =>
+                        setAvailability({
+                          ...availability,
+                          opensOnAssign: next.opensNow,
+                        })
+                    : undefined
               }
+              opensOnly={!available}
             />
           )}
 
@@ -245,6 +336,8 @@ export const AssignWhenStep: React.FC<{
                     ? {
                         all: availability.all,
                         allowLate: availability.allowLate,
+                        opensOnAssign: availability.opensOnAssign,
+                        manualDue: availability.manualDue,
                       }
                     : {
                         ...availability,

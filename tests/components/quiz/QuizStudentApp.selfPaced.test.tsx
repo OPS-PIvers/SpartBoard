@@ -13,11 +13,13 @@
  * The fix: skip the `submitted` reset while a submit is in flight.
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
+import i18n from '@/i18n';
+import es from '@/locales/es.json';
 
 const {
   mockAuth,
@@ -25,6 +27,7 @@ const {
   mockLookupSession,
   mockSubmitAnswer,
   mockCompleteQuiz,
+  mockShowConfirm,
   hookState,
   registerRefresher,
   triggerRefresh,
@@ -60,6 +63,7 @@ const {
     mockLookupSession: vi.fn(),
     mockSubmitAnswer: vi.fn(),
     mockCompleteQuiz: vi.fn(),
+    mockShowConfirm: vi.fn(),
     hookState: state,
     registerRefresher: (fn: Refresher) => {
       refreshers.add(fn);
@@ -72,6 +76,14 @@ const {
     },
   };
 });
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: mockShowConfirm,
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
+}));
 
 // M17 C3 — no per-student pointer in these tests (untargeted assignment).
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
@@ -124,6 +136,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
+import { reviewStateKey } from '@/utils/quizReviewMarksStore';
 
 function mintUser(opts: {
   uid: string;
@@ -216,6 +229,8 @@ function appendAnswer(questionId: string, answer: string): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
+  mockShowConfirm.mockResolvedValue(true);
   hookState.session = buildSession();
   hookState.myResponse = buildResponse();
   hookState.raceMode = false;
@@ -1333,6 +1348,100 @@ describe('QuizStudentApp — review before submit', () => {
     await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
   });
 
+  it('asks before the final submit and stays put on cancel', async () => {
+    const user = userEvent.setup();
+    mockShowConfirm.mockResolvedValue(false);
+    render(<QuizStudentApp />);
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+    expect(screen.getByText(/Color of the sky/i)).toBeInTheDocument();
+  });
+
+  it('submits once the final confirm is accepted', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+    expect(mockShowConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the blank count in the final confirm', async () => {
+    const user = userEvent.setup();
+    mockShowConfirm.mockResolvedValue(false);
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    appendAnswer('q1', '4');
+    window.sessionStorage.setItem(
+      `${reviewStateKey('session-1', 'sso-uid-1', 0)}:at`,
+      'q3'
+    );
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Color of the sky/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Blue' }));
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+    expect(String(mockShowConfirm.mock.calls[0][0])).toContain('1');
+  });
+
+  it('stays on the finished screen after submit bumps the attempt count', async () => {
+    const user = userEvent.setup();
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    appendAnswer('q1', '4');
+    window.sessionStorage.setItem(
+      `${reviewStateKey('session-1', 'sso-uid-1', 0)}:at`,
+      'q3'
+    );
+    mockCompleteQuiz.mockImplementation(() => {
+      hookState.myResponse = {
+        ...(hookState.myResponse ?? buildResponse()),
+        status: 'completed',
+        submittedAt: Date.now(),
+        completedAttempts: 1,
+      };
+      act(() => triggerRefresh());
+      return Promise.resolve();
+    });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Color of the sky/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Blue' }));
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.queryByText(/Capital of France/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/What is 2 \+ 2/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Quiz Submitted!/i)).toBeInTheDocument();
+  });
+
+  it('resumes at the first unanswered question', async () => {
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    appendAnswer('q1', '4');
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    expect(screen.queryByText(/What is 2 \+ 2/i)).not.toBeInTheDocument();
+  });
+
+  it('resumes at the saved question', async () => {
+    const response = buildResponse({ _responseKey: 'sso-uid-1' });
+    hookState.myResponse = response;
+    const key = reviewStateKey(
+      'session-1',
+      response._responseKey,
+      response.completedAttempts ?? 0
+    );
+    window.sessionStorage.setItem(`${key}:at`, 'q2');
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+  });
+
+  it('starts a new attempt at question 1', async () => {
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+  });
+
   it('opens the review screen on the last answer and submits only from it', async () => {
     const user = userEvent.setup();
     hookState.session = { ...buildSession(), reviewStep: true };
@@ -1543,5 +1652,79 @@ describe('QuizStudentApp — dropdown blanks (quiz-blank-types)', () => {
       undefined,
       undefined
     );
+  });
+});
+
+describe('QuizStudentApp — touch, focus and offline', () => {
+  it('shows an offline banner until the connection returns', async () => {
+    const spy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      expect(screen.getByText(/You're offline/i)).toBeInTheDocument();
+      spy.mockReturnValue(true);
+      act(() => {
+        window.dispatchEvent(new Event('online'));
+      });
+      expect(screen.queryByText(/You're offline/i)).not.toBeInTheDocument();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('moves focus to the new question prompt after NEXT', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    const prompt = await screen.findByText(/Capital of France/i);
+    await waitFor(() => {
+      expect(document.activeElement).toContainElement(prompt);
+    });
+  });
+
+  it('exposes the question countdown as a timer', async () => {
+    hookState.session = buildSession({
+      publicQuestions: [{ ...QUESTIONS[0], timeLimit: 30 }, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveAttribute(
+      'aria-label',
+      expect.stringMatching(/seconds left/)
+    );
+  });
+
+  it('gives the previous-question button a 44px target', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Previous question/i }).className
+    ).toContain('h-11');
+  });
+
+  describe('with a Spanish language accommodation', () => {
+    afterEach(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    it('shows the advance button in Spanish, not English', async () => {
+      await i18n.changeLanguage('es');
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      expect(es.quizStudent.nav.next).not.toBe('NEXT');
+      expect(
+        screen.getByRole('button', { name: es.quizStudent.nav.next })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /^NEXT/i })
+      ).not.toBeInTheDocument();
+    });
   });
 });

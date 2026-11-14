@@ -9,7 +9,7 @@ import type {
 } from '@/types';
 import { AssignModal } from '@/components/common/library/AssignModal';
 import type { AssignClassPickerValue } from '@/components/common/AssignClassPicker.helpers';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   AssignmentSettingsToggleGroup,
   ToggleRow,
@@ -227,7 +227,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
             <span className="text-sm font-bold text-brand-blue-dark">
               {t('reviewStart.classes', 'Classes')}
             </span>
-            <ClassPickerMenu
+            <ClassChecklist
               rosters={rosters}
               value={{ classIds: picker.rosterIds, studentsByClass: {} }}
               onChange={(next) => setPicker({ rosterIds: next.classIds })}

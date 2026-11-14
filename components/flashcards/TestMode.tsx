@@ -45,6 +45,10 @@ interface TestModeProps {
   questionBar?: boolean;
   /** Wrong answer choices come from these cards; defaults to every card passed in. */
   choiceCards?: FlashcardCard[];
+  /** Self-study answers kept by the player across a remount, by card id. */
+  draft?: Record<string, { type: string; response: string }>;
+  onDraftChange?: (cardId: string, type: string, response: string) => void;
+  onDraftClear?: () => void;
 }
 
 export interface TestModeCheck {
@@ -194,7 +198,7 @@ const FibAnswer: React.FC<FibAnswerProps> = ({
         )}
         style={{
           padding: 'min(11px, 2.5cqmin) min(14px, 3cqmin)',
-          fontSize: 'min(14px, 3.5cqmin)',
+          fontSize: '16px',
         }}
       />
       {!disabled && (
@@ -228,6 +232,9 @@ export const TestMode: React.FC<TestModeProps> = ({
   check,
   questionBar = false,
   choiceCards,
+  draft,
+  onDraftChange,
+  onDraftClear,
 }) => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -272,6 +279,12 @@ export const TestMode: React.FC<TestModeProps> = ({
     const saved = check?.initialAnswers ?? {};
     return Object.fromEntries(
       questions.flatMap((question) => {
+        if (!check && draft) {
+          const kept = draft[question.card.id];
+          return kept?.response && kept.type === question.type
+            ? [[question.id, kept.response]]
+            : [];
+        }
         const response = saved[question.card.id];
         return response ? [[question.id, response]] : [];
       })
@@ -287,6 +300,7 @@ export const TestMode: React.FC<TestModeProps> = ({
   const answer = (question: TestQuestion, response: string): void => {
     setAnswers((current) => ({ ...current, [question.id]: response }));
     check?.onAnswer?.(question.card.id, response);
+    if (!check) onDraftChange?.(question.card.id, question.type, response);
   };
   const answerLanguage =
     showFirst === 'term' ? definitionLanguage : termLanguage;
@@ -365,6 +379,7 @@ export const TestMode: React.FC<TestModeProps> = ({
       score: nextResults.filter((result) => result.correct).length,
     });
     setResults(nextResults);
+    onDraftClear?.();
   };
 
   const startTest = (missedOnly: boolean): void => {
