@@ -1383,6 +1383,37 @@ describe('QuizStudentApp — review before submit', () => {
     expect(String(mockShowConfirm.mock.calls[0][0])).toContain('1');
   });
 
+  it('stays on the finished screen after submit bumps the attempt count', async () => {
+    const user = userEvent.setup();
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    appendAnswer('q1', '4');
+    window.sessionStorage.setItem(
+      `${reviewStateKey('session-1', 'sso-uid-1', 0)}:at`,
+      'q3'
+    );
+    mockCompleteQuiz.mockImplementation(() => {
+      hookState.myResponse = {
+        ...(hookState.myResponse ?? buildResponse()),
+        status: 'completed',
+        submittedAt: Date.now(),
+        completedAttempts: 1,
+      };
+      act(() => triggerRefresh());
+      return Promise.resolve();
+    });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Color of the sky/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Blue' }));
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.queryByText(/Capital of France/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/What is 2 \+ 2/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Quiz Submitted!/i)).toBeInTheDocument();
+  });
+
   it('resumes at the first unanswered question', async () => {
     hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
     appendAnswer('q1', '4');

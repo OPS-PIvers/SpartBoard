@@ -2481,6 +2481,7 @@ export const ActiveQuiz: React.FC<{
   if (
     isStudentPaced &&
     !watching &&
+    !reviewAttemptSubmitted &&
     reviewStoreKey &&
     resumedKey !== reviewStoreKey &&
     orderedPublicQuestions.length > 0
