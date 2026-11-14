@@ -397,10 +397,7 @@ service cloud.firestore {
              incoming().get('launchedBy', {}) == existing().get('launchedBy', {});
     }
 
-    // Phase 5A compat: post-5A sessions write a `classIds` list, pre-5A sessions
-    // write a single `classId`. Picks the list gate when `classIds` is non-empty,
-    // else the legacy single-class gate. Callers pass get(...) defaults so an
-    // absent field falls through to a no-op gate.
+    // Activity Wall only: prod still has walls with a single `classId` and no `classIds` list (PT-175).
     function passesStudentClassGateCompat(sessionClassIds, sessionClassId) {
       return sessionClassIds is list && sessionClassIds.size() > 0
              ? passesStudentClassGateList(sessionClassIds)
@@ -472,56 +469,9 @@ service cloud.firestore {
       return dbGet4('organizations', orgId, 'members', myEmail()).data;
     }
 
-    // Maps a legacy long-form building id to its canonical short id. MUST stay in
-    // sync with BUILDING_ID_ALIASES in config/buildings.ts (CEL can't reuse the JS
-    // map) — a mismatch re-introduces false denials/grants in the building-admin
-    // update rule. Unknown ids pass through unchanged.
-    function canonicalBuildingId(id) {
-      return id == 'orono-high-school' ? 'high'
-           : id == 'orono-middle-school' ? 'middle'
-           : id == 'orono-intermediate-school' ? 'intermediate'
-           : id == 'schumann-elementary' ? 'schumann'
-           : id;
-    }
-
-    // True when a building (identified in either ID format) is among the
-    // caller's managed buildingIds, comparing on canonical ids so legacy
-    // stored ids on either side still match. Both the building doc id and
-    // each member buildingId are normalized before the membership check.
+    // True when a building is among the caller's managed buildingIds (prod has no legacy long-form ids, PT-175).
     function manages(orgId, buildingId) {
-      return orgMember(orgId).get('buildingIds', [])
-               .hasAny(buildingIdAliasGroup(buildingId));
-    }
-
-    // Returns all ID forms (canonical + any legacy aliases) equivalent to the
-    // given building id, so hasAny() matches a member buildingId stored in
-    // either format. Mirrors the inverse of canonicalBuildingId() above.
-    function buildingIdAliasGroup(buildingId) {
-      return canonicalBuildingId(buildingId) == 'high'
-               ? ['high', 'orono-high-school']
-           : canonicalBuildingId(buildingId) == 'middle'
-               ? ['middle', 'orono-middle-school']
-           : canonicalBuildingId(buildingId) == 'intermediate'
-               ? ['intermediate', 'orono-intermediate-school']
-           : canonicalBuildingId(buildingId) == 'schumann'
-               ? ['schumann', 'schumann-elementary']
-           : [buildingId];
-    }
-
-    // Alias-aware overlap of two building-id lists. CEL has no .map() to
-    // canonicalize element-wise, so lists overlap if (a) they share a raw id, or
-    // (b) for any alias group both lists contain some form of it (e.g. 'high' vs
-    // 'orono-high-school'). Unknown ids match only via raw overlap. Symmetric.
-    function buildingListsOverlap(a, b) {
-      return a.hasAny(b) ||
-        (a.hasAny(['high', 'orono-high-school']) &&
-         b.hasAny(['high', 'orono-high-school'])) ||
-        (a.hasAny(['middle', 'orono-middle-school']) &&
-         b.hasAny(['middle', 'orono-middle-school'])) ||
-        (a.hasAny(['intermediate', 'orono-intermediate-school']) &&
-         b.hasAny(['intermediate', 'orono-intermediate-school'])) ||
-        (a.hasAny(['schumann', 'schumann-elementary']) &&
-         b.hasAny(['schumann', 'schumann-elementary']));
+      return buildingId in orgMember(orgId).get('buildingIds', []);
     }
 
     // The caller's roleId within an org, or empty string when not a member or
@@ -784,16 +734,13 @@ service cloud.firestore {
                  incoming().get('status', '') == existing().get('status', ''))
               : incoming().get('roleId', '') != 'super_admin')) ||
           // Building admin may flip `status` on a member whose buildingIds overlap
-          // their own, alias-aware via buildingListsOverlap() (so 'high' vs
-          // 'orono-high-school' still match, no .map() needed). An empty list on
-          // either side = no overlap, so an unscoped member (buildingIds: []) is
-          // not editable until a domain admin assigns a building. See
-          // config/buildings.ts.
+          // their own. An empty list on either side = no overlap, so an unscoped
+          // member (buildingIds: []) is not editable until a domain admin assigns a building.
           (isBuildingAdmin(orgId) &&
            emailLower != myEmail() &&
            // Never a higher tier, in either direction.
            !(existing().get('roleId', '') in ['super_admin', 'domain_admin']) &&
-           buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
+           existing().get('buildingIds', []).hasAny(orgMember(orgId).get('buildingIds', [])) &&
            // Deactivate only: reactivating is a domain admin's call.
            (liveStatus(existing()) || !liveStatus(incoming())) &&
            changedOnly(['status']) &&
@@ -936,16 +883,12 @@ service cloud.firestore {
     }
 
     // Per-user unread cursor for a PLC activity feed: one doc per (user, plc),
-    // `{ lastSeenAt }`. Strictly owner-only. Schema locked to `lastSeenAt`, which
-    // dual-accepts int || timestamp during the serverTimestamp rollout.
+    // `{ lastSeenAt }`. Strictly owner-only. Schema locked to a timestamp `lastSeenAt`.
     match /users/{userId}/plc_state/{plcId} {
       allow read, delete: if ownsUser(userId);
       allow create, update: if ownsUser(userId)
                    && newKeys().hasOnly(['lastSeenAt'])
-                   && (
-                        isInt('lastSeenAt')
-                        || isTimestamp('lastSeenAt')
-                      );
+                   && isTimestamp('lastSeenAt');
     }
 
     // Mini Apps - users can only access their own mini apps in their subcollection
@@ -4640,9 +4583,6 @@ service cloud.firestore {
         // (so the attempt cap survives storage resets), so ownership compares the
         // `studentUid` field, not the key. Teacher ownership is read from the parent session.
         // LO4: all session-field helpers below read off ONE sessionData() snapshot.
-        function sessionClassId() {
-          return sessionData().get('classId', '');
-        }
         function sessionClassIds() {
           return sessionData().get('classIds', []);
         }
@@ -4747,7 +4687,7 @@ service cloud.firestore {
           liveUid(sessionTeacherUid()) ||
           isSiteAdmin() ||
           isSubMonitor(sessionData()) ||
-          (passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
+          (passesStudentClassGateList(sessionClassIds()) &&
            (resource == null ? responseKey == authUid() : myOldStudent()))
         );
         // Create runs only when the doc is absent, so the deterministic key gives
@@ -4810,7 +4750,7 @@ service cloud.firestore {
           (sessionData().get('sessionMode', '') != 'game' ||
            incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class
-          passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
+          passesStudentClassGateList(sessionClassIds()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           sessionMode() == 'submissions' &&
           // Block joins after the assignment's close time (M17) or the run's end.
@@ -4830,7 +4770,7 @@ service cloud.firestore {
           // classPeriod, score (reset to null on rejoin). pin/join metadata immutable.
           // Monotonic: tabSwitchWarnings, completedAttempts. Students may only write null to score.
           (authUid() == existing().studentUid &&
-           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
+           passesStudentClassGateList(sessionClassIds()) &&
            // Student writes stop at the session close time (M17) or the run's end.
            // The teacher branch below is unaffected — grading continues after close.
            (runOpen(sessionData()) ||
@@ -5161,7 +5101,7 @@ service cloud.firestore {
         isStr(k) &&
         isNumber('lastAttemptAt') &&
         incoming().teacherUid == s.teacherUid &&
-        passesStudentClassGateCompat(s.get('classIds', []), s.get('classId', ''));
+        passesStudentClassGateList(s.get('classIds', []));
     }
 
     // Quiz Attempt Ledger — top-level cross-launch attempt counter per
@@ -5601,7 +5541,7 @@ service cloud.firestore {
       // Mirrors the Quiz keying contract (computeResponseKey / encodeResponseKeySegment).
       match /responses/{responseDocId} {
         function vaGate() {
-          return passesStudentClassGateCompat(vaS().get('classIds', []), vaS().get('classId', ''));
+          return passesStudentClassGateList(vaS().get('classIds', []));
         }
         function nearServerNow(t) {
           return t is number && t > request.time.toMillis() - 120000 && t < request.time.toMillis() + 120000;
@@ -5936,7 +5876,7 @@ service cloud.firestore {
       }
       // Shared by responses and progress.
       function glClassGate() {
-        return passesStudentClassGateCompat(glSession().get('classIds', []), glSession().get('classId', ''));
+        return passesStudentClassGateList(glSession().get('classIds', []));
       }
       function glIsTeacher() {
         return isSiteAdmin() || (liveUid(glSession().teacherUid) && !isStudentRoleUser());
