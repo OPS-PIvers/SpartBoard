@@ -277,6 +277,10 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   // Check rounds and Present mode never offer the missed pile.
   const missedEnabled = missedCards && adapter.showsMarks && !check;
   const [missedOnly, setMissedOnly] = useState(false);
+  const [testDraft, setTestDraft] = useState<{
+    key: string;
+    answers: Record<string, { type: string; response: string }>;
+  }>({ key: '', answers: {} });
   const [speakPrefs, setSpeakPrefs] = useState<SpeakPrefs>({});
   const [deckSignature, setDeckSignature] = useState(() =>
     cards.map(deckEntrySignature).join('\u0000')
@@ -677,6 +681,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     height: 'min(17px, 4cqmin)',
   };
   const modeKey = `${mode}:${missedOnly}:${session.round}:${session.roundCards.map((card) => card.id).join(',')}:${settings.showFirst}:${settings.strict}:${settings.testTypes.join(',')}:${settings.testCount}`;
+  const testDraftKey = `${missedOnly}:${session.round}:${settings.showFirst}`;
   const speakKey = `speak:${missedOnly}:${session.speakRound}:${session.speakCards.map((card) => card.id).join(',')}`;
 
   const emptyView = (
@@ -781,7 +786,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 onClick={() => selectMode(candidate.id)}
                 aria-pressed={selected}
                 className={cx(
-                  'inline-flex items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
+                  'touch-target-expand inline-flex items-center rounded-full font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
                   selected
                     ? 'bg-rose-600 text-white shadow-xs'
                     : dark
@@ -901,7 +906,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             aria-label={t('flashcards.player.settings')}
             aria-expanded={settingsOpen}
             className={cx(
-              'rounded-full transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
+              'touch-target-expand rounded-full transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300',
               settingsOpen
                 ? 'bg-rose-600 text-white'
                 : dark
@@ -1150,6 +1155,19 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             questionBar={testQuestionBar}
             onRecordBatch={recordBatch}
             onComplete={recordTest}
+            draft={
+              testDraft.key === testDraftKey ? testDraft.answers : undefined
+            }
+            onDraftChange={(cardId, type, response) =>
+              setTestDraft((d) => ({
+                key: testDraftKey,
+                answers: {
+                  ...(d.key === testDraftKey ? d.answers : {}),
+                  [cardId]: { type, response },
+                },
+              }))
+            }
+            onDraftClear={() => setTestDraft({ key: '', answers: {} })}
           />
         )}
       </main>
@@ -1565,7 +1583,7 @@ const QuestionCountSetting: React.FC<{
           )}
           style={{
             padding: 'min(7px, 1.7cqmin)',
-            fontSize: 'min(12px, 3.2cqmin)',
+            fontSize: '16px',
           }}
         />
         {/* no-tour-anchor: Test mode only; the board and admin panel never allow it */}
