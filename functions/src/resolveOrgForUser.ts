@@ -31,7 +31,8 @@
  * not a signal. Numeric-local (student-ID) emails, student-only domains and
  * any address ClassLink or a mock class lists as a student are skipped,
  * existing docs keep their role and buildings (admin roles and 'inactive'
- * lockouts survive; an 'invited' staff doc only flips to active), the email
+ * lockouts survive; an 'invited' staff doc only flips to active; a self-enrolled
+ * teacher doc ClassLink now lists as a student is demoted to 'student'), the email
  * claim must be verified, and an org can opt out via
  * `autoEnrollDomainUsers: false` on its org doc. Anyone else joins by invite.
  * Enrollment failures are logged but never fail resolution.
@@ -54,6 +55,12 @@ import {
   CLASSLINK_TENANT_URL,
 } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  OPERATOR_ORG_ID,
+  hasDeactivatedClaim,
+  isRevokedMemberStatus,
+} from './authz';
+import { applyDeactivationClaim } from './memberDeactivationClaim';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -110,19 +117,23 @@ export function isAutoEnrollableEmail(email: string): boolean {
 
 export type RosterRole = 'staff' | 'student' | 'unknown';
 
+const AUTO_ENROLL_SOURCE = 'auto-enroll:resolveOrgForUser';
+
 /** ClassLink's answer for an address, staff winning over a mock-class entry; throws when ClassLink can't answer unless rosterOptional. */
 export async function lookupRosterRole(
   db: admin.firestore.Firestore,
   orgId: string,
   emailLower: string,
-  opts: { rosterOptional: boolean }
+  opts: { rosterOptional: boolean; classLinkOnly?: boolean }
 ): Promise<RosterRole> {
-  const mock = await db
-    .collection(`organizations/${orgId}/testClasses`)
-    .where('memberEmails', 'array-contains', emailLower)
-    .limit(1)
-    .get();
-  const fallback: RosterRole = mock.empty ? 'unknown' : 'student';
+  const mock = opts.classLinkOnly
+    ? null
+    : await db
+        .collection(`organizations/${orgId}/testClasses`)
+        .where('memberEmails', 'array-contains', emailLower)
+        .limit(1)
+        .get();
+  const fallback: RosterRole = !mock || mock.empty ? 'unknown' : 'student';
   // ClassLink can't be asked about an address with a quote.
   if (!isSafeEmailForOneRosterFilter(emailLower)) return fallback;
   try {
@@ -145,7 +156,7 @@ export async function lookupRosterRole(
     return fallback;
   } catch (err) {
     // The dev project has placeholder ClassLink secrets and only mock-class students.
-    if (!mock.empty || opts.rosterOptional) return fallback;
+    if ((mock && !mock.empty) || opts.rosterOptional) return fallback;
     throw err;
   }
 }
@@ -184,6 +195,18 @@ async function autoEnrollMember(
   const memberRef = db.doc(`organizations/${orgId}/members/${email}`);
   const memberSnap = await memberRef.get();
   if (memberSnap.exists) {
+    // A deactivation from before the claim existed (or missed by the trigger) is stamped on the account now.
+    if (
+      orgId === OPERATOR_ORG_ID &&
+      isRevokedMemberStatus(memberSnap.get('status')) &&
+      !hasDeactivatedClaim(token)
+    ) {
+      await applyDeactivationClaim(admin.auth(), email, uid, 'set');
+      return;
+    }
+    if (await demoteRosterStudent(db, orgId, email, memberRef, memberSnap)) {
+      return 'student';
+    }
     await activateInvitedMember(db, orgId, email, memberRef, memberSnap, uid);
     return;
   }
@@ -226,12 +249,50 @@ async function autoEnrollMember(
       status: 'active',
       name: typeof token.name === 'string' ? token.name : '',
       uid,
-      addedBySource: 'auto-enroll:resolveOrgForUser',
+      addedBySource: AUTO_ENROLL_SOURCE,
     });
   } catch (err) {
     // gRPC 6 = ALREADY_EXISTS: a concurrent call won the create race.
     if ((err as { code?: number }).code !== 6) throw err;
   }
+}
+
+/** Re-checks a self-enrolled teacher doc against ClassLink until it confirms staff; a ClassLink student is demoted to roleId 'student'. */
+async function demoteRosterStudent(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  email: string,
+  memberRef: admin.firestore.DocumentReference,
+  memberSnap: admin.firestore.DocumentSnapshot
+): Promise<boolean> {
+  if (
+    memberSnap.get('addedBySource') !== AUTO_ENROLL_SOURCE ||
+    memberSnap.get('roleId') !== 'teacher' ||
+    memberSnap.get('rosterRole') === 'staff'
+  ) {
+    return false;
+  }
+  // Only ClassLink's own answer counts here, so a teacher in a mock class or a ClassLink outage keeps the doc.
+  const role = await lookupRosterRole(db, orgId, email, {
+    rosterOptional: true,
+    classLinkOnly: true,
+  });
+  if (role === 'unknown') return false;
+  if (role === 'student' && (await db.doc(`admins/${email}`).get()).exists) {
+    return false;
+  }
+  const patch =
+    role === 'student'
+      ? { roleId: 'student', demotedBy: 'resolveOrgForUser' }
+      : { rosterRole: 'staff' };
+  try {
+    await memberRef.update(patch, { lastUpdateTime: memberSnap.updateTime });
+  } catch (err) {
+    // gRPC 9 = FAILED_PRECONDITION: an admin edited the doc mid-call; the next sign-in retries.
+    if ((err as { code?: number }).code !== 9) throw err;
+    return false;
+  }
+  return role === 'student';
 }
 
 /** Signing in with the invited address claims the invite: only status, uid and lastActive change, and only on an unchanged 'invited' doc. */
@@ -289,7 +350,10 @@ export const resolveOrgForUser = onCall(
     ],
   },
   async (request): Promise<ResolveOrgForUserResponse> => {
-    const viewAs = await assertViewAsAllowed(request, { read: true });
+    const viewAs = await assertViewAsAllowed(request, {
+      read: true,
+      allowDeactivated: true,
+    });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

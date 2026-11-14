@@ -550,14 +550,13 @@ service cloud.firestore {
              memberRole(orgId, myEmail()) == 'building_admin';
     }
 
-    // True when the caller has a member doc under the given org (any role,
-    // any status). Phase 1 intentionally does not filter on status:'active';
-    // Phase 3 will add a status check once invited/inactive states are wired.
+    // True when the caller holds a live, non-student member doc under the given org
+    // (a demoted student or deactivated member keeps only the self-read of their own doc).
     // email_verified is REQUIRED, same reason as isAdmin() above.
     function isOrgMember(orgId) {
       return signedIn() && request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
-             exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.token.email.lower()));
+             staffMemberOk(dbGet4('organizations', orgId, 'members', myEmail()));
     }
 
     // ---- M1 full sign-in lockout (deny-by-status) ----
@@ -575,12 +574,14 @@ service cloud.firestore {
     // active/invited (see liveStatus). Defaults ALLOW for anyone without an operator-org member doc
     // (anon/PIN, SSO students, no-org/other-org teachers), so it only subtracts
     // access from a deliberately deactivated member. The email guard avoids a CEL
-    // throw on tokens with no email claim.
+    // throw on tokens with no email claim. The uid-keyed `deactivated` claim
+    // (organizationMembersSync) holds whatever email the token carries.
     function notDeactivated() {
       return !(signedIn() &&
-               tok().get('email', '') != '' &&
-               operatorMember() != null &&
-               !liveStatus(operatorMember().data));
+               (tok().get('deactivated', false) == true ||
+                (tok().get('email', '') != '' &&
+                 operatorMember() != null &&
+                 !liveStatus(operatorMember().data))));
     }
 
     // The owner-only boundary on /users/{userId}/**, written once. Same operand

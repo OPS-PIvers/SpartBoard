@@ -13,8 +13,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 type MemberDocData = { roleId: string; status?: string } | undefined;
 let memberDocFactory: (callerEmail: string) => MemberDocData = () => undefined;
 let memberEmails: string[] = [];
+let memberUids: Record<string, string> = {};
+let exclusiveDomains = new Set(['@orono.k12.mn.us']);
 let getUsersImpl: (identifiers: { email: string }[]) => Promise<{
-  users: { email?: string; metadata: { lastSignInTime?: string } }[];
+  users: {
+    uid?: string;
+    email?: string;
+    metadata: { lastSignInTime?: string };
+  }[];
   notFound: unknown[];
 }> = async () => ({ users: [], notFound: [] });
 
@@ -39,7 +45,10 @@ vi.mock('./firebaseAdmin', () => {
     }),
     select: () => ({
       get: async () => ({
-        docs: memberEmails.map((id) => ({ id })),
+        docs: memberEmails.map((id) => ({
+          id,
+          get: (f: string) => (f === 'uid' ? memberUids[id] : undefined),
+        })),
       }),
     }),
   });
@@ -76,6 +85,11 @@ vi.mock('./firebaseAdmin', () => {
     auth,
   };
 });
+
+vi.mock('./orgDomainOwnership', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./orgDomainOwnership')>()),
+  loadExclusiveOrgDomains: async () => exclusiveDomains,
+}));
 
 vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
@@ -123,6 +137,8 @@ beforeEach(() => {
   // Default: caller is unknown, no members in org, getUsers returns empty.
   memberDocFactory = () => undefined;
   memberEmails = [];
+  memberUids = {};
+  exclusiveDomains = new Set(['@orono.k12.mn.us']);
   getUsersImpl = async () => ({ users: [], notFound: [] });
   // Silence the structured error log emitted on partial responses.
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -380,6 +396,62 @@ describe('getOrgUserActivity — partial Auth-API failures', () => {
     });
 
     expect(res).toEqual({ activity: [], partial: false, failedBatchCount: 0 });
+    expect(getUsersSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('getOrgUserActivity — accounts the org does not own', () => {
+  const SIGNED_IN = 'Mon, 14 Apr 2026 12:00:00 GMT';
+  const authUsers = [
+    { uid: 'u-foreign', email: 'someone@elsewhere.org' },
+    { uid: 'u-linked', email: 'renamed@personal.example' },
+    { uid: 'u-staff', email: 'staff@orono.k12.mn.us' },
+  ];
+
+  it('reports null for a planted foreign address and resolves linked uids and exclusive-domain addresses', async () => {
+    setSingleAdmin(ADMIN_EMAIL, 'domain_admin');
+    memberEmails = [
+      'someone@elsewhere.org',
+      'linked@elsewhere.org',
+      'staff@orono.k12.mn.us',
+    ];
+    memberUids = { 'linked@elsewhere.org': 'u-linked' };
+    getUsersImpl = async (ids) => ({
+      users: authUsers
+        .filter((u) =>
+          (ids as Array<{ uid?: string; email?: string }>).some(
+            (i) => i.uid === u.uid || i.email === u.email
+          )
+        )
+        .map((u) => ({ ...u, metadata: { lastSignInTime: SIGNED_IN } })),
+      notFound: [],
+    });
+
+    const res = await handler({
+      auth: authedCaller(),
+      data: { orgId: 'orono' },
+    });
+
+    const byEmail = new Map(res.activity.map((e) => [e.email, e.lastActiveMs]));
+    expect(byEmail.get('someone@elsewhere.org')).toBeNull();
+    expect(byEmail.get('linked@elsewhere.org')).toBe(Date.parse(SIGNED_IN));
+    expect(byEmail.get('staff@orono.k12.mn.us')).toBe(Date.parse(SIGNED_IN));
+    expect(getUsersSpy.mock.calls.flat(2)).not.toContainEqual({
+      email: 'someone@elsewhere.org',
+    });
+  });
+
+  it('looks up nobody by address when the domain is shared with another org', async () => {
+    setSingleAdmin(ADMIN_EMAIL, 'domain_admin');
+    exclusiveDomains = new Set();
+    memberEmails = ['staff@orono.k12.mn.us'];
+    const res = await handler({
+      auth: authedCaller(),
+      data: { orgId: 'orono' },
+    });
+    expect(res.activity).toEqual([
+      { email: 'staff@orono.k12.mn.us', lastActiveMs: null },
+    ]);
     expect(getUsersSpy).not.toHaveBeenCalled();
   });
 });

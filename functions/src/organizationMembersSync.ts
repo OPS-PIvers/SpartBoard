@@ -2,6 +2,10 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import { OPERATOR_ORG_ID } from './authz';
+import {
+  applyDeactivationClaim,
+  deactivationClaimChange,
+} from './memberDeactivationClaim';
 
 // Ensure admin is initialized exactly once. `index.ts` also calls
 // `initializeApp()`; guarding on `admin.apps.length` makes this module
@@ -21,6 +25,7 @@ export interface MemberDocFields {
   roleId?: string;
   status?: string;
   email?: string;
+  uid?: string;
 }
 
 /** Roles that mirror into `/admins/{emailLower}`. */
@@ -217,6 +222,31 @@ export const organizationMembersSync = onDocumentWritten(
     const afterData = change.after.exists
       ? (change.after.data() as MemberDocFields)
       : null;
+
+    const claimChange = deactivationClaimChange(orgId, beforeData, afterData);
+    if (claimChange) {
+      try {
+        const uids = await applyDeactivationClaim(
+          admin.auth(),
+          emailLower,
+          afterData?.uid ?? beforeData?.uid,
+          claimChange
+        );
+        logger.info('organizationMembersSync: deactivation claim', {
+          orgId,
+          emailLower,
+          claimChange,
+          uids,
+        });
+      } catch (err) {
+        logger.error('organizationMembersSync: deactivation claim failed', {
+          orgId,
+          emailLower,
+          claimChange,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     // Short-circuit when the transition is irrelevant to admin mapping.
     // Specifically: both the previous and next admin-eligibility evaluate

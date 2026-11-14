@@ -1,7 +1,7 @@
 // Callable-side enforcement of a super admin "View as" token (docs/plans/shipped/ADMIN_VIEW_AS.md D7).
 import { HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
-import { isStrictSuperAdmin } from './authz';
+import { hasDeactivatedClaim, isStrictSuperAdmin } from './authz';
 
 export const VIEW_AS_SESSIONS = 'view_as_sessions';
 export const VIEW_AS_SETTINGS_PATH = 'admin_settings/view_as';
@@ -27,6 +27,8 @@ export interface ViewAsGuardOptions {
   read?: boolean;
   /** Assign, start, share, invite, AI or export (D14). Needs an unlocked session. */
   outward?: boolean;
+  /** Lets a deactivated account through (sign-in resolution only). */
+  allowDeactivated?: boolean;
 }
 
 /** The parsed claim, or null for an ordinary token. A malformed claim reads as expired and read-only. */
@@ -121,6 +123,12 @@ export async function assertViewAsAllowed(
   now: number = Date.now()
 ): Promise<ViewAsClaim | null> {
   assertPinLoginSession(request, now);
+  if (!options.allowDeactivated && hasDeactivatedClaim(request.auth?.token)) {
+    throw new HttpsError(
+      'permission-denied',
+      'This account has been deactivated.'
+    );
+  }
   const claim = readViewAsClaim(request);
   if (!claim) return null;
   if (!claim.sid || !claim.by || now >= claim.exp) throw sessionEnded();
