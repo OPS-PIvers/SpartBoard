@@ -103,13 +103,11 @@ export async function loadBankContentsFor(
     [...slotsByKey].map(async ([key, slot]) => {
       try {
         if (slot.syncGroupId) {
-          out.set(
-            key,
-            await loadSyncedBankContent(
-              slot.syncGroupId,
-              expectedSlotOwner(slot, banks, userId)
-            )
-          );
+          const owner = expectedSlotOwner(slot, banks, userId);
+          // Unpinned shared slots fail closed: any doc at a re-created id would be trusted.
+          if (!owner)
+            throw new Error('Shared bank slot has no verified owner.');
+          out.set(key, await loadSyncedBankContent(slot.syncGroupId, owner));
           return;
         }
         const meta = banks.find((b) => b.id === slot.bankId);

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, screen, fireEvent } from '@testing-library/react';
 
 const addToast = vi.fn();
 const clearPendingRubricShare = vi.fn();
@@ -69,6 +69,12 @@ vi.mock('@/hooks/useQuestionBanks', () => ({
   useQuestionBanks: () => ({ saveBank: vi.fn() }),
 }));
 
+vi.mock('@/utils/shareImportPeek', () => ({
+  peekShareHeader: () =>
+    Promise.resolve({ title: 'Paragraph', originalAuthor: 'attacker-uid' }),
+  describeSharer: () => 'Unknown account',
+}));
+
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [], loading: false }),
 }));
@@ -87,6 +93,9 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
     importSharedRubric.mockResolvedValue({ id: 'r1', title: 'Paragraph' });
     render(<DeepLinkShareImporter />);
 
+    await screen.findByText('Unknown account');
+    expect(importSharedRubric).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     await waitFor(() =>
       expect(importSharedRubric).toHaveBeenCalledWith('share-abc')
     );
@@ -103,6 +112,7 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
     importSharedRubric.mockRejectedValue(new Error('Shared rubric not found'));
     render(<DeepLinkShareImporter />);
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Import' }));
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(
         'Failed to import shared rubric: Shared rubric not found',

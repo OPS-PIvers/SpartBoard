@@ -3,7 +3,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor, act } from '@testing-library/react';
+import {
+  render,
+  waitFor,
+  act,
+  screen,
+  fireEvent,
+} from '@testing-library/react';
 import type { WidgetData } from '@/types';
 
 const addWidget = vi.fn();
@@ -69,6 +75,10 @@ vi.mock('@/hooks/useVideoActivityAssignments', () => ({
 vi.mock('@/hooks/useQuestionBanks', () => ({
   useQuestionBanks: () => ({ saveBank: vi.fn() }),
 }));
+vi.mock('@/utils/shareImportPeek', () => ({
+  peekShareHeader: () => Promise.resolve({ title: 'Q', originalAuthor: 'a' }),
+  describeSharer: () => 'Unknown account',
+}));
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [], loading: false }),
 }));
@@ -90,6 +100,7 @@ describe('DeepLinkShareImporter — stale board at import resolve', () => {
       })
     );
     const { rerender } = render(<DeepLinkShareImporter />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Import' }));
     await waitFor(() => expect(importSharedQuiz).toHaveBeenCalledTimes(1));
 
     widgets = [

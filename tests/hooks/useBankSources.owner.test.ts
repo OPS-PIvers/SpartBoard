@@ -84,8 +84,8 @@ describe('shared bank slot owner binding', () => {
     expect(out.has('g1')).toBe(false);
   });
 
-  it('keeps loading a slot saved before the sharer was recorded', async () => {
-    (getDoc as Mock).mockResolvedValue(syncedDoc('sharer'));
+  it('fails closed on an unpinned shared slot, even when the doc exists', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('attacker'));
     expect(expectedSlotOwner(slot(), [], 'me')).toBeUndefined();
     const out = await loadBankContentsFor(
       { bankSlots: [slot()] },
@@ -93,7 +93,7 @@ describe('shared bank slot owner binding', () => {
       noDrive,
       'me'
     );
-    expect(out.has('g1')).toBe(true);
+    expect(out.has('g1')).toBe(false);
   });
 
   it('keeps the pin on an own bank that was unshared since', () => {
