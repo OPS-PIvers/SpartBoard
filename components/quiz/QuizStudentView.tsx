@@ -45,8 +45,6 @@ import { ActiveQuiz, QuizSubmittedWaitScreen } from './QuizStudentApp';
 interface LibraryStudentViewProps {
   quiz: QuizData;
   behavior: QuizBehaviorSettings;
-  /** Teacher has quiz-stimulus-tabs, so the preview matches what Assign stamps. */
-  stimulusTabsOn?: boolean;
   /** Teacher has quiz-cross-out, so choices get the cross-out button as Assign stamps it. */
   crossOutOn?: boolean;
   assigned?: undefined;
@@ -57,7 +55,6 @@ interface AssignedStudentViewProps {
   assigned: AssignedStudentView;
   quiz?: undefined;
   behavior?: undefined;
-  stimulusTabsOn?: undefined;
   crossOutOn?: undefined;
 }
 
@@ -91,7 +88,6 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   behavior,
   assigned,
   tabAwayTimerOn: teacherAwayTimerOn,
-  stimulusTabsOn = false,
   crossOutOn = false,
   onExit,
 }) => {
@@ -104,10 +100,10 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
       assigned
         ? assigned.session
         : buildStudentViewSession(quiz, behavior, tabAwayTimerOn, {
-            stimulusTabs: stimulusTabsOn,
+            stimulusTabs: true,
             crossOut: crossOutOn,
           }),
-    [assigned, quiz, behavior, tabAwayTimerOn, stimulusTabsOn, crossOutOn]
+    [assigned, quiz, behavior, tabAwayTimerOn, crossOutOn]
   );
   const saved = useMemo(
     () =>

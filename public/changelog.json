@@ -1,6 +1,32 @@
 {
   "entries": [
     {
+      "version": "2026.11.14.1",
+      "date": "2026-11-14",
+      "title": "Quiz pictures and readings beside the question",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Pictures, readings and PDFs you attach to a question now show beside the question, so students can see both at once. A question with more than one shows them as tabs."
+            },
+            {
+              "text": "Want a picture inside the question instead? Set Show to In the question on its stimulus. You can also give each tab a name."
+            },
+            {
+              "text": "In the quiz editor, a question's Stimuli section now sits right under the question. Drag a file onto it or paste an image to add one."
+            },
+            {
+              "text": "Assignments that are already running keep the layout they started with."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.10.1",
       "date": "2026-11-10",
       "title": "Resources on the student Overview",
@@ -2622,6 +2648,12 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "quiz-stimuli-beside-question-2026-11-14",
+      "widget": "quiz",
+      "date": "2026-11-14",
+      "text": "Pictures and readings now show beside the question. Add them under the question, or drag a file or paste an image."
+    },
     {
       "id": "quiz-library-menu-2026-11-10",
       "widget": "quiz",

@@ -678,7 +678,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               state={editorState}
               readAloudAvailable={readAloudAvailable}
               calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-              tabsAvailable={canAccessFeature('quiz-stimulus-tabs')}
             />
           ) : (
             <>
