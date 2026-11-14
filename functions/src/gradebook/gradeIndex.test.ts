@@ -250,6 +250,7 @@ describe('applyDocWrite', () => {
     );
     const second = completed({
       completedAttempts: 2,
+      submittedAt: NOW - DAY,
       answers: [{ questionId: 'q1', answer: 'B' }],
     });
     await applyWrite(
@@ -1059,10 +1060,15 @@ describe('kill switch', () => {
       },
     });
     await runGradeIndexRecompute(stub.db as never);
-    // Attempt history is not part of the index and runs regardless.
+    // Attempt history and the turn-in stamp are not part of the index and run regardless.
     const history = (path: string) =>
       path.includes('/attempts/') || path.includes('/attemptScores/');
-    expect(stub.writes.filter((w) => !history(w.path))).toEqual([]);
+    const stamp = (w: { path: string; data?: StubData }) =>
+      w.path === 'quiz_sessions/qs1/responses/u1' &&
+      Object.keys(w.data ?? {}).every((k) => k === 'turnIn');
+    expect(stub.writes.filter((w) => !history(w.path) && !stamp(w))).toEqual(
+      []
+    );
     expect(stub.has('quiz_sessions/qs1/responses/u1/attempts/1')).toBe(true);
   });
 

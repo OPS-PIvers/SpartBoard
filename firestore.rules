@@ -4683,15 +4683,32 @@ service cloud.firestore {
         // Student status moves: answering (to in-progress), turning in with exactly
         // one more attempt, a retake (completed -> joined, answers cleared) under the
         // cap, or resuming a teacher unlock. Never completed -> completed.
+        // Only the turn-in moves the attempt count.
         function statusMoveOk(e, d, limit) {
           let from = e.get('status', '');
           let to = d.get('status', '');
           let done = e.get('completedAttempts', 0);
-          return (to == 'in-progress' && (from != 'completed' || e.get('unlocked', false) == true)) ||
-                 (to == 'completed' && from != 'completed' && d.get('completedAttempts', 0) == done + 1 &&
+          let now = d.get('completedAttempts', 0);
+          return (to == 'in-progress' && now == done && (from != 'completed' || e.get('unlocked', false) == true)) ||
+                 (to == 'completed' && from != 'completed' && now == done + 1 &&
                   nearServerNow(d.get('submittedAt', null)) && d.get('unlocked', false) == false) ||
-                 (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 &&
+                 (to == 'joined' && now == done && from == 'completed' && d.get('answers', []).size() == 0 &&
                   (limit == null || (done < limit && limit > 1)));
+        }
+
+        // A timed self-paced attempt takes answers only once its server clock has started.
+        function clockOk(s) {
+          return s.get('timeLimitMinutes', null) == null || s.get('sessionMode', '') != 'student' ||
+                 incoming().get('attemptStartedAt', null) != null;
+        }
+        // Input signals: only where the session records them, and only the open attempt's entry (earlier ones are kept).
+        function signalsOk(s) {
+          let n = incoming().inputSignals;
+          let k = string(existing().get('completedAttempts', 0));
+          return s.get('inputSignals', false) == true &&
+                 n.diff(existing().get('inputSignals', {})).affectedKeys().hasOnly([k]) &&
+                 n[k] is map && n[k].keys().size() <= 500 &&
+                 n[k].keys().hasAll(existing().get('inputSignals', {}).get(k, {}).keys());
         }
 
         // While a student is frozen (session paused, or their period not open),
@@ -4791,6 +4808,8 @@ service cloud.firestore {
           incoming().get('tabExits', null) == null &&
           incoming().get('partHeld', null) == null &&
           incoming().get('liveView', null) == null &&
+          incoming().get('turnIn', null) == null &&
+          incoming().get('inputSignals', null) == null &&
           incoming().get('partsDone', null) == null &&
           incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
@@ -4807,8 +4826,10 @@ service cloud.firestore {
           incoming().get('paperWrittenSeat', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
-          (sessionData().get('sessionMode', '') != 'game' ||
-           incoming().get('answers', []).size() == 0) &&
+          // A timed attempt's clock starts at the join; answers wait for it.
+          clockOk(sessionData()) &&
+          (incoming().get('answers', []).size() == 0 ||
+           (sessionData().get('sessionMode', '') != 'game' && clockOk(sessionData()))) &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
@@ -4879,18 +4900,19 @@ service cloud.firestore {
             (sessionData().get('sessionMode', '') != 'game' &&
              (existing().get('status', '') != 'completed' ||
               existing().get('unlocked', false) == true || incoming().get('status', '') == 'joined') &&
+             clockOk(sessionData()) &&
              paperKept(existing(), incoming()))) &&
-           // submittedAt is the server-offset clock (within 2 min of the server), or cleared for a retake or teacher unlock.
+           // submittedAt moves only with a status change: near server time, or cleared for a retake or teacher unlock.
            (!changed(['submittedAt']) ||
             (incoming().get('submittedAt', null) == null ?
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
-             nearServerNow(incoming().submittedAt))) &&
+             (changed(['status']) && nearServerNow(incoming().submittedAt)))) &&
            // A PIN-keyed doc keeps the period its key names.
            // shorthands: off (raw uid first: this update runs close to the 1,000-expression limit)
            (responseKey == request.auth.uid || !changed(['classPeriod']) ||
             responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
            // shorthands: on
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'inputSignals']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
            tabExitsOk() &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
            (!changed(['partsDone']) || incoming().get('partsDone', 0) is int) &&
@@ -4972,7 +4994,6 @@ service cloud.firestore {
            (!changed(['unlocked']) ||
             incoming().get('unlocked', false) == false) &&
            notDecreased('tabSwitchWarnings') &&
-           notDecreased('completedAttempts') &&
            // Results-view screenshot-protection guards. useResultsTabWarnings increments
            // `resultsTabWarnings` on each visibility/blur round-trip and flips
            // `resultsLockedOut` (+ `resultsLockedOutAt`) at the threshold. Both monotonic from
@@ -4987,7 +5008,13 @@ service cloud.firestore {
            // else a hostile client could increment past the cap.
            (sessionAttemptLimit() == null ||
             incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
-           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
+           // The attempt count moves only with a status move (statusMoveOk: the turn-in, by one).
+           (changed(['status']) ? statusMoveOk(existing(), incoming(), sessionAttemptLimit()) :
+            incoming().get('completedAttempts', 0) == existing().get('completedAttempts', 0))) ||
+          // Input-signal saves come alone, after the main branch so its costliest path doesn't pay for them.
+          (authUid() == existing().studentUid && changedOnly(['inputSignals']) &&
+           (runOpen(sessionData()) || existing().get('unlocked', false) == true) &&
+           signalsOk(sessionData())) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           liveUid(sessionTeacherUid()) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
@@ -5706,7 +5733,8 @@ service cloud.firestore {
               (incoming().answers.size() >= existing().answers.size() &&
                incoming().answers[0:existing().answers.size()] == existing().answers))) &&
             notDecreased('tabSwitchWarnings') &&
-            notDecreased('completedAttempts') &&
+            // The attempt count moves only with completion, by one (the completedAt gate below).
+            (!changed(['completedAttempts']) || (changed(['completedAt']) && existing().get('completedAt', null) == null)) &&
             // Attempt-cap enforcement — last line of defense behind the
             // client-side join + completeActivity transactions.
             (vaS().get('sessionOptions', {}).get('attemptLimit', null) == null ||

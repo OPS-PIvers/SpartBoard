@@ -33,6 +33,7 @@ import {
   scoreQuizResponse,
   scoreVideoResponse,
   toMillis,
+  trustedTurnInMs,
   type QuizContext,
 } from './gradeRowMath';
 import type { RowScore } from './types';
@@ -86,6 +87,53 @@ describe('keyQuestions', () => {
     );
     expect(qs.map((q) => q.id)).toEqual(['p1']);
     expect(qs[0].correctAnswer).toBeNull();
+  });
+});
+
+describe('trustedTurnInMs', () => {
+  it('uses the server stamp only when it vouches for this submission', () => {
+    expect(
+      trustedTurnInMs(
+        { submittedAt: 100, turnIn: { at: 190, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(190);
+    expect(
+      trustedTurnInMs(
+        { submittedAt: 300, turnIn: { at: 190, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(300);
+    expect(trustedTurnInMs({ completedAt: 7 }, 'completedAt')).toBe(7);
+    expect(
+      trustedTurnInMs({ submittedAt: null, turnIn: { at: 1 } }, 'submittedAt')
+    ).toBeNull();
+  });
+
+  it('dates the row by the server turn-in, not a backdated claim', () => {
+    const quiz = scoreQuizResponse(
+      {},
+      {
+        status: 'completed',
+        studentUid: 's1',
+        answers,
+        completedAttempts: 1,
+        submittedAt: 5_000,
+        turnIn: { at: 95_000, claimed: 5_000 },
+      },
+      quizCtx()
+    );
+    expect(quiz.submittedAt).toBe(95_000);
+    const video = scoreVideoResponse(
+      {},
+      {
+        completedAt: 5_000,
+        turnIn: { at: 95_000, claimed: 5_000 },
+        answers: [],
+      },
+      []
+    );
+    expect(video.submittedAt).toBe(95_000);
   });
 });
 
@@ -629,12 +677,61 @@ describe('mergeAttempts', () => {
 
   it('keeps each attempt and replaces a regraded one', () => {
     const one = mergeAttempts([], s({}));
-    const two = mergeAttempts(one, s({ attemptNumber: 2, points: 7 }));
-    const regraded = mergeAttempts(two, s({ attemptNumber: 2, points: 8 }));
+    const two = mergeAttempts(
+      one,
+      s({ attemptNumber: 2, points: 7, submittedAt: 2 })
+    );
+    const regraded = mergeAttempts(
+      two,
+      s({ attemptNumber: 2, points: 8, submittedAt: 2 })
+    );
     expect(regraded.map((a) => [a.n, a.points])).toEqual([
       [1, 5],
       [2, 8],
     ]);
+  });
+
+  it('a raised count re-scoring the same turn-in adds no attempt', () => {
+    let list = mergeAttempts([], s({ points: 4, submittedAt: 10 }));
+    list = mergeAttempts(
+      list,
+      s({ attemptNumber: 2, points: 9, submittedAt: 20 })
+    );
+    for (const n of [3, 4, 5])
+      list = mergeAttempts(
+        list,
+        s({ attemptNumber: n, points: 9, submittedAt: 20 })
+      );
+    expect(list.map((a) => [a.n, a.points])).toEqual([
+      [1, 4],
+      [5, 9],
+    ]);
+  });
+
+  it('a rebuild folds phantom entries already on the row', () => {
+    const inflated = [10, 20, 20, 20].map((at, i) => ({
+      n: i + 1,
+      at,
+      points: at === 10 ? 4 : 9,
+      max: 10,
+      state: 'scored' as const,
+    }));
+    expect(
+      mergeAttempts(
+        inflated,
+        s({ attemptNumber: 5, points: 6, submittedAt: 30 })
+      ).map((a) => [a.n, a.at])
+    ).toEqual([
+      [1, 10],
+      [4, 20],
+      [5, 30],
+    ]);
+    expect(
+      mergeAttempts(
+        inflated,
+        s({ state: 'in-progress', attemptNumber: 5, rawPct: null })
+      ).map((a) => a.n)
+    ).toEqual([1, 4]);
   });
 
   it('keeps earlier attempts while a retake is in progress', () => {
