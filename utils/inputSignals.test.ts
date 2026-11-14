@@ -187,6 +187,20 @@ describe('InputSignalCollector typing', () => {
     expect(ids(c)).toEqual(['pasted']);
   });
 
+  it('reports pastes as attempts when the pasted sign is hidden', () => {
+    const c = new InputSignalCollector(true);
+    c.paste(50, 1_000);
+    c.textInput(null, 1_001, 'pasted');
+    const found = describeInputSignals(
+      c.snapshot(),
+      undefined,
+      undefined,
+      false,
+      new Set(['pasted'])
+    ).map((f) => f.id);
+    expect(found).toEqual(['paste-attempts']);
+  });
+
   it('reports a blocked paste as a try', () => {
     const c = new InputSignalCollector(true);
     c.paste(50, 1_000);
