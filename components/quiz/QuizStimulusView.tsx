@@ -265,12 +265,12 @@ const ImageStimulus: React.FC<
   const capCls = cqScaled
     ? ''
     : fill
-      ? 'max-h-[var(--stimulus-img-max,calc(45vh-4rem))] lg:max-h-none'
+      ? 'max-h-[var(--stimulus-img-max,max(10rem,calc(45vh-4rem)))] lg:max-h-none'
       : 'max-h-[50vh]';
 
   return (
     <div
-      className={`flex flex-col w-full rounded-xl overflow-hidden ${fill ? 'min-h-0' : ''} ${surfaceCls(light)}`}
+      className={`flex flex-col w-full rounded-xl overflow-hidden ${fill ? 'flex-1 min-h-0' : ''} ${surfaceCls(light)}`}
     >
       <StimulusZoomBar
         zoom={zoom}
@@ -283,7 +283,7 @@ const ImageStimulus: React.FC<
       <div
         ref={scrollerRef}
         data-testid="image-stimulus-viewport"
-        className={`overflow-auto ${fill ? 'flex-1 min-h-0 [scrollbar-gutter:stable]' : ''} ${capCls}`}
+        className={`overflow-auto ${fill ? 'flex flex-1 min-h-0 [scrollbar-gutter:stable]' : ''} ${capCls}`}
         style={{
           touchAction: 'pan-x pan-y',
           ...(cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined),
@@ -294,7 +294,7 @@ const ImageStimulus: React.FC<
           src={stimulusMediaUrl(stimulus)}
           alt="Question stimulus"
           draggable={false}
-          className={`block mx-auto object-contain ${
+          className={`block object-contain ${fill ? 'm-auto shrink-0' : 'mx-auto'} ${
             size ? 'max-w-none' : `max-w-full ${capCls}`
           }`}
           style={
