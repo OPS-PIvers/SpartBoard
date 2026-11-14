@@ -114,7 +114,7 @@ beforeEach(async () => {
 });
 
 describe('the deactivated claim locks the uid out whatever its email', () => {
-  const reads = (db: ReturnType<typeof asUid>) => [
+  const reads = (db: ReturnType<typeof asUid>): Promise<unknown>[] => [
     getDoc(doc(db, `users/${UID}/dashboards/d1`)),
     setDoc(doc(db, `users/${UID}/dashboards/d1`), {
       id: 'd1',
@@ -171,7 +171,7 @@ describe('isOrgMember() needs a live, non-student member doc', () => {
     await seed('announcements/a1', { orgId: 'orono', title: 'Hi' });
   });
 
-  const orgReads = (db: ReturnType<typeof as>) => [
+  const orgReads = (db: ReturnType<typeof as>): Promise<unknown>[] => [
     getDoc(doc(db, 'organizations/orono')),
     getDocs(collection(db, 'organizations/orono/members')),
     getDoc(doc(db, `organizations/orono/members/${ACTIVE}`)),
