@@ -269,7 +269,12 @@ describe('useRosters — subscription', () => {
     currentDriveService = null;
     const { result } = renderHook(() => useRosters(mockUser));
     emitSnapshot(0, [
-      metaDoc('r1', { retiredPinsAt: { '01': 1234, '07': 'bad' } }),
+      metaDoc('r1', {
+        retiredPinsAt: { '01': 1234, '07': 'bad' } as unknown as Record<
+          string,
+          number
+        >,
+      }),
     ]);
     await waitFor(() => expect(result.current.rosters).toHaveLength(1));
     expect(result.current.rosters[0].retiredPinsAt).toEqual({ '01': 1234 });
