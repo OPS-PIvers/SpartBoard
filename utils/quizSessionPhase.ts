@@ -196,6 +196,35 @@ export function reopenIndexPatch(
   };
 }
 
+/** Reopen's session patch: the index fix plus clearing every revealed answer, so the reopened run starts with no key. */
+export function reopenSessionPatch(
+  session: Pick<
+    QuizSession,
+    'currentQuestionIndex' | 'totalQuestions' | 'sessionMode'
+  >
+): Record<string, unknown> {
+  return { ...reopenIndexPatch(session), revealedAnswers: deleteField() };
+}
+
+/** How many leading questions the live auto-reveal may show; an ended run stops at the last question the class reached. */
+export function autoRevealCount(
+  session: Pick<
+    QuizSession,
+    'status' | 'currentQuestionIndex' | 'questionPhase' | 'sessionMode'
+  >,
+  questionCount: number
+): number {
+  const reached =
+    session.status === 'ended'
+      ? session.sessionMode === 'student'
+        ? questionCount
+        : session.currentQuestionIndex + 1
+      : session.questionPhase === 'reviewing'
+        ? session.currentQuestionIndex + 1
+        : session.currentQuestionIndex;
+  return Math.max(0, Math.min(reached, questionCount));
+}
+
 /** Whether two phases are the same step of the run; a re-armed auto-advance timer doesn't count as a move. */
 export function sameQuizSessionPhase(
   a: QuizSessionPhase | null,
