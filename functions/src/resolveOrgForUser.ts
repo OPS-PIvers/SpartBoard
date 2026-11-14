@@ -56,6 +56,7 @@ import {
 } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
+  DEACTIVATED_CLAIM,
   OPERATOR_ORG_ID,
   hasDeactivatedClaim,
   isRevokedMemberStatus,
@@ -73,6 +74,19 @@ export interface ResolveOrgForUserResponse {
   enrollFailed?: true;
   /** Set when ClassLink or a mock class lists a caller with no member doc as a student. */
   rosterStudent?: true;
+  /** Set when a stale deactivation claim was lifted, so the client refreshes its ID token. */
+  claimCleared?: true;
+}
+
+/** True when the caller's token carried a deactivation claim that the account no longer has. */
+async function claimWasCleared(uid: string, token: unknown): Promise<boolean> {
+  if (!hasDeactivatedClaim(token)) return false;
+  try {
+    const user = await admin.auth().getUser(uid);
+    return user.customClaims?.[DEACTIVATED_CLAIM] !== true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -407,7 +421,12 @@ export const resolveOrgForUser = onCall(
               request.auth.uid,
               token
             );
-            if (enrolled === 'student') return { orgId, rosterStudent: true };
+            const cleared = await claimWasCleared(request.auth.uid, token);
+            const extra = cleared ? { claimCleared: true as const } : {};
+            if (enrolled === 'student') {
+              return { orgId, rosterStudent: true, ...extra };
+            }
+            return { orgId, ...extra };
           }
         } catch (err) {
           console.error(

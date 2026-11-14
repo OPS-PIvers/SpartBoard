@@ -4,7 +4,7 @@ import * as admin from './firebaseAdmin';
 import { OPERATOR_ORG_ID, isRevokedMemberStatus } from './authz';
 import {
   applyDeactivationClaim,
-  deactivationClaimChange,
+  deactivationClaimSyncNeeded,
   deactivationClaimTarget,
 } from './memberDeactivationClaim';
 
@@ -239,9 +239,9 @@ export const organizationMembersSync = onDocumentWritten(
       ? (change.after.data() as MemberDocFields)
       : null;
 
-    // The claim follows the doc's current status, so a late or retried event cannot undo a newer change; a failure is rethrown after the admin mirror runs.
+    // The claim follows the doc's live status, so a late or retried event cannot undo a newer change; a failure is rethrown after the mirror.
     let claimError: Error | undefined;
-    if (deactivationClaimChange(orgId, beforeData, afterData)) {
+    if (deactivationClaimSyncNeeded(orgId, beforeData, afterData)) {
       try {
         const snap = await admin
           .firestore()
@@ -250,21 +250,19 @@ export const organizationMembersSync = onDocumentWritten(
         const claimChange = deactivationClaimTarget(
           snap.exists ? (snap.data() as MemberDocFields) : null
         );
-        if (claimChange) {
-          const uids = await applyDeactivationClaim(
-            admin.auth(),
-            emailLower,
-            afterData?.uid ?? beforeData?.uid,
-            claimChange,
-            (email) => liveOperatorMember(orgId, email)
-          );
-          logger.info('organizationMembersSync: deactivation claim', {
-            orgId,
-            emailLower,
-            claimChange,
-            uids,
-          });
-        }
+        const uids = await applyDeactivationClaim(
+          admin.auth(),
+          emailLower,
+          afterData?.uid ?? beforeData?.uid,
+          claimChange,
+          (email) => liveOperatorMember(orgId, email)
+        );
+        logger.info('organizationMembersSync: deactivation claim', {
+          orgId,
+          emailLower,
+          claimChange,
+          uids,
+        });
       } catch (err) {
         claimError = err instanceof Error ? err : new Error(String(err));
         logger.error('organizationMembersSync: deactivation claim failed', {
@@ -284,8 +282,24 @@ async function mirrorAdminDoc(
   orgId: string,
   emailLower: string,
   beforeData: MemberDocFields | null,
-  afterData: MemberDocFields | null
+  eventAfterData: MemberDocFields | null
 ): Promise<void> {
+  // The live doc, not the event snapshot, decides the mirror so a retried stale event cannot revert a newer change.
+  let afterData = eventAfterData;
+  try {
+    const liveSnap = await admin
+      .firestore()
+      .doc(`organizations/${orgId}/members/${emailLower}`)
+      .get();
+    afterData = liveSnap.exists ? (liveSnap.data() as MemberDocFields) : null;
+  } catch (err) {
+    logger.error('organizationMembersSync: failed to read live member doc', {
+      orgId,
+      emailLower,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return;
+  }
   // Short-circuit when the transition is irrelevant to admin mapping.
   // Specifically: both the previous and next admin-eligibility evaluate
   // to the same boolean AND the roleId is unchanged. A name-only change
