@@ -2265,6 +2265,14 @@
     "left": "Tiempo restante {{time}}",
     "submitted": "Se acabó el tiempo. Tus respuestas se entregaron."
   },
+  "quizSubmit": {
+    "confirmTitle": "¿Entregar tu prueba?",
+    "confirmBody": "Después de esto no podrás cambiar tus respuestas.",
+    "confirmBlank_one": "{{count}} pregunta no tiene respuesta. Después de esto no podrás cambiar tus respuestas.",
+    "confirmBlank_other": "{{count}} preguntas no tienen respuesta. Después de esto no podrás cambiar tus respuestas.",
+    "confirmSubmit": "Entregar",
+    "tryAgain": "Intentar de nuevo"
+  },
   "quizParts": {
     "confirmTitle": "¿Entregar la Parte {{part}}?",
     "confirmBody": "Después de esto no podrás cambiar tus respuestas de la Parte {{part}}.",

@@ -25,6 +25,7 @@ const {
   mockLookupSession,
   mockSubmitAnswer,
   mockCompleteQuiz,
+  mockShowConfirm,
   hookState,
   registerRefresher,
   triggerRefresh,
@@ -60,6 +61,7 @@ const {
     mockLookupSession: vi.fn(),
     mockSubmitAnswer: vi.fn(),
     mockCompleteQuiz: vi.fn(),
+    mockShowConfirm: vi.fn(),
     hookState: state,
     registerRefresher: (fn: Refresher) => {
       refreshers.add(fn);
@@ -72,6 +74,14 @@ const {
     },
   };
 });
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: mockShowConfirm,
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
+}));
 
 // M17 C3 — no per-student pointer in these tests (untargeted assignment).
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
@@ -124,6 +134,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
+import { reviewStateKey } from '@/utils/quizReviewMarksStore';
 
 function mintUser(opts: {
   uid: string;
@@ -216,6 +227,8 @@ function appendAnswer(questionId: string, answer: string): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
+  mockShowConfirm.mockResolvedValue(true);
   hookState.session = buildSession();
   hookState.myResponse = buildResponse();
   hookState.raceMode = false;
@@ -1331,6 +1344,69 @@ describe('QuizStudentApp — review before submit', () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
     await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+  });
+
+  it('asks before the final submit and stays put on cancel', async () => {
+    const user = userEvent.setup();
+    mockShowConfirm.mockResolvedValue(false);
+    render(<QuizStudentApp />);
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+    expect(screen.getByText(/Color of the sky/i)).toBeInTheDocument();
+  });
+
+  it('submits once the final confirm is accepted', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    await answerAll(user);
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1));
+    expect(mockShowConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the blank count in the final confirm', async () => {
+    const user = userEvent.setup();
+    mockShowConfirm.mockResolvedValue(false);
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    appendAnswer('q1', '4');
+    window.sessionStorage.setItem(
+      `${reviewStateKey('session-1', 'sso-uid-1', 0)}:at`,
+      'q3'
+    );
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Color of the sky/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Blue' }));
+    await user.click(screen.getByRole('button', { name: /^SUBMIT/i }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+    expect(String(mockShowConfirm.mock.calls[0][0])).toContain('1');
+  });
+
+  it('resumes at the first unanswered question', async () => {
+    hookState.myResponse = buildResponse({ _responseKey: 'sso-uid-1' });
+    appendAnswer('q1', '4');
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    expect(screen.queryByText(/What is 2 \+ 2/i)).not.toBeInTheDocument();
+  });
+
+  it('resumes at the saved question', async () => {
+    const response = buildResponse({ _responseKey: 'sso-uid-1' });
+    hookState.myResponse = response;
+    const key = reviewStateKey(
+      'session-1',
+      response._responseKey,
+      response.completedAttempts ?? 0
+    );
+    window.sessionStorage.setItem(`${key}:at`, 'q2');
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+  });
+
+  it('starts a new attempt at question 1', async () => {
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
   });
 
   it('opens the review screen on the last answer and submits only from it', async () => {

@@ -3513,6 +3513,14 @@
     "left": "Time left {{time}}",
     "submitted": "Time's up. Your answers were submitted."
   },
+  "quizSubmit": {
+    "confirmTitle": "Submit your quiz?",
+    "confirmBody": "You can't change your answers after this.",
+    "confirmBlank_one": "{{count}} question has no answer. You can't change your answers after this.",
+    "confirmBlank_other": "{{count}} questions have no answer. You can't change your answers after this.",
+    "confirmSubmit": "Submit",
+    "tryAgain": "Try again"
+  },
   "quizParts": {
     "confirmTitle": "Submit Part {{part}}?",
     "confirmBody": "You can't change your Part {{part}} answers after this.",

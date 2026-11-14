@@ -2265,6 +2265,14 @@
     "left": "Verbleibende Zeit {{time}}",
     "submitted": "Die Zeit ist um. Deine Antworten wurden abgegeben."
   },
+  "quizSubmit": {
+    "confirmTitle": "Quiz abgeben?",
+    "confirmBody": "Danach kannst du deine Antworten nicht mehr ändern.",
+    "confirmBlank_one": "{{count}} Frage hat keine Antwort. Danach kannst du deine Antworten nicht mehr ändern.",
+    "confirmBlank_other": "{{count}} Fragen haben keine Antwort. Danach kannst du deine Antworten nicht mehr ändern.",
+    "confirmSubmit": "Abgeben",
+    "tryAgain": "Erneut versuchen"
+  },
   "quizParts": {
     "confirmTitle": "Teil {{part}} abgeben?",
     "confirmBody": "Danach kannst du deine Antworten in Teil {{part}} nicht mehr ändern.",

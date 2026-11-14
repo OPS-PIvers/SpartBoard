@@ -141,12 +141,19 @@ import {
   ReviewMarksCleanup,
   ReviewSwap,
 } from './QuizReviewScreen';
-import { reviewRows, reviewStepActive } from '@/utils/quizReviewStep';
+import {
+  reviewCounts,
+  reviewRows,
+  reviewStepActive,
+} from '@/utils/quizReviewStep';
+import { resumeQuestionIndex } from '@/utils/quizResume';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
 import {
   clearReviewState,
+  loadResumeQuestion,
   loadReviewState,
   reviewStateKey,
+  saveResumeQuestion,
   saveReviewState,
 } from '@/utils/quizReviewMarksStore';
 import {
@@ -449,6 +456,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
         <p className="text-slate-300 text-sm text-center">
           Unable to connect. Please refresh the page and try again.
         </p>
+        <ReloadButton dark />
       </div>
     );
   }
@@ -1382,6 +1390,7 @@ const QuizJoinFlow: React.FC<{
             <p className="text-slate-600 text-sm text-center max-w-sm">
               {ssoError}
             </p>
+            <ReloadButton />
           </div>
         );
       }
@@ -1569,6 +1578,7 @@ const QuizJoinFlow: React.FC<{
             >
               {error}
             </p>
+            <ReloadButton dark={!light} />
           </div>
         );
       }
@@ -1594,9 +1604,12 @@ const QuizJoinFlow: React.FC<{
               aria-label="Loading questions"
             />
             {dealPending && drawStalledKey === drawKey && (
-              <p className="text-sm text-center text-white/80 max-w-sm">
-                Lost connection to the quiz. Please refresh.
-              </p>
+              <>
+                <p className="text-sm text-center text-white/80 max-w-sm">
+                  Lost connection to the quiz. Please refresh.
+                </p>
+                <ReloadButton dark />
+              </>
             )}
           </div>
         );
@@ -2305,6 +2318,7 @@ export const ActiveQuiz: React.FC<{
 
   // For student-paced mode, the student maintains their own local index
   const [localIndex, setLocalIndex] = useState(0);
+  const [resumedKey, setResumedKey] = useState<string | null>(null);
 
   const isStudentPaced = session.sessionMode === 'student';
   const reviewOn = reviewStepActive(session);
@@ -2463,6 +2477,22 @@ export const ActiveQuiz: React.FC<{
   const partOf = (q: { id: string } | undefined): number =>
     hasStops && q ? partOfQuestion(session.sections, q.id) : 1;
   const partsDone = hasStops && myResponse ? partsDoneOf(myResponse) : 0;
+  // A reload or a pause remounts this screen; pick up where this tab left off.
+  if (
+    isStudentPaced &&
+    !watching &&
+    reviewStoreKey &&
+    resumedKey !== reviewStoreKey &&
+    orderedPublicQuestions.length > 0
+  ) {
+    setResumedKey(reviewStoreKey);
+    const at = resumeQuestionIndex(
+      orderedPublicQuestions.map((q) => q.id),
+      loadResumeQuestion(reviewStoreKey),
+      myResponse?.answers ?? []
+    );
+    if (at !== localIndex) setLocalIndex(at);
+  }
   // A rejoin or a just-submitted part lands on the first open question.
   const watchIndex = watchQuestionId
     ? orderedPublicQuestions.findIndex((q) => q.id === watchQuestionId)
@@ -2479,6 +2509,15 @@ export const ActiveQuiz: React.FC<{
     );
     if (firstOpen > localIndex) setLocalIndex(firstOpen);
   }
+  const resumeId =
+    isStudentPaced && !watching
+      ? orderedPublicQuestions[localIndex]?.id
+      : undefined;
+  useEffect(() => {
+    if (!reviewStoreKey || !resumeId || resumedKey !== reviewStoreKey) return;
+    if (reviewAttemptSubmitted) return;
+    saveResumeQuestion(reviewStoreKey, resumeId);
+  }, [reviewStoreKey, resumeId, resumedKey, reviewAttemptSubmitted]);
   const canGoBack =
     localIndex > 0 &&
     partOf(orderedPublicQuestions[localIndex - 1]) > partsDone;
@@ -3691,6 +3730,19 @@ export const ActiveQuiz: React.FC<{
           setSubmitBlocked(true);
           return;
         }
+        if (isStudentPaced && !isAttemptSubmitted(myResponse)) {
+          const blank = reviewCounts(currentReviewRows()).unanswered;
+          const ok = await showConfirm(
+            blank > 0
+              ? t('quizSubmit.confirmBlank', { count: blank })
+              : t('quizSubmit.confirmBody'),
+            {
+              title: t('quizSubmit.confirmTitle'),
+              confirmLabel: t('quizSubmit.confirmSubmit'),
+            }
+          );
+          if (!ok) return;
+        }
         setSelectedAnswer(answer);
         dispatchStep({ type: 'submit' });
         if (!isAttemptSubmitted(myResponse)) {
@@ -4048,27 +4100,30 @@ export const ActiveQuiz: React.FC<{
               ? 'bg-indigo-500/20 text-indigo-400'
               : 'bg-rose-500/20 text-rose-400';
 
+  const isReviewLocked = (id: string): boolean =>
+    partOf(orderedPublicQuestions.find((q) => q.id === id)) <= partsDone ||
+    isLockedByChooseCount(
+      session.sections,
+      sectionAnswers,
+      id,
+      sectionServedIds
+    );
+  const currentReviewRows = () =>
+    reviewRows(
+      orderedPublicQuestions.map((q) =>
+        applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
+      ),
+      myResponse?.answers ?? [],
+      answerCache,
+      markedIds,
+      isReviewLocked
+    );
+
   const reviewScreen =
     reviewOn && reviewOpen && !quizDone ? (
       <QuizReviewScreen
         title={localizedQuizTitle(session, assignedLocale)}
-        rows={reviewRows(
-          orderedPublicQuestions.map((q) =>
-            applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
-          ),
-          myResponse?.answers ?? [],
-          answerCache,
-          markedIds,
-          (id) =>
-            partOf(orderedPublicQuestions.find((q) => q.id === id)) <=
-              partsDone ||
-            isLockedByChooseCount(
-              session.sections,
-              sectionAnswers,
-              id,
-              sectionServedIds
-            )
-        )}
+        rows={currentReviewRows()}
         onJump={(index) => {
           setReviewOpen(false);
           setReturnToReview(true);
@@ -5733,6 +5788,24 @@ const ReturnToAssignmentsButton: React.FC<{
     Back to my assignments <ArrowRight className="w-4 h-4" />
   </button>
 );
+
+const ReloadButton: React.FC<{ dark?: boolean }> = ({ dark = false }) => {
+  const { t } = useTranslation();
+  return (
+    // no-tour-anchor: student error screen; live tours walk teachers.
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+      className={`inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-bold rounded-full transition-colors ${
+        dark
+          ? 'bg-white text-slate-900 hover:bg-slate-100'
+          : 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+      }`}
+    >
+      {t('quizSubmit.tryAgain')}
+    </button>
+  );
+};
 
 // ─── Answer feedback banner ──────────────────────────────────────────────────
 

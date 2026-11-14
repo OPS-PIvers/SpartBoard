@@ -2265,6 +2265,14 @@
     "left": "Temps restant {{time}}",
     "submitted": "Le temps est écoulé. Tes réponses ont été envoyées."
   },
+  "quizSubmit": {
+    "confirmTitle": "Remettre ton quiz ?",
+    "confirmBody": "Tu ne pourras plus modifier tes réponses après cela.",
+    "confirmBlank_one": "{{count}} question n'a pas de réponse. Tu ne pourras plus modifier tes réponses après cela.",
+    "confirmBlank_other": "{{count}} questions n'ont pas de réponse. Tu ne pourras plus modifier tes réponses après cela.",
+    "confirmSubmit": "Remettre",
+    "tryAgain": "Réessayer"
+  },
   "quizParts": {
     "confirmTitle": "Rendre la partie {{part}} ?",
     "confirmBody": "Tu ne pourras plus modifier tes réponses de la partie {{part}} après ça.",
