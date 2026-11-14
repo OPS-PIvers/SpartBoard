@@ -1,35 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   applyDeactivationClaim,
-  deactivationClaimChange,
+  deactivationClaimSyncNeeded,
   deactivationClaimTarget,
 } from './memberDeactivationClaim';
 
-describe('deactivationClaimChange', () => {
-  it('sets on deactivation and clears on reactivation, never on doc deletion, operator org only', () => {
+describe('deactivationClaimSyncNeeded', () => {
+  it('fires on creates, deletes and revoked flips in the operator org only', () => {
     const active = { status: 'active' };
     const inactive = { status: 'inactive' };
-    expect(deactivationClaimChange('orono', active, inactive)).toBe('set');
-    expect(deactivationClaimChange('orono', null, inactive)).toBe('set');
-    expect(deactivationClaimChange('orono', inactive, active)).toBe('clear');
-    expect(deactivationClaimChange('orono', inactive, null)).toBeNull();
-    expect(deactivationClaimChange('orono', active, null)).toBeNull();
+    expect(deactivationClaimSyncNeeded('orono', active, inactive)).toBe(true);
+    expect(deactivationClaimSyncNeeded('orono', inactive, active)).toBe(true);
+    expect(deactivationClaimSyncNeeded('orono', inactive, null)).toBe(true);
+    expect(deactivationClaimSyncNeeded('orono', null, active)).toBe(true);
+    expect(deactivationClaimSyncNeeded('orono', active, active)).toBe(false);
     expect(
-      deactivationClaimChange('orono', inactive, { status: 'removed' })
-    ).toBeNull();
-    expect(
-      deactivationClaimChange('orono', active, { status: 'invited' })
-    ).toBeNull();
-    expect(deactivationClaimChange('other-org', active, inactive)).toBeNull();
+      deactivationClaimSyncNeeded('orono', active, { status: 'invited' })
+    ).toBe(false);
+    expect(deactivationClaimSyncNeeded('other-org', active, inactive)).toBe(
+      false
+    );
   });
 });
 
 describe('deactivationClaimTarget', () => {
-  it('follows the current doc and leaves a deleted one alone', () => {
+  it('follows the current doc and clears for a deleted one', () => {
     expect(deactivationClaimTarget({ status: 'inactive' })).toBe('set');
     expect(deactivationClaimTarget({ status: 'active' })).toBe('clear');
     expect(deactivationClaimTarget({ status: 'invited' })).toBe('clear');
-    expect(deactivationClaimTarget(null)).toBeNull();
+    expect(deactivationClaimTarget(null)).toBe('clear');
   });
 });
 

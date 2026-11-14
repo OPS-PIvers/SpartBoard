@@ -193,7 +193,30 @@ describe('a deactivated admin with a surviving /admins doc', () => {
     expect(fn('liveToken')).toContain(
       "request.auth.token.get('deactivated', false) != true"
     );
-    // An active admin and an /admins account with no member doc pass exactly as before: no new read.
-    expect(isAdmin.match(/firestore\./g)).toHaveLength(1);
+    // A token with no claim (fresh account, pre-backfill) is still refused through the member doc.
+    expect(isAdmin).toMatch(
+      /liveMember\(firestore\.get\([^)]*organizations\/orono\/members\/\$\(request\.auth\.token\.email\.lower\(\)\)/
+    );
+    expect(isAdmin.indexOf('liveMember(')).toBeLessThan(
+      isAdmin.indexOf('firestore.exists')
+    );
+    // Two distinct reads (member doc, admins doc), within the cross-service budget.
+    expect(isAdmin.match(/firestore\./g)).toHaveLength(2);
+  });
+
+  it('a claimless token for an inactive member is refused on admin paths', async () => {
+    const claimless = testEnv
+      .authenticatedContext(
+        'fresh-uid',
+        google({ email: ADMIN_EMAIL, email_verified: true })
+      )
+      .storage();
+    const path = await seedObject('quiz_response_media/s1/r1/take');
+    await assertFails(getBytes(ref(claimless, path)));
+    await assertFails(
+      uploadBytes(ref(claimless, 'admin_logos/logo.png'), new Uint8Array(8), {
+        contentType: 'image/png',
+      })
+    );
   });
 });

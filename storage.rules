@@ -7,13 +7,14 @@ service firebase.storage {
     // Helper function to check if user is an admin in Firestore
     // email_verified is required, as in firestore.rules isAdmin(): email/password
     // sign-in allows a self-reported address that could match an /admins doc.
-    // liveToken(): a deactivated member fails every admin branch with no extra Firestore read.
+    // A deactivated member fails every admin branch via the claim or, for a token without it, the member doc.
     function isAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
              request.auth.token.get('viewAs', null) == null &&
              liveToken() &&
+             liveMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower()))) &&
              firestore.exists(/databases/(default)/documents/admins/$(request.auth.token.email.lower()));
     }
 

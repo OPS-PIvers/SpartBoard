@@ -12,29 +12,36 @@ interface MemberStatusFields {
   status?: unknown;
 }
 
-/** The claim change a member-doc write needs; a deleted doc keeps the claim until an admin reactivates the member. */
-export function deactivationClaimChange(
+/** True when a member-doc write may change the claim: any create or delete, or a revoked-status flip. */
+export function deactivationClaimSyncNeeded(
   orgId: string,
   before: MemberStatusFields | null,
   after: MemberStatusFields | null
-): DeactivationClaimChange | null {
-  if (orgId !== OPERATOR_ORG_ID || after === null) return null;
-  const was = before !== null && isRevokedMemberStatus(before.status);
-  const now = after !== null && isRevokedMemberStatus(after.status);
-  if (now === was) return null;
-  return now ? 'set' : 'clear';
+): boolean {
+  if (orgId !== OPERATOR_ORG_ID) return false;
+  if (before === null || after === null) return true;
+  return (
+    isRevokedMemberStatus(before.status) !== isRevokedMemberStatus(after.status)
+  );
 }
 
-/** The claim the member doc's current state calls for; null when the doc is gone. */
+/** The claim the member doc's current state calls for; a gone or live doc clears it. */
 export function deactivationClaimTarget(
   current: MemberStatusFields | null
-): DeactivationClaimChange | null {
-  if (current === null) return null;
+): DeactivationClaimChange {
+  if (current === null) return 'clear';
   return isRevokedMemberStatus(current.status) ? 'set' : 'clear';
 }
 
+// Unmappable lookups (no such account, malformed email or uid) never succeed on retry.
+const SKIPPABLE_LOOKUP_CODES = [
+  'auth/user-not-found',
+  'auth/invalid-email',
+  'auth/invalid-uid',
+];
 function isUserNotFound(err: unknown): boolean {
-  return (err as { code?: unknown })?.code === 'auth/user-not-found';
+  const code = (err as { code?: unknown })?.code;
+  return typeof code === 'string' && SKIPPABLE_LOOKUP_CODES.includes(code);
 }
 
 /** Sets or clears the claim on the member's linked uid and the account holding the address; 'set' also ends live sessions. Returns the uids changed. */

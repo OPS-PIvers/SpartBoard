@@ -167,9 +167,18 @@ async function resolveOrgIdForUser(emailLower: string): Promise<{
 
   const callable = httpsCallable<
     unknown,
-    { orgId: string | null; enrollFailed?: true; rosterStudent?: true }
+    {
+      orgId: string | null;
+      enrollFailed?: true;
+      rosterStudent?: true;
+      claimCleared?: true;
+    }
   >(functions, 'resolveOrgForUser');
   const { data } = await callable({});
+  // A cleared deactivation claim is still on the current ID token until it is refreshed.
+  if (data?.claimCleared) {
+    await auth.currentUser?.getIdToken(true).catch(() => undefined);
+  }
   const orgId = data?.orgId ?? null;
   if (data?.rosterStudent) return { orgId, rosterStudent: true };
 
