@@ -27,13 +27,13 @@ export const parseTourCounts = (data: unknown): TourCounts => {
 const plural = (n: number, one: string, many: string) =>
   `${n}\u00a0${n === 1 ? one : many}`.replace(/ /g, '\u00a0');
 
-/** "12 views · 9 finished · 4 link views"; link views only once the link was ever on. */
+/** "12 views · 9 finished · 4 link-only views"; link views only once the link was ever on. */
 export const countsText = (c: TourCounts, linkOn: boolean): string =>
   [
     plural(c.plays, 'view', 'views'),
     `${c.finished}\u00a0finished`,
     ...(linkOn || c.linkViews > 0
-      ? [plural(c.linkViews, 'link view', 'link views')]
+      ? [plural(c.linkViews, 'link-only view', 'link-only views')]
       : []),
   ].join(' · ');
 
