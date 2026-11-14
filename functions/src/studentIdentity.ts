@@ -22,6 +22,7 @@ import {
   type ClassLinkClass,
   type ClassLinkStudent,
   pinIndexKey,
+  retiredPinKey,
   isBridgeablePin,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
@@ -1391,10 +1392,27 @@ export async function loadTaughtClassEnrollment(
   return loadClassStudentIds(classId, creds);
 }
 
-interface CommitRosterPinIndexEntry {
+export interface CommitRosterPinIndexEntry {
   period: string;
   pin: string;
   classlinkSourcedId: string;
+  /** Replaced PINs; each lands in `users/{teacher}/retired_pins` so it can never seat an anonymous joiner. */
+  formerPins?: string[];
+}
+
+const RETIRED_PINS_SUBCOLLECTION = 'retired_pins';
+const MAX_FORMER_PINS_PER_ENTRY = 10;
+
+/** Well-formed former PINs from an untrusted entry, or undefined. */
+function readFormerPins(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const pins = raw
+    .filter(
+      (p): p is string =>
+        typeof p === 'string' && p.length > 0 && p.length <= 10
+    )
+    .slice(0, MAX_FORMER_PINS_PER_ENTRY);
+  return pins.length > 0 ? pins : undefined;
 }
 
 /**
@@ -1499,7 +1517,15 @@ export const commitRosterPinIndexV1 = onCall(
         skippedMalformed++;
         continue;
       }
-      entries.push({ period, pin, classlinkSourcedId: sourcedId });
+      const formerPins = readFormerPins(
+        (e as { formerPins?: unknown }).formerPins
+      );
+      entries.push({
+        period,
+        pin,
+        classlinkSourcedId: sourcedId,
+        ...(formerPins ? { formerPins } : {}),
+      });
     }
     if (skippedMalformed > 0) {
       console.warn(
@@ -1565,6 +1591,17 @@ export const commitRosterPinIndexV1 = onCall(
       verifiedEntries,
       hmacSecret
     );
+    if (!result.skippedReason) {
+      // The owner's own list: a retired PIN only ever blocks joins on this teacher's sessions.
+      await recordRetiredPins(
+        db,
+        rosterRef,
+        entries,
+        Date.now(),
+        (request.data as { retiredPinsComplete?: unknown })
+          ?.retiredPinsComplete === true
+      );
+    }
     return { ...result, skippedMalformed, skippedNotEnrolled };
   }
 );
@@ -1662,6 +1699,45 @@ export async function reconcileRosterPinIndex(
 
     await batch.commit();
     return { wrote, deleted };
+  }
+}
+
+/** Add linked students' replaced PINs to the teacher's retired_pins; `prune` (a complete list) also drops ones no student holds. */
+export async function recordRetiredPins(
+  db: admin.firestore.Firestore,
+  rosterRef: admin.firestore.DocumentReference,
+  entries: readonly CommitRosterPinIndexEntry[],
+  now: number,
+  prune: boolean
+): Promise<void> {
+  const teacherRef = rosterRef.parent.parent;
+  if (!teacherRef) return;
+  const col = teacherRef.collection(RETIRED_PINS_SUBCOLLECTION);
+  const keys = new Set<string>();
+  for (const entry of entries) {
+    for (const pin of readFormerPins(entry.formerPins) ?? []) {
+      if (pin !== entry.pin) keys.add(retiredPinKey(entry.period, pin));
+    }
+  }
+  const have = await col.where('rosterId', '==', rosterRef.id).get();
+  const ops: ((b: admin.firestore.WriteBatch) => void)[] = [];
+  const present = new Set(have.docs.map((d) => d.id));
+  for (const key of keys) {
+    if (!present.has(key)) {
+      ops.push((b) =>
+        b.set(col.doc(key), { rosterId: rosterRef.id, updatedAt: now })
+      );
+    }
+  }
+  if (prune && entries.length > 0) {
+    for (const d of have.docs) {
+      if (!keys.has(d.id)) ops.push((b) => b.delete(d.ref));
+    }
+  }
+  for (let i = 0; i < ops.length; i += 400) {
+    const batch = db.batch();
+    ops.slice(i, i + 400).forEach((op) => op(batch));
+    await batch.commit();
   }
 }
 

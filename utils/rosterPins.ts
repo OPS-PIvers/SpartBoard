@@ -24,6 +24,7 @@ const withNewPin = (s: Student, pin: string): Student => ({
   ...s,
   pin,
   formerPins: [...new Set([...(s.formerPins ?? []), s.pin])],
+  formerPinsAt: Date.now(),
 });
 
 /**

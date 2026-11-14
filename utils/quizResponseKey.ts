@@ -20,3 +20,9 @@ export function encodeResponseKeySegment(value: string | undefined): string {
   const stripped = normalized.replace(/^_+|_+$/g, '');
   return stripped || 'default';
 }
+
+/** Quiz PIN key segment: leading zeros stripped, one digit padded to two, so 4821 and 04821 share one seat (firestore.rules `pinKeyOk`). */
+export function quizPinKeySegment(pin: string | undefined): string {
+  const seg = encodeResponseKeySegment(pin).replace(/^0+/, '');
+  return /^[0-9]?$/.test(seg) ? seg.padStart(2, '0') : seg;
+}

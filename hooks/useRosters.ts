@@ -63,6 +63,7 @@ async function syncRosterPinIndex(
       period: rosterName,
       pin: s.pin,
       classlinkSourcedId: s.classLinkSourcedId as string,
+      ...(s.formerPins?.length ? { formerPins: s.formerPins } : {}),
     }));
 
   if (entries.length === 0) {
@@ -74,7 +75,7 @@ async function syncRosterPinIndex(
 
   try {
     const callable = httpsCallable<
-      { rosterId: string; entries: typeof entries },
+      { rosterId: string; entries: typeof entries; retiredPinsComplete: true },
       {
         wrote: number;
         deleted: number;
@@ -82,7 +83,11 @@ async function syncRosterPinIndex(
         skippedReason?: string;
       }
     >(functions, 'commitRosterPinIndexV1');
-    const res = await callable({ rosterId, entries });
+    const res = await callable({
+      rosterId,
+      entries,
+      retiredPinsComplete: true,
+    });
     // Server-side input validation may silently drop entries with
     // malformed shape (typo'd ClassLink id, missing pin). Surface
     // any such drops to the console so a teacher debugging "why
@@ -125,6 +130,9 @@ function parseRawStudent(raw: unknown): Student | null {
       (pin): pin is string => typeof pin === 'string' && pin !== ''
     );
     if (pins.length > 0) base.formerPins = pins;
+  }
+  if (typeof s.formerPinsAt === 'number' && Number.isFinite(s.formerPinsAt)) {
+    base.formerPinsAt = s.formerPinsAt;
   }
   if (typeof s.classLinkSourcedId === 'string') {
     base.classLinkSourcedId = s.classLinkSourcedId;

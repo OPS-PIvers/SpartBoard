@@ -374,6 +374,26 @@ function makePinKey(classPeriod: string, pin: string): string {
   return `${classPeriod}${PIN_KEY_SEP}${pin}`;
 }
 
+// Former-PIN entries: key `${FORMER}${pinKey}`, value `${retiredAtMs}${FORMER}${name}`.
+const FORMER = '\u0002';
+// Re-rolls before `formerPinsAt` existed count as retired by this date.
+const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 14);
+
+/** The name on a former-PIN entry, only for a response joined before that PIN was retired. */
+function formerName(
+  value: string | undefined,
+  joinedAt: number | null | undefined
+): string | undefined {
+  if (!value || typeof joinedAt !== 'number') return undefined;
+  const sep = value.indexOf(FORMER);
+  return joinedAt < Number(value.slice(0, sep))
+    ? value.slice(sep + 1)
+    : undefined;
+}
+
+/** A sign-in-length PIN must match exactly; zero-stripping would let a shorter typed PIN borrow it. */
+const isShortPin = (pin: string) => pin.replace(/[^a-z0-9]/gi, '').length < 6;
+
 /**
  * Module-scoped dedupe for the legacy-fallback ambiguity warn in
  * `resolvePinName`. Without this, a live monitor with many anonymous PIN
@@ -405,11 +425,13 @@ export function __resetPinNameWarnDedupe(): void {
  *      maps without composite keys. Also gated on missing `classPeriod`.
  *
  * Both zero-padded (`"01"`) and stripped (`"1"`) PIN forms are accepted.
+ * A retired PIN (`formerPins`) names its student only when `joinedAt` predates the retirement.
  */
 export function resolvePinName(
   map: Record<string, string>,
   classPeriod: string | null | undefined,
-  pin: string | null | undefined
+  pin: string | null | undefined,
+  joinedAt?: number | null
 ): string | undefined {
   if (!pin) return undefined;
   const stripped = pin.replace(/^0+/, '');
@@ -418,6 +440,13 @@ export function resolvePinName(
   if (classPeriod) {
     for (const v of variants) {
       const hit = map[makePinKey(classPeriod, v)];
+      if (hit) return hit;
+    }
+    for (const v of variants) {
+      const hit = formerName(
+        map[FORMER + makePinKey(classPeriod, v)],
+        joinedAt
+      );
       if (hit) return hit;
     }
     // classPeriod was provided but nothing matched. Don't fall through to
@@ -437,7 +466,10 @@ export function resolvePinName(
     const suffix = `${PIN_KEY_SEP}${v}`;
     for (const k in map) {
       if (k.endsWith(suffix)) {
-        const name = map[k];
+        const name = k.startsWith(FORMER)
+          ? formerName(map[k], joinedAt)
+          : map[k];
+        if (!name) continue;
         firstHit ??= name;
         seen.add(name);
       }
@@ -501,7 +533,7 @@ export function buildPinToExportNameMap(
   );
 }
 
-/** Current PINs win; a replaced PIN (`formerPins`) still names its student on older responses. */
+/** Current PINs win; a replaced PIN (`formerPins`) names its student only on responses joined before it was replaced. */
 function buildRosterPinMap(
   rosters: ClassRoster[],
   periodNames: string[] | undefined,
@@ -509,25 +541,27 @@ function buildRosterPinMap(
 ): Record<string, string> {
   const map: Record<string, string> = {};
   if (!periodNames || periodNames.length === 0) return map;
-  const put = (key: string, name: string, overwrite: boolean) => {
-    if (overwrite || !(key in map)) map[key] = name;
-  };
-  for (const former of [false, true]) {
-    for (const pName of periodNames) {
-      const roster = rosters.find((r) => r.name === pName);
-      if (!roster?.students) continue;
-      for (const s of roster.students) {
-        if (!s.firstName && !s.lastName) continue;
-        const name = nameOf(s);
-        const pins = former ? (s.formerPins ?? []) : s.pin ? [s.pin] : [];
-        for (const pin of pins) {
-          put(makePinKey(pName, pin), name, !former);
-          const stripped = pin.replace(/^0+/, '');
-          if (stripped && stripped !== pin) {
-            put(makePinKey(pName, stripped), name, !former);
-          }
+  for (const pName of periodNames) {
+    const roster = rosters.find((r) => r.name === pName);
+    if (!roster?.students) continue;
+    for (const s of roster.students) {
+      if (!s.firstName && !s.lastName) continue;
+      const name = nameOf(s);
+      const put = (pin: string, former: boolean) => {
+        const forms = [pin];
+        const stripped = pin.replace(/^0+/, '');
+        if (stripped && stripped !== pin && isShortPin(pin))
+          forms.push(stripped);
+        for (const form of forms) {
+          const key = makePinKey(pName, form);
+          if (!former) map[key] = name;
+          else
+            map[FORMER + key] ??=
+              `${s.formerPinsAt ?? LEGACY_FORMER_PINS_AT}${FORMER}${name}`;
         }
-      }
+      };
+      if (s.pin) put(s.pin, false);
+      for (const pin of s.formerPins ?? []) put(pin, true);
     }
   }
   return map;

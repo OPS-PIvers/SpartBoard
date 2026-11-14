@@ -889,6 +889,8 @@ service cloud.firestore {
       }
     }
 
+    // /users/{userId}/retired_pins/{period__pin}: linked students' replaced PINs, Admin SDK only (no client access).
+
     // Library items a teacher put on a live shared board themselves (kind_itemId list); only they publish.
     match /users/{userId}/board_item_picks/{shareId} {
       allow read, write: if ownsUserTeacher(userId) && notAnon();
@@ -4540,11 +4542,9 @@ service cloud.firestore {
       return quizStaff() || isAdmin();
     }
     // The caller owns this code once the write lands (getAfter: claimed in the same batch).
-    // TRANSITIONAL: a still-unclaimed code also passes, so a tab on the client before
-    // owner records can assign until it reloads; drop `o == null` the release after.
     function ownsJoinCode(c) {
       let o = dbGetAfter('quiz_join_codes', c);
-      return o == null || o.data.teacherUid == authUid();
+      return o != null && o.data.teacherUid == authUid();
     }
     match /quiz_join_codes/{code} {
       allow get: if signedIn();
@@ -4721,13 +4721,18 @@ service cloud.firestore {
           let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
           return t == '' ? 'default' : t;
         }
+        // Leading zeros stripped (one digit padded to two), so 4821 and 04821 share a seat (quizPinKeySegment).
+        // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one.
         function pinKeyOk(s, d) {
           let p = keySeg(d.get('pin', ''));
+          let z = p.replace('^0+', '');
+          let k = keySeg(d.get('classPeriod', '')) + '-' + (z == '' ? '00' : (z.matches('[0-9]') ? '0' + z : z));
           let pn = s.get('periodNames', []);
-          return responseKey == 'pin-' + keySeg(d.get('classPeriod', '')) + '-' + p &&
+          return responseKey == 'pin-' + k &&
             (pn.size() == 0 || d.get('classPeriod', '') in pn) &&
             (s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0 ||
-             p.replace('_', '').size() < 6);
+             (p.replace('_', '').size() < 6 &&
+              !dbExists4('users', s.teacherUid, 'retired_pins', k.replace('-', '__'))));
         }
 
         // A missing doc is readable only at the caller's own uid key, so a
@@ -4876,6 +4881,9 @@ service cloud.firestore {
             (incoming().get('submittedAt', null) == null ?
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
              nearServerNow(incoming().submittedAt))) &&
+           // A PIN-keyed doc keeps the period its key names.
+           (!changed(['classPeriod']) || responseKey == existing().studentUid ||
+            responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
            changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'inputSignals']) &&
            tabExitsOk() &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
@@ -5629,7 +5637,10 @@ service cloud.firestore {
           afterOpen(vaS()) &&
           periodJoinOk(vaS(), incoming()) &&
           staffJoinOk(vaS(), incoming()) &&
-          joinKeyOk(vaS(), responseDocId);
+          joinKeyOk(vaS(), responseDocId) &&
+          // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1.
+          (vaS().get('rosterIds', []).size() == 0 || vaS().get('classIds', []).size() == 0 ||
+           !responseDocId.matches('pin-[a-z0-9_]*-(_*[a-z0-9]){6}.*'));
         // Update split: TEACHER branch (PR3 publish-scores: score/isCorrect/
         // scoreVisibility; gated by parent teacherUid, admins also pass) and
         // STUDENT branch (answer-submit, append-only invariants). Mutually

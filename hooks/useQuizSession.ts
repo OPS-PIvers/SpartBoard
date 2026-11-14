@@ -40,7 +40,10 @@ import {
   type DocumentSnapshot,
   type FieldValue,
 } from 'firebase/firestore';
-import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
+import {
+  encodeResponseKeySegment,
+  quizPinKeySegment,
+} from '@/utils/quizResponseKey';
 import {
   LIVE_LEADERBOARD_COLLECTION,
   LIVE_LEADERBOARD_DOC,
@@ -1154,6 +1157,17 @@ export function computeResponseKey(
   return `pin-${encodeResponseKeySegment(classPeriod)}-${encodeResponseKeySegment(pin)}`;
 }
 
+/** Quiz response key: like `computeResponseKey`, with the PIN in its canonical `quizPinKeySegment` form. */
+export function computeQuizResponseKey(
+  authUid: string,
+  isAnonymous: boolean,
+  pin: string,
+  classPeriod: string | undefined
+): string {
+  if (!isAnonymous) return authUid;
+  return `pin-${encodeResponseKeySegment(classPeriod)}-${quizPinKeySegment(pin)}`;
+}
+
 /**
  * Branded type for the deterministic response-doc key (computed by
  * `computeResponseKey` / read off `_responseKey`). Pure type-level brand —
@@ -1228,7 +1242,9 @@ async function findExistingResponseDoc(
   sessionId: string,
   authUid: string,
   isAnonymous: boolean,
-  deterministicKey: string
+  deterministicKey: string,
+  // Pre-canonical key (leading zeros kept): a doc this device made before the change still resumes.
+  paddedKey: string = deterministicKey
 ): Promise<{ key: string; snap: DocumentSnapshot | null }> {
   // Probe the deterministic key. For anonymous joiners, `permission-denied`
   // here means either no doc yet or a doc written by a different anon UID
@@ -1258,6 +1274,22 @@ async function findExistingResponseDoc(
   }
   if (deterministicSnap?.exists()) {
     return { key: deterministicKey, snap: deterministicSnap };
+  }
+  if (isAnonymous && paddedKey !== deterministicKey) {
+    try {
+      const paddedSnap = await getDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          paddedKey
+        )
+      );
+      if (paddedSnap.exists()) return { key: paddedKey, snap: paddedSnap };
+    } catch (err) {
+      if (getErrorCode(err) !== 'permission-denied') throw err;
+    }
   }
   if (isAnonymous && deterministicKey !== authUid) {
     // Probe the legacy authUid-keyed slot. The doc, if it exists, was created
@@ -2836,7 +2868,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // device. studentRole users still key by their auth uid (stable per
         // user already). The helper also handles the legacy-key fallback
         // for anonymous students rejoining pre-deterministic-keying sessions.
-        const deterministicKey = computeResponseKey(
+        const deterministicKey = computeQuizResponseKey(
           studentUid,
           isAnonymous,
           sanitizedPin,
@@ -2847,7 +2879,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             sessionDoc.id,
             studentUid,
             isAnonymous,
-            deterministicKey
+            deterministicKey,
+            computeResponseKey(
+              studentUid,
+              isAnonymous,
+              sanitizedPin,
+              classPeriod
+            )
           );
 
         sessionIdRef.current = sessionDoc.id;

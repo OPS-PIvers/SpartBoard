@@ -24,6 +24,8 @@ export interface SyncStudent {
   lastName: string;
   pin: string;
   formerPins?: string[];
+  /** When `formerPins` last grew (ms); a former PIN names the student only on older responses. */
+  formerPinsAt?: number;
   classLinkSourcedId?: string;
   email?: string;
   restrictedStudentIds?: string[];
@@ -126,6 +128,7 @@ export function assignPins(
         ...s,
         pin: takeRandomPin(),
         formerPins: [...new Set([...(s.formerPins ?? []), s.pin])],
+        formerPinsAt: Date.now(),
       };
     }
     if (s.pin) return s;

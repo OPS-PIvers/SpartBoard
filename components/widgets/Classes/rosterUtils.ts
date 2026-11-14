@@ -126,6 +126,7 @@ export const generateStudentsList = (
     };
     if (existing?.formerPins && existing.formerPins.length > 0) {
       student.formerPins = existing.formerPins;
+      if (existing.formerPinsAt) student.formerPinsAt = existing.formerPinsAt;
     }
     if (existing?.classLinkSourcedId !== undefined) {
       student.classLinkSourcedId = existing.classLinkSourcedId;

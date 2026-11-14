@@ -1388,7 +1388,12 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         return `${sso.familyName} ${sso.givenName}`.trim();
       }
       const rosterName = response.pin
-        ? resolvePinName(exportPinToName, response.classPeriod, response.pin)
+        ? resolvePinName(
+            exportPinToName,
+            response.classPeriod,
+            response.pin,
+            response.joinedAt
+          )
         : null;
       if (rosterName) return rosterName;
       return resolveTargetStudentName(response);

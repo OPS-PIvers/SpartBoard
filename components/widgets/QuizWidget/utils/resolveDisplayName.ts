@@ -57,7 +57,8 @@ export function resolveResponseDisplayName(
     const rosterName = resolvePinName(
       pinToName,
       response.classPeriod,
-      response.pin
+      response.pin,
+      response.joinedAt
     );
     if (rosterName) return rosterName;
     return `PIN ${response.pin}`;
@@ -101,7 +102,7 @@ export function hasPinIdentity(response: QuizResponse): boolean {
  * "Student"), so counting them would flood the teacher with false positives —
  * they're skipped here.
  *
- * Returns the set of `responseTeamId(response)` values that share a real name
+ * Returns the set of `responseDuplicateKey(response)` values that share a real name
  * with at least one other response; callers badge those rows for review.
  */
 export function findDuplicateResponseIds(
@@ -116,7 +117,7 @@ export function findDuplicateResponseIds(
     if (name === UNKNOWN_STUDENT_LABEL) continue;
     if (r.pin && name === `PIN ${r.pin}`) continue;
     const ids = idsByName.get(name) ?? new Set<string>();
-    ids.add(responseTeamId(r));
+    ids.add(responseDuplicateKey(r));
     idsByName.set(name, ids);
   }
   const duplicates = new Set<string>();
@@ -124,6 +125,11 @@ export function findDuplicateResponseIds(
     if (ids.size > 1) ids.forEach((id) => duplicates.add(id));
   }
   return duplicates;
+}
+
+/** Per-doc key for duplicate badging, so two docs sharing one PIN still count as two. */
+export function responseDuplicateKey(response: QuizResponse): string {
+  return response._responseKey ?? responseTeamId(response);
 }
 
 /**

@@ -12,6 +12,7 @@ export interface DraftRow {
   lastName: string;
   pin: string;
   formerPins?: string[];
+  formerPinsAt?: number;
   classLinkSourcedId?: string;
   email?: string;
   restrictedStudentIds?: string[];
@@ -38,6 +39,7 @@ export function useRosterRowsState(roster: ClassRoster | null) {
         lastName: s.lastName,
         pin: s.pin,
         formerPins: s.formerPins,
+        formerPinsAt: s.formerPinsAt,
         classLinkSourcedId: s.classLinkSourcedId,
         email: s.email,
         restrictedStudentIds: s.restrictedStudentIds,
@@ -217,6 +219,7 @@ export function useRosterRowsState(roster: ClassRoster | null) {
             };
             if (r.formerPins && r.formerPins.length > 0) {
               student.formerPins = r.formerPins;
+              if (r.formerPinsAt) student.formerPinsAt = r.formerPinsAt;
             }
             if (r.classLinkSourcedId !== undefined) {
               student.classLinkSourcedId = r.classLinkSourcedId;
