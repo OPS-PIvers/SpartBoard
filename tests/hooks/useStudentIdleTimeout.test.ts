@@ -24,7 +24,7 @@ vi.mock('@/context/StudentAuthContextValue', () => ({
 import {
   useStudentIdleTimeout,
   STUDENT_IDLE_TIMEOUT_MS,
-  STUDENT_LOGIN_PATH,
+  STUDENT_IDLE_LOGIN_PATH,
 } from '@/hooks/useStudentIdleTimeout';
 
 // Stub the read-only window.location so `.assign()` is observable and
@@ -67,7 +67,7 @@ describe('useStudentIdleTimeout', () => {
     });
     expect(clearStudentFirstNameMock).toHaveBeenCalledTimes(1);
     expect(signOutMock).toHaveBeenCalledTimes(1);
-    expect(assignMock).toHaveBeenCalledWith(STUDENT_LOGIN_PATH);
+    expect(assignMock).toHaveBeenCalledWith(STUDENT_IDLE_LOGIN_PATH);
   });
 
   it('clears the first name BEFORE redirecting (session hygiene)', () => {
@@ -162,7 +162,7 @@ describe('useStudentIdleTimeout', () => {
       vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
     });
     // The redirect is the real remediation and must happen regardless.
-    expect(assignMock).toHaveBeenCalledWith(STUDENT_LOGIN_PATH);
+    expect(assignMock).toHaveBeenCalledWith(STUDENT_IDLE_LOGIN_PATH);
     // Flush the rejected promise's .catch so it doesn't leak.
     await Promise.resolve();
   });
