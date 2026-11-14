@@ -228,6 +228,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 claude/project-thread-8jx25m
 claude/ab112-dok-branch
+(OPS-PIvers/claude-skills) spartboard-dok
 claude/project-thread-fgyb5l
 claude/project-thread-fgyb5l-docs
 claude/project-thread-5ghkl1
