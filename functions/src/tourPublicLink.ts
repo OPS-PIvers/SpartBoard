@@ -6,6 +6,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import { isAiTeacherCaller, type AiCallerToken } from './aiCallerGate';
 import { GL_TOURS_COLLECTION } from './glTours';
+import { countPublicView } from './tourCounts';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
   MAX_PUBLIC_PICTURE_BYTES,
@@ -39,6 +40,8 @@ export interface PublicLinkDeps {
   pictureGeneration: (path: string) => Promise<string | null>;
   /** That exact generation's bytes when it exists and fits the size cap; null otherwise. */
   readPicture: (path: string, generation: string) => Promise<Uint8Array | null>;
+  /** Counts one served tour page; never throws. */
+  countView?: (setId: string) => Promise<void>;
 }
 
 const latch = async (
@@ -122,7 +125,10 @@ export async function handlePublicRequest(
     }
   );
   if (!resolved) return { status: 404 };
-  if (stepId === undefined) return { status: 200, tour: resolved.tour };
+  if (stepId === undefined) {
+    await deps.countView?.(resolved.setId);
+    return { status: 200, tour: resolved.tour };
+  }
   const path = resolved.sources.get(stepId);
   if (!path) return { status: 404 };
   // Pinned to the confirmed generation, so bytes swapped in after the check above are never sent.
@@ -224,6 +230,7 @@ export function defaultPublicLinkDeps(
     async isAdmin(email) {
       return !!email && (await db.collection('admins').doc(email).get()).exists;
     },
+    countView: (setId) => countPublicView(db, setId),
     async latchOff(setId, reason) {
       await linksOf(db)
         .doc(setId)

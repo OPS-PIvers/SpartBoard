@@ -36,11 +36,13 @@ export type SendNoteInput =
       reply: unknown;
       selectionOnly?: boolean;
       /** The Platform reader that couldn't read the page; true for Schoology's quiz reader. */
-      fellBack?: boolean | 'edpuzzle' | 'quizlet';
+      fellBack?: boolean | 'edpuzzle' | 'quizlet' | 'google-forms';
       /** An Edpuzzle lesson went as a lesson; `skipped` questions had no SpartBoard kind. */
       lesson?: { skipped: number };
       /** A Quizlet set went as cards; how many. */
       cards?: number;
+      /** A Google Form went as a form; how many questions. */
+      questions?: number;
     };
 
 export function sendNote(input: SendNoteInput): SendNote {
@@ -71,9 +73,9 @@ export function sendNote(input: SendNoteInput): SendNote {
     const { skipped } = input.lesson;
     const left =
       skipped === 1
-        ? ' 1 question SpartBoard has no kind for was left out.'
+        ? ' 1 question SpartBoard has no kind for was skipped.'
         : skipped > 1
-          ? ` ${skipped} questions SpartBoard has no kind for were left out.`
+          ? ` ${skipped} questions SpartBoard has no kind for were skipped.`
           : '';
     return {
       ok: true,
@@ -86,6 +88,14 @@ export function sendNote(input: SendNoteInput): SendNote {
       ok: true,
       open: 'import',
       text: `Sent this set to SpartBoard (${input.cards === 1 ? '1 card' : `${input.cards} cards`}).`,
+    };
+  if (input.questions !== undefined)
+    return { ok: true, open: 'import', text: 'Sent to SpartBoard.' };
+  if (input.fellBack === 'google-forms')
+    return {
+      ok: true,
+      open: 'import',
+      text: 'Form couldn’t be read. Page text was sent to SpartBoard.',
     };
   const what = input.selectionOnly ? 'your selection' : 'this page';
   const reader =

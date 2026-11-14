@@ -46,6 +46,10 @@ const isNamedSlides = (s: PendingSource): boolean =>
 const PHOTO_TYPES = /^image\/(png|jpe?g|gif|webp|avif|heic|heif)$/i;
 const isPhoto = (s: PendingSource): boolean =>
   PHOTO_TYPES.test(s.file?.type ?? '');
+/** A Google Form the extension read, or one it can read through the Forms API. */
+export const isForm = (s: PendingSource): boolean =>
+  !!s.inboxItem?.form &&
+  (s.inboxItem.form.items.length > 0 || !!s.inboxItem.form.formId);
 const hasTabbedRows = (s: PendingSource): boolean =>
   !s.file && !!s.text && /\t|,/.test(s.text);
 
@@ -69,7 +73,13 @@ export const IMPORT_ROUTES: Partial<Record<ImportTarget, ImportRoute>> = {
     widgetType: 'quiz',
     landing: 'review',
     // Photos are read only through the wizard's own picture picker, so they aren't offered here yet.
-    accepts: (s) => hasExt(s, QUIZ_DOCUMENT) || isCsv(s),
+    accepts: (s) => hasExt(s, QUIZ_DOCUMENT) || isCsv(s) || isForm(s),
+  },
+  poll: {
+    label: 'Poll',
+    widgetType: 'poll',
+    landing: 'place',
+    accepts: isForm,
   },
   questionBank: {
     label: 'Question bank',
@@ -154,6 +164,7 @@ export const IMPORT_TARGET_FEATURES: Partial<
 > = {
   quiz: null,
   questionBank: null,
+  poll: 'import-google-forms',
   flashcards: 'import-flashcards',
   activityWall: 'import-activity-wall',
   board: 'import-new-board',

@@ -1,6 +1,7 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  ClipboardList,
   FolderTree,
   MonitorPlay,
   ArrowLeftRight,
@@ -57,7 +58,6 @@ import {
   CloudSun,
   Workflow,
   SquareChevronDown,
-  PanelLeft,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1194,19 +1194,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Stimuli as tabs beside the question. Admin-only until Paul has tested it in prod.
-  'quiz-stimulus-tabs': {
-    label: 'Stimulus tabs',
-    icon: PanelLeft,
-    description:
-      'Questions with two or more stimuli show them as named tabs beside the question, with the calculator last.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Explanations on questions and answers. Admin-only until Paul has tested it in prod.
   'quiz-explanations': {
     label: 'Quiz explanations',
@@ -1483,6 +1470,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Import: Flashcards',
     icon: Layers,
     description: 'Offers Flashcards for spreadsheets, rows of terms and pages.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    requires: 'universal-import',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'import-google-forms': {
+    label: 'Import: Google Forms',
+    icon: ClipboardList,
+    description:
+      'Offers Quiz or Poll for a Google Form sent from the extension.',
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',

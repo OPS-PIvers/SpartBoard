@@ -3274,7 +3274,6 @@ const TeacherQuizWidget: React.FC<{
               : {
                   quiz: studentView.quiz,
                   behavior: studentView.behavior,
-                  stimulusTabsOn: canAccessFeature('quiz-stimulus-tabs'),
                   crossOutOn: canAccessFeature('quiz-cross-out'),
                 })}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}

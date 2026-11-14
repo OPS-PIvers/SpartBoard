@@ -1,8 +1,8 @@
 # Import: any Source into SpartBoard
 
 Status: planned 2026-10-29 (grill with Paul). Built (verified 2026-11-01): Wave 1 slices S1-S8, the
-Edpuzzle, YouTube and Quizlet readers, all behind `universal-import` and the per-type `import-*`
-flags. Not built: Wave 2 (Google Forms, Canvas/QTI files), Wave 3 readers, S8 PR2. Terms are defined in `GLOSSARY.md`; the
+Edpuzzle, YouTube, Quizlet and Google Forms readers, all behind `universal-import` and the per-type `import-*`
+flags. Not built: Wave 2 (Canvas/QTI files), Wave 3 readers, S8 PR2. Terms are defined in `GLOSSARY.md`; the
 extension-side reading decision is `docs/adr/0001-platform-readers-run-in-the-extension.md`.
 
 ## Goal
@@ -137,6 +137,13 @@ board. Schoology is one Source among many. This picks up the out-of-scope list o
   - **Left out:** pictures, recorded audio and diagram cards are counted and named once on the review screen. A card whose term or definition is only a picture is skipped as incomplete.
   - **Fallback:** an unreadable set falls back to the page text with a `quizlet` reader failure (D18), and the Send note says so.
   - **Fixture (D27 exception):** Quizlet answers this container with a captcha, so the test sample `extension/src/quizlet/fixtures/studiableItems.json` follows the reply shape public Quizlet-to-Anki importers read, not a probed set. One Send of a public set on the dev extension confirms the shape before the release that opens Import.
+
+- **D39 Google Forms reader (Paul, 2026-11-14).** A Send on a form's editor (`/forms/d/<id>/edit`) or a responder page (`/forms/d/e/<id>/viewform`) sends the form; Add to board offers **Quiz** or **Poll**, no AI, behind `import-google-forms`.
+  - **Read (Paul chose "Forms API plus page fallback"):** the extension reads the page data (`FB_PUBLIC_LOAD_DATA_`) and the pictures the page drew (`[data-item-id] img`); on the editor it reads the form's own responder page with the teacher's sign-in and also sends the editor id. Picking Quiz or Poll on an editor Send asks once for `forms.body.readonly` and reads `forms.get`, which adds the key, points and every picture; when Google refuses, the page read is used. The Forms API is enabled on both projects (Paul, 2026-11-14).
+  - **Pictures:** copied through `fetchImportImage` into the teacher's Drive at save, like quiz document pictures; never linked. A page read only sees the first section's pictures, and the rest are counted.
+  - **Quiz:** choice and dropdown become MC, checkboxes MA, short answer FIB with a key or written without, paragraph written, each grid row its own MC or MA, scales and ratings left out ("Rating scales are not supported in quizzes."), a name or email question unticked. Choices past the editor's caps are left out with a row note. Date, time, file upload and video are counted as left out.
+  - **Poll:** choices become choice questions with the key marked, a 1-5 or 1-10 scale stays a scale (other ranges vote as numbers), short answer becomes a word cloud and paragraph open text; at most 20 questions; pictures are left out.
+  - **Fixture:** `extension/src/googleForms/fixtures/questionTypes.json` is a public form covering every question type, probed read-only 2026-11-14.
 
 ### Guards and release
 

@@ -403,12 +403,16 @@ export function planMemberUpdate(
 
 export function planMemberDelete(
   t: CallerTier,
-  existing: Data | undefined
+  emailLower: string,
+  existing: Data | undefined,
+  legacySuperAdmins: string[]
 ): void {
   if (t.superAdmin) return;
+  // A missing doc keeps the legacy grant, so removing a deactivated legacy-list member would reactivate it.
   if (
     t.orgRole === 'domain_admin' &&
-    (existing?.roleId ?? '') !== 'super_admin'
+    (existing?.roleId ?? '') !== 'super_admin' &&
+    (liveStatus(existing) || !legacySuperAdmins.includes(emailLower))
   ) {
     return;
   }
@@ -694,7 +698,9 @@ export async function runOrgAdminAction(
         });
       } else {
         if (!orgAdmin(tier)) deny();
-        existing.forEach((before) => planMemberDelete(tier, before));
+        existing.forEach((before, i) =>
+          planMemberDelete(tier, ids[i], before, legacy)
+        );
       }
       const removedAt = new Date().toISOString();
       for (const part of chunk(ids, 200)) {

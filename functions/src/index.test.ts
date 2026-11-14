@@ -4018,6 +4018,7 @@ describe('index barrel — deployed export set', () => {
     'tourPublicStepsV1',
     'tourPublicLinkGuard',
     'tourPublicLinkStartV1',
+    'tourRunCounter',
     'schoologyImportStatusV1',
     'schoologyImportInboxV1',
     'schoologyImportInboxCleanup',

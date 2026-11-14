@@ -588,7 +588,7 @@ export function describeInputSignals(
       otherCauses: DEFAULT_OTHER_CAUSES['unkeyed-text'],
     });
   }
-  if (total.pastedChars > 0) {
+  if (total.pastedChars > 0 && !hidden?.has('pasted')) {
     out.push({
       id: 'pasted',
       text: `Pasted ${plural(total.pastedChars, 'character')} into answer boxes.`,
