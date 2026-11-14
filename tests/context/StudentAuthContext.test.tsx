@@ -35,7 +35,7 @@ vi.mock('@/hooks/useStudentIdleTimeout', async () => {
   >('@/hooks/useStudentIdleTimeout');
   return {
     ...actual,
-    useStudentIdleTimeout: vi.fn(),
+    useStudentIdleTimeout: vi.fn(() => ({ warning: false })),
   };
 });
 

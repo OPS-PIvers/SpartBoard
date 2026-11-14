@@ -1098,6 +1098,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         }
         tabWarnings={myResponse?.resultsTabWarnings ?? 0}
         lockedOut={myResponse?.resultsLockedOut === true}
+        backHref={isStudentRole ? '/my-assignments' : undefined}
         pin={myResponse?.pin}
         light
       >

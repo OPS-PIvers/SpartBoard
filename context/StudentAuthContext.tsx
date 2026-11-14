@@ -11,6 +11,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
+import { StudentIdleWarning } from '@/components/student/StudentIdleWarning';
 import { auth, isAuthBypass } from '@/config/firebase';
 import {
   useStudentIdleTimeout,
@@ -301,7 +302,9 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Idle timeout (15 minutes). `useStudentIdleTimeout` owns the listeners,
   // throttle, timer, and sign-out+redirect. Armed only for authenticated
   // student sessions; bypass mode and teacher previews never arm it.
-  useStudentIdleTimeout(!isAuthBypass && state.status === 'authenticated');
+  const { warning: idleWarning } = useStudentIdleTimeout(
+    !isAuthBypass && state.status === 'authenticated'
+  );
 
   // --- Imperative sign-out (exposed on context) -----------------------------
   const signOut = useCallback(async () => {
@@ -353,6 +356,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <StudentAuthContext.Provider value={value}>
       {children}
+      <StudentIdleWarning visible={idleWarning} />
     </StudentAuthContext.Provider>
   );
 };
