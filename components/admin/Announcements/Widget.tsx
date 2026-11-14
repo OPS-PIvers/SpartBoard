@@ -54,6 +54,7 @@ import {
 import { AnnouncementFormData } from './types';
 import { TextConfigEditor } from './TextConfigEditor';
 import { EmbedConfigEditor } from './EmbedConfigEditor';
+import { DraftNumberField } from '@/components/admin/DraftNumberField';
 
 // Widget types that make practical sense as announcements
 const ANNOUNCEMENT_WIDGET_TYPES: WidgetType[] = [
@@ -1286,24 +1287,21 @@ export const AnnouncementsManager: React.FC = () => {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Width (px)
                     </label>
-                    <input
-                      type="number"
+                    <DraftNumberField
                       {...tourAttr('admin.announcements.width')}
                       min={200}
                       max={1920}
                       step={10}
                       value={form.widgetSize.w}
-                      onChange={(e) => {
-                        const parsed = parseInt(e.target.value, 10);
-                        if (!Number.isFinite(parsed)) return;
+                      onCommit={(n) =>
                         setForm((f) => ({
                           ...f,
                           widgetSize: {
                             ...f.widgetSize,
-                            w: Math.min(1920, Math.max(200, parsed)),
+                            w: Math.min(1920, Math.max(200, Math.round(n))),
                           },
-                        }));
-                      }}
+                        }))
+                      }
                       className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                     />
                   </div>
@@ -1311,24 +1309,21 @@ export const AnnouncementsManager: React.FC = () => {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Height (px)
                     </label>
-                    <input
-                      type="number"
+                    <DraftNumberField
                       {...tourAttr('admin.announcements.height')}
                       min={100}
                       max={1080}
                       step={10}
                       value={form.widgetSize.h}
-                      onChange={(e) => {
-                        const parsed = parseInt(e.target.value, 10);
-                        if (!Number.isFinite(parsed)) return;
+                      onCommit={(n) =>
                         setForm((f) => ({
                           ...f,
                           widgetSize: {
                             ...f.widgetSize,
-                            h: Math.min(1080, Math.max(100, parsed)),
+                            h: Math.min(1080, Math.max(100, Math.round(n))),
                           },
-                        }));
-                      }}
+                        }))
+                      }
                       className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                     />
                   </div>
