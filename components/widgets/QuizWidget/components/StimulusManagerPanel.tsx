@@ -313,11 +313,14 @@ const isEditableTarget = (target: EventTarget | null): boolean =>
     target.tagName === 'INPUT' ||
     target.tagName === 'TEXTAREA');
 
+const isImageFile = (f: File): boolean => f.type.startsWith('image/');
+
 /** Ctrl+V of a copied image or file anywhere while the panel is open. */
 function usePasteFiles(
   onFiles: (files: File[]) => void,
   disabled: boolean,
-  scopeRef?: React.RefObject<HTMLElement | null>
+  scopeRef?: React.RefObject<HTMLElement | null>,
+  accept?: (file: File) => boolean
 ) {
   useEffect(() => {
     if (disabled) return;
@@ -335,7 +338,7 @@ function usePasteFiles(
           : !!pane?.contains(target);
         if (!inScope) return;
       }
-      const files = Array.from(data.files);
+      const files = Array.from(data.files).filter((f) => !accept || accept(f));
       if (files.length === 0) return;
       // Pasting copied text into a field keeps working as normal.
       if (isEditableTarget(e.target) && data.types.includes('text/plain')) {
@@ -346,7 +349,7 @@ function usePasteFiles(
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [onFiles, disabled, scopeRef]);
+  }, [onFiles, disabled, scopeRef, accept]);
 }
 
 const fileButtonClass =
@@ -1008,13 +1011,17 @@ const AttachStimulusSection: React.FC<{
   const [open, setOpen] = useState(false);
   const onPasted = useCallback(
     (files: File[]) => {
-      if (!files.some((f) => f.type.startsWith('image/'))) return;
       setOpen(true);
       onPastedFiles(files);
     },
     [onPastedFiles]
   );
-  usePasteFiles(onPasted, intake.busy || !pasteScopeRef, pasteScopeRef);
+  usePasteFiles(
+    onPasted,
+    intake.busy || !pasteScopeRef,
+    pasteScopeRef,
+    isImageFile
+  );
   const drop = useFilesDrop((files) => {
     setOpen(true);
     void addFiles(addFromFile, files, (s) => onToggle(s.id));

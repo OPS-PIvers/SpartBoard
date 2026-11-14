@@ -11329,7 +11329,6 @@ export type GlobalFeature =
   | 'quiz-dok'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
   | 'quiz-blank-types'
-  /** Quiz stimuli as named tabs in the panel beside the question (M11). */
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
