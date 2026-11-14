@@ -8,6 +8,10 @@ import {
   type WrittenAnswerLog,
 } from '@/utils/inputSignals';
 import {
+  isSignShown,
+  readInputSignSettings,
+} from '@/utils/inputSignalSettings';
+import {
   PAUSE_CAP_MS,
   parseWritingLog,
   summarizeWriting,
@@ -201,8 +205,14 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
   questionOrder,
   children,
 }) => {
+  const auth = useContext(AuthContext);
+  const hidden = !isSignShown(
+    readInputSignSettings(auth?.globalPermissions),
+    'writing-playback'
+  );
   const enabled =
-    useContext(AuthContext)?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
+    auth?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true &&
+    (!hidden || auth.isAdmin === true);
   const answers = useMemo(
     () => (enabled ? writingLogs(signals) : []),
     [enabled, signals]
@@ -227,6 +237,11 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
               <History aria-hidden className="h-4 w-4 shrink-0" />
               Writing playback
             </p>
+            {hidden && (
+              <p className="mb-2 text-xs font-semibold text-slate-500">
+                Hidden from teachers
+              </p>
+            )}
             <ul className="space-y-1">
               {answers.map((a) => {
                 const s = summarizeWriting(parseWritingLog(a.log).edits);

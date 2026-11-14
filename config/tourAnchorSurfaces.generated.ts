@@ -1972,6 +1972,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.features.filter-toggle': ['admin.widgets'],
     'admin.features.daily-limit-toggle': ['admin.shared.access-controls'],
     'admin.features.daily-limit-number': ['admin.shared.access-controls'],
+    'admin.features.input-sign-toggle': ['admin.shared.access-controls'],
+    'admin.features.input-sign-text': ['admin.shared.access-controls'],
     'admin.features.model-tier': ['admin.shared.access-controls'],
     'admin.access.expand': ['admin.shared.access-controls', 'admin.widgets'],
     'admin.access.enabled': ['admin.shared.access-controls', 'admin.widgets'],

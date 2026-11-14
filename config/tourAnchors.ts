@@ -8663,6 +8663,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.features.input-sign-toggle': {
+    label: 'Unusual input sign switch',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.input-sign-text': {
+    label: 'Unusual input sign "Could also be" box',
+    perField: true,
+    panel: true,
+  },
   'admin.features.model-tier': {
     label: 'Model select on a feature row',
     perField: true,

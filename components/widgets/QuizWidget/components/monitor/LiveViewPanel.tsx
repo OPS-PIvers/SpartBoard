@@ -1,5 +1,6 @@
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useEffectEvent,
   useMemo,
@@ -27,6 +28,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { Z_INDEX } from '@/config/zIndex';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { useDashboard } from '@/context/useDashboard';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useQuizLiveViewAlwaysNotify } from '@/hooks/useQuizHandRaiseMode';
 import { useServerNow } from '@/hooks/useServerNow';
@@ -34,6 +36,10 @@ import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
 import { RecordingNoticeDrawingContext } from '@/components/quiz/recording/recordingNoticeDrawing';
 import { snapshotFontEmbedCss } from '@/components/tours/snapshotFonts';
 import { logError } from '@/utils/logError';
+import {
+  isSignShown,
+  readInputSignSettings,
+} from '@/utils/inputSignalSettings';
 import {
   LIVE_VIEW_RENEW_MS,
   liveViewResponse,
@@ -108,6 +114,12 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const [tell, setTell] = useState(false);
   const notify = alwaysNotify || tell;
   const now = useServerNow(1000);
+  const auth = useContext(AuthContext);
+  const signs = readInputSignSettings(auth?.globalPermissions);
+  const showPastes =
+    auth?.isAdmin === true ||
+    isSignShown(signs, 'pasted') ||
+    isSignShown(signs, 'paste-attempts');
 
   const index = students.findIndex((s) => s.key === studentKey);
   const student = index >= 0 ? students[index] : undefined;
@@ -462,11 +474,13 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
               {stats.input ? (
                 <>
                   <Stat label="Keys typed">{stats.input.keys}</Stat>
-                  <Stat label="Pastes">
-                    {stats.input.pastes}
-                    {stats.input.pastedChars > 0 &&
-                      `, ${stats.input.pastedChars} characters`}
-                  </Stat>
+                  {showPastes && (
+                    <Stat label="Pastes">
+                      {stats.input.pastes}
+                      {stats.input.pastedChars > 0 &&
+                        `, ${stats.input.pastedChars} characters`}
+                    </Stat>
+                  )}
                   <Stat label="Deletions">{stats.input.deletions}</Stat>
                   <Stat label="Clicks">{stats.input.clicks}</Stat>
                 </>
