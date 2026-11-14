@@ -29,6 +29,8 @@ All widget admin configs are stored in Firestore:
   .enabled: boolean
 ```
 
+Only admins can read or write `feature_permissions` (it holds `betaUsers` emails). A Cloud Function mirrors writes to `feature_permissions_public` with `betaUsers` stripped, so non-admin widget code must read the mirror (or `useFeaturePermissions`). Never put secrets in `config`.
+
 The `config` field is a flexible object typed per widget. Always store building-specific defaults nested under `buildingDefaults[canonicalBuildingId(buildingId)]`.
 
 ### Two implementation paths
@@ -133,7 +135,7 @@ Use the shared `Modal` from `@/components/common/Modal`. It owns the overlay, Es
 
 `header` holds the title and close button; `footer` holds the Save button.
 
-### Firestore read pattern
+### Firestore read pattern (non-admin code reads the `_public` mirror)
 
 ```tsx
 const fetchConfig = useCallback(async () => {
@@ -142,7 +144,7 @@ const fetchConfig = useCallback(async () => {
     return;
   }
   try {
-    const docRef = doc(db, 'feature_permissions', 'your-widget-type');
+    const docRef = doc(db, 'feature_permissions_public', 'your-widget-type');
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       const data = snap.data() as FeaturePermission;

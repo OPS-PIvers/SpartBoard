@@ -14,7 +14,7 @@ export const useFeaturePermissions = () => {
       }
       setLoading(true);
       try {
-        const docRef = doc(db, 'feature_permissions', widgetType);
+        const docRef = doc(db, 'feature_permissions_public', widgetType);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           return snap.data() as FeaturePermission;
@@ -40,7 +40,7 @@ export const useFeaturePermissions = () => {
       }
 
       setLoading(true);
-      const docRef = doc(db, 'feature_permissions', widgetType);
+      const docRef = doc(db, 'feature_permissions_public', widgetType);
       return onSnapshot(
         docRef,
         (snap) => {

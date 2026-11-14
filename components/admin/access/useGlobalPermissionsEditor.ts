@@ -85,7 +85,7 @@ export const defaultDailyLimit = (featureId: GlobalFeature): number => {
 
 /** Load, edit and save `global_permissions/*` docs for an admin page. */
 export const useGlobalPermissionsEditor = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { addToast } = useDashboard();
   const [permissions, setPermissionsState] = useState<
     Map<string, GlobalFeaturePermission>
@@ -135,8 +135,15 @@ export const useGlobalPermissionsEditor = () => {
       setLoading(false);
       return;
     }
+    if (isAdmin === null) return;
     let cancelled = false;
-    getDocs(collection(db, 'global_permissions'))
+    // Org-only admins can't read the original (beta rosters); they get the stripped mirror.
+    getDocs(
+      collection(
+        db,
+        isAdmin === true ? 'global_permissions' : 'global_permissions_public'
+      )
+    )
       .then((snapshot) => {
         if (cancelled) return;
         const permMap = new Map<string, GlobalFeaturePermission>();
@@ -158,7 +165,7 @@ export const useGlobalPermissionsEditor = () => {
     return () => {
       cancelled = true;
     };
-  }, [showMessage, setPermissions]);
+  }, [showMessage, setPermissions, isAdmin]);
 
   const resolvePermission = useCallback(
     (

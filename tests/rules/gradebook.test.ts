@@ -607,7 +607,7 @@ describe('student_grades', () => {
 
   it('serves the Grades tab reads and nothing wider', async () => {
     await assertSucceeds(
-      getDoc(doc(studentDb(), 'global_permissions/student-gradebook'))
+      getDoc(doc(studentDb(), 'global_permissions_public/student-gradebook'))
     );
     await assertFails(
       getDocs(
