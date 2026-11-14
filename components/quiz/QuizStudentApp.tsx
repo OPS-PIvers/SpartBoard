@@ -4461,7 +4461,7 @@ export const ActiveQuiz: React.FC<{
           )}
           {/* Header */}
           <div
-            className={`flex items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
+            className={`flex min-h-11 items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
           >
             <div className="flex items-center gap-2">
               {isStudentPaced &&

@@ -225,4 +225,20 @@ describe('MatchingResponseInput undo reset', () => {
       screen.queryByRole('button', { name: 'Undo reset' })
     ).not.toBeInTheDocument();
   });
+
+  it('Reset with nothing placed does not offer Undo', async () => {
+    const user = userEvent.setup();
+    render(
+      <MatchingResponseInput
+        question={q()}
+        savedAnswer={null}
+        onChange={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Reset/ }));
+    expect(
+      screen.queryByRole('button', { name: 'Undo reset' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reset/ })).toBeInTheDocument();
+  });
 });

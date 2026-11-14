@@ -417,7 +417,8 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
   };
 
   const reset = () => {
-    setUndo({ zones: zonePlacements, bank: bankItems });
+    if (Object.values(zonePlacements).some((v) => v !== null))
+      setUndo({ zones: zonePlacements, bank: bankItems });
     const blank: Record<string, number | null> = {};
     terms.forEach((t) => {
       blank[t] = null;

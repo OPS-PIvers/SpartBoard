@@ -438,7 +438,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
   };
 
   const reset = () => {
-    setUndo({ slots, bank: bankItems });
+    if (slots.some((v) => v !== null)) setUndo({ slots, bank: bankItems });
     const blank = items.map(() => null);
     setSlots(blank);
     setBankItems(shuffle(items.map((_, i) => i)));
