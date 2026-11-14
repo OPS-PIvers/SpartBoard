@@ -313,11 +313,14 @@ const isEditableTarget = (target: EventTarget | null): boolean =>
     target.tagName === 'INPUT' ||
     target.tagName === 'TEXTAREA');
 
+const isImageFile = (f: File): boolean => f.type.startsWith('image/');
+
 /** Ctrl+V of a copied image or file anywhere while the panel is open. */
 function usePasteFiles(
   onFiles: (files: File[]) => void,
   disabled: boolean,
-  scopeRef?: React.RefObject<HTMLElement | null>
+  scopeRef?: React.RefObject<HTMLElement | null>,
+  accept?: (file: File) => boolean
 ) {
   useEffect(() => {
     if (disabled) return;
@@ -335,7 +338,7 @@ function usePasteFiles(
           : !!pane?.contains(target);
         if (!inScope) return;
       }
-      const files = Array.from(data.files);
+      const files = Array.from(data.files).filter((f) => !accept || accept(f));
       if (files.length === 0) return;
       // Pasting copied text into a field keeps working as normal.
       if (isEditableTarget(e.target) && data.types.includes('text/plain')) {
@@ -346,7 +349,7 @@ function usePasteFiles(
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [onFiles, disabled, scopeRef]);
+  }, [onFiles, disabled, scopeRef, accept]);
 }
 
 const fileButtonClass =
@@ -464,14 +467,7 @@ export const StimulusManagerPanel: React.FC<{
   readAloudAvailable?: boolean;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
-  /** `quiz-stimulus-tabs` gate: tab names and where a picture shows. */
-  tabsAvailable?: boolean;
-}> = ({
-  state,
-  readAloudAvailable = false,
-  calculatorAvailable = false,
-  tabsAvailable = false,
-}) => {
+}> = ({ state, readAloudAvailable = false, calculatorAvailable = false }) => {
   const { stimuli, questions } = state;
   const intake = useStimulusIntake(state);
   const { addFromFile } = intake;
@@ -548,7 +544,6 @@ export const StimulusManagerPanel: React.FC<{
               stimulus={s}
               state={state}
               readAloudAvailable={readAloudAvailable}
-              tabsAvailable={tabsAvailable}
             />
           ))}
         </div>
@@ -722,8 +717,7 @@ const StimulusCard: React.FC<{
   index: number;
   state: QuizEditorController;
   readAloudAvailable: boolean;
-  tabsAvailable: boolean;
-}> = ({ stimulus: s, index, state, readAloudAvailable, tabsAvailable }) => {
+}> = ({ stimulus: s, index, state, readAloudAvailable }) => {
   const {
     questions,
     bankSlots,
@@ -828,13 +822,11 @@ const StimulusCard: React.FC<{
               Share this doc as &ldquo;Anyone with the link can view.&rdquo;
             </p>
           )}
-          {tabsAvailable && (
-            <StimulusTabFields
-              stimulus={s}
-              index={index}
-              onChange={(updates) => updateStimulus(s.id, updates)}
-            />
-          )}
+          <StimulusTabFields
+            stimulus={s}
+            index={index}
+            onChange={(updates) => updateStimulus(s.id, updates)}
+          />
           {readAloudAvailable && (s.type === 'image' || s.type === 'pdf') && (
             <ReadAloudTextRow
               stimulus={s}
@@ -1019,13 +1011,17 @@ const AttachStimulusSection: React.FC<{
   const [open, setOpen] = useState(false);
   const onPasted = useCallback(
     (files: File[]) => {
-      if (!files.some((f) => f.type.startsWith('image/'))) return;
       setOpen(true);
       onPastedFiles(files);
     },
     [onPastedFiles]
   );
-  usePasteFiles(onPasted, intake.busy || !pasteScopeRef, pasteScopeRef);
+  usePasteFiles(
+    onPasted,
+    intake.busy || !pasteScopeRef,
+    pasteScopeRef,
+    isImageFile
+  );
   const drop = useFilesDrop((files) => {
     setOpen(true);
     void addFiles(addFromFile, files, (s) => onToggle(s.id));
