@@ -317,6 +317,8 @@ claude/project-thread-uhhzb5-docs
 claude/project-thread-tu7i6d
 claude/project-thread-zsvnns
 claude/project-thread-zsvnns-ab112
+claude/project-thread-59pkq4
+claude/ab112-grammarly
 
 ```
 git push origin --delete claude/project-thread-1ylvse
