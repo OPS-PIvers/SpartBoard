@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const setDocMock = vi.fn(
@@ -59,6 +65,7 @@ vi.mock('@/context/useDashboard', () => ({
 let savedPermissions: Record<string, unknown>[] = [];
 
 import { PreviewsPanel } from './PreviewsPanel';
+import { AccessSearchContext } from './accessSearchContext';
 
 const renderPanel = async () => {
   render(<PreviewsPanel />);
@@ -66,6 +73,14 @@ const renderPanel = async () => {
     'switch',
     { name: 'Projects widget district switch' },
     { timeout: 5000 }
+  );
+};
+
+const expandRow = (id: string, label: string) => {
+  fireEvent.click(
+    within(screen.getByTestId(`access-row-${id}`)).getAllByRole('button', {
+      name: new RegExp(label),
+    })[0]
   );
 };
 
@@ -83,6 +98,52 @@ describe('PreviewsPanel', () => {
     const row = screen.getByTestId('access-row-paper-answer-sheets');
     expect(row).toContainElement(district('Paper answer sheets'));
     expect(row).toHaveTextContent('Off everywhere');
+  });
+
+  it('nests the Import add-ons under the Import anything row', async () => {
+    await renderPanel();
+    expect(screen.queryByTestId('access-row-import-flashcards')).toBeNull();
+    expandRow('universal-import', 'Import anything');
+    const group = screen.getByTestId('preview-group-universal-import');
+    const child = screen.getByTestId('access-row-import-flashcards');
+    expect(group).toContainElement(child);
+    expect(child).toHaveTextContent('Flashcards');
+    expect(child).not.toHaveTextContent('Import: Flashcards');
+  });
+
+  it('opens the Import row to just the matching add-ons when a search finds them', async () => {
+    render(
+      <AccessSearchContext.Provider
+        value={{ query: 'link', setQuery: () => undefined }}
+      >
+        <PreviewsPanel />
+      </AccessSearchContext.Provider>
+    );
+    const group = await screen.findByTestId('preview-group-universal-import');
+    expect(
+      within(group).getByTestId('access-row-import-link')
+    ).toBeInTheDocument();
+    expect(
+      within(group).queryByTestId('access-row-import-flashcards')
+    ).toBeNull();
+  });
+
+  it('saves a nested Import add-on to its own permission doc', async () => {
+    await renderPanel();
+    expandRow('universal-import', 'Import anything');
+    fireEvent.click(
+      within(
+        screen.getByRole('radiogroup', { name: 'Import: Google Forms access' })
+      ).getByRole('radio', { name: 'Public' })
+    );
+    fireEvent.click(screen.getByLabelText('Save Import: Google Forms'));
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'global_permissions/import-google-forms'
+    );
+    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+      accessLevel: 'public',
+    });
   });
 
   it('links a public retire-after-launch flag to a prefilled cleanup issue', async () => {

@@ -72,6 +72,26 @@ export const previewFeatures = (
 ): GlobalFeature[] =>
   ALL_GLOBAL_FEATURES.filter((id) => !isPermanentFeature(id, graduated));
 
+/** Preview flags whose add-ons (`requires`) nest under their row instead of listing on their own. */
+export const PREVIEW_GROUP_PARENTS: readonly GlobalFeature[] = [
+  'universal-import',
+];
+
+/** Preview add-ons of a group parent, or none when the parent has left Previews. */
+export const previewGroupChildren = (
+  parent: GlobalFeature,
+  previews: readonly GlobalFeature[]
+): GlobalFeature[] =>
+  PREVIEW_GROUP_PARENTS.includes(parent) && previews.includes(parent)
+    ? previews.filter((id) => FEATURE_DEFAULTS[id].requires === parent)
+    : [];
+
+/** Name of an add-on inside its group, without the parent's "Import: " style prefix. */
+export const groupChildLabel = (id: GlobalFeature): string => {
+  const label = FEATURE_DEFAULTS[id].label.replace(/^[^:]+:\s*/, '');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
 export const switchForFeature = (
   id: GlobalFeature
 ): RolloutSwitch | undefined =>
