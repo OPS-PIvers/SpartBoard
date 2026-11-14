@@ -4897,6 +4897,7 @@
       "correct": "Got it",
       "learning": "Still learning",
       "next": "Next round",
+      "toSubmit": "Continue to submit",
       "restart": "Restart all"
     },
     "missed": {
@@ -4910,7 +4911,7 @@
       "definition": "Definition",
       "flipToPrompt": "Showing answer. Flip to prompt.",
       "flipToAnswer": "Showing prompt. Flip to answer.",
-      "flipHint": "Click or press Space to flip",
+      "flipHint": "Tap or press Space to flip",
       "favoriteAdd": "Add to favorites",
       "favoriteRemove": "Remove from favorites",
       "previous": "Previous card",
@@ -4980,6 +4981,7 @@
       "unavailableTitle": "This assignment isn't available",
       "unavailableBody": "Check the link, or ask your teacher whether you're assigned to it.",
       "back": "Back to my assignments",
+      "tryAgain": "Try again",
       "check": "Check",
       "study": "Study",
       "opensTitle": "Not open yet",
@@ -5042,6 +5044,7 @@
         "continue": "Continue",
         "autoContinue": "Automatically continue to next card",
         "skip": "Skip",
+        "skipCheck": "Skip (counts as missed)",
         "round": "Round {{round}}",
         "mastered": "{{mastered}}/{{total}} said well",
         "masteryLabel": "{{mastered}} of {{total}} cards said well",
@@ -5099,6 +5102,7 @@
       "unavailable": {
         "title": "Speak isn't available",
         "otherModes": "The other study modes still work.",
+        "tellTeacher": "Tell your teacher you can't record.",
         "noMic": "No microphone found",
         "noMicBody": "Connect a microphone, then try again.",
         "micBlocked": "Microphone blocked",

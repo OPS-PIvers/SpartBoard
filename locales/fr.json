@@ -3589,6 +3589,7 @@
       "correct": "Je sais",
       "learning": "À revoir",
       "next": "Série suivante",
+      "toSubmit": "Continuer pour remettre",
       "restart": "Tout recommencer"
     },
     "missed": {
@@ -3602,7 +3603,7 @@
       "definition": "Définition",
       "flipToPrompt": "Réponse affichée. Retourner vers la question.",
       "flipToAnswer": "Question affichée. Retourner vers la réponse.",
-      "flipHint": "Cliquer ou appuyer sur Espace pour retourner",
+      "flipHint": "Toucher ou appuyer sur Espace pour retourner",
       "favoriteAdd": "Ajouter aux favoris",
       "favoriteRemove": "Retirer des favoris",
       "previous": "Carte précédente",
@@ -3672,6 +3673,7 @@
       "unavailableTitle": "Ce devoir n’est pas disponible",
       "unavailableBody": "Vérifie le lien ou demande à ton enseignant s’il t’a été attribué.",
       "back": "Retour à mes devoirs",
+      "tryAgain": "Réessayer",
       "check": "Contrôle",
       "study": "Révision",
       "opensTitle": "Pas encore ouvert",
@@ -3734,6 +3736,7 @@
         "continue": "Continuer",
         "autoContinue": "Passer automatiquement à la carte suivante",
         "skip": "Passer",
+        "skipCheck": "Passer (compte comme manquée)",
         "round": "Série {{round}}",
         "mastered": "{{mastered}}/{{total}} bien dites",
         "masteryLabel": "{{mastered}} cartes bien dites sur {{total}}",
@@ -3791,6 +3794,7 @@
       "unavailable": {
         "title": "Speak n'est pas disponible",
         "otherModes": "Les autres modes d'étude fonctionnent toujours.",
+        "tellTeacher": "Dis à ton enseignant que tu ne peux pas enregistrer.",
         "noMic": "Aucun microphone trouvé",
         "noMicBody": "Branche un microphone, puis réessaie.",
         "micBlocked": "Microphone bloqué",

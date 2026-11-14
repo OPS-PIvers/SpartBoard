@@ -100,6 +100,8 @@ const HEARD_LEVEL = 0.15;
 const AUTO_CONTINUE_MS = 3000;
 
 export interface SpeakModeProps {
+  /** True inside a graded Check, where Speak is the only mode. */
+  inCheck?: boolean;
   /** Missed-card pile for the round summary; absent hides it. */
   missed?: RoundSummaryMissed;
   cards: FlashcardCard[];
@@ -188,6 +190,7 @@ export const SpeakMode: React.FC<SpeakModeProps> = (props) => {
   return (
     <SpeakSetup
       dark={props.dark}
+      inCheck={props.inCheck}
       state={state}
       waitingForTap={state.kind === 'idle' && cacheChecked}
       onPrepare={(allowMetered) => void recognizer.prepare({ allowMetered })}
@@ -280,16 +283,18 @@ const Centered: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 const SpeakSetup: React.FC<{
   dark: boolean;
+  inCheck?: boolean;
   state: RecognizerState;
   waitingForTap: boolean;
   onPrepare: (allowMetered: boolean) => void;
-}> = ({ dark, state, waitingForTap, onPrepare }) => {
+}> = ({ dark, inCheck, state, waitingForTap, onPrepare }) => {
   const { t } = useTranslation();
   const size = sizeLabel(PRONUNCIATION_MODEL.bytes);
   if (state.kind === 'unsupported') {
     return (
       <SpeakBlocked
         dark={dark}
+        inCheck={inCheck}
         reason={state.reason}
         onRetry={
           state.reason === 'download-failed'
@@ -432,9 +437,10 @@ const BLOCK_COPY: Record<SpeakBlockReason, { title: string; body?: string }> = {
 /** F12: Speak shown disabled with the reason; the other modes keep working. */
 const SpeakBlocked: React.FC<{
   dark: boolean;
+  inCheck?: boolean;
   reason: SpeakBlockReason;
   onRetry?: () => void;
-}> = ({ dark, reason, onRetry }) => {
+}> = ({ dark, inCheck, reason, onRetry }) => {
   const { t } = useTranslation();
   const copy = BLOCK_COPY[reason];
   return (
@@ -465,7 +471,11 @@ const SpeakBlocked: React.FC<{
           </PanelBody>
         )}
         <PanelBody dark={dark}>
-          {t('flashcards.speak.unavailable.otherModes')}
+          {t(
+            inCheck
+              ? 'flashcards.speak.unavailable.tellTeacher'
+              : 'flashcards.speak.unavailable.otherModes'
+          )}
         </PanelBody>
         {(reason === 'framed' || onRetry) && (
           <ButtonRow>
@@ -504,6 +514,7 @@ const SpeakBlocked: React.FC<{
 };
 
 const SpeakPractice: React.FC<SpeakModeProps> = ({
+  inCheck = false,
   cards,
   round,
   language,
@@ -887,6 +898,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
         onNextRound={onNextRound}
         onRestart={onRestart}
         missed={missed}
+        nextLabel={inCheck ? t('flashcards.summary.toSubmit') : undefined}
       />
     );
   }
@@ -895,6 +907,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     return (
       <SpeakBlocked
         dark={dark}
+        inCheck={inCheck}
         reason={blockReason}
         onRetry={
           blockReason === 'mic-blocked' ||
@@ -1306,7 +1319,11 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
                 className={secondaryButton(dark)}
                 style={buttonStyle}
               >
-                {t('flashcards.speak.player.skip')}
+                {t(
+                  inCheck
+                    ? 'flashcards.speak.player.skipCheck'
+                    : 'flashcards.speak.player.skip'
+                )}
               </button>
             </ButtonRow>
           </Panel>

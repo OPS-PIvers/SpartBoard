@@ -3589,6 +3589,7 @@
       "correct": "Lo sé",
       "learning": "Aún aprendiendo",
       "next": "Siguiente ronda",
+      "toSubmit": "Continuar para entregar",
       "restart": "Reiniciar todo"
     },
     "missed": {
@@ -3602,7 +3603,7 @@
       "definition": "Definición",
       "flipToPrompt": "Mostrando la respuesta. Volver a la pregunta.",
       "flipToAnswer": "Mostrando la pregunta. Ver la respuesta.",
-      "flipHint": "Haz clic o presiona Espacio para voltear",
+      "flipHint": "Toca o presiona Espacio para voltear",
       "favoriteAdd": "Agregar a favoritas",
       "favoriteRemove": "Quitar de favoritas",
       "previous": "Tarjeta anterior",
@@ -3672,6 +3673,7 @@
       "unavailableTitle": "Esta tarea no está disponible",
       "unavailableBody": "Revisa el enlace o pregúntale a tu docente si te la asignó.",
       "back": "Volver a mis tareas",
+      "tryAgain": "Intentar de nuevo",
       "check": "Evaluación",
       "study": "Estudio",
       "opensTitle": "Todavía no está abierta",
@@ -3734,6 +3736,7 @@
         "continue": "Continuar",
         "autoContinue": "Pasar a la siguiente tarjeta automáticamente",
         "skip": "Omitir",
+        "skipCheck": "Omitir (cuenta como fallada)",
         "round": "Ronda {{round}}",
         "mastered": "{{mastered}}/{{total}} dichas bien",
         "masteryLabel": "{{mastered}} de {{total}} tarjetas dichas bien",
@@ -3791,6 +3794,7 @@
       "unavailable": {
         "title": "Speak no está disponible",
         "otherModes": "Los otros modos de estudio sí funcionan.",
+        "tellTeacher": "Dile a tu docente que no puedes grabar.",
         "noMic": "No se encontró un micrófono",
         "noMicBody": "Conecta un micrófono e inténtalo de nuevo.",
         "micBlocked": "Micrófono bloqueado",
