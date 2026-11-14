@@ -598,6 +598,9 @@ export const useSharedCollection = () => {
         ...(input.subEmails && input.subEmails.length > 0
           ? { subEmails: input.subEmails }
           : {}),
+        ...(input.calendarIds && input.calendarIds.length > 0
+          ? { calendarIds: input.calendarIds }
+          : {}),
         ...(allGrants.length > 0 ? { driveGrants: allGrants } : {}),
         ...(input.sharedRosters && input.sharedRosters.length > 0
           ? { sharedRosters: input.sharedRosters }
@@ -743,6 +746,7 @@ export const useSharedCollection = () => {
           defaultBoardId: input.defaultBoardId,
         }),
         ...(input.subEmails ? { subEmails: input.subEmails } : {}),
+        ...(input.calendarIds ? { calendarIds: input.calendarIds } : {}),
         ...(mergedGrants ? { driveGrants: mergedGrants } : {}),
         ...(input.sharedRosters ? { sharedRosters: input.sharedRosters } : {}),
         ...(namesWrite ? { namesFileId: namesWrite.driveFileId } : {}),

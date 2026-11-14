@@ -13711,6 +13711,10 @@ export const TOUR_ANCHORS = {
     label: 'Copy button for the sub share link',
     panel: true,
   },
+  'sub-share.calendar': {
+    label: 'Calendar checkbox in the sub share dialog',
+    panel: true,
+  },
   'share-collection.mode-synced': {
     label: 'Synced option in the collection share dialog',
     panel: true,

@@ -185,7 +185,7 @@ describe('useFirestore – shareDashboard records the board’s items as the hos
     }
   });
 
-  it('falls back to the board’s own items when the old share has no picks doc, but not for an empty one', async () => {
+  it('never turns the board’s own items into picks when the old share has no picks doc', async () => {
     const dashboard: Dashboard = {
       ...withItems,
       widgets: [
@@ -205,7 +205,7 @@ describe('useFirestore – shareDashboard records the board’s items as the hos
     });
     await share(dashboard);
     await vi.waitFor(() =>
-      expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', ['quiz_q1'])
+      expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', [])
     );
     recordPicks.mockClear();
     (firestore.getDoc as unknown as Fn).mockResolvedValue({

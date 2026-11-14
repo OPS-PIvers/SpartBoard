@@ -193,7 +193,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     setCreatedUrl(null);
     setCopied(false);
     setMissed([]);
-    setCalendarTicked([]);
+    setCalendarTicked(existing?.calendarIds ?? []);
   }
   const selectedEmails = useMemo(() => emails ?? [], [emails]);
 
@@ -494,6 +494,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                 >
                   <input
                     type="checkbox"
+                    {...tourAttr('sub-share.calendar')}
                     checked={calendarTicked.includes(id)}
                     onChange={(e) =>
                       setCalendarTicked((prev) =>

@@ -1762,7 +1762,8 @@ service cloud.firestore {
             changedOnly([
               'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
               'kind', 'subEmails', 'sharedRosters', 'driveGrants',
-              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt'
+              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt',
+              'calendarIds'
             ])
             && isNumber('expiresAt')
             && incoming().expiresAt <= nowMs() + 1209600000

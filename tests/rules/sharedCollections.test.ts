@@ -609,6 +609,15 @@ describe('shared_collections — update, substitute manager writes', () => {
     );
   });
 
+  it('host can record the ticked calendars on a re-push', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        calendarIds: ['cal-1'],
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
   it('host can retarget the named subs', async () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), sharePath), {

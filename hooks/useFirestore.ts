@@ -37,6 +37,7 @@ import {
   sharedConnections,
   type SharedBoardBaseline,
 } from '@/utils/sharedBoardMerge';
+import { isValidConnection } from '@/utils/dashboardSanitize';
 import {
   Dashboard,
   SharedBoardIntendedMode,
@@ -317,8 +318,13 @@ function mapSharedDocToDashboard(
   const {
     linkedCollectionId: rawLinkId,
     shareConnections: rawShareConnections,
+    connections: rawConnections,
     ...rest
   } = record;
+  // A collaborator can write either list, so only well-formed entries reach the board.
+  const rawConns = Array.isArray(rawShareConnections)
+    ? rawShareConnections
+    : rawConnections;
   const hostUid =
     typeof record.originalAuthor === 'string' && record.originalAuthor
       ? record.originalAuthor
@@ -331,8 +337,8 @@ function mapSharedDocToDashboard(
     ...(hostUid ? { linkedShareHostUid: hostUid } : {}),
     ...(intendedMode ? { intendedMode } : {}),
     ...(typeof rawLinkId === 'string' ? { linkedCollectionId: rawLinkId } : {}),
-    ...(Array.isArray(rawShareConnections) && {
-      connections: rawShareConnections as WidgetConnection[],
+    ...(Array.isArray(rawConns) && {
+      connections: rawConns.filter(isValidConnection),
     }),
   };
 }

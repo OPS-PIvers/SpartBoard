@@ -332,6 +332,46 @@ describe('ShareWithSubModal — an existing share', () => {
     expect(input.subEmails).toEqual([]);
   });
 
+  it('re-ticks the calendars the live share already carries', async () => {
+    const calBoard: Dashboard = {
+      ...board,
+      widgets: [
+        {
+          id: 'cal-w',
+          type: 'calendar',
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+          z: 1,
+          flipped: false,
+          config: { personalCalendarIds: ['cal-a', 'cal-b'] },
+        } as unknown as Dashboard['widgets'][number],
+      ],
+    };
+    render(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: calBoard }}
+        existingShares={[{ ...existing, calendarIds: ['cal-a'] }]}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText<HTMLInputElement>('cal-a').checked).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('cal-b').checked).toBe(
+      false
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Update the share' }));
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as {
+      calendarIds?: string[];
+    };
+    expect(input.calendarIds).toEqual(['cal-a']);
+  });
+
   it('keeps the share on the building it was created for', () => {
     openModal([existing]);
 
