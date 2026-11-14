@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 145_
-_Last run: 2026-11-13_
+_Run count: 146_
+_Last run: 2026-11-14_
 _Base branch: dev-paul_
 
 ---
@@ -579,6 +579,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-14 | `nightly/unifier-log-2026-11-14` | D1/D2/D3/D4/D5 | Aligned (run 146) — light probe of `dc295c6a..dev-paul` (50 commits, 109 non-test client files; Quiz choose-N picks, student view on running assignments, Grammarly switch). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no hand-rolled SettingsLabel combo, no `role="group"`/`aria-pressed`, no new `Widget.tsx`/`Settings.tsx`; the single `#2d3f89` hit is already the canonical `var(--spart-primary, #2d3f89)`. No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-13 | `nightly/unifier-log-2026-11-13` | D1/D2/D3/D4/D5 | Aligned (run 145) — light probe of `81e6eaac..dev-paul` (102 commits, ~22k added client lines; web tours, Help Center, Quiz DOK, Gemini 4 pickers). Diff-scoped greps: no cross-directory `'../../'` imports, no `<Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no hand-rolled SettingsLabel combo, no new widget front-face empty state ('No ... yet' hits are admin/tour/editor lists, D1 out of scope). Only lead: two hand-rolled "Group by" segmented switches (PLC, Quiz results) logged to the D3 backlog, not unified (tour anchors, differing tokens). No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-12 | `nightly/unifier-log-2026-11-12` | D1/D2/D3/D4/D5 | Aligned (run 144) — light probe of `81e6eaac^..dev-paul` (20 commits, 49 non-test client files; Quiz FIB choice blanks, district library, tour weak-match confirm). Diff-scoped greps over added lines: one `../FibChoiceBlanksInput` import (own-widget gray zone, D4-E3), no `<Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no hand-rolled SettingsLabel combo, no new `Widget.tsx`/`Settings.tsx`; two `text-[10px]`/`text-[11px]` badges match existing arbitrary-size usage; the 'No library items yet' text is an admin library list, not a widget front face (D1 out of scope). No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-11 | `nightly/unifier-log-2026-11-11` | D1/D2/D3/D4/D5 | Aligned (run 143) — light probe of `24a54768..dev-paul` (134 non-test client files; flashcards missed-cards/study settings, paper quiz, tours Steps view). Diff-scoped greps over added lines for cross-directory `'../../'` imports, `<Toast`/`common/Toast`, `#2d3f89`/`#ad2122`/`#4356a0` and the hand-rolled SettingsLabel class combo found nothing. Only lead: `StepsView.tsx` `role="group"`+`aria-pressed` view toggle (pre-existing shape, tour page) logged to the D3 backlog, not unified (needs a visual call, tour anchors). No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
