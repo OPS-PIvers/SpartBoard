@@ -96,6 +96,19 @@ describe('useStudentIdleTimeout', () => {
     expect(assignMock).toHaveBeenCalledWith(STUDENT_IDLE_LOGIN_PATH);
   });
 
+  it('still redirects when sign-out never settles', () => {
+    signOutMock.mockReturnValueOnce(new Promise<void>(() => undefined));
+    renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
+    });
+    expect(assignMock).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(assignMock).toHaveBeenCalledTimes(1);
+  });
+
   it('clears the first name BEFORE redirecting (session hygiene)', async () => {
     renderHook(() => useStudentIdleTimeout(true));
     act(() => {

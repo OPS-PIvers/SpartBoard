@@ -65,9 +65,17 @@ export function useStudentIdleTimeout(
       // sessionStorage until the next successful login overwrites it.
       clearStudentFirstName();
       // Redirect after sign-out settles so the provider's bare login redirect can't replace ?reason=idle.
+      let redirected = false;
+      const redirect = () => {
+        if (redirected) return;
+        redirected = true;
+        window.location.assign(redirectPath);
+      };
+      // A hung sign-out still redirects.
+      window.setTimeout(redirect, 3000);
       void firebaseSignOut(auth)
         .catch(() => undefined)
-        .finally(() => window.location.assign(redirectPath));
+        .finally(redirect);
     };
 
     const scheduleTimeout = (
