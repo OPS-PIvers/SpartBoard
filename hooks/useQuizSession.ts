@@ -14,7 +14,10 @@ import {
   publicImageOnlyAnswers,
 } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
-import { INPUT_SIGNALS_FLUSH_EVENT } from '@/utils/inputSignals';
+import {
+  INPUT_SIGNALS_FLUSH_EVENT,
+  type InputSignalsFlushDetail,
+} from '@/utils/inputSignals';
 import {
   useState,
   useEffect,
@@ -3963,7 +3966,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     const quizId = quizIdRef.current;
     const teacherUid = teacherUidRef.current;
     if (!sessionId || !responseKey) return;
-    document.dispatchEvent(new CustomEvent(INPUT_SIGNALS_FLUSH_EVENT));
+    const signalSaves: Promise<void>[] = [];
+    document.dispatchEvent(
+      new CustomEvent<InputSignalsFlushDetail>(INPUT_SIGNALS_FLUSH_EVENT, {
+        detail: { saves: signalSaves },
+      })
+    );
+    // Land the final counters before the turn-in locks them.
+    await settleDraftsWithin(signalSaves, DRAFT_SETTLE_MS);
     // Let a just-flushed draft land first: once turned in, the rules lock the answers.
     await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
     await settleDraftsWithin(inFlightTxRef.current, DRAFT_SETTLE_MS);

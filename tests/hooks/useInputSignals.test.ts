@@ -98,7 +98,18 @@ describe('useInputSignals', () => {
     });
   });
 
-  it('saves under the attempt it recorded when the attempt is turned in', () => {
+  it('hands the flush event its save promise so a turn-in can wait for it', () => {
+    const { save } = setup();
+    document.body.dispatchEvent(mouse('pointerdown', 10, 10));
+    const saves: Promise<void>[] = [];
+    document.dispatchEvent(
+      new CustomEvent(INPUT_SIGNALS_FLUSH_EVENT, { detail: { saves } })
+    );
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saves).toHaveLength(1);
+  });
+
+  it('does not save under the old attempt once it is turned in', () => {
     const { save, rerender } = setup({ attempt: 1 });
     document.body.dispatchEvent(mouse('pointerdown', 10, 10));
     rerender({
@@ -109,7 +120,7 @@ describe('useInputSignals', () => {
       serverSignals: undefined,
       save,
     });
-    expect(save).toHaveBeenCalledExactlyOnceWith(1, { q1: { clicks: 1 } });
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('keeps earlier counts across a pause and resume', () => {

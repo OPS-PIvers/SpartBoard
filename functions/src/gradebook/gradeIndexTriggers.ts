@@ -233,21 +233,25 @@ export async function handleVideoResponseWrite(
 ): Promise<void> {
   const { sessionId, docId } = event.params;
   const parsed = event.time ? Date.parse(event.time) : NaN;
-  await stampTurnIn(
-    admin.firestore(),
-    'video-activity',
-    sessionId,
-    docId,
-    dataOf(event.data?.before),
-    dataOf(event.data?.after),
-    Number.isFinite(parsed) ? parsed : Date.now()
-  );
-  await handleStudentDocWrite('video-activity', event);
+  // A failed stamp retries the event rather than indexing the student's own time.
+  await failUnlessStale(event.time, async () => {
+    await stampTurnIn(
+      admin.firestore(),
+      'video-activity',
+      sessionId,
+      docId,
+      dataOf(event.data?.before),
+      dataOf(event.data?.after),
+      Number.isFinite(parsed) ? parsed : Date.now()
+    );
+    await handleStudentDocWrite('video-activity', event);
+  });
 }
 
 export const gradeIndexVideoResponse = onDocumentWritten(
   {
     ...TRIGGER_OPTS,
+    retry: true,
     document: `${SESSION_COLLECTION['video-activity']}/{sessionId}/${STUDENT_SUBCOLLECTION['video-activity']}/{docId}`,
   },
   (event) => handleVideoResponseWrite(event as unknown as WriteEvent)

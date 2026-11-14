@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  stampTurnIn: vi.fn(),
   applyAttemptWrite: vi.fn(),
   applyDocWrite: vi.fn(),
 }));
@@ -20,6 +21,7 @@ vi.mock('firebase-functions/logger', () => ({
   warn: vi.fn(),
   error: vi.fn(),
 }));
+vi.mock('../quizTurnIn', () => ({ stampTurnIn: mocks.stampTurnIn }));
 vi.mock('../quizAttemptHistory', () => ({
   applyAttemptWrite: mocks.applyAttemptWrite,
   applyAttemptGradeWrite: vi.fn(),
@@ -31,7 +33,10 @@ vi.mock('./gradeIndex', async (orig) => ({
   markSessionDirty: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { handleQuizResponseWrite } from './gradeIndexTriggers';
+import {
+  handleQuizResponseWrite,
+  handleVideoResponseWrite,
+} from './gradeIndexTriggers';
 
 const doc = (data: Record<string, unknown> | undefined) => ({
   exists: !!data,
@@ -50,6 +55,8 @@ describe('handleQuizResponseWrite', () => {
   beforeEach(() => {
     mocks.applyAttemptWrite.mockReset();
     mocks.applyDocWrite.mockReset();
+    mocks.stampTurnIn.mockReset();
+    mocks.stampTurnIn.mockImplementation((...a: unknown[]) => a[5]);
   });
 
   it('still runs the index step, then fails the event when the attempt copy fails', async () => {
@@ -75,5 +82,20 @@ describe('handleQuizResponseWrite', () => {
     await expect(
       handleQuizResponseWrite(event as never)
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('handleVideoResponseWrite', () => {
+  beforeEach(() => {
+    mocks.stampTurnIn.mockReset();
+    mocks.applyDocWrite.mockReset();
+  });
+
+  it('fails the event, and skips the index step, when the stamp fails so the trigger retries', async () => {
+    mocks.stampTurnIn.mockRejectedValue(new Error('contention'));
+    await expect(handleVideoResponseWrite(event as never)).rejects.toThrow(
+      'contention'
+    );
+    expect(mocks.applyDocWrite).not.toHaveBeenCalled();
   });
 });

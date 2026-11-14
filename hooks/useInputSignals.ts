@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { InputSignalCounts } from '@/types';
 import {
   INPUT_SIGNALS_FLUSH_EVENT,
+  type InputSignalsFlushDetail,
   InputSignalCollector,
   addSignals,
   otherLogBytes,
@@ -102,15 +103,18 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       (env) => collector.setEnvironment(env.browser, env.profile),
       (err: unknown) => logError('useInputSignals.environment', err)
     );
-    const flush = () => {
+    const flush = (e?: Event) => {
       const save = argsRef.current.save;
       collector.clock(performance.now(), visible());
       if (!save || !collector.takeDirty()) return;
       const counts = addSignals(base, collector.snapshot());
       writtenRef.current = { attempt, counts };
-      save(attempt, counts).catch((err: unknown) =>
+      const saved = save(attempt, counts).catch((err: unknown) =>
         logError('useInputSignals.save', err)
       );
+      (
+        e as CustomEvent<InputSignalsFlushDetail> | undefined
+      )?.detail?.saves?.push(saved);
     };
     collectorRef.current = collector;
     flushRef.current = flush;
@@ -262,7 +266,8 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       window.removeEventListener('resize', onResize);
       window.clearInterval(id);
       document.removeEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
-      flush();
+      // Once the attempt moves on (a turn-in), the rules refuse its key; the awaited pre-turn-in flush already saved it.
+      if (argsRef.current.attempt === attempt) flush();
       collectorRef.current = null;
       flushRef.current = null;
     };
