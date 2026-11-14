@@ -64,6 +64,25 @@ describe('MatchingResponseInput pictures', () => {
     );
     expect(document.querySelectorAll('img')).toHaveLength(0);
   });
+
+  it('stacks a term picture above its text on phones', () => {
+    render(
+      <MatchingResponseInput
+        question={{
+          ...makeQuestion(['Check for Task Understanding'], ['Mammal']),
+          matchingLeftImages: ['https://img/task'],
+        }}
+        savedAnswer={null}
+        onChange={vi.fn()}
+      />
+    );
+    const wrapper = document
+      .querySelector('img[src="https://img/task"]')
+      ?.closest('[data-testid="matching-term"]');
+    expect(wrapper).toHaveTextContent('Check for Task Understanding');
+    expect(wrapper?.className).toContain('flex-col');
+    expect(wrapper?.className).toContain('sm:flex-row');
+  });
 });
 
 describe('MatchingResponseInput', () => {

@@ -528,18 +528,27 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             return (
               <div key={term} className="flex items-center gap-3">
                 <span
-                  className={`flex w-1/2 gap-2 rounded-xl text-sm font-bold wrap-break-word items-center ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
+                  className={`flex w-1/2 min-w-0 gap-2 rounded-xl text-sm font-bold wrap-break-word items-center ${light ? 'text-slate-700' : 'text-slate-200'} ${rowHighlight('matchingLeft', term)}`}
                   title={term}
                 >
-                  {termImages?.[termIndex] && (
-                    <ZoomableAnswerImage
-                      src={termImages[termIndex]}
-                      label={termName ?? term}
-                      layout="compact"
-                    />
-                  )}
-                  <span className={termName ? 'sr-only' : 'min-w-0 flex-1'}>
-                    {termName ?? term}
+                  <span
+                    data-testid="matching-term"
+                    className="flex min-w-0 flex-1 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2"
+                  >
+                    {termImages?.[termIndex] && (
+                      <ZoomableAnswerImage
+                        src={termImages[termIndex]}
+                        label={termName ?? term}
+                        layout="compact"
+                      />
+                    )}
+                    <span
+                      className={
+                        termName ? 'sr-only' : 'min-w-0 flex-1 wrap-break-word'
+                      }
+                    >
+                      {termName ?? term}
+                    </span>
                   </span>
                   {speaker('matchingLeft', term)}
                 </span>
