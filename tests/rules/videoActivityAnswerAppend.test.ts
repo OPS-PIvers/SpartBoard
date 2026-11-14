@@ -195,3 +195,41 @@ describe('VA response student appends', () => {
     );
   });
 });
+
+describe('VA response create and completed appends', () => {
+  const NEW_PATH = `video_activity_sessions/${SESSION_ID}/responses/pin-period_1-02`;
+  const join = (answers: unknown[]) => ({
+    studentUid: STUDENT_UID,
+    pin: '02',
+    classPeriod: 'period_1',
+    joinedAt: 1000,
+    score: null,
+    answers,
+    completedAt: null,
+    completedAttempts: 0,
+    tabSwitchWarnings: 0,
+  });
+
+  it('denies a create with prefilled answers, allows an empty join', async () => {
+    await seed({ sessionMode: 'teacher' }, {});
+    await assertFails(
+      setDoc(
+        doc(asStudent(), NEW_PATH),
+        join([{ questionId: 'q1', answer: 'right', answeredAt: 1 }])
+      )
+    );
+    await assertSucceeds(setDoc(doc(asStudent(), NEW_PATH), join([])));
+  });
+
+  it('denies appending an answer to a completed response', async () => {
+    await seed({}, { answers: [recordedQ1], completedAt: 9000 });
+    await assertFails(
+      updateDoc(doc(asStudent(), RESPONSE_PATH), {
+        answers: [
+          recordedQ1,
+          { questionId: 'q2', answer: 'b', answeredAt: 9500 },
+        ],
+      })
+    );
+  });
+});

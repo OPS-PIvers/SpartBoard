@@ -45,6 +45,7 @@ import {
   countVideoActivityAnswersToMark,
   isVideoActivityResponseAwaitingGrade,
   liveScoredResponse,
+  firstVaAnswers,
 } from '@/utils/videoActivityGrading';
 import { VaShortAnswerMarking } from './results/VaShortAnswerMarking';
 import {
@@ -266,7 +267,7 @@ export const Results: React.FC<ResultsProps> = ({
       finalOverlay,
       (uid) => {
         const r = byUid.get(uid);
-        return r ? videoActivityLiveRaw(r, scoredQuestions) : null;
+        return r ? videoActivityLiveRaw(r, scoredQuestions, isLive) : null;
       },
       Date.now()
     );
@@ -415,30 +416,41 @@ export const Results: React.FC<ResultsProps> = ({
       const drive = new QuizDriveService(token);
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
-      const quizResponses = responses.map((r) => ({
-        studentUid: r.studentUid,
-        // Anon responses always carry a PIN; SSO responses don't. Fall back
-        // to empty string so the export shape stays string-typed.
-        pin: r.pin ?? '',
-        joinedAt: r.joinedAt,
-        status: isVaResponseCompleted(r)
-          ? ('completed' as const)
-          : ('in-progress' as const),
-        answers: r.answers.map((a) => ({
-          questionId: a.questionId,
-          answer: a.answer,
-          answeredAt: a.answeredAt,
-          isCorrect: a.isCorrect,
-        })),
-        score: r.score,
-        grading: r.grading,
-        submittedAt: r.completedAt,
-        tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
-        tabExits: r.tabExits,
-        ...(r.staffEmail
-          ? { staffEmail: r.staffEmail, staffName: r.staffName ?? '' }
-          : {}),
-      }));
+      const quizResponses = responses.map((raw) => {
+        // Export the answers the scorers use: live-recorded, first per question.
+        const r = {
+          ...raw,
+          answers: [
+            ...firstVaAnswers(
+              (isLive ? liveScoredResponse(raw) : raw).answers
+            ).values(),
+          ],
+        };
+        return {
+          studentUid: r.studentUid,
+          // Anon responses always carry a PIN; SSO responses don't. Fall back
+          // to empty string so the export shape stays string-typed.
+          pin: r.pin ?? '',
+          joinedAt: r.joinedAt,
+          status: isVaResponseCompleted(r)
+            ? ('completed' as const)
+            : ('in-progress' as const),
+          answers: r.answers.map((a) => ({
+            questionId: a.questionId,
+            answer: a.answer,
+            answeredAt: a.answeredAt,
+            isCorrect: a.isCorrect,
+          })),
+          score: r.score,
+          grading: r.grading,
+          submittedAt: r.completedAt,
+          tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
+          tabExits: r.tabExits,
+          ...(r.staffEmail
+            ? { staffEmail: r.staffEmail, staffName: r.staffName ?? '' }
+            : {}),
+        };
+      });
 
       // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
       // their resolved ClassLink names instead of falling back to the
@@ -994,7 +1006,7 @@ export const Results: React.FC<ResultsProps> = ({
                       ? finalScoreFor(
                           finalOverlay,
                           r.studentUid,
-                          videoActivityLiveRaw(r, scoredQuestions),
+                          videoActivityLiveRaw(r, scoredQuestions, isLive),
                           overlayNow
                         )
                       : null;

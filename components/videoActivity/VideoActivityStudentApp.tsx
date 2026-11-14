@@ -1061,7 +1061,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     const correctnessQuestions = scoredQuestions.filter((q) => {
       if (q.type !== 'SA') return true;
       const a = myResponse?.answers.find((x) => x.questionId === q.id);
-      return !a || a.isCorrect !== undefined;
+      return !a || a.isCorrect !== undefined || !!myResponse?.grading?.[q.id];
     });
     const correctTotal = correctnessQuestions.length;
     // Score visibility gates whether the student sees their percentage. The
@@ -1085,13 +1085,19 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       isLive ||
       answerRules.showResult ||
       visibilityShowsResponses(published.visibility);
+    const hasVerdicts =
+      myResponse?.answers.some((x) => typeof x.isCorrect === 'boolean') ??
+      false;
     const scorePct = !showCounts
       ? typeof myResponse?.score === 'number'
         ? myResponse.score
         : null
-      : correctTotal > 0
-        ? Math.round((correct / correctTotal) * 100)
-        : null;
+      : // No stored verdicts (score-only publish, free identity): fall back to the score.
+        !hasVerdicts && typeof myResponse?.score === 'number'
+        ? myResponse.score
+        : correctTotal > 0
+          ? Math.round((correct / correctTotal) * 100)
+          : null;
 
     return (
       <ResultsProtectionGate
@@ -1126,7 +1132,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                       <p className="text-5xl font-black text-brand-blue-primary">
                         {scorePct}%
                       </p>
-                      {showCounts && (
+                      {showCounts && hasVerdicts && (
                         <p className="text-slate-500 text-sm font-medium mt-1">
                           {correct} of {correctTotal} correct
                         </p>

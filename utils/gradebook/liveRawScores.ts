@@ -17,6 +17,7 @@ import {
   canScoreVideoActivityResponse,
   gradeVideoActivityAnswer,
   isVideoActivityResponseAwaitingGrade,
+  liveScoredResponse,
 } from '@/utils/videoActivityGrading';
 import type { LiveRawScore } from '@/utils/gradebook/finalScoreOverlay';
 
@@ -53,9 +54,11 @@ export function quizLiveRaw(
 
 /** VA raw for D9: summed question points, matching `computeVideoActivityScorePct` before rounding. */
 export function videoActivityLiveRaw(
-  r: VideoActivityResponse,
-  questions: VideoActivityQuestion[]
+  rawResponse: VideoActivityResponse,
+  questions: VideoActivityQuestion[],
+  live = false
 ): LiveRawScore {
+  const r = live ? liveScoredResponse(rawResponse) : rawResponse;
   if (r.completedAt === null) return NOT_SCORED;
   const submittedAt = r.completedAt;
   if (!canScoreVideoActivityResponse(questions, r.answers)) {

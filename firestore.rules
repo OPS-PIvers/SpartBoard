@@ -5606,6 +5606,7 @@ service cloud.firestore {
         // An appended answer: no takeIndex, never one for a question the server recorded this attempt.
         function vaNewAnswerOk(a) {
           return !('takeIndex' in a) &&
+            (existing().get('completedAt', null) == null || existing().get('unlocked', false) == true) &&
             existing().get('checkedAnswers', {}).get(a.questionId, {}).get('attempt', -1) !=
               existing().get('completedAttempts', 0);
         }
@@ -5634,6 +5635,8 @@ service cloud.firestore {
           incoming().studentUid == authUid() &&
           incoming().score == null &&
           incoming().completedAt == null &&
+          // Joins start with no answers; the client always writes [].
+          incoming().get('answers', []).size() == 0 &&
           // Students cannot forge prior completions — initialize to 0.
           incoming().get('completedAttempts', 0) == 0 &&
           incoming().get('tabSwitchWarnings', 0) == 0 &&

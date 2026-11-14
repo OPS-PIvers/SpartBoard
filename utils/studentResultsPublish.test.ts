@@ -254,6 +254,38 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
     ).toEqual([{ questionId: 'q1', answer: 'a', answeredAt: 1 }]);
   });
 
+  it('keeps session-shown verdicts for a uid-keyed self-paced response only', () => {
+    const done = { answers: [], completedAt: 5 };
+    expect(
+      vaPublishedAnswers(done, graded, 'score-only', 1, true, 'u1', 'u1')
+    ).toEqual(graded);
+    expect(
+      vaPublishedAnswers(done, graded, 'score-only', 1, true, 'pin-p-01', 'u1')
+    ).toEqual([{ questionId: 'q1', answer: 'a', answeredAt: 1 }]);
+  });
+
+  it('writes no verdicts for an unrevealed live question at score-only', async () => {
+    docs.set('video_activity_sessions/live1', {
+      sessionMode: 'teacher',
+      sessionOptions: { answerRulesSet: true, showResultToStudent: true },
+    });
+    docs.set('video_activity_sessions/live1/responses/u1', {
+      studentUid: 'u1',
+      completedAt: 5,
+      answers: [{ questionId: 'q1', answer: 'a' }],
+    });
+    await publishVideoActivityResultsForStudents(
+      'live1',
+      [vaQ('q1', 'a')],
+      ['u1'],
+      'score-only',
+      null
+    );
+    expect(writes[0].patch.answers).toEqual([
+      { questionId: 'q1', answer: 'a' },
+    ]);
+  });
+
   it('writes no isCorrect in a per-student score-only publish', async () => {
     docs.set('video_activity_sessions/s2', {
       sessionOptions: { answerRulesSet: true, showResultToStudent: false },

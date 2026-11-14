@@ -1233,7 +1233,9 @@ export const useVideoActivityAssignments = (
               gradedAnswers,
               visibility,
               now,
-              showsResults
+              showsResults,
+              d.id,
+              data.studentUid
             ),
           },
         });

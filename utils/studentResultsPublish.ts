@@ -125,20 +125,34 @@ export function gradeVideoActivityResponseForPublish(
   return { score, answers: gradedAnswers };
 }
 
-/** True when the session already shows students right/wrong as they answer (or on a live reveal). */
+/** True when a self-paced session already shows right/wrong as students answer. */
 export function vaSessionShowsResults(
   session: Partial<VideoActivitySession> | undefined
 ): boolean {
   return (
-    isLiveVideoActivitySession(session) ||
+    !isLiveVideoActivitySession(session) &&
     videoActivityAnswerRules(session ?? null).showResult
+  );
+}
+
+/** Keeps only verdicts the response already carried (live reveals and free identities never get new ones). */
+function priorVerdictsOnly(
+  graded: VideoActivityAnswer[],
+  before: VideoActivityAnswer[] | undefined
+): VideoActivityAnswer[] {
+  const prior = Array.isArray(before) ? before : [];
+  return answersWithoutVerdicts(graded).map((a, i) =>
+    typeof prior[i]?.isCorrect === 'boolean'
+      ? { ...a, isCorrect: prior[i].isCorrect }
+      : a
   );
 }
 
 /**
  * Publish's graded answers as written to the student-readable response: an open
  * attempt keeps only the verdicts it already had, and a finished one carries
- * right/wrong only when the session, the class level or its shown override shows them.
+ * right/wrong only when the session (not live, not a free pin identity), the
+ * class level or its shown override shows them.
  */
 export function vaPublishedAnswers(
   data: Pick<
@@ -148,25 +162,28 @@ export function vaPublishedAnswers(
   graded: VideoActivityAnswer[],
   visibility: QuizScoreVisibility,
   now: number,
-  sessionShowsResults: boolean
+  sessionShowsResults: boolean,
+  responseKey?: string,
+  studentUid?: string
 ): VideoActivityAnswer[] {
   const stripped = answersWithoutVerdicts(graded);
   if (typeof data.completedAt !== 'number') {
-    const before = Array.isArray(data.answers) ? data.answers : [];
-    return stripped.map((a, i) =>
-      typeof before[i]?.isCorrect === 'boolean'
-        ? { ...a, isCorrect: before[i].isCorrect }
-        : a
-    );
+    return priorVerdictsOnly(graded, data.answers);
   }
   const override = activeResultsOverride(data.resultsOverride, now);
-  const keep =
-    override?.mode !== 'hidden' &&
-    (sessionShowsResults ||
-      visibilityShowsResponses(visibility) ||
-      (override?.mode === 'shown' &&
-        visibilityShowsResponses(override.visibility)));
-  return keep ? graded : stripped;
+  const free =
+    responseKey !== undefined &&
+    studentUid !== undefined &&
+    responseKey !== studentUid;
+  const levelShows =
+    visibilityShowsResponses(visibility) ||
+    (override?.mode === 'shown' &&
+      visibilityShowsResponses(override.visibility));
+  if (override?.mode === 'hidden') return stripped;
+  if (levelShows) return graded;
+  return sessionShowsResults && !free
+    ? graded
+    : priorVerdictsOnly(graded, data.answers);
 }
 
 /** Grades one GL response the way a class publish does. */
@@ -234,7 +251,7 @@ async function publishForStudents<T extends { completedAt: number | null }>(
   collectionName: string,
   sessionId: string,
   responseKeys: string[],
-  buildPatch: (data: T) => Record<string, unknown>
+  buildPatch: (data: T, key: string) => Record<string, unknown>
 ): Promise<PublishForStudentsResult> {
   const snaps = await Promise.all(
     Array.from(new Set(responseKeys)).map((key) =>
@@ -251,7 +268,7 @@ async function publishForStudents<T extends { completedAt: number | null }>(
       skipped += 1;
       continue;
     }
-    patches.push({ ref: snap.ref, patch: buildPatch(data) });
+    patches.push({ ref: snap.ref, patch: buildPatch(data, snap.id) });
   }
   await commitPatches(patches);
   return { responsesUpdated: patches.length, skipped };
@@ -283,18 +300,19 @@ export async function publishVideoActivityResultsForStudents(
     VA_SESSIONS_COLLECTION,
     sessionId,
     responseKeys,
-    (data) => {
+    (data, key) => {
       const graded = gradeVideoActivityResponseForPublish(
         data,
         questionsById,
         live
       );
+      const free = key !== data.studentUid;
       return {
         score: graded.score,
         answers:
-          showsResults || visibilityShowsResponses(visibility)
+          visibilityShowsResponses(visibility) || (showsResults && !free)
             ? graded.answers
-            : answersWithoutVerdicts(graded.answers),
+            : priorVerdictsOnly(graded.answers, data.answers),
         resultsOverride: shownOverride(
           visibility,
           expiresAt,
