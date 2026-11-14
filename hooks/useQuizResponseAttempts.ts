@@ -23,7 +23,15 @@ export function attemptAsResponse(
     servedQuestionIds: copy.servedQuestionIds,
     status: 'completed',
   };
-  const notChosen = notChosenQuestionIds(asCompleted, sections);
+  // The copy keeps the pick its score was computed with.
+  const notChosen = notChosenQuestionIds(
+    {
+      ...asCompleted,
+      countedChoices: copy.countedChoices,
+      completedAttempts: copy.n,
+    },
+    sections
+  );
   return {
     ...live,
     ...asCompleted,
@@ -32,7 +40,7 @@ export function attemptAsResponse(
     score: copy.score ?? null,
     submittedAt: copy.submittedAt ?? null,
     _notChosen: notChosen.length > 0 ? notChosen : undefined,
-    // The teacher's picks belong to the live attempt only.
+    // The picker edits the live attempt only.
     countedChoices: undefined,
     tabSwitchWarnings: copy.tabSwitchWarnings,
     tabExits: copy.tabExits,

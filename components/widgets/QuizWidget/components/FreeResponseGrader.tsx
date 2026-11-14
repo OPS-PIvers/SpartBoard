@@ -2008,7 +2008,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       void saveCounted(extraSection.sectionId, [question.id])
                     }
                     {...tourTypeAttr('quiz-grading.count-instead', 'quiz')}
-                    className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-bold text-brand-blue-primary hover:bg-slate-50"
+                    className="touch-target-expand relative rounded-md border border-slate-300 px-2.5 py-1 text-xs font-bold text-brand-blue-primary hover:bg-slate-50"
                   >
                     {tg('countInstead')}
                   </button>

@@ -82,7 +82,7 @@ export const CountedChoicesPicker: React.FC<{
         disabled={saving}
         onClick={() => setOpen((o) => !o)}
         {...tourFieldAttr('quiz-results.counted-answers', 'quiz', sectionId)}
-        className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-semibold text-brand-gray-darkest hover:border-brand-blue-light disabled:opacity-60"
+        className="touch-target-expand relative inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-semibold text-brand-gray-darkest hover:border-brand-blue-light disabled:opacity-60"
         style={{
           ...SMALL_TEXT,
           gap: 'min(4px, 1cqmin)',

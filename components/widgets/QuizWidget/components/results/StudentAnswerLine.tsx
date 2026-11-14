@@ -257,7 +257,7 @@ export const StudentAnswerLine: React.FC<{
               'quiz',
               String(line.number)
             )}
-            className="inline-flex items-center shrink-0 rounded-sm font-sans font-semibold text-brand-blue-primary hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            className="touch-target-expand relative inline-flex items-center shrink-0 rounded-sm font-sans font-semibold text-brand-blue-primary hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             style={SMALL_TEXT}
           >
             Count this instead
