@@ -1063,16 +1063,14 @@ const AttachStimulusSection: React.FC<{
             ? 'Drop it here'
             : attachedCount > 0
               ? `${attachedCount} attached`
-              : 'none'}
+              : stimuli.length === 0
+                ? 'No stimuli yet'
+                : 'None attached'}
         </span>
       </button>
       {open && (
         <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2">
-          {stimuli.length === 0 ? (
-            <p className="text-xs text-slate-500">
-              No stimuli yet. Add one below.
-            </p>
-          ) : (
+          {stimuli.length > 0 && (
             <ul className="space-y-1">
               {stimuli.map((s, stimulusIndex) => {
                 const usedOn = [
