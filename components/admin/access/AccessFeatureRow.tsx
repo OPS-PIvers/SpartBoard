@@ -408,6 +408,11 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
   defaultExpanded = false,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [prevDefault, setPrevDefault] = useState(defaultExpanded);
+  if (prevDefault !== defaultExpanded) {
+    setPrevDefault(defaultExpanded);
+    setExpanded(defaultExpanded);
+  }
   const def = FEATURE_DEFAULTS[featureId];
   const Icon = def.icon;
   const panelId = `access-row-${featureId}`;

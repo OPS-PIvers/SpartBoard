@@ -202,14 +202,13 @@ export const PreviewsPanel: React.FC = () => {
       const kids = previewGroupChildren(parent, all);
       if (kids.length === 0) continue;
       kids.forEach((id) => nested.add(id));
-      const parentMatches = matches(parent);
-      const shown = parentMatches ? kids : kids.filter(matches);
-      if (!parentMatches && shown.length === 0) continue;
+      const hits = query.trim() ? kids.filter(matches) : [];
+      if (hits.length === 0 && !matches(parent)) continue;
       groups.set(parent, {
-        children: shown.sort((a, b) =>
+        children: (hits.length > 0 ? hits : kids).sort((a, b) =>
           groupChildLabel(a).localeCompare(groupChildLabel(b))
         ),
-        openForSearch: !parentMatches,
+        openForSearch: hits.length > 0,
       });
     }
     const features = all
@@ -250,7 +249,7 @@ export const PreviewsPanel: React.FC = () => {
                   return <PreviewRow key={id} featureId={id} editor={editor} />;
                 return (
                   <PreviewRow
-                    key={`${id}-${group.openForSearch ? 'open' : 'closed'}`}
+                    key={id}
                     featureId={id}
                     editor={editor}
                     defaultExpanded={group.openForSearch}

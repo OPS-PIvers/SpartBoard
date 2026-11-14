@@ -65,6 +65,7 @@ vi.mock('@/context/useDashboard', () => ({
 let savedPermissions: Record<string, unknown>[] = [];
 
 import { PreviewsPanel } from './PreviewsPanel';
+import { AccessSearchContext } from './accessSearchContext';
 
 const renderPanel = async () => {
   render(<PreviewsPanel />);
@@ -108,6 +109,23 @@ describe('PreviewsPanel', () => {
     expect(group).toContainElement(child);
     expect(child).toHaveTextContent('Flashcards');
     expect(child).not.toHaveTextContent('Import: Flashcards');
+  });
+
+  it('opens the Import row to just the matching add-ons when a search finds them', async () => {
+    render(
+      <AccessSearchContext.Provider
+        value={{ query: 'link', setQuery: () => undefined }}
+      >
+        <PreviewsPanel />
+      </AccessSearchContext.Provider>
+    );
+    const group = await screen.findByTestId('preview-group-universal-import');
+    expect(
+      within(group).getByTestId('access-row-import-link')
+    ).toBeInTheDocument();
+    expect(
+      within(group).queryByTestId('access-row-import-flashcards')
+    ).toBeNull();
   });
 
   it('saves a nested Import add-on to its own permission doc', async () => {
