@@ -371,7 +371,10 @@ export const MiniAppSubmissionsMonitor: React.FC<{
                               </span>
                             </button>
                             {open && (
-                              <div style={{ marginTop: 'min(8px, 2cqmin)' }}>
+                              <div
+                                className="max-h-60 overflow-auto"
+                                style={{ marginTop: 'min(8px, 2cqmin)' }}
+                              >
                                 <SubmissionDetails value={s.payload} />
                               </div>
                             )}

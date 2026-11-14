@@ -41,4 +41,30 @@ describe('SubmissionDetails', () => {
     );
     expect(answerSummary(null)).toBe('–');
   });
+
+  it('says how many rows are hidden past the cap', () => {
+    render(
+      <SubmissionDetails
+        value={{ log: Array.from({ length: 205 }, (_, i) => ({ step: i })) }}
+      />
+    );
+    expect(screen.getByText('5 more not shown')).toBeInTheDocument();
+  });
+
+  it('keeps deep values readable instead of hiding them', () => {
+    render(
+      <SubmissionDetails
+        value={{ deep: [{ q: 1, meta: { a: { b: 'kept' } } }] }}
+      />
+    );
+    expect(screen.getByTestId('mini-app-submission-details')).toHaveTextContent(
+      'kept'
+    );
+  });
+
+  it('keeps small numbers and leaves missing table cells blank-marked', () => {
+    render(<SubmissionDetails value={[{ constructor: 1 }, { rate: 0.004 }]} />);
+    const cells = screen.getAllByRole('cell').map((c) => c.textContent);
+    expect(cells).toEqual(['1', '–', '–', '0.004']);
+  });
 });

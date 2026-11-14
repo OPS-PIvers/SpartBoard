@@ -23,10 +23,12 @@ export const primitiveText = (v: unknown): string | null => {
   if (v === null || v === undefined || v === '') return '–';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if (typeof v === 'number')
-    return Number.isFinite(v) ? String(Number(v.toFixed(2))) : '–';
+    return Number.isFinite(v)
+      ? String(Number(v.toFixed(Math.abs(v) < 1 ? 4 : 2)))
+      : String(v);
   if (typeof v === 'string') return v;
   if (Array.isArray(v) && v.every(isPrimitive))
-    return v.length === 0 ? '–' : v.map((x) => primitiveText(x)).join(', ');
+    return v.length === 0 ? 'None' : v.map((x) => primitiveText(x)).join(', ');
   return null;
 };
 

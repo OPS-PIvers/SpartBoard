@@ -1,6 +1,7 @@
 // A Mini App's free-form result as labelled rows and tables, never raw code.
 import React from 'react';
 import {
+  answerSummary,
   humanizeKey,
   isPlain,
   primitiveText,
@@ -23,6 +24,11 @@ const tableColumns = (rows: unknown[]): string[] | null => {
   return cols.length > 0 && cols.length <= 8 ? cols : null;
 };
 
+const MoreRows: React.FC<{ count: number }> = ({ count }) =>
+  count > 0 ? (
+    <p className="text-brand-gray-primary">{count} more not shown</p>
+  ) : null;
+
 const Value: React.FC<{ value: unknown; depth: number }> = ({
   value,
   depth,
@@ -30,11 +36,17 @@ const Value: React.FC<{ value: unknown; depth: number }> = ({
   const text = primitiveText(value);
   if (text !== null)
     return <span className="whitespace-pre-wrap break-words">{text}</span>;
-  if (depth >= MAX_DEPTH) return <span>…</span>;
+  if (depth >= MAX_DEPTH)
+    return (
+      <span className="whitespace-pre-wrap break-words">
+        {answerSummary(value)}
+      </span>
+    );
 
   if (Array.isArray(value)) {
     const rows = (value as unknown[]).slice(0, MAX_ROWS);
     const cols = tableColumns(rows);
+    const hidden = value.length - rows.length;
     if (cols)
       return (
         <div className="overflow-x-auto">
@@ -65,62 +77,75 @@ const Value: React.FC<{ value: unknown; depth: number }> = ({
                       className="align-top break-words"
                       style={{ padding: 'min(4px, 1cqmin) min(8px, 2cqmin)' }}
                     >
-                      {primitiveText((row as Plain)[c])}
+                      {primitiveText(
+                        Object.hasOwn(row as Plain, c)
+                          ? (row as Plain)[c]
+                          : undefined
+                      )}
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
+          <MoreRows count={hidden} />
         </div>
       );
     return (
-      <ol className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-        {rows.map((item, i) => (
-          <li key={i} className="flex" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-            <span className="shrink-0 font-semibold text-brand-gray-primary tabular-nums">
-              {i + 1}.
-            </span>
-            <div className="min-w-0 flex-1">
-              <Value value={item} depth={depth + 1} />
-            </div>
-          </li>
-        ))}
-      </ol>
+      <div>
+        <ol className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+          {rows.map((item, i) => (
+            <li key={i} className="flex" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+              <span className="shrink-0 font-semibold text-brand-gray-primary tabular-nums">
+                {i + 1}.
+              </span>
+              <div className="min-w-0 flex-1">
+                <Value value={item} depth={depth + 1} />
+              </div>
+            </li>
+          ))}
+        </ol>
+        <MoreRows count={hidden} />
+      </div>
     );
   }
 
   if (isPlain(value)) {
     const entries = Object.entries(value);
-    if (entries.length === 0) return <span>–</span>;
+    if (entries.length === 0) return <span>None</span>;
     return (
-      <dl
-        className="grid min-w-0"
-        style={{
-          gridTemplateColumns: 'minmax(0, max-content) minmax(0, 1fr)',
-          columnGap: 'min(12px, 3cqmin)',
-          rowGap: 'min(4px, 1cqmin)',
-        }}
-      >
-        {entries.slice(0, MAX_ROWS).map(([k, v]) => {
-          const inline = primitiveText(v) !== null;
-          return (
-            <React.Fragment key={k}>
-              <dt
-                className={`font-semibold text-brand-gray-primary break-words ${inline ? '' : 'col-span-2'}`}
-              >
-                {humanizeKey(k)}
-              </dt>
-              <dd
-                className={`min-w-0 text-brand-gray-dark ${inline ? '' : 'col-span-2 border-l-2 border-brand-gray-lightest'}`}
-                style={inline ? undefined : { paddingLeft: 'min(8px, 2cqmin)' }}
-              >
-                <Value value={v} depth={depth + 1} />
-              </dd>
-            </React.Fragment>
-          );
-        })}
-      </dl>
+      <div>
+        <dl
+          className="grid min-w-0"
+          style={{
+            gridTemplateColumns: 'minmax(0, max-content) minmax(0, 1fr)',
+            columnGap: 'min(12px, 3cqmin)',
+            rowGap: 'min(4px, 1cqmin)',
+          }}
+        >
+          {entries.slice(0, MAX_ROWS).map(([k, v]) => {
+            const inline = primitiveText(v) !== null;
+            return (
+              <React.Fragment key={k}>
+                <dt
+                  className={`font-semibold text-brand-gray-primary break-words ${inline ? '' : 'col-span-2'}`}
+                >
+                  {humanizeKey(k)}
+                </dt>
+                <dd
+                  className={`min-w-0 text-brand-gray-dark ${inline ? '' : 'col-span-2 border-l-2 border-brand-gray-lightest'}`}
+                  style={
+                    inline ? undefined : { paddingLeft: 'min(8px, 2cqmin)' }
+                  }
+                >
+                  <Value value={v} depth={depth + 1} />
+                </dd>
+              </React.Fragment>
+            );
+          })}
+        </dl>
+        <MoreRows count={entries.length - MAX_ROWS} />
+      </div>
     );
   }
 

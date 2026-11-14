@@ -107,7 +107,6 @@ const formatTime = (ms: number): string =>
 
 const answerText = (answer: unknown): string => {
   if (answer === null || answer === undefined) return '';
-  if (Array.isArray(answer)) return answer.map(String).join(', ');
   return typeof answer === 'string' ? answer : answerSummary(answer);
 };
 
@@ -804,7 +803,11 @@ export const MiniAppResultsView: React.FC<{
                             )}
                             {list.length === 0 &&
                               row.legacyPayload !== undefined && (
-                                <SubmissionDetails value={row.legacyPayload} />
+                                <div className="max-h-60 overflow-auto">
+                                  <SubmissionDetails
+                                    value={row.legacyPayload}
+                                  />
+                                </div>
                               )}
                             {list.length > 0 && (
                               <div style={{ marginTop: 'min(10px, 2.5cqmin)' }}>
@@ -846,7 +849,7 @@ export const MiniAppResultsView: React.FC<{
                                       </span>
                                       {a.rawPayload !== undefined && (
                                         <div
-                                          className="w-full"
+                                          className="w-full max-h-40 overflow-auto"
                                           style={{
                                             marginTop: 'min(4px, 1cqmin)',
                                           }}
