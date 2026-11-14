@@ -98,6 +98,8 @@ export interface StudentDrilldownOptions {
   includeExplanations?: boolean;
   /** The rubric after per-student overrides; defaults to the question's snapshot. */
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
+  /** Keep the text of an extra answer that doesn't count (choose-n-pick-counted). */
+  showExtraAnswers?: boolean;
 }
 
 export interface StudentDrilldown {
@@ -305,7 +307,9 @@ export function computeStudentDrilldown(
     if (response._notChosen?.includes(q.id)) {
       // An answer that doesn't count stays readable; it shows as "Extra, not scored".
       const written =
-        entry && (!entry.unresponded || entry.unresponded === 'passed')
+        options.showExtraAnswers &&
+        entry &&
+        (!entry.unresponded || entry.unresponded === 'passed')
           ? readableAnswer(q, { ...entry, unresponded: undefined })
           : '';
       lines.push({

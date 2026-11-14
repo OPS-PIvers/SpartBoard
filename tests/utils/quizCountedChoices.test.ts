@@ -50,12 +50,21 @@ describe('choose-N teacher picks', () => {
       countedChoices: { attempt: 1, bySection: { s1: ['a', 'c'] } },
     });
     expect(notChosenQuestionIds(r, [section])).toEqual(['b']);
-    expect(withNotChosen([r], [section])[0]._notChosen).toEqual(['b']);
+    const rows: (typeof r & { _notChosen?: string[] })[] = [r];
+    expect(withNotChosen(rows, [section])[0]._notChosen).toEqual(['b']);
   });
 
   it('ignores picks from an earlier attempt', () => {
     const r = response({
       completedAttempts: 2,
+      countedChoices: { attempt: 1, bySection: { s1: ['a', 'c'] } },
+    });
+    expect(notChosenQuestionIds(r, [section])).toEqual(['c']);
+  });
+
+  it('ignores the pick while a retake is in progress', () => {
+    const r = response({
+      status: 'in-progress',
       countedChoices: { attempt: 1, bySection: { s1: ['a', 'c'] } },
     });
     expect(notChosenQuestionIds(r, [section])).toEqual(['c']);

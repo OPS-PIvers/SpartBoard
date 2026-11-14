@@ -232,7 +232,10 @@ export function notChosenQuestionIds(
         section,
         answers,
         response.servedQuestionIds,
-        pickedForSection(response, section.id)
+        // A retake in progress still carries the last attempt's number, so its pick waits.
+        response.status === 'completed'
+          ? pickedForSection(response, section.id)
+          : undefined
       )
     );
     return servedSectionQuestionIds(section, response.servedQuestionIds).filter(

@@ -154,10 +154,26 @@ describe('teacher picks (countedChoices)', () => {
   it('keeps picks only for the current attempt', () => {
     const choices = { attempt: 1, bySection: { s1: ['a', 'c'], x: [] } };
     expect(
-      parseCountedChoices({ completedAttempts: 1, countedChoices: choices })
+      parseCountedChoices({
+        status: 'completed',
+        completedAttempts: 1,
+        countedChoices: choices,
+      })
     ).toEqual({ s1: ['a', 'c'] });
     expect(
-      parseCountedChoices({ completedAttempts: 2, countedChoices: choices })
+      parseCountedChoices({
+        status: 'completed',
+        completedAttempts: 2,
+        countedChoices: choices,
+      })
+    ).toBeUndefined();
+    // A retake in progress keeps the old attempt number; its pick waits.
+    expect(
+      parseCountedChoices({
+        status: 'in-progress',
+        completedAttempts: 1,
+        countedChoices: choices,
+      })
     ).toBeUndefined();
     expect(parseCountedChoices({ countedChoices: 'junk' })).toBeUndefined();
   });

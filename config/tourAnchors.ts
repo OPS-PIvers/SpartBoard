@@ -3878,9 +3878,8 @@ export const TOUR_ANCHORS = {
     persists: true,
   },
   'quiz-results.counted-answers': {
-    label: 'Answers that count menu in Quiz results and the grader, by section',
+    label: 'Answers that count menu in Quiz results, by section',
     perField: true,
-    persists: true,
   },
   'quiz-results.count-instead': {
     label:

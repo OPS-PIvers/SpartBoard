@@ -391,9 +391,9 @@ interface QuizResultsProps {
   plcView?: boolean;
   /** Paper answer sheets are on for this teacher; the results print offers sheet reprints. */
   paperSheetsEnabled?: boolean;
-  /** Opens the assignment's Publish results dialog; the footer button renders only when provided. */
   /** Dev harness: replaces the Firestore save of which answers count. */
   countedChoicesSaver?: SaveCountedChoices;
+  /** Opens the assignment's Publish results dialog; the footer button renders only when provided. */
   onPublishScores?: () => void;
   /** Per-student publishing handlers; the controls render only when provided. */
   studentResultsActions?: StudentResultsActions;
@@ -4176,6 +4176,8 @@ const StudentDrilldownPanel: React.FC<{
   onSaveCountedChoices,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
+  const { canAccessFeature } = useAuth();
+  const showExtraAnswers = canAccessFeature('choose-n-pick-counted');
   const liveKey = getResponseDocKey(liveResponse) as string;
   const copies = useQuizResponseAttempts(sessionId, liveKey, true);
   const earlier = useMemo(
@@ -4226,9 +4228,10 @@ const StudentDrilldownPanel: React.FC<{
       computeStudentDrilldown(
         questions,
         response,
-        makeQuestionGradeFn(fibGrading)
+        makeQuestionGradeFn(fibGrading),
+        { showExtraAnswers }
       ),
-    [questions, response, fibGrading]
+    [questions, response, fibGrading, showExtraAnswers]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),

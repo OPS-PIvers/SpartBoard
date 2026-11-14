@@ -64,6 +64,7 @@ export function parseCountedChoices(
   response: Record<string, unknown>
 ): Record<string, string[]> | undefined {
   const raw = response.countedChoices;
+  if (response.status !== 'completed') return undefined;
   if (typeof raw !== 'object' || raw === null) return undefined;
   const r = raw as Record<string, unknown>;
   const attempt =

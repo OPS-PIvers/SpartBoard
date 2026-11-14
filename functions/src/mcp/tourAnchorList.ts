@@ -16055,9 +16055,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-results.counted-answers",
-    "label": "Answers that count menu in Quiz results and the grader, by section",
+    "label": "Answers that count menu in Quiz results, by section",
     "scope": "field",
-    "persists": true,
     "routes": [
       {
         "surface": "quiz.student-answer-line",
