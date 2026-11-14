@@ -75,6 +75,15 @@ async function main() {
     if (status === undefined || LIVE.has(status)) continue;
     for (const u of await usersFor(auth, d.id, d.get('uid'))) {
       if (u.customClaims?.deactivated === true) continue;
+      // A linked account that moved to another live member address belongs to that member now.
+      const current = u.email?.toLowerCase();
+      if (current && current !== d.id) {
+        const live = await db.doc(`organizations/${ORG_ID}/members/${current}`).get();
+        if (live.exists && (live.get('status') === undefined || LIVE.has(live.get('status')))) {
+          console.log(`  skip ${d.id} uid=${u.uid}: now signs in as live member ${current}`);
+          continue;
+        }
+      }
       plans.push({ email: d.id, user: u });
     }
   }
