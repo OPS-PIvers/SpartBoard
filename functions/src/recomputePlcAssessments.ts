@@ -1,6 +1,6 @@
 // Scheduled recompute of dirty PLC assessments into `plcs/{plcId}/aggregates` (plan §5.2).
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { parseChooseSections } from './quizSectionsChosen';
+import { parseChooseSections, parseCountedChoices } from './quizSectionsChosen';
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
@@ -81,6 +81,7 @@ export function parseCompletedResponse(
     manualGrades: parseManualGrades(
       currentShortAnswerGrading(raw.grading, raw.answers)
     ),
+    countedChoices: parseCountedChoices(raw),
   };
 }
 

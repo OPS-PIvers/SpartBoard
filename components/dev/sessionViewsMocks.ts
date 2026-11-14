@@ -1152,3 +1152,95 @@ export function makeQuizFrqClassResponses(): QuizResponse[] {
     };
   });
 }
+
+/** A quiz whose last section asks for any 2 of 3 written answers. */
+export function makeChooseNQuizData(): QuizData {
+  const written = (id: string, text: string) => ({
+    id,
+    type: 'free-response' as const,
+    text,
+    timeLimit: 0,
+    correctAnswer: '',
+    incorrectAnswers: [],
+    points: 4,
+  });
+  return {
+    ...makeQuizData(),
+    title: 'Unit 4 Test',
+    questions: [
+      ...makeQuizData().questions,
+      written('w1', 'Explain why the treaty failed.'),
+      written('w2', 'Compare the two leaders in a short paragraph.'),
+      written('w3', 'Describe one cause of the war.'),
+    ],
+    order: [
+      { kind: 'question', id: QUIZ_Q1_ID },
+      { kind: 'question', id: QUIZ_Q2_ID },
+      { kind: 'section', id: 'sec-written' },
+      { kind: 'question', id: 'w1' },
+      { kind: 'question', id: 'w2' },
+      { kind: 'question', id: 'w3' },
+    ],
+    sections: [{ id: 'sec-written', title: 'Short answer', chooseCount: 2 }],
+  };
+}
+
+export function makeChooseNSession(): QuizSession {
+  return {
+    ...makeQuizSession('ended'),
+    quizTitle: 'Unit 4 Test',
+    sections: [
+      {
+        id: 'sec-written',
+        title: 'Short answer',
+        chooseCount: 2,
+        questionIds: ['w1', 'w2', 'w3'],
+      },
+    ],
+  };
+}
+
+/** One student answered all three, one passed a throwaway answer, one answered two. */
+export function makeChooseNResponses(): QuizResponse[] {
+  const done = (
+    key: string,
+    pin: string,
+    written: Record<string, string>,
+    passed: string[] = []
+  ): QuizResponse => ({
+    ...quizCompleted(key, pin, '3/4', '1/2'),
+    completedAttempts: 1,
+    answers: [
+      ...quizCompleted(key, pin, '3/4', '1/2').answers,
+      ...Object.entries(written).map(([questionId, answer], i) => ({
+        questionId,
+        answer,
+        answeredAt: NOW - 60_000 + i,
+        ...(passed.includes(questionId)
+          ? { unresponded: 'passed' as const }
+          : {}),
+      })),
+    ],
+  });
+  return [
+    done('pin-Period 3-1001', '1001', {
+      w1: 'The treaty punished one side so hard that it wanted revenge.',
+      w2: 'One leader built alliances while the other acted alone.',
+      w3: 'Rising nationalism pushed countries to compete for land.',
+    }),
+    done(
+      'pin-Period 3-1002',
+      '1002',
+      {
+        w1: 'N/A',
+        w2: 'Both leaders wanted power but used different methods.',
+        w3: 'An assassination set off a chain of alliances.',
+      },
+      ['w1']
+    ),
+    done('pin-Period 3-1003', '1003', {
+      w1: 'It was too harsh.',
+      w2: 'They were different.',
+    }),
+  ];
+}

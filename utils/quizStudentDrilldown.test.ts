@@ -42,6 +42,20 @@ const response = (
   }) as unknown as QuizResponse;
 
 describe('computeStudentDrilldown', () => {
+  it('shows an extra answer only when the pick feature is on', () => {
+    const r = {
+      ...response({ q1: 'Paris' }),
+      _notChosen: ['q1'],
+    } as unknown as QuizResponse;
+    const questions = [q('q1', 'FIB', 'Paris')];
+    const off = computeStudentDrilldown(questions, r).lines[0];
+    expect([off.mark, off.answerText]).toEqual(['notChosen', '']);
+    const on = computeStudentDrilldown(questions, r, undefined, {
+      showExtraAnswers: true,
+    }).lines[0];
+    expect([on.mark, on.answerText]).toEqual(['notChosen', 'Paris']);
+  });
+
   it('marks MC and FIB answers and shows the key under a wrong one', () => {
     const d = computeStudentDrilldown(
       [

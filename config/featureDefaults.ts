@@ -1609,6 +1609,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'choose-n-pick-counted': {
+    label: 'Quiz: pick which answers count',
+    icon: ListChecks,
+    description:
+      'When a student answers more questions than a section asks for, the teacher picks which answers count.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'video-import-ai': {
     label: 'Video import: AI questions',
     icon: Sparkles,

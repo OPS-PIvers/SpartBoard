@@ -109,6 +109,8 @@ export interface CompletedResponse {
   classId?: string;
   /** Teacher manual grades by session question id (primary slot). */
   manualGrades?: Record<string, ManualGrade>;
+  /** Teacher picks of which answers count, by choose-N section id. */
+  countedChoices?: Record<string, string[]>;
 }
 
 export interface SessionInput {
@@ -1045,7 +1047,8 @@ export function computeAssessmentAggregate(
       const notChosen = notChosenIds(
         session.sections,
         answers,
-        r.servedQuestionIds
+        r.servedQuestionIds,
+        r.countedChoices
       );
       const servedSet = new Set(servedIds.filter((id) => !notChosen.has(id)));
       for (const sessionQid of servedSet) {

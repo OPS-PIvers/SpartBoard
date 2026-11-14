@@ -392,7 +392,10 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.student-answer-line': {
     label: 'Student answer line',
     kind: 'shared',
-    files: [`${C}results/StudentAnswerLine.tsx`],
+    files: [
+      `${C}results/StudentAnswerLine.tsx`,
+      `${C}results/CountedChoicesPicker.tsx`,
+    ],
   },
   'quiz.monitor': {
     label: 'Quiz live monitor',

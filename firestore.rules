@@ -4764,6 +4764,7 @@ service cloud.firestore {
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
+          incoming().get('countedChoices', null) == null &&
           // Archive state, back-translations and the paper seat are server-written; the archive pipeline and hourly sweep trust them.
           incoming().get('artifactArchive', null) == null &&
           incoming().get('hasStuckArchive', null) == null &&

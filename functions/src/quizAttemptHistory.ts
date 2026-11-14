@@ -39,6 +39,7 @@ const COPIED_FIELDS = [
   'tabExits',
   'artifactArchive',
   'preSyncVersion',
+  'countedChoices',
 ] as const;
 
 /** Changes to a finished attempt that its copy must follow (grading, publish, finalize). */
@@ -51,6 +52,7 @@ const WATCHED_WHILE_DONE = [
   'submittedAt',
   'servedQuestionIds',
   'tabExits',
+  'countedChoices',
 ] as const;
 
 export interface AttemptWrite {

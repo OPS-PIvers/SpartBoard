@@ -258,6 +258,8 @@ export interface QuestionScoreInput {
   manualGrades?: Record<string, ManualGrade>;
   fibAnswersByQuestion?: Record<string, string[]>;
   sectionsRaw?: unknown;
+  /** Teacher picks of which answers count, by choose-N section id. */
+  countedChoices?: Record<string, string[]>;
   /** Video activity: grade from the stored `isCorrect` when the key is missing. */
   useStoredCorrectness?: boolean;
   /** Hybrid paper quiz: written questions answered on a printed sheet. */
@@ -280,7 +282,8 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
   const notChosen = notChosenIds(
     parseChooseSections(input.sectionsRaw),
     input.answers,
-    input.servedQuestionIds?.length ? input.servedQuestionIds : undefined
+    input.servedQuestionIds?.length ? input.servedQuestionIds : undefined,
+    input.countedChoices
   );
   const representative = selectRepresentativeAnswers(input.answers);
   const evidence = new Map<string, TargetEvidence>();
@@ -427,6 +430,7 @@ export function scoreQuizResponse(
     manualGrades: parsed.manualGrades,
     fibAnswersByQuestion: ctx.fibAnswersByStudent(studentUid),
     sectionsRaw: session.sections,
+    countedChoices: parsed.countedChoices,
     paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
       session.paperWrittenQuestionIds
     ),

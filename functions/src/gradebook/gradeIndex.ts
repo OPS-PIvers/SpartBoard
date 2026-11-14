@@ -537,6 +537,7 @@ const WATCHED: Record<GradeKind, string[]> = {
     'submittedAt',
     'classId',
     'servedQuestionIds',
+    'countedChoices',
   ],
   'video-activity': [
     'score',
