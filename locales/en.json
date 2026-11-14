@@ -3684,7 +3684,24 @@
       "greatWork": "Great work.",
       "autoSubmitted": "Auto-submitted because you left the quiz tab too many times.",
       "waitingFinal": "Waiting for final results…"
-    }
+    },
+    "dropHere": "Drop here",
+    "wordBank": "Word Bank",
+    "undoReset": "Undo reset",
+    "resetAll": "Reset all placements",
+    "reset": "Reset",
+    "inWordBank": "{{name}}, in word bank",
+    "matchedTo": "{{name}}, matched to {{term}}",
+    "dropZoneFor": "Drop zone for {{term}}",
+    "thisTerm": "this term",
+    "allOptionsPlaced": "All options placed.",
+    "ordering": {
+      "position": "position {{n}}",
+      "emptySlot": "Empty drop zone, {{position}}",
+      "moveUp": "Move {{position}} up",
+      "moveDown": "Move {{position}} down"
+    },
+    "allItemsPlaced": "All items placed."
   },
   "quizSubmit": {
     "offline": "You're offline. Keep this tab open and your answers will save when you reconnect.",

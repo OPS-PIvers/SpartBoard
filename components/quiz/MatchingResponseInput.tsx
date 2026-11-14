@@ -186,10 +186,16 @@ const DropZone: React.FC<DropZoneProps> = ({
   termLabel,
   light,
 }) => {
+  const { t } = useTranslation();
   const { isOver, setNodeRef } = useDroppable({ id, disabled });
   const ariaLabel = filledLabel
-    ? `${filledLabel}, matched to ${termLabel ?? ''}`.trim()
-    : `Drop zone for ${termLabel ?? 'this term'}`;
+    ? t('quizStudent.matchedTo', {
+        name: filledLabel,
+        term: termLabel ?? '',
+      }).trim()
+    : t('quizStudent.dropZoneFor', {
+        term: termLabel ?? t('quizStudent.thisTerm'),
+      });
   return (
     <button
       // no-tour-anchor: student quiz screen; tours walk teachers
@@ -219,7 +225,7 @@ const DropZone: React.FC<DropZoneProps> = ({
               : 'border-slate-600 bg-slate-800/40 text-slate-500'
       } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
-      {filledLabel ?? 'Drop here'}
+      {filledLabel ?? t('quizStudent.dropHere')}
     </button>
   );
 };
@@ -568,7 +574,10 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                       selected={placedSelected}
                       disabled={disabled}
                       onTap={() => handleZoneChipTap(term)}
-                      ariaLabel={`${optionName(placedIdx as number)}, matched to ${termName ?? term}`}
+                      ariaLabel={t('quizStudent.matchedTo', {
+                        name: optionName(placedIdx as number),
+                        term: termName ?? term,
+                      })}
                       light={light}
                       placed
                     />
@@ -597,7 +606,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             <span
               className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}
             >
-              Word Bank
+              {t('quizStudent.wordBank')}
             </span>
             <button
               // no-tour-anchor: student quiz screen; tours walk teachers
@@ -605,16 +614,18 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
               onClick={undo ? undoReset : reset}
               disabled={disabled}
               className={`flex items-center gap-1 min-h-[44px] px-3 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${light ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
-              aria-label={undo ? 'Undo reset' : 'Reset all placements'}
+              aria-label={
+                undo ? t('quizStudent.undoReset') : t('quizStudent.resetAll')
+              }
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              {undo ? 'Undo' : 'Reset'}
+              {undo ? t('quizSubmit.undo') : t('quizStudent.reset')}
             </button>
           </div>
           <div className="flex flex-wrap gap-2 min-h-[48px]">
             {bankItems.length === 0 && (
               <span className="text-xs text-slate-500 italic px-2 py-1">
-                All options placed.
+                {t('quizStudent.allOptionsPlaced')}
               </span>
             )}
             {bankItems.map((optionIndex) => {
@@ -634,7 +645,9 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                     selected={selected}
                     disabled={disabled}
                     onTap={() => handleBankChipTap(optionIndex)}
-                    ariaLabel={`${optionName(optionIndex)}, in word bank`}
+                    ariaLabel={t('quizStudent.inWordBank', {
+                      name: optionName(optionIndex),
+                    })}
                     light={light}
                   />
                   {speaker('matchingRight', allOptions[optionIndex])}
