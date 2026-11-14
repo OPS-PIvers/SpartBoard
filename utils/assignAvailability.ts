@@ -33,6 +33,24 @@ export interface AssignAvailability {
   noEnd?: boolean;
   /** Study Resource only: no open date, students see it as soon as it's assigned. */
   opensNow?: boolean;
+  /** Submit work only: opens when assigned; ignored with a window per class. */
+  opensOnAssign?: boolean;
+  /** Manual only: due when the teacher ends it, or at a set time that closes it; absent saves no due date. */
+  manualDue?: ManualDue;
+}
+
+export type ManualDue =
+  { kind: 'ended' } | { kind: 'date'; day: string; time: string };
+
+/** A saved Manual due date back as a date and time. */
+export function manualDueFromMs(ms: number): ManualDue {
+  const d = new Date(ms);
+  return { kind: 'date', day: getLocalIsoDate(d), time: localTime(d) };
+}
+
+/** A Manual due date as epoch ms; null when it's due whenever the teacher ends it. */
+export function manualDueAt(due: ManualDue | undefined): number | null {
+  return due?.kind === 'date' ? combineDateAndTime(due.day, due.time) : null;
 }
 
 /** The kind's default, and whether the teacher may change it. */
@@ -158,9 +176,13 @@ export function availabilityBackwards(
   if (!availability) return false;
   const resource = value.workKind === 'resource';
   if (resource && availability.noEnd) return false;
+  const perClass = rosters.length > 1 && !!availability.byRoster;
+  const opensNow = resource
+    ? availability.opensNow
+    : availability.opensOnAssign && !perClass;
   const spec = (s: AvailabilitySpec): AvailabilitySpec =>
-    resource && availability.opensNow ? opensFromNow(s) : s;
-  return rosters.length > 1 && availability.byRoster
+    opensNow ? opensFromNow(s) : s;
+  return perClass
     ? rosters.some((r) =>
         closesBeforeOpens(
           spec(specForRoster(availability, r.id)),
@@ -195,11 +217,13 @@ export function resolveAvailability(
 ): ResolvedAvailability {
   const resource = workKind === 'resource';
   const noEnd = resource && !!availability.noEnd;
-  const opensNow = resource && !!availability.opensNow;
-  // A resource has no due date and no late work; its close is where it leaves the student view.
-  const keepsOpen = resource ? noEnd : availability.allowLate;
   // "Each class" only applies while two or more classes are checked, as the section shows it.
   const eachClass = rosters.length > 1;
+  const opensNow = resource
+    ? !!availability.opensNow
+    : !!availability.opensOnAssign && !(eachClass && availability.byRoster);
+  // A resource has no due date and no late work; its close is where it leaves the student view.
+  const keepsOpen = resource ? noEnd : availability.allowLate;
   // A resource keeps no due date to mark the cushion by, so it closes on the bell.
   const cushioned: BellWindowFn | undefined =
     bellWindow && !resource
@@ -507,10 +531,12 @@ export function applyWhen(
       dueAt: _dueAt,
       ...rest
     } = value;
+    const dueAt = manualDueAt(value.availability?.manualDue);
     return {
       targeting: {
         ...rest,
         ...(workKind ? { workKind } : {}),
+        ...(dueAt != null ? { closeAt: dueAt, dueAt } : {}),
         periodPlan: { mode: 'assessment' },
       },
     };

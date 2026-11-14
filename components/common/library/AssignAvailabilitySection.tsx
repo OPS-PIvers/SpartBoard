@@ -32,6 +32,8 @@ export const PointField: React.FC<{
   wideLabel?: boolean;
   /** Offers an X that drops the date, e.g. back to Now. */
   clear?: { label: string; onClear: () => void };
+  /** Tour field key; defaults to the side. */
+  fieldKey?: string;
 }> = ({
   label,
   side,
@@ -42,6 +44,7 @@ export const PointField: React.FC<{
   cqScaled,
   wideLabel,
   clear,
+  fieldKey = side,
 }) => {
   const { t } = useTranslation();
   const dateId = useId();
@@ -78,7 +81,7 @@ export const PointField: React.FC<{
             onChange={(e) => {
               if (e.target.value) onChange({ ...point, day: e.target.value });
             }}
-            {...tourFieldAttr('assign-availability.date', 'assign', side)}
+            {...tourFieldAttr('assign-availability.date', 'assign', fieldKey)}
             className="w-33 bg-transparent focus:outline-hidden"
           />
         </span>
@@ -96,7 +99,11 @@ export const PointField: React.FC<{
                   setJustPicked(true);
                   onChange({ ...point, time: pickedTime });
                 }}
-                {...tourFieldAttr('assign-availability.time', 'assign', side)}
+                {...tourFieldAttr(
+                  'assign-availability.time',
+                  'assign',
+                  fieldKey
+                )}
                 className="min-w-0 flex-1 appearance-none bg-transparent pr-4 focus:outline-hidden"
               >
                 <option value="bell">{bellLabel}</option>
@@ -115,7 +122,11 @@ export const PointField: React.FC<{
                   label,
                 })}
                 autoFocus={justPicked}
-                {...tourFieldAttr('assign-availability.time', 'assign', side)}
+                {...tourFieldAttr(
+                  'assign-availability.time',
+                  'assign',
+                  fieldKey
+                )}
                 value={timeValue}
                 onChange={(e) => {
                   if (e.target.value)
@@ -129,7 +140,11 @@ export const PointField: React.FC<{
                   aria-label={bellLabel}
                   title={bellLabel}
                   onClick={() => onChange({ ...point, time: 'bell' })}
-                  {...tourFieldAttr('assign-availability.bell', 'assign', side)}
+                  {...tourFieldAttr(
+                    'assign-availability.bell',
+                    'assign',
+                    fieldKey
+                  )}
                   className="rounded-sm p-0.5 text-slate-400 hover:text-slate-700"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -145,7 +160,11 @@ export const PointField: React.FC<{
           aria-label={clear.label}
           title={clear.label}
           onClick={clear.onClear}
-          {...tourFieldAttr('assign-availability.open-ended', 'assign', side)}
+          {...tourFieldAttr(
+            'assign-availability.open-ended',
+            'assign',
+            fieldKey
+          )}
           className="touch-target-expand rounded-sm p-0.5 text-slate-400 hover:text-slate-700"
         >
           <X className="h-3.5 w-3.5" />
@@ -156,13 +175,25 @@ export const PointField: React.FC<{
 };
 
 /** A study resource point with no date: opens now, or stays until the teacher ends it. */
-const OpenEndedField: React.FC<{
+export const OpenEndedField: React.FC<{
   label: string;
   side: Side;
   valueLabel: string;
   onSetDate: () => void;
   wideLabel?: boolean;
-}> = ({ label, side, valueLabel, onSetDate, wideLabel }) => {
+  /** The menu's other choice; defaults to "Set a date". */
+  setDateLabel?: string;
+  /** Tour anchor; defaults to the open-ended field's. */
+  anchor?: Record<string, string>;
+}> = ({
+  label,
+  side,
+  valueLabel,
+  onSetDate,
+  wideLabel,
+  setDateLabel,
+  anchor,
+}) => {
   const { t } = useTranslation();
   const id = useId();
   return (
@@ -181,12 +212,13 @@ const OpenEndedField: React.FC<{
           onChange={(e) => {
             if (e.target.value === 'date') onSetDate();
           }}
-          {...tourFieldAttr('assign-availability.open-ended', 'assign', side)}
+          {...(anchor ??
+            tourFieldAttr('assign-availability.open-ended', 'assign', side))}
           className="min-w-0 flex-1 appearance-none bg-transparent pr-4 focus:outline-hidden"
         >
           <option value="open">{valueLabel}</option>
           <option value="date">
-            {t('assignAvailability.setDate', 'Set a date')}
+            {setDateLabel ?? t('assignAvailability.setDate', 'Set a date')}
           </option>
         </select>
         <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-slate-400" />
@@ -210,6 +242,8 @@ export const SpecRows: React.FC<{
   opensNow?: boolean;
   /** Offers Now / Manually ended in place of the dates; absent keeps the dates fixed. */
   onOpenEnded?: (next: { opensNow: boolean; noEnd: boolean }) => void;
+  /** Only Opens offers Now; Closes keeps its date. */
+  opensOnly?: boolean;
 }> = ({
   spec,
   bellAvailable,
@@ -222,9 +256,11 @@ export const SpecRows: React.FC<{
   hideOpens,
   opensNow,
   onOpenEnded,
+  opensOnly,
 }) => {
   const { t } = useTranslation();
   const openEnded = !!onOpenEnded;
+  const closesOpenEnded = openEnded && !opensOnly;
   const setOpenEnded = (next: { opensNow?: boolean; noEnd?: boolean }) =>
     onOpenEnded?.({
       opensNow: next.opensNow ?? !!opensNow,
@@ -271,7 +307,7 @@ export const SpecRows: React.FC<{
           }
         />
       )}
-      {openEnded && noEnd && (
+      {closesOpenEnded && noEnd && (
         <OpenEndedField
           label={untilLabel}
           side="closes"
@@ -291,7 +327,7 @@ export const SpecRows: React.FC<{
           onChange={(closes) => onChange({ ...spec, closes })}
           cqScaled={cqScaled}
           clear={
-            openEnded
+            closesOpenEnded
               ? {
                   label: endsLabel,
                   onClear: () => setOpenEnded({ noEnd: true }),

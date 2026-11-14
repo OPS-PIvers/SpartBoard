@@ -27,6 +27,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'claude-connector-apps',
   'video-activity-live',
   'quiz-student-view',
+  'class-student-page',
   'quiz-live-view',
   'quiz-score-on-submit',
   'gradebook',
@@ -90,6 +91,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-check-sync',
   'youtube-paste-picker',
   'choose-n-pick-counted',
+  'assign-due-date',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

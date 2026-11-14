@@ -38,10 +38,12 @@ export const TOUR_CONDITION_DONE_FACTS: readonly string[] = [
 export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'ai-file-context',
   'anonymous-join',
+  'assign-due-date',
   'assignment-modes',
   'blooms-ai',
   'checklist-small-card',
   'choose-n-pick-counted',
+  'class-student-page',
   'claude-connector',
   'claude-connector-apps',
   'claude-connector-guided-learning',

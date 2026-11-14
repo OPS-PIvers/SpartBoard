@@ -9,6 +9,8 @@ import {
   closesBeforeOpens,
   closesInPast,
   defaultAvailability,
+  manualDueAt,
+  type ManualDue,
   periodAccessWindowEdits,
   resolveAvailability,
   type AssignAvailability,
@@ -772,5 +774,117 @@ describe('open-ended study resources', () => {
     );
     expect(next.openAt).toBe(new Date(2026, 10, 12, 10, 0).getTime());
     expect('closeAt' in next).toBe(false);
+  });
+});
+
+describe('Manual due date', () => {
+  const base = {
+    ...EMPTY_ASSIGN_TARGETING_VALUE,
+    availability: bellToBell('2026-10-02'),
+  };
+  const manual = (manualDue: ManualDue | undefined) =>
+    applyWhen(
+      { ...base, availability: { ...base.availability, manualDue } },
+      { mode: 'manual', manualAvailable: true, rosters: [p3], bellWindow }
+    ).targeting;
+
+  it('saves a set date and time as both the due date and the close', () => {
+    const at = new Date(2026, 9, 9, 23, 59).getTime();
+    const targeting = manual({
+      kind: 'date',
+      day: '2026-10-09',
+      time: '23:59',
+    });
+    expect(targeting.dueAt).toBe(at);
+    expect(targeting.closeAt).toBe(at);
+    expect(targeting.periodPlan).toEqual({ mode: 'assessment' });
+  });
+
+  it('saves no due date or close when due when ended', () => {
+    const targeting = manual({ kind: 'ended' });
+    expect(targeting.dueAt).toBeUndefined();
+    expect(targeting.closeAt).toBeUndefined();
+  });
+
+  it('is ignored on Scheduled', () => {
+    const { targeting } = applyWhen(
+      {
+        ...base,
+        availability: {
+          ...base.availability,
+          manualDue: { kind: 'date', day: '2030-01-01', time: '08:00' },
+        },
+      },
+      { mode: 'scheduled', manualAvailable: true, rosters: [p3], bellWindow }
+    );
+    expect(targeting.dueAt).not.toBe(new Date(2030, 0, 1, 8, 0).getTime());
+  });
+
+  it('reads back as epoch ms', () => {
+    expect(manualDueAt({ kind: 'ended' })).toBeNull();
+    expect(manualDueAt(undefined)).toBeNull();
+    expect(
+      manualDueAt({ kind: 'date', day: '2026-10-09', time: '08:30' })
+    ).toBe(new Date(2026, 9, 9, 8, 30).getTime());
+  });
+});
+
+describe('Scheduled opens when assigned', () => {
+  const now = new Date(2026, 9, 2, 9, 0);
+  const availability = {
+    all: {
+      opens: { day: '2026-10-02', time: '07:00' },
+      closes: { day: '2026-10-02', time: '23:59' },
+    },
+    allowLate: false,
+    opensOnAssign: true,
+  };
+
+  it('opens at assign time for submit work', () => {
+    expect(
+      resolveAvailability(availability, [p3], undefined, 'work', now).openAt
+    ).toBe(now.getTime());
+  });
+
+  it('keeps the set open when off', () => {
+    expect(
+      resolveAvailability(
+        { ...availability, opensOnAssign: false },
+        [p3],
+        undefined,
+        'work',
+        now
+      ).openAt
+    ).toBe(new Date(2026, 9, 2, 7, 0).getTime());
+  });
+
+  it('gives way to a window per class', () => {
+    const perClass = {
+      ...availability,
+      byRoster: { [p3.id]: availability.all, [p5.id]: availability.all },
+    };
+    expect(
+      resolveAvailability(perClass, [p3, p5], undefined, 'work', now).openAt
+    ).toBe(new Date(2026, 9, 2, 7, 0).getTime());
+  });
+
+  it('judges the window from now', () => {
+    const past = {
+      ...availability,
+      all: {
+        opens: { day: '2020-01-01', time: '07:00' },
+        closes: { day: '2020-01-01', time: '08:00' },
+      },
+    };
+    expect(availabilityBackwards({ availability: past }, [p3], undefined)).toBe(
+      true
+    );
+    expect(
+      availabilityBackwards(
+        { availability: { ...past, opensOnAssign: false } },
+        [p3],
+        undefined
+      )
+    ).toBe(false);
   });
 });

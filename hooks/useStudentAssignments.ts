@@ -130,7 +130,7 @@ type StatusFilter =
   | { field: 'status'; valueIn: readonly string[] }
   | null;
 
-interface KindConfig {
+export interface KindConfig {
   collectionName: string;
   /** Run BOTH a list query (classIds array-contains-any) AND a single query (classId in). */
   dualQuery: boolean;
@@ -400,7 +400,7 @@ const isNumberRecord = (v: unknown): v is Record<string, number> =>
   v !== null &&
   Object.values(v).every((n) => typeof n === 'number');
 
-function buildAssignmentSummary(
+export function buildAssignmentSummary(
   kind: SessionKind,
   channel: AssignmentChannel,
   config: KindConfig,
@@ -510,7 +510,7 @@ function isLiveSession(
  * Best-effort active/ended classification for a directly-hydrated session
  * doc (M17 C1) — kinds without an ended-status concept always read active.
  */
-function channelForHydratedData(
+export function channelForHydratedData(
   config: KindConfig,
   data: DocumentData
 ): AssignmentChannel {
@@ -523,6 +523,16 @@ function channelForHydratedData(
       ? filter.valueIn.includes(status)
       : status === filter.value;
   return matches ? 'ended' : 'active';
+}
+
+/** A view-only share is a link, not an assignment; GL keeps it on `assignmentMode`, flashcards have none. */
+export function isViewOnlySession(
+  kind: SessionKind,
+  data: DocumentData
+): boolean {
+  if (kind === 'flashcards') return false;
+  const field = kind === 'guided-learning' ? 'assignmentMode' : 'mode';
+  return (data as Record<string, unknown>)[field] === 'view-only';
 }
 
 const CLASS_QUERY_CHUNK = 30;
@@ -954,22 +964,6 @@ export function useStudentAssignments({
     ) => {
       const config = KIND_CONFIG[plan.kind];
       const key = planKey(plan);
-      // View-only sessions never appear in the student's My Assignments list:
-      // they're shared links, not assignments. Pre-feature sessions don't
-      // carry an assignment-mode field and pass through unchanged.
-      //
-      // Field-naming asymmetry: Quiz / Video Activity / Mini App store the
-      // mode under `mode`. Guided Learning uses `assignmentMode` because GL's
-      // session already has a `mode` field for play-mode (structured / guided
-      // / explore). Filtering by `plan.kind` keeps each widget's check
-      // narrow — using a single check that ORs both fields would, in theory,
-      // drop a GL doc whose play-mode happened to spell 'view-only'.
-      const modeField =
-        plan.kind === 'guided-learning'
-          ? 'assignmentMode'
-          : plan.kind === 'flashcards'
-            ? null
-            : 'mode';
       // Defensive fallback: the planner expands multi-value status filters into
       // single-value plans (each filtered server-side), so this branch is
       // normally inert. If a multi-value plan is ever issued it still
@@ -986,12 +980,7 @@ export function useStudentAssignments({
         key,
         snap.docs.flatMap((d) => {
           const data = d.data();
-          if (
-            modeField !== null &&
-            (data as Record<string, unknown>)[modeField] === 'view-only'
-          ) {
-            return [];
-          }
+          if (isViewOnlySession(plan.kind, data)) return [];
           if (acceptStatus !== null) {
             const status = (data as Record<string, unknown>).status;
             if (typeof status !== 'string' || !acceptStatus.has(status)) {

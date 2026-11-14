@@ -67,10 +67,42 @@ export const widgetSearchFields = (
   ]),
 ];
 
+/** The Assignment modes section at the top of the Features tab. */
+export const ASSIGNMENT_MODES_SEARCH_FIELDS: readonly string[] = [
+  'Assignment modes',
+  'Submissions',
+  'View only',
+  'assignment-modes',
+  'Quiz',
+  'Video Activity',
+  'Mini Apps',
+  'Guided Learning',
+];
+
 export const previewFeatures = (
   graduated: GraduatedSet = NONE
 ): GlobalFeature[] =>
   ALL_GLOBAL_FEATURES.filter((id) => !isPermanentFeature(id, graduated));
+
+/** Preview flags whose add-ons (`requires`) nest under their row instead of listing on their own. */
+export const PREVIEW_GROUP_PARENTS: readonly GlobalFeature[] = [
+  'universal-import',
+];
+
+/** Preview add-ons of a group parent, or none when the parent has left Previews. */
+export const previewGroupChildren = (
+  parent: GlobalFeature,
+  previews: readonly GlobalFeature[]
+): GlobalFeature[] =>
+  PREVIEW_GROUP_PARENTS.includes(parent) && previews.includes(parent)
+    ? previews.filter((id) => FEATURE_DEFAULTS[id].requires === parent)
+    : [];
+
+/** Name of an add-on inside its group, without the parent's "Import: " style prefix. */
+export const groupChildLabel = (id: GlobalFeature): string => {
+  const label = FEATURE_DEFAULTS[id].label.replace(/^[^:]+:\s*/, '');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
 
 export const switchForFeature = (
   id: GlobalFeature
@@ -110,7 +142,10 @@ const rowsFor = (
   graduated: GraduatedSet
 ): Record<AccessTabId, readonly (readonly (string | undefined)[])[]> => ({
   widgets: TOOLS.map((t) => widgetSearchFields(t, undefined, graduated)),
-  features: featuresTabFeatures(graduated).map(featureSearchFields),
+  features: [
+    ASSIGNMENT_MODES_SEARCH_FIELDS,
+    ...featuresTabFeatures(graduated).map(featureSearchFields),
+  ],
   previews: [
     ...previewFeatures(graduated).map(featureSearchFields),
     ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),

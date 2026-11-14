@@ -14,6 +14,7 @@ import {
   pickClassInSession,
   sortClassesByBell,
 } from '@/utils/studentClassOrder';
+import { useStudentTurnIns } from '@/hooks/useStudentTurnIns';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { StudentPageShell } from './StudentPageShell';
@@ -63,6 +64,19 @@ const MyAssignmentsPage: React.FC = () => {
         : allAssignments.filter((row) => row.kind !== 'projects'),
     [allAssignments, projectsEnabled]
   );
+
+  const turnIns = useStudentTurnIns(assignments, pseudonymUid);
+  const [checksReady, setChecksReady] = useState(false);
+  const loaded =
+    loadState !== 'loading' &&
+    directory.status !== 'loading' &&
+    bell.status !== 'loading';
+  if (loaded && turnIns.settled && !checksReady) setChecksReady(true);
+  useEffect(() => {
+    if (!loaded || checksReady) return;
+    const id = window.setTimeout(() => setChecksReady(true), 4000);
+    return () => window.clearTimeout(id);
+  }, [loaded, checksReady]);
 
   // M17 C2 — clock-skew guard for window enforcement (spec §3a-D): window
   // comparisons use server-offset time, never raw Date.now().
@@ -154,11 +168,7 @@ const MyAssignmentsPage: React.FC = () => {
   }, [signOut]);
 
   // ────────── Loading / no-classes / error gates (top-level guards) ──────────
-  if (
-    loadState === 'loading' ||
-    directory.status === 'loading' ||
-    bell.status === 'loading'
-  ) {
+  if (!loaded) {
     return (
       <StudentPageShell onDone={handleDone}>
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-slate-500">
@@ -209,12 +219,25 @@ const MyAssignmentsPage: React.FC = () => {
     );
   }
 
+  if (!checksReady) {
+    return (
+      <StudentPageShell onDone={handleDone}>
+        <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-slate-500">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-blue-primary" />
+          <p className="text-sm font-medium">Loading your assignments…</p>
+        </div>
+      </StudentPageShell>
+    );
+  }
+
   return (
     <StudentLandingV2
       classes={classes}
       scheduleFor={bell.scheduleFor}
       assignments={assignments}
       pseudonymUid={pseudonymUid}
+      checks={turnIns.checks}
+      recheck={turnIns.recheck}
       firstName={firstName}
       selectedClassId={effectiveClassId}
       onSelectClass={handleSelectClass}

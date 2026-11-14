@@ -14,7 +14,9 @@ import {
   ROLLOUT_ONLY_SWITCHES,
   featureSearchFields,
   matchesSearch,
+  groupChildLabel,
   previewFeatures,
+  previewGroupChildren,
   rolloutSearchFields,
   switchForFeature,
 } from './accessSearch';
@@ -68,7 +70,10 @@ const DistrictSwitch: React.FC<{
 export const PreviewRow: React.FC<{
   featureId: GlobalFeature;
   editor: ReturnType<typeof useGlobalPermissionsEditor>;
-}> = ({ featureId, editor }) => {
+  displayLabel?: string;
+  defaultExpanded?: boolean;
+  children?: React.ReactNode;
+}> = ({ featureId, editor, displayLabel, defaultExpanded, children }) => {
   const sw = switchForFeature(featureId);
   const district = useRolloutSwitch(sw);
   const districtOn = sw ? district.enabled : undefined;
@@ -98,6 +103,8 @@ export const PreviewRow: React.FC<{
       onUpdate={(updates) => editor.updatePermission(featureId, updates)}
       onSave={() => void editor.savePermission(featureId)}
       showMessage={editor.showMessage}
+      displayLabel={displayLabel}
+      defaultExpanded={defaultExpanded}
       lead={
         <>
           {sw && <DistrictSwitch sw={sw} state={district} />}
@@ -139,7 +146,9 @@ export const PreviewRow: React.FC<{
           {district.error ? ` · ${district.error}` : ''}
         </>
       }
-    />
+    >
+      {children}
+    </AccessFeatureRow>
   );
 };
 
@@ -178,15 +187,35 @@ export const PreviewsPanel: React.FC = () => {
   const editor = useGlobalPermissionsEditor();
   const { query } = useAccessSearch();
 
-  const features = useMemo(
-    () =>
-      previewFeatures(editor.graduated)
-        .filter((id) => matchesSearch(query, featureSearchFields(id)))
-        .sort((a, b) =>
-          FEATURE_DEFAULTS[a].label.localeCompare(FEATURE_DEFAULTS[b].label)
+  const { features, groups } = useMemo(() => {
+    const all = previewFeatures(editor.graduated);
+    const matches = (id: GlobalFeature) =>
+      matchesSearch(query, featureSearchFields(id));
+    const byLabel = (a: GlobalFeature, b: GlobalFeature) =>
+      FEATURE_DEFAULTS[a].label.localeCompare(FEATURE_DEFAULTS[b].label);
+    const nested = new Set<GlobalFeature>();
+    const groups = new Map<
+      GlobalFeature,
+      { children: GlobalFeature[]; openForSearch: boolean }
+    >();
+    for (const parent of all) {
+      const kids = previewGroupChildren(parent, all);
+      if (kids.length === 0) continue;
+      kids.forEach((id) => nested.add(id));
+      const hits = query.trim() ? kids.filter(matches) : [];
+      if (hits.length === 0 && !matches(parent)) continue;
+      groups.set(parent, {
+        children: (hits.length > 0 ? hits : kids).sort((a, b) =>
+          groupChildLabel(a).localeCompare(groupChildLabel(b))
         ),
-    [query, editor.graduated]
-  );
+        openForSearch: hits.length > 0,
+      });
+    }
+    const features = all
+      .filter((id) => !nested.has(id) && (groups.has(id) || matches(id)))
+      .sort(byLabel);
+    return { features, groups };
+  }, [query, editor.graduated]);
   const rolloutOnly = ROLLOUT_ONLY_SWITCHES.filter((sw) =>
     matchesSearch(query, rolloutSearchFields(sw))
   );
@@ -214,9 +243,38 @@ export const PreviewsPanel: React.FC = () => {
         <>
           {features.length > 0 && (
             <div className="divide-y divide-slate-200 border-y border-slate-200">
-              {features.map((id) => (
-                <PreviewRow key={id} featureId={id} editor={editor} />
-              ))}
+              {features.map((id) => {
+                const group = groups.get(id);
+                if (!group)
+                  return <PreviewRow key={id} featureId={id} editor={editor} />;
+                return (
+                  <PreviewRow
+                    key={id}
+                    featureId={id}
+                    editor={editor}
+                    defaultExpanded={group.openForSearch}
+                  >
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        Options
+                      </p>
+                      <div
+                        data-testid={`preview-group-${id}`}
+                        className="divide-y divide-slate-200 border-y border-slate-200"
+                      >
+                        {group.children.map((child) => (
+                          <PreviewRow
+                            key={child}
+                            featureId={child}
+                            editor={editor}
+                            displayLabel={groupChildLabel(child)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </PreviewRow>
+                );
+              })}
             </div>
           )}
           {district && (

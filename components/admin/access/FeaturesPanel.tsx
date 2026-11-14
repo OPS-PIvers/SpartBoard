@@ -6,8 +6,10 @@ import {
   type FeatureCategory,
 } from '@/config/featureDefaults';
 import { AccessFeatureRow } from './AccessFeatureRow';
+import { AssignmentModesSection } from './AssignmentModesSection';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import {
+  ASSIGNMENT_MODES_SEARCH_FIELDS,
   featureSearchFields,
   featuresTabFeatures,
   matchesSearch,
@@ -48,11 +50,13 @@ export const FeaturesPanel: React.FC = () => {
         ),
     }))
     .filter(({ ids }) => ids.length > 0);
+  const showModes = matchesSearch(query, ASSIGNMENT_MODES_SEARCH_FIELDS);
 
   return (
     <div className="space-y-3">
       <AdminSearchField tab="features" placeholder="Search features" />
-      {sections.length === 0 && (
+      {showModes && <AssignmentModesSection editor={editor} />}
+      {sections.length === 0 && !showModes && (
         <AccessSearchEmpty
           tab="features"
           fallback="No features."

@@ -224,7 +224,6 @@ function confirmAssign(dialog: HTMLElement) {
 }
 
 function pickClass(dialog: HTMLElement, name: string) {
-  fireEvent.click(within(dialog).getByRole('button', { name: /No classes/ }));
   fireEvent.click(within(dialog).getByLabelText(new RegExp(name)));
 }
 

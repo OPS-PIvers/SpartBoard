@@ -221,6 +221,8 @@ export interface ClassRosterMeta {
   ltiContextId?: string;
   /** The building bell period this class meets in, for per-period assignment windows; null once cleared. */
   bellPeriod?: RosterBellPeriod | null;
+  /** Server-stamped first time each former PIN was retired (ms), keyed by `quizPinKeySegment`. */
+  retiredPinsAt?: Record<string, number>;
 }
 
 export interface RosterBellPeriod {
@@ -11305,6 +11307,8 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */
+  | 'class-student-page'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
@@ -11401,7 +11405,9 @@ export type GlobalFeature =
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker'
   /** Teachers pick which answers count when a student answers more than a section asks. */
-  | 'choose-n-pick-counted';
+  | 'choose-n-pick-counted'
+  /** Manual assignments get a due date, and Assign remembers the When step. */
+  | 'assign-due-date';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -228,6 +228,7 @@ const DragBlanks: React.FC<Props> = ({
   const placements = placementsFromValue(value, bank, count, reuse);
   const [picked, setPicked] = React.useState<number | null>(null);
   const [announcement, setAnnouncement] = React.useState('');
+  const [undo, setUndo] = React.useState<string | null>(null);
   // The tapped chip unmounts, so focus follows the word to where it landed.
   const rootRef = React.useRef<HTMLDivElement>(null);
   const focusNextRef = React.useRef<string | null>(null);
@@ -257,7 +258,19 @@ const DragBlanks: React.FC<Props> = ({
 
   const emit = (next: (number | null)[]) => {
     setPicked(null);
+    setUndo(null);
     onChange(joinBlanks(next.map((idx) => (idx === null ? '' : bank[idx]))));
+  };
+  const resetAll = () => {
+    const before = value;
+    emit(placements.map(() => null));
+    setUndo(before);
+  };
+  const undoReset = () => {
+    if (undo === null) return;
+    setPicked(null);
+    onChange(undo);
+    setUndo(null);
   };
   const place = (word: number, slot: number, fromSlot?: number) => {
     const next = [...placements];
@@ -377,13 +390,19 @@ const DragBlanks: React.FC<Props> = ({
             <button
               // no-tour-anchor: student quiz screen; tours walk teachers
               type="button"
-              onClick={() => emit(placements.map(() => null))}
-              disabled={disabled || placedSet.size === 0}
-              className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${focusCls} ${light ? 'text-slate-500 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}
-              aria-label={t('quizBlanks.clearAll', 'Clear all blanks')}
+              onClick={undo !== null ? undoReset : resetAll}
+              disabled={disabled || (undo === null && placedSet.size === 0)}
+              className={`flex items-center gap-1 min-h-[44px] px-3 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${focusCls} ${light ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}
+              aria-label={
+                undo !== null
+                  ? t('quizSubmit.undo', 'Undo')
+                  : t('quizBlanks.clearAll', 'Clear all blanks')
+              }
             >
               <RotateCcw className="w-3.5 h-3.5" aria-hidden />
-              {t('quizBlanks.reset', 'Reset')}
+              {undo !== null
+                ? t('quizSubmit.undo', 'Undo')
+                : t('quizBlanks.reset', 'Reset')}
             </button>
           </div>
           <div className="flex flex-wrap gap-2 min-h-[48px]">

@@ -622,11 +622,8 @@ describe('organizations/buildings — writes', () => {
   });
 });
 
-// F6 — building-admin membership check must canonicalize legacy ↔ canonical
-// building IDs (config/buildings.ts BUILDING_ID_ALIASES). A building doc and a
-// member's buildingIds may be stored in either format; the rule's manages()
-// helper must match them regardless of which side is legacy.
-describe('organizations/buildings — building-admin ID canonicalization (F6)', () => {
+// PT-175: manages() compares raw building ids; prod has no long-form ids left, so formats no longer bridge.
+describe('organizations/buildings — building-admin ID matching', () => {
   const CANON_MEMBER_EMAIL = 'canon.admin@orono.k12.mn.us';
   const LEGACY_MEMBER_EMAIL = 'legacy.admin@orono.k12.mn.us';
   const NONMEMBER_ADMIN_EMAIL = 'nonmember.admin@orono.k12.mn.us';
@@ -702,8 +699,9 @@ describe('organizations/buildings — building-admin ID canonicalization (F6)', 
     });
   });
 
-  it('canonical-member can edit a legacy-id building (canonical member ↔ legacy building)', async () => {
-    await assertSucceeds(
+  // PT-175: prod has no long-form building ids, so the rules no longer bridge the two formats.
+  it('canonical-member cannot edit a legacy-id building (no alias bridging)', async () => {
+    await assertFails(
       updateDoc(
         doc(
           asCanonAdmin(),
@@ -714,8 +712,8 @@ describe('organizations/buildings — building-admin ID canonicalization (F6)', 
     );
   });
 
-  it('legacy-member can edit a canonical-id building (legacy member ↔ canonical building)', async () => {
-    await assertSucceeds(
+  it('legacy-member cannot edit a canonical-id building (no alias bridging)', async () => {
+    await assertFails(
       updateDoc(
         doc(asLegacyAdmin(), `organizations/${ORG_ID}/buildings/high`),
         { address: '2 Legacy Ave' }
@@ -1456,11 +1454,8 @@ describe('organizations/members — writes', () => {
     );
   });
 
-  // M2 / F6 follow-up — the building-admin member status overlap is now
-  // alias-aware via buildingListsOverlap(). The acting building admin stores
-  // buildingIds: ['high']; these tests cover a target member stored in the
-  // LEGACY alias format and an unrelated member.
-  it('building admin can update status for a member stored in a legacy building-id alias (alias-aware overlap)', async () => {
+  // PT-175: the building-admin member status overlap compares raw ids (no long-form aliases on prod).
+  it('building admin cannot update status for a member stored only under a legacy building-id alias', async () => {
     const ALIAS_MEMBER_EMAIL = 'alias.member@orono.k12.mn.us';
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
@@ -1473,12 +1468,12 @@ describe('organizations/members — writes', () => {
           orgId: ORG_ID,
           roleId: 'teacher',
           status: 'active',
-          // Legacy alias of 'high' — building admin manages canonical 'high'.
+          // Legacy alias of 'high'; the building admin manages canonical 'high'.
           buildingIds: ['orono-high-school'],
         }
       );
     });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(
         doc(
           asBuildingAdmin(),
@@ -1489,7 +1484,7 @@ describe('organizations/members — writes', () => {
     );
   });
 
-  it('building admin is still denied on a member in an unrelated building (alias-aware denial)', async () => {
+  it('building admin is still denied on a member in an unrelated building', async () => {
     const UNRELATED_MEMBER_EMAIL = 'unrelated.member@orono.k12.mn.us';
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
