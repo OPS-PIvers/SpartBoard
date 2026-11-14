@@ -207,6 +207,24 @@ describe('HelpResourceViewer live tours', () => {
       window.removeEventListener(TOUR_START_EVENT, started);
     });
 
+    it('falls back to the published copy when the building set read is denied', async () => {
+      h.loadBuildingSet.mockRejectedValue(new Error('permission-denied'));
+      render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+      expect(
+        await screen.findByRole('button', { name: 'Start Live Tour' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Open Boards')).toBeInTheDocument();
+    });
+
+    it('shows unavailable when the read is denied and nothing is published', async () => {
+      h.publishedSet = null;
+      h.loadBuildingSet.mockRejectedValue(new Error('permission-denied'));
+      render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+      expect(
+        await screen.findByText(/no longer available/i)
+      ).toBeInTheDocument();
+    });
+
     it('shows the steps without a start button where the tour cannot run', async () => {
       h.canRunLive = false;
       h.loadBuildingSet.mockResolvedValue(stepsSet());

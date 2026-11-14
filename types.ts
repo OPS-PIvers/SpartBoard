@@ -221,6 +221,8 @@ export interface ClassRosterMeta {
   ltiContextId?: string;
   /** The building bell period this class meets in, for per-period assignment windows; null once cleared. */
   bellPeriod?: RosterBellPeriod | null;
+  /** Server-stamped first time each former PIN was retired (ms), keyed by `quizPinKeySegment`. */
+  retiredPinsAt?: Record<string, number>;
 }
 
 export interface RosterBellPeriod {

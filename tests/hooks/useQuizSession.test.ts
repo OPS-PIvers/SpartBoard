@@ -4870,6 +4870,45 @@ describe('useQuizSessionTeacher — reopenStudentAttempt vs unlockStudentAttempt
     expect(env.batch.commit).toHaveBeenCalledTimes(1);
   });
 
+  it('reopen strips the published key and right/wrong marks from the attempt', async () => {
+    const hook = renderHook(() => useQuizSessionTeacher('sess-1'));
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => buildSession({ status: 'active' }),
+      });
+    });
+    act(() => {
+      env.responsesCallback?.({
+        docs: buildResponseDocs([
+          {
+            id: 'stu-1',
+            data: {
+              studentUid: 'stu-1',
+              status: 'completed',
+              answers: [{ questionId: 'q1', answer: 'a', isCorrect: true }],
+              revealedAnswers: { q1: 'a' },
+              completedAttempts: 1,
+            } as unknown as QuizResponse,
+          },
+        ]),
+      });
+    });
+    await act(async () => {
+      await hook.result.current.reopenStudentAttempt('stu-1');
+    });
+    const patch = env.batch.update.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch).toMatchObject({
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+      revealedRubricExamples: DELETE_FIELD_SENTINEL,
+      revealedExplanations: DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedAnswers': DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedRubricExamples': DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedExplanations': DELETE_FIELD_SENTINEL,
+      answers: [{ questionId: 'q1', answer: 'a' }],
+    });
+  });
+
   it('unlock clears a leftover reopen marker so the one-exit rule applies', async () => {
     const { result } = mountWithTurnedIn();
     await act(async () => {
