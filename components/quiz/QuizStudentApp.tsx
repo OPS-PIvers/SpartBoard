@@ -131,10 +131,7 @@ import {
   splitStimuliForLayout,
   stimulusPlayKey,
 } from '@/utils/quizStimuli';
-import {
-  splitStimuliForTabs,
-  stimulusUseCounts,
-} from '@/utils/quizStimulusTabs';
+import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
 import { StimulusPanelDivider } from './StimulusPanelDivider';
 import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
@@ -183,6 +180,7 @@ import {
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import { WhiteboardResponseCapture } from './recording/WhiteboardResponseCapture';
 import { RecordingNoticeDrawingContext } from './recording/recordingNoticeDrawing';
+import { LiveViewNotice } from './LiveViewNotice';
 import { MicrophoneGate } from './recording/MicrophoneGate';
 import { useQuizRecordingNoticeSettings } from '@/hooks/useQuizRecordingNoticeSettings';
 import {
@@ -248,6 +246,7 @@ import {
   crossOutStorageKey,
   useCrossedOutChoices,
 } from './useCrossedOutChoices';
+import { STUDENT_VIEW_SESSION_ID } from '@/utils/quizStudentViewSession';
 import { StudentAccommodationBar } from './StudentAccommodationBar';
 import {
   highlightClass,
@@ -586,6 +585,7 @@ const QuizJoinFlow: React.FC<{
     reportTabSwitch,
     saveTabExits,
     saveInputSignals,
+    reportLivePosition,
     setHandRaised,
     startAttemptClock,
     submitPart,
@@ -1804,6 +1804,7 @@ const QuizJoinFlow: React.FC<{
               reportTabSwitch={reportTabSwitch}
               saveTabExits={saveTabExits}
               saveInputSignals={isViewOnly ? undefined : saveInputSignals}
+              onReportLivePosition={isViewOnly ? undefined : reportLivePosition}
               onSetHandRaised={setHandRaised}
               onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
               onSubmitPart={isViewOnly ? undefined : submitPart}
@@ -1985,6 +1986,10 @@ export const ActiveQuiz: React.FC<{
   readAloudRequested?: boolean;
   /** The page requires fullscreen, so leaving fullscreen counts as a tab exit. */
   fullscreenRequired?: boolean;
+  /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
+  watchQuestionId?: string | null;
+  /** Reports the question on screen while the teacher has Live view open. */
+  onReportLivePosition?: (questionId: string, at?: number) => Promise<void>;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -2016,12 +2021,15 @@ export const ActiveQuiz: React.FC<{
   effectiveCloseAt,
   readAloudRequested,
   fullscreenRequired = false,
+  watchQuestionId,
+  onReportLivePosition,
 }) => {
+  const watching = watchQuestionId !== undefined;
   const { showAlert, showConfirm } = useDialog();
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
-  // Review before submit (quiz-review-step): this tab's sessionStorage only, so teachers never see marks.
+  // Review before submit: this tab's sessionStorage only, so teachers never see marks.
   const reviewStoreKey = reviewStateKey(
     session.id,
     myResponse?._responseKey,
@@ -2456,7 +2464,12 @@ export const ActiveQuiz: React.FC<{
     hasStops && q ? partOfQuestion(session.sections, q.id) : 1;
   const partsDone = hasStops && myResponse ? partsDoneOf(myResponse) : 0;
   // A rejoin or a just-submitted part lands on the first open question.
+  const watchIndex = watchQuestionId
+    ? orderedPublicQuestions.findIndex((q) => q.id === watchQuestionId)
+    : -1;
+  if (watchIndex >= 0 && watchIndex !== localIndex) setLocalIndex(watchIndex);
   if (
+    !watching &&
     partsDone > 0 &&
     !isAttemptSubmitted(myResponse) &&
     partOf(orderedPublicQuestions[localIndex]) <= partsDone
@@ -2491,6 +2504,27 @@ export const ActiveQuiz: React.FC<{
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
+  const liveView = watching ? null : myResponse?.liveView;
+  const liveViewUntil = liveView?.until ?? 0;
+  const arrivalRef = useRef<{ id: string; at: number } | null>(null);
+  const reportLivePosition = useEffectEvent((questionId: string) => {
+    if (!onReportLivePosition || liveViewUntil <= getServerNow()) return;
+    const at = arrivalRef.current?.at ?? getServerNow();
+    onReportLivePosition(questionId, at).catch((err: unknown) =>
+      console.error('[ActiveQuiz] live position report failed:', err)
+    );
+  });
+  const livePositionId = currentQuestion?.id;
+  // Arrival time stays fixed across renewals so "time on this question" doesn't reset.
+  useLayoutEffect(() => {
+    if (livePositionId && arrivalRef.current?.id !== livePositionId)
+      arrivalRef.current = { id: livePositionId, at: getServerNow() };
+  }, [livePositionId]);
+  // Each renewal re-reports, so a reopened panel never starts from a stale place.
+  useEffect(() => {
+    if (liveViewUntil > 0 && livePositionId) reportLivePosition(livePositionId);
+  }, [liveViewUntil, livePositionId]);
   // Unusual-input counters; stamped on the session only with the input-signals flag.
   useInputSignals({
     enabled:
@@ -2567,8 +2601,9 @@ export const ActiveQuiz: React.FC<{
   const crossOutUid =
     session.allowCrossOut === true ? myResponse?.studentUid : undefined;
   const crossOutOn = !!crossOutUid;
+  // Student view keeps cross-outs in memory, since it writes nothing anywhere.
   const crossedOut = useCrossedOutChoices(
-    crossOutUid
+    crossOutUid && session.id !== STUDENT_VIEW_SESSION_ID
       ? crossOutStorageKey(
           session.id,
           crossOutUid,
@@ -2605,15 +2640,11 @@ export const ActiveQuiz: React.FC<{
     [currentQuestion?.stimulusIds, session.stimuli]
   );
   const stimulusTabsOn = session.stimulusTabs === true;
-  const stimulusUse = useMemo(
-    () => stimulusUseCounts(session.publicQuestions ?? []),
-    [session.publicQuestions]
-  );
   const { docShaped: docStimuli, inline: inlineStimuli } = useMemo(() => {
     if (!stimulusTabsOn) return splitStimuliForLayout(currentStimuli);
-    const { panel, inline } = splitStimuliForTabs(currentStimuli, stimulusUse);
+    const { panel, inline } = splitStimuliForTabs(currentStimuli);
     return { docShaped: panel, inline };
-  }, [currentStimuli, stimulusTabsOn, stimulusUse]);
+  }, [currentStimuli, stimulusTabsOn]);
   const recoveryQuestionId = currentQuestion?.id;
   const recoveryResponseKey = myResponse?._responseKey;
   const takeRecovery = useMemo(
@@ -2782,11 +2813,14 @@ export const ActiveQuiz: React.FC<{
   // Look up any prior answer the student has already saved for the current
   // question. Used both to hydrate UI state on back-navigation in self-paced
   // mode and to seed `StructuredQuestionInput` for matching/ordering revisits.
-  const savedAnswerForCurrent = currentQuestion
-    ? ((myResponse?.answers ?? []).find(
+  const savedEntryForCurrent = currentQuestion
+    ? (myResponse?.answers ?? []).find(
         (a) => a.questionId === currentQuestion.id
-      )?.answer ?? null)
-    : null;
+      )
+    : undefined;
+  const savedAnswerForCurrent = savedEntryForCurrent?.answer ?? null;
+  // Live view remounts seed-once inputs whenever the watched student's saved answer changes.
+  const watchRev = watching ? `:${savedEntryForCurrent?.answeredAt ?? 0}` : '';
   // Synchronize `savedAnswerForCurrent` into a ref from the render body so
   // the draft-flush effect (deps: []) compares against the live value
   // instead of the mount-time closure capture. Without this, a student who
@@ -3933,7 +3967,7 @@ export const ActiveQuiz: React.FC<{
   const showSectionIntro =
     sectionState !== null &&
     (directionsOpen ||
-      (!quizDone && !seenSections.has(sectionState.section.id)));
+      (!watching && !quizDone && !seenSections.has(sectionState.section.id)));
   const closeSectionIntro = () => {
     if (sectionState) {
       const id = sectionState.section.id;
@@ -4070,6 +4104,10 @@ export const ActiveQuiz: React.FC<{
         whiteboardConfig ? 'flex flex-col' : ''
       } ${appBg}`}
     >
+      <LiveViewNotice
+        liveView={liveView}
+        language={activeLocale ?? session.language}
+      />
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
@@ -5121,7 +5159,7 @@ export const ActiveQuiz: React.FC<{
                 (currentQuestion.type === 'Matching' ||
                   currentQuestion.type === 'Ordering') && (
                   <StructuredQuestionInput
-                    key={`${currentQuestion.id}:${activeLocale ?? 'en'}`}
+                    key={`${currentQuestion.id}:${activeLocale ?? 'en'}${watchRev}`}
                     orderingList={session.orderingList === true}
                     question={displayQuestion}
                     submitted={submitted}
@@ -5244,7 +5282,7 @@ export const ActiveQuiz: React.FC<{
                             seededQuestionsRef.current.has(currentQuestion.id)
                               ? 'seeded'
                               : 'init'
-                          }`}
+                          }${watchRev}`}
                           value={liveAnswer ?? ''}
                           onChange={(html) => setCacheForCurrent(html)}
                           placeholder={displayQuestion.placeholder}
@@ -5444,7 +5482,7 @@ const StructuredQuestionInput: React.FC<{
   saveError?: string | null;
   /** Per-item speaker controls (D8); absent when read-aloud is off. */
   readAloud?: ReadAloudItemControls;
-  /** Ordering as one drag-to-order list (quiz-ordering-list flag). */
+  /** Ordering as one drag-to-order list; older sessions without the stamp use slots. */
   orderingList?: boolean;
   /** The last step's label: REVIEW with the review step, else SUBMIT. */
   finishLabel?: string;

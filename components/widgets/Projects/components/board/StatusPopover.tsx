@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import type { ProjectStepState } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
+import { scrollMovesAnchor } from '@/utils/domHelpers';
 import { tourAttr } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useCloseOnHostResize } from '@/components/common/useCloseOnHostResize';
@@ -70,10 +71,13 @@ export const StatusPopover: React.FC<StatusPopoverProps> = ({
 
   useEffect(() => {
     const close = (): void => onClose();
-    window.addEventListener('scroll', close, true);
+    const closeOnScroll = (e: Event): void => {
+      if (scrollMovesAnchor(e, anchorRef.current)) onClose();
+    };
+    window.addEventListener('scroll', closeOnScroll, true);
     window.addEventListener('resize', close);
     return () => {
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', closeOnScroll, true);
       window.removeEventListener('resize', close);
     };
   }, [onClose]);

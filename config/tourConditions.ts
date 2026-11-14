@@ -27,6 +27,26 @@ export type TourDoneFact = (typeof TOUR_DONE_FACTS)[number];
 
 const FEATURE_PREFIX = 'feature:';
 
+/** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
+export const RETIRED_TOUR_FEATURES: readonly string[] = [
+  'lunch-count-redesign',
+  'lunch-count-resend',
+  'quiz-import-versions',
+  'quiz-ordering-images',
+  'quiz-ordering-list',
+  'quiz-ordering-results',
+  'quiz-prompt-formatting',
+  'quiz-reopen-submission',
+  'quiz-results-tools',
+  'quiz-review-step',
+  'quiz-submit-for-student',
+  'spell-check-setting',
+  'tour-pacing',
+  'tour-steps-view',
+  'video-activity-editor-arrows',
+  'video-activity-stops',
+];
+
 /** A fact, or `feature:<id>` for a feature the teacher can use. */
 export type TourConditionRef = TourFact | `feature:${GlobalFeature}`;
 
@@ -50,7 +70,7 @@ const isFeatureRef = (
   ref: TourConditionRef
 ): ref is `feature:${GlobalFeature}` => ref.startsWith(FEATURE_PREFIX);
 
-/** Answers a ref from the teacher's facts and feature access; a feature removed since the save never holds. */
+/** Answers a ref from the teacher's facts and feature access; a retired feature holds and any other unknown id never does. */
 export const checkTourCondition = (
   ref: TourConditionRef,
   facts: Record<TourFact, boolean | undefined>,
@@ -60,7 +80,8 @@ export const checkTourCondition = (
   const feature = ALL_GLOBAL_FEATURES.find(
     (id) => id === ref.slice(FEATURE_PREFIX.length)
   );
-  return feature ? canAccessFeature(feature) : false;
+  if (feature) return canAccessFeature(feature);
+  return RETIRED_TOUR_FEATURES.includes(ref.slice(FEATURE_PREFIX.length));
 };
 
 /** Answers one fact or feature; undefined while it is still loading. */

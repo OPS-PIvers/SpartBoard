@@ -94,3 +94,20 @@ export const resolveQuizHandRaiseEnabled = (
   if (mode === 'force-off') return false;
   return teacherChoice === true;
 };
+
+/** True when any of the teacher's buildings makes Live view always tell the student. */
+export const readQuizLiveViewAlwaysNotify = (
+  permissions: readonly FeaturePermission[] | null | undefined,
+  buildingIds: readonly string[] | string | null | undefined
+): boolean => {
+  const config = permissions?.find((p) => p.widgetType === 'quiz')?.config as
+    QuizGlobalConfig | undefined;
+  if (!config?.buildingDefaults) return false;
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults
+  );
+  return toIdList(buildingIds).some(
+    (id) =>
+      buildingDefaults[canonicalBuildingId(id)]?.liveViewAlwaysNotify === true
+  );
+};

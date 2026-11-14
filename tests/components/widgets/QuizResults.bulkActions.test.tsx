@@ -164,17 +164,7 @@ describe('QuizResults — bulk Reopen', () => {
     localStorage.clear();
   });
 
-  it('hides Reopen while the tools flag is off', () => {
-    renderResults(makeActions(), /^students/i, {
-      onReopenStudent: vi.fn(),
-    });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 1111' }));
-    const bar = screen.getByRole('toolbar');
-    expect(within(bar).queryByRole('button', { name: /Reopen/ })).toBeNull();
-  });
-
   it('offers no bulk CSV export', () => {
-    features.add('quiz-results-tools');
     renderResults(makeActions());
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 1111' }));
     const bar = screen.getByRole('toolbar');
@@ -182,7 +172,6 @@ describe('QuizResults — bulk Reopen', () => {
   });
 
   it('reopens each selected submitted student', async () => {
-    features.add('quiz-results-tools');
     const onReopenStudent = vi.fn().mockResolvedValue(undefined);
     renderResults(makeActions(), /^students/i, { onReopenStudent });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 1111' }));
@@ -199,7 +188,6 @@ describe('QuizResults — bulk Reopen', () => {
   });
 
   it('blocks Reopen once the assignment has ended', () => {
-    features.add('quiz-results-tools');
     const onReopenStudent = vi.fn();
     renderResults(makeActions(), /^students/i, {
       onReopenStudent,
@@ -217,7 +205,6 @@ describe('QuizResults — bulk Reopen', () => {
   });
 
   it('replaces the selection with a Select these group', () => {
-    features.add('quiz-results-tools');
     renderResults(makeActions(), /^students/i);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 2222' }));
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));

@@ -159,7 +159,7 @@ const Harness: React.FC<{
 
 const renderWith = (
   published: GuidedLearningSet | null | undefined,
-  { admin = true, flag = true } = {}
+  { admin = true } = {}
 ) =>
   render(
     <AuthContext.Provider
@@ -167,7 +167,6 @@ const renderWith = (
         {
           user: { uid: 'u1', email: 'Admin@School.org' },
           isAdmin: admin,
-          canAccessFeature: (id: string) => flag && id === 'tour-steps-view',
         } as unknown as AuthContextType
       }
     >
@@ -195,8 +194,8 @@ beforeEach(() => {
 });
 
 describe('usePublicLinkControls', () => {
-  it('shows nothing new while the steps-view flag is off', () => {
-    renderWith(webTour(), { flag: false });
+  it('shows nothing on a screen without sign-in', () => {
+    render(<Harness published={webTour()} />);
     expect(screen.queryByTestId('public-link')).toBeNull();
   });
 

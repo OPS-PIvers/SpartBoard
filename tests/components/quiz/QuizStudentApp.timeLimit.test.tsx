@@ -296,7 +296,7 @@ describe('QuizStudentApp — overall time limit', () => {
   });
 });
 
-describe('QuizStudentApp — time limit on the review screen (quiz-review-step)', () => {
+describe('QuizStudentApp — time limit on the review screen', () => {
   it('records a submit after time is up as timed out, even after the auto-submit failed', async () => {
     const consoleSpy = vi
       .spyOn(console, 'error')

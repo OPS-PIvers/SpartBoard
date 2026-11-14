@@ -1,7 +1,5 @@
 import type { LunchZoneId } from './useLunchCountModel';
 
-// Same rules as the legacy face in ../Widget.tsx; that copy goes when the lunch-count-redesign flag retires.
-
 export function formatGradeLabel(grade: string): string {
   if (!grade) return '';
   if (grade === 'K' || grade === 'MAC') return grade;
@@ -132,7 +130,7 @@ export function submittedMarker(
   widgetId: string,
   dayKey: string,
   classKey: string,
-  details?: SentDetails
+  details: SentDetails
 ): SubmittedMarker {
   const sameDay =
     config.lastSubmittedDate === dayKey &&
@@ -145,13 +143,6 @@ export function submittedMarker(
       ? earlier
       : [...earlier, classKey],
   };
-  // Without details (resend flag off) the marker keeps its pre-resend shape, dropping any stale entries.
-  if (!details) {
-    if (!config.lastSubmittedDetails) return marker;
-    const kept = { ...(sameDay ? config.lastSubmittedDetails : undefined) };
-    delete kept[classKey];
-    return { ...marker, lastSubmittedDetails: kept };
-  }
   return {
     ...marker,
     lastSubmittedDetails: {

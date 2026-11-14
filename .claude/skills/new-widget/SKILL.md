@@ -778,7 +778,7 @@ gold standard for each pattern:
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Clean scaling (hero number)                        | `components/widgets/ClockWidget/Widget.tsx`                                                                                               |
 | Icon + text layout                                 | `components/widgets/Weather/Widget.tsx`                                                                                                   |
-| List with cqmin rows                               | `components/widgets/LunchCount/Widget.tsx`                                                                                                |
+| List with cqmin rows                               | `components/widgets/LunchCount/redesign/RedesignedLunchCount.tsx`                                                                         |
 | Building-defaults consumption                      | `components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx` (exception to the standard `Widget.tsx` convention — do not imitate) |
 | Schema-driven settings                             | `components/widgets/Checklist/settings.schema.ts`                                                                                         |
 | Good empty state usage                             | `components/widgets/QRWidget/Widget.tsx`                                                                                                  |

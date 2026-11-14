@@ -72,7 +72,7 @@ No code in Quiz knows about MCA. If MDE changes its site, only the script breaks
 
 - **M11.** One stimulus panel beside the question. When a question has two or more stimuli in the panel they show as tabs, for every quiz; existing quizzes change to match once the flag opens (M5). Until then the tabbed layout and the M13 picture move reach only sessions started by a teacher who has `quiz-stimulus-tabs`. The first tab opens by default and the panel stays resizable.
 - **M12.** Tab names come from a new student-visible `tabLabel` on the stimulus ("Tab A", "Source 2"), kept in the session doc. Unnamed tabs are numbered. The authoring-only `label` is unchanged.
-- **M13.** Where a picture goes: an image stimulus used by two or more questions moves into the panel as a tab; an image used by one question stays above that question. A per-stimulus **Show beside the question / Show in the question** override covers the exceptions. Audio and video stay inline.
+- **M13.** Where a picture goes: every image stimulus goes in the panel beside the question, as a tab when there are two or more (Paul, 2026-11-14; it was shared pictures only). A per-stimulus **Show: Beside the question / In the question** override keeps a small figure in the question. Audio and video stay inline.
 - **M14.** The calculator stays in the panel as the last tab, named "Calculator".
 - **M15.** One tab holding a reading and its figures together needs inline images in a text stimulus (`QUIZ_STRUCTURED_ASSESSMENTS.md` D21). Until that ships, the MCA package (M33) sends each tab as one rendered picture with the tab's words saved as its `readAloudText`.
 
@@ -132,7 +132,7 @@ No code in Quiz knows about MCA. If MDE changes its site, only the script breaks
 | 2   | Stimulus tabs, `tabLabel`, shared pictures in the panel (M11–M15)                      | `quiz-stimulus-tabs` gates authoring and the student layout change | —                               |
 | 3   | Explanations and Show explanations (M16–M18)                                           | `quiz-explanations`                                                | —                               |
 | 4   | DOK field, Group by DOK, bank draw filter (M19–M22)                                    | `quiz-dok`                                                         | —                               |
-| 5   | Review before submit, Mark for review (M23–M25)                                        | `quiz-review-step`                                                 | —                               |
+| 5   | Review before submit, Mark for review (M23–M25)                                        | retired, on for everyone                                           | —                               |
 | 6   | District library: collection, targeting rules, linked banks and quizzes (M26–M28, M30) | `district-library`                                                 | —                               |
 | 7   | District library admin screen and package upload (M29, M31)                            | behind PR 6's flag                                                 | PR 6                            |
 | 8   | MDE script and package writer (M32–M33)                                                | none (tooling)                                                     | PR 7; PRs 1–4 for full fidelity |

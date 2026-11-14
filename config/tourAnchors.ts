@@ -3871,6 +3871,22 @@ export const TOUR_ANCHORS = {
       'Grade button beside a question in a student report in Quiz results, by question',
     perField: true,
   },
+  'quiz-grading.count-instead': {
+    label: 'Count this instead button in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-results.counted-answers': {
+    label: 'Answers that count menu in Quiz results, by section',
+    perField: true,
+  },
+  'quiz-results.count-instead': {
+    label:
+      'Count this instead button beside a question in a student report in Quiz results, by question',
+    perField: true,
+    persists: true,
+  },
   'quiz-results.drilldown-open-student': {
     label: 'Student name button in Quiz results, by student',
     perField: true,
@@ -4189,6 +4205,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-grading.rail-collapse': {
     label: 'Collapse student list in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.class-filter': {
+    label: 'Class filter in the Quiz grader',
     perWidgetType: true,
     panel: true,
   },
@@ -4558,6 +4579,51 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.roster-filter': {
     label: 'Filter students select in the Quiz monitor roster',
     perWidgetType: true,
+  },
+  'quiz-monitor.live-view': {
+    label: 'Live view button on a student in the Quiz monitor roster',
+    perField: true,
+    persists: true,
+  },
+  'quiz-live-view.previous': {
+    label: 'Previous student button in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-live-view.next': {
+    label: 'Next student button in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-live-view.close': {
+    label: 'Close button in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-live-view.tell-student': {
+    label: 'Tell the student switch in Quiz Live view',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-live-view.nudge-note': {
+    label: 'Nudge note select in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-live-view.nudge': {
+    label: 'Nudge button in Quiz Live view',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-live-view.screenshot': {
+    label: 'Screenshot button in Quiz Live view',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
   },
   'quiz-monitor.clear-hand': {
     label: 'Clear raised hand button in the Quiz monitor roster',
@@ -8599,6 +8665,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.features.input-sign-toggle': {
+    label: 'Unusual input sign switch',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.input-sign-text': {
+    label: 'Unusual input sign "Could also be" box',
+    perField: true,
+    panel: true,
+  },
   'admin.features.model-tier': {
     label: 'Model select on a feature row',
     perField: true,
@@ -11775,10 +11851,6 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
   },
-  'video-activity.editor-question-pill': {
-    label: 'Question button in the editor question list',
-    perField: true,
-  },
   'video-activity.editor-question-delete': {
     label: 'Delete button for a question in the video activity editor',
     perField: true,
@@ -11822,10 +11894,6 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
   },
-  'video-activity.editor-question-select': {
-    label: 'Select checkbox on a question in the video activity editor',
-    perField: true,
-  },
   'video-activity.editor-question-duplicate': {
     label: 'Duplicate button for a question in the video activity editor',
     perField: true,
@@ -11844,15 +11912,6 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.editor-question-jump': {
     label: 'Question menu in the video activity editor',
-  },
-  'video-activity.editor-bulk-delete': {
-    label: 'Delete button for selected questions in the video activity editor',
-    destructive: true,
-    persists: true,
-    sandboxed: true,
-  },
-  'video-activity.editor-bulk-clear': {
-    label: 'Clear selection button in the video activity editor',
   },
   'video-activity.editor-targets-edit': {
     label: 'Learning targets Add or Edit button in the video activity editor',
@@ -17229,6 +17288,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.archive-monitor': {
     label: 'Monitor item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-student-view': {
+    label: 'Student view item in a quiz assignment row menu',
     perWidgetType: true,
     panel: true,
   },

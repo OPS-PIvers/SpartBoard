@@ -35,23 +35,39 @@ import {
 import {
   buildStudentViewSession,
   focusSettingsFrom,
+  focusSettingsFromSession,
   withFocusSettings,
+  type AssignedStudentView,
   type StudentViewFocusSettings,
 } from '@/utils/quizStudentViewSession';
 import { ActiveQuiz, QuizSubmittedWaitScreen } from './QuizStudentApp';
 
-interface QuizStudentViewProps {
+interface LibraryStudentViewProps {
   quiz: QuizData;
   behavior: QuizBehaviorSettings;
+  /** Teacher has quiz-stimulus-tabs, so the preview matches what Assign stamps. */
+  stimulusTabsOn?: boolean;
+  /** Teacher has quiz-cross-out, so choices get the cross-out button as Assign stamps it. */
+  crossOutOn?: boolean;
+  assigned?: undefined;
+}
+
+/** A running assignment: the frozen copy students have, with its own settings. */
+interface AssignedStudentViewProps {
+  assigned: AssignedStudentView;
+  quiz?: undefined;
+  behavior?: undefined;
+  stimulusTabsOn?: undefined;
+  crossOutOn?: undefined;
+}
+
+type QuizStudentViewProps = (
+  LibraryStudentViewProps | AssignedStudentViewProps
+) & {
   /** Mirrors Assign: the away limit exists only with the tab-away-timer flag. */
   tabAwayTimerOn: boolean;
-  /** Teacher has quiz-ordering-list, so Ordering shows the one-list layout like a real assignment. */
-  orderingListOn?: boolean;
-  /** Teacher has quiz-stimulus-tabs and quiz-review-step, so the preview matches what Assign stamps. */
-  stimulusTabsOn?: boolean;
-  reviewStepOn?: boolean;
   onExit: () => void;
-}
+};
 
 const STUDENT_VIEW_UID = 'student-view';
 
@@ -73,30 +89,35 @@ const sameFocus = (a: StudentViewFocusSettings, b: StudentViewFocusSettings) =>
 export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   quiz,
   behavior,
-  tabAwayTimerOn,
-  orderingListOn = false,
+  assigned,
+  tabAwayTimerOn: teacherAwayTimerOn,
   stimulusTabsOn = false,
-  reviewStepOn = false,
+  crossOutOn = false,
   onExit,
 }) => {
-  const saved = useMemo(() => focusSettingsFrom(behavior), [behavior]);
-  const [focus, setFocus] = useState<StudentViewFocusSettings>(saved);
-  const [run, setRun] = useState(0);
+  // An assignment carries the away limit only when it was stamped with the flag.
+  const tabAwayTimerOn = assigned
+    ? assigned.session.tabAwayLimitSeconds !== undefined
+    : teacherAwayTimerOn;
   const base = useMemo(
     () =>
-      buildStudentViewSession(quiz, behavior, tabAwayTimerOn, orderingListOn, {
-        stimulusTabs: stimulusTabsOn,
-        reviewStep: reviewStepOn,
-      }),
-    [
-      quiz,
-      behavior,
-      tabAwayTimerOn,
-      orderingListOn,
-      stimulusTabsOn,
-      reviewStepOn,
-    ]
+      assigned
+        ? assigned.session
+        : buildStudentViewSession(quiz, behavior, tabAwayTimerOn, {
+            stimulusTabs: stimulusTabsOn,
+            crossOut: crossOutOn,
+          }),
+    [assigned, quiz, behavior, tabAwayTimerOn, stimulusTabsOn, crossOutOn]
   );
+  const saved = useMemo(
+    () =>
+      assigned
+        ? focusSettingsFromSession(assigned.session)
+        : focusSettingsFrom(behavior),
+    [assigned, behavior]
+  );
+  const [focus, setFocus] = useState<StudentViewFocusSettings>(saved);
+  const [run, setRun] = useState(0);
   const session = useMemo(
     () => withFocusSettings(base, focus, tabAwayTimerOn),
     [base, focus, tabAwayTimerOn]
@@ -116,21 +137,28 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
         showAwayLimit={tabAwayTimerOn}
         changed={!sameFocus(focus, saved)}
         onReset={() => setFocus(saved)}
+        assigned={!!assigned}
+        sampleDraw={!!assigned?.drawIds}
         onRestart={() => setRun((n) => n + 1)}
         onExit={onExit}
       />
       {/* translateZ keeps the player's fixed overlays under the toolbar; the arbitrary variants fit its full-screen root to this box. */}
       <div className="relative flex-1 min-h-0 overflow-y-auto transform-[translateZ(0)] [&>.h-screen]:h-full [&>.min-h-screen]:min-h-full">
-        <StudentViewAttempt key={run} session={session} />
+        <StudentViewAttempt
+          key={run}
+          session={session}
+          drawIds={assigned?.drawIds}
+        />
       </div>
     </div>,
     document.body
   );
 };
 
-const StudentViewAttempt: React.FC<{ session: QuizSession }> = ({
-  session,
-}) => {
+const StudentViewAttempt: React.FC<{
+  session: QuizSession;
+  drawIds?: string[];
+}> = ({ session, drawIds }) => {
   const [response, setResponse] = useState<QuizResponse>(() => ({
     studentUid: STUDENT_VIEW_UID,
     joinedAt: Date.now(),
@@ -270,7 +298,7 @@ const StudentViewAttempt: React.FC<{ session: QuizSession }> = ({
         pin=""
         answeredCount={countAnsweredQuestions(
           response.answers,
-          session.publicQuestions.map((q) => q.id),
+          drawIds ?? session.publicQuestions.map((q) => q.id),
           session.paperWrittenQuestionIds
         )}
         hideReturnButton
@@ -304,6 +332,7 @@ const StudentViewAttempt: React.FC<{ session: QuizSession }> = ({
         warningCount={response.tabSwitchWarnings ?? 0}
         onRecordStimulusPlay={noop}
         onReportStimulusError={noop}
+        drawIds={drawIds}
       />
     </RecordingNoticeDrawingContext.Provider>
   );
@@ -319,6 +348,8 @@ const StudentViewToolbar: React.FC<{
   onReset: () => void;
   onRestart: () => void;
   onExit: () => void;
+  assigned: boolean;
+  sampleDraw: boolean;
 }> = ({
   focus,
   onChange,
@@ -327,6 +358,8 @@ const StudentViewToolbar: React.FC<{
   onReset,
   onRestart,
   onExit,
+  assigned,
+  sampleDraw,
 }) => {
   const focusOn = focus.tabWarningsEnabled ?? true;
   const threshold = focus.tabWarningThreshold ?? DEFAULT_TAB_WARNING_THRESHOLD;
@@ -368,6 +401,11 @@ const StudentViewToolbar: React.FC<{
       <div className="flex items-center gap-1.5 border-r border-slate-700 pr-2 font-bold text-white">
         <Eye className="h-4 w-4" aria-hidden />
         Student view
+        {assigned && (
+          <span className="font-normal text-slate-300">
+            {sampleDraw ? 'Assigned version, sample draw' : 'Assigned version'}
+          </span>
+        )}
       </div>
       <label className="flex items-center gap-2 font-semibold text-white">
         <Toggle
@@ -468,7 +506,9 @@ const StudentViewToolbar: React.FC<{
             onClick={onReset}
             className="rounded-md border border-amber-400 px-2 py-1 font-semibold text-amber-300 hover:bg-amber-400/10"
           >
-            Reset to quiz settings
+            {assigned
+              ? 'Reset to assignment settings'
+              : 'Reset to quiz settings'}
           </button>
         )}
         <button

@@ -13,12 +13,13 @@ import { useAuth } from '@/context/useAuth';
 import { WidgetData, LunchCountConfig } from '@/types';
 import { mockPointerEvent } from '@/tests/testHelpers/mocks';
 import { SubShareHostContext } from '@/context/SubShareHostContextValue';
+import { getCentralDayKey, submittedMarker } from './lunchCountFormat';
 
 // Mock dependencies
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth');
-vi.mock('../Widget', () => ({
-  LunchCountWidget: () => <div data-testid="legacy-face" />,
+vi.mock('../MiddleHighLunchCount', () => ({
+  MiddleHighLunchCount: () => <div data-testid="middle-high-face" />,
 }));
 const nut = vi.hoisted(() => ({ isSyncing: false, fetch: vi.fn() }));
 vi.mock('../useNutrislice', () => ({
@@ -58,7 +59,6 @@ const mockAuthContext = {
   user: { displayName: 'Teacher' },
   featurePermissions: [],
   selectedBuildings: ['schumann'],
-  canAccessFeature: () => false,
 };
 
 const mockNutrisliceData = {
@@ -76,7 +76,7 @@ const mockNutrisliceData = {
   ],
 };
 
-describe('LunchCountRedesign (legacy suite)', () => {
+describe('LunchCountRedesign', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
@@ -288,10 +288,10 @@ describe('LunchCountRedesign (legacy suite)', () => {
     expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
   });
 
-  it('hands a middle school board to the legacy face', () => {
+  it('hands a middle school board to the middle/high face', () => {
     const widget = createWidget({ schoolSite: 'orono-middle-school' });
     render(<LunchCountWidget widget={widget} />);
-    expect(screen.getByTestId('legacy-face')).toBeInTheDocument();
+    expect(screen.getByTestId('middle-high-face')).toBeInTheDocument();
     expect(screen.queryByTestId('hot-zone')).toBeNull();
   });
 });
@@ -408,7 +408,6 @@ describe('LunchCountRedesign — class group pool', () => {
       (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         user: { displayName: 'Sam Substitute' },
         selectedBuildings: ['schumann'],
-        canAccessFeature: () => false,
         featurePermissions: [
           {
             widgetType: 'lunchCount',
@@ -470,6 +469,48 @@ describe('LunchCountRedesign — class group pool', () => {
       const payload = await submitWith(<LunchCountWidget widget={assigned} />);
       expect(payload.label).toBe('11:30 - GR1 - S. Substitute');
     });
+
+    it('keys the sheet row and keeps what was sent for a resend', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('Success'),
+      });
+      const payload = await submitWith(<LunchCountWidget widget={assigned} />);
+      expect(payload).toHaveProperty('classKey', '11:30 - GR1 #roster-1');
+      await waitFor(() =>
+        expect(mockDashboardContext.updateWidget).toHaveBeenCalled()
+      );
+      const [, update] = mockDashboardContext.updateWidget.mock.calls.at(
+        -1
+      ) as [string, { config: LunchCountConfig }];
+      expect(update.config.lastSubmittedDetails).toEqual({
+        '11:30 - GR1 #roster-1': { notes: '', extraPizza: 0 },
+      });
+    });
+
+    it('offers Review and Resend once today’s count is sent', () => {
+      (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: { displayName: 'Sam Substitute' },
+        selectedBuildings: ['schumann'],
+        featurePermissions: [],
+      });
+      const sent = submittedMarker(
+        assigned.config as LunchCountConfig,
+        assigned.id,
+        getCentralDayKey(),
+        '11:30 - GR1 #roster-1',
+        { notes: '2 gluten free', extraPizza: 0 }
+      );
+      render(
+        <LunchCountWidget
+          widget={{ ...assigned, config: { ...assigned.config, ...sent } }}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Report/i }));
+      expect(screen.getByText('Lunch Count Already Sent')).toBeTruthy();
+      fireEvent.click(screen.getByText('Review and Resend'));
+      expect(screen.getByDisplayValue('2 gluten free')).toBeTruthy();
+    });
   });
 });
 
@@ -510,7 +551,6 @@ describe('LunchCountRedesign — missing lunch time or grade', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { displayName: 'Kristan Nalezny' },
       selectedBuildings: auth.buildings,
-      canAccessFeature: () => false,
       featurePermissions: [
         {
           widgetType: 'lunchCount',
@@ -611,7 +651,7 @@ describe('LunchCountRedesign — missing lunch time or grade', () => {
       ).body
     ) as { label: string };
     expect(body.label).toBe('10:00 - K - P. Awes');
-    expect(body).not.toHaveProperty('classKey');
+    expect(body).toHaveProperty('classKey', '10:00 - K #roster-1');
   });
 
   it('asks for the school when the profile has no building', () => {
@@ -956,12 +996,12 @@ describe('LunchCountRedesign — new face', () => {
     expect(board).toHaveTextContent('Hot1Bento0Home0');
   });
 
-  it('hands a high school board to the legacy face', () => {
+  it('hands a high school board to the middle/high face', () => {
     render(
       <LunchCountWidget
         widget={widgetWith({ schoolSite: 'orono-high-school' })}
       />
     );
-    expect(screen.getByTestId('legacy-face')).toBeInTheDocument();
+    expect(screen.getByTestId('middle-high-face')).toBeInTheDocument();
   });
 });

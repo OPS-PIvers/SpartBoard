@@ -49,8 +49,6 @@ const blankQuestion = (): VideoActivityQuestion => ({
 });
 
 interface UseVideoActivityEditorStateProps {
-  /** Opens the first question whenever none is selected (the arrows layout has no list). */
-  keepQuestionOpen?: boolean;
   activity: VideoActivityData | null;
   /** Opens the AI prompt as soon as this activity loads (a YouTube import, D35). */
   startWithAi?: boolean;
@@ -82,16 +80,7 @@ export interface VideoActivityEditorController {
   addQuestion: () => void;
   addQuestionAtTime: (seconds: number) => void;
   deleteQuestion: (id: string) => void;
-  reorderQuestions: (next: VideoActivityQuestion[], movedId?: string) => void;
-  /** Recently-reordered question id (for a transient inline hint). null when no hint shown. */
-  reorderHintFor: string | null;
-  // Quiz-layout list: checkboxes, bulk actions, duplicate
   duplicateQuestion: (id: string) => void;
-  checkedIds: ReadonlySet<string>;
-  /** `range` (shift-click) checks every row between the last toggled one and `id`. */
-  toggleChecked: (id: string, range?: boolean) => void;
-  setAllChecked: (checked: boolean) => void;
-  deleteChecked: () => void;
   applyTargets: (
     ids: readonly string[],
     targets: QuestionTargetTag[],
@@ -146,14 +135,11 @@ function sortByTimestamp(
  * object the modal hands to the context + detail pane components.
  *
  * Timestamp handling: questions are kept sorted by timestamp on every
- * mutation. When a timestamp edit causes a position change, the moved
- * question's id is written to `reorderHintFor` so the UI can show a brief
- * "Reordered by timestamp" hint. The hint clears after ~2.5s.
+ * mutation.
  */
 export function useVideoActivityEditorState({
   activity,
   startWithAi = false,
-  keepQuestionOpen = false,
 }: UseVideoActivityEditorStateProps): VideoActivityEditorController {
   // Dedupe by id: a Drive-sync/arrayUnion race can write a question twice (same guard as grading/session-creation).
   const originalQuestions = useMemo(
@@ -188,10 +174,6 @@ export function useVideoActivityEditorState({
     });
     return init;
   });
-  const [reorderHintFor, setReorderHintFor] = useState<string | null>(null);
-  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(
-    () => new Set()
-  );
 
   // AI generation state
   const [showAiPrompt, setShowAiPrompt] = useState(startWithAi);
@@ -223,8 +205,6 @@ export function useVideoActivityEditorState({
       init[q.id] = secondsToMmSs(q.timestamp);
     });
     setTimestampInputs(init);
-    setReorderHintFor(null);
-    setCheckedIds(new Set());
     setShowAiPrompt(startWithAi);
     setAiTypeCounts(DEFAULT_AI_TYPE_COUNTS);
     setVideoDurationSeconds(0);
@@ -246,34 +226,21 @@ export function useVideoActivityEditorState({
     () => (selectedId ? questions.findIndex((q) => q.id === selectedId) : -1),
     [questions, selectedId]
   );
-  // With no question list, one question is always open while any exist.
-  if (keepQuestionOpen && !selectedQuestion && questions.length > 0) {
+  // There is no question list, so one question is always open while any exist.
+  if (!selectedQuestion && questions.length > 0) {
     setSelectedId(questions[0].id);
   }
-
-  const flashReorderHint = useCallback((id: string) => {
-    setReorderHintFor(id);
-    window.setTimeout(() => {
-      setReorderHintFor((prev) => (prev === id ? null : prev));
-    }, 2500);
-  }, []);
 
   const updateQuestion = useCallback(
     (id: string, updates: Partial<VideoActivityQuestion>) => {
       setQuestions((prev) => {
         const next = prev.map((q) => (q.id === id ? { ...q, ...updates } : q));
-        // If timestamp changed, sort and detect reorder for the hint.
-        if (Object.prototype.hasOwnProperty.call(updates, 'timestamp')) {
-          const before = prev.findIndex((q) => q.id === id);
-          const sorted = sortByTimestamp(next);
-          const after = sorted.findIndex((q) => q.id === id);
-          if (before !== after) flashReorderHint(id);
-          return sorted;
-        }
-        return next;
+        return Object.prototype.hasOwnProperty.call(updates, 'timestamp')
+          ? sortByTimestamp(next)
+          : next;
       });
     },
-    [flashReorderHint]
+    []
   );
 
   const updateIncorrect = useCallback(
@@ -317,12 +284,6 @@ export function useVideoActivityEditorState({
 
   const deleteQuestion = useCallback(
     (id: string) => {
-      setCheckedIds((prev) => {
-        if (!prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
       setQuestions((prev) => prev.filter((q) => q.id !== id));
       setTimestampInputs((prev) => {
         const next = { ...prev };
@@ -334,104 +295,10 @@ export function useVideoActivityEditorState({
     [selectedId]
   );
 
-  /**
-   * Apply a SortableList reorder by recomputing each question's timestamp
-   * to the midpoint of its new neighbors. Falls back to a +1s nudge if
-   * neighbors are equal or missing. The list itself stays in the dropped
-   * order so the visual position matches what the user moved. After the
-   * midpoint pass we run a final monotonic sweep so adjacent items can
-   * never collide on the same second (e.g. when neighbours are 5s and 6s,
-   * the midpoint floors to 5 and would otherwise duplicate the previous
-   * timestamp). When `movedId` is supplied (from SortableList) we flash the
-   * hint on that exact row instead of guessing the last item.
-   */
-  const reorderQuestions = useCallback(
-    (next: VideoActivityQuestion[], movedId?: string) => {
-      // When the caller (SortableList) hands us the dragged id, use it
-      // verbatim — that's the authoritative source. Otherwise (any future
-      // caller that bypasses the SortableList API), recover the moved
-      // question by largest absolute index delta. Tiebreakers (e.g. a
-      // swap-of-two) resolve to the item whose new index moved later in
-      // the list, which matches typical drag intent.
-      //
-      // Compute this BEFORE `setQuestions` so the value is available
-      // synchronously for the `flashReorderHint` call below. Mutating it
-      // inside the functional updater would be racy: the updater runs
-      // when React flushes the state update, but the line that consumes
-      // the value (`hintId = resolvedMovedId || …`) executes immediately
-      // after `setQuestions` returns. Reading `questions` from the
-      // outer-render closure is fine — it's the same `prev` the updater
-      // would receive in the no-pending-update case, and any pending
-      // update that beats us to the queue is irrelevant for "which item
-      // did the user just drop".
-      let resolvedMovedId = movedId ?? '';
-      if (!resolvedMovedId) {
-        let maxDelta = -1;
-        for (let i = 0; i < next.length; i++) {
-          const oldIndex = questions.findIndex((q) => q.id === next[i].id);
-          if (oldIndex < 0) continue;
-          const delta = Math.abs(oldIndex - i);
-          if (delta > maxDelta) {
-            maxDelta = delta;
-            resolvedMovedId = next[i].id;
-          }
-        }
-      }
-      setQuestions(() => {
-        const adjusted: VideoActivityQuestion[] = [];
-        for (let i = 0; i < next.length; i++) {
-          const q = next[i];
-          const prevTs = i === 0 ? 0 : adjusted[i - 1].timestamp;
-          const followingTs =
-            i === next.length - 1 ? prevTs + 2 : next[i + 1].timestamp;
-          // Original timestamp wins when it already fits between neighbors.
-          let ts = q.timestamp;
-          if (ts <= prevTs || ts >= followingTs) {
-            // Compute midpoint, snapped to whole seconds.
-            const midpoint = Math.floor((prevTs + followingTs) / 2);
-            ts =
-              midpoint > prevTs && midpoint < followingTs
-                ? midpoint
-                : prevTs + 1;
-          }
-          adjusted.push({ ...q, timestamp: ts });
-        }
-        // Final monotonicity pass: when neighbors leave no integer room
-        // (e.g. prev=5, following=6) the +1 fallback above can equal
-        // followingTs, producing a duplicate. Bump any non-strictly-
-        // increasing timestamp by 1 — the cascade always resolves because
-        // the array's last item has no hard upper bound.
-        for (let i = 1; i < adjusted.length; i++) {
-          if (adjusted[i].timestamp <= adjusted[i - 1].timestamp) {
-            adjusted[i] = {
-              ...adjusted[i],
-              timestamp: adjusted[i - 1].timestamp + 1,
-            };
-          }
-        }
-        // Sync the visible MM:SS inputs.
-        setTimestampInputs((tsPrev) => {
-          const out = { ...tsPrev };
-          adjusted.forEach((q) => {
-            out[q.id] = secondsToMmSs(q.timestamp);
-          });
-          return out;
-        });
-        return adjusted;
-      });
-      const hintId = resolvedMovedId || next[next.length - 1]?.id;
-      if (hintId) flashReorderHint(hintId);
-    },
-    [flashReorderHint, questions]
-  );
-
   const questionsRef = useRef(questions);
-  const selectedIdRef = useRef(selectedId);
   useLayoutEffect(() => {
     questionsRef.current = questions;
-    selectedIdRef.current = selectedId;
   });
-  const lastToggledRef = useRef<string | null>(null);
 
   // The copy goes at the next free second after the original.
   const duplicateQuestion = useCallback((id: string) => {
@@ -452,50 +319,6 @@ export function useVideoActivityEditorState({
     }));
     setSelectedId(copy.id);
   }, []);
-
-  const toggleChecked = useCallback((id: string, range?: boolean) => {
-    const rows = questionsRef.current.map((q) => q.id);
-    const anchor = lastToggledRef.current;
-    lastToggledRef.current = id;
-    const span =
-      range && anchor && rows.includes(anchor)
-        ? (() => {
-            const [from, to] = [rows.indexOf(anchor), rows.indexOf(id)].sort(
-              (x, y) => x - y
-            );
-            return rows.slice(from, to + 1);
-          })()
-        : null;
-    setCheckedIds((prev) => {
-      const next = new Set(prev);
-      if (span) for (const qid of span) next.add(qid);
-      else if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const setAllChecked = useCallback((checked: boolean) => {
-    setCheckedIds(
-      checked ? new Set(questionsRef.current.map((q) => q.id)) : new Set()
-    );
-  }, []);
-
-  const deleteChecked = useCallback(() => {
-    const ids = checkedIds;
-    setQuestions((prev) => prev.filter((q) => !ids.has(q.id)));
-    setTimestampInputs((prev) => {
-      const next = { ...prev };
-      ids.forEach((id) => delete next[id]);
-      return next;
-    });
-    if (selectedIdRef.current && ids.has(selectedIdRef.current)) {
-      setSelectedId(
-        questionsRef.current.find((q) => !ids.has(q.id))?.id ?? null
-      );
-    }
-    setCheckedIds(new Set());
-  }, [checkedIds]);
 
   const applyTargets = useCallback(
     (
@@ -563,7 +386,8 @@ export function useVideoActivityEditorState({
       result = await generateVideoActivity(
         youtubeUrl.trim(),
         typeCounts,
-        videoDurationSeconds > 0 ? videoDurationSeconds : undefined
+        videoDurationSeconds > 0 ? videoDurationSeconds : undefined,
+        startWithAi ? 'import' : undefined
       );
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Generation failed');
@@ -618,7 +442,14 @@ export function useVideoActivityEditorState({
     } finally {
       setAiGenerating(false);
     }
-  }, [youtubeUrl, aiTypeCounts, aiTotalCount, videoDurationSeconds, title]);
+  }, [
+    youtubeUrl,
+    aiTypeCounts,
+    aiTotalCount,
+    videoDurationSeconds,
+    title,
+    startWithAi,
+  ]);
 
   return {
     title,
@@ -642,13 +473,7 @@ export function useVideoActivityEditorState({
     addQuestion,
     addQuestionAtTime,
     deleteQuestion,
-    reorderQuestions,
-    reorderHintFor,
     duplicateQuestion,
-    checkedIds,
-    toggleChecked,
-    setAllChecked,
-    deleteChecked,
     applyTargets,
     showAiPrompt,
     setShowAiPrompt,

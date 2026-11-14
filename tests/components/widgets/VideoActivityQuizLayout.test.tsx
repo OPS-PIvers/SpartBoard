@@ -11,7 +11,7 @@ const seekTo = vi.hoisted(() => vi.fn());
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-test' },
-    canAccessFeature: (id: string) => id === 'video-activity-editor-arrows',
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -165,7 +165,11 @@ describe('Video Activity editor on the Quiz layout', () => {
         .getByRole('combobox', { name: 'Type' })
         .querySelectorAll('option'),
     ].map((o) => o.textContent);
-    expect(types).toEqual(['Multiple Choice', 'Fill in the Blank']);
+    expect(types).toEqual([
+      'Multiple Choice',
+      'Fill in the Blank',
+      'Short Answer',
+    ]);
   });
 
   it('clicking a marker opens its question and seeks the video', () => {
@@ -203,16 +207,18 @@ describe('Video Activity editor on the Quiz layout', () => {
     ]);
     fireEvent.click(screen.getByRole('button', { name: 'Delete question' }));
     expect(screen.getByText(/Question 1 of 1/)).toBeTruthy();
-    expect(screen.getByDisplayValue('Second')).toBeTruthy();
+    expect(
+      screen.getByRole('textbox', { name: 'Question prompt' }).textContent
+    ).toBe('Second');
     const qs = await saved(onSave);
     expect(qs.map((q) => q.id)).toEqual(['q2']);
   });
 
   it('saves prompt and option edits in the Video Activity shape', async () => {
     const onSave = renderEditor([mc()]);
-    fireEvent.change(screen.getByPlaceholderText(/capital of France/), {
-      target: { value: 'Edited prompt' },
-    });
+    const prompt = screen.getByRole('textbox', { name: 'Question prompt' });
+    prompt.innerHTML = '<p>Edited prompt</p>';
+    fireEvent.input(prompt);
     fireEvent.change(screen.getByLabelText('Option B'), {
       target: { value: 'Light' },
     });
@@ -246,7 +252,7 @@ describe('Video Activity editor on the Quiz layout', () => {
         target: { value: 'mitosis' },
       }
     );
-    fireEvent.click(screen.getByText(/^Add (?!at)/));
+    fireEvent.click(screen.getByText(/^Add (?!at|note)/));
     fireEvent.change(screen.getAllByRole('textbox').at(-1) as HTMLElement, {
       target: { value: 'cell division' },
     });

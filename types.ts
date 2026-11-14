@@ -4453,7 +4453,7 @@ export interface QuizStimulus {
   calculator?: QuizCalculatorKind;
   /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
   tabLabel?: string;
-  /** image only: beside the question or in it; absent = beside when two or more questions use it (M13). */
+  /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
 }
 
@@ -4836,6 +4836,16 @@ export interface QuizPartsOpen {
 /** A section frozen onto a session, with the question ids it owns (bank pool ids included). */
 export interface QuizSessionSection extends QuizSection {
   questionIds: string[];
+}
+
+/** The teacher's pick of which answers count in over-answered choose-N sections. */
+export interface QuizCountedChoices {
+  /** The response's `completedAttempts` when picked; a later attempt ignores the pick. */
+  attempt: number;
+  /** Section id to the question ids that count. */
+  bySection: Record<string, string[]>;
+  /** Answers a pick brought back from passed; "Use the first N" sets them aside again. */
+  revived?: string[];
 }
 
 /** Frozen slot on a session; the student draws `count` ids from `poolQuestionIds`. */
@@ -5619,11 +5629,11 @@ export interface QuizSession
   allowCrossOut?: boolean;
   /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
   inputSignals?: boolean;
-  /** Stamped only with the quiz-ordering-list flag; Ordering shows one list to drag into order. */
+  /** Stamped on every new assignment; Ordering shows one list to drag into order (absent on older sessions = slots and word bank). */
   orderingList?: boolean;
   /** Stamped only with the quiz-stimulus-tabs flag; stimuli show as tabs beside the question. */
   stimulusTabs?: boolean;
-  /** Stamped only with the quiz-review-step flag; self-paced quizzes end on a review screen. */
+  /** Stamped on every new self-paced assignment; ends on a review screen (absent on older sessions = no review screen). */
   reviewStep?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
@@ -6162,6 +6172,41 @@ export interface InputSignalCounts {
 /** Keyed by completed-attempt count, then by question id. */
 export type InputSignals = Record<string, Record<string, InputSignalCounts>>;
 
+/** Fixed Nudge notes (docs/plans/shipped/QUIZ_LIVE_VIEW.md D15); no free text. */
+export type QuizNudgeNoteId = 'see-me' | 'own-work' | 'keep-going';
+
+/** Teacher-written while Live view is open on this attempt; the student page reads it on its own listener. */
+export interface QuizLiveViewStamp {
+  /** Server-clock ms; the student reports the question on screen while this is ahead. */
+  until: number;
+  /** True shows the student "Your teacher is viewing your quiz". */
+  notify: boolean;
+  /** Each `at` pulses the border once on the student's quiz. */
+  nudge?: { at: number; noteId?: QuizNudgeNoteId };
+}
+
+/** `responses/{key}/live/state`: the question a watched student is showing. */
+export interface QuizLiveState {
+  questionId: string;
+  /** Server-clock ms. */
+  at: number;
+}
+
+/** `users/{uid}/quiz_assignments/{id}/live_log/{id}`: what a teacher did in Live view. Never on the response doc. */
+export interface QuizLiveLogEntry {
+  id: string;
+  kind: 'screenshot' | 'nudge' | 'banner';
+  responseKey: string;
+  /** Server-clock ms. */
+  at: number;
+  /** 1-based place in the student's own question order, when known. */
+  questionNumber?: number;
+  questionId?: string;
+  noteId?: QuizNudgeNoteId;
+  /** The screenshot in the teacher's Drive. */
+  driveFileId?: string;
+}
+
 export interface QuizResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -6242,6 +6287,8 @@ export interface QuizResponse extends StaffResponseFields {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Teacher-written; which answers count where the student answered more than a section's N. */
+  countedChoices?: QuizCountedChoices;
   /** Pool ids balanced bank slots have dealt this student across attempts; never cleared by a retake. */
   dealtQuestionIds?: string[];
   /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
@@ -6259,6 +6306,8 @@ export interface QuizResponse extends StaffResponseFields {
    * Used for maintaining quiz integrity.
    */
   tabSwitchWarnings?: number;
+  /** Set only while the teacher has Live view open on this attempt. */
+  liveView?: QuizLiveViewStamp | null;
   /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
   tabExits?: TabExit[];
   /** Written only when the session carries `inputSignals`. */
@@ -10855,7 +10904,7 @@ export interface UserProfile {
   spartyEnabled?: boolean;
   /** Alignment guides while moving or resizing widgets; absent means off. */
   alignmentGuidesEnabled?: boolean;
-  /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
+  /** Browser spell check in the teacher's text boxes; absent means on. */
   spellCheckEnabled?: boolean;
   /** Starting length in seconds for the teacher's new timers. 0 or absent means the building default. */
   timeToolStartSeconds?: number;
@@ -11185,9 +11234,7 @@ export type GlobalFeature =
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'
-  /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/shipped/QUIZ_IMPORT_VERSIONS.md). */
-  | 'quiz-import-versions'
-  /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
+  /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
   | 'flashcards-swap-sides'
   /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
@@ -11198,10 +11245,6 @@ export type GlobalFeature =
   | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
-  /** Live tour playback that keeps pace: catch-up, settle, waiting chip (docs/plans/shipped/TOURS_10X.md F1). */
-  | 'tour-pacing'
-  /** Steps view for Live tours, and Live tours opening it in the Help Center (docs/plans/shipped/TOURS_10X.md F3). */
-  | 'tour-steps-view'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -11212,12 +11255,8 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Math keyboard and accent keys on student answer boxes, set per quiz. */
   | 'student-keyboards'
-  /** Bold, italic, underline and lists in the question prompt box of the Quiz and Video Activity editors. */
-  | 'quiz-prompt-formatting'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
-  | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
@@ -11240,6 +11279,8 @@ export type GlobalFeature =
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
+  /** Quiz Monitor Live view: a teacher watches one student's in-progress attempt, redrawn from saved data. */
+  | 'quiz-live-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
@@ -11282,16 +11323,6 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Teachers turn in a quiz for a student who left without submitting. */
-  | 'quiz-submit-for-student'
-  /** Teachers reopen a student's turned-in quiz so they keep working on the same answers. */
-  | 'quiz-reopen-submission'
-  /** Quiz answers of every type: a picture on each, plus pasting images into a question. */
-  | 'quiz-ordering-images'
-  /** Ordering questions: students drag one list into order instead of filling slots from a word bank. */
-  | 'quiz-ordering-list'
-  /** Ordering results: each item's spot, with the items students put out of order marked. */
-  | 'quiz-ordering-results'
   /** Quiz explanations on questions and answers, shown with published results. */
   | 'quiz-explanations'
   /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */
@@ -11300,12 +11331,6 @@ export type GlobalFeature =
   | 'quiz-blank-types'
   /** Quiz stimuli as named tabs in the panel beside the question (M11). */
   | 'quiz-stimulus-tabs'
-  /** Self-paced quizzes end on a review screen with Mark for review (M23). */
-  | 'quiz-review-step'
-  /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
-  | 'lunch-count-redesign'
-  /** Lunch Count: send a corrected count that replaces the day's row for that class. */
-  | 'lunch-count-resend'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
@@ -11322,8 +11347,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Flashcards study: students study just the cards they missed, in every mode. */
   | 'flashcards-missed-cards'
-  /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
-  | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
@@ -11347,6 +11370,7 @@ export type GlobalFeature =
   | 'import-extension-send'
   | 'import-board-drop'
   | 'import-flashcards'
+  | 'import-google-forms'
   | 'import-activity-wall'
   | 'import-new-board'
   | 'import-guided-learning'
@@ -11358,17 +11382,16 @@ export type GlobalFeature =
   | 'import-embed'
   | 'import-link'
   | 'import-schoology-course'
-  /** Video Activity short answer, note stops and clip range (docs/plans/IMPORT.md D32-D33). */
-  | 'video-activity-stops'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
   /** Due date picker in the Push to Schoology dialog. */
   | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
-  | 'video-activity-editor-arrows'
   /** Pasting a YouTube link asks Embed or Video Activity. */
-  | 'youtube-paste-picker';
+  | 'youtube-paste-picker'
+  /** Teachers pick which answers count when a student answers more than a section asks. */
+  | 'choose-n-pick-counted';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -11554,6 +11577,8 @@ export interface FeaturePermission {
 export interface QuizBuildingConfig {
   /** 'teacher-choice' (default) | 'force-on' | 'force-off' for the raise-hand button. */
   handRaiseMode?: 'teacher-choice' | 'force-on' | 'force-off';
+  /** Live view always shows the student "Your teacher is viewing your quiz"; absent = the teacher chooses. */
+  liveViewAlwaysNotify?: boolean;
 }
 
 export interface CarRiderProGlobalConfig {

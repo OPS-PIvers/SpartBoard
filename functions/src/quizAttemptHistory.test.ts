@@ -418,6 +418,60 @@ describe('applyAttemptGradeWrite', () => {
     expect(stub.get(SCORES)?.attempts).toHaveLength(1);
   });
 
+  it("keeps the teacher's choose-N pick when grading an earlier attempt", async () => {
+    const mc = (id: string) => ({
+      id,
+      type: 'MC',
+      text: id,
+      correctAnswer: 'A',
+      incorrectAnswers: ['B'],
+      points: 2,
+    });
+    const stub = makeStubFirestore({
+      'quiz_sessions/qs1': {
+        ...session,
+        publicQuestions: ['q1', 'q2', 'q3'].map((id) => ({
+          id,
+          type: 'MC',
+          text: id,
+          choices: ['A', 'B'],
+        })),
+        sections: [
+          { id: 's1', chooseCount: 2, questionIds: ['q1', 'q2', 'q3'] },
+        ],
+      },
+      'users/t1/quiz_assignments/qs1': { questionSnapshot: [] },
+      'users/t1/quiz_assignments/qs1/key/answers': {
+        questions: ['q1', 'q2', 'q3'].map(mc),
+      },
+    });
+    const first = done({
+      answers: [
+        { questionId: 'q1', answer: 'B' },
+        { questionId: 'q2', answer: 'A' },
+        { questionId: 'q3', answer: 'A' },
+      ],
+      countedChoices: { attempt: 1, bySection: { s1: ['q2', 'q3'] } },
+    });
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const before = stub.get(COPY);
+    const after = { ...before, grading: { q2: { points: 2 } } };
+    stub.store.set(COPY, after);
+    await applyAttemptGradeWrite(stub.db as unknown as Db, {
+      sessionId: 'qs1',
+      responseKey: 'u1',
+      n: 1,
+      before,
+      after,
+    });
+    const attempts = stub.get(SCORES)?.attempts as {
+      points: number;
+      max: number;
+    }[];
+    expect(attempts[0]).toMatchObject({ points: 4, max: 4 });
+  });
+
   const ROW = 'grade_index/qs1__u1';
   const ROW_ATTEMPTS = [
     { n: 1, at: T, points: 0, max: 2, state: 'awaiting-grade' },

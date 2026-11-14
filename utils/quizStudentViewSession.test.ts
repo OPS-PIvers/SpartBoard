@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { QuizBehaviorSettings, QuizData } from '@/types';
+import type { QuizBehaviorSettings, QuizData, QuizSession } from '@/types';
 import {
+  STUDENT_VIEW_SESSION_ID,
+  buildAssignedStudentView,
   buildStudentViewSession,
   focusSettingsFrom,
+  focusSettingsFromSession,
   withFocusSettings,
 } from './quizStudentViewSession';
 
@@ -110,29 +113,102 @@ describe('withFocusSettings', () => {
     expect(s).not.toHaveProperty('whiteboardResponseEnabled');
   });
 
-  it('stamps the one-list Ordering marker only when the teacher has the flag', () => {
-    expect(buildStudentViewSession(QUIZ, BEHAVIOR, false)).not.toHaveProperty(
-      'orderingList'
-    );
-    expect(
-      buildStudentViewSession(QUIZ, BEHAVIOR, false, true).orderingList
-    ).toBe(true);
+  it('always stamps the one-list Ordering marker and the review step, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
+    expect(s.orderingList).toBe(true);
+    expect(s.reviewStep).toBe(true);
   });
 });
 
-describe('buildStudentViewSession stimulus tabs and review step', () => {
-  it('stamps neither without the teacher’s flags', () => {
+describe('buildStudentViewSession stimulus tabs', () => {
+  it('leaves stimulus tabs off without the teacher’s flag', () => {
     const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
     expect(s).not.toHaveProperty('stimulusTabs');
-    expect(s).not.toHaveProperty('reviewStep');
   });
 
-  it('stamps both with the flags, as Assign does', () => {
-    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, false, {
+  it('stamps stimulus tabs with the flag, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, {
       stimulusTabs: true,
-      reviewStep: true,
     });
     expect(s.stimulusTabs).toBe(true);
-    expect(s.reviewStep).toBe(true);
+  });
+});
+
+describe('buildStudentViewSession cross-out', () => {
+  it('leaves cross-out off without the teacher’s flag', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
+    expect(s).not.toHaveProperty('allowCrossOut');
+  });
+
+  it('stamps cross-out with the flag, as Assign does', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false, {
+      crossOut: true,
+    });
+    expect(s.allowCrossOut).toBe(true);
+  });
+});
+
+describe('buildAssignedStudentView', () => {
+  const live = {
+    ...buildStudentViewSession(QUIZ, BEHAVIOR, true),
+    id: 'real-session',
+    assignmentId: 'real-session',
+    teacherUid: 'teacher-1',
+    code: 'ABC123',
+    status: 'paused',
+    closeAt: 5,
+    inputSignals: true,
+    tabWarningThreshold: 4,
+  } as QuizSession;
+
+  it('keeps the assigned questions and settings but nothing that gates or writes', () => {
+    const { session, drawIds } = buildAssignedStudentView(live, null);
+    expect(session.id).toBe(STUDENT_VIEW_SESSION_ID);
+    expect(session.teacherUid).toBe('');
+    expect(session.status).toBe('active');
+    expect(session.closeAt).toBeUndefined();
+    expect(session.inputSignals).toBeUndefined();
+    expect(session.publicQuestions).toEqual(live.publicQuestions);
+    expect(focusSettingsFromSession(session).tabWarningThreshold).toBe(4);
+    expect(drawIds).toBeUndefined();
+  });
+
+  it('reads a per-period assignment from its content doc', () => {
+    const { session } = buildAssignedStudentView(
+      {
+        ...live,
+        publicQuestions: [],
+        questionsInContent: true,
+        periodAccess: {},
+      },
+      { publicQuestions: live.publicQuestions }
+    );
+    expect(session.publicQuestions).toHaveLength(1);
+    expect(session.questionsInContent).toBeUndefined();
+    expect(session.periodAccess).toBeUndefined();
+  });
+
+  it('serves one sample draw for question-bank slots', () => {
+    const pool = ['a', 'b', 'c'].map((id) => ({
+      ...live.publicQuestions[0],
+      id,
+    }));
+    const { drawIds } = buildAssignedStudentView(
+      {
+        ...live,
+        publicQuestions: pool,
+        bankSlots: [
+          {
+            id: 's1',
+            count: 2,
+            points: 1,
+            poolQuestionIds: ['a', 'b', 'c'],
+            position: 0,
+          },
+        ],
+      },
+      null
+    );
+    expect(drawIds).toHaveLength(2);
   });
 });

@@ -60,6 +60,8 @@ import {
 import {
   STUDENT_CONTEXT_MENU_SETTINGS_DOC,
   normalizeStudentContextMenuSettings,
+  STUDENT_GRAMMARLY_SETTINGS_DOC,
+  normalizeStudentGrammarlySettings,
 } from '@/config/studentContextMenu';
 import {
   IMPORT_CONVERSION_SETTINGS_DOC,
@@ -208,6 +210,12 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Block right-click for students',
     description: 'Turns off the right-click menu on student pages.',
     normalize: normalizeStudentContextMenuSettings,
+  },
+  {
+    docId: STUDENT_GRAMMARLY_SETTINGS_DOC,
+    title: 'Turn off Grammarly for students',
+    description: 'Turns off Grammarly on student pages.',
+    normalize: normalizeStudentGrammarlySettings,
   },
   {
     docId: FOCUS_SESSIONS_SETTINGS_DOC,

@@ -4,10 +4,14 @@ import {
   TOUR_CONDITION_DONE_FACTS,
   TOUR_CONDITION_FACTS,
   TOUR_CONDITION_FEATURES,
+  TOUR_CONDITION_RETIRED_FEATURES,
 } from './tourConditionList';
 
 const FACT_IDS = new Set(TOUR_CONDITION_FACTS.map((f) => f.id));
-const FEATURE_IDS = new Set(TOUR_CONDITION_FEATURES);
+const FEATURE_IDS = new Set([
+  ...TOUR_CONDITION_FEATURES,
+  ...TOUR_CONDITION_RETIRED_FEATURES,
+]);
 const DONE_IDS = new Set(TOUR_CONDITION_DONE_FACTS);
 
 export const isTourConditionRef = (ref: string): boolean =>

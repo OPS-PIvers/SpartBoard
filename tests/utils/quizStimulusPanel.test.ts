@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   clampPanelPct,
+  panelImageFit,
   panelPctForKey,
   readPanelPct,
   writePanelPct,
@@ -30,5 +31,31 @@ describe('quizStimulusPanel', () => {
     expect(panelPctForKey('End', 50)).toBe(75);
     expect(panelPctForKey('Enter', 31)).toBe(50);
     expect(panelPctForKey('a', 50)).toBeNull();
+  });
+});
+
+describe('panelImageFit', () => {
+  const tall = { w: 600, h: 1100 };
+  it('shows the whole picture beside the question when it stays wide enough', () => {
+    expect(
+      panelImageFit(tall, { w: 680, maxH: 800, beside: true })
+    ).toBeCloseTo(800 / 1100);
+  });
+  it('fits a very tall picture to the panel width so it stays readable', () => {
+    const page = { w: 600, h: 2400 };
+    expect(
+      panelImageFit(page, { w: 680, maxH: 800, beside: true })
+    ).toBeCloseTo(680 / 600);
+  });
+  it('always shows the whole picture when stacked above the question', () => {
+    const page = { w: 600, h: 2400 };
+    expect(
+      panelImageFit(page, { w: 360, maxH: 250, beside: false })
+    ).toBeCloseTo(250 / 2400);
+  });
+  it('caps how far a small picture grows', () => {
+    expect(
+      panelImageFit({ w: 100, h: 100 }, { w: 680, maxH: 800, beside: true })
+    ).toBe(2);
   });
 });

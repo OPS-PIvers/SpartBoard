@@ -1,14 +1,14 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  ClipboardList,
   FolderTree,
+  MonitorPlay,
   ArrowLeftRight,
-  RotateCcw,
   Camera,
   PenLine,
   BarChart,
   BellRing,
-  Bold,
   Bot,
   Building2,
   Cast,
@@ -18,7 +18,6 @@ import {
   ScanLine,
   Download,
   Eye,
-  SpellCheck,
   FileText,
   FileUp,
   Gauge,
@@ -38,8 +37,6 @@ import {
   Printer,
   RefreshCw,
   Send,
-  ImagePlus,
-  ListOrdered,
   Share2,
   Smartphone,
   Smile,
@@ -50,7 +47,6 @@ import {
   MousePointerClick,
   TextCursorInput,
   Timer,
-  UserSearch,
   UsersRound,
   Video,
   Volume2,
@@ -59,12 +55,10 @@ import {
   Quote,
   Strikethrough,
   Calculator,
-  Utensils,
   CloudSun,
   Workflow,
   SquareChevronDown,
   PanelLeft,
-  ListTodo,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -503,18 +497,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Multi-version test import (QUIZ_IMPORT_VERSIONS V26). Admin-only until Paul has imported with it.
-  'quiz-import-versions': {
-    label: 'Multi-version test import',
-    icon: Layers,
-    description:
-      'Splits a test with several versions into a bank, rubrics and quizzes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Swap terms and definitions button in the Flashcards set editor. Admin-only until Paul has tried it in prod.
   'flashcards-swap-sides': {
     label: 'Flashcards: swap terms and definitions',
@@ -681,34 +663,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Prompt formatting toolbar. Admin-only until Paul has tested it in prod.
-  'quiz-prompt-formatting': {
-    label: 'Question prompt formatting',
-    icon: Bold,
-    description:
-      'Bold, italic, underline and lists in the question prompt of quizzes and video activities.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
     icon: Footprints,
     description: 'Sandboxed tour replays, step checkpoints and tour materials.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Quiz results teacher tools. Admin-only until Paul has used them on a real class.
-  'quiz-results-tools': {
-    label: 'Quiz results teacher tools',
-    icon: UserSearch,
-    description: 'Extra quiz results tools.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -865,30 +824,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Live tour playback that keeps pace with the learner (TOURS_10X.md P1-P5). Admin-only until Paul has played tours with it.
-  'tour-pacing': {
-    label: 'Tour pacing',
-    icon: Footprints,
-    description:
-      'Live tours keep up when someone clicks ahead and wait calmly for a missing control.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // The read-only Steps view for Live tours, opened from the Help Center (TOURS_10X.md S1-S2). Admin-only until Paul has read tours with it.
-  'tour-steps-view': {
-    label: 'Tour steps view',
-    icon: ListOrdered,
-    description:
-      'Live tours open as a readable list of steps in the Help Center, with Start Live Tour at the top.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',
@@ -947,6 +882,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'keep',
     widget: 'quiz',
     modalLabel: 'Student view',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Quiz Monitor "Live view": one student's in-progress attempt, redrawn from saved data.
+  'quiz-live-view': {
+    label: 'Quiz Live view',
+    icon: MonitorPlay,
+    description:
+      "Teachers watch one student's quiz in progress from Monitor, with Nudge and screenshots.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Live view',
     group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
@@ -1232,53 +1182,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'quiz-submit-for-student': {
-    label: 'Submit quiz for a student',
-    icon: Send,
-    description: "Turn in a student's saved quiz answers.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'quiz-reopen-submission': {
-    label: 'Reopen a submitted quiz',
-    icon: RotateCcw,
-    description: "Reopen a student's submitted quiz with their answers kept.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'quiz-ordering-images': {
-    label: 'Quiz answer images',
-    icon: ImagePlus,
-    description:
-      'Add or paste an image on any answer, and paste images into a question.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Ordering as one drag-to-order list. Admin-only until Paul has tested it in prod.
-  'quiz-ordering-list': {
-    label: 'Ordering: one list',
-    icon: ListOrdered,
-    description:
-      'Students drag one list into order instead of moving items from a word bank into numbered slots.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Dropdown and Drag blank types. Admin-only until Paul has tested it in prod.
   'quiz-blank-types': {
     label: 'Fill in the blank: dropdown and drag',
@@ -1298,32 +1201,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: PanelLeft,
     description:
       'Questions with two or more stimuli show them as named tabs beside the question, with the calculator last.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Review before submit and Mark for review. Admin-only until Paul has tested it in prod.
-  'quiz-review-step': {
-    label: 'Review before submit',
-    icon: ListTodo,
-    description:
-      'Self-paced quizzes end on a review screen of answered, unanswered and marked questions before students submit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Ordering results by item. Admin-only until Paul has tested it in prod.
-  'quiz-ordering-results': {
-    label: 'Ordering results by item',
-    icon: ListOrdered,
-    description:
-      'Question and student results list each Ordering item and mark the ones students put out of order.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
@@ -1353,30 +1230,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Lunch Count redesign. Admin-only until Paul has used it in prod.
-  'lunch-count-redesign': {
-    label: 'Lunch Count redesign',
-    icon: Utensils,
-    description: 'Big counts, layouts for every size and clearer empty states.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'lunchCount',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'lunch-count-resend': {
-    label: 'Lunch Count resend',
-    icon: Utensils,
-    description:
-      "Send a corrected lunch count that replaces today's count for that class.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'lunchCount',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1516,18 +1369,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // The flag only hides the Behavior switch; teachers turn spell check off themselves.
-  'spell-check-setting': {
-    label: 'Spell check switch',
-    icon: SpellCheck,
-    description:
-      'Teachers can turn off browser spell check in their own text boxes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'music-my-songs': {
     label: 'My songs in Music',
     icon: Music,
@@ -1643,6 +1484,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Import: Flashcards',
     icon: Layers,
     description: 'Offers Flashcards for spreadsheets, rows of terms and pages.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    requires: 'universal-import',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'import-google-forms': {
+    label: 'Import: Google Forms',
+    icon: ClipboardList,
+    description:
+      'Offers Quiz or Poll for a Google Form sent from the extension.',
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',
@@ -1774,33 +1627,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'video-activity-stops': {
-    label: 'Video Activity: short answer, notes and clips',
-    icon: Video,
-    description:
-      'Short-answer questions the teacher marks, note stops that pause the video on text, and a start and end time for the video.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'video-activity-editor-arrows': {
-    label: 'Video Activity editor: question arrows',
-    icon: Video,
-    description:
-      'The video fills the editor and arrows step through questions in place of the question list.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'youtube-paste-picker': {
     label: 'Paste a YouTube link: pick a widget',
     icon: Video,
     description:
       'Pasting a YouTube link on the board asks whether to add it as an Embed or a Video Activity.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'choose-n-pick-counted': {
+    label: 'Quiz: pick which answers count',
+    icon: ListChecks,
+    description:
+      'When a student answers more questions than a section asks for, the teacher picks which answers count.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

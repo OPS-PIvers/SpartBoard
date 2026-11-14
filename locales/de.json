@@ -2226,6 +2226,13 @@
     "placed": "{{word}} in {{blank}} eingesetzt.",
     "returned": "{{word}} zurück in die Wortliste gelegt."
   },
+  "quizLiveView": {
+    "banner": "Deine Lehrkraft sieht sich dein Quiz an",
+    "nudge": "Deine Lehrkraft bittet um deine Aufmerksamkeit",
+    "noteSeeMe": "Bitte komm zu mir",
+    "noteOwnWork": "Schau nur auf deine eigene Arbeit",
+    "noteKeepGoing": "Mach weiter"
+  },
   "quizReview": {
     "reviewButton": "ÜBERPRÜFEN",
     "reviewLink": "Überprüfen",
@@ -2572,7 +2579,8 @@
         "paper-failed": "Fehlgeschlagen",
         "paper-over-quota": "Tageslimit",
         "paper-blank": "Leer",
-        "paper-image": "Nicht transkribiert"
+        "paper-image": "Nicht transkribiert",
+        "not-counted": "Zusätzlich, nicht bewertet"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2831,7 +2839,10 @@
         "goBack": "Zurück",
         "closeAnyway": "Trotzdem schließen",
         "rail": "Markierungen nicht gespeichert"
-      }
+      },
+      "classFilter": "Nach Klasse filtern",
+      "allClasses": "Alle Klassen",
+      "countInstead": "Stattdessen zählen"
     },
     "results": {
       "gradeButton": "Freie Antworten bewerten"
@@ -3504,6 +3515,10 @@
     "cancel": "Abbrechen",
     "saved": "Quiz-Konfiguration gespeichert.",
     "saveFailed": "Quiz-Konfiguration konnte nicht gespeichert werden.",
+    "liveView": {
+      "heading": "Live-Ansicht",
+      "alwaysNotify": "Schüler immer informieren, wenn eine Lehrkraft die Live-Ansicht öffnet"
+    },
     "handRaise": {
       "heading": "Melden",
       "teacherChoice": "Entscheidung der Lehrkraft",

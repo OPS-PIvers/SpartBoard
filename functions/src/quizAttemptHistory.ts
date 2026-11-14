@@ -39,6 +39,7 @@ const COPIED_FIELDS = [
   'tabExits',
   'artifactArchive',
   'preSyncVersion',
+  'countedChoices',
 ] as const;
 
 /** Changes to a finished attempt that its copy must follow (grading, publish, finalize). */
@@ -51,6 +52,7 @@ const WATCHED_WHILE_DONE = [
   'submittedAt',
   'servedQuestionIds',
   'tabExits',
+  'countedChoices',
 ] as const;
 
 export interface AttemptWrite {
@@ -321,6 +323,8 @@ export async function applyAttemptGradeWrite(
         ...fresh,
         score: null,
         status: 'completed',
+        // Score the copy as its own attempt so the teacher's pick for it still applies.
+        completedAttempts: w.n,
       });
       if (!score) return false;
       const rescored = { ...score, attemptNumber: w.n };

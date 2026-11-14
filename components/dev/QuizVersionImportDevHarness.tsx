@@ -122,7 +122,6 @@ const harnessAdapter = (onSaved: (build: VersionImportBuild) => void) =>
     pickSheet: () => Promise.resolve(null),
     canImportDocuments: true,
     aiExtract: () => Promise.reject(new Error('Not in the harness.')),
-    importVersions: true,
     aiExtractVersions: (input) =>
       Promise.resolve(
         /quiz/i.test(input.fileName) ? mcReorderedTestSet() : frqTestSet()

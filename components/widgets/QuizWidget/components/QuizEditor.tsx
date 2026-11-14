@@ -182,9 +182,8 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   onAddAnswerKey,
   allowSections = true,
 }: PaneProps) {
-  const { canAccessQuizMediaResponse, canAccessFeature } = useAuth();
+  const { canAccessQuizMediaResponse } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
-  const stopsAllowed = canAccessFeature('quiz-import-versions');
   const {
     questions,
     stimuli,
@@ -504,7 +503,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                   <SectionRow
                     section={section}
                     questionCount={sectionCounts.get(section.id) ?? 0}
-                    canStop={stopsAllowed && section.id !== lastSectionId}
+                    canStop={section.id !== lastSectionId}
                     onUpdate={updateSection}
                     onRemove={removeSection}
                     dragHandleAttributes={handle.attributes}
@@ -845,9 +844,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     canAccessFeature,
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
-  const answerImagesOn = canAccessFeature('quiz-ordering-images');
   const keyboardsOn = canAccessFeature(STUDENT_KEYBOARDS_FEATURE);
-  const promptFormatOn = canAccessFeature('quiz-prompt-formatting');
   const blankTypesOn = canAccessFeature('quiz-blank-types');
   const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
@@ -939,7 +936,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         bankApi={bankApi}
         onUpdate={updateBankSlot}
         onRemove={removeBankSlot}
-        balancedAvailable={canAccessFeature('quiz-import-versions')}
         stimulusSection={
           <SlotStimulusSection
             state={state}
@@ -1007,7 +1003,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           textareaRef={promptRef}
           promptAccents={keyboardsOn ? defaultAccents : undefined}
           promptMath={keyboardsOn}
-          promptFormat={promptFormatOn}
+          promptFormat
+        />
+
+        {/* Under the prompt, matching where students see it. */}
+        <QuestionStimulusSection
+          state={state}
+          questionId={q.id}
+          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+          pasteScopeRef={paneRef}
         />
 
         {/* Learning targets */}
@@ -1187,7 +1191,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               key={q.id}
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
-              onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
+              onUploadImage={uploadAnswerImage}
             />
             <NeedsAnswerNotice
               question={q}
@@ -1201,7 +1205,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             answerImages={q.answerImages}
             termImages={q.matchingTermImages}
             imageOnlyAnswers={q.imageOnlyAnswers}
-            onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
+            onUploadImage={uploadAnswerImage}
             matchingDistractors={
               q.matchingDistractors ?? (EMPTY_DISTRACTORS as string[])
             }
@@ -1214,7 +1218,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             orderingImages={q.orderingImages}
             imageOnlyAnswers={q.imageOnlyAnswers}
             onChange={handleOrderingChange}
-            onUploadImage={answerImagesOn ? uploadAnswerImage : undefined}
+            onUploadImage={uploadAnswerImage}
           />
         ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
@@ -1381,15 +1385,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             onChange={(updates) => updateQuestion(q.id, updates)}
           />
         )}
-
-        {/* Per-question stimulus attach — second entry point alongside the
-            quiz-level Stimuli tab; both edit the same array. */}
-        <QuestionStimulusSection
-          state={state}
-          questionId={q.id}
-          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-          pasteScopeRef={answerImagesOn ? paneRef : undefined}
-        />
       </div>
 
       {showRubricBuilder && isFreeResponseType(q.type) && (

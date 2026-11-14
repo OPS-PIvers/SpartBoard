@@ -6,7 +6,6 @@ import {
   imageInPanel,
   splitStimuliForTabs,
   stimulusTabLabels,
-  stimulusUseCounts,
 } from '@/utils/quizStimulusTabs';
 import { projectSessionStimuli } from '@/utils/quizStimuli';
 
@@ -19,42 +18,25 @@ const stim = (id: string, extra: Partial<QuizStimulus> = {}): QuizStimulus => ({
 });
 
 describe('stimulus tabs', () => {
-  const counts = stimulusUseCounts([
-    { stimulusIds: ['shared', 'text'] },
-    { stimulusIds: ['shared', 'solo', 'shared'] },
-    {},
-  ]);
-
-  it('counts each question once per stimulus', () => {
-    expect(counts.get('shared')).toBe(2);
-    expect(counts.get('solo')).toBe(1);
-  });
-
-  it('puts a shared picture beside the question and a single-use one in it (M13)', () => {
-    expect(imageInPanel(stim('shared', { type: 'image' }), counts)).toBe(true);
-    expect(imageInPanel(stim('solo', { type: 'image' }), counts)).toBe(false);
+  it('puts a picture beside the question unless the teacher chose In the question (M13)', () => {
+    expect(imageInPanel(stim('auto', { type: 'image' }))).toBe(true);
+    expect(imageInPanel(stim('p', { type: 'image', placement: 'panel' }))).toBe(
+      true
+    );
     expect(
-      imageInPanel(stim('solo', { type: 'image', placement: 'panel' }), counts)
-    ).toBe(true);
-    expect(
-      imageInPanel(
-        stim('shared', { type: 'image', placement: 'inline' }),
-        counts
-      )
+      imageInPanel(stim('in', { type: 'image', placement: 'inline' }))
     ).toBe(false);
+    expect(imageInPanel(stim('t', { type: 'text' }))).toBe(false);
   });
 
   it('keeps audio and video in the question and the calculator last (M13, M14)', () => {
-    const { panel, inline } = splitStimuliForTabs(
-      [
-        stim('calc', { type: 'calculator', calculator: 'scientific' }),
-        stim('shared', { type: 'image' }),
-        stim('audio', { type: 'audio' }),
-        stim('text'),
-        stim('solo', { type: 'image' }),
-      ],
-      counts
-    );
+    const { panel, inline } = splitStimuliForTabs([
+      stim('calc', { type: 'calculator', calculator: 'scientific' }),
+      stim('shared', { type: 'image' }),
+      stim('audio', { type: 'audio' }),
+      stim('text'),
+      stim('solo', { type: 'image', placement: 'inline' }),
+    ]);
     expect(panel.map((s) => s.id)).toEqual(['shared', 'text', 'calc']);
     expect(inline.map((s) => s.id)).toEqual(['audio', 'solo']);
   });

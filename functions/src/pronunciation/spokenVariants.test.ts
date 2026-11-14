@@ -76,4 +76,24 @@ describe('spokenVariants', () => {
       tooManyWords: false,
     });
   });
+  it('adds whole phrases for a mid-phrase spaced slash', () => {
+    expect(spokenVariants('sacar una buena / mala nota', 'es').texts).toEqual([
+      'sacar una buena',
+      'mala nota',
+      'sacar una buena nota',
+      'sacar una mala nota',
+    ]);
+  });
+
+  it('keeps equal-length alternates whole', () => {
+    expect(spokenVariants('empezar / comenzar', 'es').texts).toEqual([
+      'empezar',
+      'comenzar',
+    ]);
+  });
+  it('spells out optional words before swapping a mid-phrase slash', () => {
+    expect(
+      spokenVariants('sacar (una) buena / mala nota', 'es').texts
+    ).not.toContainEqual(expect.stringContaining('('));
+  });
 });

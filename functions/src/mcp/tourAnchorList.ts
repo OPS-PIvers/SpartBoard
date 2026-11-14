@@ -16028,6 +16028,57 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.count-instead",
+    "label": "Count this instead button in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.counted-answers",
+    "label": "Answers that count menu in Quiz results, by section",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "quiz.student-answer-line",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.count-instead",
+    "label": "Count this instead button beside a question in a student report in Quiz results, by question",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.student-answer-line",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-results.drilldown-open-student",
     "label": "Student name button in Quiz results, by student",
     "scope": "field",
@@ -17569,6 +17620,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.class-filter",
+    "label": "Class filter in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.student-prev",
     "label": "Previous student in the Quiz grader",
     "scope": "widget type",
@@ -18891,6 +18967,207 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.live-view",
+    "label": "Live view button on a student in the Quiz monitor roster",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-live-view.previous",
+    "label": "Previous student button in Quiz Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.live-view",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.live-view:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-live-view.next",
+    "label": "Next student button in Quiz Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.live-view",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.live-view:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-live-view.close",
+    "label": "Close button in Quiz Live view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.live-view",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.live-view:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-live-view.tell-student",
+    "label": "Tell the student switch in Quiz Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.live-view",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.live-view:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-live-view.nudge-note",
+    "label": "Nudge note select in Quiz Live view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.live-view",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.live-view:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-live-view.nudge",
+    "label": "Nudge button in Quiz Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.live-view",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.live-view:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-live-view.screenshot",
+    "label": "Screenshot button in Quiz Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor.live-view",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.live-view:quiz"
         ],
         "needs": [
           "widget-on-stage",
@@ -36812,6 +37089,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.features.input-sign-toggle",
+    "label": "Unusual input sign switch",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.features.input-sign-text",
+    "label": "Unusual input sign \"Could also be\" box",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.features.model-tier",
     "label": "Model select on a feature row",
     "scope": "field",
@@ -51658,23 +51967,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.editor-question-pill",
-    "label": "Question button in the editor question list",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.editor-question-delete",
     "label": "Delete button for a question in the video activity editor",
     "scope": "field",
@@ -51845,23 +52137,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.editor-question-select",
-    "label": "Select checkbox on a question in the video activity editor",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.editor-question-duplicate",
     "label": "Duplicate button for a question in the video activity editor",
     "scope": "field",
@@ -51934,43 +52209,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "video-activity.editor-question-jump",
     "label": "Question menu in the video activity editor",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-bulk-delete",
-    "label": "Delete button for selected questions in the video activity editor",
-    "scope": "board",
-    "destructive": true,
-    "persists": true,
-    "sandboxed": true,
-    "routes": [
-      {
-        "surface": "library.video-activity.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:video-activity"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.editor-bulk-clear",
-    "label": "Clear selection button in the video activity editor",
     "scope": "board",
     "routes": [
       {
@@ -75978,6 +76216,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.archive-monitor",
     "label": "Monitor item in a quiz assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-student-view",
+    "label": "Student view item in a quiz assignment row menu",
     "scope": "widget type",
     "panel": true,
     "keys": [

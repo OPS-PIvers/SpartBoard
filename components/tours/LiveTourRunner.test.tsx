@@ -185,8 +185,6 @@ const h = vi.hoisted(() => {
     emit,
     reset,
     canAccess: vi.fn((_id: string) => true),
-    // Tour pacing is its own switch, so tests written for today's pace keep it (TOURS_10X.md F1).
-    pacing: false,
     loadTour: vi.fn(),
     loadDraft: vi.fn(),
     user: null as { uid: string } | null,
@@ -221,8 +219,7 @@ vi.mock('@/utils/gettingStartedProgress', () => ({
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    canAccessFeature: (id: string) =>
-      id === 'tour-pacing' ? h.pacing && h.canAccess(id) : h.canAccess(id),
+    canAccessFeature: (id: string) => h.canAccess(id),
     user: h.user,
     featurePermissions: h.permissions,
   }),
@@ -417,6 +414,11 @@ const frames = async (ms = 50) => {
   });
 };
 
+// A Live tour's tip comes in once the ring has settled and glided; stepped so each phase's timer gets its turn.
+const tipIn = async (ms = SETTLE_CAP_MS + 100) => {
+  for (let t = 0; t < ms; t += 50) await frames(50);
+};
+
 const start = async (set: GuidedLearningSet) => {
   h.loadTour.mockResolvedValue(set);
   render(
@@ -460,7 +462,6 @@ beforeEach(() => {
   vi.useFakeTimers();
   h.reset();
   h.canAccess.mockImplementation(() => true);
-  h.pacing = false;
   h.user = null;
   h.permissions = [];
   h.dockOpens = false;
@@ -507,12 +508,6 @@ const withThumbnails = (
       : st
   ),
 });
-
-const miniPlayerSrc = () =>
-  screen
-    .getByTestId('tour-mini-player')
-    .querySelector('img')
-    ?.getAttribute('src');
 
 describe('LiveTourRunner', () => {
   it('adds a missing setup widget, anchors to it, and removes it on teardown', async () => {
@@ -592,18 +587,6 @@ describe('LiveTourRunner', () => {
     expect(h.board.widgets.map((w) => w.id)).toEqual(['w2']);
   });
 
-  it('treats a hidden anchor as missing and shows the slide', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await start(
-      withThumbnails(makeSet([{ anchor: 'library.search', action: 'click' }]))
-    );
-    expect(screen.queryByTestId('tour-spotlight')).not.toBeInTheDocument();
-    await frames(ANCHOR_SEARCH_MS + 100);
-    await frames();
-    expect(screen.getByTestId('tour-mini-player')).toBeInTheDocument();
-    expect(screen.queryByTestId('tour-spotlight')).not.toBeInTheDocument();
-  });
-
   it('scrolls the anchor into view once, when first found', async () => {
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
     await frames();
@@ -639,34 +622,6 @@ describe('LiveTourRunner', () => {
     fireEvent.scroll(window);
     await frames();
     expect(ring().getAttribute('x')).toBe('294');
-  });
-
-  it('continues without Retry when a missing anchor appears late', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await start(
-      withThumbnails(
-        makeSet([
-          { anchor: 'sidebar.classes', action: 'click' },
-          { anchor: 'sidebar.boards', action: 'observe' },
-        ])
-      )
-    );
-    await frames(ANCHOR_SEARCH_MS + 100);
-    expect(screen.getByTestId('tour-mini-player')).toBeInTheDocument();
-    await frames(5000 - ANCHOR_SEARCH_MS - 150);
-    const late = document.createElement('button');
-    late.setAttribute('data-tour', 'sidebar.classes');
-    late.textContent = 'My Classes';
-    act(() => {
-      document.body.appendChild(late);
-    });
-    await frames(300);
-    expect(screen.getByTestId('tour-spotlight')).toBeInTheDocument();
-    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
-    fireEvent.click(late);
-    await frames();
-    expect(progress()).toBe('2 / 2');
-    late.remove();
   });
 
   it('advances on a click on the anchor but not elsewhere', async () => {
@@ -744,25 +699,6 @@ describe('LiveTourRunner', () => {
     expect(progress()).toBe('2 / 2');
   });
 
-  it('keeps the dim up while the next step looks for its anchor', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await start(
-      makeSet([
-        { anchor: 'sidebar.boards', action: 'observe' },
-        { anchor: 'sidebar.classes', action: 'observe' },
-      ])
-    );
-    await frames();
-    const dim = screen.getByTestId('tour-spotlight');
-    fireEvent.click(barButton('Next'));
-    expect(progress()).toBe('2 / 2');
-    expect(screen.getByText('Finding it on your screen…')).toBeInTheDocument();
-    expect(screen.getByTestId('tour-spotlight')).toBe(dim);
-    expect(screen.queryByTestId('tour-spotlight-ring')).toBeNull();
-    await frames(ANCHOR_SEARCH_MS + 100);
-    expect(screen.queryByTestId('tour-spotlight')).toBeNull();
-  });
-
   it('waits for Next on an observe step', async () => {
     await start(
       makeSet([
@@ -794,25 +730,6 @@ describe('LiveTourRunner', () => {
     expect(screen.queryByTestId('tour-tip-next')).toBeNull();
   });
 
-  it('says so when the anchor never appears, and logs it', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await start(makeSet([{ anchor: 'sidebar.classes', action: 'click' }]));
-    expect(screen.getByText('Finding it on your screen…')).toBeInTheDocument();
-    await frames(ANCHOR_SEARCH_MS + 100);
-    expect(
-      screen.getByText(/Couldn't find this on your screen/)
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId('tour-spotlight')).not.toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith('Live tour anchor not found', {
-      setId: 'set-1',
-      stepId: 's0',
-      anchor: 'sidebar.classes',
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(screen.getByText('Finding it on your screen…')).toBeInTheDocument();
-    warn.mockRestore();
-  });
-
   it('keeps the line breaks the author typed in the step text', async () => {
     const set = makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]);
     (set.steps[0] as { text?: string }).text =
@@ -825,22 +742,6 @@ describe('LiveTourRunner', () => {
       'Click Completed.\n\n*If the quiz is live, end it.'
     );
     expect(body.querySelector('strong')).toHaveTextContent('Completed');
-  });
-
-  it("keeps the step's own text when its anchor is missing", async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const set = makeSet([{ anchor: 'sidebar.classes', action: 'click' }]);
-    (set.steps[0] as { text?: string }).text = 'Open your classes.';
-    await start(set);
-    await frames(ANCHOR_SEARCH_MS + 100);
-    expect(screen.getByText('Open your classes.')).toBeInTheDocument();
-    expect(screen.getByTestId('tour-anchor-missing')).toHaveTextContent(
-      /Couldn't find this on your screen/
-    );
-    expect(screen.getByTestId('tour-tip-next')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Try again' })
-    ).toBeInTheDocument();
   });
 
   it('exits on Escape and offers teardown', async () => {
@@ -1052,22 +953,6 @@ describe('LiveTourRunner polish', () => {
       'href',
       'https://example.com'
     );
-  });
-
-  it("shows the step's slide when its anchor is missing", async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await start(
-      withThumbnails(makeSet([{ anchor: 'sidebar.classes', action: 'click' }]))
-    );
-    await frames(ANCHOR_SEARCH_MS + 100);
-    await frames();
-    expect(miniPlayerSrc()).toBe('https://example.com/slide.png');
-    expect(
-      screen.getByText(
-        "Couldn't find this on your screen. Here's what it looks like."
-      )
-    ).toBeInTheDocument();
-    expect(barButton('Done')).toBeInTheDocument();
   });
 
   it('reads each step aloud once turned on', async () => {
@@ -1589,6 +1474,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
 
   it('shows plain steps as centred cards on the dimmed board, counting every step', async () => {
     await start(mixedSet());
+    await tipIn();
     expect(progress()).toBe('1 / 5');
     expect(isPlain()).toBe(true);
     expect(screen.getByText('Welcome aboard')).toBeInTheDocument();
@@ -1598,22 +1484,22 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
 
     fireEvent.click(barButton('Next'));
-    await frames();
+    await tipIn();
     expect(progress()).toBe('2 / 5');
     expect(isPlain()).toBe(false);
     expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Boards'));
-    await frames();
+    await tipIn();
     expect(progress()).toBe('3 / 5');
     expect(isPlain()).toBe(true);
     expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
 
     fireEvent.click(barButton('Next'));
-    await frames();
+    await tipIn();
     expect(progress()).toBe('4 / 5');
     fireEvent.click(barButton('Next'));
-    await frames();
+    await tipIn();
     expect(progress()).toBe('5 / 5');
     expect(isPlain()).toBe(true);
     fireEvent.click(barButton('Done'));
@@ -1622,6 +1508,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
 
   it('shows a plain step its text without a picture', async () => {
     await start(withThumbnails(mixedSet('structured'), 'https://x/0.png'));
+    await tipIn();
     expect(isPlain()).toBe(true);
     expect(screen.getByText('This tour shows boards.')).toBeInTheDocument();
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
@@ -1636,22 +1523,23 @@ describe('LiveTourRunner plain steps and welcome', () => {
     });
     set.steps[4].interactionType = 'video';
     await start(set);
+    await tipIn();
     expect(isPlain()).toBe(true);
     expect(screen.getByTestId('tour-mini-player')).toBeInTheDocument();
     expect(screen.getByText('This tour shows boards.')).toBeInTheDocument();
     expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
 
     fireEvent.click(barButton('Next'));
-    await frames();
+    await tipIn();
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Boards'));
-    await frames();
+    await tipIn();
     expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
     fireEvent.click(barButton('Next'));
-    await frames();
+    await tipIn();
     fireEvent.click(barButton('Next'));
-    await frames();
+    await tipIn();
     expect(progress()).toBe('5 / 5');
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
   });
@@ -1692,6 +1580,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
 
   it('Guided: plain steps move on at reading pace and a click into one does not wait', async () => {
     await start(mixedSet('guided'));
+    await tipIn();
     expect(progress()).toBe('1 / 5');
     expect(screen.getByTestId('tour-auto-status')).toHaveTextContent(
       'Playing each step for you'
@@ -2118,11 +2007,12 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
         { anchor: 'dock.open-tools', action: 'click' },
       ])
     );
+    await tipIn();
     expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
     const next = barButton('Next');
     fireEvent.click(next);
     next.blur();
-    await frames();
+    await tipIn();
     expect(progress()).toBe('2 / 2');
     expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
     expect(document.activeElement).toHaveTextContent('Step 2');
@@ -2802,7 +2692,7 @@ describe('LiveTourRunner robustness', () => {
       </button>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Next board' }));
-    await frames();
+    await tipIn();
     expect(screen.getByTestId('tour-callout')).toBeInTheDocument();
     expect(h.actions.discardTourWidgets).not.toHaveBeenCalled();
   });
@@ -2883,6 +2773,7 @@ describe('LiveTourRunner robustness', () => {
       [{ tour: undefined }]
     );
     await start(set);
+    await tipIn();
     const callout = screen.getByTestId('tour-callout');
     expect(callout.style.left).toBe(`${(window.innerWidth - 400) / 2}px`);
     vi.stubGlobal('innerWidth', 700);
@@ -2933,7 +2824,7 @@ describe('LiveTourRunner robustness', () => {
     });
     expect(autoStep).not.toHaveAttribute('aria-disabled');
     fireEvent.click(barButton('Next'));
-    await frames();
+    await tipIn();
     expect(screen.getByTestId('tour-callout')).not.toHaveAttribute(
       'data-tether'
     );
@@ -3388,7 +3279,7 @@ describe('LiveTourRunner Autopilot performer', () => {
     expect(document.activeElement).toBe(font());
     // Once an option is chosen, the next step takes focus as usual.
     fireEvent.change(font(), { target: { value: 'b' } });
-    await run(200);
+    await tipIn();
     expect(progress()).toBe('3 / 3');
     expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
   });
@@ -4095,10 +3986,6 @@ describe('LiveTourRunner Sparty on the tip', () => {
 
 // Tour pacing (TOURS_10X.md P2, P7): catch-up for a learner who gets ahead of a Live tour.
 describe('LiveTourRunner with tour pacing', () => {
-  beforeEach(() => {
-    h.pacing = true;
-  });
-
   // Each step's tip is mounted once per visit; records the title of every tip that mounts.
   const watchTips = () => {
     const mounted: string[] = [];
@@ -4278,24 +4165,10 @@ describe('LiveTourRunner with tour pacing', () => {
     expect(progress()).toBe('1 / 6');
     expect(skipped()).toBeNull();
   });
-
-  it('plays exactly as before with the flag off', async () => {
-    h.canAccess.mockImplementation((id: string) => id !== 'tour-pacing');
-    await start(aheadSet());
-    fireEvent.click(screen.getByText('Close w1'));
-    await settled();
-    await frames(SETTLE_CAP_MS);
-    expect(progress()).toBe('1 / 6');
-    expect(skipped()).toBeNull();
-  });
 });
 
 // Tour pacing (TOURS_10X.md P1, P3, P4, P5): the rhythm, the step dots and the waiting chip.
 describe('LiveTourRunner pacing feel', () => {
-  beforeEach(() => {
-    h.pacing = true;
-  });
-
   const steps = async (ms: number) => {
     for (let t = 0; t < ms; t += 25) await frames(25);
   };
@@ -4561,21 +4434,5 @@ describe('LiveTourRunner pacing feel', () => {
     await frames();
     expect(chip()).toHaveTextContent('Step 2 is waiting');
     expect(screen.queryByTestId('tour-take-me-back')).toBeNull();
-  });
-
-  it('keeps today’s missing-control note and Retry with the flag off', async () => {
-    h.pacing = false;
-    routes.set('library.search', []);
-    await start(
-      makeSet([
-        { anchor: 'library.search', action: 'click' },
-        { anchor: 'sidebar.boards', action: 'click' },
-      ])
-    );
-    await frames(ANCHOR_SEARCH_MS + 100);
-    expect(chip()).toBeNull();
-    expect(screen.getByTestId('tour-anchor-missing')).toBeInTheDocument();
-    expect(barButton('Try again')).toBeInTheDocument();
-    expect(screen.queryByTestId('tour-bar-dots')).toBeNull();
   });
 });

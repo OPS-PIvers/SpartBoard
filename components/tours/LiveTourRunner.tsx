@@ -245,7 +245,7 @@ interface ActiveTour {
   test?: boolean;
   /** What the run made, captured when the boards prompt opens. */
   made?: RunMade;
-  /** Steps a catch-up passed over (TOURS_10X.md P3); set only with tour pacing on. */
+  /** Steps a catch-up passed over (TOURS_10X.md P3). */
   skipped?: readonly string[];
   /** Where wildcard row steps left out for an empty list sat in the full run, ascending. */
   dropped?: readonly number[];
@@ -496,8 +496,6 @@ export const LiveTourRunner: React.FC = () => {
   const rowPicks = useRef<Record<string, string>>({});
   const lastStepCreated = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
-  // Tour pacing (TOURS_10X.md F1): catch-up, the settle-tick-glide rhythm and the waiting chip.
-  const pacing = canAccessFeature('tour-pacing');
   const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
     readSavedTour
   );
@@ -766,7 +764,7 @@ export const LiveTourRunner: React.FC = () => {
     ? withNearbyPopups(target, tour ? openPopupBoxes() : [])
     : null;
   // Settle, tick, glide, tip on a paced run (P1); editor and test runs keep their own pace.
-  const paced = pacing && tour?.phase === 'running' && !tour.edit && !tour.test;
+  const paced = tour?.phase === 'running' && !tour.edit && !tour.test;
   const rhythm = useStepRhythm({
     enabled: paced,
     reducedMotion,
@@ -1765,11 +1763,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // Tour pacing (TOURS_10X.md P2): a learner who acts on a later step is caught up once the board settles.
   const lookahead =
-    pacing &&
-    tour?.phase === 'running' &&
-    !tour.edit &&
-    !tour.test &&
-    !editRecording;
+    tour?.phase === 'running' && !tour.edit && !tour.test && !editRecording;
   const pendingCatch = useRef<{
     from: number;
     matched: number;
@@ -2613,7 +2607,8 @@ export const LiveTourRunner: React.FC = () => {
 
   // Every step moves focus to its heading so keyboard and screen reader users land on it.
   const headingRef = useRef<HTMLDivElement | null>(null);
-  const showingStep = running && !!step;
+  // A paced tip mounts after the ring settles, so focus waits for it.
+  const showingStep = running && !!step && rhythm.tipShown;
   useEffect(() => {
     if (!showingStep) return;
     // A dropdown the teacher just opened keeps focus, or the browser closes its list.

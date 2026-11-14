@@ -25,6 +25,12 @@ import {
   quizletTitle,
   readQuizletSet,
 } from '../quizlet/set';
+import {
+  GOOGLE_FORMS_PLATFORM,
+  googleFormPage,
+  readGoogleForm,
+  type FormPage,
+} from '../googleForms/form';
 import type { ImportReaderFailure } from '@/utils/import/contract';
 
 const ask = <T>(message: SendPageMessage) =>
@@ -200,7 +206,8 @@ async function sendGeneric(
     selectionOnly: request.selectionOnly,
     fellBack:
       failure?.platform === EDPUZZLE_PLATFORM ||
-      failure?.platform === QUIZLET_PLATFORM
+      failure?.platform === QUIZLET_PLATFORM ||
+      failure?.platform === GOOGLE_FORMS_PLATFORM
         ? failure.platform
         : !!failure,
   });
@@ -230,6 +237,53 @@ async function sendQuizlet(id: string): Promise<SendNote> {
     },
   }).catch(() => undefined);
   return sendNote({ kind: 'reply', reply, cards: read.set.cards.length });
+}
+
+/** A Google Form as a form; the editor still sends its id when the page read fails, so the app can read it. */
+async function sendGoogleForm(page: FormPage): Promise<SendNote> {
+  progress('Reading…');
+  const read = await readGoogleForm(page, document);
+  if (!read.ok) {
+    if (page.kind === 'view')
+      return sendGeneric({
+        platform: GOOGLE_FORMS_PLATFORM,
+        reason: read.reason.slice(0, 500),
+      });
+    // The editor's own text still goes, with the form id so SpartBoard can read the form itself.
+    const request = readPage(window);
+    progress('Sending…');
+    const reply = await ask<SendReply>({
+      type: 'send/page',
+      request: {
+        ...request,
+        platform: GOOGLE_FORMS_PLATFORM,
+        form: { formId: page.formId, items: [] },
+        readerFailure: {
+          platform: GOOGLE_FORMS_PLATFORM,
+          reason: read.reason.slice(0, 500),
+        },
+      },
+    }).catch(() => undefined);
+    return sendNote({ kind: 'reply', reply, fellBack: GOOGLE_FORMS_PLATFORM });
+  }
+  progress('Sending…');
+  const reply = await ask<SendReply>({
+    type: 'send/page',
+    request: {
+      url: pageUrl(location.href),
+      title: read.title,
+      platform: GOOGLE_FORMS_PLATFORM,
+      selectionOnly: false,
+      blocks: read.blocks,
+      images: [],
+      form: read.form,
+    },
+  }).catch(() => undefined);
+  return sendNote({
+    kind: 'reply',
+    reply,
+    questions: read.questions,
+  });
 }
 
 /** An Edpuzzle lesson as a video lesson (D30-D33); an unreadable one falls back to the page text. */
@@ -306,6 +360,11 @@ async function send(blocked: boolean, frameText?: string) {
     const lessonId = selected ? null : edpuzzleLessonId(location.href);
     if (lessonId) {
       showNote(await sendEdpuzzle(lessonId));
+      return;
+    }
+    const formPage = selected ? null : googleFormPage(location.href);
+    if (formPage) {
+      showNote(await sendGoogleForm(formPage));
       return;
     }
     const setId = selected ? null : quizletSetId(location.href);

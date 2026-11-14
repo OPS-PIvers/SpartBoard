@@ -23,6 +23,7 @@ import {
   rosterClassId,
 } from './focusWidgetState';
 import { FOCUS_LEVEL_TEXT } from './focusLevels';
+import { clipText } from '@/utils/clipText';
 import { SiteInput } from './SiteInput';
 import { FocusButton, SectionLabel } from './ui';
 import { FIELD_HEIGHT } from './uiSizes';
@@ -345,7 +346,7 @@ const SavedLists: React.FC<{
       ...lists,
       {
         id: crypto.randomUUID(),
-        name: name.trim().slice(0, 80),
+        name: clipText(name.trim(), 80),
         sites: sites.map((s) => ({ host: s.host, path: s.path })),
         createdAt: Date.now(),
       },

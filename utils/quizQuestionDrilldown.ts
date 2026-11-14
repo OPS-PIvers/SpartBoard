@@ -127,7 +127,7 @@ export interface DrilldownPairRow {
   missedBy: DrilldownStudent[];
 }
 
-/** One Ordering key item, in key order (quiz-ordering-results). */
+/** One Ordering key item, in key order. */
 export interface DrilldownOrderingItemRow {
   key: string;
   /** 1-based spot in the key. */

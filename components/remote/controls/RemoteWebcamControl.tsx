@@ -79,7 +79,7 @@ export const RemoteWebcamControl: React.FC<RemoteWebcamControlProps> = ({
         Webcam
       </div>
 
-      <input
+      <input /* no-tour-anchor: phone remote page, never on the board */
         type="file"
         accept="image/*"
         capture="environment"
@@ -99,7 +99,7 @@ export const RemoteWebcamControl: React.FC<RemoteWebcamControlProps> = ({
             className="w-full max-w-[280px] rounded-xl border-2 border-white/20 object-contain max-h-[40vh]"
           />
           <div className="flex gap-4 mt-4 w-full max-w-[280px]">
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               onClick={handleCaptureClick}
               disabled={isProcessing}
               className="flex-1 flex flex-col items-center justify-center gap-2 px-4 py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-bold transition-all active:scale-95"
@@ -111,7 +111,7 @@ export const RemoteWebcamControl: React.FC<RemoteWebcamControlProps> = ({
               )}
               <span>Retake</span>
             </button>
-            <button
+            <button /* no-tour-anchor: phone remote page, never on the board */
               onClick={exitRemoteMode}
               className="flex-1 flex flex-col items-center justify-center gap-2 px-4 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all active:scale-95 border border-white/20"
             >
@@ -121,7 +121,7 @@ export const RemoteWebcamControl: React.FC<RemoteWebcamControlProps> = ({
           </div>
         </div>
       ) : (
-        <button
+        <button /* no-tour-anchor: phone remote page, never on the board */
           onClick={handleCaptureClick}
           disabled={isProcessing}
           className="flex flex-col items-center justify-center gap-4 w-48 h-48 rounded-3xl bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-black text-xl shadow-lg transition-all active:scale-95"

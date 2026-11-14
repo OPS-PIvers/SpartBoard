@@ -8,7 +8,11 @@ import {
   parseSyncedQuestion,
   type GroupQuestion,
 } from './plcAssessmentMath';
-import { notChosenIds, parseChooseSections } from './quizSectionsChosen';
+import {
+  notChosenIds,
+  parseChooseSections,
+  parseCountedChoices,
+} from './quizSectionsChosen';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
   resolveServerResultsVisibility,
@@ -120,7 +124,8 @@ export function scoreAttempt(
   const notChosen = notChosenIds(
     ctx.sections,
     answers,
-    subset.length > 0 ? subset : undefined
+    subset.length > 0 ? subset : undefined,
+    parseCountedChoices(response)
   );
   const served = new Set(baseServed.filter((id) => !notChosen.has(id)));
   for (const id of served) {

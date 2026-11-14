@@ -39,9 +39,20 @@ describe('tour conditions', () => {
     expect(checkTourCondition('classlink-on', facts, can)).toBe(false);
     expect(checkTourCondition('class-added', facts, can)).toBeUndefined();
     expect(checkTourCondition('feature:sparty', facts, can)).toBe(true);
-    expect(checkTourCondition('feature:spell-check-setting', facts, can)).toBe(
+    expect(checkTourCondition('feature:flashcards-speak', facts, can)).toBe(
       false
     );
+  });
+
+  it('holds for a feature retired since the tour was saved', () => {
+    const retired = 'feature:spell-check-setting' as Parameters<
+      typeof checkTourCondition
+    >[0];
+    expect(checkTourCondition(retired, facts, () => false)).toBe(true);
+    const unknown = 'feature:not-yet-shipped' as Parameters<
+      typeof checkTourCondition
+    >[0];
+    expect(checkTourCondition(unknown, facts, () => true)).toBe(false);
   });
 
   it('holds when every condition holds or is still loading', () => {

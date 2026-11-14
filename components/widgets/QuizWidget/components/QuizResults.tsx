@@ -22,6 +22,10 @@ import React, {
 } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
+import { BadgePopover } from '@/components/common/BadgePopover';
+import { LiveLogList } from './monitor/LiveLogList';
+import { useQuizLiveLog } from '@/hooks/useQuizLiveLog';
+import { QUIZ_LIVE_VIEW_FEATURE } from '@/utils/quizLiveView';
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { WritingPlaybackBadge } from '@/components/common/WritingPlayback';
 import { questionWordCounts } from '@/utils/inputSignals';
@@ -52,6 +56,7 @@ import {
   MousePointerClick,
   Printer,
   UserCheck,
+  ListChecks,
 } from 'lucide-react';
 import {
   QuizResponse,
@@ -61,6 +66,7 @@ import {
   QuizSessionSection,
   isFreeResponseType,
   type QuizWidgetKind,
+  type QuizLiveLogEntry,
 } from '@/types';
 import {
   buildReviewRanking,
@@ -157,6 +163,13 @@ import {
   useQuizResponseAttempts,
 } from '@/hooks/useQuizResponseAttempts';
 import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
+import { CountedChoicesPicker } from './results/CountedChoicesPicker';
+import { saveCountedChoices } from '@/hooks/quizCountedChoicesWrite';
+import { overAnsweredResponseSections } from '@/utils/quizSections';
+import {
+  countedChoiceSections,
+  type SaveCountedChoices,
+} from '@/utils/quizCountedChoices';
 import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
   computeQuestionStats,
@@ -383,6 +396,8 @@ interface QuizResultsProps {
   plcView?: boolean;
   /** Paper answer sheets are on for this teacher; the results print offers sheet reprints. */
   paperSheetsEnabled?: boolean;
+  /** Dev harness: replaces the Firestore save of which answers count. */
+  countedChoicesSaver?: SaveCountedChoices;
   /** Opens the assignment's Publish results dialog; the footer button renders only when provided. */
   onPublishScores?: () => void;
   /** Per-student publishing handlers; the controls render only when provided. */
@@ -490,6 +505,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   paperSheetsEnabled = false,
   studentResultsActions,
   onPublishScores,
+  countedChoicesSaver,
   variant = 'quiz',
 }) => {
   const outward = useViewAsOutward();
@@ -527,6 +543,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
+  const liveLogByKey = useQuizLiveLog(
+    canAccessFeature(QUIZ_LIVE_VIEW_FEATURE) &&
+      !!session &&
+      user?.uid === session.teacherUid
+      ? session
+      : null
+  );
   const normingEnabled = !!session?.plcId && !!session.syncGroupId;
   const myNormingFlags = useMyNormingFlags(
     user?.uid,
@@ -875,6 +898,35 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [session?.id]
   );
 
+  // Only the session's teacher picks which answers count; the pick re-scores a scored response.
+  const saveCountedChoicesFor = useMemo<SaveCountedChoices | undefined>(() => {
+    const sessionId = session?.id;
+    if (
+      !sessionId ||
+      plcView ||
+      isReview ||
+      !user?.uid ||
+      user.uid !== session?.teacherUid ||
+      !canAccessFeature('choose-n-pick-counted') ||
+      !session.sections?.some((s) => s.chooseCount)
+    ) {
+      return undefined;
+    }
+    return (
+      countedChoicesSaver ??
+      ((responseKey, sectionId, picked) =>
+        saveCountedChoices({ sessionId, responseKey, sectionId, picked, quiz }))
+    );
+  }, [
+    session,
+    plcView,
+    isReview,
+    user?.uid,
+    canAccessFeature,
+    quiz,
+    countedChoicesSaver,
+  ]);
+
   // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
   const saveBackTranslation = useCallback(
     async (
@@ -1150,19 +1202,17 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [hideNames, maskedNameByResponseKey]
   );
 
-  const resultsTools = canAccessFeature('quiz-results-tools');
   // Group actions feed the Students screen's bulk bar (D20).
   const handleSelectStudents = useMemo(
     () =>
       selection && studentResultsActions && !plcView
         ? (keys: string[]) => {
-            // With the tools on, the bar acts on exactly this group.
-            if (resultsTools) selection.setSelection(keys);
-            else selection.addToSelection(keys);
+            // The bar acts on exactly this group.
+            selection.setSelection(keys);
             setScreen('students');
           }
         : undefined,
-    [selection, studentResultsActions, plcView, resultsTools, setScreen]
+    [selection, studentResultsActions, plcView, setScreen]
   );
 
   // The Students screen's open row, lifted so item analysis can jump to a student.
@@ -1172,14 +1222,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const [focusStudentKey, setFocusStudentKey] = useState<string | null>(null);
   const handleOpenStudent = useMemo(
     () =>
-      resultsTools && !plcView
+      !plcView
         ? (responseKey: string) => {
             setExpandedStudentKey(responseKey);
             setFocusStudentKey(responseKey);
             setScreen('students');
           }
         : undefined,
-    [resultsTools, plcView, setScreen]
+    [plcView, setScreen]
   );
 
   // Printing to hand back (docs/plans/shipped/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
@@ -2623,7 +2673,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               showStudentNames={!plcView}
               onSelectStudents={handleSelectStudents}
               onOpenStudent={handleOpenStudent}
-              orderingByItem={canAccessFeature('quiz-ordering-results')}
               explanationsOn={canAccessFeature('quiz-explanations')}
             />
           )}
@@ -2644,6 +2693,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           )}
           {effectiveScreen === 'students' && (
             <StudentsScreen
+              liveLogByKey={liveLogByKey}
               quizTitle={quiz.title}
               responses={filteredResponses}
               questions={quiz.questions}
@@ -2663,9 +2713,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               fibGrading={fibGrading}
               studentResultsActions={studentResultsActions}
               onPrintStudents={canPrintResults ? openPrint : undefined}
-              showStudentFeedback={resultsTools}
               onReopenStudents={
-                resultsTools && !plcView && !isReview && onReopenStudent
+                !plcView && !isReview && onReopenStudent
                   ? handleReopenStudents
                   : undefined
               }
@@ -2677,6 +2726,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               }
               expandedKey={expandedStudentKey}
               onExpandedKeyChange={setExpandedStudentKey}
+              onSaveCountedChoices={saveCountedChoicesFor}
               focusKey={focusStudentKey}
               onFocused={() => setFocusStudentKey(null)}
               finalOverlay={finalOverlay}
@@ -2969,7 +3019,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
-          reportChoice={resultsTools}
+          reportChoice
           teacherUid={user?.uid ?? null}
           sessionId={session?.id}
           writtenReturnMode={session?.writtenReturnMode}
@@ -2987,6 +3037,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         <FreeResponseGrader
           quiz={quiz}
           responses={graderResponses}
+          countedChoices={
+            saveCountedChoicesFor && graderAttempt === null && session?.sections
+              ? { sections: session.sections, onSave: saveCountedChoicesFor }
+              : undefined
+          }
           displayNameByResponseKey={
             hideNames ? maskedNameByResponseKey : displayNameByResponseKey
           }
@@ -3043,6 +3098,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               quizGraderAutoAdvance: enabled,
             }).catch(() => undefined)
           }
+          {...(graderAttempt === null
+            ? {
+                classFilter: periodFilter,
+                classOptions: availablePeriods,
+                onClassFilterChange: setPeriodFilter,
+              }
+            : {})}
           onClose={() => {
             setShowGrader(false);
             setGraderTarget(undefined);
@@ -3464,7 +3526,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName: (student: DrilldownStudent) => string;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
-  orderingByItem?: boolean;
+  isOrdering: boolean;
   pictures: ReadonlyMap<string, AnswerPicture>;
   /** The question's explanations, shown to the teacher when the feature is on. */
   explanation?: ReturnType<typeof explanationsForQuestion>;
@@ -3477,7 +3539,7 @@ const QuestionDrilldownPanel: React.FC<{
   formatStudentName,
   onSelectStudents,
   onOpenStudent,
-  orderingByItem = false,
+  isOrdering,
 }) => {
   const { t } = useTranslation();
   const openStudent = showStudentNames ? onOpenStudent : undefined;
@@ -3542,7 +3604,7 @@ const QuestionDrilldownPanel: React.FC<{
         )}
 
         {servedCount > 0 &&
-          orderingByItem &&
+          isOrdering &&
           (drilldown.orderingItems?.length ?? 0) > 0 && (
             <div>
               <p
@@ -3570,7 +3632,7 @@ const QuestionDrilldownPanel: React.FC<{
           )}
 
         {servedCount > 0 &&
-          !orderingByItem &&
+          !isOrdering &&
           distribution.kind !== 'none' &&
           distribution.rows.length > 0 && (
             <div>
@@ -3707,8 +3769,6 @@ const QuestionsScreen: React.FC<{
   showStudentNames: boolean;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
-  /** Ordering lists each item and who had it out of order (quiz-ordering-results). */
-  orderingByItem?: boolean;
   /** Teachers see each question's explanations (quiz-explanations). */
   explanationsOn?: boolean;
 }> = ({
@@ -3720,7 +3780,6 @@ const QuestionsScreen: React.FC<{
   showStudentNames,
   onSelectStudents,
   onOpenStudent,
-  orderingByItem = false,
   explanationsOn = false,
 }) => {
   const { t } = useTranslation();
@@ -3828,7 +3887,7 @@ const QuestionsScreen: React.FC<{
                 n: stats.graded,
                 m: stats.manualTotal,
               });
-        const byItem = orderingByItem && q.type === 'Ordering';
+        const byItem = q.type === 'Ordering';
         const commonWrong = byItem
           ? null
           : (drilldown?.commonWrongAnswer ?? null);
@@ -4055,7 +4114,7 @@ const QuestionsScreen: React.FC<{
                 formatStudentName={formatStudentName}
                 onSelectStudents={onSelectStudents}
                 onOpenStudent={onOpenStudent}
-                orderingByItem={byItem}
+                isOrdering={byItem}
                 pictures={imageOnlyPictures(q)}
                 explanation={explanationsOn ? explanationsForQuestion(q) : null}
               />
@@ -4103,13 +4162,14 @@ const StudentDrilldownPanel: React.FC<{
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
   /** Opens the print modal; absent keeps the one-checkbox report. */
   onPrintStudents?: (responseKeys: string[]) => void;
-  showFeedback: boolean;
   /** The session whose saved attempts the attempt picker lists. */
   sessionId?: string;
   /** The session's sections, so an earlier attempt's choose-N picks are its own. */
   sections?: readonly QuizSessionSection[];
   /** Hybrid paper quiz: unscanned paper answers keep an attempt's score open. */
   paperWrittenQuestionIds?: readonly string[];
+  /** Saves which answers count in an over-answered section; absent hides the picker. */
+  onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
   id,
   quizTitle,
@@ -4123,14 +4183,14 @@ const StudentDrilldownPanel: React.FC<{
   resultsControl,
   addToast,
   onPrintStudents,
-  showFeedback,
   sessionId,
   sections,
   paperWrittenQuestionIds,
+  onSaveCountedChoices,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const { canAccessFeature } = useAuth();
-  const orderingByItem = canAccessFeature('quiz-ordering-results');
+  const showExtraAnswers = canAccessFeature('choose-n-pick-counted');
   const liveKey = getResponseDocKey(liveResponse) as string;
   const copies = useQuizResponseAttempts(sessionId, liveKey, true);
   const earlier = useMemo(
@@ -4181,15 +4241,40 @@ const StudentDrilldownPanel: React.FC<{
       computeStudentDrilldown(
         questions,
         response,
-        makeQuestionGradeFn(fibGrading)
+        makeQuestionGradeFn(fibGrading),
+        { showExtraAnswers }
       ),
-    [questions, response, fibGrading]
+    [questions, response, fibGrading, showExtraAnswers]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
     [questions]
   );
   const responseKey = getResponseDocKey(response) as string;
+  const overAnswered = useMemo(
+    () =>
+      onSaveCountedChoices && !picked
+        ? countedChoiceSections(liveResponse, sections, questions)
+        : [],
+    [onSaveCountedChoices, picked, liveResponse, sections, questions]
+  );
+  const saveCounted = async (sectionId: string, ids: string[] | null) => {
+    if (!onSaveCountedChoices) return;
+    try {
+      await onSaveCountedChoices(responseKey, sectionId, ids);
+      addToast('Saved.', 'success');
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Could not save.', 'error');
+    }
+  };
+  const countInsteadFor = (questionId: string) => {
+    const hit = overAnswered.find(
+      (o) => o.count === 1 && o.options.some((x) => x.questionId === questionId)
+    );
+    return hit && !hit.counted.includes(questionId)
+      ? () => void saveCounted(hit.sectionId, [questionId])
+      : undefined;
+  };
 
   const handlePrint = () => {
     if (onPrintStudents) {
@@ -4246,35 +4331,52 @@ const StudentDrilldownPanel: React.FC<{
           No questions served to this student yet.
         </p>
       ) : (
-        <ul className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
-          {drilldown.lines.map((line) => {
-            const question = questionById.get(line.questionId);
-            const gradable =
-              line.manual &&
-              line.mark !== 'noAnswer' &&
-              line.mark !== 'notChosen' &&
-              !!question &&
-              canGradeQuestion(question);
-            return (
-              <StudentAnswerLine
-                key={line.questionId}
-                line={line}
-                showFeedback={showFeedback}
-                orderingByItem={orderingByItem}
-                onOpenGrader={
-                  gradable
-                    ? () =>
-                        onOpenGrader({
-                          questionId: line.questionId,
-                          responseKey,
-                          ...(picked ? { attempt: picked.n } : {}),
-                        })
-                    : undefined
-                }
-              />
-            );
-          })}
-        </ul>
+        <>
+          {overAnswered.map((o) => (
+            <CountedChoicesPicker
+              key={o.sectionId}
+              sectionId={o.sectionId}
+              sectionTitle={o.title}
+              count={o.count}
+              options={o.options}
+              counted={o.counted}
+              teacherPicked={o.teacherPicked}
+              onSave={(ids) => saveCounted(o.sectionId, ids)}
+            />
+          ))}
+          <ul className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
+            {drilldown.lines.map((line) => {
+              const question = questionById.get(line.questionId);
+              const gradable =
+                line.manual &&
+                line.mark !== 'noAnswer' &&
+                line.mark !== 'notChosen' &&
+                !!question &&
+                canGradeQuestion(question);
+              return (
+                <StudentAnswerLine
+                  key={line.questionId}
+                  line={line}
+                  onCountInstead={
+                    line.mark === 'notChosen' && line.answerText
+                      ? countInsteadFor(line.questionId)
+                      : undefined
+                  }
+                  onOpenGrader={
+                    gradable
+                      ? () =>
+                          onOpenGrader({
+                            questionId: line.questionId,
+                            responseKey,
+                            ...(picked ? { attempt: picked.n } : {}),
+                          })
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </ul>
+        </>
       )}
       <div
         className="flex flex-wrap items-center justify-end border-t border-brand-gray-lightest"
@@ -4340,8 +4442,6 @@ const StudentsScreen: React.FC<{
   fibGrading?: FibGradingContext | null;
   studentResultsActions?: StudentResultsActions;
   onPrintStudents?: (responseKeys: string[]) => void;
-  /** Show written-answer comments and rubric levels in the open row. */
-  showStudentFeedback: boolean;
   onReopenStudents?: (responseKeys: string[]) => Promise<boolean>;
   reopenBlockedReason?: string | null;
   onSubmitStudents?: (responseKeys: string[]) => Promise<boolean>;
@@ -4356,7 +4456,11 @@ const StudentsScreen: React.FC<{
   sortNameFor: (response: QuizResponse) => string;
   view: { sort: StudentSort; display: ScoreDisplay };
   onViewChange: (view: { sort: StudentSort; display: ScoreDisplay }) => void;
+  /** Teacher-only Live view actions per response key; absent without the flag. */
+  liveLogByKey?: ReadonlyMap<string, QuizLiveLogEntry[]>;
+  onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
+  liveLogByKey,
   quizTitle,
   responses,
   questions,
@@ -4374,7 +4478,6 @@ const StudentsScreen: React.FC<{
   fibGrading = null,
   studentResultsActions,
   onPrintStudents,
-  showStudentFeedback,
   onReopenStudents,
   reopenBlockedReason,
   onSubmitStudents,
@@ -4387,6 +4490,7 @@ const StudentsScreen: React.FC<{
   sortNameFor,
   view,
   onViewChange,
+  onSaveCountedChoices,
 }) => {
   const questionOrder = useMemo(() => questions.map((q) => q.id), [questions]);
   const questionWords = useMemo(
@@ -4628,6 +4732,7 @@ const StudentsScreen: React.FC<{
           // contract used by QuizLiveMonitor's StudentRow.
           const isResolved = !r.pin || displayName !== `PIN ${r.pin}`;
           const rowKey = getResponseDocKey(r);
+          const liveLog = liveLogByKey?.get(rowKey);
           const canDelete = Boolean(onDeleteResponse);
           const canUnlockResults =
             resultsLockedOut && Boolean(onUnlockResultsForStudent);
@@ -4823,6 +4928,28 @@ const StudentsScreen: React.FC<{
                       </span>
                     </TabExitsPopover>
                   )}
+                  {liveLog && liveLog.length > 0 && (
+                    <BadgePopover
+                      triggerLabel={`Show Live view log for ${displayName}`}
+                      dialogLabel={`Live view log for ${displayName}`}
+                      panel={
+                        <>
+                          <p className="mb-2 font-bold text-slate-800">
+                            Live view log
+                          </p>
+                          <LiveLogList entries={liveLog} />
+                        </>
+                      }
+                    >
+                      <span title="Live view log" className="shrink-0">
+                        <SessionBadge
+                          tone="neutral"
+                          icon={Eye}
+                          label={`${liveLog.length}`}
+                        />
+                      </span>
+                    </BadgePopover>
+                  )}
                   <InputSignalsBadge
                     signals={r.inputSignals}
                     completedAttempts={r.completedAttempts}
@@ -4874,6 +5001,20 @@ const StudentsScreen: React.FC<{
                   because both come from the same "nav warning"
                   family but track different surfaces (live attempt
                   vs. published results). */}
+                  {onSaveCountedChoices &&
+                    overAnsweredResponseSections(r, session?.sections).length >
+                      0 && (
+                      <span
+                        title="Answered more than a section asks. Open to pick which answers count."
+                        className="shrink-0"
+                      >
+                        <SessionBadge
+                          tone="warn"
+                          icon={ListChecks}
+                          label="Answered extra"
+                        />
+                      </span>
+                    )}
                   {resultsLockedOut && (
                     <span
                       aria-label="Results locked"
@@ -5124,10 +5265,10 @@ const StudentsScreen: React.FC<{
                   onOpenGrader={onOpenGrader}
                   addToast={addToast}
                   onPrintStudents={onPrintStudents}
-                  showFeedback={showStudentFeedback}
                   sessionId={session?.id}
                   sections={session?.sections}
                   paperWrittenQuestionIds={session?.paperWrittenQuestionIds}
+                  onSaveCountedChoices={onSaveCountedChoices}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

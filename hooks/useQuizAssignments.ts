@@ -112,6 +112,7 @@ import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
 import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
+import { deleteLiveLog } from '@/utils/quizLiveViewStore';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -1116,6 +1117,8 @@ export function gradeResponseForPublish(
         answers,
         servedQuestionIds: baseServed ? [...baseServed] : undefined,
         status: data.status,
+        countedChoices: data.countedChoices,
+        completedAttempts: data.completedAttempts,
       },
       ctx.sections
     )
@@ -1349,14 +1352,10 @@ export const useQuizAssignments = (
   const stimulusQuotesOn =
     authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
   const crossOutOn = authContext?.canAccessFeature?.('quiz-cross-out') === true;
-  const orderingListOn =
-    authContext?.canAccessFeature?.('quiz-ordering-list') === true;
   const inputSignalsOn =
     authContext?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
   const stimulusTabsOn =
     authContext?.canAccessFeature?.('quiz-stimulus-tabs') === true;
-  const reviewStepOn =
-    authContext?.canAccessFeature?.('quiz-review-step') === true;
   const pageProtectionsOn =
     authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
@@ -1764,9 +1763,9 @@ export const useQuizAssignments = (
           : {}),
         ...(crossOutOn ? { allowCrossOut: true } : {}),
         ...(inputSignalsOn ? { inputSignals: true } : {}),
-        ...(orderingListOn ? { orderingList: true } : {}),
+        orderingList: true,
         ...(stimulusTabsOn ? { stimulusTabs: true } : {}),
-        ...(reviewStepOn && mode === 'student' ? { reviewStep: true } : {}),
+        ...(mode === 'student' ? { reviewStep: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
@@ -1998,10 +1997,8 @@ export const useQuizAssignments = (
       timeLimitOn,
       stimulusQuotesOn,
       crossOutOn,
-      orderingListOn,
       inputSignalsOn,
       stimulusTabsOn,
-      reviewStepOn,
       pageProtectionsOn,
     ]
   );
@@ -2239,6 +2236,11 @@ export const useQuizAssignments = (
           )
         );
       }
+
+      // The Live view log sits under the assignment doc; it goes first so nothing is orphaned.
+      await deleteLiveLog(userId, assignmentId).catch((err: unknown) =>
+        console.error('[deleteAssignment] live log cleanup failed:', err)
+      );
 
       // Delete the session doc and the assignment doc in one batch
       const batch = writeBatch(db);

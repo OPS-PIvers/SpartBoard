@@ -5,6 +5,11 @@ import type {
   QuizSessionOptions,
 } from '@/types';
 import { toPublicQuestion } from '@/hooks/useQuizSession';
+import { chooseServedDraw } from '@/utils/quizBankDraw';
+import {
+  mergeQuizSessionContent,
+  type QuizSessionContent,
+} from '@/utils/quizSessionContent';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import { sessionSectionsFor } from '@/utils/quizSections';
 import {
@@ -38,13 +43,77 @@ export function focusSettingsFrom(
   };
 }
 
+/** The assignment's own focus settings, read off its session doc. */
+export function focusSettingsFromSession(
+  session: QuizSession
+): StudentViewFocusSettings {
+  return {
+    tabWarningsEnabled: session.tabWarningsEnabled ?? true,
+    tabWarningThreshold: session.tabWarningThreshold,
+    tabAwayLimitSeconds: session.tabAwayLimitSeconds,
+    tabAwayAutoSubmit: session.tabAwayAutoSubmit === true,
+    blockCopyPaste: session.blockCopyPaste ?? false,
+  };
+}
+
+export interface AssignedStudentView {
+  session: QuizSession;
+  /** One sample draw when the assignment deals from question banks. */
+  drawIds?: string[];
+}
+
+/** Local-only copy of a running assignment's session: what students have now, with nothing that gates or writes. */
+export function buildAssignedStudentView(
+  raw: QuizSession,
+  content: QuizSessionContent | null
+): AssignedStudentView {
+  const merged = mergeQuizSessionContent(raw, content) ?? raw;
+  const {
+    accessMode: _accessMode,
+    periodAccess: _periodAccess,
+    studentAccess: _studentAccess,
+    pausedAt: _pausedAt,
+    pauseSpans: _pauseSpans,
+    questionsInContent: _inContent,
+    closeAt: _closeAt,
+    inputSignals: _inputSignals,
+    liveLeaderboard: _leaderboard,
+    pauseMessage: _pauseMessage,
+    ...rest
+  } = merged;
+  const session: QuizSession = {
+    ...rest,
+    id: STUDENT_VIEW_SESSION_ID,
+    assignmentId: STUDENT_VIEW_SESSION_ID,
+    teacherUid: '',
+    code: '',
+    status: 'active',
+    // Like the library's Student view, every pacing previews as a self-paced run.
+    sessionMode: 'student',
+    currentQuestionIndex: 0,
+    questionPhase: 'answering',
+    startedAt: Date.now(),
+    endedAt: null,
+    revealedAnswers: {},
+  };
+  const slots = session.bankSlots;
+  if (!slots || slots.length === 0) return { session };
+  return {
+    session,
+    drawIds: chooseServedDraw(
+      undefined,
+      session.publicQuestions.map((q) => q.id),
+      slots
+    ).ids,
+  };
+}
+
 /** Local-only session mirroring what Assign would stamp for a self-paced attempt. */
 export function buildStudentViewSession(
   quiz: QuizData,
   behavior: QuizBehaviorSettings,
   tabAwayTimerOn: boolean,
-  orderingListOn = false,
-  flags: { stimulusTabs?: boolean; reviewStep?: boolean } = {}
+  flags: { stimulusTabs?: boolean; crossOut?: boolean } = {}
 ): QuizSession {
   const opts = behavior.sessionOptions;
   const questions = dedupeQuestionsById(quiz.questions);
@@ -91,9 +160,10 @@ export function buildStudentViewSession(
       : {}),
     ...(quiz.language ? { language: quiz.language } : {}),
     ...(opts.handRaiseEnabled ? { handRaiseEnabled: true } : {}),
-    ...(orderingListOn ? { orderingList: true } : {}),
+    orderingList: true,
     ...(flags.stimulusTabs ? { stimulusTabs: true } : {}),
-    ...(flags.reviewStep ? { reviewStep: true } : {}),
+    ...(flags.crossOut ? { allowCrossOut: true } : {}),
+    reviewStep: true,
     ...focusSessionFields(focusSettingsFrom(behavior), tabAwayTimerOn),
     showResultToStudent: opts.showResultToStudent ?? false,
     showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,

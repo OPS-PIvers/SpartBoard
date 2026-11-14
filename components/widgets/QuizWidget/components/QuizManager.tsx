@@ -502,6 +502,8 @@ interface QuizManagerProps {
   assignmentsLoading?: boolean;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
   onArchiveMonitor?: (assignment: QuizAssignment) => void | Promise<void>;
+  /** Opens the frozen copy students have; absent without the quiz-student-view flag. */
+  onArchiveStudentView?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Start a paused assignment: resume + navigate to monitor. */
   onArchiveStart?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveResults?: (assignment: QuizAssignment) => void | Promise<void>;
@@ -823,6 +825,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   assignmentsLoading = false,
   onArchiveCopyUrl,
   onArchiveMonitor,
+  onArchiveStudentView,
   onArchiveStart,
   onArchiveResults,
   onArchiveEditSettings,
@@ -1318,6 +1321,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const inactiveAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'inactive'),
     [assignments]
+  );
+
+  const studentViewOn = canAccessFeature('quiz-student-view');
+  const quizUpdatedAtById = useMemo(
+    () =>
+      studentViewOn
+        ? new Map(quizzes.map((q) => [q.id, q.updatedAt]))
+        : undefined,
+    [quizzes, studentViewOn]
   );
 
   // Per-quiz assignment index for the library rows' status badges and
@@ -1866,6 +1878,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           icon: Monitor,
           onClick: () => void (onArchiveMonitor ?? noop)(a),
           anchor: tourTypeAttr('quiz-library.archive-monitor', 'quiz'),
+        });
+      }
+      if (onArchiveStudentView && a.status !== 'inactive') {
+        secondaries.push({
+          id: 'student-view',
+          label: 'Student view',
+          icon: Eye,
+          anchor: tourTypeAttr('quiz-library.archive-student-view', 'quiz'),
+          onClick: () => void onArchiveStudentView(a),
         });
       }
       secondaries.push({
@@ -2999,6 +3020,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           mode="active"
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
+          quizUpdatedAtById={quizUpdatedAtById}
           onSyncNow={onSyncAssignment ? confirmSyncAssignment : undefined}
           skippedTargetsByAssignmentId={skippedTargetsByAssignmentId}
           emptyTitle={
@@ -3020,6 +3042,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           mode="archive"
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
+          quizUpdatedAtById={quizUpdatedAtById}
           emptyTitle={
             isViewOnly
               ? 'No archived shares'
@@ -3554,6 +3577,8 @@ const AssignmentsList: React.FC<{
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  /** Library quiz id to its last content save, for the "Edited since assigned" note. */
+  quizUpdatedAtById?: ReadonlyMap<string, number>;
   onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
   skippedTargetsByAssignmentId?: Record<
     string,
@@ -3568,6 +3593,7 @@ const AssignmentsList: React.FC<{
   mode,
   buildActions,
   syncedGroups,
+  quizUpdatedAtById,
   onSyncNow,
   skippedTargetsByAssignmentId,
   emptyTitle,
@@ -3605,6 +3631,7 @@ const AssignmentsList: React.FC<{
           mode={mode}
           buildActions={buildActions}
           syncedGroups={syncedGroups}
+          quizUpdatedAtById={quizUpdatedAtById}
           onSyncNow={onSyncNow}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
           tourIndex={index}
@@ -3640,6 +3667,8 @@ interface QuizArchiveRowProps {
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  /** Library quiz id to its last content save, for the "Edited since assigned" note. */
+  quizUpdatedAtById?: ReadonlyMap<string, number>;
   /** Makes the Sync available pill a button that starts the sync. */
   onSyncNow?: (a: QuizAssignment) => void | Promise<void>;
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
@@ -3659,6 +3688,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   mode,
   buildActions,
   syncedGroups,
+  quizUpdatedAtById,
   onSyncNow,
   skippedTargets,
   tourIndex,
@@ -3720,6 +3750,14 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           return { label: 'Synced', tone: 'info' };
         })()
       : null;
+
+  // A plain quiz saved after it was assigned: students still have the assigned copy.
+  const editedSinceAssigned =
+    mode === 'active' &&
+    !assignmentIsViewOnly &&
+    !a.paper &&
+    !assignmentSync &&
+    (quizUpdatedAtById?.get(a.quizId) ?? 0) > a.createdAt;
 
   // Meta line composes per-mode. View-only shares show date + view count
   // only — the join code, class targeting, and live-radio dot all relate to
@@ -3834,6 +3872,22 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
               </span>
             );
           })()}
+        {editedSinceAssigned && (
+          <span
+            title="Students still have the assigned version."
+            className="inline-flex items-center font-medium text-slate-500"
+            style={{ gap: 'min(3px, 0.75cqmin)' }}
+          >
+            <PencilLine
+              aria-hidden
+              style={{
+                width: 'min(10px, 2.5cqmin)',
+                height: 'min(10px, 2.5cqmin)',
+              }}
+            />
+            Edited since assigned
+          </span>
+        )}
         {skippedCount > 0 && (
           <span
             title={`${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be individually targeted`}

@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-210**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-215**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,6 +19,10 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
+- **AB-213 Choose-N pick follow-ups** (S). From the 2026-11-14 PR sweep integration review of #5778. (1) Paper re-import (`functions/src/importPaperResponses.ts`) deletes `countedChoices` including `revived`, but an answer the teacher picked back from `unresponded: 'passed'` stays a real answer; restore `unresponded` for the `revived` ids first, as reopen now does (`restorePassedAnswers`, release fix #5781). (2) The site-admin branch of the response update rule (`firestore.rules`, `isSiteAdmin() && !changed([...])`) excludes `liveView` but not `countedChoices`; decide with the `resultsOverride` precedent and add it if admins shouldn't change picks, with a rules test. Before `choose-n-pick-counted` opens.
+- **AB-214 Live view follow-ups** (S). From the 2026-11-14 PR sweep reviews of #5772. (1) `deleteAssignment` (`hooks/useQuizAssignments.ts`) leaves `quiz_sessions/{id}/responses/*/live/state` behind once the session doc is gone; delete them before the session, as `removeStudent` does. (2) `LiveViewPanel` re-renders the whole mirror every second through `useServerNow(1000)`; move the ticking stats into their own component. (3) `studentQuestionOrder` (`utils/quizLiveView.ts`) uses the live session's shuffle setting, not the attempt's latched one, so a mid-attempt shuffle edit makes the question number in the stats and log disagree with the mirror. (4) Nudge notes fall back to English for quiz languages other than es, fr and de. Before `quiz-live-view` opens.
+
+- **AB-210 Calendar admin settings: no Save until a read succeeds** (S). From release 2026.11.13c review of #5742. `components/admin/CalendarConfigurationModal.tsx` `fetchConfig` clears `loadFailed` before `getDoc` settles, and the Save button is only disabled on `saving || loadFailed`, so during the first load or a "Try again" retry Save writes the default config (empty `blockedDates`) over the real doc. Disable Save and return early in `handleSave` while `loading`, and test a Save click during a pending retry. Also: "Sync All" still shows its success toast when `handleSave` returned early.
 - **AB-198 Building-keyed configs: prefer the canonical key over a legacy alias** (S). `canonicalizeBuildingKeyedRecord` (`config/buildings.ts`) lets the later key win when a legacy alias (`schumann-elementary`) and its canonical id (`schumann`) both exist, and Firestore returns map keys sorted, so the stale alias wins for every reader (dock defaults, `buildingDefaults` in widget configs). Release #5606 fixed only the calendar fetcher (#5604). Make the function prefer the canonical key, with a test, and check readers that index the raw map. From release #5606 review.
 - **AB-185 Shared board ink: only an accepted write is the merge baseline** (S). `context/DashboardContext.tsx` mirror timer sets `lastMirroredRef` to the payload before `mirrorSharedBoard` settles. If a peer's snapshot lands while that write is in flight and the write is then refused, the unaccepted payload was the ink baseline, so local strokes read as remote deletes and vanish. Hold the in-flight payload in a pending ref for dedupe and move it into `lastMirroredRef` in `.then`. Done when a test with a snapshot arriving before a permission-denied rejection keeps the local stroke. Found in release #5559 review (pre-existing).
 - **AB-172 Finish moving student data off bare isAdmin() in firestore.rules** (S, Opus, rules). From release 2026.11.09 (3) review of #5485. `isSiteAdmin()` now keeps a synced building admin out of most student data, but these still use `isAdmin()`: `guided_learning_sessions` update and delete, `poll_sessions` get, list and writes, poll `votes` delete, the `nextup_sessions` session write, `sessions/{userId}` get (live code), and `shared_activity_walls` comments and likes read and delete. Also `archived_responses` update and delete have no session-teacher branch (no client path uses them today). Decide each, convert the student-work ones, check `check:rules-size`, and add allowed and denied rules tests.
@@ -119,9 +123,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   - S5: flashcard and Activity Wall text skip the link filter.
   - S6: notebook SVGs carry a double href (memory use).
 - **AB-66 Quiz settings stale class removal** (S, _re-verify_). From #4734: adding or removing a class while another class's roster was deleted or re-imported still marks that stale class removed and hides its work. Record only classes the teacher unchecked (`nextRemovedClasses`, `hooks/useQuizAssignments.ts`). Also: GL Results can show a removed class's work for a moment before the session loads.
-- **AB-67 Video import review minors** (M). From release 2026.10.31 (#4959); all behind admin-only flags, fix before those flags open.
+- **AB-67 Video import review minors** (M). From release 2026.10.31 (#4959); short answer, notes and clips are now on for every teacher, so these reach them.
   - Re-marking a short answer after Publish leaves the stored score until the teacher republishes (`functions/src/gradebook/gradeRowMath.ts` uses `stored ?? live`). A blank mark box can't clear a mark back to unmarked (`utils/videoActivityShortAnswerMark.ts`).
-  - Clip and note stops reach PLC peers without `video-activity-stops` through sync, shared boards, sub-shares and LTI; the flag gates authoring only.
   - Note stops are silent in teacher-paced live runs (`VideoActivityLivePlayer.tsx` passes only `clip`); whether they should pause is PT-102.
   - Every synced publish writes `notes: []`; an old synced group costs one extra Drive read on its first pull (`hooks/useVideoActivity.ts`).
   - Edpuzzle pictures: copies are orphaned if the widget unmounts mid-copy; removing a picture in the editor doesn't delete its Drive file; stops past 200 aren't counted in "Left out".
@@ -160,6 +163,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Widgets and UI
 
+- **AB-211 Lunch Count middle/high refresh button on touch panels** (S, minor; release 2026.11.13d review). `components/widgets/LunchCount/MiddleHighLunchCount.tsx` refresh button is `opacity-0 group-hover:opacity-100`, so a middle or high school board on a touch-only panel never shows it. Pre-existing (moved unchanged). Use the repo's touch-panel pattern from `components/CLAUDE.md` (there is no `touch:` variant). Done when the button shows on a touch device and a test or screenshot proves it.
+- **AB-212 Flashcards: unspaced slash pairs accept either half** (S, decide first; release 2026.11.13d review). Since #5762, typed answers expand an unspaced slash word, so `yes/no`, `true/false`, `and/or` and `input/output` accept either half alone (the same rule that makes `el/la` work). Check with Paul whether non-gendered pairs should stay whole; if so, limit expansion in `utils/flashcardMatch.ts` and its `functions/` mirror, with cases in `flashcardMatch.cases.json`.
 - **AB-209 YouTube paste picker: read-only board and start time** (S, minor; release 2026.11.13b review, before `youtube-paste-picker` opens). In `components/layout/Dock.tsx` the Video Activity choice (1) calls `offerImportHandoff` even when `addWidget` no-ops on a read-only board or with no active board, leaving an orphaned handoff; skip the offer, as `ImportScreenHost` does with `refuseReadOnly()`. (2) It rebuilds the URL as `watch?v=<id>`, dropping a pasted `&t=` start time; pass the pasted URL through. Done when a test covers each.
 - **AB-188 Flashcards check sync: retry and don't block the save on rescore** (S, release 2026.11.10 (5) review). `hooks/useFlashcardSets.ts` `rewriteOpenCheckSessions` awaits every `rescoreFlashcardCheckV1` call inside the final save, so editor Close waits on cold starts, and a failed call is only logged: the cards are already committed, so the next save sees no change and never rescores. Fire the rescore after the save resolves, and mark the session (for example `rescorePending`) so a later save or the next open retries it. Skip the call for Flashcards and Speak Checks.
 - **AB-189 Term-only cards through the connector and results views** (S, before `flashcards-term-only` opens; release 2026.11.10 (5) review). `functions/src/mcp/tools.ts` `update_flashcard_set` requires `definition.min(1)`, so sending back a sight-word set from `get_flashcard_set` fails validation; allow an empty definition for sets the owner's flag allows. Blank definitions also leave a dangling separator or blank line in `FlashcardStudyResults.tsx`, `FlashcardCardResults.tsx`, `FlashcardsCardsStep.tsx`, `PlcFlashcardsBody.tsx` and `flashcardPrompt` in `utils/flashcardResults.ts`.
@@ -209,15 +214,47 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-164 Dev hosting skip can let a stale run queue a backend deploy** (S, from review of #5437). In `.github/workflows/firebase-dev-deploy.yml` the `deploy-hosting` "Stop if a newer push superseded this one" step now only skips its own steps, so a superseded run's `deploy` job still queues in the shared `dev-backend-spartboard-dev` group, where it can replace another branch's pending deploy. Fix: from hosting, read this run's jobs; cancel the run when `deploy` has not started, and only skip when it is in progress. Update `tests/ci.checkMode.test.ts`. Done when a stale run never reaches the backend queue and a running backend deploy is never cancelled.
 
 - **AB-156 Shape check for `tour_anchor_queue` rules** (S). `firestore.rules` `tour_anchor_queue` is bare `isAdmin()`; add a minimal status-enum and transition check with the shorthands, after the other rules slices have landed, and put the `check:rules-size` before and after in the PR. Skipped from T2 to protect the rules budget.
-- **AB-181 Quiz PDF import: no "added as a picture" note when the whole-question crop also failed** (S, from release #5534 review). In `utils/quizDocumentImport/pdfPictures.ts` `resolveChoicePictures`, when the per-choice crops are lost and `choiceFallbackId` has no crop either (whole-PDF crop failure), the question still gets `CHOICES_AS_LETTERS`, which says the whole question was added as a picture, though none was. Only reachable with `quiz-ordering-images` on, and the import-level `PDF_PICTURES_FAILED` warning also shows. Fix: add that note only when `whole` exists; any new wording needs Paul's OK. Optional in the same PR: skip cropping the whole-question fallback when every choice crop succeeded (extra crop work today).
+- **AB-181 Quiz PDF import: no "added as a picture" note when the whole-question crop also failed** (S, from release #5534 review). In `utils/quizDocumentImport/pdfPictures.ts` `resolveChoicePictures`, when the per-choice crops are lost and `choiceFallbackId` has no crop either (whole-PDF crop failure), the question still gets `CHOICES_AS_LETTERS`, which says the whole question was added as a picture, though none was. The import-level `PDF_PICTURES_FAILED` warning also shows. Fix: add that note only when `whole` exists; any new wording needs Paul's OK. Optional in the same PR: skip cropping the whole-question fallback when every choice crop succeeded (extra crop work today).
 - **AB-201 Release 2026.11.12 review leftovers (flag-on minors)** (S-M). Found in the #5630 slice reviews, none reachable with the flags off; fix before each flag opens. (1) `hooks/useInputSignals.ts`: the question-change and visibility-hidden flushes skip the `BIG_LOG_BYTES` one-a-minute throttle, so a student with a long writing log re-sends it on every question change and the teacher monitor re-downloads the doc. (2) `functions/src/subLaunchAssignment.ts`: sub launches don't run `blankTypeProblem`, so a dropdown blank whose answer isn't among its choices can launch. (3) Blocked on PT-183: if Paul says hide them, move `targetEmails`, `updatedBy` and `sourceName` off the `district_library` item doc that targeted teachers can read. (4) `components/plc/bodies/MembersBody.tsx` shows Remove to co-leads, which the server (and the old rules) refuse; gate it on the lead. (5) `useDistrictLibraryForTeacher` opens its listeners once per Quiz widget; share one. (6) CodeQL still flags the tag-stripping regexes in `scripts/mca-package/lib/html.mjs` and `parse.mjs`; replace them with a small tag scanner so the alerts close. (7) `touch-target-expand` needs a positioned element (its `::after` is `width/height: 100%`); on an unpositioned button the hit area grows to the nearest positioned ancestor, which made every District library row open the last row's delete. Twelve older sites still lack `relative` (grep `touch-target-expand` without `relative|absolute|fixed|sticky`); check each and add a static test.
 
 - **AB-204 District library folders: safer folder writes** (S, from release #5678 review, admin flag `district-library-folders`). In `hooks/useDistrictLibraryFolders.ts`: (1) `applyFolderAudiences` stops at the first failed item; keep going and report the failures, and use `itemsNeedingFolderAudience` (`utils/districtLibraryFolders.ts`, tests only today) to show a "some items need the folder's audience" repair banner in `DistrictLibraryFolderView`. (2) `renameDistrictFolder`/`moveDistrictFolder` merge-write `folders[id]`, so a folder another admin just deleted comes back without a name; check it still exists in a transaction. (3) `deleteDistrictFolder` writes the folders and audiences docs separately; use one batch. (4) Moving a published item into a folder with no audience now hides it from teachers; ask first. (5) `DistrictLibraryPanel` publishes then moves in one try, so a failed move leaves items at the top level and a retry never files them.
-- **AB-205 Prompt formatting leftovers** (S, from release #5678 review, admin flag `quiz-prompt-formatting`). Paper answer sheet labels use raw `question.text` (`utils/paperSheetPlan.ts`, `functions/src/paperBatchPlan.ts`), so marks show; use `stripPromptFormat`/`plainPromptText`. Numbered lines renumber when edited (`5. a` / `3. b` saves as 5, 6); keep the typed numbers. A literal `*word*` typed in the editor only turns italic after reload.
+- **AB-205 Prompt formatting leftovers** (S, from release #5678 review). Paper answer sheet labels use raw `question.text` (`utils/paperSheetPlan.ts`, `functions/src/paperBatchPlan.ts`), so marks show; use `stripPromptFormat`/`plainPromptText`. Numbered lines renumber when edited (`5. a` / `3. b` saves as 5, 6); keep the typed numbers. A literal `*word*` typed in the editor only turns italic after reload.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-ixrgdq
+claude/project-thread-stpelc
+claude/ab112-ixrgdq
+claude/project-thread-gskozr
+claude/project-thread-6kzik6
+claude/project-thread-vki4cy
+claude/project-thread-bnuqvd
+claude/ab112-bnuqvd
+claude/project-thread-k4clwq
+claude/project-thread-tm5pfn
+claude/project-thread-j4q0iv
+claude/project-thread-9hkbs1
+claude/project-thread-dff8t3
+claude/project-thread-a1em3y
+claude/ab112-crossout-preview
+retire/spell-check-setting
+retire/video-activity
+retire/lunch-count
+retire/tours
+retire/quiz-editor
+retire/quiz-assigning
+retire/quiz-results
+claude/project-thread-mclg4c
+claude/claude-security-fix-find_01hdwd6jykvej5w2jqqm7yvi-3zioml
+nightly/widgets-2026-11-13
+nightly/dashboard-2026-11-13
+nightly/admin-2026-11-13
+nightly/build-2026-11-13
+nightly/debugger-log-2026-11-13
+nightly/unifier-log-2026-11-13
+claude/tour-anchors-2026-11-13
+claude/project-thread-7cvy7s
 claude/project-thread-csyhd9
 claude/project-thread-lvqzbz
 claude/project-thread-lvqzbz-docs
@@ -291,6 +328,12 @@ claude/project-thread-uhhzb5-docs
 claude/project-thread-tu7i6d
 claude/project-thread-zsvnns
 claude/project-thread-zsvnns-ab112
+claude/project-thread-59pkq4
+claude/ab112-grammarly
+claude/project-thread-dmpjbw
+feat/quiz-live-view
+claude/project-thread-ucbftr
+claude/project-thread-ldt8ev
 
 ```
 git push origin --delete claude/project-thread-1ylvse

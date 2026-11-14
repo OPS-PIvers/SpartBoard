@@ -26,7 +26,7 @@ import { Folder as FolderIcon, Check, Inbox } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import type { LibraryFolder } from '@/types';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { isEscapeFromWidgetInput, scrollMovesAnchor } from '@/utils/domHelpers';
 
 export interface FolderPickerPopoverProps {
   folders: LibraryFolder[];
@@ -180,13 +180,16 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   useLayoutEffect(() => {
     if (!isPortaledPopover) return;
     const close = () => onClose();
+    const closeOnScroll = (e: Event) => {
+      if (scrollMovesAnchor(e, anchorRef?.current ?? null)) onClose();
+    };
     window.addEventListener('resize', close);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', closeOnScroll, true);
     return () => {
       window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', closeOnScroll, true);
     };
-  }, [isPortaledPopover, onClose]);
+  }, [isPortaledPopover, onClose, anchorRef]);
 
   const flat = useMemo(() => flattenFolders(folders), [folders]);
 
