@@ -414,3 +414,65 @@ describe('restoreQuizRevision', () => {
     expect(res).toMatchObject({ bank_id: id, title: 'Old bank' });
   });
 });
+
+describe('DOK levels', () => {
+  const admin = { 'admins/u1@example.org': {} };
+  const fileOf = (id: string) =>
+    drive.files.get(`file-${id}`) as { questions: Data[] };
+
+  it('saves and returns dok for a teacher with DOK levels', async () => {
+    const call = await connect(fakeDb(admin).db);
+    const res = await call('create_quiz', {
+      title: 'T',
+      questions: [{ ...mc(1), dok: 2 }, mc(2)],
+    });
+    expect(res.dok_not_saved).toBeUndefined();
+    const id = res.quiz_id as string;
+    expect(fileOf(id).questions.map((q) => q.dok)).toEqual([2, undefined]);
+    const got = await call('get_quiz', { quiz_id: id });
+    expect((got.questions as Data[]).map((q) => q.dok)).toEqual([2, undefined]);
+  });
+
+  it('keeps dok when omitted and clears it on null', async () => {
+    const call = await connect(fakeDb(admin).db);
+    const res = await call('create_question_bank', {
+      title: 'T',
+      questions: [
+        { ...mc(1), dok: 3 },
+        { ...mc(2), dok: 1 },
+      ],
+    });
+    const id = res.bank_id as string;
+    const [a, b] = fileOf(id).questions;
+    await call('update_question_bank', {
+      bank_id: id,
+      questions: [
+        { ...mc(1), id: a.id },
+        { ...mc(2), id: b.id, dok: null },
+      ],
+    });
+    expect(fileOf(id).questions.map((q) => q.dok)).toEqual([3, undefined]);
+  });
+
+  it('rejects a level outside 1-4', async () => {
+    const call = await connect(fakeDb(admin).db);
+    for (const dok of [0, 5, 2.5]) {
+      expect(
+        await call('create_quiz', {
+          title: 'T',
+          questions: [{ ...mc(1), dok }],
+        })
+      ).toHaveProperty('error');
+    }
+  });
+
+  it('leaves dok out and says so when the teacher lacks DOK levels', async () => {
+    const call = await connect(fakeDb().db);
+    const res = await call('create_quiz', {
+      title: 'T',
+      questions: [{ ...mc(1), dok: 2 }],
+    });
+    expect(res.dok_not_saved).toMatch(/aren't turned on/);
+    expect(fileOf(res.quiz_id as string).questions[0].dok).toBeUndefined();
+  });
+});

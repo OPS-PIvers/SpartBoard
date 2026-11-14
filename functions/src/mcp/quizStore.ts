@@ -103,6 +103,8 @@ export interface FriendlyQuestion {
   max_words?: number;
   standards?: string[];
   learning_targets?: string[];
+  /** Depth of Knowledge 1-4; null clears it. */
+  dok?: 1 | 2 | 3 | 4 | null;
   /** free_response: library rubric to attach; null removes the attached one. */
   rubric_id?: string | null;
 }
@@ -232,6 +234,8 @@ export function toStoredQuestion(
     }
   }
   if (input.points !== undefined) base.points = input.points;
+  if (input.dok === null) delete base.dok;
+  else if (input.dok !== undefined) base.dok = input.dok;
 
   switch (type) {
     case 'MC': {
@@ -373,6 +377,7 @@ export function toFriendlyQuestion(
   if (standards.length > 0) out.standards = standards;
   const learningTargets = learningTargetLabels(q.targets);
   if (learningTargets.length > 0) out.learning_targets = learningTargets;
+  if (q.dok === 1 || q.dok === 2 || q.dok === 3 || q.dok === 4) out.dok = q.dok;
   const split = (s: string) => (s ?? '').split('|').filter((v) => v.length > 0);
   switch (q.type) {
     case 'MC':

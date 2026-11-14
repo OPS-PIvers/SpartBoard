@@ -149,11 +149,18 @@ const questionSchema = z.object({
     .describe(
       'free_response: attach a rubric from list_rubrics or create_rubric; its total becomes the points. Keep the same id to keep the attached copy; null removes it.'
     ),
+  dok: z
+    .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+    .nullable()
+    .optional()
+    .describe(
+      'Depth of Knowledge: 1 recall a fact or term, 2 apply a skill or concept (classify, compare, solve a routine problem), 3 reason with evidence or a plan (justify, analyze, solve a non-routine problem), 4 extended work across sources or time. Rate the thinking the question demands, not how hard it is. null clears it; omit to keep it.'
+    ),
   ...targetInputFields,
 });
 
 const QUESTION_HELP =
-  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
+  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field. Give each question a dok level (1-4) as you tag its standards.";
 
 const toolNames = (kind: QuizKind) =>
   kind === 'quiz'
@@ -190,11 +197,36 @@ function assertNotSynced(kind: QuizKind, meta: Record<string, unknown>): void {
   }
 }
 
+export const DOK_FEATURE_ID = 'quiz-dok';
+export const DOK_NOT_SAVED =
+  "DOK levels aren't turned on for this account, so dok was not saved. Leave dok out for this teacher.";
+
+/** Drops dok from the inputs when the teacher can't see DOK levels; true when any was dropped. */
+async function gateDok(
+  ctx: ToolContext,
+  inputs: FriendlyQuestion[]
+): Promise<{ inputs: FriendlyQuestion[]; dokSkipped: boolean }> {
+  if (!inputs.some((q) => q.dok !== undefined))
+    return { inputs, dokSkipped: false };
+  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  if (await isGlobalFeatureGranted(ctx.db, DOK_FEATURE_ID, ctx.email, ctx.uid))
+    return { inputs, dokSkipped: false };
+  return {
+    inputs: inputs.map((q) => {
+      const rest = { ...q };
+      delete rest.dok;
+      return rest;
+    }),
+    dokSkipped: true,
+  };
+}
+
 async function buildQuestions(
   ctx: ToolContext,
-  inputs: FriendlyQuestion[],
+  rawInputs: FriendlyQuestion[],
   previous: StoredQuestion[]
-): Promise<StoredQuestion[]> {
+): Promise<{ questions: StoredQuestion[]; dokSkipped: boolean }> {
+  const { inputs, dokSkipped } = await gateDok(ctx, rawInputs);
   const byId = new Map(previous.map((q) => [q.id, q]));
   const used = new Set<string>();
   const applyTargets = await prepareTargets(
@@ -215,7 +247,7 @@ async function buildQuestions(
     return q;
   });
   await attachRubrics(ctx, inputs, built);
-  return built;
+  return { questions: built, dokSkipped };
 }
 
 /** Mirrors QuizEditor's handleAttachRubric / handleDetachRubric: the question keeps a frozen copy and the rubric total is its points. */
@@ -487,7 +519,11 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       (input) =>
         runWithPreview(names.create, ctx, async () => {
           await assertFolder(ctx, folderType, input.folder_id);
-          const questions = await buildQuestions(ctx, input.questions, []);
+          const { questions, dokSkipped } = await buildQuestions(
+            ctx,
+            input.questions,
+            []
+          );
           const token = await driveTokenFor(ctx.uid);
           await reserveWrite(ctx);
           const now = Date.now();
@@ -506,7 +542,11 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
             action: 'create',
           });
           return {
-            result: { ...saved.summary, where_to_find_it: names.where },
+            result: {
+              ...saved.summary,
+              where_to_find_it: names.where,
+              ...(dokSkipped ? { dok_not_saved: DOK_NOT_SAVED } : {}),
+            },
             view: quizView(kind, saved.content, saved.meta),
           };
         })
@@ -541,13 +581,13 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
           if (folderId) await assertFolder(ctx, folderType, folderId);
           const { meta, content, token } = await loadContent(ctx, kind, id);
           assertNotSynced(kind, meta);
-          const questions = input.questions
+          const { questions, dokSkipped } = input.questions
             ? await buildQuestions(
                 ctx,
                 input.questions as FriendlyQuestion[],
                 content.questions
               )
-            : content.questions;
+            : { questions: content.questions, dokSkipped: false };
           await reserveWrite(ctx);
           const saved = await saveContent(
             ctx,
@@ -576,6 +616,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
               changed_questions: saved.content.questions.flatMap((q, i) =>
                 changed.includes(q.id) ? [i + 1] : []
               ),
+              ...(dokSkipped ? { dok_not_saved: DOK_NOT_SAVED } : {}),
             },
             view: quizView(kind, saved.content, saved.meta, {
               changed,
