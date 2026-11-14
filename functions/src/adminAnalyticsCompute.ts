@@ -609,6 +609,7 @@ export async function computeAnalyticsForOrg(
     'plc-meeting-transcribe',
     'plc-meeting-regenerate',
     'plc-goal-coach-checks',
+    'video-import-ai',
   ];
 
   // Read-aloud is Cloud Text-to-Speech, not AI; it shares ai_usage only for its billing counters.

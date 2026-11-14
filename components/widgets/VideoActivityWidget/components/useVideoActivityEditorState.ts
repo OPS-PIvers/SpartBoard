@@ -386,7 +386,8 @@ export function useVideoActivityEditorState({
       result = await generateVideoActivity(
         youtubeUrl.trim(),
         typeCounts,
-        videoDurationSeconds > 0 ? videoDurationSeconds : undefined
+        videoDurationSeconds > 0 ? videoDurationSeconds : undefined,
+        startWithAi ? 'import' : undefined
       );
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Generation failed');
@@ -441,7 +442,14 @@ export function useVideoActivityEditorState({
     } finally {
       setAiGenerating(false);
     }
-  }, [youtubeUrl, aiTypeCounts, aiTotalCount, videoDurationSeconds, title]);
+  }, [
+    youtubeUrl,
+    aiTypeCounts,
+    aiTotalCount,
+    videoDurationSeconds,
+    title,
+    startWithAi,
+  ]);
 
   return {
     title,

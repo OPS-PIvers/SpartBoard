@@ -13,8 +13,11 @@ import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
 import {
+  ADMIN_LIMITED_FEATURES,
+  EXTRA_DAILY_LIMITS,
   GEMINI_FEATURES,
   defaultDailyLimit,
+  type ExtraDailyLimit,
   DEFAULT_MODEL_TIER,
   MODEL_TIER_FEATURES,
   type AiModelTier,
@@ -141,23 +144,31 @@ export const DailyLimitEditor: React.FC<{
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
   onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
-}> = ({ featureId, permission, onUpdate }) => {
-  const enabled = (permission.config?.dailyLimitEnabled as boolean) ?? true;
-  const label = FEATURE_DEFAULTS[featureId].label;
+  extra?: ExtraDailyLimit;
+}> = ({ featureId, permission, onUpdate, extra }) => {
+  const limitKey = extra?.limitKey ?? 'dailyLimit';
+  const enabledKey = extra?.enabledKey ?? 'dailyLimitEnabled';
+  const enabled = (permission.config?.[enabledKey] as boolean) ?? true;
+  const label = extra
+    ? `${FEATURE_DEFAULTS[featureId].label} ${extra.title.toLowerCase()}`
+    : FEATURE_DEFAULTS[featureId].label;
+  const rowKey = extra ? `${featureId}-${limitKey}` : featureId;
   const stored =
-    (permission.config?.dailyLimit as number) ?? defaultDailyLimit(featureId);
+    (permission.config?.[limitKey] as number) ??
+    extra?.defaultValue ??
+    defaultDailyLimit(featureId);
   // Raw text while editing so the field can be emptied; null shows the stored value.
   const [draft, setDraft] = useState<string | null>(null);
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-        Daily limit
+        {extra?.title ?? 'Daily limit'}
       </span>
       <Toggle
         checked={enabled}
         onChange={(checked) =>
           onUpdate({
-            config: { ...permission.config, dailyLimitEnabled: checked },
+            config: { ...permission.config, [enabledKey]: checked },
           })
         }
         size="xs"
@@ -165,7 +176,7 @@ export const DailyLimitEditor: React.FC<{
         anchor={tourFieldAttr(
           'admin.features.daily-limit-toggle',
           'admin',
-          featureId
+          rowKey
         )}
       />
       <input
@@ -174,11 +185,7 @@ export const DailyLimitEditor: React.FC<{
         max={DAILY_LIMIT_MAX}
         disabled={!enabled}
         aria-label={`${label} uses per day`}
-        {...tourFieldAttr(
-          'admin.features.daily-limit-number',
-          'admin',
-          featureId
-        )}
+        {...tourFieldAttr('admin.features.daily-limit-number', 'admin', rowKey)}
         value={draft ?? stored}
         onChange={(e) => {
           const raw = e.target.value;
@@ -193,14 +200,17 @@ export const DailyLimitEditor: React.FC<{
           );
           setDraft(clamped === val ? raw : String(clamped));
           onUpdate({
-            config: { ...permission.config, dailyLimit: clamped },
+            config: { ...permission.config, [limitKey]: clamped },
           });
         }}
         onBlur={() => setDraft(null)}
         className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
       />
       <span className="text-xs text-slate-500">
-        per day. Admins are unlimited.
+        {extra?.note ??
+          (ADMIN_LIMITED_FEATURES.includes(featureId)
+            ? 'per day. Admins included.'
+            : 'per day. Admins are unlimited.')}
       </span>
     </div>
   );
@@ -374,6 +384,14 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
               featureId={featureId}
               permission={permission}
               onUpdate={onUpdate}
+            />
+          )}
+          {EXTRA_DAILY_LIMITS[featureId] && (
+            <DailyLimitEditor
+              featureId={featureId}
+              permission={permission}
+              onUpdate={onUpdate}
+              extra={EXTRA_DAILY_LIMITS[featureId]}
             />
           )}
           {MODEL_TIER_FEATURES.includes(featureId) && (
