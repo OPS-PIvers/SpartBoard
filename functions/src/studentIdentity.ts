@@ -1739,6 +1739,59 @@ export async function recordRetiredPins(
     ops.slice(i, i + 400).forEach((op) => op(batch));
     await batch.commit();
   }
+  await stampRetiredPinTimes(rosterRef, keys, have.docs, now, prune);
+}
+
+/** Retired-key doc id → its PIN segment (ids are `${period}__${seg}`, neither half holds `__`). */
+const retiredKeySegment = (key: string) => key.slice(key.indexOf('__') + 2);
+
+/** Keep `retiredPinsAt.<pin segment>` (first-seen ms) on the roster doc so quiz results can name a former PIN without the Drive file's `formerPinsAt`. */
+async function stampRetiredPinTimes(
+  rosterRef: admin.firestore.DocumentReference,
+  keys: ReadonlySet<string>,
+  haveDocs: readonly admin.firestore.QueryDocumentSnapshot[],
+  now: number,
+  prune: boolean
+): Promise<void> {
+  try {
+    const snap = await rosterRef.get();
+    if (!snap.exists) return;
+    const raw: unknown = snap.get('retiredPinsAt');
+    const existing =
+      raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+    const has = (seg: string) => typeof existing[seg] === 'number';
+    const updates = new Map<string, number | admin.firestore.FieldValue>();
+    for (const d of haveDocs) {
+      const seg = retiredKeySegment(d.id);
+      const at: unknown = d.get('updatedAt');
+      if (!has(seg) && !updates.has(seg) && (!prune || keys.has(d.id))) {
+        updates.set(seg, typeof at === 'number' ? at : now);
+      }
+    }
+    for (const key of keys) {
+      const seg = retiredKeySegment(key);
+      if (!has(seg) && !updates.has(seg)) updates.set(seg, now);
+    }
+    // An empty list (owner no longer confirmed) clears access, not the display stamps.
+    if (prune && keys.size > 0) {
+      const kept = new Set([...keys].map(retiredKeySegment));
+      for (const seg of Object.keys(existing)) {
+        if (!kept.has(seg))
+          updates.set(seg, admin.firestore.FieldValue.delete());
+      }
+    }
+    const path = (seg: string) =>
+      new admin.firestore.FieldPath('retiredPinsAt', seg);
+    const [first, ...rest] = [...updates];
+    if (!first) return;
+    await rosterRef.update(
+      path(first[0]),
+      first[1],
+      ...rest.flatMap(([seg, value]) => [path(seg), value])
+    );
+  } catch (err) {
+    console.warn('[recordRetiredPins] retiredPinsAt stamp failed', err);
+  }
 }
 
 // Per (session, caller uid) limits. Seat PINs are short, so a caller that keeps
