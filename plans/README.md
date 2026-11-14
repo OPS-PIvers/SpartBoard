@@ -17,12 +17,17 @@ plan file in the PR that finishes it, or move the folder's leftovers into
 
 ## Execution order & status
 
-| Plan | Title                                                                                                                   | Priority | Effort | Depends on | Status |
-| ---- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ------ | ---------- | ------ |
-| 001  | Quiz: resume where the student left off, confirm the final submit, retry buttons on error screens                       | P1       | M      | none       | DONE   |
-| 002  | Video activity: message when the video can't play, "submitted" only once saved, next step on finished and error screens | P1       | M      | none       | DONE   |
-| 003  | Flashcards: truthful Speak Check messages, way out of "not available"                                                   | P1       | S      | none       | DONE   |
-| 004  | Student sign-in recovers and stays signed out; assignment rows say what they are in words                               | P1       | M      | none       | DONE   |
+| Plan | Title                                                                                                                         | Priority | Effort | Depends on        | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ------ | ----------------- | ------ |
+| 001  | Quiz: resume where the student left off, confirm the final submit, retry buttons on error screens                             | P1       | M      | none              | DONE   |
+| 002  | Video activity: message when the video can't play, "submitted" only once saved, next step on finished and error screens       | P1       | M      | none              | DONE   |
+| 003  | Flashcards: truthful Speak Check messages, way out of "not available"                                                         | P1       | S      | none              | DONE   |
+| 004  | Student sign-in recovers and stays signed out; assignment rows say what they are in words                                     | P1       | M      | none              | DONE   |
+| 005  | Quiz: 16px answer boxes, 44px tap targets, Undo after Reset, whole-word labels, focus and timer announcements, offline banner | P2       | M      | none              | DONE   |
+| 006  | Video activity: resume at the last answered question, question card as a dialog with announced results, PIN field             | P2       | M      | none              | DONE   |
+| 007  | Flashcards: 16px inputs, larger hit areas, long answers scroll, the last card is the end, self-study test answers kept        | P2       | M      | none              | DONE   |
+| 008  | Student home waits for turn-in checks, one-minute idle warning, way back from "Results locked"                                | P2       | M      | none              | DONE   |
+| 009  | Translate the hard-coded English on student screens (video activity, student home and sign-in, quiz)                          | P3       | L      | 005 to 008 merged | TODO   |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -38,23 +43,19 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - **One device check is yours** (plan 004): after it ships to the dev site, sign in as a student on a Chromebook, press Sign out, and confirm you are not signed straight back in.
 - **Two decisions are parked** (plan 003 notes): whether a student who cannot record may submit a Speak Check, and whether a skipped Speak Check card should be final.
 
-## Audited but not planned
+## Still open
 
-Vetted findings from the same audit that were left out of this round. Evidence is in the audit summary; file references are as of `db70831b`.
+Plans 005 to 008 were executed and reviewed on 2026-11-14 and shipped together in one PR; their plan files were deleted in that PR (last present at `e75d5f25` on the session branch history, and in the PR's commits).
 
-| Finding                                                                                                                                          | Area                    | Effort | Where                                                                                                                                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Finished work shows as to-do with an Open button until its turn-in check loads                                                                   | Student home            | M      | `utils/studentLanding.ts:79`, `hooks/useStudentTurnIns.ts:87-93`                                                                                     |
-| Answer inputs under 16px zoom the page on iPhone and iPad                                                                                        | Quiz, flashcards, video | S      | `components/quiz/QuizStudentApp.tsx:5052`, `components/flashcards/TestMode.tsx:197`, `components/videoActivity/VideoActivityStudentApp.tsx:984`      |
-| Tap targets under 44px (ordering arrows, zoom, quiz back arrow, flashcard mode tabs, Reset with no undo)                                         | Quiz, flashcards        | S to M | `components/quiz/OrderingListInput.tsx:78`, `components/quiz/MatchingResponseInput.tsx:574-584`, `components/flashcards/FlashcardPlayer.tsx:791-795` |
-| Ordering and matching labels break mid-word at 360px                                                                                             | Quiz                    | S      | Seen in the `/session-views-dev` harness, states `sq-ordering-list` and `sq-images-matching`                                                         |
-| A refresh restarts the video at 0:00 though the player accepts a start time                                                                      | Video                   | S to M | `components/videoActivity/VideoActivityStudentApp.tsx:1331-1346`                                                                                     |
-| Screen-reader gaps: question card is not a dialog, results not announced, colour-only multi-select grading, no focus move on a new quiz question | Video, quiz, flashcards | S each | `components/videoActivity/QuestionOverlay.tsx:392`, `:234-269`, `:487-505`; `components/flashcards/WriteMode.tsx:360-367`                            |
-| No "saved" or "offline" signal in the quiz                                                                                                       | Quiz                    | M      | `hooks/useQuizSession.ts:3613` (medium confidence, not run)                                                                                          |
-| Hard-coded English across video activity, student home, sign-in and much of the quiz                                                             | All                     | L      | No `useTranslation` in `components/videoActivity/`; `components/quiz/QuizStudentApp.tsx:4431-4441`                                                   |
-| Flashcards: long card text clipped, Next on the last card wraps to card 1, test answers lost on a mode change                                    | Flashcards              | S to M | `components/flashcards/FlashcardsMode.tsx:59-61`, `:183`; `components/flashcards/FlashcardPlayer.tsx:679`                                            |
-| No way back from "Results locked"                                                                                                                | Shared                  | S      | `components/student/ResultsProtectionGate.tsx:48-71` (needs a prop from each caller, so it crosses plans)                                            |
-| No warning before the 15 minute idle sign-out                                                                                                    | Shared                  | M      | `hooks/useStudentIdleTimeout.ts`                                                                                                                     |
+Left out on purpose, each needing a decision or a larger change:
+
+- **A true per-answer "Saved" state in the quiz.** 005 added an offline banner only; a saved indicator needs pending-write tracking in `hooks/useQuizSession.ts`.
+- **Small text in the flashcards player header (10 to 12px).** The player is shared with the teacher's board; resizing needs a page-size variant.
+- **Stimulus zoom controls (22px)** in the quiz, left for a pass on the stimulus viewer.
+- **Guided Learning's "Results locked" screen** still has no way back (its app was out of scope).
+- **Video captions and a control bar**, and a network failure while joining a video still reading "session not found".
+- **Speak Check policy**: whether a student who cannot record may submit, and whether a skipped card is final.
+- **Translation (plan 009)**: not yet written.
 
 ## Findings considered and rejected
 
