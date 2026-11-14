@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isStudentFacingPath,
   normalizeStudentContextMenuSettings,
+  normalizeStudentGrammarlySettings,
 } from '@/config/studentContextMenu';
 
 describe('isStudentFacingPath', () => {
@@ -48,6 +49,20 @@ describe('normalizeStudentContextMenuSettings', () => {
       enabled: false,
     });
     expect(normalizeStudentContextMenuSettings(null)).toEqual({
+      enabled: false,
+    });
+  });
+});
+
+describe('normalizeStudentGrammarlySettings', () => {
+  it('turns on only for an explicit true', () => {
+    expect(normalizeStudentGrammarlySettings({ enabled: true })).toEqual({
+      enabled: true,
+    });
+    expect(normalizeStudentGrammarlySettings({ enabled: 'yes' })).toEqual({
+      enabled: false,
+    });
+    expect(normalizeStudentGrammarlySettings(null)).toEqual({
       enabled: false,
     });
   });

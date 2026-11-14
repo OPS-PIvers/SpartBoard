@@ -1,5 +1,5 @@
-// Firestore security-rules tests for the student right-click block switch:
-//   /admin_settings/student_context_menu — any authed user reads it (every student
+// Firestore security-rules tests for the student right-click and Grammarly switches:
+//   /admin_settings/student_context_menu and student_grammarly — any authed user reads them (every student
 //   page reads it); only an admin flips it.
 //
 // Requires a running Firestore emulator. Invoke via:
@@ -73,7 +73,10 @@ const asAnonStudent = () =>
 
 const asUnauth = () => testEnv.unauthenticatedContext().firestore();
 
-const settingsPath = 'admin_settings/student_context_menu';
+const SETTINGS_PATHS = [
+  'admin_settings/student_context_menu',
+  'admin_settings/student_grammarly',
+];
 
 beforeAll(async () => {
   const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
@@ -98,11 +101,13 @@ beforeEach(async () => {
     await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
       role: 'admin',
     });
-    await setDoc(doc(ctx.firestore(), settingsPath), { enabled: true });
+    for (const path of SETTINGS_PATHS) {
+      await setDoc(doc(ctx.firestore(), path), { enabled: true });
+    }
   });
 });
 
-describe('/admin_settings/student_context_menu — reads', () => {
+describe.each(SETTINGS_PATHS)('/%s — reads', (settingsPath) => {
   it('lets an ordinary teacher read the switch', async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), settingsPath)));
   });
@@ -121,7 +126,7 @@ describe('/admin_settings/student_context_menu — reads', () => {
   });
 });
 
-describe('/admin_settings/student_context_menu — writes', () => {
+describe.each(SETTINGS_PATHS)('/%s — writes', (settingsPath) => {
   it('lets an admin flip it', async () => {
     await assertSucceeds(
       setDoc(doc(asAdmin(), settingsPath), { enabled: true })

@@ -20,6 +20,16 @@ export function normalizeStudentContextMenuSettings(
   return { enabled: (raw as { enabled?: unknown }).enabled === true };
 }
 
+/** Admin switch `admin_settings/student_grammarly` that asks Grammarly not to run on student pages. */
+export const STUDENT_GRAMMARLY_SETTINGS_DOC = 'student_grammarly';
+
+/** Off by default; only an explicit true turns it on. */
+export function normalizeStudentGrammarlySettings(raw: unknown): {
+  enabled: boolean;
+} {
+  return normalizeStudentContextMenuSettings(raw);
+}
+
 const STUDENT_PATH_PREFIXES = [
   '/join',
   '/quiz',

@@ -38,6 +38,7 @@ const SIGNED_IN_DOCS = [
   'getting_started',
   'board_backgrounds',
   'student_context_menu',
+  'student_grammarly',
 ];
 const STAFF_DOCS = ['gradebook', 'focus_sessions'];
 const NOT_ANON_DOCS = ['team_type_defaults'];
