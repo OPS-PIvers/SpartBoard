@@ -29,6 +29,7 @@ import {
 } from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 import { gameDisplayPoints } from '@/utils/quizGame';
+import { quizPinKeySegment } from '@/utils/quizResponseKey';
 import {
   resolveResponseDisplayName,
   responseColorIndex,
@@ -376,8 +377,8 @@ function makePinKey(classPeriod: string, pin: string): string {
 
 // Former-PIN entries: key `${FORMER}${pinKey}`, value `${retiredAtMs}${FORMER}${name}`.
 const FORMER = '\u0002';
-// Re-rolls before `formerPinsAt` existed count as retired by this date.
-const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 14);
+// Re-rolls with neither a server stamp nor `formerPinsAt` count as retired by this date (the release day).
+const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 15);
 
 /** The name on a former-PIN entry, only for a response joined before that PIN was retired. */
 function formerName(
@@ -557,7 +558,7 @@ function buildRosterPinMap(
           if (!former) map[key] = name;
           else
             map[FORMER + key] ??=
-              `${s.formerPinsAt ?? LEGACY_FORMER_PINS_AT}${FORMER}${name}`;
+              `${roster.retiredPinsAt?.[quizPinKeySegment(pin)] ?? s.formerPinsAt ?? LEGACY_FORMER_PINS_AT}${FORMER}${name}`;
         }
       };
       if (s.pin) put(s.pin, false);
