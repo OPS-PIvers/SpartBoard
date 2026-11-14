@@ -4047,7 +4047,7 @@ export const useQuizAssignments = (
     [userId]
   );
 
-  // Reads each chosen response and writes its patch; handwritten paper rows re-read in a transaction.
+  // Re-reads each chosen response in a transaction so an answer the student saves meanwhile is kept.
   const patchChosenResponses = useCallback(
     async (
       assignmentId: string,
@@ -4056,37 +4056,19 @@ export const useQuizAssignments = (
       context: string
     ) => {
       if (!userId) throw new Error('Not authenticated');
-      const snaps = await Promise.all(
-        Array.from(new Set(responseKeys)).map((key) =>
-          getDoc(
-            doc(
-              db,
-              QUIZ_SESSIONS_COLLECTION,
-              assignmentId,
-              RESPONSES_COLLECTION,
-              key
-            )
-          )
+      const refs = Array.from(new Set(responseKeys)).map((key) =>
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          assignmentId,
+          RESPONSES_COLLECTION,
+          key
         )
       );
-      const patches: ResponsePatch[] = [];
-      const paperWrittenRefs: ReturnType<typeof doc>[] = [];
-      for (const snap of snaps) {
-        if (!snap.exists()) continue;
-        const data = snap.data() as QuizResponse;
-        if (hasPaperWrittenAnswer(data)) paperWrittenRefs.push(snap.ref);
-        else patches.push({ ref: snap.ref, patch: buildPatch(data) });
-      }
       try {
-        if (paperWrittenRefs.length > 0)
-          await commitPaperWrittenPatches(paperWrittenRefs, buildPatch);
-        if (patches.length > 0)
-          await commitResponsePatches(writeBatch(db), 0, patches);
+        await commitPaperWrittenPatches(refs, buildPatch);
       } catch (err) {
-        logError(context, err, {
-          assignmentId,
-          count: patches.length + paperWrittenRefs.length,
-        });
+        logError(context, err, { assignmentId, count: refs.length });
         throw err;
       }
     },

@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  runTransaction,
   writeBatch,
 } from 'firebase/firestore';
 import {
@@ -28,6 +29,7 @@ vi.mock('firebase/firestore', () => ({
   startAfter: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
+  runTransaction: vi.fn(),
   updateDoc: vi.fn(),
   writeBatch: vi.fn(),
 }));
@@ -122,6 +124,13 @@ describe('useQuizAssignments — per-student results publishing', () => {
       }
       return Promise.resolve({ data: () => ({}) });
     });
+    (runTransaction as Mock).mockImplementation(
+      (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          get: (ref: string): unknown => (getDoc as Mock)(ref) as unknown,
+          update: batchUpdate,
+        })
+    );
   });
 
   const patchFor = (key: string): unknown =>
@@ -290,7 +299,8 @@ describe('useQuizAssignments — per-student results publishing', () => {
       revealedExplanations: DELETE_FIELD_SENTINEL,
       answers: [{ questionId: 'q0', answer: 'a' }],
     });
-    expect(batchCommit).toHaveBeenCalledTimes(1);
+    // Each row is re-read in its own transaction so a student's new answer isn't overwritten.
+    expect(runTransaction).toHaveBeenCalledTimes(2);
   });
 
   it('clearResultsOverride deletes the override', async () => {
