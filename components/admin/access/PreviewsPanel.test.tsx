@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const setDocMock = vi.fn(
@@ -69,6 +75,14 @@ const renderPanel = async () => {
   );
 };
 
+const expandRow = (id: string) => {
+  const button = screen
+    .getByTestId(`access-row-${id}`)
+    .querySelector(`[aria-controls="access-row-${id}"]`);
+  if (!button) throw new Error(`No expand button for ${id}`);
+  fireEvent.click(button);
+};
+
 const district = (title: string) =>
   screen.getByRole('switch', { name: `${title} district switch` });
 
@@ -83,6 +97,35 @@ describe('PreviewsPanel', () => {
     const row = screen.getByTestId('access-row-paper-answer-sheets');
     expect(row).toContainElement(district('Paper answer sheets'));
     expect(row).toHaveTextContent('Off everywhere');
+  });
+
+  it('nests the Import add-ons under the Import anything row', async () => {
+    await renderPanel();
+    expect(screen.queryByTestId('access-row-import-flashcards')).toBeNull();
+    expandRow('universal-import');
+    const group = screen.getByTestId('preview-group-universal-import');
+    const child = screen.getByTestId('access-row-import-flashcards');
+    expect(group).toContainElement(child);
+    expect(child).toHaveTextContent('Flashcards');
+    expect(child).not.toHaveTextContent('Import: Flashcards');
+  });
+
+  it('saves a nested Import add-on to its own permission doc', async () => {
+    await renderPanel();
+    expandRow('universal-import');
+    fireEvent.click(
+      within(
+        screen.getByRole('radiogroup', { name: 'Import: Google Forms access' })
+      ).getByRole('radio', { name: 'Public' })
+    );
+    fireEvent.click(screen.getByLabelText('Save Import: Google Forms'));
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'global_permissions/import-google-forms'
+    );
+    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+      accessLevel: 'public',
+    });
   });
 
   it('links a public retire-after-launch flag to a prefilled cleanup issue', async () => {
