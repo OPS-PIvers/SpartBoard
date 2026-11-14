@@ -139,6 +139,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const notesRef = useRef(notes);
   const onNoteTriggerRef = useRef(onNoteTrigger);
   const clipEndedRef = useRef(false);
+  const seekRequestRef = useRef(seekRequest);
 
   useLayoutEffect(() => {
     unansweredRef.current = questions
@@ -155,7 +156,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useLayoutEffect(() => {
     allowSkippingRef.current = allowSkipping;
     autoPlayRef.current = autoPlay;
-  }, [allowSkipping, autoPlay]);
+    seekRequestRef.current = seekRequest;
+  }, [allowSkipping, autoPlay, seekRequest]);
 
   useLayoutEffect(() => {
     onQuestionTriggerRef.current = onQuestionTrigger;
@@ -360,6 +362,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onReady: () => {
             window.clearTimeout(readyTimer);
             setFailed(false);
+            const pending = seekRequestRef.current;
+            if (
+              pending &&
+              playerRef.current &&
+              lastSeekNonceRef.current !== pending.nonce
+            ) {
+              lastSeekNonceRef.current = pending.nonce;
+              playerRef.current.seekTo(Math.max(0, pending.time), true);
+            }
             if (autoPlayRef.current && !pausedRef.current) {
               playerRef.current?.playVideo();
             }

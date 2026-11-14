@@ -13,6 +13,7 @@
  */
 
 import React, {
+  useId,
   useState,
   useCallback,
   useEffect,
@@ -705,6 +706,30 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // No player in live mode: tab exits log the board's last known position.
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   if (isLive) playheadRef.current = session?.live?.playheadSeconds ?? 0;
+  const pinInputId = useId();
+
+  // Rejoining self-paced: jump to the last answered question once.
+  const resumeDoneRef = useRef(false);
+  useEffect(() => {
+    if (
+      resumeDoneRef.current ||
+      answeredQuestionIds.size === 0 ||
+      isLive ||
+      previewKey ||
+      (myResponse != null && isVaResponseCompleted(myResponse))
+    ) {
+      return;
+    }
+    resumeDoneRef.current = true;
+    const time = sortedQuestions.reduce(
+      (latest, q) =>
+        answeredQuestionIds.has(q.id) ? Math.max(latest, q.timestamp) : latest,
+      0
+    );
+    if (time > playheadRef.current + 2) {
+      dispatchPlayer({ type: 'rewind', time, nonce: Date.now() });
+    }
+  }, [answeredQuestionIds, sortedQuestions, isLive, previewKey, myResponse]);
 
   // Track the previous `tabSwitchWarnings` value via state-during-render
   // so we can sync the local counter without an extra effect pass.
@@ -980,17 +1005,21 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
               <form onSubmit={handleJoin} className="p-5 flex flex-col gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Roster PIN
+                  <label
+                    htmlFor={pinInputId}
+                    className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5"
+                  >
+                    Your PIN
                   </label>
                   <input
+                    id={pinInputId}
                     type="text"
                     value={pin}
                     onChange={(e) => setPin(e.target.value)}
                     placeholder="Ask your teacher"
                     inputMode="numeric"
                     autoFocus
-                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-sm font-medium outline-hidden transition-colors"
+                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-base font-medium outline-hidden transition-colors"
                     required
                   />
                 </div>

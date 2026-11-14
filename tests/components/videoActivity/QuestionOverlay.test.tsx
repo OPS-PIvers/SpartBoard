@@ -260,3 +260,60 @@ describe('QuestionOverlay answer rules', () => {
     expect(screen.getByText(/Incorrect\. Resuming video/)).toBeTruthy();
   });
 });
+
+describe('QuestionOverlay accessibility', () => {
+  const ma: VideoActivityPublicQuestion = {
+    id: 'm1',
+    timestamp: 8,
+    text: 'Pick the primes',
+    type: 'MA',
+    options: ['2', '3', '4'],
+  };
+
+  it('is a labelled dialog', () => {
+    renderOverlay(vi.fn());
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(
+      screen.getByRole('dialog', { name: 'Capital of France?' })
+    ).toBeTruthy();
+  });
+
+  it('reports the selected multiple-choice option', () => {
+    renderOverlay(vi.fn());
+    fireEvent.click(screen.getByText('Paris'));
+    expect(
+      screen.getByRole('button', { name: /Paris/ }).getAttribute('aria-pressed')
+    ).toBe('true');
+    expect(
+      screen.getByRole('button', { name: /Rome/ }).getAttribute('aria-pressed')
+    ).toBe('false');
+  });
+
+  it('exposes multi-select options as checkboxes that toggle', () => {
+    renderOverlay(vi.fn(), ma);
+    const two = screen.getByRole('checkbox', { name: /2/ });
+    expect(two.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(two);
+    expect(two.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('labels a wrong multi-select pick and announces the result', async () => {
+    const checkAnswer = vi
+      .fn()
+      .mockResolvedValue({ isCorrect: false, correctAnswer: '2|3' });
+    renderOverlay(checkAnswer, ma);
+    fireEvent.click(screen.getByRole('checkbox', { name: /4/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Submit Answer'));
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('checkbox', { name: /4/ }).textContent).toContain(
+      'incorrect'
+    );
+    expect(screen.getByRole('checkbox', { name: /3/ }).textContent).toContain(
+      'missed'
+    );
+    expect(screen.getByRole('status').textContent).toMatch(/Incorrect/);
+  });
+});

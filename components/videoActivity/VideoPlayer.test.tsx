@@ -135,6 +135,33 @@ describe('VideoPlayer', () => {
     expect(player.seekTo).toHaveBeenNthCalledWith(2, 3, true);
   });
 
+  it('applies a seek request that arrived before the player was ready, once', () => {
+    autoReady = false;
+    let finishLoad: () => void = vi.fn();
+    mockLoadYouTubeApi.mockImplementation((callback) => {
+      finishLoad = callback;
+    });
+    const { rerender } = render(
+      <VideoPlayer {...defaultProps} seekRequest={{ time: 120, nonce: 301 }} />
+    );
+    act(() => finishLoad());
+    expect(player.seekTo).not.toHaveBeenCalled();
+
+    act(() => lastOptions?.events?.onReady?.());
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
+    expect(player.seekTo).toHaveBeenCalledWith(120, true);
+    expect(player.playVideo).not.toHaveBeenCalled();
+
+    rerender(
+      <VideoPlayer
+        {...defaultProps}
+        questionVisible={true}
+        seekRequest={{ time: 120, nonce: 301 }}
+      />
+    );
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
+  });
+
   describe('RAF generation guard', () => {
     /**
      * Controllable RAF mock: queued callbacks are stored so the test can flush
