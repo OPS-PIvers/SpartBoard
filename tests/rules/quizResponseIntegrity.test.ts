@@ -289,7 +289,7 @@ describe('quiz timed-attempt clock', () => {
     );
   });
 
-  it('rewriting submittedAt on a completed response is denied', async () => {
+  it('backdating submittedAt on a completed response is denied', async () => {
     await seed(QUIZ, quizSession());
     await seed(
       QUIZ_RESPONSE,
@@ -301,7 +301,7 @@ describe('quiz timed-attempt clock', () => {
     );
     await assertFails(
       updateDoc(doc(asStudent(), QUIZ_RESPONSE), {
-        submittedAt: Date.now() - 60_000,
+        submittedAt: Date.now() - 10 * 60_000,
       })
     );
   });

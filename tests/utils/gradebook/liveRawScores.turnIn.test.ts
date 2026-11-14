@@ -9,6 +9,7 @@ describe('trustedTurnInMs', () => {
   it('falls back to the claimed time for a stale or missing stamp', () => {
     expect(trustedTurnInMs(300, { at: 190, claimed: 100 })).toBe(300);
     expect(trustedTurnInMs(300, undefined)).toBe(300);
+    expect(trustedTurnInMs(150, { at: 190, claimed: 100 })).toBe(190);
     expect(trustedTurnInMs(null, { at: 190, claimed: 100 })).toBeNull();
   });
 });

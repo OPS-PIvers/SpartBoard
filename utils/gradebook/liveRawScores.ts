@@ -21,15 +21,14 @@ import {
 } from '@/utils/videoActivityGrading';
 import type { LiveRawScore } from '@/utils/gradebook/finalScoreOverlay';
 
-/** The server's turn-in time when its stamp vouches for this submission, else the student-claimed time. */
+/** The server's turn-in time when its stamp vouches for this submission, else the claim, never earlier than the stamp. */
 export function trustedTurnInMs(
   claimed: number | null | undefined,
   stamp: TurnInStamp | undefined
 ): number | null {
   if (claimed == null) return null;
-  return stamp && typeof stamp.at === 'number' && stamp.claimed === claimed
-    ? stamp.at
-    : claimed;
+  if (!stamp || typeof stamp.at !== 'number') return claimed;
+  return stamp.claimed === claimed ? stamp.at : Math.max(claimed, stamp.at);
 }
 
 const NOT_SCORED: LiveRawScore = {

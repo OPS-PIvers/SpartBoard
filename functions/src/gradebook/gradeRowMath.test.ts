@@ -104,6 +104,12 @@ describe('trustedTurnInMs', () => {
         'submittedAt'
       )
     ).toBe(300);
+    expect(
+      trustedTurnInMs(
+        { submittedAt: 150, turnIn: { at: 190, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(190);
     expect(trustedTurnInMs({ completedAt: 7 }, 'completedAt')).toBe(7);
     expect(
       trustedTurnInMs({ submittedAt: null, turnIn: { at: 1 } }, 'submittedAt')

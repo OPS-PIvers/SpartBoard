@@ -57,7 +57,7 @@ export function toMillis(v: unknown): number | null {
   return null;
 }
 
-/** The server's turn-in time when its stamp vouches for this submission, else the student-claimed time. */
+/** The server's turn-in time when its stamp vouches for this submission, else the claim, never earlier than the stamp. */
 export function trustedTurnInMs(
   response: Doc,
   field: 'submittedAt' | 'completedAt'
@@ -65,9 +65,10 @@ export function trustedTurnInMs(
   const claimed = toMillis(response[field]);
   if (claimed === null) return null;
   const stamp = asRecord(response.turnIn);
-  return typeof stamp.at === 'number' && toMillis(stamp.claimed) === claimed
+  if (typeof stamp.at !== 'number') return claimed;
+  return toMillis(stamp.claimed) === claimed
     ? stamp.at
-    : claimed;
+    : Math.max(claimed, stamp.at);
 }
 
 function numberMap(v: unknown): Record<string, number> {
