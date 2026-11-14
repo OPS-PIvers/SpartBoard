@@ -2223,11 +2223,16 @@ export const TOUR_ANCHORS = {
     label: 'Show or hide an answer option explanation in the Quiz editor',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: "quiz#a for option A's explanation button; lowercase letters",
   },
   'quiz-editor.option-explanation-text': {
     label: 'Answer option explanation in the Quiz editor',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint:
+      "quiz#a for option A's explanation box (open it first); lowercase letters",
   },
   'quiz-editor.answer-image-description': {
     label:
