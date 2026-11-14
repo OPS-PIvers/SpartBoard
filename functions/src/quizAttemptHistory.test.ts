@@ -336,13 +336,31 @@ describe('applyAttemptWrite', () => {
     ).toBe(false);
   });
 
-  it('leaves attempts alone when the student has rejoined by the time a removal runs', async () => {
+  it("moves the removed occupant's attempts even when the key was re-created first, and keeps the new occupant's", async () => {
     const stub = seed();
-    await apply(stub, write(undefined, done()));
-    stub.store.set(RESPONSE, done({ completedAttempts: 1 }));
-    await applyAttemptWrite(stub.db as unknown as Db, write(done(), undefined));
+    const first = done();
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    await apply(
+      stub,
+      write(reset(), done({ completedAttempts: 2, submittedAt: T + 2 }), T + 2)
+    );
     expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(true);
-    expect(stub.has(SCORES)).toBe(true);
+    // Another student takes the key before the removal event is handled.
+    const removedAt = T + 5;
+    stub.store.set(RESPONSE, reset({ studentUid: 'intruder' }));
+    const removal = write(done({ completedAttempts: 2 }), undefined, removedAt);
+    await applyAttemptWrite(stub.db as unknown as Db, removal);
+    expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(false);
+    expect(stub.has(`${RESPONSE}/attempts/2`)).toBe(false);
+    expect(stub.get(SCORES)?.attempts).toEqual([]);
+    // The new occupant's own attempt survives a retried removal.
+    const mine = done({ studentUid: 'intruder', submittedAt: T + 10 });
+    await apply(stub, write(reset({ studentUid: 'intruder' }), mine, T + 10));
+    await applyAttemptWrite(stub.db as unknown as Db, removal);
+    expect(stub.get(`${RESPONSE}/attempts/1`)).toMatchObject({
+      studentUid: 'intruder',
+    });
   });
 
   it('writes nothing for a late event about a removed response', async () => {
@@ -472,7 +490,7 @@ describe('applyAttemptGradeWrite', () => {
     expect(attempts[0]).toMatchObject({ points: 4, max: 4 });
   });
 
-  const ROW = 'grade_index/qs1__u1';
+  const ROW = 'grade_index/quiz__qs1__u1';
   const ROW_ATTEMPTS = [
     { n: 1, at: T, points: 0, max: 2, state: 'awaiting-grade' },
   ];

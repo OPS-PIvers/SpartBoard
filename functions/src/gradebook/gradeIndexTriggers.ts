@@ -27,6 +27,7 @@ import {
   rowsForSession,
 } from './gradeProjection';
 import { GRADE_INDEX } from './gradeIndex';
+import { legacyRowId, rowId } from './gradeRowMath';
 import type { IndexRow, GradeKind } from './types';
 import {
   CLASSLINK_CLIENT_ID,
@@ -380,10 +381,27 @@ export async function handleRowWrite(event: WriteEvent): Promise<void> {
   const after = dataOf(event.data?.after) as IndexRow | undefined;
   await guarded('projection', { rowId: event.params.rowId }, async () => {
     const db = admin.firestore();
+    // Deleting a pre-kind row that a kind-keyed row replaced must not clear the student's entry.
+    if (
+      !after &&
+      before &&
+      event.params.rowId !==
+        rowId(before.kind, before.sessionId, before.studentUid) &&
+      (
+        await db
+          .collection(GRADE_INDEX)
+          .doc(rowId(before.kind, before.sessionId, before.studentUid))
+          .get()
+      ).exists
+    )
+      return;
     await projectRow(db, after ?? null, before ?? null);
+    const row = after ?? before;
+    if (!row) return;
     await removeFlagsOnScore(
       db,
-      event.params.rowId,
+      // Marks keep the pre-kind id.
+      legacyRowId(row.sessionId, row.studentUid),
       after ?? null,
       before ?? null
     );
@@ -399,8 +417,19 @@ export async function handleMarkWrite(event: WriteEvent): Promise<void> {
   const { markId } = event.params;
   await guarded('mark', { markId }, async () => {
     const db = admin.firestore();
-    const row = await db.collection(GRADE_INDEX).doc(markId).get();
-    if (row.exists) await projectRow(db, row.data() as IndexRow, null);
+    const mark = dataOf(event.data?.after) ?? dataOf(event.data?.before);
+    const sessionId = typeof mark?.sessionId === 'string' ? mark.sessionId : '';
+    const studentUid =
+      typeof mark?.studentUid === 'string' ? mark.studentUid : '';
+    if (!sessionId || !studentUid) return;
+    // Every kind's row for this session and student; projectRow keeps only the mark owner's.
+    const rows = await db
+      .collection(GRADE_INDEX)
+      .where('sessionId', '==', sessionId)
+      .where('studentUid', '==', studentUid)
+      .get();
+    for (const row of rows.docs)
+      await projectRow(db, row.data() as IndexRow, null);
   });
 }
 

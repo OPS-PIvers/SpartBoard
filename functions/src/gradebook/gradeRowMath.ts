@@ -171,8 +171,13 @@ export interface AssembleInput {
 export function assembleRow(input: AssembleInput): IndexRow {
   const { meta } = input;
   let score = input.score;
+  // A student-written classId outside the session's classes never picks the due date.
   const classId =
-    score.classId ?? (meta.classIds.length === 1 ? meta.classIds[0] : null);
+    score.classId && meta.classIds.includes(score.classId)
+      ? score.classId
+      : meta.classIds.length === 1
+        ? meta.classIds[0]
+        : null;
   const dueAt = effectiveDueAt(meta, classId, input.pointerDueAt);
   const attempts = isCompletionOnly(meta.kind)
     ? []
@@ -260,8 +265,8 @@ export interface QuestionScoreInput {
   sectionsRaw?: unknown;
   /** Teacher picks of which answers count, by choose-N section id. */
   countedChoices?: Record<string, string[]>;
-  /** Video activity: grade from the stored `isCorrect` when the key is missing. */
-  useStoredCorrectness?: boolean;
+  /** Server-imported paper response (paperBatchId / paperWrittenBatchId), so its `paperTranscript` is trusted. */
+  paperAttested?: boolean;
   /** Hybrid paper quiz: written questions answered on a printed sheet. */
   paperWrittenQuestionIds?: readonly string[];
 }
@@ -294,31 +299,23 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
   for (const q of input.questions) {
     if (!served.has(q.id) || notChosen.has(q.id)) continue;
     const answer = representative.get(q.id);
-    let pointsEarned: number;
-    let state: string;
-    if (
-      input.useStoredCorrectness &&
-      q.correctAnswer === null &&
-      q.type !== 'free-response'
-    ) {
-      pointsEarned = answer?.isCorrect === true ? q.points : 0;
-      state = answer ? 'scored' : 'not-attempted';
-    } else {
-      const g = gradeGroupAnswer(
-        q,
-        answer?.answer ?? '',
-        input.manualGrades?.[q.id],
-        q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined
-      );
-      pointsEarned = g.pointsEarned;
-      state = g.state;
-    }
+    const g = gradeGroupAnswer(
+      q,
+      answer?.answer ?? '',
+      input.manualGrades?.[q.id],
+      q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined
+    );
+    const pointsEarned = g.pointsEarned;
+    let state: string = g.state;
+    const writtenOnPaper =
+      input.paperWrittenQuestionIds?.includes(q.id) ?? false;
     // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
     if (
       state === 'not-attempted' &&
-      (paperAnswerOwed(answer?.paperTranscript) ||
-        (input.paperWrittenQuestionIds?.includes(q.id) &&
-          answer?.paperTranscript !== 'blank'))
+      ((input.paperAttested === true &&
+        (q.type === 'free-response' || writtenOnPaper) &&
+        paperAnswerOwed(answer?.paperTranscript)) ||
+        (writtenOnPaper && answer?.paperTranscript !== 'blank'))
     )
       state = 'awaiting-grade';
     if (state === 'no-key') noKey = true;
@@ -434,6 +431,9 @@ export function scoreQuizResponse(
     paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
       session.paperWrittenQuestionIds
     ),
+    paperAttested:
+      asString(response.paperBatchId) !== '' ||
+      asString(response.paperWrittenBatchId) !== '',
   });
   const base = {
     classId: parsed.classId ?? null,
@@ -478,7 +478,7 @@ export function scoreQuizResponse(
   };
 }
 
-/** Video activity: stored `score` after publish, else live from the key or stored correctness. */
+/** Video activity: stored `score` after publish, else live from the key; a key-less question earns nothing. */
 export function scoreVideoResponse(
   session: Doc,
   response: Doc,
@@ -493,7 +493,6 @@ export function scoreVideoResponse(
       questionId: asString(a.questionId),
       answer: asString(a.answer),
       answeredAt: toMillis(a.answeredAt) ?? undefined,
-      isCorrect: typeof a.isCorrect === 'boolean' ? a.isCorrect : undefined,
     }));
   const completedAt = toMillis(response.completedAt);
   const attemptsDone =
@@ -514,7 +513,6 @@ export function scoreVideoResponse(
       Object.keys(live).length > 0
         ? asStrings(live.askedQuestionIds)
         : undefined,
-    useStoredCorrectness: true,
     manualGrades: parseManualGrades(
       currentShortAnswerGrading(response.grading, response.answers)
     ),
@@ -590,7 +588,7 @@ export function guidedLearningEvidence(
   );
 }
 
-/** Guided learning: gradable steps are the ones carrying a question; one point each. */
+/** Guided learning: gradable steps are the ones carrying a question; one point each, scored once publish stores `score`. */
 export function scoreGuidedLearningResponse(
   session: Doc,
   response: Doc,
@@ -605,15 +603,6 @@ export function scoreGuidedLearningResponse(
   );
   const answers = (Array.isArray(response.answers) ? response.answers : []).map(
     asRecord
-  );
-  const correct = new Set(
-    answers
-      .filter(
-        (a) =>
-          a.isCorrect === true &&
-          (gradable.size === 0 || gradable.has(asString(a.stepId)))
-      )
-      .map((a) => asString(a.stepId))
   );
   const max = gradable.size > 0 ? gradable.size : null;
   const completedAt = toMillis(response.completedAt);
@@ -636,11 +625,15 @@ export function scoreGuidedLearningResponse(
       attemptNumber: null,
     };
   }
-  const rawPct = stored ?? (max ? pctOf(correct.size, max) : null);
+  // `isCorrect` is student-writable until publish grades from the key, so only a stored score counts.
+  const rawPct = stored;
   return {
     classId,
     published,
-    targetEvidence: guidedLearningEvidence(gradable, answers, stepTargets),
+    targetEvidence:
+      stored !== null
+        ? guidedLearningEvidence(gradable, answers, stepTargets)
+        : [],
     rawPct,
     points:
       rawPct !== null && max !== null ? round2((rawPct / 100) * max) : null,
@@ -736,6 +729,20 @@ export function scoreMiniAppBest(
     maxScore <= 0
   )
     return null;
+  // An app-graded score and max are the student's payload; they wait for the teacher's mark.
+  if (best.gradedBy === 'app')
+    return {
+      classId,
+      published: session.showCorrectAnswers !== false,
+      targetEvidence: [],
+      rawPct: null,
+      points: null,
+      max: null,
+      state: 'awaiting-grade',
+      submittedAt: toMillis(submission.submittedAt),
+      attemptNumber: null,
+      gradedBy: 'app',
+    };
   return {
     classId,
     // With answers hidden the student never got this score back (D9), so it waits for the teacher to publish.
@@ -747,9 +754,17 @@ export function scoreMiniAppBest(
     state: 'scored',
     submittedAt: toMillis(submission.submittedAt),
     attemptNumber: null,
-    gradedBy: best.gradedBy === 'app' ? 'app' : 'server',
+    gradedBy: 'server',
   };
 }
 
-export const rowId = (sessionId: string, studentUid: string): string =>
+/** Kind is part of the id so a same-id session of another kind never holds this row. */
+export const rowId = (
+  kind: string,
+  sessionId: string,
+  studentUid: string
+): string => `${kind}__${sessionId}__${studentUid}`;
+
+/** Pre-kind row id; also the `gradebook_marks` id. */
+export const legacyRowId = (sessionId: string, studentUid: string): string =>
   `${sessionId}__${studentUid}`;

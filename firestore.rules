@@ -333,6 +333,11 @@ service cloud.firestore {
                 ? d.classId in request.auth.token.classIds
                 : s.get('accessMode', '') != 'assessment'));
     }
+    // A studentRole response names only a class from its own claim, period access or not.
+    function claimClassOk(d) {
+      return !isStudentRoleUser() || d.get('classId', null) == null ||
+             d.classId in tok().get('classIds', []);
+    }
 
     // Per-period content docs: the caller's seat names their response, whose
     // classId picks the period. `coll`/`sid` locate the session.
@@ -4817,7 +4822,7 @@ service cloud.firestore {
           runOpen(sessionData()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(sessionData()) &&
-          periodJoinOk(sessionData(), incoming()) &&
+          periodJoinOk(sessionData(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(sessionData(), incoming()) &&
           joinKeyOk(sessionData(), responseKey) &&
           // The PIN is short text the hourly archive email quotes.
@@ -5641,7 +5646,7 @@ service cloud.firestore {
           runOpen(vaS()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(vaS()) &&
-          periodJoinOk(vaS(), incoming()) &&
+          periodJoinOk(vaS(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(vaS(), incoming()) &&
           joinKeyOk(vaS(), responseDocId) &&
           // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1.

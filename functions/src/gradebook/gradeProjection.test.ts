@@ -234,6 +234,46 @@ describe('projectRow', () => {
     ]);
   });
 
+  it("never lets another owner replace a class's standards, scale or entries", async () => {
+    const stub = makeStubFirestore({
+      'users/t1/gradebook_classes/r1': {
+        configRef: { source: 'personal', configId: 'cfg1' },
+      },
+      'users/t1/gradebook_settings/cfg1': {
+        studentVisibility: { standards: true },
+        method: 'mean',
+      },
+    });
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    const before = stub.get(PATH);
+    expect(before?.standards).not.toBeNull();
+    // Teacher t2 projects into the same class, including under t1's session id.
+    await projectRow(
+      db,
+      row({ ownerUid: 't2', sessionId: 'x1', rawPct: 100, points: 10 }),
+      null,
+      NOW + 1
+    );
+    await projectRow(
+      db,
+      row({ ownerUid: 't2', rawPct: 100, points: 10 }),
+      null,
+      NOW + 1
+    );
+    const after = stub.get(PATH);
+    expect(after).toMatchObject({
+      ownerUid: 't1',
+      standards: before?.standards,
+      levelNames: before?.levelNames,
+      cutoffs: before?.cutoffs,
+    });
+    expect(entryOf(stub)).toEqual(
+      (before?.entries as Record<string, StubData>).qs1
+    );
+    expect(entryOf(stub, 'x1')).toMatchObject({ ownerUid: 't2' });
+  });
+
   it('keeps other assignments when one entry goes', async () => {
     const stub = makeStubFirestore({
       [PATH]: { entries: { other: { pct: 50 }, qs1: { pct: 80 } } },
@@ -371,16 +411,24 @@ describe('triggers', () => {
   it('re-projects a row when its mark changes', async () => {
     const stub = makeStubFirestore({
       'admin_settings/gradebook_index': { enabled: true },
-      'grade_index/qs1__u1': row() as unknown as StubData,
+      'grade_index/quiz__qs1__u1': row() as unknown as StubData,
       'gradebook_marks/qs1__u1': {
         ownerUid: 't1',
+        sessionId: 'qs1',
+        studentUid: 'u1',
         comment: { text: 'See me', shared: true, at: 1 },
       },
     });
     vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
     await (gradeIndexMark as unknown as Handler)({
       params: { markId: 'qs1__u1' },
-    });
+      data: {
+        after: {
+          exists: true,
+          data: () => ({ ownerUid: 't1', sessionId: 'qs1', studentUid: 'u1' }),
+        },
+      },
+    } as { params: Record<string, string> });
     expect(entryOf(stub)).toMatchObject({ comment: 'See me' });
   });
 
