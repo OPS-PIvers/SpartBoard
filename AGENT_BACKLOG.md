@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-213**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-215**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -18,6 +18,9 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 ## Ready
 
 ### Security and correctness
+
+- **AB-213 Choose-N pick follow-ups** (S). From the 2026-11-14 PR sweep integration review of #5778. (1) Reopen (`hooks/useQuizSession.ts`, unlock/reopen) deletes `countedChoices` including `revived`, but an answer the teacher picked back from `unresponded: 'passed'` stays a real answer, so after reopen first-N scoring can count it and "Use the first N" can't set it aside again; restore `unresponded` for the `revived` ids on reopen (and on paper re-import, `functions/src/importPaperResponses.ts`). (2) The site-admin branch of the response update rule (`firestore.rules`, `isSiteAdmin() && !changed([...])`) excludes `liveView` but not `countedChoices`; decide with the `resultsOverride` precedent and add it if admins shouldn't change picks, with a rules test. Before `choose-n-pick-counted` opens.
+- **AB-214 Live view follow-ups** (S). From the 2026-11-14 PR sweep reviews of #5772. (1) `deleteAssignment` (`hooks/useQuizAssignments.ts`) leaves `quiz_sessions/{id}/responses/*/live/state` behind once the session doc is gone; delete them before the session, as `removeStudent` does. (2) `LiveViewPanel` re-renders the whole mirror every second through `useServerNow(1000)`; move the ticking stats into their own component. (3) `studentQuestionOrder` (`utils/quizLiveView.ts`) uses the live session's shuffle setting, not the attempt's latched one, so a mid-attempt shuffle edit makes the question number in the stats and log disagree with the mirror. (4) Nudge notes fall back to English for quiz languages other than es, fr and de. Before `quiz-live-view` opens.
 
 - **AB-210 Calendar admin settings: no Save until a read succeeds** (S). From release 2026.11.13c review of #5742. `components/admin/CalendarConfigurationModal.tsx` `fetchConfig` clears `loadFailed` before `getDoc` settles, and the Save button is only disabled on `saving || loadFailed`, so during the first load or a "Try again" retry Save writes the default config (empty `blockedDates`) over the real doc. Disable Save and return early in `handleSave` while `loading`, and test a Save click during a pending retry. Also: "Sync All" still shows its success toast when `handleSave` returned early.
 - **AB-198 Building-keyed configs: prefer the canonical key over a legacy alias** (S). `canonicalizeBuildingKeyedRecord` (`config/buildings.ts`) lets the later key win when a legacy alias (`schumann-elementary`) and its canonical id (`schumann`) both exist, and Firestore returns map keys sorted, so the stale alias wins for every reader (dock defaults, `buildingDefaults` in widget configs). Release #5606 fixed only the calendar fetcher (#5604). Make the function prefer the canonical key, with a test, and check readers that index the raw map. From release #5606 review.
@@ -319,6 +322,9 @@ claude/project-thread-zsvnns
 claude/project-thread-zsvnns-ab112
 claude/project-thread-59pkq4
 claude/ab112-grammarly
+claude/project-thread-dmpjbw
+feat/quiz-live-view
+claude/project-thread-ucbftr
 
 ```
 git push origin --delete claude/project-thread-1ylvse
