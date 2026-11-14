@@ -16,6 +16,7 @@ import {
   computeVideoActivityScorePct,
   firstVaAnswers,
   gradeVideoActivityAnswer,
+  liveScoredResponse,
 } from '@/utils/videoActivityGrading';
 import { isVaResponseCompleted } from '@/utils/videoActivityState';
 import { staffResultsLabel } from '@/utils/staffAudience';
@@ -55,9 +56,11 @@ export function vaResponsePeriod(
 export function buildVaStudent(
   r: VideoActivityResponse,
   questions: VideoActivityQuestion[],
-  name: string
+  name: string,
+  live = false
 ): VaMonitorStudent {
-  const first = firstVaAnswers(r.answers);
+  const answers = (live ? liveScoredResponse(r) : r).answers;
+  const first = firstVaAnswers(answers);
   const marks = questions.map<VaMark>((q) => {
     const a = first.get(q.id);
     if (a === undefined) return 'open';
@@ -74,8 +77,8 @@ export function buildVaStudent(
     bucket,
     marks,
     score:
-      bucket === 'done' && canScoreVideoActivityResponse(questions, r.answers)
-        ? computeVideoActivityScorePct(questions, r.answers, r.grading)
+      bucket === 'done' && canScoreVideoActivityResponse(questions, answers)
+        ? computeVideoActivityScorePct(questions, answers, r.grading)
         : null,
     tabWarnings: r.tabSwitchWarnings ?? 0,
   };

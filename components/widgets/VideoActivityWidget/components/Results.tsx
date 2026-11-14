@@ -217,6 +217,10 @@ export const Results: React.FC<ResultsProps> = ({
   );
   const totalStudents = responses.length;
   const isLive = isLiveVideoActivitySession(session);
+  const scoredResponses = useMemo(
+    () => (isLive ? responses.map(liveScoredResponse) : responses),
+    [isLive, responses]
+  );
   const notAskedIds = useMemo(
     () => notAskedVideoActivityQuestionIds(session, questions),
     [session, questions]
@@ -385,7 +389,7 @@ export const Results: React.FC<ResultsProps> = ({
   }, [responses, scoredQuestions, isLive]);
 
   const getQuestionAccuracy = (question: VideoActivityQuestion): number =>
-    computeQuestionAccuracy(question, responses);
+    computeQuestionAccuracy(question, scoredResponses);
 
   const formatTimestamp = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -997,7 +1001,10 @@ export const Results: React.FC<ResultsProps> = ({
                     scoredQuestions,
                     r.answers
                   );
-                  const correct = countCorrectAnswers(r, scoredQuestions);
+                  const correct = countCorrectAnswers(
+                    isLive ? liveScoredResponse(r) : r,
+                    scoredQuestions
+                  );
                   const awaitingMark =
                     isVaResponseCompleted(r) &&
                     isVideoActivityResponseAwaitingGrade(scoredQuestions, r);

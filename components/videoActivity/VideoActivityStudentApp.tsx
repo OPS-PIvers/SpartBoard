@@ -1092,9 +1092,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       ? typeof myResponse?.score === 'number'
         ? myResponse.score
         : null
-      : // No stored verdicts (score-only publish, free identity): fall back to the score.
-        !hasVerdicts && typeof myResponse?.score === 'number'
-        ? myResponse.score
+      : // No stored verdicts (score-only publish, free identity): the score is the only figure.
+        !hasVerdicts
+        ? typeof myResponse?.score === 'number'
+          ? myResponse.score
+          : null
         : correctTotal > 0
           ? Math.round((correct / correctTotal) * 100)
           : null;
@@ -1137,15 +1139,17 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                           {correct} of {correctTotal} correct
                         </p>
                       )}
-                      {correctTotal < totalQuestions && (
-                        <p className="text-slate-500 text-xs mt-1">
-                          Your teacher is still marking{' '}
-                          {totalQuestions - correctTotal === 1
-                            ? '1 answer'
-                            : `${totalQuestions - correctTotal} answers`}
-                          .
-                        </p>
-                      )}
+                      {showCounts &&
+                        hasVerdicts &&
+                        correctTotal < totalQuestions && (
+                          <p className="text-slate-500 text-xs mt-1">
+                            Your teacher is still marking{' '}
+                            {totalQuestions - correctTotal === 1
+                              ? '1 answer'
+                              : `${totalQuestions - correctTotal} answers`}
+                            .
+                          </p>
+                        )}
                     </div>
                   )}
 

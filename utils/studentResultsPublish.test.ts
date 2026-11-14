@@ -180,6 +180,7 @@ describe('VA graded entry is the first by list position', () => {
       true
     );
     expect(graded.score).toBe(0);
+    expect(graded.answers[0].isCorrect).toBeUndefined();
     const recorded = gradeVideoActivityResponseForPublish(
       {
         answers: [{ questionId: 'q1', answer: 'a', answeredAt: 9000 }],

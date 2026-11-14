@@ -98,13 +98,14 @@ export function gradeVideoActivityResponseForPublish(
       a.answer,
       grading?.[a.questionId]
     );
-    if (representativeAnswers.get(a.questionId) === a) {
+    const scored = representativeAnswers.get(a.questionId) === a;
+    if (scored) {
       pointsEarned += result.pointsEarned;
       pointsMax += result.pointsMax;
       if (result.state === 'awaiting-grade') awaiting = true;
     }
-    // An unmarked short answer is neither right nor wrong yet.
-    if (result.state === 'awaiting-grade') {
+    // Unmarked short answers, and live entries the check never recorded, carry no verdict.
+    if ((live && !scored) || result.state === 'awaiting-grade') {
       const { isCorrect: _stale, ...rest } = a;
       void _stale;
       return rest;
@@ -148,12 +149,7 @@ function priorVerdictsOnly(
   );
 }
 
-/**
- * Publish's graded answers as written to the student-readable response: an open
- * attempt keeps only the verdicts it already had, and a finished one carries
- * right/wrong only when the session (not live, not a free pin identity), the
- * class level or its shown override shows them.
- */
+/** Graded answers for the student doc; verdicts kept only where results are shown. */
 export function vaPublishedAnswers(
   data: Pick<
     VideoActivityResponse,
