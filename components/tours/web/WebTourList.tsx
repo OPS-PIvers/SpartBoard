@@ -17,6 +17,7 @@ import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour
 import { logError } from '@/utils/logError';
 import { buildTourUrl, webTourSite } from './tourLinks';
 import { useCopyWebTourLink } from './useCopyWebTourLink';
+import { countsText, useTourCounts } from './useTourCounts';
 import { checkPasses, currentCheckResults } from './webStepReview';
 
 const rowBtn = `inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-50 ${focusRing}`;
@@ -61,6 +62,7 @@ const WebTourRow: React.FC<{
     menuCopies: true,
     published: published.loaded ? (live?.set ?? null) : undefined,
   });
+  const counts = useTourCounts(set.id, !!live);
   const [copy, setCopy] = useState<'idle' | 'working' | 'done'>('idle');
   const timer = useRef<number | null>(null);
   useEffect(
@@ -118,6 +120,14 @@ const WebTourRow: React.FC<{
             <span className={`text-xs ${chromeMuted}`}>
               {stepCount} step{stepCount === 1 ? '' : 's'}
               {site ? ` · ${site}` : ''}
+              {counts && (
+                <span
+                  data-testid="web-tour-counts"
+                  title="Plays count each time someone starts the tour in the Chrome extension. Link views count opens of the public link page."
+                >
+                  {` · ${countsText(counts, publicLink.status.kind === 'on')}`}
+                </span>
+              )}
             </span>
             {published.loaded && (
               <Badge

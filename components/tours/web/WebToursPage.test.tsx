@@ -53,6 +53,11 @@ vi.mock('./WebTourEditorRosters', () => ({
 vi.mock('./useCopyWebTourLink', () => ({
   useCopyWebTourLink: () => h.copy,
 }));
+vi.mock('./useTourCounts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./useTourCounts')>()),
+  useTourCounts: (_id: string, enabled: boolean) =>
+    enabled ? { plays: 12, finished: 1, linkViews: 0 } : null,
+}));
 vi.mock('@/components/tours/publishedTours', () => ({
   usePublishedTour: (id: string) => ({
     loaded: true,
@@ -115,7 +120,10 @@ describe('WebToursPage', () => {
     expect(rows[0]).toHaveTextContent('Newer tour');
     expect(rows[0]).toHaveTextContent('Published');
     expect(rows[0]).toHaveTextContent('1 step · example.com');
+    expect(rows[0]).toHaveTextContent('12 plays · 1 finished');
+    expect(rows[0]).not.toHaveTextContent('link view');
     expect(rows[1]).toHaveTextContent('Draft');
+    expect(rows[1]).not.toHaveTextContent('plays');
     expect(
       screen.getByRole('button', { name: 'Play Older tour' })
     ).toBeDisabled();
