@@ -11,7 +11,11 @@ import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGat
 const renderLocked = (backHref?: string) =>
   render(
     <ResultsProtectionGate
-      protection={{ tabWarningEnabled: true, tabWarningThreshold: 3 }}
+      protection={{
+        watermarkEnabled: false,
+        tabWarningEnabled: true,
+        tabWarningThreshold: 3,
+      }}
       responseDocPath="sessions/s/responses/r"
       tabWarnings={3}
       lockedOut
