@@ -11,10 +11,10 @@ import {
   compareStudents,
   matchesFilter,
 } from '@/components/widgets/QuizWidget/components/monitor/monitorUtils';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
   canScoreVideoActivityResponse,
   computeVideoActivityScorePct,
+  firstVaAnswers,
   gradeVideoActivityAnswer,
 } from '@/utils/videoActivityGrading';
 import { isVaResponseCompleted } from '@/utils/videoActivityState';
@@ -57,7 +57,7 @@ export function buildVaStudent(
   questions: VideoActivityQuestion[],
   name: string
 ): VaMonitorStudent {
-  const first = selectRepresentativeAnswers(r.answers);
+  const first = firstVaAnswers(r.answers);
   const marks = questions.map<VaMark>((q) => {
     const a = first.get(q.id);
     if (a === undefined) return 'open';

@@ -16,13 +16,23 @@ import type {
   VideoActivityResponse,
   VideoActivitySession,
 } from '@/types';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
-import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
+import {
+  isLiveVideoActivitySession,
+  scoredVideoActivityQuestions,
+} from '@/utils/videoActivityLive';
 import {
   currentShortAnswerGrading,
   dedupeQuestionsById,
+  firstVaAnswers,
   gradeVideoActivityAnswer,
+  liveScoredResponse,
 } from '@/utils/videoActivityGrading';
+import { videoActivityAnswerRules } from '@/utils/videoActivityAnswerRules';
+import {
+  activeResultsOverride,
+  answersWithoutVerdicts,
+  visibilityShowsResponses,
+} from '@/utils/quizResultsVisibility';
 import {
   dedupeStepsById,
   isAnswerCorrect,
@@ -64,15 +74,18 @@ export function formatCanonicalAnswer(step: GuidedLearningStep): string | null {
 /** Grades one VA response the way a class publish does. */
 export function gradeVideoActivityResponseForPublish(
   data: VideoActivityResponse,
-  questionsById: ReadonlyMap<string, VideoActivityQuestion>
+  questionsById: ReadonlyMap<string, VideoActivityQuestion>,
+  live = false
 ): { score: number | null; answers: VideoActivityAnswer[] } {
   const answers = Array.isArray(data.answers) ? data.answers : [];
   const grading = currentShortAnswerGrading(data);
   let pointsEarned = 0;
   let pointsMax = 0;
   let awaiting = false;
-  // One representative answer per question, so duplicates can't inflate the totals.
-  const representativeAnswers = selectRepresentativeAnswers(answers);
+  // The first entry per question counts; a live run counts only what the check callable recorded.
+  const representativeAnswers = firstVaAnswers(
+    live ? liveScoredResponse({ ...data, answers }).answers : answers
+  );
   const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
     const q = questionsById.get(a.questionId);
     if (!q) {
@@ -99,7 +112,7 @@ export function gradeVideoActivityResponseForPublish(
     return { ...a, isCorrect: result.isCorrect };
   });
   // Unanswered questions count toward the denominator, so a blank response scores 0%.
-  const answered = new Set(answers.map((a) => a.questionId));
+  const answered = new Set(representativeAnswers.keys());
   for (const [qId, q] of questionsById) {
     if (!answered.has(qId)) pointsMax += q.points ?? 1;
   }
@@ -110,6 +123,50 @@ export function gradeVideoActivityResponseForPublish(
       ? 0
       : Math.round((pointsEarned / pointsMax) * 100);
   return { score, answers: gradedAnswers };
+}
+
+/** True when the session already shows students right/wrong as they answer (or on a live reveal). */
+export function vaSessionShowsResults(
+  session: Partial<VideoActivitySession> | undefined
+): boolean {
+  return (
+    isLiveVideoActivitySession(session) ||
+    videoActivityAnswerRules(session ?? null).showResult
+  );
+}
+
+/**
+ * Publish's graded answers as written to the student-readable response: an open
+ * attempt keeps only the verdicts it already had, and a finished one carries
+ * right/wrong only when the session, the class level or its shown override shows them.
+ */
+export function vaPublishedAnswers(
+  data: Pick<
+    VideoActivityResponse,
+    'answers' | 'completedAt' | 'resultsOverride'
+  >,
+  graded: VideoActivityAnswer[],
+  visibility: QuizScoreVisibility,
+  now: number,
+  sessionShowsResults: boolean
+): VideoActivityAnswer[] {
+  const stripped = answersWithoutVerdicts(graded);
+  if (typeof data.completedAt !== 'number') {
+    const before = Array.isArray(data.answers) ? data.answers : [];
+    return stripped.map((a, i) =>
+      typeof before[i]?.isCorrect === 'boolean'
+        ? { ...a, isCorrect: before[i].isCorrect }
+        : a
+    );
+  }
+  const override = activeResultsOverride(data.resultsOverride, now);
+  const keep =
+    override?.mode !== 'hidden' &&
+    (sessionShowsResults ||
+      visibilityShowsResponses(visibility) ||
+      (override?.mode === 'shown' &&
+        visibilityShowsResponses(override.visibility)));
+  return keep ? graded : stripped;
 }
 
 /** Grades one GL response the way a class publish does. */
@@ -216,21 +273,36 @@ export async function publishVideoActivityResultsForStudents(
     deduped
   );
   const questionsById = new Map(scored.map((q) => [q.id, q]));
+  const sessionData = sessionSnap.data() as
+    Partial<VideoActivitySession> | undefined;
+  const live = isLiveVideoActivitySession(sessionData);
+  const showsResults = vaSessionShowsResults(sessionData);
   const revealedAnswers: Record<string, string> = {};
   for (const q of deduped) revealedAnswers[q.id] = q.correctAnswer;
   return publishForStudents<VideoActivityResponse>(
     VA_SESSIONS_COLLECTION,
     sessionId,
     responseKeys,
-    (data) => ({
-      ...gradeVideoActivityResponseForPublish(data, questionsById),
-      resultsOverride: shownOverride(
-        visibility,
-        expiresAt,
-        revealedAnswers,
-        protection
-      ),
-    })
+    (data) => {
+      const graded = gradeVideoActivityResponseForPublish(
+        data,
+        questionsById,
+        live
+      );
+      return {
+        score: graded.score,
+        answers:
+          showsResults || visibilityShowsResponses(visibility)
+            ? graded.answers
+            : answersWithoutVerdicts(graded.answers),
+        resultsOverride: shownOverride(
+          visibility,
+          expiresAt,
+          revealedAnswers,
+          protection
+        ),
+      };
+    }
   );
 }
 

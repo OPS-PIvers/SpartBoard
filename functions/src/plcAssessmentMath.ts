@@ -1057,7 +1057,15 @@ export function computeAssessmentAggregate(
         if (q) q.served++;
       }
 
-      const representative = selectRepresentativeAnswers(answers);
+      // A VA's graded answer is its first entry by list position, never a student-ordered duplicate.
+      const representative = selectRepresentativeAnswers(
+        input.kind === 'video-activity'
+          ? answers.filter(
+              (a, i) =>
+                answers.findIndex((b) => b.questionId === a.questionId) === i
+            )
+          : answers
+      );
 
       // Grade locally from the answer key so unpublished sessions still score;
       // any served question without a key or an owed manual grade blocks the score.

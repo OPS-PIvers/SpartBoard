@@ -44,6 +44,7 @@ import {
   buildVideoActivityGradeEntries,
   countVideoActivityAnswersToMark,
   isVideoActivityResponseAwaitingGrade,
+  liveScoredResponse,
 } from '@/utils/videoActivityGrading';
 import { VaShortAnswerMarking } from './results/VaShortAnswerMarking';
 import {
@@ -304,8 +305,13 @@ export const Results: React.FC<ResultsProps> = ({
     return g.isCorrect ? 'correct' : 'incorrect';
   };
 
+  // A live run scores only answers the check callable recorded.
   const getStudentScore = (r: VideoActivityResponse): number =>
-    computeVideoActivityScorePct(scoredQuestions, r.answers, r.grading);
+    computeVideoActivityScorePct(
+      scoredQuestions,
+      (isLive ? liveScoredResponse(r) : r).answers,
+      r.grading
+    );
 
   // Answered short answers still to mark, across completed responses.
   const toMarkCount = useMemo(
@@ -356,7 +362,7 @@ export const Results: React.FC<ResultsProps> = ({
         ) {
           const pct = computeVideoActivityScorePct(
             scoredQuestions,
-            r.answers,
+            (isLive ? liveScoredResponse(r) : r).answers,
             r.grading
           );
           scoreSum += pct;
@@ -375,7 +381,7 @@ export const Results: React.FC<ResultsProps> = ({
       avgScore: scoredCount > 0 ? Math.round(scoreSum / scoredCount) : null,
       scores: scorePcts,
     };
-  }, [responses, scoredQuestions]);
+  }, [responses, scoredQuestions, isLive]);
 
   const getQuestionAccuracy = (question: VideoActivityQuestion): number =>
     computeQuestionAccuracy(question, responses);
@@ -516,7 +522,12 @@ export const Results: React.FC<ResultsProps> = ({
     // Unscoreable/incomplete responses are excluded so we never pop a consent
     // dialog for nothing — or PATCH a phantom 0 into the real gradebook.
     const grades = withFinalScores(
-      buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
+      buildVideoActivityGradeEntries(
+        responses,
+        scoredQuestions,
+        maxPoints,
+        isLive
+      ),
       maxPoints
     );
     if (grades.length === 0) {
@@ -589,7 +600,12 @@ export const Results: React.FC<ResultsProps> = ({
     // push and the Publish=Push chaining) so nothing drifts.
     const maxPoints = videoActivityMaxPoints(questions);
     const grades = withFinalScores(
-      buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
+      buildVideoActivityGradeEntries(
+        responses,
+        scoredQuestions,
+        maxPoints,
+        isLive
+      ),
       maxPoints
     );
     if (grades.length === 0) {
@@ -650,7 +666,12 @@ export const Results: React.FC<ResultsProps> = ({
       }
       const maxPoints = videoActivityMaxPoints(questions);
       const scored = withFinalScores(
-        buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
+        buildVideoActivityGradeEntries(
+          responses,
+          scoredQuestions,
+          maxPoints,
+          isLive
+        ),
         maxPoints
       );
       return {

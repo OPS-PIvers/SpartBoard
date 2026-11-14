@@ -1178,10 +1178,8 @@ describe('useVideoActivityAssignments — publishAssignmentScores', () => {
     expect((responseCall[1] as { score: number }).score).toBe(50);
   });
 
-  it('credits the earliest-answeredAt duplicate even when it is stored last in the array', async () => {
-    // VideoActivityAnswer has no takeIndex field, so duplicate entries always
-    // tie at the implicit takeIndex 0 and fall through to the answeredAt
-    // tie-break — this must hold regardless of raw array order.
+  it('credits the first entry by list position, never a later duplicate with an earlier answeredAt', async () => {
+    // answeredAt is student-written, so it never picks the graded entry.
     const refStudent = { id: 'r-reverse-order' };
     mockGetDocs.mockResolvedValueOnce({
       docs: [
@@ -1215,8 +1213,8 @@ describe('useVideoActivityAssignments — publishAssignmentScores', () => {
       ([ref]) => ref === refStudent
     );
     if (!responseCall) throw new Error('expected update on response ref');
-    // Earliest-answeredAt (correct) entry wins → earned=1, max=2 (q1 unanswered) → 50.
-    expect((responseCall[1] as { score: number }).score).toBe(50);
+    // The first (wrong) entry is graded → earned=0, max=2 → 0.
+    expect((responseCall[1] as { score: number }).score).toBe(0);
   });
 
   it('scores every response across more than one page (limit + cursor paging)', async () => {

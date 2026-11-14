@@ -5603,6 +5603,12 @@ service cloud.firestore {
         function vaGate() {
           return passesStudentClassGateCompat(vaS().get('classIds', []), vaS().get('classId', ''));
         }
+        // An appended answer: no takeIndex, never one for a question the server recorded this attempt.
+        function vaNewAnswerOk(a) {
+          return !('takeIndex' in a) &&
+            existing().get('checkedAnswers', {}).get(a.questionId, {}).get('attempt', -1) !=
+              existing().get('completedAttempts', 0);
+        }
         function nearServerNow(t) {
           return t is number && t > request.time.toMillis() - 120000 && t < request.time.toMillis() + 120000;
         }
@@ -5705,6 +5711,11 @@ service cloud.firestore {
              (existing().answers.size() == 0 ||
               (incoming().answers.size() >= existing().answers.size() &&
                incoming().answers[0:existing().answers.size()] == existing().answers))) &&
+            // One appended answer per write; a live run's answers go only through the check callable.
+            (incoming().answers.size() <= existing().answers.size() ||
+             (vaS().get('sessionMode', 'student') != 'teacher' &&
+              incoming().answers.size() == existing().answers.size() + 1 &&
+              vaNewAnswerOk(incoming().answers[existing().answers.size()]))) &&
             notDecreased('tabSwitchWarnings') &&
             notDecreased('completedAttempts') &&
             // Attempt-cap enforcement — last line of defense behind the

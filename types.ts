@@ -8237,6 +8237,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   studentUid: string;
   joinedAt: number;
   answers: VideoActivityAnswer[];
+  /** Answers the check callable recorded, by question id; students can't write it. */
+  checkedAnswers?: Record<string, { answer?: string; attempt?: number }>;
   completedAt: number | null;
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */

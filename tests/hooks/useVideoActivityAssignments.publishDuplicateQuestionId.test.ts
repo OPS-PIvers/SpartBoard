@@ -126,6 +126,7 @@ describe('useVideoActivityAssignments — publishAssignmentScores duplicate ques
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            completedAt: 5,
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
