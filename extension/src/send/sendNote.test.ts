@@ -26,7 +26,7 @@ describe('sendNote', () => {
     ).toBe('Sent this lesson to SpartBoard.');
     expect(
       sendNote({ kind: 'reply', reply, lesson: { skipped: 2 } }).text
-    ).toMatch(/2 questions SpartBoard has no kind for were left out/);
+    ).toMatch(/2 questions SpartBoard has no kind for were skipped/);
     expect(
       sendNote({ kind: 'reply', reply, fellBack: 'edpuzzle' }).text
     ).toMatch(/^The Edpuzzle reader couldn't read this page/);

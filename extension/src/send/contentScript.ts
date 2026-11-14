@@ -243,47 +243,46 @@ async function sendQuizlet(id: string): Promise<SendNote> {
 async function sendGoogleForm(page: FormPage): Promise<SendNote> {
   progress('Reading…');
   const read = await readGoogleForm(page, document);
-  if (!read.ok && page.kind === 'view')
-    return sendGeneric({
-      platform: GOOGLE_FORMS_PLATFORM,
-      reason: read.reason.slice(0, 500),
-    });
-  const title = read.ok
-    ? read.title
-    : document.title.replace(/\s+-\s+Google Forms\s*$/i, '').trim() ||
-      'Google Form';
+  if (!read.ok) {
+    if (page.kind === 'view')
+      return sendGeneric({
+        platform: GOOGLE_FORMS_PLATFORM,
+        reason: read.reason.slice(0, 500),
+      });
+    // The editor's own text still goes, with the form id so SpartBoard can read the form itself.
+    const request = readPage(window);
+    progress('Sending…');
+    const reply = await ask<SendReply>({
+      type: 'send/page',
+      request: {
+        ...request,
+        platform: GOOGLE_FORMS_PLATFORM,
+        form: { formId: page.formId, items: [] },
+        readerFailure: {
+          platform: GOOGLE_FORMS_PLATFORM,
+          reason: read.reason.slice(0, 500),
+        },
+      },
+    }).catch(() => undefined);
+    return sendNote({ kind: 'reply', reply, fellBack: GOOGLE_FORMS_PLATFORM });
+  }
   progress('Sending…');
   const reply = await ask<SendReply>({
     type: 'send/page',
     request: {
       url: pageUrl(location.href),
-      title,
+      title: read.title,
       platform: GOOGLE_FORMS_PLATFORM,
       selectionOnly: false,
-      blocks: read.ok
-        ? read.blocks
-        : [{ type: 'heading', level: 1, text: title }],
+      blocks: read.blocks,
       images: [],
-      form: read.ok
-        ? read.form
-        : {
-            ...(page.kind === 'edit' ? { formId: page.formId } : {}),
-            items: [],
-          },
-      ...(read.ok
-        ? {}
-        : {
-            readerFailure: {
-              platform: GOOGLE_FORMS_PLATFORM,
-              reason: read.reason.slice(0, 500),
-            },
-          }),
+      form: read.form,
     },
   }).catch(() => undefined);
   return sendNote({
     kind: 'reply',
     reply,
-    questions: read.ok ? read.questions : undefined,
+    questions: read.questions,
   });
 }
 

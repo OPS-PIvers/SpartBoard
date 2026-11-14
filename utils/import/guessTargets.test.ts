@@ -169,8 +169,7 @@ describe('guessTargets', () => {
       item: send({ form: { items: [{ kind: 'short', text: 'Name?' }] } }),
     });
     expect(g.guess).toBe('quiz');
-    expect(g.targets.slice(0, 2)).toEqual(['quiz', 'poll']);
-    expect(g.targets.filter((t) => t === 'quiz')).toEqual(['quiz']);
+    expect(g.targets).toEqual(['quiz', 'poll']);
   });
 
   it("doesn't offer a selection as a whole-page embed", () => {

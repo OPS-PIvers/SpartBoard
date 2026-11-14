@@ -189,6 +189,21 @@ describe('formFromApi', () => {
     expect(form.items).toHaveLength(7);
   });
 
+  it('reads a scale with no low as starting at 0', () => {
+    const got = formFromApi(
+      {
+        items: [
+          {
+            title: 'Zero to ten',
+            questionItem: { question: { scaleQuestion: { high: 10 } } },
+          },
+        ],
+      },
+      'f'
+    );
+    expect(got?.form.items[0]).toMatchObject({ low: 0, high: 10 });
+  });
+
   it('refuses a reply that is not a form', () => {
     expect(formFromApi({ error: { code: 403 } }, 'x')).toBeNull();
   });
@@ -258,7 +273,7 @@ describe('formToExtractedQuiz', () => {
     expect(extracted.images).toHaveLength(2);
     expect(extracted.warnings).toEqual([
       'Rating scales are not supported in quizzes.',
-      'Not imported: 1 date question, 1 video and 1 picture.',
+      'Skipped: 1 date question, 1 video and 1 picture.',
     ]);
   });
 
@@ -306,13 +321,29 @@ describe('formToExtractedQuiz', () => {
       'Answer choice limit exceeded. Options imported: a; b; c; d; e.',
     ]);
     expect(extracted.warnings[0]).toBe(
-      'Not imported: 2 answer choices past the most a question can hold.'
+      'Maximum answer options is 5. Additional options are skipped.'
     );
   });
 });
 
 describe('formToExtractedQuiz untick and choice room', () => {
   const none = () => Promise.resolve(null);
+  it('shows a picture after the last question with that question', async () => {
+    const pic = () =>
+      Promise.resolve({ blob: new Blob(['p']), contentType: 'image/png' });
+    const extracted = await formToExtractedQuiz(
+      'x',
+      {
+        items: [
+          { kind: 'short', text: 'Name the organelle' },
+          { kind: 'image', text: '', image: PIC(9) },
+        ],
+      },
+      pic
+    );
+    expect(extracted.questions[0].imageIds).toHaveLength(1);
+  });
+
   it('starts a name or email question unticked', async () => {
     const extracted = await formToExtractedQuiz(
       'x',
@@ -401,7 +432,7 @@ describe('formToPollQuestions', () => {
 });
 
 describe('formLeftOutSummary', () => {
-  it('is null when nothing was left out', () => {
+  it('is null when nothing was skipped', () => {
     expect(formLeftOutSummary({})).toBeNull();
   });
 });

@@ -29,6 +29,7 @@ import {
 import {
   conversionInputFor,
   importTypeOn,
+  isForm,
   importRoute,
   usesAi,
 } from './importTargets';
@@ -239,7 +240,7 @@ const OpenImportScreen: React.FC<
     // A board from a page is Magic Layout's engine, so it follows that flag.
     if (target === 'board') return canAccessFeature('dashboard-layout');
     const name = source.file?.name ?? '';
-    if (target === 'quiz' && QUIZ_DOCUMENT.test(name))
+    if (target === 'quiz' && (QUIZ_DOCUMENT.test(name) || isForm(source)))
       return canReadQuizDocuments;
     return true;
   };
@@ -382,7 +383,7 @@ const OpenImportScreen: React.FC<
     });
     if (over > 0)
       addToast(
-        '20 question limit reached. Additional questions were left out.',
+        '20 question limit reached. Additional questions were skipped.',
         'info'
       );
     else if (formHasPictures(form))

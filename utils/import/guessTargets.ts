@@ -173,10 +173,10 @@ export function guessTargets(source: ImportSource): TargetGuess {
           targets: ['videoActivity', ...DOCUMENT],
           guess: 'videoActivity',
         };
-      // A Google Form becomes a quiz or a poll.
+      // A Google Form becomes a quiz or a poll, nothing else.
       if (item.form)
         return {
-          targets: ['quiz', 'poll', ...DOCUMENT.filter((t) => t !== 'quiz')],
+          targets: ['quiz', 'poll'],
           guess: 'quiz',
         };
       // A reader that found a card set (D38) sends it as one.

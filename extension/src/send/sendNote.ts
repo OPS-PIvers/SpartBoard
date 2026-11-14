@@ -73,9 +73,9 @@ export function sendNote(input: SendNoteInput): SendNote {
     const { skipped } = input.lesson;
     const left =
       skipped === 1
-        ? ' 1 question SpartBoard has no kind for was left out.'
+        ? ' 1 question SpartBoard has no kind for was skipped.'
         : skipped > 1
-          ? ` ${skipped} questions SpartBoard has no kind for were left out.`
+          ? ` ${skipped} questions SpartBoard has no kind for were skipped.`
           : '';
     return {
       ok: true,

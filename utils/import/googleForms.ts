@@ -147,7 +147,8 @@ export function formFromApi(raw: unknown, formId: string): ApiForm | null {
       items.push({
         kind: 'scale',
         ...shared,
-        low: typeof s.low === 'number' ? s.low : 1,
+        // The API leaves out a low of 0.
+        low: typeof s.low === 'number' ? s.low : 0,
         high: typeof s.high === 'number' ? s.high : 5,
         ...(str(s.lowLabel) ? { lowLabel: str(s.lowLabel) } : {}),
         ...(str(s.highLabel) ? { highLabel: str(s.highLabel) } : {}),
@@ -257,7 +258,7 @@ async function copyPictures(
 const plural = (n: number, one: string, many: string) =>
   n === 1 ? `1 ${one}` : `${n} ${many}`;
 
-type QuizLeftOut = Partial<Record<ImportFormLeftOut | 'extraChoice', number>>;
+type QuizLeftOut = Partial<Record<ImportFormLeftOut, number>>;
 
 const LEFT_OUT: Record<keyof QuizLeftOut, (n: number) => string> = {
   date: (n) => plural(n, 'date question', 'date questions'),
@@ -265,11 +266,9 @@ const LEFT_OUT: Record<keyof QuizLeftOut, (n: number) => string> = {
   fileUpload: (n) => plural(n, 'file upload question', 'file upload questions'),
   video: (n) => plural(n, 'video', 'videos'),
   picture: (n) => plural(n, 'picture', 'pictures'),
-  extraChoice: (n) =>
-    `${plural(n, 'answer choice', 'answer choices')} past the most a question can hold`,
 };
 
-/** "Not imported: a, b and c." in a fixed order; null when nothing was. */
+/** "Skipped: a, b and c." in a fixed order; null when nothing was. */
 export function formLeftOutSummary(counts: QuizLeftOut): string | null {
   const parts = (Object.keys(LEFT_OUT) as (keyof QuizLeftOut)[])
     .filter((k) => (counts[k] ?? 0) > 0)
@@ -279,7 +278,7 @@ export function formLeftOutSummary(counts: QuizLeftOut): string | null {
     parts.length === 1
       ? parts[0]
       : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
-  return `Not imported: ${list}.`;
+  return `Skipped: ${list}.`;
 }
 
 /** Quizzes have no rating scale, so a form's scales and ratings stay out of a quiz. */
@@ -343,6 +342,11 @@ export async function formToExtractedQuiz(
   const pictures = await copyPictures(urls, fetchImage);
   const counts: QuizLeftOut = { ...form.leftOut };
   let scales = 0;
+  // The most choices a capped question kept, for the form-wide note.
+  let choiceCap = 0;
+  const capped = (kept: number, dropped: number) => {
+    if (dropped > 0) choiceCap = Math.max(choiceCap, kept);
+  };
   const add = (k: keyof QuizLeftOut, n: number) => {
     if (n > 0) counts[k] = (counts[k] ?? 0) + n;
   };
@@ -407,7 +411,7 @@ export async function formToExtractedQuiz(
           item.correct,
           multi
         );
-        add('extraChoice', dropped.length);
+        capped(options.length, dropped.length);
         push({
           warnings: limitNote(options, dropped.length),
           text,
@@ -477,7 +481,7 @@ export async function formToExtractedQuiz(
             (item.correct?.[r] ?? '').split('|'),
             multi
           );
-          add('extraChoice', dropped.length);
+          capped(options.length, dropped.length);
           push({
             warnings: limitNote(options, dropped.length),
             text: join(text, row),
@@ -492,6 +496,9 @@ export async function formToExtractedQuiz(
       }
     }
   }
+  // A picture after the last question shows with that question.
+  const last = questions.at(-1);
+  if (last && pending.length) last.imageIds.push(...pending);
   const leftOut = formLeftOutSummary(counts);
   return {
     title,
@@ -499,6 +506,11 @@ export async function formToExtractedQuiz(
     images: [...pictures.values()],
     warnings: [
       ...(scales ? [SCALES_LEFT_OUT] : []),
+      ...(choiceCap
+        ? [
+            `Maximum answer options is ${choiceCap}. Additional options are skipped.`,
+          ]
+        : []),
       ...(leftOut ? [leftOut] : []),
     ],
   };
