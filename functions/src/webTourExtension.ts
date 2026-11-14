@@ -553,17 +553,42 @@ export async function fetchTokenInfo(token: string): Promise<TokenInfo | null> {
   return res.ok ? ((await res.json()) as TokenInfo) : null;
 }
 
+/** The account's uid only when a Google sign-in proved it owns the address; anyone can register an unverified password account. */
+export function trustedSignInUid(
+  user: {
+    uid: string;
+    emailVerified?: boolean;
+    disabled?: boolean;
+    providerData?: ReadonlyArray<{ providerId?: string; email?: string }>;
+  },
+  email: string
+): string | null {
+  if (user.disabled === true || user.emailVerified !== true) return null;
+  const want = email.trim().toLowerCase();
+  const google = (user.providerData ?? []).some(
+    (p) =>
+      p?.providerId === 'google.com' &&
+      (p.email ?? '').trim().toLowerCase() === want
+  );
+  return google ? user.uid : null;
+}
+
+/** The Firebase uid that a Google sign-in proved owns this address, else null. */
+export async function trustedUidForEmail(
+  email: string
+): Promise<string | null> {
+  try {
+    return trustedSignInUid(await admin.auth().getUserByEmail(email), email);
+  } catch {
+    return null;
+  }
+}
+
 function defaultDeps(db: Firestore): ExtensionDeps {
   return {
     clientId: EXTENSION_OAUTH_CLIENTS[process.env.GCLOUD_PROJECT ?? ''] ?? '',
     tokenInfo: fetchTokenInfo,
-    uidForEmail: async (email) => {
-      try {
-        return (await admin.auth().getUserByEmail(email)).uid;
-      } catch {
-        return null;
-      }
-    },
+    uidForEmail: trustedUidForEmail,
     allowed: async (email, uid) => {
       // Students share the district domain, so the flag alone can't admit an address.
       const staff =
