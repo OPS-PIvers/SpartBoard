@@ -19,7 +19,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
-- **AB-213 Choose-N pick follow-ups** (S). From the 2026-11-14 PR sweep integration review of #5778. (1) Reopen (`hooks/useQuizSession.ts`, unlock/reopen) deletes `countedChoices` including `revived`, but an answer the teacher picked back from `unresponded: 'passed'` stays a real answer, so after reopen first-N scoring can count it and "Use the first N" can't set it aside again; restore `unresponded` for the `revived` ids on reopen (and on paper re-import, `functions/src/importPaperResponses.ts`). (2) The site-admin branch of the response update rule (`firestore.rules`, `isSiteAdmin() && !changed([...])`) excludes `liveView` but not `countedChoices`; decide with the `resultsOverride` precedent and add it if admins shouldn't change picks, with a rules test. Before `choose-n-pick-counted` opens.
+- **AB-213 Choose-N pick follow-ups** (S). From the 2026-11-14 PR sweep integration review of #5778. (1) Paper re-import (`functions/src/importPaperResponses.ts`) deletes `countedChoices` including `revived`, but an answer the teacher picked back from `unresponded: 'passed'` stays a real answer; restore `unresponded` for the `revived` ids first, as reopen now does (`restorePassedAnswers`, release fix #5781). (2) The site-admin branch of the response update rule (`firestore.rules`, `isSiteAdmin() && !changed([...])`) excludes `liveView` but not `countedChoices`; decide with the `resultsOverride` precedent and add it if admins shouldn't change picks, with a rules test. Before `choose-n-pick-counted` opens.
 - **AB-214 Live view follow-ups** (S). From the 2026-11-14 PR sweep reviews of #5772. (1) `deleteAssignment` (`hooks/useQuizAssignments.ts`) leaves `quiz_sessions/{id}/responses/*/live/state` behind once the session doc is gone; delete them before the session, as `removeStudent` does. (2) `LiveViewPanel` re-renders the whole mirror every second through `useServerNow(1000)`; move the ticking stats into their own component. (3) `studentQuestionOrder` (`utils/quizLiveView.ts`) uses the live session's shuffle setting, not the attempt's latched one, so a mid-attempt shuffle edit makes the question number in the stats and log disagree with the mirror. (4) Nudge notes fall back to English for quiz languages other than es, fr and de. Before `quiz-live-view` opens.
 
 - **AB-210 Calendar admin settings: no Save until a read succeeds** (S). From release 2026.11.13c review of #5742. `components/admin/CalendarConfigurationModal.tsx` `fetchConfig` clears `loadFailed` before `getDoc` settles, and the Save button is only disabled on `saving || loadFailed`, so during the first load or a "Try again" retry Save writes the default config (empty `blockedDates`) over the real doc. Disable Save and return early in `handleSave` while `loading`, and test a Save click during a pending retry. Also: "Sync All" still shows its success toast when `handleSave` returned early.
@@ -223,6 +223,14 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (173, checked 2026-11-01)</summary>
 
+claude/project-thread-ixrgdq
+claude/project-thread-stpelc
+claude/ab112-ixrgdq
+claude/project-thread-gskozr
+claude/project-thread-6kzik6
+claude/project-thread-vki4cy
+claude/project-thread-bnuqvd
+claude/ab112-bnuqvd
 claude/project-thread-k4clwq
 claude/project-thread-tm5pfn
 claude/project-thread-j4q0iv
@@ -325,6 +333,7 @@ claude/ab112-grammarly
 claude/project-thread-dmpjbw
 feat/quiz-live-view
 claude/project-thread-ucbftr
+claude/project-thread-ldt8ev
 
 ```
 git push origin --delete claude/project-thread-1ylvse

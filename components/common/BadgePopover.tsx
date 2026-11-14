@@ -8,6 +8,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
+import { scrollMovesAnchor } from '@/utils/domHelpers';
 import { useCloseOnHostResize } from './useCloseOnHostResize';
 
 interface BadgePopoverProps {
@@ -90,11 +91,9 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
 
   useEffect(() => {
     if (!open) return undefined;
-    // Scrolling the page moves the badge away, but scrolling a long panel itself must not close it.
+    // Only scrolls that move the badge close it; scrolling the panel or an unrelated pane doesn't.
     const close = (e: Event) => {
-      if (e.target instanceof Node && panelRef.current?.contains(e.target))
-        return;
-      setOpen(false);
+      if (scrollMovesAnchor(e, triggerRef.current)) setOpen(false);
     };
     const closeOnResize = () => setOpen(false);
     window.addEventListener('scroll', close, true);

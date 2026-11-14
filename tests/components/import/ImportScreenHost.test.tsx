@@ -12,12 +12,23 @@ import {
   type ImportInboxItem,
 } from '@/utils/import/contract';
 
+const auth = vi.hoisted(() => ({
+  ensureGoogleScope: vi.fn(() => Promise.resolve<string | null>('tok')),
+  formsOn: true,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u1' },
     canAccessWidget: () => true,
-    canAccessFeature: () => true,
+    canAccessFeature: (f: string) =>
+      f === 'import-google-forms' ? auth.formsOn : true,
+    ensureGoogleScope: auth.ensureGoogleScope,
   }),
+}));
+const forms = vi.hoisted(() => ({ fetchGoogleForm: vi.fn() }));
+vi.mock('@/utils/import/googleForms', async (original) => ({
+  ...(await original<typeof import('@/utils/import/googleForms')>()),
+  fetchGoogleForm: forms.fetchGoogleForm,
 }));
 const dashboard = vi.hoisted(() => ({
   widgets: [] as { id: string; type: string; config: object }[],
@@ -141,6 +152,98 @@ describe('ImportScreenHost', () => {
     });
     expect(event.defaultPrevented).toBe(true);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  const sentForm = (formId?: string): ImportInboxItem => ({
+    id: 'gf',
+    url: 'https://docs.google.com/forms/d/e/1FAIpQLSabc/viewform',
+    title: 'Cells',
+    platform: 'google-forms',
+    selectionOnly: false,
+    blocks: [{ type: 'paragraph', text: '1. Which part makes energy?' }],
+    images: [],
+    receivedAt: 1,
+    form: {
+      ...(formId ? { formId } : {}),
+      items: [
+        {
+          kind: 'choice',
+          text: 'Which part makes energy?',
+          options: [{ text: 'Nucleus' }, { text: 'Mitochondria' }],
+        },
+        { kind: 'short', text: 'Your name' },
+      ],
+    },
+  });
+
+  it('puts a sent Google Form on the board as a poll and removes the Send', async () => {
+    inboxItems.push(sentForm());
+    renderHost();
+    act(() => openImportScreen());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Poll' }));
+      await Promise.resolve();
+    });
+    expect(auth.ensureGoogleScope).not.toHaveBeenCalled();
+    expect(dashboard.addWidget).toHaveBeenCalledWith(
+      'poll',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          questions: [
+            expect.objectContaining({
+              question: 'Which part makes energy?',
+              kind: 'choice',
+            }),
+            expect.objectContaining({ question: 'Your name', kind: 'words' }),
+          ],
+        }) as unknown,
+      })
+    );
+    expect(inboxRemove).toHaveBeenCalledWith('gf');
+  });
+
+  it('reads a form sent from its editor through the Forms API before the quiz review', async () => {
+    const formId = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789';
+    inboxItems.push(sentForm(formId));
+    forms.fetchGoogleForm.mockResolvedValue({
+      title: 'Cells (API)',
+      form: {
+        formId,
+        items: [
+          {
+            kind: 'choice',
+            text: 'Which part makes energy?',
+            options: [{ text: 'Nucleus' }, { text: 'Mitochondria' }],
+            correct: ['Mitochondria'],
+          },
+        ],
+      },
+    });
+    renderHost();
+    act(() => openImportScreen());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Quiz' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(auth.ensureGoogleScope).toHaveBeenCalledWith(
+      'https://www.googleapis.com/auth/forms.body.readonly',
+      { interactive: true }
+    );
+    expect(forms.fetchGoogleForm).toHaveBeenCalledWith(formId, 'tok');
+    expect(dashboard.addWidget).toHaveBeenCalledWith(
+      'quiz',
+      expect.objectContaining({ id: expect.any(String) as unknown })
+    );
+  });
+
+  it('offers no Poll for a form without the Google Forms flag', () => {
+    auth.formsOn = false;
+    inboxItems.push(sentForm());
+    renderHost();
+    act(() => openImportScreen());
+    expect(screen.queryByRole('button', { name: 'Poll' })).toBeNull();
+    auth.formsOn = true;
   });
 
   it('sends slides to a new Notebook when the one on the board has a notebook open', () => {

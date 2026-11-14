@@ -4453,7 +4453,7 @@ export interface QuizStimulus {
   calculator?: QuizCalculatorKind;
   /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
   tabLabel?: string;
-  /** image only: beside the question or in it; absent = beside when two or more questions use it (M13). */
+  /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
 }
 
@@ -5631,7 +5631,7 @@ export interface QuizSession
   inputSignals?: boolean;
   /** Stamped on every new assignment; Ordering shows one list to drag into order (absent on older sessions = slots and word bank). */
   orderingList?: boolean;
-  /** Stamped only with the quiz-stimulus-tabs flag; stimuli show as tabs beside the question. */
+  /** Stamped on every session since the tabbed layout went public; older sessions keep the stacked layout. */
   stimulusTabs?: boolean;
   /** Stamped on every new self-paced assignment; ends on a review screen (absent on older sessions = no review screen). */
   reviewStep?: boolean;
@@ -11329,8 +11329,6 @@ export type GlobalFeature =
   | 'quiz-dok'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
   | 'quiz-blank-types'
-  /** Quiz stimuli as named tabs in the panel beside the question (M11). */
-  | 'quiz-stimulus-tabs'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
@@ -11370,6 +11368,7 @@ export type GlobalFeature =
   | 'import-extension-send'
   | 'import-board-drop'
   | 'import-flashcards'
+  | 'import-google-forms'
   | 'import-activity-wall'
   | 'import-new-board'
   | 'import-guided-learning'

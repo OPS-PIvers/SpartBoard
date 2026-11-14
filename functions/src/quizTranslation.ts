@@ -313,7 +313,7 @@ export async function billTranslationTokens(
  * Reserve one back-translation unit BEFORE the model call, mirroring
  * `reserveTranslationUnit`: a failed generation is still paid for, and two
  * concurrent calls at cap-1 cannot both pass. Back-translation is metered on
- * its own ceiling only (200/teacher/day), so it never spends the org's
+ * its own ceiling only (`answerDailyLimit` on the quiz-translation row, default 200/teacher/day), so it never spends the org's
  * quiz-translation cap. `backUnits` on the monthly doc is for visibility,
  * not for any gate.
  */
@@ -323,10 +323,22 @@ export async function reserveBackTranslationUnit(
   nowMs: number
 ): Promise<void> {
   const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
+  const permRef = db.collection('global_permissions').doc('quiz-translation');
   return db.runTransaction(async (tx) => {
-    const daily = await tx.get(dailyRef);
+    const [daily, perm] = await Promise.all([
+      tx.get(dailyRef),
+      tx.get(permRef),
+    ]);
+    const config = (perm.data()?.config ?? {}) as {
+      answerDailyLimit?: unknown;
+      answerDailyLimitEnabled?: unknown;
+    };
+    const limit =
+      typeof config.answerDailyLimit === 'number'
+        ? config.answerDailyLimit
+        : BACK_TRANSLATION_DAILY_LIMIT;
     const used = daily.exists ? Number(daily.get('backCount') ?? 0) : 0;
-    if (used >= BACK_TRANSLATION_DAILY_LIMIT)
+    if (config.answerDailyLimitEnabled !== false && used >= limit)
       throw new HttpsError(
         'resource-exhausted',
         'Daily back-translation limit reached. Try again tomorrow.'

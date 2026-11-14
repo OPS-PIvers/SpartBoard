@@ -17,6 +17,7 @@ import {
   ModelTierEditor,
 } from './AccessFeatureRow';
 import {
+  EXTRA_DAILY_LIMITS,
   GEMINI_FEATURES,
   MODEL_TIER_FEATURES,
   type GlobalPermissionsEditor,
@@ -114,6 +115,14 @@ const SwitchRow: React.FC<{
               featureId={featureId}
               permission={permission}
               onUpdate={onUpdate}
+            />
+          )}
+          {EXTRA_DAILY_LIMITS[featureId] && (
+            <DailyLimitEditor
+              featureId={featureId}
+              permission={permission}
+              onUpdate={onUpdate}
+              extra={EXTRA_DAILY_LIMITS[featureId]}
             />
           )}
           {MODEL_TIER_FEATURES.includes(featureId) && (

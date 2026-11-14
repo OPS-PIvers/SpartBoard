@@ -13,12 +13,27 @@ import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
 import {
+  ADMIN_LIMITED_FEATURES,
+  EXTRA_DAILY_LIMITS,
   GEMINI_FEATURES,
   defaultDailyLimit,
+  type ExtraDailyLimit,
   DEFAULT_MODEL_TIER,
   MODEL_TIER_FEATURES,
   type AiModelTier,
 } from './useGlobalPermissionsEditor';
+import {
+  DEFAULT_OTHER_CAUSES,
+  INPUT_SIGNALS_FEATURE,
+} from '@/utils/inputSignals';
+import {
+  INPUT_SIGNS,
+  OTHER_CAUSES_MAX,
+  readInputSignSettings,
+  type InputSignId,
+  type InputSignSetting,
+  type InputSignSettings,
+} from '@/utils/inputSignalSettings';
 
 const LEVELS: { level: AccessLevel; label: string; Icon: typeof Shield }[] = [
   { level: 'admin', label: 'Admin', Icon: Shield },
@@ -141,23 +156,31 @@ export const DailyLimitEditor: React.FC<{
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
   onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
-}> = ({ featureId, permission, onUpdate }) => {
-  const enabled = (permission.config?.dailyLimitEnabled as boolean) ?? true;
-  const label = FEATURE_DEFAULTS[featureId].label;
+  extra?: ExtraDailyLimit;
+}> = ({ featureId, permission, onUpdate, extra }) => {
+  const limitKey = extra?.limitKey ?? 'dailyLimit';
+  const enabledKey = extra?.enabledKey ?? 'dailyLimitEnabled';
+  const enabled = (permission.config?.[enabledKey] as boolean) ?? true;
+  const label = extra
+    ? `${FEATURE_DEFAULTS[featureId].label} ${extra.title.toLowerCase()}`
+    : FEATURE_DEFAULTS[featureId].label;
+  const rowKey = extra ? `${featureId}-${limitKey}` : featureId;
   const stored =
-    (permission.config?.dailyLimit as number) ?? defaultDailyLimit(featureId);
+    (permission.config?.[limitKey] as number) ??
+    extra?.defaultValue ??
+    defaultDailyLimit(featureId);
   // Raw text while editing so the field can be emptied; null shows the stored value.
   const [draft, setDraft] = useState<string | null>(null);
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-        Daily limit
+        {extra?.title ?? 'Daily limit'}
       </span>
       <Toggle
         checked={enabled}
         onChange={(checked) =>
           onUpdate({
-            config: { ...permission.config, dailyLimitEnabled: checked },
+            config: { ...permission.config, [enabledKey]: checked },
           })
         }
         size="xs"
@@ -165,7 +188,7 @@ export const DailyLimitEditor: React.FC<{
         anchor={tourFieldAttr(
           'admin.features.daily-limit-toggle',
           'admin',
-          featureId
+          rowKey
         )}
       />
       <input
@@ -174,11 +197,7 @@ export const DailyLimitEditor: React.FC<{
         max={DAILY_LIMIT_MAX}
         disabled={!enabled}
         aria-label={`${label} uses per day`}
-        {...tourFieldAttr(
-          'admin.features.daily-limit-number',
-          'admin',
-          featureId
-        )}
+        {...tourFieldAttr('admin.features.daily-limit-number', 'admin', rowKey)}
         value={draft ?? stored}
         onChange={(e) => {
           const raw = e.target.value;
@@ -193,14 +212,17 @@ export const DailyLimitEditor: React.FC<{
           );
           setDraft(clamped === val ? raw : String(clamped));
           onUpdate({
-            config: { ...permission.config, dailyLimit: clamped },
+            config: { ...permission.config, [limitKey]: clamped },
           });
         }}
         onBlur={() => setDraft(null)}
         className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
       />
       <span className="text-xs text-slate-500">
-        per day. Admins are unlimited.
+        {extra?.note ??
+          (ADMIN_LIMITED_FEATURES.includes(featureId)
+            ? 'per day. Admins included.'
+            : 'per day. Admins are unlimited.')}
       </span>
     </div>
   );
@@ -239,6 +261,105 @@ export const ModelTierEditor: React.FC<{
         <option value="standard">Standard</option>
         <option value="advanced">Advanced</option>
       </select>
+    </div>
+  );
+};
+
+const SIGN_GROUPS = [...new Set(INPUT_SIGNS.map((s) => s.group))];
+
+/** One switch and one "Could also be" line per unusual-input sign; off hides it from teachers but keeps recording. */
+export const InputSignsEditor: React.FC<{
+  permission: GlobalFeaturePermission;
+  onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
+}> = ({ permission, onUpdate }) => {
+  const settings = readInputSignSettings([permission]);
+  // Raw text while a box is being edited, so it can be emptied and retyped.
+  const [drafts, setDrafts] = useState<Partial<Record<InputSignId, string>>>(
+    {}
+  );
+  const update = (id: InputSignId, next: InputSignSetting) => {
+    const signs: InputSignSettings = { ...settings };
+    const entry: InputSignSetting = {};
+    if (next.off) entry.off = true;
+    if (next.otherCauses !== undefined) entry.otherCauses = next.otherCauses;
+    if (entry.off || entry.otherCauses) signs[id] = entry;
+    else delete signs[id];
+    onUpdate({ config: { ...permission.config, signs } });
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+        Signs
+      </p>
+
+      {SIGN_GROUPS.map((group) => (
+        <div key={group} className="divide-y divide-slate-200">
+          <p className="pb-1 text-xxs font-bold text-slate-500 uppercase tracking-wider">
+            {group}
+          </p>
+          {INPUT_SIGNS.filter((s) => s.group === group).map(({ id, label }) => {
+            const s = settings[id] ?? {};
+            const causes =
+              id === 'writing-playback' ? null : DEFAULT_OTHER_CAUSES[id];
+            return (
+              <div
+                key={id}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
+              >
+                <span title="Off hides this sign from teachers but keeps recording it.">
+                  <Toggle
+                    checked={s.off !== true}
+                    onChange={(checked) => update(id, { ...s, off: !checked })}
+                    size="xs"
+                    label={`${label} shown to teachers`}
+                    anchor={tourFieldAttr(
+                      'admin.features.input-sign-toggle',
+                      'admin',
+                      id
+                    )}
+                  />
+                </span>
+                <span className="w-56 shrink-0 text-sm text-slate-700">
+                  {label}
+                </span>
+                {causes !== null && (
+                  <input
+                    type="text"
+                    maxLength={OTHER_CAUSES_MAX}
+                    aria-label={`${label}: could also be`}
+                    {...tourFieldAttr(
+                      'admin.features.input-sign-text',
+                      'admin',
+                      id
+                    )}
+                    value={drafts[id] ?? s.otherCauses ?? causes}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      setDrafts((d) => ({ ...d, [id]: text }));
+                      const trimmed = text.trim();
+                      update(id, {
+                        ...s,
+                        otherCauses:
+                          !trimmed || trimmed === causes ? undefined : trimmed,
+                      });
+                    }}
+                    onBlur={() =>
+                      setDrafts((d) => {
+                        const { [id]: _, ...rest } = d;
+                        return rest;
+                      })
+                    }
+                    title={
+                      'The "Could also be" line teachers see under this sign'
+                    }
+                    className="min-w-48 flex-1 px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 };
@@ -376,12 +497,23 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
               onUpdate={onUpdate}
             />
           )}
+          {EXTRA_DAILY_LIMITS[featureId] && (
+            <DailyLimitEditor
+              featureId={featureId}
+              permission={permission}
+              onUpdate={onUpdate}
+              extra={EXTRA_DAILY_LIMITS[featureId]}
+            />
+          )}
           {MODEL_TIER_FEATURES.includes(featureId) && (
             <ModelTierEditor
               featureId={featureId}
               permission={permission}
               onUpdate={onUpdate}
             />
+          )}
+          {featureId === INPUT_SIGNALS_FEATURE && (
+            <InputSignsEditor permission={permission} onUpdate={onUpdate} />
           )}
           {children}
         </div>

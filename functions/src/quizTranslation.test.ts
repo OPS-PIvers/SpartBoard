@@ -741,6 +741,42 @@ describe('translateResponse', () => {
     ).rejects.toMatchObject({ code: 'resource-exhausted' });
   });
 
+  it('reads the admin answer limit from the quiz-translation row', async () => {
+    const docs: Record<string, Doc> = {
+      'global_permissions/quiz-translation': {
+        config: { answerDailyLimit: 3 },
+      },
+      [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {
+        backCount: 3,
+      },
+    };
+    await expect(
+      translateResponse(
+        { text: 'hola', sourceLocale: 'es' },
+        'teacher-1',
+        backDeps(docs)
+      )
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+  });
+
+  it('lets answers through past the default when the admin turns the limit off', async () => {
+    const docs: Record<string, Doc> = {
+      'global_permissions/quiz-translation': {
+        config: { answerDailyLimitEnabled: false },
+      },
+      [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {
+        backCount: BACK_TRANSLATION_DAILY_LIMIT,
+      },
+    };
+    await expect(
+      translateResponse(
+        { text: 'hola', sourceLocale: 'es' },
+        'teacher-1',
+        backDeps(docs)
+      )
+    ).resolves.toBeTruthy();
+  });
+
   it('blocks the second of two sequential calls made at cap-1', async () => {
     const docs: Record<string, Doc> = {
       [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {

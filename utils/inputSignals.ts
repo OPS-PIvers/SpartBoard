@@ -431,6 +431,30 @@ export type InputFindingId =
   | 'extra-screen'
   | 'unmanaged-profile';
 
+/** What else could explain each finding, before any admin rewording. */
+export const DEFAULT_OTHER_CAUSES: Record<InputFindingId, string> = {
+  'jump-clicks':
+    'A touchscreen or remote-desktop tool that reports as a mouse.',
+  'line-clicks': 'Rare by hand; a hand speeds up and slows down.',
+  'instant-keys': 'An on-screen keyboard, a text expander or voice typing.',
+  'fast-typing': 'A text expander or voice typing.',
+  'even-typing': 'Rare by hand; typing rhythm varies letter to letter.',
+  'unkeyed-text':
+    'Voice typing, autocomplete, or a spelling or grammar extension.',
+  pasted: 'Moving their own text between answers.',
+  'paste-attempts': 'Habit; nothing was pasted.',
+  scripted:
+    'A browser extension such as a password manager, grammar checker or accessibility tool.',
+  'no-revisions': 'Copying out an answer they drafted on paper first.',
+  'fast-answers':
+    'Guessing, or remembering the question from an earlier attempt.',
+  'side-panel': 'A bookmarks or reading-list panel, or developer tools.',
+  'extra-screen': 'A desk monitor or a classroom projector.',
+  'unmanaged-profile':
+    'An iPad, phone or other browser, or a device the extension has not reached yet.',
+  'even-answers': 'Unlikely by hand unless the questions are very alike.',
+};
+
 export interface InputFinding {
   id: InputFindingId;
   /** What was seen, with its numbers. */
@@ -495,7 +519,9 @@ export function describeInputSignals(
   perQuestion: Record<string, InputSignalCounts>,
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
   reading?: ReadingContext,
-  expectManaged = false
+  expectManaged = false,
+  /** Signs nobody will see; a hidden fast-typing check lets the even-rhythm one run. */
+  hidden?: ReadonlySet<InputFindingId>
 ): InputFinding[] {
   const total = emptyCounts();
   for (const c of Object.values(perQuestion))
@@ -514,8 +540,7 @@ export function describeInputSignals(
       id: 'jump-clicks',
       text: `${total.jumpClicks} of ${plural(total.clicks, 'mouse click')} landed with no mouse movement leading to them.`,
       questions: where((c) => (c.jumpClicks ?? 0) > 0),
-      otherCauses:
-        'A touchscreen or remote-desktop tool that reports as a mouse.',
+      otherCauses: DEFAULT_OTHER_CAUSES['jump-clicks'],
     });
   }
   if (total.lineClicks >= LINE_MIN) {
@@ -523,7 +548,7 @@ export function describeInputSignals(
       id: 'line-clicks',
       text: `${plural(total.lineClicks, 'click')} followed a perfectly straight path at constant speed.`,
       questions: where((c) => (c.lineClicks ?? 0) > 0),
-      otherCauses: 'Rare by hand; a hand speeds up and slows down.',
+      otherCauses: DEFAULT_OTHER_CAUSES['line-clicks'],
     });
   }
   if (
@@ -534,24 +559,24 @@ export function describeInputSignals(
       id: 'instant-keys',
       text: `${total.instantKeys.toLocaleString()} of ${plural(total.keys, 'key press', 'key presses')} were released in under ${INSTANT_KEY_MS} ms.`,
       questions: where((c) => (c.instantKeys ?? 0) > 0),
-      otherCauses: 'An on-screen keyboard, a text expander or voice typing.',
+      otherCauses: DEFAULT_OTHER_CAUSES['instant-keys'],
     });
   }
   if (total.ikN >= RHYTHM_MIN_GAPS) {
     const mean = total.ikSum / total.ikN;
-    if (mean < FAST_MEAN_GAP_MS) {
+    if (mean < FAST_MEAN_GAP_MS && !hidden?.has('fast-typing')) {
       out.push({
         id: 'fast-typing',
         text: `Typed ${plural(total.keys, 'character')} about ${Math.round(mean)} ms apart, faster than a person can type.`,
         questions: where((c) => (c.ikN ?? 0) > 0),
-        otherCauses: 'A text expander or voice typing.',
+        otherCauses: DEFAULT_OTHER_CAUSES['fast-typing'],
       });
     } else if (cv(total.ikN, total.ikSum, total.ikSq) < EVEN_TYPING_CV) {
       out.push({
         id: 'even-typing',
         text: `Typed ${plural(total.keys, 'character')} at an almost perfectly even rhythm (about ${Math.round(mean)} ms apart).`,
         questions: where((c) => (c.ikN ?? 0) > 0),
-        otherCauses: 'Rare by hand; typing rhythm varies letter to letter.',
+        otherCauses: DEFAULT_OTHER_CAUSES['even-typing'],
       });
     }
   }
@@ -560,23 +585,22 @@ export function describeInputSignals(
       id: 'unkeyed-text',
       text: `${plural(total.unkeyedChars, 'character')} appeared in answer boxes with no key presses.`,
       questions: where((c) => (c.unkeyedChars ?? 0) > 0),
-      otherCauses:
-        'Voice typing, autocomplete, or a spelling or grammar extension.',
+      otherCauses: DEFAULT_OTHER_CAUSES['unkeyed-text'],
     });
   }
-  if (total.pastedChars > 0) {
+  if (total.pastedChars > 0 && !hidden?.has('pasted')) {
     out.push({
       id: 'pasted',
       text: `Pasted ${plural(total.pastedChars, 'character')} into answer boxes.`,
       questions: where((c) => (c.pastedChars ?? 0) > 0),
-      otherCauses: 'Moving their own text between answers.',
+      otherCauses: DEFAULT_OTHER_CAUSES['pasted'],
     });
   } else if (total.pastes > 0) {
     out.push({
       id: 'paste-attempts',
       text: `Tried to paste ${plural(total.pastes, 'time')}.`,
       questions: where((c) => (c.pastes ?? 0) > 0),
-      otherCauses: 'Habit; nothing was pasted.',
+      otherCauses: DEFAULT_OTHER_CAUSES['paste-attempts'],
     });
   }
   if (total.scripted > 0) {
@@ -584,8 +608,7 @@ export function describeInputSignals(
       id: 'scripted',
       text: `${plural(total.scripted, 'click or edit', 'clicks or edits')} came from a script in the browser, not a mouse or keyboard.`,
       questions: where((c) => (c.scripted ?? 0) > 0),
-      otherCauses:
-        'A browser extension such as a password manager, grammar checker or accessibility tool.',
+      otherCauses: DEFAULT_OTHER_CAUSES['scripted'],
     });
   }
   const unrevised = where(
@@ -604,7 +627,7 @@ export function describeInputSignals(
       id: 'no-revisions',
       text: `Typed ${plural(chars, 'character')} without deleting or changing anything.`,
       questions: unrevised,
-      otherCauses: 'Copying out an answer they drafted on paper first.',
+      otherCauses: DEFAULT_OTHER_CAUSES['no-revisions'],
     });
   }
   if (reading) {
@@ -624,8 +647,7 @@ export function describeInputSignals(
         id: 'fast-answers',
         text: `Answered ${plural(fast.length, 'question')} in less time than it takes to read them.`,
         questions: fast,
-        otherCauses:
-          'Guessing, or remembering the question from an earlier attempt.',
+        otherCauses: DEFAULT_OTHER_CAUSES['fast-answers'],
       });
     }
   }
@@ -634,7 +656,7 @@ export function describeInputSignals(
       id: 'side-panel',
       text: `The page got narrower ${plural(total.panelOpens, 'time')} while the window stayed the same size, as when a browser side panel opens.`,
       questions: where((c) => (c.panelOpens ?? 0) > 0),
-      otherCauses: 'A bookmarks or reading-list panel, or developer tools.',
+      otherCauses: DEFAULT_OTHER_CAUSES['side-panel'],
     });
   }
   if (total.extraScreen > 0) {
@@ -642,7 +664,7 @@ export function describeInputSignals(
       id: 'extra-screen',
       text: 'A second screen was connected.',
       questions: [],
-      otherCauses: 'A desk monitor or a classroom projector.',
+      otherCauses: DEFAULT_OTHER_CAUSES['extra-screen'],
     });
   }
   const env = perQuestion[NO_QUESTION];
@@ -659,8 +681,7 @@ export function describeInputSignals(
       id: 'unmanaged-profile',
       text: `${part} in a school-managed Chrome profile${browsers ? ` (${browsers})` : ''}.`,
       questions: [],
-      otherCauses:
-        'An iPad, phone or other browser, or a device the extension has not reached yet.',
+      otherCauses: DEFAULT_OTHER_CAUSES['unmanaged-profile'],
     });
   }
 
@@ -682,7 +703,7 @@ export function describeInputSignals(
         id: 'even-answers',
         text: `${plural(times.length, 'answer')} arrived almost exactly ${Math.round(sum / n / 1000)} seconds apart.`,
         questions: [],
-        otherCauses: 'Unlikely by hand unless the questions are very alike.',
+        otherCauses: DEFAULT_OTHER_CAUSES['even-answers'],
       });
     }
   }
@@ -719,7 +740,8 @@ export function inputFindingsByAttempt(
   currentAttempt: number,
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
   reading?: ReadingContext,
-  expectManaged = false
+  expectManaged = false,
+  hidden?: ReadonlySet<InputFindingId>
 ): AttemptFindings[] {
   const attempts = new Set<number>([currentAttempt]);
   if (isRecord(signals)) {
@@ -737,7 +759,8 @@ export function inputFindingsByAttempt(
           perQuestion,
           current ? answers : undefined,
           current ? reading : undefined,
-          expectManaged
+          expectManaged,
+          hidden
         ),
         browsers: perQuestion[NO_QUESTION]?.browser?.split('|') ?? [],
       };

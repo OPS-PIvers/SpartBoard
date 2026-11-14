@@ -8,6 +8,10 @@ import {
   type WrittenAnswerLog,
 } from '@/utils/inputSignals';
 import {
+  isSignShown,
+  readInputSignSettings,
+} from '@/utils/inputSignalSettings';
+import {
   PAUSE_CAP_MS,
   parseWritingLog,
   summarizeWriting,
@@ -39,8 +43,12 @@ const EDIT_LABEL: Record<WritingEdit['kind'], string | null> = {
   restored: 'Already here after a page reload',
 };
 
-/** Replays one written answer edit by edit. */
-export const WritingPlayer: React.FC<{ log: string }> = ({ log }) => {
+/** Replays one written answer edit by edit; `hidePasted` and `hideUnkeyed` follow signs an admin switched off. */
+export const WritingPlayer: React.FC<{
+  log: string;
+  hidePasted?: boolean;
+  hideUnkeyed?: boolean;
+}> = ({ log, hidePasted = false, hideUnkeyed = false }) => {
   const { edits, cutOff } = useMemo(() => parseWritingLog(log), [log]);
   const summary = useMemo(() => summarizeWriting(edits), [edits]);
   const [index, setIndex] = useState(edits.length);
@@ -65,10 +73,13 @@ export const WritingPlayer: React.FC<{ log: string }> = ({ log }) => {
   );
   const last = index > 0 ? edits[index - 1] : undefined;
   const caret = last ? last.pos + last.ins.length : 0;
-  const marked = last && last.kind !== 'typed' ? last.ins.length : 0;
+  const shownKind = (kind: WritingEdit['kind']) =>
+    !((kind === 'pasted' && hidePasted) || (kind === 'sync' && hideUnkeyed));
+  const marked =
+    last && last.kind !== 'typed' && shownKind(last.kind) ? last.ins.length : 0;
   const next = atEnd ? undefined : edits[index];
   const note =
-    (last && EDIT_LABEL[last.kind]) ??
+    (last && shownKind(last.kind) ? EDIT_LABEL[last.kind] : null) ??
     (next && next.dt >= LONG_PAUSE_MS
       ? `Paused for ${formatSpan(next.dt)} here`
       : null);
@@ -99,16 +110,18 @@ export const WritingPlayer: React.FC<{ log: string }> = ({ log }) => {
           </div>
         ))}
       </dl>
-      {(summary.pastedChars > 0 ||
-        summary.syncChars > 0 ||
+      {((summary.pastedChars > 0 && !hidePasted) ||
+        (summary.syncChars > 0 && !hideUnkeyed) ||
         summary.restoredChars > 0) && (
         <p className="text-sm text-slate-700">
           {[
             summary.pastedChars > 0 &&
+              !hidePasted &&
               `${count(summary.pastedChars, 'character')} pasted`,
             summary.restoredChars > 0 &&
               `${count(summary.restoredChars, 'character')} typed just before a page reload were not recorded`,
             summary.syncChars > 0 &&
+              !hideUnkeyed &&
               `${count(summary.syncChars, 'character')} appeared without typing`,
           ]
             .filter(Boolean)
@@ -201,8 +214,15 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
   questionOrder,
   children,
 }) => {
+  const auth = useContext(AuthContext);
+  const signs = readInputSignSettings(auth?.globalPermissions);
+  const isAdmin = auth?.isAdmin === true;
+  const hidden = !isSignShown(signs, 'writing-playback');
+  const hidePasted = !isAdmin && !isSignShown(signs, 'pasted');
+  const hideUnkeyed = !isAdmin && !isSignShown(signs, 'unkeyed-text');
   const enabled =
-    useContext(AuthContext)?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
+    auth?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true &&
+    (!hidden || isAdmin);
   const answers = useMemo(
     () => (enabled ? writingLogs(signals) : []),
     [enabled, signals]
@@ -227,6 +247,11 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
               <History aria-hidden className="h-4 w-4 shrink-0" />
               Writing playback
             </p>
+            {hidden && (
+              <p className="mb-2 text-xs font-semibold text-slate-500">
+                Hidden from teachers
+              </p>
+            )}
             <ul className="space-y-1">
               {answers.map((a) => {
                 const s = summarizeWriting(parseWritingLog(a.log).edits);
@@ -272,6 +297,8 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
           <WritingPlayer
             key={`${open.attempt}-${open.questionId}`}
             log={open.log}
+            hidePasted={hidePasted}
+            hideUnkeyed={hideUnkeyed}
           />
         </Modal>
       )}

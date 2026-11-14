@@ -84,6 +84,8 @@ export const STUDENT_QUIZ_STATES = [
   'sq-last-minute',
   'sq-stimuli',
   'sq-calculator',
+  'sq-picture',
+  'sq-pictures',
   'sq-whiteboard',
   'sq-stop-part',
   'sq-stop-wait',

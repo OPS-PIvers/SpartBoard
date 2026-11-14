@@ -131,6 +131,25 @@ describe('InputSignalCollector typing', () => {
     expect(ids(c)).toEqual(['fast-typing']);
   });
 
+  it('checks the rhythm of fast typing when the fast-typing sign is hidden', () => {
+    const c = new InputSignalCollector(true);
+    type(
+      c,
+      120,
+      () => 5,
+      () => 30
+    );
+    const found = describeInputSignals(
+      c.snapshot(),
+      undefined,
+      undefined,
+      false,
+      new Set(['fast-typing'])
+    ).map((f) => f.id);
+    expect(found).toContain('even-typing');
+    expect(found).not.toContain('fast-typing');
+  });
+
   it('flags text that arrives with no key presses', () => {
     const c = new InputSignalCollector(true);
     c.textInput(180, 9_000, 'typed');
@@ -166,6 +185,20 @@ describe('InputSignalCollector typing', () => {
     c.textInput(70, 2_000, 'typed');
     expect(c.snapshot()._).toEqual({ pastes: 2, pastedChars: 120 });
     expect(ids(c)).toEqual(['pasted']);
+  });
+
+  it('reports pastes as attempts when the pasted sign is hidden', () => {
+    const c = new InputSignalCollector(true);
+    c.paste(50, 1_000);
+    c.textInput(null, 1_001, 'pasted');
+    const found = describeInputSignals(
+      c.snapshot(),
+      undefined,
+      undefined,
+      false,
+      new Set(['pasted'])
+    ).map((f) => f.id);
+    expect(found).toEqual(['paste-attempts']);
   });
 
   it('reports a blocked paste as a try', () => {

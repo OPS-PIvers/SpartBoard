@@ -28,6 +28,7 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'quiz',
   'quiz-document-ai-reader',
   'video-activity-ai',
+  'video-import-ai',
   'guided-learning-ai',
   'mini-app-ai',
   'flashcards-ai',
@@ -42,6 +43,31 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'ocr',
   'universal-import',
 ];
+
+/** Daily limits the server applies to admins too. */
+export const ADMIN_LIMITED_FEATURES: GlobalFeature[] = ['quiz-translation'];
+
+/** A second daily limit on a feature's row, saved beside `dailyLimit` in its config. */
+export interface ExtraDailyLimit {
+  title: string;
+  limitKey: string;
+  enabledKey: string;
+  defaultValue: number;
+  note: string;
+}
+
+/** Features with a second AI daily limit; the server reads the same config keys. */
+export const EXTRA_DAILY_LIMITS: Partial<
+  Record<GlobalFeature, ExtraDailyLimit>
+> = {
+  'quiz-translation': {
+    title: 'Answer translations',
+    limitKey: 'answerDailyLimit',
+    enabledKey: 'answerDailyLimitEnabled',
+    defaultValue: 200,
+    note: 'per day. Admins included.',
+  },
+};
 
 /** Features whose admin card picks the Gemini model tier. */
 export const MODEL_TIER_FEATURES: GlobalFeature[] = [PAPER_HANDWRITTEN_FEATURE];

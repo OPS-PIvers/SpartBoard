@@ -14,7 +14,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-member-status-revocation';
 const OPERATOR = 'orono';
@@ -234,6 +234,28 @@ describe('lower admins cannot change the status of a legacy-list address', () =>
       updateDoc(doc(as(SUPER_EMAIL), memberPath(TEACHER_EMAIL)), {
         status: 'inactive',
       })
+    );
+  });
+
+  it('a domain admin is DENIED deleting it while inactive, so the tier stays revoked', async () => {
+    await seed(
+      memberPath(TEACHER_EMAIL),
+      member(TEACHER_EMAIL, 'teacher', 'inactive')
+    );
+    await assertFails(
+      deleteDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)))
+    );
+    await assertFails(
+      getDoc(doc(as(TEACHER_EMAIL), memberPath(OTHER_MEMBER_EMAIL, OTHER_ORG)))
+    );
+    await assertSucceeds(
+      deleteDoc(doc(as(SUPER_EMAIL), memberPath(TEACHER_EMAIL)))
+    );
+  });
+
+  it('a domain admin may still delete it while live', async () => {
+    await assertSucceeds(
+      deleteDoc(doc(as(DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)))
     );
   });
 });
