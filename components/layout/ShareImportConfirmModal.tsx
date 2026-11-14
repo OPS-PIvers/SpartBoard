@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal } from '@/components/common/Modal';
+import { Button } from '@/components/common/Button';
 
 interface Props {
   kindLabel: string;
@@ -38,26 +39,27 @@ export const ShareImportConfirmModal: React.FC<Props> = ({
         Shared by: <span className="font-semibold">{sharer}</span>
       </p>
       <p className="text-xs text-slate-500">
-        Only import content from people you trust. Nothing is added to your
-        library until you confirm.
+        Only import content from people you trust.
       </p>
       <div className="flex justify-end gap-2 pt-2">
         {/* no-tour-anchor: transient deep-link import confirmation, not a tourable surface */}
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={onCancel}
-          className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+          className="min-h-11"
         >
           Cancel
-        </button>
+        </Button>
         {/* no-tour-anchor: transient deep-link import confirmation, not a tourable surface */}
-        <button
+        <Button
           type="button"
+          variant="primary"
           onClick={onConfirm}
-          className="rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white hover:bg-brand-blue-dark"
+          className="min-h-11"
         >
           Import
-        </button>
+        </Button>
       </div>
     </div>
   </Modal>

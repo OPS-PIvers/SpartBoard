@@ -115,19 +115,31 @@ export const DeepLinkShareImporter: React.FC = () => {
       shareId: string,
       run: () => void
     ) => {
-      void peekShareHeader(collectionName, shareId)
-        .then((h) =>
-          setConfirmPrompt({
-            kindLabel,
-            title: h.title,
-            originalAuthor: h.originalAuthor,
-            run,
-          })
-        )
-        .catch((err: unknown) => {
-          logError('DeepLinkShareImporter.peekShareHeader', err, { shareId });
-          addToast(`Failed to open shared ${kindLabel}.`, 'error');
-        });
+      const peek = (): void => {
+        void peekShareHeader(collectionName, shareId)
+          .then((h) =>
+            setConfirmPrompt({
+              kindLabel,
+              title: h.title,
+              originalAuthor: h.originalAuthor,
+              run,
+            })
+          )
+          .catch((err: unknown) => {
+            logError('DeepLinkShareImporter.peekShareHeader', err, {
+              shareId,
+            });
+            const msg = err instanceof Error ? err.message : '';
+            addToast(
+              msg
+                ? `Failed to open shared ${kindLabel}: ${msg}`
+                : `Failed to open shared ${kindLabel}.`,
+              'error',
+              { label: 'Retry', onClick: peek }
+            );
+          });
+      };
+      peek();
     },
     [addToast]
   );
