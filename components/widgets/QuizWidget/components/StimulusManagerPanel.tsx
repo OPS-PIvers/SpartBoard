@@ -1127,7 +1127,11 @@ const AttachStimulusSection: React.FC<{
               ) : (
                 <Upload className="h-3.5 w-3.5" aria-hidden />
               )}
-              {drop.dragging ? 'Drop it here' : 'Drag a file or paste an image'}
+              {drop.dragging
+                ? 'Drop it here'
+                : pasteScopeRef
+                  ? 'Drag a file or paste an image'
+                  : 'Drag a file'}
             </span>
             <FileSourceButtons
               compact
