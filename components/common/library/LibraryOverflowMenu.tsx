@@ -4,7 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { isEscapeFromWidgetInput, scrollMovesAnchor } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
@@ -131,12 +131,15 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   useLayoutEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
+    // Only scrolls that move the trigger close it, so a live tour scrolling its own panels leaves the menu open.
+    const closeOnScroll = (e: Event) => {
+      if (scrollMovesAnchor(e, buttonRef.current)) setOpen(false);
+    };
     window.addEventListener('resize', close);
-    // Capture phase catches scrolls on any ancestor scroll container.
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', closeOnScroll, true);
     return () => {
       window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', closeOnScroll, true);
     };
   }, [open]);
 

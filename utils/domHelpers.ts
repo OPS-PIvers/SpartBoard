@@ -45,3 +45,11 @@ export function isEscapeFromWidgetInput(e: KeyboardEvent): boolean {
     !!t.closest('[data-draggable-window]')
   );
 }
+
+/** True when a scroll event could have moved `anchor`: a page scroll, or a scroll of a container around it. */
+export function scrollMovesAnchor(e: Event, anchor: Element | null): boolean {
+  const target = e.target;
+  if (!anchor || !(target instanceof Node)) return true;
+  if (target.nodeType === Node.DOCUMENT_NODE) return true;
+  return target.contains(anchor);
+}
