@@ -3631,6 +3631,26 @@
       "label": "Your answer",
       "placeholder": "Type your answer…",
       "chooseAll": "Choose all that apply"
+    },
+    "feedback": {
+      "correct": "Correct!",
+      "incorrect": "Incorrect",
+      "correctAnswer": "Correct answer:",
+      "speedBonus": "+{{n}}% speed bonus!",
+      "streak": "{{n}} in a row! {{multiplier}} multiplier"
+    },
+    "review": {
+      "progress": "Question {{current}} of {{total}}",
+      "right": "You got it right!",
+      "wrong": "Better luck next time!",
+      "waiting": "Waiting for teacher to continue..."
+    },
+    "results": {
+      "complete": "Quiz Complete!",
+      "greatJobPin": "Great job, PIN",
+      "greatJob": "Great job!",
+      "answeredOf": "of {{total}} questions answered",
+      "submitted": "Your answers have been submitted. Ask your teacher to see your results."
     }
   },
   "quizSubmit": {

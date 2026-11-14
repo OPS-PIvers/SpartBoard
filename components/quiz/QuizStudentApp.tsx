@@ -5923,6 +5923,7 @@ const AnswerFeedbackBanner: React.FC<{
   streakCount,
   streakEnabled,
 }) => {
+  const { t } = useTranslation();
   if (!feedback && !speedBonus && !(streakEnabled && streakCount >= 2))
     return null;
 
@@ -5931,18 +5932,22 @@ const AnswerFeedbackBanner: React.FC<{
       {feedback === 'correct' && (
         <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl flex items-center gap-3">
           <Check className="w-6 h-6 text-emerald-400 shrink-0" />
-          <p className="text-emerald-300 font-bold text-sm">Correct!</p>
+          <p className="text-emerald-300 font-bold text-sm">
+            {t('quizStudent.feedback.correct')}
+          </p>
         </div>
       )}
       {feedback === 'incorrect' && (
         <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-2xl">
           <div className="flex items-center gap-3">
             <XIcon className="w-6 h-6 text-red-400 shrink-0" />
-            <p className="text-red-300 font-bold text-sm">Incorrect</p>
+            <p className="text-red-300 font-bold text-sm">
+              {t('quizStudent.feedback.incorrect')}
+            </p>
           </div>
           {revealedAnswer && (
             <p className="text-slate-400 text-xs mt-2 ml-9">
-              Correct answer:{' '}
+              {t('quizStudent.feedback.correctAnswer')}{' '}
               <span className="text-emerald-400 font-semibold">
                 {pictures ? (
                   <AnswerPictureText
@@ -5960,15 +5965,19 @@ const AnswerFeedbackBanner: React.FC<{
       {speedBonus !== null && speedBonus > 0 && (
         <div className="flex items-center gap-2 text-amber-400">
           <Zap className="w-4 h-4" />
-          <span className="text-xs font-bold">+{speedBonus}% speed bonus!</span>
+          <span className="text-xs font-bold">
+            {t('quizStudent.feedback.speedBonus', { n: speedBonus })}
+          </span>
         </div>
       )}
       {streakEnabled && streakCount >= 2 && (
         <div className="flex items-center gap-2 text-orange-400">
           <Flame className="w-4 h-4" />
           <span className="text-xs font-bold">
-            {streakCount} in a row! {streakCount >= 3 ? '2x' : '1.5x'}{' '}
-            multiplier
+            {t('quizStudent.feedback.streak', {
+              n: streakCount,
+              multiplier: streakCount >= 3 ? '2x' : '1.5x',
+            })}
           </span>
         </div>
       )}
@@ -5995,6 +6004,7 @@ const ReviewPhase: React.FC<{
   totalQuestions,
   servedLocale,
 }) => {
+  const { t } = useTranslation();
   const gamificationEnabled = isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
@@ -6019,8 +6029,10 @@ const ReviewPhase: React.FC<{
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         {/* Question recap */}
         <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
-          Question {session.currentQuestionIndex + 1} of{' '}
-          {totalQuestions ?? session.totalQuestions}
+          {t('quizStudent.review.progress', {
+            current: session.currentQuestionIndex + 1,
+            total: totalQuestions ?? session.totalQuestions,
+          })}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
           <PromptText text={currentQuestion.text} />
@@ -6046,12 +6058,12 @@ const ReviewPhase: React.FC<{
             {isCorrect ? (
               <>
                 <CheckCircle2 className="w-5 h-5 inline-block mr-1 -mt-0.5" />{' '}
-                You got it right!
+                {t('quizStudent.review.right')}
               </>
             ) : (
               <>
-                <XIcon className="w-5 h-5 inline-block mr-1 -mt-0.5" /> Better
-                luck next time!
+                <XIcon className="w-5 h-5 inline-block mr-1 -mt-0.5" />{' '}
+                {t('quizStudent.review.wrong')}
               </>
             )}
           </div>
@@ -6067,13 +6079,13 @@ const ReviewPhase: React.FC<{
             />
             <div className="flex items-center gap-2 text-slate-500 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Waiting for teacher to continue...
+              {t('quizStudent.review.waiting')}
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Waiting for teacher to continue...
+            {t('quizStudent.review.waiting')}
           </div>
         )}
       </div>
@@ -6108,6 +6120,7 @@ const ResultsScreen: React.FC<{
   override,
   drawIds,
 }) => {
+  const { t } = useTranslation();
   const published = resolveResultsVisibility(session, myResponse);
   const showReview = published.visibility !== 'none' && !!myResponse;
 
@@ -6135,28 +6148,29 @@ const ResultsScreen: React.FC<{
     <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         <Trophy className="w-16 h-16 text-amber-400 mb-6" />
-        <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
+        <h1 className="text-3xl font-black text-white mb-2">
+          {t('quizStudent.results.complete')}
+        </h1>
         <p className="text-slate-400 text-sm mb-8">
           {pin ? (
             <>
-              Great job, PIN{' '}
+              {t('quizStudent.results.greatJobPin')}{' '}
               <span className="font-mono font-bold text-white">{pin}</span>!
             </>
           ) : (
-            'Great job!'
+            t('quizStudent.results.greatJob')
           )}
         </p>
 
         <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
           <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
           <p className="text-slate-400 text-sm">
-            of {totalQuestions} questions answered
+            {t('quizStudent.results.answeredOf', { total: totalQuestions })}
           </p>
         </div>
 
         <p className="text-slate-500 text-sm max-w-xs">
-          Your answers have been submitted. Ask your teacher to see your
-          results.
+          {t('quizStudent.results.submitted')}
         </p>
 
         {isGamificationActive(session) && session.liveLeaderboard && (
