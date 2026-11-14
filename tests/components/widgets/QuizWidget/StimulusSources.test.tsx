@@ -1,7 +1,7 @@
 /**
  * Stimuli tab add sources: Drive picker, drag and drop, and clipboard paste.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -66,6 +66,7 @@ const Harness: React.FC<{ perQuestion?: boolean; calculator?: boolean }> = ({
   calculator,
 }) => {
   const [stimuli, setStimuli] = useState<QuizStimulus[]>([]);
+  const paneRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     latest = stimuli;
   }, [stimuli]);
@@ -81,11 +82,17 @@ const Harness: React.FC<{ perQuestion?: boolean; calculator?: boolean }> = ({
     setStimulusOnAllQuestions: vi.fn(),
   } as unknown as QuizEditorController;
   return perQuestion ? (
-    <QuestionStimulusSection
-      state={state}
-      questionId="q1"
-      calculatorAvailable={calculator}
-    />
+    <div role="dialog">
+      <button type="button">Question list row</button>
+      <div ref={paneRef}>
+        <QuestionStimulusSection
+          state={state}
+          questionId="q1"
+          calculatorAvailable={calculator}
+          pasteScopeRef={paneRef}
+        />
+      </div>
+    </div>
   ) : (
     <StimulusManagerPanel state={state} calculatorAvailable={calculator} />
   );
@@ -113,7 +120,9 @@ beforeEach(() => {
 describe('Stimuli tab sources', () => {
   it('shows file, Drive, passage and link controls', () => {
     render(<Harness />);
-    expect(screen.getByText('Drop or paste a file')).toBeInTheDocument();
+    expect(
+      screen.getByText('Drag a file or paste an image')
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Choose file' })).toBeVisible();
     expect(
       screen.getByRole('button', { name: 'Choose from Drive' })
@@ -261,6 +270,35 @@ describe('Stimuli tab sources', () => {
       calculator: 'graphing',
       url: '',
     });
+  });
+
+  it('attaches a file dropped on the collapsed per-question section', async () => {
+    render(<Harness perQuestion />);
+    fireEvent.drop(screen.getByTestId('question-stimulus-drop-zone'), {
+      dataTransfer: { types: ['Files'], files: [png()] },
+    });
+    await waitFor(() => expect(latest).toHaveLength(1));
+    expect(toggle).toHaveBeenCalledWith(latest[0].id, 'q1');
+    expect(
+      screen.getByText('Drag a file or paste an image')
+    ).toBeInTheDocument();
+  });
+
+  it('attaches a screenshot pasted anywhere in the editor to the question', async () => {
+    render(<Harness perQuestion />);
+    screen
+      .getByRole('button', { name: 'Question list row' })
+      .dispatchEvent(pasteEvent([png()], ['Files']));
+    await waitFor(() => expect(latest).toHaveLength(1));
+    expect(toggle).toHaveBeenCalledWith(latest[0].id, 'q1');
+  });
+
+  it('ignores a paste outside the editor', () => {
+    render(<Harness perQuestion />);
+    const event = pasteEvent([png()], ['Files']);
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(mocks.uploadFile).not.toHaveBeenCalled();
   });
 
   it('adds and attaches a calculator from the per-question section', async () => {
