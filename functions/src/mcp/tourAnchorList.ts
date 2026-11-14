@@ -44895,17 +44895,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.org.mode-submissions",
-    "label": "Submissions mode button for an assignment type in Organization app settings",
+    "label": "Submissions mode button for an assignment type in Admin Settings Features",
     "scope": "field",
     "panel": true,
     "routes": [
       {
-        "surface": "admin.organization.app-settings",
+        "surface": "admin.features",
         "kind": "panel",
         "path": [
           "sidebar.admin-settings",
-          "admin.settings.tab:admin#organization",
-          "admin.org.section:admin#app"
+          "admin.settings.tab:admin#features"
         ],
         "needs": [
           "admin"
@@ -44915,17 +44914,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.org.mode-view-only",
-    "label": "View only mode button for an assignment type in Organization app settings",
+    "label": "View only mode button for an assignment type in Admin Settings Features",
     "scope": "field",
     "panel": true,
     "routes": [
       {
-        "surface": "admin.organization.app-settings",
+        "surface": "admin.features",
         "kind": "panel",
         "path": [
           "sidebar.admin-settings",
-          "admin.settings.tab:admin#organization",
-          "admin.org.section:admin#app"
+          "admin.settings.tab:admin#features"
         ],
         "needs": [
           "admin"
@@ -44935,18 +44933,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.org.assignment-modes-save",
-    "label": "Save button for assignment modes in Organization app settings",
+    "label": "Save button for assignment modes in Admin Settings Features",
     "scope": "board",
     "panel": true,
     "persists": true,
     "routes": [
       {
-        "surface": "admin.organization.app-settings",
+        "surface": "admin.features",
         "kind": "panel",
         "path": [
           "sidebar.admin-settings",
-          "admin.settings.tab:admin#organization",
-          "admin.org.section:admin#app"
+          "admin.settings.tab:admin#features"
         ],
         "needs": [
           "admin"

@@ -10259,18 +10259,18 @@ export const TOUR_ANCHORS = {
   },
   'admin.org.mode-submissions': {
     label:
-      'Submissions mode button for an assignment type in Organization app settings',
+      'Submissions mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.mode-view-only': {
     label:
-      'View only mode button for an assignment type in Organization app settings',
+      'View only mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.assignment-modes-save': {
-    label: 'Save button for assignment modes in Organization app settings',
+    label: 'Save button for assignment modes in Admin Settings Features',
     persists: true,
     panel: true,
   },

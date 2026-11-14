@@ -1169,11 +1169,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Inert while Mini App assignments are view-only in Organization settings.
+  // Who gets Mini App submissions; Assignment modes must also allow them.
   'mini-app-results': {
-    label: 'Mini App results',
+    label: 'Mini App submissions',
     icon: ListChecks,
-    description: 'Graded mini app submissions with attempt limits.',
+    description:
+      'Lets these teachers collect Mini App submissions. Needs Submissions in Assignment modes.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'miniApp',

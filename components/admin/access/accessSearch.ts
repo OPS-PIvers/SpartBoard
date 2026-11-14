@@ -67,6 +67,18 @@ export const widgetSearchFields = (
   ]),
 ];
 
+/** The Assignment modes section at the top of the Features tab. */
+export const ASSIGNMENT_MODES_SEARCH_FIELDS: readonly string[] = [
+  'Assignment modes',
+  'Submissions',
+  'View only',
+  'assignment-modes',
+  'Quiz',
+  'Video Activity',
+  'Mini Apps',
+  'Guided Learning',
+];
+
 export const previewFeatures = (
   graduated: GraduatedSet = NONE
 ): GlobalFeature[] =>
@@ -130,7 +142,10 @@ const rowsFor = (
   graduated: GraduatedSet
 ): Record<AccessTabId, readonly (readonly (string | undefined)[])[]> => ({
   widgets: TOOLS.map((t) => widgetSearchFields(t, undefined, graduated)),
-  features: featuresTabFeatures(graduated).map(featureSearchFields),
+  features: [
+    ASSIGNMENT_MODES_SEARCH_FIELDS,
+    ...featuresTabFeatures(graduated).map(featureSearchFields),
+  ],
   previews: [
     ...previewFeatures(graduated).map(featureSearchFields),
     ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),
