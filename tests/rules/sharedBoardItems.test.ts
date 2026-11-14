@@ -148,6 +148,55 @@ beforeEach(async () => {
   );
 });
 
+describe('a share re-created at an old id', () => {
+  const SHARE = `shared_boards/${SHARE_ID}`;
+  const recreate = (createdNonce?: string) =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: OUTSIDER_UID,
+        intendedMode: 'synced',
+        participants: { [HOST_UID]: participant('collaborator') },
+        ...(createdNonce ? { createdNonce } : {}),
+      });
+    });
+
+  it('cannot read a copy stamped with the old instance nonce', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'old' })
+      );
+    });
+    await recreate('new');
+    await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), ITEM_PATH)));
+    await recreate();
+    await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), ITEM_PATH)));
+  });
+
+  it('the owner writes a copy with the share nonce, and a member reads it', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: HOST_UID,
+        intendedMode: 'synced',
+        participants: { [VIEWER_UID]: participant('viewer') },
+        createdNonce: 'n1',
+      });
+    });
+    await assertFails(
+      setDoc(doc(asTeacher(HOST_UID), ITEM_PATH), item(HOST_UID))
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'n1' })
+      )
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+  });
+});
+
 describe('reading a shared board item', () => {
   it('the host, a collaborator and a viewer read it', async () => {
     await seed({ itemOwner: HOST_UID });

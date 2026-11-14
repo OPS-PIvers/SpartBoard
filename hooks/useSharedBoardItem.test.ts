@@ -198,34 +198,10 @@ describe('publishSharedBoardItem picks', () => {
     expect(fs.setDoc).not.toHaveBeenCalled();
   });
 
-  it('seeds a share made before picks existed from the board, then publishes', async () => {
+  it('never seeds picks from a share doc’s collaborator-writable widgets', async () => {
     stored = {
       'shared_boards/share-1': {
-        widgets: [{ type: 'quiz', config: { selectedQuizId: 'q1' } }],
-      },
-    };
-    fs.setDoc.mockImplementation((ref: { path: string }) => {
-      if (ref.path === PICKS) stored[PICKS] = { items: ['quiz_q1'] };
-      return Promise.resolve();
-    });
-    await expect(
-      publishSharedBoardItem('share-1', item, () => Promise.resolve({ a: 1 }))
-    ).resolves.toBe('written');
-    expect(fs.setDoc).toHaveBeenCalledWith(
-      { path: PICKS },
-      { items: { arrayUnion: ['quiz_q1'] }, legacySeeded: true },
-      { merge: true }
-    );
-    expect(fs.setDoc).toHaveBeenLastCalledWith(
-      { path: ITEM },
-      expect.objectContaining({ itemId: 'q1', payload: { a: 1 } })
-    );
-  });
-
-  it('never seeds a share made after picks existed', async () => {
-    stored = {
-      'shared_boards/share-1': {
-        sharedAt: Date.UTC(2026, 10, 11),
+        sharedAt: Date.UTC(2026, 9, 1),
         widgets: [{ type: 'quiz', config: { selectedQuizId: 'q1' } }],
       },
     };

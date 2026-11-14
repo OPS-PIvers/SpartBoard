@@ -15,7 +15,11 @@ import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { getNextUpQueueStore } from './nextUpQueueStore';
-import { assertNextUpQueueFile, NEXTUP_FOLDER_NAME } from './nextUpDriveFile';
+import {
+  assertNextUpQueueFile,
+  NEXTUP_FOLDER_NAME,
+  nextUpSessionId,
+} from './nextUpDriveFile';
 
 const SESSIONS_COLLECTION = 'nextup_sessions';
 const THEME_COLORS = [
@@ -162,8 +166,12 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
     if (!confirmed) return;
 
     const fileId = config.activeDriveFileId;
-    if (!save && fileId && driveService) {
-      void assertNextUpQueueFile(driveService, fileId)
+    if (!save && fileId && driveService && user) {
+      void assertNextUpQueueFile(
+        driveService,
+        fileId,
+        nextUpSessionId(user.uid, ctx.widget.id)
+      )
         .then(() => driveService.deleteFile(fileId))
         .catch(console.error);
     }
@@ -244,7 +252,12 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
       await getNextUpQueueStore(ctx.widget.id).dispatch(
         { type: 'replace', queue },
         async (updated) => {
-          await assertNextUpQueueFile(driveService, fileId);
+          if (!user) throw new Error('Not signed in');
+          await assertNextUpQueueFile(
+            driveService,
+            fileId,
+            nextUpSessionId(user.uid, ctx.widget.id)
+          );
           await driveService.updateFileContent(
             fileId,
             new Blob([JSON.stringify(updated)], { type: 'application/json' })

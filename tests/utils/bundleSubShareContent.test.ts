@@ -801,6 +801,7 @@ describe('bundleSubShareContent', () => {
           ]),
         ],
         services: { readCalendar },
+        approvedCalendarIds: ['primary', 'coach@school.org'],
       });
 
       expect(bundle.failures).toEqual([]);
@@ -823,6 +824,7 @@ describe('bundleSubShareContent', () => {
         hostUid: 'teacher-1',
         boards: [board('b1', 'Homeroom', [calendarWidget('w1', ['primary'])])],
         services: { readCalendar },
+        approvedCalendarIds: ['primary', 'coach@school.org'],
       });
 
       const [, timeMin, timeMax] = readCalendar.mock.calls[0] as string[];
@@ -842,6 +844,7 @@ describe('bundleSubShareContent', () => {
           ]),
         ],
         services: { readCalendar },
+        approvedCalendarIds: ['primary', 'coach@school.org'],
       });
 
       // Two widgets on one calendar are two items: a teacher can set a
@@ -859,6 +862,7 @@ describe('bundleSubShareContent', () => {
         hostUid: 'teacher-1',
         boards: [board('b1', 'Homeroom', [calendarWidget('w1', [])])],
         services: { readCalendar },
+        approvedCalendarIds: ['primary', 'coach@school.org'],
       });
 
       expect(bundle.items).toEqual([]);
@@ -872,11 +876,38 @@ describe('bundleSubShareContent', () => {
       const bundle = await bundleSubShareContent({
         hostUid: 'teacher-1',
         boards: [board('b1', 'Homeroom', [calendarWidget('w1', ['primary'])])],
+        approvedCalendarIds: ['primary'],
       });
 
       expect(bundle.items).toEqual([]);
       expect(bundle.failures).toEqual([
         { kind: 'calendar', itemId: 'w1', label: 'Calendar on Homeroom' },
+      ]);
+    });
+
+    it('never reads a calendar id the host did not confirm', async () => {
+      const readCalendar = vi.fn().mockResolvedValue(events);
+
+      const none = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Homeroom', [calendarWidget('w1', ['primary'])])],
+        services: { readCalendar },
+      });
+      expect(none.items).toEqual([]);
+      expect(none.failures).toEqual([]);
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Homeroom', [
+            calendarWidget('w1', ['primary', 'host@school.org']),
+          ]),
+        ],
+        services: { readCalendar },
+        approvedCalendarIds: ['host@school.org'],
+      });
+      expect((readCalendar.mock.calls as string[][]).map((c) => c[0])).toEqual([
+        'host@school.org',
       ]);
     });
 
@@ -887,6 +918,7 @@ describe('bundleSubShareContent', () => {
         hostUid: 'teacher-1',
         boards: [board('b1', 'Homeroom', [calendarWidget('w1', ['primary'])])],
         services: { readCalendar },
+        approvedCalendarIds: ['primary', 'coach@school.org'],
       });
 
       expect(bundle.items).toEqual([]);

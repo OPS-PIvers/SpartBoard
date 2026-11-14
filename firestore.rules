@@ -1578,6 +1578,7 @@ service cloud.firestore {
         incoming().get('sharedAt', null) == existing().get('sharedAt', null) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
         incoming().get('plcId', null) == existing().get('plcId', null) &&
+        incoming().get('createdNonce', null) == existing().get('createdNonce', null) &&
         incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
       // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
@@ -1632,7 +1633,8 @@ service cloud.firestore {
           return isDistrictStaff() && d.ownerUid == authUid()
             && (sb.originalAuthor == authUid()
                 || sb.get('participants', {}).get(authUid(), {}).get('role', '') == 'collaborator')
-            && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload'])
+            && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload', 'shareNonce'])
+            && d.get('shareNonce', null) == sb.get('createdNonce', null)
             && isStr('kind') && isStr('itemId') && itemDocId == d.kind + '_' + authUid() + '_' + d.itemId
             && sbItemCollection(d.kind) != ''
             && isStr('title') && d.title.size() <= 500
@@ -1643,11 +1645,12 @@ service cloud.firestore {
         function sbItemMember(uid) {
           return sbItemShare().originalAuthor == uid || uid in sbItemShare().get('participants', {});
         }
-        // The owner must still belong to the share too, so a share recreated at an old id can't read
-        // copies the deleted share left behind.
+        // The owner must still belong and the copy must carry this share's createdNonce, so a share
+        // recreated at an old id can't read copies the deleted share left behind.
         allow get: if staffSignedIn() && isDistrictStaff()
           && sbItemMember(authUid())
-          && (noDoc() || sbItemMember(existing().get('ownerUid', '')));
+          && (noDoc() || (sbItemMember(existing().get('ownerUid', ''))
+              && existing().get('shareNonce', null) == sbItemShare().get('createdNonce', null)));
         // A first copy needs the owner's own pick, so a co-editor's config edit never publishes it.
         allow create: if signedIn() && sbItemWriteOk()
           && (incoming().kind + '_' + incoming().itemId) in get(/databases/$(database)/documents/users/$(authUid())/board_item_picks/$(shareId)).data.get('items', []);
@@ -1792,6 +1795,18 @@ service cloud.firestore {
         return signedIn()
           && shareData().get('hostUid', null) == authUid();
       }
+      function canReadKeys() {
+        return signedIn() && (
+          isShareHost()
+          || isAdmin()
+          || (
+            isDistrictStaff()
+            && shareData().get('expiresAt', 0) > nowMs()
+            && tok().get('email', '').lower()
+               in shareData().get('subEmails', [])
+          )
+        );
+      }
 
       // Per-Board snapshots.
       match /boards/{boardId} {
@@ -1802,23 +1817,16 @@ service cloud.firestore {
       // Display content for widgets whose data lives outside the board, so a
       // sub sees the teacher's drawing, notebook or queue rather than their own.
       match /content/{contentId} {
-        allow read: if canReadShared();
+        // Calendar events come from the host's private account: host, admin or named subs only.
+        allow read: if canReadShared()
+          && (!contentId.matches('calendar_.*') || canReadKeys());
         allow create, update, delete: if isShareHost();
       }
 
       // Answer keys and full activity copies. Narrower than content/: the host,
       // an admin, or a sub this share names by email, and never past expiry.
       match /keys/{keyId} {
-        allow read: if signedIn() && (
-          isShareHost()
-          || isAdmin()
-          || (
-            isDistrictStaff()
-            && shareData().get('expiresAt', 0) > nowMs()
-            && tok().get('email', '').lower()
-               in shareData().get('subEmails', [])
-          )
-        );
+        allow read: if canReadKeys();
         allow create, update, delete: if isShareHost();
       }
     }

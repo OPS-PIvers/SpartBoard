@@ -7,6 +7,7 @@ import type {
   WidgetData,
   WidgetType,
 } from '@/types';
+import { isValidConnection } from '@/utils/dashboardSanitize';
 import {
   actionDefFor,
   connectionDefFor,
@@ -58,7 +59,9 @@ export const liveConnections = (
   connections: WidgetConnection[] | undefined,
   widgets: WidgetData[]
 ): WidgetConnection[] =>
-  (connections ?? []).filter((c) => isConnectionLive(c, widgets));
+  (connections ?? []).filter(
+    (c) => isValidConnection(c) && isConnectionLive(c, widgets)
+  );
 
 export interface StepApplyResult {
   patches: WidgetPatches;

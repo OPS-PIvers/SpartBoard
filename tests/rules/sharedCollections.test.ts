@@ -1188,6 +1188,32 @@ describe('shared_collections/content — write authorization', () => {
 // 21. Subcollection /keys/{keyId} — named subs only
 // ---------------------------------------------------------------------------
 
+describe('shared_collections/content — calendar items', () => {
+  const calPath = `shared_collections/${SHARE_ID}/content/calendar_w1`;
+  const seedCal = async (share: Record<string, unknown>) =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), share);
+      await setDoc(doc(ctx.firestore(), calPath), {
+        kind: 'calendar',
+        itemId: 'w1',
+        bundledAt: NOW_MS,
+        payload: { events: [] },
+      });
+    });
+
+  it('a named sub, the host and an admin read it', async () => {
+    await seedCal(namedSubShareDoc());
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), calPath)));
+    await assertSucceeds(getDoc(doc(asHost(), calPath)));
+    await assertSucceeds(getDoc(doc(asAdmin(), calPath)));
+  });
+
+  it('a district teacher the share does not name is denied', async () => {
+    await seedCal(namedSubShareDoc());
+    await assertFails(getDoc(doc(asUnnamedOronoSub(), calPath)));
+  });
+});
+
 describe('shared_collections/keys — read', () => {
   it('positive: a sub the share names by email can read a key', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {

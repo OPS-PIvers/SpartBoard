@@ -175,6 +175,8 @@ export interface SubShareTree {
   sections: SharedCollectionSection[];
   boardEntries: SharedCollectionBoardEntry[];
   defaultBoardId?: string;
+  /** Personal calendar ids the host confirmed for this share. */
+  calendarIds?: string[];
 }
 
 type SubstituteShareInput = ShareCollectionInput &
@@ -405,12 +407,15 @@ export const useSharedCollection = () => {
    * share screen instead, and their own widget still offers the connect CTA.
    */
   const bundleServices = useCallback(
-    async (boards: Dashboard[]): Promise<SubShareBundleServices> => {
+    async (
+      boards: Dashboard[],
+      approvedCalendarIds: readonly string[]
+    ): Promise<SubShareBundleServices> => {
       // Each reader is fetched only when a board wants it: sharing is a hot
       // action, and a GIS round-trip nothing will read is pure latency. They
       // are independent, so a teacher who never granted Calendar still gets
       // their video activities bundled.
-      const calendarToken = subShareNeedsCalendar(boards)
+      const calendarToken = subShareNeedsCalendar(boards, approvedCalendarIds)
         ? await ensureGoogleScope('calendar.readonly')
         : null;
       // `drive.file` is granted at login, so Drive needs no on-demand scope.
@@ -634,7 +639,8 @@ export const useSharedCollection = () => {
       const bundle = await bundleSubShareContent({
         hostUid: input.hostUid,
         boards: input.boards,
-        services: await bundleServices(input.boards),
+        approvedCalendarIds: input.calendarIds ?? [],
+        services: await bundleServices(input.boards, input.calendarIds ?? []),
       });
       await commitContentBatches({
         shareId,
@@ -752,7 +758,8 @@ export const useSharedCollection = () => {
       const bundle = await bundleSubShareContent({
         hostUid: current.hostUid,
         boards: input.boards,
-        services: await bundleServices(input.boards),
+        approvedCalendarIds: input.calendarIds ?? [],
+        services: await bundleServices(input.boards, input.calendarIds ?? []),
       });
       // What the last push bundled, read back rather than tracked on the
       // parent doc: the host can list it, and a list that drifts from the docs
