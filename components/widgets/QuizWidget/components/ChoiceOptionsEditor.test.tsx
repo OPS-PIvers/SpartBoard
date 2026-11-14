@@ -98,3 +98,64 @@ describe('ChoiceOptionsEditor keyboard', () => {
     expect(seen.q?.correctAnswer).toBe('Venus');
   });
 });
+
+const ExplainHarness: React.FC<{ initial: QuizQuestion }> = ({ initial }) => {
+  const [q, setQ] = useState(initial);
+  return (
+    <ChoiceOptionsEditor
+      key={q.id}
+      question={q}
+      onChange={(u) => setQ((prev) => ({ ...prev, ...u }))}
+      onExplanationsChange={(optionExplanations) => {
+        const next = { ...q, optionExplanations };
+        seen.q = next;
+        setQ(next);
+      }}
+    />
+  );
+};
+
+describe('ChoiceOptionsEditor option explanations', () => {
+  const explainButton = (letter: string) =>
+    screen.getByRole('button', { name: `Explanation for option ${letter}` });
+  const explainBox = (letter: string) =>
+    screen.queryByRole('textbox', { name: `Explanation for option ${letter}` });
+  const typeInto = (letter: string, value: string) =>
+    fireEvent.change(
+      screen.getByRole('textbox', { name: `Explanation for option ${letter}` }),
+      { target: { value } }
+    );
+
+  it('hides the button without a handler', () => {
+    render(<Harness initial={base} />);
+    expect(
+      screen.queryByRole('button', { name: 'Explanation for option A' })
+    ).toBeNull();
+  });
+
+  it('opens one explanation at a time and toggles it closed', () => {
+    render(<ExplainHarness initial={base} />);
+    expect(explainBox('A')).toBeNull();
+    fireEvent.click(explainButton('A'));
+    expect(explainButton('A')).toHaveAttribute('aria-expanded', 'true');
+    typeInto('A', 'Closest');
+    expect(seen.q?.optionExplanations).toEqual({ Mercury: 'Closest' });
+    fireEvent.click(explainButton('B'));
+    expect(explainBox('A')).toBeNull();
+    expect(explainBox('B')).toBeInTheDocument();
+    fireEvent.click(explainButton('B'));
+    expect(explainBox('B')).toBeNull();
+  });
+
+  it('shows a saved explanation and drops it when cleared', () => {
+    render(
+      <ExplainHarness
+        initial={{ ...base, optionExplanations: { Venus: 'Second' } }}
+      />
+    );
+    fireEvent.click(explainButton('B'));
+    expect(explainBox('B')).toHaveValue('Second');
+    typeInto('B', '');
+    expect(seen.q?.optionExplanations).toBeUndefined();
+  });
+});

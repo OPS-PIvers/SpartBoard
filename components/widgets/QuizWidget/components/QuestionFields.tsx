@@ -16,7 +16,6 @@ import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import type { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
-import { explainableOptions } from '@/utils/quizExplanations';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 import { AlternateAnswersEditor } from './AlternateAnswersEditor';
 import { AnswerKeyKeyboard, type KeyboardSettings } from './AnswerKeyKeyboard';
@@ -337,19 +336,11 @@ interface QuestionExplanationFieldProps {
   onChange: (updates: Partial<QuizQuestion>) => void;
 }
 
-/** The question's explanation, plus one per answer option on Multiple Choice. */
+/** The question's explanation; each answer option's sits on its row. */
 export const QuestionExplanationField: React.FC<
   QuestionExplanationFieldProps
 > = ({ question: q, onChange }) => {
   const { t } = useTranslation();
-  const options = explainableOptions(q);
-  const setOption = (option: string, text: string) => {
-    const next = { ...q.optionExplanations, [option]: text };
-    if (!text.trim()) delete next[option];
-    onChange({
-      optionExplanations: Object.keys(next).length > 0 ? next : undefined,
-    });
-  };
   return (
     <div>
       <label className={labelClass}>
@@ -367,35 +358,6 @@ export const QuestionExplanationField: React.FC<
         )}
         className={`${inputClass} resize-y`}
       />
-      {options.length > 1 && (
-        <div className="mt-2 space-y-1.5">
-          {options.map((option) => (
-            <div key={option} className="flex items-center gap-2">
-              <span
-                className="w-1/3 min-w-0 truncate text-xs font-semibold text-slate-600"
-                title={option}
-              >
-                {option}
-              </span>
-              {/* no-tour-anchor: one box per option, reached through the Explanation anchor */}
-              <input
-                type="text"
-                value={q.optionExplanations?.[option] ?? ''}
-                onChange={(e) => setOption(option, e.target.value)}
-                aria-label={t('quizExplanations.optionLabel', {
-                  option,
-                  defaultValue: 'Explanation for {{option}}',
-                })}
-                placeholder={t(
-                  'quizExplanations.optionPlaceholder',
-                  'Why right or wrong'
-                )}
-                className={inputClass}
-              />
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

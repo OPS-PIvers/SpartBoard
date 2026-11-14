@@ -8959,6 +8959,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.option-explanation",
+    "label": "Show or hide an answer option explanation in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.option-explanation-text",
+    "label": "Answer option explanation in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.answer-image-description",
     "label": "Describe a picture-only answer for screen readers in the Quiz editor",
     "scope": "field",
