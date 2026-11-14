@@ -74,6 +74,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'import-embed',
   'import-extension-send',
   'import-flashcards',
+  'import-google-forms',
   'import-guided-learning',
   'import-link',
   'import-mini-app',

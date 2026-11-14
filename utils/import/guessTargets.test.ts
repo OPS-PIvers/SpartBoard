@@ -163,6 +163,15 @@ describe('guessTargets', () => {
     expect(g.targets.filter((t) => t === 'flashcards')).toEqual(['flashcards']);
   });
 
+  it('offers a sent Google Form as a quiz or a poll, quiz first', () => {
+    const g = guessTargets({
+      kind: 'send',
+      item: send({ form: { items: [{ kind: 'short', text: 'Name?' }] } }),
+    });
+    expect(g.guess).toBe('quiz');
+    expect(g.targets).toEqual(['quiz', 'poll']);
+  });
+
   it("doesn't offer a selection as a whole-page embed", () => {
     const g = guessTargets({
       kind: 'send',

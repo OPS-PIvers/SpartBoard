@@ -133,12 +133,17 @@ function choicePictures(
   texts: readonly string[]
 ): Pick<QuizQuestion, 'answerImages' | 'imageOnlyAnswers'> {
   const pictured = options.flatMap((o, i) =>
-    o.imageId ? [{ text: texts[i], url: o.imageId }] : []
+    o.imageId
+      ? [{ text: texts[i], url: o.imageId, labelled: !!o.textWithPicture }]
+      : []
   );
   if (pictured.length === 0) return {};
+  const imageOnly = pictured.filter((p) => !p.labelled);
   return {
-    answerImages: pictured,
-    imageOnlyAnswers: pictured.map(({ text }) => ({ text })),
+    answerImages: pictured.map(({ text, url }) => ({ text, url })),
+    ...(imageOnly.length
+      ? { imageOnlyAnswers: imageOnly.map(({ text }) => ({ text })) }
+      : {}),
   };
 }
 
