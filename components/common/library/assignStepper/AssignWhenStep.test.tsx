@@ -344,7 +344,29 @@ describe('Manual due date', () => {
     fireEvent.click(screen.getByRole('button', { name: 'When ended' }));
     expect(
       (onValue.mock.calls.at(-1)?.[0] as AssignWhenValue).availability.manualDue
-    ).toEqual({ kind: 'ended' });
+    ).toEqual({ kind: 'ended', time: '23:59' });
+  });
+
+  it('switches to Date & time at the remembered time', () => {
+    const onValue = vi.fn();
+    render(
+      <Harness
+        initial={{
+          ...MANUAL,
+          availability: {
+            ...MANUAL.availability,
+            manualDue: { kind: 'ended', time: '14:30' },
+          },
+        }}
+        onValue={onValue}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Due'), {
+      target: { value: 'date' },
+    });
+    expect(
+      (onValue.mock.calls.at(-1)?.[0] as AssignWhenValue).availability.manualDue
+    ).toMatchObject({ kind: 'date', time: '14:30' });
   });
 
   it('hides the row without the flag value', () => {

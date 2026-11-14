@@ -41,8 +41,7 @@ const DueRow: React.FC<{
   due: ManualDue;
   onChange: (due: ManualDue) => void;
   openedAt: number;
-  lastTime: string;
-}> = ({ due, onChange, openedAt, lastTime }) => {
+}> = ({ due, onChange, openedAt }) => {
   const { t } = useTranslation();
   const label = t('assignWhen.due', { defaultValue: 'Due' });
   const endedLabel = t('assignWhen.dueWhenEnded', {
@@ -61,7 +60,7 @@ const DueRow: React.FC<{
           onChange({
             kind: 'date',
             day: getLocalIsoDate(new Date(openedAt)),
-            time: lastTime,
+            time: due.time ?? DEFAULT_DUE_TIME,
           })
         }
         anchor={tourAttr('assign-when.due')}
@@ -82,7 +81,7 @@ const DueRow: React.FC<{
         }
         clear={{
           label: endedLabel,
-          onClear: () => onChange({ kind: 'ended' }),
+          onClear: () => onChange({ kind: 'ended', time: due.time }),
         }}
       />
       {dueAt != null && dueAt <= openedAt && (
@@ -229,7 +228,6 @@ export const AssignWhenStep: React.FC<{
                 setAvailability({ ...availability, manualDue })
               }
               openedAt={openedAt}
-              lastTime={DEFAULT_DUE_TIME}
             />
           )}
         </>
