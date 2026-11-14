@@ -1012,7 +1012,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       bellAvailable: !!periodAccess,
       manualAvailable: true,
     });
-  const assignWhenState = useAssignWhen(quizWhenSeed);
+  const assignWhenState = useAssignWhen('quiz', quizWhenSeed, {
+    manualDue: true,
+  });
   const assignWhen = assignWhenState.when;
   const setAssignWhen = assignWhenState.setWhen;
   const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
@@ -2308,7 +2310,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           : {}),
       }
     );
-    assignWhenState.remember(assignWhen);
+    if (!assignToStaff) assignWhenState.remember(assignWhen);
     resetAssign();
   };
 

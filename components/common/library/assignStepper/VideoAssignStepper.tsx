@@ -137,7 +137,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     when,
     setWhen,
     remember: rememberWhen,
-  } = useAssignWhen(() =>
+  } = useAssignWhen('video', () =>
     defaultWhenValue({
       activity: 'video',
       bellAvailable: !!periodAccess,

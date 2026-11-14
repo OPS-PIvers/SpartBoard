@@ -185,7 +185,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     when,
     setWhen,
     remember: rememberWhen,
-  } = useAssignWhen(() =>
+  } = useAssignWhen('flashcards', () =>
     defaultWhenValue({
       activity: 'flashcards',
       bellAvailable: !!periodAccess,

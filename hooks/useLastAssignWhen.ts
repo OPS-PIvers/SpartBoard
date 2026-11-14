@@ -6,12 +6,15 @@ import {
   type LastAssignSettingsSpec,
 } from '@/hooks/useLastAssignSettings';
 import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
+import type { AssignActivity } from '@/components/common/library/assignStepper/assignSteps';
 import { getLocalIsoDate } from '@/utils/localDate';
+import { manualDueAt, type ManualDue } from '@/utils/assignAvailability';
 
 export const ASSIGN_DUE_DATE_FEATURE = 'assign-due-date';
 
-/** Profile field holding the teacher's last When step choices, shared by every activity. */
-export const LAST_ASSIGN_WHEN_FIELD = 'lastAssignWhen';
+/** Profile field holding the teacher's last When step choices for one activity. */
+export const lastAssignWhenField = (activity: AssignActivity): string =>
+  `lastAssignWhen_${activity}`;
 
 /** Starting time for a Date & time due date. */
 export const DEFAULT_DUE_TIME = '23:59';
@@ -43,22 +46,54 @@ export function parseLastAssignWhen(raw: unknown): LastAssignWhen | null {
   };
 }
 
-const WHEN_SPEC: LastAssignSettingsSpec<LastAssignWhen> = {
-  field: LAST_ASSIGN_WHEN_FIELD,
-  parse: parseLastAssignWhen,
-  logTag: 'useLastAssignWhen',
-};
+const ACTIVITIES: readonly AssignActivity[] = [
+  'quiz',
+  'video',
+  'gl',
+  'flashcards',
+  'miniapp',
+];
+
+// Stable per activity, since the read hook keys its effect on the spec.
+const WHEN_SPECS = Object.fromEntries(
+  ACTIVITIES.map((activity) => [
+    activity,
+    {
+      field: lastAssignWhenField(activity),
+      parse: parseLastAssignWhen,
+      logTag: 'useLastAssignWhen',
+    },
+  ])
+) as Record<AssignActivity, LastAssignSettingsSpec<LastAssignWhen>>;
 
 /** Test hook: forget cached reads between cases. */
 export function resetLastAssignWhenCache(): void {
-  resetLastAssignSettingsCache(LAST_ASSIGN_WHEN_FIELD);
+  ACTIVITIES.forEach((a) =>
+    resetLastAssignSettingsCache(lastAssignWhenField(a))
+  );
+}
+
+/** Today at this time, or tomorrow once today's has passed. */
+function nextDue(time: string, now: Date): ManualDue {
+  const today = getLocalIsoDate(now);
+  const at = manualDueAt({ kind: 'date', day: today, time });
+  if (at == null || at > now.getTime())
+    return { kind: 'date', day: today, time };
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1
+  );
+  return { kind: 'date', day: getLocalIsoDate(tomorrow), time };
 }
 
 /** The starting When value with the due date on and the teacher's last choices applied. */
 export function withRememberedWhen(
   seed: AssignWhenValue,
   last: LastAssignWhen | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** Offers the Manual due date; off leaves it unset. */
+  manualDue = true
 ): AssignWhenValue {
   const due = last?.due ?? 'ended';
   return {
@@ -67,13 +102,10 @@ export function withRememberedWhen(
       ...seed.availability,
       allowLate: last?.allowLate ?? seed.availability.allowLate,
       opensOnAssign: (last?.opens ?? 'now') === 'now',
-      manualDue:
-        due === 'date'
-          ? {
-              kind: 'date',
-              day: getLocalIsoDate(now),
-              time: last?.dueTime ?? DEFAULT_DUE_TIME,
-            }
+      manualDue: !manualDue
+        ? undefined
+        : due === 'date'
+          ? nextDue(last?.dueTime ?? DEFAULT_DUE_TIME, now)
           : { kind: 'ended' },
     },
   };
@@ -106,11 +138,20 @@ export interface AssignWhenState {
   dueDate: boolean;
 }
 
-/** The assign stepper's When value; with the due date flag on, it starts from the teacher's last choices. */
-export function useAssignWhen(seed: () => AssignWhenValue): AssignWhenState {
+/** The assign stepper's When value; with the due date flag on, it starts from the teacher's last choices for this activity. */
+export function useAssignWhen(
+  activity: AssignActivity,
+  seed: () => AssignWhenValue,
+  /** Offers the Manual due date, for hosts whose sessions keep a close with a class gate. */
+  { manualDue = false }: { manualDue?: boolean } = {}
+): AssignWhenState {
   const auth = useContext(AuthContext);
   const dueDate = !!auth?.canAccessFeature(ASSIGN_DUE_DATE_FEATURE);
-  const last = useLastAssignSettings(WHEN_SPEC, auth?.user?.uid, dueDate);
+  const last = useLastAssignSettings(
+    WHEN_SPECS[activity],
+    auth?.user?.uid,
+    dueDate
+  );
   const [state, setState] = useState<{
     seed: AssignWhenValue;
     edited: AssignWhenValue | null;
@@ -118,13 +159,16 @@ export function useAssignWhen(seed: () => AssignWhenValue): AssignWhenState {
   // Until the teacher edits it, a last-used value that loads late still applies.
   const when =
     state.edited ??
-    (dueDate ? withRememberedWhen(state.seed, last.lastUsed) : state.seed);
+    (dueDate
+      ? withRememberedWhen(state.seed, last.lastUsed, new Date(), manualDue)
+      : state.seed);
   return {
     when,
     setWhen: (next) => setState((s) => ({ ...s, edited: next })),
     reseed: (next) => setState({ seed: next, edited: null }),
     remember: (value) => {
-      if (dueDate) last.save(lastWhenFrom(value, last.lastUsed));
+      // Before the read lands, saving would overwrite choices the teacher never saw.
+      if (dueDate && last.loaded) last.save(lastWhenFrom(value, last.lastUsed));
     },
     dueDate,
   };

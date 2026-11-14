@@ -88,7 +88,7 @@ export const GuidedLearningAssignStepper: React.FC<{
     when,
     setWhen,
     remember: rememberWhen,
-  } = useAssignWhen(() =>
+  } = useAssignWhen('gl', () =>
     defaultWhenValue({
       activity: 'gl',
       bellAvailable: !!bellWindow,

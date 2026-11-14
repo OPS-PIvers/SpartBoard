@@ -49,6 +49,46 @@ describe('withRememberedWhen', () => {
   });
 });
 
+describe('withRememberedWhen after the due time', () => {
+  it('moves a remembered due time that has passed today to tomorrow', () => {
+    const when = withRememberedWhen(
+      seed,
+      {
+        mode: 'manual',
+        allowLate: false,
+        opens: 'now',
+        due: 'date',
+        dueTime: '08:00',
+      },
+      now
+    );
+    expect(when.availability.manualDue).toEqual({
+      kind: 'date',
+      day: '2026-11-15',
+      time: '08:00',
+    });
+  });
+});
+
+describe('withRememberedWhen without the Manual due date', () => {
+  it('leaves the due date unset', () => {
+    const when = withRememberedWhen(
+      seed,
+      {
+        mode: 'manual',
+        allowLate: false,
+        opens: 'now',
+        due: 'date',
+        dueTime: '15:00',
+      },
+      now,
+      false
+    );
+    expect(when.availability.manualDue).toBeUndefined();
+    expect(when.availability.opensOnAssign).toBe(true);
+  });
+});
+
 describe('lastWhenFrom', () => {
   it('round-trips the choices and keeps the last time when due when ended', () => {
     const saved = lastWhenFrom(

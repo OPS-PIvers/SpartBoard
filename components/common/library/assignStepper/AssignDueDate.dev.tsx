@@ -50,17 +50,21 @@ const Preview: React.FC = () => {
     classIds: ROSTERS.slice(0, classCount).map((r) => r.id),
     studentsByClass: {},
   });
-  const { when, setWhen, dueDate } = useAssignWhen(() => {
-    const seed = defaultWhenValue({
-      activity: 'quiz',
-      bellAvailable: bells,
-      manualAvailable: true,
-    });
-    return {
-      ...seed,
-      mode: params().get('mode') === 'scheduled' ? 'scheduled' : 'manual',
-    };
-  });
+  const { when, setWhen, dueDate } = useAssignWhen(
+    'quiz',
+    () => {
+      const seed = defaultWhenValue({
+        activity: 'quiz',
+        bellAvailable: bells,
+        manualAvailable: true,
+      });
+      return {
+        ...seed,
+        mode: params().get('mode') === 'scheduled' ? 'scheduled' : 'manual',
+      };
+    },
+    { manualDue: true }
+  );
   const [behavior, setBehavior] = useState(() => getQuizAssignPrefill(null));
   const due = params().get('due');
   const [seeded, setSeeded] = useState(false);

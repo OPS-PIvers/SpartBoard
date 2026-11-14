@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import {
   availabilityBackwards,
   defaultAvailability,
+  manualDueAt,
   type AssignAvailability,
   type AssignWhenMode,
   type BellWindowFn,
@@ -171,9 +172,14 @@ export function whenBackwards(
   when: AssignWhenValue,
   rosters: readonly PeriodRoster[],
   bellWindow: BellWindowFn | undefined,
-  workKind?: WorkKind
+  workKind?: WorkKind,
+  now: number = Date.now()
 ): boolean {
-  if (when.mode === 'manual' && workKind !== 'resource') return false;
+  if (when.mode === 'manual' && workKind !== 'resource') {
+    // A Manual due date opens now, so one already past closes before it opens.
+    const due = manualDueAt(when.availability.manualDue);
+    return due != null && due <= now;
+  }
   return availabilityBackwards(
     { availability: when.availability, workKind },
     rosters,

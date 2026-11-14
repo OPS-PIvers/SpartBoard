@@ -8,6 +8,7 @@ import { AssignWhenStep } from './AssignWhenStep';
 import {
   defaultWhenValue,
   formatWhenValue,
+  whenBackwards,
   type AssignWhenValue,
   type AssignWhenVariant,
 } from './assignWhenValue';
@@ -351,6 +352,24 @@ describe('Manual due date', () => {
       <Harness initial={{ ...MANUAL, availability: BELL.availability }} />
     );
     expect(screen.queryByLabelText('Due')).toBeNull();
+  });
+
+  it('keeps Assign off for a due time already past', () => {
+    const due = (time: string) => ({
+      ...MANUAL,
+      availability: {
+        ...MANUAL.availability,
+        manualDue: { kind: 'date' as const, day: '2026-11-14', time },
+      },
+    });
+    const now = new Date(2026, 10, 14, 12, 0).getTime();
+    expect(whenBackwards(due('11:00'), [], undefined, undefined, now)).toBe(
+      true
+    );
+    expect(whenBackwards(due('13:00'), [], undefined, undefined, now)).toBe(
+      false
+    );
+    expect(whenBackwards(MANUAL, [], undefined, undefined, now)).toBe(false);
   });
 
   it('formats the collapsed value', () => {

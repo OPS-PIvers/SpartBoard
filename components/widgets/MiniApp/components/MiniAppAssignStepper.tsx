@@ -88,7 +88,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     when,
     setWhen,
     remember: rememberWhen,
-  } = useAssignWhen(() =>
+  } = useAssignWhen('miniapp', () =>
     defaultWhenValue({
       activity: 'miniapp',
       bellAvailable: !!periodAccess,

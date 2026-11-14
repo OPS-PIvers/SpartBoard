@@ -42,6 +42,12 @@ export interface AssignAvailability {
 export type ManualDue =
   { kind: 'ended' } | { kind: 'date'; day: string; time: string };
 
+/** A saved Manual due date back as a date and time. */
+export function manualDueFromMs(ms: number): ManualDue {
+  const d = new Date(ms);
+  return { kind: 'date', day: getLocalIsoDate(d), time: localTime(d) };
+}
+
 /** A Manual due date as epoch ms; null when it's due whenever the teacher ends it. */
 export function manualDueAt(due: ManualDue | undefined): number | null {
   return due?.kind === 'date' ? combineDateAndTime(due.day, due.time) : null;
