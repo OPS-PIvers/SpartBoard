@@ -4784,7 +4784,7 @@ export const ActiveQuiz: React.FC<{
                         >
                           {currentIndex >= effectiveTotalQuestions - 1
                             ? saveError
-                              ? 'Retry Submit'
+                              ? t('quizStudent.nav.retrySubmit')
                               : reviewOn
                                 ? t('quizReview.reviewLink', 'Review')
                                 : t('quizMediaResponse.capture.submitQuiz')
@@ -4805,7 +4805,7 @@ export const ActiveQuiz: React.FC<{
                         id={`ma-hint-${currentQuestion.id}`}
                         className={`text-sm font-semibold ${light ? 'text-slate-500' : 'text-slate-300'}`}
                       >
-                        Choose all that apply
+                        {t('quizStudent.answer.chooseAll')}
                       </p>
                     )}
                     {options.map((opt) => {
@@ -5020,7 +5020,7 @@ export const ActiveQuiz: React.FC<{
                         currentIndex >= effectiveTotalQuestions - 1 &&
                         (!reviewOn || quizDone) ? (
                           <SuccessPill light={light}>
-                            Quiz complete!
+                            {t('quizStudent.common.quizComplete')}
                           </SuccessPill>
                         ) : submitted &&
                           autoSubmitTriggeredFor === currentQuestion.id ? (
@@ -5034,7 +5034,7 @@ export const ActiveQuiz: React.FC<{
                           >
                             {reviewOn && atLastStep
                               ? reviewLabel
-                              : 'NEXT QUESTION'}{' '}
+                              : t('quizStudent.nav.nextQuestion')}{' '}
                             <ArrowRight className="w-5 h-5" />
                           </button>
                         ) : (
@@ -5054,12 +5054,16 @@ export const ActiveQuiz: React.FC<{
                                 <Loader2 className="w-5 h-5 animate-spin" />
                               ) : atLastStep ? (
                                 <>
-                                  {saveError ? 'Retry Submit' : finishLabel}{' '}
+                                  {saveError
+                                    ? t('quizStudent.nav.retrySubmit')
+                                    : finishLabel}{' '}
                                   <CheckCircle2 className="w-5 h-5" />
                                 </>
                               ) : (
                                 <>
-                                  {saveError ? 'Retry' : 'NEXT'}{' '}
+                                  {saveError
+                                    ? t('quizStudent.nav.retry')
+                                    : t('quizStudent.nav.next')}{' '}
                                   <ArrowRight className="w-5 h-5" />
                                 </>
                               )}
@@ -5078,7 +5082,7 @@ export const ActiveQuiz: React.FC<{
                           {submitting ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
                           ) : (
-                            'Submit Answer'
+                            t('quizStudent.nav.submitAnswer')
                           )}
                         </button>
                       ) : (
@@ -5093,8 +5097,8 @@ export const ActiveQuiz: React.FC<{
                           />
                           <SuccessPill light={light}>
                             {currentIndex < effectiveTotalQuestions - 1
-                              ? 'Waiting for teacher…'
-                              : 'Quiz complete!'}
+                              ? t('quizStudent.common.waitingForTeacher')
+                              : t('quizStudent.common.quizComplete')}
                           </SuccessPill>
                         </div>
                       )}
@@ -5149,7 +5153,7 @@ export const ActiveQuiz: React.FC<{
                           value={liveAnswer ?? ''}
                           onChange={(plain) => setCacheForCurrent(plain)}
                           disabled={submitted && !isStudentPaced}
-                          ariaLabel="Your answer"
+                          ariaLabel={t('quizStudent.answer.label')}
                           className={fibInputCls}
                           onEnter={() => {
                             const trimmed = cleanBlankAnswer(
@@ -5170,7 +5174,7 @@ export const ActiveQuiz: React.FC<{
                         value={liveAnswer ?? ''}
                         onChange={(e) => setCacheForCurrent(e.target.value)}
                         disabled={submitted && !isStudentPaced}
-                        placeholder="Type your answer…"
+                        placeholder={t('quizStudent.answer.placeholder')}
                         className={`w-full px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
                         onKeyDown={(e) => {
                           if (e.key !== 'Enter') return;
@@ -5192,7 +5196,9 @@ export const ActiveQuiz: React.FC<{
                       submitted &&
                       currentIndex >= effectiveTotalQuestions - 1 &&
                       (!reviewOn || quizDone) ? (
-                        <SuccessPill light={light}>Quiz complete!</SuccessPill>
+                        <SuccessPill light={light}>
+                          {t('quizStudent.common.quizComplete')}
+                        </SuccessPill>
                       ) : submitted &&
                         autoSubmitTriggeredFor === currentQuestion.id ? (
                         <button
@@ -5201,7 +5207,7 @@ export const ActiveQuiz: React.FC<{
                         >
                           {reviewOn && atLastStep
                             ? reviewLabel
-                            : 'NEXT QUESTION'}{' '}
+                            : t('quizStudent.nav.nextQuestion')}{' '}
                           <ArrowRight className="w-5 h-5" />
                         </button>
                       ) : (
@@ -5224,12 +5230,16 @@ export const ActiveQuiz: React.FC<{
                               <Loader2 className="w-5 h-5 animate-spin" />
                             ) : atLastStep ? (
                               <>
-                                {saveError ? 'Retry Submit' : finishLabel}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retrySubmit')
+                                  : finishLabel}{' '}
                                 <CheckCircle2 className="w-5 h-5" />
                               </>
                             ) : (
                               <>
-                                {saveError ? 'Retry' : 'NEXT'}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retry')
+                                  : t('quizStudent.nav.next')}{' '}
                                 <ArrowRight className="w-5 h-5" />
                               </>
                             )}
@@ -5253,7 +5263,7 @@ export const ActiveQuiz: React.FC<{
                         {submitting ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
-                          'Submit Answer'
+                          t('quizStudent.nav.submitAnswer')
                         )}
                       </button>
                     ) : (
@@ -5268,8 +5278,8 @@ export const ActiveQuiz: React.FC<{
                         />
                         <SuccessPill light={light}>
                           {currentIndex < effectiveTotalQuestions - 1
-                            ? 'Waiting for teacher…'
-                            : 'Quiz complete!'}
+                            ? t('quizStudent.common.waitingForTeacher')
+                            : t('quizStudent.common.quizComplete')}
                         </SuccessPill>
                       </div>
                     )}
@@ -5487,12 +5497,16 @@ export const ActiveQuiz: React.FC<{
                               <Loader2 className="w-5 h-5 animate-spin" />
                             ) : atLastStep ? (
                               <>
-                                {saveError ? 'Retry Submit' : finishLabel}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retrySubmit')
+                                  : finishLabel}{' '}
                                 <CheckCircle2 className="w-5 h-5" />
                               </>
                             ) : (
                               <>
-                                {saveError ? 'Retry' : 'NEXT'}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retry')
+                                  : t('quizStudent.nav.next')}{' '}
                                 <ArrowRight className="w-5 h-5" />
                               </>
                             )}
@@ -5538,7 +5552,7 @@ export const ActiveQuiz: React.FC<{
                           {submitting ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
                           ) : (
-                            'Submit Response'
+                            t('quizStudent.nav.submitResponse')
                           )}
                         </button>
                         {writtenLimit?.message && (
@@ -5625,9 +5639,11 @@ const StructuredQuestionInput: React.FC<{
   saveError,
   readAloud,
   orderingList,
-  finishLabel = 'SUBMIT',
+  finishLabel,
   reviewPending = false,
 }) => {
+  const { t } = useTranslation();
+  const finishText = finishLabel ?? t('quizStudent.nav.submit');
   const isMatching = question.type === 'Matching';
   const isList = !isMatching && orderingList === true;
 
@@ -5753,17 +5769,19 @@ const StructuredQuestionInput: React.FC<{
             ) : isStudentPaced ? (
               isLastQuestion ? (
                 <>
-                  {saveError ? 'Retry Submit' : finishLabel}{' '}
+                  {saveError ? t('quizStudent.nav.retrySubmit') : finishText}{' '}
                   <CheckCircle2 className="w-5 h-5" />
                 </>
               ) : (
                 <>
-                  {saveError ? 'Retry' : 'NEXT'}{' '}
+                  {saveError
+                    ? t('quizStudent.nav.retry')
+                    : t('quizStudent.nav.next')}{' '}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )
             ) : (
-              'Submit Answer'
+              t('quizStudent.nav.submitAnswer')
             )}
           </button>
         </>
@@ -5778,12 +5796,16 @@ const StructuredQuestionInput: React.FC<{
               onClick={onNext}
               className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
             >
-              {reviewPending && isLastQuestion ? finishLabel : 'NEXT QUESTION'}{' '}
+              {reviewPending && isLastQuestion
+                ? finishText
+                : t('quizStudent.nav.nextQuestion')}{' '}
               <ArrowRight className="w-5 h-5" />
             </button>
           ) : (
             <SuccessPill light={isStudentPaced}>
-              {!isLastQuestion ? 'Waiting for teacher…' : 'Quiz complete!'}
+              {!isLastQuestion
+                ? t('quizStudent.common.waitingForTeacher')
+                : t('quizStudent.common.quizComplete')}
             </SuccessPill>
           )}
         </div>
@@ -5813,23 +5835,29 @@ const SaveErrorBanner: React.FC<{ message: string }> = ({ message }) => (
 
 const WrittenSubmittedCard: React.FC<{ isWaiting: boolean }> = ({
   isWaiting,
-}) => (
-  <div className="flex flex-col gap-3">
-    <SuccessPill light={false}>
-      {isWaiting
-        ? 'Waiting for teacher…'
-        : 'Response submitted — your teacher will grade this.'}
-    </SuccessPill>
-    {!isWaiting && <ReturnToAssignmentsButton />}
-  </div>
-);
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-3">
+      <SuccessPill light={false}>
+        {isWaiting
+          ? t('quizStudent.common.waitingForTeacher')
+          : t('quizStudent.common.responseSubmitted')}
+      </SuccessPill>
+      {!isWaiting && <ReturnToAssignmentsButton />}
+    </div>
+  );
+};
 
-const QuizCompleteCard: React.FC = () => (
-  <div className="flex flex-col gap-3">
-    <SuccessPill light>Quiz complete!</SuccessPill>
-    <ReturnToAssignmentsButton />
-  </div>
-);
+const QuizCompleteCard: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-3">
+      <SuccessPill light>{t('quizStudent.common.quizComplete')}</SuccessPill>
+      <ReturnToAssignmentsButton />
+    </div>
+  );
+};
 
 /**
  * Inline CTA used after submission. `variant="card"` matches the existing
@@ -5840,21 +5868,25 @@ const QuizCompleteCard: React.FC = () => (
  */
 const ReturnToAssignmentsButton: React.FC<{
   variant?: 'card' | 'standalone';
-}> = ({ variant = 'card' }) => (
-  <button
-    type="button"
-    onClick={() => {
-      window.location.assign('/my-assignments');
-    }}
-    className={
-      variant === 'standalone'
-        ? 'inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-full transition-colors'
-        : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20'
-    }
-  >
-    Back to my assignments <ArrowRight className="w-4 h-4" />
-  </button>
-);
+}> = ({ variant = 'card' }) => {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        window.location.assign('/my-assignments');
+      }}
+      className={
+        variant === 'standalone'
+          ? 'inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-full transition-colors'
+          : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20'
+      }
+    >
+      {t('quizStudent.common.backToAssignments')}{' '}
+      <ArrowRight className="w-4 h-4" />
+    </button>
+  );
+};
 
 const ReloadButton: React.FC<{ dark?: boolean }> = ({ dark = false }) => {
   const { t } = useTranslation();

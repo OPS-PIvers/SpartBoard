@@ -3519,7 +3519,11 @@
       "loadingQuestions": "Loading questions",
       "lostConnection": "Lost connection to the quiz. Please refresh.",
       "loadingQuiz": "Loading your quiz…",
-      "joinedAs": "Joined as PIN"
+      "joinedAs": "Joined as PIN",
+      "waitingForTeacher": "Waiting for teacher…",
+      "quizComplete": "Quiz complete!",
+      "responseSubmitted": "Response submitted. Your teacher will grade this.",
+      "backToAssignments": "Back to my assignments"
     },
     "join": {
       "joining": "Joining quiz…",
@@ -3581,7 +3585,12 @@
       "submit": "SUBMIT",
       "retrying": "Retrying…",
       "retry": "Retry",
-      "previous": "Previous question"
+      "previous": "Previous question",
+      "retrySubmit": "Retry Submit",
+      "next": "NEXT",
+      "nextQuestion": "NEXT QUESTION",
+      "submitAnswer": "Submit Answer",
+      "submitResponse": "Submit Response"
     },
     "unlock": {
       "reopenedTitle": "Your teacher reopened your quiz",
@@ -3617,6 +3626,11 @@
       "ordering": "Ordering",
       "chooseAll": "Choose All That Apply",
       "freeResponse": "Free Response"
+    },
+    "answer": {
+      "label": "Your answer",
+      "placeholder": "Type your answer…",
+      "chooseAll": "Choose all that apply"
     }
   },
   "quizSubmit": {
