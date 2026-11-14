@@ -439,8 +439,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   >(null);
   const [globalPermissionsLoadedRaw, setGlobalPermissionsLoaded] =
     useState(isAuthBypass);
-  // The caller's own beta grants; null until the doc settles.
+  // The caller's own beta grants, tagged with the email they were loaded for; null until the doc settles.
   const [betaGrants, setBetaGrants] = useState<{
+    email: string | null;
     features: string[];
     global: string[];
   } | null>(null);
@@ -1912,7 +1913,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!hasLiveUser || !grantEmail) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- no email means no grants to load
-      setBetaGrants({ features: [], global: [] });
+      setBetaGrants(null);
       return;
     }
     return onSnapshot(
@@ -1923,16 +1924,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           Array.isArray(v)
             ? v.filter((x): x is string => typeof x === 'string')
             : [];
-        setBetaGrants({ features: list(d?.features), global: list(d?.global) });
+        setBetaGrants({
+          email: grantEmail,
+          features: list(d?.features),
+          global: list(d?.global),
+        });
       },
-      () => setBetaGrants({ features: [], global: [] })
+      () => setBetaGrants({ email: grantEmail, features: [], global: [] })
     );
   }, [hasLiveUser, grantEmail]);
 
   const featurePermissions = useMemo(() => {
     if (isAdmin === true && adminFeaturePermissions)
       return adminFeaturePermissions;
-    if (!grantEmail || !betaGrants) return publicFeaturePermissions;
+    if (!grantEmail || betaGrants?.email !== grantEmail)
+      return publicFeaturePermissions;
     return publicFeaturePermissions.map((p) =>
       betaGrants.features.includes(p.widgetType)
         ? { ...p, betaUsers: [grantEmail] }
@@ -1948,7 +1954,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const globalPermissions = useMemo(() => {
     if (isAdmin === true && adminGlobalPermissions)
       return adminGlobalPermissions;
-    if (!grantEmail || !betaGrants) return publicGlobalPermissions;
+    if (!grantEmail || betaGrants?.email !== grantEmail)
+      return publicGlobalPermissions;
     return publicGlobalPermissions.map((p) =>
       betaGrants.global.includes(p.featureId)
         ? { ...p, betaUsers: [grantEmail] }
@@ -1962,8 +1969,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     grantEmail,
   ]);
   // Not loaded until the caller's grants settle, so a beta teacher never sees a flicker of "off".
-  const featurePermissionsLoaded = featurePermissionsLoadedRaw && !!betaGrants;
-  const globalPermissionsLoaded = globalPermissionsLoadedRaw && !!betaGrants;
+  const grantsSettled =
+    !hasLiveUser || !grantEmail || betaGrants?.email === grantEmail;
+  const featurePermissionsLoaded = featurePermissionsLoadedRaw && grantsSettled;
+  const globalPermissionsLoaded = globalPermissionsLoadedRaw && grantsSettled;
 
   // Subscribe to the active org's buildings so grade-level resolution stays
   // in sync with whatever admins configure in Admin Settings > Organization.

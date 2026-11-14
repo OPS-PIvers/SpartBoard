@@ -1195,7 +1195,7 @@ service cloud.firestore {
     }
     // A caller reads only their own grant doc, never the roster.
     match /beta_grants/{email} {
-      allow get: if signedIn() && tok().get('email', '').lower() == email;
+      allow get: if signedIn() && emailVerified() && tok().get('email', '').lower() == email;
     }
 
     // Admin-created short links resolved at /r/:code.

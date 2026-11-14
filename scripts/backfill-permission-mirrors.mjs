@@ -1,10 +1,37 @@
-// Run once BEFORE deploying the tightened permission rules: node scripts/backfill-permission-mirrors.mjs [--dry-run]
-// Uses application-default credentials; safe to re-run (idempotent sets).
-import { initializeApp, applicationDefault } from 'firebase-admin/app';
+// Idempotent mirror backfill, also run by the deploy workflows: node scripts/backfill-permission-mirrors.mjs --project <dev|prod> [--dry-run]
+import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-const dryRun = process.argv.includes('--dry-run');
-initializeApp({ projectId: 'spartboard', credential: applicationDefault() });
+import { existsSync, readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const PROJECTS = { prod: 'spartboard', dev: 'spartboard-dev' };
+const args = process.argv.slice(2);
+const dryRun = args.includes('--dry-run');
+const projectArg = args[args.indexOf('--project') + 1];
+const projectId = PROJECTS[projectArg];
+if (!args.includes('--project') || !projectId) {
+  console.error(
+    'Usage: node scripts/backfill-permission-mirrors.mjs --project <dev|prod> [--dry-run]'
+  );
+  process.exit(1);
+}
+
+function credential() {
+  if (projectArg === 'dev') return applicationDefault();
+  const envCreds = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (envCreds) return cert(JSON.parse(envCreds));
+  const filePath = join(
+    dirname(fileURLToPath(import.meta.url)),
+    'service-account-key.json'
+  );
+  if (existsSync(filePath))
+    return cert(JSON.parse(readFileSync(filePath, 'utf8')));
+  return applicationDefault();
+}
+
+initializeApp({ projectId, credential: credential() });
 const db = getFirestore();
 
 const grants = new Map();

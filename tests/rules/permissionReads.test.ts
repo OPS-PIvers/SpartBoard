@@ -121,6 +121,15 @@ describe('beta_grants', () => {
     );
   });
 
+  it('an unverified token claiming the email cannot read the grant doc', async () => {
+    const ctx = testEnv.authenticatedContext('forger', {
+      email: TEACHER,
+      email_verified: false,
+      firebase: { sign_in_provider: 'password' },
+    });
+    await assertFails(getDoc(doc(ctx.firestore(), `beta_grants/${TEACHER}`)));
+  });
+
   it('others cannot read it, list the collection, or write it', async () => {
     for (const ctx of [
       asAnon,
