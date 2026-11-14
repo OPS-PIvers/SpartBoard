@@ -19,6 +19,7 @@ import {
   makeCalculatorQuizSession,
   makeOptionImagesQuizSession,
   makePictureOnlyQuizSession,
+  makePictureStimulusQuizSession,
   makeStopQuizSession,
   makeStimulusQuizSession,
   makeTimedQuizSession,
@@ -140,24 +141,28 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
                     ? makeOptionImagesQuizSession('MC')
                     : state === 'sq-stimuli'
                       ? makeStimulusQuizSession()
-                      : state === 'sq-calculator'
-                        ? makeCalculatorQuizSession()
-                        : state === 'sq-whiteboard'
-                          ? makeWhiteboardQuizSession()
-                          : state === 'sq-stop-part'
-                            ? makeStopQuizSession('active')
-                            : state === 'sq-cross-out'
-                              ? {
-                                  ...makeTimedQuizSession('active'),
-                                  allowCrossOut: true,
-                                }
-                              : state === 'sq-fullscreen'
+                      : state === 'sq-picture' || state === 'sq-pictures'
+                        ? makePictureStimulusQuizSession(
+                            state === 'sq-pictures'
+                          )
+                        : state === 'sq-calculator'
+                          ? makeCalculatorQuizSession()
+                          : state === 'sq-whiteboard'
+                            ? makeWhiteboardQuizSession()
+                            : state === 'sq-stop-part'
+                              ? makeStopQuizSession('active')
+                              : state === 'sq-cross-out'
                                 ? {
                                     ...makeTimedQuizSession('active'),
-                                    tabAwayLimitSeconds: 30,
-                                    tabAwayAutoSubmit: true,
+                                    allowCrossOut: true,
                                   }
-                                : makeTimedQuizSession('active'),
+                                : state === 'sq-fullscreen'
+                                  ? {
+                                      ...makeTimedQuizSession('active'),
+                                      tabAwayLimitSeconds: 30,
+                                      tabAwayAutoSubmit: true,
+                                    }
+                                  : makeTimedQuizSession('active'),
     [state]
   );
   if (state === 'sq-attempts' || state === 'sq-attempts-live') {

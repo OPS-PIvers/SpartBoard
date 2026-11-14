@@ -38,19 +38,18 @@ export const StimulusTabFields: React.FC<{
           </label>
           <select
             id={`placement-${s.id}`}
-            value={s.placement ?? ''}
+            value={s.placement === 'inline' ? 'inline' : 'panel'}
             onChange={(e) =>
               onChange({
-                placement: e.target.value
-                  ? (e.target.value as QuizStimulusPlacement)
-                  : undefined,
+                placement:
+                  e.target.value === 'inline'
+                    ? ('inline' satisfies QuizStimulusPlacement)
+                    : undefined,
               })
             }
-            title="Automatic puts a picture beside the question when two or more questions use it."
             {...tourFieldAttr('quiz-stimuli.placement', 'quiz', String(index))}
             className={`${inputClass} appearance-none`}
           >
-            <option value="">Automatic</option>
             <option value="panel">Beside the question</option>
             <option value="inline">In the question</option>
           </select>

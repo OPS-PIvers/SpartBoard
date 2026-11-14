@@ -131,10 +131,7 @@ import {
   splitStimuliForLayout,
   stimulusPlayKey,
 } from '@/utils/quizStimuli';
-import {
-  splitStimuliForTabs,
-  stimulusUseCounts,
-} from '@/utils/quizStimulusTabs';
+import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
 import { StimulusPanelDivider } from './StimulusPanelDivider';
 import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
@@ -2643,15 +2640,11 @@ export const ActiveQuiz: React.FC<{
     [currentQuestion?.stimulusIds, session.stimuli]
   );
   const stimulusTabsOn = session.stimulusTabs === true;
-  const stimulusUse = useMemo(
-    () => stimulusUseCounts(session.publicQuestions ?? []),
-    [session.publicQuestions]
-  );
   const { docShaped: docStimuli, inline: inlineStimuli } = useMemo(() => {
     if (!stimulusTabsOn) return splitStimuliForLayout(currentStimuli);
-    const { panel, inline } = splitStimuliForTabs(currentStimuli, stimulusUse);
+    const { panel, inline } = splitStimuliForTabs(currentStimuli);
     return { docShaped: panel, inline };
-  }, [currentStimuli, stimulusTabsOn, stimulusUse]);
+  }, [currentStimuli, stimulusTabsOn]);
   const recoveryQuestionId = currentQuestion?.id;
   const recoveryResponseKey = myResponse?._responseKey;
   const takeRecovery = useMemo(
