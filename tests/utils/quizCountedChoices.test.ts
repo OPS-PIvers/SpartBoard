@@ -4,6 +4,7 @@ import {
   chooseCountChanges,
   countedChoiceSections,
   countedChoicesPatch,
+  restorePassedAnswers,
   sectionsWithCounts,
 } from '@/utils/quizCountedChoices';
 import {
@@ -248,5 +249,45 @@ describe('changing a section count', () => {
     expect(sectionsWithCounts([section], new Map([['s1', 2]]))).toBeNull();
     const cleared = sectionsWithCounts([section], new Map([['s1', undefined]]));
     expect(cleared?.[0]).not.toHaveProperty('chooseCount');
+  });
+});
+
+describe('restorePassedAnswers', () => {
+  it('sets revived answers aside as passed again on reopen', () => {
+    const r = response({
+      countedChoices: {
+        attempt: 1,
+        bySection: { s1: ['b', 'c'] },
+        revived: ['b'],
+      },
+    });
+    const answers = restorePassedAnswers(r);
+    expect(answers?.map((a) => a.unresponded)).toEqual([
+      undefined,
+      'passed',
+      undefined,
+    ]);
+  });
+
+  it('leaves answers alone with no revived pick or a pick from another attempt', () => {
+    expect(restorePassedAnswers(response())).toBeNull();
+    expect(
+      restorePassedAnswers(
+        response({
+          countedChoices: { attempt: 1, bySection: { s1: ['a', 'b'] } },
+        })
+      )
+    ).toBeNull();
+    expect(
+      restorePassedAnswers(
+        response({
+          countedChoices: {
+            attempt: 0,
+            bySection: { s1: ['b', 'c'] },
+            revived: ['b'],
+          },
+        })
+      )
+    ).toBeNull();
   });
 });
