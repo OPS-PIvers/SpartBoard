@@ -45,7 +45,10 @@ export const clearLiveView = (
   sessionId: string,
   responseKey: string
 ): Promise<void> =>
-  updateDoc(responseRef(sessionId, responseKey), { liveView: deleteField() });
+  updateDoc(responseRef(sessionId, responseKey), {
+    'liveView.until': deleteField(),
+    'liveView.notify': deleteField(),
+  });
 
 export const sendNudge = (
   sessionId: string,

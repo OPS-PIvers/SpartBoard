@@ -21,7 +21,6 @@ import {
   useRef,
   useMemo,
   useReducer,
-  useContext,
   MutableRefObject,
 } from 'react';
 import {
@@ -126,8 +125,6 @@ import {
 import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow, retryWithFreshClock } from '@/utils/serverTime';
 import { deleteLiveLog, deleteLiveState } from '@/utils/quizLiveViewStore';
-import { AuthContext } from '@/context/AuthContextValue';
-import { QUIZ_LIVE_VIEW_FEATURE } from '@/utils/quizLiveView';
 import {
   attemptClockRanOut,
   clampQuizTimeLimitMinutes,
@@ -1519,9 +1516,6 @@ export const useQuizSessionTeacher = (
     );
   }, [sessionId, session?.publicQuestions, session?.completenessModel]);
 
-  const liveViewOn =
-    useContext(AuthContext)?.canAccessFeature?.(QUIZ_LIVE_VIEW_FEATURE) ===
-    true;
   const removeStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) return;
@@ -1745,7 +1739,7 @@ export const useQuizSessionTeacher = (
       await batch.commit();
       // Their Live view log goes with them; Drive screenshots stay in the teacher's Drive.
       const logOwner = rawSession?.teacherUid;
-      if (liveViewOn && logOwner === writerUid) {
+      if (logOwner === writerUid) {
         await deleteLiveLog(logOwner, sessionId, responseKey).catch(
           (err: unknown) =>
             console.error('[removeStudent] live log cleanup failed:', err)
@@ -1756,7 +1750,7 @@ export const useQuizSessionTeacher = (
         }
       }
     },
-    [sessionId, responses, rawSession?.teacherUid, liveViewOn]
+    [sessionId, responses, rawSession?.teacherUid]
   );
 
   const unlockOrReopen = useCallback(
@@ -2166,7 +2160,7 @@ export interface UseQuizSessionStudentResult {
   /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
   saveTabExits: (exits: TabExit[]) => Promise<void>;
   /** Writes the question on screen to `live/state` while the teacher watches. */
-  reportLivePosition: (questionId: string) => Promise<void>;
+  reportLivePosition: (questionId: string, at?: number) => Promise<void>;
   /** Writes one attempt's input counters (utils/inputSignals.ts). */
   saveInputSignals: (
     attempt: number,
@@ -4261,11 +4255,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   // Live view position goes to its own small doc, so the response triggers stay asleep.
   const reportLivePosition = useCallback(
-    async (questionId: string): Promise<void> => {
+    async (questionId: string, at?: number): Promise<void> => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
       if (!sessionId || !responseKey || studentPreviewBlocksWrite()) return;
-      const state: QuizLiveState = { questionId, at: getServerNow() };
+      const state: QuizLiveState = { questionId, at: at ?? getServerNow() };
       await setDoc(
         doc(
           db,

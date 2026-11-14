@@ -30,7 +30,9 @@ export const LiveViewNotice: React.FC<{
   const nudgeAt = liveView?.nudge?.at ?? 0;
 
   // A closed teacher tab never clears the stamp, so the banner ends itself at `until`.
-  const [expiredUntil, setExpiredUntil] = useState(0);
+  const [expiredUntil, setExpiredUntil] = useState(() =>
+    until && until <= getServerNow() ? until : 0
+  );
   useEffect(() => {
     if (!until) return;
     const id = window.setTimeout(

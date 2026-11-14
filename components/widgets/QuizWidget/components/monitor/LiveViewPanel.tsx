@@ -40,6 +40,7 @@ import {
   liveViewSession,
   liveViewStats,
   newestAnswerQuestionId,
+  liveViewDrawIds,
   studentQuestionOrder,
 } from '@/utils/quizLiveView';
 import {
@@ -418,7 +419,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                       onRecordStimulusPlay={noop}
                       onReportStimulusError={noop}
                       override={override}
-                      drawIds={response?.servedQuestionIds}
+                      drawIds={liveViewDrawIds(session, response)}
                       watchQuestionId={questionId ?? firstQuestionId}
                     />
                   </RecordingNoticeDrawingContext.Provider>

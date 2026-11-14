@@ -1992,7 +1992,7 @@ export const ActiveQuiz: React.FC<{
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
   watchQuestionId?: string | null;
   /** Reports the question on screen while the teacher has Live view open. */
-  onReportLivePosition?: (questionId: string) => Promise<void>;
+  onReportLivePosition?: (questionId: string, at?: number) => Promise<void>;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -2510,13 +2510,20 @@ export const ActiveQuiz: React.FC<{
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
+  const arrivalRef = useRef<{ id: string; at: number } | null>(null);
   const reportLivePosition = useEffectEvent((questionId: string) => {
     if (!onReportLivePosition || liveViewUntil <= getServerNow()) return;
-    onReportLivePosition(questionId).catch((err: unknown) =>
+    const at = arrivalRef.current?.at ?? getServerNow();
+    onReportLivePosition(questionId, at).catch((err: unknown) =>
       console.error('[ActiveQuiz] live position report failed:', err)
     );
   });
   const livePositionId = currentQuestion?.id;
+  // Arrival time stays fixed across renewals so "time on this question" doesn't reset.
+  useLayoutEffect(() => {
+    if (livePositionId && arrivalRef.current?.id !== livePositionId)
+      arrivalRef.current = { id: livePositionId, at: getServerNow() };
+  }, [livePositionId]);
   // Each renewal re-reports, so a reopened panel never starts from a stale place.
   useEffect(() => {
     if (liveViewUntil > 0 && livePositionId) reportLivePosition(livePositionId);

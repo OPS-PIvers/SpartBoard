@@ -142,7 +142,9 @@ describe('ActiveQuiz on a watched student’s device', () => {
         { onReportLivePosition: report }
       )
     );
-    await waitFor(() => expect(report).toHaveBeenCalledWith('q1'));
+    await waitFor(() =>
+      expect(report).toHaveBeenCalledWith('q1', expect.any(Number))
+    );
     expect(screen.getByText('Your teacher is viewing your quiz')).toBeTruthy();
 
     report.mockClear();

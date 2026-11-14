@@ -61,14 +61,23 @@ export function newestAnswerQuestionId(response: QuizResponse): string | null {
   return newest?.questionId ?? null;
 }
 
+/** The student's bank draw; without bank slots the served ids are only an override subset. */
+export const liveViewDrawIds = (
+  session: QuizSession,
+  response?: QuizResponse
+): string[] | undefined =>
+  session.bankSlots?.length && response?.servedQuestionIds?.length
+    ? response.servedQuestionIds
+    : undefined;
+
 /** This student's questions in the order their device serves them. */
 export function studentQuestionOrder(
   session: QuizSession,
   response: QuizResponse,
   override?: StudentOverride
 ): QuizPublicQuestion[] {
-  const drawIds = response.servedQuestionIds;
-  const served = drawIds?.length
+  const drawIds = liveViewDrawIds(session, response);
+  const served = drawIds
     ? orderServedQuestions(session.publicQuestions, drawIds)
     : serveQuestionSubset(session.publicQuestions, override?.questionIds);
   if (session.sessionMode !== 'student' || session.shuffleQuestions !== true)

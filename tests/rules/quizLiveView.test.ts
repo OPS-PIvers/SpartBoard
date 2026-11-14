@@ -221,6 +221,15 @@ describe('quiz Live view: hardening', () => {
     );
   });
 
+  it('lets the session teacher clear until and notify, leaving nudge', async () => {
+    await assertSucceeds(
+      updateDoc(doc(staff(TEACHER_UID), RESPONSE), {
+        'liveView.until': deleteField(),
+        'liveView.notify': deleteField(),
+      })
+    );
+  });
+
   it('keeps a student from creating a response that carries liveView', async () => {
     const base = {
       studentUid: OTHER_STUDENT_UID,

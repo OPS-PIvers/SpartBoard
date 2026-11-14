@@ -98,16 +98,29 @@ describe('newestAnswerQuestionId', () => {
 describe('studentQuestionOrder', () => {
   it('follows a bank draw, then an override subset', () => {
     expect(
-      studentQuestionOrder(SESSION, {
-        ...RESPONSE,
-        servedQuestionIds: ['q3', 'q1'],
-      }).map((q) => q.id)
+      studentQuestionOrder(
+        {
+          ...SESSION,
+          bankSlots: [{ poolQuestionIds: ['q1', 'q3'], count: 2 }],
+        } as unknown as QuizSession,
+        { ...RESPONSE, servedQuestionIds: ['q3', 'q1'] }
+      ).map((q) => q.id)
     ).toEqual(['q3', 'q1']);
     expect(
       studentQuestionOrder(SESSION, RESPONSE, { questionIds: ['q2'] }).map(
         (q) => q.id
       )
     ).toEqual(['q2']);
+  });
+
+  it('keeps session order for an override whose ids are in editor order', () => {
+    expect(
+      studentQuestionOrder(
+        SESSION,
+        { ...RESPONSE, servedQuestionIds: ['q3', 'q1'] },
+        { questionIds: ['q3', 'q1'] }
+      ).map((q) => q.id)
+    ).toEqual(['q1', 'q3']);
   });
 
   it('shuffles the same way every time for one student and attempt', () => {
