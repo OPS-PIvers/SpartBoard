@@ -44,6 +44,12 @@ describe('runCountDelta', () => {
       finished: 1,
     });
   });
+  it('counts nothing for a run older than the stored one', () => {
+    expect(runCountDelta(run(5, true), run(2, true))).toEqual({
+      plays: 0,
+      finished: 0,
+    });
+  });
   it('counts nothing for a delete or a malformed run', () => {
     expect(runCountDelta(run(1), undefined)).toEqual({ plays: 0, finished: 0 });
     expect(runCountDelta(undefined, { startedAt: 'x' })).toEqual({

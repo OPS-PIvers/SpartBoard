@@ -19,12 +19,20 @@ export function runCountDelta(
   if (!after || !Number.isInteger(after.startedAt))
     return { plays: 0, finished: 0 };
   const sameRun = !!before && before.startedAt === after.startedAt;
+  // A run started before the stored one is a stale or replayed write, not a new play.
+  const older =
+    !!before &&
+    Number.isInteger(before.startedAt) &&
+    (after.startedAt as number) < (before.startedAt as number);
+  if (older) return { plays: 0, finished: 0 };
   return {
     plays: sameRun ? 0 : 1,
     finished:
       after.done === true && !(sameRun && before?.done === true) ? 1 : 0,
   };
 }
+
+const COUNT_WAIT_MS = 1500;
 
 const inc = (n: number) => admin.firestore.FieldValue.increment(n);
 
@@ -59,9 +67,15 @@ export async function countPublicView(
   setId: string
 ): Promise<void> {
   try {
-    await db
+    const write = db
       .doc(TOUR_COUNTS_PATH(setId))
       .set({ linkViews: inc(1) }, { merge: true });
+    write.catch(() => undefined);
+    // A slow write never holds the public page back by more than this.
+    await Promise.race([
+      write,
+      new Promise((resolve) => setTimeout(resolve, COUNT_WAIT_MS)),
+    ]);
   } catch (err) {
     logger.warn('[tourCounts] link view not counted', { err: String(err) });
   }
