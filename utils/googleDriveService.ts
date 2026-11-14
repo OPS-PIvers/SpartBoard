@@ -512,13 +512,15 @@ export class GoogleDriveService {
   async uploadFile(
     file: File | Blob,
     fileName: string,
-    folderPath: string = 'Misc'
+    folderPath: string = 'Misc',
+    appProperties?: Record<string, string>
   ): Promise<DriveFile> {
     const folderId = await this.getFolderPath(folderPath);
 
     const metadata = {
       name: fileName,
       parents: [folderId],
+      ...(appProperties ? { appProperties } : {}),
     };
 
     // Create metadata
@@ -975,15 +977,21 @@ export class GoogleDriveService {
   /** True when the file sits directly in one of the given app folders, by Drive metadata. */
   async isInAppFolder(
     fileId: string,
-    folderPaths: readonly string[]
+    folderPaths: readonly string[],
+    marker?: string
   ): Promise<boolean> {
-    return isInAppFolder(fileId, folderPaths, async (id) => {
-      const res = await this.fetchWithRetry(
-        `${DRIVE_API_URL}/files/${id}?fields=name,parents,trashed`,
-        { headers: this.headers }
-      );
-      return res.ok ? ((await res.json()) as DriveParentMeta) : null;
-    });
+    return isInAppFolder(
+      fileId,
+      folderPaths,
+      async (id) => {
+        const res = await this.fetchWithRetry(
+          `${DRIVE_API_URL}/files/${id}?fields=name,parents,trashed,appProperties`,
+          { headers: this.headers }
+        );
+        return res.ok ? ((await res.json()) as DriveParentMeta) : null;
+      },
+      marker
+    );
   }
 
   /**

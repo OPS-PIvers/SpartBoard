@@ -1,5 +1,5 @@
 // Firestore security-rules regression for `/building_guided_learning_index/{setId}`:
-// readable by any signed-in user (same as the full building sets), writable by no client.
+// staff-only reads (same as the full building sets), writable by no client.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -48,7 +48,21 @@ const asTeacher = () =>
     })
     .firestore();
 const asAnonStudent = () =>
-  testEnv.authenticatedContext('anon-student-uid').firestore();
+  testEnv
+    .authenticatedContext('anon-student-uid', {
+      firebase: { sign_in_provider: 'anonymous' },
+    })
+    .firestore();
+const asStudentRole = () =>
+  testEnv
+    .authenticatedContext('sso-student-uid', {
+      email: 'kid@example.com',
+      email_verified: true,
+      studentRole: true,
+      classIds: ['class-1'],
+      firebase: { sign_in_provider: 'custom' },
+    })
+    .firestore();
 const asSignedOut = () => testEnv.unauthenticatedContext().firestore();
 
 const entry = {
@@ -93,11 +107,17 @@ beforeEach(async () => {
 });
 
 describe('building_guided_learning_index reads', () => {
-  it('lets teachers, admins and signed-in students read and list', async () => {
+  it('lets teachers and admins read and list', async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), `${INDEX}/s1`)));
     await assertSucceeds(getDocs(collection(asTeacher(), INDEX)));
     await assertSucceeds(getDoc(doc(asAdmin(), `${INDEX}/s1`)));
-    await assertSucceeds(getDoc(doc(asAnonStudent(), `${INDEX}/s1`)));
+  });
+
+  it('denies anonymous and student-role sessions a get or a list', async () => {
+    for (const db of [asAnonStudent(), asStudentRole()]) {
+      await assertFails(getDoc(doc(db, `${INDEX}/s1`)));
+      await assertFails(getDocs(collection(db, INDEX)));
+    }
   });
 
   it('lets clients read the _meta marker but never write it', async () => {

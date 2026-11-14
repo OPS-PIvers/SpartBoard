@@ -1,4 +1,4 @@
-// Security batch 2H: a tour draft carrying sample copies (answer keys) in tourSetup.materials reads for staff only.
+// Security batch 2H: building sets (tour samples and question keys) read for staff only.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -111,6 +111,20 @@ const modeTour = {
   mode: 'tour',
 };
 
+// A personal set moved to the Help Center keeps its question keys.
+const helpCenterCopy = {
+  id: 'help-keys',
+  title: 'Moved lesson',
+  helpCenter: true,
+  imageUrls: [],
+  steps: [
+    {
+      id: 'q1',
+      question: { type: 'multiple-choice', correctAnswer: 'B' },
+    },
+  ],
+};
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -138,6 +152,7 @@ beforeEach(async () => {
     await setDoc(doc(db, `${SETS}/emptied`), emptiedTour);
     await setDoc(doc(db, `${SETS}/flagged`), flaggedTour);
     await setDoc(doc(db, `${SETS}/mode`), modeTour);
+    await setDoc(doc(db, `${SETS}/help-keys`), helpCenterCopy);
   });
 });
 
@@ -160,11 +175,13 @@ describe('tour draft sample copies', () => {
     }
   });
 
-  it('still lets a signed-in session read a set without samples, or one that is missing', async () => {
+  it('denies anonymous and student-role sessions every set, answer keys included', async () => {
     for (const db of [asAnonStudent(), asStudentRole()]) {
-      await assertSucceeds(getDoc(doc(db, `${SETS}/lesson`)));
-      await assertSucceeds(getDoc(doc(db, `${SETS}/missing`)));
+      await assertFails(getDoc(doc(db, `${SETS}/lesson`)));
+      await assertFails(getDoc(doc(db, `${SETS}/help-keys`)));
+      await assertFails(getDoc(doc(db, `${SETS}/missing`)));
     }
+    await assertSucceeds(getDoc(doc(asTeacher(), `${SETS}/help-keys`)));
   });
 
   it('denies signed-out reads', async () => {
