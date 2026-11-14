@@ -1,9 +1,10 @@
 import React, { useContext, useMemo } from 'react';
-import { MousePointerClick } from 'lucide-react';
+import { Monitor, MousePointerClick } from 'lucide-react';
 import type { InputSignals, QuizResponseAnswer } from '@/types';
 import type { ReadingContext } from '@/utils/inputSignals';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
+  DEVICE_FINDINGS,
   INPUT_SIGNALS_FEATURE,
   MANAGED_PROFILE_FEATURE,
   formatFindingQuestions,
@@ -29,8 +30,8 @@ interface InputSignalsBadgeProps {
   studentName: string;
   /** Question ids in the quiz's own order, to number them; omit where that order isn't known. */
   questionOrder?: readonly string[];
-  /** Renders the badge for a count of findings. */
-  children: (count: number) => React.ReactNode;
+  /** Renders the badge for a count of findings; `deviceOnly` when every one is about the device, for a neutral tone. */
+  children: (count: number, deviceOnly: boolean) => React.ReactNode;
 }
 
 /** A badge that opens what looked unusual about how answers were entered; nothing without the flag or findings. */
@@ -92,32 +93,40 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
 
   const count = attempts.reduce((n, a) => n + a.findings.length, 0);
   if (count === 0) return null;
+  const deviceOnly = attempts.every((a) =>
+    a.findings.every((f) => DEVICE_FINDINGS.has(f.id))
+  );
+  const Icon = deviceOnly ? Monitor : MousePointerClick;
+  const unit = deviceOnly ? ['detail', 'details'] : ['sign', 'signs'];
 
   return (
     <BadgePopover
-      triggerLabel={`Show unusual input for ${studentName}`}
-      dialogLabel={`Unusual input for ${studentName}`}
+      triggerLabel={`Show ${deviceOnly ? 'device details' : 'unusual input'} for ${studentName}`}
+      dialogLabel={`${deviceOnly ? 'Device details' : 'Unusual input'} for ${studentName}`}
       panel={
         <>
-          <p className="mb-1 flex items-center gap-1.5 font-bold text-slate-800">
-            <MousePointerClick aria-hidden className="h-4 w-4 shrink-0" />
-            Unusual input
+          <p className="flex items-center gap-2 text-base font-bold text-slate-900">
+            <Icon aria-hidden className="h-5 w-5 shrink-0" />
+            {deviceOnly ? 'Device details' : 'Unusual input'}
           </p>
-          <p className="mb-2 text-xs text-slate-600">
-            Signs that another app may have entered answers. Each has innocent
-            causes, so treat these as a reason to talk, not as proof.
+          <p className="mt-1 text-xs text-slate-600">
+            {deviceOnly
+              ? 'Details about the device the student used. These are common and not a concern on their own.'
+              : 'How answers were entered looked different from usual. Each sign has everyday causes. Use them as a reason to talk, not as proof.'}
           </p>
           {attempts.map(({ attempt, findings, browsers }) => (
-            <div key={attempt} className="mt-2">
-              {attempts.length > 1 && (
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Attempt {attempt + 1}
-                </p>
-              )}
+            <div key={attempt} className="mt-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {attempts.length > 1 ? `Attempt ${attempt + 1}: ` : ''}
+                {findings.length} {unit[findings.length === 1 ? 0 : 1]}
+              </p>
               <ul className="space-y-2">
                 {findings.map((f) => (
-                  <li key={f.id} className="border-t border-slate-100 pt-2">
-                    <p className="font-semibold text-slate-800">
+                  <li
+                    key={f.id}
+                    className="border-t border-slate-100 pt-2 first:mt-1"
+                  >
+                    <p className="font-medium text-slate-800">
                       {f.text}
                       <span className="font-normal text-slate-600">
                         {formatFindingQuestions(f.questions, questionOrder)}
@@ -144,7 +153,7 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
         </>
       }
     >
-      {children(count)}
+      {children(count, deviceOnly)}
     </BadgePopover>
   );
 };
