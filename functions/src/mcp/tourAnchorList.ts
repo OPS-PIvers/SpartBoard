@@ -19002,6 +19002,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Previous student button in Quiz Live view",
     "scope": "widget type",
     "panel": true,
+    "persists": true,
     "keys": [
       "quiz"
     ],
@@ -19027,6 +19028,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Next student button in Quiz Live view",
     "scope": "widget type",
     "panel": true,
+    "persists": true,
     "keys": [
       "quiz"
     ],

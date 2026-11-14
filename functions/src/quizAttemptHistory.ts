@@ -323,6 +323,8 @@ export async function applyAttemptGradeWrite(
         ...fresh,
         score: null,
         status: 'completed',
+        // Score the copy as its own attempt so the teacher's pick for it still applies.
+        completedAttempts: w.n,
       });
       if (!score) return false;
       const rescored = { ...score, attemptNumber: w.n };

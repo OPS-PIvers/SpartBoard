@@ -4589,11 +4589,13 @@ export const TOUR_ANCHORS = {
     label: 'Previous student button in Quiz Live view',
     perWidgetType: true,
     panel: true,
+    persists: true,
   },
   'quiz-live-view.next': {
     label: 'Next student button in Quiz Live view',
     perWidgetType: true,
     panel: true,
+    persists: true,
   },
   'quiz-live-view.close': {
     label: 'Close button in Quiz Live view',

@@ -10,6 +10,24 @@ import {
   overAnsweredResponseSections,
 } from '@/utils/quizSections';
 
+/** Answers with the current attempt's revived picks set aside as passed again, or null when none were revived. */
+export function restorePassedAnswers(
+  response: Pick<
+    QuizResponse,
+    'answers' | 'countedChoices' | 'completedAttempts' | 'status'
+  >
+): QuizResponseAnswer[] | null {
+  // A retake in progress still carries the last attempt's pick; leave its answers alone.
+  if (response.status !== 'completed') return null;
+  const current = response.countedChoices;
+  if (current?.attempt !== (response.completedAttempts ?? 0)) return null;
+  const revived = new Set(current.revived ?? []);
+  if (revived.size === 0) return null;
+  return (response.answers ?? []).map((a) =>
+    revived.has(a.questionId) ? { ...a, unresponded: 'passed' as const } : a
+  );
+}
+
 /** The new picks and answers for one section, or null when the pick doesn't fit the section. */
 export function countedChoicesPatch(
   response: Pick<

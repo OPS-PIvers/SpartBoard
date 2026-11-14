@@ -131,6 +131,7 @@ import {
   timestampMillis,
 } from '@/utils/quizTimeLimit';
 import { withNotChosen } from '@/utils/quizSections';
+import { restorePassedAnswers } from '@/utils/quizCountedChoices';
 import { publicBlankFields } from '@/utils/quizBlankTypes';
 import {
   sessionClassPredicate,
@@ -1792,6 +1793,8 @@ export const useQuizSessionTeacher = (
       );
       const currentAttempts = target.completedAttempts ?? 0;
       const refundedAttempts = Math.max(0, currentAttempts - 1);
+      // Answers the student passed but the teacher counted go back to passed.
+      const restoredAnswers = restorePassedAnswers(target);
 
       // Probe the ledger BEFORE the batch so we don't blindly create a
       // partial doc via `set(merge:true)` on a missing ledger entry
@@ -1809,6 +1812,7 @@ export const useQuizSessionTeacher = (
         scoredOnSubmitAttempt: deleteField(),
         // A reopened attempt can change its answers, so the teacher picks again.
         countedChoices: deleteField(),
+        ...(restoredAnswers ? { answers: restoredAnswers } : {}),
         unlocked: true,
         unlockedAt: Date.now(),
         unlockKind: reopen ? 'reopen' : deleteField(),
