@@ -113,6 +113,7 @@ import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import { deleteLiveLog } from '@/utils/quizLiveViewStore';
+import { QUIZ_LIVE_VIEW_FEATURE } from '@/utils/quizLiveView';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -1341,6 +1342,8 @@ export const useQuizAssignments = (
   const whiteboardResponseGranted =
     mediaResponseGranted &&
     authContext?.canAccessFeature?.(QUIZ_WHITEBOARD_FEATURE_ID) === true;
+  const liveViewOn =
+    authContext?.canAccessFeature?.(QUIZ_LIVE_VIEW_FEATURE) === true;
   const tabAwayTimerOn =
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
@@ -2236,9 +2239,11 @@ export const useQuizAssignments = (
       }
 
       // The Live view log sits under the assignment doc; it goes first so nothing is orphaned.
-      await deleteLiveLog(userId, assignmentId).catch((err: unknown) =>
-        console.error('[deleteAssignment] live log cleanup failed:', err)
-      );
+      if (liveViewOn) {
+        await deleteLiveLog(userId, assignmentId).catch((err: unknown) =>
+          console.error('[deleteAssignment] live log cleanup failed:', err)
+        );
+      }
 
       // Delete the session doc and the assignment doc in one batch
       const batch = writeBatch(db);
@@ -2250,7 +2255,7 @@ export const useQuizAssignments = (
       batch.delete(scoreKeyRef(userId, assignmentId));
       await batch.commit();
     },
-    [userId]
+    [userId, liveViewOn]
   );
 
   const updateAssignmentSettings = useCallback<

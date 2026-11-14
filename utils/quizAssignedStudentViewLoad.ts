@@ -28,9 +28,8 @@ export async function loadAssignedStudentView(
     const contentSnap = await getDoc(
       doc(sessionRef, QUIZ_CONTENT_COLLECTION, QUIZ_CONTENT_DOC)
     );
-    content = contentSnap.exists()
-      ? (contentSnap.data() as QuizSessionContent)
-      : null;
+    if (!contentSnap.exists()) throw new Error('Quiz content is missing');
+    content = contentSnap.data() as QuizSessionContent;
   }
   return buildAssignedStudentView(raw, content);
 }

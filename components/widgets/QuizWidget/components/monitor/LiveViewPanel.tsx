@@ -185,6 +185,14 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
       ? [...loaded, banner]
       : loaded;
   });
+  const closeOnEscape = useEffectEvent(() => onClose());
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeOnEscape();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   // The stamp tells this one student's page to report its question; clearing it on close stops that.
   useEffect(() => {
     if (!watching) return;
@@ -361,7 +369,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* translateZ pins the player's fixed overlays to this frame; the scroller is outside the inert copy so it still scrolls. */}
           <div className="relative min-h-[45%] flex-1 transform-[translateZ(0)] md:min-h-0">
-            <div className="absolute inset-0 overflow-y-auto bg-white">
+            <div className="absolute inset-0 overflow-y-auto bg-white pb-8">
               <div ref={shotRef} className="min-h-full bg-white">
                 <p className="flex flex-wrap items-center gap-x-2 border-b border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
                   <span className="font-semibold text-slate-800">

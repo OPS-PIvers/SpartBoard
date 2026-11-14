@@ -21,6 +21,7 @@ import {
   useRef,
   useMemo,
   useReducer,
+  useContext,
   MutableRefObject,
 } from 'react';
 import {
@@ -125,6 +126,8 @@ import {
 import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow, retryWithFreshClock } from '@/utils/serverTime';
 import { deleteLiveLog, deleteLiveState } from '@/utils/quizLiveViewStore';
+import { AuthContext } from '@/context/AuthContextValue';
+import { QUIZ_LIVE_VIEW_FEATURE } from '@/utils/quizLiveView';
 import {
   attemptClockRanOut,
   clampQuizTimeLimitMinutes,
@@ -1516,6 +1519,9 @@ export const useQuizSessionTeacher = (
     );
   }, [sessionId, session?.publicQuestions, session?.completenessModel]);
 
+  const liveViewOn =
+    useContext(AuthContext)?.canAccessFeature?.(QUIZ_LIVE_VIEW_FEATURE) ===
+    true;
   const removeStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) return;
@@ -1739,7 +1745,7 @@ export const useQuizSessionTeacher = (
       await batch.commit();
       // Their Live view log goes with them; Drive screenshots stay in the teacher's Drive.
       const logOwner = rawSession?.teacherUid;
-      if (logOwner === writerUid) {
+      if (liveViewOn && logOwner === writerUid) {
         await deleteLiveLog(logOwner, sessionId, responseKey).catch(
           (err: unknown) =>
             console.error('[removeStudent] live log cleanup failed:', err)
@@ -1750,7 +1756,7 @@ export const useQuizSessionTeacher = (
         }
       }
     },
-    [sessionId, responses, rawSession?.teacherUid]
+    [sessionId, responses, rawSession?.teacherUid, liveViewOn]
   );
 
   const unlockOrReopen = useCallback(

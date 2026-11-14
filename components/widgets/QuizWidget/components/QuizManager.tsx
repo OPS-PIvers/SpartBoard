@@ -1323,9 +1323,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [assignments]
   );
 
+  const studentViewOn = canAccessFeature('quiz-student-view');
   const quizUpdatedAtById = useMemo(
-    () => new Map(quizzes.map((q) => [q.id, q.updatedAt])),
-    [quizzes]
+    () =>
+      studentViewOn
+        ? new Map(quizzes.map((q) => [q.id, q.updatedAt]))
+        : undefined,
+    [quizzes, studentViewOn]
   );
 
   // Per-quiz assignment index for the library rows' status badges and

@@ -1,4 +1,6 @@
 import React, {
+  lazy,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -48,7 +50,6 @@ import {
   QUIZ_LIVE_VIEW_FEATURE,
   liveViewSupported,
 } from '@/utils/quizLiveView';
-import { LiveViewPanel } from './LiveViewPanel';
 import { REOPEN_ENDED_REASON } from '@/utils/quizTeacherSubmit';
 import {
   playPodiumFanfare,
@@ -150,6 +151,10 @@ type Screen =
   | { name: 'code' }
   | { name: 'settings' };
 
+const LiveViewPanel = lazy(() =>
+  import('./LiveViewPanel').then((m) => ({ default: m.LiveViewPanel }))
+);
+
 const SCREEN_TITLES: Record<
   Exclude<Screen['name'], 'home' | 'question'>,
   string
@@ -239,6 +244,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.status === 'active' &&
     !outward.locked;
   const [liveViewKey, setLiveViewKey] = useState<string | null>(null);
+  // Pause or a lost gate closes the panel so it can't re-open and re-stamp on resume.
+  if (!canLiveView && liveViewKey !== null) setLiveViewKey(null);
 
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
@@ -741,14 +748,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   return (
     <div className="h-full w-full flex flex-col bg-white text-brand-gray-dark relative">
       {canLiveView && liveViewKey && (
-        <LiveViewPanel
-          session={session}
-          students={data.byBucket.inProgress}
-          studentKey={liveViewKey}
-          onSelect={setLiveViewKey}
-          onClose={() => setLiveViewKey(null)}
-          overridesByStudentUid={overridesByStudentUid}
-        />
+        <Suspense fallback={null}>
+          <LiveViewPanel
+            session={session}
+            students={data.byBucket.inProgress}
+            studentKey={liveViewKey}
+            onSelect={setLiveViewKey}
+            onClose={() => setLiveViewKey(null)}
+            overridesByStudentUid={overridesByStudentUid}
+          />
+        </Suspense>
       )}
       <div
         className="flex items-center bg-brand-blue-primary text-white shrink-0"

@@ -1029,7 +1029,7 @@ service cloud.firestore {
 
     // Live view action log (screenshots, Nudges, banner shown). Owner-only; students never read it.
     match /users/{userId}/quiz_assignments/{assignmentId}/live_log/{logId} {
-      allow read, write: if ownsUser(userId) && notAnon();
+      allow read, write: if ownsUserTeacher(userId);
     }
 
     // Answer key scoreQuizOnSubmitV1 grades with. Owner-only; students never read it.
@@ -4764,6 +4764,7 @@ service cloud.firestore {
           incoming().get('servedQuestionIds', null) == null &&
           incoming().get('tabExits', null) == null &&
           incoming().get('partHeld', null) == null &&
+          incoming().get('liveView', null) == null &&
           incoming().get('partsDone', null) == null &&
           incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
@@ -4957,7 +4958,7 @@ service cloud.firestore {
            (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           liveUid(sessionTeacherUid()) ||
-          (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations']))
+          (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
         );
         allow delete: if signedIn() &&
           (liveUid(sessionTeacherUid()) || isSiteAdmin());

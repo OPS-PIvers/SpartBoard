@@ -13,13 +13,21 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-quiz-live-view-test';
 const TEACHER_UID = 'teacher-live';
 const OTHER_TEACHER_UID = 'other-teacher-live';
 const STUDENT_UID = 'student-live';
 const OTHER_STUDENT_UID = 'other-student-live';
+const ADMIN_EMAIL = 'site-admin-live@orono.k12.mn.us';
 const SESSION = 'session-live';
 
 const RESPONSE = `quiz_sessions/${SESSION}/responses/${STUDENT_UID}`;
@@ -54,6 +62,11 @@ const student = (uid: string) =>
     })
     .firestore();
 
+const anon = (uid: string) =>
+  testEnv
+    .authenticatedContext(uid, { firebase: { sign_in_provider: 'anonymous' } })
+    .firestore();
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -81,6 +94,7 @@ beforeAll(async () => {
       score: null,
       completedAttempts: 0,
     });
+    await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { addedAt: 1 });
     await setDoc(doc(db, LOG), {
       kind: 'nudge',
       responseKey: STUDENT_UID,
@@ -176,6 +190,110 @@ describe('quiz Live view: live_log', () => {
     );
     await assertFails(
       getDoc(doc(student(STUDENT_UID), LOG.replace('entry-1', 'entry-2')))
+    );
+  });
+});
+
+describe('quiz Live view: hardening', () => {
+  const seedState = () =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), STATE), { questionId: 'q1', at: 5 });
+    });
+
+  it('keeps a student from writing notify, nudge or clearing the stamp', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), RESPONSE), {
+        'liveView.until': 10,
+        'liveView.notify': false,
+      });
+    });
+    const db = student(STUDENT_UID);
+    await assertFails(
+      updateDoc(doc(db, RESPONSE), { 'liveView.notify': true })
+    );
+    await assertFails(
+      updateDoc(doc(db, RESPONSE), {
+        'liveView.nudge': { at: 1, noteId: 'x' },
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, RESPONSE), { liveView: deleteField() })
+    );
+  });
+
+  it('keeps a student from creating a response that carries liveView', async () => {
+    const base = {
+      studentUid: OTHER_STUDENT_UID,
+      status: 'joined',
+      answers: [],
+      score: null,
+      completedAttempts: 0,
+    };
+    const path = `quiz_sessions/${SESSION}/responses/${OTHER_STUDENT_UID}`;
+    await assertFails(
+      setDoc(doc(student(OTHER_STUDENT_UID), path), {
+        ...base,
+        liveView: { until: 10, notify: false },
+      })
+    );
+    await assertSucceeds(setDoc(doc(student(OTHER_STUDENT_UID), path), base));
+  });
+
+  it('keeps students from reading or deleting live/state', async () => {
+    await seedState();
+    await assertFails(getDoc(doc(student(STUDENT_UID), STATE)));
+    await assertFails(deleteDoc(doc(student(STUDENT_UID), STATE)));
+  });
+
+  it('rejects a bad questionId or at', async () => {
+    const db = student(STUDENT_UID);
+    await assertFails(setDoc(doc(db, STATE), { questionId: 5, at: 1 }));
+    await assertFails(
+      setDoc(doc(db, STATE), { questionId: 'x'.repeat(201), at: 1 })
+    );
+    await assertFails(setDoc(doc(db, STATE), { questionId: 'q1', at: '1' }));
+  });
+
+  it('keeps another teacher from stamping, reading or deleting', async () => {
+    await seedState();
+    const other = staff(OTHER_TEACHER_UID);
+    await assertFails(
+      updateDoc(doc(other, RESPONSE), { 'liveView.until': 99 })
+    );
+    await assertFails(getDoc(doc(other, STATE)));
+    await assertFails(deleteDoc(doc(other, STATE)));
+  });
+
+  it('keeps a site admin from stamping', async () => {
+    const admin = testEnv
+      .authenticatedContext('site-admin-live', {
+        email: ADMIN_EMAIL,
+        email_verified: true,
+        studentRole: false,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+    await assertFails(
+      updateDoc(doc(admin, RESPONSE), { 'liveView.until': 99 })
+    );
+  });
+
+  it('keeps studentRole and anonymous users out of live_log', async () => {
+    await assertFails(getDoc(doc(student(TEACHER_UID), LOG)));
+    await assertFails(
+      setDoc(doc(student(TEACHER_UID), LOG.replace('entry-1', 'entry-3')), {
+        kind: 'nudge',
+        responseKey: STUDENT_UID,
+        at: 3,
+      })
+    );
+    await assertFails(getDoc(doc(anon('anon-live'), LOG)));
+    await assertFails(
+      setDoc(doc(anon('anon-live'), LOG.replace('entry-1', 'entry-4')), {
+        kind: 'nudge',
+        responseKey: STUDENT_UID,
+        at: 4,
+      })
     );
   });
 });

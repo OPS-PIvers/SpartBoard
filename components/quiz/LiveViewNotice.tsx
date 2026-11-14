@@ -70,10 +70,10 @@ export const LiveViewNotice: React.FC<{
       {showNudge && (
         <div
           role="alert"
-          className="pointer-events-none fixed inset-0 z-quiz-lock flex items-start justify-center border-[10px] border-amber-400 animate-pulse"
+          className="pointer-events-none fixed inset-0 z-quiz-lock flex items-start justify-center border-[10px] border-amber-400 animate-pulse motion-reduce:animate-none"
         >
           {isNoteId(noteId) && (
-            <p className="mt-6 rounded-full bg-amber-400 px-5 py-2 text-lg font-bold text-slate-900 shadow-lg">
+            <p className="mt-6 rounded-md border border-amber-600 bg-amber-400 px-5 py-2 text-lg font-bold text-slate-900">
               {t(NUDGE_NOTE_KEY[noteId], NUDGE_NOTE_TEXT[noteId], lng)}
             </p>
           )}

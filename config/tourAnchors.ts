@@ -4562,6 +4562,7 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.live-view': {
     label: 'Live view button on a student in the Quiz monitor roster',
     perField: true,
+    persists: true,
   },
   'quiz-live-view.previous': {
     label: 'Previous student button in Quiz Live view',
