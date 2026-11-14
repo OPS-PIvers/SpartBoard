@@ -33,42 +33,46 @@ export const publicView = (d: Record<string, unknown>) => ({
   betaUsers: [],
 });
 
-async function sync(
+/** Re-reads the live source so stale/reordered events cannot overwrite newer state. */
+export async function sync(
   kind: Kind,
   id: string,
   before: Record<string, unknown> | undefined,
   after: Record<string, unknown> | undefined
 ) {
   const db = admin.firestore();
+  const srcPath = `${kind === 'feature' ? 'feature_permissions' : 'global_permissions'}/${id}`;
+  const liveSnap = await db.doc(srcPath).get();
+  const live = liveSnap.exists ? liveSnap.data() : undefined;
   const pub = db.collection(PUBLIC[kind]).doc(id);
-  if (after) await pub.set(publicView(after));
+  if (live) await pub.set(publicView(live));
   else await pub.delete();
-  const was = new Set(betaEmails(before));
-  const now = new Set(betaEmails(after));
+  const now = new Set(betaEmails(live));
+  const touched = new Set([
+    ...betaEmails(before),
+    ...betaEmails(after),
+    ...now,
+  ]);
   const field = kind === 'feature' ? 'features' : 'global';
   const FV = FieldValue;
   const ops: Promise<unknown>[] = [];
-  for (const e of now)
-    if (!was.has(e))
-      ops.push(
-        db
-          .collection('beta_grants')
-          .doc(e)
-          .set({ [field]: FV.arrayUnion(id) }, { merge: true })
-      );
-  for (const e of was)
-    if (!now.has(e))
-      ops.push(
-        db
-          .collection('beta_grants')
-          .doc(e)
-          .set({ [field]: FV.arrayRemove(id) }, { merge: true })
-      );
+  for (const e of touched)
+    ops.push(
+      db
+        .collection('beta_grants')
+        .doc(e)
+        .set(
+          { [field]: now.has(e) ? FV.arrayUnion(id) : FV.arrayRemove(id) },
+          { merge: true }
+        )
+    );
   await Promise.all(ops);
 }
 
+const OPTS = { retry: true } as const;
+
 export const featurePermissionsMirror = onDocumentWritten(
-  'feature_permissions/{id}',
+  { document: 'feature_permissions/{id}', ...OPTS },
   (event) =>
     sync(
       'feature',
@@ -79,7 +83,7 @@ export const featurePermissionsMirror = onDocumentWritten(
 );
 
 export const globalPermissionsMirror = onDocumentWritten(
-  'global_permissions/{id}',
+  { document: 'global_permissions/{id}', ...OPTS },
   (event) =>
     sync(
       'global',
