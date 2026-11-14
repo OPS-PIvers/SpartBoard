@@ -3513,6 +3513,54 @@
     "left": "Time left {{time}}",
     "submitted": "Time's up. Your answers were submitted."
   },
+  "quizStudent": {
+    "common": {
+      "loading": "Loading…",
+      "loadingQuestions": "Loading questions",
+      "lostConnection": "Lost connection to the quiz. Please refresh.",
+      "loadingQuiz": "Loading your quiz…",
+      "joinedAs": "Joined as PIN"
+    },
+    "join": {
+      "joining": "Joining quiz…",
+      "unableToConnect": "Unable to connect. Please refresh the page and try again.",
+      "studentQuiz": "Student Quiz",
+      "title": "Join Quiz",
+      "intro": "Enter the code and your PIN from your teacher.",
+      "codePlaceholder": "Quiz Code (XXXXXX)",
+      "pinPlaceholder": "Your PIN",
+      "periodTitle": "Select Your Class",
+      "periodIntro": "Which class period are you in?",
+      "goBack": "Go Back",
+      "signInTitle": "Sign in to join",
+      "signInIntro": "Use your school Google account.",
+      "usePin": "Can’t sign in? Use a PIN instead",
+      "join": "Join",
+      "continue": "Continue",
+      "signInGoogle": "Sign in with Google",
+      "closed": "This quiz is closed.",
+      "loadFailed": "We couldn't load your quiz. Please refresh and try again."
+    },
+    "removed": {
+      "title": "You were removed from this quiz",
+      "body": "Your teacher removed you from this assignment. Ask your teacher if you believe this was a mistake."
+    },
+    "waiting": {
+      "title": "Waiting for your teacher to start…",
+      "questionCount_one": "{{count}} question",
+      "questionCount_other": "{{count}} questions"
+    },
+    "paused": {
+      "stopped": "Stopped for now",
+      "title": "Paused. Eyes up.",
+      "saved": "Your answers are saved.",
+      "keepOpen": "Keep this tab open."
+    },
+    "locked": {
+      "opensSoon": "Opens when your teacher starts it.",
+      "keepOpen": "Keep this tab open. The quiz appears here as soon as your class is let in."
+    }
+  },
   "quizSubmit": {
     "offline": "You're offline. Keep this tab open and your answers will save when you reconnect.",
     "undo": "Undo",

@@ -395,6 +395,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
 }) => {
   // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
+  const { t } = useTranslation();
 
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
@@ -447,7 +448,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   }
 
   if (!authReady) {
-    return <FullPageLoader message="Loading…" />;
+    return <FullPageLoader message={t('quizStudent.common.loading')} />;
   }
 
   if (authFailed || !auth.currentUser) {
@@ -455,7 +456,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
         <AlertCircle className="w-10 h-10 text-red-400" />
         <p className="text-slate-300 text-sm text-center">
-          Unable to connect. Please refresh the page and try again.
+          {t('quizStudent.join.unableToConnect')}
         </p>
         <ReloadButton dark />
       </div>
@@ -478,6 +479,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
  * verify what students will see without their Firebase Auth session being
  * touched by `signInAnonymously` or the SSO auto-join path. */
 const QuizPreviewLobby: React.FC = () => {
+  const { t } = useTranslation();
   const urlCode =
     typeof window === 'undefined'
       ? ''
@@ -491,15 +493,15 @@ const QuizPreviewLobby: React.FC = () => {
           <div className="flex items-center justify-center mb-8">
             <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
             <span className="text-sm text-slate-300 font-semibold">
-              Student Quiz
+              {t('quizStudent.join.studentQuiz')}
             </span>
           </div>
 
           <h1 className="text-2xl font-black text-white mb-2 text-center">
-            Join Quiz
+            {t('quizStudent.join.title')}
           </h1>
           <p className="text-slate-400 text-sm text-center mb-6">
-            Enter the code and your PIN from your teacher.
+            {t('quizStudent.join.intro')}
           </p>
 
           <div className="space-y-4" aria-hidden="true">
@@ -508,14 +510,14 @@ const QuizPreviewLobby: React.FC = () => {
               value={urlCode}
               readOnly
               tabIndex={-1}
-              placeholder="Quiz Code (XXXXXX)"
+              placeholder={t('quizStudent.join.codePlaceholder')}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden cursor-default"
             />
             <input
               type="text"
               readOnly
               tabIndex={-1}
-              placeholder="Your PIN"
+              placeholder={t('quizStudent.join.pinPlaceholder')}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden cursor-default"
             />
             <button
@@ -524,7 +526,7 @@ const QuizPreviewLobby: React.FC = () => {
               tabIndex={-1}
               className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
             >
-              Join <ArrowRight className="w-5 h-5" />
+              {t('quizStudent.join.join')} <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -540,6 +542,7 @@ const QuizJoinFlow: React.FC<{
   embedded: boolean;
   watermarkNameOverride?: string;
 }> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
+  const { t } = useTranslation();
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
   // A Schoology launch names the teacher who added the quiz; join only their session.
@@ -733,7 +736,9 @@ const QuizJoinFlow: React.FC<{
             dispatchFlow({
               type: 'reviewUnavailable',
               message:
-                err instanceof Error ? err.message : 'This quiz is closed.',
+                err instanceof Error
+                  ? err.message
+                  : t('quizStudent.join.closed'),
             });
             return;
           }
@@ -743,9 +748,7 @@ const QuizJoinFlow: React.FC<{
         // also be populated, and the render branch below prefers that more
         // detailed message when available.
         const message =
-          err instanceof Error
-            ? err.message
-            : "We couldn't load your quiz. Please refresh and try again.";
+          err instanceof Error ? err.message : t('quizStudent.join.loadFailed');
         dispatchFlow({ type: 'autoJoinFailed', message });
         // Re-arm so a retry button (if added later) can re-trigger.
         ssoAutoJoinStartedRef.current = false;
@@ -760,6 +763,7 @@ const QuizJoinFlow: React.FC<{
     joinQuizSession,
     subscribeForReview,
     lookupSession,
+    t,
   ]);
 
   useEffect(() => {
@@ -1295,15 +1299,15 @@ const QuizJoinFlow: React.FC<{
             <div className="flex items-center justify-center mb-8">
               <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
               <span className="text-sm text-slate-300 font-semibold">
-                Student Quiz
+                {t('quizStudent.join.studentQuiz')}
               </span>
             </div>
 
             <h1 className="text-2xl font-black text-white mb-2 text-center">
-              Select Your Class
+              {t('quizStudent.join.periodTitle')}
             </h1>
             <p className="text-slate-400 text-sm text-center mb-6">
-              Which class period are you in?
+              {t('quizStudent.join.periodIntro')}
             </p>
 
             {error && (
@@ -1346,7 +1350,8 @@ const QuizJoinFlow: React.FC<{
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Continue <ArrowRight className="w-5 h-5" />
+                  {t('quizStudent.join.continue')}{' '}
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
@@ -1357,7 +1362,7 @@ const QuizJoinFlow: React.FC<{
               }}
               className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
             >
-              Go Back
+              {t('quizStudent.join.goBack')}
             </button>
           </div>
         </div>
@@ -1378,7 +1383,8 @@ const QuizJoinFlow: React.FC<{
     // Otherwise prefer the hook `error` (e.g. the friendly "ask your teacher to
     // enroll you" hint on a class-gate denial), then the auto-join error (which
     // captures lookupSession failures the hook never sees).
-    if (previewSessionId) return <FullPageLoader message="Loading…" />;
+    if (previewSessionId)
+      return <FullPageLoader message={t('quizStudent.common.loading')} />;
     if (staffGate.screen) return staffGate.screen;
     if (autoJoin) {
       const ssoError = flow.terminalError ?? error ?? flow.autoJoinError;
@@ -1395,11 +1401,11 @@ const QuizJoinFlow: React.FC<{
           </div>
         );
       }
-      return <FullPageLoader message="Joining quiz…" light />;
+      return <FullPageLoader message={t('quizStudent.join.joining')} light />;
     }
     // SSO gate is still deciding whether this is a ClassLink session.
     if (ssoGate === 'pending') {
-      return <FullPageLoader message="Loading…" />;
+      return <FullPageLoader message={t('quizStudent.common.loading')} />;
     }
     if (ssoGate === 'blocked') {
       return (
@@ -1421,15 +1427,15 @@ const QuizJoinFlow: React.FC<{
             <div className="flex items-center justify-center mb-8">
               <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
               <span className="text-sm text-slate-300 font-semibold">
-                Student Quiz
+                {t('quizStudent.join.studentQuiz')}
               </span>
             </div>
 
             <h1 className="text-2xl font-black text-white mb-2 text-center">
-              Sign in to join
+              {t('quizStudent.join.signInTitle')}
             </h1>
             <p className="text-slate-400 text-sm text-center mb-6">
-              Use your school Google account.
+              {t('quizStudent.join.signInIntro')}
             </p>
 
             <button
@@ -1440,14 +1446,15 @@ const QuizJoinFlow: React.FC<{
               }
               className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
             >
-              Sign in with Google <ArrowRight className="w-5 h-5" />
+              {t('quizStudent.join.signInGoogle')}{' '}
+              <ArrowRight className="w-5 h-5" />
             </button>
 
             <button
               onClick={() => dispatchFlow({ type: 'usePin' })}
               className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
             >
-              Can&rsquo;t sign in? Use a PIN instead
+              {t('quizStudent.join.usePin')}
             </button>
           </div>
         </div>
@@ -1459,15 +1466,15 @@ const QuizJoinFlow: React.FC<{
           <div className="flex items-center justify-center mb-8">
             <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
             <span className="text-sm text-slate-300 font-semibold">
-              Student Quiz
+              {t('quizStudent.join.studentQuiz')}
             </span>
           </div>
 
           <h1 className="text-2xl font-black text-white mb-2 text-center">
-            Join Quiz
+            {t('quizStudent.join.title')}
           </h1>
           <p className="text-slate-400 text-sm text-center mb-6">
-            Enter the code and your PIN from your teacher.
+            {t('quizStudent.join.intro')}
           </p>
 
           {error && (
@@ -1494,7 +1501,7 @@ const QuizJoinFlow: React.FC<{
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Quiz Code (XXXXXX)"
+              placeholder={t('quizStudent.join.codePlaceholder')}
               maxLength={8}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               required
@@ -1503,7 +1510,7 @@ const QuizJoinFlow: React.FC<{
               type="text"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="Your PIN"
+              placeholder={t('quizStudent.join.pinPlaceholder')}
               maxLength={10}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               required
@@ -1517,7 +1524,8 @@ const QuizJoinFlow: React.FC<{
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Join <ArrowRight className="w-5 h-5" />
+                  {t('quizStudent.join.join')}{' '}
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
@@ -1602,12 +1610,12 @@ const QuizJoinFlow: React.FC<{
           <div className="min-h-screen bg-brand-blue-dark flex flex-col items-center justify-center gap-4 p-6">
             <Loader2
               className="w-8 h-8 text-white/70 animate-spin"
-              aria-label="Loading questions"
+              aria-label={t('quizStudent.common.loadingQuestions')}
             />
             {dealPending && drawStalledKey === drawKey && (
               <>
                 <p className="text-sm text-center text-white/80 max-w-sm">
-                  Lost connection to the quiz. Please refresh.
+                  {t('quizStudent.common.lostConnection')}
                 </p>
                 <ReloadButton dark />
               </>
@@ -1619,7 +1627,9 @@ const QuizJoinFlow: React.FC<{
       case 'game':
         return (
           <React.Suspense
-            fallback={<FullPageLoader message="Loading…" light />}
+            fallback={
+              <FullPageLoader message={t('quizStudent.common.loading')} light />
+            }
           >
             <QuizGamePlay
               session={session}
@@ -1706,11 +1716,10 @@ const QuizJoinFlow: React.FC<{
               aria-hidden="true"
             />
             <h1 className="text-xl font-bold text-slate-800">
-              You were removed from this quiz
+              {t('quizStudent.removed.title')}
             </h1>
             <p className="max-w-md text-sm text-slate-600">
-              Your teacher removed you from this assignment. Ask your teacher if
-              you believe this was a mistake.
+              {t('quizStudent.removed.body')}
             </p>
           </div>
         );
@@ -1736,7 +1745,7 @@ const QuizJoinFlow: React.FC<{
             <p
               className={`text-sm ${lightLoad ? 'text-slate-500' : 'text-slate-400'}`}
             >
-              Loading your quiz…
+              {t('quizStudent.common.loadingQuiz')}
             </p>
           </div>
         );
@@ -1876,30 +1885,35 @@ const WaitingRoom: React.FC<{
   totalQuestions?: number;
   /** This student's assigned locale, when the session serves one. */
   locale?: string;
-}> = ({ session, pin, totalQuestions, locale }) => (
-  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-    <div className="w-16 h-16 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
-      <ClipboardList className="w-8 h-8 text-violet-400" />
-    </div>
-    <h1 className="text-2xl font-black text-white mb-2">
-      {localizedQuizTitle(session, locale)}
-    </h1>
-    <p className="text-slate-400 text-sm mb-2">
-      Waiting for your teacher to start…
-    </p>
-    <p className="text-slate-500 text-xs mb-8">
-      {totalQuestions ?? session.totalQuestions} questions
-    </p>
-    {pin && (
-      <div className="p-4 bg-slate-800 rounded-xl">
-        <p className="text-slate-300 text-sm">
-          Joined as PIN{' '}
-          <span className="font-semibold text-white font-mono">{pin}</span>
-        </p>
+}> = ({ session, pin, totalQuestions, locale }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-16 h-16 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
+        <ClipboardList className="w-8 h-8 text-violet-400" />
       </div>
-    )}
-  </div>
-);
+      <h1 className="text-2xl font-black text-white mb-2">
+        {localizedQuizTitle(session, locale)}
+      </h1>
+      <p className="text-slate-400 text-sm mb-2">
+        {t('quizStudent.waiting.title')}
+      </p>
+      <p className="text-slate-500 text-xs mb-8">
+        {t('quizStudent.waiting.questionCount', {
+          count: totalQuestions ?? session.totalQuestions,
+        })}
+      </p>
+      {pin && (
+        <div className="p-4 bg-slate-800 rounded-xl">
+          <p className="text-slate-300 text-sm">
+            {t('quizStudent.common.joinedAs')}{' '}
+            <span className="font-semibold text-white font-mono">{pin}</span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Success pill (post-submit / complete acknowledgement) ───────────────────
 //
