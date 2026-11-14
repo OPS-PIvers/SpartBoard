@@ -237,13 +237,25 @@ async function moveRemovedAttempts(
   w: AttemptWrite
 ): Promise<void> {
   const session = db.collection('quiz_sessions').doc(w.sessionId);
-  // A retried removal must not touch a student who has since rejoined under the same key.
-  if ((await responseRef(db, w.sessionId, w.responseKey).get()).exists) return;
-  const attempts = await responseRef(db, w.sessionId, w.responseKey)
+  // A doc re-created at the key since is a new occupancy: only copies saved before this removal move.
+  const rejoined = (await responseRef(db, w.sessionId, w.responseKey).get())
+    .exists;
+  const all = await responseRef(db, w.sessionId, w.responseKey)
     .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
     .get();
+  const attempts = {
+    docs: rejoined
+      ? all.docs.filter((d) => {
+          const at: unknown = d.data()?.eventAt;
+          return typeof at !== 'number' || at <= w.eventAt;
+        })
+      : all.docs,
+  };
+  const movedNs = new Set(
+    attempts.docs.map((d) => Number(d.data()?.n) || Number(d.id))
+  );
   const list = await scoresRef(db, w.sessionId, w.responseKey).get();
-  if (attempts.docs.length === 0 && !list.exists) return;
+  if (attempts.docs.length === 0 && (rejoined || !list.exists)) return;
   // Sorted here rather than with orderBy, which would need a composite index.
   const archive = (
     await session
@@ -264,14 +276,18 @@ async function moveRemovedAttempts(
     await d.ref.delete();
   }
   if (list.exists) {
+    const raw: unknown = list.data()?.attempts;
+    const scores = Array.isArray(raw) ? (raw as IndexAttempt[]) : [];
+    // On a rejoined key only the moved attempts' entries go; the new occupant's stay.
+    const moved = rejoined ? scores.filter((s) => movedNs.has(s.n)) : scores;
     if (archive) {
-      const scores: unknown = list.data()?.attempts;
-      await archive.ref.set(
-        { attemptScores: Array.isArray(scores) ? scores : [] },
-        { merge: true }
-      );
+      await archive.ref.set({ attemptScores: moved }, { merge: true });
     }
-    await list.ref.delete();
+    if (!rejoined) await list.ref.delete();
+    else if (moved.length > 0)
+      await list.ref.update({
+        attempts: scores.filter((s) => !movedNs.has(s.n)),
+      });
   }
 }
 
@@ -315,7 +331,9 @@ export async function applyAttemptGradeWrite(
       // The Gradebook row keeps its own attempt list, so it takes the same rescore.
       const indexRef =
         indexOn && studentUid
-          ? db.collection(GRADE_INDEX).doc(rowId(w.sessionId, studentUid))
+          ? db
+              .collection(GRADE_INDEX)
+              .doc(rowId('quiz', w.sessionId, studentUid))
           : null;
       const indexSnap = indexRef ? await tx.get(indexRef) : null;
       // A stored (published) score would mask the new grade.
@@ -351,7 +369,8 @@ export async function applyAttemptGradeWrite(
         });
         return true;
       }
-      return false;
+      // A row still at its pre-kind id catches up through the recompute.
+      return indexRef !== null;
     });
     // Requeue the session so a recompute this update would skip still runs and the cell catches up.
     if (rowRescored) await markSessionDirty(db, 'quiz', w.sessionId);

@@ -21,7 +21,6 @@ vi.mock('firebase-functions/logger', () => ({
 }));
 
 import * as admin from '../firebaseAdmin';
-import * as logger from 'firebase-functions/logger';
 import {
   __resetGradeIndexEnabledCache,
   __resetProjectRosterCache,
@@ -140,7 +139,7 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.get('grade_index/qs1__u1')).toMatchObject({
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
       state: 'scored',
       rawPct: 100,
     });
@@ -149,7 +148,7 @@ describe('applyDocWrite', () => {
   it('keeps a row a trigger rewrote after the recompute started', async () => {
     const stub = seed({
       'quiz_sessions/qs1/responses/u1': completed(),
-      'grade_index/qs1__u1': {
+      'grade_index/quiz__qs1__u1': {
         sessionId: 'qs1',
         studentUid: 'u1',
         updatedAt: NOW + 10,
@@ -173,7 +172,7 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.get('grade_index/qs1__u1')).toMatchObject({
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
       kind: 'quiz',
       ownerUid: 't1',
       studentUid: 'u1',
@@ -203,7 +202,7 @@ describe('applyDocWrite', () => {
       NOW
     );
     expect(n).toBe(0);
-    expect(stub.has('grade_index/qs1__anon')).toBe(false);
+    expect(stub.has('grade_index/quiz__qs1__anon')).toBe(false);
   });
 
   it('ignores mid-attempt answer saves', () => {
@@ -263,7 +262,7 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    const row = stub.get('grade_index/qs1__u1') as unknown as IndexRow;
+    const row = stub.get('grade_index/quiz__qs1__u1') as unknown as IndexRow;
     expect(row.attempts.map((a) => [a.n, a.points])).toEqual([
       [1, 2],
       [2, 0],
@@ -298,8 +297,10 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.get('grade_index/qs1__u1')).toMatchObject({ assigned: false });
-    expect(stub.get('grade_index/qs1__u2')).toMatchObject({
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
+      assigned: false,
+    });
+    expect(stub.get('grade_index/quiz__qs1__u2')).toMatchObject({
       assigned: true,
       dueAt: NOW + DAY,
     });
@@ -307,7 +308,7 @@ describe('applyDocWrite', () => {
 
   it('deletes the row when the response goes', async () => {
     const stub = seed({
-      'grade_index/qs1__u1': {
+      'grade_index/quiz__qs1__u1': {
         kind: 'quiz',
         sessionId: 'qs1',
         studentUid: 'u1',
@@ -324,10 +325,10 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.has('grade_index/qs1__u1')).toBe(false);
+    expect(stub.has('grade_index/quiz__qs1__u1')).toBe(false);
   });
 
-  it("never deletes another kind's row, and the session's own write takes the id back", async () => {
+  it("never deletes another kind's pre-kind row, and writes its own kind-keyed row", async () => {
     const other = { kind: 'projects', sessionId: 'qs1', studentUid: 'u1' };
     const stub = seed({ 'grade_index/qs1__u1': other });
     await applyWrite(
@@ -353,7 +354,10 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.get('grade_index/qs1__u1')).toMatchObject({ kind: 'quiz' });
+    expect(stub.get('grade_index/qs1__u1')).toEqual(other);
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
+      kind: 'quiz',
+    });
   });
 
   it('builds one row per project group member', async () => {
@@ -386,12 +390,14 @@ describe('applyDocWrite', () => {
       NOW,
       rosterOf(['u1', 'u2'])
     );
-    expect(stub.get('grade_index/t1_p1__u1')).toMatchObject({
+    expect(stub.get('grade_index/projects__t1_p1__u1')).toMatchObject({
       kind: 'projects',
       rawPct: 80,
       published: false,
     });
-    expect(stub.get('grade_index/t1_p1__u2')).toMatchObject({ rawPct: 100 });
+    expect(stub.get('grade_index/projects__t1_p1__u2')).toMatchObject({
+      rawPct: 100,
+    });
   });
 
   it('keeps an Activity Wall row until the author has no submissions left', async () => {
@@ -422,7 +428,7 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.get('grade_index/t1_w1__u1')).toMatchObject({
+    expect(stub.get('grade_index/activity-wall__t1_w1__u1')).toMatchObject({
       submittedAt: 3,
       state: 'scored',
     });
@@ -439,7 +445,7 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.has('grade_index/t1_w1__u1')).toBe(false);
+    expect(stub.has('grade_index/activity-wall__t1_w1__u1')).toBe(false);
   });
 });
 
@@ -448,7 +454,7 @@ describe('recomputeSession and the dirty queue', () => {
     const stub = seed({
       'quiz_sessions/qs1/responses/u1': completed(),
       'quiz_sessions/qs1/responses/pin-1-99': completed({ studentUid: 'anon' }),
-      'grade_index/qs1__gone': {
+      'grade_index/quiz__qs1__gone': {
         kind: 'quiz',
         sessionId: 'qs1',
         studentUid: 'gone',
@@ -461,8 +467,8 @@ describe('recomputeSession and the dirty queue', () => {
       NOW
     );
     expect(result).toEqual({ written: 1, deleted: 1 });
-    expect(stub.has('grade_index/qs1__u1')).toBe(true);
-    expect(stub.has('grade_index/qs1__gone')).toBe(false);
+    expect(stub.has('grade_index/quiz__qs1__u1')).toBe(true);
+    expect(stub.has('grade_index/quiz__qs1__gone')).toBe(false);
   });
 
   it('writes nothing when a rerun changes nothing', async () => {
@@ -477,7 +483,7 @@ describe('recomputeSession and the dirty queue', () => {
 
   it('removes every row once the session is deleted', async () => {
     const stub = makeStubFirestore({
-      'grade_index/qs9__u1': {
+      'grade_index/quiz__qs9__u1': {
         kind: 'quiz',
         sessionId: 'qs9',
         studentUid: 'u1',
@@ -490,7 +496,7 @@ describe('recomputeSession and the dirty queue', () => {
 
   it("leaves another kind's rows alone when queued with the wrong kind", async () => {
     const stub = makeStubFirestore({
-      'grade_index/qs9__u1': {
+      'grade_index/quiz__qs9__u1': {
         kind: 'quiz',
         sessionId: 'qs9',
         studentUid: 'u1',
@@ -504,7 +510,7 @@ describe('recomputeSession and the dirty queue', () => {
         NOW
       )
     ).toEqual({ written: 0, deleted: 0 });
-    expect(stub.has('grade_index/qs9__u1')).toBe(true);
+    expect(stub.has('grade_index/quiz__qs9__u1')).toBe(true);
   });
 
   it('backs a failing session off up to an hour and never drops it', async () => {
@@ -565,7 +571,7 @@ describe('recomputeSession and the dirty queue', () => {
     await markSessionDirty(db, 'quiz', 'qs1', NOW);
     expect(await drainDirtySessions(db)).toEqual({ recomputed: 1, failed: 0 });
     expect(stub.has('grade_index_sessions/quiz__qs1')).toBe(false);
-    expect(stub.has('grade_index/qs1__u1')).toBe(true);
+    expect(stub.has('grade_index/quiz__qs1__u1')).toBe(true);
   });
 
   it('keeps one queue entry per kind for a shared session id', async () => {
@@ -587,8 +593,10 @@ describe('recomputeSession and the dirty queue', () => {
     expect(stub.has('grade_index_sessions/quiz__qs1')).toBe(true);
     expect(stub.has('grade_index_sessions/mini-app__qs1')).toBe(true);
     expect(await drainDirtySessions(db)).toEqual({ recomputed: 2, failed: 0 });
-    expect(stub.get('grade_index/qs1__u1')).toMatchObject({ kind: 'quiz' });
-    expect(stub.get('grade_index/qs1__u9')).toMatchObject({
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
+      kind: 'quiz',
+    });
+    expect(stub.get('grade_index/mini-app__qs1__u9')).toMatchObject({
       kind: 'mini-app',
     });
   });
@@ -607,11 +615,11 @@ describe('recomputeSession and the dirty queue', () => {
     expect(await drainDirtySessions(db)).toEqual({ recomputed: 2, failed: 0 });
     expect(stub.has('grade_index_sessions/qs1')).toBe(false);
     expect(stub.has('grade_index_sessions/qs1-legacy')).toBe(false);
-    expect(stub.has('grade_index/qs1__u1')).toBe(true);
+    expect(stub.has('grade_index/quiz__qs1__u1')).toBe(true);
   });
 });
 
-describe('a row id shared with another kind of session', () => {
+describe('a session id shared with another kind of session', () => {
   const victimRow = {
     kind: 'quiz',
     sessionId: 'qs1',
@@ -619,6 +627,7 @@ describe('a row id shared with another kind of session', () => {
     ownerUid: 't1',
     rawPct: 100,
     attempts: [{ n: 1, at: 1, points: 2, max: 2, state: 'scored' }],
+    createdAt: 5,
     updatedAt: NOW - 1,
   };
   const submission = { studentUid: 'u1', submittedAt: NOW - DAY };
@@ -637,118 +646,83 @@ describe('a row id shared with another kind of session', () => {
     before: undefined,
     after: submission,
   };
+  const quizWrite = {
+    kind: 'quiz' as const,
+    sessionId: 'qs1',
+    docId: 'u1',
+    before: undefined,
+    after: completed(),
+  };
 
-  it("never replaces a live quiz session's row from a trigger write", async () => {
-    const stub = seed({ ...attackerApp, 'grade_index/qs1__u1': victimRow });
-    expect(await applyDocWrite(stub.db as unknown as Db, miniWrite, NOW)).toBe(
-      0
-    );
-    expect(stub.get('grade_index/qs1__u1')).toEqual(victimRow);
-  });
-
-  it("never replaces or deletes a live quiz session's row in a recompute", async () => {
-    const stub = seed({ ...attackerApp, 'grade_index/qs1__u1': victimRow });
-    const db = stub.db as unknown as Db;
-    expect(await recomputeSession(db, 'mini-app', 'qs1', NOW)).toEqual({
-      written: 0,
-      deleted: 0,
-    });
-    expect(stub.get('grade_index/qs1__u1')).toEqual(victimRow);
-    stub.store.delete('mini_app_sessions/qs1/submissions/s1');
-    await recomputeSession(db, 'mini-app', 'qs1', NOW);
-    await applyDocWrite(
-      db,
-      { ...miniWrite, before: submission, after: undefined },
-      NOW
-    );
-    expect(stub.get('grade_index/qs1__u1')).toEqual(victimRow);
-  });
-
-  it('leaves the quiz row alone when the other kind queues its own recompute', async () => {
-    const stub = seed({ ...attackerApp, 'grade_index/qs1__u1': victimRow });
-    const db = stub.db as unknown as Db;
-    await markSessionDirty(db, 'mini-app', 'qs1', NOW);
-    await drainDirtySessions(db);
-    expect(stub.get('grade_index/qs1__u1')).toEqual(victimRow);
-  });
-
-  it('keeps a row whose session id only lines up once the student uid is appended', async () => {
+  it('a same-id Mini App written first never blocks the quiz row', async () => {
     const stub = seed({
-      'quiz_sessions/qs1/responses/u1': completed({ studentUid: 'x__u1' }),
-      'quiz_sessions/qs1__x': { teacherUid: 't1', quizTitle: 'Other' },
-      'grade_index/qs1__x__u1': {
-        ...victimRow,
-        sessionId: 'qs1__x',
-        studentUid: 'u1',
-      },
-    });
-    const w = {
-      kind: 'quiz' as const,
-      sessionId: 'qs1',
-      docId: 'u1',
-      before: undefined,
-      after: completed({ studentUid: 'x__u1' }),
-    };
-    expect(await applyDocWrite(stub.db as unknown as Db, w, NOW)).toBe(0);
-    expect(stub.get('grade_index/qs1__x__u1')).toMatchObject({
-      sessionId: 'qs1__x',
-    });
-  });
-
-  it('loses a cross-kind race instead of overwriting: the row is claimed inside the write transaction', async () => {
-    const stub = seed({
-      'quiz_sessions/qs1/responses/u1': completed(),
-      'quiz_sessions/qs2': { teacherUid: 't9', quizTitle: 'Other' },
-    });
-    const foreign = {
-      ...victimRow,
-      kind: 'mini-app',
-      sessionId: 'qs2',
-      ownerUid: 't9',
-    };
-    const inner = stub.db.runTransaction.bind(stub.db);
-    stub.db.runTransaction = ((
-      fn: Parameters<typeof stub.db.runTransaction>[0]
-    ) => {
-      stub.store.set('grade_index/qs1__u1', foreign);
-      return inner(fn);
-    }) as never;
-    const w = {
-      kind: 'quiz' as const,
-      sessionId: 'qs1',
-      docId: 'u1',
-      before: undefined,
-      after: completed(),
-    };
-    stub.store.set('mini_app_sessions/qs2', { teacherUid: 't9' });
-    expect(await applyDocWrite(stub.db as unknown as Db, w, NOW)).toBe(0);
-    expect(stub.get('grade_index/qs1__u1')).toEqual(foreign);
-    expect(logger.warn).toHaveBeenCalledWith(
-      'gradeIndex: row held by another session left alone',
-      expect.objectContaining({ heldByKind: 'mini-app' })
-    );
-  });
-
-  it('retakes a row whose own session is gone, without its attempts', async () => {
-    const stub = makeStubFirestore({
       ...attackerApp,
-      'grade_index/qs1__u1': victimRow,
+      'quiz_sessions/qs1/responses/u1': completed(),
     });
-    await recomputeSession(stub.db as unknown as Db, 'mini-app', 'qs1', NOW);
-    expect(stub.get('grade_index/qs1__u1')).toMatchObject({
+    const db = stub.db as unknown as Db;
+    expect(await applyDocWrite(db, miniWrite, NOW)).toBe(1);
+    expect(await applyDocWrite(db, quizWrite, NOW)).toBe(1);
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
+      kind: 'quiz',
+      ownerUid: 't1',
+    });
+    expect(stub.get('grade_index/mini-app__qs1__u1')).toMatchObject({
       kind: 'mini-app',
       ownerUid: 'attacker',
-      attempts: [],
+    });
+    await recomputeSession(db, 'mini-app', 'qs1', NOW);
+    stub.store.delete('mini_app_sessions/qs1/submissions/s1');
+    await recomputeSession(db, 'mini-app', 'qs1', NOW);
+    expect(stub.has('grade_index/mini-app__qs1__u1')).toBe(false);
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
+      kind: 'quiz',
+    });
+  });
+
+  it('moves a pre-kind row of its own kind to the kind-keyed id', async () => {
+    const stub = seed({
+      'grade_index/qs1__u1': victimRow,
+      'quiz_sessions/qs1/responses/u1': completed(),
+    });
+    await applyDocWrite(stub.db as unknown as Db, quizWrite, NOW);
+    expect(stub.has('grade_index/qs1__u1')).toBe(false);
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
+      kind: 'quiz',
+    });
+  });
+
+  it('a recompute moves pre-kind rows too', async () => {
+    const stub = seed({
+      'grade_index/qs1__u1': victimRow,
+      'quiz_sessions/qs1/responses/u1': completed(),
+    });
+    await recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW);
+    expect(stub.has('grade_index/qs1__u1')).toBe(false);
+    expect(stub.has('grade_index/quiz__qs1__u1')).toBe(true);
+  });
+
+  it("leaves another kind's pre-kind row alone", async () => {
+    const foreign = { ...victimRow, kind: 'mini-app', ownerUid: 'attacker' };
+    const stub = seed({
+      ...attackerApp,
+      'grade_index/qs1__u1': foreign,
+      'quiz_sessions/qs1/responses/u1': completed(),
+    });
+    await applyDocWrite(stub.db as unknown as Db, quizWrite, NOW);
+    await recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW);
+    expect(stub.get('grade_index/qs1__u1')).toEqual(foreign);
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
+      kind: 'quiz',
     });
   });
 
   it('still lets a session rewrite its own rows when its owner changes', async () => {
     const stub = seed({
       'quiz_sessions/qs1/responses/u1': completed(),
-      'grade_index/qs1__u1': { ...victimRow, ownerUid: 'previous-owner' },
+      'grade_index/quiz__qs1__u1': { ...victimRow, ownerUid: 'previous-owner' },
     });
     await recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW);
-    expect(stub.get('grade_index/qs1__u1')).toMatchObject({
+    expect(stub.get('grade_index/quiz__qs1__u1')).toMatchObject({
       kind: 'quiz',
       ownerUid: 't1',
     });
@@ -789,28 +763,33 @@ describe('project rows and the owner class roster', () => {
     const authority = vi.fn(rosterOf(['u1']));
     await applyDocWrite(stub.db as unknown as Db, write, NOW, authority);
     expect(authority).toHaveBeenCalledWith('t1', 'c1', ['u1', 'stranger']);
-    expect(stub.get('grade_index/t1_p1__u1')).toMatchObject({
+    expect(stub.get('grade_index/projects__t1_p1__u1')).toMatchObject({
       kind: 'projects',
       classId: 'c1',
     });
-    expect(stub.has('grade_index/t1_p1__stranger')).toBe(false);
+    expect(stub.has('grade_index/projects__t1_p1__stranger')).toBe(false);
   });
 
   it('keeps, without updating, the existing row of a member the roster no longer vouches for', async () => {
     const stub = makeStubFirestore({
       ...run,
-      'grade_index/t1_p1__stranger': strangerRow,
+      'grade_index/projects__t1_p1__stranger': strangerRow,
     });
     await applyDocWrite(stub.db as unknown as Db, write, NOW, rosterOf(['u1']));
-    expect(stub.get('grade_index/t1_p1__stranger')).toEqual(strangerRow);
-    expect(stub.has('grade_index/t1_p1__u1')).toBe(true);
+    expect(stub.get('grade_index/projects__t1_p1__stranger')).toEqual(
+      strangerRow
+    );
+    expect(stub.has('grade_index/projects__t1_p1__u1')).toBe(true);
   });
 
   it('keeps those rows in a full recompute, and still drops a row for a member the group no longer holds', async () => {
     const stub = makeStubFirestore({
       ...run,
-      'grade_index/t1_p1__stranger': strangerRow,
-      'grade_index/t1_p1__left': { ...strangerRow, studentUid: 'left' },
+      'grade_index/projects__t1_p1__stranger': strangerRow,
+      'grade_index/projects__t1_p1__left': {
+        ...strangerRow,
+        studentUid: 'left',
+      },
     });
     expect(
       await recomputeSession(
@@ -821,16 +800,18 @@ describe('project rows and the owner class roster', () => {
         rosterOf(['u1'])
       )
     ).toEqual({ written: 1, deleted: 1 });
-    expect(stub.get('grade_index/t1_p1__stranger')).toEqual(strangerRow);
-    expect(stub.has('grade_index/t1_p1__left')).toBe(false);
-    expect(stub.has('grade_index/t1_p1__u1')).toBe(true);
+    expect(stub.get('grade_index/projects__t1_p1__stranger')).toEqual(
+      strangerRow
+    );
+    expect(stub.has('grade_index/projects__t1_p1__left')).toBe(false);
+    expect(stub.has('grade_index/projects__t1_p1__u1')).toBe(true);
   });
 
   it('deletes nothing when the roster comes back empty', async () => {
     const stub = makeStubFirestore({
       ...run,
-      'grade_index/t1_p1__u1': { ...strangerRow, studentUid: 'u1' },
-      'grade_index/t1_p1__stranger': strangerRow,
+      'grade_index/projects__t1_p1__u1': { ...strangerRow, studentUid: 'u1' },
+      'grade_index/projects__t1_p1__stranger': strangerRow,
     });
     expect(
       await recomputeSession(
@@ -853,7 +834,7 @@ describe('project rows and the owner class roster', () => {
   it('leaves rows in place when the roster lookup fails, so the recompute retries', async () => {
     const stub = makeStubFirestore({
       ...run,
-      'grade_index/t1_p1__u1': { ...strangerRow, studentUid: 'u1' },
+      'grade_index/projects__t1_p1__u1': { ...strangerRow, studentUid: 'u1' },
     });
     const failing: ProjectMemberAuthority = () =>
       Promise.reject(new Error('unavailable'));
@@ -869,7 +850,7 @@ describe('project rows and the owner class roster', () => {
         failing
       )
     ).rejects.toThrow('unavailable');
-    expect(stub.has('grade_index/t1_p1__u1')).toBe(true);
+    expect(stub.has('grade_index/projects__t1_p1__u1')).toBe(true);
   });
 });
 
@@ -879,14 +860,14 @@ describe('Review sessions', () => {
       'quiz_sessions/qs1': { ...quizSession, ...session },
       'users/t1/quiz_assignments/qs1': { questionSnapshot: [], ...assignment },
       'quiz_sessions/qs1/responses/u1': completed(),
-      'grade_index/qs1__u1': {
+      'grade_index/quiz__qs1__u1': {
         kind: 'quiz',
         sessionId: 'qs1',
         studentUid: 'u1',
       },
     });
     return recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW).then(
-      (result) => ({ result, has: stub.has('grade_index/qs1__u1') })
+      (result) => ({ result, has: stub.has('grade_index/quiz__qs1__u1') })
     );
   };
 
@@ -919,14 +900,14 @@ describe('Resource sessions', () => {
     const stub = seed({
       'quiz_sessions/qs1': { ...quizSession, ...session },
       'quiz_sessions/qs1/responses/u1': completed(),
-      'grade_index/qs1__u1': {
+      'grade_index/quiz__qs1__u1': {
         kind: 'quiz',
         sessionId: 'qs1',
         studentUid: 'u1',
       },
     });
     return recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW).then(
-      () => stub.has('grade_index/qs1__u1')
+      () => stub.has('grade_index/quiz__qs1__u1')
     );
   };
 
@@ -942,7 +923,7 @@ describe('Resource sessions', () => {
         studentUid: 'u1',
         submittedAt: NOW - DAY,
       },
-      'grade_index/m1__u1': {
+      'grade_index/mini-app__m1__u1': {
         kind: 'mini-app',
         sessionId: 'm1',
         studentUid: 'u1',
@@ -953,7 +934,7 @@ describe('Resource sessions', () => {
       'mini-app',
       'm1',
       NOW
-    ).then(() => stub.has('grade_index/m1__u1'));
+    ).then(() => stub.has('grade_index/mini-app__m1__u1'));
   };
 
   it('drops the rows of a quiz the teacher marked as a Resource', async () => {
@@ -995,18 +976,36 @@ describe('Mini App results (MINI_APP_RESULTS.md D13)', () => {
       },
     });
     await recomputeSession(stub.db as unknown as Db, 'mini-app', 'm1', NOW);
-    return stub.get('grade_index/m1__u1') as unknown as IndexRow;
+    return stub.get('grade_index/mini-app__m1__u1') as unknown as IndexRow;
   };
 
   it('scores a results session from the best attempt', async () => {
-    expect(await rowFor({ resultsVersion: 2 }, { best })).toMatchObject({
+    expect(
+      await rowFor(
+        { resultsVersion: 2 },
+        { best: { ...best, gradedBy: 'server' } }
+      )
+    ).toMatchObject({
       state: 'scored',
       points: 3,
       max: 4,
       rawPct: 75,
-      gradedBy: 'app',
+      gradedBy: 'server',
       attempts: [],
     });
+  });
+
+  it('holds an app-graded best for the teacher, with no student-posted points or max', async () => {
+    const forged = { score: 1e9, maxScore: 1e9, gradedBy: 'app' };
+    expect(await rowFor({ resultsVersion: 2 }, { best: forged })).toMatchObject(
+      {
+        state: 'awaiting-grade',
+        points: null,
+        max: null,
+        rawPct: null,
+        gradedBy: 'app',
+      }
+    );
   });
 
   it('keeps a session without results, or a results session with no score, as completion', async () => {
@@ -1076,6 +1075,6 @@ describe('kill switch', () => {
         after: { exists: true, data: () => completed() },
       },
     });
-    expect(stub.has('grade_index/qs1__u1')).toBe(true);
+    expect(stub.has('grade_index/quiz__qs1__u1')).toBe(true);
   });
 });

@@ -217,6 +217,16 @@ describe('handleGetMyQuizAttempts', () => {
     ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
 
+  it("never returns a copy left by another student's occupancy of the key", async () => {
+    const { attempts } = await call(
+      seed({
+        [`${RESPONSE}/attempts/1`]: copy(1, [], { studentUid: 'previous' }),
+        [`${RESPONSE}/attempts/2`]: copy(2, [], { studentUid: undefined }),
+      })
+    );
+    expect(attempts).toEqual([]);
+  });
+
   it('falls back to the copy score when the list has no scored entry', async () => {
     const { attempts } = await call(
       seed({

@@ -221,10 +221,13 @@ describe('scoreQuestions: written answers on paper', () => {
       { questionId: 'q3', answer: '', paperTranscript: 'image' as const },
     ];
     const questions = keyQuestions(key);
-    expect(scoreQuestions({ questions, answers }).awaiting).toBe(true);
+    expect(
+      scoreQuestions({ questions, answers, paperAttested: true }).awaiting
+    ).toBe(true);
     expect(
       scoreQuestions({
         questions,
+        paperAttested: true,
         answers: answers.map((a) =>
           a.questionId === 'q3'
             ? { ...a, paperTranscript: 'pending' as const }
@@ -232,6 +235,36 @@ describe('scoreQuestions: written answers on paper', () => {
         ),
       }).awaiting
     ).toBe(true);
+  });
+
+  it('ignores a student-written paperTranscript on a response the import never wrote, or on a non-written question', () => {
+    const questions = keyQuestions(key);
+    const forged = [
+      { questionId: 'q1', answer: '', paperTranscript: 'pending' as const },
+      { questionId: 'q2', answer: 'seven' },
+      { questionId: 'q3', answer: '', paperTranscript: 'pending' as const },
+    ];
+    const plain = scoreQuestions({ questions, answers: forged });
+    expect(plain).toMatchObject({ awaiting: false, earned: 1, max: 6 });
+    // Even on an imported paper response, an MC answer is never owed a written grade.
+    const imported = scoreQuestions({
+      questions,
+      answers: forged.slice(0, 2),
+      paperAttested: true,
+    });
+    expect(imported).toMatchObject({ awaiting: false, earned: 1 });
+    expect(
+      scoreQuizResponse(
+        {},
+        {
+          studentUid: 'u1',
+          status: 'completed',
+          submittedAt: 5,
+          answers: forged,
+        },
+        quizCtx()
+      )
+    ).toMatchObject({ state: 'scored', points: 1 });
   });
 
   it('holds the score until the paper answer is scanned or graded', () => {
@@ -280,7 +313,7 @@ describe('scoreQuestions: written answers on paper', () => {
 });
 
 describe('scoreVideoResponse', () => {
-  it('uses stored correctness when the key is gone', () => {
+  it('never scores a key-less question from the student-written isCorrect', () => {
     const questions = keyQuestions(
       undefined,
       [],
@@ -294,16 +327,17 @@ describe('scoreVideoResponse', () => {
       {
         completedAt: 9,
         answers: [
-          { questionId: 'v1', answer: 'a', isCorrect: true },
-          { questionId: 'v2', answer: 'b', isCorrect: false },
+          { questionId: 'v1', answer: 'a', isCorrect: true, answeredAt: 1 },
+          { questionId: 'v1', answer: 'b', isCorrect: false, answeredAt: 2 },
+          { questionId: 'v2', answer: 'b', isCorrect: true },
         ],
       },
       questions
     );
     expect(r).toMatchObject({
       state: 'scored',
-      rawPct: 50,
-      points: 1,
+      rawPct: 0,
+      points: 0,
       max: 2,
       submittedAt: 9,
     });
@@ -399,7 +433,7 @@ describe('video publish state', () => {
 });
 
 describe('scoreGuidedLearningResponse', () => {
-  it('scores correct gradable steps over every gradable step', () => {
+  it('scores from the stored score over every gradable step', () => {
     const session = {
       publicSteps: [
         { id: 'a', question: {} },
@@ -409,12 +443,39 @@ describe('scoreGuidedLearningResponse', () => {
     };
     const r = scoreGuidedLearningResponse(session, {
       completedAt: 3,
+      score: 50,
       answers: [
         { stepId: 'a', isCorrect: true },
         { stepId: 'c', isCorrect: true },
       ],
     });
     expect(r).toMatchObject({ state: 'scored', rawPct: 50, points: 1, max: 2 });
+  });
+
+  it('holds a turned-in response with no stored score, whatever isCorrect says', () => {
+    const session = {
+      publicSteps: [
+        { id: 'a', question: {} },
+        { id: 'b', question: {} },
+      ],
+    };
+    const r = scoreGuidedLearningResponse(
+      session,
+      {
+        completedAt: 3,
+        answers: [
+          { stepId: 'a', isCorrect: true },
+          { stepId: 'b', isCorrect: true },
+        ],
+      },
+      parseStepTargets({ a: [target], b: [target] })
+    );
+    expect(r).toMatchObject({
+      state: 'awaiting-grade',
+      rawPct: null,
+      points: null,
+      targetEvidence: [],
+    });
   });
 
   it('turns tagged question steps into one-point evidence', () => {
@@ -437,6 +498,7 @@ describe('scoreGuidedLearningResponse', () => {
       session,
       {
         completedAt: 3,
+        score: 33,
         answers: [
           { stepId: 'a', isCorrect: true },
           { stepId: 'b', isCorrect: false },
@@ -580,6 +642,35 @@ describe('due dates and rows', () => {
       { n: 1, at: 250, points: 9, max: 10, state: 'scored' },
     ]);
   });
+
+  it("never takes the due date from a class outside the session's classes", () => {
+    const one = parseSessionMeta(
+      'quiz',
+      's',
+      { teacherUid: 't', classIds: ['c1'], dueAt: 100, dueAtByClassId: {} },
+      {}
+    );
+    const row = assembleRow({
+      meta: { ...one, dueAtByClassId: { other: 999 } },
+      studentUid: 'u',
+      score: {
+        classId: 'other',
+        published: false,
+        targetEvidence: [],
+        rawPct: 90,
+        points: 9,
+        max: 10,
+        state: 'scored',
+        submittedAt: 250,
+        attemptNumber: 1,
+      },
+      previousAttempts: [],
+      assigned: true,
+      pointerDueAt: null,
+      now: 1,
+    });
+    expect(row).toMatchObject({ classId: 'c1', dueAt: 100 });
+  });
 });
 
 describe('retakes', () => {
@@ -688,6 +779,25 @@ describe('scoreMiniAppBest', () => {
     expect(
       scoreMiniAppBest({ showCorrectAnswers: true }, submission, null)
     ).toMatchObject({ published: true });
+  });
+
+  it('holds an app-graded best for the teacher instead of counting its posted score and max', () => {
+    expect(
+      scoreMiniAppBest(
+        {},
+        {
+          best: { score: 1e9, maxScore: 1e9, gradedBy: 'app' },
+          submittedAt: 1,
+        },
+        'c1'
+      )
+    ).toMatchObject({
+      state: 'awaiting-grade',
+      points: null,
+      max: null,
+      rawPct: null,
+      gradedBy: 'app',
+    });
   });
 
   it('keeps the score unpublished when answers are hidden from students', () => {
