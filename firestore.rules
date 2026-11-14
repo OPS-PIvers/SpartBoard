@@ -1319,8 +1319,8 @@ service cloud.firestore {
     }
 
     match /building_guided_learning/{setId} {
-      // Sets hold answer keys (and tour drafts sample copies): staff only, never anonymous or student sessions.
-      allow read: if staffSignedIn();
+      // Sets hold answer keys (and tour drafts sample copies): district staff or admins only, never anonymous, student or self-registered sessions.
+      allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
       allow write: if isAdmin();
       // A live tour's notes for Claude and its last editor playtest (LIVE_TOUR_CONSISTENT_START.md C9, C10): admins only.
       match /review/{docId} {
@@ -1331,7 +1331,7 @@ service cloud.firestore {
     // Library index of building sets (P5-1), written only by the glBuildingIndexMirror
     // function; same readers as the full sets, and no client write rule.
     match /building_guided_learning_index/{setId} {
-      allow read: if staffSignedIn();
+      allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
     }
 
     // Web tour drafts (CHROME_EXTENSION.md T6): admins only, never anonymous or student sessions.
