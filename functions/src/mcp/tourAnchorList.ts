@@ -5195,6 +5195,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-when.due",
+    "label": "Due choice (When ended or Date and time) for Manual in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.when"
+        ],
+        "reveal": "assign-step.when"
+      }
+    ]
+  },
+  {
     "id": "assign-when.window",
     "label": "Schedule switch in the Assign dialog",
     "scope": "board",

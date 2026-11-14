@@ -284,6 +284,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-when.mode': ['library.assign-stepper'],
     'assign-when.scope': ['library.assign-stepper'],
     'assign-when.allow-late': ['library.assign-stepper'],
+    'assign-when.due': ['library.assign-stepper'],
     'assign-when.window': ['library.inline-assign'],
     'assign-classes.trigger': ['library.assign-stepper'],
     'assign-classes.option': ['library.assign-stepper'],

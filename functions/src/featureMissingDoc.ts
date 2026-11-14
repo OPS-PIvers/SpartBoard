@@ -90,6 +90,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-check-sync',
   'youtube-paste-picker',
   'choose-n-pick-counted',
+  'assign-due-date',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

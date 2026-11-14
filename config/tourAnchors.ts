@@ -1257,6 +1257,11 @@ export const TOUR_ANCHORS = {
     label: 'Allow submissions after close switch in the Assign dialog',
     panel: true,
   },
+  'assign-when.due': {
+    label:
+      'Due choice (When ended or Date and time) for Manual in the Assign dialog',
+    panel: true,
+  },
   'assign-when.window': {
     label: 'Schedule switch in the Assign dialog',
     panel: true,

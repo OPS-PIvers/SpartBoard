@@ -116,7 +116,17 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const inPlc = !!sharing && isSharingStepAvailable(plcs, 'work');
   const ctx = { kind: 'work' as const, inPlc };
   const needsPlc = !!sharing && inPlc && sharingNeedsPlc(sharing.value, plcs);
-  const backwards = whenBackwards(when, picked, periodAccess?.bellWindow);
+  // Staff hides the Due row, so a due date can't hold Assign back.
+  const backwards = whenBackwards(
+    staff
+      ? {
+          ...when,
+          availability: { ...when.availability, manualDue: undefined },
+        }
+      : when,
+    picked,
+    periodAccess?.bellWindow
+  );
 
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
     classes: {
