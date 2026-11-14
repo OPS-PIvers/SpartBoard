@@ -302,7 +302,9 @@ describe('formToExtractedQuiz', () => {
     const extracted = await formToExtractedQuiz('Page', page, fetchImage);
     expect(extracted.questions[0].options).toHaveLength(5);
     expect(extractedToQuizData(extracted).questions[0].needsKey).toBe(true);
-    expect(extracted.questions[0].warnings).toEqual(['Not imported: f; g.']);
+    expect(extracted.questions[0].warnings).toEqual([
+      'Answer choice limit exceeded. Options imported: a; b; c; d; e.',
+    ]);
     expect(extracted.warnings[0]).toBe(
       'Not imported: 2 answer choices past the most a question can hold.'
     );

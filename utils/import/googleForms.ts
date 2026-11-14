@@ -285,7 +285,7 @@ export function formLeftOutSummary(counts: QuizLeftOut): string | null {
 /** Quizzes have no rating scale, so a form's scales and ratings stay out of a quiz. */
 export const SCALES_LEFT_OUT = 'Rating scales are not supported in quizzes.';
 /** SpartBoard knows who answered, so a form's name or email question starts unticked. */
-export const WHO_UNTICK = 'Not needed. SpartBoard knows who answered.';
+export const WHO_UNTICK = 'Name field skipped.';
 const ASKS_WHO =
   /^\s*(?:(?:your|student(?:'s)?)\s+)?(?:(?:full|first|last)\s+)?(?:name|e-?mail(?:\s+address)?)\s*[:?]?\s*$/i;
 
@@ -315,9 +315,16 @@ function fitChoices(
   return { options: kept, right: [...rightSet], dropped };
 }
 
-/** The row note naming the choices a question couldn't hold, so the teacher can swap one back in. */
-const droppedNote = (dropped: readonly string[]): string[] =>
-  dropped.length ? [`Not imported: ${dropped.join('; ')}.`] : [];
+/** The row note when a question couldn't hold every choice, naming the ones that came over. */
+const limitNote = (
+  kept: readonly ExtractedOption[],
+  dropped: number
+): string[] =>
+  dropped
+    ? [
+        `Answer choice limit exceeded. Options imported: ${kept.map((o) => o.text).join('; ')}.`,
+      ]
+    : [];
 
 /** The form as the quiz reader's result, so it lands in the same review table, pictures and all. */
 export async function formToExtractedQuiz(
@@ -402,7 +409,7 @@ export async function formToExtractedQuiz(
         );
         add('extraChoice', dropped.length);
         push({
-          warnings: droppedNote(dropped),
+          warnings: limitNote(options, dropped.length),
           text,
           type: multi ? 'MA' : 'MC',
           options,
@@ -472,7 +479,7 @@ export async function formToExtractedQuiz(
           );
           add('extraChoice', dropped.length);
           push({
-            warnings: droppedNote(dropped),
+            warnings: limitNote(options, dropped.length),
             text: join(text, row),
             type: multi ? 'MA' : 'MC',
             options,
