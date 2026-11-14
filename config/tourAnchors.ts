@@ -2219,6 +2219,16 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-editor.option-explanation': {
+    label: 'Show or hide an answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.option-explanation-text': {
+    label: 'Answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
   'quiz-editor.answer-image-description': {
     label:
       'Describe a picture-only answer for screen readers in the Quiz editor',
