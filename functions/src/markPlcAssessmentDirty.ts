@@ -217,7 +217,8 @@ function responseNeedsRecheck(change: Change): boolean {
   return (
     a.status === 'completed' &&
     (JSON.stringify(b.answers) !== JSON.stringify(a.answers) ||
-      JSON.stringify(b.grading) !== JSON.stringify(a.grading))
+      JSON.stringify(b.grading) !== JSON.stringify(a.grading) ||
+      JSON.stringify(b.countedChoices) !== JSON.stringify(a.countedChoices))
   );
 }
 

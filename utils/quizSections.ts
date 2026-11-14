@@ -5,6 +5,7 @@
  */
 
 import type {
+  QuizCountedChoices,
   QuizData,
   QuizOrderEntry,
   QuizResponseAnswer,
@@ -122,26 +123,83 @@ export function isSectionAnswered(
 }
 
 /**
- * The questions that count in a choose-N section (E14): the answered ones,
- * first N in section order, topped up with unanswered ones in section order
- * when fewer than N were answered. More than N (an older client, a paper
- * sheet) keeps the first N.
+ * The questions that count in a choose-N section (E14): the teacher's picks
+ * first, then the answered ones in section order, then unanswered ones, up to N.
+ * More than N answered (an older client, a paper sheet) keeps the first N.
  */
 export function chosenQuestionIds(
   section: QuizSessionSection,
   answers: readonly SectionAnswer[],
-  servedIds?: readonly string[]
+  servedIds?: readonly string[],
+  picked?: readonly string[]
 ): string[] {
   const served = servedSectionQuestionIds(section, servedIds);
   const count = effectiveChooseCount(section, servedIds);
   if (count === undefined) return served;
-  const answered = served.filter((id) => isSectionAnswered(answers, id));
-  const chosen = new Set(answered.slice(0, count));
-  for (const id of served) {
-    if (chosen.size >= count) break;
-    chosen.add(id);
+  const chosen = new Set<string>();
+  const add = (ids: readonly string[]) => {
+    for (const id of ids) {
+      if (chosen.size >= count) return;
+      chosen.add(id);
+    }
+  };
+  // A pick counts only while its question still holds an answer.
+  if (picked) {
+    add(
+      served.filter(
+        (id) => picked.includes(id) && isSectionAnswered(answers, id)
+      )
+    );
   }
+  add(served.filter((id) => isSectionAnswered(answers, id)));
+  add(served);
   return served.filter((id) => chosen.has(id));
+}
+
+/** The teacher's picks for one section, or undefined when none apply to this attempt. */
+export function pickedForSection(
+  response: {
+    countedChoices?: QuizCountedChoices;
+    completedAttempts?: number;
+  },
+  sectionId: string
+): string[] | undefined {
+  const choices = response.countedChoices;
+  if (!choices || choices.attempt !== (response.completedAttempts ?? 0)) {
+    return undefined;
+  }
+  const ids = choices.bySection?.[sectionId];
+  return Array.isArray(ids) && ids.length > 0 ? ids : undefined;
+}
+
+/** Choose-N sections where this finished response answered more than N, for the teacher to pick from. */
+export function overAnsweredResponseSections(
+  response: {
+    answers?: readonly SectionAnswer[];
+    servedQuestionIds?: readonly string[];
+    status?: string;
+  },
+  sections: readonly QuizSessionSection[] | undefined
+): { section: QuizSessionSection; count: number; answeredIds: string[] }[] {
+  if (response.status !== 'completed') return [];
+  const answers = response.answers ?? [];
+  return (sections ?? []).flatMap((section) => {
+    const count = effectiveChooseCount(section, response.servedQuestionIds);
+    if (count === undefined) return [];
+    // A passed answer with text still counts as answered here, so the teacher can bring it back.
+    const answeredIds = servedSectionQuestionIds(
+      section,
+      response.servedQuestionIds
+    ).filter((id) =>
+      answers.some(
+        (a) =>
+          a.questionId === id &&
+          (!a.unresponded || a.unresponded === 'passed') &&
+          hasContent({ ...a, unresponded: undefined })
+      )
+    );
+    return answeredIds.length > count ? [{ section, count, answeredIds }] : [];
+  });
 }
 
 /** Questions a student left out of a choose-N section: out of their total, shown as "Not chosen". */
@@ -150,6 +208,8 @@ export function notChosenQuestionIds(
     answers?: readonly SectionAnswer[];
     servedQuestionIds?: readonly string[];
     status?: string;
+    countedChoices?: QuizCountedChoices;
+    completedAttempts?: number;
   },
   sections: readonly QuizSessionSection[] | undefined
 ): string[] {
@@ -168,7 +228,15 @@ export function notChosenQuestionIds(
       return [];
     }
     const chosen = new Set(
-      chosenQuestionIds(section, answers, response.servedQuestionIds)
+      chosenQuestionIds(
+        section,
+        answers,
+        response.servedQuestionIds,
+        // A retake in progress still carries the last attempt's number, so its pick waits.
+        response.status === 'completed'
+          ? pickedForSection(response, section.id)
+          : undefined
+      )
     );
     return servedSectionQuestionIds(section, response.servedQuestionIds).filter(
       (id) => !chosen.has(id)
@@ -182,6 +250,8 @@ export function withNotChosen<
     answers?: readonly SectionAnswer[];
     status?: string;
     servedQuestionIds?: readonly string[];
+    countedChoices?: QuizCountedChoices;
+    completedAttempts?: number;
     _notChosen?: string[];
   },
 >(

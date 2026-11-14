@@ -2579,7 +2579,8 @@
         "paper-failed": "Error",
         "paper-over-quota": "Límite diario",
         "paper-blank": "En blanco",
-        "paper-image": "No transcrito"
+        "paper-image": "No transcrito",
+        "not-counted": "Extra, sin puntuar"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2838,7 +2839,10 @@
         "goBack": "Volver",
         "closeAnyway": "Cerrar de todos modos",
         "rail": "Marcas sin guardar"
-      }
+      },
+      "classFilter": "Filtrar por clase",
+      "allClasses": "Todas las clases",
+      "countInstead": "Contar esta en su lugar"
     },
     "results": {
       "gradeButton": "Calificar respuestas libres"

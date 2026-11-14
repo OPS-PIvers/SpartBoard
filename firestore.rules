@@ -1132,7 +1132,7 @@ service cloud.firestore {
 
     // Docs every signed-in user reads (district settings and rollout switches); tests/rulesDeadPaths.test.ts fails on a retired name.
     match /admin_settings/{docId} {
-      allow read: if (signedIn() && docId.matches('subjects|flashcardsSpeak|flashcardsSpeakWordFixes|import_conversion|quiz_translation|plc_note_collab|paper_answer_sheets|sub_launch_as_teacher|plc_delegated_printing|roster_groups_integration|projects_widget|quiz_document_import|group_reminder_emails|claude_review_reminders|quiz_recording_notice|getting_started|board_backgrounds|student_context_menu')) ||
+      allow read: if (signedIn() && docId.matches('subjects|flashcardsSpeak|flashcardsSpeakWordFixes|import_conversion|quiz_translation|plc_note_collab|paper_answer_sheets|sub_launch_as_teacher|plc_delegated_printing|roster_groups_integration|projects_widget|quiz_document_import|group_reminder_emails|claude_review_reminders|quiz_recording_notice|getting_started|board_backgrounds|student_context_menu|student_grammarly')) ||
                      (staffSignedIn() && docId.matches('gradebook|focus_sessions')) ||
                      (signedIn() && notAnon() && docId == 'team_type_defaults');
     }
@@ -4770,6 +4770,7 @@ service cloud.firestore {
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
+          incoming().get('countedChoices', null) == null &&
           // Archive state, back-translations and the paper seat are server-written; the archive pipeline and hourly sweep trust them.
           incoming().get('artifactArchive', null) == null &&
           incoming().get('hasStuckArchive', null) == null &&

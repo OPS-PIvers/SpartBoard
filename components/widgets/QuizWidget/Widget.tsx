@@ -167,6 +167,11 @@ import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { sessionSectionsFor } from '@/utils/quizSections';
+import {
+  applySectionCounts,
+  chooseCountChanges,
+  sessionNeedsCounts,
+} from '@/hooks/quizCountedChoicesWrite';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
   offerToolColumnRemoval,
@@ -1441,6 +1446,77 @@ const TeacherQuizWidget: React.FC<{
       sharedBankSources,
       saveQuiz,
     ]
+  );
+
+  // A changed "answer any N" count can reach the quiz's existing assignments.
+  const applyChooseCounts = useCallback(
+    async (
+      changes: ReadonlyMap<string, number | undefined>,
+      after: QuizData,
+      meta: QuizMetadata
+    ): Promise<void> => {
+      const run = async (ask: boolean): Promise<void> => {
+        try {
+          const mine = assignments.filter((a) => a.quizId === meta.id);
+          const needs = await Promise.all(
+            mine.map((a) => sessionNeedsCounts(a.id, changes))
+          );
+          const targets = mine.filter((_, i) => needs[i]);
+          if (targets.length === 0) return;
+          if (ask) {
+            const ok = await showConfirm(
+              targets.length === 1
+                ? 'This quiz has 1 assignment. Use the new answer count there too? Scores update to match.'
+                : `This quiz has ${targets.length} assignments. Use the new answer count there too? Scores update to match.`,
+              { title: 'Update assignments', confirmLabel: 'Update' }
+            );
+            if (!ok) return;
+          }
+          for (const a of targets) {
+            // Bank-draw assignments grade against their frozen copy, under today's keys.
+            const frozenId = a.resolvedDriveFileId;
+            const quiz =
+              !frozenId || frozenId === meta.driveFileId
+                ? after
+                : await withCurrentAnswerKeys(
+                    await loadQuizData(frozenId),
+                    meta.driveFileId,
+                    { loadQuizData, loadBankContentsForQuiz }
+                  );
+            await applySectionCounts({ sessionId: a.id, changes, quiz });
+          }
+          addToast(
+            targets.length === 1
+              ? 'Assignment updated.'
+              : `${targets.length} assignments updated.`,
+            'success'
+          );
+        } catch (err) {
+          logError('QuizWidget.applySectionCounts', err, { quizId: meta.id });
+          // Each session takes its new count last, so a retry picks up only what didn't finish.
+          addToast('Could not update the assignments.', 'error', {
+            label: 'Retry',
+            onClick: () => void run(false),
+          });
+        }
+      };
+      await run(true);
+    },
+    [assignments, showConfirm, loadQuizData, loadBankContentsForQuiz, addToast]
+  );
+
+  const offerChooseCountUpdate = useCallback(
+    async (
+      before: QuizData | null,
+      after: QuizData,
+      meta: QuizMetadata
+    ): Promise<void> => {
+      if (!canAccessFeature('choose-n-pick-counted')) return;
+      const changes = chooseCountChanges(before, after);
+      if (changes.size === 0) return;
+      await applyChooseCounts(changes, after, meta);
+    },
+    [canAccessFeature, applyChooseCounts]
   );
 
   // D12: clear the PLC results link on an assignment (confirm first).
@@ -4827,6 +4903,9 @@ const TeacherQuizWidget: React.FC<{
           const finished = latestSavedQuiz.current ?? editingQuiz;
           latestSavedQuiz.current = null;
           if (finished) void syncPaperRewords(finished);
+          if (finished && editingMeta) {
+            void offerChooseCountUpdate(editingQuiz, finished, editingMeta);
+          }
           setEditingQuiz(null);
           setEditingMeta(null);
         }}

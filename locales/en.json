@@ -3876,7 +3876,8 @@
         "paper-failed": "Failed",
         "paper-over-quota": "Daily limit",
         "paper-blank": "Blank",
-        "paper-image": "Not transcribed"
+        "paper-image": "Not transcribed",
+        "not-counted": "Extra, not scored"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -4139,7 +4140,10 @@
         "goBack": "Go back",
         "closeAnyway": "Close anyway",
         "rail": "Marks not saved"
-      }
+      },
+      "classFilter": "Filter by class",
+      "allClasses": "All classes",
+      "countInstead": "Count this instead"
     },
     "results": {
       "gradeButton": "Grade Free Response"

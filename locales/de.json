@@ -2579,7 +2579,8 @@
         "paper-failed": "Fehlgeschlagen",
         "paper-over-quota": "Tageslimit",
         "paper-blank": "Leer",
-        "paper-image": "Nicht transkribiert"
+        "paper-image": "Nicht transkribiert",
+        "not-counted": "Zusätzlich, nicht bewertet"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2838,7 +2839,10 @@
         "goBack": "Zurück",
         "closeAnyway": "Trotzdem schließen",
         "rail": "Markierungen nicht gespeichert"
-      }
+      },
+      "classFilter": "Nach Klasse filtern",
+      "allClasses": "Alle Klassen",
+      "countInstead": "Stattdessen zählen"
     },
     "results": {
       "gradeButton": "Freie Antworten bewerten"

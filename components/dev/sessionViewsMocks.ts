@@ -1093,3 +1093,154 @@ export function makeOrderingResponses(): QuizResponse[] {
     };
   });
 }
+
+/* ─── Quiz results: Free Response answers across two classes ─────────────── */
+
+const QUIZ_FR_ID = 'q-fr';
+
+export function makeQuizFrqData(): QuizData {
+  const base = makeQuizData();
+  return {
+    ...base,
+    questions: [
+      ...base.questions,
+      {
+        id: QUIZ_FR_ID,
+        type: 'free-response',
+        text: 'Explain how you found a common denominator.',
+        timeLimit: 0,
+        correctAnswer: '',
+        incorrectAnswers: [],
+        points: 4,
+      },
+    ],
+  };
+}
+
+export function makeQuizFrqClassResponses(): QuizResponse[] {
+  const answers = [
+    'I doubled the 2 so both fractions were fourths.',
+    'I listed multiples of 2 and 4 and found 4 first.',
+    'Four is a multiple of two so I used four.',
+    'I multiplied the denominators together.',
+    'I changed 1/2 into 2/4 then added.',
+    'I drew a picture with four equal parts.',
+  ];
+  return answers.map((text, i) => {
+    const period = i % 2 === 0 ? 'Period 1' : 'Period 3';
+    const pin = String(2001 + i);
+    const key = `pin-${period}-${pin}`;
+    return {
+      _responseKey: key,
+      studentUid: key,
+      pin,
+      joinedAt: NOW - 540_000,
+      status: 'completed',
+      answers: [
+        { questionId: QUIZ_Q1_ID, answer: '3/4', answeredAt: NOW - 480_000 },
+        { questionId: QUIZ_Q2_ID, answer: '1/2', answeredAt: NOW - 450_000 },
+        {
+          questionId: QUIZ_FR_ID,
+          answer: `<p>${text}</p>`,
+          answeredAt: NOW - 420_000,
+        },
+      ],
+      score: null,
+      submittedAt: NOW - 400_000,
+      classPeriod: period,
+      completedAttempts: 1,
+    };
+  });
+}
+
+/** A quiz whose last section asks for any 2 of 3 written answers. */
+export function makeChooseNQuizData(): QuizData {
+  const written = (id: string, text: string) => ({
+    id,
+    type: 'free-response' as const,
+    text,
+    timeLimit: 0,
+    correctAnswer: '',
+    incorrectAnswers: [],
+    points: 4,
+  });
+  return {
+    ...makeQuizData(),
+    title: 'Unit 4 Test',
+    questions: [
+      ...makeQuizData().questions,
+      written('w1', 'Explain why the treaty failed.'),
+      written('w2', 'Compare the two leaders in a short paragraph.'),
+      written('w3', 'Describe one cause of the war.'),
+    ],
+    order: [
+      { kind: 'question', id: QUIZ_Q1_ID },
+      { kind: 'question', id: QUIZ_Q2_ID },
+      { kind: 'section', id: 'sec-written' },
+      { kind: 'question', id: 'w1' },
+      { kind: 'question', id: 'w2' },
+      { kind: 'question', id: 'w3' },
+    ],
+    sections: [{ id: 'sec-written', title: 'Short answer', chooseCount: 2 }],
+  };
+}
+
+export function makeChooseNSession(): QuizSession {
+  return {
+    ...makeQuizSession('ended'),
+    quizTitle: 'Unit 4 Test',
+    sections: [
+      {
+        id: 'sec-written',
+        title: 'Short answer',
+        chooseCount: 2,
+        questionIds: ['w1', 'w2', 'w3'],
+      },
+    ],
+  };
+}
+
+/** One student answered all three, one passed a throwaway answer, one answered two. */
+export function makeChooseNResponses(): QuizResponse[] {
+  const done = (
+    key: string,
+    pin: string,
+    written: Record<string, string>,
+    passed: string[] = []
+  ): QuizResponse => ({
+    ...quizCompleted(key, pin, '3/4', '1/2'),
+    completedAttempts: 1,
+    answers: [
+      ...quizCompleted(key, pin, '3/4', '1/2').answers,
+      ...Object.entries(written).map(([questionId, answer], i) => ({
+        questionId,
+        answer,
+        answeredAt: NOW - 60_000 + i,
+        ...(passed.includes(questionId)
+          ? { unresponded: 'passed' as const }
+          : {}),
+      })),
+    ],
+  });
+  return [
+    done('pin-Period 3-1001', '1001', {
+      w1: 'The treaty punished one side so hard that it wanted revenge.',
+      w2: 'One leader built alliances while the other acted alone.',
+      w3: 'Rising nationalism pushed countries to compete for land.',
+    }),
+    done(
+      'pin-Period 3-1002',
+      '1002',
+      {
+        w1: 'N/A',
+        w2: 'Both leaders wanted power but used different methods.',
+        w3: 'An assassination set off a chain of alliances.',
+      },
+      ['w1']
+    ),
+    done('pin-Period 3-1003', '1003', {
+      w1: 'It was too harsh.',
+      w2: 'They were different.',
+    }),
+  ];
+}
