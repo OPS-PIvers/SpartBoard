@@ -142,3 +142,16 @@ describe('useGlobalPermissionsEditor', () => {
     expect(result.current.saving.has('smart-poll')).toBe(false);
   });
 });
+
+describe('useGlobalPermissionsEditor read source', () => {
+  it('reads the public mirror when the caller is not in /admins', async () => {
+    const fs = await import('firebase/firestore');
+    vi.mocked(fs.collection).mockClear();
+    const { result } = renderHook(() => useGlobalPermissionsEditor());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(fs.collection).toHaveBeenCalledWith(
+      expect.anything(),
+      'global_permissions_public'
+    );
+  });
+});
