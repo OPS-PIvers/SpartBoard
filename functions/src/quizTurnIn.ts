@@ -59,11 +59,23 @@ function pausedMsSince(startedAt: number, spans: unknown): number {
   return total;
 }
 
+/** Time an unresumed pause has held the clock by `at`, so End or Submit while paused isn't counted as elapsed. */
+function openPauseMs(session: Doc, startedAt: number, at: number): number {
+  const spans = Array.isArray(session.pauseSpans) ? session.pauseSpans : [];
+  const lastTo = spans.length
+    ? Number((spans[spans.length - 1] as Doc)?.to)
+    : 0;
+  const pausedAt = session.pausedAt;
+  if (typeof pausedAt !== 'number' || !(pausedAt > lastTo)) return 0;
+  return Math.max(0, at - Math.max(pausedAt, startedAt));
+}
+
 /** Epoch ms the attempt runs out at for this multiplier (utils/quizTimeLimit.ts resolveAttemptDeadline); null for no limit. */
 export function quizAttemptDeadline(
   session: Doc,
   response: Doc,
-  multiplier: unknown
+  multiplier: unknown,
+  at?: number
 ): number | null {
   if (session.sessionMode !== 'student') return null;
   const minutes = limitMinutes(session.timeLimitMinutes);
@@ -74,7 +86,8 @@ export function quizAttemptDeadline(
   return (
     startedAt +
     minutes * 60_000 * scale +
-    pausedMsSince(startedAt, session.pauseSpans)
+    pausedMsSince(startedAt, session.pauseSpans) +
+    (at === undefined ? 0 : openPauseMs(session, startedAt, at))
   );
 }
 
@@ -104,10 +117,10 @@ export async function isOverTime(
   response: Doc,
   at: number
 ): Promise<boolean> {
-  const base = quizAttemptDeadline(session, response, 1);
+  const base = quizAttemptDeadline(session, response, 1, at);
   if (base === null || at <= base + TIME_LIMIT_GRACE_MS) return false;
   const multiplier = await readTimeMultiplier(db, session, response.studentUid);
-  const deadline = quizAttemptDeadline(session, response, multiplier);
+  const deadline = quizAttemptDeadline(session, response, multiplier, at);
   return deadline !== null && at > deadline + TIME_LIMIT_GRACE_MS;
 }
 

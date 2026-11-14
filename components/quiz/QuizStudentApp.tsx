@@ -2213,13 +2213,12 @@ export const ActiveQuiz: React.FC<{
           session.pauseSpans
         )
       : null;
-  // A limit added to a live assignment starts the clock for attempts already underway.
+  // Any open timed attempt without a clock (a limit added mid-assignment, or a row a paper scan created) starts it.
   const needsAttemptClock =
     session.sessionMode === 'student' &&
     session.timeLimitMinutes != null &&
     myResponse != null &&
     !isAttemptSubmitted(myResponse) &&
-    myResponse.lastWriteAt != null &&
     myResponse.attemptStartedAt == null;
   const attemptClockRequestedRef = useRef(false);
   useEffect(() => {

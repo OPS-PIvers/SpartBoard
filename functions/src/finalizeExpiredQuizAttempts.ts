@@ -12,6 +12,8 @@ type Doc = Record<string, unknown>;
 /** The shortest limit is a minute, so younger clocks can't have run out. */
 const MIN_LIMIT_MS = 60_000;
 const MAX_READ_PER_RUN = 5000;
+/** Longest limit (240 min x 2) plus a day of pauses; older open attempts are left to the idle sweep so skips can't fill the read window. */
+const LOOKBACK_MS = 2 * 240 * 60_000 + 24 * 60 * 60_000;
 const MAX_FINALIZE_PER_RUN = 400;
 const PAGE = 500;
 
@@ -49,6 +51,11 @@ async function candidates(
       .collectionGroup('responses')
       .where('status', 'in', ['joined', 'in-progress'])
       .where('attemptStartedAt', '<', cutoff)
+      .where(
+        'attemptStartedAt',
+        '>',
+        admin.firestore.Timestamp.fromMillis(now - LOOKBACK_MS)
+      )
       .orderBy('attemptStartedAt', 'asc')
       .limit(PAGE);
     if (last) q = q.startAfter(last);

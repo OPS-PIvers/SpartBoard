@@ -43,8 +43,12 @@ function makeDb(
       parent: { parent: sessionRef },
     },
   }));
+  const wheres: unknown[][] = [];
   const query = {
-    where: () => query,
+    where: (...args: unknown[]) => {
+      wheres.push(args);
+      return query;
+    },
     orderBy: () => query,
     limit: () => query,
     startAfter: () => query,
@@ -63,7 +67,7 @@ function makeDb(
         },
       }),
   };
-  return { db, updates };
+  return { db, updates, wheres };
 }
 
 describe('runFinalizeExpiredQuizAttempts', () => {
@@ -72,6 +76,17 @@ describe('runFinalizeExpiredQuizAttempts', () => {
     timeLimitMinutes: 10,
     status: 'active',
   };
+
+  it('bounds the scan below so skipped old attempts cannot fill the read window', async () => {
+    const { db, wheres } = makeDb(session, {});
+    await runFinalizeExpiredQuizAttempts(db as never, NOW);
+    const floor = wheres.find(
+      ([f, op]) => f === 'attemptStartedAt' && op === '>'
+    );
+    const at = (floor?.[2] as { toMillis: () => number }).toMillis();
+    expect(at).toBeGreaterThan(NOW - 3 * 24 * 60 * MIN);
+    expect(at).toBeLessThan(NOW - 8 * 60 * MIN);
+  });
 
   it('turns in an attempt past its limit as time up, and leaves a running one', async () => {
     const { db, updates } = makeDb(session, {

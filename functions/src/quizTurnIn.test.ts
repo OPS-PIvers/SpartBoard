@@ -101,6 +101,18 @@ describe('isOverTime', () => {
     expect(await isOverTime(db, timed, r, T + 11 * MIN)).toBe(false);
     expect(await isOverTime(db, timed, r, T + 13 * MIN)).toBe(true);
   });
+
+  it('counts a pause the teacher never resumed as stopped time', async () => {
+    const db = makeStubFirestore().db as unknown as Db;
+    const r = { studentUid: 'u1', attemptStartedAt: T };
+    const paused = { ...timed, status: 'ended', pausedAt: T + 5 * MIN };
+    expect(await isOverTime(db, paused, r, T + 90 * MIN)).toBe(false);
+    const resumed = {
+      ...paused,
+      pauseSpans: [{ from: T + 5 * MIN, to: T + 6 * MIN }],
+    };
+    expect(await isOverTime(db, resumed, r, T + 90 * MIN)).toBe(true);
+  });
 });
 
 describe('stampTurnIn', () => {
