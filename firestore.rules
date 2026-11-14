@@ -4882,8 +4882,10 @@ service cloud.firestore {
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
              nearServerNow(incoming().submittedAt))) &&
            // A PIN-keyed doc keeps the period its key names.
+           // shorthands: off (raw uid first: this update runs close to the 1,000-expression limit)
            (responseKey == request.auth.uid || !changed(['classPeriod']) ||
             responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
+           // shorthands: on
            changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'inputSignals']) &&
            tabExitsOk() &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
