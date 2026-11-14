@@ -1,4 +1,5 @@
 import { Student } from '@/types';
+import { quizPinKeySegment } from '@/utils/quizResponseKey';
 
 const LINKED_PIN_DIGITS = 6;
 
@@ -52,27 +53,26 @@ export function assignPins(
 ): Student[] {
   const replacing = (s: Student) => randomForLinked && needsNewLinkedPin(s);
   const used = new Set(
-    students.flatMap((s) => [
-      ...(s.pin ? [s.pin] : []),
-      ...(s.formerPins ?? []),
-    ])
+    students
+      .flatMap((s) => [...(s.pin ? [s.pin] : []), ...(s.formerPins ?? [])])
+      .map(quizPinKeySegment)
   );
   let next = 1;
   const takeNextAvailablePin = (): string => {
     let candidate = String(next).padStart(2, '0');
-    while (used.has(candidate)) {
+    while (used.has(quizPinKeySegment(candidate))) {
       next += 1;
       candidate = String(next).padStart(2, '0');
     }
-    used.add(candidate);
+    used.add(quizPinKeySegment(candidate));
     next += 1;
     return candidate;
   };
   const takeRandomPin = (): string => {
     for (let tries = 0; tries < 1000; tries++) {
       const candidate = randomLinkedPin();
-      if (!used.has(candidate)) {
-        used.add(candidate);
+      if (!used.has(quizPinKeySegment(candidate))) {
+        used.add(quizPinKeySegment(candidate));
         return candidate;
       }
     }

@@ -15,7 +15,11 @@
  */
 
 import { randomInt } from 'crypto';
-import { ClassLinkStudent, isBridgeablePin } from './classlinkShared';
+import {
+  ClassLinkStudent,
+  isBridgeablePin,
+  quizPinKeySegment,
+} from './classlinkShared';
 
 /** Mirror of the repo-root `Student` (types.ts). Drive roster file payload. */
 export interface SyncStudent {
@@ -92,29 +96,29 @@ export function assignPins(
   students: SyncStudent[],
   reserved: ReadonlySet<string> = new Set()
 ): SyncStudent[] {
-  const used = new Set<string>(reserved);
+  const used = new Set<string>([...reserved].map(quizPinKeySegment));
   for (const s of students) {
     // A short PIN being replaced stays reserved: it becomes a former PIN.
-    if (s.pin) used.add(s.pin);
-    for (const pin of s.formerPins ?? []) used.add(pin);
+    if (s.pin) used.add(quizPinKeySegment(s.pin));
+    for (const pin of s.formerPins ?? []) used.add(quizPinKeySegment(pin));
   }
 
   let next = 1;
   const takeNextAvailablePin = (): string => {
     let candidate = String(next).padStart(2, '0');
-    while (used.has(candidate)) {
+    while (used.has(quizPinKeySegment(candidate))) {
       next += 1;
       candidate = String(next).padStart(2, '0');
     }
-    used.add(candidate);
+    used.add(quizPinKeySegment(candidate));
     next += 1;
     return candidate;
   };
   const takeRandomPin = (): string => {
     for (let tries = 0; tries < 1000; tries++) {
       const candidate = String(randomInt(1_000_000)).padStart(6, '0');
-      if (!used.has(candidate)) {
-        used.add(candidate);
+      if (!used.has(quizPinKeySegment(candidate))) {
+        used.add(quizPinKeySegment(candidate));
         return candidate;
       }
     }
