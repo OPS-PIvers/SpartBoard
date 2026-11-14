@@ -46,6 +46,9 @@ vi.mock('./firebaseAdmin', () => {
   };
   const db = {
     doc: (path: string) => ({
+      set: async (patch: Record<string, unknown>) => {
+        fake.updates.push({ path, patch });
+      },
       collection: (name: string) => {
         if (`${path}/${name}` !== LINKS) throw new Error(`unexpected ${path}`);
         return linkCol;
@@ -72,7 +75,9 @@ vi.mock('./firebaseAdmin', () => {
   return {
     apps: [{ name: '[DEFAULT]' }],
     initializeApp: vi.fn(),
-    firestore: () => db,
+    firestore: Object.assign(() => db, {
+      FieldValue: { increment: (n: number) => ({ increment: n }) },
+    }),
     storage: () => ({
       bucket: () => ({
         name: 'spartboard.appspot.com',
@@ -327,6 +332,17 @@ describe('handlePublicRequest refusals', () => {
     expect(await handlePublicRequest({ t, ...(p ? { p } : {}) }, d)).toEqual({
       status: 404,
     });
+  });
+
+  it('counts a served tour page, never a picture or a refusal', async () => {
+    const countView = vi.fn(async () => undefined);
+    await handlePublicRequest({ t: TOKEN }, deps(set, ok, { countView }));
+    await handlePublicRequest(
+      { t: TOKEN, p: 's1' },
+      deps(set, ok, { countView })
+    );
+    await handlePublicRequest({ t: TOKEN }, deps(null, ok, { countView }));
+    expect(countView.mock.calls).toEqual([[SET]]);
   });
 
   it('turns the link off when the pictures no longer match', async () => {
@@ -810,6 +826,10 @@ describe('tourPublicStepsV1', () => {
     expect(OK_CACHE).toMatch(/^private, max-age=\d{1,2}$/);
     expect(res.headers['Access-Control-Allow-Origin']).toBeUndefined();
     expect((res.body as { title: string }).title).toBe('Post a grade');
+    expect(fake.updates).toContainEqual({
+      path: `building_guided_learning_tours/${SET}/stats/counts`,
+      patch: { linkViews: { increment: 1 } },
+    });
   });
 
   it('serves a picture as bytes', async () => {

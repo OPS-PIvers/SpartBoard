@@ -1364,6 +1364,10 @@ service cloud.firestore {
         allow read: if isAdmin();
         allow create, update: if staffSignedIn() && uid == authUid() && validRun(incoming());
       }
+      // Play, finish and public link view counts, written only by the tourCounts functions.
+      match /stats/{doc} {
+        allow read: if isAdmin();
+      }
     }
 
     // Live-tour unmapped-anchor queue and its per-recording batch docs (Live Tours v2): admins only.
