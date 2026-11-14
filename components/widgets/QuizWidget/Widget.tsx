@@ -145,6 +145,8 @@ import { PublishScoresModal } from '@/components/common/library/PublishScoresMod
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
+import type { AssignedStudentView } from '@/utils/quizStudentViewSession';
 import { functions, db, storage } from '@/config/firebase';
 import { isStaffAudience } from '@/utils/staffAudience';
 import { ref as storageRef, uploadBytes } from 'firebase/storage';
@@ -877,10 +879,11 @@ const TeacherQuizWidget: React.FC<{
 
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
-  const [studentView, setStudentView] = useState<{
-    quiz: QuizData;
-    behavior: QuizBehaviorSettings;
-  } | null>(null);
+  const [studentView, setStudentView] = useState<
+    | { quiz: QuizData; behavior: QuizBehaviorSettings }
+    | { assigned: AssignedStudentView }
+    | null
+  >(null);
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -3266,11 +3269,15 @@ const TeacherQuizWidget: React.FC<{
       {studentView && (
         <Suspense fallback={null}>
           <QuizStudentView
-            quiz={studentView.quiz}
-            behavior={studentView.behavior}
+            {...('assigned' in studentView
+              ? { assigned: studentView.assigned }
+              : {
+                  quiz: studentView.quiz,
+                  behavior: studentView.behavior,
+                  stimulusTabsOn: canAccessFeature('quiz-stimulus-tabs'),
+                  crossOutOn: canAccessFeature('quiz-cross-out'),
+                })}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
-            stimulusTabsOn={canAccessFeature('quiz-stimulus-tabs')}
-            crossOutOn={canAccessFeature('quiz-cross-out')}
             onExit={() => setStudentView(null)}
           />
         </Suspense>
@@ -4467,6 +4474,22 @@ const TeacherQuizWidget: React.FC<{
             { pickItem: true }
           );
         }}
+        onArchiveStudentView={
+          canAccessFeature('quiz-student-view')
+            ? async (a) => {
+                try {
+                  const assigned = await loadAssignedStudentView(a.id);
+                  if (assigned) setStudentView({ assigned });
+                  else addToast('This assignment could not be found.', 'error');
+                } catch (err) {
+                  logError('QuizWidget.assignedStudentView', err, {
+                    assignmentId: a.id,
+                  });
+                  addToast('Could not open Student view.', 'error');
+                }
+              }
+            : undefined
+        }
         onArchiveStart={async (a) => {
           // Block start if no class periods are selected; a Staff assignment has none by design.
           const periods = a.periodNames ?? (a.periodName ? [a.periodName] : []);

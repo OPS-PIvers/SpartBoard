@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   AlertTriangle,
+  Eye,
   Timer,
   Hand,
   ImageOff,
@@ -76,6 +77,8 @@ interface RosterListProps {
   targetRefKeyByStudentUid?: Map<string, string> | null;
   /** Shows the Board view chip here because the settings screen holds the assignment's steps. */
   boardViewChip?: boolean;
+  /** Opens Live view on an in-progress student; absent when this teacher can't use it. */
+  onLiveView?: (key: string) => void;
 }
 
 /** Time left on a student's overall quiz time limit; ticks on its own so the list doesn't. */
@@ -233,6 +236,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   overridesBySourcedId = null,
   targetRefKeyByStudentUid = null,
   boardViewChip = false,
+  onLiveView,
 }) => {
   const now = useServerNow(onLetIn ? 30_000 : null);
   const showToolbar = bucket !== 'notStarted';
@@ -522,6 +526,25 @@ export const RosterList: React.FC<RosterListProps> = ({
                 suffix={isGamified ? ' pts' : '%'}
                 awaitingGrade={s.awaitingGrade}
               />
+            )}
+            {onLiveView && bucket === 'inProgress' && (
+              <button
+                type="button"
+                {...tourFieldAttr('quiz-monitor.live-view', 'quiz', s.key)}
+                onClick={() => onLiveView(s.key)}
+                title="Live view"
+                aria-label={`Live view of ${s.name}`}
+                className="touch-target-expand relative inline-flex shrink-0 items-center rounded-md text-brand-blue-primary hover:bg-brand-blue-lighter"
+                style={{ padding: 'min(3px, 1cqmin)' }}
+              >
+                <Eye
+                  aria-hidden
+                  style={{
+                    width: 'min(14px, 4.5cqmin)',
+                    height: 'min(14px, 4.5cqmin)',
+                  }}
+                />
+              </button>
             )}
             <RowMenu
               student={s}

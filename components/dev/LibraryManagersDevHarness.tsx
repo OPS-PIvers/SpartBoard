@@ -398,7 +398,10 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
             }
           : i === 2
             ? { ...a, sync: { groupId: 'g1', syncedVersion: 1 } }
-            : a
+            : i === 4
+              ? // Assigned before the quiz's last save: shows "Edited since assigned".
+                { ...a, createdAt: a.createdAt - 7200_000 }
+              : a
       )}
       syncedGroups={
         new Map([['g1', { id: 'g1', version: 2, title: 'Synced' } as never]])
@@ -407,6 +410,7 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       assignmentsLoading={false}
       onArchiveResults={asyncNoop}
       onArchiveMonitor={asyncNoop}
+      onArchiveStudentView={asyncNoop}
       onArchiveEditSettings={noop}
       onArchiveShare={asyncNoop}
       onArchiveSharePlcResults={noop}

@@ -4580,6 +4580,49 @@ export const TOUR_ANCHORS = {
     label: 'Filter students select in the Quiz monitor roster',
     perWidgetType: true,
   },
+  'quiz-monitor.live-view': {
+    label: 'Live view button on a student in the Quiz monitor roster',
+    perField: true,
+    persists: true,
+  },
+  'quiz-live-view.previous': {
+    label: 'Previous student button in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-live-view.next': {
+    label: 'Next student button in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-live-view.close': {
+    label: 'Close button in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-live-view.tell-student': {
+    label: 'Tell the student switch in Quiz Live view',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-live-view.nudge-note': {
+    label: 'Nudge note select in Quiz Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-live-view.nudge': {
+    label: 'Nudge button in Quiz Live view',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-live-view.screenshot': {
+    label: 'Screenshot button in Quiz Live view',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-monitor.clear-hand': {
     label: 'Clear raised hand button in the Quiz monitor roster',
     perField: true,
@@ -17233,6 +17276,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.archive-monitor': {
     label: 'Monitor item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-student-view': {
+    label: 'Student view item in a quiz assignment row menu',
     perWidgetType: true,
     panel: true,
   },

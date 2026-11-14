@@ -1027,6 +1027,11 @@ service cloud.firestore {
                     && sameId();
     }
 
+    // Live view action log (screenshots, Nudges, banner shown). Owner-only; students never read it.
+    match /users/{userId}/quiz_assignments/{assignmentId}/live_log/{logId} {
+      allow read, write: if ownsUserTeacher(userId);
+    }
+
     // Answer key scoreQuizOnSubmitV1 grades with. Owner-only; students never read it.
     match /users/{userId}/quiz_assignments/{assignmentId}/key/{keyId} {
       allow read, write: if ownsUser(userId);
@@ -4759,6 +4764,7 @@ service cloud.firestore {
           incoming().get('servedQuestionIds', null) == null &&
           incoming().get('tabExits', null) == null &&
           incoming().get('partHeld', null) == null &&
+          incoming().get('liveView', null) == null &&
           incoming().get('partsDone', null) == null &&
           incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
@@ -4953,7 +4959,7 @@ service cloud.firestore {
            (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           liveUid(sessionTeacherUid()) ||
-          (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations']))
+          (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
         );
         allow delete: if signedIn() &&
           (liveUid(sessionTeacherUid()) || isSiteAdmin());
@@ -4987,6 +4993,19 @@ service cloud.firestore {
           // Immutable from clients. Teachers/admins may clean up.
           allow delete: if signedIn() &&
             (liveUid(sessionTeacherUid()) || isSiteAdmin());
+        }
+
+        // Live view: the question a watched student is showing. The owning student writes
+        // the one `state` doc; the session teacher reads it and may clean it up.
+        match /live/{liveId} {
+          allow read, delete: if signedIn() && liveUid(sessionTeacherUid());
+          allow create, update: if signedIn() &&
+            liveId == 'state' &&
+            authUid() == dbGet4('quiz_sessions', sessionId, 'responses', responseKey).data.studentUid &&
+            incoming().keys().hasOnly(['questionId', 'at']) &&
+            isStr('questionId') &&
+            incoming().questionId.size() <= 200 &&
+            isNumber('at');
         }
 
         // Handwritten paper answers: AI transcript internals. Session teacher reads; only the server writes.

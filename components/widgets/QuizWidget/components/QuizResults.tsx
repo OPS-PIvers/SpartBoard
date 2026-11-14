@@ -22,6 +22,10 @@ import React, {
 } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
+import { BadgePopover } from '@/components/common/BadgePopover';
+import { LiveLogList } from './monitor/LiveLogList';
+import { useQuizLiveLog } from '@/hooks/useQuizLiveLog';
+import { QUIZ_LIVE_VIEW_FEATURE } from '@/utils/quizLiveView';
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import { WritingPlaybackBadge } from '@/components/common/WritingPlayback';
 import { questionWordCounts } from '@/utils/inputSignals';
@@ -62,6 +66,7 @@ import {
   QuizSessionSection,
   isFreeResponseType,
   type QuizWidgetKind,
+  type QuizLiveLogEntry,
 } from '@/types';
 import {
   buildReviewRanking,
@@ -538,6 +543,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
+  const liveLogByKey = useQuizLiveLog(
+    canAccessFeature(QUIZ_LIVE_VIEW_FEATURE) &&
+      !!session &&
+      user?.uid === session.teacherUid
+      ? session
+      : null
+  );
   const normingEnabled = !!session?.plcId && !!session.syncGroupId;
   const myNormingFlags = useMyNormingFlags(
     user?.uid,
@@ -2681,6 +2693,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           )}
           {effectiveScreen === 'students' && (
             <StudentsScreen
+              liveLogByKey={liveLogByKey}
               quizTitle={quiz.title}
               responses={filteredResponses}
               questions={quiz.questions}
@@ -4443,8 +4456,11 @@ const StudentsScreen: React.FC<{
   sortNameFor: (response: QuizResponse) => string;
   view: { sort: StudentSort; display: ScoreDisplay };
   onViewChange: (view: { sort: StudentSort; display: ScoreDisplay }) => void;
+  /** Teacher-only Live view actions per response key; absent without the flag. */
+  liveLogByKey?: ReadonlyMap<string, QuizLiveLogEntry[]>;
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
+  liveLogByKey,
   quizTitle,
   responses,
   questions,
@@ -4716,6 +4732,7 @@ const StudentsScreen: React.FC<{
           // contract used by QuizLiveMonitor's StudentRow.
           const isResolved = !r.pin || displayName !== `PIN ${r.pin}`;
           const rowKey = getResponseDocKey(r);
+          const liveLog = liveLogByKey?.get(rowKey);
           const canDelete = Boolean(onDeleteResponse);
           const canUnlockResults =
             resultsLockedOut && Boolean(onUnlockResultsForStudent);
@@ -4910,6 +4927,28 @@ const StudentsScreen: React.FC<{
                         />
                       </span>
                     </TabExitsPopover>
+                  )}
+                  {liveLog && liveLog.length > 0 && (
+                    <BadgePopover
+                      triggerLabel={`Show Live view log for ${displayName}`}
+                      dialogLabel={`Live view log for ${displayName}`}
+                      panel={
+                        <>
+                          <p className="mb-2 font-bold text-slate-800">
+                            Live view log
+                          </p>
+                          <LiveLogList entries={liveLog} />
+                        </>
+                      }
+                    >
+                      <span title="Live view log" className="shrink-0">
+                        <SessionBadge
+                          tone="neutral"
+                          icon={Eye}
+                          label={`${liveLog.length}`}
+                        />
+                      </span>
+                    </BadgePopover>
                   )}
                   <InputSignalsBadge
                     signals={r.inputSignals}

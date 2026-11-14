@@ -3543,6 +3543,13 @@
     "placed": "{{word}} placed in {{blank}}.",
     "returned": "{{word}} returned to the word bank."
   },
+  "quizLiveView": {
+    "banner": "Your teacher is viewing your quiz",
+    "nudge": "Your teacher is checking in",
+    "noteSeeMe": "Please see me",
+    "noteOwnWork": "Eyes on your own work",
+    "noteKeepGoing": "Keep going"
+  },
   "quizReview": {
     "reviewButton": "REVIEW",
     "reviewLink": "Review",
@@ -4816,6 +4823,10 @@
     "cancel": "Cancel",
     "saved": "Quiz configuration saved.",
     "saveFailed": "Failed to save quiz configuration.",
+    "liveView": {
+      "heading": "Live view",
+      "alwaysNotify": "Always tell students when a teacher opens Live view"
+    },
     "handRaise": {
       "heading": "Raise hand",
       "teacherChoice": "Teacher's choice",

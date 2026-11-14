@@ -120,6 +120,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-import-google-doc-pdf',
   'quiz-import-pdf-answer-marks',
   'quiz-import-versions-plain',
+  'quiz-live-view',
   'quiz-media-response',
   'quiz-read-aloud',
   'quiz-score-on-submit',

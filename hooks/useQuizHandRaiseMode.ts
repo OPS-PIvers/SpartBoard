@@ -3,6 +3,7 @@ import { AuthContext } from '@/context/AuthContextValue';
 import {
   DEFAULT_QUIZ_HAND_RAISE_MODE,
   readQuizHandRaiseMode,
+  readQuizLiveViewAlwaysNotify,
   resolveGateBuildingIds,
   type QuizHandRaiseMode,
 } from '@/utils/quizHandRaise';
@@ -22,4 +23,20 @@ export function useQuizHandRaiseMode(): QuizHandRaiseMode {
       resolveGateBuildingIds(membershipBuildingIds, selectedBuildings)
     );
   }, [permissions, membershipBuildingIds, selectedBuildings]);
+}
+
+/** The admin setting that makes Live view always tell the student, for this teacher's buildings. */
+export function useQuizLiveViewAlwaysNotify(): boolean {
+  const auth = useContext(AuthContext);
+  const permissions = auth?.featurePermissions;
+  const membershipBuildingIds = auth?.buildingIds;
+  const selectedBuildings = auth?.selectedBuildings;
+  return useMemo(
+    () =>
+      readQuizLiveViewAlwaysNotify(
+        permissions,
+        resolveGateBuildingIds(membershipBuildingIds, selectedBuildings)
+      ),
+    [permissions, membershipBuildingIds, selectedBuildings]
+  );
 }
