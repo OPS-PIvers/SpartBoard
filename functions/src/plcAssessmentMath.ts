@@ -107,6 +107,8 @@ export interface CompletedResponse {
   servedQuestionIds?: string[];
   classPeriod?: string;
   classId?: string;
+  /** Server-imported paper response, so its `paperTranscript` is trusted. */
+  paperAttested?: boolean;
   /** Teacher manual grades by session question id (primary slot). */
   manualGrades?: Record<string, ManualGrade>;
   /** Teacher picks of which answers count, by choose-N section id. */
@@ -1084,7 +1086,10 @@ export function computeAssessmentAggregate(
         // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
         const paperOwed =
           grade.state === 'not-attempted' &&
-          (paperAnswerOwed(a?.paperTranscript) ||
+          ((r.paperAttested === true &&
+            (question.type === 'free-response' ||
+              paperWritten.has(sessionQid)) &&
+            paperAnswerOwed(a?.paperTranscript)) ||
             (paperWritten.has(sessionQid) && a?.paperTranscript !== 'blank'));
         if (
           grade.state === 'no-key' ||

@@ -3573,5 +3573,116 @@
       "flags": [],
       "comment": null
     }
+  },
+  {
+    "name": "app-graded mini-app row stays markable",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "mini-app",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": null,
+        "points": null,
+        "max": null,
+        "state": "awaiting-grade",
+        "submittedAt": 1000,
+        "dueAt": 2000,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000,
+        "gradedBy": "app"
+      },
+      {
+        "kind": "mini-app",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "override": {
+          "points": 7,
+          "at": 1
+        },
+        "comment": null,
+        "flags": [],
+        "suppressedAuto": [],
+        "publishOverride": null,
+        "updatedAt": 1
+      },
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": null,
+            "visibility": "teacher",
+            "builtIn": true
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 50,
+            "visibility": "teacher",
+            "builtIn": false
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "scored",
+      "points": 7,
+      "max": null,
+      "pct": null,
+      "source": "override",
+      "flagId": null,
+      "rawPoints": null,
+      "flags": [],
+      "counts": false
+    }
   }
 ]

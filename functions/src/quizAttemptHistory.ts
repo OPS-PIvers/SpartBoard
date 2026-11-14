@@ -9,7 +9,7 @@ import {
   markSessionDirty,
   stableStringify,
 } from './gradebook/gradeIndex';
-import { mergeAttempts, rowId } from './gradebook/gradeRowMath';
+import { legacyRowId, mergeAttempts, rowId } from './gradebook/gradeRowMath';
 import type { IndexAttempt } from './gradebook/types';
 
 type Firestore = admin.firestore.Firestore;
@@ -40,6 +40,8 @@ const COPIED_FIELDS = [
   'artifactArchive',
   'preSyncVersion',
   'countedChoices',
+  'paperBatchId',
+  'paperWrittenBatchId',
 ] as const;
 
 /** Changes to a finished attempt that its copy must follow (grading, publish, finalize). */
@@ -335,7 +337,15 @@ export async function applyAttemptGradeWrite(
               .collection(GRADE_INDEX)
               .doc(rowId('quiz', w.sessionId, studentUid))
           : null;
-      const indexSnap = indexRef ? await tx.get(indexRef) : null;
+      const newSnap = indexRef ? await tx.get(indexRef) : null;
+      // A row still at its pre-kind id takes the rescore until the recompute migrates it.
+      const legacyRef =
+        indexRef && !newSnap?.exists
+          ? db.collection(GRADE_INDEX).doc(legacyRowId(w.sessionId, studentUid))
+          : null;
+      const legacySnap = legacyRef ? await tx.get(legacyRef) : null;
+      const indexSnap = newSnap?.exists ? newSnap : legacySnap;
+      const targetRef = newSnap?.exists ? indexRef : legacyRef;
       // A stored (published) score would mask the new grade.
       const score = ctx.score(studentUid, {
         ...fresh,
@@ -356,11 +366,11 @@ export async function applyAttemptGradeWrite(
         ),
         updatedAt: now,
       });
-      if (indexRef && indexSnap?.exists) {
+      if (targetRef && indexSnap?.exists) {
         // Another kind's row at this id never takes quiz scores; the requeued recompute rewrites it.
         if ((indexSnap.data()?.kind ?? 'quiz') !== 'quiz') return true;
         const rowAttempts: unknown = indexSnap.data()?.attempts;
-        tx.update(indexRef, {
+        tx.update(targetRef, {
           attempts: mergeAttempts(
             Array.isArray(rowAttempts) ? (rowAttempts as IndexAttempt[]) : [],
             rescored
@@ -369,7 +379,6 @@ export async function applyAttemptGradeWrite(
         });
         return true;
       }
-      // A row still at its pre-kind id catches up through the recompute.
       return indexRef !== null;
     });
     // Requeue the session so a recompute this update would skip still runs and the cell catches up.

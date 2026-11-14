@@ -494,11 +494,15 @@ describe('applyAttemptGradeWrite', () => {
   const ROW_ATTEMPTS = [
     { n: 1, at: T, points: 0, max: 2, state: 'awaiting-grade' },
   ];
-  const rescoreEarlierAttempt = async (indexOn: boolean, kind?: string) => {
+  const rescoreEarlierAttempt = async (
+    indexOn: boolean,
+    kind?: string,
+    rowPath = ROW
+  ) => {
     __resetGradeIndexEnabledCache();
     const stub = seed({
       'admin_settings/gradebook_index': { enabled: indexOn },
-      [ROW]: { attempts: ROW_ATTEMPTS, ...(kind ? { kind } : {}) },
+      [rowPath]: { attempts: ROW_ATTEMPTS, ...(kind ? { kind } : {}) },
     });
     const first = done({ answers: [{ questionId: 'q1', answer: 'B' }] });
     await apply(stub, write(undefined, first));
@@ -522,6 +526,12 @@ describe('applyAttemptGradeWrite', () => {
     expect(stub.get('grade_index_sessions/quiz__qs1')).toMatchObject({
       kind: 'quiz',
     });
+  });
+
+  it('rescores a row still at its pre-kind id', async () => {
+    const legacy = 'grade_index/qs1__u1';
+    const stub = await rescoreEarlierAttempt(true, undefined, legacy);
+    expect(stub.get(legacy)?.attempts).toEqual(stub.get(SCORES)?.attempts);
   });
 
   it("never writes quiz scores into another kind's row at the same id", async () => {

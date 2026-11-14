@@ -7,6 +7,16 @@ vi.mock('../firebaseAdmin', () => ({
     FieldValue: { serverTimestamp: vi.fn() },
   }),
 }));
+const teaching = vi.hoisted(() => ({ notOwners: new Set<string>() }));
+vi.mock('./projectMemberAuthority', () => ({
+  loadClassStudentUids: (_db: unknown, ownerUid: string) =>
+    Promise.resolve({
+      uids: teaching.notOwners.has(ownerUid)
+        ? new Set<string>()
+        : { has: () => true, size: 1 },
+      degraded: null,
+    }),
+}));
 vi.mock('firebase-functions/v2', () => ({ setGlobalOptions: vi.fn() }));
 vi.mock('firebase-functions/v2/scheduler', () => ({
   onSchedule: (_opts: unknown, handler: () => Promise<void>) => handler,
@@ -21,7 +31,10 @@ vi.mock('firebase-functions/logger', () => ({
 }));
 
 import * as admin from '../firebaseAdmin';
-import { __resetGradeIndexEnabledCache } from './gradeIndex';
+import {
+  __resetGradeIndexEnabledCache,
+  __resetProjectRosterCache,
+} from './gradeIndex';
 import {
   configPathFor,
   parseMark,
@@ -83,7 +96,11 @@ const row = (over: Partial<IndexRow> = {}): IndexRow => ({
 const entryOf = (stub: ReturnType<typeof makeStubFirestore>, id = 'qs1') =>
   (stub.get(PATH)?.entries as Record<string, StubData> | undefined)?.[id];
 
-beforeEach(() => __resetGradeIndexEnabledCache());
+beforeEach(() => {
+  __resetGradeIndexEnabledCache();
+  __resetProjectRosterCache();
+  teaching.notOwners.clear();
+});
 
 describe('projectRow', () => {
   it('shows a published final score with the override applied', async () => {
@@ -272,6 +289,50 @@ describe('projectRow', () => {
       (before?.entries as Record<string, StubData>).qs1
     );
     expect(entryOf(stub, 'x1')).toMatchObject({ ownerUid: 't2' });
+  });
+
+  it("never lets a teacher who doesn't teach the class add an entry", async () => {
+    teaching.notOwners.add('t2');
+    const stub = makeStubFirestore({});
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row({ ownerUid: 't2', sessionId: 'x1' }), null, NOW);
+    expect(stub.get(PATH)).toBeUndefined();
+    await projectRow(db, row(), null, NOW);
+    expect(entryOf(stub)).toMatchObject({ ownerUid: 't1' });
+  });
+
+  it('lets a teacher update a legacy entry the doc-level owner did not write', async () => {
+    const stub = makeStubFirestore({});
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    const doc = stub.get(PATH) as { entries: Record<string, StubData> };
+    const { ownerUid: _o, ...legacy } = doc.entries.qs1 as Record<
+      string,
+      unknown
+    >;
+    void _o;
+    stub.store.set(PATH, {
+      ...doc,
+      ownerUid: 't2',
+      entries: { qs1: legacy },
+    });
+    await projectRow(db, row(), null, NOW + 5000);
+    expect(entryOf(stub)).toMatchObject({ ownerUid: 't1' });
+  });
+
+  it('keeps updatedAt for an entry stored before per-entry owners', async () => {
+    const stub = makeStubFirestore({});
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    const doc = stub.get(PATH) as { entries: Record<string, StubData> };
+    const { ownerUid: _o, ...legacy } = doc.entries.qs1 as Record<
+      string,
+      unknown
+    >;
+    void _o;
+    stub.store.set(PATH, { ...doc, entries: { qs1: legacy } });
+    await projectRow(db, row(), null, NOW + 5000);
+    expect(entryOf(stub)).toMatchObject({ updatedAt: NOW });
   });
 
   it('keeps other assignments when one entry goes', async () => {

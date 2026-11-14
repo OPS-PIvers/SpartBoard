@@ -538,7 +538,9 @@ export function scoreVideoResponse(
     };
   }
   const max = q.max > 0 ? q.max : null;
-  const rawPct = stored ?? (q.awaiting ? null : pctOf(q.earned, q.max));
+  // A key-less question awaits the teacher, never a 0 score.
+  const rawPct =
+    stored ?? (q.awaiting || q.noKey ? null : pctOf(q.earned, q.max));
   return {
     classId,
     published,

@@ -22,7 +22,12 @@ import {
   type StudentStandardEntry,
 } from '../gradebookCore';
 import { legacyRowId } from './gradeRowMath';
-import { GRADE_INDEX, stableStringify } from './gradeIndex';
+import {
+  GRADE_INDEX,
+  defaultProjectMemberAuthority,
+  stableStringify,
+  type ProjectMemberAuthority,
+} from './gradeIndex';
 import type { IndexRow } from './types';
 
 type Firestore = admin.firestore.Firestore;
@@ -249,8 +254,8 @@ export async function writeProjectionEntry(
     const snap = await tx.get(ref);
     const data = snap.data() ?? {};
     const docOwner = asString(data.ownerUid);
-    const ownerOf = (e: unknown): string =>
-      asString(asRecord(e).ownerUid) || docOwner;
+    // An entry with no ownerUid predates per-entry owners; any owner may claim it.
+    const ownerOf = (e: unknown): string => asString(asRecord(e).ownerUid);
     const entries = { ...asRecord(data.entries) };
     const prev = entries[sessionId] as Doc | undefined;
     // Another owner's entry under this session id is theirs to change.
@@ -264,11 +269,20 @@ export async function writeProjectionEntry(
       }
     } else {
       const owned = { ...entry, ownerUid: target.ownerUid };
-      const { updatedAt: _u, ...prevBody } = prev ?? {};
+      const { updatedAt: _u, ...prevRest } = prev ?? {};
       void _u;
+      // An entry stored before per-entry owners existed is not a change.
+      const prevBody = {
+        ...prevRest,
+        ownerUid: ownerOf(prev) || target.ownerUid,
+      };
       if (!prev || stableStringify(prevBody) !== stableStringify(owned)) {
         // `updatedAt` moves only when what the student sees changes, which drives the New badge (D36).
         entries[sessionId] = { ...owned, updatedAt: now };
+        changed = true;
+      } else if (prev && !ownerOf(prev)) {
+        // Claim a legacy entry without moving what the student sees.
+        entries[sessionId] = { ...prev, ownerUid: target.ownerUid };
         changed = true;
       }
     }
@@ -386,7 +400,8 @@ export async function projectRow(
   db: Firestore,
   after: IndexRow | null,
   before: IndexRow | null,
-  now = Date.now()
+  now = Date.now(),
+  authority: ProjectMemberAuthority = defaultProjectMemberAuthority(db)
 ): Promise<void> {
   if (
     before?.classId &&
@@ -420,6 +435,11 @@ export async function projectRow(
     loadRowInputs(db, after),
     loadClassSettings(db, after.ownerUid, after.rosterId),
   ]);
+  // Only a teacher of the class may put an entry in a student's view of it.
+  const taught = await authority(after.ownerUid, after.classId, [
+    after.studentUid,
+  ]);
+  if (!taught.has(after.studentUid)) return;
   const entry = buildStudentGradeEntry(
     after,
     inputs.mark,
