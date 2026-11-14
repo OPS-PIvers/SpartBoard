@@ -42,6 +42,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'blooms-ai',
   'checklist-small-card',
   'choose-n-pick-counted',
+  'class-student-page',
   'claude-connector',
   'claude-connector-apps',
   'claude-connector-guided-learning',

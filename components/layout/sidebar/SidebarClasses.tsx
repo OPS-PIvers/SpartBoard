@@ -13,6 +13,8 @@ import { httpsCallable } from 'firebase/functions';
 
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { ClassStudentPagePreview } from '@/components/classes/ClassStudentPagePreview';
+import { studentPageClassId } from '@/utils/studentPageClassId';
 import { useGroupReminderEmailsSettings } from '@/hooks/useGroupReminderEmailsSettings';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
@@ -140,6 +142,9 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const classLinkEnabled = useClassLinkEnabled(selectedBuildings[0]);
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
+  const studentPageOn = canAccessFeature('class-student-page');
+  const [studentPageRoster, setStudentPageRoster] =
+    useState<ClassRoster | null>(null);
   const [classLinkMode, setClassLinkMode] =
     useState<ClassLinkDialogMode | null>(null);
 
@@ -588,6 +593,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                         })
                       }
                       onLinkClassroom={() => setLinkingRoster(r)}
+                      onViewStudentPage={
+                        studentPageOn && studentPageClassId(r)
+                          ? () => setStudentPageRoster(r)
+                          : undefined
+                      }
                       onDelete={() => void handleDelete(r)}
                     />
                   ))}
@@ -609,6 +619,13 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           groupRemindersEnabled={groupRemindersEnabled}
           groupReminderEmailsEnabled={groupReminderEmails.enabled}
           bellPeriodOptions={bellPeriodOptions}
+        />
+      )}
+
+      {studentPageRoster && (
+        <ClassStudentPagePreview
+          roster={studentPageRoster}
+          onClose={() => setStudentPageRoster(null)}
         />
       )}
 

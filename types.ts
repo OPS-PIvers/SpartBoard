@@ -11295,6 +11295,8 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */
+  | 'class-student-page'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

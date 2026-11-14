@@ -938,6 +938,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // My Classes "View Student Page". Admin-only until Paul has used it in prod.
+  'class-student-page': {
+    label: 'View Student Page',
+    icon: Eye,
+    description: "Teachers open a class's student page from My Classes.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,
