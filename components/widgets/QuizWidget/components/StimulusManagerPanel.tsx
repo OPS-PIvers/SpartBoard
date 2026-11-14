@@ -1117,7 +1117,7 @@ const AttachStimulusSection: React.FC<{
             </ul>
           )}
           <div
-            className={`flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 ${
+            className={`flex flex-col items-center gap-2 rounded-lg border border-dashed px-2.5 py-2.5 ${
               drop.dragging ? 'border-brand-blue-primary' : 'border-slate-300'
             }`}
           >
@@ -1133,35 +1133,33 @@ const AttachStimulusSection: React.FC<{
                   ? 'Drag a file or paste an image'
                   : 'Drag a file'}
             </span>
-            <FileSourceButtons
-              compact
-              intake={intake}
-              onAdded={(added) => onToggle(added.id)}
-            />
-          </div>
-          <div className="flex gap-2">
-            {calculatorAvailable && (
-              <button
-                type="button"
-                onClick={() => onToggle(intake.addCalculator().id)}
-                disabled={intake.busy}
-                {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
-                className={`${fileButtonClass} shrink-0`}
-              >
-                <Calculator className="h-3.5 w-3.5" aria-hidden />
-                Calculator
-              </button>
-            )}
-            <div className="flex-1 min-w-0">
-              <UrlAddRow
-                busy={intake.busy}
-                onAdd={async (url) => {
-                  const added = await intake.addFromUrl(url);
-                  if (added) onToggle(added.id);
-                }}
+            <div className="flex flex-wrap justify-center gap-2">
+              <FileSourceButtons
+                compact
+                intake={intake}
+                onAdded={(added) => onToggle(added.id)}
               />
+              {calculatorAvailable && (
+                <button
+                  type="button"
+                  onClick={() => onToggle(intake.addCalculator().id)}
+                  disabled={intake.busy}
+                  {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
+                  className={fileButtonClass}
+                >
+                  <Calculator className="h-3.5 w-3.5" aria-hidden />
+                  Calculator
+                </button>
+              )}
             </div>
           </div>
+          <UrlAddRow
+            busy={intake.busy}
+            onAdd={async (url) => {
+              const added = await intake.addFromUrl(url);
+              if (added) onToggle(added.id);
+            }}
+          />
         </div>
       )}
     </div>
