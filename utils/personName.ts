@@ -4,7 +4,7 @@ const titleCaseHandle = (handle: string): string =>
   handle
     .replace(/[._-]+/g, ' ')
     .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .replace(/(?<![\p{L}\p{M}\p{N}])\p{L}/gu, (c) => c.toUpperCase());
 
 /** First Last for a member whose saved name is empty or just their email handle. */
 export function personName(p: {
