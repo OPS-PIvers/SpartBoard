@@ -5,6 +5,7 @@ import { DEFAULT_OTHER_CAUSES } from '@/utils/inputSignals';
 import {
   INPUT_SIGNS,
   applyInputSignSettings,
+  hiddenFindings,
   isSignShown,
   readInputSignSettings,
 } from '@/utils/inputSignalSettings';
@@ -118,5 +119,21 @@ describe('applyInputSignSettings', () => {
       perm({ signs: { pasted: { off: true } } })
     );
     expect(applyInputSignSettings(only, settings, false)).toEqual([]);
+  });
+});
+
+describe('hiddenFindings', () => {
+  it('lists switched-off finding signs for teachers and none for admins', () => {
+    const settings = readInputSignSettings(
+      perm({
+        signs: {
+          'fast-typing': { off: true },
+          'writing-playback': { off: true },
+          pasted: { otherCauses: 'x' },
+        },
+      })
+    );
+    expect([...hiddenFindings(settings, false)]).toEqual(['fast-typing']);
+    expect(hiddenFindings(settings, true).size).toBe(0);
   });
 });

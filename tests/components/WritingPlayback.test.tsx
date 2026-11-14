@@ -34,6 +34,15 @@ describe('WritingPlayer', () => {
     expect(screen.getByText(/7 characters pasted/)).toBeInTheDocument();
   });
 
+  it('leaves out paste marks when the pasted sign is hidden', () => {
+    render(
+      <WritingPlayer log={logOf(['c', 'ca', 'c', 'c pasted'])} hidePasted />
+    );
+    expect(screen.queryByText('pasted', { selector: 'mark' })).toBeNull();
+    expect(screen.queryByText(/characters pasted/)).toBeNull();
+    expect(screen.queryByText('Pasted')).toBeNull();
+  });
+
   it('replays from the start, one edit at a time', () => {
     vi.useFakeTimers();
     render(<WritingPlayer log={logOf(['c', 'ca', 'cat'])} />);

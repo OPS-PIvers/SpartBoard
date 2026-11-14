@@ -116,10 +116,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const now = useServerNow(1000);
   const auth = useContext(AuthContext);
   const signs = readInputSignSettings(auth?.globalPermissions);
-  const showPastes =
-    auth?.isAdmin === true ||
-    isSignShown(signs, 'pasted') ||
-    isSignShown(signs, 'paste-attempts');
+  const showPastedChars =
+    auth?.isAdmin === true || isSignShown(signs, 'pasted');
+  const showPastes = showPastedChars || isSignShown(signs, 'paste-attempts');
 
   const index = students.findIndex((s) => s.key === studentKey);
   const student = index >= 0 ? students[index] : undefined;
@@ -477,7 +476,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                   {showPastes && (
                     <Stat label="Pastes">
                       {stats.input.pastes}
-                      {stats.input.pastedChars > 0 &&
+                      {showPastedChars &&
+                        stats.input.pastedChars > 0 &&
                         `, ${stats.input.pastedChars} characters`}
                     </Stat>
                   )}

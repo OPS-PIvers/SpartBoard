@@ -519,7 +519,9 @@ export function describeInputSignals(
   perQuestion: Record<string, InputSignalCounts>,
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
   reading?: ReadingContext,
-  expectManaged = false
+  expectManaged = false,
+  /** Signs nobody will see; a hidden fast-typing check lets the even-rhythm one run. */
+  hidden?: ReadonlySet<InputFindingId>
 ): InputFinding[] {
   const total = emptyCounts();
   for (const c of Object.values(perQuestion))
@@ -562,7 +564,7 @@ export function describeInputSignals(
   }
   if (total.ikN >= RHYTHM_MIN_GAPS) {
     const mean = total.ikSum / total.ikN;
-    if (mean < FAST_MEAN_GAP_MS) {
+    if (mean < FAST_MEAN_GAP_MS && !hidden?.has('fast-typing')) {
       out.push({
         id: 'fast-typing',
         text: `Typed ${plural(total.keys, 'character')} about ${Math.round(mean)} ms apart, faster than a person can type.`,
@@ -738,7 +740,8 @@ export function inputFindingsByAttempt(
   currentAttempt: number,
   answers?: Pick<QuizResponseAnswer, 'answeredAt'>[],
   reading?: ReadingContext,
-  expectManaged = false
+  expectManaged = false,
+  hidden?: ReadonlySet<InputFindingId>
 ): AttemptFindings[] {
   const attempts = new Set<number>([currentAttempt]);
   if (isRecord(signals)) {
@@ -756,7 +759,8 @@ export function inputFindingsByAttempt(
           perQuestion,
           current ? answers : undefined,
           current ? reading : undefined,
-          expectManaged
+          expectManaged,
+          hidden
         ),
         browsers: perQuestion[NO_QUESTION]?.browser?.split('|') ?? [],
       };

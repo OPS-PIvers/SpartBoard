@@ -281,10 +281,7 @@ export const InputSignsEditor: React.FC<{
       <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
         Signs
       </p>
-      <p className="text-xs text-slate-500">
-        Off hides a sign from teachers but keeps recording it. Each box is the
-        &quot;Could also be&quot; line teachers see under that sign.
-      </p>
+
       {SIGN_GROUPS.map((group) => (
         <div key={group} className="divide-y divide-slate-200">
           <p className="pb-1 text-xxs font-bold text-slate-500 uppercase tracking-wider">
@@ -299,17 +296,19 @@ export const InputSignsEditor: React.FC<{
                 key={id}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
               >
-                <Toggle
-                  checked={s.off !== true}
-                  onChange={(checked) => update(id, { ...s, off: !checked })}
-                  size="xs"
-                  label={`${label} shown to teachers`}
-                  anchor={tourFieldAttr(
-                    'admin.features.input-sign-toggle',
-                    'admin',
-                    id
-                  )}
-                />
+                <span title="Off hides this sign from teachers but keeps recording it.">
+                  <Toggle
+                    checked={s.off !== true}
+                    onChange={(checked) => update(id, { ...s, off: !checked })}
+                    size="xs"
+                    label={`${label} shown to teachers`}
+                    anchor={tourFieldAttr(
+                      'admin.features.input-sign-toggle',
+                      'admin',
+                      id
+                    )}
+                  />
+                </span>
                 <span className="w-56 shrink-0 text-sm text-slate-700">
                   {label}
                 </span>
@@ -340,7 +339,9 @@ export const InputSignsEditor: React.FC<{
                         return rest;
                       })
                     }
-                    title="Could also be"
+                    title={
+                      'The "Could also be" line teachers see under this sign'
+                    }
                     className="min-w-48 flex-1 px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                   />
                 )}

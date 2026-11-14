@@ -11,6 +11,7 @@ import {
 } from '@/utils/inputSignals';
 import {
   applyInputSignSettings,
+  hiddenFindings,
   readInputSignSettings,
 } from '@/utils/inputSignalSettings';
 import { BadgePopover } from './BadgePopover';
@@ -65,7 +66,14 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
           }
         : undefined;
     return applyInputSignSettings(
-      inputFindingsByAttempt(signals, current, answers, reading, expectManaged),
+      inputFindingsByAttempt(
+        signals,
+        current,
+        answers,
+        reading,
+        expectManaged,
+        hiddenFindings(settings, isAdmin)
+      ),
       settings,
       isAdmin
     );

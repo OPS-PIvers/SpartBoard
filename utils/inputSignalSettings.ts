@@ -90,6 +90,18 @@ export const isSignShown = (
   id: InputSignId
 ): boolean => settings[id]?.off !== true;
 
+/** Finding ids hidden from this viewer; empty for admins, who see every sign. */
+export function hiddenFindings(
+  settings: InputSignSettings,
+  isAdmin: boolean
+): Set<InputFindingId> {
+  const out = new Set<InputFindingId>();
+  if (isAdmin) return out;
+  for (const [id, s] of Object.entries(settings))
+    if (s?.off && id !== 'writing-playback') out.add(id as InputFindingId);
+  return out;
+}
+
 export interface ShownFinding extends InputFinding {
   /** Off in admin settings; only admins still see it. */
   hidden: boolean;
