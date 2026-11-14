@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, Loader2, X } from 'lucide-react';
 import type { ClassRoster } from '@/types';
@@ -27,16 +27,13 @@ import {
   periodSquare,
   type DoneItem,
 } from '@/utils/studentLanding';
-import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
-import type { AssignedStudentView } from '@/utils/quizStudentViewSession';
+import {
+  loadStudentPagePreviewItem,
+  type StudentPagePreviewItem,
+} from '@/utils/studentPagePreviewLoad';
+import { StudentItemPreview } from './StudentItemPreview';
 import { logError } from '@/utils/logError';
 import { studentPageClassId } from '@/utils/studentPageClassId';
-
-const QuizStudentView = lazy(() =>
-  import('@/components/quiz/QuizStudentView').then((m) => ({
-    default: m.QuizStudentView,
-  }))
-);
 
 const NO_CHECKS: TurnInMap = {};
 
@@ -62,7 +59,6 @@ export const ClassStudentPagePreview: React.FC<
       teacherName={user?.displayName ?? ''}
       status={status}
       assignments={assignments}
-      quizViewOn={canAccessFeature('quiz-student-view')}
       tabAwayTimerOn={canAccessFeature('tab-away-timer')}
       onClose={onClose}
     />
@@ -74,9 +70,10 @@ interface ClassStudentPageViewProps {
   teacherName: string;
   status: ClassPreviewStatus;
   assignments: AssignmentSummary[];
-  quizViewOn: boolean;
   tabAwayTimerOn: boolean;
   onClose: () => void;
+  /** Fixture loader for the dev harness. */
+  loadItem?: typeof loadStudentPagePreviewItem;
 }
 
 /** The preview's page; data comes from the container, or fixtures on /class-student-page-dev. */
@@ -85,9 +82,9 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
   teacherName,
   status,
   assignments,
-  quizViewOn,
   tabAwayTimerOn,
   onClose,
+  loadItem = loadStudentPagePreviewItem,
 }) => {
   const { showAlert } = useDialog();
   const classId = studentPageClassId(roster) ?? '';
@@ -97,18 +94,18 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
     classId
   );
   const [tab, setTab] = useState<LandingTab>('assignments');
-  const [quizView, setQuizView] = useState<AssignedStudentView | null>(null);
+  const [item, setItem] = useState<StudentPagePreviewItem | null>(null);
   const [opening, setOpening] = useState(false);
 
-  const quizOpen = quizView !== null;
+  const itemOpen = item !== null;
   useEffect(() => {
-    if (quizOpen) return;
+    if (itemOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [quizOpen, onClose]);
+  }, [itemOpen, onClose]);
 
   const bellPeriod = roster.bellPeriod ?? undefined;
   const classes = useMemo<LandingClass[]>(
@@ -141,30 +138,26 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
   );
 
   const open = (kind: AssignmentSummary['kind'], sessionId: string) => {
-    if (kind !== 'quiz' || !quizViewOn) {
-      void showAlert('Only quizzes open from this preview.', {
-        title: 'Student page',
-        variant: 'info',
-      });
-      return;
-    }
     if (opening) return;
     setOpening(true);
-    loadAssignedStudentView(sessionId)
-      .then((view) => {
-        if (view) setQuizView(view);
+    loadItem(kind, sessionId)
+      .then((loaded) => {
+        if (loaded) setItem(loaded);
         else
-          void showAlert('This quiz could not be found.', {
+          void showAlert('This assignment was deleted.', {
             title: 'Student page',
             variant: 'warning',
           });
       })
       .catch((err: unknown) => {
-        logError('ClassStudentPagePreview.openQuiz', err, { sessionId });
-        void showAlert('Could not open this quiz.', {
-          title: 'Student page',
-          variant: 'warning',
-        });
+        logError('ClassStudentPagePreview.open', err, { kind, sessionId });
+        void showAlert(
+          'Could not open this. Check your connection and try again.',
+          {
+            title: 'Student page',
+            variant: 'warning',
+          }
+        );
       })
       .finally(() => setOpening(false));
   };
@@ -178,14 +171,9 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
     if (e.type !== 'click') return;
     const href = link.getAttribute('href');
     const row = assignments.find((a) => a.openHref === href);
-    if (row) {
-      open(row.kind, row.sessionId);
-      return;
-    }
-    void showAlert('Only quizzes open from this preview.', {
-      title: 'Student page',
-      variant: 'info',
-    });
+    if (row) open(row.kind, row.sessionId);
+    // A shared wall gallery is a public, read-only page.
+    else if (href) window.open(href, '_blank', 'noopener');
   };
 
   const onOpenGradeOnly = (item: DoneItem) => open(item.kind, item.sessionId);
@@ -262,14 +250,12 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
           />
         )}
       </div>
-      {quizView && (
-        <Suspense fallback={null}>
-          <QuizStudentView
-            assigned={quizView}
-            tabAwayTimerOn={tabAwayTimerOn}
-            onExit={() => setQuizView(null)}
-          />
-        </Suspense>
+      {item && (
+        <StudentItemPreview
+          item={item}
+          tabAwayTimerOn={tabAwayTimerOn}
+          onExit={() => setItem(null)}
+        />
       )}
     </div>,
     document.body
