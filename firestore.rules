@@ -1332,9 +1332,8 @@ service cloud.firestore {
     }
 
     match /building_guided_learning/{setId} {
-      // A tour draft keeps sample copies (answer keys included) in tourSetup and its steps' saved boards: staff only.
-      allow get: if signedIn() && (noDoc() || staffSignedIn() || (existing().get('tourSetup', null) == null && existing().get('hasLiveTour', false) != true && existing().get('mode', '') != 'tour'));
-      allow list: if staffSignedIn();
+      // Sets hold answer keys (and tour drafts sample copies): district staff or admins only, never anonymous, student or self-registered sessions.
+      allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
       allow write: if isAdmin();
       // A live tour's notes for Claude and its last editor playtest (LIVE_TOUR_CONSISTENT_START.md C9, C10): admins only.
       match /review/{docId} {
@@ -1345,7 +1344,7 @@ service cloud.firestore {
     // Library index of building sets (P5-1), written only by the glBuildingIndexMirror
     // function; same readers as the full sets, and no client write rule.
     match /building_guided_learning_index/{setId} {
-      allow read: if signedIn();
+      allow read: if staffSignedIn() && (isDistrictStaff() || isAdmin());
     }
 
     // Web tour drafts (CHROME_EXTENSION.md T6): admins only, never anonymous or student sessions.
@@ -5903,12 +5902,14 @@ service cloud.firestore {
       // scoreVisibility + revealedAnswers onto the session so the student listener
       // can gate review without teacher-owned docs; mirrors Quiz sessions) and
       // delete (GL "Delete permanently" cleanup).
+      // teacherUid is immutable and only a site admin acts on another teacher's session (glIsTeacher trusts it).
       allow update: if signedIn() && !isStudentRoleUser() &&
-        (myOldTeacher() || isAdmin()) &&
+        (myOldTeacher() || isSiteAdmin()) &&
         sessionStaff() &&
-        subMonitorStampUnchanged();
+        subMonitorStampUnchanged() &&
+        unchanged('teacherUid');
       allow delete: if signedIn() && !isStudentRoleUser() &&
-        (myOldTeacher() || isAdmin());
+        (myOldTeacher() || isSiteAdmin());
 
       // The session doc, named once: the full path repeated a dozen times in
       // the sub-collections below is worth real bytes against the cap.
