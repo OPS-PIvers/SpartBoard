@@ -228,6 +228,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
   <details><summary>Branches to delete (174, checked 2026-11-01)</summary>
 
 claude/project-thread-wo37x1
+claude/project-thread-5klgdt (#5841; this docs PR reuses it, delete after it merges)
 claude/project-thread-egwso2
 claude/project-thread-8jx25m
 claude/ab112-dok-branch
