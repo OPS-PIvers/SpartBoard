@@ -12,20 +12,20 @@ interface MemberStatusFields {
   status?: unknown;
 }
 
-/** The claim change a member-doc write needs; a deleted doc keeps the claim until an admin reactivates the member. */
-export function deactivationClaimChange(
+/** True when a member-doc write may change the claim: any create or delete, or a revoked-status flip. */
+export function deactivationClaimSyncNeeded(
   orgId: string,
   before: MemberStatusFields | null,
   after: MemberStatusFields | null
-): DeactivationClaimChange | null {
-  if (orgId !== OPERATOR_ORG_ID || after === null) return null;
-  const was = before !== null && isRevokedMemberStatus(before.status);
-  const now = after !== null && isRevokedMemberStatus(after.status);
-  if (now === was) return null;
-  return now ? 'set' : 'clear';
+): boolean {
+  if (orgId !== OPERATOR_ORG_ID) return false;
+  if (before === null || after === null) return true;
+  return (
+    isRevokedMemberStatus(before.status) !== isRevokedMemberStatus(after.status)
+  );
 }
 
-/** The claim the member doc's current state calls for; null when the doc is gone. */
+/** The claim the live doc calls for; a missing doc leaves the claim (null) so a removed member stays locked out. */
 export function deactivationClaimTarget(
   current: MemberStatusFields | null
 ): DeactivationClaimChange | null {
@@ -33,8 +33,15 @@ export function deactivationClaimTarget(
   return isRevokedMemberStatus(current.status) ? 'set' : 'clear';
 }
 
+// Unmappable lookups (no such account, malformed email or uid) never succeed on retry.
+const SKIPPABLE_LOOKUP_CODES = [
+  'auth/user-not-found',
+  'auth/invalid-email',
+  'auth/invalid-uid',
+];
 function isUserNotFound(err: unknown): boolean {
-  return (err as { code?: unknown })?.code === 'auth/user-not-found';
+  const code = (err as { code?: unknown })?.code;
+  return typeof code === 'string' && SKIPPABLE_LOOKUP_CODES.includes(code);
 }
 
 /** Sets or clears the claim on the member's linked uid and the account holding the address; 'set' also ends live sessions. Returns the uids changed. */
@@ -46,7 +53,8 @@ export async function applyDeactivationClaim(
   emailLower: string,
   uidHint: unknown,
   change: DeactivationClaimChange,
-  isLiveMember?: (emailLower: string) => Promise<boolean>
+  isLiveMember?: (emailLower: string) => Promise<boolean>,
+  holdsRevoked?: (user: admin.auth.UserRecord) => Promise<boolean>
 ): Promise<string[]> {
   const users: admin.auth.UserRecord[] = [];
   const lookups: Array<() => Promise<admin.auth.UserRecord | null>> = [];
@@ -85,6 +93,8 @@ export async function applyDeactivationClaim(
       await auth.revokeRefreshTokens(user.uid);
       changed.push(user.uid);
     } else if (has) {
+      // 'clear' never lifts an account that is still another revoked member's.
+      if (holdsRevoked && (await holdsRevoked(user))) continue;
       delete claims[DEACTIVATED_CLAIM];
       await auth.setCustomUserClaims(user.uid, claims);
       changed.push(user.uid);

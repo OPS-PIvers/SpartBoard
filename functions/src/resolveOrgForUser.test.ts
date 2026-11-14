@@ -673,6 +673,33 @@ describe('resolveOrgForUser auto-enrollment', () => {
     expect(authMock.setCustomUserClaims).toHaveBeenCalledWith('uid-1', {});
   });
 
+  it('tells the client to refresh its token once a stale claim is cleared', async () => {
+    authMock.getUser
+      .mockReset()
+      .mockResolvedValueOnce({
+        uid: 'uid-1',
+        customClaims: { deactivated: true },
+      })
+      .mockResolvedValue({ uid: 'uid-1', customClaims: {} });
+    authMock.getUserByEmail.mockReset().mockResolvedValue({
+      uid: 'uid-1',
+      customClaims: { deactivated: true },
+    });
+    authMock.setCustomUserClaims.mockReset().mockResolvedValue(undefined);
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'active', roleId: 'teacher' },
+    });
+    const res = await handler({
+      auth: {
+        ...verifiedAuth,
+        token: { ...verifiedAuth.token, deactivated: true },
+      },
+      data: {},
+    });
+    expect(res).toMatchObject({ orgId: 'orono', claimCleared: true });
+  });
+
   describe('legacy self-enrolled docs', () => {
     const legacy = {
       status: 'active',
