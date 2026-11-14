@@ -213,7 +213,8 @@ function explainableOptions(q: StoredQuestion): string[] {
   if (q.type !== 'MC' && q.type !== 'MA') return [];
   const right =
     q.type === 'MC' ? [q.correctAnswer] : q.correctAnswer.split('|');
-  return [...right, ...q.incorrectAnswers].filter((o) => o.trim() !== '');
+  const all = [...right, ...q.incorrectAnswers].filter((o) => o.trim() !== '');
+  return [...new Set(all)];
 }
 
 function applyExplanations(

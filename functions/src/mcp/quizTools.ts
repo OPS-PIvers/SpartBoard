@@ -42,6 +42,7 @@ import {
   iso,
   pageByUpdatedAt,
   run,
+  type ListedTool,
   titleAndFolderFilter,
 } from './toolKit';
 import {
@@ -184,7 +185,11 @@ const questionSchema = z.object({
 });
 
 const QUESTION_HELP =
-  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field. Give each question a dok level (1-4) as you tag its standards. Write an explanation for every question, and option_explanations for every choice on multiple_choice and choose_all, unless the teacher says not to.";
+  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
+const DOK_HELP =
+  ' Give each question a dok level (1-4) as you tag its standards.';
+const EXPLANATION_HELP =
+  ' Write an explanation for every question, plus option_explanations for every multiple_choice and choose_all choice, unless the teacher says not to.';
 
 const toolNames = (kind: QuizKind) =>
   kind === 'quiz'
@@ -221,43 +226,116 @@ function assertNotSynced(kind: QuizKind, meta: Record<string, unknown>): void {
   }
 }
 
-/** Question fields behind a preview flag; the connector drops them for a teacher without it. */
+/** Question fields behind a preview flag; the connector hides and drops them for a teacher without it. */
 const GATED_FIELDS = [
   {
     feature: 'quiz-dok',
     fields: ['dok'],
+    help: DOK_HELP,
     note: "DOK levels aren't turned on for this account, so dok was not saved. Leave dok out for this teacher.",
   },
   {
     feature: 'quiz-explanations',
     fields: ['explanation', 'option_explanations'],
+    help: EXPLANATION_HELP,
     note: "Explanations aren't turned on for this account, so they were not saved. Leave explanation and option_explanations out for this teacher.",
   },
 ] as const;
 
-/** Drops gated fields the teacher can't see; returns a note for each flag that dropped something. */
+type GatedKey = (typeof GATED_FIELDS)[number]['fields'][number];
+
+const hasAny = (q: FriendlyQuestion, fields: readonly GatedKey[]) =>
+  fields.some((f) => q[f] !== undefined);
+
+const without = (q: FriendlyQuestion, fields: readonly GatedKey[]) => {
+  const rest = { ...q };
+  for (const f of fields) delete rest[f];
+  return rest;
+};
+
+async function granted(ctx: ToolContext, feature: string): Promise<boolean> {
+  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  return isGlobalFeatureGranted(ctx.db, feature, ctx.email, ctx.uid);
+}
+
+/** Friendly questions with fields the teacher can't see removed. */
+async function visibleQuestions(
+  ctx: ToolContext,
+  questions: StoredQuestion[]
+): Promise<FriendlyQuestion[]> {
+  let out: FriendlyQuestion[] = questions.map(toFriendlyQuestion);
+  for (const gate of GATED_FIELDS) {
+    if (!out.some((q) => hasAny(q, gate.fields))) continue;
+    if (await granted(ctx, gate.feature)) continue;
+    out = out.map((q) => without(q, gate.fields));
+  }
+  return out;
+}
+
+/** Drops gated fields the teacher can't see; notes a flag only when a dropped value would have changed something. */
 async function gateFields(
   ctx: ToolContext,
-  inputs: FriendlyQuestion[]
+  inputs: FriendlyQuestion[],
+  previous: StoredQuestion[]
 ): Promise<{ inputs: FriendlyQuestion[]; notes: string[] }> {
   const notes: string[] = [];
+  const before = new Map(
+    previous.map((q) => [q.id, toFriendlyQuestion(q)] as const)
+  );
   let out = inputs;
   for (const gate of GATED_FIELDS) {
-    const sent = out.some((q) =>
-      gate.fields.some((f) => q[f as keyof FriendlyQuestion] !== undefined)
-    );
-    if (!sent) continue;
-    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
-    if (await isGlobalFeatureGranted(ctx.db, gate.feature, ctx.email, ctx.uid))
-      continue;
-    out = out.map((q) => {
-      const rest = { ...q };
-      for (const f of gate.fields) delete rest[f as keyof FriendlyQuestion];
-      return rest;
+    if (!out.some((q) => hasAny(q, gate.fields))) continue;
+    if (await granted(ctx, gate.feature)) continue;
+    const changed = out.some((q) => {
+      const old = q.id ? before.get(q.id) : undefined;
+      return gate.fields.some(
+        (f) =>
+          q[f] !== undefined &&
+          JSON.stringify(q[f]) !== JSON.stringify(old?.[f] ?? null)
+      );
     });
-    notes.push(gate.note);
+    out = out.map((q) => without(q, gate.fields));
+    if (changed) notes.push(gate.note);
   }
   return { inputs: out, notes };
+}
+
+const QUESTION_WRITE_TOOLS = new Set([
+  'create_quiz',
+  'update_quiz',
+  'create_question_bank',
+  'update_question_bank',
+]);
+
+/** tools/list for this teacher: question fields behind a flag they lack are left out of the quiz and bank write tools. */
+export async function questionFieldsFor(
+  ctx: ToolContext
+): Promise<(tool: ListedTool) => ListedTool> {
+  const off = (
+    await Promise.all(
+      GATED_FIELDS.map(async (g) =>
+        (await granted(ctx, g.feature).catch(() => false)) ? [] : [g]
+      )
+    )
+  ).flat();
+  if (off.length === 0) return (tool) => tool;
+  return (tool) => {
+    if (!QUESTION_WRITE_TOOLS.has(tool.name ?? '')) return tool;
+    let description =
+      typeof tool.description === 'string' ? tool.description : '';
+    const schema = JSON.parse(JSON.stringify(tool.inputSchema ?? {})) as {
+      properties?: Record<
+        string,
+        { items?: { properties?: Record<string, unknown> } }
+      >;
+    };
+    const props = schema.properties?.questions?.items?.properties;
+    for (const g of off) {
+      description = description.replace(g.help, '');
+      for (const f of g.fields) if (props) delete props[f];
+    }
+    return { ...tool, description, inputSchema: schema };
+  };
 }
 
 async function buildQuestions(
@@ -265,7 +343,7 @@ async function buildQuestions(
   rawInputs: FriendlyQuestion[],
   previous: StoredQuestion[]
 ): Promise<{ questions: StoredQuestion[]; notes: string[] }> {
-  const { inputs, notes } = await gateFields(ctx, rawInputs);
+  const { inputs, notes } = await gateFields(ctx, rawInputs, previous);
   const byId = new Map(previous.map((q) => [q.id, q]));
   const used = new Set<string>();
   const applyTargets = await prepareTargets(
@@ -514,7 +592,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
           const result = {
             ...summarize(kind, id, meta),
             language: content.language ?? null,
-            questions: content.questions.map(toFriendlyQuestion),
+            questions: await visibleQuestions(ctx, content.questions),
             ...(sections.length > 0
               ? {
                   sections: sections.map(
@@ -538,7 +616,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       names.create,
       {
         title: `Create a ${label}`,
-        description: `Creates a ${label} in the teacher's library (saved to Drive). ${QUESTION_HELP}`,
+        description: `Creates a ${label} in the teacher's library (saved to Drive). ${QUESTION_HELP}${DOK_HELP}${EXPLANATION_HELP}`,
         inputSchema: {
           title: z.string().trim().min(1).max(200),
           folder_id: z

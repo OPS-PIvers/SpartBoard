@@ -4,7 +4,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type * as admin from '../firebaseAdmin';
 import type { ToolContext } from './activity';
-import { registerQuizTools, restoreQuizRevision } from './quizTools';
+import {
+  questionFieldsFor,
+  registerQuizTools,
+  restoreQuizRevision,
+} from './quizTools';
+import { slimToolListing } from './toolKit';
 
 const drive = vi.hoisted(() => ({ files: new Map<string, unknown>() }));
 vi.mock('./drive', () => ({
@@ -561,5 +566,67 @@ describe('explanations', () => {
     const q = fileOf(res.quiz_id as string).questions[0];
     expect(q.explanation).toBeUndefined();
     expect(q.optionExplanations).toBeUndefined();
+  });
+});
+
+describe('questionFieldsFor', () => {
+  async function listed(seed: Record<string, Data>) {
+    const ctx = ctxFor(fakeDb(seed).db);
+    const server = new McpServer({ name: 't', version: '1' });
+    registerQuizTools(server, ctx);
+    slimToolListing(server, undefined, undefined, () => questionFieldsFor(ctx));
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'c', version: '1' });
+    await Promise.all([server.connect(a), client.connect(b)]);
+    const { tools } = await client.listTools();
+    const create = tools.find((t) => t.name === 'create_question_bank');
+    const items = (
+      create?.inputSchema.properties as {
+        questions: { items: { properties: Data } };
+      }
+    ).questions.items.properties;
+    return { description: create?.description ?? '', items };
+  }
+
+  it('offers dok and explanations to a teacher who has them', async () => {
+    const { description, items } = await listed({
+      'admins/u1@example.org': {},
+    });
+    expect(items).toHaveProperty('dok');
+    expect(items).toHaveProperty('option_explanations');
+    expect(description).toMatch(/dok level/);
+    expect(description).toMatch(/option_explanations/);
+  });
+
+  it('leaves them out for a teacher without the previews', async () => {
+    const { description, items } = await listed({});
+    expect(items).not.toHaveProperty('dok');
+    expect(items).not.toHaveProperty('explanation');
+    expect(items).not.toHaveProperty('option_explanations');
+    expect(items).toHaveProperty('standards');
+    expect(description).not.toMatch(/dok|explanation/);
+  });
+});
+
+describe('gated fields echoed back unchanged', () => {
+  it('keeps saved values without a not_saved note', async () => {
+    const fx = fakeDb();
+    const call = await connect(fx.db);
+    const res = await call('create_quiz', { title: 'T', questions: [mc(1)] });
+    const id = res.quiz_id as string;
+    const file = drive.files.get(`file-${id}`) as { questions: Data[] };
+    Object.assign(file.questions[0], { dok: 2, explanation: 'Because.' });
+    const got = await call('get_quiz', { quiz_id: id });
+    const q = (got.questions as Data[])[0];
+    expect(q.dok).toBeUndefined();
+    expect(q.explanation).toBeUndefined();
+    const upd = await call('update_quiz', {
+      quiz_id: id,
+      questions: [{ ...q, dok: 2, explanation: 'Because.' }],
+    });
+    expect(upd.not_saved).toBeUndefined();
+    const saved = (drive.files.get(`file-${id}`) as { questions: Data[] })
+      .questions[0];
+    expect(saved).toMatchObject({ dok: 2, explanation: 'Because.' });
   });
 });
