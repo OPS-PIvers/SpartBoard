@@ -2,6 +2,10 @@ import React from 'react';
 
 import { tourAttr } from '@/config/tourAnchors';
 import { TextConfig } from '@/types';
+import { DraftNumberField } from '@/components/admin/DraftNumberField';
+
+const clamp = (n: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, n));
 
 export const TextConfigEditor: React.FC<{
   config: Partial<TextConfig>;
@@ -42,20 +46,14 @@ export const TextConfigEditor: React.FC<{
         <label className="block text-xs font-semibold text-slate-700 mb-1">
           Font Size
         </label>
-        <input
+        <DraftNumberField
           {...tourAttr('admin.announcements.text-font-size')}
-          type="number"
           min={10}
           max={72}
           value={config.fontSize ?? 18}
-          onChange={(e) => {
-            const parsed = parseInt(e.target.value, 10);
-            if (!Number.isFinite(parsed)) return;
-            onChange({
-              ...config,
-              fontSize: Math.min(72, Math.max(10, parsed)),
-            });
-          }}
+          onCommit={(n) =>
+            onChange({ ...config, fontSize: clamp(Math.round(n), 10, 72) })
+          }
           className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
         />
       </div>
