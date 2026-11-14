@@ -9,6 +9,11 @@ describe('personName', () => {
     expect(personName({ displayName: 'bailey.nett' })).toBe('Bailey Nett');
   });
 
+  it('title-cases handles with accented letters', () => {
+    expect(personName({ displayName: 'josé.garcía' })).toBe('José García');
+    expect(personName({ email: 'élodie.durand@x.org' })).toBe('Élodie Durand');
+  });
+
   it('keeps a real name', () => {
     expect(
       personName({ displayName: 'Paul Ivers', email: 'paul.ivers@x.org' })
