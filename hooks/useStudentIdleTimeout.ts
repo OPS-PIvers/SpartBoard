@@ -11,12 +11,13 @@
  * previewing student routes are never timed out.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { clearStudentFirstName } from '@/context/StudentAuthContextValue';
 
 export const STUDENT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+export const STUDENT_IDLE_WARNING_MS = 60 * 1000;
 const INTERACTION_THROTTLE_MS = 5 * 1000;
 export const STUDENT_LOGIN_PATH = '/student/login';
 export const STUDENT_IDLE_LOGIN_PATH = `${STUDENT_LOGIN_PATH}?reason=idle`;
@@ -46,7 +47,8 @@ const isFocusInsideFrame = (): boolean =>
 export function useStudentIdleTimeout(
   enabled: boolean,
   redirectPath: string = STUDENT_IDLE_LOGIN_PATH
-): void {
+): { warning: boolean } {
+  const [warning, setWarning] = useState(false);
   useEffect(() => {
     if (!enabled) return;
     if (typeof window === 'undefined') return;
@@ -68,7 +70,9 @@ export function useStudentIdleTimeout(
       window.location.assign(redirectPath);
     };
 
-    const scheduleTimeout = (delay: number = STUDENT_IDLE_TIMEOUT_MS) => {
+    const scheduleTimeout = (
+      delay: number = STUDENT_IDLE_TIMEOUT_MS - STUDENT_IDLE_WARNING_MS
+    ) => {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(onTimeout, delay);
     };
@@ -82,8 +86,15 @@ export function useStudentIdleTimeout(
       }
       const lastActive = Math.max(lastInteractionAt, readSharedActivity());
       const remaining = lastActive + STUDENT_IDLE_TIMEOUT_MS - now;
-      if (remaining > 0) scheduleTimeout(remaining);
-      else triggerIdleSignOut();
+      if (remaining > STUDENT_IDLE_WARNING_MS) {
+        setWarning(false);
+        scheduleTimeout(remaining - STUDENT_IDLE_WARNING_MS);
+      } else if (remaining > 0) {
+        setWarning(true);
+        scheduleTimeout(remaining);
+      } else {
+        triggerIdleSignOut();
+      }
     }
 
     const handleInteraction = () => {
@@ -91,6 +102,7 @@ export function useStudentIdleTimeout(
       if (now - lastInteractionAt < INTERACTION_THROTTLE_MS) return;
       lastInteractionAt = now;
       writeSharedActivity(now);
+      setWarning(false);
       scheduleTimeout();
     };
 
@@ -117,4 +129,6 @@ export function useStudentIdleTimeout(
       });
     };
   }, [enabled, redirectPath]);
+
+  return { warning: enabled && warning };
 }

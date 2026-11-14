@@ -2266,6 +2266,8 @@
     "submitted": "Le temps est écoulé. Tes réponses ont été envoyées."
   },
   "quizSubmit": {
+    "offline": "Tu es hors ligne. Garde cet onglet ouvert et tes réponses seront enregistrées à la reconnexion.",
+    "undo": "Annuler",
     "confirmTitle": "Remettre ton quiz ?",
     "confirmBody": "Tu ne pourras plus modifier tes réponses après cela.",
     "confirmBlank_one": "{{count}} question n'a pas de réponse. Tu ne pourras plus modifier tes réponses après cela.",

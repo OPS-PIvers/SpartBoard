@@ -307,6 +307,7 @@ import {
 } from '@/utils/quizFibBlanks';
 import { FibMultiBlankInput } from './FibMultiBlankInput';
 import { QuestionPrompt } from './QuestionPrompt';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
 import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
@@ -2988,6 +2989,17 @@ export const ActiveQuiz: React.FC<{
   // same commit (visibility flush, structured input change) would see
   // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
+  const online = useOnlineStatus();
+  const promptWrapRef = useRef<HTMLDivElement | null>(null);
+  const promptFocusSkippedRef = useRef(false);
+  const currentQuestionId = currentQuestion?.id;
+  useEffect(() => {
+    if (!promptFocusSkippedRef.current) {
+      promptFocusSkippedRef.current = true;
+      return;
+    }
+    promptWrapRef.current?.focus({ preventScroll: true });
+  }, [currentQuestionId]);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   currentQuestionRef.current = currentQuestion;
   const selectedAnswerRef = useRef(selectedAnswer);
@@ -4047,7 +4059,7 @@ export const ActiveQuiz: React.FC<{
     : 'bg-slate-900';
   const headingText = light ? 'text-slate-900' : 'text-white';
   const backBtnCls = light
-    ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+    ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100'
     : 'text-slate-400 hover:text-white hover:bg-slate-800';
   const progressTrack = light ? 'bg-slate-200' : 'bg-slate-800';
   const progressFill = light ? 'bg-brand-blue-primary' : 'bg-violet-500';
@@ -4435,9 +4447,21 @@ export const ActiveQuiz: React.FC<{
                     : 'max-w-2xl'
           }`}
         >
+          {!online && !isAttemptSubmitted(myResponse) && (
+            <div
+              role="status"
+              className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
+                light
+                  ? 'border-amber-300 bg-amber-50 text-amber-900'
+                  : 'border-amber-400/40 bg-amber-500/10 text-amber-200'
+              }`}
+            >
+              {t('quizSubmit.offline')}
+            </div>
+          )}
           {/* Header */}
           <div
-            className={`flex items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
+            className={`flex min-h-11 items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
           >
             <div className="flex items-center gap-2">
               {isStudentPaced &&
@@ -4447,12 +4471,14 @@ export const ActiveQuiz: React.FC<{
                     type="button"
                     onClick={handleBack}
                     aria-label="Previous question"
-                    className={`p-1 -ml-1 rounded-sm transition-colors ${backBtnCls}`}
+                    className={`inline-flex h-11 w-11 -ml-3 items-center justify-center rounded-lg transition-colors ${backBtnCls}`}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-5 h-5" />
                   </button>
                 )}
-              <span className="text-xs text-slate-500">
+              <span
+                className={`text-sm font-semibold ${light ? 'text-slate-600' : 'text-slate-300'}`}
+              >
                 {currentIndex + 1} / {effectiveTotalQuestions}
               </span>
               {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
@@ -4467,6 +4493,8 @@ export const ActiveQuiz: React.FC<{
             </div>
             {timeLeft !== null && !submitted && (
               <div
+                role="timer"
+                aria-label={`${timeLeft} seconds left`}
                 className={`flex items-center gap-1.5 text-sm font-bold ${
                   timeLeft <= 5
                     ? light
@@ -4477,8 +4505,15 @@ export const ActiveQuiz: React.FC<{
                       : 'text-amber-400'
                 }`}
               >
-                <Timer className="w-4 h-4" />
+                <Timer className="w-4 h-4" aria-hidden="true" />
                 {timeLeft}s
+                <span className="sr-only" aria-live="assertive">
+                  {timeLeft === 10
+                    ? '10 seconds left'
+                    : timeLeft === 0
+                      ? 'Time is up'
+                      : ''}
+                </span>
               </div>
             )}
             <span
@@ -4550,7 +4585,9 @@ export const ActiveQuiz: React.FC<{
           {/* Question */}
           {readAloudOn ? (
             <div
-              className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
+              ref={promptWrapRef}
+              tabIndex={-1}
+              className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors focus:outline-hidden ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
             >
               <QuestionPrompt
                 text={displayQuestion.text}
@@ -4567,12 +4604,18 @@ export const ActiveQuiz: React.FC<{
               />
             </div>
           ) : (
-            <QuestionPrompt
-              text={displayQuestion.text}
-              blankCount={currentQuestion.blankCount}
-              light={light}
-              className={`${questionGap} ${headingText}`}
-            />
+            <div
+              ref={promptWrapRef}
+              tabIndex={-1}
+              className={`${questionGap} focus:outline-hidden`}
+            >
+              <QuestionPrompt
+                text={displayQuestion.text}
+                blankCount={currentQuestion.blankCount}
+                light={light}
+                className={headingText}
+              />
+            </div>
           )}
 
           {/* Answer area */}
@@ -5105,7 +5148,7 @@ export const ActiveQuiz: React.FC<{
                         onChange={(e) => setCacheForCurrent(e.target.value)}
                         disabled={submitted && !isStudentPaced}
                         placeholder="Type your answer…"
-                        className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                        className={`w-full px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
                         onKeyDown={(e) => {
                           if (e.key !== 'Enter') return;
                           const trimmed = cleanBlankAnswer(

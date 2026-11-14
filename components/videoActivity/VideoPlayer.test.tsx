@@ -99,6 +99,9 @@ describe('VideoPlayer', () => {
   it('does not replay the same seek request when question visibility changes', () => {
     const seekRequest = { time: 12, nonce: 101 };
     const { rerender } = render(
+      <VideoPlayer {...defaultProps} questionVisible={true} />
+    );
+    rerender(
       <VideoPlayer
         {...defaultProps}
         questionVisible={true}
@@ -122,10 +125,10 @@ describe('VideoPlayer', () => {
   });
 
   it('handles a fresh seek nonce as a new rewind request', () => {
-    const { rerender } = render(
+    const { rerender } = render(<VideoPlayer {...defaultProps} />);
+    rerender(
       <VideoPlayer {...defaultProps} seekRequest={{ time: 8, nonce: 201 }} />
     );
-
     rerender(
       <VideoPlayer {...defaultProps} seekRequest={{ time: 3, nonce: 202 }} />
     );
@@ -133,6 +136,43 @@ describe('VideoPlayer', () => {
     expect(player.seekTo).toHaveBeenCalledTimes(2);
     expect(player.seekTo).toHaveBeenNthCalledWith(1, 8, true);
     expect(player.seekTo).toHaveBeenNthCalledWith(2, 3, true);
+  });
+
+  it('ignores a seek request already present at mount', () => {
+    autoReady = false;
+    render(
+      <VideoPlayer {...defaultProps} seekRequest={{ time: 90, nonce: 401 }} />
+    );
+    act(() => lastOptions?.events?.onReady?.());
+    expect(player.seekTo).not.toHaveBeenCalled();
+  });
+
+  it('applies a seek request that arrived before the player was ready, once', () => {
+    autoReady = false;
+    let finishLoad: () => void = vi.fn();
+    mockLoadYouTubeApi.mockImplementation((callback) => {
+      finishLoad = callback;
+    });
+    const { rerender } = render(<VideoPlayer {...defaultProps} />);
+    rerender(
+      <VideoPlayer {...defaultProps} seekRequest={{ time: 120, nonce: 301 }} />
+    );
+    act(() => finishLoad());
+    expect(player.seekTo).not.toHaveBeenCalled();
+
+    act(() => lastOptions?.events?.onReady?.());
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
+    expect(player.seekTo).toHaveBeenCalledWith(120, true);
+    expect(player.playVideo).not.toHaveBeenCalled();
+
+    rerender(
+      <VideoPlayer
+        {...defaultProps}
+        questionVisible={true}
+        seekRequest={{ time: 120, nonce: 301 }}
+      />
+    );
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
   });
 
   describe('RAF generation guard', () => {

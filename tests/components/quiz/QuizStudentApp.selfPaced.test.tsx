@@ -1652,3 +1652,58 @@ describe('QuizStudentApp — dropdown blanks (quiz-blank-types)', () => {
     );
   });
 });
+
+describe('QuizStudentApp — touch, focus and offline', () => {
+  it('shows an offline banner until the connection returns', async () => {
+    const spy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      expect(screen.getByText(/You're offline/i)).toBeInTheDocument();
+      spy.mockReturnValue(true);
+      act(() => {
+        window.dispatchEvent(new Event('online'));
+      });
+      expect(screen.queryByText(/You're offline/i)).not.toBeInTheDocument();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('moves focus to the new question prompt after NEXT', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    const prompt = await screen.findByText(/Capital of France/i);
+    await waitFor(() => {
+      expect(document.activeElement).toContainElement(prompt);
+    });
+  });
+
+  it('exposes the question countdown as a timer', async () => {
+    hookState.session = buildSession({
+      publicQuestions: [{ ...QUESTIONS[0], timeLimit: 30 }, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveAttribute(
+      'aria-label',
+      expect.stringMatching(/seconds left/)
+    );
+  });
+
+  it('gives the previous-question button a 44px target', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Previous question/i }).className
+    ).toContain('h-11');
+  });
+});

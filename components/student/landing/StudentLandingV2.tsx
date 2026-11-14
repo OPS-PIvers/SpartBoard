@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
-import { useStudentTurnIns } from '@/hooks/useStudentTurnIns';
+import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import { useStudentGrades } from '@/hooks/useStudentGrades';
 import { useServerNow } from '@/hooks/useServerNow';
 import { useDialog } from '@/context/useDialog';
@@ -28,6 +28,8 @@ interface StudentLandingV2Props {
   scheduleFor: ScheduleLookup;
   assignments: AssignmentSummary[];
   pseudonymUid: string | null;
+  checks: TurnInMap;
+  recheck: (a: AssignmentSummary) => Promise<void>;
   firstName: string | null;
   selectedClassId: string | null;
   onSelectClass: (classId: string | null) => void;
@@ -47,6 +49,8 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
   scheduleFor,
   assignments,
   pseudonymUid,
+  checks,
+  recheck,
   firstName,
   selectedClassId,
   onSelectClass,
@@ -57,7 +61,6 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
   notice,
 }) => {
   const nowMs = useServerNow(60_000);
-  const { checks, recheck } = useStudentTurnIns(assignments, pseudonymUid);
   const { showAlert } = useDialog();
   const gradesOn = gradesEnabled && !!pseudonymUid;
   const grades = useStudentGrades(pseudonymUid, selectedClassId, gradesOn);

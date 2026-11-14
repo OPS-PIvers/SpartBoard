@@ -25,6 +25,7 @@ import {
   useStudentIdleTimeout,
   STUDENT_IDLE_TIMEOUT_MS,
   STUDENT_IDLE_LOGIN_PATH,
+  STUDENT_IDLE_WARNING_MS,
 } from '@/hooks/useStudentIdleTimeout';
 
 // Stub the read-only window.location so `.assign()` is observable and
@@ -205,5 +206,52 @@ describe('useStudentIdleTimeout', () => {
       vi.advanceTimersByTime(1000);
     });
     expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it('warns one minute before sign-out and still signs out at 15 minutes', () => {
+    const { result } = renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(
+        STUDENT_IDLE_TIMEOUT_MS - STUDENT_IDLE_WARNING_MS - 1000
+      );
+    });
+    expect(result.current.warning).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.warning).toBe(true);
+    expect(signOutMock).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_WARNING_MS);
+    });
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the warning on interaction and moves sign-out 15 minutes out', () => {
+    const { result } = renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS - STUDENT_IDLE_WARNING_MS);
+    });
+    expect(result.current.warning).toBe(true);
+    act(() => {
+      window.dispatchEvent(new Event('keydown'));
+    });
+    expect(result.current.warning).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS - 1000);
+    });
+    expect(signOutMock).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('never warns when disabled', () => {
+    const { result } = renderHook(() => useStudentIdleTimeout(false));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
+    });
+    expect(result.current.warning).toBe(false);
   });
 });

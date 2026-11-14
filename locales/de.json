@@ -2266,6 +2266,8 @@
     "submitted": "Die Zeit ist um. Deine Antworten wurden abgegeben."
   },
   "quizSubmit": {
+    "offline": "Du bist offline. Lass diesen Tab offen, dann werden deine Antworten gespeichert, sobald du wieder verbunden bist.",
+    "undo": "Rückgängig",
     "confirmTitle": "Quiz abgeben?",
     "confirmBody": "Danach kannst du deine Antworten nicht mehr ändern.",
     "confirmBlank_one": "{{count}} Frage hat keine Antwort. Danach kannst du deine Antworten nicht mehr ändern.",

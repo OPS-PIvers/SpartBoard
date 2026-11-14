@@ -876,7 +876,7 @@ export const FlashcardAssignmentPage: React.FC<{
           <a
             href="/my-assignments"
             aria-label={t('flashcards.assignment.back')}
-            className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300"
+            className="rounded-full bg-slate-100 p-3 text-slate-700 transition hover:bg-slate-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300"
           >
             <ArrowLeft aria-hidden="true" className="h-5 w-5" />
           </a>

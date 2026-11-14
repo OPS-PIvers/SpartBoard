@@ -2266,6 +2266,8 @@
     "submitted": "Se acabó el tiempo. Tus respuestas se entregaron."
   },
   "quizSubmit": {
+    "offline": "No tienes conexión. Deja esta pestaña abierta y tus respuestas se guardarán cuando vuelvas a conectarte.",
+    "undo": "Deshacer",
     "confirmTitle": "¿Entregar tu prueba?",
     "confirmBody": "Después de esto no podrás cambiar tus respuestas.",
     "confirmBlank_one": "{{count}} pregunta no tiene respuesta. Después de esto no podrás cambiar tus respuestas.",
