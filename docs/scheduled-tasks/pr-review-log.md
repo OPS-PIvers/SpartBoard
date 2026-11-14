@@ -5105,3 +5105,15 @@ rather than "no data") is also still open.
   - Ready: #5744, #5743, #5742, #5741, #5740, #5732, #5711 (rules change, so Paul should still sign off).
   - Ready with minor notes: #5745 (no functions test for the new non-admin `gemini-functions` check; the PR bundles audit-log docs with the backend change).
 - Notes: GitHub access went through MCP. I ran no local checks because no fixes were made.
+
+## 2026-11-14
+
+- PRs reviewed: #5807 docs: debugger run 123 log; #5806 Fix admin Announcements number fields that couldn't be typed into; #5805 Keep a typed color that matches the default in the hex picker; #5804 Fix accented names getting a capital letter mid-word; #5783 docs: unifier run 146 log (aligned)
+- Comments processed: 6 total. 3 inline claude review threads were fixed. Their earlier "optional, not pushed" replies from the authoring agent were superseded. The claude[bot] summaries on #5806 and #5783 found no issues and needed no reply.
+- Fixes pushed:
+  - #5805 `nightly/dashboard-2026-11-14` (7a0aa556): `ColorPresetPicker` resets `draftEdited` when the value changes from outside, and treats a stored non-3/6-digit hex as showing the fallback, so a typed fallback hex commits. Two tests added.
+  - #5804 `nightly/state-data-2026-11-14` (12c83b87): `titleCaseHandle` capitalizes any letter not preceded by a letter, mark or digit, so `o’brien` gives "O’Brien" and `paul+plc` gives "Paul+Plc". Test added.
+- Reviews posted: 5
+  - Ready: #5806, #5805, #5804, #5783.
+  - Ready with minor notes: #5807 (its #5804 row still describes the earlier regex).
+- Notes: GitHub access went through MCP. Each fix passed `pnpm run type-check`, `vitest related` and the pre-commit lint hook. I didn't run full lint or full test, per CLAUDE.md.
