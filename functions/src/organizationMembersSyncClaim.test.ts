@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const h = vi.hoisted(() => ({
   handler: undefined as undefined | ((e: unknown) => Promise<void>),
-  options: undefined,
+  options: {},
   current: undefined as undefined | Record<string, unknown>,
   auth: {
     getUser: vi.fn(),
