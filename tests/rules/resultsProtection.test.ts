@@ -136,7 +136,7 @@ async function seedSessionAndResponses(
       studentUid: STUDENT_A_UID,
       pin: '01',
       classPeriod: 'period_1',
-      joinedAt: 1000,
+      joinedAt: Date.now(),
       score: 80,
       answers: [],
       status: 'completed',

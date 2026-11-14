@@ -1734,7 +1734,7 @@ export async function recordRetiredPins(
       if (pin !== entry.pin) keys.add(retiredPinKey(entry.period, pin));
     }
   }
-  // A doc lists every roster that retired the PIN, so two rosters sharing a period and PIN don't overwrite each other.
+  // A doc lists every roster that retired the PIN; arrayUnion/arrayRemove keep concurrent rosters from overwriting each other.
   const have = await col
     .where('rosterIds', 'array-contains', rosterRef.id)
     .get();
@@ -1742,26 +1742,32 @@ export async function recordRetiredPins(
   const present = new Set(have.docs.map((d) => d.id));
   for (const key of keys) {
     if (present.has(key)) continue;
-    const other = await col.doc(key).get();
-    const ids: unknown = other.get('rosterIds');
-    const rosterIds = Array.isArray(ids) ? (ids as string[]) : [];
     ops.push((b) =>
-      b.set(col.doc(key), {
-        rosterIds: [...rosterIds, rosterRef.id],
-        updatedAt: now,
-      })
+      b.set(
+        col.doc(key),
+        {
+          rosterIds: admin.firestore.FieldValue.arrayUnion(rosterRef.id),
+          updatedAt: now,
+        },
+        { merge: true }
+      )
     );
   }
   if (prune) {
     for (const d of have.docs) {
       if (keys.has(d.id)) continue;
-      const rest = (d.get('rosterIds') as string[]).filter(
-        (id) => id !== rosterRef.id
-      );
+      const sole = (d.get('rosterIds') as string[]).length <= 1;
       ops.push((b) =>
-        rest.length > 0
-          ? b.set(d.ref, { rosterIds: rest, updatedAt: now })
-          : b.delete(d.ref)
+        sole
+          ? b.delete(d.ref)
+          : b.set(
+              d.ref,
+              {
+                rosterIds: admin.firestore.FieldValue.arrayRemove(rosterRef.id),
+                updatedAt: now,
+              },
+              { merge: true }
+            )
       );
     }
   }

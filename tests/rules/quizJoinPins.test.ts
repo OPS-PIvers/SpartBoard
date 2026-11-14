@@ -315,8 +315,34 @@ describe('retired roster PINs on a ClassLink-rostered quiz', () => {
         joinDoc(ANON, {
           pin: '08',
           classPeriod: 'Period 1',
-          joinedAt: Date.now() - 300000,
+          joinedAt: Date.now() - 240000,
         })
+      )
+    );
+  });
+
+  it('refuses a PIN-key join with no numeric join time', async () => {
+    for (const joinedAt of ['now', null]) {
+      await assertFails(
+        setDoc(
+          quizRef(anonDb(ANON), PLAIN, quizKey('Period 1', '09')),
+          joinDoc(ANON, { pin: '09', classPeriod: 'Period 1', joinedAt })
+        )
+      );
+    }
+  });
+
+  it('still blocks a PIN retired in the legacy single-roster shape', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `users/${TEACHER}/retired_pins/period_1__04`),
+        { rosterId: 'roster-1', updatedAt: 1 }
+      );
+    });
+    await assertFails(
+      setDoc(
+        quizRef(anonDb(ANON), ROSTERED, quizKey('Period 1', '04')),
+        joinDoc(ANON, { pin: '04', classPeriod: 'Period 1' })
       )
     );
   });
@@ -424,6 +450,40 @@ describe('video activity: retired roster PINs and backdated joins', () => {
     });
     await assertSucceeds(
       setDoc(vaRef(rawKey('Period 1', '03')), vaJoinDoc(ANON, '03'))
+    );
+  });
+
+  it('refuses a key that does not carry the doc’s own PIN, however it is forged', async () => {
+    // Retired PIN in the body under a fresh period key, a sign-in PIN under a short key, and a mismatched PIN segment.
+    const forged: [string, Record<string, unknown>][] = [
+      ['pin-zz-99', vaJoinDoc(ANON, '01')],
+      ['pin-zz-01', vaJoinDoc(ANON, '01')],
+      ['pin-zz-a', vaJoinDoc(ANON, '482913')],
+      [rawKey('Period 1', '07'), vaJoinDoc(ANON, '08')],
+    ];
+    for (const [key, body] of forged) {
+      await assertFails(setDoc(vaRef(key), body));
+    }
+  });
+
+  it('still blocks a retired PIN recorded in the legacy single-roster shape', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `users/${TEACHER}/retired_pins/period_1__04`),
+        { rosterId: 'roster-1', updatedAt: 1 }
+      );
+    });
+    await assertFails(
+      setDoc(vaRef(rawKey('Period 1', '04')), vaJoinDoc(ANON, '04'))
+    );
+  });
+
+  it('refuses a PIN-key join with no numeric join time', async () => {
+    await assertFails(
+      setDoc(vaRef(rawKey('Period 1', '10')), {
+        ...vaJoinDoc(ANON, '10'),
+        joinedAt: 'now',
+      })
     );
   });
 

@@ -337,7 +337,7 @@ describe('student servedQuestionIds on a bank-slot session', () => {
       });
       await setDoc(doc(db, responsePath), {
         studentUid: STUDENT_UID,
-        joinedAt: 1000,
+        joinedAt: Date.now(),
         score: null,
         answers: [],
         status: 'in-progress',

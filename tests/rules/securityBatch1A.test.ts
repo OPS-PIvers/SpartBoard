@@ -76,7 +76,7 @@ const pinKey = (period: string, pin: string) =>
 
 const joinDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
   studentUid: uid,
-  joinedAt: 1000,
+  joinedAt: Date.now(),
   status: 'joined',
   answers: [],
   score: null,

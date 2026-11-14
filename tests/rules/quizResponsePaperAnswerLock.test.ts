@@ -85,7 +85,7 @@ const seed = async (data: Record<string, unknown>) =>
       studentUid: STUDENT_UID,
       pin: '01',
       classPeriod: 'period_1',
-      joinedAt: 1000,
+      joinedAt: Date.now(),
       score: null,
       status: 'in-progress',
       completedAttempts: 0,

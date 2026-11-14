@@ -3,6 +3,9 @@ import { quizPinKeySegment } from '@/utils/quizResponseKey';
 
 const LINKED_PIN_DIGITS = 6;
 
+// Re-rolls before `formerPinsAt` existed count as retired by this date.
+export const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 14);
+
 /** A linked student's PIN shorter than this can't sign them in (mirrors `isBridgeablePin` in functions). */
 const needsNewLinkedPin = (s: Student): boolean =>
   !!s.classLinkSourcedId &&
