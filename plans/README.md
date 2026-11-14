@@ -27,7 +27,7 @@ plan file in the PR that finishes it, or move the folder's leftovers into
 | 006  | Video activity: resume at the last answered question, question card as a dialog with announced results, PIN field             | P2       | M      | none              | DONE   |
 | 007  | Flashcards: 16px inputs, larger hit areas, long answers scroll, the last card is the end, self-study test answers kept        | P2       | M      | none              | DONE   |
 | 008  | Student home waits for turn-in checks, one-minute idle warning, way back from "Results locked"                                | P2       | M      | none              | DONE   |
-| 009  | Translate the hard-coded English on student screens (video activity, student home and sign-in, quiz)                          | P3       | L      | 005 to 008 merged | TODO   |
+| 009  | Quiz: the whole student screen follows a language accommodation (Spanish, French, German)                                     | P3       | L      | 005 to 008 merged | DONE   |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -55,7 +55,7 @@ Left out on purpose, each needing a decision or a larger change:
 - **Guided Learning's "Results locked" screen** still has no way back (its app was out of scope).
 - **Video captions and a control bar**, and a network failure while joining a video still reading "session not found".
 - **Speak Check policy**: whether a student who cannot record may submit, and whether a skipped card is final.
-- **Translation (plan 009)**: not yet written.
+- **Translating the video activity and the student home.** Plan 009 covered the quiz only, because the quiz is the one student surface with a per-student language setting. Translating the others changes nothing until they have a language source.
 
 ## Findings considered and rejected
 
