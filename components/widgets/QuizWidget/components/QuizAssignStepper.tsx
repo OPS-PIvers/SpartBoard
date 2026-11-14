@@ -11,7 +11,7 @@ import {
   getAssignStepTitle,
   type AssignStepDef,
 } from '@/components/common/library/assignStepper/assignSteps';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -123,7 +123,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       value: formatClassesValue(classes, rosters),
       body: (
         <div className="space-y-3">
-          <ClassPickerMenu
+          <ClassChecklist
             rosters={rosters}
             value={classes}
             onChange={onClassesChange}

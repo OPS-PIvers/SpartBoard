@@ -5209,7 +5209,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-classes.trigger",
-    "label": "Classes menu button in the Assign dialog",
+    "label": "Class list in the Assign dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -5222,7 +5222,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-classes.option",
-    "label": "Class checkbox in the Assign dialog classes menu",
+    "label": "Class checkbox in the Assign dialog class list",
     "scope": "field",
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
@@ -5231,42 +5231,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "library.assign-stepper",
         "kind": "shared",
-        "path": [
-          "assign-classes.trigger"
-        ],
-        "reveal": "assign-classes.trigger"
+        "path": []
       }
     ]
   },
   {
     "id": "assign-classes.select-all",
-    "label": "Select all button in the Assign dialog classes menu",
+    "label": "Select all button in the Assign dialog class list",
     "scope": "board",
     "panel": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
         "kind": "shared",
-        "path": [
-          "assign-classes.trigger"
-        ],
-        "reveal": "assign-classes.trigger"
+        "path": []
       }
     ]
   },
   {
     "id": "assign-classes.clear",
-    "label": "Clear button in the Assign dialog classes menu",
+    "label": "Clear button in the Assign dialog class list",
     "scope": "board",
     "panel": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
         "kind": "shared",
-        "path": [
-          "assign-classes.trigger"
-        ],
-        "reveal": "assign-classes.trigger"
+        "path": []
       }
     ]
   },
@@ -68448,7 +68439,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "flashcards.stepper-class-picker",
-    "label": "Class picker in the Flashcards assign dialog",
+    "label": "Class list in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -68471,7 +68462,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "flashcards.stepper-class-row",
-    "label": "Class checkbox in the Flashcards assign dialog class picker",
+    "label": "Class checkbox in the Flashcards assign dialog class list",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -69533,7 +69524,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "mini-app.stepper-class-picker",
-    "label": "Class picker in the Mini App assign dialog",
+    "label": "Class list in the Mini App assign dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -69556,7 +69547,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "mini-app.stepper-class-row",
-    "label": "Class checkbox in the Mini App assign dialog class picker",
+    "label": "Class checkbox in the Mini App assign dialog class list",
     "scope": "field",
     "panel": true,
     "routes": [

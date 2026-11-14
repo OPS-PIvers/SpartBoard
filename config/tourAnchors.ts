@@ -1262,22 +1262,22 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-classes.trigger': {
-    label: 'Classes menu button in the Assign dialog',
+    label: 'Class list in the Assign dialog',
     panel: true,
   },
   'assign-classes.option': {
-    label: 'Class checkbox in the Assign dialog classes menu',
+    label: 'Class checkbox in the Assign dialog class list',
     perField: true,
     keyPattern: 'assign#row-[1-9]\\d*',
     keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-classes.select-all': {
-    label: 'Select all button in the Assign dialog classes menu',
+    label: 'Select all button in the Assign dialog class list',
     panel: true,
   },
   'assign-classes.clear': {
-    label: 'Clear button in the Assign dialog classes menu',
+    label: 'Clear button in the Assign dialog class list',
     panel: true,
   },
   'assign-students.trigger': {
@@ -15514,12 +15514,12 @@ export const TOUR_ANCHORS = {
   },
   // Flashcards and Mini Apps shared-prop controls.
   'flashcards.stepper-class-picker': {
-    label: 'Class picker in the Flashcards assign dialog',
+    label: 'Class list in the Flashcards assign dialog',
     perWidgetType: true,
     panel: true,
   },
   'flashcards.stepper-class-row': {
-    label: 'Class checkbox in the Flashcards assign dialog class picker',
+    label: 'Class checkbox in the Flashcards assign dialog class list',
     perField: true,
     panel: true,
   },
@@ -15762,12 +15762,12 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'mini-app.stepper-class-picker': {
-    label: 'Class picker in the Mini App assign dialog',
+    label: 'Class list in the Mini App assign dialog',
     perWidgetType: true,
     panel: true,
   },
   'mini-app.stepper-class-row': {
-    label: 'Class checkbox in the Mini App assign dialog class picker',
+    label: 'Class checkbox in the Mini App assign dialog class list',
     perField: true,
     panel: true,
   },

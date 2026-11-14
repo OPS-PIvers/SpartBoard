@@ -140,7 +140,6 @@ describe('FlashcardAssignmentSettingsModal', () => {
 
   it('retargets the classes through a class edit', async () => {
     const { onSave } = renderModal(assignment());
-    fireEvent.click(screen.getByRole('button', { name: 'Period 1' }));
     fireEvent.click(screen.getByLabelText(/Period 2/));
     save();
     await waitFor(() => expect(onSave).toHaveBeenCalled());
