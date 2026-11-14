@@ -1389,6 +1389,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'classes.edit-roster': ['board.sidebar-classes'],
     'classes.sync-classlink': ['board.sidebar-classes'],
     'classes.link-classroom': ['board.sidebar-classes'],
+    'classes.view-student-page': ['board.sidebar-classes'],
     'classes.delete-roster': ['board.sidebar-classes'],
     'classes.row-actions': ['board.sidebar-classes'],
     'classes.classroom-course-row': ['board.sidebar-classes'],

@@ -6300,6 +6300,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
   },
+  'classes.view-student-page': {
+    label: 'View Student Page button in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
   'classes.delete-roster': {
     label: 'Delete class button in My Classes',
     perField: true,

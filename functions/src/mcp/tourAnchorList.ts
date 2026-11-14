@@ -25895,6 +25895,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes.view-student-page",
+    "label": "View Student Page button in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes.delete-roster",
     "label": "Delete class button in My Classes",
     "scope": "field",
