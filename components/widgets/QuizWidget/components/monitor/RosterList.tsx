@@ -485,7 +485,7 @@ export const RosterList: React.FC<RosterListProps> = ({
                 const SignIcon = deviceOnly ? Monitor : MousePointerClick;
                 return (
                   <span
-                    className={`inline-flex items-center font-sans font-semibold tabular-nums ${deviceOnly ? 'text-slate-500' : 'text-amber-700'}`}
+                    className={`inline-flex items-center font-sans font-semibold tabular-nums ${deviceOnly ? 'text-brand-gray-primary' : 'text-amber-700'}`}
                     title={
                       deviceOnly
                         ? `${count} device ${count === 1 ? 'detail' : 'details'}`
