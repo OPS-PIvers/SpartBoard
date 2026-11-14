@@ -1827,6 +1827,16 @@ export const useQuizSessionTeacher = (
       const refundedAttempts = Math.max(0, currentAttempts - 1);
       // Answers the student passed but the teacher counted go back to passed.
       const restoredAnswers = restorePassedAnswers(target);
+      // A reopened attempt must not carry the published key or verdicts (#5811).
+      const baseAnswers = restoredAnswers ?? target.answers ?? [];
+      const answersPatch =
+        restoredAnswers || baseAnswers.some((a) => a.isCorrect !== undefined)
+          ? {
+              answers: baseAnswers.map(
+                ({ isCorrect: _verdict, ...rest }) => rest
+              ),
+            }
+          : {};
 
       // Probe the ledger BEFORE the batch so we don't blindly create a
       // partial doc via `set(merge:true)` on a missing ledger entry
@@ -1844,7 +1854,11 @@ export const useQuizSessionTeacher = (
         scoredOnSubmitAttempt: deleteField(),
         // A reopened attempt can change its answers, so the teacher picks again.
         countedChoices: deleteField(),
-        ...(restoredAnswers ? { answers: restoredAnswers } : {}),
+        ...answersPatch,
+        revealedAnswers: deleteField(),
+        revealedRubricExamples: deleteField(),
+        revealedExplanations: deleteField(),
+        'resultsOverride.revealedAnswers': deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
         unlockKind: reopen ? 'reopen' : deleteField(),
