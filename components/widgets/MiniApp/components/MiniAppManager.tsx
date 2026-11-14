@@ -364,6 +364,14 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   readOnly = false,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
+  // Apps with older submissions assignments keep View assignments in view-only mode.
+  const appsWithSubmissions = useMemo(
+    () =>
+      new Set(
+        assignments.filter((a) => a.mode !== 'view-only').map((a) => a.appId)
+      ),
+    [assignments]
+  );
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   /* ── Assignment buckets ─────────────────────────────────────────────── */
   const activeAssignments = useMemo(
@@ -703,8 +711,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // the overflow menu (the Shared tab is the surface for that).
     // Submissions mode keeps the existing prominent "Assign" button and the
     // full kebab so teachers can still jump to the assignments archive.
+    const viewAssignments: LibraryMenuAction = {
+      id: 'assignments',
+      label: 'View assignments',
+      icon: BarChart3,
+      onClick: () => onShowAssignments(app),
+    };
     const secondary: LibraryMenuAction[] = isViewOnly
       ? [
+          ...(appsWithSubmissions.has(app.id) ? [viewAssignments] : []),
           {
             id: 'edit',
             label: 'Edit',
@@ -871,6 +886,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     const saving = savingGlobalId === app.id;
     const secondary: LibraryMenuAction[] = isViewOnly
       ? [
+          ...(appsWithSubmissions.has(app.id)
+            ? [
+                {
+                  id: 'assignments',
+                  label: 'View assignments',
+                  icon: BarChart3,
+                  onClick: () => onShowAssignments(app),
+                },
+              ]
+            : []),
           {
             id: 'save',
             label: saving ? 'Saving…' : 'Save to my library',
