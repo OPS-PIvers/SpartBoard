@@ -20,6 +20,17 @@ function randomLinkedPin(): string {
   }
 }
 
+/** Re-rolls before `formerPinsAt` existed count as retired by this date. */
+export const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 14);
+
+/** A former PIN names its student only on a response joined before the PIN was retired. */
+export const formerPinApplies = (
+  s: { formerPinsAt?: number },
+  joinedAt: number | null | undefined
+): boolean =>
+  typeof joinedAt === 'number' &&
+  joinedAt < (s.formerPinsAt ?? LEGACY_FORMER_PINS_AT);
+
 /** Swaps in a new PIN and keeps the old one so past responses still resolve to this student. */
 const withNewPin = (s: Student, pin: string): Student => ({
   ...s,

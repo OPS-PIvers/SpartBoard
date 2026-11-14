@@ -1,0 +1,1612 @@
+diff --git a/components/widgets/QuizWidget/utils/quizScoreboard.ts b/components/widgets/QuizWidget/utils/quizScoreboard.ts
+index 3f53e9239..39acce64f 100644
+--- a/components/widgets/QuizWidget/utils/quizScoreboard.ts
++++ b/components/widgets/QuizWidget/utils/quizScoreboard.ts
+@@ -29,6 +29,7 @@ import {
+ } from '@/utils/mediaGrading';
+ import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+ import { gameDisplayPoints } from '@/utils/quizGame';
++import { LEGACY_FORMER_PINS_AT } from '@/utils/rosterPins';
+ import {
+   resolveResponseDisplayName,
+   responseColorIndex,
+@@ -376,8 +377,6 @@ function makePinKey(classPeriod: string, pin: string): string {
+ 
+ // Former-PIN entries: key `${FORMER}${pinKey}`, value `${retiredAtMs}${FORMER}${name}`.
+ const FORMER = '\u0002';
+-// Re-rolls before `formerPinsAt` existed count as retired by this date.
+-const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 14);
+ 
+ /** The name on a former-PIN entry, only for a response joined before that PIN was retired. */
+ function formerName(
+diff --git a/firestore.rules b/firestore.rules
+index 7076c77f6..4a25951c2 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -4723,12 +4723,16 @@ service cloud.firestore {
+         }
+         // Leading zeros stripped (one digit padded to two), so 4821 and 04821 share a seat (quizPinKeySegment).
+         // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one.
++        // A PIN doc's joinedAt (it dates a retired-PIN name) must be near server time.
++        function joinNear(t) {
++          return t == null || (t is number && t > request.time.toMillis() - 900000 && t < request.time.toMillis() + 900000);
++        }
+         function pinKeyOk(s, d) {
+           let p = keySeg(d.get('pin', ''));
+           let z = p.replace('^0+', '');
+           let k = keySeg(d.get('classPeriod', '')) + '-' + (z == '' ? '00' : (z.matches('[0-9]') ? '0' + z : z));
+           let pn = s.get('periodNames', []);
+-          return responseKey == 'pin-' + k &&
++          return responseKey == 'pin-' + k && joinNear(d.get('joinedAt', null)) &&
+             (pn.size() == 0 || d.get('classPeriod', '') in pn) &&
+             (s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0 ||
+              (p.replace('_', '').size() < 6 &&
+@@ -5600,6 +5604,9 @@ service cloud.firestore {
+         function nearServerNow(t) {
+           return t is number && t > request.time.toMillis() - 120000 && t < request.time.toMillis() + 120000;
+         }
++        function joinNear(t) {
++          return t == null || (t is number && t > request.time.toMillis() - 900000 && t < request.time.toMillis() + 900000);
++        }
+ 
+         // A missing doc is readable only at the caller's own uid key; mirrors
+         // the Quiz response read (no probing which PINs have joined).
+@@ -5638,9 +5645,11 @@ service cloud.firestore {
+           periodJoinOk(vaS(), incoming()) &&
+           staffJoinOk(vaS(), incoming()) &&
+           joinKeyOk(vaS(), responseDocId) &&
+-          // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1.
++          // As quiz: a sign-in-length or retired PIN on a ClassLink-rostered session never seats an anonymous joiner.
++          (responseDocId == authUid() || joinNear(incoming().get('joinedAt', null))) &&
+           (vaS().get('rosterIds', []).size() == 0 || vaS().get('classIds', []).size() == 0 ||
+-           !responseDocId.matches('pin-[a-z0-9_]*-(_*[a-z0-9]){6}.*'));
++           (!responseDocId.matches('pin-[a-z0-9_]*-(_*[a-z0-9]){6}.*') &&
++            !dbExists4('users', vaS().teacherUid, 'retired_pins', responseDocId.replace('^pin-', '').replace('-', '__'))));
+         // Update split: TEACHER branch (PR3 publish-scores: score/isCorrect/
+         // scoreVisibility; gated by parent teacherUid, admins also pass) and
+         // STUDENT branch (answer-submit, append-only invariants). Mutually
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index a2c66e72f..5f098f08d 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -123,6 +123,7 @@ export {
+   getStudentClassDirectoryV1,
+   getPseudonymsForAssignmentV1,
+   commitRosterPinIndexV1,
++  cleanupRetiredPinsOnRosterDelete,
+   pinLoginV1,
+ } from './studentIdentity';
+ export { reportStudentLoadIssueV1 } from './studentLoadIssue';
+diff --git a/functions/src/studentIdentity.test.ts b/functions/src/studentIdentity.test.ts
+index 58f3187f3..63cdcaa87 100644
+--- a/functions/src/studentIdentity.test.ts
++++ b/functions/src/studentIdentity.test.ts
+@@ -97,6 +97,10 @@ vi.mock('firebase-functions/v2/https', () => {
+   };
+ });
+ 
++vi.mock('firebase-functions/v2/firestore', () => ({
++  onDocumentDeleted: (_options: unknown, handler: unknown) => handler,
++}));
++
+ vi.mock('google-auth-library', () => ({
+   OAuth2Client: class {
+     async verifyIdToken() {
+@@ -322,6 +326,7 @@ import {
+   PIN_LOGIN_SESSION_MAX_FAILURES,
+   PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
+   __resetRosterOwnerCache,
++  cleanupRetiredPinsOnRosterDelete,
+ } from './studentIdentity';
+ import { studentFirstName } from './studentFirstName';
+ import { computeStudentUid } from './classlinkShared';
+@@ -1515,6 +1520,48 @@ describe('commitRosterPinIndexV1', () => {
+     );
+   });
+ 
++  it('never retires a PIN another student of the roster holds now', async () => {
++    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
++    await callCommitIndex({
++      auth: teacherAuth,
++      data: {
++        rosterId: 'r1',
++        entries: [
++          {
++            period: 'Period 1',
++            pin: '482913',
++            classlinkSourcedId: 'SID-1',
++            formerPins: ['01'],
++          },
++          { period: 'Period 1', pin: '01', classlinkSourcedId: 'SID-2' },
++        ],
++      },
++    });
++    expect(h.docStore.has('users/teacher1/retired_pins/period_1__01')).toBe(
++      false
++    );
++  });
++
++  it("drops a deleted roster's retired PINs and keeps another roster's", async () => {
++    h.docStore.set('users/teacher1/retired_pins/period_1__01', {
++      rosterId: 'r1',
++    });
++    h.docStore.set('users/teacher1/retired_pins/period_2__01', {
++      rosterId: 'r2',
++    });
++    await (
++      cleanupRetiredPinsOnRosterDelete as unknown as (e: {
++        params: { uid: string; rosterId: string };
++      }) => Promise<void>
++    )({ params: { uid: 'teacher1', rosterId: 'r1' } });
++    expect(h.docStore.has('users/teacher1/retired_pins/period_1__01')).toBe(
++      false
++    );
++    expect(h.docStore.has('users/teacher1/retired_pins/period_2__01')).toBe(
++      true
++    );
++  });
++
+   it('rejects a missing rosterId', async () => {
+     await expectCode(
+       callCommitIndex({ auth: teacherAuth, data: { entries: [] } }),
+diff --git a/functions/src/studentIdentity.ts b/functions/src/studentIdentity.ts
+index 369212a43..7abbeb1a7 100644
+--- a/functions/src/studentIdentity.ts
++++ b/functions/src/studentIdentity.ts
+@@ -1,4 +1,5 @@
+ import { onCall, HttpsError } from 'firebase-functions/v2/https';
++import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
+ import * as admin from './firebaseAdmin';
+ import axios from 'axios';
+ import { OAuth2Client } from 'google-auth-library';
+@@ -1714,9 +1715,11 @@ export async function recordRetiredPins(
+   if (!teacherRef) return;
+   const col = teacherRef.collection(RETIRED_PINS_SUBCOLLECTION);
+   const keys = new Set<string>();
++  const current = new Set(entries.map((e) => retiredPinKey(e.period, e.pin)));
+   for (const entry of entries) {
+     for (const pin of readFormerPins(entry.formerPins) ?? []) {
+-      if (pin !== entry.pin) keys.add(retiredPinKey(entry.period, pin));
++      const key = retiredPinKey(entry.period, pin);
++      if (!current.has(key)) keys.add(key);
+     }
+   }
+   const have = await col.where('rosterId', '==', rosterRef.id).get();
+@@ -1741,6 +1744,40 @@ export async function recordRetiredPins(
+   }
+ }
+ 
++/** Drop a deleted roster's retired PINs so they can't block a later roster's holders. */
++export async function deleteRetiredPinsForRoster(
++  db: admin.firestore.Firestore,
++  teacherUid: string,
++  rosterId: string
++): Promise<void> {
++  const snap = await db
++    .collection('users')
++    .doc(teacherUid)
++    .collection(RETIRED_PINS_SUBCOLLECTION)
++    .where('rosterId', '==', rosterId)
++    .get();
++  for (const docs of chunk(snap.docs, 400)) {
++    const batch = db.batch();
++    docs.forEach((d) => batch.delete(d.ref));
++    await batch.commit();
++  }
++}
++
++export const cleanupRetiredPinsOnRosterDelete = onDocumentDeleted(
++  {
++    document: 'users/{uid}/rosters/{rosterId}',
++    memory: '256MiB',
++    maxInstances: 5,
++  },
++  async (event) => {
++    await deleteRetiredPinsForRoster(
++      admin.firestore(),
++      event.params.uid,
++      event.params.rosterId
++    );
++  }
++);
++
+ // Per (session, caller uid) limits. Seat PINs are short, so a caller that keeps
+ // missing, or keeps landing on different students, stops bridging and falls back
+ // to the plain PIN join.
+diff --git a/tests/rules/anonymousJoinStamp.test.ts b/tests/rules/anonymousJoinStamp.test.ts
+index 40e7bd22e..b0546b8bd 100644
+--- a/tests/rules/anonymousJoinStamp.test.ts
++++ b/tests/rules/anonymousJoinStamp.test.ts
+@@ -14,6 +14,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, getDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-anonymous-join-stamp';
+ const TEACHER_UID = 'teacher-uid-ajs';
+ const ANON_UID = 'anon-uid-ajs';
+@@ -65,7 +68,7 @@ const pinResponse = (uid: string) => ({
+   studentUid: uid,
+   pin: '01',
+   classPeriod: 'period_1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   completedAt: null,
+   answers: [],
+@@ -75,7 +78,7 @@ const pinResponse = (uid: string) => ({
+ 
+ const ssoResponse = (uid: string) => ({
+   studentUid: uid,
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   completedAt: null,
+   answers: [],
+diff --git a/tests/rules/assignmentModes.test.ts b/tests/rules/assignmentModes.test.ts
+index bea2a9b9e..f19004bb9 100644
+--- a/tests/rules/assignmentModes.test.ts
++++ b/tests/rules/assignmentModes.test.ts
+@@ -30,6 +30,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, addDoc, collection, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ // ---------------------------------------------------------------------------
+ // Constants
+ // ---------------------------------------------------------------------------
+@@ -226,7 +229,7 @@ describe('Quiz responses — view-only mode blocks submissions', () => {
+         studentUid: STUDENT_UID,
+         pin: '01',
+         classPeriod: 'period_1',
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         score: null,
+         answers: [],
+         status: 'joined',
+@@ -266,7 +269,7 @@ describe('Video Activity responses — view-only mode blocks submissions', () =>
+         score: null,
+         completedAt: null,
+         answers: [],
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         completedAttempts: 0,
+         tabSwitchWarnings: 0,
+       })
+diff --git a/tests/rules/firestore-rules-rubrics.test.ts b/tests/rules/firestore-rules-rubrics.test.ts
+index f69c4def8..76922412a 100644
+--- a/tests/rules/firestore-rules-rubrics.test.ts
++++ b/tests/rules/firestore-rules-rubrics.test.ts
+@@ -20,6 +20,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, updateDoc, getDoc, deleteDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-rubrics-rules-test';
+ const TEACHER_UID = 'teacher-uid-1';
+ const OTHER_TEACHER_UID = 'teacher-uid-2';
+@@ -314,7 +317,7 @@ describe('quiz response UPDATE — student cannot touch grading.rubricScores', (
+           studentUid: ANON_UID,
+           pin: '01',
+           classPeriod: 'period_1',
+-          joinedAt: 1000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'in-progress',
+diff --git a/tests/rules/inputSignals.test.ts b/tests/rules/inputSignals.test.ts
+index eb2746342..88147e7f9 100644
+--- a/tests/rules/inputSignals.test.ts
++++ b/tests/rules/inputSignals.test.ts
+@@ -14,6 +14,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, updateDoc, getDoc, doc, Timestamp } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-input-signals';
+ const TEACHER_UID = 'teacher-uid-inputsignals';
+ const STUDENT_UID = 'student-uid-inputsignals';
+@@ -80,7 +83,7 @@ beforeEach(async () => {
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAttempts: 0,
+diff --git a/tests/rules/pinSignInHardening.test.ts b/tests/rules/pinSignInHardening.test.ts
+index 6890925ff..0572033fd 100644
+--- a/tests/rules/pinSignInHardening.test.ts
++++ b/tests/rules/pinSignInHardening.test.ts
+@@ -27,6 +27,9 @@ import {
+ } from 'firebase/firestore';
+ import { seedDistrictStaff } from './districtStaffSeed';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-pin-sign-in-hardening';
+ const TEACHER_UID = 'teacher-uid-psh';
+ const ANON_UID = 'anon-uid-psh';
+@@ -290,7 +293,7 @@ describe('PIN sign-in token scope', () => {
+       await setDoc(doc(db, response('sess-a')), {
+         studentUid: STUDENT_UID,
+         classId: CLASS_A,
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         score: null,
+         answers: [],
+         status: 'in-progress',
+@@ -327,7 +330,7 @@ describe('PIN sign-in token scope', () => {
+         await setDoc(doc(db, va(sid)), {
+           studentUid: STUDENT_UID,
+           classId: CLASS_A,
+-          joinedAt: 1000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           completedAt: null,
+diff --git a/tests/rules/quizBankDeals.test.ts b/tests/rules/quizBankDeals.test.ts
+index c91b8458f..a89a476a4 100644
+--- a/tests/rules/quizBankDeals.test.ts
++++ b/tests/rules/quizBankDeals.test.ts
+@@ -23,6 +23,9 @@ import {
+   runTransaction,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-bank-deals';
+ const SESSION_ID = 'session-deals-1';
+ const CLASS_ID = 'class-deals-1';
+@@ -88,7 +91,7 @@ const seed = async (opts: {
+     });
+     await setDoc(doc(db, responsePath), {
+       studentUid: STUDENT_UID,
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       status: 'joined',
+diff --git a/tests/rules/quizCountedChoices.test.ts b/tests/rules/quizCountedChoices.test.ts
+index bd1f282cd..cbff926e8 100644
+--- a/tests/rules/quizCountedChoices.test.ts
++++ b/tests/rules/quizCountedChoices.test.ts
+@@ -18,6 +18,9 @@ import {
+   deleteField,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-quiz-counted-choices-test';
+ const SESSION_ID = 'session-counted';
+ const TEACHER_UID = 'teacher-uid-counted';
+@@ -58,7 +61,7 @@ const baseResponse = () => ({
+   studentUid: STUDENT_UID,
+   pin: '01',
+   classPeriod: 'period_1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   status: 'joined' as const,
+diff --git a/tests/rules/quizGameResponses.test.ts b/tests/rules/quizGameResponses.test.ts
+index 3d7300c14..334a7883b 100644
+--- a/tests/rules/quizGameResponses.test.ts
++++ b/tests/rules/quizGameResponses.test.ts
+@@ -18,6 +18,9 @@ import {
+   updateDoc,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-quiz-game-responses';
+ const TEACHER_UID = 'teacher-uid-game';
+ const STUDENT_UID = 'anon-student-game';
+@@ -50,7 +53,7 @@ const joinPayload = () => ({
+   studentUid: STUDENT_UID,
+   pin: '01',
+   classPeriod: 'period_1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   status: 'joined',
+diff --git a/tests/rules/quizJoinPins.test.ts b/tests/rules/quizJoinPins.test.ts
+index 0e62f39cf..25ec3eaf3 100644
+--- a/tests/rules/quizJoinPins.test.ts
++++ b/tests/rules/quizJoinPins.test.ts
+@@ -57,7 +57,7 @@ const quizKey = (period: string, pin: string) =>
+ 
+ const joinDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
+   studentUid: uid,
+-  joinedAt: 1000,
++  joinedAt: Date.now(),
+   status: 'joined',
+   answers: [],
+   score: null,
+@@ -71,7 +71,7 @@ const vaJoinDoc = (uid: string, pin: string) => ({
+   studentUid: uid,
+   pin,
+   classPeriod: 'Period 1',
+-  joinedAt: 1000,
++  joinedAt: Date.now(),
+   score: null,
+   answers: [],
+   completedAt: null,
+@@ -258,6 +258,22 @@ describe('retired roster PINs on a ClassLink-rostered quiz', () => {
+     }
+   });
+ 
++  it('refuses a PIN doc with a forged or missing-window joinedAt', async () => {
++    for (const joinedAt of [
++      0,
++      1000,
++      Date.now() - 3600000,
++      Date.now() + 3600000,
++    ]) {
++      await assertFails(
++        setDoc(
++          quizRef(anonDb(ANON), ROSTERED, quizKey('Period 1', '02')),
++          joinDoc(ANON, { pin: '02', classPeriod: 'Period 1', joinedAt })
++        )
++      );
++    }
++  });
++
+   it('still seats an unretired short PIN', async () => {
+     await assertSucceeds(
+       setDoc(
+@@ -318,6 +334,24 @@ describe('video activity: sign-in-length PINs on rostered sessions', () => {
+     }
+   });
+ 
++  it('refuses a retired short PIN key on a rostered session', async () => {
++    await assertFails(
++      setDoc(
++        vaRef(VA_ROSTERED, rawKey('Period 1', '01')),
++        vaJoinDoc(ANON, '01')
++      )
++    );
++  });
++
++  it('refuses a forged joinedAt on an anonymous PIN doc', async () => {
++    await assertFails(
++      setDoc(vaRef(VA_PLAIN, rawKey('Period 1', '05')), {
++        ...vaJoinDoc(ANON, '05'),
++        joinedAt: 0,
++      })
++    );
++  });
++
+   it('still takes a short PIN anonymously on a rostered session', async () => {
+     await assertSucceeds(
+       setDoc(
+diff --git a/tests/rules/quizPeriodAccess.test.ts b/tests/rules/quizPeriodAccess.test.ts
+index 4d522bdd1..07599480d 100644
+--- a/tests/rules/quizPeriodAccess.test.ts
++++ b/tests/rules/quizPeriodAccess.test.ts
+@@ -23,6 +23,9 @@ import {
+ } from 'firebase/firestore';
+ import { seedDistrictStaff } from './districtStaffSeed';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-period-access-test';
+ const TEACHER_UID = 'teacher-uid';
+ const STUDENT_UID = 'student-uid';
+@@ -110,7 +113,7 @@ async function seedResponse(
+     await setDoc(
+       doc(ctx.firestore(), `quiz_sessions/${sessionId}/responses/${key}`),
+       {
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         score: null,
+         answers: [],
+         status: 'joined',
+@@ -139,7 +142,7 @@ async function seedSeat(
+ 
+ const joinDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
+   studentUid: uid,
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   status: 'joined',
+diff --git a/tests/rules/quizPinCollision.test.ts b/tests/rules/quizPinCollision.test.ts
+index 656dd6f4b..feca375ae 100644
+--- a/tests/rules/quizPinCollision.test.ts
++++ b/tests/rules/quizPinCollision.test.ts
+@@ -27,6 +27,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, getDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ // ---------------------------------------------------------------------------
+ // Constants
+ // ---------------------------------------------------------------------------
+@@ -97,7 +100,7 @@ describe('quiz_sessions/responses — anonymous PIN deterministic-key collision'
+     studentUid: ownerUid,
+     pin: PIN,
+     classPeriod: PERIOD,
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     score: null,
+     answers: [],
+     status: 'joined',
+diff --git a/tests/rules/quizResponseArchiveFields.test.ts b/tests/rules/quizResponseArchiveFields.test.ts
+index 708b1d749..186fa7668 100644
+--- a/tests/rules/quizResponseArchiveFields.test.ts
++++ b/tests/rules/quizResponseArchiveFields.test.ts
+@@ -11,6 +11,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { doc, setDoc, updateDoc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-quiz-response-archive-fields';
+ const TEACHER_UID = 'teacher-uid-qraf';
+ const SESSION_PATH = 'quiz_sessions/quiz-qraf';
+@@ -47,7 +50,7 @@ const baseResponse = (uid: string) => ({
+   studentUid: uid,
+   pin: '01',
+   classPeriod: 'period_1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   status: 'joined',
+   answers: [{ questionId: 'q1', artifacts: [{ id: 'art-1', kind: 'audio' }] }],
+   score: null,
+diff --git a/tests/rules/quizResponsePaperSeatFields.test.ts b/tests/rules/quizResponsePaperSeatFields.test.ts
+index a3a187389..dd82d7ba9 100644
+--- a/tests/rules/quizResponsePaperSeatFields.test.ts
++++ b/tests/rules/quizResponsePaperSeatFields.test.ts
+@@ -12,6 +12,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { getDoc, setDoc, updateDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-quiz-archive-fields-test';
+ const SESSION_ID = 'session-archive-fields';
+ const TEACHER_UID = 'teacher-uid-archive';
+@@ -60,7 +63,7 @@ const baseResponse = (studentUid: string = ANON_UID) => ({
+   studentUid,
+   pin: '01',
+   classPeriod: 'period_1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   status: 'joined' as const,
+diff --git a/tests/rules/quizResponseProtection.test.ts b/tests/rules/quizResponseProtection.test.ts
+index c1943eac4..18e0fa26d 100644
+--- a/tests/rules/quizResponseProtection.test.ts
++++ b/tests/rules/quizResponseProtection.test.ts
+@@ -42,6 +42,9 @@ import {
+   Timestamp,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ // ---------------------------------------------------------------------------
+ // Constants
+ // ---------------------------------------------------------------------------
+@@ -143,7 +146,7 @@ const baseAnonCreate = () => ({
+   studentUid: ANON_UID,
+   pin: '01',
+   classPeriod: 'period_1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   status: 'joined' as const,
+@@ -316,7 +319,7 @@ describe('quiz response UPDATE — lastWriteAt server-stamp enforcement', () =>
+         classPeriod: 'period_1',
+         classId: CLASS_ID,
+         classIds: [CLASS_ID],
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         score: null,
+         answers: [],
+         status: 'in-progress',
+@@ -438,7 +441,7 @@ describe('quiz response UPDATE — teacher refreshes lastWriteAt on student-owne
+           classPeriod: 'period_1',
+           classId: CLASS_ID,
+           classIds: [CLASS_ID],
+-          joinedAt: 1000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'in-progress',
+@@ -486,7 +489,7 @@ describe('quiz response UPDATE — handRaisedAt raise-hand field', () => {
+           classPeriod: 'period_1',
+           classId: CLASS_ID,
+           classIds: [CLASS_ID],
+-          joinedAt: 1000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'in-progress',
+@@ -569,7 +572,7 @@ describe('quiz response UPDATE — stimulus telemetry size cap', () => {
+           classPeriod: 'period_1',
+           classId: CLASS_ID,
+           classIds: [CLASS_ID],
+-          joinedAt: 1000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'in-progress',
+@@ -649,7 +652,7 @@ describe('quiz response UPDATE — recordingNoticeAckedAt type check', () => {
+           classPeriod: 'period_1',
+           classId: CLASS_ID,
+           classIds: [CLASS_ID],
+-          joinedAt: 1000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'in-progress',
+@@ -720,7 +723,7 @@ describe('quiz response UPDATE — unlocked self-elevation', () => {
+           classPeriod: 'period_1',
+           classId: CLASS_ID,
+           classIds: [CLASS_ID],
+-          joinedAt: 1000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'completed',
+diff --git a/tests/rules/quizResultsOverride.test.ts b/tests/rules/quizResultsOverride.test.ts
+index e246b835a..8318fcc2a 100644
+--- a/tests/rules/quizResultsOverride.test.ts
++++ b/tests/rules/quizResultsOverride.test.ts
+@@ -13,6 +13,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, updateDoc, doc, deleteField } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-quiz-results-override-test';
+ const SESSION_ID = 'session-override';
+ const TEACHER_UID = 'teacher-uid-override';
+@@ -49,7 +52,7 @@ const baseResponse = () => ({
+   studentUid: ANON_UID,
+   pin: '01',
+   classPeriod: 'period_1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   status: 'joined' as const,
+diff --git a/tests/rules/quizSessionTransitions.test.ts b/tests/rules/quizSessionTransitions.test.ts
+index 38b0197d5..20e4b88a8 100644
+--- a/tests/rules/quizSessionTransitions.test.ts
++++ b/tests/rules/quizSessionTransitions.test.ts
+@@ -21,6 +21,9 @@ import {
+   updateDoc,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-quiz-session-transitions';
+ const SESSION_ID = 'session-transitions';
+ const TEACHER_UID = 'teacher-uid';
+@@ -104,7 +107,7 @@ beforeEach(async () => {
+     await setDoc(doc(db, `quiz_sessions/${SESSION_ID}/responses/${ANON_KEY}`), {
+       studentUid: ANON_UID,
+       pin: '1234',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       status: 'in-progress',
+       answers: [draft],
+diff --git a/tests/rules/responsePinProbe.test.ts b/tests/rules/responsePinProbe.test.ts
+index eb5b0812d..e392a6359 100644
+--- a/tests/rules/responsePinProbe.test.ts
++++ b/tests/rules/responsePinProbe.test.ts
+@@ -22,6 +22,9 @@ import {
+   updateDoc,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-response-pin-probe';
+ const TEACHER_UID = 'teacher-uid-rpp';
+ const OWNER_UID = 'anon-owner-rpp';
+@@ -91,7 +94,7 @@ const KINDS = [
+       studentUid: uid,
+       pin: '1234',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       status: 'joined',
+@@ -105,7 +108,7 @@ const KINDS = [
+       studentUid: uid,
+       pin: '1234',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAt: null,
+diff --git a/tests/rules/responseScoreFields.test.ts b/tests/rules/responseScoreFields.test.ts
+index 035328697..d9a0ef862 100644
+--- a/tests/rules/responseScoreFields.test.ts
++++ b/tests/rules/responseScoreFields.test.ts
+@@ -13,6 +13,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-response-score-fields';
+ const TEACHER_UID = 'teacher-uid-rsf';
+ const STUDENT_UID = 'student-uid-rsf';
+@@ -81,7 +84,7 @@ beforeEach(async () => {
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       status: 'completed',
+       completedAttempts: 1,
+       preSyncVersion: 0,
+@@ -94,7 +97,7 @@ beforeEach(async () => {
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       completedAt: 2000,
+       completedAttempts: 1,
+       tabSwitchWarnings: 0,
+diff --git a/tests/rules/resultsProtection.test.ts b/tests/rules/resultsProtection.test.ts
+index 477e1202b..3c47cae1f 100644
+--- a/tests/rules/resultsProtection.test.ts
++++ b/tests/rules/resultsProtection.test.ts
+@@ -31,6 +31,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, updateDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ // ---------------------------------------------------------------------------
+ // Constants
+ // ---------------------------------------------------------------------------
+@@ -136,7 +139,7 @@ async function seedSessionAndResponses(
+       studentUid: STUDENT_A_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: 80,
+       answers: [],
+       status: 'completed',
+diff --git a/tests/rules/runEndHardening.test.ts b/tests/rules/runEndHardening.test.ts
+index 8d95afd82..c094e27f3 100644
+--- a/tests/rules/runEndHardening.test.ts
++++ b/tests/rules/runEndHardening.test.ts
+@@ -14,6 +14,9 @@ import {
+ import { doc, getDoc, increment, setDoc, updateDoc } from 'firebase/firestore';
+ import { seedDistrictStaff } from './districtStaffSeed';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-run-end-hardening';
+ const TEACHER_UID = 'teacher-run-end';
+ const ANON_UID = 'anon-run-end';
+@@ -116,7 +119,7 @@ const seedQuizResponse = (over: Record<string, unknown> = {}) =>
+     studentUid: ANON_UID,
+     pin: '1234',
+     classPeriod: 'p1',
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     score: null,
+     status: 'in-progress',
+     answers: [answer('q1')],
+@@ -129,7 +132,7 @@ const quizJoin = () => ({
+   studentUid: ANON_UID,
+   pin: '1234',
+   classPeriod: 'p1',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   status: 'joined',
+   answers: [],
+@@ -285,7 +288,7 @@ describe('quiz response status moves', () => {
+       studentUid: ANON_UID,
+       pin: '1234',
+       classPeriod: 'p1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       status: 'completed',
+       answers: [answer('q1')],
+@@ -360,7 +363,7 @@ const seedVaResponse = (over: Record<string, unknown> = {}) =>
+     studentUid: ANON_UID,
+     pin: '1234',
+     name: 'Student',
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     score: null,
+     answers: [vaAnswer('q1')],
+     completedAt: null,
+@@ -373,7 +376,7 @@ const vaJoin = () => ({
+   studentUid: ANON_UID,
+   pin: '1234',
+   name: 'Student',
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   completedAt: null,
+diff --git a/tests/rules/securityBatch1A.test.ts b/tests/rules/securityBatch1A.test.ts
+index 8785df55f..1f225dd46 100644
+--- a/tests/rules/securityBatch1A.test.ts
++++ b/tests/rules/securityBatch1A.test.ts
+@@ -23,6 +23,9 @@ import {
+ } from 'firebase/firestore';
+ import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-security-batch-1a';
+ const SESSION = 'sb1a-session';
+ const ROSTERED = 'sb1a-rostered';
+@@ -76,7 +79,7 @@ const pinKey = (period: string, pin: string) =>
+ 
+ const joinDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
+   studentUid: uid,
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   status: 'joined',
+   answers: [],
+   score: null,
+diff --git a/tests/rules/securityBatch3B.test.ts b/tests/rules/securityBatch3B.test.ts
+index 7b00ede33..fad1f33ae 100644
+--- a/tests/rules/securityBatch3B.test.ts
++++ b/tests/rules/securityBatch3B.test.ts
+@@ -12,6 +12,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { arrayUnion, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-security-batch-3b';
+ const TEACHER_UID = 'teacher-uid-3b';
+ const STUDENT_UID = 'student-uid-3b';
+@@ -48,7 +51,7 @@ const seedResponse = (extra: Record<string, unknown> = {}) =>
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [Q1, Q2],
+       checkedAnswers: {
+@@ -159,7 +162,7 @@ describe('VA server answer record', () => {
+       studentUid: OTHER_UID,
+       pin: '02',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAt: null,
+diff --git a/tests/rules/siteAdminStudentData.test.ts b/tests/rules/siteAdminStudentData.test.ts
+index 4a1c1a952..913e7b6c2 100644
+--- a/tests/rules/siteAdminStudentData.test.ts
++++ b/tests/rules/siteAdminStudentData.test.ts
+@@ -16,6 +16,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-site-admin-student-data';
+ const TEACHER_UID = 'teacher-uid';
+ const SESSION_ID = 'quiz-session-1';
+@@ -131,7 +134,7 @@ beforeEach(async () => {
+     studentUid: STUDENT_UID,
+     pin: '01',
+     classPeriod: 'period_1',
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     score: null,
+     answers: [],
+     status: 'joined',
+diff --git a/tests/rules/staffAudience.test.ts b/tests/rules/staffAudience.test.ts
+index 82f63b5a6..652c42612 100644
+--- a/tests/rules/staffAudience.test.ts
++++ b/tests/rules/staffAudience.test.ts
+@@ -129,7 +129,7 @@ const KINDS: Kind[] = [
+     sub: 'responses',
+     join: (uid) => ({
+       studentUid: uid,
+-      joinedAt: 1,
++      joinedAt: Date.now(),
+       status: 'joined',
+       answers: [],
+       score: null,
+@@ -145,7 +145,7 @@ const KINDS: Kind[] = [
+     sub: 'responses',
+     join: (uid) => ({
+       studentUid: uid,
+-      joinedAt: 1,
++      joinedAt: Date.now(),
+       answers: [],
+       completedAt: null,
+       score: null,
+diff --git a/tests/rules/studentResultsOverride.test.ts b/tests/rules/studentResultsOverride.test.ts
+index b66de825b..500438f57 100644
+--- a/tests/rules/studentResultsOverride.test.ts
++++ b/tests/rules/studentResultsOverride.test.ts
+@@ -16,6 +16,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, updateDoc, getDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-student-results-override';
+ const TEACHER_UID = 'teacher-uid-sro';
+ const OTHER_TEACHER_UID = 'teacher-uid-sro-other';
+@@ -84,7 +87,7 @@ beforeEach(async () => {
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAt: 2000,
+@@ -136,7 +139,7 @@ describe('video activity responses: resultsOverride', () => {
+       studentUid: OTHER_STUDENT_UID,
+       pin: '02',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAt: null,
+diff --git a/tests/rules/studentRoleClassGate.test.ts b/tests/rules/studentRoleClassGate.test.ts
+index 192bf4e48..21e0b6d8b 100644
+--- a/tests/rules/studentRoleClassGate.test.ts
++++ b/tests/rules/studentRoleClassGate.test.ts
+@@ -40,6 +40,9 @@ import {
+ } from 'firebase/firestore';
+ import { seedDistrictStaff } from './districtStaffSeed';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ // ---------------------------------------------------------------------------
+ // Constants
+ // ---------------------------------------------------------------------------
+@@ -211,7 +214,7 @@ async function seedSessions(cols: string[], opts: SeedOptions = {}) {
+             {
+               studentUid: STUDENT_A_UID,
+               pin: '9999',
+-              joinedAt: 1000,
++              joinedAt: NOW_MS,
+               score: null,
+               answers: [],
+               status: 'active',
+@@ -225,7 +228,7 @@ async function seedSessions(cols: string[], opts: SeedOptions = {}) {
+               studentUid: STUDENT_A_UID,
+               pin: '9999',
+               name: 'Student A',
+-              joinedAt: 1000,
++              joinedAt: NOW_MS,
+               score: null,
+               completedAt: null,
+               answers: [],
+@@ -316,7 +319,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+   const baseResp = (pin = '1234', score: null | number = null) => ({
+     studentUid: STUDENT_A_UID,
+     pin,
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     score,
+     answers: [],
+     status: 'active',
+@@ -337,7 +340,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+     await assertSucceeds(
+       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
+         ...baseResp(),
+-        joinedAt: 2000,
++        joinedAt: NOW_MS,
+       })
+     );
+   });
+@@ -346,7 +349,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+     await assertFails(
+       setDoc(doc(asStudentA(), respPath(SESSION_B)), {
+         ...baseResp(),
+-        joinedAt: 2000,
++        joinedAt: NOW_MS,
+       })
+     );
+   });
+@@ -413,7 +416,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+           asStudentA(),
+           `quiz_sessions/${UNTARGETED}/responses/${STUDENT_A_UID}`
+         ),
+-        { ...baseResp(), joinedAt: 2000 }
++        { ...baseResp(), joinedAt: NOW_MS }
+       )
+     );
+   });
+@@ -432,7 +435,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+           studentUid: ANON_UID,
+           pin: '5678',
+           classPeriod: 'p1',
+-          joinedAt: 2000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'active',
+@@ -456,7 +459,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+           studentUid: ANON_UID,
+           pin: '5678',
+           classPeriod: 'p1',
+-          joinedAt: 2000,
++          joinedAt: NOW_MS,
+           score: null,
+           answers: [],
+           status: 'active',
+@@ -472,7 +475,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+     await assertFails(
+       setDoc(
+         doc(asStudentA(), `quiz_sessions/${SESSION_A}/responses/pin-p1-1234`),
+-        { ...baseResp(), joinedAt: 2000 }
++        { ...baseResp(), joinedAt: NOW_MS }
+       )
+     );
+   });
+@@ -515,7 +518,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+         studentUid: ANON_UID,
+         pin: '5678',
+         classPeriod: 'p1',
+-        joinedAt: 2000,
++        joinedAt: NOW_MS,
+         score: null,
+         answers: [],
+         status: 'active',
+@@ -534,7 +537,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
+         studentUid: ANON_UID,
+         pin: '5678',
+         classPeriod: 'p1',
+-        joinedAt: 2000,
++        joinedAt: NOW_MS,
+         score: null,
+         answers: [{ questionId: 'q1', value: 'B' }],
+         status: 'in-progress',
+@@ -558,7 +561,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+     studentUid: STUDENT_A_UID,
+     pin,
+     name: 'Student A',
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     score: null,
+     completedAt: null,
+     answers: [],
+@@ -578,7 +581,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+     await assertSucceeds(
+       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
+         ...baseResp(),
+-        joinedAt: 2000,
++        joinedAt: NOW_MS,
+       })
+     );
+   });
+@@ -587,7 +590,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+     await assertFails(
+       setDoc(doc(asStudentA(), respPath(SESSION_B)), {
+         ...baseResp(),
+-        joinedAt: 2000,
++        joinedAt: NOW_MS,
+       })
+     );
+   });
+@@ -636,7 +639,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+           studentUid: ANON_UID,
+           pin,
+           classPeriod: period,
+-          joinedAt: 2000,
++          joinedAt: NOW_MS,
+           score: null,
+           completedAt: null,
+           answers: [],
+@@ -660,7 +663,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+           studentUid: ANON_UID,
+           pin: '5678',
+           classPeriod: 'period_1',
+-          joinedAt: 2000,
++          joinedAt: NOW_MS,
+           score: null,
+           completedAt: null,
+           answers: [],
+@@ -676,7 +679,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+       studentUid: ANON_UID,
+       pin: '5678',
+       classPeriod: 'period_1',
+-      joinedAt: 2000,
++      joinedAt: NOW_MS,
+       score: null,
+       completedAt: null,
+       answers: [],
+@@ -714,7 +717,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+           studentUid: STUDENT_A_UID,
+           pin: '9999',
+           classPeriod: 'period_1',
+-          joinedAt: 2000,
++          joinedAt: NOW_MS,
+           score: null,
+           completedAt: null,
+           answers: [],
+@@ -734,7 +737,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+         studentUid: STUDENT_A_UID,
+         pin: '9999',
+         name: 'Student A',
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         score: null,
+         completedAt: null,
+         answers: [],
+@@ -758,7 +761,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
+         studentUid: STUDENT_A_UID,
+         pin: '9999',
+         name: 'Student A',
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         score: null,
+         completedAt: null,
+         answers: [],
+@@ -1387,7 +1390,7 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
+   const baseStudentResp = (uid: string, pin: string) => ({
+     studentUid: uid,
+     pin,
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     score: null,
+     answers: [] as unknown[],
+     status: 'active',
+diff --git a/tests/rules/syncedContentReads.test.ts b/tests/rules/syncedContentReads.test.ts
+index 57c3970c7..ab2714c5b 100644
+--- a/tests/rules/syncedContentReads.test.ts
++++ b/tests/rules/syncedContentReads.test.ts
+@@ -18,6 +18,9 @@ import {
+   seedDistrictStaff,
+ } from './districtStaffSeed';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-synced-content-reads';
+ const GROUP_ID = 'group-synced-reads';
+ const PARTICIPANT_UID = 'participant-uid';
+@@ -88,7 +91,7 @@ const quizDoc = (over: Record<string, unknown> = {}) => ({
+   version: 1,
+   title: 'Fractions check',
+   questions: [{ id: 'q1', text: '1/2 + 1/4?', correctAnswer: '3/4' }],
+-  participants: { [PARTICIPANT_UID]: { joinedAt: 1000 } },
++  participants: { [PARTICIPANT_UID]: { joinedAt: NOW_MS } },
+   plcId: PLC_ID,
+   createdAt: 1000,
+   updatedAt: 1000,
+@@ -102,7 +105,7 @@ const videoDoc = (over: Record<string, unknown> = {}) => ({
+   title: 'Water cycle',
+   youtubeUrl: 'https://www.youtube.com/watch?v=abc',
+   questions: [{ id: 'q1', text: 'What is it?', correctAnswer: 'B' }],
+-  participants: { [PARTICIPANT_UID]: { joinedAt: 1000 } },
++  participants: { [PARTICIPANT_UID]: { joinedAt: NOW_MS } },
+   plcId: PLC_ID,
+   createdAt: 1000,
+   updatedAt: 1000,
+diff --git a/tests/rules/tabExits.test.ts b/tests/rules/tabExits.test.ts
+index 3b5efb4d7..332e37659 100644
+--- a/tests/rules/tabExits.test.ts
++++ b/tests/rules/tabExits.test.ts
+@@ -25,6 +25,9 @@ import {
+   Timestamp,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-tab-exits';
+ const TEACHER_UID = 'teacher-uid-tabexits';
+ const STUDENT_UID = 'student-uid-tabexits';
+@@ -116,7 +119,7 @@ async function seed(tabExits?: unknown[]) {
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAttempts: 0,
+@@ -362,7 +365,7 @@ describe('tabExits on create', () => {
+       studentUid: OTHER_UID,
+       pin: '02',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       status: 'joined',
+       answers: [],
+       score: null,
+@@ -385,7 +388,7 @@ describe('tabExits on create', () => {
+       studentUid: OTHER_UID,
+       pin: '02',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       answers: [],
+       completedAt: null,
+       score: null,
+diff --git a/tests/rules/vaGlResultsProtection.test.ts b/tests/rules/vaGlResultsProtection.test.ts
+index a117c383f..8b1fc7968 100644
+--- a/tests/rules/vaGlResultsProtection.test.ts
++++ b/tests/rules/vaGlResultsProtection.test.ts
+@@ -15,6 +15,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, updateDoc, getDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-va-gl-results-protection';
+ const TEACHER_UID = 'teacher-uid-vgp';
+ const OTHER_TEACHER_UID = 'teacher-uid-vgp-other';
+@@ -75,7 +78,7 @@ beforeEach(async () => {
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAt: 2000,
+diff --git a/tests/rules/videoActivityPeriodAccess.test.ts b/tests/rules/videoActivityPeriodAccess.test.ts
+index f331d47f7..ea4932141 100644
+--- a/tests/rules/videoActivityPeriodAccess.test.ts
++++ b/tests/rules/videoActivityPeriodAccess.test.ts
+@@ -23,6 +23,9 @@ import {
+ } from 'firebase/firestore';
+ import { seedDistrictStaff } from './districtStaffSeed';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-va-period-access-test';
+ const TEACHER_UID = 'teacher-uid';
+ const ADMIN_UID = 'admin-uid';
+@@ -127,7 +130,7 @@ async function seedResponse(
+         `video_activity_sessions/${sessionId}/responses/${key}`
+       ),
+       {
+-        joinedAt: 1000,
++        joinedAt: NOW_MS,
+         score: null,
+         answers: [],
+         completedAt: null,
+@@ -154,7 +157,7 @@ async function seedSeat(
+ 
+ const joinDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
+   studentUid: uid,
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   answers: [],
+   completedAt: null,
+diff --git a/tests/rules/videoActivityResponseProtection.test.ts b/tests/rules/videoActivityResponseProtection.test.ts
+index b19fcaa26..df7b437c4 100644
+--- a/tests/rules/videoActivityResponseProtection.test.ts
++++ b/tests/rules/videoActivityResponseProtection.test.ts
+@@ -35,6 +35,9 @@ import {
+ } from '@firebase/rules-unit-testing';
+ import { setDoc, updateDoc, doc } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-va-response-protection';
+ const TEACHER_UID = 'teacher-uid-vrp';
+ const STUDENT_UID = 'student-uid-vrp';
+@@ -90,7 +93,7 @@ beforeEach(async () => {
+       studentUid: STUDENT_UID,
+       pin: '01',
+       classPeriod: 'period_1',
+-      joinedAt: 1000,
++      joinedAt: NOW_MS,
+       score: null,
+       answers: [],
+       completedAt: null,
+diff --git a/tests/rules/videoActivitySessionKey.test.ts b/tests/rules/videoActivitySessionKey.test.ts
+index 8baf5f1ee..ae81cfb21 100644
+--- a/tests/rules/videoActivitySessionKey.test.ts
++++ b/tests/rules/videoActivitySessionKey.test.ts
+@@ -193,7 +193,7 @@ describe('video_activity_sessions helpers after the vaS() refactor', () => {
+       setDoc(doc(asAnonStudent(), path), {
+         studentUid: STUDENT_UID,
+         pin: '01',
+-        joinedAt: 1,
++        joinedAt: Date.now(),
+         answers: [],
+         score: null,
+         completedAt: null,
+diff --git a/tests/rules/viewAsStudent.test.ts b/tests/rules/viewAsStudent.test.ts
+index bc229e08a..0af8843ee 100644
+--- a/tests/rules/viewAsStudent.test.ts
++++ b/tests/rules/viewAsStudent.test.ts
+@@ -27,6 +27,9 @@ import {
+   where,
+ } from 'firebase/firestore';
+ 
++// Anonymous PIN joins need a joinedAt near server time.
++const NOW_MS = Date.now();
++
+ const PROJECT_ID = 'spartboard-view-as-student-rules';
+ const TEACHER_UID = 'teacher-uid-vas';
+ const SSO_UID = 'sso-student-uid';
+@@ -103,7 +106,7 @@ afterAll(async () => {
+ 
+ const ssoResponse = (uid: string) => ({
+   studentUid: uid,
+-  joinedAt: 1000,
++  joinedAt: NOW_MS,
+   score: null,
+   completedAt: null,
+   answers: [],
+@@ -426,7 +429,7 @@ describe('live session roster', () => {
+   const student = () => ({
+     pin: '01',
+     status: 'active',
+-    joinedAt: 1000,
++    joinedAt: NOW_MS,
+     lastActive: 1000,
+     code: 'ABC123',
+   });
+diff --git a/tests/utils/videoActivityLive.test.ts b/tests/utils/videoActivityLive.test.ts
+index a21c9f5dc..18bd22a0a 100644
+--- a/tests/utils/videoActivityLive.test.ts
++++ b/tests/utils/videoActivityLive.test.ts
+@@ -192,7 +192,7 @@ describe('whoHasntAnswered', () => {
+   it('names a PIN joiner by a replaced PIN', () => {
+     const result = whoHasntAnswered(
+       'q1',
+-      [{ pin: '03', studentUid: 'u3', answers: [] }],
++      [{ pin: '03', studentUid: 'u3', joinedAt: 1, answers: [] }],
+       [
+         { firstName: 'Ada', lastName: 'Lovelace', pin: '01' },
+         {
+@@ -208,6 +208,34 @@ describe('whoHasntAnswered', () => {
+     expect(result.notJoined).toEqual(['Ada Lovelace']);
+   });
+ 
++  it('does not name a PIN joiner by a replaced PIN joined after the replacement', () => {
++    const roster = [
++      { firstName: 'Ada', lastName: 'Lovelace', pin: '01' },
++      {
++        firstName: 'Cy',
++        lastName: 'Young',
++        pin: '482913',
++        formerPins: ['03'],
++        formerPinsAt: 5000,
++      },
++    ];
++    const late = whoHasntAnswered(
++      'q1',
++      [{ pin: '03', studentUid: 'u3', joinedAt: 6000, answers: [] }],
++      roster,
++      new Map()
++    );
++    expect(late.notAnswered).toEqual(['PIN 03']);
++    expect(late.notJoined).toEqual(['Ada Lovelace', 'Cy Young']);
++    const early = whoHasntAnswered(
++      'q1',
++      [{ pin: '03', studentUid: 'u3', joinedAt: 4000, answers: [] }],
++      roster,
++      new Map()
++    );
++    expect(early.notAnswered).toEqual(['Cy Young']);
++  });
++
+   it('lists never-asked questions for live sessions only', () => {
+     const live = {
+       ...initialVideoActivityLiveState(0),
+@@ -304,7 +332,44 @@ describe('whoHasntAnswered', () => {
+       ['r1', 'r2'],
+       [
+         { studentUid: 'anon-carl', pin: '03', answers: [{ questionId: 'q1' }] },
+-        { studentUid: 'anon-bea', pin: '04', answers: [{ questionId: 'q1' }] },
++        {
++          studentUid: 'anon-bea',
++          pin: '04',
++          joinedAt: 1,
++          answers: [{ questionId: 'q1' }],
++        },
++      ],
++      new Map()
++    );
++    expect(refs).toEqual([{ kind: 'classlink', sourcedId: 'sid-alice' }]);
++  });
++
++  it('ignores a former-PIN answer joined after the replacement', () => {
++    const linked = {
++      id: 'r1',
++      name: 'Period 1',
++      students: [
++        {
++          id: 'alice',
++          firstName: 'Alice',
++          lastName: 'X',
++          pin: '482913',
++          formerPins: ['03'],
++          formerPinsAt: 5000,
++          classLinkSourcedId: 'sid-alice',
++        },
++      ],
++    } as unknown as ClassRoster;
++    const refs = makeUpTargetStudents(
++      [linked],
++      ['r1'],
++      [
++        {
++          studentUid: 'anon-x',
++          pin: '03',
++          joinedAt: 6000,
++          answers: [{ questionId: 'q1' }],
++        },
+       ],
+       new Map()
+     );
+diff --git a/utils/rosterPins.ts b/utils/rosterPins.ts
+index 9fd9ee9c3..c9aef2c3a 100644
+--- a/utils/rosterPins.ts
++++ b/utils/rosterPins.ts
+@@ -20,6 +20,17 @@ function randomLinkedPin(): string {
+ }
+ 
+ /** Swaps in a new PIN and keeps the old one so past responses still resolve to this student. */
++/** Re-rolls before `formerPinsAt` existed count as retired by this date. */
++export const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 14);
++
++/** A response joined before the student's PINs were replaced may still name them by a former PIN. */
++export const joinedBeforeRetirement = (
++  s: { formerPinsAt?: number },
++  joinedAt: number | null | undefined
++): boolean =>
++  typeof joinedAt === 'number' &&
++  joinedAt < (s.formerPinsAt ?? LEGACY_FORMER_PINS_AT);
++
+ const withNewPin = (s: Student, pin: string): Student => ({
+   ...s,
+   pin,
+diff --git a/utils/videoActivityLive.ts b/utils/videoActivityLive.ts
+index 874ec4a53..709079c45 100644
+--- a/utils/videoActivityLive.ts
++++ b/utils/videoActivityLive.ts
+@@ -6,6 +6,7 @@ import type {
+   VideoActivityQuestion,
+   VideoActivitySession,
+ } from '@/types';
++import { joinedBeforeRetirement } from '@/utils/rosterPins';
+ import { classStudentRows } from '@/utils/studentTargetRef';
+ import { staffResultsLabel } from '@/utils/staffAudience';
+ 
+@@ -50,6 +51,7 @@ export function notAskedVideoActivityQuestionIds(
+ interface MakeUpResponseLike {
+   studentUid: string;
+   pin?: string;
++  joinedAt?: number;
+   answers: { questionId: string }[];
+ }
+ 
+@@ -61,30 +63,42 @@ export function makeUpTargetStudents(
+   targetRefKeyByStudentUid: Map<string, string>
+ ): StudentTargetRef[] {
+   const answeredKeys = new Set<string>();
+-  const answeredPins = new Set<string>();
++  const answeredPins = new Map<string, number | undefined>();
+   for (const r of responses) {
+     if (r.answers.length === 0) continue;
+     const key = targetRefKeyByStudentUid.get(r.studentUid);
+     if (key) answeredKeys.add(key);
+-    if (r.pin) answeredPins.add(r.pin);
++    if (r.pin) {
++      const prev = answeredPins.get(r.pin);
++      answeredPins.set(
++        r.pin,
++        prev === undefined || (r.joinedAt ?? Infinity) < prev
++          ? (r.joinedAt ?? Infinity)
++          : prev
++      );
++    }
+   }
+   const selected = rosters.filter((r) => rosterIds.includes(r.id));
+   const currentPins = new Set(
+     selected.flatMap((r) => r.students.map((s) => s.pin))
+   );
+-  // A former PIN counts only when no selected student holds it now.
+-  const pinsByStudentId = new Map<string, string[]>();
++  // A former PIN counts only when no selected student holds it now, and only for a response joined before it was replaced.
++  const answered = new Map<string, boolean>();
+   for (const s of selected.flatMap((r) => r.students)) {
+-    pinsByStudentId.set(s.id, [
+-      ...(s.pin ? [s.pin] : []),
+-      ...(s.formerPins ?? []).filter((pin) => !currentPins.has(pin)),
+-    ]);
++    const has =
++      (s.pin ? answeredPins.has(s.pin) : false) ||
++      (s.formerPins ?? []).some(
++        (pin) =>
++          !currentPins.has(pin) &&
++          answeredPins.has(pin) &&
++          joinedBeforeRetirement(s, answeredPins.get(pin))
++      );
++    answered.set(s.id, has);
+   }
+   return classStudentRows({ rosters, selectedRosterIds: rosterIds })
+     .filter((row) => {
+       if (answeredKeys.has(row.key)) return false;
+-      const pins = pinsByStudentId.get(row.studentId) ?? [];
+-      return !pins.some((pin) => answeredPins.has(pin));
++      return !answered.get(row.studentId);
+     })
+     .map((row) => row.ref);
+ }
+@@ -162,10 +176,12 @@ interface RosterStudentName {
+   lastName: string;
+   pin: string;
+   formerPins?: string[];
++  formerPinsAt?: number;
+ }
+ 
+ interface LiveResponseLike extends StaffResponseFields {
+   pin?: string;
++  joinedAt?: number;
+   name?: string;
+   studentUid: string;
+   answers: { questionId: string }[];
+@@ -191,7 +207,11 @@ export function whoHasntAnswered(
+       : '';
+     const pinStudent = r.pin
+       ? (rosterStudents.find((s) => s.pin === r.pin) ??
+-        rosterStudents.find((s) => s.formerPins?.includes(r.pin ?? '')))
++        rosterStudents.find(
++          (s) =>
++            s.formerPins?.includes(r.pin ?? '') &&
++            joinedBeforeRetirement(s, r.joinedAt)
++        ))
+       : undefined;
+     const pinName = pinStudent
+       ? `${pinStudent.firstName} ${pinStudent.lastName}`.trim()

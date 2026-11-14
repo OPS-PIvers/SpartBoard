@@ -961,6 +961,12 @@ describe('useRosters — deleteRoster & setActiveRoster', () => {
 
     expect(deleteFile).toHaveBeenCalledWith('file-1');
     expect(mockDeleteDoc).toHaveBeenCalledWith('users/teacher-1/rosters/r1');
+    expect(lastCallableName).toBe('commitRosterPinIndexV1');
+    expect(lastCallablePayload).toEqual({
+      rosterId: 'r1',
+      entries: [],
+      rosterDeleted: true,
+    });
     // Active roster cleared because it matched the deleted id.
     expect(result.current.activeRosterId).toBeNull();
     expect(localStorage.getItem('spart_active_roster_id')).toBeNull();

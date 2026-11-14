@@ -1474,11 +1474,26 @@ export const commitRosterPinIndexV1 = onCall(
     const rawData = (request.data ?? {}) as {
       rosterId?: unknown;
       entries?: unknown;
+      rosterDeleted?: unknown;
     };
     const rosterId =
       typeof rawData.rosterId === 'string' ? rawData.rosterId : '';
     if (!rosterId) {
       throw new HttpsError('invalid-argument', 'rosterId is required.');
+    }
+    if (rawData.rosterDeleted === true) {
+      // A deleted roster's retired PINs stop blocking anyone; only valid once the roster doc is gone.
+      const gone = admin
+        .firestore()
+        .collection('users')
+        .doc(request.auth.uid)
+        .collection('rosters')
+        .doc(rosterId);
+      if ((await gone.get()).exists) {
+        throw new HttpsError('failed-precondition', 'Roster still exists.');
+      }
+      await recordRetiredPins(admin.firestore(), gone, [], Date.now(), true);
+      return { wrote: 0, deleted: 0, rosterDeleted: true };
     }
     if (!Array.isArray(rawData.entries)) {
       throw new HttpsError('invalid-argument', 'entries must be an array.');
@@ -1719,19 +1734,35 @@ export async function recordRetiredPins(
       if (pin !== entry.pin) keys.add(retiredPinKey(entry.period, pin));
     }
   }
-  const have = await col.where('rosterId', '==', rosterRef.id).get();
+  // A doc lists every roster that retired the PIN, so two rosters sharing a period and PIN don't overwrite each other.
+  const have = await col
+    .where('rosterIds', 'array-contains', rosterRef.id)
+    .get();
   const ops: ((b: admin.firestore.WriteBatch) => void)[] = [];
   const present = new Set(have.docs.map((d) => d.id));
   for (const key of keys) {
-    if (!present.has(key)) {
-      ops.push((b) =>
-        b.set(col.doc(key), { rosterId: rosterRef.id, updatedAt: now })
-      );
-    }
+    if (present.has(key)) continue;
+    const other = await col.doc(key).get();
+    const ids: unknown = other.get('rosterIds');
+    const rosterIds = Array.isArray(ids) ? (ids as string[]) : [];
+    ops.push((b) =>
+      b.set(col.doc(key), {
+        rosterIds: [...rosterIds, rosterRef.id],
+        updatedAt: now,
+      })
+    );
   }
   if (prune) {
     for (const d of have.docs) {
-      if (!keys.has(d.id)) ops.push((b) => b.delete(d.ref));
+      if (keys.has(d.id)) continue;
+      const rest = (d.get('rosterIds') as string[]).filter(
+        (id) => id !== rosterRef.id
+      );
+      ops.push((b) =>
+        rest.length > 0
+          ? b.set(d.ref, { rosterIds: rest, updatedAt: now })
+          : b.delete(d.ref)
+      );
     }
   }
   for (let i = 0; i < ops.length; i += 400) {

@@ -1483,7 +1483,7 @@ describe('commitRosterPinIndexV1', () => {
       },
     });
     expect(h.docStore.get('users/teacher1/retired_pins/period_1__01')).toEqual(
-      expect.objectContaining({ rosterId: 'r1' })
+      expect.objectContaining({ rosterIds: ['r1'] })
     );
     expect(h.docStore.has('users/teacher1/retired_pins/period_1__07')).toBe(
       true
@@ -1493,7 +1493,7 @@ describe('commitRosterPinIndexV1', () => {
   it('prunes retired PINs no student holds only when the client sends a complete list', async () => {
     h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
     h.docStore.set('users/teacher1/retired_pins/period_1__09', {
-      rosterId: 'r1',
+      rosterIds: ['r1'],
       updatedAt: 1,
     });
     const entries = [
@@ -1512,6 +1512,66 @@ describe('commitRosterPinIndexV1', () => {
     });
     expect(h.docStore.has('users/teacher1/retired_pins/period_1__09')).toBe(
       false
+    );
+  });
+
+  it('keeps a retired PIN two rosters share until both drop it', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    h.docStore.set('users/teacher1/rosters/r2', { classlinkClassId: 'CL1' });
+    const entries = [
+      {
+        period: 'Period 1',
+        pin: '482913',
+        classlinkSourcedId: 'SID-1',
+        formerPins: ['01'],
+      },
+    ];
+    for (const rosterId of ['r1', 'r2']) {
+      await callCommitIndex({
+        auth: teacherAuth,
+        data: { rosterId, entries },
+      });
+    }
+    const key = 'users/teacher1/retired_pins/period_1__01';
+    expect(h.docStore.get(key).rosterIds).toEqual(['r1', 'r2']);
+    await callCommitIndex({
+      auth: teacherAuth,
+      data: {
+        rosterId: 'r1',
+        entries: [{ ...entries[0], formerPins: undefined }],
+        retiredPinsComplete: true,
+      },
+    });
+    expect(h.docStore.get(key).rosterIds).toEqual(['r2']);
+  });
+
+  it("drops a deleted roster's retired PINs, and only once the roster is gone", async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    h.docStore.set('users/teacher1/retired_pins/period_1__01', {
+      rosterIds: ['r1'],
+      updatedAt: 1,
+    });
+    h.docStore.set('users/teacher1/retired_pins/period_1__02', {
+      rosterIds: ['r1', 'r2'],
+      updatedAt: 1,
+    });
+    await expectCode(
+      callCommitIndex({
+        auth: teacherAuth,
+        data: { rosterId: 'r1', entries: [], rosterDeleted: true },
+      }),
+      'failed-precondition'
+    );
+    h.docStore.delete('users/teacher1/rosters/r1');
+    await callCommitIndex({
+      auth: teacherAuth,
+      data: { rosterId: 'r1', entries: [], rosterDeleted: true },
+    });
+    expect(h.docStore.has('users/teacher1/retired_pins/period_1__01')).toBe(
+      false
+    );
+    expect(h.docStore.get('users/teacher1/retired_pins/period_1__02')).toEqual(
+      expect.objectContaining({ rosterIds: ['r2'] })
     );
   });
 

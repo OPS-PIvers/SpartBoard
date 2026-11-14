@@ -1,0 +1,10 @@
+fix(security): quiz join PINs: canonical seats, retired PINs, VA PIN probe, owned join codes
+
+- pinKeyOk keys anonymous quiz PINs with leading zeros stripped, so 4821/04821 share one seat
+- a PIN-keyed response keeps the period its key names
+- linked students' retired PINs (users/{teacher}/retired_pins, server-written) seat no one on ClassLink-rostered sessions; teacher views name a former PIN only on responses joined before it was retired
+- video activity refuses sign-in-length anonymous PIN keys on ClassLink-rostered sessions
+- ownsJoinCode requires an owner record (AB-47; PT-1 backfill ran 2026-11-10)
+- duplicate badging keys on the response doc id
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
