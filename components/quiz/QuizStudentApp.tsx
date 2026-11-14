@@ -2055,6 +2055,10 @@ export const ActiveQuiz: React.FC<{
   const watching = watchQuestionId !== undefined;
   const { showAlert, showConfirm } = useDialog();
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  useLayoutEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
   // Review before submit: this tab's sessionStorage only, so teachers never see marks.
@@ -2146,8 +2150,8 @@ export const ActiveQuiz: React.FC<{
     async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
       const message =
         reason === 'post-unlock'
-          ? 'Your unlocked attempt has been submitted.'
-          : 'You left the page too many times. Your assignment has been submitted. Ask your teacher if you believe this happened by mistake.';
+          ? t('quizStudent.autoSubmit.unlocked')
+          : t('quizStudent.autoSubmit.strikes');
       // Ask the inner question view to flush any pending written-response
       // autosave before we mark the response complete. Listened for in
       // `StudentQuestionView`'s flush handler. Without this, a strike-3
@@ -2164,11 +2168,11 @@ export const ActiveQuiz: React.FC<{
         return;
       }
       await showAlert(message, {
-        title: 'Quiz Auto-Submitted',
+        title: t('quizStudent.autoSubmit.title'),
         variant: 'warning',
       });
     },
-    [showAlert, onComplete]
+    [showAlert, onComplete, t]
   );
 
   // M17 C2 (§3a-D) — mid-attempt window close: when `closeAt` passes while
@@ -2393,10 +2397,10 @@ export const ActiveQuiz: React.FC<{
       void commitActiveTake()
         .then(() => onComplete())
         .then(() =>
-          showAlert(
-            'You were away from the quiz too long, so it was submitted.',
-            { title: 'Quiz Auto-Submitted', variant: 'warning' }
-          )
+          showAlert(t('quizStudent.autoSubmit.awayTooLong'), {
+            title: t('quizStudent.autoSubmit.title'),
+            variant: 'warning',
+          })
         )
         .catch((err: unknown) =>
           console.error('[QuizStudentApp] away auto-submit failed:', err)
@@ -3172,7 +3176,7 @@ export const ActiveQuiz: React.FC<{
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
             dispatchStep({ type: 'submitFailed' });
-            setSaveError("Couldn't submit your quiz. Tap to try again.");
+            setSaveError(tRef.current('quizStudent.errors.submitQuiz'));
           }
         },
         (err: unknown) => {
@@ -3180,7 +3184,7 @@ export const ActiveQuiz: React.FC<{
           // Mid-quiz, stay submitted so NEXT QUESTION still moves on.
           if (!finishesQuiz) return;
           dispatchStep({ type: 'submitFailed' });
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(tRef.current('quizStudent.errors.saveAnswer'));
         }
       );
   }, [autoSubmitTriggeredFor]);
@@ -3275,10 +3279,7 @@ export const ActiveQuiz: React.FC<{
     // with the explicit Submit/Next button still bypasses the guard
     // and lets them persist an empty answer if that's really intended.
     if (cachedDraft === '' && (savedAnswerForCurrent ?? '') !== '') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- guard message for the debounced draft flush
-      setSaveError(
-        'Your previously-saved answer is still on file. Click Submit to clear it.'
-      );
+      setSaveError(tRef.current('quizStudent.errors.draftStillSaved'));
       return;
     }
 
@@ -3299,7 +3300,7 @@ export const ActiveQuiz: React.FC<{
           // land here too. Without this setter the student silently
           // loses keystrokes until the idle-finalize cron sweeps
           // their last successfully persisted value.
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(tRef.current('quizStudent.errors.saveAnswer'));
         });
     };
 
@@ -3411,7 +3412,7 @@ export const ActiveQuiz: React.FC<{
           // the visibilitychange-hidden path matters: when the student
           // tabs back in, they see the SaveErrorBanner instead of
           // silently believing their pre-switch keystrokes saved.
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(tRef.current('quizStudent.errors.saveAnswer'));
         });
     };
     const onVisibilityChange = () => {
@@ -3559,7 +3560,7 @@ export const ActiveQuiz: React.FC<{
     } catch (err) {
       console.error('[QuizStudentApp] onAnswer failed:', err);
       dispatchStep({ type: 'submitFailed' });
-      setSaveError("Couldn't save your answer. Tap to try again.");
+      setSaveError(t('quizStudent.errors.saveAnswer'));
       setSubmitting(false);
       return;
     }
@@ -3620,7 +3621,7 @@ export const ActiveQuiz: React.FC<{
       } catch (err) {
         console.error('[QuizStudentApp] onComplete failed:', err);
         dispatchStep({ type: 'submitFailed' });
-        setSaveError("Couldn't submit your quiz. Tap to try again.");
+        setSaveError(t('quizStudent.errors.submitQuiz'));
       }
     }
   };
@@ -3743,7 +3744,7 @@ export const ActiveQuiz: React.FC<{
             currentQuestion.id,
             err
           );
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(t('quizStudent.errors.saveAnswer'));
           return;
         }
       }
@@ -3778,7 +3779,7 @@ export const ActiveQuiz: React.FC<{
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
             dispatchStep({ type: 'submitFailed' });
-            setSaveError("Couldn't submit your quiz. Tap to try again.");
+            setSaveError(t('quizStudent.errors.submitQuiz'));
           }
         }
       } else if (
@@ -3828,7 +3829,7 @@ export const ActiveQuiz: React.FC<{
       await onSubmitPart(part, opened <= part);
     } catch (err) {
       console.error('[QuizStudentApp] submitPart failed:', err);
-      setSaveError("Couldn't submit this part. Tap to try again.");
+      setSaveError(t('quizStudent.errors.submitPart'));
     }
   };
 
@@ -3897,7 +3898,7 @@ export const ActiveQuiz: React.FC<{
       await onComplete();
     } catch (err) {
       console.error('[QuizStudentApp] onComplete failed:', err);
-      setSaveError("Couldn't submit your quiz. Tap to try again.");
+      setSaveError(t('quizStudent.errors.submitQuiz'));
     }
   };
 
@@ -3934,7 +3935,7 @@ export const ActiveQuiz: React.FC<{
     } catch (err) {
       console.error('[QuizStudentApp] onComplete failed:', err);
       dispatchStep({ type: 'submitFailed' });
-      setSaveError("Couldn't submit your quiz. Tap to try again.");
+      setSaveError(t('quizStudent.errors.submitQuiz'));
     } finally {
       setSubmitting(false);
       advancingRef.current = false;
@@ -4018,7 +4019,7 @@ export const ActiveQuiz: React.FC<{
   const atLastStep =
     currentIndex >= effectiveTotalQuestions - 1 || (reviewOn && returnToReview);
   const reviewLabel = t('quizReview.reviewButton', 'REVIEW');
-  const finishLabel = reviewOn ? reviewLabel : 'SUBMIT';
+  const finishLabel = reviewOn ? reviewLabel : t('quizStudent.nav.submit');
   const handBesideNext =
     !!whiteboardConfig && isStudentPaced && !(sectionLocked && sectionState);
   const raiseHandButton =
@@ -4034,7 +4035,9 @@ export const ActiveQuiz: React.FC<{
         }`}
       >
         <Hand className="w-4 h-4" aria-hidden />
-        {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
+        {handRaised
+          ? t('quizStudent.hand.raised')
+          : t('quizStudent.hand.raise')}
       </button>
     ) : null;
   const canClearSectionAnswer =
@@ -4063,7 +4066,7 @@ export const ActiveQuiz: React.FC<{
       await onAnswerRef.current(currentQuestion.id, '');
     } catch (err) {
       console.error('[QuizStudentApp] clearing an answer failed:', err);
-      setSaveError("Couldn't clear your answer. Tap to try again.");
+      setSaveError(t('quizStudent.errors.clearAnswer'));
     } finally {
       setClearingAnswer(false);
     }
@@ -4197,20 +4200,21 @@ export const ActiveQuiz: React.FC<{
         <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
-            {reopened ? 'Your teacher reopened your quiz' : 'Attempt Unlocked'}
+            {reopened
+              ? t('quizStudent.unlock.reopenedTitle')
+              : t('quizStudent.unlock.title')}
           </h2>
           {reopened ? (
             <p className="text-emerald-100 text-lg max-w-md mb-8">
-              Your answers are saved. Make your changes and submit again.
+              {t('quizStudent.unlock.reopenedBody')}
             </p>
           ) : (
             <>
               <p className="text-emerald-100 text-lg max-w-md mb-2">
-                Your answers are still here.
+                {t('quizStudent.unlock.stillHere')}
               </p>
               <p className="text-amber-200 text-sm max-w-md mb-8">
-                ⚠ Leave this tab or open the quiz in another window and your
-                quiz submits right away.
+                {t('quizStudent.unlock.warning')}
               </p>
             </>
           )}
@@ -4218,7 +4222,9 @@ export const ActiveQuiz: React.FC<{
             onClick={() => setShowResumeModal(false)}
             className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
-            {reopened ? 'Keep working' : 'Resume Quiz'}
+            {reopened
+              ? t('quizStudent.unlock.keepWorking')
+              : t('quizStudent.unlock.resume')}
           </button>
         </div>
       )}
@@ -4232,7 +4238,7 @@ export const ActiveQuiz: React.FC<{
           className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
         >
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>This assignment closed. Your answers were submitted.</span>
+          <span>{t('quizStudent.closed.submitted')}</span>
         </div>
       )}
 
@@ -4261,10 +4267,7 @@ export const ActiveQuiz: React.FC<{
           className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
         >
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="flex-1">
-            Couldn&apos;t submit. Check your connection and try again, or ask
-            your teacher for an extension.
-          </span>
+          <span className="flex-1">{t('quizStudent.closed.submitFailed')}</span>
           <button
             type="button"
             onClick={() =>
@@ -4275,7 +4278,9 @@ export const ActiveQuiz: React.FC<{
             disabled={closeAutoSubmitInFlight || timeUpInFlight}
             className="shrink-0 px-2 py-1 rounded-sm bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
           >
-            {closeAutoSubmitInFlight || timeUpInFlight ? 'Retrying…' : 'Retry'}
+            {closeAutoSubmitInFlight || timeUpInFlight
+              ? t('quizStudent.nav.retrying')
+              : t('quizStudent.nav.retry')}
           </button>
         </div>
       )}
@@ -4288,8 +4293,8 @@ export const ActiveQuiz: React.FC<{
         >
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
-            Your teacher unlocked your attempt.{' '}
-            <strong>Leaving this tab once more will submit your quiz.</strong>
+            {t('quizStudent.unlock.banner')}{' '}
+            <strong>{t('quizStudent.unlock.bannerStrong')}</strong>
           </span>
         </div>
       )}
@@ -4299,7 +4304,7 @@ export const ActiveQuiz: React.FC<{
         <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
-            TAB SWITCH DETECTED
+            {t('quizStudent.tabWarning.title')}
           </h2>
           {tabAwayRule && tabTracker.away && (
             <TabAwayClock
@@ -4309,12 +4314,14 @@ export const ActiveQuiz: React.FC<{
             />
           )}
           <p className="text-red-200 text-lg max-w-md mb-8">
-            You navigated away from the quiz. This incident has been logged.
+            {t('quizStudent.tabWarning.body')}
             <br />
             <br />
-            <strong>Warning {warningCount}.</strong>{' '}
+            <strong>
+              {t('quizStudent.tabWarning.warningN', { n: warningCount })}
+            </strong>{' '}
             {effectiveTabWarningThreshold !== 'off' &&
-              'Repeated tab switches will automatically submit your quiz.'}
+              t('quizStudent.tabWarning.autoSubmit')}
           </p>
           <button
             onClick={() => {
@@ -4323,7 +4330,7 @@ export const ActiveQuiz: React.FC<{
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
-            I Understand, Return to Quiz
+            {t('quizStudent.tabWarning.dismiss')}
           </button>
         </div>
       )}
@@ -4484,7 +4491,7 @@ export const ActiveQuiz: React.FC<{
                   <button
                     type="button"
                     onClick={handleBack}
-                    aria-label="Previous question"
+                    aria-label={t('quizStudent.nav.previous')}
                     className={`inline-flex h-11 w-11 -ml-3 items-center justify-center rounded-lg transition-colors ${backBtnCls}`}
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -4508,7 +4515,9 @@ export const ActiveQuiz: React.FC<{
             {timeLeft !== null && !submitted && (
               <div
                 role="timer"
-                aria-label={`${timeLeft} seconds left`}
+                aria-label={t('quizStudent.timer.secondsLeft', {
+                  count: timeLeft,
+                })}
                 className={`flex items-center gap-1.5 text-sm font-bold ${
                   timeLeft <= 5
                     ? light
@@ -4523,9 +4532,9 @@ export const ActiveQuiz: React.FC<{
                 {timeLeft}s
                 <span className="sr-only" aria-live="assertive">
                   {timeLeft === 10
-                    ? '10 seconds left'
+                    ? t('quizStudent.timer.secondsLeft', { count: 10 })
                     : timeLeft === 0
-                      ? 'Time is up'
+                      ? t('quizStudent.timer.timeUp')
                       : ''}
                 </span>
               </div>
@@ -4534,16 +4543,16 @@ export const ActiveQuiz: React.FC<{
               className={`text-xs px-2 py-0.5 rounded-sm font-medium ${typeBadgeCls}`}
             >
               {currentQuestion.type === 'MC'
-                ? 'Multiple Choice'
+                ? t('quizStudent.type.multipleChoice')
                 : currentQuestion.type === 'FIB'
-                  ? 'Fill in the Blank'
+                  ? t('quizStudent.type.fillBlank')
                   : currentQuestion.type === 'Matching'
-                    ? 'Matching'
+                    ? t('quizStudent.type.matching')
                     : currentQuestion.type === 'Ordering'
-                      ? 'Ordering'
+                      ? t('quizStudent.type.ordering')
                       : currentQuestion.type === 'MA'
-                        ? 'Choose All That Apply'
-                        : 'Free Response'}
+                        ? t('quizStudent.type.chooseAll')
+                        : t('quizStudent.type.freeResponse')}
             </span>
           </div>
 

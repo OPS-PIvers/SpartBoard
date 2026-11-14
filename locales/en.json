@@ -3559,6 +3559,64 @@
     "locked": {
       "opensSoon": "Opens when your teacher starts it.",
       "keepOpen": "Keep this tab open. The quiz appears here as soon as your class is let in."
+    },
+    "autoSubmit": {
+      "unlocked": "Your unlocked attempt has been submitted.",
+      "strikes": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you believe this happened by mistake.",
+      "title": "Quiz Auto-Submitted",
+      "awayTooLong": "You were away from the quiz too long, so it was submitted."
+    },
+    "errors": {
+      "saveAnswer": "Couldn't save your answer. Tap to try again.",
+      "submitQuiz": "Couldn't submit your quiz. Tap to try again.",
+      "submitPart": "Couldn't submit this part. Tap to try again.",
+      "clearAnswer": "Couldn't clear your answer. Tap to try again.",
+      "draftStillSaved": "Your previously-saved answer is still on file. Click Submit to clear it."
+    },
+    "hand": {
+      "raised": "Hand raised. Help is coming.",
+      "raise": "Raise hand"
+    },
+    "nav": {
+      "submit": "SUBMIT",
+      "retrying": "Retrying…",
+      "retry": "Retry",
+      "previous": "Previous question"
+    },
+    "unlock": {
+      "reopenedTitle": "Your teacher reopened your quiz",
+      "title": "Attempt Unlocked",
+      "reopenedBody": "Your answers are saved. Make your changes and submit again.",
+      "stillHere": "Your answers are still here.",
+      "warning": "⚠ Leave this tab or open the quiz in another window and your quiz submits right away.",
+      "keepWorking": "Keep working",
+      "resume": "Resume Quiz",
+      "banner": "Your teacher unlocked your attempt.",
+      "bannerStrong": "Leaving this tab once more will submit your quiz."
+    },
+    "closed": {
+      "submitted": "This assignment closed. Your answers were submitted.",
+      "submitFailed": "Couldn't submit. Check your connection and try again, or ask your teacher for an extension."
+    },
+    "tabWarning": {
+      "title": "TAB SWITCH DETECTED",
+      "body": "You navigated away from the quiz. This incident has been logged.",
+      "warningN": "Warning {{n}}.",
+      "autoSubmit": "Repeated tab switches will automatically submit your quiz.",
+      "dismiss": "I Understand, Return to Quiz"
+    },
+    "timer": {
+      "secondsLeft_one": "{{count}} second left",
+      "secondsLeft_other": "{{count}} seconds left",
+      "timeUp": "Time is up"
+    },
+    "type": {
+      "multipleChoice": "Multiple Choice",
+      "fillBlank": "Fill in the Blank",
+      "matching": "Matching",
+      "ordering": "Ordering",
+      "chooseAll": "Choose All That Apply",
+      "freeResponse": "Free Response"
     }
   },
   "quizSubmit": {
