@@ -756,7 +756,7 @@
 | 2026-11-14 | Baseline | `pnpm run validate` green on `dev-paul` at `8ca91507`. No other nightly debugger PRs open at dispatch. | — |
 | 2026-11-14 | Widgets | Clean: Stations, Drawing, groupMaker, LunchCount, TimeTool, SpecialistSchedule, Focus, Flashcards roster, SeatingChart, GuidedLearning snapping, settings renderer; no reproducible bug. | — |
 | 2026-11-14 | Dashboard & Layout | `ColorPresetPicker` dropped a typed hex equal to the fallback when the value was cleared, so the explicit color was lost. Now commits when the field was edited. (contained). | [#5805](https://github.com/OPS-PIvers/SpartBoard/pull/5805) |
-| 2026-11-14 | State & Data | `titleCaseHandle` used ASCII-only `\b\w`, so `josé.garcía` became "José GarcíA". Now uses `\p{L}` after start/space/apostrophe. (contained). | [#5804](https://github.com/OPS-PIvers/SpartBoard/pull/5804) |
+| 2026-11-14 | State & Data | `titleCaseHandle` used ASCII-only `\b\w`, so `josé.garcía` became "José GarcíA". Now capitalizes any letter not preceded by a letter, mark or digit (`\p{L}` lookbehind). (contained). | [#5804](https://github.com/OPS-PIvers/SpartBoard/pull/5804) |
 | 2026-11-14 | Admin & Config | Admin Announcements Font Size/Width/Height clamped on every keystroke into a controlled input, so values could not be typed. Now `DraftNumberField` with clamp on commit. (contained). | [#5806](https://github.com/OPS-PIvers/SpartBoard/pull/5806) |
 | 2026-11-14 | Build & Tooling | Clean (read-only pass): mp3/webm duration, mail, LTI tool columns, sweeps, scripts, firebase.json, extension schoology fetch; no reproducible bug. | — |
 
