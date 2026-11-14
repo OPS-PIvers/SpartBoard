@@ -1729,7 +1729,7 @@ export async function recordRetiredPins(
       );
     }
   }
-  if (prune && entries.length > 0) {
+  if (prune) {
     for (const d of have.docs) {
       if (!keys.has(d.id)) ops.push((b) => b.delete(d.ref));
     }

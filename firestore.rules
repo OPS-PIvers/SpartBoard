@@ -4722,7 +4722,11 @@ service cloud.firestore {
           return t == '' ? 'default' : t;
         }
         // Leading zeros stripped (one digit padded to two), so 4821 and 04821 share a seat (quizPinKeySegment).
-        // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one.
+        // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one on that roster's sessions.
+        function pinRetired(s, k) {
+          let r = dbGet4('users', s.teacherUid, 'retired_pins', k.replace('-', '__'));
+          return r != null && r.data.get('rosterId', '') in s.get('rosterIds', []);
+        }
         function pinKeyOk(s, d) {
           let p = keySeg(d.get('pin', ''));
           let z = p.replace('^0+', '');
@@ -4732,7 +4736,7 @@ service cloud.firestore {
             (pn.size() == 0 || d.get('classPeriod', '') in pn) &&
             (s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0 ||
              (p.replace('_', '').size() < 6 &&
-              !dbExists4('users', s.teacherUid, 'retired_pins', k.replace('-', '__'))));
+              !pinRetired(s, k)));
         }
 
         // A missing doc is readable only at the caller's own uid key, so a

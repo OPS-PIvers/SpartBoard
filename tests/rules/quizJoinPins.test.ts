@@ -267,6 +267,21 @@ describe('retired roster PINs on a ClassLink-rostered quiz', () => {
     );
   });
 
+  it('ignores a retired PIN from a roster this session does not use', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `users/${TEACHER}/retired_pins/period_1__03`),
+        { rosterId: 'roster-gone', updatedAt: 1 }
+      );
+    });
+    await assertSucceeds(
+      setDoc(
+        quizRef(anonDb(ANON), ROSTERED, quizKey('Period 1', '03')),
+        joinDoc(ANON, { pin: '03', classPeriod: 'Period 1' })
+      )
+    );
+  });
+
   it('still seats the same PIN in another period', async () => {
     await assertSucceeds(
       setDoc(
