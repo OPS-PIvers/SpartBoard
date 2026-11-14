@@ -7,7 +7,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Pick from Ready.** Each item says what and why, where to look, and what counts as done. When an item links a plan, the plan is the source of truth and its decisions (D-numbers) win over this brief.
 - **Re-verify first.** Items marked _re-verify_ came from older audits; check the code, and if it's already fixed, delete the item in your PR and say so.
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-215**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-217**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -19,6 +19,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### Security and correctness
 
+- **AB-215 Release 2026.11.14b review minors** (S). From the #5802 release review. (1) Tour run counters write one shared doc, so busy tours contend, and staff can bump their own counts; shard or move to a function. (2) The web tour `countPublicView` timeout is never cleared on unmount. (3) When the Forms API read fails, the editor fallback offers only Quiz and Poll; check that is intended. (4) Import `source: 'import'` is declared by the client; don't trust it server side. (5) The Google Forms import code lands in the main chunk; lazy-load it. (6) With the "pasted" input sign off, Quiz Live view still shows the paste count.
+- **AB-216 Org deactivation follow-ups** (S). From the #5801 review. (1) Deleting a member and re-adding the same address doesn't clear the cached claim check (sessionStorage), so the person stays locked out until the tab closes. (2) After reactivation, access can lag up to an hour until the ID token refreshes; force a refresh when the claim is cleared.
 - **AB-213 Choose-N pick follow-ups** (S). From the 2026-11-14 PR sweep integration review of #5778. (1) Paper re-import (`functions/src/importPaperResponses.ts`) deletes `countedChoices` including `revived`, but an answer the teacher picked back from `unresponded: 'passed'` stays a real answer; restore `unresponded` for the `revived` ids first, as reopen now does (`restorePassedAnswers`, release fix #5781). (2) The site-admin branch of the response update rule (`firestore.rules`, `isSiteAdmin() && !changed([...])`) excludes `liveView` but not `countedChoices`; decide with the `resultsOverride` precedent and add it if admins shouldn't change picks, with a rules test. Before `choose-n-pick-counted` opens.
 - **AB-214 Live view follow-ups** (S). From the 2026-11-14 PR sweep reviews of #5772. (1) `deleteAssignment` (`hooks/useQuizAssignments.ts`) leaves `quiz_sessions/{id}/responses/*/live/state` behind once the session doc is gone; delete them before the session, as `removeStudent` does. (2) `LiveViewPanel` re-renders the whole mirror every second through `useServerNow(1000)`; move the ticking stats into their own component. (3) `studentQuestionOrder` (`utils/quizLiveView.ts`) uses the live session's shuffle setting, not the attempt's latched one, so a mid-attempt shuffle edit makes the question number in the stats and log disagree with the mirror. (4) Nudge notes fall back to English for quiz languages other than es, fr and de. Before `quiz-live-view` opens.
 
@@ -394,6 +396,7 @@ git push origin --delete claude/project-thread-4o47oj claude/project-thread-4o47
 git push origin --delete claude/project-thread-05ocrk claude/s4-ab112
 git push origin --delete claude/project-thread-98ewth docs/ab112-98ewth
 git push origin --delete claude/project-thread-ny32f4 claude/project-thread-ny32f4-ab112
+git push origin --delete release-fix/stimuli-for-everyone security/b-admin-collection-reads security/c-guided-learning security/a-org-deactivation
 ```
 
   </details>
