@@ -74,7 +74,7 @@ export function resetLastAssignWhenCache(): void {
 }
 
 /** Today at this time, or tomorrow once today's has passed. */
-function nextDue(time: string, now: Date): ManualDue {
+export function nextDue(time: string, now: Date): ManualDue {
   const today = getLocalIsoDate(now);
   const at = manualDueAt({ kind: 'date', day: today, time });
   if (at == null || at > now.getTime())

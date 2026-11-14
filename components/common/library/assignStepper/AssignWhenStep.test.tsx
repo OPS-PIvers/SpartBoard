@@ -369,6 +369,35 @@ describe('Manual due date', () => {
     ).toMatchObject({ kind: 'date', time: '14:30' });
   });
 
+  it('moves a remembered time that has passed today to tomorrow', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 14, 14, 0));
+    try {
+      const onValue = vi.fn();
+      render(
+        <Harness
+          initial={{
+            ...MANUAL,
+            availability: {
+              ...MANUAL.availability,
+              manualDue: { kind: 'ended', time: '08:00' },
+            },
+          }}
+          onValue={onValue}
+        />
+      );
+      fireEvent.change(screen.getByLabelText('Due'), {
+        target: { value: 'date' },
+      });
+      expect(
+        (onValue.mock.calls.at(-1)?.[0] as AssignWhenValue).availability
+          .manualDue
+      ).toEqual({ kind: 'date', day: '2026-11-15', time: '08:00' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('hides the row without the flag value', () => {
     render(
       <Harness initial={{ ...MANUAL, availability: BELL.availability }} />

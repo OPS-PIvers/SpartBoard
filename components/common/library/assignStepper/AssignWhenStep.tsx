@@ -21,7 +21,7 @@ import {
   SpecRows,
 } from '../AssignAvailabilitySection';
 import { getLocalIsoDate } from '@/utils/localDate';
-import { DEFAULT_DUE_TIME } from '@/hooks/useLastAssignWhen';
+import { DEFAULT_DUE_TIME, nextDue } from '@/hooks/useLastAssignWhen';
 import type { AssignWhenValue, AssignWhenVariant } from './assignWhenValue';
 import {
   TagPrompt,
@@ -57,11 +57,7 @@ const DueRow: React.FC<{
           defaultValue: 'Date & time',
         })}
         onSetDate={() =>
-          onChange({
-            kind: 'date',
-            day: getLocalIsoDate(new Date(openedAt)),
-            time: due.time ?? DEFAULT_DUE_TIME,
-          })
+          onChange(nextDue(due.time ?? DEFAULT_DUE_TIME, new Date(openedAt)))
         }
         anchor={tourAttr('assign-when.due')}
       />
