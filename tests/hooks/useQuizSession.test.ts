@@ -4903,6 +4903,8 @@ describe('useQuizSessionTeacher — reopenStudentAttempt vs unlockStudentAttempt
       revealedRubricExamples: DELETE_FIELD_SENTINEL,
       revealedExplanations: DELETE_FIELD_SENTINEL,
       'resultsOverride.revealedAnswers': DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedRubricExamples': DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedExplanations': DELETE_FIELD_SENTINEL,
       answers: [{ questionId: 'q1', answer: 'a' }],
     });
   });

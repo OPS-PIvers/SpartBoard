@@ -1859,6 +1859,8 @@ export const useQuizSessionTeacher = (
         revealedRubricExamples: deleteField(),
         revealedExplanations: deleteField(),
         'resultsOverride.revealedAnswers': deleteField(),
+        'resultsOverride.revealedRubricExamples': deleteField(),
+        'resultsOverride.revealedExplanations': deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
         unlockKind: reopen ? 'reopen' : deleteField(),
