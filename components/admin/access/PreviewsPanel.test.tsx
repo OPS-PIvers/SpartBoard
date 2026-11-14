@@ -76,12 +76,12 @@ const renderPanel = async () => {
   );
 };
 
-const expandRow = (id: string) => {
-  const button = screen
-    .getByTestId(`access-row-${id}`)
-    .querySelector(`[aria-controls="access-row-${id}"]`);
-  if (!button) throw new Error(`No expand button for ${id}`);
-  fireEvent.click(button);
+const expandRow = (id: string, label: string) => {
+  fireEvent.click(
+    within(screen.getByTestId(`access-row-${id}`)).getAllByRole('button', {
+      name: new RegExp(label),
+    })[0]
+  );
 };
 
 const district = (title: string) =>
@@ -103,7 +103,7 @@ describe('PreviewsPanel', () => {
   it('nests the Import add-ons under the Import anything row', async () => {
     await renderPanel();
     expect(screen.queryByTestId('access-row-import-flashcards')).toBeNull();
-    expandRow('universal-import');
+    expandRow('universal-import', 'Import anything');
     const group = screen.getByTestId('preview-group-universal-import');
     const child = screen.getByTestId('access-row-import-flashcards');
     expect(group).toContainElement(child);
@@ -130,7 +130,7 @@ describe('PreviewsPanel', () => {
 
   it('saves a nested Import add-on to its own permission doc', async () => {
     await renderPanel();
-    expandRow('universal-import');
+    expandRow('universal-import', 'Import anything');
     fireEvent.click(
       within(
         screen.getByRole('radiogroup', { name: 'Import: Google Forms access' })
