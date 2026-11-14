@@ -24,7 +24,7 @@ describe('deactivationClaimSyncNeeded', () => {
 });
 
 describe('deactivationClaimTarget', () => {
-  it('follows the current doc and clears for a deleted one', () => {
+  it('follows the current doc and leaves the claim for a deleted one', () => {
     expect(deactivationClaimTarget({ status: 'inactive' })).toBe('set');
     expect(deactivationClaimTarget({ status: 'active' })).toBe('clear');
     expect(deactivationClaimTarget({ status: 'invited' })).toBe('clear');
