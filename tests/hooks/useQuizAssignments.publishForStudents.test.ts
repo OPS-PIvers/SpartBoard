@@ -352,7 +352,9 @@ describe('classPublishPatch', () => {
   };
   const graded = {
     score: 100,
-    answers: [{ questionId: 'q0', answer: 'a', isCorrect: true }],
+    answers: [
+      { questionId: 'q0', answer: 'a', answeredAt: 1, isCorrect: true },
+    ],
   };
 
   it('keeps the key and verdicts off open attempts', () => {
@@ -363,7 +365,9 @@ describe('classPublishPatch', () => {
         opts
       );
       expect(patch.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
-      expect(patch.answers).toEqual([{ questionId: 'q0', answer: 'a' }]);
+      expect(patch.answers).toEqual([
+        { questionId: 'q0', answer: 'a', answeredAt: 1 },
+      ]);
     }
   });
 
@@ -379,7 +383,9 @@ describe('classPublishPatch', () => {
     );
     expect(patch.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
     expect(patch.revealedRubricExamples).toBe(DELETE_FIELD_SENTINEL);
-    expect(patch.answers).toEqual([{ questionId: 'q0', answer: 'a' }]);
+    expect(patch.answers).toEqual([
+      { questionId: 'q0', answer: 'a', answeredAt: 1 },
+    ]);
   });
 
   it('writes the key and verdicts for a completed student', () => {
