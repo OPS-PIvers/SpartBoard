@@ -753,6 +753,12 @@
 | 2026-11-13 | State & Data | Clean: ~100 pure utils, gradebook, boardLayout, timers/listeners/queue hooks, `in` chunking, `sanitizeBoardSnapshot` coverage; no reproducible bug. | — |
 | 2026-11-13 | Admin & Config | `CalendarConfigurationModal` showed editable defaults after a failed `getDoc`, so Save overwrote the real calendar config. Now shows an error with Try again. (contained). | [#5742](https://github.com/OPS-PIvers/SpartBoard/pull/5742) |
 | 2026-11-13 | Build & Tooling | Extension Edpuzzle `stripHtml` threw `RangeError` on out-of-range numeric entities (and read `Object.prototype` names) inside the `catch`, aborting the lesson read. (contained). | [#5743](https://github.com/OPS-PIvers/SpartBoard/pull/5743) |
+| 2026-11-14 | Baseline | `pnpm run validate` green on `dev-paul` at `8ca91507`. No other nightly debugger PRs open at dispatch. | — |
+| 2026-11-14 | Widgets | Clean: Stations, Drawing, groupMaker, LunchCount, TimeTool, SpecialistSchedule, Focus, Flashcards roster, SeatingChart, GuidedLearning snapping, settings renderer; no reproducible bug. | — |
+| 2026-11-14 | Dashboard & Layout | `ColorPresetPicker` dropped a typed hex equal to the fallback when the value was cleared, so the explicit color was lost. Now commits when the field was edited. (contained). | [#5805](https://github.com/OPS-PIvers/SpartBoard/pull/5805) |
+| 2026-11-14 | State & Data | `titleCaseHandle` used ASCII-only `\b\w`, so `josé.garcía` became "José GarcíA". Now uses `\p{L}` after start/space/apostrophe. (contained). | [#5804](https://github.com/OPS-PIvers/SpartBoard/pull/5804) |
+| 2026-11-14 | Admin & Config | Admin Announcements Font Size/Width/Height clamped on every keystroke into a controlled input, so values could not be typed. Now `DraftNumberField` with clamp on commit. (contained). | [#5806](https://github.com/OPS-PIvers/SpartBoard/pull/5806) |
+| 2026-11-14 | Build & Tooling | Clean (read-only pass): mp3/webm duration, mail, LTI tool columns, sweeps, scripts, firebase.json, extension schoology fetch; no reproducible bug. | — |
 
 ## Backlog
 
@@ -1225,6 +1231,11 @@
 | Dashboard & Layout | `flattenCollections`/`buildChildrenByParent`/`FolderPickerPopover.flattenFolders` hide parent cycles; `useSortableReorder` revert drops items from snapshots that arrived mid-commit; `useBoardMarqueeSelect` empty Ctrl-drag can't clear selection. |
 | State & Data | `titleCaseHandle` ASCII-only `\b\w` ("josé.garcía" → "GarcíA"); `parseMeetingCadence` accepts `weekday: NaN`; `useSeatedPeriodContent` doesn't reset on `sessionId` change and its `setTimeout(delay + 1000)` overflows past ~24.8 days. |
 | Build & Tooling | `mcp/cimd.ts` reads the whole body before the 16KB cap; `mcp/oauthEndpoints.ts` `handleToken` only compares `redirect_uri` when the client sends it (check whether intended). |
+| State & Data | 2026-11-14: `titleCaseHandle` lead fixed (#5804); `extractYouTubeId` in `utils/youtube.ts` is unanchored (`evil.example/?u=youtu.be/<id>` matches), low severity. |
+| Dashboard & Layout | 2026-11-14: `TabAwayClock` `limitMs` lead closed (clamped upstream by `clampTabAwaySeconds`, not a bug). `DriveDisconnectBanner` setTimeout overflow only reachable via corrupt localStorage. |
+| Admin & Config | 2026-11-14: grep remaining `Math.max(<min>, parsed)` call sites in admin panels for the same clamp-per-keystroke pattern fixed in #5806 (width/height inputs there have no dedicated test). |
+| Widgets | 2026-11-14: `SpecialistSchedule` sorts unparseable start times (`parseTime` = -1) to the top; `random/groupMaker` `pool.sort` can mutate `buckets` in place; `useTimeTool` syncs a ref via `useEffect`. All latent. |
+| Build & Tooling | 2026-11-14: extension `readItemBankFromSchoology` throws if `breadcrumbs` is not an array; `scripts/checkRulesSize.mjs` reads `sourceCompiled` before its declaration (harmless today). |
 
 ## Notes & Gotchas
 
@@ -1689,3 +1700,6 @@
 - 2026-11-13: four fixes (#5740-#5743), State & Data clean. Subagents ran scoped checks only; I confirmed each new test fails on the `dev-paul` source and passes on the branch, then ran one merged-tree `validate` + `build` (green). `dev-paul` moved during the run (no overlap); branches were rebased in their worktrees. Baseline about 1.3 h, gate about 1 h.
 
 - Run count: **122** | Last run: **2026-11-13**
+- 2026-11-14: three fixes (#5804-#5806), Widgets and Build clean. Subagents ran scoped checks only; I swapped old source back in each worktree to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green, both exit 0). The Monitor tool expires after 30 min, so re-arm it for the hour-long gate runs.
+
+- Run count: **123** | Last run: **2026-11-14**
