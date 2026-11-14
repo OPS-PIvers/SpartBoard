@@ -43,7 +43,7 @@ import {
 } from '@/components/common/library/assignStepper/assignSteps';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import { formatWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   formatClassesValue,
   type AssignClassesValue,
@@ -380,7 +380,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       title: getAssignStepTitle('classes', 'quiz', { kind: 'work' }),
       value: formatClassesValue(classesValue, rosters),
       body: (
-        <ClassPickerMenu
+        <ClassChecklist
           rosters={rosters}
           value={classesValue}
           onChange={(next) =>

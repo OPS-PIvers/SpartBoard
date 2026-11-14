@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ClassPickerMenu } from './ClassPickerMenu';
+import { ClassChecklist } from './ClassChecklist';
 import { StudentPickMenu } from './StudentPickMenu';
 import {
   formatClassesValue,
@@ -29,7 +29,7 @@ function ClassPickMenusPreview() {
           Step value: {formatClassesValue(value, SAMPLE_ROSTERS)}
         </p>
         <div className="space-y-3 pb-72">
-          <ClassPickerMenu
+          <ClassChecklist
             rosters={SAMPLE_ROSTERS}
             value={value}
             onChange={setValue}
@@ -43,8 +43,8 @@ function ClassPickMenusPreview() {
       </div>
       <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
         <p className="mb-3 text-xs text-slate-500">Single class (live)</p>
-        <div className="pb-48">
-          <ClassPickerMenu
+        <div>
+          <ClassChecklist
             rosters={SAMPLE_ROSTERS}
             value={single}
             onChange={setSingle}

@@ -229,9 +229,6 @@ describe('QuizManager assign stepper', () => {
     const onAssign = vi.fn();
     const dialog = await openStepper(onAssign);
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /no classes/i })
-    );
-    fireEvent.click(
       within(dialog).getByRole('checkbox', { name: /period 2/i })
     );
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));

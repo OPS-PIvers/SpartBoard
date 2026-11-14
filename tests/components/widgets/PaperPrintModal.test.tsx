@@ -1510,7 +1510,6 @@ describe('PaperPrintModal on the Assign on paper stepper', () => {
   });
 
   const pickPeriod1 = () => {
-    fireEvent.click(screen.getByRole('button', { name: /No classes/ }));
     fireEvent.click(screen.getByLabelText(/Period 1/, { selector: 'input' }));
   };
 

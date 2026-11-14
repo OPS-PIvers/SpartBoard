@@ -62,7 +62,7 @@ import {
 } from './PlcSharePickerModal';
 import { mirrorPlcAssignmentStatus } from '@/hooks/usePlcAssignmentIndex';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import {
   defaultWhenValue,
@@ -497,7 +497,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
             rosters.filter((r) => !r.loadError)
           ),
           body: (
-            <ClassPickerMenu
+            <ClassChecklist
               rosters={rosters.filter((r) => !r.loadError)}
               value={classes}
               onChange={setClasses}

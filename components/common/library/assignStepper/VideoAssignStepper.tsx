@@ -24,7 +24,7 @@ import {
   type AssignStepDef,
   type AssignStepId,
 } from './assignSteps';
-import { ClassPickerMenu } from './ClassPickerMenu';
+import { ClassChecklist } from './ClassChecklist';
 import { useAssignAudience, withAudienceSwitch } from './assignAudience';
 import { StudentPickMenu } from './StudentPickMenu';
 import {
@@ -182,7 +182,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       value: formatClassesValue(classes, visibleRosters),
       body: (
         <div className="space-y-3">
-          <ClassPickerMenu
+          <ClassChecklist
             rosters={visibleRosters}
             value={classes}
             onChange={setClasses}
