@@ -123,7 +123,7 @@ const WebTourRow: React.FC<{
               {counts && (
                 <span
                   data-testid="web-tour-counts"
-                  title="Plays count each time someone starts the tour in the Chrome extension. Link views count opens of the public link page."
+                  title="Views count each time someone starts the tour in the Chrome extension. Link views count opens of the public link page."
                 >
                   {` · ${countsText(counts, publicLink.status.kind === 'on')}`}
                 </span>

@@ -20,10 +20,10 @@ describe('tour counts', () => {
       .join(' · ');
   it('shows link views only once the link is on or was viewed', () => {
     const c = { plays: 1, finished: 0, linkViews: 0 };
-    expect(countsText(c, false)).toBe(nb('1 play · 0 finished'));
-    expect(countsText(c, true)).toBe(nb('1 play · 0 finished · 0 link views'));
+    expect(countsText(c, false)).toBe(nb('1 view · 0 finished'));
+    expect(countsText(c, true)).toBe(nb('1 view · 0 finished · 0 link views'));
     expect(countsText({ ...c, linkViews: 1 }, false)).toBe(
-      nb('1 play · 0 finished · 1 link view')
+      nb('1 view · 0 finished · 1 link view')
     );
   });
 });
