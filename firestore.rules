@@ -55,8 +55,8 @@ service cloud.firestore {
     function isNumber(k) { return request.resource.data[k] is number; }
     function isTimestamp(k) { return request.resource.data[k] is timestamp; }
 
-    // Server code trusts any collection-group `domains` doc, so wildcard admin paths may not create one.
-    function notDomainsPath(p) { return !string(p).matches('(.*/)?domains/.*'); }
+    // Server collection-group queries trust any doc in these subcollections, so wildcard admin paths may not create one.
+    function notServerCgPath(p) { return !string(p).matches('(.*/)?(domains|group_email_alerts|members|rosters|dashboards|responses|submissions|recordings|assessments|aggregates|keys|userProfile|gradebook_classes|paperPrivate|paper_transcription_jobs|guided_learning|claude_revisions|gl_media_tombstones|quizzes|quiz_assignments|miniapps|activity_wall_activities|notebooks|rubrics)/.*'); }
 
     // True if the caller's email has an /admins/{email} doc.
     // token.get('email','') (not direct .email) avoids a CEL "undefined" throw on
@@ -1072,7 +1072,7 @@ service cloud.firestore {
     // Admin-only collections. Docs that define super admins or that a super-admin/server gate trusts take isSuperAdmin() to write.
     match /admin_settings/{document=**} {
       allow read: if isAdmin();
-      allow write: if notDomainsPath(document) &&
+      allow write: if notServerCgPath(document) &&
                       ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|verified_classes_fill|focus_sessions|claude_managed_auth|claude_connector_cimd)(/.*)?')) ||
                        isSuperAdmin());
     }
@@ -1230,7 +1230,7 @@ service cloud.firestore {
     // Global permissions carry betaUsers emails; the new client uses global_permissions_public. Signed-in reads stay one release (see feature_permissions).
     match /global_permissions/{featureId=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(featureId);
+      allow write: if isAdmin() && notServerCgPath(featureId);
     }
 
     // Pilot / district-rollout requests submitted from the public /request
@@ -1360,13 +1360,13 @@ service cloud.firestore {
     // Global weather data
     match /global_weather/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(document);
+      allow write: if isAdmin() && notServerCgPath(document);
     }
 
     // Global music stations - authenticated users can read, only admins can write
     match /global_music_stations/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(document);
+      allow write: if isAdmin() && notServerCgPath(document);
     }
 
     // Instructional routines - all authenticated users can read, only admins can write

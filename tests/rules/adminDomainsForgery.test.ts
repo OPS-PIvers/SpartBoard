@@ -1,4 +1,4 @@
-// Admin wildcards must not let an admin create a nested `domains` doc that server code would trust as domain verification.
+// Admin wildcards must not let an admin create a nested doc in a subcollection that a server collection-group query trusts.
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';
@@ -44,12 +44,19 @@ const asAdmin = () =>
 
 const forged = { domain: '@victim.tld', status: 'verified' };
 
-describe('admin wildcard collections cannot hold a nested domains collection', () => {
+describe('admin wildcard collections cannot hold a nested server collection-group subcollection', () => {
   it.each([
     'admin_settings/org/domains/x',
     'global_permissions/org/domains/x',
     'global_weather/org/domains/x',
     'global_music_stations/org/domains/x',
+    'admin_settings/x/group_email_alerts/y',
+    'global_permissions/x/group_email_alerts/y',
+    'global_weather/x/group_email_alerts/y',
+    'global_music_stations/x/group_email_alerts/y',
+    'admin_settings/a/b/c/group_email_alerts/y',
+    'global_permissions/x/members/y',
+    'admin_settings/x/rosters/y',
   ])('denies an admin write to %s', async (path) => {
     await assertFails(setDoc(doc(asAdmin(), path), forged));
   });
@@ -58,6 +65,9 @@ describe('admin wildcard collections cannot hold a nested domains collection', (
     'admin_settings/feature-x',
     'global_permissions/invite-emails',
     'admin_settings/org/other/x',
+    'admin_settings/tour_public_links/tours/set-1',
+    'admin_settings/group_reminder_emails',
+    'global_weather/current',
   ])('still allows an admin write to %s', async (path) => {
     await assertSucceeds(setDoc(doc(asAdmin(), path), { enabled: true }));
   });

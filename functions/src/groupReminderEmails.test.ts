@@ -8,6 +8,7 @@ vi.mock('./firebaseAdmin', () => ({
 }));
 
 import {
+  alertOwnerUid,
   buildGroupAlertEmail,
   dueEmailAlerts,
   localParts,
@@ -85,19 +86,22 @@ describe('buildGroupAlertEmail', () => {
 });
 
 describe('runGroupReminderEmails', () => {
-  const stubDb = (enabled: boolean, created: Map<string, unknown>) => {
-    const snap = {
-      id: 'r1_g1',
-      ref: { parent: { parent: { id: 'teacher-1' } } },
-      data: () => alertDoc(),
-    };
+  const alertSnap = (
+    path = 'users/teacher-1/group_email_alerts/r1_g1',
+    data: Record<string, unknown> = alertDoc()
+  ) => ({ id: path.split('/').pop(), ref: { path }, data: () => data });
+  const stubDb = (
+    enabled: boolean,
+    created: Map<string, unknown>,
+    snaps = [alertSnap()]
+  ) => {
     return {
       doc: () => ({
         get: () => Promise.resolve({ data: () => ({ enabled }) }),
       }),
       collectionGroup: () => ({
         limit: () => ({
-          get: () => Promise.resolve({ docs: [snap], size: 1 }),
+          get: () => Promise.resolve({ docs: snaps, size: snaps.length }),
         }),
       }),
       collection: () => ({
@@ -164,5 +168,52 @@ describe('runGroupReminderEmails', () => {
       await runGroupReminderEmails(db, other as never, MON_1017);
       expect(created.size).toBe(0);
     }
+  });
+
+  it('mails only from docs at exactly users/{uid}/group_email_alerts/{id}', async () => {
+    const created = new Map<string, unknown>();
+    const db = stubDb(true, created, [
+      alertSnap('admin_settings/victim/group_email_alerts/x'),
+      alertSnap('global_permissions/victim/group_email_alerts/x'),
+      alertSnap('users/victim/other/y/group_email_alerts/x'),
+    ]) as never;
+    const getUser = vi.fn(() => Promise.resolve(teacher));
+    await runGroupReminderEmails(db, { getUser } as never, MON_1017);
+    expect(created.size).toBe(0);
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it('skips docs past the rule caps on name, message and alert count', async () => {
+    const created = new Map<string, unknown>();
+    const at = (time: string) => ({ time, leadMinutes: 0 });
+    const db = stubDb(true, created, [
+      alertSnap(undefined, alertDoc({ groupName: 'x'.repeat(81) })),
+      alertSnap(undefined, alertDoc({ message: 'x'.repeat(501) })),
+      alertSnap(undefined, alertDoc({ alerts: Array(7).fill(at('10:15')) })),
+      alertSnap(undefined, alertDoc({ alerts: [] })),
+    ]) as never;
+    await runGroupReminderEmails(db, auth as never, MON_1017);
+    expect(created.size).toBe(0);
+  });
+
+  it('still mails a doc at the caps, counting emoji as one character', async () => {
+    const created = new Map<string, unknown>();
+    const db = stubDb(true, created, [
+      alertSnap(
+        undefined,
+        alertDoc({ groupName: '😀'.repeat(80), message: 'x'.repeat(500) })
+      ),
+    ]) as never;
+    await runGroupReminderEmails(db, auth as never, MON_1017);
+    expect(created.size).toBe(1);
+  });
+});
+
+describe('alertOwnerUid', () => {
+  it('returns the uid only for users/{uid}/group_email_alerts/{id}', () => {
+    expect(alertOwnerUid('users/u1/group_email_alerts/a')).toBe('u1');
+    expect(alertOwnerUid('admin_settings/u1/group_email_alerts/a')).toBeNull();
+    expect(alertOwnerUid('users/u1/group_email_alerts/a/b/c')).toBeNull();
+    expect(alertOwnerUid('x/users/u1/group_email_alerts/a')).toBeNull();
   });
 });
