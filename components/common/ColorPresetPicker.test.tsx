@@ -23,4 +23,38 @@ describe('ColorPresetPicker hex input', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onChange).toHaveBeenCalledWith('#aabbcc');
   });
+
+  it('commits a typed hex equal to the fallback when the value is cleared', () => {
+    const onChange = vi.fn();
+    render(
+      <ColorPresetPicker
+        label="Text"
+        presets={[]}
+        value={undefined}
+        fallback="#000000"
+        onChange={onChange}
+      />
+    );
+    const input = screen.getByLabelText('Text hex value');
+    fireEvent.change(input, { target: { value: '#000' } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith('#000000');
+  });
+
+  it('does not set a color when a cleared input is only focused and blurred', () => {
+    const onChange = vi.fn();
+    render(
+      <ColorPresetPicker
+        label="Text"
+        presets={[]}
+        value={undefined}
+        fallback="#000000"
+        onChange={onChange}
+      />
+    );
+    const input = screen.getByLabelText('Text hex value');
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

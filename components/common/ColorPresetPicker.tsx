@@ -68,6 +68,7 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
   const current = toInputHex(value, fallback);
   const isCleared = value === undefined;
   const [draft, setDraft] = useState(current);
+  const [draftEdited, setDraftEdited] = useState(false);
   const [prevCurrent, setPrevCurrent] = useState(current);
   if (prevCurrent !== current) {
     setPrevCurrent(current);
@@ -90,11 +91,14 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
   };
 
   const commitDraft = () => {
+    const edited = draftEdited;
+    setDraftEdited(false);
     let next = draft.trim();
     if (BARE_HEX_RE.test(next)) next = `#${next}`;
     if (HEX_RE.test(next)) {
       const normalized = toInputHex(next, fallback);
-      if (normalized !== current) onChange(normalized);
+      // A cleared value still needs an explicit pick even when it equals the fallback.
+      if (normalized !== current || (isCleared && edited)) onChange(normalized);
       setDraft(normalized);
     } else {
       setDraft(current);
@@ -175,7 +179,10 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
         <input
           type="text"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setDraftEdited(true);
+          }}
           onBlur={commitDraft}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !isImeComposing(e)) {
