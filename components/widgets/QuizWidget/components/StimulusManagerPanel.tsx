@@ -326,9 +326,15 @@ function usePasteFiles(
       // An answer box already took this paste for its own picture.
       if (!data || e.defaultPrevented) return;
       // Anywhere in the editor counts; modals over it handle their own pastes.
-      const scope =
-        scopeRef?.current?.closest('[role="dialog"]') ?? scopeRef?.current;
-      if (scopeRef && !scope?.contains(e.target as Node | null)) return;
+      if (scopeRef) {
+        const pane = scopeRef.current;
+        const dialog = pane?.closest('[role="dialog"]');
+        const target = e.target instanceof Element ? e.target : null;
+        const inScope = dialog
+          ? target?.closest('[role="dialog"]') === dialog
+          : !!pane?.contains(target);
+        if (!inScope) return;
+      }
       const files = Array.from(data.files);
       if (files.length === 0) return;
       // Pasting copied text into a field keeps working as normal.

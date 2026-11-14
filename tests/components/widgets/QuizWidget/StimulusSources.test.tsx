@@ -84,6 +84,9 @@ const Harness: React.FC<{ perQuestion?: boolean; calculator?: boolean }> = ({
   return perQuestion ? (
     <div role="dialog">
       <button type="button">Question list row</button>
+      <div role="dialog">
+        <input aria-label="Nested modal field" />
+      </div>
       <div ref={paneRef}>
         <QuestionStimulusSection
           state={state}
@@ -291,6 +294,14 @@ describe('Stimuli tab sources', () => {
       .dispatchEvent(pasteEvent([png()], ['Files']));
     await waitFor(() => expect(latest).toHaveLength(1));
     expect(toggle).toHaveBeenCalledWith(latest[0].id, 'q1');
+  });
+
+  it('leaves a paste in a modal nested inside the editor to that modal', () => {
+    render(<Harness perQuestion />);
+    const event = pasteEvent([png()], ['Files']);
+    screen.getByLabelText('Nested modal field').dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(mocks.uploadFile).not.toHaveBeenCalled();
   });
 
   it('ignores a paste outside the editor', () => {
