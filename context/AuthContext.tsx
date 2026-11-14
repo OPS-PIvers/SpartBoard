@@ -160,7 +160,12 @@ async function resolveOrgIdForUser(emailLower: string): Promise<{
     const cached = sessionStorage.getItem(
       RESOLVED_ORG_CACHE_PREFIX + emailLower
     );
-    if (cached) return { orgId: cached };
+    // A token still carrying the deactivation claim skips the cache so the resolver can report a cleared claim.
+    const claims = cached
+      ? (await auth.currentUser?.getIdTokenResult().catch(() => undefined))
+          ?.claims
+      : undefined;
+    if (cached && claims?.deactivated !== true) return { orgId: cached };
   } catch {
     // sessionStorage unavailable (private mode / SSR) — fall through to the call.
   }

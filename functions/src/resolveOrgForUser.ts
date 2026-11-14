@@ -433,7 +433,12 @@ export const resolveOrgForUser = onCall(
             `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,
             err
           );
-          return { orgId, enrollFailed: true };
+          const cleared = await claimWasCleared(request.auth.uid, token);
+          return {
+            orgId,
+            enrollFailed: true,
+            ...(cleared ? { claimCleared: true as const } : {}),
+          };
         }
         return { orgId };
       }

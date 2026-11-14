@@ -529,6 +529,28 @@ describe('AuthContext — roster students without a member doc', () => {
     });
   });
 
+  it('skips the cached org and refreshes when the token still carries the deactivation claim', async () => {
+    const email = 'cached-reinstated@orono.k12.mn.us';
+    sessionStorage.setItem('spart_resolved_org:v2:' + email, 'orono');
+    const callable = vi.fn(() =>
+      Promise.resolve({
+        data: { orgId: 'orono', claimCleared: true } as {
+          orgId: string | null;
+        },
+      })
+    );
+    httpsCallableImpl = callable;
+    await mountAs({ email, isOrgMember: true, claims: { deactivated: true } });
+    const user = auth.currentUser as unknown as {
+      getIdToken: ReturnType<typeof vi.fn>;
+    };
+    await waitFor(() => {
+      expect(user.getIdToken).toHaveBeenCalledWith(true);
+    });
+    expect(callable).toHaveBeenCalled();
+    sessionStorage.removeItem('spart_resolved_org:v2:' + email);
+  });
+
   it('does not force a token refresh when no claim was cleared', async () => {
     httpsCallableImpl = () => Promise.resolve({ data: { orgId: 'orono' } });
     await mountAs({ email: 'still-active@orono.k12.mn.us', isOrgMember: true });
