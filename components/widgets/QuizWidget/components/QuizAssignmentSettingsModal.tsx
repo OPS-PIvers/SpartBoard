@@ -16,6 +16,7 @@ import type {
 import type { QuizAssignmentSettingsPatch } from '@/hooks/useQuizAssignments';
 import { AssignAvailabilitySection } from '@/components/common/library/AssignAvailabilitySection';
 import {
+  manualDueFromMs,
   resolveAvailability,
   type AssignAvailability,
 } from '@/utils/assignAvailability';
@@ -43,7 +44,7 @@ import {
 } from '@/components/common/library/assignStepper/assignSteps';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import { formatWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   formatClassesValue,
   type AssignClassesValue,
@@ -301,13 +302,20 @@ export const QuizAssignmentSettingsModal: React.FC<
       assignment.accessMode === 'assessment' &&
       Object.keys(assignment.periodAccess ?? {}).length > 0 &&
       assignment.openAt == null &&
-      assignment.closeAt == null &&
-      assignment.dueAt == null;
+      (assignment.closeAt ?? null) === (assignment.dueAt ?? null);
+    // A Manual due date is saved as both the close and the due date.
+    const manualDue =
+      manualStart && assignment.dueAt != null
+        ? manualDueFromMs(assignment.dueAt)
+        : undefined;
     const whenStep: AssignStepDef = {
       id: 'when',
       title: getAssignStepTitle('when', 'quiz', { kind: 'work' }),
       value: formatWhenValue(
-        { mode: manualStart ? 'manual' : 'scheduled', availability },
+        {
+          mode: manualStart ? 'manual' : 'scheduled',
+          availability: { ...availability, manualDue },
+        },
         {
           variant: 'when',
           rosterCount: selectedRostersForDue.length,
@@ -380,7 +388,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       title: getAssignStepTitle('classes', 'quiz', { kind: 'work' }),
       value: formatClassesValue(classesValue, rosters),
       body: (
-        <ClassPickerMenu
+        <ClassChecklist
           rosters={rosters}
           value={classesValue}
           onChange={(next) =>

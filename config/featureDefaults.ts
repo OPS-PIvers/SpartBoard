@@ -58,6 +58,7 @@ import {
   CloudSun,
   Workflow,
   SquareChevronDown,
+  CalendarClock,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -938,6 +939,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // My Classes "View Student Page". Admin-only until Paul has used it in prod.
+  'class-student-page': {
+    label: 'View Student Page',
+    icon: Eye,
+    description: "Teachers open a class's student page from My Classes.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,
@@ -1169,11 +1182,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Inert while Mini App assignments are view-only in Organization settings.
+  // Who gets Mini App submissions; Assignment modes must also allow them.
   'mini-app-results': {
-    label: 'Mini App results',
+    label: 'Mini App submissions',
     icon: ListChecks,
-    description: 'Graded mini app submissions with attempt limits.',
+    description:
+      'Lets these teachers collect Mini App submissions. Needs Submissions in Assignment modes.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'miniApp',
@@ -1629,6 +1643,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListChecks,
     description:
       'When a student answers more questions than a section asks for, the teacher picks which answers count.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assign-due-date': {
+    label: 'Assign: due date for Manual',
+    icon: CalendarClock,
+    description:
+      "Manual assignments are due when ended or at a set date and time, which closes them. Assign remembers each teacher's When choices.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

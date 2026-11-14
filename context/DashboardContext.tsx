@@ -1244,6 +1244,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const toastTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const timers = toastTimersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
   const addToast = useCallback(
     (
       message: string,
@@ -1254,9 +1263,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setToasts((prev) => [...prev, { id, message, type, action }]);
       // If there's an action, keep it longer (10s) so the user has time to click
       const duration = action ? 10000 : 3000;
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        toastTimersRef.current.delete(timer);
         removeToast(id);
       }, duration);
+      toastTimersRef.current.add(timer);
     },
     [removeToast]
   );

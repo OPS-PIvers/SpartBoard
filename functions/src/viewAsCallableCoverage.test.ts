@@ -176,7 +176,12 @@ function stripComments(source: string): string {
 }
 
 function modeOf(options: string | undefined): Mode | 'unknown' {
-  const opts = (options ?? '').replace(/\s/g, '');
+  // allowDeactivated only lets sign-in run for a deactivated account; it does not change the View as mode.
+  const opts = (options ?? '')
+    .replace(/\s/g, '')
+    .replace('allowDeactivated:true', '')
+    .replace(/,+/g, ',')
+    .replace(/^\{,|,\}$/g, (m) => (m === '{,' ? '{' : '}'));
   if (opts === '') return 'write';
   if (opts === '{read:true}') return 'read';
   if (opts === '{outward:true}') return 'outward';

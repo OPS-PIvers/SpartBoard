@@ -32,7 +32,7 @@ import {
   getAssignStepTitle,
   type AssignStepDef,
 } from '@/components/common/library/assignStepper/assignSteps';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   EMPTY_ASSIGN_CLASSES_VALUE,
@@ -2006,7 +2006,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         value: formatClassesValue(classes, rosters),
         body: (
           <div className="space-y-3">
-            <ClassPickerMenu
+            <ClassChecklist
               rosters={rosters}
               value={classes}
               onChange={setClasses}

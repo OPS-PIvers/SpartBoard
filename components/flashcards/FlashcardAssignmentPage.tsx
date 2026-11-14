@@ -117,12 +117,18 @@ const PageMessage: React.FC<{
   icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
   title: string;
   body?: string;
-}> = ({ icon: Icon, title, body }) => (
+  children?: React.ReactNode;
+}> = ({ icon: Icon, title, body, children }) => (
   <div className="flex h-full items-center justify-center bg-slate-100 p-6 text-center">
     <section className="max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
       <Icon aria-hidden={true} className="mx-auto h-10 w-10 text-rose-600" />
       <h1 className="mt-4 text-xl font-black text-slate-900">{title}</h1>
       {body && <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>}
+      {children && (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          {children}
+        </div>
+      )}
     </section>
   </div>
 );
@@ -705,7 +711,23 @@ export const FlashcardAssignmentPage: React.FC<{
           icon={AlertTriangle}
           title={t('flashcards.assignment.unavailableTitle')}
           body={t('flashcards.assignment.unavailableBody')}
-        />
+        >
+          {/* no-tour-anchor: student page */}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="min-h-[44px] rounded-full bg-rose-600 px-5 text-sm font-black text-white hover:bg-rose-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300"
+          >
+            {t('flashcards.assignment.tryAgain')}
+          </button>
+          {/* no-tour-anchor: student page */}
+          <a
+            href="/my-assignments"
+            className="inline-flex min-h-[44px] items-center rounded-full bg-slate-100 px-5 text-sm font-black text-slate-700 hover:bg-slate-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300"
+          >
+            {t('flashcards.assignment.back')}
+          </a>
+        </PageMessage>
       </div>
     );
   }
@@ -854,7 +876,7 @@ export const FlashcardAssignmentPage: React.FC<{
           <a
             href="/my-assignments"
             aria-label={t('flashcards.assignment.back')}
-            className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300"
+            className="rounded-full bg-slate-100 p-3 text-slate-700 transition hover:bg-slate-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-300"
           >
             <ArrowLeft aria-hidden="true" className="h-5 w-5" />
           </a>

@@ -226,3 +226,34 @@ describe('assertPinLoginSession', () => {
     ).resolves.toBeNull();
   });
 });
+
+describe('deactivated accounts', () => {
+  const deactivated = (token: Record<string, unknown>) => ({
+    auth: { uid: 'u', token: { deactivated: true, ...token } },
+  });
+
+  it('refuses a deactivated uid whatever its email claim', async () => {
+    for (const token of [
+      { email: 'new@elsewhere.org', email_verified: true },
+      { email: 'new@elsewhere.org', email_verified: false },
+      {},
+    ]) {
+      await expect(
+        assertViewAsAllowed(deactivated(token), { read: true })
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+  });
+
+  it('lets sign-in resolution through and leaves live accounts alone', async () => {
+    await expect(
+      assertViewAsAllowed(deactivated({}), {
+        read: true,
+        allowDeactivated: true,
+      })
+    ).resolves.toBeNull();
+    await expect(assertViewAsAllowed(req())).resolves.toBeNull();
+    await expect(
+      assertViewAsAllowed({ auth: { uid: 'u', token: { deactivated: false } } })
+    ).resolves.toBeNull();
+  });
+});

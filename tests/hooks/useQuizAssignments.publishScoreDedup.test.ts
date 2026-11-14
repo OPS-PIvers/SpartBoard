@@ -145,6 +145,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
@@ -191,6 +192,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               // Exact duplicate — simulates arrayUnion race.
@@ -219,10 +221,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
     expect((responseCall[1] as { score: number }).score).toBe(50);
   });
 
-  it('preserves isCorrect on all duplicate answer entries even though only the first contributes to totals', async () => {
-    // Grading annotation (isCorrect) should be written on every entry in the
-    // gradedAnswers array — including duplicates — so the student's review
-    // screen renders the correct/incorrect indicator for each row.
+  it('stamps isCorrect only on the representative entry, so duplicates cannot probe the key', async () => {
     const refStudent = { id: 'r-dup-isCorrect' };
     mockGetDocs.mockResolvedValueOnce({
       docs: [
@@ -230,6 +229,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q0', answer: 'a', answeredAt: 1 }, // duplicate
@@ -257,10 +257,9 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       answers: Array<{ questionId: string; isCorrect: boolean }>;
     };
 
-    // Both entries get an isCorrect annotation.
     expect(patch.answers).toHaveLength(2);
     expect(patch.answers[0].isCorrect).toBe(true);
-    expect(patch.answers[1].isCorrect).toBe(true);
+    expect(patch.answers[1].isCorrect).toBeUndefined();
 
     // But the score uses the deduplicated total (earned=1, max=1 for q0 only
     // — q1 is unanswered so it gets counted in the unanswered loop adding 1
@@ -278,6 +277,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               {
                 questionId: 'q0',
@@ -316,10 +316,10 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
     };
     // q0 only (take 1, wrong) + q1 unanswered → earned=0, max=2 → score=0.
     expect(patch.score).toBe(0);
-    // Every stored entry still gets a fresh isCorrect, not just the winner.
+    // Only the winning take carries a verdict.
     expect(patch.answers).toHaveLength(2);
     expect(patch.answers[0].isCorrect).toBe(false);
-    expect(patch.answers[1].isCorrect).toBe(true);
+    expect(patch.answers[1].isCorrect).toBeUndefined();
   });
 
   it('breaks an equal-takeIndex tie by earliest answeredAt, matching pre-takeIndex behavior', async () => {
@@ -330,6 +330,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               {
                 questionId: 'q0',
@@ -376,6 +377,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               // Wrong duplicate stored FIRST in the array, but answered LATER.
               { questionId: 'q0', answer: 'b', answeredAt: 2 },
@@ -440,6 +442,7 @@ describe('useQuizAssignments — publishAssignmentScores bounded paging', () => 
         ref,
         data: () => ({
           studentUid: `s${i}`,
+          status: 'completed',
           answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
         }),
       };

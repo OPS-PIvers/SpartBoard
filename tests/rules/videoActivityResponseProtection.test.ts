@@ -77,7 +77,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testEnv.clearFirestore();
   // Seed the parent session + an existing student response. No classId /
-  // classIds on the session so `passesStudentClassGateCompat` is a no-op
+  // classIds on the session so `passesStudentClassGateList` is a no-op
   // gate (the focus of this suite is the whitelist, not class targeting).
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();

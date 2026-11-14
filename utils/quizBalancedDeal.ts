@@ -24,11 +24,19 @@ export function hasBalancedSlots(
   return !!slots && slots.some(isBalancedSlot);
 }
 
-/** One rotation per class period; a response with no period shares the `default` rotation. */
+/** One rotation per class period, keyed on the PIN key's period or the create-only classId; else `default`. */
 export function balancedPeriodKey(
-  response: Pick<QuizResponse, 'classPeriod' | 'classId'>
+  response: Pick<QuizResponse, 'classId'>,
+  responseKey: string,
+  classPeriodByClassId?: Record<string, string>
 ): string {
-  return encodeResponseKeySegment(response.classPeriod ?? response.classId);
+  const pin = /^pin-([a-z0-9_]+)-[a-z0-9_]+$/.exec(responseKey);
+  if (pin) return pin[1];
+  if (typeof response.classId !== 'string')
+    return encodeResponseKeySegment(undefined);
+  return encodeResponseKeySegment(
+    classPeriodByClassId?.[response.classId] ?? response.classId
+  );
 }
 
 export function bankDealDocId(slotId: string, periodKey: string): string {

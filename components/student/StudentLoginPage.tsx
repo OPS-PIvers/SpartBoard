@@ -239,6 +239,17 @@ function readInitialBounceReason(): ErrorKind | null {
   }
 }
 
+/** Why the student was sent here on purpose, from a fixed allow-list. */
+function readSignedOutReason(): 'idle' | 'signed-out' | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const reason = new URLSearchParams(window.location.search).get('reason');
+    return reason === 'idle' || reason === 'signed-out' ? reason : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Pull the validated `?next=` redirect target from the current URL. */
 function readNextTarget(): string | null {
   if (typeof window === 'undefined') return null;
@@ -260,6 +271,8 @@ const StudentLoginPage: React.FC = () => {
     if (bounceError) return { kind: 'error', error: bounceError };
     return { kind: 'loading-sdk' };
   });
+  const [retryNonce, setRetryNonce] = useState(0);
+  const [signedOutReason] = useState(readSignedOutReason);
   const buttonContainerRef = useRef<HTMLDivElement | null>(null);
 
   // The callable handle is stable across retries — create once.
@@ -344,7 +357,7 @@ const StudentLoginPage: React.FC = () => {
       idApi.initialize({
         client_id: clientId,
         callback: handleCredential,
-        auto_select: true,
+        auto_select: signedOutReason === null,
         cancel_on_tap_outside: false,
         itp_support: true,
         context: 'signin',
@@ -362,8 +375,9 @@ const StudentLoginPage: React.FC = () => {
         });
       }
 
-      // Try One-Tap. If it's suppressed the fallback button remains available.
-      idApi.prompt();
+      // Skip One-Tap after a sign-out so Google doesn't sign the student back in.
+      if (signedOutReason === null) idApi.prompt();
+      else idApi.disableAutoSelect();
 
       if (!cancelled) setStatus({ kind: 'ready' });
       return true;
@@ -394,7 +408,7 @@ const StudentLoginPage: React.FC = () => {
     // `handleCredential` is stable via useCallback; intentionally not reinit-ing
     // GIS on status changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, handleCredential]);
+  }, [clientId, handleCredential, retryNonce]);
 
   const handleRetry = useCallback(() => {
     setStatus(
@@ -402,6 +416,7 @@ const StudentLoginPage: React.FC = () => {
         ? { kind: 'error', error: 'config-missing' }
         : { kind: 'loading-sdk' }
     );
+    setRetryNonce((n) => n + 1);
   }, [clientId]);
 
   return (
@@ -424,6 +439,11 @@ const StudentLoginPage: React.FC = () => {
           Sign in with your school Google account to see your assignments.
         </p>
 
+        {signedOutReason === 'idle' && (
+          <p role="status" className="mb-4 text-sm text-slate-600">
+            You were signed out after 15 minutes without activity.
+          </p>
+        )}
         <StatusContent
           status={status}
           buttonContainerRef={buttonContainerRef}

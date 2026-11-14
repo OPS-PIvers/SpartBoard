@@ -135,7 +135,7 @@ export const ConverterPage: React.FC = () => {
           {/* IDLE — drop zone */}
           {stage === 'idle' && (
             <div className="p-6">
-              <button
+              <button /* no-tour-anchor: standalone /convert page, never on the board */
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => {
@@ -162,7 +162,7 @@ export const ConverterPage: React.FC = () => {
                   </p>
                 </div>
               </button>
-              <input
+              <input /* no-tour-anchor: standalone /convert page, never on the board */
                 ref={fileInputRef}
                 type="file"
                 accept=".notebook,.olf"
@@ -229,7 +229,7 @@ export const ConverterPage: React.FC = () => {
                 </p>
               )}
 
-              <button
+              <button /* no-tour-anchor: standalone /convert page, never on the board */
                 onClick={download}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl py-4 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 transition-all active:scale-[0.98]"
               >
@@ -237,7 +237,7 @@ export const ConverterPage: React.FC = () => {
                 Download .spartnb
               </button>
 
-              <button
+              <button /* no-tour-anchor: standalone /convert page, never on the board */
                 onClick={reset}
                 className="text-slate-500 hover:text-slate-700 font-semibold text-sm flex items-center gap-1.5 transition-colors"
               >
@@ -254,7 +254,7 @@ export const ConverterPage: React.FC = () => {
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
               <p className="font-bold text-slate-800">{error}</p>
-              <button
+              <button /* no-tour-anchor: standalone /convert page, never on the board */
                 onClick={reset}
                 className="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl px-6 py-3 transition-all active:scale-95"
               >

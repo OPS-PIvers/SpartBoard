@@ -175,3 +175,72 @@ describe('OrderingResponseInput', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('OrderingResponseInput undo reset', () => {
+  const q = () => makeQuestion(['A', 'B', 'C']);
+
+  it('Undo brings both placements back and emits them', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <OrderingResponseInput
+        question={q()}
+        savedAnswer="A|B|"
+        onChange={onChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Reset/ }));
+    expect(onChange).toHaveBeenLastCalledWith('||');
+    await user.click(screen.getByRole('button', { name: 'Undo reset' }));
+    expect(onChange).toHaveBeenLastCalledWith('A|B|');
+    expect(
+      screen.getByRole('button', { name: /A, position 1/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /B, position 2/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Undo reset' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('a new placement after Reset turns Undo back into Reset', async () => {
+    const user = userEvent.setup();
+    render(
+      <OrderingResponseInput
+        question={q()}
+        savedAnswer="A|B|"
+        onChange={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Reset/ }));
+    expect(
+      screen.getByRole('button', { name: 'Undo reset' })
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /C, in word bank/ }));
+    await user.click(
+      screen.getByRole('button', { name: /Empty drop zone, position 1/ })
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Undo reset' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Reset all placements' })
+    ).toBeInTheDocument();
+  });
+
+  it('Reset with nothing placed does not offer Undo', async () => {
+    const user = userEvent.setup();
+    render(
+      <OrderingResponseInput
+        question={q()}
+        savedAnswer={null}
+        onChange={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Reset/ }));
+    expect(
+      screen.queryByRole('button', { name: 'Undo reset' })
+    ).not.toBeInTheDocument();
+  });
+});

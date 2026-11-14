@@ -170,6 +170,7 @@ const QuizStyleResults: React.FC<FlashcardCheckResultsProps> = ({
       tabWarnings={progress.resultsTabWarnings ?? 0}
       lockedOut={progress.resultsLockedOut === true}
       light
+      backHref="/my-assignments"
     >
       <div className="h-full overflow-y-auto bg-slate-100 px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-2xl">

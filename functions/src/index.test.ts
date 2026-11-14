@@ -3918,6 +3918,8 @@ describe('index barrel — deployed export set', () => {
     'organizationBuildingCounters',
     'resetOrganizationUserPassword',
     'deleteOrganizationUser',
+    'featurePermissionsMirror',
+    'globalPermissionsMirror',
     'startViewAsSessionV1',
     'updateViewAsSessionV1',
     'revertViewAsChangeV1',

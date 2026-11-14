@@ -26,7 +26,7 @@ export function useStudentFeatureOpen(featureId: 'student-gradebook'): boolean {
   useEffect(() => {
     if (isAuthBypass) return;
     return onSnapshot(
-      doc(db, 'global_permissions', featureId),
+      doc(db, 'global_permissions_public', featureId),
       (snap) =>
         setEnabled(
           isStudentFeatureOpen(

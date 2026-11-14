@@ -12,7 +12,11 @@
 import { GuidedLearningSet } from '@/types';
 import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { authError } from '@/utils/driveAuthErrors';
-import { isInAppFolder, type DriveParentMeta } from '@/utils/driveAppFolder';
+import {
+  GL_SLIDE_APP_PROPERTY,
+  isInAppFolder,
+  type DriveParentMeta,
+} from '@/utils/driveAppFolder';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
@@ -222,18 +226,19 @@ export class GuidedLearningDriveService {
     return (await res.json()) as GuidedLearningSet;
   }
 
-  /** Deletes a slide image only when Drive shows it in the app's own slide folder. */
+  /** Deletes a slide image only when Drive shows it as a marked GL upload in the app's own slide folder. */
   async deleteSlideFile(driveFileId: string): Promise<void> {
     const owned = await isInAppFolder(
       driveFileId,
       GL_SLIDE_FOLDERS,
       async (id) => {
         const res = await this.request(
-          `${DRIVE_API_URL}/files/${id}?fields=name,parents,trashed`,
+          `${DRIVE_API_URL}/files/${id}?fields=name,parents,trashed,appProperties`,
           { headers: this.authHeaders }
         );
         return res.ok ? ((await res.json()) as DriveParentMeta) : null;
-      }
+      },
+      GL_SLIDE_APP_PROPERTY
     );
     if (owned) await this.deleteSetFile(driveFileId);
   }

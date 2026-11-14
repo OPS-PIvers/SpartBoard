@@ -107,6 +107,7 @@ import type {
   StudentOverride,
   WrittenReturnMode,
   RevealedRubricExamples,
+  RevealedExplanations,
 } from '@/types';
 import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
 import { buildRevealedExplanations } from '@/utils/quizExplanations';
@@ -203,7 +204,7 @@ import {
   type AssignmentLifecycleEvent,
   type AssignmentLifecyclePatches,
 } from '@/utils/sessionLifecycle';
-import { reopenIndexPatch } from '@/utils/quizSessionPhase';
+import { reopenSessionPatch } from '@/utils/quizSessionPhase';
 import {
   END_TURN_IN_DELAY_MS,
   finalizeOpenQuizResponses,
@@ -680,10 +681,11 @@ export interface UseQuizAssignmentsResult {
     assignmentId: string,
     responseKeys: string[]
   ) => Promise<void>;
-  /** Return chosen students to the class setting. */
+  /** Return chosen students to the class setting; with the quiz, also restores what the class publish shows. */
   clearResultsOverride: (
     assignmentId: string,
-    responseKeys: string[]
+    responseKeys: string[],
+    quizData?: QuizData
   ) => Promise<void>;
   /**
    * Retroactively pool an existing assignment's results with a PLC (D12).
@@ -1186,9 +1188,15 @@ export function gradeResponseForPublish(
     );
     if (result.state === 'awaiting-grade') awaitingGrade = true;
     if (
-      representativeAnswers.get(a.questionId) === a &&
-      (!servedIds || servedIds.has(a.questionId))
+      representativeAnswers.get(a.questionId) !== a ||
+      (baseServed && !baseServed.has(a.questionId))
     ) {
+      // Only the graded answer per served question gets a verdict, so extra entries can't probe the key.
+      const { isCorrect: _extra, ...rest } = a;
+      void _extra;
+      return rest;
+    }
+    if (!servedIds || servedIds.has(a.questionId)) {
       pointsEarned += result.pointsEarned;
       pointsMax += result.pointsMax;
     }
@@ -1227,6 +1235,67 @@ export function gradeResponseForPublish(
   const score =
     pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
   return { score: awaitingGrade ? null : score, answers: gradedAnswers };
+}
+
+/** True when a class publish must keep the key and verdicts off a response: an open attempt or a hidden student. */
+export function withholdsPublishedResults(
+  data: QuizResponse,
+  now: number
+): boolean {
+  return (
+    data.status !== 'completed' ||
+    activeResultsOverride(data.resultsOverride, now)?.mode === 'hidden'
+  );
+}
+
+/** One response's class-publish patch; the key lives on each response, never the session (D4). */
+export function classPublishPatch(
+  data: QuizResponse,
+  graded: { score: number | null; answers: QuizResponseAnswer[] },
+  opts: {
+    visibility: QuizScoreVisibility;
+    now: number;
+    answerKey: Record<string, string> | null;
+    rubricExamples: RevealedRubricExamples | null;
+    explanations: RevealedExplanations | null;
+  }
+): Record<string, unknown> {
+  const withhold = withholdsPublishedResults(data, opts.now);
+  const override = activeResultsOverride(data.resultsOverride, opts.now);
+  // Right/wrong stays off the student-readable doc unless the class or this student's own publish shows responses.
+  const keepVerdicts =
+    !withhold &&
+    (visibilityShowsResponses(opts.visibility) ||
+      (override?.mode === 'shown' &&
+        visibilityShowsResponses(override.visibility)));
+  return {
+    // `deleteField()` so a stale score can't linger once a slot awaits grading.
+    score: graded.score ?? deleteField(),
+    answers: keepVerdicts
+      ? graded.answers
+      : answersWithoutVerdicts(graded.answers),
+    revealedAnswers: (withhold ? null : opts.answerKey) ?? deleteField(),
+    revealedRubricExamples:
+      (withhold ? null : opts.rubricExamples) ?? deleteField(),
+    revealedExplanations:
+      (withhold ? null : opts.explanations) ?? deleteField(),
+  };
+}
+
+/** Hiding a student also pulls the key and right/wrong an earlier class publish wrote. */
+export function hiddenResultsPatch(
+  data: QuizResponse,
+  override: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    resultsOverride: override,
+    revealedAnswers: deleteField(),
+    revealedRubricExamples: deleteField(),
+    revealedExplanations: deleteField(),
+    ...(Array.isArray(data.answers)
+      ? { answers: answersWithoutVerdicts(data.answers) }
+      : {}),
+  };
 }
 
 const RESPONSE_BATCH_WRITES = 400;
@@ -2155,7 +2224,7 @@ export const useQuizAssignments = (
         userId,
         assignmentId,
         { type: 'reopen' },
-        reopenIndexPatch
+        reopenSessionPatch
       );
       if (!written) return;
       // Drop any cached view count so the Shared row re-issues the
@@ -3671,26 +3740,14 @@ export const useQuizAssignments = (
         )
       );
 
-      const buildPublishPatch = (data: QuizResponse) => {
-        const graded = gradeResponseForPublish(data, ctx);
-        const override = activeResultsOverride(data.resultsOverride, now);
-        // Right/wrong stays off the student-readable doc unless the class or this student's own publish shows responses.
-        const keepVerdicts =
-          visibilityShowsResponses(visibility) ||
-          (override?.mode === 'shown' &&
-            visibilityShowsResponses(override.visibility));
-        return {
-          // `deleteField()` so a stale score can't linger once a slot awaits grading.
-          score: graded.score ?? deleteField(),
-          answers: keepVerdicts
-            ? graded.answers
-            : answersWithoutVerdicts(graded.answers),
-          // The answer key lives on each response, never the session (D4).
-          revealedAnswers: answerKey ?? deleteField(),
-          revealedRubricExamples: rubricExamples ?? deleteField(),
-          revealedExplanations: explanations ?? deleteField(),
-        };
-      };
+      const buildPublishPatch = (data: QuizResponse) =>
+        classPublishPatch(data, gradeResponseForPublish(data, ctx), {
+          visibility,
+          now,
+          answerKey,
+          rubricExamples,
+          explanations,
+        });
       const updates: ResponsePatch[] = [];
       const paperWrittenRefs: ReturnType<typeof doc>[] = [];
       let paperResponses = 0;
@@ -3990,30 +4047,108 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  // Re-reads each chosen response in a transaction so an answer the student saves meanwhile is kept.
+  const patchChosenResponses = useCallback(
+    async (
+      assignmentId: string,
+      responseKeys: string[],
+      buildPatch: (data: QuizResponse) => Record<string, unknown>,
+      context: string
+    ) => {
+      if (!userId) throw new Error('Not authenticated');
+      const refs = Array.from(new Set(responseKeys)).map((key) =>
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          assignmentId,
+          RESPONSES_COLLECTION,
+          key
+        )
+      );
+      try {
+        await commitPaperWrittenPatches(refs, buildPatch);
+      } catch (err) {
+        logError(context, err, { assignmentId, count: refs.length });
+        throw err;
+      }
+    },
+    [userId]
+  );
+
   const hideResultsForStudents = useCallback<
     UseQuizAssignmentsResult['hideResultsForStudents']
   >(
-    (assignmentId, responseKeys) =>
-      writeResultsOverride(
+    (assignmentId, responseKeys) => {
+      const override = { mode: 'hidden', publishedAt: Date.now() };
+      return patchChosenResponses(
         assignmentId,
         responseKeys,
-        { mode: 'hidden', publishedAt: Date.now() },
+        (data) => hiddenResultsPatch(data, override),
         'useQuizAssignments.hideResultsForStudents'
-      ),
-    [writeResultsOverride]
+      );
+    },
+    [patchChosenResponses]
   );
 
   const clearResultsOverride = useCallback<
     UseQuizAssignmentsResult['clearResultsOverride']
   >(
-    (assignmentId, responseKeys) =>
-      writeResultsOverride(
+    async (assignmentId, responseKeys, quizData) => {
+      const session = quizData
+        ? (await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId))).data()
+        : undefined;
+      const visibility = (session as QuizSession | undefined)?.scoreVisibility;
+      if (!quizData || !visibility || visibility === 'none') {
+        return writeResultsOverride(
+          assignmentId,
+          responseKeys,
+          deleteField(),
+          'useQuizAssignments.clearResultsOverride'
+        );
+      }
+      // Back on the class level: put back what the class publish shows, which a hide removed.
+      if (!userId) throw new Error('Not authenticated');
+      const assignmentSnap = await getDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
+      );
+      const sections = (session as QuizSession).sections;
+      const ctx: ResponseGradingContext = {
+        ...buildResponseGradingContext(quizData, assignmentSnap.data()),
+        sections: sections?.length ? sections : undefined,
+      };
+      const withKey = visibility === 'score-responses-and-answers';
+      const opts = {
+        visibility,
+        now: Date.now(),
+        answerKey: withKey ? buildRevealedAnswers(quizData) : null,
+        rubricExamples: withKey ? buildRevealedRubricExamples(quizData) : null,
+        explanations:
+          withKey &&
+          (
+            assignmentSnap.data() as
+              { sessionOptions?: QuizSessionOptions } | undefined
+          )?.sessionOptions?.showExplanations === true
+            ? buildRevealedExplanations(quizData)
+            : null,
+      };
+      return patchChosenResponses(
         assignmentId,
         responseKeys,
-        deleteField(),
+        (data) => {
+          const cleared = { ...data, resultsOverride: undefined };
+          return {
+            ...classPublishPatch(
+              cleared,
+              gradeResponseForPublish(cleared, ctx),
+              opts
+            ),
+            resultsOverride: deleteField(),
+          };
+        },
         'useQuizAssignments.clearResultsOverride'
-      ),
-    [writeResultsOverride]
+      );
+    },
+    [userId, writeResultsOverride, patchChosenResponses]
   );
 
   const shareAssignmentWithPlc = useCallback<

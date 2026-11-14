@@ -16,6 +16,10 @@ import {
   releaseStorageFiles,
 } from '@/utils/guidedLearningFileRelease';
 import { isTestRunProject } from '@/components/tours/tourTestRun';
+import {
+  GL_SLIDE_APP_PROPERTIES,
+  GL_SLIDE_APP_PROPERTY,
+} from '@/utils/driveAppFolder';
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
@@ -222,7 +226,8 @@ export const useStorage = () => {
         const driveFile = await driveService.uploadFile(
           blob,
           `hotspot-${Date.now()}-${fileName}`,
-          'Assets/HotspotImages'
+          'Assets/HotspotImages',
+          GL_SLIDE_APP_PROPERTIES
         );
         await driveService.makePublic(driveFile.id, undefined);
         return {
@@ -254,10 +259,17 @@ export const useStorage = () => {
     }
   };
 
-  // Only a slide in the app's own image folder is deleted, never an id named by imported content.
+  // Only a marked GL slide upload in the app's image folder is deleted, never an id named by imported content.
   const deleteDriveFile = async (fileId: string): Promise<void> => {
     if (!driveService) return;
-    if (!(await driveService.isInAppFolder(fileId, GL_SLIDE_FOLDERS))) return;
+    if (
+      !(await driveService.isInAppFolder(
+        fileId,
+        GL_SLIDE_FOLDERS,
+        GL_SLIDE_APP_PROPERTY
+      ))
+    )
+      return;
     await driveService.deleteFile(fileId);
   };
 

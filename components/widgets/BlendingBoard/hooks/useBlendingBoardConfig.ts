@@ -9,7 +9,7 @@ export const useBlendingBoardConfig = () => {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      doc(db, 'feature_permissions', 'blending-board'),
+      doc(db, 'feature_permissions_public', 'blending-board'),
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as {

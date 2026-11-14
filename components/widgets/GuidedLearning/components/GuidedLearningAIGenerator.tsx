@@ -321,6 +321,21 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     [addFiles]
   );
 
+  // A Drive pick becomes a slide, so it gets the slide marker that lets a set delete it later.
+  const uploadDriveSlide = useCallback(
+    async (file: File): Promise<string> => {
+      if (!user) throw new Error('Sign in to add an image.');
+      const { url } = await uploadGuidedLearningImage(
+        user.uid,
+        file,
+        file.name.replace(/[^\w.-]+/g, '_'),
+        mediaHome
+      );
+      return url;
+    },
+    [user, uploadGuidedLearningImage, mediaHome]
+  );
+
   const handleDriveImageAdded = useCallback((picked: PickedDriveImage) => {
     setImages((prev) => [
       ...prev,
@@ -486,6 +501,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
               onImageAdded={handleDriveImageAdded}
               disabled={busy}
               label="Add image from Drive"
+              upload={uploadDriveSlide}
             />
             {canAccessFeature('ai-file-context') && (
               <DriveFileAttachment

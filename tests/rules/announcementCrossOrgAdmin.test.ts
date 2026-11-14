@@ -440,12 +440,8 @@ describe('announcements — admin manager list query', () => {
   // still leaks a foreign doc. This is why the real fix is in the CLIENT
   // (AnnouncementsManager), not just the rules: an org-scoped admin's query
   // must always be where('orgId','==', orgId).
-  it("LEAK (documents the Firestore quirk the client fix works around): an org-scoped (non-super) admin's unfiltered query still returns a foreign-org doc", async () => {
-    const snap = await assertSucceeds(
-      getDocs(collection(asAdmin(), 'announcements'))
-    );
-    const ids = snap.docs.map((d) => d.id).sort();
-    expect(ids).toContain(OTHER_ORG_ANNOUNCEMENT_ID);
+  it("an org-scoped (non-super) admin's unfiltered list is denied", async () => {
+    await assertFails(getDocs(collection(asAdmin(), 'announcements')));
   });
 
   // The actual production query the fixed client sends for a non-super admin

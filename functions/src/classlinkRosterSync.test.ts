@@ -538,6 +538,29 @@ describe('runClassLinkRosterSync', () => {
     expect(harness.updated.size).toBe(0);
   });
 
+  it('fills retired PINs for a roster it leaves unchanged', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [{ ...student('Ada', '100001', 's1'), formerPins: ['01'] }],
+        [up('s1', 'Ada')]
+      ),
+    ]);
+    const calls: { path: string; students: readonly SyncStudent[] }[] = [];
+    harness.deps.recordRetiredPins = (rosterRef, _data, students) => {
+      calls.push({ path: rosterRef.path, students });
+      return Promise.resolve();
+    };
+
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    expect(out.unchanged).toBe(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].path).toBe('users/u1/rosters/r1');
+    expect(calls[0].students[0].formerPins).toEqual(['01']);
+  });
+
   it('computes changes but writes nothing in dry run', async () => {
     harness = buildHarness([
       classlinkRoster(

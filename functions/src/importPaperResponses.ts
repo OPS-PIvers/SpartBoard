@@ -29,6 +29,7 @@ import {
   ALLOWED_ORIGINS,
   encodeResponseKeySegment,
   pinIndexKey,
+  quizPinKeySegment,
 } from './classlinkShared';
 import { withQuizSessionContent } from './quizSessionContent';
 import {
@@ -440,6 +441,10 @@ async function mapLimited<T, R>(
   return out;
 }
 
+/** The seat's quiz response key, as a device join on this seat writes it. */
+const canonicalPinKey = (sheet: ImportPaperSheet): string =>
+  `pin-${encodeResponseKeySegment(sheet.classPeriod)}-${quizPinKeySegment(sheet.pin)}`;
+
 export async function handleImportPaperResponses(
   db: admin.firestore.Firestore,
   caller: ImportPaperCaller | null,
@@ -564,6 +569,16 @@ export async function handleImportPaperResponses(
     .collection('quiz_sessions')
     .doc(input.assignmentId)
     .collection('responses');
+  // A seat imported or joined before keys dropped leading zeros keeps its doc.
+  const legacyPinKeys = await mapLimited(
+    input.sheets,
+    READ_CONCURRENCY,
+    async (sheet) => {
+      const raw = `pin-${encodeResponseKeySegment(sheet.classPeriod)}-${encodeResponseKeySegment(sheet.pin)}`;
+      if (raw === canonicalPinKey(sheet)) return null;
+      return (await responses.doc(raw).get()).exists ? raw : null;
+    }
+  );
   const resolved = input.sheets.map((sheet, i) => {
     const entry = indexSnaps[i].exists ? (indexSnaps[i].data() ?? {}) : {};
     const pseudonym =
@@ -574,9 +589,7 @@ export async function handleImportPaperResponses(
       pseudonym && typeof entry.classId === 'string' && entry.classId
         ? entry.classId
         : null;
-    const responseKey =
-      pseudonym ??
-      `pin-${encodeResponseKeySegment(sheet.classPeriod)}-${encodeResponseKeySegment(sheet.pin)}`;
+    const responseKey = pseudonym ?? legacyPinKeys[i] ?? canonicalPinKey(sheet);
     return {
       sheet,
       responseKey,

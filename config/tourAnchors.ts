@@ -1257,27 +1257,32 @@ export const TOUR_ANCHORS = {
     label: 'Allow submissions after close switch in the Assign dialog',
     panel: true,
   },
+  'assign-when.due': {
+    label:
+      'Due choice (When ended or Date and time) for Manual in the Assign dialog',
+    panel: true,
+  },
   'assign-when.window': {
     label: 'Schedule switch in the Assign dialog',
     panel: true,
   },
   'assign-classes.trigger': {
-    label: 'Classes menu button in the Assign dialog',
+    label: 'Class list in the Assign dialog',
     panel: true,
   },
   'assign-classes.option': {
-    label: 'Class checkbox in the Assign dialog classes menu',
+    label: 'Class checkbox in the Assign dialog class list',
     perField: true,
     keyPattern: 'assign#row-[1-9]\\d*',
     keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-classes.select-all': {
-    label: 'Select all button in the Assign dialog classes menu',
+    label: 'Select all button in the Assign dialog class list',
     panel: true,
   },
   'assign-classes.clear': {
-    label: 'Clear button in the Assign dialog classes menu',
+    label: 'Clear button in the Assign dialog class list',
     panel: true,
   },
   'assign-students.trigger': {
@@ -2218,6 +2223,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     destructive: true,
     panel: true,
+  },
+  'quiz-editor.option-explanation': {
+    label: 'Show or hide an answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: "quiz#a for option A's explanation button; lowercase letters",
+  },
+  'quiz-editor.option-explanation-text': {
+    label: 'Answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint:
+      "quiz#a for option A's explanation box (open it first); lowercase letters",
   },
   'quiz-editor.answer-image-description': {
     label:
@@ -6280,6 +6300,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
   },
+  'classes.view-student-page': {
+    label: 'View Student Page button in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
   'classes.delete-roster': {
     label: 'Delete class button in My Classes',
     perField: true,
@@ -10244,18 +10270,18 @@ export const TOUR_ANCHORS = {
   },
   'admin.org.mode-submissions': {
     label:
-      'Submissions mode button for an assignment type in Organization app settings',
+      'Submissions mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.mode-view-only': {
     label:
-      'View only mode button for an assignment type in Organization app settings',
+      'View only mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.assignment-modes-save': {
-    label: 'Save button for assignment modes in Organization app settings',
+    label: 'Save button for assignment modes in Admin Settings Features',
     persists: true,
     panel: true,
   },
@@ -15514,12 +15540,12 @@ export const TOUR_ANCHORS = {
   },
   // Flashcards and Mini Apps shared-prop controls.
   'flashcards.stepper-class-picker': {
-    label: 'Class picker in the Flashcards assign dialog',
+    label: 'Class list in the Flashcards assign dialog',
     perWidgetType: true,
     panel: true,
   },
   'flashcards.stepper-class-row': {
-    label: 'Class checkbox in the Flashcards assign dialog class picker',
+    label: 'Class checkbox in the Flashcards assign dialog class list',
     perField: true,
     panel: true,
   },
@@ -15762,12 +15788,12 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'mini-app.stepper-class-picker': {
-    label: 'Class picker in the Mini App assign dialog',
+    label: 'Class list in the Mini App assign dialog',
     perWidgetType: true,
     panel: true,
   },
   'mini-app.stepper-class-row': {
-    label: 'Class checkbox in the Mini App assign dialog class picker',
+    label: 'Class checkbox in the Mini App assign dialog class list',
     perField: true,
     panel: true,
   },

@@ -78,6 +78,12 @@ const Title: React.FC<{ children: string; muted?: boolean }> = ({
   </span>
 );
 
+const RowDot: React.FC = () => (
+  <span aria-hidden="true" className="hidden text-slate-300 sm:inline">
+    ·
+  </span>
+);
+
 const Dot: React.FC = () => (
   <span aria-hidden="true" className="text-slate-300">
     ·
@@ -158,18 +164,25 @@ const ClassMark: React.FC<{ cls: LandingClass }> = ({ cls }) => (
 function dueLine(row: LandingRow, nowMs: number): React.ReactNode {
   const a = row.assignment;
   if (row.state === 'missing-open') {
-    const was = a.dueAt !== undefined ? ` · was due ${fmtDay(a.dueAt)}` : '';
+    const was = a.dueAt !== undefined ? `was due ${fmtDay(a.dueAt)}` : '';
     const closes =
-      a.closeAt !== undefined ? `, closes ${fmtDay(a.closeAt)}` : '';
+      a.closeAt !== undefined
+        ? `${was ? ', ' : ''}closes ${fmtDay(a.closeAt)}`
+        : '';
     return (
       <>
         <span className="font-semibold text-rose-700">
           Missing · still open
         </span>
-        <span className="text-slate-500">
-          {was}
-          {closes}
-        </span>
+        {(was || closes) && (
+          <>
+            <RowDot />
+            <span className="text-slate-500">
+              {was}
+              {closes}
+            </span>
+          </>
+        )}
       </>
     );
   }
@@ -180,11 +193,15 @@ function dueLine(row: LandingRow, nowMs: number): React.ReactNode {
     return <span className="text-slate-500">No due date</span>;
   }
   const label = formatDueLabel(a.dueAt, nowMs);
-  return label.startsWith('Due today') ? (
-    <span className="font-semibold text-slate-800">{label}</span>
-  ) : (
-    <span className="text-slate-500">{label}</span>
-  );
+  if (label.startsWith('Due today'))
+    return <span className="font-semibold text-slate-800">{label}</span>;
+  if (a.dueAt < nowMs)
+    return (
+      <span className="font-semibold text-slate-800">
+        Was due {fmtDay(a.dueAt)}
+      </span>
+    );
+  return <span className="text-slate-500">{label}</span>;
 }
 
 interface WorkRowProps {
@@ -224,23 +241,25 @@ export const WorkRow: React.FC<WorkRowProps> = ({
         <Title muted={row.state === 'upcoming' || periodLocked}>
           {a.title}
         </Title>
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs">
+        <span className="mt-0.5 flex flex-col items-start gap-y-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5">
           {cls && (
             <>
               <ClassMark cls={cls} />
-              <Dot />
+              <RowDot />
             </>
           )}
+          <span className="text-slate-500">{kindLabel(a)}</span>
+          <RowDot />
           {dueLine(row, nowMs)}
           {row.state === 'in-progress' && (
             <>
-              <Dot />
+              <RowDot />
               <span className="text-sky-700">In progress</span>
             </>
           )}
           {periodLocked && (
             <>
-              <Dot />
+              <RowDot />
               <span className="text-slate-500">
                 {periodOpensAt != null
                   ? formatOpensLabel(periodOpensAt)
@@ -402,6 +421,13 @@ function gradebookRight(item: DoneItem, isNew: boolean): React.ReactNode {
   );
 }
 
+const NEVER_GRADED: ReadonlySet<SessionKind> = new Set([
+  'video-activity',
+  'mini-app',
+  'activity-wall',
+  'projects',
+]);
+
 function completedRight(
   item: DoneItem,
   check: TurnInCheck | undefined,
@@ -423,7 +449,9 @@ function completedRight(
       View results
     </span>
   ) : (
-    <span className="text-xs text-slate-500">Not graded yet</span>
+    <span className="text-xs text-slate-500">
+      {NEVER_GRADED.has(item.kind) ? 'Turned in' : 'Not graded yet'}
+    </span>
   );
 }
 

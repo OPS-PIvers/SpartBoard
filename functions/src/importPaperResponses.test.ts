@@ -219,9 +219,9 @@ describe('handleImportPaperResponses', () => {
   it('keys an unindexed student by pin and period, as an anonymous joiner would be', async () => {
     const { result, docs } = await call(baseDocs(), [sheet(1)]);
     expect(result).toEqual({ written: [1], collisions: [] });
-    const doc = docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`];
+    const doc = docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-01`];
     expect(doc).toMatchObject({
-      studentUid: 'pin-period_1-0001',
+      studentUid: 'pin-period_1-01',
       pin: '0001',
       classPeriod: 'Period 1',
       status: 'completed',
@@ -265,7 +265,7 @@ describe('handleImportPaperResponses', () => {
       pin: '0002',
     });
     expect(
-      docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0002`]
+      docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-02`]
     ).toBeUndefined();
   });
 
@@ -332,7 +332,7 @@ describe('handleImportPaperResponses', () => {
     ]);
     expect(ok.result.written).toEqual([3]);
     expect(
-      ok.docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_2-0009`]
+      ok.docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_2-09`]
     ).toBeDefined();
     await expect(
       call(baseDocs(), [sheet(3, { rosterId: 'someone-elses' })])
@@ -645,7 +645,7 @@ describe('handlePublishPaperResults', () => {
 
 describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', () => {
   const SCAN = 'scan-1';
-  const RESP = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`;
+  const RESP = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-01`;
   const JOBS = `users/${UID}/paper_transcription_jobs`;
   const v2Docs = (): Record<string, Doc> => {
     const docs = baseDocs();
@@ -765,7 +765,7 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     expect(docs[`${RESP}/paperPrivate/q4`]).toMatchObject({ status: 'blank' });
     expect(docs[`${JOBS}/${SCAN}_1_1_0`]).toEqual({
       sessionId: ASSIGNMENT,
-      responseKey: 'pin-period_1-0001',
+      responseKey: 'pin-period_1-01',
       scanId: SCAN,
       page: 1,
       boxes: [{ questionId: 'q2', storagePath: crop(SCAN, 1, 'q2') }],
@@ -1268,7 +1268,7 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     it('a student who answered on paper only still imports, and a rescan merges again', async () => {
       const docs = hybridDocs();
       await callV2(docs, [hybridSheet(1)]);
-      const RESP1 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`;
+      const RESP1 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-01`;
       expect(docs[RESP1]).toMatchObject({ status: 'joined', pin: '0001' });
       const { result } = await callV2(docs, [hybridSheet(1)], {
         scanId: 'scan-2',

@@ -206,6 +206,112 @@ const lockedSettings = (
   ...overrides,
 });
 
+describe('FlashcardPlayer self-study test drafts', () => {
+  beforeEach(() => localStorage.clear());
+
+  const renderTestPlayer = (id: string) =>
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter(id)}
+        initialSettings={{ testTypes: ['fib'], testCount: 'all' }}
+      />
+    );
+  const fibInput = (term: string) =>
+    screen
+      .getByRole('heading', { name: term })
+      .closest('section')
+      ?.querySelector('input') as HTMLInputElement;
+
+  it('keeps test answers across a mode switch', async () => {
+    const user = userEvent.setup();
+    renderTestPlayer('draft-mode');
+    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await user.type(fibInput('uno'), 'one');
+    await user.click(screen.getByRole('button', { name: 'Flashcards' }));
+    await user.click(screen.getByRole('button', { name: 'Test' }));
+    expect(fibInput('uno').value).toBe('one');
+  });
+
+  it('keeps test answers across a setting change that remounts the test', async () => {
+    const user = userEvent.setup();
+    renderTestPlayer('draft-setting');
+    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await user.type(fibInput('uno'), 'one');
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    await user.click(screen.getByLabelText(/Strict mode/));
+    expect(fibInput('uno').value).toBe('one');
+  });
+
+  it('drops test answers when the side shown first changes', async () => {
+    const user = userEvent.setup();
+    renderTestPlayer('draft-side');
+    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await user.type(fibInput('uno'), 'one');
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    await user.click(screen.getByRole('button', { name: 'Definition' }));
+    expect(
+      (document.querySelector('section input') as HTMLInputElement).value
+    ).toBe('');
+  });
+
+  it('starts a fresh test after one was submitted', async () => {
+    const user = userEvent.setup();
+    renderTestPlayer('draft-submit');
+    await user.click(screen.getByRole('button', { name: 'Test' }));
+    for (const card of cards) {
+      await user.type(fibInput(card.term), card.definition);
+    }
+    await user.click(screen.getByRole('button', { name: 'Submit test' }));
+    expect(screen.getByText('Test complete')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Flashcards' }));
+    await user.click(screen.getByRole('button', { name: 'Test' }));
+    expect(screen.queryByText('Test complete')).toBeNull();
+    expect(fibInput('uno').value).toBe('');
+  });
+});
+
+describe('FlashcardPlayer Flashcards mode', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('stops at the last card when marks are on', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('end-stop')}
+      />
+    );
+    const next = screen.getByRole('button', { name: 'Next card' });
+    for (let i = 0; i < 3; i += 1) await user.click(next);
+    expect(screen.getByText('4/4')).toBeTruthy();
+    expect(next).toHaveProperty('disabled', true);
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByText('4/4')).toBeTruthy();
+  });
+
+  it('scrolls a long answer instead of clipping it', () => {
+    const { container } = render(
+      <FlashcardPlayer
+        cards={[{ id: 'long', term: 'story', definition: 'word '.repeat(120) }]}
+        termLanguage="en-US"
+        definitionLanguage="en-US"
+        adapter={new MemoryFlashcardAdapter()}
+        allowedModes={['flashcards']}
+      />
+    );
+    const faces = container.querySelectorAll('.backface-hidden');
+    expect(faces).toHaveLength(2);
+    faces.forEach((face) =>
+      expect(face.className).toContain('overflow-y-auto')
+    );
+  });
+});
+
 describe('FlashcardPlayer Check assignments', () => {
   beforeEach(() => localStorage.clear());
 
@@ -593,5 +699,37 @@ describe('WriteMode retype', () => {
     if (!retypeForm) throw new Error('missing retype form');
     fireEvent.submit(retypeForm);
     expect(onRecord).toHaveBeenCalledWith('year', false);
+  });
+});
+
+describe('WriteMode wrong answer', () => {
+  it('ties the retype box to the correct answer for screen readers', () => {
+    render(
+      <WriteMode
+        cards={[{ id: 'year', term: 'año', definition: 'year' }]}
+        round={1}
+        showFirst="definition"
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        strict
+        starred={[]}
+        showMarks={false}
+        dark={false}
+        onRecord={vi.fn()}
+        onStar={vi.fn()}
+        onNextRound={vi.fn()}
+      />
+    );
+    const answer = screen.getByPlaceholderText('Type your answer');
+    fireEvent.change(answer, { target: { value: 'ano' } });
+    const form = answer.closest('form');
+    if (!form) throw new Error('missing form');
+    fireEvent.submit(form);
+
+    const retype = screen.getByLabelText('Retype the correct answer');
+    const id = retype.getAttribute('aria-describedby');
+    expect(id).toBeTruthy();
+    expect(document.getElementById(id ?? '')?.textContent).toContain('año');
+    expect(screen.getByRole('status')).toBeTruthy();
   });
 });

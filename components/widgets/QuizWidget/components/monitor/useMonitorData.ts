@@ -22,8 +22,8 @@ import {
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import {
   resolveResponseDisplayName,
-  responseTeamId,
   findDuplicateResponseIds,
+  responseDuplicateKey,
 } from '@/components/widgets/QuizWidget/utils/resolveDisplayName';
 import {
   NO_FLAGS,
@@ -208,7 +208,7 @@ export function useMonitorData(
           tabWarnings: r.tabSwitchWarnings ?? 0,
           hand: flags.handMinutes,
           idle: flags.idleMinutes,
-          duplicate: duplicateIds.has(responseTeamId(r)),
+          duplicate: duplicateIds.has(responseDuplicateKey(r)),
           onQuestion: Math.min(
             r.answers.length + 1,
             session.totalQuestions || r.answers.length + 1

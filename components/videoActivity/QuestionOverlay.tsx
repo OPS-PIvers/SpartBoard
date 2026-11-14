@@ -13,7 +13,7 @@
  */
 
 import { PromptText } from '@/components/common/PromptText';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { logError } from '@/utils/logError';
 import type {
@@ -85,7 +85,7 @@ export const McOptionList: React.FC<McOptionListProps> = ({
           } else if (option === selected) {
             style = 'border-2 border-red-200 bg-red-50 text-red-700';
           } else {
-            style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
+            style = 'border-2 border-slate-100 bg-slate-50 text-slate-600';
           }
         } else if (selected === option) {
           style =
@@ -96,6 +96,7 @@ export const McOptionList: React.FC<McOptionListProps> = ({
           <button
             key={`${i}-${option}`}
             disabled={locked}
+            aria-pressed={selected === option}
             onClick={() => onSelect(option)}
             className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
           >
@@ -242,7 +243,7 @@ export const MaOptionList: React.FC<MaOptionListProps> = ({
           } else if (!isCorrectOption && isChecked) {
             style = 'border-2 border-red-200 bg-red-50 text-red-700';
           } else {
-            style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
+            style = 'border-2 border-slate-100 bg-slate-50 text-slate-600';
           }
         } else if (isChecked) {
           style =
@@ -253,6 +254,8 @@ export const MaOptionList: React.FC<MaOptionListProps> = ({
           <button
             key={`${i}-${option}`}
             type="button"
+            role="checkbox"
+            aria-checked={isChecked}
             disabled={locked}
             onClick={() => onToggle(option)}
             className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
@@ -267,6 +270,26 @@ export const MaOptionList: React.FC<MaOptionListProps> = ({
               {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
             </span>
             <span className="flex-1">{option}</span>
+            {graded && isCorrectOption && (
+              <>
+                <CheckCircle2
+                  className="w-4 h-4 text-emerald-600 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="sr-only">
+                  {isChecked ? 'correct' : 'missed'}
+                </span>
+              </>
+            )}
+            {graded && !isCorrectOption && isChecked && (
+              <>
+                <XCircle
+                  className="w-4 h-4 text-red-500 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="sr-only">incorrect</span>
+              </>
+            )}
           </button>
         );
       })}
@@ -388,8 +411,21 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
 
   const locked = submitted || checking;
 
+  const questionTextId = useId();
+  const questionTextRef = useRef<HTMLParagraphElement>(null);
+  const typesWithOwnFocus = type === 'FIB' || type === 'SA';
+  useEffect(() => {
+    if (typesWithOwnFocus) return;
+    questionTextRef.current?.focus({ preventScroll: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- focus once when the card appears
+
   return (
-    <div className="w-full max-w-3xl mx-auto rounded-2xl border border-slate-200 shadow-2xl overflow-hidden bg-white max-h-full overflow-y-auto">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={questionTextId}
+      className="w-full max-w-3xl mx-auto rounded-2xl border border-slate-200 shadow-2xl overflow-hidden bg-white max-h-full overflow-y-auto"
+    >
       {/* Header */}
       <div className="bg-brand-blue-primary rounded-t-2xl px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-white">
@@ -405,7 +441,12 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
 
       {/* Question */}
       <div className="px-5 pt-5 pb-3">
-        <p className="text-base font-semibold text-slate-900 leading-snug whitespace-pre-line wrap-break-word">
+        <p
+          id={questionTextId}
+          ref={questionTextRef}
+          tabIndex={-1}
+          className="text-base font-semibold text-slate-900 leading-snug whitespace-pre-line wrap-break-word focus:outline-hidden"
+        >
           <PromptText text={question.text} />
         </p>
         <StopPicture
@@ -487,6 +528,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       {submitted && (
         <div className="px-5 pb-5">
           <div
+            role="status"
             className={`text-center text-sm font-bold py-2 rounded-xl border ${
               !feedback
                 ? 'bg-slate-50 border-slate-200 text-slate-600'

@@ -196,6 +196,10 @@ export {
 } from './organizationInvites';
 export { resolveOrgForUser } from './resolveOrgForUser';
 export { organizationMembersSync } from './organizationMembersSync';
+export {
+  featurePermissionsMirror,
+  globalPermissionsMirror,
+} from './permissionMirrors';
 export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';

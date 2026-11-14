@@ -341,7 +341,14 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
           );
         },
         hide: (keys) => hideResultsForStudents(assignment.id, keys),
-        clear: (keys) => clearResultsOverride(assignment.id, keys),
+        clear: async (keys) => {
+          const answerKey =
+            assignment.resolvedDriveFileId &&
+            assignment.resolvedDriveFileId !== assignment.quizDriveFileId
+              ? await loadQuizData(assignment.resolvedDriveFileId)
+              : quizData;
+          return clearResultsOverride(assignment.id, keys, answerKey);
+        },
       }}
       onPlcSheetUrlReplaced={async (newUrl) => {
         if (assignment.plc) {

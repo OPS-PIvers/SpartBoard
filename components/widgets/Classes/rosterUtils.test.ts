@@ -239,6 +239,14 @@ describe('rosterUtils', () => {
       expect(dupes).toEqual(new Set(['01']));
     });
 
+    it('flags PINs that differ only by leading zeros', () => {
+      const students = [
+        { id: '1', firstName: 'A', lastName: '', pin: '1' },
+        { id: '2', firstName: 'B', lastName: '', pin: '01' },
+      ];
+      expect(findDuplicatePins(students)).toEqual(new Set(['1', '01']));
+    });
+
     it("flags a PIN that is another student's former PIN", () => {
       const students = [
         {

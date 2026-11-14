@@ -1,4 +1,5 @@
 // Video Activity on the assign stepper: pacing switch, Classes, When, rule steps, Sharing (docs/plans/shipped/ASSIGN_STEPPER.md D4).
+import { useAssignWhen } from '@/hooks/useLastAssignWhen';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Play } from 'lucide-react';
@@ -24,7 +25,7 @@ import {
   type AssignStepDef,
   type AssignStepId,
 } from './assignSteps';
-import { ClassPickerMenu } from './ClassPickerMenu';
+import { ClassChecklist } from './ClassChecklist';
 import { useAssignAudience, withAudienceSwitch } from './assignAudience';
 import { StudentPickMenu } from './StudentPickMenu';
 import {
@@ -38,7 +39,6 @@ import {
   defaultWhenValue,
   formatWhenValue,
   whenBackwards,
-  type AssignWhenValue,
 } from './assignWhenValue';
 import { SharingStep } from './SharingStep';
 import {
@@ -133,7 +133,11 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     classes.classIds.includes(r.id)
   );
 
-  const [when, setWhen] = useState<AssignWhenValue>(() =>
+  const {
+    when,
+    setWhen,
+    remember: rememberWhen,
+  } = useAssignWhen('video', () =>
     defaultWhenValue({
       activity: 'video',
       bellAvailable: !!periodAccess,
@@ -182,7 +186,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       value: formatClassesValue(classes, visibleRosters),
       body: (
         <div className="space-y-3">
-          <ClassPickerMenu
+          <ClassChecklist
             rosters={visibleRosters}
             value={classes}
             onChange={setClasses}
@@ -278,6 +282,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
               bellWindow: periodAccess?.bellWindow,
             }
           ).targeting;
+    if (!live && !staff) rememberWhen(when);
     await onSubmit({
       pacing,
       classes,

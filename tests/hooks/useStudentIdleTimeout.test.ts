@@ -24,7 +24,8 @@ vi.mock('@/context/StudentAuthContextValue', () => ({
 import {
   useStudentIdleTimeout,
   STUDENT_IDLE_TIMEOUT_MS,
-  STUDENT_LOGIN_PATH,
+  STUDENT_IDLE_LOGIN_PATH,
+  STUDENT_IDLE_WARNING_MS,
 } from '@/hooks/useStudentIdleTimeout';
 
 // Stub the read-only window.location so `.assign()` is observable and
@@ -39,6 +40,13 @@ function installLocation(): void {
   });
 }
 
+const flushSignOut = () =>
+  act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
 describe('useStudentIdleTimeout', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -52,7 +60,7 @@ describe('useStudentIdleTimeout', () => {
     vi.restoreAllMocks();
   });
 
-  it('signs out and redirects after the 15-minute idle window', () => {
+  it('signs out and redirects after the 15-minute idle window', async () => {
     renderHook(() => useStudentIdleTimeout(true));
 
     // Just short of the window — nothing has fired yet.
@@ -67,14 +75,46 @@ describe('useStudentIdleTimeout', () => {
     });
     expect(clearStudentFirstNameMock).toHaveBeenCalledTimes(1);
     expect(signOutMock).toHaveBeenCalledTimes(1);
-    expect(assignMock).toHaveBeenCalledWith(STUDENT_LOGIN_PATH);
+    await flushSignOut();
+    expect(assignMock).toHaveBeenCalledWith(STUDENT_IDLE_LOGIN_PATH);
   });
 
-  it('clears the first name BEFORE redirecting (session hygiene)', () => {
+  it('redirects only after sign-out settles, so ?reason=idle is the last navigation', async () => {
+    let resolveSignOut: () => void = () => undefined;
+    signOutMock.mockReturnValueOnce(
+      new Promise<void>((r) => {
+        resolveSignOut = r;
+      })
+    );
     renderHook(() => useStudentIdleTimeout(true));
     act(() => {
       vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
     });
+    expect(assignMock).not.toHaveBeenCalled();
+    resolveSignOut();
+    await flushSignOut();
+    expect(assignMock).toHaveBeenCalledWith(STUDENT_IDLE_LOGIN_PATH);
+  });
+
+  it('still redirects when sign-out never settles', () => {
+    signOutMock.mockReturnValueOnce(new Promise<void>(() => undefined));
+    renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
+    });
+    expect(assignMock).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(assignMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the first name BEFORE redirecting (session hygiene)', async () => {
+    renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
+    });
+    await flushSignOut();
     // Ordering matters — a stale greeting must be wiped before nav.
     const clearOrder = clearStudentFirstNameMock.mock.invocationCallOrder[0];
     const assignOrder = assignMock.mock.invocationCallOrder[0];
@@ -147,11 +187,12 @@ describe('useStudentIdleTimeout', () => {
     expect(signOutMock).not.toHaveBeenCalled();
   });
 
-  it('redirects to a custom path when provided', () => {
+  it('redirects to a custom path when provided', async () => {
     renderHook(() => useStudentIdleTimeout(true, '/join'));
     act(() => {
       vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
     });
+    await flushSignOut();
     expect(assignMock).toHaveBeenCalledWith('/join');
   });
 
@@ -161,10 +202,9 @@ describe('useStudentIdleTimeout', () => {
     act(() => {
       vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
     });
+    await flushSignOut();
     // The redirect is the real remediation and must happen regardless.
-    expect(assignMock).toHaveBeenCalledWith(STUDENT_LOGIN_PATH);
-    // Flush the rejected promise's .catch so it doesn't leak.
-    await Promise.resolve();
+    expect(assignMock).toHaveBeenCalledWith(STUDENT_IDLE_LOGIN_PATH);
   });
   it('stays signed in while another tab is in use', () => {
     renderHook(() => useStudentIdleTimeout(true));
@@ -205,5 +245,52 @@ describe('useStudentIdleTimeout', () => {
       vi.advanceTimersByTime(1000);
     });
     expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it('warns one minute before sign-out and still signs out at 15 minutes', () => {
+    const { result } = renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(
+        STUDENT_IDLE_TIMEOUT_MS - STUDENT_IDLE_WARNING_MS - 1000
+      );
+    });
+    expect(result.current.warning).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.warning).toBe(true);
+    expect(signOutMock).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_WARNING_MS);
+    });
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the warning on interaction and moves sign-out 15 minutes out', () => {
+    const { result } = renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS - STUDENT_IDLE_WARNING_MS);
+    });
+    expect(result.current.warning).toBe(true);
+    act(() => {
+      window.dispatchEvent(new Event('keydown'));
+    });
+    expect(result.current.warning).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS - 1000);
+    });
+    expect(signOutMock).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('never warns when disabled', () => {
+    const { result } = renderHook(() => useStudentIdleTimeout(false));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
+    });
+    expect(result.current.warning).toBe(false);
   });
 });

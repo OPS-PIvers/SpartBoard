@@ -350,6 +350,36 @@ describe('GoogleDriveService', () => {
       expect(result).toEqual(mockFile);
       expect(fetchSpy).toHaveBeenCalledTimes(5);
     });
+
+    it('stamps a fixed created and modified time when asked', async () => {
+      const ok = (body: unknown) =>
+        ({ ok: true, json: () => Promise.resolve(body) }) as Response;
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(ok({ files: [{ id: 'app-folder-id' }] }))
+        .mockResolvedValueOnce(ok({ files: [{ id: 'misc-folder-id' }] }))
+        .mockResolvedValueOnce(ok({ id: 'file-id' }))
+        .mockResolvedValueOnce(ok({}))
+        .mockResolvedValueOnce(ok({}))
+        .mockResolvedValueOnce(ok({ id: 'file-id' }));
+      const fixedTime = '2020-01-01T00:00:00.000Z';
+      await service.uploadFile(
+        new Blob(['x'], { type: 'image/png' }),
+        'a.png',
+        'Misc',
+        undefined,
+        { fixedTime }
+      );
+      const bodies = fetchSpy.mock.calls.map(([, init]): unknown =>
+        typeof init?.body === 'string' ? JSON.parse(init.body) : null
+      );
+      expect(bodies[2]).toMatchObject({
+        createdTime: fixedTime,
+        modifiedTime: fixedTime,
+      });
+      expect(bodies[4]).toEqual({ modifiedTime: fixedTime });
+      expect(fetchSpy).toHaveBeenCalledTimes(6);
+    });
   });
 
   describe('exportDashboard', () => {

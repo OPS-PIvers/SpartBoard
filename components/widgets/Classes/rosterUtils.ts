@@ -1,4 +1,5 @@
 import { Student } from '@/types';
+import { quizPinKeySegment } from '@/utils/quizResponseKey';
 
 /**
  * Splits a list of full names (one per line) into first and last names.
@@ -126,6 +127,7 @@ export const generateStudentsList = (
     };
     if (existing?.formerPins && existing.formerPins.length > 0) {
       student.formerPins = existing.formerPins;
+      if (existing.formerPinsAt) student.formerPinsAt = existing.formerPinsAt;
     }
     if (existing?.classLinkSourcedId !== undefined) {
       student.classLinkSourcedId = existing.classLinkSourcedId;
@@ -139,20 +141,24 @@ export const generateStudentsList = (
  * Returns a Set of PIN values that appear more than once.
  */
 export const findDuplicatePins = (students: Student[]): Set<string> => {
-  const seen = new Map<string, number>();
+  // PINs that differ only by leading zeros share one quiz seat, so they count as duplicates.
+  const seen = new Map<string, string[]>();
   for (const s of students) {
     if (s.pin) {
-      seen.set(s.pin, (seen.get(s.pin) ?? 0) + 1);
+      const seat = quizPinKeySegment(s.pin);
+      seen.set(seat, [...(seen.get(seat) ?? []), s.pin]);
     }
   }
   const dupes = new Set<string>();
-  for (const [pin, count] of seen) {
-    if (count > 1) dupes.add(pin);
+  for (const pins of seen.values()) {
+    if (pins.length > 1) pins.forEach((pin) => dupes.add(pin));
   }
   // A student's old PIN still names them on past responses, so nobody else may take it.
   for (const s of students) {
     for (const pin of s.formerPins ?? []) {
-      if (pin !== s.pin && seen.has(pin)) dupes.add(pin);
+      const seat = quizPinKeySegment(pin);
+      if (s.pin && seat === quizPinKeySegment(s.pin)) continue;
+      seen.get(seat)?.forEach((p) => dupes.add(p));
     }
   }
   return dupes;

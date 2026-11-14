@@ -122,11 +122,11 @@ beforeEach(async () => {
     });
 
     // --- Global / shared catalogs the app reads for everyone. ---
-    await setDoc(doc(db, 'feature_permissions/time-tool'), {
+    await setDoc(doc(db, 'feature_permissions_public/time-tool'), {
       accessLevel: 'public',
       enabled: true,
     });
-    await setDoc(doc(db, 'global_permissions/some-feature'), {
+    await setDoc(doc(db, 'global_permissions_public/some-feature'), {
       enabled: true,
     });
     await setDoc(doc(db, 'instructional_routines/routine-1'), {
@@ -253,10 +253,14 @@ describe('external (no-org) user — owns their /users/{uid}/** subtree', () => 
 });
 
 describe('external (no-org) user — reads global/shared catalogs', () => {
-  it('can read feature_permissions and global_permissions', async () => {
+  it('can read the public permission mirrors', async () => {
     const db = asExternal();
-    await assertSucceeds(getDoc(doc(db, 'feature_permissions/time-tool')));
-    await assertSucceeds(getDoc(doc(db, 'global_permissions/some-feature')));
+    await assertSucceeds(
+      getDoc(doc(db, 'feature_permissions_public/time-tool'))
+    );
+    await assertSucceeds(
+      getDoc(doc(db, 'global_permissions_public/some-feature'))
+    );
   });
 
   it('can read instructional_routines and dashboard_templates', async () => {

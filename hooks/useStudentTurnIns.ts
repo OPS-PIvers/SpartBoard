@@ -63,8 +63,13 @@ export function areResultsShared(
 export function useStudentTurnIns(
   assignments: readonly AssignmentSummary[],
   pseudonymUid: string | null
-): { checks: TurnInMap; recheck: (a: AssignmentSummary) => Promise<void> } {
+): {
+  checks: TurnInMap;
+  recheck: (a: AssignmentSummary) => Promise<void>;
+  settled: boolean;
+} {
   const [checks, setChecks] = useState<TurnInMap>({});
+  const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
   // Keyed by uid so a sign-out never carries one student's reads into another's.
   const requested = useRef<{ uid: string | null; ids: Set<string> }>({
     uid: null,
@@ -94,6 +99,7 @@ export function useStudentTurnIns(
         .catch(() => {
           // A failed read leaves the row unchecked, never Missing; a later snapshot retries it.
           ids.delete(a.compositeId);
+          setFailed((prev) => new Set(prev).add(a.compositeId));
         });
     }
   }, [assignments, pseudonymUid]);
@@ -107,5 +113,16 @@ export function useStudentTurnIns(
     [pseudonymUid]
   );
 
-  return { checks, recheck };
+  const settled =
+    !pseudonymUid ||
+    assignments.every(
+      (a) =>
+        a.workKind !== 'work' ||
+        isClosedProjectRun(a) ||
+        !hasResponseDoc(a.kind) ||
+        a.compositeId in checks ||
+        failed.has(a.compositeId)
+    );
+
+  return { checks, recheck, settled };
 }

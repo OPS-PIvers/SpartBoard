@@ -193,6 +193,17 @@ export function isBridgeablePin(pin: string): boolean {
   return pin.replace(/[^a-z0-9]/gi, '').length >= PIN_LOGIN_MIN_PIN_LENGTH;
 }
 
+/** Quiz response-key PIN segment: leading zeros stripped, one digit padded to two (mirrors `quizPinKeySegment`). */
+export function quizPinKeySegment(pin: string | undefined): string {
+  const seg = encodeResponseKeySegment(pin).replace(/^0+/, '');
+  return /^[0-9]?$/.test(seg) ? seg.padStart(2, '0') : seg;
+}
+
+/** Doc id under `users/{teacher}/retired_pins`; firestore.rules builds the same id to refuse a retired PIN. */
+export function retiredPinKey(period: string, pin: string): string {
+  return `${encodeResponseKeySegment(period)}__${quizPinKeySegment(pin)}`;
+}
+
 /** Doc id of a roster's `pin_index` entry for one (period, pin) pair. */
 export function pinIndexKey(period: string, pin: string): string {
   return `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`;

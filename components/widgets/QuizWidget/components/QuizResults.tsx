@@ -53,6 +53,7 @@ import {
   EyeOff,
   MinusCircle,
   History,
+  Monitor,
   MousePointerClick,
   Printer,
   UserCheck,
@@ -1388,7 +1389,12 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         return `${sso.familyName} ${sso.givenName}`.trim();
       }
       const rosterName = response.pin
-        ? resolvePinName(exportPinToName, response.classPeriod, response.pin)
+        ? resolvePinName(
+            exportPinToName,
+            response.classPeriod,
+            response.pin,
+            response.joinedAt
+          )
         : null;
       if (rosterName) return rosterName;
       return resolveTargetStudentName(response);
@@ -2322,6 +2328,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     title: quiz.title,
     closeAt: session?.closeAt,
     dueAt: session?.dueAt,
+    endedAt: session?.endedAt,
     buildPayload: async () => {
       const maxPoints = quizMaxPoints(
         quiz.questions,
@@ -4962,14 +4969,18 @@ const StudentsScreen: React.FC<{
                     studentName={displayName}
                     questionOrder={questionOrder}
                   >
-                    {(count) => (
+                    {(count, deviceOnly) => (
                       <span
-                        title={`${count} unusual input ${count === 1 ? 'sign' : 'signs'}`}
+                        title={
+                          deviceOnly
+                            ? `${count} device ${count === 1 ? 'detail' : 'details'}`
+                            : `${count} unusual input ${count === 1 ? 'sign' : 'signs'}`
+                        }
                         className="shrink-0"
                       >
                         <SessionBadge
-                          tone="warn"
-                          icon={MousePointerClick}
+                          tone={deviceOnly ? 'neutral' : 'warn'}
+                          icon={deviceOnly ? Monitor : MousePointerClick}
                           label={`${count}`}
                         />
                       </span>
