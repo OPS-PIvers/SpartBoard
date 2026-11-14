@@ -635,14 +635,6 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
-async function readData(
-  db: admin.firestore.Firestore,
-  path: string
-): Promise<Data | undefined> {
-  const snap = await db.doc(path).get();
-  return snap.exists ? snap.data() : undefined;
-}
-
 /** Runs one org admin action with the gates firestore.rules applied to the client write. */
 export async function runOrgAdminAction(
   db: admin.firestore.Firestore,
@@ -651,25 +643,27 @@ export async function runOrgAdminAction(
 ): Promise<{ changed: number }> {
   // Rules: email_verified, and viewAsAdminOk() keeps a View as tab out of admin writes.
   if (!caller.emailLower || !caller.emailVerified || caller.viewAs) deny();
+  // Each write re-reads the caller's tier inside its transaction, so a concurrent revocation is seen.
   const orgId = action.action === 'createOrg' ? null : action.orgId;
-  const tier = await resolveTier(plainReader(db), caller, orgId);
+  const authorized = async (read: Reader) => resolveTier(read, caller, orgId);
+  const tier = await authorized(plainReader(db));
 
   switch (action.action) {
     case 'createOrg': {
-      const record = planOrgCreate(tier, action.record);
-      const id = str(record, 'id');
-      if (await readData(db, `organizations/${id}`)) {
-        throw new OrgAdminError('alreadyExists');
-      }
-      await db.doc(`organizations/${id}`).create(record);
-      return { changed: 1 };
+      return db.runTransaction(async (tx) => {
+        const read = txReader(db, tx);
+        const record = planOrgCreate(await authorized(read), action.record);
+        const path = `organizations/${str(record, 'id')}`;
+        if (await read(path)) throw new OrgAdminError('alreadyExists');
+        tx.create(db.doc(path), record);
+        return { changed: 1 };
+      });
     }
-    // Updates re-read the caller's tier and the target in the writing transaction, so a concurrent revocation is seen.
     case 'updateOrg': {
       const path = `organizations/${action.orgId}`;
       return db.runTransaction(async (tx) => {
         const read = txReader(db, tx);
-        const t = await resolveTier(read, caller, action.orgId);
+        const t = await authorized(read);
         const existing = await read(path);
         if (!existing) throw new OrgAdminError('notFound');
         planOrgUpdate(t, existing, action.patch);
@@ -679,21 +673,25 @@ export async function runOrgAdminAction(
     }
     case 'addBuilding':
     case 'addDomain': {
-      const record =
-        action.action === 'addBuilding'
-          ? planBuildingCreate(tier, action.orgId, action.record)
-          : planDomainCreate(tier, action.orgId, action.record);
       const sub = action.action === 'addBuilding' ? 'buildings' : 'domains';
-      const path = `organizations/${action.orgId}/${sub}/${str(record, 'id')}`;
-      if (await readData(db, path)) throw new OrgAdminError('alreadyExists');
-      await db.doc(path).create(record);
-      return { changed: 1 };
+      return db.runTransaction(async (tx) => {
+        const read = txReader(db, tx);
+        const t = await authorized(read);
+        const record =
+          action.action === 'addBuilding'
+            ? planBuildingCreate(t, action.orgId, action.record)
+            : planDomainCreate(t, action.orgId, action.record);
+        const path = `organizations/${action.orgId}/${sub}/${str(record, 'id')}`;
+        if (await read(path)) throw new OrgAdminError('alreadyExists');
+        tx.create(db.doc(path), record);
+        return { changed: 1 };
+      });
     }
     case 'updateBuilding': {
       const path = `organizations/${action.orgId}/buildings/${action.id}`;
       return db.runTransaction(async (tx) => {
         const read = txReader(db, tx);
-        const t = await resolveTier(read, caller, action.orgId);
+        const t = await authorized(read);
         const existing = await read(path);
         if (!existing) throw new OrgAdminError('notFound');
         planBuildingUpdate(t, action.id, existing, action.patch);
@@ -703,16 +701,17 @@ export async function runOrgAdminAction(
     }
     case 'removeBuilding':
     case 'removeDomain': {
-      if (!orgAdmin(tier)) deny();
       const sub = action.action === 'removeBuilding' ? 'buildings' : 'domains';
-      await db
-        .doc(`organizations/${action.orgId}/${sub}/${action.id}`)
-        .delete();
-      return { changed: 1 };
+      return db.runTransaction(async (tx) => {
+        if (!orgAdmin(await authorized(txReader(db, tx)))) deny();
+        tx.delete(db.doc(`organizations/${action.orgId}/${sub}/${action.id}`));
+        return { changed: 1 };
+      });
     }
     case 'saveRoles': {
       const base = `organizations/${action.orgId}/roles`;
       return db.runTransaction(async (tx) => {
+        const tier = await authorized(txReader(db, tx));
         const ids = [
           ...action.upserts.map((r) => r.id),
           ...action.systemPerms.map((r) => r.id),

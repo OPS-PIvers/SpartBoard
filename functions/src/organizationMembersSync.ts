@@ -5,6 +5,7 @@ import { OPERATOR_ORG_ID } from './authz';
 import {
   applyDeactivationClaim,
   deactivationClaimChange,
+  deactivationClaimTarget,
 } from './memberDeactivationClaim';
 
 // Ensure admin is initialized exactly once. `index.ts` also calls
@@ -200,7 +201,7 @@ export function computeAdminAction(
  *   entry dated 2026-04-19 in docs/organization_wiring_implementation.md.
  */
 export const organizationMembersSync = onDocumentWritten(
-  'organizations/{orgId}/members/{emailLower}',
+  { document: 'organizations/{orgId}/members/{emailLower}', retry: true },
   async (event) => {
     const { orgId, emailLower: rawEmail } = event.params;
     // Defensive normalization. Phase 1 rules enforce lowercase doc ids, but
@@ -223,170 +224,187 @@ export const organizationMembersSync = onDocumentWritten(
       ? (change.after.data() as MemberDocFields)
       : null;
 
-    const claimChange = deactivationClaimChange(orgId, beforeData, afterData);
-    if (claimChange) {
+    // The claim follows the doc's current status, so a late or retried event cannot undo a newer change; a failure is rethrown after the admin mirror runs.
+    let claimError: Error | undefined;
+    if (deactivationClaimChange(orgId, beforeData, afterData)) {
       try {
-        const uids = await applyDeactivationClaim(
-          admin.auth(),
-          emailLower,
-          afterData?.uid ?? beforeData?.uid,
-          claimChange
+        const snap = await admin
+          .firestore()
+          .doc(`organizations/${orgId}/members/${emailLower}`)
+          .get();
+        const claimChange = deactivationClaimTarget(
+          snap.exists ? (snap.data() as MemberDocFields) : null
         );
-        logger.info('organizationMembersSync: deactivation claim', {
-          orgId,
-          emailLower,
-          claimChange,
-          uids,
-        });
+        if (claimChange) {
+          const uids = await applyDeactivationClaim(
+            admin.auth(),
+            emailLower,
+            afterData?.uid ?? beforeData?.uid,
+            claimChange
+          );
+          logger.info('organizationMembersSync: deactivation claim', {
+            orgId,
+            emailLower,
+            claimChange,
+            uids,
+          });
+        }
       } catch (err) {
+        claimError = err instanceof Error ? err : new Error(String(err));
         logger.error('organizationMembersSync: deactivation claim failed', {
           orgId,
           emailLower,
-          claimChange,
           error: err instanceof Error ? err.message : String(err),
         });
       }
     }
 
-    // Short-circuit when the transition is irrelevant to admin mapping.
-    // Specifically: both the previous and next admin-eligibility evaluate
-    // to the same boolean AND the roleId is unchanged. A name-only change
-    // on an active domain_admin, for example, should NOT rewrite the admin
-    // doc's `updatedAt`.
-    const beforeEligible =
-      beforeData !== null &&
-      typeof beforeData.roleId === 'string' &&
-      ADMIN_ROLES.includes(beforeData.roleId) &&
-      beforeData.status === 'active';
-    const afterEligible =
-      afterData !== null &&
-      typeof afterData.roleId === 'string' &&
-      ADMIN_ROLES.includes(afterData.roleId) &&
-      afterData.status === 'active';
-    const roleIdUnchanged = beforeData?.roleId === afterData?.roleId;
+    await mirrorAdminDoc(orgId, emailLower, beforeData, afterData);
+    if (claimError) throw claimError;
+  }
+);
 
-    if (beforeEligible === afterEligible && roleIdUnchanged) {
-      logger.info('organizationMembersSync: no admin-relevant change', {
-        orgId,
-        emailLower,
-        beforeEligible,
-        afterEligible,
-      });
-      return;
-    }
+async function mirrorAdminDoc(
+  orgId: string,
+  emailLower: string,
+  beforeData: MemberDocFields | null,
+  afterData: MemberDocFields | null
+): Promise<void> {
+  // Short-circuit when the transition is irrelevant to admin mapping.
+  // Specifically: both the previous and next admin-eligibility evaluate
+  // to the same boolean AND the roleId is unchanged. A name-only change
+  // on an active domain_admin, for example, should NOT rewrite the admin
+  // doc's `updatedAt`.
+  const beforeEligible =
+    beforeData !== null &&
+    typeof beforeData.roleId === 'string' &&
+    ADMIN_ROLES.includes(beforeData.roleId) &&
+    beforeData.status === 'active';
+  const afterEligible =
+    afterData !== null &&
+    typeof afterData.roleId === 'string' &&
+    ADMIN_ROLES.includes(afterData.roleId) &&
+    afterData.status === 'active';
+  const roleIdUnchanged = beforeData?.roleId === afterData?.roleId;
 
-    const db = admin.firestore();
-    const adminRef = db.doc(`admins/${emailLower}`);
+  if (beforeEligible === afterEligible && roleIdUnchanged) {
+    logger.info('organizationMembersSync: no admin-relevant change', {
+      orgId,
+      emailLower,
+      beforeEligible,
+      afterEligible,
+    });
+    return;
+  }
 
-    let existingAdmin: { source?: string; orgId?: string } | null = null;
+  const db = admin.firestore();
+  const adminRef = db.doc(`admins/${emailLower}`);
+
+  let existingAdmin: { source?: string; orgId?: string } | null = null;
+  try {
+    const adminSnap = await adminRef.get();
+    existingAdmin = adminSnap.exists
+      ? (adminSnap.data() as { source?: string; orgId?: string })
+      : null;
+  } catch (err) {
+    logger.error('organizationMembersSync: failed to read existing admin doc', {
+      orgId,
+      emailLower,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Bail without throwing — Firestore retries throws and a retry loop
+    // here could amplify the failure mode on transient infrastructure
+    // issues.
+    return;
+  }
+
+  // A stale non-operator mirror is retargeted, not deleted, when the person is also an operator-org admin.
+  let operatorMember: MemberDocFields | null = null;
+  if (
+    orgId !== OPERATOR_ORG_ID &&
+    existingAdmin?.source === PROVENANCE_SOURCE &&
+    existingAdmin.orgId === orgId
+  ) {
     try {
-      const adminSnap = await adminRef.get();
-      existingAdmin = adminSnap.exists
-        ? (adminSnap.data() as { source?: string; orgId?: string })
+      const opSnap = await db
+        .doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`)
+        .get();
+      operatorMember = opSnap.exists
+        ? (opSnap.data() as MemberDocFields)
         : null;
     } catch (err) {
       logger.error(
-        'organizationMembersSync: failed to read existing admin doc',
+        'organizationMembersSync: failed to read operator-org member doc',
         {
           orgId,
           emailLower,
           error: err instanceof Error ? err.message : String(err),
         }
       );
-      // Bail without throwing — Firestore retries throws and a retry loop
-      // here could amplify the failure mode on transient infrastructure
-      // issues.
+      return;
+    }
+  }
+
+  const now = new Date().toISOString();
+  const action = computeAdminAction(
+    beforeData,
+    afterData,
+    existingAdmin,
+    orgId,
+    emailLower,
+    now,
+    operatorMember
+  );
+
+  try {
+    if (action.type === 'create') {
+      await adminRef.set(action.payload);
+      logger.info('organizationMembersSync: created admin doc', {
+        orgId,
+        emailLower,
+        roleId: action.payload.roleId,
+      });
       return;
     }
 
-    // A stale non-operator mirror is retargeted, not deleted, when the person is also an operator-org admin.
-    let operatorMember: MemberDocFields | null = null;
-    if (
-      orgId !== OPERATOR_ORG_ID &&
-      existingAdmin?.source === PROVENANCE_SOURCE &&
-      existingAdmin.orgId === orgId
-    ) {
-      try {
-        const opSnap = await db
-          .doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`)
-          .get();
-        operatorMember = opSnap.exists
-          ? (opSnap.data() as MemberDocFields)
-          : null;
-      } catch (err) {
-        logger.error(
-          'organizationMembersSync: failed to read operator-org member doc',
-          {
-            orgId,
-            emailLower,
-            error: err instanceof Error ? err.message : String(err),
-          }
-        );
-        return;
-      }
+    if (action.type === 'update') {
+      // Spread into a plain object so the Admin SDK's `UpdateData` index-
+      // signature requirement is satisfied without loosening our payload
+      // type.
+      await adminRef.update({ ...action.payload });
+      logger.info('organizationMembersSync: updated admin doc', {
+        orgId,
+        emailLower,
+        roleId: action.payload.roleId,
+      });
+      return;
     }
 
-    const now = new Date().toISOString();
-    const action = computeAdminAction(
-      beforeData,
-      afterData,
-      existingAdmin,
+    if (action.type === 'delete') {
+      await adminRef.delete();
+      logger.info('organizationMembersSync: deleted admin doc', {
+        orgId,
+        emailLower,
+      });
+      return;
+    }
+
+    // noop
+    logger.info('organizationMembersSync: noop', {
       orgId,
       emailLower,
-      now,
-      operatorMember
-    );
-
-    try {
-      if (action.type === 'create') {
-        await adminRef.set(action.payload);
-        logger.info('organizationMembersSync: created admin doc', {
-          orgId,
-          emailLower,
-          roleId: action.payload.roleId,
-        });
-        return;
-      }
-
-      if (action.type === 'update') {
-        // Spread into a plain object so the Admin SDK's `UpdateData` index-
-        // signature requirement is satisfied without loosening our payload
-        // type.
-        await adminRef.update({ ...action.payload });
-        logger.info('organizationMembersSync: updated admin doc', {
-          orgId,
-          emailLower,
-          roleId: action.payload.roleId,
-        });
-        return;
-      }
-
-      if (action.type === 'delete') {
-        await adminRef.delete();
-        logger.info('organizationMembersSync: deleted admin doc', {
-          orgId,
-          emailLower,
-        });
-        return;
-      }
-
-      // noop
-      logger.info('organizationMembersSync: noop', {
-        orgId,
-        emailLower,
-        reason: action.reason,
-      });
-    } catch (err) {
-      // Log and swallow. NEVER throw — a thrown trigger is retried by
-      // Firestore, which could amplify a mapping bug into a loop that
-      // thrashes `/admins/{email}` (especially dangerous for the delete
-      // path). Operators watch the logs for these errors.
-      logger.error('organizationMembersSync: admin write failed', {
-        orgId,
-        emailLower,
-        actionType: action.type,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+      reason: action.reason,
+    });
+  } catch (err) {
+    // Log and swallow. NEVER throw — a thrown trigger is retried by
+    // Firestore, which could amplify a mapping bug into a loop that
+    // thrashes `/admins/{email}` (especially dangerous for the delete
+    // path). Operators watch the logs for these errors.
+    logger.error('organizationMembersSync: admin write failed', {
+      orgId,
+      emailLower,
+      actionType: action.type,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
-);
+}

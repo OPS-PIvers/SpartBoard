@@ -2,16 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   applyDeactivationClaim,
   deactivationClaimChange,
+  deactivationClaimTarget,
 } from './memberDeactivationClaim';
 
 describe('deactivationClaimChange', () => {
-  it('sets on deactivation and clears on reactivation or removal, operator org only', () => {
+  it('sets on deactivation and clears on reactivation, never on doc deletion, operator org only', () => {
     const active = { status: 'active' };
     const inactive = { status: 'inactive' };
     expect(deactivationClaimChange('orono', active, inactive)).toBe('set');
     expect(deactivationClaimChange('orono', null, inactive)).toBe('set');
     expect(deactivationClaimChange('orono', inactive, active)).toBe('clear');
-    expect(deactivationClaimChange('orono', inactive, null)).toBe('clear');
+    expect(deactivationClaimChange('orono', inactive, null)).toBeNull();
+    expect(deactivationClaimChange('orono', active, null)).toBeNull();
     expect(
       deactivationClaimChange('orono', inactive, { status: 'removed' })
     ).toBeNull();
@@ -19,6 +21,15 @@ describe('deactivationClaimChange', () => {
       deactivationClaimChange('orono', active, { status: 'invited' })
     ).toBeNull();
     expect(deactivationClaimChange('other-org', active, inactive)).toBeNull();
+  });
+});
+
+describe('deactivationClaimTarget', () => {
+  it('follows the current doc and leaves a deleted one alone', () => {
+    expect(deactivationClaimTarget({ status: 'inactive' })).toBe('set');
+    expect(deactivationClaimTarget({ status: 'active' })).toBe('clear');
+    expect(deactivationClaimTarget({ status: 'invited' })).toBe('clear');
+    expect(deactivationClaimTarget(null)).toBeNull();
   });
 });
 

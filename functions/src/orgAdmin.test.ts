@@ -528,18 +528,18 @@ describe('runOrgAdminAction', () => {
   describe('a revocation that lands before the commit', () => {
     // Applies `change` once the write's transaction starts, after the up-front reads.
     const raceOn = (
-      db: { runTransaction: (fn: unknown) => Promise<unknown> },
+      db: ReturnType<typeof makeStubFirestore>['db'],
       store: Map<string, StubData>,
       change: () => void,
       onCall = 1
     ) => {
       const real = db.runTransaction.bind(db);
       let calls = 0;
-      db.runTransaction = (fn) => {
+      db.runTransaction = ((fn: Parameters<typeof real>[0]) => {
         calls += 1;
         if (calls === onCall) change();
         return real(fn);
-      };
+      }) as typeof db.runTransaction;
       return store;
     };
     const deactivate = (store: Map<string, StubData>, path: string) => () => {
@@ -609,6 +609,44 @@ describe('runOrgAdminAction', () => {
         expect(store.get('organizations/o')?.name).toBe('Org');
         expect(store.get('organizations/o/buildings/b1')?.name).toBe('B');
         expect(store.has('organizations/o/members/m1@x.edu')).toBe(true);
+      }
+    });
+
+    it('refuses single-doc and role writes from a caller revoked mid-call', async () => {
+      const s = seed();
+      s['organizations/o/buildings/b1'] = { id: 'b1', orgId: 'o', name: 'B' };
+      s['organizations/o/domains/d1'] = { id: 'd1', orgId: 'o', domain: '@x' };
+      for (const a of [
+        { action: 'removeBuilding', orgId: 'o', id: 'b1' },
+        { action: 'removeDomain', orgId: 'o', id: 'd1' },
+        {
+          action: 'addBuilding',
+          orgId: 'o',
+          record: { id: 'b2', orgId: 'o', name: 'N' },
+        },
+        {
+          action: 'saveRoles',
+          orgId: 'o',
+          upserts: [
+            { id: 'new', name: 'New', blurb: '', color: 'c', perms: {} },
+          ],
+          systemPerms: [],
+          deletes: [],
+        },
+      ]) {
+        const { db, store } = makeStubFirestore(s);
+        raceOn(
+          db,
+          store,
+          deactivate(store, 'organizations/o/members/da@x.edu')
+        );
+        await expect(run(db, caller('da@x.edu'), a)).rejects.toMatchObject(
+          notAllowed
+        );
+        expect(store.has('organizations/o/buildings/b1')).toBe(true);
+        expect(store.has('organizations/o/domains/d1')).toBe(true);
+        expect(store.has('organizations/o/buildings/b2')).toBe(false);
+        expect(store.has('organizations/o/roles/new')).toBe(false);
       }
     });
 

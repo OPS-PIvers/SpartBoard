@@ -204,6 +204,14 @@ async function autoEnrollMember(
       await applyDeactivationClaim(admin.auth(), email, uid, 'set');
       return;
     }
+    // A claim left by a failed clear is lifted once the member is live again.
+    if (
+      orgId === OPERATOR_ORG_ID &&
+      !isRevokedMemberStatus(memberSnap.get('status')) &&
+      hasDeactivatedClaim(token)
+    ) {
+      await applyDeactivationClaim(admin.auth(), email, uid, 'clear');
+    }
     if (await demoteRosterStudent(db, orgId, email, memberRef, memberSnap)) {
       return 'student';
     }

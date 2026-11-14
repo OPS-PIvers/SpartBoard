@@ -12,17 +12,25 @@ interface MemberStatusFields {
   status?: unknown;
 }
 
-/** The claim change a member-doc write needs; only the operator org's status gates the rules' notDeactivated(). */
+/** The claim change a member-doc write needs; a deleted doc keeps the claim until an admin reactivates the member. */
 export function deactivationClaimChange(
   orgId: string,
   before: MemberStatusFields | null,
   after: MemberStatusFields | null
 ): DeactivationClaimChange | null {
-  if (orgId !== OPERATOR_ORG_ID) return null;
+  if (orgId !== OPERATOR_ORG_ID || after === null) return null;
   const was = before !== null && isRevokedMemberStatus(before.status);
   const now = after !== null && isRevokedMemberStatus(after.status);
   if (now === was) return null;
   return now ? 'set' : 'clear';
+}
+
+/** The claim the member doc's current state calls for; null when the doc is gone. */
+export function deactivationClaimTarget(
+  current: MemberStatusFields | null
+): DeactivationClaimChange | null {
+  if (current === null) return null;
+  return isRevokedMemberStatus(current.status) ? 'set' : 'clear';
 }
 
 function isUserNotFound(err: unknown): boolean {
