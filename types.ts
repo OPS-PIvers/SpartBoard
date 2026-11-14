@@ -4453,7 +4453,7 @@ export interface QuizStimulus {
   calculator?: QuizCalculatorKind;
   /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
   tabLabel?: string;
-  /** image only: beside the question or in it; absent = beside when two or more questions use it (M13). */
+  /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
 }
 

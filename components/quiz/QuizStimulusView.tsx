@@ -53,6 +53,7 @@ import type { ReadAloudStatus } from './readAloud/useQuizReadAloud';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
 import { StimulusZoomBar } from './StimulusZoomBar';
 import { useStimulusZoom } from './useStimulusZoom';
+import { panelImageFit } from '@/utils/quizStimulusPanel';
 import {
   YT_PLAYER_STATE,
   extractYouTubeId,
@@ -91,9 +92,6 @@ export interface StimulusRendererProps {
   /** In the side panel: an image fits the panel's width and scrolls inside its height. */
   fill?: boolean;
 }
-
-// How far a small image may grow to fill the side panel.
-const FILL_MAX_UPSCALE = 2;
 
 /** `min(Xpx, Ycqmin)`, only meaningful when the caller passes `cqScaled`. */
 const mm = (px: number, cqmin: number) => `min(${px}px, ${cqmin}cqmin)`;
@@ -206,7 +204,11 @@ const ImageStimulus: React.FC<
 > = ({ stimulus, onLoadError, retryNonce, cqScaled, light = false, fill }) => {
   const [failed, setFailed] = useState(false);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
-  const [box, setBox] = useState<{ w: number; maxH: number } | null>(null);
+  const [box, setBox] = useState<{
+    w: number;
+    maxH: number;
+    beside: boolean;
+  } | null>(null);
   const { zoom, scrollerRef, scroller, zoomIn, zoomOut, resetZoom } =
     useStimulusZoom({ dragPan: true });
   // Reset failure state when a retry remounts the element.
@@ -219,28 +221,38 @@ const ImageStimulus: React.FC<
   useEffect(() => {
     if (!scroller) return;
     // clientWidth rounds up on fractional layouts and overflows by a sliver; the observer's width is exact and unscaled.
-    const measure = (exactW?: number) => {
+    const measure = (exactW?: number, exactH?: number) => {
       const maxH = parseFloat(getComputedStyle(scroller).maxHeight);
+      const h = exactH && exactH > 0 ? exactH : scroller.clientHeight;
       setBox({
         w: exactW && exactW > 0 ? Math.floor(exactW) : scroller.clientWidth,
-        maxH: Number.isFinite(maxH) ? maxH : window.innerHeight / 2,
+        maxH: Number.isFinite(maxH)
+          ? maxH
+          : fill && h > 0
+            ? Math.floor(h)
+            : window.innerHeight / 2,
+        // Stacked above the question (phones) the panel caps its height, so the whole picture always fits.
+        beside: !Number.isFinite(maxH),
       });
     };
     measure();
     const ro = new ResizeObserver((entries) =>
-      measure(entries[0]?.contentBoxSize?.[0]?.inlineSize)
+      measure(
+        entries[0]?.contentBoxSize?.[0]?.inlineSize,
+        entries[0]?.contentBoxSize?.[0]?.blockSize
+      )
     );
     ro.observe(scroller);
     return () => ro.disconnect();
-  }, [scroller]);
+  }, [scroller, fill]);
 
   if (failed) return null;
 
-  // The fitted size at 100%, scaled by zoom; inline it never upscales, in the panel it fills the width.
+  // The fitted size at 100%, scaled by zoom; inline it never upscales, in the panel it fits whole unless that leaves it too narrow to read.
   const fit =
     natural && natural.w > 0 && natural.h > 0 && box && box.w > 0
       ? fill
-        ? Math.min(FILL_MAX_UPSCALE, box.w / natural.w)
+        ? panelImageFit(natural, box)
         : Math.min(1, box.w / natural.w, box.maxH / natural.h)
       : null;
   const size =
@@ -253,12 +265,12 @@ const ImageStimulus: React.FC<
   const capCls = cqScaled
     ? ''
     : fill
-      ? 'max-h-[50vh] lg:max-h-none'
+      ? 'max-h-[var(--stimulus-img-max,max(10rem,calc(45vh-4rem)))] lg:max-h-none'
       : 'max-h-[50vh]';
 
   return (
     <div
-      className={`flex flex-col w-full rounded-xl overflow-hidden ${fill ? 'min-h-0' : ''} ${surfaceCls(light)}`}
+      className={`flex flex-col w-full rounded-xl overflow-hidden ${fill ? 'flex-1 min-h-0' : ''} ${surfaceCls(light)}`}
     >
       <StimulusZoomBar
         zoom={zoom}
@@ -271,7 +283,7 @@ const ImageStimulus: React.FC<
       <div
         ref={scrollerRef}
         data-testid="image-stimulus-viewport"
-        className={`overflow-auto ${fill ? 'flex-1 min-h-0 [scrollbar-gutter:stable]' : ''} ${capCls}`}
+        className={`overflow-auto ${fill ? 'flex flex-1 min-h-0 [scrollbar-gutter:stable]' : ''} ${capCls}`}
         style={{
           touchAction: 'pan-x pan-y',
           ...(cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined),
@@ -282,7 +294,7 @@ const ImageStimulus: React.FC<
           src={stimulusMediaUrl(stimulus)}
           alt="Question stimulus"
           draggable={false}
-          className={`block mx-auto object-contain ${
+          className={`block object-contain ${fill ? 'm-auto shrink-0' : 'mx-auto'} ${
             size ? 'max-w-none' : `max-w-full ${capCls}`
           }`}
           style={

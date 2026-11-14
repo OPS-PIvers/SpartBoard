@@ -653,6 +653,69 @@ export function makeStimulusQuizSession(): QuizSession {
   };
 }
 
+function sampleFigureDataUrl(
+  width: number,
+  height: number,
+  title: string,
+  fill: string
+): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = fill;
+  const bars = 5;
+  const gap = width / (bars * 2 + 1);
+  for (let i = 0; i < bars; i += 1) {
+    const h = (height - 160) * ((i + 2) / (bars + 2));
+    ctx.fillRect(gap * (i * 2 + 1), height - 60 - h, gap, h);
+  }
+  ctx.fillStyle = '#1e293b';
+  ctx.font = `bold ${Math.round(width / 16)}px sans-serif`;
+  ctx.fillText(title, 24, 64);
+  return canvas.toDataURL('image/png');
+}
+
+/** Self-paced MC question with a tall picture (two pictures when `two`), stimulus tabs on. */
+export function makePictureStimulusQuizSession(two = false): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  return {
+    ...base,
+    stimulusTabs: true,
+    stimuli: [
+      {
+        id: 'dev-stim-tall',
+        type: 'image',
+        url: sampleFigureDataUrl(600, 1100, 'Plant height', '#15803d'),
+        label: 'Tall figure',
+      },
+      {
+        id: 'dev-stim-wide',
+        type: 'image',
+        url: sampleFigureDataUrl(1400, 700, 'Rainfall by month', '#2563eb'),
+        label: 'Wide chart',
+      },
+    ],
+    publicQuestions: [
+      {
+        ...first,
+        timeLimit: 0,
+        type: 'MC',
+        text: 'Which week shows the largest growth in plant height?',
+        choices: ['Week 1', 'Week 2', 'Week 4', 'Week 5'],
+        stimulusIds: two
+          ? ['dev-stim-tall', 'dev-stim-wide']
+          : ['dev-stim-tall'],
+      },
+      ...rest,
+    ],
+  };
+}
+
 /** A self-paced session whose first question is a whiteboard response. */
 export function makeWhiteboardQuizSession(): QuizSession {
   const base = makeTimedQuizSession('active');

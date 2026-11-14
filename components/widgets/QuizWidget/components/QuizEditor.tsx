@@ -1006,6 +1006,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptFormat
         />
 
+        {/* Under the prompt, matching where students see it. */}
+        <QuestionStimulusSection
+          state={state}
+          questionId={q.id}
+          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+          pasteScopeRef={paneRef}
+        />
+
         {/* Learning targets */}
         <QuestionTargetsField
           question={q}
@@ -1377,15 +1385,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             onChange={(updates) => updateQuestion(q.id, updates)}
           />
         )}
-
-        {/* Per-question stimulus attach — second entry point alongside the
-            quiz-level Stimuli tab; both edit the same array. */}
-        <QuestionStimulusSection
-          state={state}
-          questionId={q.id}
-          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-          pasteScopeRef={paneRef}
-        />
       </div>
 
       {showRubricBuilder && isFreeResponseType(q.type) && (

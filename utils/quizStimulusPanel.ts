@@ -40,3 +40,20 @@ export function panelPctForKey(key: string, pct: number): number | null {
   if (key === 'Enter') return PANEL_PCT_DEFAULT;
   return null;
 }
+
+// How far a small image may grow to fill the side panel.
+const FILL_MAX_UPSCALE = 2;
+// Beside the question, below this share of the panel's width a whole-picture fit is too small to read, so it fits the width and scrolls.
+const FILL_MIN_WIDTH_SHARE = 0.45;
+
+/** Panel scale for a picture: the whole picture, except beside the question when that leaves it too narrow. */
+export function panelImageFit(
+  natural: { w: number; h: number },
+  box: { w: number; maxH: number; beside: boolean }
+): number {
+  const byWidth = Math.min(FILL_MAX_UPSCALE, box.w / natural.w);
+  const whole = Math.min(byWidth, box.maxH / natural.h);
+  return !box.beside || natural.w * whole >= box.w * FILL_MIN_WIDTH_SHARE
+    ? whole
+    : byWidth;
+}

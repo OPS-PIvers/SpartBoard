@@ -325,9 +325,15 @@ function usePasteFiles(
       const data = e.clipboardData;
       // An answer box already took this paste for its own picture.
       if (!data || e.defaultPrevented) return;
-      // Modals over the editor handle their own pastes.
-      if (scopeRef && !scopeRef.current?.contains(e.target as Node | null)) {
-        return;
+      // Anywhere in the editor counts; modals over it handle their own pastes.
+      if (scopeRef) {
+        const pane = scopeRef.current;
+        const dialog = pane?.closest('[role="dialog"]');
+        const target = e.target instanceof Element ? e.target : null;
+        const inScope = dialog
+          ? target?.closest('[role="dialog"]') === dialog
+          : !!pane?.contains(target);
+        if (!inScope) return;
       }
       const files = Array.from(data.files);
       if (files.length === 0) return;
@@ -494,7 +500,7 @@ export const StimulusManagerPanel: React.FC<{
             ) : (
               <Upload className="h-4 w-4" aria-hidden />
             )}
-            {drop.dragging ? 'Drop it here' : 'Drop or paste a file'}
+            {drop.dragging ? 'Drop it here' : 'Drag a file or paste an image'}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             <FileSourceButtons intake={intake} />
@@ -1010,12 +1016,32 @@ const AttachStimulusSection: React.FC<{
       ),
     [addFromFile, onToggle]
   );
-  usePasteFiles(onPastedFiles, intake.busy || !pasteScopeRef, pasteScopeRef);
   const [open, setOpen] = useState(false);
+  const onPasted = useCallback(
+    (files: File[]) => {
+      if (!files.some((f) => f.type.startsWith('image/'))) return;
+      setOpen(true);
+      onPastedFiles(files);
+    },
+    [onPastedFiles]
+  );
+  usePasteFiles(onPasted, intake.busy || !pasteScopeRef, pasteScopeRef);
+  const drop = useFilesDrop((files) => {
+    setOpen(true);
+    void addFiles(addFromFile, files, (s) => onToggle(s.id));
+  }, intake.busy);
   const attachedCount = attachedIds?.length ?? 0;
 
   return (
-    <div className="border border-slate-200 rounded-lg bg-white">
+    <div
+      {...drop.dropProps}
+      data-testid="question-stimulus-drop-zone"
+      className={`border rounded-lg transition-colors ${
+        drop.dragging
+          ? 'border-brand-blue-primary bg-brand-blue-lighter'
+          : 'border-slate-200 bg-white'
+      }`}
+    >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -1033,7 +1059,11 @@ const AttachStimulusSection: React.FC<{
           Stimuli
         </span>
         <span className="text-xs text-slate-400 tabular-nums">
-          {attachedCount > 0 ? `${attachedCount} attached` : 'none'}
+          {drop.dragging && !open
+            ? 'Drop it here'
+            : attachedCount > 0
+              ? `${attachedCount} attached`
+              : 'none'}
         </span>
       </button>
       {open && (
@@ -1086,32 +1116,52 @@ const AttachStimulusSection: React.FC<{
               })}
             </ul>
           )}
-          <div className="flex flex-wrap gap-2">
+          <div
+            className={`flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 ${
+              drop.dragging ? 'border-brand-blue-primary' : 'border-slate-300'
+            }`}
+          >
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+              {intake.busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Upload className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {drop.dragging
+                ? 'Drop it here'
+                : pasteScopeRef
+                  ? 'Drag a file or paste an image'
+                  : 'Drag a file'}
+            </span>
             <FileSourceButtons
               compact
               intake={intake}
               onAdded={(added) => onToggle(added.id)}
             />
+          </div>
+          <div className="flex gap-2">
             {calculatorAvailable && (
               <button
                 type="button"
                 onClick={() => onToggle(intake.addCalculator().id)}
                 disabled={intake.busy}
                 {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
-                className={fileButtonClass}
+                className={`${fileButtonClass} shrink-0`}
               >
                 <Calculator className="h-3.5 w-3.5" aria-hidden />
                 Calculator
               </button>
             )}
+            <div className="flex-1 min-w-0">
+              <UrlAddRow
+                busy={intake.busy}
+                onAdd={async (url) => {
+                  const added = await intake.addFromUrl(url);
+                  if (added) onToggle(added.id);
+                }}
+              />
+            </div>
           </div>
-          <UrlAddRow
-            busy={intake.busy}
-            onAdd={async (url) => {
-              const added = await intake.addFromUrl(url);
-              if (added) onToggle(added.id);
-            }}
-          />
         </div>
       )}
     </div>
