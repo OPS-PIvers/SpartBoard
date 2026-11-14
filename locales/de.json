@@ -2265,6 +2265,196 @@
     "left": "Verbleibende Zeit {{time}}",
     "submitted": "Die Zeit ist um. Deine Antworten wurden abgegeben."
   },
+  "quizStudent": {
+    "common": {
+      "loading": "Wird geladen…",
+      "loadingQuestions": "Fragen werden geladen",
+      "lostConnection": "Die Verbindung zum Quiz ist abgebrochen. Lade die Seite neu.",
+      "loadingQuiz": "Dein Quiz wird geladen…",
+      "joinedAs": "Beigetreten mit PIN",
+      "waitingForTeacher": "Warten auf die Lehrkraft…",
+      "quizComplete": "Quiz abgeschlossen!",
+      "responseSubmitted": "Antwort abgegeben. Deine Lehrkraft bewertet sie.",
+      "backToAssignments": "Zurück zu meinen Aufgaben",
+      "pin": "PIN"
+    },
+    "join": {
+      "joining": "Quiz wird betreten…",
+      "unableToConnect": "Verbindung nicht möglich. Lade die Seite neu und versuche es noch einmal.",
+      "studentQuiz": "Schüler-Quiz",
+      "title": "Quiz beitreten",
+      "intro": "Gib den Code und die PIN von deiner Lehrkraft ein.",
+      "codePlaceholder": "Quiz-Code (XXXXXX)",
+      "pinPlaceholder": "Deine PIN",
+      "periodTitle": "Wähle deine Klasse",
+      "periodIntro": "In welcher Klasse bist du?",
+      "goBack": "Zurück",
+      "signInTitle": "Melde dich an, um beizutreten",
+      "signInIntro": "Nutze dein Google-Konto der Schule.",
+      "usePin": "Anmeldung klappt nicht? Nutze eine PIN",
+      "join": "Beitreten",
+      "continue": "Weiter",
+      "signInGoogle": "Mit Google anmelden",
+      "closed": "Dieses Quiz ist geschlossen.",
+      "loadFailed": "Wir konnten dein Quiz nicht laden. Lade die Seite neu und versuche es noch einmal."
+    },
+    "removed": {
+      "title": "Du wurdest aus diesem Quiz entfernt",
+      "body": "Deine Lehrkraft hat dich aus dieser Aufgabe entfernt. Frag deine Lehrkraft, falls das ein Fehler war."
+    },
+    "waiting": {
+      "title": "Warten, bis deine Lehrkraft startet…",
+      "questionCount_one": "{{count}} Frage",
+      "questionCount_other": "{{count}} Fragen"
+    },
+    "paused": {
+      "stopped": "Vorerst gestoppt",
+      "title": "Pause. Augen nach vorn.",
+      "saved": "Deine Antworten sind gespeichert.",
+      "keepOpen": "Lass diesen Tab offen."
+    },
+    "locked": {
+      "opensSoon": "Öffnet sich, wenn deine Lehrkraft es startet.",
+      "keepOpen": "Lass diesen Tab offen. Das Quiz erscheint hier, sobald deine Klasse hineindarf."
+    },
+    "autoSubmit": {
+      "unlocked": "Dein entsperrter Versuch wurde abgegeben.",
+      "strikes": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Frag deine Lehrkraft, falls das ein Versehen war.",
+      "title": "Quiz automatisch abgegeben",
+      "awayTooLong": "Du warst zu lange weg vom Quiz, deshalb wurde es abgegeben."
+    },
+    "errors": {
+      "saveAnswer": "Deine Antwort konnte nicht gespeichert werden. Tippe, um es noch einmal zu versuchen.",
+      "submitQuiz": "Dein Quiz konnte nicht abgegeben werden. Tippe, um es noch einmal zu versuchen.",
+      "submitPart": "Dieser Teil konnte nicht abgegeben werden. Tippe, um es noch einmal zu versuchen.",
+      "clearAnswer": "Deine Antwort konnte nicht gelöscht werden. Tippe, um es noch einmal zu versuchen.",
+      "draftStillSaved": "Deine zuvor gespeicherte Antwort ist noch da. Klicke auf Abgeben, um sie zu löschen."
+    },
+    "hand": {
+      "raised": "Hand gehoben. Hilfe kommt gleich.",
+      "raise": "Hand heben"
+    },
+    "nav": {
+      "submit": "ABGEBEN",
+      "retrying": "Wird wiederholt…",
+      "retry": "Wiederholen",
+      "previous": "Vorherige Frage",
+      "retrySubmit": "Abgabe wiederholen",
+      "next": "WEITER",
+      "nextQuestion": "NÄCHSTE FRAGE",
+      "submitAnswer": "Antwort abgeben",
+      "submitResponse": "Antwort abgeben"
+    },
+    "unlock": {
+      "reopenedTitle": "Deine Lehrkraft hat dein Quiz wieder geöffnet",
+      "title": "Versuch entsperrt",
+      "reopenedBody": "Deine Antworten sind gespeichert. Ändere, was du möchtest, und gib noch einmal ab.",
+      "stillHere": "Deine Antworten sind noch da.",
+      "warning": "⚠ Wenn du diesen Tab verlässt oder das Quiz in einem anderen Fenster öffnest, wird dein Quiz sofort abgegeben.",
+      "keepWorking": "Weiterarbeiten",
+      "resume": "Quiz fortsetzen",
+      "banner": "Deine Lehrkraft hat deinen Versuch entsperrt.",
+      "bannerStrong": "Wenn du diesen Tab noch einmal verlässt, wird dein Quiz abgegeben."
+    },
+    "closed": {
+      "submitted": "Diese Aufgabe ist beendet. Deine Antworten wurden abgegeben.",
+      "submitFailed": "Abgabe nicht möglich. Prüfe deine Verbindung und versuche es noch einmal, oder bitte deine Lehrkraft um mehr Zeit."
+    },
+    "tabWarning": {
+      "title": "TAB-WECHSEL ERKANNT",
+      "body": "Du hast das Quiz verlassen. Das wurde festgehalten.",
+      "warningN": "Warnung {{n}}.",
+      "autoSubmit": "Bei zu vielen Tab-Wechseln wird dein Quiz automatisch abgegeben.",
+      "dismiss": "Verstanden, zurück zum Quiz"
+    },
+    "timer": {
+      "secondsLeft_one": "Noch {{count}} Sekunde",
+      "secondsLeft_other": "Noch {{count}} Sekunden",
+      "timeUp": "Die Zeit ist um"
+    },
+    "type": {
+      "multipleChoice": "Multiple Choice",
+      "fillBlank": "Lückentext",
+      "matching": "Zuordnen",
+      "ordering": "Reihenfolge",
+      "chooseAll": "Wähle alle richtigen Antworten",
+      "freeResponse": "Freie Antwort"
+    },
+    "answer": {
+      "label": "Deine Antwort",
+      "placeholder": "Schreibe deine Antwort…",
+      "chooseAll": "Wähle alle passenden Antworten"
+    },
+    "feedback": {
+      "correct": "Richtig!",
+      "incorrect": "Falsch",
+      "correctAnswer": "Richtige Antwort:",
+      "speedBonus": "+{{n}} % Tempobonus!",
+      "streak": "{{n}} richtige hintereinander! Multiplikator {{multiplier}}"
+    },
+    "review": {
+      "progress": "Frage {{current}} von {{total}}",
+      "right": "Richtig gelöst!",
+      "wrong": "Beim nächsten Mal klappt es besser!",
+      "waiting": "Warten, bis die Lehrkraft weitermacht..."
+    },
+    "results": {
+      "complete": "Quiz abgeschlossen!",
+      "greatJobPin": "Gut gemacht, PIN",
+      "greatJob": "Gut gemacht!",
+      "answeredOf": "von {{total}} Fragen beantwortet",
+      "submitted": "Deine Antworten wurden abgegeben. Frag deine Lehrkraft nach deinen Ergebnissen.",
+      "noResponse": "Keine Antwort",
+      "lockedTitle": "Ergebnisse gesperrt",
+      "lockedBody": "Du hast die Ergebnisseite zu oft verlassen, deshalb ist sie gesperrt. Bitte deine Lehrkraft, deine Ergebnisse zu entsperren.",
+      "title": "Deine Ergebnisse",
+      "attempt": "Versuch",
+      "fullyCorrect": "{{correct}} von {{total}} ganz richtig",
+      "writtenPending": "Deine schriftliche Antwort wird noch bewertet. Schau bald wieder nach.",
+      "yourAnswers": "Deine Antworten",
+      "otherQuestions": "Andere Fragen",
+      "yourAnswer": "Deine Antwort:",
+      "scoreOnly": "Deine Lehrkraft hat deine Punktzahl veröffentlicht. Einzelne Antworten werden bei dieser Aufgabe nicht gezeigt."
+    },
+    "rubric": {
+      "fallbackTitle": "Bewertungsraster",
+      "points_one": "{{count}} Pkt.",
+      "points_other": "{{count}} Pkt.",
+      "label": "Raster",
+      "stale": "Mit einer früheren Version dieses Rasters bewertet.",
+      "notScored": "noch nicht bewertet"
+    },
+    "written": {
+      "teacherComment": "Kommentar der Lehrkraft",
+      "score": "Punkte",
+      "notGraded": "Noch nicht bewertet",
+      "notGradedByTeacher": "Noch nicht von deiner Lehrkraft bewertet."
+    },
+    "submitted": {
+      "title": "Quiz abgegeben!",
+      "greatWorkPin": "Gut gemacht, PIN",
+      "greatWork": "Gut gemacht.",
+      "autoSubmitted": "Automatisch abgegeben, weil du den Quiz-Tab zu oft verlassen hast.",
+      "waitingFinal": "Warten auf die Endergebnisse…"
+    },
+    "dropHere": "Hier ablegen",
+    "wordBank": "Wortspeicher",
+    "undoReset": "Zurücksetzen rückgängig",
+    "resetAll": "Alle Platzierungen zurücksetzen",
+    "reset": "Zurücksetzen",
+    "inWordBank": "{{name}}, im Wortspeicher",
+    "matchedTo": "{{name}}, zugeordnet zu {{term}}",
+    "dropZoneFor": "Ablagefeld für {{term}}",
+    "thisTerm": "diesen Begriff",
+    "allOptionsPlaced": "Alle Optionen platziert.",
+    "ordering": {
+      "position": "Position {{n}}",
+      "emptySlot": "Leeres Ablagefeld, {{position}}",
+      "moveUp": "{{position}} nach oben verschieben",
+      "moveDown": "{{position}} nach unten verschieben"
+    },
+    "allItemsPlaced": "Alle Elemente platziert."
+  },
   "quizSubmit": {
     "offline": "Du bist offline. Lass diesen Tab offen, dann werden deine Antworten gespeichert, sobald du wieder verbunden bist.",
     "undo": "Rückgängig",
