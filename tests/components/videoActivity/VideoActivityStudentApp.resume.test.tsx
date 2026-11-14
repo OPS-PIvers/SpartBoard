@@ -9,34 +9,42 @@ import type {
   VideoActivitySession,
 } from '@/types';
 
+interface CapturedPlayerProps {
+  seekRequest: { time: number; nonce: number } | null | undefined;
+  startSeconds: number | undefined;
+}
+
 const { mockAuth, hookState, completeActivity, roleState, playerProps } =
-  vi.hoisted(() => ({
-    playerProps: {
+  vi.hoisted(() => {
+    const captured: CapturedPlayerProps = {
       seekRequest: undefined,
       startSeconds: undefined,
-    },
-    roleState: { studentRole: true },
-    mockAuth: {
-      authStateReady: vi.fn().mockResolvedValue(undefined),
-      currentUser: {
-        uid: 'sso-uid-1',
-        isAnonymous: false,
-        getIdTokenResult: () =>
-          Promise.resolve({
-            claims: roleState.studentRole
-              ? { studentRole: true, classIds: ['A'] }
-              : {},
-          }),
+    };
+    return {
+      playerProps: captured,
+      roleState: { studentRole: true },
+      mockAuth: {
+        authStateReady: vi.fn().mockResolvedValue(undefined),
+        currentUser: {
+          uid: 'sso-uid-1',
+          isAnonymous: false,
+          getIdTokenResult: () =>
+            Promise.resolve({
+              claims: roleState.studentRole
+                ? { studentRole: true, classIds: ['A'] }
+                : {},
+            }),
+        },
       },
-    },
-    hookState: {
-      session: null as import('@/types').VideoActivitySession | null,
-      myResponse: null as import('@/types').VideoActivityResponse | null,
-      contentPending: false,
-      retakePending: false,
-    },
-    completeActivity: vi.fn(),
-  }));
+      hookState: {
+        session: null as import('@/types').VideoActivitySession | null,
+        myResponse: null as import('@/types').VideoActivityResponse | null,
+        contentPending: false,
+        retakePending: false,
+      },
+      completeActivity: vi.fn(),
+    };
+  });
 
 vi.mock('@/config/firebase', () => ({
   isConfigured: false,
