@@ -160,16 +160,30 @@ async function resolveOrgIdForUser(emailLower: string): Promise<{
     const cached = sessionStorage.getItem(
       RESOLVED_ORG_CACHE_PREFIX + emailLower
     );
-    if (cached) return { orgId: cached };
+    // A token still carrying the deactivation claim skips the cache so the resolver can report a cleared claim.
+    const claims = cached
+      ? (await auth.currentUser?.getIdTokenResult().catch(() => undefined))
+          ?.claims
+      : undefined;
+    if (cached && claims?.deactivated !== true) return { orgId: cached };
   } catch {
     // sessionStorage unavailable (private mode / SSR) — fall through to the call.
   }
 
   const callable = httpsCallable<
     unknown,
-    { orgId: string | null; enrollFailed?: true; rosterStudent?: true }
+    {
+      orgId: string | null;
+      enrollFailed?: true;
+      rosterStudent?: true;
+      claimCleared?: true;
+    }
   >(functions, 'resolveOrgForUser');
   const { data } = await callable({});
+  // A cleared deactivation claim is still on the current ID token until it is refreshed.
+  if (data?.claimCleared) {
+    await auth.currentUser?.getIdToken(true).catch(() => undefined);
+  }
   const orgId = data?.orgId ?? null;
   if (data?.rosterStudent) return { orgId, rosterStudent: true };
 
