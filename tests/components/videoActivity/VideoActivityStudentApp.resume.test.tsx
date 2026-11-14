@@ -81,8 +81,9 @@ vi.mock('@/hooks/useVideoActivitySession', () => ({
 }));
 
 vi.mock('@/components/videoActivity/VideoPlayer', () => ({
-  VideoPlayer: (props: { seekRequest?: unknown }) => {
+  VideoPlayer: (props: { seekRequest?: unknown; startSeconds?: number }) => {
     playerProps.seekRequest = props.seekRequest;
+    playerProps.startSeconds = props.startSeconds;
     return null;
   },
 }));
@@ -123,6 +124,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   roleState.studentRole = true;
   playerProps.seekRequest = undefined;
+  playerProps.startSeconds = undefined;
   hookState.session = session();
   hookState.myResponse = response();
   window.history.replaceState({}, '', '/activity/session-1');
@@ -136,10 +138,16 @@ describe('VideoActivityStudentApp: resume', () => {
     );
   });
 
+  it('starts the player at the last answered question', async () => {
+    render(<VideoActivityStudentApp />);
+    await waitFor(() => expect(playerProps.startSeconds).toBe(120));
+  });
+
   it('sends no seek when nothing is answered', async () => {
     hookState.myResponse = { ...response(), answers: [] };
     render(<VideoActivityStudentApp />);
     await new Promise((r) => setTimeout(r, 50));
     expect(playerProps.seekRequest ?? null).toBeNull();
+    expect(playerProps.startSeconds).toBeUndefined();
   });
 });

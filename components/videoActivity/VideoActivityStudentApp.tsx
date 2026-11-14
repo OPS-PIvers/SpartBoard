@@ -14,6 +14,7 @@
 
 import React, {
   useId,
+  useMemo,
   useState,
   useCallback,
   useEffect,
@@ -708,6 +709,22 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   if (isLive) playheadRef.current = session?.live?.playheadSeconds ?? 0;
   const pinInputId = useId();
 
+  const resumeSeconds = useMemo(() => {
+    if (
+      isLive ||
+      previewKey ||
+      (myResponse != null && isVaResponseCompleted(myResponse))
+    ) {
+      return undefined;
+    }
+    const answered = sortedQuestions.filter((q) =>
+      answeredQuestionIds.has(q.id)
+    );
+    return answered.length > 0
+      ? Math.max(...answered.map((q) => q.timestamp))
+      : undefined;
+  }, [isLive, previewKey, myResponse, sortedQuestions, answeredQuestionIds]);
+
   // Rejoining self-paced: jump to the last answered question once.
   const resumeDoneRef = useRef(false);
   useEffect(() => {
@@ -1397,6 +1414,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 allowSkipping={session?.settings?.allowSkipping ?? false}
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
+                startSeconds={resumeSeconds}
                 playheadRef={playheadRef}
                 paused={periodPaused}
                 clip={session?.clip}

@@ -95,7 +95,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const rafWinRef = useRef<Window>(window);
   const lastPollRef = useRef<number>(0);
   const triggeredRef = useRef<Set<string>>(new Set());
-  const lastSeekNonceRef = useRef<number | null>(null);
+  const lastSeekNonceRef = useRef<number | null>(seekRequest?.nonce ?? null);
   // Bumped every time polling is stopped so that any in-flight RAF callback from
   // a previous loop (e.g. after a rapid unmount/remount) detects it is orphaned
   // and stops rescheduling instead of running forever.
