@@ -838,7 +838,7 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     expect(assignment.teacherUid).toBe(TEACHER_UID);
   });
 
-  it('preserves the PLC linkage for an importer that is a current member of the share’s PLC', async () => {
+  it('keeps the PLC id for a member but drops the share’s sheet URL and emails', async () => {
     const sharedDoc = {
       title: 'Quiz Title',
       questions: [],
@@ -882,8 +882,7 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     expect(assignment.plc).toEqual({
       id: 'plc-shared',
       name: 'Shared PLC',
-      sheetUrl: 'https://docs.google.com/spreadsheets/d/shared-sheet',
-      memberEmails: ['a@example.com', 'b@example.com'],
+      memberEmails: [],
     });
     // Member path: the non-member nudge must NOT fire.
     expect(onNonMember).not.toHaveBeenCalled();

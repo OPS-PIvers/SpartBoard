@@ -1898,7 +1898,7 @@ service cloud.firestore {
     // Shared quizzes - Same pattern as shared_boards.
     match /shared_quizzes/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn() &&
+      allow create: if staffSignedIn() &&
         myOrigAuthor();
       allow update, delete: if signedIn() &&
         authorOrAdmin();
@@ -1910,7 +1910,7 @@ service cloud.firestore {
     // are fetched only by known id, preventing enumeration.
     match /shared_rubrics/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn()
+      allow create: if staffSignedIn()
                     && myOrigAuthor()
                     && newKeys().hasOnly([
                          'id', 'title', 'description', 'criteria',
@@ -1939,7 +1939,7 @@ service cloud.firestore {
 
     match /shared_assignments/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn() &&
+      allow create: if staffSignedIn() &&
         myOrigAuthor() &&
         shareSyncGroupOk('synced_quizzes');
       allow update: if signedIn() &&
@@ -2265,7 +2265,7 @@ service cloud.firestore {
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
 
-      allow create: if signedIn()
+      allow create: if staffSignedIn()
         && syncedBankKeysOk()
         && incoming().id == groupId
         && incoming().ownerUid == authUid()
@@ -2282,7 +2282,7 @@ service cloud.firestore {
         && districtMarkOk();
 
       // Owner-only; version climbs by exactly one so stale pulls are detectable.
-      allow update: if signedIn()
+      allow update: if staffSignedIn()
         && districtOr(myOldOwner())
         && districtMarkKept()
         && syncedBankKeysOk()
@@ -2369,7 +2369,7 @@ service cloud.firestore {
 
     match /shared_video_activity_assignments/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn() &&
+      allow create: if staffSignedIn() &&
         myOrigAuthor() &&
         shareSyncGroupOk('synced_video_activities');
       allow update: if signedIn() &&

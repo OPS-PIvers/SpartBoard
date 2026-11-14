@@ -144,7 +144,11 @@ export async function restoreSharedQuizContent(
     }
     bankSlots = slots.map((slot) => {
       const id = newIdByKey.get(bankSlotKey(slot));
-      if (!id) return slot;
+      if (!id) {
+        // Never keep sharer-supplied sync bindings the importer didn't get from their own banks.
+        const { syncGroupId: _g, syncOwnerUid: _o, ...unbound } = slot;
+        return unbound;
+      }
       const {
         syncGroupId: _syncGroupId,
         syncOwnerUid: _syncOwnerUid,

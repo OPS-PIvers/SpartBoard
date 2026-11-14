@@ -2954,7 +2954,11 @@ export const useQuizAssignments = (
         teacherName: undefined,
         periodName: undefined,
         periodNames: undefined,
-        plc: importerIsPlcMember ? shared.assignmentSettings.plc : undefined,
+        // Sheet/emails from the share are sharer-controlled, so never carry them over.
+        plc:
+          importerIsPlcMember && sharedPlc
+            ? { id: sharedPlc.id, name: sharedPlc.name, memberEmails: [] }
+            : undefined,
       };
 
       if (sharedPlc && !importerIsPlcMember && plcHandling) {

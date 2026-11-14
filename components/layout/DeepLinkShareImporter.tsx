@@ -14,6 +14,8 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { logError } from '@/utils/logError';
 import { getPlcRole } from '@/utils/plc';
+import { describeSharer, peekShareHeader } from '@/utils/shareImportPeek';
+import { ShareImportConfirmModal } from './ShareImportConfirmModal';
 
 /**
  * Deep-link share-import machinery, split out of DashboardView's synchronous
@@ -98,6 +100,38 @@ export const DeepLinkShareImporter: React.FC = () => {
     originalAuthor: string;
   } | null>(null);
 
+  // Nothing is imported until the teacher confirms this prompt.
+  const [confirmPrompt, setConfirmPrompt] = React.useState<{
+    kindLabel: string;
+    title: string;
+    originalAuthor: string;
+    run: () => void;
+  } | null>(null);
+
+  const requestConfirm = React.useCallback(
+    (
+      kindLabel: string,
+      collectionName: string,
+      shareId: string,
+      run: () => void
+    ) => {
+      void peekShareHeader(collectionName, shareId)
+        .then((h) =>
+          setConfirmPrompt({
+            kindLabel,
+            title: h.title,
+            originalAuthor: h.originalAuthor,
+            run,
+          })
+        )
+        .catch((err: unknown) => {
+          logError('DeepLinkShareImporter.peekShareHeader', err, { shareId });
+          addToast(`Failed to open shared ${kindLabel}.`, 'error');
+        });
+    },
+    [addToast]
+  );
+
   // Helper: open (or create) a Quiz widget and set its managerTab.
   // Used by pending-share effects to surface the imported content to the user.
   const openQuizWidgetToTab = React.useCallback(
@@ -169,25 +203,27 @@ export const DeepLinkShareImporter: React.FC = () => {
     // Clear before awaiting so effect re-runs can't import the same share twice.
     const shareId = pendingQuizShareId;
     clearPendingQuizShare();
-    void importSharedQuiz(shareId, saveBank)
-      .then(() => {
-        addToast('Shared quiz imported to your library!', 'success');
-        openQuizRef.current('library');
-      })
-      .catch((err: unknown) => {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === 'string'
-              ? err
-              : '';
-        addToast(
-          msg
-            ? `Failed to import shared quiz: ${msg}`
-            : 'Failed to import shared quiz.',
-          'error'
-        );
-      });
+    requestConfirm('quiz', 'shared_quizzes', shareId, () => {
+      void importSharedQuiz(shareId, saveBank)
+        .then(() => {
+          addToast('Shared quiz imported to your library!', 'success');
+          openQuizRef.current('library');
+        })
+        .catch((err: unknown) => {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : '';
+          addToast(
+            msg
+              ? `Failed to import shared quiz: ${msg}`
+              : 'Failed to import shared quiz.',
+            'error'
+          );
+        });
+    });
   }, [
     pendingQuizShareId,
     user,
@@ -195,6 +231,7 @@ export const DeepLinkShareImporter: React.FC = () => {
     saveBank,
     addToast,
     clearPendingQuizShare,
+    requestConfirm,
   ]);
 
   // Pending rubric share import. Rubrics have no widget surface of their own,
@@ -204,37 +241,42 @@ export const DeepLinkShareImporter: React.FC = () => {
     // Cleared synchronously before awaiting — see the quiz effect above.
     const shareId = pendingRubricShareId;
     clearPendingRubricShare();
-    void importSharedRubric(shareId)
-      .then((rubric) => {
-        const title = rubric?.title?.trim();
-        addToast(
-          title
-            ? `Rubric "${title}" imported to your library!`
-            : 'Shared rubric imported to your library!',
-          'success'
-        );
-      })
-      .catch((err: unknown) => {
-        logError('DeepLinkShareImporter.importSharedRubric', err, { shareId });
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === 'string'
-              ? err
-              : '';
-        addToast(
-          msg
-            ? `Failed to import shared rubric: ${msg}`
-            : 'Failed to import shared rubric.',
-          'error'
-        );
-      });
+    requestConfirm('rubric', 'shared_rubrics', shareId, () => {
+      void importSharedRubric(shareId)
+        .then((rubric) => {
+          const title = rubric?.title?.trim();
+          addToast(
+            title
+              ? `Rubric "${title}" imported to your library!`
+              : 'Shared rubric imported to your library!',
+            'success'
+          );
+        })
+        .catch((err: unknown) => {
+          logError('DeepLinkShareImporter.importSharedRubric', err, {
+            shareId,
+          });
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : '';
+          addToast(
+            msg
+              ? `Failed to import shared rubric: ${msg}`
+              : 'Failed to import shared rubric.',
+            'error'
+          );
+        });
+    });
   }, [
     pendingRubricShareId,
     user,
     importSharedRubric,
     clearPendingRubricShare,
     addToast,
+    requestConfirm,
   ]);
 
   // Stable callback: imports a shared assignment with the chosen mode and
@@ -391,7 +433,12 @@ export const DeepLinkShareImporter: React.FC = () => {
             });
             return;
           }
-          runAssignmentImport(shareId, 'copy');
+          setConfirmPrompt({
+            kindLabel: 'assignment',
+            title: preview.title,
+            originalAuthor: preview.originalAuthor,
+            run: () => runAssignmentImport(shareId, 'copy'),
+          });
         })
         .catch((err: unknown) => {
           logError('DeepLinkShareImporter.peekAndDispatchImport', err, {
@@ -521,19 +568,49 @@ export const DeepLinkShareImporter: React.FC = () => {
     if (!pendingVideoActivityShareId || !user) return;
     const shareId = pendingVideoActivityShareId;
     clearPendingVideoActivityShare();
-    runVideoActivityImport(shareId);
+    requestConfirm(
+      'video activity',
+      'shared_video_activity_assignments',
+      shareId,
+      () => runVideoActivityImport(shareId)
+    );
   }, [
     pendingVideoActivityShareId,
     user,
     clearPendingVideoActivityShare,
     runVideoActivityImport,
+    requestConfirm,
   ]);
+
+  if (confirmPrompt && user) {
+    const { run } = confirmPrompt;
+    return (
+      <ShareImportConfirmModal
+        kindLabel={confirmPrompt.kindLabel}
+        title={confirmPrompt.title}
+        sharer={describeSharer(confirmPrompt.originalAuthor, user.uid, plcs)}
+        onConfirm={() => {
+          setConfirmPrompt(null);
+          run();
+        }}
+        onCancel={() => {
+          setConfirmPrompt(null);
+          addToast('Import canceled.', 'info');
+        }}
+      />
+    );
+  }
 
   if (!importModePrompt) return null;
 
   return (
     <QuizAssignmentImportModeModal
       quizTitle={importModePrompt.title}
+      originatorName={describeSharer(
+        importModePrompt.originalAuthor,
+        user?.uid ?? '',
+        plcs
+      )}
       onPick={(mode) => {
         const { shareId } = importModePrompt;
         setImportModePrompt(null);
