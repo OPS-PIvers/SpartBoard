@@ -63,7 +63,11 @@ export const StimulusTabsPanel: React.FC<{
         : 'text-slate-300 hover:text-white';
 
   return (
-    <div className="flex-1 min-h-[280px] flex flex-col">
+    <div
+      className="flex-1 min-h-[280px] flex flex-col"
+      // Stacked on a phone, a picture also leaves room for the tab row.
+      style={{ ['--stimulus-img-max' as string]: 'calc(45vh - 8rem)' }}
+    >
       <div
         role="tablist"
         aria-label={t('quizStimulusTabs.sources', 'Sources')}
