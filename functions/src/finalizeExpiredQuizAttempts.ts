@@ -30,11 +30,9 @@ function openPause(session: Doc): boolean {
   return typeof session.pausedAt === 'number' && session.pausedAt > lastTo;
 }
 
-/** Held at a Stop or reopened by the teacher: the idle sweep leaves these to the student too. */
+/** Only a teacher reopen waits: partHeld is student-writable, so it cannot exempt an expired attempt. */
 function waitsForStudent(r: Doc): boolean {
-  return (
-    r.partHeld === true || (r.unlocked === true && r.unlockKind === 'reopen')
-  );
+  return r.unlocked === true && r.unlockKind === 'reopen';
 }
 
 async function candidates(

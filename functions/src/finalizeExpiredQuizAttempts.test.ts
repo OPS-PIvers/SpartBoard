@@ -88,6 +88,19 @@ describe('runFinalizeExpiredQuizAttempts', () => {
     expect(updates.running).toBeUndefined();
   });
 
+  it('turns in an expired attempt even when the student set partHeld', async () => {
+    const { db, updates } = makeDb(session, {
+      held: {
+        status: 'in-progress',
+        partHeld: true,
+        attemptStartedAt: ts(NOW - 20 * MIN),
+      },
+    });
+    const res = await runFinalizeExpiredQuizAttempts(db as never, NOW);
+    expect(res.finalized).toBe(1);
+    expect(updates.held).toMatchObject({ status: 'completed', timeUp: true });
+  });
+
   it('skips a paused session', async () => {
     const { db, updates } = makeDb(
       { ...session, status: 'paused' },

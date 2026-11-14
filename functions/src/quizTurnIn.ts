@@ -150,7 +150,8 @@ export async function stampTurnIn(
       docId,
       error: err instanceof Error ? err.message : String(err),
     });
-    return stamped;
+    // Rethrow so the trigger retries rather than failing open to the claimed time.
+    throw err;
   }
 }
 

@@ -279,6 +279,49 @@ describe('quiz timed-attempt clock', () => {
     );
   });
 
+  it('a timed self-paced join without the clock is denied', async () => {
+    await seed(QUIZ, quizSession({ timeLimitMinutes: 10 }));
+    await assertFails(
+      setDoc(doc(asStudent(), QUIZ_RESPONSE), {
+        ...quizResponse({ status: 'joined' }),
+        lastWriteAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it('rewriting submittedAt on a completed response is denied', async () => {
+    await seed(QUIZ, quizSession());
+    await seed(
+      QUIZ_RESPONSE,
+      quizResponse({
+        status: 'completed',
+        submittedAt: Date.now() - 1000,
+        completedAttempts: 1,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(), QUIZ_RESPONSE), {
+        submittedAt: Date.now() - 60_000,
+      })
+    );
+  });
+
+  it('emptying the open attempt input signals is denied', async () => {
+    await seed(QUIZ, quizSession({ inputSignals: true }));
+    await seed(
+      QUIZ_RESPONSE,
+      quizResponse({ inputSignals: { '0': { q1: { paste: 2 } } } })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(), QUIZ_RESPONSE), { 'inputSignals.0': {} })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), QUIZ_RESPONSE), {
+        'inputSignals.0': { q1: { paste: 3 }, q2: { paste: 1 } },
+      })
+    );
+  });
+
   it('untimed and teacher-paced sessions answer without a clock', async () => {
     await seed(QUIZ, quizSession());
     await seed(QUIZ_RESPONSE, quizResponse());

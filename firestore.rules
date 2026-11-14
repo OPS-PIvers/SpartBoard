@@ -4707,7 +4707,8 @@ service cloud.firestore {
           let k = string(existing().get('completedAttempts', 0));
           return s.get('inputSignals', false) == true &&
                  n.diff(existing().get('inputSignals', {})).affectedKeys().hasOnly([k]) &&
-                 n[k].keys().size() <= 500;
+                 n[k] is map && n[k].keys().size() <= 500 &&
+                 n[k].keys().hasAll(existing().get('inputSignals', {}).get(k, {}).keys());
         }
 
         // While a student is frozen (session paused, or their period not open),
@@ -4825,7 +4826,8 @@ service cloud.firestore {
           incoming().get('paperWrittenSeat', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
-          // A timed attempt's answers wait for its server clock.
+          // A timed attempt's clock starts at the join; answers wait for it.
+          clockOk(sessionData()) &&
           (incoming().get('answers', []).size() == 0 ||
            (sessionData().get('sessionMode', '') != 'game' && clockOk(sessionData()))) &&
           // studentRole users must be enrolled in the session's class
@@ -4900,11 +4902,11 @@ service cloud.firestore {
               existing().get('unlocked', false) == true || incoming().get('status', '') == 'joined') &&
              clockOk(sessionData()) &&
              paperKept(existing(), incoming()))) &&
-           // submittedAt is the server-offset clock (within 2 min of the server), or cleared for a retake or teacher unlock.
+           // submittedAt moves only with a status change: near server time, or cleared for a retake or teacher unlock.
            (!changed(['submittedAt']) ||
             (incoming().get('submittedAt', null) == null ?
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
-             nearServerNow(incoming().submittedAt))) &&
+             (changed(['status']) && nearServerNow(incoming().submittedAt)))) &&
            // A PIN-keyed doc keeps the period its key names.
            // shorthands: off (raw uid first: this update runs close to the 1,000-expression limit)
            (responseKey == request.auth.uid || !changed(['classPeriod']) ||

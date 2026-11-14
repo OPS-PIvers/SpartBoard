@@ -150,6 +150,17 @@ describe('stampTurnIn', () => {
     expect(stub.get(RESPONSE)?.timeUp).toBeUndefined();
   });
 
+  it('rethrows a failed stamp so the trigger retries', async () => {
+    const db = {
+      collection: () => {
+        throw new Error('boom');
+      },
+    } as unknown as Db;
+    await expect(
+      stampTurnIn(db, 'quiz', 'qs1', 'u1', inProgress(), turnedIn(), T)
+    ).rejects.toThrow('boom');
+  });
+
   it('does not stamp a later attempt on a retried event', async () => {
     const after = turnedIn();
     const stub = makeStubFirestore({
