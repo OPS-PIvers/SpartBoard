@@ -128,8 +128,8 @@ const ASSIGNMENT = 'a1';
 const BATCH = 'b1';
 const SCAN = 'scan-2';
 const teacher = { uid: UID, studentRole: false, anonymous: false };
-const RESP1 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`;
-const RESP2 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0002`;
+const RESP1 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-01`;
+const RESP2 = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-02`;
 const LOOKUP = `users/${UID}/paper_page_scans/${SCAN}`;
 
 const baseDocs = (): Record<string, Doc> => ({
@@ -279,8 +279,8 @@ describe('kept pages: recording', () => {
     expect(docs[RESP2].paperPages).toEqual([artifact(1, 2)]);
     expect(docs[LOOKUP]).toEqual({
       seats: {
-        1: { sessionId: ASSIGNMENT, responseKey: 'pin-period_1-0001' },
-        2: { sessionId: ASSIGNMENT, responseKey: 'pin-period_1-0002' },
+        1: { sessionId: ASSIGNMENT, responseKey: 'pin-period_1-01' },
+        2: { sessionId: ASSIGNMENT, responseKey: 'pin-period_1-02' },
       },
       updatedAt: NOW,
     });
@@ -423,7 +423,7 @@ describe('kept pages: recording', () => {
     await importWith(docs, { scanId: SCAN, pages: [entry(2, 1)] });
     expect(docs[RESP1]).not.toHaveProperty('paperPages');
     expect(docs[LOOKUP].seats).toEqual({
-      2: { sessionId: ASSIGNMENT, responseKey: 'pin-period_1-0002' },
+      2: { sessionId: ASSIGNMENT, responseKey: 'pin-period_1-02' },
     });
   });
 

@@ -1466,6 +1466,55 @@ describe('commitRosterPinIndexV1', () => {
     expect(h.batchOps).toHaveLength(0);
   });
 
+  it("records a linked student's retired PINs in the canonical seat form", async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    await callCommitIndex({
+      auth: teacherAuth,
+      data: {
+        rosterId: 'r1',
+        entries: [
+          {
+            period: 'Period 1',
+            pin: '482913',
+            classlinkSourcedId: 'SID-1',
+            formerPins: ['01', '007'],
+          },
+        ],
+      },
+    });
+    expect(h.docStore.get('users/teacher1/retired_pins/period_1__01')).toEqual(
+      expect.objectContaining({ rosterId: 'r1' })
+    );
+    expect(h.docStore.has('users/teacher1/retired_pins/period_1__07')).toBe(
+      true
+    );
+  });
+
+  it('prunes retired PINs no student holds only when the client sends a complete list', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    h.docStore.set('users/teacher1/retired_pins/period_1__09', {
+      rosterId: 'r1',
+      updatedAt: 1,
+    });
+    const entries = [
+      { period: 'Period 1', pin: '482913', classlinkSourcedId: 'SID-1' },
+    ];
+    await callCommitIndex({
+      auth: teacherAuth,
+      data: { rosterId: 'r1', entries },
+    });
+    expect(h.docStore.has('users/teacher1/retired_pins/period_1__09')).toBe(
+      true
+    );
+    await callCommitIndex({
+      auth: teacherAuth,
+      data: { rosterId: 'r1', entries, retiredPinsComplete: true },
+    });
+    expect(h.docStore.has('users/teacher1/retired_pins/period_1__09')).toBe(
+      false
+    );
+  });
+
   it('rejects a missing rosterId', async () => {
     await expectCode(
       callCommitIndex({ auth: teacherAuth, data: { entries: [] } }),

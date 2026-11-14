@@ -111,4 +111,9 @@ describe('assignPins', () => {
     const linked = { ...student('a', '01'), classLinkSourcedId: 'sid-a' };
     expect(assignPins([linked], { randomForLinked: false })[0].pin).toBe('01');
   });
+
+  it('never hands out a PIN that shares a seat with an existing one', () => {
+    const out = assignPins([student('a', '1'), student('b')]);
+    expect(out[1].pin).toBe('02');
+  });
 });

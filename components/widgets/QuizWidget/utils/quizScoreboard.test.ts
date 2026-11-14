@@ -121,6 +121,7 @@ function makeRoster(
     lastName: string;
     pin: string;
     formerPins?: string[];
+    formerPinsAt?: number;
   }[]
 ): ClassRoster {
   return {
@@ -695,17 +696,72 @@ describe('quizScoreboard', () => {
             lastName: 'Smith',
             pin: '482913',
             formerPins: ['01', '03'],
+            formerPinsAt: 5000,
           },
           { firstName: 'Bob', lastName: 'Jones', pin: '03' },
         ]),
       ];
       const map = buildPinToNameMap(rosters, ['Period 1']);
       expect(resolvePinName(map, 'Period 1', '482913')).toBe('Alice Smith');
-      expect(resolvePinName(map, 'Period 1', '01')).toBe('Alice Smith');
-      expect(resolvePinName(map, 'Period 1', '1')).toBe('Alice Smith');
-      expect(resolvePinName(map, 'Period 1', '03')).toBe('Bob Jones');
+      expect(resolvePinName(map, 'Period 1', '01', 4000)).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '1', 4000)).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '03', 4000)).toBe('Bob Jones');
       const exportMap = buildPinToExportNameMap(rosters, ['Period 1']);
-      expect(resolvePinName(exportMap, 'Period 1', '01')).toBe('Smith, Alice');
+      expect(resolvePinName(exportMap, 'Period 1', '01', 4000)).toBe(
+        'Smith, Alice'
+      );
+    });
+
+    it('does not name a student by a PIN retired before the response joined', () => {
+      const rosters = [
+        makeRoster('Period 1', [
+          {
+            firstName: 'Alice',
+            lastName: 'Smith',
+            pin: '482913',
+            formerPins: ['01'],
+            formerPinsAt: 5000,
+          },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, 'Period 1', '01', 6000)).toBeUndefined();
+      expect(resolvePinName(map, 'Period 1', '1', 6000)).toBeUndefined();
+      expect(resolvePinName(map, undefined, '01', 6000)).toBeUndefined();
+      expect(resolvePinName(map, 'Period 1', '01')).toBeUndefined();
+      const exportMap = buildPinToExportNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(exportMap, 'Period 1', '01', 6000)).toBeUndefined();
+    });
+
+    it('treats a re-roll with no recorded time as retired by the legacy cutoff', () => {
+      const rosters = [
+        makeRoster('Period 1', [
+          {
+            firstName: 'Alice',
+            lastName: 'Smith',
+            pin: '482913',
+            formerPins: ['01'],
+          },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, 'Period 1', '01', Date.UTC(2026, 9, 1))).toBe(
+        'Alice Smith'
+      );
+      expect(
+        resolvePinName(map, 'Period 1', '01', Date.UTC(2026, 11, 1))
+      ).toBeUndefined();
+    });
+
+    it('does not let a zero-stripped form borrow a sign-in-length PIN', () => {
+      const rosters = [
+        makeRoster('Period 1', [
+          { firstName: 'Alice', lastName: 'Smith', pin: '048213' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, 'Period 1', '048213')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '48213')).toBeUndefined();
     });
 
     it('returns empty map when no matching roster is found', () => {

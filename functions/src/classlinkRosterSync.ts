@@ -43,7 +43,9 @@ import { assertDevDriveWritable } from './devDriveWriteGuard';
 import {
   loadTeacherClassIds,
   reconcileRosterPinIndex,
+  recordRetiredPins,
   PIN_INDEX_MAX_ENTRIES,
+  type CommitRosterPinIndexEntry,
 } from './studentIdentity';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -111,6 +113,12 @@ export interface ClassLinkSyncDeps {
     rosterData: admin.firestore.DocumentData,
     students: readonly SyncStudent[],
     enrolled: ReadonlySet<string>
+  ) => Promise<void>;
+  /** Fills `retired_pins` for a roster the sync leaves unchanged (rosters re-rolled before that list existed). */
+  recordRetiredPins?: (
+    rosterRef: admin.firestore.DocumentReference,
+    rosterData: admin.firestore.DocumentData,
+    students: readonly SyncStudent[]
   ) => Promise<void>;
   now: () => number;
 }
@@ -438,6 +446,9 @@ async function syncOneRoster(
   // silently defeat that.
   if (!result.changed) {
     summary.unchanged += 1;
+    if (!settings.dryRun) {
+      await deps.recordRetiredPins?.(rosterSnap.ref, data, content.students);
+    }
     if (!settings.dryRun && data.classlinkSyncBlocked) {
       await rosterSnap.ref.update(clearBlocked);
     }
@@ -547,6 +558,28 @@ export function parseRosterFileBody(parsed: unknown): RosterFileContent {
   throw new Error('Roster Drive file is not a recognized roster payload');
 }
 
+/** pin_index entries for a roster's linked students (enrolled ones, when `enrolled` is given). */
+function linkedEntries(
+  rosterData: admin.firestore.DocumentData,
+  students: readonly SyncStudent[],
+  enrolled: ReadonlySet<string> | null
+): CommitRosterPinIndexEntry[] {
+  return students
+    .filter(
+      (s) =>
+        s.classLinkSourcedId &&
+        s.pin &&
+        (!enrolled || enrolled.has(s.classLinkSourcedId))
+    )
+    .slice(0, PIN_INDEX_MAX_ENTRIES)
+    .map((s) => ({
+      period: String(rosterData.name ?? ''),
+      pin: s.pin,
+      classlinkSourcedId: s.classLinkSourcedId as string,
+      ...(s.formerPins?.length ? { formerPins: s.formerPins } : {}),
+    }));
+}
+
 function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
   const tenantUrl = CLASSLINK_TENANT_URL.value().replace(/\/$/, '');
   const clientId = CLASSLINK_CLIENT_ID.value();
@@ -651,17 +684,7 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
     },
 
     reconcilePinIndex: async (rosterRef, rosterData, students, enrolled) => {
-      const entries = students
-        .filter(
-          (s) =>
-            s.classLinkSourcedId && s.pin && enrolled.has(s.classLinkSourcedId)
-        )
-        .slice(0, PIN_INDEX_MAX_ENTRIES)
-        .map((s) => ({
-          period: String(rosterData.name ?? ''),
-          pin: s.pin,
-          classlinkSourcedId: s.classLinkSourcedId as string,
-        }));
+      const entries = linkedEntries(rosterData, students, enrolled);
       await reconcileRosterPinIndex(
         db,
         rosterRef,
@@ -669,6 +692,14 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
         entries,
         hmacSecret
       );
+      await recordRetiredPins(db, rosterRef, entries, Date.now(), true);
+    },
+
+    recordRetiredPins: async (rosterRef, rosterData, students) => {
+      const entries = linkedEntries(rosterData, students, null);
+      if (entries.some((e) => e.formerPins)) {
+        await recordRetiredPins(db, rosterRef, entries, Date.now(), true);
+      }
     },
 
     now: () => Date.now(),

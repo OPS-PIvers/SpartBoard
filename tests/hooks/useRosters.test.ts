@@ -560,6 +560,31 @@ describe('useRosters — addRoster', () => {
     expect(payload.entries).toEqual([
       { period: 'CL', pin: '100001', classlinkSourcedId: 'cl-a' },
     ]);
+    expect(payload).toMatchObject({ retiredPinsComplete: true });
+  });
+
+  it("sends a linked student's retired PINs with the pin-index sync", async () => {
+    const { result } = renderHook(() => useRosters(mockUser));
+    await act(async () => {
+      await result.current.addRoster('CL', [
+        student({
+          id: 's1',
+          pin: '100001',
+          classLinkSourcedId: 'cl-a',
+          formerPins: ['01'],
+        }),
+      ]);
+    });
+    expect(lastCallablePayload).toMatchObject({
+      entries: [
+        {
+          period: 'CL',
+          pin: '100001',
+          classlinkSourcedId: 'cl-a',
+          formerPins: ['01'],
+        },
+      ],
+    });
   });
 
   it('skips the pin-index round-trip for a purely local roster', async () => {
