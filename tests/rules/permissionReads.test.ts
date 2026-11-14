@@ -12,6 +12,8 @@ import {
 } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 
+const PROJECT_ID = 'spartboard-permission-reads-rules-test';
+
 let testEnv: RulesTestEnvironment;
 const TEACHER = 'teacher@orono.k12.mn.us';
 
@@ -39,7 +41,7 @@ const asAdmin = () =>
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
-    projectId: 'spartboard-permission-reads-rules-test',
+    projectId: PROJECT_ID,
     firestore: {
       rules: readFileSync(
         fileURLToPath(new URL('../../firestore.rules', import.meta.url)),
