@@ -1753,22 +1753,16 @@ export async function recordRetiredPins(
       )
     );
   }
+  const removal = {
+    rosterIds: admin.firestore.FieldValue.arrayRemove(rosterRef.id),
+    updatedAt: now,
+  };
+  const soleDocs: admin.firestore.QueryDocumentSnapshot[] = [];
   if (prune) {
     for (const d of have.docs) {
       if (keys.has(d.id)) continue;
-      const sole = (d.get('rosterIds') as string[]).length <= 1;
-      ops.push((b) =>
-        sole
-          ? b.delete(d.ref)
-          : b.set(
-              d.ref,
-              {
-                rosterIds: admin.firestore.FieldValue.arrayRemove(rosterRef.id),
-                updatedAt: now,
-              },
-              { merge: true }
-            )
-      );
+      if ((d.get('rosterIds') as string[]).length <= 1) soleDocs.push(d);
+      else ops.push((b) => b.set(d.ref, removal, { merge: true }));
     }
   }
   for (let i = 0; i < ops.length; i += 400) {
@@ -1776,6 +1770,19 @@ export async function recordRetiredPins(
     ops.slice(i, i + 400).forEach((op) => op(batch));
     await batch.commit();
   }
+  // A sole-roster doc is deleted only if unchanged since the read, so a concurrent roster's arrayUnion survives.
+  await Promise.all(
+    soleDocs.map(async (d) => {
+      try {
+        await d.ref.delete(
+          d.updateTime ? { lastUpdateTime: d.updateTime } : undefined
+        );
+      } catch (err) {
+        if ((err as { code?: number }).code !== 9) throw err;
+        await d.ref.set(removal, { merge: true });
+      }
+    })
+  );
 }
 
 // Per (session, caller uid) limits. Seat PINs are short, so a caller that keeps
