@@ -1134,26 +1134,30 @@ const AttachStimulusSection: React.FC<{
               intake={intake}
               onAdded={(added) => onToggle(added.id)}
             />
+          </div>
+          <div className="flex gap-2">
             {calculatorAvailable && (
               <button
                 type="button"
                 onClick={() => onToggle(intake.addCalculator().id)}
                 disabled={intake.busy}
                 {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
-                className={fileButtonClass}
+                className={`${fileButtonClass} shrink-0`}
               >
                 <Calculator className="h-3.5 w-3.5" aria-hidden />
                 Calculator
               </button>
             )}
+            <div className="flex-1 min-w-0">
+              <UrlAddRow
+                busy={intake.busy}
+                onAdd={async (url) => {
+                  const added = await intake.addFromUrl(url);
+                  if (added) onToggle(added.id);
+                }}
+              />
+            </div>
           </div>
-          <UrlAddRow
-            busy={intake.busy}
-            onAdd={async (url) => {
-              const added = await intake.addFromUrl(url);
-              if (added) onToggle(added.id);
-            }}
-          />
         </div>
       )}
     </div>
