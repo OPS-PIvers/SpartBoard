@@ -324,6 +324,29 @@ describe('VideoPlayer', () => {
       expect(screen.getByText(FAIL)).toBeTruthy();
     });
 
+    it('hides the student actions in teacher mode', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          youtubeUrl="https://example.com"
+          teacherMode
+        />
+      );
+      expect(screen.getByText(FAIL)).toBeTruthy();
+      expect(screen.queryByText('Tell your teacher.')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    });
+
+    it('shows the student actions outside teacher mode', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer {...defaultProps} youtubeUrl="https://example.com" />
+      );
+      expect(screen.getByText('Tell your teacher.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    });
+
     it('shows no card for an empty link', () => {
       mockExtractYouTubeId.mockReturnValue(null);
       render(<VideoPlayer {...defaultProps} youtubeUrl="" />);

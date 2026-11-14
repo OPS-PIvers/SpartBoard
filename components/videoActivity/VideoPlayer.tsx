@@ -454,15 +454,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <p className="text-base font-bold text-white">
             This video won&rsquo;t play here.
           </p>
-          <p className="text-sm text-slate-200">Tell your teacher.</p>
-          {/* no-tour-anchor: video failure card; live tours walk teachers. */}
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="min-h-[44px] rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-slate-900"
-          >
-            Try again
-          </button>
+          {!teacherMode && (
+            <>
+              <p className="text-sm text-slate-200">Tell your teacher.</p>
+              {/* no-tour-anchor: video failure card; live tours walk teachers. */}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="min-h-[44px] rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-slate-900"
+              >
+                Try again
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
