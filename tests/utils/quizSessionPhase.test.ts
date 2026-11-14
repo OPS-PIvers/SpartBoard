@@ -8,6 +8,8 @@ import {
   quizRunState,
   quizSessionWrite,
   reopenIndexPatch,
+  reopenSessionPatch,
+  autoRevealCount,
   type QuizSessionEvent,
   type QuizSessionPhase,
   type QuizSessionPhaseFields,
@@ -491,6 +493,42 @@ describe('reopenIndexPatch', () => {
       resumeTo: 'lobby',
       index: -1,
     });
+  });
+});
+
+describe('reopenSessionPatch', () => {
+  it('clears every revealed answer on reopen', () => {
+    const patch = reopenSessionPatch(fields({ currentQuestionIndex: 1 }));
+    expect(patch.revealedAnswers).toBeInstanceOf(FieldValue);
+    expect((patch.revealedAnswers as FieldValue).isEqual(deleteField())).toBe(
+      true
+    );
+  });
+});
+
+describe('autoRevealCount', () => {
+  const live = (o: Partial<QuizSessionPhaseFields>) =>
+    fields({ currentQuestionIndex: 1, ...o });
+  it('reveals only reached questions when a teacher-paced run ends early', () => {
+    expect(autoRevealCount(live({ status: 'ended' }), 5)).toBe(2);
+    expect(
+      autoRevealCount(live({ status: 'ended', questionPhase: 'reviewing' }), 5)
+    ).toBe(2);
+    expect(
+      autoRevealCount(live({ status: 'ended', currentQuestionIndex: -1 }), 5)
+    ).toBe(0);
+  });
+  it('reveals every question after a natural end or a self-paced run', () => {
+    expect(
+      autoRevealCount(live({ status: 'ended', currentQuestionIndex: 5 }), 5)
+    ).toBe(5);
+    expect(
+      autoRevealCount(live({ status: 'ended', sessionMode: 'student' }), 5)
+    ).toBe(5);
+  });
+  it('keeps the active-run behaviour', () => {
+    expect(autoRevealCount(live({}), 5)).toBe(1);
+    expect(autoRevealCount(live({ questionPhase: 'reviewing' }), 5)).toBe(2);
   });
 });
 

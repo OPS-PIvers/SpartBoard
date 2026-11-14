@@ -104,9 +104,18 @@ describe('planBalancedDeal', () => {
 
 describe('helpers', () => {
   it('keys rotations by class period', () => {
-    expect(balancedPeriodKey({ classPeriod: 'Period 1' })).toBe('period_1');
-    expect(balancedPeriodKey({ classId: 'abc' })).toBe('abc');
-    expect(balancedPeriodKey({})).toBe('default');
+    expect(balancedPeriodKey({}, 'pin-period_1-1234')).toBe('period_1');
+    expect(balancedPeriodKey({ classId: 'abc' }, 'uid1')).toBe('abc');
+    expect(
+      balancedPeriodKey({ classId: 'abc' }, 'uid1', { abc: 'Period 2' })
+    ).toBe('period_2');
+    expect(balancedPeriodKey({}, 'uid1')).toBe('default');
+  });
+
+  it('ignores a student-written classPeriod', () => {
+    const forged = { classPeriod: 'Period 9' } as { classId?: string };
+    expect(balancedPeriodKey(forged, 'pin-period_1-1234')).toBe('period_1');
+    expect(balancedPeriodKey(forged, 'uid1')).toBe('default');
     expect(bankDealDocId('s1', 'period_1')).toBe('s1__period_1');
   });
 

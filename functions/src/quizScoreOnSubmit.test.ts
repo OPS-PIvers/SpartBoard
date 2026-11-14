@@ -328,6 +328,27 @@ describe('scoreAttempt', () => {
     ).toBe(100);
   });
 
+  it('stamps a verdict only on the graded answer per question', () => {
+    const result = scoreAttempt(
+      {
+        servedQuestionIds: ['q1'],
+        answers: [
+          { questionId: 'q1', answer: 'London', answeredAt: 1 },
+          { questionId: 'q1', answer: 'Paris', answeredAt: 2 },
+          { questionId: 'q1', answer: 'Rome', answeredAt: 3 },
+          { questionId: 'q2', answer: 'x', answeredAt: 4 },
+        ],
+      },
+      ctx
+    );
+    expect(result?.answers.map((a) => a.isCorrect)).toEqual([
+      false,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
   it('refuses a served question the key does not have', () => {
     expect(
       scoreAttempt(

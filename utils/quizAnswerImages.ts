@@ -281,3 +281,6 @@ export function choicePictureFields(
   const pictures = q ? choicePicturesFor(q, choices) : undefined;
   return pictures ? { choicePictures: pictures } : {};
 }
+
+/** Every answer picture's Drive created and modified time, so neither reveals the order they were added in. */
+export const ANSWER_IMAGE_DRIVE_TIME = '2020-01-01T00:00:00.000Z';

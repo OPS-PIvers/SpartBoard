@@ -513,22 +513,32 @@ export class GoogleDriveService {
     file: File | Blob,
     fileName: string,
     folderPath: string = 'Misc',
-    appProperties?: Record<string, string>
+    appProperties?: Record<string, string>,
+    options?: { fixedTime?: string }
   ): Promise<DriveFile> {
     const folderId = await this.getFolderPath(folderPath);
+    const fixedTime = options?.fixedTime;
 
     const metadata = {
       name: fileName,
       parents: [folderId],
       ...(appProperties ? { appProperties } : {}),
     };
+    const createFile = (body: Record<string, unknown>) =>
+      this.fetchWithRetry(`${DRIVE_API_URL}/files`, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify(body),
+      });
 
-    // Create metadata
-    const createResponse = await this.fetchWithRetry(`${DRIVE_API_URL}/files`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify(metadata),
-    });
+    // Create metadata; a fixed time hides upload order, and a refusal falls back to a plain create.
+    let createResponse = await createFile(
+      fixedTime
+        ? { ...metadata, createdTime: fixedTime, modifiedTime: fixedTime }
+        : metadata
+    );
+    if (!createResponse.ok && fixedTime)
+      createResponse = await createFile(metadata);
 
     if (!createResponse.ok) {
       throw new Error('Failed to create file metadata in Drive');
@@ -551,6 +561,15 @@ export class GoogleDriveService {
 
     if (!uploadResponse.ok) {
       throw new Error('Failed to upload file content to Drive');
+    }
+
+    // Writing the content stamps a fresh modified time, so put the fixed one back.
+    if (fixedTime) {
+      await this.fetchWithRetry(`${DRIVE_API_URL}/files/${driveFile.id}`, {
+        method: 'PATCH',
+        headers: this.headers,
+        body: JSON.stringify({ modifiedTime: fixedTime }),
+      }).catch(() => undefined);
     }
 
     // Get full file details (including links)

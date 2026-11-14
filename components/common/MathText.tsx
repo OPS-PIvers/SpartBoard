@@ -7,7 +7,10 @@ import {
   type PromptFormatNode,
 } from '@/utils/promptFormat';
 import { loadMathLive } from '@/components/student/keyboards/loadMathLive';
-import { sanitizeMathMarkup } from '@/components/student/keyboards/mathChips';
+import {
+  MAX_DRAWN_MATH_LENGTH,
+  sanitizeMathMarkup,
+} from '@/components/student/keyboards/mathChips';
 
 type MathLive = Awaited<ReturnType<typeof loadMathLive>>;
 
@@ -37,15 +40,18 @@ const Equation: React.FC<{
   onClick?: () => void;
   label?: string;
 }> = ({ math, ml, onClick, label }) => {
-  const drawn = ml
-    ? sanitizeMathMarkup(
-        ml.convertLatexToMarkup(ml.convertAsciiMathToLatex(math))
-      )
-    : null;
+  const drawn =
+    ml && math.length <= MAX_DRAWN_MATH_LENGTH
+      ? sanitizeMathMarkup(
+          ml.convertLatexToMarkup(ml.convertAsciiMathToLatex(math))
+        )
+      : null;
   const body = drawn ? (
     <span
-      className="inline-block align-middle"
-      // Sanitized MathLive markup: span, svg, path and line only.
+      className="relative isolate inline-block max-w-full align-middle"
+      // Clipped so an equation never paints outside its own box.
+      style={{ overflow: 'clip', overflowClipMargin: '0.25em' }}
+      // Sanitized MathLive markup: span, svg, path and line, with MathLive's own classes and bounded styles.
       dangerouslySetInnerHTML={{ __html: drawn }}
     />
   ) : (

@@ -78,6 +78,7 @@ import {
 } from './ResponseFormatSection';
 import { useWhiteboardImageUpload } from './useWhiteboardImageUpload';
 import { driveImageUrl } from '@/utils/quizStimuli';
+import { ANSWER_IMAGE_DRIVE_TIME } from '@/utils/quizAnswerImages';
 import { canAccessQuizWhiteboardResponse } from '@/utils/quizMediaAccess';
 
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
@@ -849,10 +850,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
     async (file: File): Promise<string | null> => {
-      // A neutral name: a timestamp or original file name could give away the order.
+      // A neutral name and fixed Drive times: upload order could give away the answer order.
       const uploaded = await uploadWhiteboardImage(
         file,
-        `quiz-answer-${crypto.randomUUID()}`
+        `quiz-answer-${crypto.randomUUID()}`,
+        { fixedTime: ANSWER_IMAGE_DRIVE_TIME }
       );
       return uploaded ? driveImageUrl(uploaded.driveFileId) : null;
     },
