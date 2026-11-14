@@ -109,4 +109,31 @@ describe('DoneRow', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(onOpenGradeOnly).toHaveBeenCalledWith(gradeOnly);
   });
+
+  it('says Turned in for finished work that is never graded', () => {
+    const va = {
+      ...assignment,
+      kind: 'video-activity' as const,
+      gradingState: 'not-graded' as const,
+    };
+    renderRow({
+      item: item({
+        kind: 'video-activity',
+        row: { assignment: va, state: 'turned-in' },
+      }),
+    });
+    expect(screen.getByText('Turned in')).toBeInTheDocument();
+  });
+
+  it('keeps Not graded yet for a quiz without shared results', () => {
+    renderRow({
+      item: item({
+        row: {
+          assignment: { ...assignment, gradingState: 'not-graded' },
+          state: 'turned-in',
+        },
+      }),
+    });
+    expect(screen.getByText('Not graded yet')).toBeInTheDocument();
+  });
 });

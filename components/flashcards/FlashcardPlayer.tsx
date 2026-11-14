@@ -1076,6 +1076,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             >
               <SpeakMode
                 key={speakCheck ? 'check-speak' : speakKey}
+                inCheck={speakCheck}
                 cards={speakCheck ? speakCheckCards : session.speakCards}
                 round={speakCheck ? 1 : session.speakRound}
                 language={speakLanguage}

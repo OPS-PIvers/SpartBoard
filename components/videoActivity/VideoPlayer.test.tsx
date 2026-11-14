@@ -1,13 +1,15 @@
-import { render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { YTPlayer } from '@/utils/youtube';
 import { VideoPlayer } from './VideoPlayer';
 
-const mockLoadYouTubeApi = vi.fn<(callback: () => void) => void>();
+const mockLoadYouTubeApi =
+  vi.fn<(callback: () => void, onError?: () => void) => void>();
 const mockExtractYouTubeId = vi.fn<(url: string) => string | null>();
 
 vi.mock('@/utils/youtube', () => ({
-  loadYouTubeApi: (callback: () => void) => mockLoadYouTubeApi(callback),
+  loadYouTubeApi: (callback: () => void, onError?: () => void) =>
+    mockLoadYouTubeApi(callback, onError),
   loadYouTubeApiIn: (_win: Window, callback: () => void) =>
     mockLoadYouTubeApi(callback),
   extractYouTubeId: (url: string) => mockExtractYouTubeId(url),
@@ -24,8 +26,12 @@ vi.mock('@/utils/youtube', () => ({
 interface MockPlayerOptions {
   events?: {
     onReady?: () => void;
+    onError?: (event: { data: number }) => void;
   };
 }
+
+let autoReady = true;
+let lastOptions: MockPlayerOptions | undefined;
 
 const createMockPlayer = (): YTPlayer => ({
   playVideo: vi.fn(),
@@ -40,7 +46,8 @@ const createMockPlayer = (): YTPlayer => ({
 
 class MockYTPlayer {
   constructor(_elementId: string, options: MockPlayerOptions) {
-    options.events?.onReady?.();
+    lastOptions = options;
+    if (autoReady) options.events?.onReady?.();
     return mockPlayerInstance;
   }
 }
@@ -65,6 +72,8 @@ describe('VideoPlayer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    autoReady = true;
+    lastOptions = undefined;
 
     player = createMockPlayer();
     mockPlayerInstance = player;
@@ -301,6 +310,87 @@ describe('VideoPlayer', () => {
       render(<VideoPlayer {...defaultProps} clip={{ start: 30 }} />);
       flushFrame(1000);
       expect(player.seekTo).toHaveBeenCalledWith(30, true);
+    });
+  });
+
+  describe('load failure card', () => {
+    const FAIL = /won.t play here/;
+
+    it('shows the card for a link with no video id', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer {...defaultProps} youtubeUrl="https://example.com" />
+      );
+      expect(screen.getByText(FAIL)).toBeTruthy();
+    });
+
+    it('hides the student actions in teacher mode', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          youtubeUrl="https://example.com"
+          teacherMode
+        />
+      );
+      expect(screen.getByText(FAIL)).toBeTruthy();
+      expect(screen.queryByText('Tell your teacher.')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    });
+
+    it('shows the student actions outside teacher mode', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(
+        <VideoPlayer {...defaultProps} youtubeUrl="https://example.com" />
+      );
+      expect(screen.getByText('Tell your teacher.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    });
+
+    it('shows no card for an empty link', () => {
+      mockExtractYouTubeId.mockReturnValue(null);
+      render(<VideoPlayer {...defaultProps} youtubeUrl="" />);
+      expect(screen.queryByText(FAIL)).toBeNull();
+    });
+
+    it('shows the card when the player reports an error', () => {
+      render(<VideoPlayer {...defaultProps} />);
+      expect(screen.queryByText(FAIL)).toBeNull();
+      act(() => lastOptions?.events?.onError?.({ data: 150 }));
+      expect(screen.getByText(FAIL)).toBeTruthy();
+    });
+
+    it('shows the card when the player is never ready, but not when it is', () => {
+      vi.useFakeTimers();
+      try {
+        autoReady = false;
+        render(<VideoPlayer {...defaultProps} />);
+        act(() => {
+          vi.advanceTimersByTime(15000);
+        });
+        expect(screen.getByText(FAIL)).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not show the card when ready arrives before the timeout', () => {
+      vi.useFakeTimers();
+      try {
+        render(<VideoPlayer {...defaultProps} />);
+        act(() => {
+          vi.advanceTimersByTime(15000);
+        });
+        expect(screen.queryByText(FAIL)).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('shows the card when the script fails to load', () => {
+      mockLoadYouTubeApi.mockImplementation((_cb, onError) => onError?.());
+      render(<VideoPlayer {...defaultProps} />);
+      expect(screen.getByText(FAIL)).toBeTruthy();
     });
   });
 });

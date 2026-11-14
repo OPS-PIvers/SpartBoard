@@ -2265,6 +2265,14 @@
     "left": "Verbleibende Zeit {{time}}",
     "submitted": "Die Zeit ist um. Deine Antworten wurden abgegeben."
   },
+  "quizSubmit": {
+    "confirmTitle": "Quiz abgeben?",
+    "confirmBody": "Danach kannst du deine Antworten nicht mehr ändern.",
+    "confirmBlank_one": "{{count}} Frage hat keine Antwort. Danach kannst du deine Antworten nicht mehr ändern.",
+    "confirmBlank_other": "{{count}} Fragen haben keine Antwort. Danach kannst du deine Antworten nicht mehr ändern.",
+    "confirmSubmit": "Abgeben",
+    "tryAgain": "Erneut versuchen"
+  },
   "quizParts": {
     "confirmTitle": "Teil {{part}} abgeben?",
     "confirmBody": "Danach kannst du deine Antworten in Teil {{part}} nicht mehr ändern.",
@@ -3589,6 +3597,7 @@
       "correct": "Gewusst",
       "learning": "Noch lernen",
       "next": "Nächste Runde",
+      "toSubmit": "Weiter zum Abgeben",
       "restart": "Alles neu starten"
     },
     "missed": {
@@ -3602,7 +3611,7 @@
       "definition": "Definition",
       "flipToPrompt": "Antwort wird gezeigt. Zur Frage umdrehen.",
       "flipToAnswer": "Frage wird gezeigt. Zur Antwort umdrehen.",
-      "flipHint": "Klicken oder Leertaste drücken zum Umdrehen",
+      "flipHint": "Tippen oder Leertaste drücken zum Umdrehen",
       "favoriteAdd": "Zu Favoriten hinzufügen",
       "favoriteRemove": "Aus Favoriten entfernen",
       "previous": "Vorherige Karte",
@@ -3672,6 +3681,7 @@
       "unavailableTitle": "Diese Aufgabe ist nicht verfügbar",
       "unavailableBody": "Prüfe den Link oder frage deine Lehrkraft, ob sie dir zugewiesen ist.",
       "back": "Zurück zu meinen Aufgaben",
+      "tryAgain": "Erneut versuchen",
       "check": "Überprüfung",
       "study": "Lernen",
       "opensTitle": "Noch nicht geöffnet",
@@ -3734,6 +3744,7 @@
         "continue": "Weiter",
         "autoContinue": "Automatisch zur nächsten Karte",
         "skip": "Überspringen",
+        "skipCheck": "Überspringen (zählt als verfehlt)",
         "round": "Runde {{round}}",
         "mastered": "{{mastered}}/{{total}} gut gesprochen",
         "masteryLabel": "{{mastered}} von {{total}} Karten gut gesprochen",
@@ -3791,6 +3802,7 @@
       "unavailable": {
         "title": "Speak ist nicht verfügbar",
         "otherModes": "Die anderen Lernmodi funktionieren weiterhin.",
+        "tellTeacher": "Sag deiner Lehrkraft, dass du nicht aufnehmen kannst.",
         "noMic": "Kein Mikrofon gefunden",
         "noMicBody": "Schließe ein Mikrofon an und versuche es noch einmal.",
         "micBlocked": "Mikrofon blockiert",

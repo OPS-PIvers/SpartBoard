@@ -8,6 +8,8 @@ Each plan is self-contained: an executor needs only the plan file and the
 repo. Read the plan fully before starting, honor its STOP conditions, and
 update your row when done.
 
+All four plans were executed and reviewed on 2026-11-14 and shipped together in one PR; their plan files were deleted in that PR (git history keeps them, last present at `56d13df7`).
+
 This folder is separate from `docs/plans/` (the repo's own feature plans) and
 from `AGENT_BACKLOG.md`. These are hand-off plans from one audit; delete a
 plan file in the PR that finishes it, or move the folder's leftovers into
@@ -15,12 +17,12 @@ plan file in the PR that finishes it, or move the folder's leftovers into
 
 ## Execution order & status
 
-| Plan                                                        | Title                                                                                                                   | Priority | Effort | Depends on | Status |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ------ | ---------- | ------ |
-| [001](001-quiz-resume-confirm-retry.md)                     | Quiz: resume where the student left off, confirm the final submit, retry buttons on error screens                       | P1       | M      | none       | TODO   |
-| [002](002-video-activity-load-failure-and-honest-submit.md) | Video activity: message when the video can't play, "submitted" only once saved, next step on finished and error screens | P1       | M      | none       | TODO   |
-| [003](003-flashcards-speak-check-dead-ends.md)              | Flashcards: truthful Speak Check messages, way out of "not available"                                                   | P1       | S      | none       | TODO   |
-| [004](004-student-home-and-sign-in.md)                      | Student sign-in recovers and stays signed out; assignment rows say what they are in words                               | P1       | M      | none       | TODO   |
+| Plan | Title                                                                                                                   | Priority | Effort | Depends on | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ------ | ---------- | ------ |
+| 001  | Quiz: resume where the student left off, confirm the final submit, retry buttons on error screens                       | P1       | M      | none       | DONE   |
+| 002  | Video activity: message when the video can't play, "submitted" only once saved, next step on finished and error screens | P1       | M      | none       | DONE   |
+| 003  | Flashcards: truthful Speak Check messages, way out of "not available"                                                   | P1       | S      | none       | DONE   |
+| 004  | Student sign-in recovers and stays signed out; assignment rows say what they are in words                               | P1       | M      | none       | DONE   |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

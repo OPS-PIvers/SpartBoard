@@ -15,6 +15,7 @@ import { auth, isAuthBypass } from '@/config/firebase';
 import {
   useStudentIdleTimeout,
   STUDENT_LOGIN_PATH,
+  STUDENT_SIGNED_OUT_LOGIN_PATH,
 } from '@/hooks/useStudentIdleTimeout';
 import {
   StudentAuthContext,
@@ -313,7 +314,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // redirecting. Real Firebase Auth isn't involved.
       setState(UNAUTH_STATE);
       if (typeof window !== 'undefined') {
-        window.location.assign(STUDENT_LOGIN_PATH);
+        window.location.assign(STUDENT_SIGNED_OUT_LOGIN_PATH);
       }
       return;
     }
@@ -323,7 +324,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Always redirect — even if sign-out threw, the user should be booted
       // off a protected page on a shared device.
       if (typeof window !== 'undefined') {
-        window.location.assign(STUDENT_LOGIN_PATH);
+        window.location.assign(STUDENT_SIGNED_OUT_LOGIN_PATH);
       }
     }
   }, []);

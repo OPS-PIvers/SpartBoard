@@ -104,4 +104,56 @@ describe('WorkRow', () => {
     expect(screen.queryByText('Open')).toBeNull();
     expect(screen.queryByText('Live')).toBeNull();
   });
+
+  it('names the activity type in words', () => {
+    renderRow({ assignment: base, state: 'open' });
+    expect(screen.getByText('Quiz')).toBeInTheDocument();
+  });
+
+  it('names a flashcards check', () => {
+    renderRow({
+      assignment: {
+        ...base,
+        kind: 'flashcards',
+        flashcardKind: 'check',
+        compositeId: 'flashcards:f1',
+      },
+      state: 'open',
+    });
+    expect(screen.getByText('Flashcards · Check')).toBeInTheDocument();
+  });
+
+  it('says Was due for a past due date', () => {
+    renderRow({
+      assignment: { ...base, dueAt: NOW - 2 * 86_400_000 },
+      state: 'open',
+    });
+    expect(screen.getByText(/^Was due /)).toBeInTheDocument();
+    expect(screen.queryByText(/^Due /)).toBeNull();
+  });
+
+  it('keeps Due for a future due date', () => {
+    renderRow({
+      assignment: { ...base, dueAt: NOW + 2 * 86_400_000 },
+      state: 'open',
+    });
+    expect(screen.getByText(/^Due /)).toBeInTheDocument();
+  });
+
+  it('keeps Due today for earlier today', () => {
+    renderRow({
+      assignment: { ...base, dueAt: new Date(2026, 9, 2, 8, 0).getTime() },
+      state: 'open',
+    });
+    expect(screen.getByText(/^Due today/)).toBeInTheDocument();
+  });
+
+  it('shows the missing-open wording with the due date', () => {
+    renderRow({
+      assignment: { ...base, dueAt: NOW - 2 * 86_400_000 },
+      state: 'missing-open',
+    });
+    expect(screen.getByText('Missing · still open')).toBeInTheDocument();
+    expect(screen.getByText(/was due/)).toBeInTheDocument();
+  });
 });

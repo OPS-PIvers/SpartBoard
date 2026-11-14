@@ -11,7 +11,13 @@
  *    called and the video is paused.
  */
 
-import React, { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useState,
+} from 'react';
 import {
   loadYouTubeApi,
   loadYouTubeApiIn,
@@ -20,6 +26,8 @@ import {
 } from '@/utils/youtube';
 import type { YTPlayer } from '@/utils/youtube';
 import type { VideoActivityNote, VideoActivityPublicQuestion } from '@/types';
+
+const PLAYER_READY_TIMEOUT_MS = 15000;
 
 interface VideoPlayerProps {
   youtubeUrl: string;
@@ -80,6 +88,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onNoteTrigger,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
   const playerRef = useRef<YTPlayer | null>(null);
   const rafRef = useRef<number | null>(null);
   // Poll on the window that shows the video, which stays visible while presenting.
@@ -304,14 +313,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!videoId || !containerRef.current) return;
 
     let destroyed = false;
+    const readyTimer = window.setTimeout(() => {
+      if (!destroyed) setFailed(true);
+    }, PLAYER_READY_TIMEOUT_MS);
 
     // Inside a Present popup the API must run in that window, or the player never hears back.
     const hostWin = containerRef.current.ownerDocument.defaultView ?? window;
     const inPopup = hostWin !== window;
     rafWinRef.current = hostWin;
+    const fail = () => {
+      if (!destroyed) setFailed(true);
+    };
     const load = inPopup
       ? (cb: () => void) => loadYouTubeApiIn(hostWin, cb)
-      : loadYouTubeApi;
+      : (cb: () => void) => loadYouTubeApi(cb, fail);
 
     load(() => {
       if (destroyed || !containerRef.current) return;
@@ -343,10 +358,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         },
         events: {
           onReady: () => {
+            window.clearTimeout(readyTimer);
+            setFailed(false);
             if (autoPlayRef.current && !pausedRef.current) {
               playerRef.current?.playVideo();
             }
             startPolling();
+          },
+          onError: () => {
+            window.clearTimeout(readyTimer);
+            fail();
           },
           onStateChange: (event: { data: number }) => {
             if (event.data === YT_PLAYER_STATE.ENDED) {
@@ -367,6 +388,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const container = containerRef.current;
     return () => {
       destroyed = true;
+      window.clearTimeout(readyTimer);
       stopPolling();
       if (playerRef.current) {
         try {
@@ -416,12 +438,37 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [seekRequest]);
 
+  const badLink = youtubeUrl.trim() !== '' && !extractYouTubeId(youtubeUrl);
+
   return (
     <div className="relative w-full h-full bg-black">
       <div
         ref={containerRef}
         className="w-full h-full [&>div]:w-full [&>div]:h-full [&_iframe]:w-full [&_iframe]:h-full"
       />
+      {(failed || badLink) && (
+        <div
+          role="alert"
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-900 p-6 text-center"
+        >
+          <p className="text-base font-bold text-white">
+            This video won&rsquo;t play here.
+          </p>
+          {!teacherMode && (
+            <>
+              <p className="text-sm text-slate-200">Tell your teacher.</p>
+              {/* no-tour-anchor: video failure card; live tours walk teachers. */}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="min-h-[44px] rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-slate-900"
+              >
+                Try again
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

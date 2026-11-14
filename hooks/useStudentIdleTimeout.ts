@@ -19,6 +19,8 @@ import { clearStudentFirstName } from '@/context/StudentAuthContextValue';
 export const STUDENT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const INTERACTION_THROTTLE_MS = 5 * 1000;
 export const STUDENT_LOGIN_PATH = '/student/login';
+export const STUDENT_IDLE_LOGIN_PATH = `${STUDENT_LOGIN_PATH}?reason=idle`;
+export const STUDENT_SIGNED_OUT_LOGIN_PATH = `${STUDENT_LOGIN_PATH}?reason=signed-out`;
 const SHARED_ACTIVITY_KEY = 'sb_student_last_activity';
 
 const readSharedActivity = (): number => {
@@ -43,7 +45,7 @@ const isFocusInsideFrame = (): boolean =>
 
 export function useStudentIdleTimeout(
   enabled: boolean,
-  redirectPath: string = STUDENT_LOGIN_PATH
+  redirectPath: string = STUDENT_IDLE_LOGIN_PATH
 ): void {
   useEffect(() => {
     if (!enabled) return;
