@@ -44,6 +44,7 @@ export const IMPORT_MAX_REASON_CHARS = 500;
 /** Platform reader id: `generic` for the article read, else the reader's id (`schoology`, `google-forms`, ...). */
 export const IMPORT_PLATFORM_ID = /^[a-z0-9-]{1,40}$/;
 export const GENERIC_PLATFORM = 'generic';
+export const GOOGLE_FORMS_PLATFORM = 'google-forms';
 
 /** Everything Import can turn a Source into (D2). */
 export type ImportTarget =
@@ -160,6 +161,75 @@ export interface ImportCardSet {
   leftOut?: Partial<Record<ImportCardsLeftOut, number>>;
 }
 
+// Google Forms caps, checked by the server.
+export const IMPORT_MAX_FORM_ITEMS = 300;
+export const IMPORT_MAX_FORM_OPTIONS = 60;
+export const IMPORT_MAX_FORM_TEXT_CHARS = 5000;
+/** A form's editor id (`/forms/d/<id>/edit`), which the Forms API reads. */
+export const GOOGLE_FORM_ID = /^[A-Za-z0-9_-]{20,120}$/;
+
+export const IMPORT_FORM_QUESTION_KINDS = [
+  'choice',
+  'checkbox',
+  'dropdown',
+  'short',
+  'paragraph',
+  'scale',
+  'rating',
+  'grid',
+  'checkboxGrid',
+] as const;
+export type ImportFormQuestionKind =
+  (typeof IMPORT_FORM_QUESTION_KINDS)[number];
+
+/** Untrusted https pictures; copied through `fetchImportImage`, never shown as is. */
+export interface ImportFormOption {
+  text: string;
+  image?: string;
+}
+
+/** One form question; plain text only. `correct` and `points` come only from a reader that saw the key. */
+export interface ImportFormQuestion {
+  kind: ImportFormQuestionKind;
+  text: string;
+  description?: string;
+  /** Choices, or a grid's columns. */
+  options?: ImportFormOption[];
+  /** A grid's rows. */
+  rows?: string[];
+  /** Scale and rating ends. */
+  low?: number;
+  high?: number;
+  lowLabel?: string;
+  highLabel?: string;
+  /** Correct choice texts or accepted short answers; a grid has one per row, a checkbox row's joined by `|`. */
+  correct?: string[];
+  points?: number;
+  image?: string;
+}
+
+export type ImportFormItem =
+  ImportFormQuestion | { kind: 'image'; text: string; image: string };
+
+/** What a form reader couldn't bring over, counted so the review can say so. */
+export const IMPORT_FORM_LEFT_OUT = [
+  'date',
+  'time',
+  'fileUpload',
+  'video',
+  'picture',
+] as const;
+export type ImportFormLeftOut = (typeof IMPORT_FORM_LEFT_OUT)[number];
+
+/** A Google Form a Platform reader found. */
+export interface ImportForm {
+  /** Sent from the form's editor, so the app can read its key through the Forms API. */
+  formId?: string;
+  items: ImportFormItem[];
+  /** Counts above zero only; absent when everything came over. */
+  leftOut?: Partial<Record<ImportFormLeftOut, number>>;
+}
+
 /** Body of `importInboxV1` (D14). */
 export interface ImportSendRequest {
   url: string;
@@ -172,6 +242,7 @@ export interface ImportSendRequest {
   readerFailure?: ImportReaderFailure;
   video?: ImportVideoLesson;
   cards?: ImportCardSet;
+  form?: ImportForm;
 }
 
 /** A stored Send, `users/{uid}/import_inbox/{id}`; `expireAt` (a Timestamp) drives the TTL. */

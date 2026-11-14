@@ -19,6 +19,12 @@ import {
   IMPORT_CARD_LANGUAGE,
   IMPORT_CARDS_LEFT_OUT,
   IMPORT_MAX_BLOCKS,
+  GOOGLE_FORM_ID,
+  IMPORT_FORM_LEFT_OUT,
+  IMPORT_FORM_QUESTION_KINDS,
+  IMPORT_MAX_FORM_ITEMS,
+  IMPORT_MAX_FORM_OPTIONS,
+  IMPORT_MAX_FORM_TEXT_CHARS,
   IMPORT_MAX_CARDS,
   IMPORT_MAX_CARD_TEXT_CHARS,
   IMPORT_MAX_BLOCK_CHARS,
@@ -46,6 +52,10 @@ import {
   resolveBlockPatterns,
   type ImportBlock,
   type ImportCardSet,
+  type ImportForm,
+  type ImportFormItem,
+  type ImportFormQuestion,
+  type ImportFormOption,
   type ImportImage,
   type ImportReaderFailure,
   type ImportSendReply,
@@ -339,6 +349,88 @@ function parseCards(v: unknown): ImportCardSet | undefined {
   };
 }
 
+function httpsUrl(v: unknown, what: string): string {
+  const url = httpUrl(v, what);
+  if (!url.startsWith('https://')) throw malformed(what);
+  return url;
+}
+
+function formText(v: unknown, what: string): string {
+  return text(v, IMPORT_MAX_FORM_TEXT_CHARS, what);
+}
+
+function formNumber(v: unknown, what: string): number {
+  if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > 10_000)
+    throw malformed(what);
+  return v;
+}
+
+function formStrings(v: unknown, what: string): string[] {
+  if (!Array.isArray(v) || v.length > IMPORT_MAX_FORM_OPTIONS)
+    throw malformed(what);
+  return v.map((s) => formText(s, what));
+}
+
+function parseFormOption(v: unknown, what: string): ImportFormOption {
+  if (!isObj(v)) throw malformed(what);
+  const option: ImportFormOption = { text: formText(v.text, what) };
+  if (v.image !== undefined) option.image = httpsUrl(v.image, what);
+  return option;
+}
+
+const FORM_KINDS: readonly string[] = IMPORT_FORM_QUESTION_KINDS;
+
+function parseFormItem(v: unknown, i: number): ImportFormItem {
+  const what = `form item ${i + 1}`;
+  if (!isObj(v)) throw malformed(what);
+  const body = formText(v.text, what);
+  if (v.kind === 'image')
+    return { kind: 'image', text: body, image: httpsUrl(v.image, what) };
+  if (typeof v.kind !== 'string' || !FORM_KINDS.includes(v.kind))
+    throw malformed(what);
+  const item: ImportFormQuestion = {
+    kind: v.kind as ImportFormQuestion['kind'],
+    text: body,
+  };
+  if (v.description !== undefined)
+    item.description = formText(v.description, what);
+  if (v.options !== undefined) {
+    if (!Array.isArray(v.options) || v.options.length > IMPORT_MAX_FORM_OPTIONS)
+      throw malformed(what);
+    item.options = v.options.map((o) => parseFormOption(o, what));
+  }
+  if (v.rows !== undefined) item.rows = formStrings(v.rows, what);
+  if (v.correct !== undefined) item.correct = formStrings(v.correct, what);
+  if (v.low !== undefined) item.low = formNumber(v.low, what);
+  if (v.high !== undefined) item.high = formNumber(v.high, what);
+  if (v.points !== undefined) item.points = formNumber(v.points, what);
+  if (v.lowLabel !== undefined) item.lowLabel = formText(v.lowLabel, what);
+  if (v.highLabel !== undefined) item.highLabel = formText(v.highLabel, what);
+  if (v.image !== undefined) item.image = httpsUrl(v.image, what);
+  return item;
+}
+
+function parseForm(v: unknown): ImportForm | undefined {
+  if (v === undefined) return undefined;
+  if (
+    !isObj(v) ||
+    !Array.isArray(v.items) ||
+    v.items.length > IMPORT_MAX_FORM_ITEMS
+  )
+    throw malformed('form');
+  if (
+    v.formId !== undefined &&
+    (typeof v.formId !== 'string' || !GOOGLE_FORM_ID.test(v.formId))
+  )
+    throw malformed('form');
+  const leftOut = counts(v.leftOut, IMPORT_FORM_LEFT_OUT, 'form');
+  return {
+    ...(typeof v.formId === 'string' ? { formId: v.formId } : {}),
+    items: v.items.map(parseFormItem),
+    ...(leftOut ? { leftOut } : {}),
+  };
+}
+
 /** Checks everything the extension sends; unknown fields are dropped, never stored. */
 export function parseSendRequest(body: unknown): ImportSendRequest {
   if (!isObj(body)) throw malformed('body');
@@ -358,6 +450,7 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
   const readerFailure = parseReaderFailure(body.readerFailure);
   const video = parseVideo(body.video);
   const cards = parseCards(body.cards);
+  const form = parseForm(body.form);
   return {
     url: storedUrl(httpUrl(body.url, 'url')),
     title,
@@ -368,7 +461,25 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
     ...(readerFailure ? { readerFailure } : {}),
     ...(video ? { video } : {}),
     ...(cards ? { cards } : {}),
+    ...(form ? { form } : {}),
   };
+}
+
+/** A form's pictures hosted on a blocked site are dropped; a picture-only item goes with its picture. */
+function formWithoutBlocked(form: ImportForm, patterns: string[]): ImportForm {
+  const ok = (url: string | undefined) => !url || !isUrlBlocked(url, patterns);
+  const items = form.items.flatMap((item): ImportFormItem[] => {
+    if (item.kind === 'image') return ok(item.image) ? [item] : [];
+    const next = { ...item };
+    if (!ok(next.image)) delete next.image;
+    if (next.options)
+      next.options = next.options.map((o) => {
+        if (ok(o.image)) return o;
+        return { text: o.text };
+      });
+    return [next];
+  });
+  return { ...form, items };
 }
 
 /** The same content from the same page replaces its unsaved copy instead of piling up. */
@@ -382,6 +493,7 @@ export const sendId = (send: ImportSendRequest): string =>
         send.images,
         send.video ?? null,
         send.cards ?? null,
+        send.form ?? null,
       ])
     )
     .digest('hex')
@@ -474,9 +586,15 @@ export async function receiveSend(
       return kept;
     }),
   };
-  const id = sendId({ ...send, images, ...(video ? { video } : {}) });
+  const form = send.form && formWithoutBlocked(send.form, patterns);
+  const kept = {
+    images,
+    ...(video ? { video } : {}),
+    ...(form ? { form } : {}),
+  };
+  const id = sendId({ ...send, ...kept });
   const { readerFailure, ...rest } = send;
-  const stored = { ...rest, images, ...(video ? { video } : {}) };
+  const stored = { ...rest, ...kept };
   const doc = { ...stored, receivedAt: now };
   if (Buffer.byteLength(JSON.stringify(stored)) > MAX_DOC_BYTES)
     throw fail(413, 'This page is too long to send at once.');

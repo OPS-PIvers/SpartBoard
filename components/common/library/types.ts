@@ -23,7 +23,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
 import type { ConversionInput } from '@/utils/import/aiConversion';
-import type { ImportCardSet } from '@/utils/import/contract';
+import type { ImportCardSet, ImportForm } from '@/utils/import/contract';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import type { PendingSource } from '@/components/import/importHandoff';
 
@@ -59,7 +59,9 @@ export type ImportSourceKind =
   /** A printed test: PDF, Word file, or a Google Doc exported as one. */
   | 'document'
   /** A card set a Platform reader sent (IMPORT.md D38); only ever handed over, never picked. */
-  | 'cards';
+  | 'cards'
+  /** A Google Form the extension sent; only ever handed over, never picked. */
+  | 'form';
 
 /* ─── Generic value objects ───────────────────────────────────────────────── */
 
@@ -598,7 +600,8 @@ export type ImportSourcePayload =
     }
   /** Import's AI Conversion of already-read text (docs/plans/IMPORT.md D8, D10). */
   | { kind: 'conversion'; input: ConversionInput }
-  | { kind: 'cards'; set: ImportCardSet };
+  | { kind: 'cards'; set: ImportCardSet }
+  | { kind: 'form'; form: ImportForm; title: string };
 
 /** Parser result — `warnings` surface non-fatal issues in the preview. */
 export interface ImportParseResult<TData> {

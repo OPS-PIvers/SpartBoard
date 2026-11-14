@@ -26,7 +26,7 @@ describe('sendNote', () => {
     ).toBe('Sent this lesson to SpartBoard.');
     expect(
       sendNote({ kind: 'reply', reply, lesson: { skipped: 2 } }).text
-    ).toMatch(/2 questions SpartBoard has no kind for were left out/);
+    ).toMatch(/2 questions SpartBoard has no kind for were skipped/);
     expect(
       sendNote({ kind: 'reply', reply, fellBack: 'edpuzzle' }).text
     ).toMatch(/^The Edpuzzle reader couldn't read this page/);
@@ -52,6 +52,18 @@ describe('sendNote', () => {
         cards: 3,
       }).ok
     ).toBe(false);
+  });
+
+  it('says a Google Form was sent, or that its reader fell back', () => {
+    const reply = { ok: true, blocks: 2, images: 0 };
+    expect(sendNote({ kind: 'reply', reply, questions: 12 })).toEqual({
+      ok: true,
+      open: 'import',
+      text: 'Sent to SpartBoard.',
+    });
+    expect(
+      sendNote({ kind: 'reply', reply, fellBack: 'google-forms' }).text
+    ).toBe('Form couldn’t be read. Page text was sent to SpartBoard.');
   });
 
   it('says when a reader fell back to the page text', () => {

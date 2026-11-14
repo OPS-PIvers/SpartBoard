@@ -348,6 +348,9 @@ export {
   tourPublicLinkStartV1,
 } from './tourPublicLink';
 
+// Tour play counts: plays, finishes and public link views for the Web tours list.
+export { tourRunCounter } from './tourCounts';
+
 // Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 export {
   schoologyImportStatusV1,
