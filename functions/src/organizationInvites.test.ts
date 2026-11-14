@@ -1017,6 +1017,7 @@ describe('createOrganizationInvites — super_admin role guard', () => {
     // Caller's operator-org roleId; null = no operator membership.
     operatorRole?: string | null;
     existing?: Record<string, Record<string, unknown>>;
+    legacy?: string[];
   }) {
     const operatorRole =
       opts.operatorRole === undefined ? opts.callerRole : opts.operatorRole;
@@ -1059,7 +1060,7 @@ describe('createOrganizationInvites — super_admin role guard', () => {
         get: () =>
           Promise.resolve(
             path === 'admin_settings/user_roles'
-              ? { exists: true, get: () => [] }
+              ? { exists: true, get: () => opts.legacy ?? [] }
               : {
                   exists: path.endsWith(CALLER) && operatorRole !== null,
                   get: (k: string) =>
@@ -1114,6 +1115,32 @@ describe('createOrganizationInvites — super_admin role guard', () => {
     expect(res.invitations).toHaveLength(0);
     expect(res.errors[0].reason).toMatch(/super admin/i);
     expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it('domain admin cannot re-invite (and so reactivate) a deactivated legacy-list member', async () => {
+    const email = 'legacy@orono.k12.mn.us';
+    const { txSet } = stubDb({
+      callerRole: 'domain_admin',
+      existing: { [email]: { roleId: 'teacher', status: 'inactive' } },
+      legacy: [email],
+    });
+    const res = await invite(email, 'teacher');
+    expect(res.invitations).toHaveLength(0);
+    expect(res.errors[0].reason).toMatch(/super admin/i);
+    expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it('super admin can re-invite a deactivated legacy-list member', async () => {
+    const email = 'legacy@orono.k12.mn.us';
+    const { txSet } = stubDb({
+      callerRole: 'super_admin',
+      existing: { [email]: { roleId: 'teacher', status: 'inactive' } },
+      legacy: [email],
+    });
+    const res = await invite(email, 'teacher');
+    expect(res.errors).toHaveLength(0);
+    expect(res.invitations).toHaveLength(1);
+    expect(txSet).toHaveBeenCalled();
   });
 
   it('domain admin can still invite a teacher', async () => {

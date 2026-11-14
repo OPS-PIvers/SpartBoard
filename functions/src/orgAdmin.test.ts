@@ -363,19 +363,31 @@ describe('planMemberUpdate', () => {
 });
 
 describe('planMemberDelete', () => {
+  const t = 't@orono.k12.mn.us';
   it('stops a domain admin removing a super admin', () => {
-    expect(() => planMemberDelete(domainT, { roleId: 'super_admin' })).toThrow(
+    expect(() =>
+      planMemberDelete(domainT, t, { roleId: 'super_admin' }, [])
+    ).toThrow(expect.objectContaining(notAllowed));
+    expect(() =>
+      planMemberDelete(domainT, t, { roleId: 'teacher' }, [])
+    ).not.toThrow();
+    expect(() =>
+      planMemberDelete(superT, t, { roleId: 'super_admin' }, [])
+    ).not.toThrow();
+    expect(() => planMemberDelete(bldgT, t, { roleId: 'teacher' }, [])).toThrow(
+      expect.objectContaining(notAllowed)
+    );
+  });
+
+  it('stops a domain admin removing a deactivated legacy-list member', () => {
+    const inactive = { roleId: 'teacher', status: 'inactive' };
+    expect(() => planMemberDelete(domainT, t, inactive, [t])).toThrow(
       expect.objectContaining(notAllowed)
     );
     expect(() =>
-      planMemberDelete(domainT, { roleId: 'teacher' })
+      planMemberDelete(domainT, t, { roleId: 'teacher' }, [t])
     ).not.toThrow();
-    expect(() =>
-      planMemberDelete(superT, { roleId: 'super_admin' })
-    ).not.toThrow();
-    expect(() => planMemberDelete(bldgT, { roleId: 'teacher' })).toThrow(
-      expect.objectContaining(notAllowed)
-    );
+    expect(() => planMemberDelete(superT, t, inactive, [t])).not.toThrow();
   });
 });
 
