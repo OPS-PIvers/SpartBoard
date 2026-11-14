@@ -80,7 +80,7 @@ beforeEach(async () => {
       studentUid: STUDENT_UID,
       pin: '01',
       classPeriod: 'period_1',
-      joinedAt: 1000,
+      joinedAt: Date.now(),
       score: null,
       answers: [],
       completedAttempts: 0,

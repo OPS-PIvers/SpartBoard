@@ -28,6 +28,7 @@ import {
   resolveSlotState,
 } from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+import { LEGACY_FORMER_PINS_AT } from '@/utils/rosterPins';
 import { gameDisplayPoints } from '@/utils/quizGame';
 import {
   resolveResponseDisplayName,
@@ -376,8 +377,6 @@ function makePinKey(classPeriod: string, pin: string): string {
 
 // Former-PIN entries: key `${FORMER}${pinKey}`, value `${retiredAtMs}${FORMER}${name}`.
 const FORMER = '\u0002';
-// Re-rolls before `formerPinsAt` existed count as retired by this date.
-const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 14);
 
 /** The name on a former-PIN entry, only for a response joined before that PIN was retired. */
 function formerName(

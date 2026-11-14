@@ -290,7 +290,7 @@ describe('PIN sign-in token scope', () => {
       await setDoc(doc(db, response('sess-a')), {
         studentUid: STUDENT_UID,
         classId: CLASS_A,
-        joinedAt: 1000,
+        joinedAt: Date.now(),
         score: null,
         answers: [],
         status: 'in-progress',
@@ -327,7 +327,7 @@ describe('PIN sign-in token scope', () => {
         await setDoc(doc(db, va(sid)), {
           studentUid: STUDENT_UID,
           classId: CLASS_A,
-          joinedAt: 1000,
+          joinedAt: Date.now(),
           score: null,
           answers: [],
           completedAt: null,

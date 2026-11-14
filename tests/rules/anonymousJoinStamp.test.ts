@@ -65,7 +65,7 @@ const pinResponse = (uid: string) => ({
   studentUid: uid,
   pin: '01',
   classPeriod: 'period_1',
-  joinedAt: 1000,
+  joinedAt: Date.now(),
   score: null,
   completedAt: null,
   answers: [],
@@ -75,7 +75,7 @@ const pinResponse = (uid: string) => ({
 
 const ssoResponse = (uid: string) => ({
   studentUid: uid,
-  joinedAt: 1000,
+  joinedAt: Date.now(),
   score: null,
   completedAt: null,
   answers: [],

@@ -97,7 +97,7 @@ describe('quiz_sessions/responses — anonymous PIN deterministic-key collision'
     studentUid: ownerUid,
     pin: PIN,
     classPeriod: PERIOD,
-    joinedAt: 1000,
+    joinedAt: Date.now(),
     score: null,
     answers: [],
     status: 'joined',

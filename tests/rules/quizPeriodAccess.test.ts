@@ -110,7 +110,7 @@ async function seedResponse(
     await setDoc(
       doc(ctx.firestore(), `quiz_sessions/${sessionId}/responses/${key}`),
       {
-        joinedAt: 1000,
+        joinedAt: Date.now(),
         score: null,
         answers: [],
         status: 'joined',
@@ -139,7 +139,7 @@ async function seedSeat(
 
 const joinDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
   studentUid: uid,
-  joinedAt: 1000,
+  joinedAt: Date.now(),
   score: null,
   answers: [],
   status: 'joined',

@@ -60,7 +60,7 @@ const baseResponse = (studentUid: string = ANON_UID) => ({
   studentUid,
   pin: '01',
   classPeriod: 'period_1',
-  joinedAt: 1000,
+  joinedAt: Date.now(),
   score: null,
   answers: [],
   status: 'joined' as const,

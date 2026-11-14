@@ -1474,11 +1474,26 @@ export const commitRosterPinIndexV1 = onCall(
     const rawData = (request.data ?? {}) as {
       rosterId?: unknown;
       entries?: unknown;
+      rosterDeleted?: unknown;
     };
     const rosterId =
       typeof rawData.rosterId === 'string' ? rawData.rosterId : '';
     if (!rosterId) {
       throw new HttpsError('invalid-argument', 'rosterId is required.');
+    }
+    if (rawData.rosterDeleted === true) {
+      // A deleted roster's retired PINs stop blocking anyone; only valid once the roster doc is gone.
+      const gone = admin
+        .firestore()
+        .collection('users')
+        .doc(request.auth.uid)
+        .collection('rosters')
+        .doc(rosterId);
+      if ((await gone.get()).exists) {
+        throw new HttpsError('failed-precondition', 'Roster still exists.');
+      }
+      await recordRetiredPins(admin.firestore(), gone, [], Date.now(), true);
+      return { wrote: 0, deleted: 0, rosterDeleted: true };
     }
     if (!Array.isArray(rawData.entries)) {
       throw new HttpsError('invalid-argument', 'entries must be an array.');
@@ -1719,19 +1734,41 @@ export async function recordRetiredPins(
       if (pin !== entry.pin) keys.add(retiredPinKey(entry.period, pin));
     }
   }
-  const have = await col.where('rosterId', '==', rosterRef.id).get();
+  // A doc lists every roster that retired the PIN; arrayUnion/arrayRemove keep concurrent rosters from overwriting each other.
+  const have = await col
+    .where('rosterIds', 'array-contains', rosterRef.id)
+    .get();
   const ops: ((b: admin.firestore.WriteBatch) => void)[] = [];
   const present = new Set(have.docs.map((d) => d.id));
   for (const key of keys) {
-    if (!present.has(key)) {
-      ops.push((b) =>
-        b.set(col.doc(key), { rosterId: rosterRef.id, updatedAt: now })
-      );
-    }
+    if (present.has(key)) continue;
+    ops.push((b) =>
+      b.set(
+        col.doc(key),
+        {
+          rosterIds: admin.firestore.FieldValue.arrayUnion(rosterRef.id),
+          updatedAt: now,
+        },
+        { merge: true }
+      )
+    );
   }
   if (prune) {
     for (const d of have.docs) {
-      if (!keys.has(d.id)) ops.push((b) => b.delete(d.ref));
+      if (keys.has(d.id)) continue;
+      const sole = (d.get('rosterIds') as string[]).length <= 1;
+      ops.push((b) =>
+        sole
+          ? b.delete(d.ref)
+          : b.set(
+              d.ref,
+              {
+                rosterIds: admin.firestore.FieldValue.arrayRemove(rosterRef.id),
+                updatedAt: now,
+              },
+              { merge: true }
+            )
+      );
     }
   }
   for (let i = 0; i < ops.length; i += 400) {

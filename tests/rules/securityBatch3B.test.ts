@@ -48,7 +48,7 @@ const seedResponse = (extra: Record<string, unknown> = {}) =>
       studentUid: STUDENT_UID,
       pin: '01',
       classPeriod: 'period_1',
-      joinedAt: 1000,
+      joinedAt: Date.now(),
       score: null,
       answers: [Q1, Q2],
       checkedAnswers: {
@@ -159,7 +159,7 @@ describe('VA server answer record', () => {
       studentUid: OTHER_UID,
       pin: '02',
       classPeriod: 'period_1',
-      joinedAt: 1000,
+      joinedAt: Date.now(),
       score: null,
       answers: [],
       completedAt: null,
