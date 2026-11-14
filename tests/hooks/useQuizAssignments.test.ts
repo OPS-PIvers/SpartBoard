@@ -3492,9 +3492,9 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       })
     );
 
-  it('stamps stimulus tabs with the flag, and one-list Ordering and the review step on every self-paced session', async () => {
+  it('stamps stimulus tabs, one-list Ordering and the review step on every self-paced session', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
-      wrapper: mcaWrapper(['quiz-stimulus-tabs']),
+      wrapper: mcaWrapper([]),
     });
     await act(async () => {
       await result.current.createAssignment(QUIZ, {
@@ -3521,20 +3521,6 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     });
     expect(findSessionSet()).not.toHaveProperty('reviewStep');
     expect(findSessionSet()).toMatchObject({ orderingList: true });
-  });
-
-  it('leaves stimulus tabs off without the flag, but still stamps the review step', async () => {
-    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
-      wrapper: mcaWrapper([]),
-    });
-    await act(async () => {
-      await result.current.createAssignment(QUIZ, {
-        sessionMode: 'student',
-        sessionOptions: {},
-      });
-    });
-    expect(findSessionSet()).not.toHaveProperty('stimulusTabs');
-    expect(findSessionSet()).toMatchObject({ reviewStep: true });
   });
 
   it('mirrors showLearningTargets and only projects tags when it is enabled', async () => {

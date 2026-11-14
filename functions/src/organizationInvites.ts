@@ -986,6 +986,19 @@ async function writeInvitation(
       if (existing?.roleId === 'super_admin' && !(await callerIsSuperAdmin())) {
         throw new Error(SUPER_ADMIN_ONLY_REASON);
       }
+      // Reactivating a deactivated legacy-list address restores its super admin grant, like the rules' legacyStatusSafe().
+      if (existing && isRevokedMemberStatus(existing.status)) {
+        const legacy: unknown = (
+          await tx.get(db.doc('admin_settings/user_roles'))
+        ).get('superAdmins');
+        if (
+          Array.isArray(legacy) &&
+          legacy.includes(invite.email) &&
+          !(await callerIsSuperAdmin())
+        ) {
+          throw new Error(SUPER_ADMIN_ONLY_REASON);
+        }
+      }
 
       tx.set(memberRef, plan.patch, { merge: true });
       // Re-inviting clears a Remove-from-org tombstone.

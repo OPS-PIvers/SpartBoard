@@ -2128,14 +2128,14 @@ describe('handleLaunchSubAssignment stimulus tabs and review step', () => {
       Promise.resolve(on.includes(String(args[2])))
     );
 
-  it('stamps stimulus tabs with the host’s flag and the review step on a self-paced run', async () => {
+  it('stamps stimulus tabs and the review step on a self-paced run', async () => {
     const { run, written } = launch(
       {},
       SUB,
       input({ session: session({ sessionMode: 'student' }) }),
       {
         ...deps,
-        hostHasFeature: only(['quiz-stimulus-tabs']),
+        hostHasFeature: only([]),
       }
     );
     await run();
@@ -2159,7 +2159,7 @@ describe('handleLaunchSubAssignment stimulus tabs and review step', () => {
       input({ session: session({ sessionMode: 'student' }) })
     );
     await run();
-    expect(written[0].data).not.toHaveProperty('stimulusTabs');
+    expect(written[0].data.stimulusTabs).toBe(true);
     expect(written[0].data.reviewStep).toBe(true);
   });
 });

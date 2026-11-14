@@ -248,3 +248,37 @@ describe('tour runs writes', () => {
     await assertSucceeds(setDoc(doc(asAdmin(), `${RUNS}/admin-uid`), run));
   });
 });
+
+const COUNTS = 'building_guided_learning_tours/s1/stats/counts';
+
+describe('tour play counts', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), COUNTS), { plays: 3, finished: 1 });
+    });
+  });
+
+  it('lets only an admin read the counts', async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), COUNTS)));
+    for (const db of [
+      asTeacher(),
+      asAnonStudent(),
+      asStudentRole(),
+      asSignedOut(),
+    ]) {
+      await assertFails(getDoc(doc(db, COUNTS)));
+    }
+  });
+
+  it('lets nobody write the counts, admins included', async () => {
+    for (const db of [asAdmin(), asTeacher(), asAnonStudent(), asSignedOut()]) {
+      await assertFails(setDoc(doc(db, COUNTS), { plays: 99 }));
+      await assertFails(deleteDoc(doc(db, COUNTS)));
+      await assertFails(
+        setDoc(doc(db, 'building_guided_learning_tours/s1/stats/other'), {
+          plays: 1,
+        })
+      );
+    }
+  });
+});

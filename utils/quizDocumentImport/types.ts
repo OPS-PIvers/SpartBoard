@@ -75,6 +75,8 @@ export interface ExtractedOption {
   text: string;
   /** A choice printed only as a picture: its crop key, then its image id; `text` is its generated label. */
   imageId?: string;
+  /** The choice has its own words beside the picture, so `text` is shown, not a generated label. */
+  textWithPicture?: boolean;
 }
 
 /** A picture lifted out of the document, not yet uploaded anywhere. */

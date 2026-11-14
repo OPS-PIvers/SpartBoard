@@ -758,9 +758,10 @@ service cloud.firestore {
             'email', 'orgId', 'roleId', 'buildingIds', 'status',
             'name', 'invitedAt', 'addedBy', 'addedBySource'
           ]);
-        // A domain admin may not remove a super_admin member.
+        // A domain admin may not remove a super_admin member, nor a deactivated legacy-list one (a missing doc counts as live).
         allow delete: if isSuperAdmin() ||
-          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin');
+          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin' &&
+           (liveStatus(existing()) || notLegacyListed(emailLower)));
         allow update: if memberStatusOk() && (isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
            unchanged('email') &&
@@ -1364,6 +1365,10 @@ service cloud.firestore {
         }
         allow read: if isAdmin();
         allow create, update: if staffSignedIn() && uid == authUid() && validRun(incoming());
+      }
+      // Play, finish and public link view counts, written only by the tourCounts functions.
+      match /stats/{doc} {
+        allow read: if isAdmin();
       }
     }
 

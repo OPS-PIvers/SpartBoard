@@ -304,6 +304,17 @@ describe('Stimuli tab sources', () => {
     expect(mocks.uploadFile).not.toHaveBeenCalled();
   });
 
+  it('leaves a pasted non-image file alone in the editor', () => {
+    render(<Harness perQuestion />);
+    const pdf = new File(['x'], 'doc.pdf', { type: 'application/pdf' });
+    const event = pasteEvent([pdf], ['Files']);
+    screen
+      .getByRole('button', { name: 'Question list row' })
+      .dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(mocks.uploadFile).not.toHaveBeenCalled();
+  });
+
   it('ignores a paste outside the editor', () => {
     render(<Harness perQuestion />);
     const event = pasteEvent([png()], ['Files']);
