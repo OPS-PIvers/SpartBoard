@@ -336,7 +336,7 @@ service cloud.firestore {
     // A studentRole response names a class from its own claim; it may omit one only on a single-class or per-period session.
     function claimClassOk(d, s) {
       return !isStudentRoleUser() ||
-             (d.get('classId', null) == null &&
+             (d.get('classId', '') in [null, ''] &&
               (s.get('classIds', []).size() < 2 || s.get('periodAccess', null) != null)) ||
              d.get('classId', '') in tok().get('classIds', []);
     }
