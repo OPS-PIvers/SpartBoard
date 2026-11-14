@@ -3523,7 +3523,8 @@
       "waitingForTeacher": "Waiting for teacher…",
       "quizComplete": "Quiz complete!",
       "responseSubmitted": "Response submitted. Your teacher will grade this.",
-      "backToAssignments": "Back to my assignments"
+      "backToAssignments": "Back to my assignments",
+      "pin": "PIN"
     },
     "join": {
       "joining": "Joining quiz…",
@@ -3650,7 +3651,39 @@
       "greatJobPin": "Great job, PIN",
       "greatJob": "Great job!",
       "answeredOf": "of {{total}} questions answered",
-      "submitted": "Your answers have been submitted. Ask your teacher to see your results."
+      "submitted": "Your answers have been submitted. Ask your teacher to see your results.",
+      "noResponse": "No response",
+      "lockedTitle": "Results locked",
+      "lockedBody": "You left the results page too many times, so it’s locked. Ask your teacher to unlock your results.",
+      "title": "Your Results",
+      "attempt": "Attempt",
+      "fullyCorrect": "{{correct}} of {{total}} fully correct",
+      "writtenPending": "Your written response is still being graded. Check back soon.",
+      "yourAnswers": "Your Answers",
+      "otherQuestions": "Other questions",
+      "yourAnswer": "Your answer:",
+      "scoreOnly": "Your teacher published your score. Detailed responses aren't shared for this assignment."
+    },
+    "rubric": {
+      "fallbackTitle": "Scoring rubric",
+      "points_one": "{{count}} pt",
+      "points_other": "{{count}} pts",
+      "label": "Rubric",
+      "stale": "Scored with an earlier version of this rubric.",
+      "notScored": "not yet scored"
+    },
+    "written": {
+      "teacherComment": "Teacher Comment",
+      "score": "Score",
+      "notGraded": "Not yet graded",
+      "notGradedByTeacher": "Not yet graded by your teacher."
+    },
+    "submitted": {
+      "title": "Quiz Submitted!",
+      "greatWorkPin": "Great work, PIN",
+      "greatWork": "Great work.",
+      "autoSubmitted": "Auto-submitted because you left the quiz tab too many times.",
+      "waitingFinal": "Waiting for final results…"
     }
   },
   "quizSubmit": {

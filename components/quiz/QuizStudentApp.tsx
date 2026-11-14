@@ -6548,11 +6548,10 @@ export const PublishedScoreReview: React.FC<{
             aria-hidden="true"
           />
           <h1 className={`text-2xl font-black ${headingText}`}>
-            Results locked
+            {t('quizStudent.results.lockedTitle')}
           </h1>
           <p className={`max-w-sm text-sm ${subtleText}`}>
-            You left the results page too many times, so it&rsquo;s locked. Ask
-            your teacher to unlock your results.
+            {t('quizStudent.results.lockedBody')}
           </p>
         </div>
       </div>
@@ -6587,24 +6586,27 @@ export const PublishedScoreReview: React.FC<{
         <header className="mb-6 flex flex-col items-center text-center">
           <Trophy className={`mb-4 h-12 w-12 ${trophyCls}`} />
           <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
-            Your Results
+            {t('quizStudent.results.title')}
           </h1>
           <p className={`mt-1 text-sm ${subtleText}`}>
             {localizedQuizTitle(session, override?.language)}
           </p>
           {pin && (
             <p className={`mt-1 text-xs ${faintText}`}>
-              PIN <span className={`font-mono ${prepText}`}>{pin}</span>
+              {t('quizStudent.common.pin')}{' '}
+              <span className={`font-mono ${prepText}`}>{pin}</span>
             </p>
           )}
         </header>
 
         {attemptOptions.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
-            <span className={`text-sm font-semibold ${prepText}`}>Attempt</span>
+            <span className={`text-sm font-semibold ${prepText}`}>
+              {t('quizStudent.results.attempt')}
+            </span>
             <div
               role="group"
-              aria-label="Attempt"
+              aria-label={t('quizStudent.results.attempt')}
               className={`inline-flex overflow-hidden rounded-lg border ${neutralBorder}`}
             >
               {attemptOptions.map((opt, i) => {
@@ -6655,7 +6657,10 @@ export const PublishedScoreReview: React.FC<{
               {autoGradedCount > 0 &&
                 (picked ? !!picked.answers : hasVerdicts) && (
                   <p className={`mt-2 text-sm ${subtleText}`}>
-                    {correctCount} of {autoGradedCount} fully correct
+                    {t('quizStudent.results.fullyCorrect', {
+                      correct: correctCount,
+                      total: autoGradedCount,
+                    })}
                   </p>
                 )}
               {(awaitingGrade || recordingAwaitingGrade) && (
@@ -6671,7 +6676,7 @@ export const PublishedScoreReview: React.FC<{
           ) : (
             <p className={`text-sm ${prepText}`}>
               {awaitingGrade
-                ? 'Your written response is still being graded. Check back soon.'
+                ? t('quizStudent.results.writtenPending')
                 : recordingAwaitingGrade
                   ? t('quizMediaResponse.playback.provisionalScore')
                   : t('quizMediaResponse.playback.scorePending')}
@@ -6684,7 +6689,7 @@ export const PublishedScoreReview: React.FC<{
             <h2
               className={`mb-3 text-xs font-bold uppercase tracking-[0.14em] ${subtleText}`}
             >
-              Your Answers
+              {t('quizStudent.results.yourAnswers')}
             </h2>
             <div className="flex flex-col gap-3">
               {reviewGroups.map((group) => (
@@ -6720,7 +6725,7 @@ export const PublishedScoreReview: React.FC<{
                         ))
                       ) : (
                         <span className="text-xs font-bold">
-                          Other questions
+                          {t('quizStudent.results.otherQuestions')}
                         </span>
                       )}
                     </div>
@@ -6842,7 +6847,7 @@ export const PublishedScoreReview: React.FC<{
                             <>
                               {(studentAnswer || !hasRecordedTake) && (
                                 <p className={`text-xs ${subtleText}`}>
-                                  Your answer:{' '}
+                                  {t('quizStudent.results.yourAnswer')}{' '}
                                   <span
                                     className={`font-mono ${
                                       isCorrect
@@ -6865,14 +6870,14 @@ export const PublishedScoreReview: React.FC<{
                                         pictures={publicImageOnlyPictures(q)}
                                       />
                                     ) : (
-                                      '— no response'
+                                      t('quizStudent.results.noResponse')
                                     )}
                                   </span>
                                 </p>
                               )}
                               {showAnswers && correctAnswer && (
                                 <p className={`text-xs ${subtleText}`}>
-                                  Correct answer:{' '}
+                                  {t('quizStudent.feedback.correctAnswer')}{' '}
                                   <span
                                     className={`font-mono ${answerCorrectText}`}
                                   >
@@ -6940,8 +6945,7 @@ export const PublishedScoreReview: React.FC<{
 
         {!showResponses && (
           <p className={`text-center text-xs ${faintText}`}>
-            Your teacher published your score. Detailed responses aren&apos;t
-            shared for this assignment.
+            {t('quizStudent.results.scoreOnly')}
           </p>
         )}
       </div>
@@ -6970,6 +6974,7 @@ export const CollapsibleRubric: React.FC<{
   rubric: Rubric;
   light?: boolean;
 }> = ({ rubric, light = false }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const cardCls = light
     ? 'border-slate-200 bg-slate-50'
@@ -6995,7 +7000,7 @@ export const CollapsibleRubric: React.FC<{
           <ChevronRight className="w-3.5 h-3.5" aria-hidden />
         )}
         <ListChecks className="w-3.5 h-3.5" aria-hidden />
-        {rubric.title || 'Scoring rubric'}
+        {rubric.title || t('quizStudent.rubric.fallbackTitle')}
       </button>
       {open && (
         <div className="space-y-3 px-3 pb-3">
@@ -7018,8 +7023,11 @@ export const CollapsibleRubric: React.FC<{
                       className={`flex items-baseline gap-2 text-xs ${bodyCls}`}
                     >
                       <span className={`font-bold ${headingCls}`}>
-                        {level.label} ({level.points} pt
-                        {level.points === 1 ? '' : 's'})
+                        {level.label} (
+                        {t('quizStudent.rubric.points', {
+                          count: level.points,
+                        })}
+                        )
                       </span>
                       {level.description && <span>{level.description}</span>}
                     </li>
@@ -7043,6 +7051,7 @@ const ScoredRubricDisplay: React.FC<{
   examples?: Record<string, string[]>;
   light?: boolean;
 }> = ({ rubric, scores, examples, light = false }) => {
+  const { t } = useTranslation();
   const headingCls = light ? 'text-slate-900' : 'text-slate-100';
   const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
   const labelCls = light ? 'text-slate-500' : 'text-slate-300';
@@ -7059,10 +7068,10 @@ const ScoredRubricDisplay: React.FC<{
         <p
           className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
         >
-          Rubric
+          {t('quizStudent.rubric.label')}
         </p>
         <p className={`text-xs italic ${bodyCls}`}>
-          Scored with an earlier version of this rubric.
+          {t('quizStudent.rubric.stale')}
         </p>
       </div>
     );
@@ -7072,7 +7081,7 @@ const ScoredRubricDisplay: React.FC<{
       <p
         className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
       >
-        Rubric
+        {t('quizStudent.rubric.label')}
       </p>
       {rubric.criteria.map((criterion) => {
         const score = scoresByCriterion.get(criterion.id);
@@ -7085,9 +7094,11 @@ const ScoredRubricDisplay: React.FC<{
               <span className={bodyCls}>{criterion.name}</span>
               <span className={`font-mono font-semibold ${headingCls}`}>
                 {level && score ? (
-                  `${level.label} — ${score.points} pt${score.points === 1 ? '' : 's'}`
+                  `${level.label} — ${t('quizStudent.rubric.points', { count: score.points })}`
                 ) : (
-                  <span className={`italic ${bodyCls}`}>not yet scored</span>
+                  <span className={`italic ${bodyCls}`}>
+                    {t('quizStudent.rubric.notScored')}
+                  </span>
                 )}
               </span>
             </div>
@@ -7226,6 +7237,7 @@ export const WrittenAnswerReview: React.FC<{
   hideEmptyResponse = false,
   paper,
 }) => {
+  const { t } = useTranslation();
   if (!showResponse) {
     return null;
   }
@@ -7265,7 +7277,9 @@ export const WrittenAnswerReview: React.FC<{
           light={light}
         />
       ) : hideEmptyResponse ? null : (
-        <p className="text-xs text-slate-500 italic">— no response</p>
+        <p className="text-xs text-slate-500 italic">
+          {t('quizStudent.results.noResponse')}
+        </p>
       )}
       {hasGrade && (
         <>
@@ -7286,7 +7300,7 @@ export const WrittenAnswerReview: React.FC<{
                   light ? 'text-brand-blue-primary' : 'text-violet-300'
                 }`}
               >
-                Teacher Comment
+                {t('quizStudent.written.teacherComment')}
               </p>
               <p
                 className={`text-sm leading-relaxed whitespace-pre-wrap ${
@@ -7317,7 +7331,7 @@ export const WrittenAnswerReview: React.FC<{
                 light ? 'text-slate-500' : 'text-slate-300'
               }`}
             >
-              Score
+              {t('quizStudent.written.score')}
             </span>
             <span
               className={`font-mono text-base font-black ${
@@ -7336,7 +7350,7 @@ export const WrittenAnswerReview: React.FC<{
               light ? 'text-slate-500' : 'text-slate-300'
             }`}
           >
-            Not yet graded
+            {t('quizStudent.written.notGraded')}
           </p>
         ) : (
           <p
@@ -7344,7 +7358,7 @@ export const WrittenAnswerReview: React.FC<{
               light ? 'text-slate-500' : 'text-slate-300'
             }`}
           >
-            Not yet graded by your teacher.
+            {t('quizStudent.written.notGradedByTeacher')}
           </p>
         ))}
     </div>
@@ -7440,6 +7454,7 @@ export const QuizSubmittedWaitScreen: React.FC<{
   pointerTabWarningThreshold,
   hideReturnButton = false,
 }) => {
+  const { t } = useTranslation();
   // Local variable name avoids shadowing `QuizResponse.autoSubmitted`
   // (the cron-set flag for idle-finalized responses). This banner is
   // tab-switch-specific; the cron-finalized case has no banner yet
@@ -7457,28 +7472,32 @@ export const QuizSubmittedWaitScreen: React.FC<{
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
       <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
-      <h1 className="text-3xl font-black text-white mb-2">Quiz Submitted!</h1>
+      <h1 className="text-3xl font-black text-white mb-2">
+        {t('quizStudent.submitted.title')}
+      </h1>
       <p className="text-slate-400 text-sm mb-6">
         {pin ? (
           <>
-            Great work, PIN{' '}
+            {t('quizStudent.submitted.greatWorkPin')}{' '}
             <span className="font-mono font-bold text-white">{pin}</span>.
           </>
         ) : (
-          'Great work.'
+          t('quizStudent.submitted.greatWork')
         )}
       </p>
 
       <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
         <p className="text-4xl font-black text-white mb-2">{answeredCount}</p>
         <p className="text-slate-400 text-sm">
-          of {totalQuestions ?? session.totalQuestions} questions answered
+          {t('quizStudent.results.answeredOf', {
+            total: totalQuestions ?? session.totalQuestions,
+          })}
         </p>
       </div>
 
       {tabSwitchAutoSubmitted && (
         <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
-          Auto-submitted because you left the quiz tab too many times.
+          {t('quizStudent.submitted.autoSubmitted')}
         </div>
       )}
 
@@ -7495,7 +7514,7 @@ export const QuizSubmittedWaitScreen: React.FC<{
 
       <div className="flex items-center gap-2 text-slate-500 text-sm">
         <Loader2 className="w-4 h-4 animate-spin" />
-        Waiting for final results…
+        {t('quizStudent.submitted.waitingFinal')}
       </div>
 
       {/*
