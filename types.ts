@@ -6174,6 +6174,12 @@ export interface InputSignalCounts {
 /** Keyed by completed-attempt count, then by question id. */
 export type InputSignals = Record<string, Record<string, InputSignalCounts>>;
 
+/** The server's own time for a turn-in, vouching for the client time it was written against. */
+export interface TurnInStamp {
+  at: number;
+  claimed: number | null;
+}
+
 /** Fixed Nudge notes (docs/plans/shipped/QUIZ_LIVE_VIEW.md D15); no free text. */
 export type QuizNudgeNoteId = 'see-me' | 'own-work' | 'keep-going';
 
@@ -6303,6 +6309,8 @@ export interface QuizResponse extends StaffResponseFields {
    */
   score: number | null;
   submittedAt: number | null;
+  /** Server-written at turn-in (functions/src/quizTurnIn.ts); read through `trustedTurnInMs`. */
+  turnIn?: TurnInStamp;
   /**
    * Tracks how many times the student left the quiz tab or minimized the window.
    * Used for maintaining quiz integrity.
@@ -8238,6 +8246,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   joinedAt: number;
   answers: VideoActivityAnswer[];
   completedAt: number | null;
+  /** Server-written at completion (functions/src/quizTurnIn.ts); read through `trustedTurnInMs`. */
+  turnIn?: TurnInStamp;
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;

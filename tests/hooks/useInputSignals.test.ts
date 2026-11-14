@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook } from '@testing-library/react';
 import type { InputSignalCounts } from '@/types';
 import { parseWritingLog, textAfter } from '@/utils/writingLog';
+import { INPUT_SIGNALS_FLUSH_EVENT } from '@/utils/inputSignals';
 import {
   useInputSignals,
   type UseInputSignalsArgs,
@@ -59,6 +60,13 @@ afterEach(() => {
 });
 
 describe('useInputSignals', () => {
+  it('saves when a turn-in is about to lock the attempt', () => {
+    const { save } = setup();
+    document.body.dispatchEvent(mouse('pointerdown', 10, 10));
+    document.dispatchEvent(new CustomEvent(INPUT_SIGNALS_FLUSH_EVENT));
+    expect(save).toHaveBeenCalledExactlyOnceWith(0, { q1: { clicks: 1 } });
+  });
+
   it('saves the question just left, added to an earlier page load', () => {
     const { save, rerender } = setup({
       serverSignals: { '0': { q1: { clicks: 2 } } },

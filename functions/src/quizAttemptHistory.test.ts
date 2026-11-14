@@ -225,6 +225,27 @@ describe('applyAttemptWrite', () => {
     ]);
   });
 
+  it('gives a quick retake that reuses the earlier client time its own copy', async () => {
+    const stub = seed();
+    const first = done({ turnIn: { at: T, claimed: T } });
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const second = done({
+      completedAttempts: 2,
+      submittedAt: T,
+      turnIn: { at: T + 60_000, claimed: T },
+      answers: [{ questionId: 'q1', answer: 'B' }],
+    });
+    await apply(stub, write(reset(), second, T + 60_000));
+    expect(stub.get(`${RESPONSE}/attempts/2`)?.answers).toEqual([
+      { questionId: 'q1', answer: 'B' },
+    ]);
+    expect(stub.get(SCORES)?.attempts).toEqual([
+      { n: 1, at: T, points: 2, max: 2, state: 'scored' },
+      { n: 2, at: T + 60_000, points: 0, max: 2, state: 'scored' },
+    ]);
+  });
+
   it('keeps a legacy attempt whose count never advanced', async () => {
     const stub = seed();
     const first = done({ completedAttempts: 0 });
