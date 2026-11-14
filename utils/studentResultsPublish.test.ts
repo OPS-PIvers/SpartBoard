@@ -193,7 +193,9 @@ describe('VA graded entry is the first by list position', () => {
 });
 
 describe('VA score-only publish keeps right/wrong off responses', () => {
-  const graded = [{ questionId: 'q1', answer: 'a', isCorrect: true }];
+  const graded = [
+    { questionId: 'q1', answer: 'a', answeredAt: 1, isCorrect: true },
+  ];
 
   it('strips verdicts at score-only on a results-hidden session', () => {
     expect(
@@ -204,7 +206,7 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
         1,
         false
       )
-    ).toEqual([{ questionId: 'q1', answer: 'a' }]);
+    ).toEqual([{ questionId: 'q1', answer: 'a', answeredAt: 1 }]);
   });
 
   it('keeps them when responses are shown, by class or override', () => {
@@ -240,13 +242,16 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
   it('gives an open attempt no new verdicts', () => {
     expect(
       vaPublishedAnswers(
-        { answers: [{ questionId: 'q1', answer: 'a' }], completedAt: null },
+        {
+          answers: [{ questionId: 'q1', answer: 'a', answeredAt: 1 }],
+          completedAt: null,
+        },
         graded,
         'score-and-responses',
         1,
         true
       )
-    ).toEqual([{ questionId: 'q1', answer: 'a' }]);
+    ).toEqual([{ questionId: 'q1', answer: 'a', answeredAt: 1 }]);
   });
 
   it('writes no isCorrect in a per-student score-only publish', async () => {
