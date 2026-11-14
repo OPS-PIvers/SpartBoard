@@ -8963,6 +8963,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show or hide an answer option explanation in the Quiz editor",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A's explanation button; lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -8982,6 +8984,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Answer option explanation in the Quiz editor",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A's explanation box (open it first); lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
