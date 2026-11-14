@@ -7,7 +7,7 @@ Work only a person can start. Everything an agent can do on its own is in [AGENT
 - **Done?** Delete the line, or tell any agent "PT-12 done". IDs never get reused. `(F78)` is the item's old FOLLOW-UPS number.
 - **Next free ID: PT-203.** Take it for a new item and bump this line in the same PR, so two parallel adds conflict here instead of reusing an ID.
 
-Last audited 2026-11-01. Items removed as done: PT-188 (prod Live tour move ran 2026-11-13: 8 items, 7 tours), PT-1, PT-115, PT-126 (2026-11-11 morning cleanup), PT-4, PT-7, PT-12, PT-16, PT-17, PT-19, PT-52, PT-53, PT-54, PT-55, PT-57, PT-58, PT-59, PT-66, PT-67, PT-69, PT-70, PT-71, PT-72, PT-76, PT-92, PT-100, PT-103, PT-104, PT-129, PT-132, PT-135, PT-137, PT-142 (2026-11-10 morning cleanup), PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
+Last audited 2026-11-01. Items removed as done: PT-6, PT-160, PT-161, PT-187, PT-189, PT-190 (2026-11-14 morning cleanup), PT-188 (prod Live tour move ran 2026-11-13: 8 items, 7 tours), PT-1, PT-115, PT-126 (2026-11-11 morning cleanup), PT-4, PT-7, PT-12, PT-16, PT-17, PT-19, PT-52, PT-53, PT-54, PT-55, PT-57, PT-58, PT-59, PT-66, PT-67, PT-69, PT-70, PT-71, PT-72, PT-76, PT-92, PT-100, PT-103, PT-104, PT-129, PT-132, PT-135, PT-137, PT-142 (2026-11-10 morning cleanup), PT-73, PT-77, PT-81, PT-82, PT-83, PT-86 (ticked done by Paul, 2026-11-04), PT-18, PT-21, PT-23, PT-26, PT-27, PT-28, PT-29, PT-30, PT-31, PT-32, PT-35, PT-36, PT-37, PT-39, PT-43, PT-44, PT-45, PT-46, PT-47, PT-48, PT-110, PT-121 (ticked done by Paul, 2026-11-04), PT-5, PT-8, PT-9, PT-10, PT-11, PT-15, PT-40, PT-123 (done per Paul, 2026-11-04), PT-3 (main's Actions cache cleared, 23 caches, 2026-11-04), PT-113 (dry run found 0 stale entries, 2026-11-03), F43, F52-F54, F66, F67, F72, F77, F84, the extension 0.1.15 upload, the PLC Home v2 removals and the tour-slide conversion.
 
 ---
 
@@ -20,7 +20,6 @@ Last audited 2026-11-01. Items removed as done: PT-188 (prod Live tour move ran 
 - [ ] **PT-197 You: decide how the admin collection reads change (#5797) reaches prod.** At the next release, a teacher tab still open on the old client reads the original permission docs, gets permission-denied and falls back to the public defaults until it refreshes, so admin-only previews look open or closed wrongly for that tab. The prod deploy workflow also now runs `scripts/backfill-permission-mirrors.mjs --project prod` on its own, a CI write to prod data. Say whether that backfill step may run unattended, and whether to split the read-rule tightening into the release after the client that reads the mirrors.
 - [ ] **PT-198 🤖 Count roster students who would be demoted at sign-in (#5801).** `demoteRosterStudent` now runs at sign-in and rewrites a member doc when ClassLink lists the person as a student. Before the release that carries #5801:
   > Read-only on prod: count active member docs whose ClassLink role is student but whose member role is not Student, and list the buildings. Show me the counts before the release goes out.
-- [ ] **PT-6 You: `ORG_REPO_TOKEN` secret on OPS-PIvers/claude-skills** (F42, claude-skills #24). Fine-grained PAT: owner Orono-Public-Schools, repo claude-skills only, Contents read and write. Then tell an agent "merge claude-skills #24". Without the secret, the first mirror run after merge fails.
 
 ## 2. Waiting on your prod test
 
@@ -37,25 +36,9 @@ Last audited 2026-11-01. Items removed as done: PT-188 (prod Live tour move ran 
 
 - [ ] **PT-195 You: save the "Turn off Grammarly for students" Previews row on prod** (release #5780). Grammarly's opt-out now has its own switch. Until the row is saved it follows "Turn off the right-click menu" as before; save it once (on or off) so each switch works on its own. LanguageTool is now turned off with Grammarly too.
 
-- [ ] **PT-189 You: publish the "Find help in SpartBoard" live tour** (release #5707). Its "Filter by type" step clicked a Docs chip the new Help Center no longer shows, so an agent removed that step from the prod draft. Teachers keep the old published copy, which stalls on that step, until you open the tour in Admin Settings > Help Center, play it once and press Publish.
-
-- [ ] **PT-190 You: file and publish the moved Live tours** (release #5707, Help Center home). The move script filed 8 building Live tours in the Help Center as Hidden and Unfiled: Connect the Timer to other widgets, Class Rosters & Groups, Group-Maker, Use a custom roster with the Group Maker widget, Build a Mini App with AI, Schedule & Timer, Run the Group Maker, Timer and Music together, Syncing your Google Calendar. Teachers see none of them until each has a category and is published in Admin Settings > Help Center. Also tell admins to reload any SpartBoard tab left open from before the release.
-
 - [ ] **PT-191 You: try a Gemini 4 model on dev before picking it on prod** (#5690). Hydrogen, Carbon and Argon are now in the AI model pickers, but nobody has confirmed Vertex serves them in our region. Pick one for a low-stakes integration on spartboard-dev, run it once, then use it on prod.
 
-- [ ] **PT-160 You: OK the Student Overview release note** (shipped in release #5534, 2026-11-10). It now shows in What's New: "When students open My Assignments, the Overview now lists the resources you have shared from every class under Up next. They can open one right there or see all of them." Reply OK or send new wording and an agent updates `public/changelog.json`.
-
-- [ ] **PT-187 You: OK the release 2026.11.12c widget notes** (release #5678). The first shows now for 30 days; the others wait until their flag opens:
-  - Quiz: "Copy a student's whole written answer, or just the part you highlight, while you grade. You can also preview a question bank a teammate shared before you add it."
-  - Quiz and Video Activity, once Question prompt formatting opens: "Make words in a question bold, italic or underlined, or add a list. Drag the bottom of the question box to make it taller."
-  - Quiz, once District library folders opens: "District library quizzes and question banks now sit in folders, and you can preview a district question bank before you add it."
-
   Reply OK or send new wording and an agent updates `public/changelog.json`.
-
-- [ ] **PT-161 You: OK the library menu widget notes** (shipped in release #5550, 2026-11-10). They show as What's new under Quiz, Review and Flashcards for 30 days:
-  - Quiz and Review: "Stats is no longer in each quiz's menu. Open an assignment to see its class results."
-  - Quiz, only for teachers with paper answer sheets: "Assign on paper is now a button in the Assign window, next to Assign."
-  - Flashcards: "If you share with a PLC, Share in each set's menu now opens a side menu with Get link and Share with PLC."
 
   Reply OK or send new wording and an agent updates `public/changelog.json`.
 
