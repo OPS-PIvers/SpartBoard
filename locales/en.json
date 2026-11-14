@@ -3514,6 +3514,8 @@
     "submitted": "Time's up. Your answers were submitted."
   },
   "quizSubmit": {
+    "offline": "You're offline. Keep this tab open and your answers will save when you reconnect.",
+    "undo": "Undo",
     "confirmTitle": "Submit your quiz?",
     "confirmBody": "You can't change your answers after this.",
     "confirmBlank_one": "{{count}} question has no answer. You can't change your answers after this.",

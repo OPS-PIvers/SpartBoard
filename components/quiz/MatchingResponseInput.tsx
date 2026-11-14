@@ -332,10 +332,16 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
     | null
   >(null);
 
+  const [undo, setUndo] = React.useState<{
+    zones: Record<string, number | null>;
+    bank: number[];
+  } | null>(null);
+
   useResetOnChange(question.id, () => {
     setZonePlacements(placements);
     setBankItems(bankOrder);
     setSelectedSource(null);
+    setUndo(null);
   });
 
   const sensors = useSensors(
@@ -393,6 +399,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
     setZonePlacements(next);
     setBankItems(nextBank);
     setSelectedSource(null);
+    setUndo(null);
     emit(next);
   };
 
@@ -405,10 +412,12 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
     setZonePlacements(next);
     setBankItems(nextBank);
     setSelectedSource(null);
+    setUndo(null);
     emit(next);
   };
 
   const reset = () => {
+    setUndo({ zones: zonePlacements, bank: bankItems });
     const blank: Record<string, number | null> = {};
     terms.forEach((t) => {
       blank[t] = null;
@@ -417,6 +426,15 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
     setBankItems(shuffle(allOptions.map((_, i) => i)));
     setSelectedSource(null);
     emit(blank);
+  };
+
+  const undoReset = () => {
+    if (!undo) return;
+    setZonePlacements(undo.zones);
+    setBankItems(undo.bank);
+    setSelectedSource(null);
+    emit(undo.zones);
+    setUndo(null);
   };
 
   // ─── Drag handlers ────────────────────────────────────────────────────────
@@ -574,13 +592,13 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             <button
               // no-tour-anchor: student quiz screen; tours walk teachers
               type="button"
-              onClick={reset}
+              onClick={undo ? undoReset : reset}
               disabled={disabled}
-              className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${light ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
-              aria-label="Reset all placements"
+              className={`flex items-center gap-1 min-h-[44px] px-3 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${light ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+              aria-label={undo ? 'Undo reset' : 'Reset all placements'}
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              Reset
+              {undo ? 'Undo' : 'Reset'}
             </button>
           </div>
           <div className="flex flex-wrap gap-2 min-h-[48px]">

@@ -528,7 +528,6 @@ const WrittenResponseEditorInner: React.FC<
                 ? 'text-slate-500'
                 : 'text-slate-300'
           }`}
-          aria-live="polite"
         >
           {wordCounterLabel(wordCount, limit)}
         </span>
@@ -622,7 +621,7 @@ const WrittenResponseEditorInner: React.FC<
               : light
                 ? 'border-slate-300 text-slate-900 focus:outline-hidden focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
                 : 'border-slate-700 text-white focus:outline-hidden focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
-          } rounded-b-2xl text-sm leading-relaxed overflow-y-auto [&_[data-math]]:inline-block [&_[data-math]]:px-1.5 [&_[data-math]]:mx-0.5 [&_[data-math]]:rounded [&_[data-math]]:align-middle [&_[data-math]]:cursor-pointer ${
+          } rounded-b-2xl text-base leading-relaxed overflow-y-auto [&_[data-math]]:inline-block [&_[data-math]]:px-1.5 [&_[data-math]]:mx-0.5 [&_[data-math]]:rounded [&_[data-math]]:align-middle [&_[data-math]]:cursor-pointer ${
             light
               ? '[&_[data-math]]:bg-slate-100 [&_[data-math]]:text-slate-900'
               : '[&_[data-math]]:bg-slate-700 [&_[data-math]]:text-white'
@@ -635,7 +634,7 @@ const WrittenResponseEditorInner: React.FC<
         />
         {isEmpty && placeholder && (
           <div
-            className={`absolute inset-0 px-5 py-4 text-sm pointer-events-none select-none ${light ? 'text-slate-500' : 'text-slate-300'}`}
+            className={`absolute inset-0 px-5 py-4 text-base pointer-events-none select-none ${light ? 'text-slate-500' : 'text-slate-300'}`}
             aria-hidden
           >
             {placeholder}
