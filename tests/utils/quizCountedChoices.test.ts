@@ -274,6 +274,18 @@ describe('restorePassedAnswers', () => {
     expect(
       restorePassedAnswers(
         response({
+          status: 'in-progress',
+          countedChoices: {
+            attempt: 1,
+            bySection: { s1: ['b', 'c'] },
+            revived: ['b'],
+          },
+        })
+      )
+    ).toBeNull();
+    expect(
+      restorePassedAnswers(
+        response({
           countedChoices: { attempt: 1, bySection: { s1: ['a', 'b'] } },
         })
       )

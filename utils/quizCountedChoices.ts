@@ -14,9 +14,11 @@ import {
 export function restorePassedAnswers(
   response: Pick<
     QuizResponse,
-    'answers' | 'countedChoices' | 'completedAttempts'
+    'answers' | 'countedChoices' | 'completedAttempts' | 'status'
   >
 ): QuizResponseAnswer[] | null {
+  // A retake in progress still carries the last attempt's pick; leave its answers alone.
+  if (response.status !== 'completed') return null;
   const current = response.countedChoices;
   if (current?.attempt !== (response.completedAttempts ?? 0)) return null;
   const revived = new Set(current.revived ?? []);
