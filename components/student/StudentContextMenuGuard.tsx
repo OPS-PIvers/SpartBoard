@@ -59,7 +59,10 @@ const MenuBlock: React.FC = () => {
 };
 
 const GrammarlyBlock: React.FC = () => {
-  const { enabled } = useStudentGrammarlyBlock();
+  const grammarly = useStudentGrammarlyBlock();
+  const menu = useStudentContextMenuBlock();
+  // Until an admin saves the Grammarly switch, it follows right-click blocking as before.
+  const enabled = grammarly.exists ? grammarly.enabled : menu.enabled;
 
   useEffect(() => {
     if (!enabled) return;

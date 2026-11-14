@@ -9,9 +9,15 @@ export interface AdminSwitchState {
   enabled: boolean;
   /** False until the doc (or its read error) has answered for a signed-in user. */
   loaded: boolean;
+  /** True once the doc has been read and exists. */
+  exists: boolean;
 }
 
-const INITIAL: AdminSwitchState = { enabled: false, loaded: false };
+const INITIAL: AdminSwitchState = {
+  enabled: false,
+  loaded: false,
+  exists: false,
+};
 
 export interface AdminSwitchStore {
   /** Starts the listener; mounted once by the root student guard. */
@@ -31,7 +37,13 @@ export function createAdminSwitchStore(
   const listeners = new Set<() => void>();
 
   const setState = (next: AdminSwitchState): void => {
-    if (next.enabled === state.enabled && next.loaded === state.loaded) return;
+    if (
+      next.enabled === state.enabled &&
+      next.loaded === state.loaded &&
+      next.exists === state.exists
+    ) {
+      return;
+    }
     state = next;
     listeners.forEach((l) => l());
   };
@@ -53,9 +65,10 @@ export function createAdminSwitchStore(
           setState({
             enabled: isEnabled(snap.exists() ? snap.data() : null),
             loaded: true,
+            exists: snap.exists(),
           }),
         // An unreadable doc leaves the switch off.
-        () => setState({ enabled: false, loaded: true })
+        () => setState({ enabled: false, loaded: true, exists: false })
       );
     });
   };

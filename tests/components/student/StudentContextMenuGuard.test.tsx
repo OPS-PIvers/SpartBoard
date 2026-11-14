@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act } from '@testing-library/react';
 
-const blockState = vi.hoisted(() => ({ enabled: false, loaded: true }));
-const grammarlyState = vi.hoisted(() => ({ enabled: false, loaded: true }));
+const blockState = vi.hoisted(() => ({
+  enabled: false,
+  loaded: true,
+  exists: true,
+}));
+const grammarlyState = vi.hoisted(() => ({
+  enabled: false,
+  loaded: true,
+  exists: true,
+}));
 vi.mock('@/hooks/useStudentContextMenuBlock', () => ({
   useStudentContextMenuBlock: () => blockState,
   useStudentGrammarlyBlock: () => grammarlyState,
@@ -25,6 +33,7 @@ describe('StudentContextMenuGuard', () => {
   afterEach(() => {
     blockState.enabled = false;
     grammarlyState.enabled = false;
+    grammarlyState.exists = true;
     document.body.innerHTML = '';
     window.history.replaceState(null, '', '/');
   });
@@ -82,6 +91,15 @@ describe('StudentContextMenuGuard', () => {
     for (const el of [document.body, before, plain, textarea, editable]) {
       expect(el).not.toHaveAttribute('data-gramm');
     }
+  });
+
+  it('follows right-click blocking until the Grammarly switch is saved', () => {
+    blockState.enabled = true;
+    grammarlyState.exists = false;
+    const box = document.createElement('textarea');
+    document.body.appendChild(box);
+    render(<StudentContextMenuGuard />);
+    expect(box).toHaveAttribute('data-gramm', 'false');
   });
 
   it('never blocks on teacher pages', () => {
