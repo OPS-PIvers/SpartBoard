@@ -11,7 +11,10 @@ import type {
 
 const { mockAuth, hookState, completeActivity, roleState, playerProps } =
   vi.hoisted(() => ({
-    playerProps: { seekRequest: undefined },
+    playerProps: {
+      seekRequest: undefined,
+      startSeconds: undefined,
+    },
     roleState: { studentRole: true },
     mockAuth: {
       authStateReady: vi.fn().mockResolvedValue(undefined),
@@ -81,7 +84,10 @@ vi.mock('@/hooks/useVideoActivitySession', () => ({
 }));
 
 vi.mock('@/components/videoActivity/VideoPlayer', () => ({
-  VideoPlayer: (props: { seekRequest?: unknown; startSeconds?: number }) => {
+  VideoPlayer: (props: {
+    seekRequest?: { time: number; nonce: number } | null;
+    startSeconds?: number;
+  }) => {
     playerProps.seekRequest = props.seekRequest;
     playerProps.startSeconds = props.startSeconds;
     return null;
