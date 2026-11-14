@@ -62,3 +62,41 @@ describe('DailyLimitEditor', () => {
     expect(input.value).toBe('20');
   });
 });
+
+describe('DailyLimitEditor answer translations', () => {
+  const translation: GlobalFeaturePermission = {
+    ...permission,
+    featureId: 'quiz-translation',
+    config: { dailyLimit: 40 },
+  };
+
+  it('saves the second limit under its own key and leaves dailyLimit alone', async () => {
+    const { EXTRA_DAILY_LIMITS } = await import('./useGlobalPermissionsEditor');
+    const onUpdate = vi.fn();
+    render(
+      <DailyLimitEditor
+        featureId="quiz-translation"
+        permission={translation}
+        onUpdate={onUpdate}
+        extra={EXTRA_DAILY_LIMITS['quiz-translation']}
+      />
+    );
+    const input = screen.getByLabelText<HTMLInputElement>(/uses per day/);
+    expect(input.value).toBe('200');
+    fireEvent.change(input, { target: { value: '50' } });
+    expect(onUpdate).toHaveBeenLastCalledWith({
+      config: { dailyLimit: 40, answerDailyLimit: 50 },
+    });
+  });
+
+  it('says admins are limited too, as the server does', () => {
+    render(
+      <DailyLimitEditor
+        featureId="quiz-translation"
+        permission={translation}
+        onUpdate={vi.fn()}
+      />
+    );
+    expect(screen.getByText('per day. Admins included.')).toBeTruthy();
+  });
+});

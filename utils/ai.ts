@@ -515,7 +515,8 @@ export async function generateFlashcards(
 export async function generateVideoActivity(
   url: string,
   typeCounts: VideoTypeCounts,
-  durationSeconds?: number
+  durationSeconds?: number,
+  source?: 'import'
 ): Promise<GeneratedVideoActivity> {
   try {
     const fn = httpsCallable<
@@ -523,13 +524,19 @@ export async function generateVideoActivity(
         url: string;
         typeCounts: VideoTypeCounts;
         durationSeconds?: number;
+        source?: 'import';
       },
       GeneratedVideoActivity
     >(functions, 'generateVideoActivity', {
       timeout: VIDEO_ACTIVITY_CALL_TIMEOUT_MS,
     });
 
-    const result = await fn({ url, typeCounts, durationSeconds });
+    const result = await fn({
+      url,
+      typeCounts,
+      durationSeconds,
+      ...(source ? { source } : {}),
+    });
     reportAiModelConfigFallback(result.data._modelConfigUsedFallback);
 
     if (

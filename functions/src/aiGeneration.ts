@@ -1358,6 +1358,32 @@ interface VideoActivityRequestData {
    * it, but accuracy is much higher when provided.
    */
   durationSeconds?: number;
+  /** `'import'` when the editor was opened from a YouTube import; also charges the `video-import-ai` cap. */
+  source?: unknown;
+}
+
+export const VIDEO_IMPORT_AI_FEATURE_ID = 'video-import-ai';
+
+/** The admin's `video-import-ai` daily cap, charged beside `video-activity-ai`; switched off it still counts, uncapped. */
+export async function videoImportExtraCap(
+  db: admin.firestore.Firestore
+): Promise<AiExtraCap> {
+  const snap = await db
+    .collection('global_permissions')
+    .doc(VIDEO_IMPORT_AI_FEATURE_ID)
+    .get();
+  const config = (snap.data() as GlobalPermission | undefined)?.config;
+  const limit =
+    config?.dailyLimitEnabled === false
+      ? Number.POSITIVE_INFINITY
+      : typeof config?.dailyLimit === 'number'
+        ? config.dailyLimit
+        : DEFAULT_DAILY_LIMIT;
+  return {
+    key: VIDEO_IMPORT_AI_FEATURE_ID,
+    limit,
+    message: `Daily limit for ${VIDEO_IMPORT_AI_FEATURE_ID} reached (${limit} per day). Please try again tomorrow.`,
+  };
 }
 
 interface GeneratedVideoQuestion {
@@ -1909,16 +1935,24 @@ export const generateVideoActivity = onCall(
     // Check if user is an admin (unlimited)
     const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
 
+    const fromImport = data.source === 'import';
     if (!isAdmin) {
       await enforceAiFeatureAccess(
         db,
         request.auth.token,
         uid,
         'video-activity-ai',
-        true
+        true,
+        fromImport ? await videoImportExtraCap(db) : undefined
       );
     } else {
-      await recordAiUsage(db, request.auth.token, uid, 'video-activity-ai');
+      await recordAiUsage(
+        db,
+        request.auth.token,
+        uid,
+        'video-activity-ai',
+        fromImport ? VIDEO_IMPORT_AI_FEATURE_ID : undefined
+      );
     }
 
     const systemPrompt = buildVideoActivityPrompt(
