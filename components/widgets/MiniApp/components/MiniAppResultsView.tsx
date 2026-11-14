@@ -22,6 +22,8 @@ import {
 import type { StudentQuestionLine } from '@/utils/quizStudentDrilldown';
 import type { MiniAppBestAttempt, MiniAppManifestQuestion } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { SubmissionDetails } from './SubmissionDetails';
+import { answerSummary } from '@/utils/miniAppSubmissionText';
 
 export interface MiniAppResultRow {
   id: string;
@@ -106,7 +108,7 @@ const formatTime = (ms: number): string =>
 const answerText = (answer: unknown): string => {
   if (answer === null || answer === undefined) return '';
   if (Array.isArray(answer)) return answer.map(String).join(', ');
-  return typeof answer === 'string' ? answer : JSON.stringify(answer);
+  return typeof answer === 'string' ? answer : answerSummary(answer);
 };
 
 const lastNameOf = (name: string): string => {
@@ -802,9 +804,7 @@ export const MiniAppResultsView: React.FC<{
                             )}
                             {list.length === 0 &&
                               row.legacyPayload !== undefined && (
-                                <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-900 p-2 text-[11px] text-slate-100">
-                                  {JSON.stringify(row.legacyPayload, null, 2)}
-                                </pre>
+                                <SubmissionDetails value={row.legacyPayload} />
                               )}
                             {list.length > 0 && (
                               <div style={{ marginTop: 'min(10px, 2.5cqmin)' }}>
@@ -845,13 +845,16 @@ export const MiniAppResultsView: React.FC<{
                                         {formatTime(a.submittedAt)}
                                       </span>
                                       {a.rawPayload !== undefined && (
-                                        <pre className="mt-1 w-full max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-900 p-2 text-[11px] text-slate-100">
-                                          {JSON.stringify(
-                                            a.rawPayload,
-                                            null,
-                                            2
-                                          )}
-                                        </pre>
+                                        <div
+                                          className="w-full"
+                                          style={{
+                                            marginTop: 'min(4px, 1cqmin)',
+                                          }}
+                                        >
+                                          <SubmissionDetails
+                                            value={a.rawPayload}
+                                          />
+                                        </div>
                                       )}
                                     </li>
                                   ))}

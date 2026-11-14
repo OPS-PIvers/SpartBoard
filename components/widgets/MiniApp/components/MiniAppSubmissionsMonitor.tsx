@@ -13,6 +13,7 @@ import { EXTEND_MS, type PeriodAccessActions } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { periodKeyForRoster } from '@/utils/periodPlan';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { SubmissionDetails } from './SubmissionDetails';
 import {
   ClassPicker,
   PeriodBar,
@@ -57,14 +58,6 @@ const formatTime = (ms: number): string =>
         minute: '2-digit',
       })
     : '';
-
-function formatPayload(payload: unknown): string {
-  try {
-    return JSON.stringify(payload, null, 2);
-  } catch {
-    return String(payload);
-  }
-}
 
 export const MiniAppSubmissionsMonitor: React.FC<{
   session: MiniAppSession;
@@ -378,15 +371,9 @@ export const MiniAppSubmissionsMonitor: React.FC<{
                               </span>
                             </button>
                             {open && (
-                              <pre
-                                className="max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-900 p-2 text-slate-100"
-                                style={{
-                                  marginTop: 'min(8px, 2cqmin)',
-                                  fontSize: 'min(11px, 3.5cqmin)',
-                                }}
-                              >
-                                {formatPayload(s.payload)}
-                              </pre>
+                              <div style={{ marginTop: 'min(8px, 2cqmin)' }}>
+                                <SubmissionDetails value={s.payload} />
+                              </div>
                             )}
                           </div>
                         );

@@ -74,6 +74,26 @@ const ROWS: MiniAppResultRow[] = [
     lastSubmittedAt: T - 9_000_000,
     doneOnly: true,
   },
+  {
+    id: 'e',
+    name: 'Elena Fitzgerald-Whitaker',
+    attemptCount: 0,
+    best: null,
+    lastSubmittedAt: T - 10_000_000,
+    doneOnly: false,
+    legacyPayload: {
+      playerName: 'Elena',
+      levelReached: 4,
+      finished: true,
+      timeSpentSeconds: 312,
+      answers: [
+        { question: 'Which fraction is larger?', answer: '3/4', correct: true },
+        { question: '3/4 of 20', answer: 12, correct: false },
+        { question: 'Name the top number', answer: 'Numerator', correct: true },
+      ],
+      pizza: { slices: 8, pepperoni: [1, 4, 6] },
+    },
+  },
 ];
 
 const ANSWERS = ['3/4', '15', 'True', 'Numerator', '3 of 8 slices'];
