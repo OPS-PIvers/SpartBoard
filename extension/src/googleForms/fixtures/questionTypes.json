@@ -1,0 +1,1008 @@
+[
+  null,
+  [
+    "\"When your only tool is a hammer, everything starts to look like a nail\"\n\nGoogle Forms is a powerful tool for collectiing data through surveys, questionnaires and quizzes. It has a diversity of question types, which when matched to the type of information you're trying to gather, can make data collection extremely simple.\n\nThis Google Form is designed to demonstrate the 11 different types of questions you can ask, with an example of each and a short explanation of how it works.  There are also a few different variations for you to explore if you choose to.\n\nYou can learn more about Google Form question types in this official Google support document - https://support.google.com/docs/answer/7322334\n\nThe theme of this Form is taking a holiday.  You can find this form at https://bit.ly/whatswithallthequestions\n\nAlso, you will get a link to see the results (everyone's results) after you submit yours.\n\nThis work is published under a Creative Commons 4.0 BY-SA licence.  Feel free to share.\n\nEnjoy!\n\nPS: If you'd like to see examples of different Self Marking Quiz questions, check out https://bit.ly/selfmarkingquestions",
+    [
+      [
+        423409440,
+        "The Basic Question Types",
+        "\nThere are 11 types of questions in Google Forms. Each is designed to collect data in a different way.  The secret to designing a really good survey or quiz is to ensure you're using the most appropriate type of question for the type of information you're trying to gather.\n\nSo think about what information you're trying to find out, then think about the type of data you'd need for it, and then consider which type of question will be most appropriate for gathering that data.\n\nAlso, when you are creating questions, note that each question type has specific features, found under the three-dot menu in the lower right.  Take some time to explore these settings.\n",
+        6,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "The Basic Question Types"],
+        [
+          null,
+          "<br>There are <b>11 types of questions</b> in Google Forms. Each is designed to collect data in a different way.  The secret to designing a really good survey or quiz is to ensure you're using the <b>most appropriate type of question</b> for the type of information you're trying to gather.<br><br>So think about <b>what information you're trying to find out</b>, then think about the <b>type of data you'd need for it</b>, and then consider <b>which type of question will be most appropriate</b> for gathering that data.<br><br>Also, when you are creating questions, note that each question type has specific features, found under the three-dot menu in the lower right.  Take some time to explore these settings.<br><br>"
+        ]
+      ],
+      [
+        35015200,
+        "Before we start...",
+        "\nThis is a Title and Description block. It is useful for adding additional non-question items to a Form.\n\nThese blocks can be added to you Form to add \"headings\" to your Form. Note they are not the same as Sections",
+        6,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Before we start..."],
+        [
+          null,
+          "<br>This is a Title and Description block. It is useful for adding additional non-question items to a Form.<br><br>These blocks can be added to you Form to add &quot;headings&quot; to your Form. Note they are not the same as Sections"
+        ]
+      ],
+      [
+        1225760932,
+        "Your first name",
+        "This is a Short Answer question. It is used for collecting short written responses, typically no more than just a few words.  It can be validated to accept only certain kinds of responses. ",
+        0,
+        [[334766569, null, 0]],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Your first name"],
+        [
+          null,
+          "This is a Short Answer question. It is used for collecting short written responses, typically no more than just a few words.  It can be validated to accept only certain kinds of responses. "
+        ]
+      ],
+      [
+        1220072629,
+        "Your favourite travel website",
+        "This is also a Short Answer question. This question type can be set to accept only certain kinds of responses. In this example, your response must look like a valid website address starting with http://",
+        0,
+        [[828277235, null, 0, null, [[6, 202, ["500"]]]]],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Your favourite travel website"],
+        [
+          null,
+          "This is also a Short Answer question. This question type can be set to accept only certain kinds of responses. In this example, your response must look like a valid website address starting with http://"
+        ]
+      ],
+      [
+        1385763981,
+        "How many countries have you visited?",
+        "This is also a Short Answer question, but this time it uses Response Validation to only accept a number greater than zero. Try entering a negative number and see what happens.  ",
+        0,
+        [
+          [
+            1692319300,
+            null,
+            0,
+            null,
+            [[1, 2, ["0"], "Must be a number greater than zero"]]
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "How many countries have you visited?"],
+        [
+          null,
+          "This is also a Short Answer question, but this time it uses Response Validation to only accept a number greater than zero. Try entering a negative number and see what happens.  "
+        ]
+      ],
+      [
+        733954459,
+        "Describe the perfect holiday destination",
+        "This is a Paragraph question. It allows for longer answers with virtually no length limit.  It can also use Response Validation to enforce a minimum or maximum character count.  In this example you need to type at least 50 characters",
+        1,
+        [
+          [
+            2101067609,
+            null,
+            0,
+            null,
+            [[6, 203, ["50"], "You need to type at least 50 characters"]]
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Describe the perfect holiday destination"],
+        [
+          null,
+          "This is a Paragraph question. It allows for longer answers with virtually no length limit.  It can also use Response Validation to enforce a minimum or maximum character count.  In this example you need to type at least 50 characters"
+        ]
+      ],
+      [
+        1447024407,
+        "Where would you prefer to go for a holiday?",
+        "This is a Multiple Choice question. It offers a number of options, of which you can choose only one. It offers the ability to randomly shuffle the options. ",
+        2,
+        [
+          [
+            899145553,
+            [
+              ["Tanzania", null, null, null, 0],
+              ["Vietnam", null, null, null, 0],
+              ["Peru", null, null, null, 0],
+              ["France", null, null, null, 0],
+              ["Canada", null, null, null, 0]
+            ],
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Where would you prefer to go for a holiday?"],
+        [
+          null,
+          "This is a Multiple Choice question. It offers a number of options, of which you can choose only one. It offers the ability to randomly shuffle the options. "
+        ]
+      ],
+      [
+        1263534189,
+        "Holiday activities you enjoy - Select any 2",
+        "This is a Checkbox question. It behaves in a similar way to a Multiple Choice question except it can allow more than one option to be selected. The number of choices can also be enforced. In this example, you need to select 2 options.  The option order can also be randomly shuffled. ",
+        4,
+        [
+          [
+            1133228889,
+            [
+              ["Exploring", null, null, null, 0],
+              ["Hiking", null, null, null, 0],
+              ["Eating out", null, null, null, 0],
+              ["Sightseeing", null, null, null, 0],
+              ["Swimming", null, null, null, 0]
+            ],
+            0,
+            null,
+            [[7, 204, ["2"], "You need to select two choices"]],
+            null,
+            null,
+            null,
+            1
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Holiday activities you enjoy - Select any 2"],
+        [
+          null,
+          "This is a Checkbox question. It behaves in a similar way to a Multiple Choice question except it can allow more than one option to be selected. The number of choices can also be enforced. In this example, you need to select 2 options.  The option order can also be randomly shuffled. "
+        ]
+      ],
+      [
+        282916702,
+        "On which continent do you live?",
+        "Similar to a Multiple Choice question but more suited for questions where there are a longer list of choices. Can also be used for Go to Section based on Answer, and can also have the options randomly shuffled",
+        3,
+        [
+          [
+            116802023,
+            [
+              ["South America", null, null, null, 0],
+              ["North America", null, null, null, 0],
+              ["Australia", null, null, null, 0],
+              ["Asia", null, null, null, 0],
+              ["Antarctica", null, null, null, 0],
+              ["Africa", null, null, null, 0],
+              ["Europe", null, null, null, 0]
+            ],
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "On which continent do you live?"],
+        [
+          null,
+          "Similar to a Multiple Choice question but more suited for questions where there are a longer list of choices. Can also be used for Go to Section based on Answer, and can also have the options randomly shuffled"
+        ]
+      ],
+      [
+        2119699455,
+        "What about File Upload?",
+        "There is a File Upload option that allows users to attach a file to the Form and submit it. \n\nHowever, File Upload questions cannot be used in a Form stored in a Shared Drive, (as this one is) and also cannot be used where a domain is enforcing Data Loss Prevention. \n\nFor these reasons, this question type is not being shown here because these restrictions may prevent some people from accessing this sample Form.\n\nYou should definitely check this question type out yourself though!  Here's a guide - https://www.youtube.com/watch?v=eGT6lK_x6lE",
+        6,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "What about File Upload?"],
+        [
+          null,
+          "There is a File Upload option that allows users to attach a file to the Form and submit it. <br><br>However, File Upload questions cannot be used in a Form stored in a Shared Drive, (as this one is) and also cannot be used where a domain is enforcing Data Loss Prevention. <br><br>For these reasons, this question type is not being shown here because these restrictions may prevent some people from accessing this sample Form.<br><br>You should definitely check this question type out yourself though!  Here&#39;s a guide - <a href=\"https://www.youtube.com/watch?v=eGT6lK_x6lE\">https://www.youtube.com/watch?v=eGT6lK_x6lE</a>"
+        ]
+      ],
+      [
+        2048685343,
+        "How much do you enjoy experiencing new cultures?",
+        "This is a Linear Scale question.  It is best suited for measuring sentiment or feelings about an idea. It can be a rating from 1 up to 10, and you can customise the ends of the scale",
+        5,
+        [
+          [
+            282838501,
+            [
+              ["1"],
+              ["2"],
+              ["3"],
+              ["4"],
+              ["5"],
+              ["6"],
+              ["7"],
+              ["8"],
+              ["9"],
+              ["10"]
+            ],
+            0,
+            ["Not at all", "Very much"]
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "How much do you enjoy experiencing new cultures?"],
+        [
+          null,
+          "This is a Linear Scale question.  It is best suited for measuring sentiment or feelings about an idea. It can be a rating from 1 up to 10, and you can customise the ends of the scale"
+        ]
+      ],
+      [
+        1685957545,
+        "How do you feel about the following statements about travel?",
+        "This is a Multiple Choice Grid question. It is a very useful type of question and can be used to measure impressions, opinions, or sentiment. This is one example of how it might be used to rank opinions on a series of statements.  Note that you can only select one response per row, but you can select more than one choice per column. Rows can be randomly shuffled.",
+        7,
+        [
+          [
+            492450837,
+            [
+              ["Strongly disagree"],
+              ["Disagree"],
+              ["Agree"],
+              ["Strongly agree"]
+            ],
+            1,
+            ["Most travel is dangerous"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ],
+          [
+            439477089,
+            [
+              ["Strongly disagree"],
+              ["Disagree"],
+              ["Agree"],
+              ["Strongly agree"]
+            ],
+            1,
+            ["Travel broadens the mind"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ],
+          [
+            804456971,
+            [
+              ["Strongly disagree"],
+              ["Disagree"],
+              ["Agree"],
+              ["Strongly agree"]
+            ],
+            1,
+            ["You don't need to travel to experience new things"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ],
+          [
+            1617594382,
+            [
+              ["Strongly disagree"],
+              ["Disagree"],
+              ["Agree"],
+              ["Strongly agree"]
+            ],
+            1,
+            ["Travel is not worth the effort"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ]
+        ],
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        [null, "How do you feel about the following statements about travel?"],
+        [
+          null,
+          "This is a Multiple Choice Grid question. It is a very useful type of question and can be used to measure impressions, opinions, or sentiment. This is one example of how it might be used to rank opinions on a series of statements.  Note that you can only select one response per row, but you can select more than one choice per column. Rows can be randomly shuffled."
+        ]
+      ],
+      [
+        1730633636,
+        "Match the country with the capital",
+        "This is also a Multiple Choice Grid question. In this example it is being used as a matching exercise. You can only selct one response per row, but by using the Limit to One Response per Column option you can now enforce a strict 1 to 1 match. Rows can be randomly shuffled.",
+        7,
+        [
+          [
+            497124219,
+            [
+              ["Manila"],
+              ["Phnom Penh"],
+              ["Kuala Lumpur"],
+              ["Jakarta"],
+              ["Bangkok"]
+            ],
+            1,
+            ["Indonesia"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ],
+          [
+            727593726,
+            [
+              ["Manila"],
+              ["Phnom Penh"],
+              ["Kuala Lumpur"],
+              ["Jakarta"],
+              ["Bangkok"]
+            ],
+            1,
+            ["Philippines"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ],
+          [
+            1871979957,
+            [
+              ["Manila"],
+              ["Phnom Penh"],
+              ["Kuala Lumpur"],
+              ["Jakarta"],
+              ["Bangkok"]
+            ],
+            1,
+            ["Cambodia"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ],
+          [
+            195381105,
+            [
+              ["Manila"],
+              ["Phnom Penh"],
+              ["Kuala Lumpur"],
+              ["Jakarta"],
+              ["Bangkok"]
+            ],
+            1,
+            ["Malaysia"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ],
+          [
+            1101146430,
+            [
+              ["Manila"],
+              ["Phnom Penh"],
+              ["Kuala Lumpur"],
+              ["Jakarta"],
+              ["Bangkok"]
+            ],
+            1,
+            ["Thailand"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [0]
+          ]
+        ],
+        null,
+        null,
+        1,
+        [[8, 205]],
+        null,
+        null,
+        [null, "Match the country with the capital"],
+        [
+          null,
+          "This is also a Multiple Choice Grid question. In this example it is being used as a matching exercise. You can only selct one response per row, but by using the Limit to One Response per Column option you can now enforce a strict 1 to 1 match. Rows can be randomly shuffled."
+        ]
+      ],
+      [
+        123107434,
+        "Where would you like to do the following activities?",
+        "This is a Tick Box Grid question. It works in a similar way to  the Multiple Choice Grid question type, but in this one you can selct more than one choice per row. You have the option of restricting the selection to only one choice per column.  Rows can be randomly shuffled.",
+        7,
+        [
+          [
+            1460527890,
+            [
+              ["Japan"],
+              ["Canada"],
+              ["Australia"],
+              ["New Zealand"],
+              ["Philippines"]
+            ],
+            1,
+            ["Beaching"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [1]
+          ],
+          [
+            952321293,
+            [
+              ["Japan"],
+              ["Canada"],
+              ["Australia"],
+              ["New Zealand"],
+              ["Philippines"]
+            ],
+            1,
+            ["Adventures"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [1]
+          ],
+          [
+            1118279523,
+            [
+              ["Japan"],
+              ["Canada"],
+              ["Australia"],
+              ["New Zealand"],
+              ["Philippines"]
+            ],
+            1,
+            ["Dining"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [1]
+          ],
+          [
+            1957777829,
+            [
+              ["Japan"],
+              ["Canada"],
+              ["Australia"],
+              ["New Zealand"],
+              ["Philippines"]
+            ],
+            1,
+            ["Skiing"],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [1]
+          ]
+        ],
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        [null, "Where would you like to do the following activities?"],
+        [
+          null,
+          "This is a Tick Box Grid question. It works in a similar way to  the Multiple Choice Grid question type, but in this one you can selct more than one choice per row. You have the option of restricting the selection to only one choice per column.  Rows can be randomly shuffled."
+        ]
+      ],
+      [
+        190483585,
+        "Enter your birthday",
+        "This is a Date question. It enforces a strict date format (dd/mm/yyyy, or mm/dd/yyyy depending on your computer's langauage setting). Collecting dates using this question type ensures they will be show in proper date format in the underlying spreadsheet.",
+        9,
+        [[1399711374, null, 0, null, null, null, null, [0, 1]]],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Enter your birthday"],
+        [
+          null,
+          "This is a Date question. It enforces a strict date format (dd/mm/yyyy, or mm/dd/yyyy depending on your computer&#39;s langauage setting). Collecting dates using this question type ensures they will be show in proper date format in the underlying spreadsheet."
+        ]
+      ],
+      [
+        1242664682,
+        "When on holiday what time do you prefer to wake up?",
+        "This is a time question. It can be set to collect either a time or a duration.  Collecting time with this question type ensure that the data will correctly formatted as time in the underlying spreadsheet.",
+        10,
+        [[1359761890, null, 0, null, null, null, [0]]],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "When on holiday what time do you prefer to wake up?"],
+        [
+          null,
+          "This is a time question. It can be set to collect either a time or a duration.  Collecting time with this question type ensure that the data will correctly formatted as time in the underlying spreadsheet."
+        ]
+      ],
+      [
+        1573677235,
+        "Would you like to see more things you can do with Google Forms?",
+        "This is a multiple choice question, set to Go to Section based on Answer. Used this way, this type of question can create different pathways through a survey based on user selections",
+        2,
+        [
+          [
+            1502508796,
+            [
+              ["Yes", null, 18050399, null, 0],
+              ["No", null, 22782944, null, 0]
+            ],
+            1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [
+          null,
+          "Would you like to see more things you can do with Google Forms?"
+        ],
+        [
+          null,
+          "This is a multiple choice question, set to Go to Section based on Answer. Used this way, this type of question can create different pathways through a survey based on user selections"
+        ]
+      ],
+      [
+        22782944,
+        "But wait, there's more!",
+        "\nThis is a new section. It is used to divide a Form up into separate parts, and is required when using Go to Section based on Answer questions.",
+        8,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "But wait, there&#39;s more!"],
+        [
+          null,
+          "<br>This is a new section. It is used to divide a Form up into separate parts, and is required when using Go to Section based on Answer questions."
+        ]
+      ],
+      [
+        931318314,
+        "Are you sure you don't want to see more things Forms can do?",
+        "Thi is another Multiple Choice question being used as Go to Section based on Answer.  This is a useful way to create Choose your Own Adventure stories or Pick a Pathway projects.",
+        2,
+        [
+          [
+            1272777712,
+            [
+              ["No, I don't. Finish the Form now", null, 755051698, null, 0],
+              [
+                "OK, you've convinced me, show me more.",
+                null,
+                18050399,
+                null,
+                0
+              ]
+            ],
+            1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [
+          null,
+          "Are you sure you don&#39;t want to see more things Forms can do?"
+        ],
+        [
+          null,
+          "Thi is another Multiple Choice question being used as Go to Section based on Answer.  This is a useful way to create Choose your Own Adventure stories or Pick a Pathway projects."
+        ]
+      ],
+      [
+        18050399,
+        "More examples of Forms questions",
+        "This is a new section",
+        8,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "More examples of Forms questions"],
+        [null, "This is a new section"]
+      ],
+      [
+        2094622691,
+        "Extra Features of Questions",
+        "\nIn the examples below, are a few more variations of how Form questions can be used.",
+        6,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Extra Features of Questions"],
+        [
+          null,
+          "<br>In the examples below, are a few more variations of how Form questions can be used."
+        ]
+      ],
+      [
+        772365394,
+        "Which waterfalls are these?",
+        "This Multiple Choice question uses a picture as part of the question.",
+        4,
+        [
+          [
+            714713237,
+            [
+              ["Jim Jim Falls, Australia", null, null, null, 0],
+              ["Niagara Falls, Canada/USA", null, null, null, 0],
+              ["Victoria Falls, Zambia/Zimbabwe", null, null, null, 0],
+              ["Angel Falls, Venezuela", null, null, null, 0],
+              ["Seljalandsfoss - Iceland", null, null, null, 0]
+            ],
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        [
+          [
+            "1HmNNn11Z3mUipReWVVjaiqpXKsDyY1Y6GGN-xW9vFnLoCA",
+            null,
+            [740, 555, 0]
+          ]
+        ],
+        null,
+        [null, "Which waterfalls are these?"],
+        [
+          null,
+          "This Multiple Choice question uses a picture as part of the question."
+        ]
+      ],
+      [
+        1537523324,
+        "Which of these cities is NOT in North America?",
+        "This Multiple Choice question uses Pictures for the answer choices",
+        2,
+        [
+          [
+            1292601940,
+            [
+              [
+                "City 2",
+                null,
+                null,
+                null,
+                0,
+                [
+                  "1VflLorCO4BEo2xZ56kxDxwpLq2xgwJ40uoyueujdTNdLUQ",
+                  null,
+                  [260, 173, 0]
+                ]
+              ],
+              [
+                "City 4",
+                null,
+                null,
+                null,
+                0,
+                [
+                  "1ozwEoxVZVQOMwDd9QxeQ_euRpv__um5XNc_4tQEqcXx5GA",
+                  null,
+                  [260, 183, 0]
+                ]
+              ],
+              [
+                "City 1",
+                null,
+                null,
+                null,
+                0,
+                [
+                  "1FbHWkmFyGACfVtP6apn4Cs9wRgYKwfZsj28qAh7ucOKYtw",
+                  null,
+                  [260, 173, 0]
+                ]
+              ],
+              [
+                "City 3",
+                null,
+                null,
+                null,
+                0,
+                [
+                  "1h2OnCjDLN6hwZxhjaFSMGGWghlFGxqTsFmUNa9oFgf7nAQ",
+                  null,
+                  [260, 168, 0]
+                ]
+              ]
+            ],
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Which of these cities is NOT in North America?"],
+        [
+          null,
+          "This Multiple Choice question uses Pictures for the answer choices"
+        ]
+      ],
+      [
+        1084101166,
+        "Adding Video and Images",
+        "\nIt is also possible to add standalone video or pictures to a Form that are not attached to a specific question.  This is useful when you want to show a video or image and then follow it up by asking a series of related questions.  Note than these following two items do not have any questions attached to them.",
+        6,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Adding Video and Images"],
+        [
+          null,
+          "<br>It is also possible to add standalone video or pictures to a Form that are not attached to a specific question.  This is useful when you want to show a video or image and then follow it up by asking a series of related questions.  Note than these following two items do not have any questions attached to them."
+        ]
+      ],
+      [
+        1914273981,
+        "Watch this video",
+        null,
+        12,
+        null,
+        null,
+        [null, 1, [663, 499, 1], "Hi8SztClWBk"],
+        null,
+        null,
+        null,
+        null,
+        [null, "Watch this video"]
+      ],
+      [
+        1449714021,
+        "Map of Indonesia",
+        null,
+        11,
+        null,
+        null,
+        ["15GXxO4YIeOh5wERsjIhPadq-pGHLwD1-RP3OFO_0Km1oEw", 0, [1200, 460, 0]],
+        null,
+        null,
+        null,
+        null,
+        [null, "Map of Indonesia"]
+      ],
+      [
+        755051698,
+        "Before you finish...",
+        null,
+        8,
+        null,
+        755051698,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Before you finish..."]
+      ],
+      [
+        1379319344,
+        "Did you find this question overview useful?",
+        null,
+        2,
+        [
+          [
+            1304028143,
+            [
+              ["Yes", null, null, null, 0],
+              ["No", null, null, null, 0],
+              ["", null, null, null, 1]
+            ],
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0
+          ]
+        ],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Did you find this question overview useful?"]
+      ],
+      [
+        772103530,
+        "Any comments or feedback about it?",
+        null,
+        1,
+        [[1242920407, null, 0]],
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [null, "Any comments or feedback about it?"]
+      ]
+    ],
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    "Understanding Different Question Types in Google Forms"
+  ],
+  null,
+  "Understanding Different Question Types"
+]

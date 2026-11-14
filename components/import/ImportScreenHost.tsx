@@ -36,6 +36,15 @@ import { readDroppedPage, type DroppedPage } from './fetchImportPage';
 import type { ReferenceWidget } from './reference/referenceLanding';
 import { usePhotoReference } from './reference/usePhotoReference';
 import { pageSourceKind } from '@/utils/import/pageImages';
+import {
+  GOOGLE_FORMS_READONLY_SCOPE,
+  fetchGoogleForm,
+  formHasPictures,
+  formToPollQuestions,
+} from '@/utils/import/googleForms';
+import { withPollQuestions } from '@/utils/pollQuestions';
+import type { ImportInboxItem } from '@/utils/import/contract';
+import type { PollConfig } from '@/types';
 
 // A dropped link read on the server was never a Send, so nothing is removed for it.
 const sentIdOf = (source: PendingSource): string | undefined =>
@@ -49,6 +58,20 @@ const CourseImportHost = lazy(() =>
 );
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
+
+// Without the Google Forms flag a sent form is just its page text.
+const withoutForm = (item: ImportInboxItem): ImportInboxItem => {
+  if (!item.form) return item;
+  const rest = { ...item };
+  delete rest.form;
+  return rest;
+};
+
+function useFormsGate(inbox: ImportInbox): ImportInbox {
+  const { canAccessFeature } = useAuth();
+  if (canAccessFeature('import-google-forms')) return inbox;
+  return { ...inbox, items: inbox.items.map(withoutForm) };
+}
 
 interface ImportScreenHostProps {
   placeAt: (
@@ -73,7 +96,7 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const sendOn = canAccessFeature(IMPORT_SEND_FEATURE);
   const courseOn = canAccessFeature('import-schoology-course');
   const [courseFile, setCourseFile] = useState<File | null>(null);
-  const inbox = useImportInbox(user?.uid, sendOn);
+  const inbox = useFormsGate(useImportInbox(user?.uid, sendOn));
   const [boardJob, setBoardJob] = useState<BoardJob | null>(null);
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {
@@ -168,7 +191,7 @@ const OpenImportScreen: React.FC<
   placeNotebook,
   onStartBoard,
 }) => {
-  const { canAccessWidget, canAccessFeature } = useAuth();
+  const { canAccessWidget, canAccessFeature, ensureGoogleScope } = useAuth();
   const outward = useViewAsOutward();
   // AI Conversions: the org switch, the AI flag, and never from a read-only view-as tab (the server checks again).
   const aiOn =
@@ -343,9 +366,76 @@ const OpenImportScreen: React.FC<
     review({ ...source, conversion: input }, target);
   };
 
+  const placePoll = (source: PendingSource): void => {
+    const form = source.inboxItem?.form;
+    if (!form || refuseReadOnly()) return;
+    const { questions, over } = formToPollQuestions(form);
+    if (!questions.length) {
+      addToast('This form has no questions a poll can ask.', 'error');
+      return;
+    }
+    const defaults = WIDGET_DEFAULTS.poll;
+    const base = (defaults.config ?? {}) as PollConfig;
+    addWidget('poll', {
+      ...placeAt(request.dropPoint, defaults.w ?? 400, defaults.h ?? 400),
+      config: withPollQuestions(base, questions),
+    });
+    if (over > 0)
+      addToast(`A poll holds 20 questions, so the first 20 came over.`, 'info');
+    else if (formHasPictures(form))
+      addToast(
+        'Polls don’t show pictures, so the form’s pictures were left out.',
+        'info'
+      );
+    const sentId = sentIdOf(source);
+    if (sentId) removeSent(sentId);
+  };
+
+  // The consent popup is the first await, so the teacher's click still opens it.
+  const importForm = async (
+    source: PendingSource,
+    target: 'quiz' | 'poll'
+  ): Promise<void> => {
+    const item = source.inboxItem;
+    const form = item?.form;
+    if (!item || !form) return;
+    let read = null;
+    if (form.formId && !outward.locked) {
+      const token = await ensureGoogleScope(GOOGLE_FORMS_READONLY_SCOPE, {
+        interactive: true,
+      });
+      if (token) read = await fetchGoogleForm(form.formId, token);
+    }
+    const resolved =
+      read && read.form.items.length
+        ? read
+        : form.items.length
+          ? { title: item.title, form }
+          : null;
+    closeImportScreen();
+    if (!resolved) {
+      addToast(
+        'That form couldn’t be read. Open it in Google Forms and send it again.',
+        'error'
+      );
+      return;
+    }
+    const next: PendingSource = {
+      ...source,
+      title: resolved.title,
+      inboxItem: { ...item, title: resolved.title, form: resolved.form },
+    };
+    if (target === 'quiz') review(next, 'quiz');
+    else placePoll(next);
+  };
+
   const route = (source: PendingSource, target: ImportTarget): void => {
     const r = importRoute(target);
     if (!r) return;
+    if ((target === 'quiz' || target === 'poll') && source.inboxItem?.form) {
+      void importForm(source, target);
+      return;
+    }
     if (usesAi(target, source, aiOn)) {
       void convert(source, target);
       return;

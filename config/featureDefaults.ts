@@ -1,6 +1,7 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  ClipboardList,
   FolderTree,
   MonitorPlay,
   ArrowLeftRight,
@@ -1483,6 +1484,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Import: Flashcards',
     icon: Layers,
     description: 'Offers Flashcards for spreadsheets, rows of terms and pages.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    requires: 'universal-import',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'import-google-forms': {
+    label: 'Import: Google Forms',
+    icon: ClipboardList,
+    description:
+      'Offers Quiz or Poll for a Google Form sent from the extension.',
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',

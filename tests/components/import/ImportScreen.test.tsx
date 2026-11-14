@@ -119,6 +119,31 @@ describe('targetChoices', () => {
     expect(c.guess).toBe('videoActivity');
   });
 
+  it('offers Quiz and Poll for a sent Google Form, quiz first', () => {
+    const item = parseImportInboxItem('gf', {
+      url: 'https://docs.google.com/forms/d/e/1FAIpQLSabc/viewform',
+      title: 'Cells',
+      platform: 'google-forms',
+      selectionOnly: false,
+      blocks: [{ type: 'paragraph', text: '1. Which part makes energy?' }],
+      images: [],
+      receivedAt: 0,
+      form: {
+        items: [
+          {
+            kind: 'choice',
+            text: 'Which part makes energy?',
+            options: [{ text: 'Nucleus' }, { text: 'Mitochondria' }],
+          },
+        ],
+      },
+    });
+    if (!item) throw new Error('unparsed');
+    const c = targetChoices(sourceFromInboxItem(item));
+    expect(c.guess).toBe('quiz');
+    expect(c.targets.slice(0, 2)).toEqual(['quiz', 'poll']);
+  });
+
   it('does not offer a Video activity for a YouTube page with no video', () => {
     const c = targetChoices({ url: 'https://www.youtube.com/feed/library' });
     expect(c.targets).not.toContain('videoActivity');

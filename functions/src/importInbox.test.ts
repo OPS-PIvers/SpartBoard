@@ -38,6 +38,7 @@ import {
   IMPORT_INBOX_TTL_MS,
   IMPORT_MAX_BLOCKS,
   IMPORT_MAX_CARDS,
+  IMPORT_MAX_FORM_ITEMS,
   IMPORT_MAX_INBOX_ITEMS,
   IMPORT_READER_FAILURE_TTL_MS,
 } from './import/shared.gen';
@@ -248,8 +249,97 @@ describe('parseSendRequest', () => {
         },
       },
     ],
+    ['a form that is not a list', { form: { items: 'x' } }],
+    ['a bad form id', { form: { formId: '../x', items: [] } }],
+    [
+      'an unknown form question kind',
+      { form: { items: [{ kind: 'upload', text: 'x' }] } },
+    ],
+    [
+      'a form picture that is not https',
+      {
+        form: {
+          items: [{ kind: 'image', text: 'x', image: 'http://a.b/c.png' }],
+        },
+      },
+    ],
+    [
+      'a form choice picture that is not https',
+      {
+        form: {
+          items: [
+            {
+              kind: 'choice',
+              text: 'q',
+              options: [{ text: 'a', image: 'javascript:alert(1)' }],
+            },
+          ],
+        },
+      },
+    ],
+    [
+      'too many form items',
+      {
+        form: {
+          items: Array.from({ length: IMPORT_MAX_FORM_ITEMS + 1 }, () => ({
+            kind: 'short',
+            text: 'q',
+          })),
+        },
+      },
+    ],
   ])('refuses %s', (_name, over) => {
     expect(() => parseSendRequest(body(over))).toThrow(ExtensionCallError);
+  });
+
+  it('keeps a form and drops its unknown fields', () => {
+    const form = {
+      formId: '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789',
+      items: [
+        {
+          kind: 'image',
+          text: 'Map',
+          image: 'https://lh3.googleusercontent.com/a',
+          x: 1,
+        },
+        {
+          kind: 'choice',
+          text: 'Pick',
+          options: [
+            { text: 'a', image: 'https://lh3.googleusercontent.com/b', id: 2 },
+            { text: 'b' },
+          ],
+          correct: ['a'],
+          points: 2,
+          html: '<p>',
+        },
+        { kind: 'scale', text: 'Rate', low: 1, high: 5, lowLabel: 'Low' },
+      ],
+      leftOut: { date: 1, picture: 0, other: 2 },
+      extra: true,
+    };
+    expect(parseSendRequest(body({ form })).form).toEqual({
+      formId: '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789',
+      items: [
+        {
+          kind: 'image',
+          text: 'Map',
+          image: 'https://lh3.googleusercontent.com/a',
+        },
+        {
+          kind: 'choice',
+          text: 'Pick',
+          options: [
+            { text: 'a', image: 'https://lh3.googleusercontent.com/b' },
+            { text: 'b' },
+          ],
+          correct: ['a'],
+          points: 2,
+        },
+        { kind: 'scale', text: 'Rate', low: 1, high: 5, lowLabel: 'Low' },
+      ],
+      leftOut: { date: 1 },
+    });
   });
 
   it('keeps a card set and drops its unknown fields', () => {

@@ -54,6 +54,21 @@ describe('sendNote', () => {
     ).toBe(false);
   });
 
+  it('says how many questions a Google Form sent, or that its reader fell back', () => {
+    const reply = { ok: true, blocks: 2, images: 0 };
+    expect(sendNote({ kind: 'reply', reply, questions: 12 })).toEqual({
+      ok: true,
+      open: 'import',
+      text: 'Sent this form to SpartBoard (12 questions).',
+    });
+    expect(sendNote({ kind: 'reply', reply, questions: 1 }).text).toBe(
+      'Sent this form to SpartBoard (1 question).'
+    );
+    expect(
+      sendNote({ kind: 'reply', reply, fellBack: 'google-forms' }).text
+    ).toMatch(/^The Google Forms reader couldn't read this page/);
+  });
+
   it('says when a reader fell back to the page text', () => {
     expect(
       sendNote({

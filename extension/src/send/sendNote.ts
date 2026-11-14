@@ -36,11 +36,13 @@ export type SendNoteInput =
       reply: unknown;
       selectionOnly?: boolean;
       /** The Platform reader that couldn't read the page; true for Schoology's quiz reader. */
-      fellBack?: boolean | 'edpuzzle' | 'quizlet';
+      fellBack?: boolean | 'edpuzzle' | 'quizlet' | 'google-forms';
       /** An Edpuzzle lesson went as a lesson; `skipped` questions had no SpartBoard kind. */
       lesson?: { skipped: number };
       /** A Quizlet set went as cards; how many. */
       cards?: number;
+      /** A Google Form went as a form; how many questions. */
+      questions?: number;
     };
 
 export function sendNote(input: SendNoteInput): SendNote {
@@ -87,13 +89,21 @@ export function sendNote(input: SendNoteInput): SendNote {
       open: 'import',
       text: `Sent this set to SpartBoard (${input.cards === 1 ? '1 card' : `${input.cards} cards`}).`,
     };
+  if (input.questions !== undefined)
+    return {
+      ok: true,
+      open: 'import',
+      text: `Sent this form to SpartBoard (${input.questions === 1 ? '1 question' : `${input.questions} questions`}).`,
+    };
   const what = input.selectionOnly ? 'your selection' : 'this page';
   const reader =
     input.fellBack === 'edpuzzle'
       ? 'The Edpuzzle reader'
       : input.fellBack === 'quizlet'
         ? 'The Quizlet reader'
-        : 'The quiz reader';
+        : input.fellBack === 'google-forms'
+          ? 'The Google Forms reader'
+          : 'The quiz reader';
   return {
     ok: true,
     open: 'import',

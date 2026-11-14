@@ -2,10 +2,17 @@
 import {
   IMPORT_CARDS_LEFT_OUT,
   IMPORT_CARD_LANGUAGE,
+  GOOGLE_FORM_ID,
+  IMPORT_FORM_LEFT_OUT,
+  IMPORT_FORM_QUESTION_KINDS,
   IMPORT_VIDEO_LEFT_OUT,
   YOUTUBE_VIDEO_ID,
   type ImportBlock,
   type ImportCardSet,
+  type ImportForm,
+  type ImportFormItem,
+  type ImportFormOption,
+  type ImportFormQuestion,
   type ImportImage,
   type ImportInboxItem,
   type ImportVideoLesson,
@@ -116,6 +123,66 @@ function parseCards(v: unknown): ImportCardSet | null {
   };
 }
 
+const FORM_KINDS: readonly string[] = IMPORT_FORM_QUESTION_KINDS;
+const strings = (v: unknown): string[] | undefined =>
+  Array.isArray(v) ? v.filter(str) : undefined;
+const num = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+
+function parseFormItem(v: unknown): ImportFormItem | null {
+  if (!isObj(v) || !str(v.text)) return null;
+  if (v.kind === 'image') {
+    const { image } = httpsImage(v.image);
+    return image ? { kind: 'image', text: v.text, image } : null;
+  }
+  if (!str(v.kind) || !FORM_KINDS.includes(v.kind)) return null;
+  const item: ImportFormQuestion = {
+    kind: v.kind as ImportFormQuestion['kind'],
+    text: v.text,
+    ...httpsImage(v.image),
+  };
+  if (str(v.description)) item.description = v.description;
+  if (Array.isArray(v.options))
+    item.options = v.options
+      .filter(isObj)
+      .filter((o) => str(o.text))
+      .map((o): ImportFormOption => ({
+        text: o.text as string,
+        ...httpsImage(o.image),
+      }));
+  const rows = strings(v.rows);
+  if (rows) item.rows = rows;
+  const correct = strings(v.correct);
+  if (correct) item.correct = correct;
+  for (const key of ['low', 'high', 'points'] as const) {
+    const n = num(v[key]);
+    if (n !== undefined) item[key] = n;
+  }
+  if (str(v.lowLabel)) item.lowLabel = v.lowLabel;
+  if (str(v.highLabel)) item.highLabel = v.highLabel;
+  return item;
+}
+
+function parseForm(v: unknown): ImportForm | null {
+  if (!isObj(v) || !Array.isArray(v.items)) return null;
+  const leftOut: NonNullable<ImportForm['leftOut']> = {};
+  if (isObj(v.leftOut))
+    for (const kind of IMPORT_FORM_LEFT_OUT) {
+      const n = v.leftOut[kind];
+      if (typeof n === 'number' && Number.isInteger(n) && n > 0)
+        leftOut[kind] = n;
+    }
+  return {
+    ...(str(v.formId) && GOOGLE_FORM_ID.test(v.formId)
+      ? { formId: v.formId }
+      : {}),
+    items: v.items
+      .map(parseFormItem)
+      .filter((i): i is ImportFormItem => i !== null),
+    ...(Object.keys(leftOut).length ? { leftOut } : {}),
+  };
+}
+
 export function parseImportInboxItem(
   id: string,
   data: unknown
@@ -123,6 +190,7 @@ export function parseImportInboxItem(
   if (!isObj(data) || !str(data.url) || !str(data.title)) return null;
   const video = parseVideo(data.video);
   const cards = parseCards(data.cards);
+  const form = parseForm(data.form);
   return {
     id,
     url: data.url,
@@ -138,5 +206,6 @@ export function parseImportInboxItem(
     receivedAt: typeof data.receivedAt === 'number' ? data.receivedAt : 0,
     ...(video ? { video } : {}),
     ...(cards ? { cards } : {}),
+    ...(form ? { form } : {}),
   };
 }
