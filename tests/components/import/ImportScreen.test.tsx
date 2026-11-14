@@ -423,6 +423,64 @@ describe('ImportScreen', () => {
     );
   });
 
+  it('adds a dropped file straight to the board when it offers one widget', async () => {
+    const photo = file('cat.png', 'image/png');
+    const { onContinue } = renderScreen({
+      initialSource: { file: photo },
+      straightToBoard: true,
+    });
+    await waitFor(() =>
+      expect(onContinue).toHaveBeenCalledWith({ file: photo }, 'sticker')
+    );
+    expect(onContinue).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the list without the flag, with several widgets, or for AI', () => {
+    const photo = file('cat.png', 'image/png');
+    const off = renderScreen({ initialSource: { file: photo } });
+    expect(screen.getByRole('button', { name: 'Sticker' })).toBeInTheDocument();
+    expect(off.onContinue).not.toHaveBeenCalled();
+    cleanup();
+    const many = renderScreen({
+      initialSource: { file: file('notes.pdf', 'application/pdf') },
+      straightToBoard: true,
+    });
+    expect(screen.getByRole('button', { name: 'PDF' })).toBeInTheDocument();
+    expect(many.onContinue).not.toHaveBeenCalled();
+    cleanup();
+    const ai = renderScreen({
+      initialSource: { text: 'What would you change about recess?' },
+      allowed: (t) => t === 'activityWall',
+      aiOn: true,
+      straightToBoard: true,
+    });
+    expect(
+      screen.getByRole('button', { name: /Activity Wall/ })
+    ).toBeInTheDocument();
+    expect(ai.onContinue).not.toHaveBeenCalled();
+  });
+
+  it('waits for a dropped link to be read, then opens the Embed check for a lone Embed', async () => {
+    const link = { url: 'https://example.org/page' };
+    renderScreen({
+      initialSource: link,
+      droppedPage: { status: 'reading' },
+      allowed: (t) => t === 'embed',
+      straightToBoard: true,
+    });
+    expect(screen.queryByText(/Checking/)).toBeNull();
+    cleanup();
+    renderScreen({
+      initialSource: link,
+      droppedPage: { status: 'plain' },
+      allowed: (t) => t === 'embed',
+      straightToBoard: true,
+    });
+    expect(
+      await screen.findByText('Checking https://example.org/page')
+    ).toBeInTheDocument();
+  });
+
   it('says so when nothing is waiting', () => {
     renderScreen();
     expect(screen.getByRole('status')).toHaveTextContent(

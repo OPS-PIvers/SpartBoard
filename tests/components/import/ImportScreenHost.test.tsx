@@ -53,9 +53,14 @@ vi.mock('@/components/import/fetchImportPage', () => ({ readDroppedPage }));
 vi.mock('@/hooks/useQuizDocumentImportGate', () => ({
   useQuizDocumentImportGate: () => true,
 }));
-vi.mock('@/hooks/useImportConversionSettings', () => ({
-  useImportConversionSettings: () => ({ enabled: false }),
-}));
+vi.mock('@/hooks/useImportConversionSettings', async () => {
+  const { normalizeImportConversionSettings } =
+    await import('@/config/importConversion');
+  return {
+    useImportConversionSettings: () => normalizeImportConversionSettings({}),
+  };
+});
+
 vi.mock('@/hooks/useViewAsOutward', () => ({
   useViewAsOutward: () => ({ active: false, locked: false }),
 }));

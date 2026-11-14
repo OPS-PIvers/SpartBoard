@@ -76,6 +76,13 @@ const { mockUseGesture, gestureState } = vi.hoisted(() => {
 });
 
 // Mock context
+vi.mock('@/hooks/useImportConversionSettings', async () => {
+  const { normalizeImportConversionSettings } =
+    await import('@/config/importConversion');
+  return {
+    useImportConversionSettings: () => normalizeImportConversionSettings({}),
+  };
+});
 vi.mock('@/components/groupReminders/GroupReminderHost', () => ({
   GroupReminderHost: () => null,
 }));

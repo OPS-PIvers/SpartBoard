@@ -9264,6 +9264,35 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.import-source': {
+    label: 'An import kind in What each import offers (opens its widget list)',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.import-source-switch': {
+    label: 'On/off switch for an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-widget': {
+    label: 'Widget checkbox under an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-switch': {
+    label: 'With AI switch for a widget in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-limit': {
+    label: 'Daily limit field for a widget with AI in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.previews.focus-hours-start': {
     label: 'Start time field in Focus session hours',
     panel: true,
