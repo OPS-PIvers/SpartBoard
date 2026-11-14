@@ -6,7 +6,6 @@ import {
   getDocs,
   runTransaction,
   updateDoc,
-  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { QuizData, QuizResponse, QuizSession } from '@/types';
@@ -111,7 +110,6 @@ export async function applySectionCounts(opts: {
   if (!session) return;
   const sections = sectionsWithCounts(session.sections, opts.changes);
   if (!sections) return;
-  await updateDoc(sessionRef, { sections });
   const assignmentSnap = await getDoc(
     doc(
       db,
@@ -126,26 +124,23 @@ export async function applySectionCounts(opts: {
     sections,
   };
   const responses = await getDocs(collection(sessionRef, RESPONSES_COLLECTION));
-  let batch = writeBatch(db);
-  let n = 0;
-  for (const d of responses.docs) {
-    const data = d.data() as QuizResponse;
-    if (typeof data.score !== 'number') continue;
-    const graded = gradeResponseForPublish(data, ctx);
-    const hadVerdicts = (data.answers ?? []).some(
-      (a) => typeof a.isCorrect === 'boolean'
+  // Re-score first and write the count last, so a failed run can simply be run again.
+  const scored = responses.docs.filter(
+    (d) => typeof (d.data() as QuizResponse).score === 'number'
+  );
+  for (let i = 0; i < scored.length; i += 20) {
+    await Promise.all(
+      scored.slice(i, i + 20).map((d) =>
+        runTransaction(db, async (tx) => {
+          const fresh = await tx.get(d.ref);
+          const data = fresh.data() as QuizResponse | undefined;
+          if (!data || typeof data.score !== 'number') return;
+          // Only the score moves; answers and grades are left as they are.
+          const graded = gradeResponseForPublish(data, ctx);
+          tx.update(d.ref, { score: graded.score ?? deleteField() });
+        })
+      )
     );
-    batch.update(d.ref, {
-      score: graded.score ?? deleteField(),
-      answers: hadVerdicts
-        ? graded.answers
-        : answersWithoutVerdicts(graded.answers),
-    });
-    n += 1;
-    if (n % 400 === 0) {
-      await batch.commit();
-      batch = writeBatch(db);
-    }
   }
-  if (n % 400 !== 0) await batch.commit();
+  await updateDoc(sessionRef, { sections });
 }

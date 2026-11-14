@@ -143,6 +143,14 @@ describe('teacher picks (countedChoices)', () => {
     ]).toEqual(['b']);
   });
 
+  it('ignores a pick whose question has no answer', () => {
+    expect([
+      ...notChosenIds(twoOfThree, all.slice(0, 2), undefined, {
+        s1: ['c', 'b'],
+      }),
+    ]).toEqual(['c']);
+  });
+
   it('keeps picks only for the current attempt', () => {
     const choices = { attempt: 1, bySection: { s1: ['a', 'c'], x: [] } };
     expect(

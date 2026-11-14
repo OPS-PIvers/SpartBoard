@@ -1047,9 +1047,15 @@ async function importSeat(
   tx.set(
     ctx.ref,
     ctx.hybrid
-      ? { ...hybridResponseFields(ctx, existing, answers), ...pageFields }
+      ? {
+          ...hybridResponseFields(ctx, existing, answers),
+          ...pageFields,
+          // New answers from a scan; the teacher picks which count again.
+          countedChoices: admin.firestore.FieldValue.delete(),
+        }
       : {
           ...pageFields,
+          countedChoices: admin.firestore.FieldValue.delete(),
           studentUid,
           pin: sheet.pin,
           ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),

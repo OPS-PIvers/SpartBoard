@@ -4844,6 +4844,8 @@ export interface QuizCountedChoices {
   attempt: number;
   /** Section id to the question ids that count. */
   bySection: Record<string, string[]>;
+  /** Answers a pick brought back from passed; "Use the first N" sets them aside again. */
+  revived?: string[];
 }
 
 /** Frozen slot on a session; the student draws `count` ids from `poolQuestionIds`. */

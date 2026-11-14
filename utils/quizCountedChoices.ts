@@ -33,33 +33,48 @@ export function countedChoicesPatch(
   );
   if (!over) return null;
   const attempt = response.completedAttempts ?? 0;
-  const kept =
+  const current =
     response.countedChoices?.attempt === attempt
-      ? { ...response.countedChoices.bySection }
-      : {};
+      ? response.countedChoices
+      : undefined;
+  const kept = { ...(current?.bySection ?? {}) };
   delete kept[sectionId];
-  const answers = response.answers ?? [];
-  if (picked === null) {
-    return {
-      countedChoices:
-        Object.keys(kept).length > 0 ? { attempt, bySection: kept } : null,
-      answers,
-    };
+  let ids: string[] = [];
+  if (picked !== null) {
+    ids = over.answeredIds.filter((id) => picked.includes(id));
+    if (ids.length !== over.count || new Set(picked).size !== ids.length) {
+      return null;
+    }
   }
-  const ids = over.answeredIds.filter((id) => picked.includes(id));
-  if (ids.length !== over.count || new Set(picked).size !== ids.length) {
-    return null;
-  }
-  // A picked answer that was set aside as passed is a real answer again.
+  // A picked answer that was set aside as passed is a real answer again; unpicking sets it aside again.
+  const inSection = new Set(over.section.questionIds);
   const pickedSet = new Set(ids);
-  return {
-    countedChoices: { attempt, bySection: { ...kept, [sectionId]: ids } },
-    answers: answers.map((a) => {
-      if (!pickedSet.has(a.questionId) || a.unresponded !== 'passed') return a;
+  const revived = new Set(current?.revived ?? []);
+  const answers = (response.answers ?? []).map((a) => {
+    if (!inSection.has(a.questionId)) return a;
+    if (pickedSet.has(a.questionId) && a.unresponded === 'passed') {
+      revived.add(a.questionId);
       const { unresponded: _passed, ...rest } = a;
       void _passed;
       return rest;
-    }),
+    }
+    if (!pickedSet.has(a.questionId) && revived.has(a.questionId)) {
+      revived.delete(a.questionId);
+      return { ...a, unresponded: 'passed' as const };
+    }
+    return a;
+  });
+  const bySection = picked === null ? kept : { ...kept, [sectionId]: ids };
+  const empty = Object.keys(bySection).length === 0 && revived.size === 0;
+  return {
+    countedChoices: empty
+      ? null
+      : {
+          attempt,
+          bySection,
+          ...(revived.size > 0 ? { revived: [...revived] } : {}),
+        },
+    answers,
   };
 }
 

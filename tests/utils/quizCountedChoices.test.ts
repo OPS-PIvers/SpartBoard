@@ -61,6 +61,14 @@ describe('choose-N teacher picks', () => {
     expect(notChosenQuestionIds(r, [section])).toEqual(['c']);
   });
 
+  it('ignores a pick whose question no longer has an answer', () => {
+    const answers = response().answers.filter((x) => x.questionId !== 'c');
+    expect(chosenQuestionIds(section, answers, undefined, ['c', 'b'])).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+
   it('never counts more than N, even from a stale pick', () => {
     expect(
       chosenQuestionIds(section, response().answers, undefined, ['a', 'b', 'c'])
@@ -116,6 +124,7 @@ describe('countedChoicesPatch', () => {
     expect(patch?.countedChoices).toEqual({
       attempt: 1,
       bySection: { s1: ['b', 'c'] },
+      revived: ['b'],
     });
     expect(patch?.answers[1].unresponded).toBeUndefined();
     expect(
@@ -124,6 +133,38 @@ describe('countedChoicesPatch', () => {
         [section]
       )
     ).toEqual(['a']);
+  });
+
+  it('sets a revived answer aside again on reset or swap', () => {
+    const r = response({
+      answers: [
+        { questionId: 'a', answer: 'one', answeredAt: 1 },
+        {
+          questionId: 'b',
+          answer: 'real',
+          answeredAt: 2,
+          unresponded: 'passed',
+        },
+        { questionId: 'c', answer: 'three', answeredAt: 3 },
+      ],
+    });
+    const picked = countedChoicesPatch(r, [section], 's1', ['b', 'c']);
+    expect(picked?.countedChoices?.revived).toEqual(['b']);
+    if (!picked) throw new Error('expected a patch');
+    const afterPick = {
+      ...r,
+      answers: picked.answers,
+      countedChoices: picked.countedChoices ?? undefined,
+    };
+    const reset = countedChoicesPatch(afterPick, [section], 's1', null);
+    expect(reset?.countedChoices).toBeNull();
+    expect(reset?.answers[1].unresponded).toBe('passed');
+    const swap = countedChoicesPatch(afterPick, [section], 's1', ['a', 'c']);
+    expect(swap?.answers[1].unresponded).toBe('passed');
+    expect(swap?.countedChoices).toEqual({
+      attempt: 1,
+      bySection: { s1: ['a', 'c'] },
+    });
   });
 
   it('refuses a pick of the wrong size or outside the section', () => {

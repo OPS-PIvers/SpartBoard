@@ -108,7 +108,10 @@ export function notChosenIds(
       }
     };
     const teacherPicks = section.id ? picked?.[section.id] : undefined;
-    if (teacherPicks) add(ids.filter((id) => teacherPicks.includes(id)));
+    // A pick counts only while its question still holds an answer.
+    if (teacherPicks) {
+      add(answered.filter((id) => teacherPicks.includes(id)));
+    }
     add(answered);
     add(ids);
     for (const id of ids) if (!chosen.has(id)) out.add(id);

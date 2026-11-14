@@ -143,7 +143,14 @@ export function chosenQuestionIds(
       chosen.add(id);
     }
   };
-  if (picked) add(served.filter((id) => picked.includes(id)));
+  // A pick counts only while its question still holds an answer.
+  if (picked) {
+    add(
+      served.filter(
+        (id) => picked.includes(id) && isSectionAnswered(answers, id)
+      )
+    );
+  }
   add(served.filter((id) => isSectionAnswered(answers, id)));
   add(served);
   return served.filter((id) => chosen.has(id));
