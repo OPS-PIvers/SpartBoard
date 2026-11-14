@@ -25,11 +25,11 @@ export function deactivationClaimSyncNeeded(
   );
 }
 
-/** The claim the member doc's current state calls for; a gone or live doc clears it. */
+/** The claim the live doc calls for; a missing doc leaves the claim (null) so a removed member stays locked out. */
 export function deactivationClaimTarget(
   current: MemberStatusFields | null
-): DeactivationClaimChange {
-  if (current === null) return 'clear';
+): DeactivationClaimChange | null {
+  if (current === null) return null;
   return isRevokedMemberStatus(current.status) ? 'set' : 'clear';
 }
 
@@ -53,7 +53,8 @@ export async function applyDeactivationClaim(
   emailLower: string,
   uidHint: unknown,
   change: DeactivationClaimChange,
-  isLiveMember?: (emailLower: string) => Promise<boolean>
+  isLiveMember?: (emailLower: string) => Promise<boolean>,
+  holdsRevoked?: (user: admin.auth.UserRecord) => Promise<boolean>
 ): Promise<string[]> {
   const users: admin.auth.UserRecord[] = [];
   const lookups: Array<() => Promise<admin.auth.UserRecord | null>> = [];
@@ -92,6 +93,8 @@ export async function applyDeactivationClaim(
       await auth.revokeRefreshTokens(user.uid);
       changed.push(user.uid);
     } else if (has) {
+      // 'clear' never lifts an account that is still another revoked member's.
+      if (holdsRevoked && (await holdsRevoked(user))) continue;
       delete claims[DEACTIVATED_CLAIM];
       await auth.setCustomUserClaims(user.uid, claims);
       changed.push(user.uid);

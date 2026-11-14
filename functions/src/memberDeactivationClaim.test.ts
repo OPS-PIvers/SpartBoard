@@ -28,7 +28,7 @@ describe('deactivationClaimTarget', () => {
     expect(deactivationClaimTarget({ status: 'inactive' })).toBe('set');
     expect(deactivationClaimTarget({ status: 'active' })).toBe('clear');
     expect(deactivationClaimTarget({ status: 'invited' })).toBe('clear');
-    expect(deactivationClaimTarget(null)).toBe('clear');
+    expect(deactivationClaimTarget(null)).toBeNull();
   });
 });
 
@@ -84,6 +84,26 @@ describe('applyDeactivationClaim', () => {
     expect(isLive).toHaveBeenCalledWith('new@orono.k12.mn.us');
     expect(uids).toEqual([]);
     expect(auth.revokeRefreshTokens).not.toHaveBeenCalled();
+  });
+
+  it('does not clear a linked account still held by a revoked member', async () => {
+    auth.getUser.mockResolvedValue({
+      uid: 'u1',
+      email: 'x@orono.k12.mn.us',
+      customClaims: { deactivated: true },
+    });
+    auth.getUserByEmail.mockRejectedValue(notFound);
+    const holds = vi.fn().mockResolvedValue(true);
+    const uids = await applyDeactivationClaim(
+      auth,
+      'x@orono.k12.mn.us',
+      'u1',
+      'clear',
+      undefined,
+      holds
+    );
+    expect(uids).toEqual([]);
+    expect(auth.setCustomUserClaims).not.toHaveBeenCalled();
   });
 
   it('also claims a different account holding the address', async () => {

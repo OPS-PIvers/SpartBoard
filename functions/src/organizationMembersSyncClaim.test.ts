@@ -5,6 +5,8 @@ const h = vi.hoisted(() => ({
   handler: undefined as undefined | ((e: unknown) => Promise<void>),
   options: undefined as undefined | Record<string, unknown>,
   current: undefined as undefined | Record<string, unknown>,
+  linked: [] as Array<Record<string, unknown>>,
+  getFails: false,
   auth: {
     getUser: vi.fn(),
     getUserByEmail: vi.fn(),
@@ -30,12 +32,23 @@ vi.mock('./firebaseAdmin', () => ({
   initializeApp: vi.fn(),
   auth: () => h.auth,
   firestore: () => ({
+    collection: () => ({
+      where: () => ({
+        get: () =>
+          Promise.resolve({
+            docs: h.linked.map((d) => ({ get: (k: string) => d[k] })),
+          }),
+      }),
+    }),
     doc: () => ({
       get: () =>
-        Promise.resolve({
-          exists: h.current !== undefined,
-          data: () => h.current,
-        }),
+        h.getFails
+          ? Promise.reject(new Error('unavailable'))
+          : Promise.resolve({
+              exists: h.current !== undefined,
+              data: () => h.current,
+              get: (k: string) => h.current?.[k],
+            }),
       set: vi.fn(),
       update: vi.fn(),
       delete: mirrorDelete,
@@ -62,6 +75,8 @@ describe('organizationMembersSync deactivation claim wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     user.customClaims = {};
+    h.linked = [];
+    h.getFails = false;
     h.auth.getUser.mockResolvedValue(user);
     h.auth.getUserByEmail.mockResolvedValue(user);
     h.auth.setCustomUserClaims.mockResolvedValue(undefined);
@@ -98,11 +113,28 @@ describe('organizationMembersSync deactivation claim wiring', () => {
     ).rejects.toThrow('auth 503');
   });
 
-  it('clears the claim when an inactive member doc is deleted', async () => {
+  it('keeps the claim when a deactivated member doc is deleted', async () => {
     h.current = undefined;
     user.customClaims = { deactivated: true };
     await h.handler!(event({ status: 'inactive', roleId: 'teacher' }));
-    expect(h.auth.setCustomUserClaims).toHaveBeenCalledWith('u1', {});
+    expect(h.auth.setCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it('does not clear a uid still linked to another revoked member doc on create', async () => {
+    h.current = { status: 'active', roleId: 'teacher', uid: 'u1' };
+    h.linked = [{ status: 'inactive' }];
+    user.customClaims = { deactivated: true };
+    await h.handler!(
+      event(undefined, { status: 'active', roleId: 'teacher', uid: 'u1' })
+    );
+    expect(h.auth.setCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it('rethrows a failed live member read so the mirror is retried', async () => {
+    h.getFails = true;
+    await expect(
+      h.handler!(event({ status: 'active', roleId: 'domain_admin' }))
+    ).rejects.toThrow('unavailable');
   });
 
   it('clears a stale claim when the doc is recreated live', async () => {

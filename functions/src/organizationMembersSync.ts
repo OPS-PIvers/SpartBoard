@@ -45,6 +45,24 @@ async function liveOperatorMember(
   );
 }
 
+/** True when the account's current address or any member doc linked to its uid is revoked. */
+async function holdsRevokedMember(
+  orgId: string,
+  user: admin.auth.UserRecord
+): Promise<boolean> {
+  const db = admin.firestore();
+  const email = user.email?.toLowerCase() ?? '';
+  if (email) {
+    const snap = await db.doc(`organizations/${orgId}/members/${email}`).get();
+    if (snap.exists && isRevokedMemberStatus(snap.get('status'))) return true;
+  }
+  const linked = await db
+    .collection(`organizations/${orgId}/members`)
+    .where('uid', '==', user.uid)
+    .get();
+  return linked.docs.some((d) => isRevokedMemberStatus(d.get('status')));
+}
+
 export const ADMIN_ROLES: readonly string[] = [
   'super_admin',
   'domain_admin',
@@ -250,19 +268,22 @@ export const organizationMembersSync = onDocumentWritten(
         const claimChange = deactivationClaimTarget(
           snap.exists ? (snap.data() as MemberDocFields) : null
         );
-        const uids = await applyDeactivationClaim(
-          admin.auth(),
-          emailLower,
-          afterData?.uid ?? beforeData?.uid,
-          claimChange,
-          (email) => liveOperatorMember(orgId, email)
-        );
-        logger.info('organizationMembersSync: deactivation claim', {
-          orgId,
-          emailLower,
-          claimChange,
-          uids,
-        });
+        if (claimChange) {
+          const uids = await applyDeactivationClaim(
+            admin.auth(),
+            emailLower,
+            afterData?.uid ?? beforeData?.uid,
+            claimChange,
+            (email) => liveOperatorMember(orgId, email),
+            (user) => holdsRevokedMember(orgId, user)
+          );
+          logger.info('organizationMembersSync: deactivation claim', {
+            orgId,
+            emailLower,
+            claimChange,
+            uids,
+          });
+        }
       } catch (err) {
         claimError = err instanceof Error ? err : new Error(String(err));
         logger.error('organizationMembersSync: deactivation claim failed', {
@@ -298,7 +319,8 @@ async function mirrorAdminDoc(
       emailLower,
       error: err instanceof Error ? err.message : String(err),
     });
-    return;
+    // Rethrow so the retrying trigger re-runs the mirror instead of failing open.
+    throw err;
   }
   // Short-circuit when the transition is irrelevant to admin mapping.
   // Specifically: both the previous and next admin-eligibility evaluate
