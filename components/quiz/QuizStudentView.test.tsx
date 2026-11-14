@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { QuizBehaviorSettings, QuizData } from '@/types';
+import {
+  buildAssignedStudentView,
+  buildStudentViewSession,
+} from '@/utils/quizStudentViewSession';
 import { QuizStudentView } from './QuizStudentView';
 
 const QUIZ = {
@@ -65,5 +69,27 @@ describe('QuizStudentView cross-out', () => {
         k.startsWith('sb_quiz_crossout:')
       )
     ).toEqual([]);
+  });
+});
+
+describe('QuizStudentView on an assignment', () => {
+  it('runs the assigned copy and labels a sample draw', async () => {
+    const { session } = buildAssignedStudentView(
+      {
+        ...buildStudentViewSession(QUIZ, BEHAVIOR, false),
+        id: 'live',
+        quizTitle: 'Cells (assigned)',
+      },
+      null
+    );
+    render(
+      <QuizStudentView
+        assigned={{ session, drawIds: ['q1'] }}
+        tabAwayTimerOn={false}
+        onExit={vi.fn()}
+      />
+    );
+    await screen.findByText('Which organelle makes energy?');
+    expect(screen.getByText('Assigned version, sample draw')).toBeTruthy();
   });
 });

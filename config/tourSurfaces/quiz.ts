@@ -31,6 +31,8 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.import-questions': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.make-own-copy': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.archive-monitor': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-student-view':
+        'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-settings': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-plc-results':
         'library-shell.archive-menu:quiz#row-1',
@@ -392,7 +394,10 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.student-answer-line': {
     label: 'Student answer line',
     kind: 'shared',
-    files: [`${C}results/StudentAnswerLine.tsx`],
+    files: [
+      `${C}results/StudentAnswerLine.tsx`,
+      `${C}results/CountedChoicesPicker.tsx`,
+    ],
   },
   'quiz.monitor': {
     label: 'Quiz live monitor',
@@ -418,6 +423,12 @@ export const SURFACES: TourSurfaceMap = {
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',
     },
+  },
+  'quiz.monitor.live-view': {
+    label: 'Quiz Live view of one student',
+    kind: 'panel',
+    opensWith: 'quiz-monitor.live-view:quiz',
+    files: [`${C}monitor/LiveViewPanel.tsx`, `${C}monitor/LiveLogList.tsx`],
   },
   'quiz.monitor.settings': {
     label: 'Quiz monitor settings',

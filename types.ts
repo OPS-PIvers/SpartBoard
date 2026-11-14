@@ -4838,6 +4838,16 @@ export interface QuizSessionSection extends QuizSection {
   questionIds: string[];
 }
 
+/** The teacher's pick of which answers count in over-answered choose-N sections. */
+export interface QuizCountedChoices {
+  /** The response's `completedAttempts` when picked; a later attempt ignores the pick. */
+  attempt: number;
+  /** Section id to the question ids that count. */
+  bySection: Record<string, string[]>;
+  /** Answers a pick brought back from passed; "Use the first N" sets them aside again. */
+  revived?: string[];
+}
+
 /** Frozen slot on a session; the student draws `count` ids from `poolQuestionIds`. */
 export interface QuizSessionBankSlot {
   id: string;
@@ -6162,6 +6172,41 @@ export interface InputSignalCounts {
 /** Keyed by completed-attempt count, then by question id. */
 export type InputSignals = Record<string, Record<string, InputSignalCounts>>;
 
+/** Fixed Nudge notes (docs/plans/shipped/QUIZ_LIVE_VIEW.md D15); no free text. */
+export type QuizNudgeNoteId = 'see-me' | 'own-work' | 'keep-going';
+
+/** Teacher-written while Live view is open on this attempt; the student page reads it on its own listener. */
+export interface QuizLiveViewStamp {
+  /** Server-clock ms; the student reports the question on screen while this is ahead. */
+  until: number;
+  /** True shows the student "Your teacher is viewing your quiz". */
+  notify: boolean;
+  /** Each `at` pulses the border once on the student's quiz. */
+  nudge?: { at: number; noteId?: QuizNudgeNoteId };
+}
+
+/** `responses/{key}/live/state`: the question a watched student is showing. */
+export interface QuizLiveState {
+  questionId: string;
+  /** Server-clock ms. */
+  at: number;
+}
+
+/** `users/{uid}/quiz_assignments/{id}/live_log/{id}`: what a teacher did in Live view. Never on the response doc. */
+export interface QuizLiveLogEntry {
+  id: string;
+  kind: 'screenshot' | 'nudge' | 'banner';
+  responseKey: string;
+  /** Server-clock ms. */
+  at: number;
+  /** 1-based place in the student's own question order, when known. */
+  questionNumber?: number;
+  questionId?: string;
+  noteId?: QuizNudgeNoteId;
+  /** The screenshot in the teacher's Drive. */
+  driveFileId?: string;
+}
+
 export interface QuizResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -6242,6 +6287,8 @@ export interface QuizResponse extends StaffResponseFields {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Teacher-written; which answers count where the student answered more than a section's N. */
+  countedChoices?: QuizCountedChoices;
   /** Pool ids balanced bank slots have dealt this student across attempts; never cleared by a retake. */
   dealtQuestionIds?: string[];
   /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
@@ -6259,6 +6306,8 @@ export interface QuizResponse extends StaffResponseFields {
    * Used for maintaining quiz integrity.
    */
   tabSwitchWarnings?: number;
+  /** Set only while the teacher has Live view open on this attempt. */
+  liveView?: QuizLiveViewStamp | null;
   /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
   tabExits?: TabExit[];
   /** Written only when the session carries `inputSignals`. */
@@ -11230,6 +11279,8 @@ export type GlobalFeature =
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
+  /** Quiz Monitor Live view: a teacher watches one student's in-progress attempt, redrawn from saved data. */
+  | 'quiz-live-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
@@ -11337,7 +11388,9 @@ export type GlobalFeature =
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */
-  | 'youtube-paste-picker';
+  | 'youtube-paste-picker'
+  /** Teachers pick which answers count when a student answers more than a section asks. */
+  | 'choose-n-pick-counted';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -11523,6 +11576,8 @@ export interface FeaturePermission {
 export interface QuizBuildingConfig {
   /** 'teacher-choice' (default) | 'force-on' | 'force-off' for the raise-hand button. */
   handRaiseMode?: 'teacher-choice' | 'force-on' | 'force-off';
+  /** Live view always shows the student "Your teacher is viewing your quiz"; absent = the teacher chooses. */
+  liveViewAlwaysNotify?: boolean;
 }
 
 export interface CarRiderProGlobalConfig {

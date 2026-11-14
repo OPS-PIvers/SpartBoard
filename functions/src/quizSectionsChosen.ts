@@ -6,6 +6,7 @@
  */
 
 export interface ChooseSection {
+  id?: string;
   chooseCount?: number;
   questionIds: string[];
 }
@@ -32,7 +33,13 @@ export function parseChooseSections(raw: unknown): ChooseSection[] {
         ? r.chooseCount
         : undefined;
     return ids.length > 0
-      ? [{ questionIds: ids, ...(count ? { chooseCount: count } : {}) }]
+      ? [
+          {
+            ...(typeof r.id === 'string' ? { id: r.id } : {}),
+            questionIds: ids,
+            ...(count ? { chooseCount: count } : {}),
+          },
+        ]
       : [];
   });
 }
@@ -52,11 +59,35 @@ function stripTags(html: string): string {
   return text;
 }
 
-/** Question ids this student left out of a choose-N section. */
+/** The response's teacher picks by section id, kept only when they belong to its current attempt. */
+export function parseCountedChoices(
+  response: Record<string, unknown>
+): Record<string, string[]> | undefined {
+  const raw = response.countedChoices;
+  if (response.status !== 'completed') return undefined;
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const r = raw as Record<string, unknown>;
+  const attempt =
+    typeof response.completedAttempts === 'number'
+      ? response.completedAttempts
+      : 0;
+  if (r.attempt !== attempt) return undefined;
+  if (typeof r.bySection !== 'object' || r.bySection === null) return undefined;
+  const out: Record<string, string[]> = {};
+  for (const [id, ids] of Object.entries(r.bySection)) {
+    if (!Array.isArray(ids)) continue;
+    const list = ids.filter((x): x is string => typeof x === 'string');
+    if (list.length > 0) out[id] = list;
+  }
+  return out;
+}
+
+/** Question ids this student left out of a choose-N section; the teacher's picks count first. */
 export function notChosenIds(
   sections: readonly ChooseSection[] | undefined,
   answers: readonly SectionAnswer[],
-  servedIds?: readonly string[]
+  servedIds?: readonly string[],
+  picked?: Record<string, string[]>
 ): Set<string> {
   const out = new Set<string>();
   const served =
@@ -70,11 +101,20 @@ export function notChosenIds(
     const answered = ids.filter((id) =>
       answers.some((a) => a.questionId === id && hasContent(a))
     );
-    const chosen = new Set(answered.slice(0, count));
-    for (const id of ids) {
-      if (chosen.size >= count) break;
-      chosen.add(id);
+    const chosen = new Set<string>();
+    const add = (list: readonly string[]) => {
+      for (const id of list) {
+        if (chosen.size >= count) return;
+        chosen.add(id);
+      }
+    };
+    const teacherPicks = section.id ? picked?.[section.id] : undefined;
+    // A pick counts only while its question still holds an answer.
+    if (teacherPicks) {
+      add(answered.filter((id) => teacherPicks.includes(id)));
     }
+    add(answered);
+    add(ids);
     for (const id of ids) if (!chosen.has(id)) out.add(id);
   }
   return out;

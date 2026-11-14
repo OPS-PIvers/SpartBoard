@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   FolderTree,
+  MonitorPlay,
   ArrowLeftRight,
   Camera,
   PenLine,
@@ -885,6 +886,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz Monitor "Live view": one student's in-progress attempt, redrawn from saved data.
+  'quiz-live-view': {
+    label: 'Quiz Live view',
+    icon: MonitorPlay,
+    description:
+      "Teachers watch one student's quiz in progress from Monitor, with Nudge and screenshots.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Live view',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Quiz "Show score on submit" setting. Admin-only until Paul has used it with a class.
   'quiz-score-on-submit': {
     label: 'Quiz score on submit',
@@ -1603,6 +1619,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Video,
     description:
       'Pasting a YouTube link on the board asks whether to add it as an Embed or a Video Activity.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'choose-n-pick-counted': {
+    label: 'Quiz: pick which answers count',
+    icon: ListChecks,
+    description:
+      'When a student answers more questions than a section asks for, the teacher picks which answers count.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

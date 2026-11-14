@@ -14,7 +14,7 @@ import {
   showsMissedKey,
   type StudentQuestionLine,
 } from '@/utils/quizStudentDrilldown';
-import { MARK_LABEL } from '@/utils/quizStudentReportPrint';
+import { markLabel } from '@/utils/quizStudentReportPrint';
 import { formatExportPoints } from '@/utils/assignmentExportShared';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { placeOrderingAnswer } from '@/utils/quizOrderingPlacement';
@@ -171,7 +171,9 @@ function answerLabel(line: StudentQuestionLine): string {
 export const StudentAnswerLine: React.FC<{
   line: StudentQuestionLine;
   onOpenGrader?: () => void;
-}> = ({ line, onOpenGrader }) => {
+  /** Swaps this answer in for the one that counts in its section. */
+  onCountInstead?: () => void;
+}> = ({ line, onOpenGrader, onCountInstead }) => {
   const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
   const answer = answerLabel(line);
   const orderSpots =
@@ -243,8 +245,24 @@ export const StudentAnswerLine: React.FC<{
           style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
         >
           <MarkIcon aria-hidden style={SMALL_ICON} />
-          {MARK_LABEL[line.mark]}
+          {markLabel(line)}
         </span>
+        {onCountInstead && (
+          <button
+            type="button"
+            onClick={onCountInstead}
+            aria-label={`Count Q${line.number} instead`}
+            {...tourFieldAttr(
+              'quiz-results.count-instead',
+              'quiz',
+              String(line.number)
+            )}
+            className="touch-target-expand relative inline-flex items-center shrink-0 rounded-sm font-sans font-semibold text-brand-blue-primary hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            style={SMALL_TEXT}
+          >
+            Count this instead
+          </button>
+        )}
         {line.mark !== 'excused' && (
           <span
             className="font-sans text-brand-gray-dark tabular-nums shrink-0 text-right"

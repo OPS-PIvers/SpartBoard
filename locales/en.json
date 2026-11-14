@@ -3543,6 +3543,13 @@
     "placed": "{{word}} placed in {{blank}}.",
     "returned": "{{word}} returned to the word bank."
   },
+  "quizLiveView": {
+    "banner": "Your teacher is viewing your quiz",
+    "nudge": "Your teacher is checking in",
+    "noteSeeMe": "Please see me",
+    "noteOwnWork": "Eyes on your own work",
+    "noteKeepGoing": "Keep going"
+  },
   "quizReview": {
     "reviewButton": "REVIEW",
     "reviewLink": "Review",
@@ -3869,7 +3876,8 @@
         "paper-failed": "Failed",
         "paper-over-quota": "Daily limit",
         "paper-blank": "Blank",
-        "paper-image": "Not transcribed"
+        "paper-image": "Not transcribed",
+        "not-counted": "Extra, not scored"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -4134,7 +4142,8 @@
         "rail": "Marks not saved"
       },
       "classFilter": "Filter by class",
-      "allClasses": "All classes"
+      "allClasses": "All classes",
+      "countInstead": "Count this instead"
     },
     "results": {
       "gradeButton": "Grade Free Response"
@@ -4814,6 +4823,10 @@
     "cancel": "Cancel",
     "saved": "Quiz configuration saved.",
     "saveFailed": "Failed to save quiz configuration.",
+    "liveView": {
+      "heading": "Live view",
+      "alwaysNotify": "Always tell students when a teacher opens Live view"
+    },
     "handRaise": {
       "heading": "Raise hand",
       "teacherChoice": "Teacher's choice",

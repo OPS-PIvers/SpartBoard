@@ -2226,6 +2226,13 @@
     "placed": "{{word}} colocada en {{blank}}.",
     "returned": "{{word}} devuelta al banco de palabras."
   },
+  "quizLiveView": {
+    "banner": "Tu maestro está viendo tu prueba",
+    "nudge": "Tu maestro quiere tu atención",
+    "noteSeeMe": "Ven a verme, por favor",
+    "noteOwnWork": "Mira solo tu propio trabajo",
+    "noteKeepGoing": "Sigue adelante"
+  },
   "quizReview": {
     "reviewButton": "REVISAR",
     "reviewLink": "Revisar",
@@ -2572,7 +2579,8 @@
         "paper-failed": "Error",
         "paper-over-quota": "Límite diario",
         "paper-blank": "En blanco",
-        "paper-image": "No transcrito"
+        "paper-image": "No transcrito",
+        "not-counted": "Extra, sin puntuar"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2833,7 +2841,8 @@
         "rail": "Marcas sin guardar"
       },
       "classFilter": "Filtrar por clase",
-      "allClasses": "Todas las clases"
+      "allClasses": "Todas las clases",
+      "countInstead": "Contar esta en su lugar"
     },
     "results": {
       "gradeButton": "Calificar respuestas libres"
@@ -3506,6 +3515,10 @@
     "cancel": "Cancelar",
     "saved": "Configuración del cuestionario guardada.",
     "saveFailed": "No se pudo guardar la configuración del cuestionario.",
+    "liveView": {
+      "heading": "Vista en vivo",
+      "alwaysNotify": "Avisar siempre a los estudiantes cuando un maestro abre la Vista en vivo"
+    },
     "handRaise": {
       "heading": "Levantar la mano",
       "teacherChoice": "Decisión del docente",

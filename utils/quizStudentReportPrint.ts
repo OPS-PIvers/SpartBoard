@@ -75,6 +75,15 @@ export const MARK_LABEL: Record<StudentOutcome, string> = {
   notChosen: 'Not chosen',
 };
 
+/** "Extra, not scored" for an answer left out of a choose-N section, else the mark's label. */
+export const markLabel = (line: {
+  mark: StudentOutcome;
+  answerText?: string;
+}): string =>
+  line.mark === 'notChosen' && line.answerText
+    ? 'Extra, not scored'
+    : MARK_LABEL[line.mark];
+
 const BAND_LABEL: Record<string, string> = {
   proficient: 'Proficient',
   approaching: 'Approaching',
@@ -124,7 +133,7 @@ export function buildStudentReportHtml(job: StudentReportJob): string {
         job.includeCorrectAnswers && showsMissedKey(line)
           ? `<div class="key">Correct answer: ${answerTextHtml(line.correctAnswerText ?? '', line)}</div>`
           : '';
-      return `<li><span class="num">Q${line.number}</span><div><div class="text">${promptPrintHtml(line.text)}</div>${answer}${key}</div><div class="mark">${MARK_LABEL[line.mark]}${pts}</div></li>`;
+      return `<li><span class="num">Q${line.number}</span><div><div class="text">${promptPrintHtml(line.text)}</div>${answer}${key}</div><div class="mark">${markLabel(line)}${pts}</div></li>`;
     })
     .join('');
 

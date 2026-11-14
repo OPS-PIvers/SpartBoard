@@ -45,4 +45,5 @@ Keep implementation details out. Name only user paths, stable handles, required 
 - [Sidebar menu](./sidebar-menu.md) covers opening the sidebar and reaching its sections.
 - [Admin Settings](./admin-settings.md) covers opening Admin Settings and switching tabs.
 - [Paper markup editor](./paper-markup-editor.md) covers marking up a handwritten answer, saved comments and the earlier-scan notice on `/paper-markup-dev`.
+- [Quiz Live view and Student view on an assignment](./quiz-live-view.md) covers the In Progress row's Student view item and note, and the Live view panel opened from Monitor.
 - [Dev harness pages](./dev-harness-pages.md) covers the `/*-dev` fixture pages used for library, student and editor views.
