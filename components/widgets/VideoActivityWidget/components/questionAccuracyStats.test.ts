@@ -85,12 +85,7 @@ describe('computeQuestionAccuracy', () => {
     expect(computeQuestionAccuracy(q, [])).toBe(0);
   });
 
-  it('duplicate entries stored in reverse answeredAt order still credit the earliest (array-order gap)', () => {
-    // Regression for the array-order gap: before this fix, `.find()` took
-    // whatever was first in the array, not first by answeredAt. Store the
-    // real (correct) answer LAST in the array but EARLIEST by answeredAt.
-    // VideoActivityAnswer has no takeIndex field, so both entries tie at
-    // the implicit takeIndex 0 and fall through to the answeredAt tie-break.
+  it('grades the first entry by list position, ignoring a later duplicate with an earlier answeredAt', () => {
     const q = makeQuestion();
     const responses = [
       makeResponse([
@@ -98,7 +93,7 @@ describe('computeQuestionAccuracy', () => {
         { questionId: 'q1', answer: '4', answeredAt: 100 },
       ]),
     ];
-    expect(computeQuestionAccuracy(q, responses)).toBe(100);
+    expect(computeQuestionAccuracy(q, responses)).toBe(0);
   });
 });
 
@@ -127,13 +122,12 @@ describe('countCorrectAnswers', () => {
     expect(countCorrectAnswers(response, questions)).toBe(1);
   });
 
-  it('duplicate entries stored in reverse answeredAt order still credit the earliest (array-order gap)', () => {
+  it('counts the first entry by list position, not a duplicate with an earlier answeredAt', () => {
     const questions = [makeQuestion({ id: 'q1', correctAnswer: '4' })];
-    // Real (correct) answer is LAST in the array but EARLIEST by answeredAt.
     const response = makeResponse([
       { questionId: 'q1', answer: '3', answeredAt: 200 },
       { questionId: 'q1', answer: '4', answeredAt: 100 },
     ]);
-    expect(countCorrectAnswers(response, questions)).toBe(1);
+    expect(countCorrectAnswers(response, questions)).toBe(0);
   });
 });

@@ -200,13 +200,21 @@ export async function handleCheckVideoActivityAnswer(
   const isStudent = !isTeacher && !isViewOnly && !!responseDoc;
   // PIN joins and share views cost nothing to repeat; a uid-keyed response belongs to a signed-in student.
   const freeIdentity = !isTeacher && responseDoc?.id !== callerUid;
+  // A throwaway PIN joiner could probe a graded self-paced key, so it gets no check until Publish.
+  const freeGradedProbe =
+    isStudent && freeIdentity && !isLive && !rules.requireCorrectAnswer;
   // A live student waits for the board's reveal, and a hidden answer never leaves the server.
   const withholdKey =
-    (isLive && isStudent) || (!isTeacher && !rules.revealAnswer);
+    (isLive && isStudent) ||
+    (!isTeacher && !rules.revealAnswer) ||
+    freeGradedProbe;
   // Right and wrong waits for the reveal too, and a hidden key's verdicts never go to a free identity.
   const withholdResult =
     !isTeacher &&
-    (isLive || !rules.showResult || (!rules.revealAnswer && freeIdentity));
+    (isLive ||
+      !rules.showResult ||
+      (!rules.revealAnswer && freeIdentity) ||
+      freeGradedProbe);
   const shortAnswer = isVaShortAnswer(question);
   if (shortAnswer && input.answer.trim().length === 0)
     throw new HttpsError('invalid-argument', 'Type an answer first.');

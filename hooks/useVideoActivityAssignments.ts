@@ -43,8 +43,15 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
-import { gradeVideoActivityResponseForPublish } from '@/utils/studentResultsPublish';
-import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
+import {
+  gradeVideoActivityResponseForPublish,
+  vaPublishedAnswers,
+  vaSessionShowsResults,
+} from '@/utils/studentResultsPublish';
+import {
+  isLiveVideoActivitySession,
+  scoredVideoActivityQuestions,
+} from '@/utils/videoActivityLive';
 import {
   mirrorPlcAssignmentStatus,
   writePlcAssignmentIndexEntry,
@@ -257,6 +264,8 @@ export interface UseVideoActivityAssignmentsResult {
     responsesUpdated: number;
     /** The questions scores were computed over (asked ones only in a live session). */
     scoredQuestions: VideoActivityQuestion[];
+    /** Teacher-paced run: pushes score only answers the check callable recorded. */
+    live: boolean;
   }>;
   /**
    * Revoke published score visibility for an assignment. Clears
@@ -1187,6 +1196,10 @@ export const useVideoActivityAssignments = (
         dedupeQuestionsById(activityData.questions)
       );
       const questionsById = new Map(scoredQuestions.map((q) => [q.id, q]));
+      const sessionData = sessionSnap.data() as
+        Partial<VideoActivitySession> | undefined;
+      const live = isLiveVideoActivitySession(sessionData);
+      const showsResults = vaSessionShowsResults(sessionData);
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -1210,10 +1223,19 @@ export const useVideoActivityAssignments = (
       for (const d of responseDocs) {
         const data = d.data() as VideoActivityResponse;
         const { score, answers: gradedAnswers } =
-          gradeVideoActivityResponseForPublish(data, questionsById);
+          gradeVideoActivityResponseForPublish(data, questionsById, live);
         updates.push({
           ref: d.ref,
-          patch: { score, answers: gradedAnswers },
+          patch: {
+            score,
+            answers: vaPublishedAnswers(
+              data,
+              gradedAnswers,
+              visibility,
+              now,
+              showsResults
+            ),
+          },
         });
       }
 
@@ -1269,7 +1291,7 @@ export const useVideoActivityAssignments = (
         );
       }
 
-      return { responsesUpdated: updates.length, scoredQuestions };
+      return { responsesUpdated: updates.length, scoredQuestions, live };
     },
     [userId]
   );

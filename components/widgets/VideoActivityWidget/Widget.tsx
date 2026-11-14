@@ -1538,7 +1538,8 @@ const TeacherVideoActivityWidget: React.FC<{
                         buildVideoActivityGradeEntries(
                           responses,
                           result.scoredQuestions,
-                          mp
+                          mp,
+                          result.live
                         ),
                         responses,
                         mp
@@ -1551,7 +1552,8 @@ const TeacherVideoActivityWidget: React.FC<{
                     buildVideoActivityGradeEntries(
                       responses,
                       result.scoredQuestions,
-                      mp
+                      mp,
+                      result.live
                     ),
                     responses,
                     mp

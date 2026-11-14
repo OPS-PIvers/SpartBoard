@@ -280,7 +280,7 @@ describe('handleCheckVideoActivityAnswer question order', () => {
 });
 
 describe('handleCheckVideoActivityAnswer when wrong answers are kept', () => {
-  const RESPONSE = `${SESSION}/responses/pin-p1-01`;
+  const RESPONSE = `${SESSION}/responses/stu`;
   const setup = (response: Doc = {}, session: Doc = {}) => {
     const docs: Record<string, Doc> = {
       [SESSION]: {
@@ -321,6 +321,19 @@ describe('handleCheckVideoActivityAnswer when wrong answers are kept', () => {
     const closed = setup({}, { closeAt: 0 });
     await handleCheckVideoActivityAnswer(closed.db, 'stu', input('Rome'), 1e9);
     expect(closed.docs[RESPONSE].answers).toEqual([]);
+  });
+
+  it('records a PIN joiner without a verdict or key, so a throwaway join cannot probe', async () => {
+    const pin = `${SESSION}/responses/pin-p1-02`;
+    const { docs } = setup();
+    docs[pin] = { studentUid: 'anon', answers: [], completedAt: null };
+    const db = makeDb(docs);
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'anon', input('Rome'), 1000)
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    expect(docs[pin].answers).toEqual([
+      { questionId: 'q1', answer: 'Rome', answeredAt: 1000 },
+    ]);
   });
 
   it('leaves require-correct sessions to the client, which retries until right', async () => {
@@ -623,7 +636,7 @@ describe('scrubVideoActivitySessionKey', () => {
 });
 
 describe('handleCheckVideoActivityAnswer for a short answer', () => {
-  const RESPONSE = `${SESSION}/responses/pin-p1-01`;
+  const RESPONSE = `${SESSION}/responses/stu`;
   const SA = [
     ...KEYED,
     {
