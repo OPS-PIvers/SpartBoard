@@ -60,9 +60,18 @@ const batchMock = vi.fn(() => ({
   commit: () => batchCommitMock() as Promise<unknown>,
 }));
 
+// Auth account the deactivation claim lands on.
+const authMock = {
+  getUser: vi.fn(),
+  getUserByEmail: vi.fn(),
+  setCustomUserClaims: vi.fn(),
+  revokeRefreshTokens: vi.fn(),
+};
+
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
+  auth: () => authMock,
   firestore: () => ({
     doc: docMock,
     collection: collectionMock,
@@ -612,6 +621,126 @@ describe('resolveOrgForUser auto-enrollment', () => {
     }
     expect(docUpdateMock).not.toHaveBeenCalled();
     expect(batchUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('stamps the deactivation claim on a deactivated member whose token lacks it', async () => {
+    authMock.getUser.mockReset().mockResolvedValue({ uid: 'uid-1' });
+    authMock.getUserByEmail.mockReset().mockResolvedValue({ uid: 'uid-1' });
+    authMock.setCustomUserClaims.mockReset().mockResolvedValue(undefined);
+    authMock.revokeRefreshTokens.mockReset().mockResolvedValue(undefined);
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'inactive', roleId: 'teacher' },
+    });
+    await handler({ auth: verifiedAuth, data: {} });
+    expect(authMock.setCustomUserClaims).toHaveBeenCalledWith('uid-1', {
+      deactivated: true,
+    });
+    expect(authMock.revokeRefreshTokens).toHaveBeenCalledWith('uid-1');
+
+    authMock.setCustomUserClaims.mockClear();
+    await handler({
+      auth: {
+        ...verifiedAuth,
+        token: { ...verifiedAuth.token, deactivated: true },
+      },
+      data: {},
+    });
+    expect(authMock.setCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it('clears a stale deactivation claim once the member doc is active again', async () => {
+    authMock.getUser.mockReset().mockResolvedValue({
+      uid: 'uid-1',
+      customClaims: { deactivated: true },
+    });
+    authMock.getUserByEmail.mockReset().mockResolvedValue({
+      uid: 'uid-1',
+      customClaims: { deactivated: true },
+    });
+    authMock.setCustomUserClaims.mockReset().mockResolvedValue(undefined);
+    scriptDocs({
+      memberExists: true,
+      member: { status: 'active', roleId: 'teacher' },
+    });
+    await handler({
+      auth: {
+        ...verifiedAuth,
+        token: { ...verifiedAuth.token, deactivated: true },
+      },
+      data: {},
+    });
+    expect(authMock.setCustomUserClaims).toHaveBeenCalledWith('uid-1', {});
+  });
+
+  describe('legacy self-enrolled docs', () => {
+    const legacy = {
+      status: 'active',
+      roleId: 'teacher',
+      addedBySource: 'auto-enroll:resolveOrgForUser',
+    };
+
+    it('demotes one ClassLink now lists as a student', async () => {
+      fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+      scriptDocs({ memberExists: true, member: legacy });
+      docUpdateMock.mockResolvedValue(undefined);
+      const res = await handler({ auth: verifiedAuth, data: {} });
+      expect(res).toEqual({ orgId: 'orono', rosterStudent: true });
+      expect(docUpdateMock).toHaveBeenCalledWith(
+        MEMBER_PATH,
+        { roleId: 'student', demotedBy: 'resolveOrgForUser' },
+        { lastUpdateTime: 'T1' }
+      );
+    });
+
+    it('stamps ClassLink staff once and never asks again', async () => {
+      scriptDocs({ memberExists: true, member: legacy });
+      docUpdateMock.mockResolvedValue(undefined);
+      expect(await handler({ auth: verifiedAuth, data: {} })).toEqual({
+        orgId: 'orono',
+      });
+      expect(docUpdateMock).toHaveBeenCalledWith(
+        MEMBER_PATH,
+        { rosterRole: 'staff' },
+        { lastUpdateTime: 'T1' }
+      );
+      fetchOneRosterUsersMock.mockClear();
+      scriptDocs({
+        memberExists: true,
+        member: { ...legacy, rosterRole: 'staff' },
+      });
+      await handler({ auth: verifiedAuth, data: {} });
+      expect(fetchOneRosterUsersMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the doc for an admin, a mock-class teacher, an unknown address or a ClassLink outage', async () => {
+      fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+      scriptDocs({ memberExists: true, member: legacy, isAdmin: true });
+      await handler({ auth: verifiedAuth, data: {} });
+
+      fetchOneRosterUsersMock.mockResolvedValue([]);
+      mockClassHit.value = true;
+      scriptDocs({ memberExists: true, member: legacy });
+      await handler({ auth: verifiedAuth, data: {} });
+
+      fetchOneRosterUsersMock.mockRejectedValue(new Error('down'));
+      await handler({ auth: verifiedAuth, data: {} });
+      expect(docUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('leaves invited, admin-added and already-demoted docs alone', async () => {
+      fetchOneRosterUsersMock.mockResolvedValue([{ role: 'student' }]);
+      for (const member of [
+        { status: 'active', roleId: 'teacher' },
+        { ...legacy, roleId: 'student' },
+        { ...legacy, roleId: 'domain_admin' },
+      ]) {
+        scriptDocs({ memberExists: true, member });
+        await handler({ auth: verifiedAuth, data: {} });
+      }
+      expect(fetchOneRosterUsersMock).not.toHaveBeenCalled();
+      expect(docUpdateMock).not.toHaveBeenCalled();
+    });
   });
 
   it('ignores a lost race with an admin edit', async () => {

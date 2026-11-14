@@ -7,11 +7,13 @@ service firebase.storage {
     // Helper function to check if user is an admin in Firestore
     // email_verified is required, as in firestore.rules isAdmin(): email/password
     // sign-in allows a self-reported address that could match an /admins doc.
+    // liveToken(): a deactivated member fails every admin branch with no extra Firestore read.
     function isAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
              request.auth.token.get('viewAs', null) == null &&
+             liveToken() &&
              firestore.exists(/databases/(default)/documents/admins/$(request.auth.token.email.lower()));
     }
 
@@ -56,8 +58,12 @@ service firebase.storage {
     }
     // As firestore.rules notDeactivated(): false only for an operator-org member whose status revokes access.
     function notDeactivated() {
-      return request.auth.token.get('email', '') == '' ||
-             liveMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower())));
+      return liveToken() && (request.auth.token.get('email', '') == '' ||
+             liveMember(firestore.get(/databases/(default)/documents/organizations/orono/members/$(request.auth.token.email.lower()))));
+    }
+    // No `deactivated` claim: the account is not a deactivated operator-org member, whatever its email.
+    function liveToken() {
+      return request.auth.token.get('deactivated', false) != true;
     }
     function liveMember(member) {
       return member == null || member.data.get('status', 'active') in ['active', 'invited'];
@@ -84,7 +90,7 @@ service firebase.storage {
     // Per-user teacher files. Only a signed-in teacher account (never an anonymous
     // or studentRole one) uploads, within a per-folder size and type cap.
     function userFileOwner(userId) {
-      return request.auth != null && (request.auth.uid == userId || isSiteAdmin());
+      return request.auth != null && ((request.auth.uid == userId && liveToken()) || isSiteAdmin());
     }
     function userFileUpload(userId, maxBytes, typePattern) {
       return userFileOwner(userId) && viewAsWriteOk() &&
@@ -406,7 +412,7 @@ service firebase.storage {
     // Handwritten paper answer crops: the owning teacher uploads once per scan; only the server reads or deletes.
     match /paper_written_crops/{uid}/{scanId}/{seat}/{fileName} {
       allow create: if request.auth != null && viewAsWriteOk() &&
-        request.auth.uid == uid &&
+        request.auth.uid == uid && liveToken() &&
         resource == null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.auth.token.get('studentRole', false) != true &&
@@ -417,7 +423,7 @@ service firebase.storage {
     // Kept scanned sheet pages (paper-kept-pages): same contract as crops; only the server reads or deletes.
     match /paper_pages/{uid}/{scanId}/{seat}/{fileName} {
       allow create: if request.auth != null && viewAsWriteOk() &&
-        request.auth.uid == uid &&
+        request.auth.uid == uid && liveToken() &&
         resource == null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.auth.token.get('studentRole', false) != true &&
@@ -428,7 +434,7 @@ service firebase.storage {
     // Schoology quiz import pictures: only schoologyImportInboxV1 writes; the owning teacher reads them on the review screen.
     match /schoology_import/{uid}/{itemId}/{sendId}/{fileName} {
       allow read: if request.auth != null && viewAsReadOk() &&
-        request.auth.uid == uid &&
+        request.auth.uid == uid && liveToken() &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.auth.token.get('studentRole', false) != true;
     }
@@ -453,7 +459,7 @@ service firebase.storage {
         && notDeactivated();
     }
     match /plc_meeting_audio/{plcId}/{recordingId}/{partIndex}/{fileName} {
-      allow create: if request.auth != null && viewAsWriteOk()
+      allow create: if request.auth != null && viewAsWriteOk() && liveToken()
         && partIndex.matches('[0-9]{1,4}')
         && fileName.matches('[0-9]{1,5}[.]webm')
         && request.resource.size < 5 * 1024 * 1024
