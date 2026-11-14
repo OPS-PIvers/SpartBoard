@@ -515,6 +515,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setTargetSkippedCount,
     setAssignmentClasses,
   } = useMiniAppAssignments(inShare ? undefined : user?.uid);
+  // Older submissions assignments stay reachable after Mini Apps turn view-only.
+  const activeAppHasSubmissions =
+    !!activeApp &&
+    assignments.some((a) => a.appId === activeApp.id && a.mode !== 'view-only');
   const [editingClasses, setEditingClasses] =
     useState<MiniAppAssignment | null>(null);
 
@@ -1596,22 +1600,25 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             flows that don't apply), and on a read-only board,
                             where a substitute or viewer pressing Assign would
                             open a session under their own account (D8). */}
-                        {assignmentMode !== 'view-only' &&
+                        {(assignmentMode !== 'view-only' ||
+                          activeAppHasSubmissions) &&
                           !isActiveBoardReadOnly && (
                             <>
-                              <button
-                                onClick={() => handleOpenAssign(activeApp)}
-                                className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs"
-                                style={buttonBaseStyle}
-                                title="Assign (copy student link)"
-                                {...tourTypeAttr(
-                                  'mini-app.toolbar-student-link',
-                                  'miniApp'
-                                )}
-                              >
-                                <Link2 style={iconStyle} />
-                                <span style={labelStyle}>Assign</span>
-                              </button>
+                              {assignmentMode !== 'view-only' && (
+                                <button
+                                  onClick={() => handleOpenAssign(activeApp)}
+                                  className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs"
+                                  style={buttonBaseStyle}
+                                  title="Assign (copy student link)"
+                                  {...tourTypeAttr(
+                                    'mini-app.toolbar-student-link',
+                                    'miniApp'
+                                  )}
+                                >
+                                  <Link2 style={iconStyle} />
+                                  <span style={labelStyle}>Assign</span>
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleOpenAssignments(activeApp)}
                                 className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs border border-slate-200/60"
