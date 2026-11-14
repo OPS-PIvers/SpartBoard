@@ -4882,7 +4882,7 @@ service cloud.firestore {
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
              nearServerNow(incoming().submittedAt))) &&
            // A PIN-keyed doc keeps the period its key names.
-           (!changed(['classPeriod']) || responseKey == existing().studentUid ||
+           (responseKey == request.auth.uid || !changed(['classPeriod']) ||
             responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
            changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'inputSignals']) &&
            tabExitsOk() &&
