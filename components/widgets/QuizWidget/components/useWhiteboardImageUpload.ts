@@ -13,7 +13,8 @@ export function useWhiteboardImageUpload() {
   return useCallback(
     async (
       file: File,
-      driveName?: string
+      driveName?: string,
+      options?: { fixedTime?: string }
     ): Promise<WhiteboardStartingImage | null> => {
       if (!file.type.startsWith('image/')) {
         await showAlert(`"${file.name}" isn't an image.`, {
@@ -42,7 +43,9 @@ export function useWhiteboardImageUpload() {
           file,
           driveName ??
             `stimulus-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
-          'Assets/QuizStimuli'
+          'Assets/QuizStimuli',
+          undefined,
+          options
         );
         await driveService.makePublic(driveFile.id, undefined);
         return {

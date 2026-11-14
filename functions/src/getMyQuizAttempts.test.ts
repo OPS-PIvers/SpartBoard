@@ -121,6 +121,21 @@ describe('handleGetMyQuizAttempts', () => {
     });
   });
 
+  it('marks only the graded answer when an attempt holds every choice', async () => {
+    const { attempts } = await call(
+      seed({
+        [`${RESPONSE}/attempts/1`]: copy(1, [
+          { questionId: 'q1', answer: 'B', answeredAt: 1 },
+          { questionId: 'q1', answer: 'A', answeredAt: 2, isCorrect: true },
+        ]),
+      })
+    );
+    expect(attempts[0].answers?.map((a) => a.isCorrect)).toEqual([
+      false,
+      undefined,
+    ]);
+  });
+
   it('leaves out answers and grades when only the score is shown', async () => {
     const { attempts } = await call(
       seed({ 'quiz_sessions/qs1': session({ scoreVisibility: 'score-only' }) })

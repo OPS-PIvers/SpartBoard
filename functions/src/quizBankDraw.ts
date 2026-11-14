@@ -132,15 +132,20 @@ export function isBalancedSlot(slot: BankSlot): boolean {
   );
 }
 
-/** Mirrors balancedPeriodKey in utils/quizBalancedDeal.ts. */
-export function balancedPeriodKey(response: Record<string, unknown>): string {
-  const period =
-    typeof response.classPeriod === 'string'
-      ? response.classPeriod
-      : typeof response.classId === 'string'
-        ? response.classId
-        : undefined;
-  return encodeResponseKeySegment(period);
+/** Mirrors balancedPeriodKey in utils/quizBalancedDeal.ts; keyed on fields a student cannot rewrite after join. */
+export function balancedPeriodKey(
+  response: Record<string, unknown>,
+  responseKey: string,
+  classPeriodByClassId?: unknown
+): string {
+  const pin = /^pin-([a-z0-9_]+)-[a-z0-9_]+$/.exec(responseKey);
+  if (pin) return pin[1];
+  if (typeof response.classId !== 'string')
+    return encodeResponseKeySegment(undefined);
+  const period = asRecord(classPeriodByClassId)[response.classId];
+  return encodeResponseKeySegment(
+    typeof period === 'string' ? period : response.classId
+  );
 }
 
 export function bankDealDocId(slotId: string, periodKey: string): string {
@@ -277,7 +282,11 @@ export async function handleDrawQuizBankQuestions(
       return { servedQuestionIds: existing };
 
     const balanced = slots.filter(isBalancedSlot);
-    const period = balancedPeriodKey(response);
+    const period = balancedPeriodKey(
+      response,
+      input.responseKey,
+      session.classPeriodByClassId
+    );
     const counterRefs = balanced.map((slot) =>
       sessionRef
         .collection(BANK_DEALS_COLLECTION)

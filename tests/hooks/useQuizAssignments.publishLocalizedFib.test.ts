@@ -125,6 +125,7 @@ describe('useQuizAssignments — publish grades localized FIB answers', () => {
           ref: responseRef,
           data: () => ({
             studentUid: 'student-1',
+            status: 'completed',
             answers: [
               { questionId: 'q0', answer, answeredAt: 1, locale: 'es' },
             ],

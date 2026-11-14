@@ -143,10 +143,8 @@ describe('handleDrawQuizBankQuestions', () => {
   });
 
   it('deals balanced slots in turn and advances the period counter', async () => {
-    const docs = seed(
-      { classPeriod: 'Period 1' },
-      { ...SLOT, dealing: 'balanced' }
-    );
+    const docs = seed({ classId: 'c1' }, { ...SLOT, dealing: 'balanced' });
+    docs[SESSION].classPeriodByClassId = { c1: 'Period 1' };
     docs[`${SESSION}/bank_deals/slot1__period_1`] = { dealt: 1 };
     await handleDrawQuizBankQuestions(makeDb(docs), 'stu1', input);
     expect(ids(docs)).toEqual(['f1', 'p3', 'p1', 'f2']);
@@ -155,6 +153,36 @@ describe('handleDrawQuizBankQuestions', () => {
       by: 'stu1',
     });
     expect(docs[RESPONSE].dealtQuestionIds).toEqual(['p3', 'p1']);
+  });
+
+  it('ignores a student-written classPeriod when picking the rotation', async () => {
+    const docs = seed(
+      { classId: 'c1', classPeriod: 'Fresh' },
+      { ...SLOT, dealing: 'balanced' }
+    );
+    docs[SESSION].classPeriodByClassId = { c1: 'Period 1' };
+    docs[`${SESSION}/bank_deals/slot1__period_1`] = { dealt: 1 };
+    await handleDrawQuizBankQuestions(makeDb(docs), 'stu1', input);
+    expect(ids(docs)).toEqual(['f1', 'p3', 'p1', 'f2']);
+    expect(docs[`${SESSION}/bank_deals/slot1__fresh`]).toBeUndefined();
+  });
+
+  it('keys a PIN response on the period baked into its doc id', async () => {
+    const docs = seed({}, { ...SLOT, dealing: 'balanced' });
+    const pinKey = 'pin-period_1-1234';
+    docs[`${SESSION}/responses/${pinKey}`] = {
+      studentUid: 'stu1',
+      status: 'joined',
+      classPeriod: 'Fresh',
+    };
+    docs[`${SESSION}/bank_deals/slot1__period_1`] = { dealt: 1 };
+    await handleDrawQuizBankQuestions(makeDb(docs), 'stu1', {
+      sessionId: 's1',
+      responseKey: pinKey,
+    });
+    expect(docs[`${SESSION}/bank_deals/slot1__period_1`]).toMatchObject({
+      dealt: 2,
+    });
   });
 
   it('refuses a quiz without bank slots', async () => {

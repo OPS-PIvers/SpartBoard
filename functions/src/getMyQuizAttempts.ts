@@ -6,6 +6,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
 import { gradeGroupAnswer } from './plcAssessmentMath';
 import { parseCompletedResponse } from './recomputePlcAssessments';
+import { representativeAnswers } from './quizScoreOnSubmit';
 import {
   QUIZ_ATTEMPTS_SUBCOLLECTION,
   QUIZ_ATTEMPT_SCORES_COLLECTION,
@@ -172,22 +173,31 @@ export async function handleGetMyQuizAttempts(
     };
     if (!withResponses) return base;
     const parsed = parseCompletedResponse(c);
+    const representative = representativeAnswers(parsed.answers);
+    const served = parsed.servedQuestionIds?.length
+      ? new Set(parsed.servedQuestionIds)
+      : null;
     const answers = parsed.answers.map((a): MyAttemptAnswer => {
       const q = byId.get(a.questionId);
-      const g = q
-        ? gradeGroupAnswer(
-            q,
-            a.answer,
-            parsed.manualGrades?.[q.id],
-            q.type === 'FIB' ? fib[q.id] : undefined
-          )
-        : null;
+      // Only the graded answer per served question carries a verdict.
+      const judged =
+        representative.get(a.questionId) === a &&
+        (!served || served.has(a.questionId));
+      const g =
+        q && judged
+          ? gradeGroupAnswer(
+              q,
+              a.answer,
+              parsed.manualGrades?.[q.id],
+              q.type === 'FIB' ? fib[q.id] : undefined
+            )
+          : null;
       return {
         questionId: a.questionId,
         answer: a.answer,
         ...(g?.state === 'scored'
           ? { isCorrect: g.isCorrect }
-          : typeof a.isCorrect === 'boolean'
+          : judged && typeof a.isCorrect === 'boolean'
             ? { isCorrect: a.isCorrect }
             : {}),
         ...(a.answeredAt !== undefined ? { answeredAt: a.answeredAt } : {}),

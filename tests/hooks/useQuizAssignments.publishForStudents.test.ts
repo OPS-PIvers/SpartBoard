@@ -7,7 +7,10 @@ import {
   onSnapshot,
   writeBatch,
 } from 'firebase/firestore';
-import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import {
+  classPublishPatch,
+  useQuizAssignments,
+} from '@/hooks/useQuizAssignments';
 import type { QuizData } from '@/types';
 
 const DELETE_FIELD_SENTINEL = Symbol('test:deleteField()');
@@ -263,7 +266,14 @@ describe('useQuizAssignments — per-student results publishing', () => {
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
-  it('hideResultsForStudents writes a Hidden override on each key', async () => {
+  it('hideResultsForStudents writes a Hidden override and pulls the key and verdicts', async () => {
+    responseDocs['pin-a'] = {
+      studentUid: 's1',
+      status: 'completed',
+      answers: [{ questionId: 'q0', answer: 'a', isCorrect: true }],
+      revealedAnswers: { q0: 'a' },
+    };
+    responseDocs['pin-b'] = { studentUid: 's2', status: 'completed' };
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
       await result.current.hideResultsForStudents(ASSIGNMENT_ID, [
@@ -275,11 +285,16 @@ describe('useQuizAssignments — per-student results publishing', () => {
     expect(batchUpdate).toHaveBeenCalledTimes(2);
     expect(patchFor('pin-a')).toEqual({
       resultsOverride: { mode: 'hidden', publishedAt: expect.any(Number) },
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+      revealedRubricExamples: DELETE_FIELD_SENTINEL,
+      revealedExplanations: DELETE_FIELD_SENTINEL,
+      answers: [{ questionId: 'q0', answer: 'a' }],
     });
     expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
   it('clearResultsOverride deletes the override', async () => {
+    responseDocs['pin-a'] = { studentUid: 's1', status: 'completed' };
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
       await result.current.clearResultsOverride(ASSIGNMENT_ID, ['pin-a']);
@@ -287,5 +302,94 @@ describe('useQuizAssignments — per-student results publishing', () => {
     expect(patchFor('pin-a')).toEqual({
       resultsOverride: DELETE_FIELD_SENTINEL,
     });
+  });
+
+  it('clearResultsOverride with the quiz restores what the class publish shows', async () => {
+    responseDocs['pin-a'] = {
+      studentUid: 's1',
+      status: 'completed',
+      answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
+      resultsOverride: { mode: 'hidden', publishedAt: 1 },
+    };
+    (getDoc as Mock).mockImplementation((path: string) => {
+      if (path.startsWith(`${RESPONSES}/`)) {
+        const data = responseDocs[path.slice(RESPONSES.length + 1)];
+        return Promise.resolve({
+          ref: path,
+          exists: () => data != null,
+          data: () => data ?? undefined,
+        });
+      }
+      if (path === `quiz_sessions/${ASSIGNMENT_ID}`)
+        return Promise.resolve({
+          data: () => ({ scoreVisibility: 'score-responses-and-answers' }),
+        });
+      return Promise.resolve({ data: () => ({}) });
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.clearResultsOverride(
+        ASSIGNMENT_ID,
+        ['pin-a'],
+        quizData
+      );
+    });
+    expect(patchFor('pin-a')).toMatchObject({
+      resultsOverride: DELETE_FIELD_SENTINEL,
+      revealedAnswers: { q0: 'a' },
+      answers: [{ questionId: 'q0', answer: 'a', isCorrect: true }],
+    });
+  });
+});
+
+describe('classPublishPatch', () => {
+  const opts = {
+    visibility: 'score-responses-and-answers' as const,
+    now: 10,
+    answerKey: { q0: 'a' },
+    rubricExamples: null,
+    explanations: null,
+  };
+  const graded = {
+    score: 100,
+    answers: [{ questionId: 'q0', answer: 'a', isCorrect: true }],
+  };
+
+  it('keeps the key and verdicts off open attempts', () => {
+    for (const status of ['joined', 'in-progress'] as const) {
+      const patch = classPublishPatch(
+        { studentUid: 's', status } as never,
+        graded,
+        opts
+      );
+      expect(patch.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
+      expect(patch.answers).toEqual([{ questionId: 'q0', answer: 'a' }]);
+    }
+  });
+
+  it('keeps the key and verdicts off a hidden student', () => {
+    const patch = classPublishPatch(
+      {
+        studentUid: 's',
+        status: 'completed',
+        resultsOverride: { mode: 'hidden', publishedAt: 1 },
+      } as never,
+      graded,
+      opts
+    );
+    expect(patch.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
+    expect(patch.revealedRubricExamples).toBe(DELETE_FIELD_SENTINEL);
+    expect(patch.answers).toEqual([{ questionId: 'q0', answer: 'a' }]);
+  });
+
+  it('writes the key and verdicts for a completed student', () => {
+    const patch = classPublishPatch(
+      { studentUid: 's', status: 'completed' } as never,
+      graded,
+      opts
+    );
+    expect(patch.revealedAnswers).toEqual({ q0: 'a' });
+    expect(patch.answers).toEqual(graded.answers);
+    expect(patch.score).toBe(100);
   });
 });

@@ -166,6 +166,7 @@ import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { autoRevealCount } from '@/utils/quizSessionPhase';
 import { sessionSectionsFor } from '@/utils/quizSections';
 import {
   applySectionCounts,
@@ -2207,13 +2208,8 @@ const TeacherQuizWidget: React.FC<{
 
     const questions = loadedQuizData.questions;
     // Reveal past questions + current question during review phase or when quiz ended
-    const upTo =
-      liveSession.status === 'ended'
-        ? questions.length
-        : liveSession.questionPhase === 'reviewing'
-          ? liveSession.currentQuestionIndex + 1
-          : liveSession.currentQuestionIndex;
-    for (let i = 0; i < upTo && i < questions.length; i++) {
+    const upTo = autoRevealCount(liveSession, questions.length);
+    for (let i = 0; i < upTo; i++) {
       const q = questions[i];
       if (!liveSession.revealedAnswers?.[q.id]) {
         void revealAnswer(q.id, revealValueFor(q));
@@ -2942,7 +2938,11 @@ const TeacherQuizWidget: React.FC<{
                   hide: (keys) =>
                     hideResultsForStudents(activeAssignmentId, keys),
                   clear: (keys) =>
-                    clearResultsOverride(activeAssignmentId, keys),
+                    clearResultsOverride(
+                      activeAssignmentId,
+                      keys,
+                      loadedQuizData
+                    ),
                 }
               : undefined
           }

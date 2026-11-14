@@ -78,16 +78,16 @@ export function parseKeyQuestions(raw: unknown): KeyQuestion[] {
 }
 
 /** Mirrors utils/answerTakeOrdering.ts: highest takeIndex, then earliest answeredAt. */
-function representativeAnswers(
-  answers: ScoreOnSubmitAnswer[]
-): Map<string, ScoreOnSubmitAnswer> {
+export function representativeAnswers<
+  T extends { questionId: string; takeIndex?: number; answeredAt?: number },
+>(answers: T[]): Map<string, T> {
   const sorted = [...answers].sort((a, b) => {
     const ai = a.takeIndex ?? 0;
     const bi = b.takeIndex ?? 0;
     if (ai !== bi) return bi - ai;
     return (a.answeredAt ?? 0) - (b.answeredAt ?? 0);
   });
-  const out = new Map<string, ScoreOnSubmitAnswer>();
+  const out = new Map<string, T>();
   for (const a of sorted) if (!out.has(a.questionId)) out.set(a.questionId, a);
   return out;
 }
@@ -135,6 +135,7 @@ export function scoreAttempt(
   }
 
   const representative = representativeAnswers(answers);
+  const baseSet = new Set(baseServed);
   let earned = 0;
   let max = 0;
   const graded = answers.map((a) => {
@@ -150,7 +151,13 @@ export function scoreAttempt(
       undefined,
       q.type === 'FIB' ? ctx.fibAnswersByQuestion[q.id] : undefined
     );
-    if (representative.get(a.questionId) === a && served.has(a.questionId)) {
+    if (representative.get(a.questionId) !== a || !baseSet.has(a.questionId)) {
+      // Only the graded answer per served question gets a verdict, so extra entries can't probe the key.
+      const { isCorrect: _extra, ...rest } = a;
+      void _extra;
+      return rest;
+    }
+    if (served.has(a.questionId)) {
       earned += result.pointsEarned;
       max += result.pointsMax;
     }
