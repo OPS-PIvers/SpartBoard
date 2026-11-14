@@ -10,6 +10,7 @@ import { MoreHorizontal, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
+import { scrollMovesAnchor } from '@/utils/domHelpers';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
 import { tourFieldAttr, type TourAnchorId } from '@/config/tourAnchors';
@@ -114,10 +115,13 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   useEffect(() => {
     if (!open) return undefined;
     const close = (): void => setOpen(false);
-    window.addEventListener('scroll', close, true);
+    const closeOnScroll = (e: Event): void => {
+      if (scrollMovesAnchor(e, triggerRef.current)) setOpen(false);
+    };
+    window.addEventListener('scroll', closeOnScroll, true);
     window.addEventListener('resize', close);
     return () => {
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', closeOnScroll, true);
       window.removeEventListener('resize', close);
     };
   }, [open]);
