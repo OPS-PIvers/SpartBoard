@@ -1895,12 +1895,20 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // originalAuthor is the import dialog's trust signal; immutable after create.
+    function shareAuthorKept() {
+      return incoming().get('originalAuthor', null) == existing().get('originalAuthor', null);
+    }
+
     // Shared quizzes - Same pattern as shared_boards.
     match /shared_quizzes/{shareId} {
       allow get: if signedIn();
       allow create: if staffSignedIn() &&
         myOrigAuthor();
-      allow update, delete: if signedIn() &&
+      allow update: if signedIn() &&
+        authorOrAdmin() &&
+        shareAuthorKept();
+      allow delete: if signedIn() &&
         authorOrAdmin();
     }
 
@@ -1920,7 +1928,10 @@ service cloud.firestore {
                     && isList('criteria')
                     && isStr('originalAuthor')
                     && isInt('sharedAt');
-      allow update, delete: if signedIn() &&
+      allow update: if signedIn() &&
+        authorOrAdmin() &&
+        shareAuthorKept();
+      allow delete: if signedIn() &&
         authorOrAdmin();
     }
 

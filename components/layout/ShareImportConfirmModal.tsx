@@ -42,6 +42,7 @@ export const ShareImportConfirmModal: React.FC<Props> = ({
         library until you confirm.
       </p>
       <div className="flex justify-end gap-2 pt-2">
+        {/* no-tour-anchor: transient deep-link import confirmation, not a tourable surface */}
         <button
           type="button"
           onClick={onCancel}
@@ -49,6 +50,7 @@ export const ShareImportConfirmModal: React.FC<Props> = ({
         >
           Cancel
         </button>
+        {/* no-tour-anchor: transient deep-link import confirmation, not a tourable surface */}
         <button
           type="button"
           onClick={onConfirm}

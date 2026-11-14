@@ -200,6 +200,8 @@ export const DeepLinkShareImporter: React.FC = () => {
   // happened" paste UX).
   useEffect(() => {
     if (!pendingQuizShareId || !user) return;
+    // Sharer line needs the PLC rosters.
+    if (plcsLoading) return;
     // Clear before awaiting so effect re-runs can't import the same share twice.
     const shareId = pendingQuizShareId;
     clearPendingQuizShare();
@@ -227,6 +229,7 @@ export const DeepLinkShareImporter: React.FC = () => {
   }, [
     pendingQuizShareId,
     user,
+    plcsLoading,
     importSharedQuiz,
     saveBank,
     addToast,
@@ -238,6 +241,8 @@ export const DeepLinkShareImporter: React.FC = () => {
   // so a toast naming the imported rubric is the whole success affordance.
   useEffect(() => {
     if (!pendingRubricShareId || !user) return;
+    // Sharer line needs the PLC rosters.
+    if (plcsLoading) return;
     // Cleared synchronously before awaiting — see the quiz effect above.
     const shareId = pendingRubricShareId;
     clearPendingRubricShare();
@@ -273,6 +278,7 @@ export const DeepLinkShareImporter: React.FC = () => {
   }, [
     pendingRubricShareId,
     user,
+    plcsLoading,
     importSharedRubric,
     clearPendingRubricShare,
     addToast,
@@ -309,6 +315,8 @@ export const DeepLinkShareImporter: React.FC = () => {
             plcs.some(
               (p) => p.id === plcId && getPlcRole(p, user.uid) !== null
             ),
+          sheetUrlFor: (plcId) =>
+            plcs.find((p) => p.id === plcId)?.sharedSheetUrl ?? undefined,
           onNonMember: ({ plcName }) => {
             addToast(
               `This is a PLC quiz assignment for "${plcName}". You're not a member, so your results will export to your own sheet.`,
@@ -559,13 +567,9 @@ export const DeepLinkShareImporter: React.FC = () => {
   // quiz-assignment effect above: clears the pending id synchronously
   // before dispatching to avoid the triple-import race; the dispatcher's
   // failure toast carries Retry as the recovery path.
-  //
-  // No plcsLoading gate here (unlike the quiz-assignment effect): VA shares
-  // always import as 'copy' and runVideoActivityImport never reads `plcs`, so
-  // waiting for the PLC listener to hydrate would only add a one-snapshot
-  // round-trip to the deep-link path with no membership to evaluate.
   useEffect(() => {
     if (!pendingVideoActivityShareId || !user) return;
+    if (plcsLoading) return;
     const shareId = pendingVideoActivityShareId;
     clearPendingVideoActivityShare();
     requestConfirm(
@@ -577,6 +581,7 @@ export const DeepLinkShareImporter: React.FC = () => {
   }, [
     pendingVideoActivityShareId,
     user,
+    plcsLoading,
     clearPendingVideoActivityShare,
     runVideoActivityImport,
     requestConfirm,

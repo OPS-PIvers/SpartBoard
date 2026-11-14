@@ -1069,9 +1069,8 @@ export const useVideoActivityAssignments = (
 
         // 3) Create the local assignment, paused. Originator-only fields
         // cleared: teacherName + periodName (which encode the original
-        // author's identity / single-class targeting). PLC linkage is
-        // preserved so the importer's results flow through the same
-        // sheet for PLC peers.
+        // author's identity / single-class targeting). The share's plc
+        // linkage (sheet, roster) is sharer-controlled, so it is not copied.
         const sourceSettings = sharedDoc.assignmentSettings;
         const importedSettings: VideoActivityAssignmentSettings = {
           className: sourceSettings.className,
@@ -1086,7 +1085,6 @@ export const useVideoActivityAssignments = (
           sourceSettings.periodNames.length > 0
             ? { periodNames: sourceSettings.periodNames }
             : {}),
-          ...(sourceSettings.plc ? { plc: sourceSettings.plc } : {}),
           ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
         };
         const created = await createAssignment(
