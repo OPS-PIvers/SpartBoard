@@ -156,11 +156,35 @@ const questionSchema = z.object({
     .describe(
       'Depth of Knowledge: 1 recall a fact or term, 2 apply a skill or concept (classify, compare, solve a routine problem), 3 reason with evidence or a plan (justify, analyze, solve a non-routine problem), 4 extended work across sources or time. Rate the thinking the question demands, not how hard it is. null clears it; omit to keep it.'
     ),
+  explanation: z
+    .string()
+    .max(2000)
+    .nullable()
+    .optional()
+    .describe(
+      'Why the answer is right, in a sentence or two students read after results are published. null clears it; omit to keep it.'
+    ),
+  option_explanations: z
+    .array(
+      z.object({
+        option: z.string().max(1000).describe('The choice text, exactly.'),
+        explanation: z
+          .string()
+          .max(1000)
+          .describe('Why this choice is right or wrong.'),
+      })
+    )
+    .max(MA_MAX_OPTIONS * 2)
+    .nullable()
+    .optional()
+    .describe(
+      'multiple_choice and choose_all: one entry per choice saying why it is right or wrong (for a wrong choice, the mistake that leads there). Replaces the saved ones; null clears them; omit to keep them.'
+    ),
   ...targetInputFields,
 });
 
 const QUESTION_HELP =
-  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field. Give each question a dok level (1-4) as you tag its standards.";
+  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field. Give each question a dok level (1-4) as you tag its standards. Write an explanation for every question, and option_explanations for every choice on multiple_choice and choose_all, unless the teacher says not to.";
 
 const toolNames = (kind: QuizKind) =>
   kind === 'quiz'
@@ -197,36 +221,51 @@ function assertNotSynced(kind: QuizKind, meta: Record<string, unknown>): void {
   }
 }
 
-export const DOK_FEATURE_ID = 'quiz-dok';
-export const DOK_NOT_SAVED =
-  "DOK levels aren't turned on for this account, so dok was not saved. Leave dok out for this teacher.";
+/** Question fields behind a preview flag; the connector drops them for a teacher without it. */
+const GATED_FIELDS = [
+  {
+    feature: 'quiz-dok',
+    fields: ['dok'],
+    note: "DOK levels aren't turned on for this account, so dok was not saved. Leave dok out for this teacher.",
+  },
+  {
+    feature: 'quiz-explanations',
+    fields: ['explanation', 'option_explanations'],
+    note: "Explanations aren't turned on for this account, so they were not saved. Leave explanation and option_explanations out for this teacher.",
+  },
+] as const;
 
-/** Drops dok from the inputs when the teacher can't see DOK levels; true when any was dropped. */
-async function gateDok(
+/** Drops gated fields the teacher can't see; returns a note for each flag that dropped something. */
+async function gateFields(
   ctx: ToolContext,
   inputs: FriendlyQuestion[]
-): Promise<{ inputs: FriendlyQuestion[]; dokSkipped: boolean }> {
-  if (!inputs.some((q) => q.dok !== undefined))
-    return { inputs, dokSkipped: false };
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
-  if (await isGlobalFeatureGranted(ctx.db, DOK_FEATURE_ID, ctx.email, ctx.uid))
-    return { inputs, dokSkipped: false };
-  return {
-    inputs: inputs.map((q) => {
+): Promise<{ inputs: FriendlyQuestion[]; notes: string[] }> {
+  const notes: string[] = [];
+  let out = inputs;
+  for (const gate of GATED_FIELDS) {
+    const sent = out.some((q) =>
+      gate.fields.some((f) => q[f as keyof FriendlyQuestion] !== undefined)
+    );
+    if (!sent) continue;
+    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+    if (await isGlobalFeatureGranted(ctx.db, gate.feature, ctx.email, ctx.uid))
+      continue;
+    out = out.map((q) => {
       const rest = { ...q };
-      delete rest.dok;
+      for (const f of gate.fields) delete rest[f as keyof FriendlyQuestion];
       return rest;
-    }),
-    dokSkipped: true,
-  };
+    });
+    notes.push(gate.note);
+  }
+  return { inputs: out, notes };
 }
 
 async function buildQuestions(
   ctx: ToolContext,
   rawInputs: FriendlyQuestion[],
   previous: StoredQuestion[]
-): Promise<{ questions: StoredQuestion[]; dokSkipped: boolean }> {
-  const { inputs, dokSkipped } = await gateDok(ctx, rawInputs);
+): Promise<{ questions: StoredQuestion[]; notes: string[] }> {
+  const { inputs, notes } = await gateFields(ctx, rawInputs);
   const byId = new Map(previous.map((q) => [q.id, q]));
   const used = new Set<string>();
   const applyTargets = await prepareTargets(
@@ -247,7 +286,7 @@ async function buildQuestions(
     return q;
   });
   await attachRubrics(ctx, inputs, built);
-  return { questions: built, dokSkipped };
+  return { questions: built, notes };
 }
 
 /** Mirrors QuizEditor's handleAttachRubric / handleDetachRubric: the question keeps a frozen copy and the rubric total is its points. */
@@ -519,7 +558,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       (input) =>
         runWithPreview(names.create, ctx, async () => {
           await assertFolder(ctx, folderType, input.folder_id);
-          const { questions, dokSkipped } = await buildQuestions(
+          const { questions, notes } = await buildQuestions(
             ctx,
             input.questions,
             []
@@ -545,7 +584,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
             result: {
               ...saved.summary,
               where_to_find_it: names.where,
-              ...(dokSkipped ? { dok_not_saved: DOK_NOT_SAVED } : {}),
+              ...(notes.length > 0 ? { not_saved: notes } : {}),
             },
             view: quizView(kind, saved.content, saved.meta),
           };
@@ -581,13 +620,13 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
           if (folderId) await assertFolder(ctx, folderType, folderId);
           const { meta, content, token } = await loadContent(ctx, kind, id);
           assertNotSynced(kind, meta);
-          const { questions, dokSkipped } = input.questions
+          const { questions, notes } = input.questions
             ? await buildQuestions(
                 ctx,
                 input.questions as FriendlyQuestion[],
                 content.questions
               )
-            : { questions: content.questions, dokSkipped: false };
+            : { questions: content.questions, notes: [] as string[] };
           await reserveWrite(ctx);
           const saved = await saveContent(
             ctx,
@@ -616,7 +655,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
               changed_questions: saved.content.questions.flatMap((q, i) =>
                 changed.includes(q.id) ? [i + 1] : []
               ),
-              ...(dokSkipped ? { dok_not_saved: DOK_NOT_SAVED } : {}),
+              ...(notes.length > 0 ? { not_saved: notes } : {}),
             },
             view: quizView(kind, saved.content, saved.meta, {
               changed,

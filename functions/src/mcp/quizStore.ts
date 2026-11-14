@@ -105,6 +105,10 @@ export interface FriendlyQuestion {
   learning_targets?: string[];
   /** Depth of Knowledge 1-4; null clears it. */
   dok?: 1 | 2 | 3 | 4 | null;
+  /** Why the answer is right; null clears it. */
+  explanation?: string | null;
+  /** multiple_choice / choose_all: why each choice is right or wrong; null clears them. */
+  option_explanations?: { option: string; explanation: string }[] | null;
   /** free_response: library rubric to attach; null removes the attached one. */
   rubric_id?: string | null;
 }
@@ -202,6 +206,55 @@ function keepPrintedOrder(next: StoredQuestion, existing: StoredQuestion) {
   }
   const order = printed.map((text) => rows.indexOf(text));
   if (order.some((v, i) => v !== i)) next.optionOrder = order;
+}
+
+/** Choice texts of an MC or MA question, right ones first; mirrors explainableOptions in utils/quizExplanations.ts. */
+function explainableOptions(q: StoredQuestion): string[] {
+  if (q.type !== 'MC' && q.type !== 'MA') return [];
+  const right =
+    q.type === 'MC' ? [q.correctAnswer] : q.correctAnswer.split('|');
+  return [...right, ...q.incorrectAnswers].filter((o) => o.trim() !== '');
+}
+
+function applyExplanations(
+  base: StoredQuestion,
+  input: FriendlyQuestion,
+  n: number
+): void {
+  if (input.explanation === null) delete base.explanation;
+  else if (input.explanation !== undefined) {
+    const text = input.explanation.trim();
+    if (text) base.explanation = text;
+    else delete base.explanation;
+  }
+  const options = explainableOptions(base);
+  const wanted = input.option_explanations;
+  let next: Record<string, string> = {};
+  if (wanted === undefined) {
+    const kept = (base.optionExplanations ?? {}) as Record<string, unknown>;
+    for (const option of options) {
+      if (typeof kept[option] === 'string') next[option] = kept[option];
+    }
+  } else if (wanted !== null) {
+    if (options.length === 0 && wanted.length > 0) {
+      throw new ToolError(
+        `Question ${n}: option_explanations only work on multiple_choice and choose_all.`
+      );
+    }
+    next = {};
+    for (const entry of wanted) {
+      const option = entry.option.trim();
+      if (!options.includes(option)) {
+        throw new ToolError(
+          `Question ${n}: option_explanations names "${option}", which is not one of its choices.`
+        );
+      }
+      const text = entry.explanation.trim();
+      if (text) next[option] = text;
+    }
+  }
+  if (Object.keys(next).length > 0) base.optionExplanations = next;
+  else delete base.optionExplanations;
 }
 
 /** Tool input → stored question, keeping the existing question's non-key extras (targets, stimuli, rubric). */
@@ -359,6 +412,7 @@ export function toStoredQuestion(
       break;
     }
   }
+  applyExplanations(base, input, n);
   return base;
 }
 
@@ -378,6 +432,17 @@ export function toFriendlyQuestion(
   const learningTargets = learningTargetLabels(q.targets);
   if (learningTargets.length > 0) out.learning_targets = learningTargets;
   if (q.dok === 1 || q.dok === 2 || q.dok === 3 || q.dok === 4) out.dok = q.dok;
+  if (typeof q.explanation === 'string' && q.explanation.trim())
+    out.explanation = q.explanation;
+  const optionMap = (q.optionExplanations ?? {}) as Record<string, unknown>;
+  const optionExplanations = explainableOptions(q).flatMap((option) => {
+    const text = optionMap[option];
+    return typeof text === 'string' && text.trim()
+      ? [{ option, explanation: text }]
+      : [];
+  });
+  if (optionExplanations.length > 0)
+    out.option_explanations = optionExplanations;
   const split = (s: string) => (s ?? '').split('|').filter((v) => v.length > 0);
   switch (q.type) {
     case 'MC':

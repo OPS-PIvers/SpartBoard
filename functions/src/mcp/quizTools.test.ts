@@ -426,7 +426,7 @@ describe('DOK levels', () => {
       title: 'T',
       questions: [{ ...mc(1), dok: 2 }, mc(2)],
     });
-    expect(res.dok_not_saved).toBeUndefined();
+    expect(res.not_saved).toBeUndefined();
     const id = res.quiz_id as string;
     expect(fileOf(id).questions.map((q) => q.dok)).toEqual([2, undefined]);
     const got = await call('get_quiz', { quiz_id: id });
@@ -472,7 +472,94 @@ describe('DOK levels', () => {
       title: 'T',
       questions: [{ ...mc(1), dok: 2 }],
     });
-    expect(res.dok_not_saved).toMatch(/aren't turned on/);
+    expect(res.not_saved).toEqual([expect.stringMatching(/DOK levels/)]);
     expect(fileOf(res.quiz_id as string).questions[0].dok).toBeUndefined();
+  });
+});
+
+describe('explanations', () => {
+  const admin = { 'admins/u1@example.org': {} };
+  const fileOf = (id: string) =>
+    drive.files.get(`file-${id}`) as { questions: Data[] };
+  const explained = {
+    ...mc(1),
+    explanation: ' Because. ',
+    option_explanations: [
+      { option: 'Right', explanation: 'Yes.' },
+      { option: 'Wrong', explanation: 'Mixes up the terms.' },
+    ],
+  };
+
+  it('saves and returns question and choice explanations', async () => {
+    const call = await connect(fakeDb(admin).db);
+    const res = await call('create_quiz', {
+      title: 'T',
+      questions: [explained],
+    });
+    const id = res.quiz_id as string;
+    expect(fileOf(id).questions[0]).toMatchObject({
+      explanation: 'Because.',
+      optionExplanations: { Right: 'Yes.', Wrong: 'Mixes up the terms.' },
+    });
+    const got = await call('get_quiz', { quiz_id: id });
+    expect((got.questions as Data[])[0]).toMatchObject({
+      explanation: 'Because.',
+      option_explanations: [
+        { option: 'Right', explanation: 'Yes.' },
+        { option: 'Wrong', explanation: 'Mixes up the terms.' },
+      ],
+    });
+  });
+
+  it('keeps them when omitted, drops a renamed choice, clears on null', async () => {
+    const call = await connect(fakeDb(admin).db);
+    const res = await call('create_quiz', {
+      title: 'T',
+      questions: [explained],
+    });
+    const id = res.quiz_id as string;
+    const qid = fileOf(id).questions[0].id;
+    await call('update_quiz', {
+      quiz_id: id,
+      questions: [{ ...mc(1), id: qid, incorrect_answers: ['Other'] }],
+    });
+    expect(fileOf(id).questions[0]).toMatchObject({
+      explanation: 'Because.',
+      optionExplanations: { Right: 'Yes.' },
+    });
+    await call('update_quiz', {
+      quiz_id: id,
+      questions: [
+        { ...mc(1), id: qid, explanation: null, option_explanations: null },
+      ],
+    });
+    expect(fileOf(id).questions[0].explanation).toBeUndefined();
+    expect(fileOf(id).questions[0].optionExplanations).toBeUndefined();
+  });
+
+  it('rejects a choice that is not on the question', async () => {
+    const call = await connect(fakeDb(admin).db);
+    const res = await call('create_quiz', {
+      title: 'T',
+      questions: [
+        {
+          ...mc(1),
+          option_explanations: [{ option: 'Nope', explanation: 'x' }],
+        },
+      ],
+    });
+    expect(res.error).toMatch(/not one of its choices/);
+  });
+
+  it('leaves them out and says so when the teacher lacks explanations', async () => {
+    const call = await connect(fakeDb().db);
+    const res = await call('create_quiz', {
+      title: 'T',
+      questions: [{ ...explained, dok: 2 }],
+    });
+    expect(res.not_saved).toHaveLength(2);
+    const q = fileOf(res.quiz_id as string).questions[0];
+    expect(q.explanation).toBeUndefined();
+    expect(q.optionExplanations).toBeUndefined();
   });
 });
