@@ -156,8 +156,16 @@ describe('GuidedLearningDriveService.saveSet', () => {
 });
 
 describe('GuidedLearningDriveService.deleteSlideFile', () => {
-  const meta: Record<string, { name: string; parents: string[] }> = {
-    slideFileId1234: { name: 's.webp', parents: ['hotspotFolder1'] },
+  const meta: Record<
+    string,
+    { name: string; parents: string[]; appProperties?: Record<string, string> }
+  > = {
+    slideFileId1234: {
+      name: 's.webp',
+      parents: ['hotspotFolder1'],
+      appProperties: { spartboardGlSlide: '1' },
+    },
+    hotspotImage123: { name: 'h.webp', parents: ['hotspotFolder1'] },
     rosterFileId1234: { name: 'r.json', parents: ['rosterFolder12'] },
     hotspotFolder1: { name: 'HotspotImages', parents: ['assetsFolder12'] },
     assetsFolder12: { name: 'Assets', parents: ['appFolder12345'] },
@@ -178,6 +186,11 @@ describe('GuidedLearningDriveService.deleteSlideFile', () => {
     expect(deletes().map((c) => c.url)).toEqual([
       'https://www.googleapis.com/drive/v3/files/slideFileId1234',
     ]);
+  });
+
+  it('never deletes an unmarked image in the shared folder, such as a Hotspot image named by an imported URL', async () => {
+    await service().deleteSlideFile('hotspotImage123');
+    expect(deletes()).toEqual([]);
   });
 
   it('never deletes a file outside it', async () => {

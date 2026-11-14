@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { isInAppFolder, type DriveParentMeta } from './driveAppFolder';
+import {
+  GL_SLIDE_APP_PROPERTY,
+  isInAppFolder,
+  type DriveParentMeta,
+} from './driveAppFolder';
 
 const tree: Record<string, DriveParentMeta> = {
   slideFileId1234: { name: 'hotspot-1.webp', parents: ['hotspotFolder1'] },
+  markedSlide1234: {
+    name: 'hotspot-2.webp',
+    parents: ['hotspotFolder1'],
+    appProperties: { [GL_SLIDE_APP_PROPERTY]: '1' },
+  },
   rosterFileId1234: { name: 'r.json', parents: ['rosterFolder12'] },
   rootFileId12345: { name: 'x.json', parents: ['appFolder12345'] },
   hotspotFolder1: { name: 'HotspotImages', parents: ['assetsFolder12'] },
@@ -30,6 +39,26 @@ describe('isInAppFolder', () => {
     expect(
       await isInAppFolder('slideFileId1234', ['Assets/HotspotImages'], getMeta)
     ).toBe(true);
+  });
+
+  it('with a marker, accepts only a file carrying it', async () => {
+    const folders = ['Assets/HotspotImages'];
+    expect(
+      await isInAppFolder(
+        'markedSlide1234',
+        folders,
+        getMeta,
+        GL_SLIDE_APP_PROPERTY
+      )
+    ).toBe(true);
+    expect(
+      await isInAppFolder(
+        'slideFileId1234',
+        folders,
+        getMeta,
+        GL_SLIDE_APP_PROPERTY
+      )
+    ).toBe(false);
   });
 
   it('accepts the legacy app folder name', async () => {
