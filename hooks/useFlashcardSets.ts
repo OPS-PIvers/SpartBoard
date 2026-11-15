@@ -308,7 +308,6 @@ export function useFlashcardSets(
   const [error, setError] = useState<string | null>(null);
   const auth = useContext(AuthContext);
   const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
-  const syncChecks = auth?.canAccessFeature('flashcards-check-sync') ?? false;
 
   const [previousUserId, setPreviousUserId] = useState(userId);
   if (previousUserId !== userId) {
@@ -380,7 +379,7 @@ export function useFlashcardSets(
             userId,
             normalized,
             adminConfig,
-            syncChecks && checksToo
+            checksToo
           ),
         };
       } catch (syncError) {
@@ -391,7 +390,7 @@ export function useFlashcardSets(
         throw new FlashcardStudySyncError();
       }
     },
-    [canSpeak, syncChecks, userId]
+    [canSpeak, userId]
   );
 
   // `checks` is the starting save's own Check sync, so a fill started by a draft never reaches a Check.
@@ -429,13 +428,13 @@ export function useFlashcardSets(
               userId,
               patched,
               await speakAdminConfigFor(patched, canSpeak),
-              syncChecks && checks
+              checks
             );
           } catch (err) {
             logError('useFlashcardSets.patchVoices', err, { userId, setId });
           }
         }),
-    [canSpeak, syncChecks, userId]
+    [canSpeak, userId]
   );
 
   const saveSet = useCallback(

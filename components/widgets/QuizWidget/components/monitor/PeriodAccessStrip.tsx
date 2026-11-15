@@ -43,6 +43,8 @@ export interface PeriodAccessStripProps {
   onPause: (key: string) => Promise<void>;
   onExtend: (key: string, by: number | null) => Promise<void>;
   extendMs: number;
+  /** A passed Manual due makes a live class late. */
+  dueAt?: number | null;
 }
 
 const Chip: React.FC<{
@@ -53,7 +55,8 @@ const Chip: React.FC<{
   onToggle: () => void;
   onExtend: (by: number | null) => void;
   extendMs: number;
-}> = ({ periodKey, access, now, busy, onToggle, onExtend, extendMs }) => {
+  late: boolean;
+}> = ({ periodKey, access, now, busy, onToggle, onExtend, extendMs, late }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   useClickOutside(menuRef, () => setMenuOpen(false));
@@ -63,7 +66,9 @@ const Chip: React.FC<{
   const status =
     state === 'scheduled' && access.openAt != null
       ? `Opens ${formatClock(access.openAt)}`
-      : text.label;
+      : state === 'open' && late
+        ? 'Late'
+        : text.label;
   const action = state === 'open' ? 'Pause' : 'Start';
   const live = state === 'open';
 
@@ -181,6 +186,7 @@ export const PeriodAccessStrip: React.FC<PeriodAccessStripProps> = ({
   onPause,
   onExtend,
   extendMs,
+  dueAt,
 }) => {
   const entries = Object.entries(periodAccess).sort(([, a], [, b]) =>
     a.label.localeCompare(b.label, undefined, { numeric: true })
@@ -213,6 +219,7 @@ export const PeriodAccessStrip: React.FC<PeriodAccessStripProps> = ({
           periodKey={key}
           access={access}
           now={now}
+          late={dueAt != null && now >= dueAt}
           busy={busyKey === key}
           extendMs={extendMs}
           onToggle={() =>

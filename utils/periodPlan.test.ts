@@ -167,7 +167,7 @@ describe('buildPeriodGate', () => {
     const gate = buildPeriodGate({
       plan: { mode: 'assignment' },
       rosters: [sso],
-      sharedWindow: { openAt: 5, closeAt: 9 },
+      sharedWindow: {},
       bellWindow,
       manualStart: true,
     });
@@ -178,6 +178,20 @@ describe('buildPeriodGate', () => {
       openAt: null,
       closeAt: null,
     });
+  });
+
+  it('locks every class at a Manual due date', () => {
+    const gate = buildPeriodGate({
+      plan: undefined,
+      rosters: [sso, local],
+      sharedWindow: { closeAt: 9 },
+      bellWindow,
+      manualStart: true,
+    });
+    expect(Object.values(gate?.periodAccess ?? {})).toEqual([
+      expect.objectContaining({ state: 'closed', closeAt: 9 }),
+      expect.objectContaining({ state: 'closed', closeAt: 9 }),
+    ]);
   });
 
   it('gates a manual start without bell periods', () => {
@@ -275,6 +289,16 @@ describe('periodAccessClassEdits', () => {
       closeAt: null,
       rosterId: 'r2',
     });
+  });
+
+  it('locks a class added to a Manual due date at the due', () => {
+    const edits = periodAccessClassEdits({
+      periodAccess: { 'cl-1': { ...open('r1', 'P1'), state: 'closed' } },
+      accessMode: 'assessment',
+      rosters: [sso, test],
+      window: { openAt: 10, closeAt: 20, dueLockAt: 50 },
+    });
+    expect(edits['t-3']).toMatchObject({ state: 'closed', closeAt: 50 });
   });
 
   it('keeps a row whose roster was linked to ClassLink after assign', () => {

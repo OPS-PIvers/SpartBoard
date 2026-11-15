@@ -64,10 +64,6 @@ import {
   normalizeStudentGrammarlySettings,
 } from '@/config/studentContextMenu';
 import {
-  IMPORT_CONVERSION_SETTINGS_DOC,
-  normalizeImportConversionSettings,
-} from '@/config/importConversion';
-import {
   FOCUS_SESSIONS_SETTINGS_DOC,
   normalizeFocusLiveSiteSettings,
 } from '@/config/focusSessions';
@@ -227,16 +223,8 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     normalize: normalizeFocusLiveSiteSettings,
   },
   {
-    docId: IMPORT_CONVERSION_SETTINGS_DOC,
-    feature: 'universal-import',
-    title: 'AI in Import',
-    description: 'Import can use AI to turn a page or file into an activity.',
-    normalize: normalizeImportConversionSettings,
-  },
-  {
     docId: GETTING_STARTED_SETTINGS_DOC,
     field: 'showInSidebar',
-    feature: 'getting-started',
     title: 'Getting Started in the sidebar',
     description: "Shows the item below What's New. On by default.",
     normalize: normalizeGettingStartedSidebarSwitch,

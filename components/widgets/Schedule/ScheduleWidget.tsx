@@ -597,9 +597,14 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
             {displayItems.length === 0 && (
               <ScaledEmptyState
                 icon={Clock}
-                title="No Schedule"
-                subtitle="Flip to add schedule items."
-                className="opacity-40"
+                title="No schedule yet"
+                subtitle="Open settings to add schedule items."
+                iconClassName="text-slate-400"
+                titleClassName="text-slate-600"
+                subtitleClassName="text-slate-500"
+                iconSize="min(64px, 18cqmin)"
+                titleSize="min(20px, 7cqmin)"
+                subtitleSize="min(16px, 6cqmin)"
               />
             )}
           </div>

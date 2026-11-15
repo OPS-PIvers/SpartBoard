@@ -39,6 +39,8 @@ export interface PeriodBarProps {
   onPause: (key: string) => Promise<void>;
   onExtend: (key: string, by: number | null) => Promise<void>;
   extendMs: number;
+  /** A passed Manual due makes a live class late. */
+  dueAt?: number | null;
   /** Live-tour anchors for the bar's controls. */
   anchors?: {
     select?: TourAnchorAttrs;
@@ -49,7 +51,10 @@ export interface PeriodBarProps {
   };
 }
 
-function useEntries(periodAccess: Record<string, PeriodAccess>) {
+function useEntries(
+  periodAccess: Record<string, PeriodAccess>,
+  dueAt: number | null | undefined
+) {
   const entries = Object.entries(periodAccess).sort(([, a], [, b]) =>
     a.label.localeCompare(b.label, undefined, { numeric: true })
   );
@@ -61,13 +66,20 @@ function useEntries(periodAccess: Record<string, PeriodAccess>) {
     key,
     access,
     state: effectivePeriodState(access, now),
+    late: dueAt != null && now >= dueAt,
   }));
 }
 
-const statusText = (access: PeriodAccess, state: EffectivePeriodState) => {
+const statusText = (
+  access: PeriodAccess,
+  state: EffectivePeriodState,
+  late = false
+) => {
   const pin = access.verified ? '' : ' · PIN';
+  const live = late ? 'Late' : 'Live';
   if (state === 'open' && access.closeAt != null)
-    return `Live until ${formatClock(access.closeAt)}${pin}`;
+    return `${live} until ${formatClock(access.closeAt)}${pin}`;
+  if (state === 'open' && late) return `Late${pin}`;
   if (state === 'scheduled' && access.openAt != null)
     return `Opens ${formatClock(access.openAt)}${pin}`;
   return `${STATE_LABEL[state]}${pin}`;
@@ -100,7 +112,7 @@ const PeriodPicker: React.FC<
         <option value="">All classes</option>
         {rows.map((r) => (
           <option key={r.key} value={r.key}>
-            {r.access.label} · {statusText(r.access, r.state)}
+            {r.access.label} · {statusText(r.access, r.state, r.late)}
           </option>
         ))}
       </select>
@@ -350,7 +362,7 @@ export const PeriodBar: React.FC<PeriodBarProps> = ({
   periodAccess,
   ...props
 }) => {
-  const rows = useEntries(periodAccess);
+  const rows = useEntries(periodAccess, props.dueAt);
   return (
     <div
       className="flex flex-wrap items-center justify-between"

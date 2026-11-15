@@ -54,6 +54,7 @@ import {
   withQuizSessionContent,
 } from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
+import { withServerTurnIn } from './quizTurnIn';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
 
@@ -105,6 +106,9 @@ const WAITING_ABANDONED_AGE_MS = 24 * 60 * 60 * 1000;
 /** Frozen and held rows of sessions ended from this date on are turned in; older ones are left as they were. */
 export const ENDED_SWEEP_SINCE_MS = Date.UTC(2026, 10, 7);
 
+/** Paused and frozen rows of sessions that closed from this date on are turned in after the close. */
+export const CLOSE_SWEEP_SINCE_MS = Date.UTC(2026, 10, 15);
+
 interface QuizResponseDoc {
   status?: string;
   lastWriteAt?: admin.firestore.Timestamp;
@@ -133,6 +137,11 @@ interface QuizSessionDoc {
   /** Opt-in marker; only sessions created by a client that understands `unresponded` carry it. */
   completenessModel?: number;
   endedAt?: admin.firestore.Timestamp | number | null;
+  /** Shared close (Scheduled, or a Manual due date); students can't write past it. */
+  closeAt?: admin.firestore.Timestamp | number | null;
+  /** With `dueLocks`, a Manual due date that locks every period. */
+  dueAt?: number | null;
+  dueLocks?: boolean;
   periodAccess?: unknown;
   studentAccess?: unknown;
 }
@@ -146,6 +155,80 @@ function toMillis(v: unknown): number | null {
   return null;
 }
 type QueryDocSnap = admin.firestore.QueryDocumentSnapshot;
+
+/** An ended run past the students' write grace (`runOpen` in firestore.rules). */
+function sessionRunOver(data: QuizSessionDoc, now: number): boolean {
+  const endedAtMs = toMillis(data.endedAt);
+  return (
+    data.status === 'ended' &&
+    endedAtMs !== null &&
+    endedAtMs >= ENDED_SWEEP_SINCE_MS &&
+    now >= endedAtMs + PERIOD_WINDOW_GRACE_MS
+  );
+}
+
+/** A Manual due (`dueLocks`, written only by the flagged due-date flow) past the same grace; a Scheduled close never counts. */
+function sessionPastClose(data: QuizSessionDoc, now: number): boolean {
+  if (data.dueLocks !== true) return false;
+  const closeAtMs = toMillis(data.closeAt) ?? toMillis(data.dueAt);
+  return (
+    closeAtMs !== null &&
+    closeAtMs >= CLOSE_SWEEP_SINCE_MS &&
+    now >= closeAtMs + PERIOD_WINDOW_GRACE_MS
+  );
+}
+
+interface OverFlags {
+  runOver: boolean;
+  pastClose: boolean;
+  /** A Manual due locks periods, so only a frozen period's attempt is over at the due. */
+  dueLocks: boolean;
+  periodGate: Record<string, unknown>;
+}
+
+function overFlags(data: QuizSessionDoc, now: number): OverFlags {
+  return {
+    runOver: sessionRunOver(data, now),
+    pastClose: sessionPastClose(data, now),
+    dueLocks: data.dueLocks === true,
+    periodGate: {
+      periodAccess: data.periodAccess,
+      studentAccess: data.studentAccess,
+    },
+  };
+}
+
+/** Nothing can resume this attempt: the run ended, or the close passed and it isn't unlocked, let in or started late. */
+function attemptOver(
+  session: OverFlags,
+  d: QuizResponseDoc,
+  now: number
+): boolean {
+  if (session.runOver) return true;
+  if (!session.pastClose || d.unlocked === true) return false;
+  if (!session.dueLocks) return true;
+  return (
+    isPeriodFrozen(session.periodGate, d as Record<string, unknown>, now) &&
+    !pausedBeforeLateClose(session.periodGate, d, now)
+  );
+}
+
+/** A class started late and then paused keeps its work until its own late close. */
+function pausedBeforeLateClose(
+  gate: Record<string, unknown>,
+  d: QuizResponseDoc,
+  now: number
+): boolean {
+  const rows = gate.periodAccess as
+    Record<string, { state?: unknown; closeAt?: unknown }> | undefined;
+  const classId = (d as Record<string, unknown>).classId;
+  const row = rows && typeof classId === 'string' ? rows[classId] : undefined;
+  return (
+    row?.state === 'paused' &&
+    typeof row.closeAt === 'number' &&
+    now < row.closeAt + PERIOD_WINDOW_GRACE_MS
+  );
+}
 
 /**
  * Extract the parent session id from a response doc path. Returns null
@@ -352,6 +435,9 @@ export async function runFinalizeIdleQuizAttempts(
     periodGate: Record<string, unknown>;
     /** True once an ended run is past the students' write grace (`runOpen` in firestore.rules). */
     runOver: boolean;
+    /** True once the session close is past the same grace. */
+    pastClose: boolean;
+    dueLocks: boolean;
   }
   const sessionMetaBySid = new Map<string, CachedSession>();
   if (sessionRefs.length > 0) {
@@ -376,22 +462,12 @@ export async function runFinalizeIdleQuizAttempts(
       const questionIds = sessionQuestionIds(data.publicQuestions);
       const completenessModel =
         typeof data.completenessModel === 'number' ? data.completenessModel : 0;
-      const endedAtMs = toMillis(data.endedAt);
-      const runOver =
-        status === 'ended' &&
-        endedAtMs !== null &&
-        endedAtMs >= ENDED_SWEEP_SINCE_MS &&
-        now >= endedAtMs + PERIOD_WINDOW_GRACE_MS;
       sessionMetaBySid.set(sessionDoc.id, {
         status,
         createdAtMs,
         questionIds,
         completenessModel,
-        periodGate: {
-          periodAccess: data.periodAccess,
-          studentAccess: data.studentAccess,
-        },
-        runOver,
+        ...overFlags(data, now),
       });
     }
   }
@@ -455,11 +531,16 @@ export async function runFinalizeIdleQuizAttempts(
     }
     // A closed or paused period freezes the attempt until the teacher starts it again.
     // A student held at a Stop waits for the next part, possibly for days.
-    // Neither can resume once the run has ended, so both are turned in then.
+    // None can resume once the run has ended or its close has passed, so they are turned in then.
+    const snapData = docSnap.data() ?? {};
     const heldOrFrozen =
-      waitsForStudent(docSnap.data() ?? {}) ||
-      isPeriodFrozen(meta.periodGate, docSnap.data() ?? {}, finalizedAt);
-    if (meta.status === 'paused' || (heldOrFrozen && !meta.runOver)) {
+      waitsForStudent(snapData) ||
+      isPeriodFrozen(meta.periodGate, snapData, finalizedAt);
+    const sessionPaused = meta.status === 'paused';
+    if (
+      (sessionPaused || heldOrFrozen) &&
+      !attemptOver(meta, snapData, finalizedAt)
+    ) {
       skippedPaused++;
       continue;
     }
@@ -489,12 +570,16 @@ export async function runFinalizeIdleQuizAttempts(
         if (fresh.status !== 'joined' && fresh.status !== 'in-progress') {
           return 'raced-status' as const;
         }
-        if (waitsForStudent(fresh) && !meta.runOver)
+        if (waitsForStudent(fresh) && !attemptOver(meta, fresh, finalizedAt))
           return 'raced-status' as const;
-        // A Reopen since the batch read makes held and frozen rows resumable again.
-        if (heldOrFrozen || waitsForStudent(fresh)) {
-          const parent = await tx.get(db.doc(`quiz_sessions/${sid}`));
-          if (parent.data()?.status !== 'ended') return 'raced-status' as const;
+        // A Reopen or a later close since the batch read makes these rows resumable again.
+        let pastDue = meta.pastClose;
+        if (heldOrFrozen || sessionPaused || waitsForStudent(fresh)) {
+          const parent = (await tx.get(db.doc(`quiz_sessions/${sid}`))).data();
+          const flags = parent ? overFlags(parent, finalizedAt) : null;
+          if (!flags || !attemptOver(flags, fresh, finalizedAt))
+            return 'raced-status' as const;
+          pastDue = flags.pastClose;
         }
         if (
           fresh.lastWriteAt &&
@@ -513,7 +598,16 @@ export async function runFinalizeIdleQuizAttempts(
           finalizedAt
         );
         if (!update) return 'raced-status' as const;
-        tx.update(docSnap.ref, { ...update, autoSubmitted: true });
+        // Past the close, count it as turned in at the student's last write, so on-time work isn't Late.
+        const lastWriteMs = fresh.lastWriteAt?.toMillis();
+        const submittedAt =
+          pastDue && lastWriteMs != null
+            ? Math.min(lastWriteMs, finalizedAt)
+            : finalizedAt;
+        tx.update(docSnap.ref, {
+          ...withServerTurnIn(update, submittedAt),
+          autoSubmitted: true,
+        });
         return 'finalized' as const;
       });
       if (result === 'finalized') {

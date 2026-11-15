@@ -326,3 +326,27 @@ describe('GuidedLearningWidget onAssign — per-period access', () => {
     ).toEqual(expect.any(Number));
   });
 });
+
+describe('GuidedLearningWidget onAssign — clipboard denied', () => {
+  it('keeps the created assignment and shows its link instead of a failure toast', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const dialog = await openAssignModal();
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    await waitFor(() => expect(addToast).toHaveBeenCalled());
+    const toasts = addToast.mock.calls.map(([msg, tone]) => ({ msg, tone }));
+    expect(toasts.some((t) => t.tone === 'error')).toBe(false);
+    expect(
+      toasts.some((t) =>
+        String(t.msg).includes(
+          'https://spartboard.app/guided-learning/session-1'
+        )
+      )
+    ).toBe(true);
+  });
+});

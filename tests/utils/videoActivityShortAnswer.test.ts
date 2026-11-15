@@ -46,6 +46,25 @@ describe('short answer in teacher views', () => {
     expect(countCorrectAnswers(response(), [sa])).toBe(0);
   });
 
+  it('scores a live response only on answers the check recorded', () => {
+    const mc = {
+      id: 'q1',
+      type: 'MC',
+      text: 'q',
+      timestamp: 0,
+      timeLimit: 0,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+      points: 1,
+    } as VideoActivityQuestion;
+    const r = response({
+      answers: [{ questionId: 'q1', answer: 'a', answeredAt: 1 }],
+      checkedAnswers: {},
+    });
+    expect(videoActivityLiveRaw(r, [mc], true)).toMatchObject({ points: 0 });
+    expect(videoActivityLiveRaw(r, [mc])).toMatchObject({ points: 1 });
+  });
+
   it('keeps the live gradebook raw provisional until marked', () => {
     expect(videoActivityLiveRaw(response(), [sa])).toMatchObject({
       points: null,

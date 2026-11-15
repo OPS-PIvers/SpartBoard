@@ -50,7 +50,7 @@ export interface ReadTestDocumentOptions {
   multiAnswer?: boolean;
   /** Long text blocks become passage stimuli without a "read the passage" cue. */
   passages?: boolean;
-  /** A PDF's bold, underlined or highlighted choice is its answer (`quiz-import-pdf-answer-marks`). */
+  /** A PDF's bold, underlined or highlighted choice is its answer */
   pdfMarks?: boolean;
   /** A PDF choice printed only as a picture comes in as that picture. */
   answerPictures?: boolean;

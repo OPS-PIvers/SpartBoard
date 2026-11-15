@@ -51,6 +51,7 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
+  auth: { currentUser: null },
 }));
 
 vi.mock('@/hooks/useSessionViewCount', () => ({
@@ -753,6 +754,71 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     expect(mockPullContent).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['non-member', false],
+    ['member', true],
+  ])(
+    'importSharedAssignment keeps plc linkage only for a PLC member (%s)',
+    async (_l, member) => {
+      mockGetDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () =>
+          ({
+            id: 'share-plc',
+            title: 'T',
+            youtubeUrl: 'https://youtube.com/watch?v=def',
+            questions: [],
+            createdAt: 1,
+            updatedAt: 1,
+            assignmentSettings: {
+              sessionSettings: {
+                autoPlay: false,
+                requireCorrectAnswer: true,
+                allowSkipping: false,
+              },
+              plc: {
+                id: 'plc-x',
+                name: 'X',
+                sheetUrl: 'https://docs.google.com/spreadsheets/d/s',
+                memberEmails: ['a@b.c'],
+              },
+            },
+            originalAuthor: 'teacher-A',
+            sharedAt: 1,
+          }) as unknown as SharedVideoActivityAssignment,
+      });
+      const set = vi.fn();
+      mockWriteBatch.mockReturnValue({
+        set,
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+      const saveActivity = vi.fn().mockResolvedValue({
+        id: 'imp',
+        title: 'T',
+        youtubeUrl: 'https://youtube.com/watch?v=def',
+        driveFileId: 'd',
+        questionCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const { result } = renderHook(() =>
+        useVideoActivityAssignments(TEACHER_UID)
+      );
+      await act(async () => {
+        await result.current.importSharedAssignment('share-plc', {
+          mode: 'copy',
+          saveActivity,
+          isPlcMember: (id) => member && id === 'plc-x',
+        });
+      });
+      expect(set).toHaveBeenCalled();
+      const written = JSON.stringify(set.mock.calls);
+      if (member) expect(written).toContain('plc-x');
+      else expect(written).not.toContain('plc-x');
+    }
+  );
+
   it('importSharedAssignment in sync mode joins the group and attaches linkage', async () => {
     const sharedDoc: SharedVideoActivityAssignment = {
       id: 'share-2',
@@ -1178,10 +1244,8 @@ describe('useVideoActivityAssignments — publishAssignmentScores', () => {
     expect((responseCall[1] as { score: number }).score).toBe(50);
   });
 
-  it('credits the earliest-answeredAt duplicate even when it is stored last in the array', async () => {
-    // VideoActivityAnswer has no takeIndex field, so duplicate entries always
-    // tie at the implicit takeIndex 0 and fall through to the answeredAt
-    // tie-break — this must hold regardless of raw array order.
+  it('credits the first entry by list position, never a later duplicate with an earlier answeredAt', async () => {
+    // answeredAt is student-written, so it never picks the graded entry.
     const refStudent = { id: 'r-reverse-order' };
     mockGetDocs.mockResolvedValueOnce({
       docs: [
@@ -1215,8 +1279,8 @@ describe('useVideoActivityAssignments — publishAssignmentScores', () => {
       ([ref]) => ref === refStudent
     );
     if (!responseCall) throw new Error('expected update on response ref');
-    // Earliest-answeredAt (correct) entry wins → earned=1, max=2 (q1 unanswered) → 50.
-    expect((responseCall[1] as { score: number }).score).toBe(50);
+    // The first (wrong) entry is graded → earned=0, max=2 → 0.
+    expect((responseCall[1] as { score: number }).score).toBe(0);
   });
 
   it('scores every response across more than one page (limit + cursor paging)', async () => {

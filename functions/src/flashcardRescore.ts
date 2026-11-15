@@ -10,7 +10,6 @@ import {
   type FlashcardCard,
 } from './flashcardCheck';
 
-export const CHECK_SYNC_FEATURE_ID = 'flashcards-check-sync';
 const MAX_ID_LENGTH = 128;
 const WRITE_CHUNK = 50;
 
@@ -103,17 +102,6 @@ export async function handleRescoreFlashcardCheck(
     throw new HttpsError('failed-precondition', 'Not an open Check.');
   if (session.checkMode !== 'write' && session.checkMode !== 'test')
     return { rescored: 0 };
-  const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
-  if (
-    !(await isGlobalFeatureGranted(
-      db,
-      CHECK_SYNC_FEATURE_ID,
-      caller.email,
-      caller.uid
-    ))
-  )
-    throw new HttpsError('permission-denied', 'Not turned on.');
-
   const cards = sessionCards(
     session.cardsInContent === true
       ? (await sessionRef.collection('content').doc('cards').get()).get('cards')

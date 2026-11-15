@@ -55,8 +55,8 @@ service cloud.firestore {
     function isNumber(k) { return request.resource.data[k] is number; }
     function isTimestamp(k) { return request.resource.data[k] is timestamp; }
 
-    // Server code trusts any collection-group `domains` doc, so wildcard admin paths may not create one.
-    function notDomainsPath(p) { return !string(p).matches('(.*/)?domains/.*'); }
+    // Server collection-group queries trust any doc in these subcollections, so wildcard admin paths may not create one.
+    function notServerCgPath(p) { return !string(p).matches('(?s)(.*/)?(domains|group_email_alerts|members|rosters|dashboards|responses|submissions|recordings|assessments|aggregates|keys|userProfile|gradebook_classes|paperPrivate|paper_transcription_jobs|guided_learning|claude_revisions|gl_media_tombstones|quizzes|quiz_assignments|miniapps|activity_wall_activities|notebooks|rubrics)/.*'); }
 
     // True if the caller's email has an /admins/{email} doc.
     // token.get('email','') (not direct .email) avoids a CEL "undefined" throw on
@@ -139,6 +139,28 @@ service cloud.firestore {
         ? key == authUid()
         : key.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
           s.get('allowAnonymousJoin', true) != false;
+    }
+    // PIN key segments: encodeResponseKeySegment, and the PIN's canonical form (quizPinKeySegment: leading zeros stripped, one digit padded to two).
+    function keySeg(v) {
+      let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
+      return t == '' ? 'default' : t;
+    }
+    function pinSeg(p) {
+      let z = p.replace('^0+', '');
+      return z == '' ? '00' : (z.matches('[0-9]') ? '0' + z : z);
+    }
+    // A retired PIN's join time must sit near server time so the teacher views' former-PIN gate can't be backdated; other PINs keep a device clock.
+    function joinedAtOk(t) {
+      return t is number && t > request.time.toMillis() - 300000 && t < request.time.toMillis() + 300000;
+    }
+    // Sessions not ClassLink-rostered take any PIN length, and check retirement only for an off-clock join.
+    function pinOpen(s) {
+      return s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0;
+    }
+    // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one on that roster's sessions.
+    function pinRetired(s, per, c) {
+      let r = dbGet4('users', s.teacherUid, 'retired_pins', per + '__' + c);
+      return r != null && (r.data.get('rosterIds', []).hasAny(s.get('rosterIds', [])) || r.data.get('rosterId', '') in s.get('rosterIds', []));
     }
 
     // ---- Optional-field type guards ----
@@ -332,6 +354,11 @@ service cloud.firestore {
               (isStudentRoleUser()
                 ? d.classId in request.auth.token.classIds
                 : s.get('accessMode', '') != 'assessment'));
+    }
+    // A studentRole response names no class or one from its own claim (older clients omit it on multi-class sessions).
+    function claimClassOk(d) {
+      return !isStudentRoleUser() || d.get('classId', '') in [null, ''] ||
+             d.classId in tok().get('classIds', []);
     }
 
     // Per-period content docs: the caller's seat names their response, whose
@@ -1075,7 +1102,7 @@ service cloud.firestore {
     // Admin-only collections. Docs that define super admins or that a super-admin/server gate trusts take isSuperAdmin() to write.
     match /admin_settings/{document=**} {
       allow read: if isAdmin();
-      allow write: if notDomainsPath(document) &&
+      allow write: if notServerCgPath(document) &&
                       ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|verified_classes_fill|focus_sessions|claude_managed_auth|claude_connector_cimd)(/.*)?')) ||
                        isSuperAdmin());
     }
@@ -1233,7 +1260,7 @@ service cloud.firestore {
     // Global permissions carry betaUsers emails; the new client uses global_permissions_public. Signed-in reads stay one release (see feature_permissions).
     match /global_permissions/{featureId=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(featureId);
+      allow write: if isAdmin() && notServerCgPath(featureId);
     }
 
     // Pilot / district-rollout requests submitted from the public /request
@@ -1363,13 +1390,13 @@ service cloud.firestore {
     // Global weather data
     match /global_weather/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(document);
+      allow write: if isAdmin() && notServerCgPath(document);
     }
 
     // Global music stations - authenticated users can read, only admins can write
     match /global_music_stations/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(document);
+      allow write: if isAdmin() && notServerCgPath(document);
     }
 
     // Instructional routines - all authenticated users can read, only admins can write
@@ -1843,12 +1870,20 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // originalAuthor is the import dialog's trust signal; immutable after create.
+    function shareAuthorKept() {
+      return incoming().get('originalAuthor', null) == existing().get('originalAuthor', null);
+    }
+
     // Shared quizzes - Same pattern as shared_boards.
     match /shared_quizzes/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn() &&
+      allow create: if staffSignedIn() &&
         myOrigAuthor();
-      allow update, delete: if signedIn() &&
+      allow update: if signedIn() &&
+        authorOrAdmin() &&
+        shareAuthorKept();
+      allow delete: if signedIn() &&
         authorOrAdmin();
     }
 
@@ -1858,7 +1893,7 @@ service cloud.firestore {
     // are fetched only by known id, preventing enumeration.
     match /shared_rubrics/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn()
+      allow create: if staffSignedIn()
                     && myOrigAuthor()
                     && newKeys().hasOnly([
                          'id', 'title', 'description', 'criteria',
@@ -1868,7 +1903,10 @@ service cloud.firestore {
                     && isList('criteria')
                     && isStr('originalAuthor')
                     && isInt('sharedAt');
-      allow update, delete: if signedIn() &&
+      allow update: if signedIn() &&
+        authorOrAdmin() &&
+        shareAuthorKept();
+      allow delete: if signedIn() &&
         authorOrAdmin();
     }
 
@@ -1887,7 +1925,7 @@ service cloud.firestore {
 
     match /shared_assignments/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn() &&
+      allow create: if staffSignedIn() &&
         myOrigAuthor() &&
         shareSyncGroupOk('synced_quizzes');
       allow update: if signedIn() &&
@@ -2213,7 +2251,7 @@ service cloud.firestore {
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
 
-      allow create: if signedIn()
+      allow create: if staffSignedIn()
         && syncedBankKeysOk()
         && incoming().id == groupId
         && incoming().ownerUid == authUid()
@@ -2230,7 +2268,7 @@ service cloud.firestore {
         && districtMarkOk();
 
       // Owner-only; version climbs by exactly one so stale pulls are detectable.
-      allow update: if signedIn()
+      allow update: if staffSignedIn()
         && districtOr(myOldOwner())
         && districtMarkKept()
         && syncedBankKeysOk()
@@ -2317,7 +2355,7 @@ service cloud.firestore {
 
     match /shared_video_activity_assignments/{shareId} {
       allow get: if signedIn();
-      allow create: if signedIn() &&
+      allow create: if staffSignedIn() &&
         myOrigAuthor() &&
         shareSyncGroupOk('synced_video_activities');
       allow update: if signedIn() &&
@@ -4628,15 +4666,31 @@ service cloud.firestore {
         // Student status moves: answering (to in-progress), turning in with exactly
         // one more attempt, a retake (completed -> joined, answers cleared) under the
         // cap, or resuming a teacher unlock. Never completed -> completed.
+        // Only the turn-in moves the attempt count.
         function statusMoveOk(e, d, limit) {
           let from = e.get('status', '');
           let to = d.get('status', '');
           let done = e.get('completedAttempts', 0);
-          return (to == 'in-progress' && (from != 'completed' || e.get('unlocked', false) == true)) ||
+          return (to == 'in-progress' && (from != 'completed' || e.get('unlocked', false))) ||
                  (to == 'completed' && from != 'completed' && d.get('completedAttempts', 0) == done + 1 &&
                   nearServerNow(d.get('submittedAt', null)) && d.get('unlocked', false) == false) ||
                  (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 &&
                   (limit == null || (done < limit && limit > 1)));
+        }
+
+        // A timed self-paced attempt takes answers only once its server clock has started (cheapest check first).
+        function clockOk(s) {
+          return s.get('timeLimitMinutes', null) == null || s.get('sessionMode', '') != 'student' ||
+                 incoming().get('attemptStartedAt', null) != null;
+        }
+        // Input signals: only where the session records them, and only the open attempt's entry (earlier ones are kept).
+        function signalsOk(s) {
+          let n = incoming().inputSignals;
+          let o = existing().get('inputSignals', {});
+          let k = string(existing().get('completedAttempts', 0));
+          return s.get('inputSignals', false) && (runOpen(s) || existing().get('unlocked', false)) &&
+                 n.diff(o).affectedKeys().hasOnly([k]) &&
+                 n[k] is map && n[k].keys().size() <= 500 && n[k].keys().hasAll(o.get(k, {}).keys());
         }
 
         // While a student is frozen (session paused, or their period not open),
@@ -4662,26 +4716,17 @@ service cloud.firestore {
         // doc's own period (one the session offers) and PIN (encodeResponseKeySegment).
         // A sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1,
         // which rate-limits guesses.
-        function keySeg(v) {
-          let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
-          return t == '' ? 'default' : t;
-        }
-        // Leading zeros stripped (one digit padded to two), so 4821 and 04821 share a seat (quizPinKeySegment).
-        // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one on that roster's sessions.
-        function pinRetired(s, k) {
-          let r = dbGet4('users', s.teacherUid, 'retired_pins', k.replace('-', '__'));
-          return r != null && r.data.get('rosterId', '') in s.get('rosterIds', []);
-        }
+        // Leading zeros stripped, so 4821 and 04821 share a seat.
         function pinKeyOk(s, d) {
           let p = keySeg(d.get('pin', ''));
-          let z = p.replace('^0+', '');
-          let k = keySeg(d.get('classPeriod', '')) + '-' + (z == '' ? '00' : (z.matches('[0-9]') ? '0' + z : z));
+          let c = pinSeg(p);
+          let per = keySeg(d.get('classPeriod', ''));
           let pn = s.get('periodNames', []);
-          return responseKey == 'pin-' + k &&
+          let open = pinOpen(s);
+          return responseKey == 'pin-' + per + '-' + c &&
             (pn.size() == 0 || d.get('classPeriod', '') in pn) &&
-            (s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0 ||
-             (p.replace('_', '').size() < 6 &&
-              !pinRetired(s, k)));
+            (open || p.replace('_', '').size() < 6) &&
+            ((open && joinedAtOk(d.get('joinedAt', null))) || !pinRetired(s, per, c));
         }
 
         // A missing doc is readable only at the caller's own uid key, so a
@@ -4736,6 +4781,7 @@ service cloud.firestore {
           incoming().get('tabExits', null) == null &&
           incoming().get('partHeld', null) == null &&
           incoming().get('liveView', null) == null &&
+          !incoming().keys().hasAny(['turnIn', 'inputSignals']) &&
           incoming().get('partsDone', null) == null &&
           incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
@@ -4752,6 +4798,8 @@ service cloud.firestore {
           incoming().get('paperWrittenSeat', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
+          // A timed attempt's clock starts at the join; answers wait for it.
+          clockOk(sessionData()) &&
           (sessionData().get('sessionMode', '') != 'game' ||
            incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class
@@ -4762,31 +4810,27 @@ service cloud.firestore {
           runOpen(sessionData()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(sessionData()) &&
-          periodJoinOk(sessionData(), incoming()) &&
+          periodJoinOk(sessionData(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(sessionData(), incoming()) &&
           joinKeyOk(sessionData(), responseKey) &&
           // The PIN is short text the hourly archive email quotes.
           incoming().get('pin', '') is string && incoming().get('pin', '').size() <= 10 &&
           (responseKey == authUid() || pinKeyOk(sessionData(), incoming()));
-        // The student branch runs first so a student's write skips the teacher and admin checks.
-        allow update: if signedIn() && (
-          // Students update only their own response (ownership via studentUid, not the key).
-          // Mutable: answers, status, submittedAt, tabSwitchWarnings, completedAttempts,
-          // classPeriod, score (reset to null on rejoin). pin/join metadata immutable.
-          // Monotonic: tabSwitchWarnings, completedAttempts. Students may only write null to score.
-          (authUid() == existing().studentUid &&
-           passesStudentClassGateList(sessionClassIds()) &&
+        // The student's own update; s is the session, k the keys the write affects (computed once: this runs near the 1,000-expression limit).
+        function studentUpdateOk(s, k) {
+          return authUid() == existing().studentUid &&
+           passesStudentClassGateList(s.get('classIds', [])) &&
            // Student writes stop at the session close time (M17) or the run's end.
            // The teacher branch below is unaffected — grading continues after close.
-           (runOpen(sessionData()) ||
-            isResultsProtectionOnlyWrite() ||
+           (runOpen(s) ||
+            k.hasOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) ||
             existing().get('unlocked', false) == true) &&
            // Pause is enforced here for every session, and per period where set.
-           (frozenWriteOk(sessionData(), existing().get('classId', null)) ||
-            (sessionData().status != 'paused' &&
+           (frozenWriteOk(s, existing().get('classId', null)) ||
+            (s.status != 'paused' &&
              // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
-             (periodOpen(sessionData(), existing().get('classId', null)) ||
-              sessionData().get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
+             (periodOpen(s, existing().get('classId', null)) ||
+              s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -4798,13 +4842,13 @@ service cloud.firestore {
            // write a non-null score they didn't already have - blocks forgery while allowing
            // mid-quiz writes (null on both sides) and post-publish results-protection writes
            // (score unchanged from the graded value).
-           (!changed(['score']) ||
+           (!k.hasAny(['score']) ||
             incoming().score == null) &&
            // Students may only ever write `0` to `preSyncVersion`. The rejoin path resets it to
            // 0 so a previously-tagged response re-enters the untagged pool that
            // syncAssignmentToLatest queries. Arbitrary values would let a student forge a tag
            // to dodge future sync tagging, mirroring the create-time constraint above.
-           (!changed(['preSyncVersion']) ||
+           (!k.hasAny(['preSyncVersion']) ||
             incoming().preSyncVersion == 0) &&
            // NOTE: `grading` (and everything under it) is deliberately ABSENT from this
            // whitelist. The teacher branch above is unrestricted, so teachers write
@@ -4819,36 +4863,36 @@ service cloud.firestore {
            // addedKeys and bypass the whitelist entirely.
            // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
            // Turned-in answers are final unless the teacher unlocks the attempt or a retake clears them.
-           // One changed() check for all three: this branch sits near the 1,000-expression limit.
-           (!changed(['answers']) ||
-            (sessionData().get('sessionMode', '') != 'game' &&
+           // One k.hasAny() check for all three: this function sits near the 1,000-expression limit.
+           (!k.hasAny(['answers']) ||
+            (s.get('sessionMode', '') != 'game' && clockOk(s) &&
              (existing().get('status', '') != 'completed' ||
               existing().get('unlocked', false) == true || incoming().get('status', '') == 'joined') &&
              paperKept(existing(), incoming()))) &&
-           // submittedAt is the server-offset clock (within 2 min of the server), or cleared for a retake or teacher unlock.
-           (!changed(['submittedAt']) ||
+           // submittedAt is near server time (grading trusts the server's turn-in stamp), or cleared for a retake or teacher unlock.
+           (!k.hasAny(['submittedAt']) ||
             (incoming().get('submittedAt', null) == null ?
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
              nearServerNow(incoming().submittedAt))) &&
            // A PIN-keyed doc keeps the period its key names.
            // shorthands: off (raw uid first: this update runs close to the 1,000-expression limit)
-           (responseKey == request.auth.uid || !changed(['classPeriod']) ||
+           (responseKey == request.auth.uid || !k.hasAny(['classPeriod']) ||
             responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
            // shorthands: on
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'inputSignals']) &&
+           k.hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
            tabExitsOk() &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
-           (!changed(['partsDone']) || incoming().get('partsDone', 0) is int) &&
-           (!changed(['partHeld']) || incoming().get('partHeld', null) in [true, null]) &&
+           (!k.hasAny(['partsDone']) || incoming().get('partsDone', 0) is int) &&
+           (!k.hasAny(['partHeld']) || incoming().get('partHeld', null) in [true, null]) &&
            // Time-limit clock: server-stamped, and only restarted by a new attempt
            // (completed -> joined) or stamped where none exists yet.
-           (!changed(['attemptStartedAt']) ||
+           (!k.hasAny(['attemptStartedAt']) ||
             (incoming().attemptStartedAt == request.time &&
              (existing().get('attemptStartedAt', null) == null ||
               (existing().get('status', '') == 'completed' &&
                incoming().get('status', '') == 'joined')))) &&
            // `timeUp` is set only on the submit itself, and cleared by a new attempt.
-           (!changed(['timeUp']) ||
+           (!k.hasAny(['timeUp']) ||
             (incoming().get('timeUp', null) == true &&
              incoming().get('status', '') == 'completed' &&
              existing().get('status', '') != 'completed') ||
@@ -4865,33 +4909,26 @@ service cloud.firestore {
            // count) - a client can pick which pool questions it sees but never
            // shrink the scoring denominator.
            // Bank-slot draws are written only by drawQuizBankQuestionsV1; a student clears one only for a retake.
-           (!changed(['servedQuestionIds']) ||
+           (!k.hasAny(['servedQuestionIds']) ||
             (incoming().get('servedQuestionIds', null) == null &&
-             (sessionData().get('bankSlots', null) == null ||
+             (s.get('bankSlots', null) == null ||
               (existing().get('status', '') == 'completed' && incoming().get('status', '') == 'joined'))) ||
-            (sessionData().get('bankSlots', null) == null &&
-             sessionData().get('assignmentId', '') != '' &&
-             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data)) ||
-            // Until 2026-11-10 only: a tab still on the previous app rolls its own first draw (AB-98).
-            (request.time < timestamp.date(2026, 11, 10) &&
-             sessionData().get('bankSlots', null) != null &&
-             existing().get('servedQuestionIds', null) == null &&
-             existing().get('status', '') != 'completed' &&
-             isList('servedQuestionIds') &&
-             incoming().servedQuestionIds.size() == sessionData().totalQuestions)) &&
+            (s.get('bankSlots', null) == null &&
+             s.get('assignmentId', '') != '' &&
+             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(s.assignmentId)).data))) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
            // student inflating their doc toward the 1 MB limit with junk keys.
-           (!changed(['stimulusPlays']) ||
+           (!k.hasAny(['stimulusPlays']) ||
             (isMap('stimulusPlays') &&
              incoming().stimulusPlays.keys().size() <= 200)) &&
-           (!changed(['stimulusErrors']) ||
+           (!k.hasAny(['stimulusErrors']) ||
             (isMap('stimulusErrors') &&
              incoming().stimulusErrors.keys().size() <= 100)) &&
            // `handRaisedAt` must be server-stamped when raising, or null when
            // the student lowers their own hand — never a client timestamp.
-           (!changed(['handRaisedAt']) ||
+           (!k.hasAny(['handRaisedAt']) ||
             incoming().handRaisedAt == request.time ||
             incoming().handRaisedAt == null) &&
            // `recordingNoticeAckedAt` (Tennessen notice ack, #2737) is a
@@ -4900,7 +4937,7 @@ service cloud.firestore {
            // still be a real positive timestamp, not an arbitrary
            // string/map/sentinel a student could smuggle into a doc the
            // teacher monitor reads for every response in the session.
-           (!changed(['recordingNoticeAckedAt']) ||
+           (!k.hasAny(['recordingNoticeAckedAt']) ||
             (isInt('recordingNoticeAckedAt') &&
              incoming().recordingNoticeAckedAt > 0)) &&
            // `lastWriteAt` is the idle-auto-submit cutoff and must be server-stamped
@@ -4908,16 +4945,15 @@ service cloud.firestore {
            // Date.now(). Equality with request.time enforces that: a raw Timestamp or number is
            // rejected. Closes the clock-skew failure modes - past-clock devices can't be
            // force-finalized early, future-clock devices can't evade idle auto-submit.
-           (!changed(['lastWriteAt']) ||
+           (!k.hasAny(['lastWriteAt']) ||
             incoming().lastWriteAt == request.time) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
            // when the resumed attempt is finalized.
-           (!changed(['unlocked']) ||
+           (!k.hasAny(['unlocked']) ||
             incoming().get('unlocked', false) == false) &&
            notDecreased('tabSwitchWarnings') &&
-           notDecreased('completedAttempts') &&
            // Results-view screenshot-protection guards. useResultsTabWarnings increments
            // `resultsTabWarnings` on each visibility/blur round-trip and flips
            // `resultsLockedOut` (+ `resultsLockedOutAt`) at the threshold. Both monotonic from
@@ -4925,14 +4961,27 @@ service cloud.firestore {
            notDecreased('resultsTabWarnings') &&
            // `resultsLockedOut` may only stay the same OR transition false→true.
            // A student-side write of `true→false` (self-unlock) is rejected.
-           (!changed(['resultsLockedOut']) ||
+           (!k.hasAny(['resultsLockedOut']) ||
             (existing().get('resultsLockedOut', false) == false ||
              incoming().get('resultsLockedOut', false) == true)) &&
            // Attempt-cap: completedAttempts ≤ attemptLimit (null = unlimited),
            // else a hostile client could increment past the cap.
-           (sessionAttemptLimit() == null ||
-            incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
-           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
+           (s.get('attemptLimit', null) == null ||
+            incoming().get('completedAttempts', 0) <= s.get('attemptLimit', null)) &&
+           (!k.hasAny(['status']) || statusMoveOk(existing(), incoming(), s.get('attemptLimit', null))) &&
+           // Only the turn-in (statusMoveOk: by one) moves the attempt count.
+           (!k.hasAny(['completedAttempts']) || (k.hasAny(['status']) && incoming().status == 'completed'));
+        }
+
+        // The student branch runs first so a student's write skips the teacher and admin checks.
+        allow update: if signedIn() && (
+          // Students update only their own response (ownership via studentUid, not the key).
+          // Mutable: answers, status, submittedAt, tabSwitchWarnings, completedAttempts,
+          // classPeriod, score (reset to null on rejoin). pin/join metadata immutable.
+          // Monotonic: tabSwitchWarnings, completedAttempts. Students may only write null to score.
+          studentUpdateOk(sessionData(), incoming().diff(existing()).affectedKeys()) ||
+          // Input-signal saves come alone, after the main branch so its costliest path doesn't pay for them.
+          (authUid() == existing().studentUid && changedOnly(['inputSignals']) && signalsOk(sessionData())) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           liveUid(sessionTeacherUid()) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
@@ -4978,10 +5027,12 @@ service cloud.firestore {
           allow create, update: if signedIn() &&
             liveId == 'state' &&
             authUid() == dbGet4('quiz_sessions', sessionId, 'responses', responseKey).data.studentUid &&
-            incoming().keys().hasOnly(['questionId', 'at']) &&
+            incoming().keys().hasOnly(['questionId', 'at', 'activeAt', 'warning']) &&
             isStr('questionId') &&
             incoming().questionId.size() <= 200 &&
-            isNumber('at');
+            isNumber('at') &&
+            optNumber(incoming(), 'activeAt') &&
+            optBool(incoming(), 'warning');
         }
 
         // Handwritten paper answers: AI transcript internals. Session teacher reads; only the server writes.
@@ -5548,8 +5599,33 @@ service cloud.firestore {
         function vaGate() {
           return passesStudentClassGateList(vaS().get('classIds', []));
         }
+        // An appended answer: no takeIndex, never one for a question the server recorded this attempt.
+        function vaNewAnswerOk(a) {
+          return !('takeIndex' in a) &&
+            (existing().get('completedAt', null) == null || existing().get('unlocked', false) == true) &&
+            existing().get('checkedAnswers', {}).get(a.get('questionId', ''), {}).get('attempt', -1) !=
+              existing().get('completedAttempts', 0);
+        }
         function nearServerNow(t) {
           return t is number && t > request.time.toMillis() - 120000 && t < request.time.toMillis() + 120000;
+        }
+        // The doc's period is one the session names (its periodAccess label, else a periodNames entry), so a made-up period can't dodge a retired PIN.
+        function vaPeriodOk(s, d) {
+          let pa = s.get('periodAccess', null);
+          let pn = s.get('periodNames', []);
+          let cp = d.get('classPeriod', '');
+          return pa != null ? cp == pa[d.classId].get('label', cp) : (pn.size() == 0 || cp in pn);
+        }
+        // The key's PIN segment is the doc's own pin, so the teacher views' name lookup by pin can't be forged; ClassLink-rostered sessions also refuse sign-in-length and retired PINs.
+        function vaPinOk(s, d) {
+          let a = responseDocId.split('-');
+          let p = keySeg(d.get('pin', ''));
+          let c = pinSeg(p);
+          let dp = keySeg(d.get('classPeriod', ''));
+          let open = pinOpen(s);
+          return a[2] == p && (open || p.replace('_', '').size() < 6) &&
+            ((open && joinedAtOk(d.get('joinedAt', null))) ||
+             (vaPeriodOk(s, d) && !pinRetired(s, dp, c) && (a[1] == dp || !pinRetired(s, a[1], c))));
         }
 
         // A missing doc is readable only at the caller's own uid key; mirrors
@@ -5573,6 +5649,8 @@ service cloud.firestore {
           incoming().studentUid == authUid() &&
           incoming().score == null &&
           incoming().completedAt == null &&
+          // Joins start with no answers; the client always writes [].
+          incoming().get('answers', []).size() == 0 &&
           // Students cannot forge prior completions — initialize to 0.
           incoming().get('completedAttempts', 0) == 0 &&
           incoming().get('tabSwitchWarnings', 0) == 0 &&
@@ -5586,12 +5664,10 @@ service cloud.firestore {
           runOpen(vaS()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(vaS()) &&
-          periodJoinOk(vaS(), incoming()) &&
+          periodJoinOk(vaS(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(vaS(), incoming()) &&
           joinKeyOk(vaS(), responseDocId) &&
-          // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1.
-          (vaS().get('rosterIds', []).size() == 0 || vaS().get('classIds', []).size() == 0 ||
-           !responseDocId.matches('pin-[a-z0-9_]*-(_*[a-z0-9]){6}.*'));
+          (responseDocId == authUid() || vaPinOk(vaS(), incoming()));
         // Update split: TEACHER branch (PR3 publish-scores: score/isCorrect/
         // scoreVisibility; gated by parent teacherUid, admins also pass) and
         // STUDENT branch (answer-submit, append-only invariants). Mutually
@@ -5650,8 +5726,14 @@ service cloud.firestore {
              (existing().answers.size() == 0 ||
               (incoming().answers.size() >= existing().answers.size() &&
                incoming().answers[0:existing().answers.size()] == existing().answers))) &&
+            // One appended answer per write; a live run's answers go only through the check callable.
+            (incoming().answers.size() <= existing().answers.size() ||
+             (vaS().get('sessionMode', 'student') != 'teacher' &&
+              incoming().answers.size() == existing().answers.size() + 1 &&
+              vaNewAnswerOk(incoming().answers[existing().answers.size()]))) &&
             notDecreased('tabSwitchWarnings') &&
-            notDecreased('completedAttempts') &&
+            // The attempt count moves only with completion, by one (the completedAt gate below).
+            (!changed(['completedAttempts']) || (changed(['completedAt']) && existing().get('completedAt', null) == null)) &&
             // Attempt-cap enforcement — last line of defense behind the
             // client-side join + completeActivity transactions.
             (vaS().get('sessionOptions', {}).get('attemptLimit', null) == null ||
@@ -5808,6 +5890,13 @@ service cloud.firestore {
         allow read: if signedIn() && existing().studentUid == authUid();
       }
 
+      // Published results, written only by publishMiniAppScoresV1; students read theirs while published.
+      match /published/{key} {
+        allow read: if signedIn() && (maOwner() ||
+          (existing().studentUid == authUid() &&
+            maSessionData().get('scoreVisibility', 'none') != 'none'));
+      }
+
       // v2 answer key copied at assign; students never read it (MINI_APP_RESULTS.md D5).
       match /private/{docId} {
         allow read: if signedIn() && (
@@ -5914,7 +6003,7 @@ service cloud.firestore {
           staffJoinOk(glSession(), incoming()) &&
           // Per-student publication is teacher-written only.
           incoming().get('resultsOverride', null) == null &&
-          glClassGate() &&
+          glClassGate() && claimClassOk(incoming()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions' &&
           // Block joins outside the assignment's open/close window (M17).

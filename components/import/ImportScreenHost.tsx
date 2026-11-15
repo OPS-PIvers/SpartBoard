@@ -4,7 +4,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { useImportInbox, type ImportInbox } from '@/hooks/useImportInbox';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
-import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
+import { useImportConversionSettingsState } from '@/hooks/useImportConversionSettings';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import type { ConversionInput } from '@/utils/import/aiConversion';
 import { BoardImportFlow } from './conversion/BoardImportFlow';
@@ -27,7 +27,13 @@ import {
   type PendingSource,
 } from './importHandoff';
 import {
+  IMPORT_STRAIGHT_TO_BOARD_FEATURE,
+  importAiOn,
+  importSourceOffers,
+} from '@/config/importConversion';
+import {
   conversionInputFor,
+  importSourceKind,
   importTypeOn,
   isForm,
   importRoute,
@@ -194,11 +200,12 @@ const OpenImportScreen: React.FC<
 }) => {
   const { canAccessWidget, canAccessFeature, ensureGoogleScope } = useAuth();
   const outward = useViewAsOutward();
-  // AI Conversions: the org switch, the AI flag, and never from a read-only view-as tab (the server checks again).
-  const aiOn =
-    useImportConversionSettings().enabled &&
-    canAccessFeature('gemini-functions') &&
-    !outward.locked;
+  const { settings, loaded: settingsLoaded } =
+    useImportConversionSettingsState();
+  // AI Conversions: each widget's switch, the AI flag, and never from a read-only view-as tab (the server checks again).
+  const aiReady = canAccessFeature('gemini-functions') && !outward.locked;
+  const aiOn = (target: ImportTarget): boolean =>
+    aiReady && importAiOn(settings, target);
   const {
     activeDashboard,
     addWidget,
@@ -236,6 +243,9 @@ const OpenImportScreen: React.FC<
     const route = importRoute(target);
     if (!route) return false;
     if (!importTypeOn(target, canAccessFeature)) return false;
+    // What each import offers (Previews > Import anything).
+    if (!importSourceOffers(settings, importSourceKind(source), target))
+      return false;
     if (route.widgetType && !canAccessWidget(route.widgetType)) return false;
     // A board from a page is Magic Layout's engine, so it follows that flag.
     if (target === 'board') return canAccessFeature('dashboard-layout');
@@ -489,7 +499,14 @@ const OpenImportScreen: React.FC<
       onContinue={route}
       onPlaceReference={placeReference}
       canAddLink={canAccessWidget('url') && canAccessFeature('import-link')}
-      onCourse={isActiveBoardReadOnly ? undefined : onCourse}
+      onCourse={
+        isActiveBoardReadOnly || !settings.sources.course.enabled
+          ? undefined
+          : onCourse
+      }
+      straightToBoard={
+        settingsLoaded && canAccessFeature(IMPORT_STRAIGHT_TO_BOARD_FEATURE)
+      }
     />
   );
 };
