@@ -173,6 +173,19 @@ describe('SpecialistScheduleConfigurationModal', () => {
     expect(setDoc).not.toHaveBeenCalled();
   });
 
+  it('keeps Save off while the saved config is still loading', () => {
+    mockIsAuthBypass = false;
+    mockUseAdminBuildings.mockReturnValue(building('schumann-elementary'));
+    vi.mocked(getDoc).mockReturnValue(new Promise(() => undefined));
+
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+
+    const save = screen.getByRole('button', { name: /Save Configuration/ });
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
   it('saves a new option under the canonical building id, not the legacy raw id', async () => {
     mockIsAuthBypass = false;
     mockUseAdminBuildings.mockReturnValue(building('schumann-elementary'));

@@ -122,7 +122,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
   }, [isOpen, fetchConfig]);
 
   const handleSave = async (updatedConfig?: SpecialistScheduleGlobalConfig) => {
-    if (isAuthBypass || loadFailed) return;
+    if (isAuthBypass || loadFailed || loading) return;
     setSaving(true);
     try {
       const docRef = doc(db, 'feature_permissions', 'specialist-schedule');
@@ -397,7 +397,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         <button
           onClick={() => void handleSave()}
           {...tourTypeAttr('admin.widget-config.save', 'specialist-schedule')}
-          disabled={saving || loadFailed}
+          disabled={saving || loadFailed || loading}
           className="px-8 py-2.5 bg-teal-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-teal-500/20 hover:bg-teal-700 transition-all flex items-center gap-2 disabled:opacity-50"
         >
           {saving ? (
