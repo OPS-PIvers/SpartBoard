@@ -80,6 +80,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     buildingDefaults: {},
   });
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
@@ -93,6 +94,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       setLoading(false);
       return;
     }
+    setLoadFailed(false);
     try {
       const docRef = doc(db, 'feature_permissions', 'specialist-schedule');
       const snap = await getDoc(docRef);
@@ -104,6 +106,8 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       }
     } catch (err) {
       console.error('Failed to fetch specialist schedule config:', err);
+      // Never offer defaults after a failed read: Save would overwrite the real doc.
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -117,7 +121,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
   }, [isOpen, fetchConfig]);
 
   const handleSave = async (updatedConfig?: SpecialistScheduleGlobalConfig) => {
-    if (isAuthBypass) return;
+    if (isAuthBypass || loadFailed) return;
     setSaving(true);
     try {
       const docRef = doc(db, 'feature_permissions', 'specialist-schedule');
@@ -392,7 +396,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         <button
           onClick={() => void handleSave()}
           {...tourTypeAttr('admin.widget-config.save', 'specialist-schedule')}
-          disabled={saving}
+          disabled={saving || loadFailed}
           className="px-8 py-2.5 bg-teal-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-teal-500/20 hover:bg-teal-700 transition-all flex items-center gap-2 disabled:opacity-50"
         >
           {saving ? (
@@ -427,6 +431,24 @@ export const SpecialistScheduleConfigurationModal: React.FC<
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
               Loading Configuration...
             </p>
+          </div>
+        ) : loadFailed ? (
+          <div
+            role="alert"
+            className="flex flex-col items-center gap-3 py-20 text-sm text-brand-red-primary"
+          >
+            <p>Could not load the saved specialist schedule configuration.</p>
+            <button
+              type="button"
+              // no-tour-anchor: shown only when the load fails
+              onClick={() => {
+                setLoading(true);
+                void fetchConfig();
+              }}
+              className="font-bold text-brand-blue-primary"
+            >
+              Try again
+            </button>
           </div>
         ) : (
           <>
