@@ -3224,6 +3224,7 @@ const TeacherQuizWidget: React.FC<{
                   },
                   onDone: () => setReopenPickFor(null),
                   onStart: () => reopenAssignment(reopenPickFor),
+                  onAbort: () => deactivateAssignment(reopenPickFor),
                   onConfirm: (uids) =>
                     reopenForStudents(reopenPickFor, {
                       uids,

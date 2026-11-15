@@ -158,6 +158,8 @@ export interface QuizLiveMonitorProps {
     onDone: () => void;
     /** Takes the quiz out of Ended, paused, before any attempt reopens. */
     onStart: () => Promise<void>;
+    /** Ends it again when the reopen fails partway. */
+    onAbort: () => Promise<void>;
     onConfirm: (uids: string[]) => Promise<void>;
   } | null;
 }
@@ -598,9 +600,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       if (!reopenPicker) return;
       const wanted = new Set(keys);
       const picks = reopenOptions.filter((o) => wanted.has(o.key));
+      let started = false;
       try {
         // The quiz leaves Ended first, so End's delayed turn-in can't undo the reopens.
         await reopenPicker.onStart();
+        started = true;
         const outcomes = await Promise.allSettled(
           picks.map((p) =>
             p.responseKey && onReopenStudent
@@ -629,6 +633,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         reopenPicker.onDone();
       } catch (err) {
         logError('QuizLiveMonitor.reopenPicked', err);
+        // Put the quiz back to Ended rather than leave it paused for everyone.
+        if (started)
+          await reopenPicker
+            .onAbort()
+            .catch((e: unknown) => logError('QuizLiveMonitor.reopenAbort', e));
         addToast('Could not reopen the quiz. Try again.', 'error');
       }
     },
