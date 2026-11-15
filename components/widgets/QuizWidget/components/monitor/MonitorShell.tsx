@@ -46,6 +46,8 @@ import { useDashboard } from '@/context/useDashboard';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { logError } from '@/utils/logError';
+import { ReopenStudentsDialog } from '../ReopenStudentsDialog';
+import { buildReopenOptions } from './reopenOptions';
 import {
   QUIZ_LIVE_VIEW_FEATURE,
   liveViewSupported,
@@ -148,6 +150,16 @@ export interface QuizLiveMonitorProps {
   rosterTargets?: MonitorRosterTargets | null;
   /** False until the responses listener first delivers; roster rows wait for it. */
   responsesLoaded?: boolean;
+  /** Opens the picker that reopens this ended quiz for chosen students. */
+  reopenPicker?: {
+    /** Cancel: leave without reopening. */
+    onClose: () => void;
+    /** Reopened; the monitor stays on the now live quiz. */
+    onDone: () => void;
+    /** Takes the quiz out of Ended, paused, before any attempt reopens. */
+    onStart: () => Promise<void>;
+    onConfirm: (uids: string[]) => Promise<void>;
+  } | null;
 }
 
 type Screen =
@@ -202,6 +214,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     assignmentSettings,
     rosterTargets = null,
     responsesLoaded = true,
+    reopenPicker = null,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
@@ -243,7 +256,12 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     !hasPeriodAccess(session) && session.sessionMode !== 'game',
     rosterTargets,
     responsesLoaded &&
-      authContext?.canAccessFeature?.('quiz-monitor-roster') === true
+      (!!reopenPicker ||
+        authContext?.canAccessFeature?.('quiz-monitor-roster') === true)
+  );
+  const reopenOptions = useMemo(
+    () => buildReopenOptions(data.allNames, data.allNotJoined, session),
+    [data.allNames, data.allNotJoined, session]
   );
 
   const absentCount = data.notJoined.filter((s) => s.absent).length;
@@ -575,6 +593,48 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   );
 
   const sessionEnded = session.status === 'ended';
+  const handleReopenPicked = useCallback(
+    async (keys: string[]) => {
+      if (!reopenPicker) return;
+      const wanted = new Set(keys);
+      const picks = reopenOptions.filter((o) => wanted.has(o.key));
+      try {
+        // The quiz leaves Ended first, so End's delayed turn-in can't undo the reopens.
+        await reopenPicker.onStart();
+        const outcomes = await Promise.allSettled(
+          picks.map((p) =>
+            p.responseKey && onReopenStudent
+              ? onReopenStudent(p.responseKey)
+              : Promise.resolve()
+          )
+        );
+        const failed = outcomes.filter((o) => o.status === 'rejected');
+        if (failed.length > 0)
+          logError('QuizLiveMonitor.reopenPicked', failed[0]);
+        // A student whose attempt didn't reopen stays submitted, so the quiz can still end on its own.
+        const reopened = picks.filter(
+          (_, i) => outcomes[i].status === 'fulfilled'
+        );
+        if (reopened.length === 0) throw new Error('No student reopened');
+        await reopenPicker.onConfirm(reopened.map((p) => p.uid));
+        if (failed.length > 0)
+          addToast(
+            `Could not reopen for ${failed.length} student${failed.length === 1 ? '' : 's'}.`,
+            'error'
+          );
+        addToast(
+          `Reopened for ${reopened.length} student${reopened.length === 1 ? '' : 's'}.`,
+          'success'
+        );
+        reopenPicker.onDone();
+      } catch (err) {
+        logError('QuizLiveMonitor.reopenPicked', err);
+        addToast('Could not reopen the quiz. Try again.', 'error');
+      }
+    },
+    [reopenPicker, reopenOptions, onReopenStudent, addToast]
+  );
+
   const handleReopen = useCallback(
     async (key: string) => {
       if (sessionEnded) {
@@ -794,6 +854,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   return (
     <div className="h-full w-full flex flex-col bg-white text-brand-gray-dark relative">
+      {reopenPicker && (
+        <ReopenStudentsDialog
+          isOpen
+          title="Reopen for selected students"
+          students={reopenOptions}
+          onClose={reopenPicker.onClose}
+          onConfirm={handleReopenPicked}
+        />
+      )}
       {canLiveView && liveViewKey && (
         <Suspense fallback={null}>
           <LiveViewPanel

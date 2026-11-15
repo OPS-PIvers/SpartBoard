@@ -66,6 +66,10 @@ export interface MonitorData {
   counts: { notStarted: number; inProgress: number; done: number };
   /** Roster students in the selected classes who haven't opened the quiz. */
   notJoined: NotJoinedStudent[];
+  /** Every class's roster students who haven't opened the quiz. */
+  allNotJoined: NotJoinedStudent[];
+  /** Every response's key and shown name, across all classes. */
+  allNames: { key: string; name: string; response: QuizResponse }[];
   handCount: number;
   idleCount: number;
   currentQ: QuizQuestion | undefined;
@@ -276,6 +280,15 @@ export function useMonitorData(
       pinToName,
     ]
   );
+  const allNames = useMemo(
+    () =>
+      responses.map((r) => ({
+        key: responseDocKey(r),
+        name: resolveResponseDisplayName(r, pinToName, byStudentUid),
+        response: r,
+      })),
+    [responses, pinToName, byStudentUid]
+  );
   const notJoined = useMemo(() => {
     if (periodNames.length <= 1 || selectedPeriods.length === 0)
       return allNotJoined;
@@ -324,6 +337,8 @@ export function useMonitorData(
     byBucket,
     counts,
     notJoined,
+    allNotJoined,
+    allNames,
     handCount,
     idleCount,
     currentQ,
