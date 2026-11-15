@@ -35,7 +35,8 @@ const BELOW_TOOLBAR: ZIndexLayer[] = [
 const ALLOWED_LOW_OVERLAYS = new Set([
   'components/layout/DashboardView.tsx:backdrop', // spotlight dim; the spotlit widget keeps its toolbar
   'components/layout/AnnotationOverlay.tsx:annotationChrome', // pointer-events-none annotation chrome
-  'components/connections/WidgetConnectionControls.tsx:toolMenu', // click-catcher for its own menu
+  'components/connections/WidgetConnectionControls.tsx:toolMenu',
+  'components/common/library/FolderPickerPopover.tsx:100', // dialog variant renders inline, not portalled // click-catcher for its own menu
   'components/flashcards/CheckTabWarning.tsx:overlay', // student app, no widgets
   'components/student/StudentApp.tsx:overlay', // student app, no widgets
   'components/widgets/QuizWidget/components/FreeResponseGrader.tsx:overlay', // inside the widget window
@@ -82,11 +83,18 @@ describe('widget toolbar stacking', () => {
       let i = src.indexOf('fixed inset-0');
       while (i !== -1) {
         const win = src.slice(i, i + 500);
-        const cls = /\bz-([a-z][a-z-]*)\b/.exec(win.split('\n')[0]);
+        const cls = /\bz-(\d+|[a-z][a-z-]*)\b/.exec(win.split('\n')[0]);
         const inline = /Z_INDEX\.(\w+)/.exec(win);
         const key = cls ? toCamel(cls[1]) : inline?.[1];
-        if (key && key in Z_INDEX) {
-          const value = Z_INDEX[key as ZIndexLayer];
+        const value =
+          key && /^\d+$/.test(key)
+            ? src.includes('createPortal')
+              ? Number(key)
+              : undefined // a numeric z on an inline surface stays inside its parent's stacking context
+            : key && key in Z_INDEX
+              ? Z_INDEX[key as ZIndexLayer]
+              : undefined;
+        if (key && value !== undefined) {
           seen.add(`${rel}:${key}`);
           if (
             value <= Z_INDEX.toolMenu &&
