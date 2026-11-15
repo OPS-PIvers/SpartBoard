@@ -119,6 +119,7 @@ describe('assignment mutators during a tour', () => {
       shareAssignment: vi.fn().mockResolvedValue('real-url'),
       shareAssignmentWithPlc: vi.fn().mockResolvedValue(undefined),
       publishAssignmentScores: vi.fn(),
+      unpublishAssignmentScores: vi.fn(),
     }) as unknown as UseQuizAssignmentsResult;
 
   it('leaves real assignments alone unless their quiz was picked', async () => {
@@ -164,6 +165,32 @@ describe('assignment mutators during a tour', () => {
     expect(api.createAssignment).toHaveBeenCalledTimes(1);
     await result.current.pauseAssignment('a-new');
     expect(api.pauseAssignment).toHaveBeenCalledWith('a-new');
+  });
+
+  it('shows a faked publish and pause on the row until the tour ends', async () => {
+    const api = quizAssignmentsApi();
+    act(() => startTourSandbox());
+    const { result } = renderHook(() => useSandboxedQuizAssignments(api));
+    const row = () => result.current.assignments.find((a) => a.id === 'a-real');
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        'a-real',
+        quiz('real'),
+        'score-only'
+      );
+      await result.current.pauseAssignment('a-real');
+    });
+    expect(api.publishAssignmentScores).not.toHaveBeenCalled();
+    expect(row()).toMatchObject({
+      scoreVisibility: 'score-only',
+      status: 'paused',
+    });
+    await act(async () => {
+      await result.current.unpublishAssignmentScores('a-real');
+    });
+    expect(row()?.scoreVisibility).toBeUndefined();
+    act(() => endTourSandbox());
+    expect(result.current).toBe(api);
   });
 
   it('guards guided learning and mini app assignment mutators', async () => {
