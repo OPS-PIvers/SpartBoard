@@ -229,8 +229,14 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 - **AB-205 Prompt formatting leftovers** (S, from release #5678 review). Paper answer sheet labels use raw `question.text` (`utils/paperSheetPlan.ts`, `functions/src/paperBatchPlan.ts`), so marks show; use `stripPromptFormat`/`plainPromptText`. Numbered lines renumber when edited (`5. a` / `3. b` saves as 5, 6); keep the typed numbers. A literal `*word*` typed in the editor only turns italic after reload.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
-  <details><summary>Branches to delete (174, checked 2026-11-01)</summary>
+  <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-606z5x (#5896)
+claude/project-thread-606z5x-ab112 (this docs PR, delete after it merges)
+claude/project-thread-tmq3fo (#5890)
+hotfix/lunch-count-classic-layout (#5893)
+hotfix/lunch-count-classic-layout-to-dev (#5894)
+claude/ab112-lunch-count-branches (this docs PR, delete after it merges)
 claude/project-thread-x7mvut (#5885)
 claude/project-thread-x7mvut-ab112 (this docs PR, delete after it merges)
 claude/project-thread-29pa8f (#5868)

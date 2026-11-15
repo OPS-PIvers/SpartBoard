@@ -345,6 +345,41 @@ describe('scoreVideoResponse', () => {
   });
 });
 
+describe('scoreVideoResponse answer selection', () => {
+  const questions = () =>
+    keyQuestions([
+      { id: 'v1', type: 'MC', text: 'x', correctAnswer: 'A', points: 1 },
+    ]);
+
+  it('grades the first entry, not a later duplicate with answeredAt 0', () => {
+    const r = scoreVideoResponse(
+      {},
+      {
+        completedAt: 9,
+        answers: [
+          { questionId: 'v1', answer: 'B', answeredAt: 5000 },
+          { questionId: 'v1', answer: 'A', answeredAt: 0, takeIndex: 9 },
+        ],
+      },
+      questions()
+    );
+    expect(r).toMatchObject({ rawPct: 0 });
+  });
+
+  it('scores a live entry the check callable never recorded as 0', () => {
+    const r = scoreVideoResponse(
+      { sessionMode: 'teacher', live: { askedQuestionIds: ['v1'] } },
+      {
+        completedAt: 9,
+        answers: [{ questionId: 'v1', answer: 'A', answeredAt: 9000 }],
+        checkedAnswers: {},
+      },
+      questions()
+    );
+    expect(r).toMatchObject({ rawPct: 0 });
+  });
+});
+
 describe('scoreVideoResponse short answer', () => {
   const questions = keyQuestions([
     { id: 'v1', type: 'MC', text: 'x', correctAnswer: 'A', points: 1 },

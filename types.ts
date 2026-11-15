@@ -8270,6 +8270,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   studentUid: string;
   joinedAt: number;
   answers: VideoActivityAnswer[];
+  /** Answers the check callable recorded, by question id; students can't write it. */
+  checkedAnswers?: Record<string, { answer?: string; attempt?: number }>;
   completedAt: number | null;
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
@@ -11374,6 +11376,8 @@ export type GlobalFeature =
   | 'quiz-dok'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
   | 'quiz-blank-types'
+  /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
+  | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
