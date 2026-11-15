@@ -29,6 +29,19 @@ export function orphanedCopies(
   };
 }
 
+/** Mirrors the rules' sbItemNonceOk: the share's nonce, or a previous-release tab's no-nonce copy written since. */
+function isThisInstanceCopy(
+  copy: admin.firestore.QueryDocumentSnapshot,
+  share: Record<string, unknown>
+): boolean {
+  const nonce: unknown = copy.get('shareNonce');
+  if (nonce !== undefined) return nonce === (share.createdNonce ?? null);
+  if (share.createdNonce === undefined) return true;
+  const at: unknown = copy.get('publishedAt');
+  const sharedAt = typeof share.sharedAt === 'number' ? share.sharedAt : 0;
+  return typeof at === 'number' && at >= sharedAt;
+}
+
 export async function cleanupSharedBoardItems(
   db: admin.firestore.Firestore,
   shareId: string,
@@ -42,11 +55,13 @@ export async function cleanupSharedBoardItems(
     .collection(SHARED_BOARD_ITEMS);
   const now = (await db.collection('shared_boards').doc(shareId).get()).data();
   if (plan.all && now) {
-    // Re-created at the same id: keep only copies owned by the new share's members.
+    // Re-created at the same id: keep only the new instance's copies owned by its members.
     const keep = new Set(participantUids(now));
     if (typeof now.originalAuthor === 'string') keep.add(now.originalAuthor);
     const snap = await items.get();
-    const gone = snap.docs.filter((d) => !keep.has(String(d.get('ownerUid'))));
+    const gone = snap.docs.filter(
+      (d) => !keep.has(String(d.get('ownerUid'))) || !isThisInstanceCopy(d, now)
+    );
     await Promise.all(gone.map((d) => d.ref.delete()));
     return gone.length;
   }

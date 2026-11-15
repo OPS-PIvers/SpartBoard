@@ -11,9 +11,11 @@ import {
   ExtensionCallError,
   bearerToken,
   fetchTokenInfo,
+  trustedUidForEmail,
   verifiedTokenEmail,
   type TokenInfo,
 } from './webTourExtension';
+export { trustedSignInUid } from './webTourExtension';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -429,26 +431,6 @@ export async function receiveQuiz(
   };
 }
 
-/** The account's uid only when a Google sign-in proved it owns the address; anyone can register an unverified password account. */
-export function trustedSignInUid(
-  user: {
-    uid: string;
-    emailVerified?: boolean;
-    disabled?: boolean;
-    providerData?: ReadonlyArray<{ providerId?: string; email?: string }>;
-  },
-  email: string
-): string | null {
-  if (user.disabled === true || user.emailVerified !== true) return null;
-  const want = email.trim().toLowerCase();
-  const google = (user.providerData ?? []).some(
-    (p) =>
-      p?.providerId === 'google.com' &&
-      (p.email ?? '').trim().toLowerCase() === want
-  );
-  return google ? user.uid : null;
-}
-
 const inboxRef = (db: Firestore, uid: string) =>
   db.collection('users').doc(uid).collection(INBOX_COLLECTION);
 
@@ -456,16 +438,7 @@ function defaultDeps(db: Firestore): ImporterDeps {
   return {
     clientId: EXTENSION_OAUTH_CLIENTS[process.env.GCLOUD_PROJECT ?? ''] ?? '',
     tokenInfo: fetchTokenInfo,
-    uidForEmail: async (email) => {
-      try {
-        return trustedSignInUid(
-          await admin.auth().getUserByEmail(email),
-          email
-        );
-      } catch {
-        return null;
-      }
-    },
+    uidForEmail: trustedUidForEmail,
     allowed: async (email, uid) => {
       // Students share the district domain, so the flag alone can't admit an address.
       const staff =

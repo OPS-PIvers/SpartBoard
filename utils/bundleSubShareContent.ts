@@ -331,13 +331,24 @@ async function bundleActivityWall(
   return { entry, hostUid };
 }
 
+const personalIdsOf = (w: WidgetData): string[] => {
+  if (w.type !== 'calendar') return [];
+  const ids = (w.config as CalendarConfig | undefined)?.personalCalendarIds;
+  return Array.isArray(ids) ? ids.filter((i) => typeof i === 'string') : [];
+};
+
 /** Calendar widgets with a personal Google Calendar the sub cannot read. */
 function personalCalendarWidgets(board: Dashboard): WidgetData[] {
-  return (board.widgets ?? []).filter((w) => {
-    if (w.type !== 'calendar') return false;
-    const ids = (w.config as CalendarConfig | undefined)?.personalCalendarIds;
-    return Array.isArray(ids) && ids.length > 0;
-  });
+  return (board.widgets ?? []).filter((w) => personalIdsOf(w).length > 0);
+}
+
+/** Every personal calendar id the boards name, for the host to confirm; a co-teacher may have written them. */
+export function subSharePersonalCalendarIds(boards: Dashboard[]): string[] {
+  return [
+    ...new Set(
+      boards.flatMap((b) => personalCalendarWidgets(b).flatMap(personalIdsOf))
+    ),
+  ];
 }
 
 /** The set each Flashcards widget on the board is presenting. */
@@ -384,8 +395,13 @@ async function bundleFlashcardSet(
  * Whether any board carries a personal-calendar widget, so a share with none
  * does not pay for a token round-trip it will never use.
  */
-export function subShareNeedsCalendar(boards: Dashboard[]): boolean {
-  return boards.some((board) => personalCalendarWidgets(board).length > 0);
+export function subShareNeedsCalendar(
+  boards: Dashboard[],
+  approved?: readonly string[]
+): boolean {
+  return subSharePersonalCalendarIds(boards).some(
+    (id) => !approved || approved.includes(id)
+  );
 }
 
 /** Whether any board carries a video activity whose JSON needs a Drive read. */
@@ -402,10 +418,12 @@ const CALENDAR_BUNDLE_DAYS = 14;
 
 async function bundleCalendar(
   widget: WidgetData,
-  readCalendar: NonNullable<SubShareBundleServices['readCalendar']>
+  readCalendar: NonNullable<SubShareBundleServices['readCalendar']>,
+  approved: readonly string[] | undefined
 ): Promise<SubShareCalendarPayload> {
-  const ids =
-    (widget.config as CalendarConfig | undefined)?.personalCalendarIds ?? [];
+  const ids = personalIdsOf(widget).filter(
+    (id) => !approved || approved.includes(id)
+  );
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const end = new Date(start);
@@ -587,10 +605,13 @@ export async function bundleSubShareContent({
   hostUid,
   boards,
   services,
+  approvedCalendarIds,
 }: {
   hostUid: string;
   boards: Dashboard[];
   services?: SubShareBundleServices;
+  /** Calendars the host ticked (share-content-safeguards); any other id is never read. Absent: every id, as before. */
+  approvedCalendarIds?: readonly string[];
 }): Promise<SubShareBundle> {
   const items: SubShareBundleItem[] = [];
   const keys: SubShareBundleItem[] = [];
@@ -719,10 +740,19 @@ export async function bundleSubShareContent({
     }
 
     for (const widget of personalCalendarWidgets(board)) {
+      if (
+        approvedCalendarIds &&
+        !personalIdsOf(widget).some((id) => approvedCalendarIds.includes(id))
+      )
+        continue;
       const readCalendar = services?.readCalendar;
       try {
         if (!readCalendar) throw new Error('no calendar reader');
-        const payload = await bundleCalendar(widget, readCalendar);
+        const payload = await bundleCalendar(
+          widget,
+          readCalendar,
+          approvedCalendarIds
+        );
         items.push({
           id: subShareContentId('calendar', widget.id),
           doc: { kind: 'calendar', itemId: widget.id, bundledAt, payload },

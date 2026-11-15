@@ -15,7 +15,7 @@ const store = { shareId: 'share-1' as string | null };
 
 const auth = vi.hoisted(() => ({ uid: 'me' }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: auth.uid } }),
+  useAuth: () => ({ user: { uid: auth.uid }, canAccessFeature: () => false }),
 }));
 
 import React from 'react';
@@ -235,6 +235,36 @@ describe('publishSharedBoardItem picks', () => {
     );
     expect(build).not.toHaveBeenCalled();
     expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('with share content safeguards on, never seeds picks from a share doc’s collaborator-writable widgets', async () => {
+    stored = {
+      'shared_boards/share-1': {
+        sharedAt: Date.UTC(2026, 9, 1),
+        widgets: [{ type: 'quiz', config: { selectedQuizId: 'q1' } }],
+      },
+    };
+    const build = vi.fn();
+    await expect(
+      publishSharedBoardItem('share-1', item, build, false)
+    ).resolves.toBe('unpicked');
+    expect(build).not.toHaveBeenCalled();
+    expect(fs.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('stamps a copy with the share’s nonce and rewrites one missing it', async () => {
+    stored = {
+      'shared_boards/share-1': { createdNonce: 'n1' },
+      [PICKS]: { items: ['quiz_q1'] },
+    };
+    storeCopy({ ownerUid: 'me', version: '5' });
+    await expect(
+      publishSharedBoardItem('share-1', item, () => Promise.resolve({ a: 1 }))
+    ).resolves.toBe('written');
+    expect(fs.setDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ shareNonce: 'n1' })
+    );
   });
 
   it('keeps a copy published before picks existed current', async () => {

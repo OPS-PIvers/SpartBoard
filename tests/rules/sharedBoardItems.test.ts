@@ -148,6 +148,156 @@ beforeEach(async () => {
   );
 });
 
+describe('a share re-created at an old id', () => {
+  const SHARE = `shared_boards/${SHARE_ID}`;
+  const recreate = (createdNonce?: string) =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: OUTSIDER_UID,
+        intendedMode: 'synced',
+        participants: { [HOST_UID]: participant('collaborator') },
+        ...(createdNonce ? { createdNonce } : {}),
+      });
+    });
+
+  it('cannot read a copy stamped with the old instance nonce', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'old' })
+      );
+    });
+    await recreate('new');
+    await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), ITEM_PATH)));
+    await recreate();
+    await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), ITEM_PATH)));
+  });
+
+  it('the owner reads and overwrites their own stale copy after the id is re-created', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'old' })
+      );
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: HOST_UID,
+        intendedMode: 'synced',
+        participants: { [VIEWER_UID]: participant('viewer') },
+        createdNonce: 'new',
+        sharedAt: 2_000_000,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asTeacher(HOST_UID), ITEM_PATH)));
+    await assertFails(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'new' })
+      )
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+  });
+
+  it('an owner who left the re-created share cannot read their old copy', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'old' })
+      );
+    });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: OUTSIDER_UID,
+        intendedMode: 'synced',
+        participants: {},
+        createdNonce: 'new',
+      });
+    });
+    await assertFails(getDoc(doc(asTeacher(HOST_UID), ITEM_PATH)));
+  });
+
+  it('cannot read an old instance’s no-nonce copy published before it was made', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ITEM_PATH), item(HOST_UID));
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: OUTSIDER_UID,
+        intendedMode: 'synced',
+        participants: { [HOST_UID]: participant('collaborator') },
+        createdNonce: 'new',
+        sharedAt: 2_000_000,
+      });
+    });
+    await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), ITEM_PATH)));
+  });
+
+  const nonceShare = () =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: HOST_UID,
+        intendedMode: 'synced',
+        participants: { [VIEWER_UID]: participant('viewer') },
+        createdNonce: 'n1',
+        sharedAt: 500_000,
+      });
+    });
+
+  it('the owner writes a copy with the share nonce, and a member reads it', async () => {
+    await seed();
+    await nonceShare();
+    await assertFails(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'other' })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'n1' })
+      )
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+  });
+
+  it('a copy with an unknown key is denied', async () => {
+    await seed();
+    await nonceShare();
+    await assertFails(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'n1', extra: true })
+      )
+    );
+  });
+
+  it('a previous-release tab writes a no-nonce copy, and a member reads it', async () => {
+    await seed();
+    await nonceShare();
+    await assertSucceeds(
+      setDoc(doc(asTeacher(HOST_UID), ITEM_PATH), item(HOST_UID))
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+  });
+
+  it('a share made before nonces existed keeps working with no-nonce copies', async () => {
+    await seed();
+    await assertSucceeds(
+      setDoc(doc(asTeacher(HOST_UID), ITEM_PATH), item(HOST_UID))
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+    await assertFails(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'forged' })
+      )
+    );
+  });
+});
+
 describe('reading a shared board item', () => {
   it('the host, a collaborator and a viewer read it', async () => {
     await seed({ itemOwner: HOST_UID });

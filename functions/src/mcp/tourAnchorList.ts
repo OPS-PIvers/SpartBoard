@@ -14579,6 +14579,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.attach-preview",
+    "label": "Per-stimulus preview button in the Quiz widget attach list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.attach-question",
     "label": "Per-question attach checkbox in the Quiz widget",
     "scope": "field",
@@ -61699,6 +61718,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sub-share.save"
         ],
         "reveal": "sub-share.save"
+      }
+    ]
+  },
+  {
+    "id": "sub-share.calendar",
+    "label": "Calendar checkbox in the sub share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-with-sub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards.share-board",
+          "share-link.share-with-sub"
+        ]
       }
     ]
   },

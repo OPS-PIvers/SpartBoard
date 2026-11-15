@@ -44,7 +44,6 @@ import {
 } from './studentAssignmentTargets';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isTestClassAuthority } from './studentAssignmentTargets';
-import { isAiTeacherCaller } from './aiCallerGate';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { studentFirstName } from './studentFirstName';
 
@@ -92,26 +91,29 @@ const ROSTER_DIRECTORY_FIELDS = [
   'createdAt',
 ] as const;
 const ROSTER_OWNER_TTL_MS = 5 * 60 * 1000;
+// A ClassLink blip is re-asked soon, not held for the full TTL.
+const ROSTER_UNAVAILABLE_TTL_MS = 15 * 1000;
 
-// staff: accepted for any section. candidate: accepted only for sections ClassLink says they teach.
+// Every owner, staff included, counts only for sections ClassLink says they teach.
 type RosterOwnerKind =
-  | { kind: 'staff' }
-  | { kind: 'candidate'; email: string }
-  | { kind: 'rejected' };
+  { kind: 'candidate'; email: string } | { kind: 'rejected' };
 const rosterOwnerCache = new BoundedLruMap<
   string,
   { owner: RosterOwnerKind; at: number }
 >(2000);
-// Classes ClassLink says a candidate teaches; null when it is not a teacher or ClassLink could not answer.
+// Classes ClassLink says an owner teaches; null when not a teacher, 'unavailable' when ClassLink could not answer.
+type TaughtClasses = ReadonlySet<string> | null | 'unavailable';
 const rosterTaughtCache = new BoundedLruMap<
   string,
-  { ids: ReadonlySet<string> | null; at: number }
+  { ids: TaughtClasses; at: number }
 >(2000);
+const rosterTaughtInFlight = new Map<string, Promise<TaughtClasses>>();
 
 /** Test-only: forget cached roster-owner checks. */
 export function __resetRosterOwnerCache(): void {
   rosterOwnerCache.clear();
   rosterTaughtCache.clear();
+  rosterTaughtInFlight.clear();
 }
 
 /** Each owner's standing, with Auth read 100 at a time. An Auth outage throws; it must not read as "not a teacher". */
@@ -169,14 +171,7 @@ async function rosterOwnerKinds(
             ? await db.doc(`organizations/${orgId}/members/${email}`).get()
             : null;
           if (member?.data()?.roleId === 'student') return;
-          const staff = await isAiTeacherCaller(db, {
-            email,
-            email_verified: true,
-          });
-          kinds.set(
-            user.uid,
-            staff ? { kind: 'staff' } : { kind: 'candidate', email }
-          );
+          kinds.set(user.uid, { kind: 'candidate', email });
         })
       );
       for (const [uid, owner] of kinds) {
@@ -188,42 +183,61 @@ async function rosterOwnerKinds(
   return out;
 }
 
-/** Classes ClassLink says a candidate owner teaches; null (reject) when it can't confirm, never a throw. */
+/** Classes ClassLink says an owner teaches; anything but a set rejects the owner, never a throw. */
 async function candidateTaughtClasses(
   uid: string,
   email: string
-): Promise<ReadonlySet<string> | null> {
+): Promise<TaughtClasses> {
   const cached = rosterTaughtCache.get(uid);
-  if (cached && Date.now() - cached.at < ROSTER_OWNER_TTL_MS) return cached.ids;
-  let ids: ReadonlySet<string> | null = null;
-  try {
-    ids = await loadTeacherClassIds(email, {
-      classlinkClientId: CLASSLINK_CLIENT_ID.value(),
-      classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
-      tenantUrl: CLASSLINK_TENANT_URL.value(),
-    });
-  } catch {
-    // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
-  }
-  rosterTaughtCache.set(uid, { ids, at: Date.now() });
-  return ids;
+  const ttl =
+    cached?.ids === 'unavailable'
+      ? ROSTER_UNAVAILABLE_TTL_MS
+      : ROSTER_OWNER_TTL_MS;
+  if (cached && Date.now() - cached.at < ttl) return cached.ids;
+  // A class signing in at once shares one ClassLink lookup per owner.
+  const pending = rosterTaughtInFlight.get(uid);
+  if (pending) return pending;
+  const lookup = (async (): Promise<TaughtClasses> => {
+    let ids: TaughtClasses = 'unavailable';
+    try {
+      ids = await loadTeacherClassIds(email, {
+        classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+        classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+        tenantUrl: CLASSLINK_TENANT_URL.value(),
+      });
+    } catch {
+      // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
+    }
+    rosterTaughtCache.set(uid, { ids, at: Date.now() });
+    return ids;
+  })().finally(() => rosterTaughtInFlight.delete(uid));
+  rosterTaughtInFlight.set(uid, lookup);
+  return lookup;
 }
 
-/** Roster docs whose owner is staff, or is confirmed by ClassLink to teach the section, grouped by `classlinkClassId`. */
+/** Roster docs whose owner ClassLink confirms teaches the section, grouped by `classlinkClassId`; `uncertain` when ClassLink could not answer for an owner, and `uncertainIds` the sections that owner had a roster for. */
 async function lookupRostersBySection(
   db: FirebaseFirestore.Firestore,
   ids: readonly string[]
-): Promise<Map<string, RosterSnap[]>> {
+): Promise<{
+  matches: Map<string, RosterSnap[]>;
+  uncertain: boolean;
+  uncertainIds: Set<string>;
+}> {
   const out = new Map<string, RosterSnap[]>();
+  let uncertain = false;
+  const uncertainIds = new Set<string>();
   const ownerOf = (doc: RosterSnap): string => doc.ref.parent.parent?.id ?? '';
-  // One Auth batch per page; ClassLink is asked only about non-staff owners, once each.
+  // One Auth batch per page; ClassLink is asked about each owner once.
   const prepareOwners = async (docs: readonly RosterSnap[]) => {
     const kinds = await rosterOwnerKinds(db, docs.map(ownerOf));
-    const taught = new Map<string, ReadonlySet<string> | null>();
+    const taught = new Map<string, TaughtClasses>();
     await Promise.all(
       [...kinds].map(async ([uid, owner]) => {
         if (owner.kind === 'candidate') {
-          taught.set(uid, await candidateTaughtClasses(uid, owner.email));
+          const ids = await candidateTaughtClasses(uid, owner.email);
+          if (ids === 'unavailable') uncertain = true;
+          taught.set(uid, ids);
         }
       })
     );
@@ -237,13 +251,14 @@ async function lookupRostersBySection(
     const { kinds, taught } = await prepareOwners(docs);
     const unverified = new Set<string>();
     for (const doc of docs) {
-      const owner = kinds.get(ownerOf(doc));
+      const ids = taught.get(ownerOf(doc));
       const ok =
-        owner?.kind === 'staff' ||
-        (owner?.kind === 'candidate' &&
-          taught.get(ownerOf(doc))?.has(classId) === true);
+        kinds.get(ownerOf(doc))?.kind === 'candidate' &&
+        ids instanceof Set &&
+        ids.has(classId);
       if (!ok) {
         unverified.add(ownerOf(doc));
+        if (ids === 'unavailable') uncertainIds.add(classId);
         continue;
       }
       const value: unknown = doc.get('classlinkClassId');
@@ -267,7 +282,7 @@ async function lookupRostersBySection(
     return after ? q.startAfter(after) : q;
   };
   const classIds = [...new Set(ids)];
-  if (classIds.length === 0) return out;
+  if (classIds.length === 0) return { matches: out, uncertain, uncertainIds };
   const firstPages = await Promise.all(
     classIds.map((classId) => pageQuery(classId).get())
   );
@@ -294,7 +309,27 @@ async function lookupRostersBySection(
       unverified = await keepVerified(classId, page.docs);
     }
   }
-  return out;
+  return { matches: out, uncertain, uncertainIds };
+}
+
+/** The roster classIds this student's last SSO sign-in in this org claimed; null when no claim was recorded yet. */
+async function readPreviousClaim(
+  db: FirebaseFirestore.Firestore,
+  uid: string,
+  orgId: string
+): Promise<Set<string> | null> {
+  const snap = await db
+    .doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`)
+    .get()
+    .catch(() => null);
+  const data = snap?.exists ? snap.data() : undefined;
+  if (!data || data.orgId !== orgId || !Array.isArray(data.classIds))
+    return null;
+  return new Set(
+    (data.classIds as unknown[]).filter(
+      (c): c is string => typeof c === 'string' && c.length > 0
+    )
+  );
 }
 
 const rosterUpdatedAt = (doc: RosterSnap): number => {
@@ -499,20 +534,31 @@ export const studentLoginV1 = onCall(
 
     // 4. Keep only sections a teacher has imported as a roster, so homeroom,
     //    lunch and unimported sections never take a slot under the cap.
+    // 5. Compute the stable opaque UID and mint the custom token with
+    //    the classIds claim that gates Firestore reads.
+    const uid = student.uid;
+
     let rosterMatches: Map<string, RosterSnap[]>;
+    let uncertainIds: Set<string>;
+    let previousClaim: Set<string> | null;
     try {
-      rosterMatches = await lookupRostersBySection(db, sectionIds);
+      [{ matches: rosterMatches, uncertainIds }, previousClaim] =
+        await Promise.all([
+          lookupRostersBySection(db, sectionIds),
+          readPreviousClaim(db, uid, orgId),
+        ]);
     } catch (err) {
       console.error('[studentLoginV1] roster lookup failed:', err);
       throw new HttpsError('internal', 'Roster service unavailable.');
     }
+    // A section ClassLink couldn't confirm just now keeps its place from the last sign-in (or any, before one was recorded), so a blip never narrows the claim.
     const classIds = sectionIds
-      .filter((id) => rosterMatches.has(id))
+      .filter(
+        (id) =>
+          rosterMatches.has(id) ||
+          (uncertainIds.has(id) && (!previousClaim || previousClaim.has(id)))
+      )
       .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
-
-    // 5. Compute the stable opaque UID and mint the custom token with
-    //    the classIds claim that gates Firestore reads.
-    const uid = student.uid;
 
     // Best effort: without this record the directory call can't pick up a
     // section a teacher imports later, but sign-in still works.
@@ -520,6 +566,7 @@ export const studentLoginV1 = onCall(
       await db.doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`).set({
         orgId,
         sectionIds,
+        classIds,
         updatedAt: Date.now(),
       });
     } catch (err) {
@@ -626,7 +673,7 @@ export const getAssignmentPseudonymV1 = onCall(
 export const getStudentClassDirectoryV1 = onCall(
   {
     memory: '256MiB',
-    // ClassLink confirms roster owners who are not staff.
+    // ClassLink confirms each roster owner teaches the section.
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -755,7 +802,10 @@ export const getStudentClassDirectoryV1 = onCall(
       };
     };
 
-    const rosterMatches = await lookupRostersBySection(db, candidateIds);
+    const { matches: rosterMatches, uncertain } = await lookupRostersBySection(
+      db,
+      candidateIds
+    );
 
     // Test classes only ever arrive on the token (stored sections are real
     // OneRoster ids). The org-scoped doc path is gated by the student's
@@ -784,7 +834,8 @@ export const getStudentClassDirectoryV1 = onCall(
     // Token ids that still resolve keep their slots ahead of newly matched sections.
     let listedIds = tokenClassIds.filter(resolves);
     let customToken: string | undefined;
-    if (storedSectionIds) {
+    // A ClassLink outage must not narrow the claim, so the re-mint waits for a clean answer.
+    if (storedSectionIds && !uncertain) {
       const nextClaim = [
         ...listedIds,
         ...storedSectionIds.filter(

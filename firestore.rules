@@ -55,8 +55,8 @@ service cloud.firestore {
     function isNumber(k) { return request.resource.data[k] is number; }
     function isTimestamp(k) { return request.resource.data[k] is timestamp; }
 
-    // Server code trusts any collection-group `domains` doc, so wildcard admin paths may not create one.
-    function notDomainsPath(p) { return !string(p).matches('(.*/)?domains/.*'); }
+    // Server collection-group queries trust any doc in these subcollections, so wildcard admin paths may not create one.
+    function notServerCgPath(p) { return !string(p).matches('(?s)(.*/)?(domains|group_email_alerts|members|rosters|dashboards|responses|submissions|recordings|assessments|aggregates|keys|userProfile|gradebook_classes|paperPrivate|paper_transcription_jobs|guided_learning|claude_revisions|gl_media_tombstones|quizzes|quiz_assignments|miniapps|activity_wall_activities|notebooks|rubrics)/.*'); }
 
     // True if the caller's email has an /admins/{email} doc.
     // token.get('email','') (not direct .email) avoids a CEL "undefined" throw on
@@ -851,7 +851,10 @@ service cloud.firestore {
     // across the collection group, so anonymous and studentRole callers can't seed it.
     match /users/{userId}/rosters/{rosterId} {
       allow read: if ownsUser(userId);
-      allow write: if ownsUserTeacher(userId) && notAnon();
+      allow delete: if ownsUserTeacher(userId) && notAnon();
+      // classlinkClassId, when set, is a non-empty string (matches() errors on any other type).
+      allow create, update: if ownsUserTeacher(userId) && notAnon() &&
+        incoming().get('classlinkClassId', '-').matches('.+');
 
       // Non-PII PIN index sidecar bridging PIN-joining students into the SSO uid
       // space. commitRosterPinIndexV1 writes and pinLoginV1 reads via Admin SDK;
@@ -1099,7 +1102,7 @@ service cloud.firestore {
     // Admin-only collections. Docs that define super admins or that a super-admin/server gate trusts take isSuperAdmin() to write.
     match /admin_settings/{document=**} {
       allow read: if isAdmin();
-      allow write: if notDomainsPath(document) &&
+      allow write: if notServerCgPath(document) &&
                       ((isAdmin() && !string(document).matches('(.*/)?(user_roles|view_as|lti_config|sub_launch_as_teacher|classlink_sync|verified_classes_fill|focus_sessions|claude_managed_auth|claude_connector_cimd)(/.*)?')) ||
                        isSuperAdmin());
     }
@@ -1257,7 +1260,7 @@ service cloud.firestore {
     // Global permissions carry betaUsers emails; the new client uses global_permissions_public. Signed-in reads stay one release (see feature_permissions).
     match /global_permissions/{featureId=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(featureId);
+      allow write: if isAdmin() && notServerCgPath(featureId);
     }
 
     // Pilot / district-rollout requests submitted from the public /request
@@ -1387,13 +1390,13 @@ service cloud.firestore {
     // Global weather data
     match /global_weather/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(document);
+      allow write: if isAdmin() && notServerCgPath(document);
     }
 
     // Global music stations - authenticated users can read, only admins can write
     match /global_music_stations/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin() && notDomainsPath(document);
+      allow write: if isAdmin() && notServerCgPath(document);
     }
 
     // Instructional routines - all authenticated users can read, only admins can write
@@ -1550,6 +1553,7 @@ service cloud.firestore {
         incoming().get('sharedAt', null) == existing().get('sharedAt', null) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
         incoming().get('plcId', null) == existing().get('plcId', null) &&
+        incoming().get('createdNonce', null) == existing().get('createdNonce', null) &&
         incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
       // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
@@ -1604,7 +1608,9 @@ service cloud.firestore {
           return isDistrictStaff() && d.ownerUid == authUid()
             && (sb.originalAuthor == authUid()
                 || sb.get('participants', {}).get(authUid(), {}).get('role', '') == 'collaborator')
-            && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload'])
+            && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload', 'shareNonce'])
+            // A no-nonce copy is a previous-release tab's write; accepted for one release (see sbItemNonceOk).
+            && (d.get('shareNonce', null) == sb.get('createdNonce', null) || !('shareNonce' in d))
             && isStr('kind') && isStr('itemId') && itemDocId == d.kind + '_' + authUid() + '_' + d.itemId
             && sbItemCollection(d.kind) != ''
             && isStr('title') && d.title.size() <= 500
@@ -1615,11 +1621,19 @@ service cloud.firestore {
         function sbItemMember(uid) {
           return sbItemShare().originalAuthor == uid || uid in sbItemShare().get('participants', {});
         }
-        // The owner must still belong to the share too, so a share recreated at an old id can't read
-        // copies the deleted share left behind.
+        // This share instance's copy: its createdNonce, or (previous-release tabs, one release only) no nonce
+        // and published after this share was made. Re-tighten to the nonce alone afterwards.
+        function sbItemNonceOk(sb) {
+          return existing().get('shareNonce', null) == sb.get('createdNonce', null)
+            || (!('shareNonce' in existing()) && existing().get('publishedAt', 0) >= sb.get('sharedAt', 0));
+        }
+        // The owner must still belong and the copy must be this instance's, so a share recreated at an
+        // old id can't read copies the deleted share left behind. Its owner always reads it, to overwrite it.
         allow get: if staffSignedIn() && isDistrictStaff()
           && sbItemMember(authUid())
-          && (noDoc() || sbItemMember(existing().get('ownerUid', '')));
+          && (noDoc() || existing().get('ownerUid', '') == authUid()
+              || (sbItemMember(existing().get('ownerUid', ''))
+                  && sbItemNonceOk(sbItemShare())));
         // A first copy needs the owner's own pick, so a co-editor's config edit never publishes it.
         allow create: if signedIn() && sbItemWriteOk()
           && (incoming().kind + '_' + incoming().itemId) in get(/databases/$(database)/documents/users/$(authUid())/board_item_picks/$(shareId)).data.get('items', []);
@@ -1700,6 +1714,7 @@ service cloud.firestore {
             // subEmails DoS cap (one Drive grant per entry, unbounded). Optional;
             // a list of <=20 when present.
             && (optListMax('subEmails', 20))
+            && optListMax('calendarIds', 50)
           )
         );
 
@@ -1725,13 +1740,15 @@ service cloud.firestore {
         && incoming().get('hostUid', null)
            == existing().get('hostUid', null)
         && (optListMax('subEmails', 20))
+        && optListMax('calendarIds', 50)
         && (
           existing().get('intendedMode', null) == 'copy'
           || (
             changedOnly([
               'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
               'kind', 'subEmails', 'sharedRosters', 'driveGrants',
-              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt'
+              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt',
+              'calendarIds'
             ])
             && isNumber('expiresAt')
             && incoming().expiresAt <= nowMs() + 1209600000
@@ -1764,6 +1781,18 @@ service cloud.firestore {
         return signedIn()
           && shareData().get('hostUid', null) == authUid();
       }
+      function canReadKeys() {
+        return signedIn() && (
+          isShareHost()
+          || isAdmin()
+          || (
+            isDistrictStaff()
+            && shareData().get('expiresAt', 0) > nowMs()
+            && tok().get('email', '').lower()
+               in shareData().get('subEmails', [])
+          )
+        );
+      }
 
       // Per-Board snapshots.
       match /boards/{boardId} {
@@ -1774,23 +1803,17 @@ service cloud.firestore {
       // Display content for widgets whose data lives outside the board, so a
       // sub sees the teacher's drawing, notebook or queue rather than their own.
       match /content/{contentId} {
-        allow read: if canReadShared();
+        // Calendar events come from the host's private account: host, admin or named subs only, once
+        // the share carries the host's ticked calendarIds (share-content-safeguards); older shares read as before.
+        allow read: if canReadShared()
+          && (!contentId.matches('calendar_.*') || !('calendarIds' in shareData()) || canReadKeys());
         allow create, update, delete: if isShareHost();
       }
 
       // Answer keys and full activity copies. Narrower than content/: the host,
       // an admin, or a sub this share names by email, and never past expiry.
       match /keys/{keyId} {
-        allow read: if signedIn() && (
-          isShareHost()
-          || isAdmin()
-          || (
-            isDistrictStaff()
-            && shareData().get('expiresAt', 0) > nowMs()
-            && tok().get('email', '').lower()
-               in shareData().get('subEmails', [])
-          )
-        );
+        allow read: if canReadKeys();
         allow create, update, delete: if isShareHost();
       }
     }

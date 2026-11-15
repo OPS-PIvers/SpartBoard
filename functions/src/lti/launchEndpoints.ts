@@ -36,6 +36,8 @@ import {
   consumeLaunchCode,
   newOpaqueId,
 } from './stores';
+import type { StoredLaunch } from './stores';
+import { isDistrictTeacher } from './teacherAuth';
 import {
   ALLOWED_ORIGINS,
   normalizeEmailDomain,
@@ -274,6 +276,8 @@ export const ltiLaunch = onRequest(
         custom: claims.custom,
         email: claims.email,
         name: claims.name,
+        // Bound only when this browser proved its cookie, so cookie-less browsers keep working.
+        bindingHash: binding === 'ok' ? stateRecord.bindingHash : null,
       });
 
       const target = launchRedirectTarget(claims.role, claims.isDeepLinking);
@@ -412,6 +416,25 @@ async function recordTeacherSection(
   }
 }
 
+/** A bound code needs its browser cookie (sent via the /lti/exchange rewrite), except as below. */
+export function launchBindingAllows(
+  launch: StoredLaunch,
+  districtTeacherEmail: string | null,
+  cookieHeader: string | undefined
+): boolean {
+  if (!launch.bindingHash) return true;
+  if (checkBinding(launch.bindingHash, cookieHeader) === 'ok') return true;
+  // The picker's top-level fallback loses the partitioned cookie; the signed-in teacher's ID token stands in.
+  if (
+    launch.role !== 'teacher' ||
+    launch.messageType !== MESSAGE_TYPE_DEEP_LINKING
+  )
+    return false;
+  if (!districtTeacherEmail) return false;
+  const launchEmail = (launch.email ?? '').trim().toLowerCase();
+  return !launchEmail || launchEmail === districtTeacherEmail;
+}
+
 // ── ltiExchange ───────────────────────────────────────────────────────────────
 export const ltiExchange = onCall(
   {
@@ -434,7 +457,30 @@ export const ltiExchange = onCall(
     }
 
     const db = admin.firestore();
-    const launch = await consumeLaunchCode(db, code);
+    // Resolved before the consume because the predicate is sync; only a district teacher may stand in for the cookie.
+    const callerEmail = request.auth
+      ? staffEmailFromToken(request.auth.token)
+      : null;
+    const districtTeacherEmail =
+      callerEmail &&
+      request.auth &&
+      (await isDistrictTeacher(request.auth.token))
+        ? callerEmail
+        : null;
+    // Checked inside the consume, so a refused caller leaves the real launcher's code intact.
+    const launch = await consumeLaunchCode(db, code, (l) =>
+      launchBindingAllows(
+        l,
+        districtTeacherEmail,
+        request.rawRequest?.headers?.cookie
+      )
+    );
+    if (launch === 'refused') {
+      console.warn(
+        '[ltiExchange] launch code presented without its browser binding'
+      );
+      throw new HttpsError('permission-denied', 'Launch validation failed.');
+    }
     if (!launch) {
       throw new HttpsError(
         'unauthenticated',

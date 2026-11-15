@@ -135,7 +135,6 @@ const TAB_GROUPS = [
         label: 'Getting Started',
         icon: Footprints,
         component: GettingStartedPanel,
-        feature: 'getting-started',
       },
       {
         id: 'standards',

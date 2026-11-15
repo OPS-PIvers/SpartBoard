@@ -31,6 +31,7 @@ import {
   finishStuckMediaDelete,
 } from './deleteQuizMediaForOrgAdmin';
 import './functionsInit';
+import { provenGoogleEmailForUid } from './mailRecipients';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -481,13 +482,8 @@ export const sweepStuckQuizArchives = onSchedule(
       cleanUpStorage: (input) => retryStorageCleanup(input, archiveDeps),
       isPermanentFailure: isLostArchiveError,
       finishDelete: (input) => finishStuckMediaDelete(input, orgMediaDeps),
-      getTeacherEmail: async (teacherUid) => {
-        try {
-          return (await admin.auth().getUser(teacherUid)).email ?? null;
-        } catch {
-          return null;
-        }
-      },
+      getTeacherEmail: (teacherUid) =>
+        provenGoogleEmailForUid(admin.auth(), teacherUid),
       resolveStudentLabel: async (teacherUid, studentUid, pin) => {
         const name = studentUid
           ? await archiveDeps

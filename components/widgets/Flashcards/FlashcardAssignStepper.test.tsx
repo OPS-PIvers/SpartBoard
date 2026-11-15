@@ -93,14 +93,15 @@ const renderStepper = ({
   rosterIds = ['r1'],
   periodAccess,
   canSpeak = false,
-  studyOn = false,
+  resource = false,
   set = makeSet(),
   plcs,
 }: {
   rosterIds?: string[];
   periodAccess?: AssignPeriodAccessContext;
   canSpeak?: boolean;
-  studyOn?: boolean;
+  /** Stay on Study resource, where the stepper opens; otherwise switch to Students submit work. */
+  resource?: boolean;
   set?: FlashcardSet;
   plcs?: Plc[];
 } = {}) => {
@@ -110,9 +111,7 @@ const renderStepper = ({
   );
   const auth = {
     user: { uid: 'teacher-1' },
-    canAccessFeature: (id: string) =>
-      (canSpeak && id === 'flashcards-speak') ||
-      (studyOn && id === 'flashcards-study-settings'),
+    canAccessFeature: (id: string) => canSpeak && id === 'flashcards-speak',
   } as unknown as React.ContextType<typeof AuthContext>;
   render(
     <AuthContext.Provider value={auth}>
@@ -128,6 +127,10 @@ const renderStepper = ({
       />
     </AuthContext.Provider>
   );
+  if (!resource)
+    fireEvent.click(
+      screen.getByRole('radio', { name: /Students submit work/ })
+    );
   return { onAssign };
 };
 
@@ -143,7 +146,7 @@ describe('FlashcardAssignStepper', () => {
     lastUsed.save.mockClear();
   });
 
-  it('opens on Students submit work with the check step', () => {
+  it('shows the check step for Students submit work', () => {
     renderStepper();
     expect(screen.queryByText('Collect a submission')).toBeNull();
     expect(
@@ -154,7 +157,7 @@ describe('FlashcardAssignStepper', () => {
     expect(screen.getByText('How students are checked')).toBeTruthy();
   });
 
-  it('drops the check step and saves no rules for a study resource', async () => {
+  it('drops the check step and remembers only study settings for a study resource', async () => {
     const { onAssign } = renderStepper();
     fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
     expect(screen.queryByText('How students are checked')).toBeNull();
@@ -164,11 +167,14 @@ describe('FlashcardAssignStepper', () => {
     const { input } = lastSubmission(onAssign);
     expect(input.kind).toBe('study');
     expect(input.workKind).toBe('resource');
-    expect(lastUsed.save).not.toHaveBeenCalled();
+    await waitFor(() => expect(lastUsed.save).toHaveBeenCalled());
+    const saved = lastUsed.save.mock.calls[0][0] as FlashcardAssignRules;
+    expect(saved.rules).toBeUndefined();
+    expect(saved.study).toBeDefined();
   });
 
-  it('opens on Study resource with the study settings step when the flag is on', () => {
-    renderStepper({ studyOn: true });
+  it('opens on Study resource with the study settings step', () => {
+    renderStepper({ resource: true });
     expect(
       screen.getByRole('radio', { name: /Study resource/ })
     ).toHaveProperty('ariaChecked', 'true');
@@ -177,7 +183,7 @@ describe('FlashcardAssignStepper', () => {
   });
 
   it('stamps the study settings, locked, and remembers them', async () => {
-    const { onAssign } = renderStepper({ studyOn: true });
+    const { onAssign } = renderStepper({ resource: true });
     fireEvent.click(screen.getByText('Study settings'));
     fireEvent.click(screen.getByRole('radio', { name: 'Definition' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Strict mode' }));
@@ -212,7 +218,7 @@ describe('FlashcardAssignStepper', () => {
         locked: false,
       },
     };
-    const { onAssign } = renderStepper({ studyOn: true, set: makeSet(3) });
+    const { onAssign } = renderStepper({ resource: true, set: makeSet(3) });
     assign();
     await waitFor(() => expect(onAssign).toHaveBeenCalled());
     expect(lastSubmission(onAssign).input.studySettings?.testTypes).toEqual([
@@ -223,10 +229,7 @@ describe('FlashcardAssignStepper', () => {
   });
 
   it('stamps no study settings on a check', async () => {
-    const { onAssign } = renderStepper({ studyOn: true });
-    fireEvent.click(
-      screen.getByRole('radio', { name: /Students submit work/ })
-    );
+    const { onAssign } = renderStepper();
     assign();
     await waitFor(() => expect(onAssign).toHaveBeenCalled());
     expect(lastSubmission(onAssign).input.studySettings).toBeUndefined();

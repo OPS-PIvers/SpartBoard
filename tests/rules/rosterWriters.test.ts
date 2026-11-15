@@ -96,4 +96,29 @@ describe('users/{uid}/rosters writers', () => {
       updateDoc(doc(asStudentRole(), ROSTER), { classlinkClassId: 'CL1' })
     );
   });
+
+  it('lets a teacher save a local roster with no classlinkClassId', async () => {
+    await assertSucceeds(setDoc(doc(asTeacher(), ROSTER), { name: 'Local' }));
+  });
+
+  it('denies a classlinkClassId that is not a non-empty string', async () => {
+    for (const bad of [true, 42, { m: 1 }, ['CL1'], '', null]) {
+      await assertFails(
+        setDoc(doc(asTeacher(), ROSTER), { name: 'X', classlinkClassId: bad })
+      );
+    }
+  });
+
+  it('denies an update that changes classlinkClassId to a non-string', async () => {
+    const ref = doc(asTeacher(), ROSTER);
+    await assertSucceeds(setDoc(ref, { name: 'P1', classlinkClassId: 'CL1' }));
+    await assertFails(updateDoc(ref, { classlinkClassId: true }));
+  });
+
+  it('lets a teacher delete a roster that already holds a junk classlinkClassId', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ROSTER), { classlinkClassId: true });
+    });
+    await assertSucceeds(deleteDoc(doc(asTeacher(), ROSTER)));
+  });
 });

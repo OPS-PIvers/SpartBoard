@@ -209,6 +209,11 @@ beforeEach(() => {
   createAssignment.mockResolvedValue(undefined);
 });
 
+const STUDENT_LINK = new URL(
+  '/guided-learning/session-1',
+  'https://spartboard.app'
+).href;
+
 describe('GuidedLearningWidget onAssign — class-wide flow', () => {
   it('never calls setAssignmentTargetsV1 for a class-wide assignment', async () => {
     const dialog = await openAssignModal();
@@ -324,5 +329,29 @@ describe('GuidedLearningWidget onAssign — per-period access', () => {
     expect(
       (createSession.mock.calls[0][5] as { openAt?: number }).openAt
     ).toEqual(expect.any(Number));
+  });
+});
+
+describe('GuidedLearningWidget onAssign — clipboard denied', () => {
+  it('keeps the created assignment and shows its link instead of a failure toast', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const dialog = await openAssignModal();
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    await waitFor(() => expect(addToast).toHaveBeenCalled());
+    const toasts = addToast.mock.calls.map(([msg, tone]) => ({ msg, tone }));
+    expect(toasts.some((t) => t.tone === 'error')).toBe(false);
+    expect(
+      toasts.some((t) =>
+        String(t.msg)
+          .split(/\s+/)
+          .some((word) => word === STUDENT_LINK)
+      )
+    ).toBe(true);
   });
 });
