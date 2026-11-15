@@ -744,11 +744,20 @@ export const installDatePickers = (): (() => void) => {
     if (current && e.target === current.owner) closeDatePicker();
   };
 
+  // The anchor's click lands in the same task as mouseup, so a press dragged off it clears here.
+  const onMouseUp = () => {
+    if (closedByAnchor)
+      window.setTimeout(() => {
+        closedByAnchor = null;
+      }, 0);
+  };
+
   const onResize = () => closeDatePicker();
 
   for (const type of PANEL_EVENTS)
     window.addEventListener(type, onPanelEvent, true);
   window.addEventListener('mousedown', onMouseDown, true);
+  window.addEventListener('mouseup', onMouseUp, true);
   window.addEventListener('click', onClick, true);
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('focusout', onFocusOut, true);
@@ -762,6 +771,7 @@ export const installDatePickers = (): (() => void) => {
     for (const type of PANEL_EVENTS)
       window.removeEventListener(type, onPanelEvent, true);
     window.removeEventListener('mousedown', onMouseDown, true);
+    window.removeEventListener('mouseup', onMouseUp, true);
     window.removeEventListener('click', onClick, true);
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('focusout', onFocusOut, true);

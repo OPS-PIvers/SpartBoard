@@ -263,7 +263,7 @@ export const installSuggestionLists = (): (() => void) => {
     if (!isSuggestField(input) || !input.dataset[STASH]) return;
     const o = current?.input === input ? current : null;
     if (!o) {
-      if (e.key === 'ArrowDown' || (e.altKey && e.key === 'ArrowDown')) {
+      if (e.key === 'ArrowDown') {
         showSuggestions(input);
         if (current) e.preventDefault();
       }
