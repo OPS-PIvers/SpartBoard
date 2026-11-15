@@ -75,6 +75,8 @@ export interface CreateMiniAppAssignmentInput {
   overridesBySourcedId?: Record<string, StudentOverride>;
   /** M17 B3 — optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
+  /** Mirrors `MiniAppSession.resultsVersion`, so the archive knows it can publish scores. */
+  resultsVersion?: 2;
   /** M17 B3 — open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
@@ -214,6 +216,9 @@ export const useMiniAppAssignments = (
           ? { overridesBySourcedId: input.overridesBySourcedId }
           : {}),
         ...(input.dueAt != null ? { dueAt: input.dueAt } : {}),
+        ...(input.resultsVersion
+          ? { resultsVersion: input.resultsVersion }
+          : {}),
         ...(input.openAt != null ? { openAt: input.openAt } : {}),
         ...(input.closeAt != null ? { closeAt: input.closeAt } : {}),
         ...(input.periodGate?.periodAccess

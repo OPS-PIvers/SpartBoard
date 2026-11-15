@@ -41,7 +41,6 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'dashboard-layout',
   'instructional-routine',
   'ocr',
-  'universal-import',
 ];
 
 /** Daily limits the server applies to admins too. */

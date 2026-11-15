@@ -71,6 +71,8 @@ import { resolveStimuli } from '@/utils/quizStimuli';
 import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
+import type { MonitorRosterTargets, NotJoinedStudent } from './rosterNotJoined';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { useGameClockControls } from './useGameClockControls';
 import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameBoard';
@@ -84,7 +86,7 @@ import { PeriodAccessStrip } from './PeriodAccessStrip';
 import { ClassPicker, PeriodBar } from './PeriodBar';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
-import { hasPeriodAccess } from '@/utils/periodAccess';
+import { dueLockAt, hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import {
@@ -142,6 +144,10 @@ export interface QuizLiveMonitorProps {
   servedLanguageByStudentUid?: Record<string, string> | null;
   /** The assignment's assign-stepper steps, shown in place on the settings screen. */
   assignmentSettings?: React.ReactNode;
+  /** The assignment's targeting, so Not started lists only the students it went to. */
+  rosterTargets?: MonitorRosterTargets | null;
+  /** False until the responses listener first delivers; roster rows wait for it. */
+  responsesLoaded?: boolean;
 }
 
 type Screen =
@@ -194,6 +200,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     overridesByStudentUid = null,
     servedLanguageByStudentUid = null,
     assignmentSettings,
+    rosterTargets = null,
+    responsesLoaded = true,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
@@ -212,7 +220,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   const { showConfirm, showAlert } = useDialog();
   const outward = useViewAsOutward();
-  const { addToast } = useDashboard();
+  const { addToast, setAbsentStudents } = useDashboard();
   // Read via context so a provider-less (sub portal) mount keeps today's behavior.
   const authContext = useContext(AuthContext);
   const showJoinCode =
@@ -232,8 +240,27 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     rosters,
     fibGrading,
     // Shared-Pause sessions open on All classes so Pause is in reach; per-period ones on the first class.
-    !hasPeriodAccess(session) && session.sessionMode !== 'game'
+    !hasPeriodAccess(session) && session.sessionMode !== 'game',
+    rosterTargets,
+    responsesLoaded &&
+      authContext?.canAccessFeature?.('quiz-monitor-roster') === true
   );
+
+  const absentCount = data.notJoined.filter((s) => s.absent).length;
+  // Writes the roster's absent list for today, the same list Group Maker uses.
+  const markAbsent = (student: NotJoinedStudent, absent: boolean) => {
+    const roster = rosters.find((r) => r.id === student.rosterId);
+    if (!roster || !student.studentId) return;
+    const today = getLocalIsoDate();
+    const current =
+      roster.absent?.date === today ? roster.absent.studentIds : [];
+    const next = absent
+      ? [...new Set([...current, student.studentId])]
+      : current.filter((id) => id !== student.studentId);
+    setAbsentStudents(roster.id, next).catch(() =>
+      addToast('Could not save the absent list. Try again.', 'error')
+    );
+  };
 
   // Live view (QUIZ_LIVE_VIEW.md D3): only the assigning teacher, on a running self-paced quiz.
   const canLiveView =
@@ -325,6 +352,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const periodBar = chipsFilter &&
     session.periodAccess && {
       periodAccess: session.periodAccess,
+      dueAt: dueLockAt(session),
       selected:
         data.selectedPeriods.length === 1
           ? (Object.keys(session.periodAccess).find(
@@ -560,13 +588,32 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       if (!ok) return;
       try {
         await onReopenStudent?.(key);
+        // Past a Manual due every class is locked, so a reopened student also gets a Let in pass.
+        const due = dueLockAt(session);
+        const uid = responses.find(
+          (r) => (r._responseKey ?? r.studentUid) === key
+        )?.studentUid;
+        if (perPeriod && due != null && due <= Date.now() && uid)
+          await periodActions
+            .letIn(uid)
+            .catch((err: unknown) => logError('QuizLiveMonitor.letIn', err));
         addToast('Quiz reopened.', 'success');
       } catch (err) {
         logError('QuizLiveMonitor.reopen', err);
         addToast('Could not reopen the quiz. Try again.', 'error');
       }
     },
-    [sessionEnded, onReopenStudent, showAlert, showConfirm, addToast]
+    [
+      sessionEnded,
+      onReopenStudent,
+      showAlert,
+      showConfirm,
+      addToast,
+      session,
+      responses,
+      perPeriod,
+      periodActions,
+    ]
   );
 
   const handleSubmitForStudent = useCallback(
@@ -823,6 +870,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <PeriodAccessStrip
                 periodAccess={session.periodAccess}
                 extendMs={EXTEND_MS}
+                dueAt={dueLockAt(session)}
                 onStart={(key) =>
                   startPeriods(() => periodActions.startPeriod(key))
                 }
@@ -959,7 +1007,30 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             )}
             {!(isGame && boardView) && (
               <StatusBuckets
-                counts={data.counts}
+                counts={{
+                  ...data.counts,
+                  notStarted:
+                    data.counts.notStarted +
+                    data.notJoined.length -
+                    absentCount,
+                }}
+                notes={
+                  absentCount > 0
+                    ? {
+                        notStarted: (
+                          <span
+                            className="font-sans text-brand-gray-primary tabular-nums"
+                            style={{
+                              fontSize: 'min(10px, 3.5cqmin)',
+                              marginTop: 'min(2px, 0.5cqmin)',
+                            }}
+                          >
+                            {absentCount} absent
+                          </span>
+                        ),
+                      }
+                    : undefined
+                }
                 handCount={
                   session.handRaiseEnabled === true ? data.handCount : 0
                 }
@@ -974,6 +1045,14 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <RosterList
                 bucket={openBucket}
                 students={data.byBucket[openBucket]}
+                notJoined={
+                  openBucket === 'notStarted' ? data.notJoined : undefined
+                }
+                onSetAbsent={
+                  !outward.locked && session.status !== 'ended'
+                    ? markAbsent
+                    : undefined
+                }
                 session={session}
                 config={config}
                 isGamified={data.isGamified}

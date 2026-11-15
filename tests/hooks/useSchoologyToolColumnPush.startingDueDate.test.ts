@@ -25,4 +25,11 @@ describe('startingDueDate', () => {
   it('falls back to today', () => {
     expect(startingDueDate(null, null)).toBe(localDateString(Date.now()));
   });
+
+  it('uses the day it ended when there is no due date', () => {
+    const ended = new Date(2026, 5, 12, 14, 0).getTime();
+    expect(startingDueDate(null, null, ended)).toBe('2026-06-12');
+    const due = new Date(2026, 5, 10, 8, 15).getTime();
+    expect(startingDueDate(null, due, ended)).toBe('2026-06-10');
+  });
 });

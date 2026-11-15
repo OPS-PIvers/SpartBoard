@@ -112,6 +112,7 @@ export const SURFACES: TourSurfaceMap = {
       'assign-when.mode-option': 'assign-step.when',
       'assign-when.scope': 'assign-step.when',
       'assign-when.allow-late': 'assign-step.when',
+      'assign-when.due': 'assign-step.when',
       'sharing.plc-toggle': 'assign-step.sharing',
       'sharing.plc-select': 'assign-step.sharing',
       'assign-students.search': 'assign-students.trigger:assign',
@@ -453,6 +454,8 @@ export const SURFACES: TourSurfaceMap = {
     inner: {
       'mini-app.preview-close': 'library-shell.card-open:miniApp#row-1',
       'library-shell.archive-edit-classes':
+        'library-shell.archive-menu:miniApp#row-1',
+      'mini-app.archive-publish-scores':
         'library-shell.archive-menu:miniApp#row-1',
       'mini-app.preview-open-editor': 'library-shell.card-open:miniApp#row-1',
     },

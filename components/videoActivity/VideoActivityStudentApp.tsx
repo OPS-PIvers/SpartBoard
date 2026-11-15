@@ -644,6 +644,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     sessionState?.mode === 'live' && sessionState.pacing.phase === 'ended';
   const liveCompleteStartedRef = useRef(false);
   const [liveCompleteRetry, setLiveCompleteRetry] = useState(0);
+  const [liveCompleteStuck, setLiveCompleteStuck] = useState(false);
   const liveNeedsComplete =
     liveEnded &&
     joinStatus === 'joined' &&
@@ -660,7 +661,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       });
       // A failed write (often offline at the moment of End) retries with backoff.
       liveCompleteStartedRef.current = false;
-      if (liveCompleteRetry >= LIVE_COMPLETE_MAX_RETRIES) return;
+      if (liveCompleteRetry >= LIVE_COMPLETE_MAX_RETRIES) {
+        setLiveCompleteStuck(true);
+        return;
+      }
       setTimeout(
         () => setLiveCompleteRetry((n) => n + 1),
         Math.min(LIVE_COMPLETE_RETRY_BASE_MS * 2 ** liveCompleteRetry, 30_000)
@@ -1201,7 +1205,27 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                     </div>
                   )}
 
-                  {finishSaving || liveNeedsComplete ? (
+                  {liveNeedsComplete && liveCompleteStuck ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <p
+                        role="alert"
+                        className="text-sm font-bold text-red-600"
+                      >
+                        Couldn&rsquo;t submit. Check your connection.
+                      </p>
+                      {/* no-tour-anchor: student finished screen; live tours walk teachers. */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLiveCompleteStuck(false);
+                          setLiveCompleteRetry(0);
+                        }}
+                        className="min-h-[44px] rounded-full bg-brand-blue-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-blue-dark"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : finishSaving || liveNeedsComplete ? (
                     <div
                       role="status"
                       className="flex items-center justify-center gap-2 text-slate-600 text-sm font-bold"

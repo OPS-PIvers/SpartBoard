@@ -64,10 +64,18 @@ export function useStudentIdleTimeout(
       // shared cart leaves the previous student's greeting in
       // sessionStorage until the next successful login overwrites it.
       clearStudentFirstName();
-      void firebaseSignOut(auth).catch(() => {
-        // Swallow — redirect below is the actual remediation.
-      });
-      window.location.assign(redirectPath);
+      // Redirect after sign-out settles so the provider's bare login redirect can't replace ?reason=idle.
+      let redirected = false;
+      const redirect = () => {
+        if (redirected) return;
+        redirected = true;
+        window.location.assign(redirectPath);
+      };
+      // A hung sign-out still redirects.
+      window.setTimeout(redirect, 3000);
+      void firebaseSignOut(auth)
+        .catch(() => undefined)
+        .finally(redirect);
     };
 
     const scheduleTimeout = (

@@ -436,7 +436,9 @@ async function enforceAiFeatureAccess(
   featureId: string,
   missingDocAllowed: boolean,
   extraCap?: AiExtraCap,
-  featureGranted = false
+  featureGranted = false,
+  // The extra cap replaces the feature's own daily limit (Import's per-widget limits).
+  skipFeatureLimit = false
 ): Promise<AiUsageCharge> {
   const [geminiDoc, specDoc] = await Promise.all([
     db.collection('global_permissions').doc('gemini-functions').get(),
@@ -511,7 +513,11 @@ async function enforceAiFeatureAccess(
         );
       }
       const specificUsage = (specUsageDoc.data()?.count as number) || 0;
-      if (specPerm && specPerm.config?.dailyLimitEnabled !== false) {
+      if (
+        !skipFeatureLimit &&
+        specPerm &&
+        specPerm.config?.dailyLimitEnabled !== false
+      ) {
         const specificLimit = pickOverallLimit(specPerm.config, isExternal);
         if (specificUsage >= specificLimit) {
           throw new HttpsError(

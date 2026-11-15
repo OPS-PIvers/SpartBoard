@@ -45,6 +45,7 @@ export type StateKey =
   | 'self-paced'
   | 'timed'
   | 'per-period'
+  | 'past-due'
   | 'multi-class'
   | 'no-answer-key'
   | 'stop'
@@ -105,6 +106,7 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   'self-paced': 'Self-paced (present)',
   timed: 'Timed (monitor)',
   'per-period': 'Per-class assessment (monitor)',
+  'past-due': 'Per-class past the due (monitor)',
   'multi-class': 'Several classes',
   'no-answer-key': 'Answer key unread (VA monitor)',
   stop: 'Stop checkpoint (monitor)',

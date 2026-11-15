@@ -121,6 +121,16 @@ vi.mock('axios', () => ({
 
 vi.mock('./firebaseAdmin', () => {
   const seg = (p: string) => p.split('/');
+  const DELETE = { __delete: true };
+  class FieldPath {
+    segments: string[];
+    constructor(...segments: string[]) {
+      this.segments = segments;
+    }
+    static documentId() {
+      return '__name__';
+    }
+  }
 
   const matches = (data: any, f: { f: string; op: string; v: unknown }) => {
     const val = data ? data[f.f] : undefined;
@@ -235,6 +245,20 @@ vi.mock('./firebaseAdmin', () => {
       set: async (d: any) => {
         h.docStore.set(path, d);
       },
+      update: async (...args: any[]) => {
+        const cur = h.docStore.get(path);
+        if (!cur) throw new Error('not-found');
+        const next = structuredClone(cur);
+        for (let i = 0; i < args.length; i += 2) {
+          const parts: string[] = args[i].segments;
+          let node = next;
+          for (const part of parts.slice(0, -1)) node = node[part] ??= {};
+          const leaf = parts[parts.length - 1];
+          if (args[i + 1] === DELETE) delete node[leaf];
+          else node[leaf] = args[i + 1];
+        }
+        h.docStore.set(path, next);
+      },
       delete: async () => {
         h.docStore.delete(path);
       },
@@ -276,7 +300,8 @@ vi.mock('./firebaseAdmin', () => {
     initializeApp: () => {},
     firestore: Object.assign(() => db, {
       Timestamp: { fromMillis: (ms: number) => ({ ms }) },
-      FieldPath: { documentId: () => '__name__' },
+      FieldPath,
+      FieldValue: { delete: () => DELETE },
     }),
     auth: () => ({
       createCustomToken: async (uid: string, claims: unknown) => {
@@ -1509,6 +1534,79 @@ describe('commitRosterPinIndexV1', () => {
     await callCommitIndex({
       auth: teacherAuth,
       data: { rosterId: 'r1', entries, retiredPinsComplete: true },
+    });
+    expect(h.docStore.has('users/teacher1/retired_pins/period_1__09')).toBe(
+      false
+    );
+  });
+
+  it('stamps each retired PIN on the roster doc once, keeping the first-seen time', async () => {
+    vi.useFakeTimers({ now: 1000, toFake: ['Date'] });
+    try {
+      h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+      h.docStore.set('users/teacher1/retired_pins/period_1__09', {
+        rosterId: 'r1',
+        updatedAt: 500,
+      });
+      const entry = {
+        period: 'Period 1',
+        pin: '482913',
+        classlinkSourcedId: 'SID-1',
+        formerPins: ['01', '09'],
+      };
+      await callCommitIndex({
+        auth: teacherAuth,
+        data: { rosterId: 'r1', entries: [entry] },
+      });
+      expect(h.docStore.get('users/teacher1/rosters/r1').retiredPinsAt).toEqual(
+        { '01': 1000, '09': 500 }
+      );
+      vi.setSystemTime(2000);
+      await callCommitIndex({
+        auth: teacherAuth,
+        data: {
+          rosterId: 'r1',
+          entries: [{ ...entry, formerPins: ['01', '09', '17'] }],
+        },
+      });
+      expect(h.docStore.get('users/teacher1/rosters/r1').retiredPinsAt).toEqual(
+        { '01': 1000, '09': 500, '17': 2000 }
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('drops a pruned retired PIN from the roster doc map', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', {
+      classlinkClassId: 'CL1',
+      retiredPinsAt: { '01': 100, '09': 200 },
+    });
+    h.docStore.set('users/teacher1/retired_pins/period_1__01', {
+      rosterId: 'r1',
+      updatedAt: 100,
+    });
+    h.docStore.set('users/teacher1/retired_pins/period_1__09', {
+      rosterId: 'r1',
+      updatedAt: 200,
+    });
+    await callCommitIndex({
+      auth: teacherAuth,
+      data: {
+        rosterId: 'r1',
+        entries: [
+          {
+            period: 'Period 1',
+            pin: '482913',
+            classlinkSourcedId: 'SID-1',
+            formerPins: ['01'],
+          },
+        ],
+        retiredPinsComplete: true,
+      },
+    });
+    expect(h.docStore.get('users/teacher1/rosters/r1').retiredPinsAt).toEqual({
+      '01': 100,
     });
     expect(h.docStore.has('users/teacher1/retired_pins/period_1__09')).toBe(
       false

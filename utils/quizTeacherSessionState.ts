@@ -10,6 +10,8 @@ export interface QuizTeacherSessionState {
   session: Loadable<QuizSession | null>;
   content: Loadable<QuizSessionContent | null>;
   responses: QuizResponse[];
+  /** The responses listener has delivered at least one snapshot. */
+  responsesLoaded: boolean;
 }
 
 export type QuizTeacherSessionAction =
@@ -28,6 +30,7 @@ export function initialQuizTeacherSessionState(
     session: sessionId ? { kind: 'loading' } : { kind: 'loaded', value: null },
     content: { kind: 'loading' },
     responses: [],
+    responsesLoaded: false,
   };
 }
 
@@ -54,7 +57,7 @@ export function quizTeacherSessionReducer(
     case 'contentError':
       return { ...state, content: settle(state.content) };
     case 'responses':
-      return { ...state, responses: action.responses };
+      return { ...state, responses: action.responses, responsesLoaded: true };
   }
 }
 

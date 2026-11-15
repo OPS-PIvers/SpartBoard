@@ -1257,6 +1257,11 @@ export const TOUR_ANCHORS = {
     label: 'Allow submissions after close switch in the Assign dialog',
     panel: true,
   },
+  'assign-when.due': {
+    label:
+      'Due choice (When ended or Date and time) for Manual in the Assign dialog',
+    panel: true,
+  },
   'assign-when.window': {
     label: 'Schedule switch in the Assign dialog',
     panel: true,
@@ -2218,6 +2223,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     destructive: true,
     panel: true,
+  },
+  'quiz-editor.option-explanation': {
+    label: 'Show or hide an answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: "quiz#a for option A's explanation button; lowercase letters",
+  },
+  'quiz-editor.option-explanation-text': {
+    label: 'Answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint:
+      "quiz#a for option A's explanation box (open it first); lowercase letters",
   },
   'quiz-editor.answer-image-description': {
     label:
@@ -4542,6 +4562,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-mark-absent': {
+    label:
+      'Absent button on a student who has not joined, in the Quiz monitor roster',
+    perField: true,
+    persists: true,
+  },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
     perWidgetType: true,
@@ -6276,6 +6302,12 @@ export const TOUR_ANCHORS = {
   },
   'classes.link-classroom': {
     label: 'Link to Google Classroom button in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.view-student-page': {
+    label: 'View Student Page button in My Classes',
     perField: true,
     panel: true,
     rows: true,
@@ -9238,6 +9270,35 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.import-source': {
+    label: 'An import kind in What each import offers (opens its widget list)',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.import-source-switch': {
+    label: 'On/off switch for an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-widget': {
+    label: 'Widget checkbox under an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-switch': {
+    label: 'With AI switch for a widget in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-limit': {
+    label: 'Daily limit field for a widget with AI in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.previews.focus-hours-start': {
     label: 'Start time field in Focus session hours',
     panel: true,
@@ -10244,18 +10305,18 @@ export const TOUR_ANCHORS = {
   },
   'admin.org.mode-submissions': {
     label:
-      'Submissions mode button for an assignment type in Organization app settings',
+      'Submissions mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.mode-view-only': {
     label:
-      'View only mode button for an assignment type in Organization app settings',
+      'View only mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.assignment-modes-save': {
-    label: 'Save button for assignment modes in Organization app settings',
+    label: 'Save button for assignment modes in Admin Settings Features',
     persists: true,
     panel: true,
   },
@@ -11720,6 +11781,12 @@ export const TOUR_ANCHORS = {
     label: 'Back button in the Mini App results view',
     perWidgetType: true,
     panel: true,
+  },
+  'mini-app.archive-publish-scores': {
+    label: 'Publish scores item in a Mini App Completed assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
   },
   'mini-app.results-hide-names': {
     label: 'Hide student names button in the Mini App results view',

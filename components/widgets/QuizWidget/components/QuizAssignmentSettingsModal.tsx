@@ -16,6 +16,7 @@ import type {
 import type { QuizAssignmentSettingsPatch } from '@/hooks/useQuizAssignments';
 import { AssignAvailabilitySection } from '@/components/common/library/AssignAvailabilitySection';
 import {
+  manualDueFromMs,
   resolveAvailability,
   type AssignAvailability,
 } from '@/utils/assignAvailability';
@@ -56,6 +57,7 @@ import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { AuthContext } from '@/context/AuthContextValue';
+import { dueLockAt } from '@/utils/periodAccess';
 import {
   loadAttemptPolicy,
   saveAttemptPolicy,
@@ -232,7 +234,10 @@ export const QuizAssignmentSettingsModal: React.FC<
       periodAccess: assignment.periodAccess ?? {},
       accessMode: assignment.accessMode,
       rosters: selected,
-      window: resolveAvailability(availability, selected, undefined),
+      window: {
+        ...resolveAvailability(availability, selected, undefined),
+        dueLockAt: dueLockAt(assignment),
+      },
     });
     return Object.keys(rows).length > 0 ? { periodAccessRows: rows } : {};
   };
@@ -301,13 +306,20 @@ export const QuizAssignmentSettingsModal: React.FC<
       assignment.accessMode === 'assessment' &&
       Object.keys(assignment.periodAccess ?? {}).length > 0 &&
       assignment.openAt == null &&
-      assignment.closeAt == null &&
-      assignment.dueAt == null;
+      (assignment.closeAt == null || assignment.closeAt === assignment.dueAt);
+    // A Manual due date locks each class at the due (`dueLocks`).
+    const manualDue =
+      manualStart && assignment.dueLocks === true && assignment.dueAt != null
+        ? manualDueFromMs(assignment.dueAt)
+        : undefined;
     const whenStep: AssignStepDef = {
       id: 'when',
       title: getAssignStepTitle('when', 'quiz', { kind: 'work' }),
       value: formatWhenValue(
-        { mode: manualStart ? 'manual' : 'scheduled', availability },
+        {
+          mode: manualStart ? 'manual' : 'scheduled',
+          availability: { ...availability, manualDue },
+        },
         {
           variant: 'when',
           rosterCount: selectedRostersForDue.length,

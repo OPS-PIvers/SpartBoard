@@ -753,6 +753,53 @@ describe('quizScoreboard', () => {
       ).toBeUndefined();
     });
 
+    it('uses the server retire time when a save dropped formerPinsAt', () => {
+      const rosters = [
+        {
+          ...makeRoster('Period 1', [
+            {
+              firstName: 'Alice',
+              lastName: 'Smith',
+              pin: '482913',
+              formerPins: ['01'],
+            },
+          ]),
+          retiredPinsAt: { '01': Date.UTC(2026, 11, 10) },
+        },
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, 'Period 1', '01', Date.UTC(2026, 11, 1))).toBe(
+        'Alice Smith'
+      );
+      expect(
+        resolvePinName(map, 'Period 1', '1', Date.UTC(2026, 11, 11))
+      ).toBeUndefined();
+    });
+
+    it('cuts each former PIN off at its own retire time', () => {
+      const rosters = [
+        {
+          ...makeRoster('Period 1', [
+            {
+              firstName: 'Alice',
+              lastName: 'Smith',
+              pin: '482913',
+              formerPins: ['01', '271828'],
+              formerPinsAt: 9000,
+            },
+          ]),
+          retiredPinsAt: { '01': 3000, '271828': 7000 },
+        },
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, 'Period 1', '01', 2000)).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '01', 5000)).toBeUndefined();
+      expect(resolvePinName(map, 'Period 1', '271828', 5000)).toBe(
+        'Alice Smith'
+      );
+      expect(resolvePinName(map, 'Period 1', '271828', 8000)).toBeUndefined();
+    });
+
     it('does not let a zero-stripped form borrow a sign-in-length PIN', () => {
       const rosters = [
         makeRoster('Period 1', [

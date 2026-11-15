@@ -151,7 +151,7 @@ const SECTIONS: SectionDef[] = [
   {
     id: 'app',
     label: 'App-wide',
-    sublabel: 'Logo, assignment modes, admin edits.',
+    sublabel: 'Logo and admin edits.',
     icon: Palette,
     domainAdminOnly: true,
   },

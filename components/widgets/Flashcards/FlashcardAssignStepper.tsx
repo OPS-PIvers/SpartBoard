@@ -1,4 +1,5 @@
 // Flashcards assign on the accordion stepper (docs/plans/shipped/ASSIGN_STEPPER.md D2, D4, D9, D12).
+import { useAssignWhen } from '@/hooks/useLastAssignWhen';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -31,7 +32,6 @@ import {
   defaultWhenValue,
   formatWhenValue,
   whenBackwards,
-  type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { FlashcardsCheckStep } from '@/components/common/library/assignStepper/FlashcardsCheckStep';
 import {
@@ -181,7 +181,11 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     classIds: initialRosterIds.filter((id) => rosters.some((r) => r.id === id)),
     studentsByClass: {},
   }));
-  const [when, setWhen] = useState<AssignWhenValue>(() =>
+  const {
+    when,
+    setWhen,
+    remember: rememberWhen,
+  } = useAssignWhen('flashcards', () =>
     defaultWhenValue({
       activity: 'flashcards',
       bellAvailable: !!periodAccess,
@@ -511,6 +515,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
 
   const handleSubmit = async () => {
     const manualStart = !staff && manualAvailable && when.mode === 'manual';
+    if (manualAvailable) rememberWhen(when);
     const resolved = applyWhen(
       {
         ...(staff ? EMPTY_ASSIGN_TARGETING_VALUE : targeting),
