@@ -109,6 +109,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'plc-goal-coach',
   'plc-meeting-ai-notes',
   'question-bank-ai',
+  'question-editor-fields',
   'quiz',
   'quiz-blank-types',
   'quiz-calculator-stimulus',

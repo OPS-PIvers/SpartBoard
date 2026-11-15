@@ -2195,6 +2195,7 @@
     "optionLabel": "Explication pour {{option}}"
   },
   "quizDok": {
+    "fieldNone": "Aucun",
     "level": "Niveau DOK",
     "none": "Sans DOK",
     "any": "Tout niveau DOK",

@@ -37,6 +37,21 @@ const quiz = (): QuizData => ({
       correctAnswer: 'Paris',
       incorrectAnswers: [],
       timeLimit: 30,
+      dok: 2,
+      targets: [
+        {
+          id: 'mn-ss-6.4.1',
+          kind: 'standard',
+          code: '6.4.1.1',
+          label: 'Use maps to locate world capitals.',
+        },
+        {
+          id: 'mn-ss-6.4.2',
+          kind: 'standard',
+          code: '6.4.2.3',
+          label: 'Describe how capitals shape a country.',
+        },
+      ],
     },
     {
       id: 'q-fib-multi',
