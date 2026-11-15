@@ -137,6 +137,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'schoology-quiz-import',
   'screen-recording',
   'seating-chart-plans',
+  'share-content-safeguards',
   'share-import-confirm',
   'share-link-tracking',
   'smart-paste',

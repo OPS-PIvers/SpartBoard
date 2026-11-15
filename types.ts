@@ -11345,6 +11345,8 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** Sub shares bundle only the calendars the host ticks; board-share item picks are never seeded from share widgets. */
+  | 'share-content-safeguards'
   /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */
   | 'class-student-page'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
@@ -12841,6 +12843,8 @@ export interface SharedCollection {
    * with the grants by the expiry sweep.
    */
   namesFileId?: string;
+  /** Substitute-only: personal calendar ids the host ticked, re-ticked on the next push. */
+  calendarIds?: string[];
   /** Absent on pre-v2 shares; read as 'collection'. */
   kind?: SharedCollectionKind;
   /**

@@ -30,7 +30,10 @@ import {
   flattenSharedCollection,
   singleBoardTree,
 } from '@/utils/subShareSnapshot';
-import type { SubShareBundle } from '@/utils/bundleSubShareContent';
+import {
+  subSharePersonalCalendarIds,
+  type SubShareBundle,
+} from '@/utils/bundleSubShareContent';
 import type { Collection, Dashboard, SharedCollection } from '@/types';
 
 /** What the teacher chose to hand over. */
@@ -130,6 +133,25 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     );
   }, [target, collectionsApi.collections, dashboards]);
 
+  // A co-teacher may have written these ids, so only ticked ones are read (share-content-safeguards).
+  const calendarSafeguards = canAccessFeature('share-content-safeguards');
+  const calendarIds = useMemo(
+    () =>
+      calendarSafeguards && tree
+        ? subSharePersonalCalendarIds(tree.orderedBoards)
+        : [],
+    [calendarSafeguards, tree]
+  );
+  const [calendarTicked, setCalendarTicked] = useState<string[]>([]);
+  // Flag off: nothing ticked here, so a share keeps any list it already has and otherwise bundles as before.
+  const approvedCalendarIds = useMemo(
+    () =>
+      calendarSafeguards
+        ? calendarTicked.filter((id) => calendarIds.includes(id))
+        : existing?.calendarIds,
+    [calendarSafeguards, calendarTicked, calendarIds, existing?.calendarIds]
+  );
+
   const [buildingIdPick, setBuildingIdPick] = useState<string | null>(null);
   const buildingId =
     buildingIdPick ?? existing?.buildingId ?? defaultBuildingId;
@@ -179,6 +201,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     setCreatedUrl(null);
     setCopied(false);
     setMissed([]);
+    setCalendarTicked(existing?.calendarIds ?? []);
   }
   const selectedEmails = useMemo(() => emails ?? [], [emails]);
 
@@ -298,6 +321,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
           // reaches Firestore instead of reading as "unchanged".
           subEmails: selectedEmails,
           sharedRosters,
+          ...(approvedCalendarIds ? { calendarIds: approvedCalendarIds } : {}),
         });
       } else {
         shareId = await shareSubstituteCollection({
@@ -314,6 +338,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
           buildingId,
           ...(selectedEmails.length > 0 ? { subEmails: selectedEmails } : {}),
           ...(sharedRosters.length > 0 ? { sharedRosters } : {}),
+          ...(approvedCalendarIds ? { calendarIds: approvedCalendarIds } : {}),
         });
       }
       const url = `${window.location.origin}/subs/s/${shareId}`;
@@ -349,6 +374,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     buildingId,
     expiresAtIso,
     selectedEmails,
+    approvedCalendarIds,
     rosters,
     activeRosterId,
     canAccessFeature,
@@ -455,6 +481,42 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               })}
             </p>
           </div>
+
+          {calendarIds.length > 0 && (
+            <fieldset className="space-y-1">
+              <legend className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                {t('shareWithSub.calendars', {
+                  defaultValue: 'Your calendars to include',
+                })}
+              </legend>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                {t('shareWithSub.calendarsHint', {
+                  defaultValue:
+                    'Tick only calendars you chose. Event titles and times for 14 days go to the listed subs.',
+                })}
+              </p>
+              {calendarIds.map((id) => (
+                <label
+                  key={id}
+                  className="flex items-center gap-2 text-xs text-slate-700"
+                >
+                  <input
+                    type="checkbox"
+                    {...tourAttr('sub-share.calendar')}
+                    checked={calendarTicked.includes(id)}
+                    onChange={(e) =>
+                      setCalendarTicked((prev) =>
+                        e.target.checked
+                          ? [...prev, id]
+                          : prev.filter((x) => x !== id)
+                      )
+                    }
+                  />
+                  {id}
+                </label>
+              ))}
+            </fieldset>
+          )}
 
           <div className="space-y-2">
             <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider">

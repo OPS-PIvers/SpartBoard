@@ -117,7 +117,8 @@ export function useSharedBoardItemPublisher<T>({
   stampedOwnerUid,
   stampOwner,
 }: SharedBoardItemPublish<T>): void {
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const legacySeed = !canAccessFeature('share-content-safeguards');
   const shareId = useOwnBoardShareId();
   const uid = user?.uid ?? null;
   const enabled = !!shareId && !!uid && !!itemId && !!version;
@@ -137,7 +138,8 @@ export function useSharedBoardItemPublisher<T>({
       publishSharedBoardItem(
         target,
         { kind, itemId: id, ownerUid, title, version: ver },
-        build
+        build,
+        legacySeed
       )
   );
   const stamp = useEffectEvent((ownerUid: string) => stampOwner(ownerUid));

@@ -37,6 +37,8 @@ export interface SharedBoardItemDoc<T = unknown> {
   title: string;
   /** Publisher-chosen; a write is skipped while the stored version matches. */
   version: string;
+  /** The share's `createdNonce` when written; absent on copies from before it existed. */
+  shareNonce?: string;
   publishedAt: number;
   payload: T;
 }
@@ -119,13 +121,19 @@ export type SharedBoardPublishResult = 'written' | 'current' | 'unpicked';
 export async function publishSharedBoardItem<T>(
   shareId: string,
   item: Omit<SharedBoardItemDoc<T>, 'publishedAt' | 'payload'>,
-  buildPayload: () => Promise<T>
+  buildPayload: () => Promise<T>,
+  /** False under `share-content-safeguards`: a share's widgets are collaborator-writable, so never seeded from. */
+  legacySeed = true
 ): Promise<SharedBoardPublishResult> {
   const ref = itemRef(shareId, item.kind, item.ownerUid, item.itemId);
   const existing = await getDoc(ref);
+  const shareSnap = await getDoc(doc(db, 'shared_boards', shareId));
+  const nonce: unknown = shareSnap.data()?.createdNonce;
+  const shareNonce = typeof nonce === 'string' ? nonce : undefined;
   if (
     existing.exists() &&
-    (existing.data() as Partial<SharedBoardItemDoc>).version === item.version
+    (existing.data() as Partial<SharedBoardItemDoc>).version === item.version &&
+    (existing.data() as Partial<SharedBoardItemDoc>).shareNonce === shareNonce
   ) {
     return 'current';
   }
@@ -134,13 +142,15 @@ export async function publishSharedBoardItem<T>(
     // A share made before picks existed is seeded once from its board, then asked again.
     const picked =
       (await isBoardItemPicked(item.ownerUid, shareId, key)) ||
-      ((await seedLegacyBoardItemPicks(item.ownerUid, shareId)) &&
+      (legacySeed &&
+        (await seedLegacyBoardItemPicks(item.ownerUid, shareId)) &&
         (await isBoardItemPicked(item.ownerUid, shareId, key)));
     if (!picked) return 'unpicked';
   }
   const payload = await buildPayload();
   const next: SharedBoardItemDoc<T> = {
     ...item,
+    ...(shareNonce ? { shareNonce } : {}),
     publishedAt: Date.now(),
     payload,
   };

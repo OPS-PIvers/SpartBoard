@@ -37,8 +37,9 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 
+const flags = vi.hoisted(() => new Set<string>());
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
+  useAuth: () => ({ canAccessFeature: (id: string) => flags.has(id) }),
 }));
 
 vi.mock('@/context/useDialog', () => ({
@@ -152,6 +153,66 @@ describe('useSubShares', () => {
       sharedRosters?: unknown;
     };
     expect(input.sharedRosters).toEqual([]);
+  });
+
+  it('keeps the calendars the host ticked on a re-push', async () => {
+    shares = [share({ calendarIds: ['cal-1'] })];
+    const { result } = await load();
+
+    await act(async () => {
+      result.current.updateNow(shares[0]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as {
+      calendarIds?: string[];
+    };
+    expect(input.calendarIds).toEqual(['cal-1']);
+  });
+
+  it('re-pushes a share with no ticked list as before when safeguards are off', async () => {
+    shares = [share()];
+    const { result } = await load();
+
+    await act(async () => {
+      result.current.updateNow(shares[0]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect('calendarIds' in input).toBe(false);
+  });
+
+  it('bundles no calendar on a re-push of a share with no ticked list when safeguards are on', async () => {
+    flags.add('share-content-safeguards');
+    try {
+      shares = [share()];
+      const { result } = await load();
+
+      await act(async () => {
+        result.current.updateNow(shares[0]);
+        await Promise.resolve();
+      });
+
+      await waitFor(() =>
+        expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+      );
+      const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as {
+        calendarIds?: string[];
+      };
+      expect(input.calendarIds).toEqual([]);
+    } finally {
+      flags.clear();
+    }
   });
 
   it('refuses to re-push a collection whose boards are all gone', async () => {
