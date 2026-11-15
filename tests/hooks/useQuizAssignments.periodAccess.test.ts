@@ -181,7 +181,7 @@ describe('useQuizAssignments — per-period sessions', () => {
     });
   });
 
-  it('keeps a Manual due date close on the session and assignment', async () => {
+  it('marks a Manual due date as locking each period, with no shared close', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     let id = '';
     await act(async () => {
@@ -191,13 +191,15 @@ describe('useQuizAssignments — per-period sessions', () => {
         { accessMode: 'assessment', periodAccess: PERIODS, closeAt: 2_000 }
       ));
     });
-    expect(setAt(`quiz_sessions/${id}`)).toMatchObject({
-      closeAt: 2_000,
+    const session = setAt(`quiz_sessions/${id}`);
+    expect(session).toMatchObject({
+      dueLocks: true,
       dueAt: 2_000,
       periodAccess: PERIODS,
     });
+    expect(session).not.toHaveProperty('closeAt');
     expect(setAt(`users/${TEACHER_UID}/quiz_assignments/${id}`)).toMatchObject({
-      closeAt: 2_000,
+      dueLocks: true,
       dueAt: 2_000,
     });
   });
@@ -213,6 +215,7 @@ describe('useQuizAssignments — per-period sessions', () => {
       ));
     });
     expect(setAt(`quiz_sessions/${id}`)).not.toHaveProperty('closeAt');
+    expect(setAt(`quiz_sessions/${id}`)).not.toHaveProperty('dueLocks');
   });
 
   it('keeps a legacy session unchanged', async () => {

@@ -176,6 +176,26 @@ export interface KindConfig {
  */
 const warnedPublicationKeys = new Set<string>();
 /** @internal — exported only for the test harness. */
+/** A Manual due locks each class at the due; a class started late closes at its own end. */
+export function dueLockClose(
+  record: Record<string, unknown>,
+  classIds: readonly string[]
+): number | undefined {
+  if (record.dueLocks !== true || typeof record.dueAt !== 'number')
+    return undefined;
+  const rows = record.periodAccess as
+    | Record<string, { state?: unknown; closeAt?: unknown } | undefined>
+    | undefined;
+  let close = record.dueAt;
+  for (const id of classIds) {
+    const row = rows?.[id];
+    if (row?.state !== 'open') continue;
+    if (typeof row.closeAt !== 'number') return undefined;
+    close = Math.max(close, row.closeAt);
+  }
+  return close;
+}
+
 export function parsePublicationFields(
   kind: string,
   data: DocumentData
@@ -454,7 +474,10 @@ export function buildAssignmentSummary(
         ? true
         : undefined,
     openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
-    closeAt: typeof record.closeAt === 'number' ? record.closeAt : undefined,
+    closeAt:
+      typeof record.closeAt === 'number'
+        ? record.closeAt
+        : dueLockClose(record, intersected),
     dueAt: resolveStudentDueAt(
       typeof record.dueAt === 'number' ? record.dueAt : undefined,
       isNumberRecord(record.dueAtByClassId) ? record.dueAtByClassId : undefined,
