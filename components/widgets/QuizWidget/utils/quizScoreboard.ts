@@ -30,6 +30,7 @@ import {
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 import { LEGACY_FORMER_PINS_AT } from '@/utils/rosterPins';
 import { gameDisplayPoints } from '@/utils/quizGame';
+import { quizPinKeySegment } from '@/utils/quizResponseKey';
 import {
   resolveResponseDisplayName,
   responseColorIndex,
@@ -377,6 +378,11 @@ function makePinKey(classPeriod: string, pin: string): string {
 
 // Former-PIN entries: key `${FORMER}${pinKey}`, value `${retiredAtMs}${FORMER}${name}`.
 const FORMER = '\u0002';
+// The earlier of the server and student stamps, since a backfilled server stamp can be late.
+const formerCutoff = (server?: number, own?: number): number =>
+  server !== undefined && own !== undefined
+    ? Math.min(server, own)
+    : (server ?? own ?? LEGACY_FORMER_PINS_AT);
 
 /** The name on a former-PIN entry, only for a response joined before that PIN was retired. */
 function formerName(
@@ -556,7 +562,7 @@ function buildRosterPinMap(
           if (!former) map[key] = name;
           else
             map[FORMER + key] ??=
-              `${s.formerPinsAt ?? LEGACY_FORMER_PINS_AT}${FORMER}${name}`;
+              `${formerCutoff(roster.retiredPinsAt?.[quizPinKeySegment(pin)], s.formerPinsAt)}${FORMER}${name}`;
         }
       };
       if (s.pin) put(s.pin, false);

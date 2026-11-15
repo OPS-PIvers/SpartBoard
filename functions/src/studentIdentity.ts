@@ -1734,35 +1734,53 @@ export async function recordRetiredPins(
       if (pin !== entry.pin) keys.add(retiredPinKey(entry.period, pin));
     }
   }
-  // A doc lists every roster that retired the PIN; arrayUnion/arrayRemove keep concurrent rosters from overwriting each other.
-  const have = await col
-    .where('rosterIds', 'array-contains', rosterRef.id)
-    .get();
+  // A doc lists every roster that retired the PIN (`rosterIds`; older docs carry one `rosterId`), so rosters sharing a PIN never prune each other's.
+  const id = rosterRef.id;
+  const [modern, legacy] = await Promise.all([
+    col.where('rosterIds', 'array-contains', id).get(),
+    col.where('rosterId', '==', id).get(),
+  ]);
+  const byId = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+  for (const d of [...modern.docs, ...legacy.docs]) byId.set(d.id, d);
+  const listIds = (d: admin.firestore.DocumentSnapshot): string[] => {
+    const raw: unknown = d.get('rosterIds');
+    return Array.isArray(raw)
+      ? raw.filter((x): x is string => typeof x === 'string')
+      : [];
+  };
   const ops: ((b: admin.firestore.WriteBatch) => void)[] = [];
-  const present = new Set(have.docs.map((d) => d.id));
   for (const key of keys) {
-    if (present.has(key)) continue;
+    const d = byId.get(key);
+    if (d && listIds(d).includes(id)) continue;
     ops.push((b) =>
       b.set(
         col.doc(key),
         {
-          rosterIds: admin.firestore.FieldValue.arrayUnion(rosterRef.id),
-          updatedAt: now,
+          rosterIds: admin.firestore.FieldValue.arrayUnion(id),
+          ...(d ? {} : { updatedAt: now }),
         },
         { merge: true }
       )
     );
   }
-  const removal = {
-    rosterIds: admin.firestore.FieldValue.arrayRemove(rosterRef.id),
+  const removal = (d: admin.firestore.DocumentSnapshot) => ({
+    rosterIds: admin.firestore.FieldValue.arrayRemove(id),
     updatedAt: now,
-  };
+    ...(d.get('rosterId') === id
+      ? { rosterId: admin.firestore.FieldValue.delete() }
+      : {}),
+  });
   const soleDocs: admin.firestore.QueryDocumentSnapshot[] = [];
   if (prune) {
-    for (const d of have.docs) {
+    for (const d of byId.values()) {
       if (keys.has(d.id)) continue;
-      if ((d.get('rosterIds') as string[]).length <= 1) soleDocs.push(d);
-      else ops.push((b) => b.set(d.ref, removal, { merge: true }));
+      const legacyOwner: unknown = d.get('rosterId');
+      const others = new Set(listIds(d));
+      if (typeof legacyOwner === 'string' && legacyOwner)
+        others.add(legacyOwner);
+      others.delete(id);
+      if (others.size === 0) soleDocs.push(d);
+      else ops.push((b) => b.set(d.ref, removal(d), { merge: true }));
     }
   }
   for (let i = 0; i < ops.length; i += 400) {
@@ -1779,10 +1797,63 @@ export async function recordRetiredPins(
         );
       } catch (err) {
         if ((err as { code?: number }).code !== 9) throw err;
-        await d.ref.set(removal, { merge: true });
+        await d.ref.set(removal(d), { merge: true });
       }
     })
   );
+  await stampRetiredPinTimes(rosterRef, keys, [...byId.values()], now, prune);
+}
+
+/** Retired-key doc id → its PIN segment (ids are `${period}__${seg}`, neither half holds `__`). */
+const retiredKeySegment = (key: string) => key.slice(key.indexOf('__') + 2);
+
+/** Keep `retiredPinsAt.<pin segment>` (first-seen ms) on the roster doc so quiz results can name a former PIN without the Drive file's `formerPinsAt`. */
+async function stampRetiredPinTimes(
+  rosterRef: admin.firestore.DocumentReference,
+  keys: ReadonlySet<string>,
+  haveDocs: readonly admin.firestore.QueryDocumentSnapshot[],
+  now: number,
+  prune: boolean
+): Promise<void> {
+  try {
+    const snap = await rosterRef.get();
+    if (!snap.exists) return;
+    const raw: unknown = snap.get('retiredPinsAt');
+    const existing =
+      raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+    const has = (seg: string) => typeof existing[seg] === 'number';
+    const updates = new Map<string, number | admin.firestore.FieldValue>();
+    for (const d of haveDocs) {
+      const seg = retiredKeySegment(d.id);
+      const at: unknown = d.get('updatedAt');
+      if (!has(seg) && !updates.has(seg) && (!prune || keys.has(d.id))) {
+        updates.set(seg, typeof at === 'number' ? at : now);
+      }
+    }
+    for (const key of keys) {
+      const seg = retiredKeySegment(key);
+      if (!has(seg) && !updates.has(seg)) updates.set(seg, now);
+    }
+    // An empty list (owner no longer confirmed) clears access, not the display stamps.
+    if (prune && keys.size > 0) {
+      const kept = new Set([...keys].map(retiredKeySegment));
+      for (const seg of Object.keys(existing)) {
+        if (!kept.has(seg))
+          updates.set(seg, admin.firestore.FieldValue.delete());
+      }
+    }
+    const path = (seg: string) =>
+      new admin.firestore.FieldPath('retiredPinsAt', seg);
+    const [first, ...rest] = [...updates];
+    if (!first) return;
+    await rosterRef.update(
+      path(first[0]),
+      first[1],
+      ...rest.flatMap(([seg, value]) => [path(seg), value])
+    );
+  } catch (err) {
+    console.warn('[recordRetiredPins] retiredPinsAt stamp failed', err);
+  }
 }
 
 // Per (session, caller uid) limits. Seat PINs are short, so a caller that keeps

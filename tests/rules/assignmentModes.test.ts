@@ -226,7 +226,7 @@ describe('Quiz responses — view-only mode blocks submissions', () => {
         studentUid: STUDENT_UID,
         pin: '01',
         classPeriod: 'period_1',
-        joinedAt: Date.now(),
+        joinedAt: 1000,
         score: null,
         answers: [],
         status: 'joined',
@@ -266,7 +266,7 @@ describe('Video Activity responses — view-only mode blocks submissions', () =>
         score: null,
         completedAt: null,
         answers: [],
-        joinedAt: Date.now(),
+        joinedAt: 1000,
         completedAttempts: 0,
         tabSwitchWarnings: 0,
       })

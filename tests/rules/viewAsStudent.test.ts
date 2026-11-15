@@ -103,7 +103,7 @@ afterAll(async () => {
 
 const ssoResponse = (uid: string) => ({
   studentUid: uid,
-  joinedAt: Date.now(),
+  joinedAt: 1000,
   score: null,
   completedAt: null,
   answers: [],
@@ -426,7 +426,7 @@ describe('live session roster', () => {
   const student = () => ({
     pin: '01',
     status: 'active',
-    joinedAt: Date.now(),
+    joinedAt: 1000,
     lastActive: 1000,
     code: 'ABC123',
   });

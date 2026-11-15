@@ -9,8 +9,10 @@ import {
   recordAiUsage,
   refundAiUsage,
   resolveCallerIsAdmin,
+  type AiExtraCap,
   type AiUsageCharge,
 } from './aiGeneration';
+import { importAiAccess, type ImportAiAccess } from './importSettings';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { generateAi } from './aiRouter';
 import { getAiModelConfig } from './aiModelConfig';
@@ -45,8 +47,8 @@ export const IMPORT_CONVERSION_SETTINGS_DOC = 'import_conversion';
 
 export interface ConversionDeps {
   db: Firestore;
-  /** The AI Conversion kill switch is on (`admin_settings/import_conversion.enabled`). */
-  switchOn: () => Promise<boolean>;
+  /** This widget's AI switch and daily limit (`admin_settings/import_conversion`). */
+  aiAccess: (target: ConversionRequest['target']) => Promise<ImportAiAccess>;
   isAdmin: (token: Token) => Promise<boolean>;
   /** Neither `gemini-functions` nor `universal-import` is switched off. */
   flagsOn: () => Promise<boolean>;
@@ -59,9 +61,13 @@ export interface ConversionDeps {
   isStaff: (token: Token) => Promise<boolean>;
   /** Non-admins: the universal-import flag grants this caller, by the same rules as Send. */
   granted: (token: Token, uid: string) => Promise<boolean>;
-  charge: (token: Token, uid: string) => Promise<AiUsageCharge>;
+  charge: (
+    token: Token,
+    uid: string,
+    cap: AiExtraCap
+  ) => Promise<AiUsageCharge>;
   refund: (charge: AiUsageCharge) => Promise<void>;
-  record: (token: Token, uid: string) => Promise<AiUsageCharge>;
+  record: (token: Token, uid: string, key: string) => Promise<AiUsageCharge>;
   maxInputChars: (integration: AiIntegrationId) => Promise<number>;
   generate: (
     integration: AiIntegrationId,
@@ -69,14 +75,15 @@ export interface ConversionDeps {
   ) => Promise<string>;
 }
 
-/** Kill switch, staff, then the flag and quota, then one model call; a failed call refunds its charge. */
+/** The widget's AI switch, staff, then the flag and quota, then one model call; a failed call refunds its charge. */
 export async function runConversion(
   req: ConversionRequest,
   uid: string,
   token: Token,
   deps: ConversionDeps
 ): Promise<ConversionResult> {
-  if (!(await deps.switchOn())) {
+  const access = await deps.aiAccess(req.target);
+  if (!access.on) {
     throw new HttpsError(
       'failed-precondition',
       'AI conversion is turned off by an administrator.'
@@ -115,8 +122,12 @@ export async function runConversion(
   }
   const integration = CONVERSION_INTEGRATION[req.target];
   const charge = isAdmin
-    ? await deps.record(token, uid)
-    : await deps.charge(token, uid);
+    ? await deps.record(token, uid, access.usageKey)
+    : await deps.charge(token, uid, {
+        key: access.usageKey,
+        limit: access.limit,
+        message: access.limitMessage,
+      });
   try {
     const fitted = fitSourceText(
       req.source.text,
@@ -202,13 +213,24 @@ function defaultDeps(): ConversionDeps {
   const db = admin.firestore();
   return {
     db,
-    switchOn: async () =>
-      (
-        await db
+    aiAccess: async (target) => {
+      const [settings, flag] = await Promise.all([
+        db
           .collection('admin_settings')
           .doc(IMPORT_CONVERSION_SETTINGS_DOC)
-          .get()
-      ).data()?.enabled === true,
+          .get(),
+        db
+          .collection('global_permissions')
+          .doc(UNIVERSAL_IMPORT_FEATURE_ID)
+          .get(),
+      ]);
+      return importAiAccess(
+        settings.data(),
+        target,
+        (flag.data() as { config?: { dailyLimit?: unknown } } | undefined)
+          ?.config?.dailyLimit
+      );
+    },
     isAdmin: (token) => resolveCallerIsAdmin(db, token),
     flagsOn: () => importFlagsOn(db),
     layoutAllowed: (token, uid, isAdmin) =>
@@ -223,19 +245,21 @@ function defaultDeps(): ConversionDeps {
         uid
       );
     },
-    charge: (token, uid) =>
+    // Each widget's own limit replaces the old Import anything limit.
+    charge: (token, uid, cap) =>
       enforceAiFeatureAccess(
         db,
         token,
         uid,
         UNIVERSAL_IMPORT_FEATURE_ID,
         false,
-        undefined,
+        cap,
+        true,
         true
       ),
     refund: (charge) => refundAiUsage(db, charge),
-    record: (token, uid) =>
-      recordAiUsage(db, token, uid, UNIVERSAL_IMPORT_FEATURE_ID),
+    record: (token, uid, key) =>
+      recordAiUsage(db, token, uid, UNIVERSAL_IMPORT_FEATURE_ID, key),
     maxInputChars: async (integration) =>
       maxInputCharsFor(
         integration,

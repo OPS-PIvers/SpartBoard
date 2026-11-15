@@ -16,7 +16,7 @@ import {
 } from '@/components/common/library/assignStepper/assignSteps';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import { formatWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import {
   formatClassesValue,
   type AssignClassesValue,
@@ -198,7 +198,7 @@ export const FlashcardAssignmentSettingsModal: React.FC<
           title: getAssignStepTitle('classes', 'flashcards', kindCtx),
           value: formatClassesValue(classes, rosters),
           body: (
-            <ClassPickerMenu
+            <ClassChecklist
               rosters={rosters}
               value={classes}
               onChange={(next) =>

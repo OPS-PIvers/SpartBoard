@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useAssignmentDetailActions } from '@/hooks/useAssignmentDetailActions';
+import {
+  dueLockRowCaps,
+  useAssignmentDetailActions,
+} from '@/hooks/useAssignmentDetailActions';
 import type { UnifiedAssignmentRow } from '@/components/assignmentsHub/useUnifiedAssignments';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 
@@ -379,5 +382,38 @@ describe('useAssignmentDetailActions', () => {
     expect(call.remove).toEqual([]);
     expect(call.overridesBySourcedId).toEqual({});
     expect(Object.keys(call.window as object)).toEqual(['closeAt']);
+  });
+});
+
+describe('dueLockRowCaps', () => {
+  const row = (closeAt: number | null) => ({
+    state: 'closed' as const,
+    openAt: null,
+    closeAt,
+    bellPeriodId: null,
+    verified: true,
+    label: 'P',
+  });
+  const assignment = {
+    dueLocks: true,
+    dueAt: 100,
+    periodAccess: { a: row(100), late: row(500) },
+  };
+
+  it('moves classes still locked at the old due to the new one', () => {
+    expect(dueLockRowCaps(assignment, { dueAt: 200 })).toEqual({
+      a: { closeAt: 200 },
+    });
+    expect(dueLockRowCaps(assignment, { dueAt: null })).toEqual({
+      a: { closeAt: null },
+    });
+  });
+
+  it('writes nothing without a due lock or a due change', () => {
+    expect(
+      dueLockRowCaps({ ...assignment, dueLocks: false }, { dueAt: 200 })
+    ).toBeNull();
+    expect(dueLockRowCaps(assignment, { dueAt: 100 })).toBeNull();
+    expect(dueLockRowCaps(assignment, {})).toBeNull();
   });
 });

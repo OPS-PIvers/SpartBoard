@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  clearAllReviewStates,
   clearReviewState,
+  loadResumeQuestion,
   loadReviewState,
   reviewStateKey,
+  saveResumeQuestion,
   saveReviewState,
 } from '@/utils/quizReviewMarksStore';
 
@@ -37,5 +40,22 @@ describe('review marks store (M24)', () => {
     clearReviewState(key);
     expect(window.sessionStorage.getItem(key)).toBeNull();
     expect(loadReviewState(null).open).toBe(false);
+  });
+
+  it('saves and loads the resume question', () => {
+    const key = 'spartboard:quiz-review:s1:r1:0';
+    saveResumeQuestion(key, 'q2');
+    expect(loadResumeQuestion(key)).toBe('q2');
+    expect(loadResumeQuestion(null)).toBeNull();
+  });
+
+  it('clears the resume question with the attempt state', () => {
+    const key = 'spartboard:quiz-review:s1:r1:0';
+    saveResumeQuestion(key, 'q2');
+    clearReviewState(key);
+    expect(loadResumeQuestion(key)).toBeNull();
+    saveResumeQuestion(key, 'q2');
+    clearAllReviewStates('s1', 'r1');
+    expect(loadResumeQuestion(key)).toBeNull();
   });
 });

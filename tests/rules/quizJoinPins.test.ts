@@ -30,6 +30,7 @@ const PERIODS = 'qjp-periods';
 const ROSTERED = 'qjp-rostered';
 const VA_ROSTERED = 'qjp-va-rostered';
 const VA_PLAIN = 'qjp-va-plain';
+const NO_CLASS = 'qjp-no-class';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -135,6 +136,16 @@ beforeEach(async () => {
       mode: 'submissions',
       code: 'QJPE',
     });
+    // Rostered but not ClassLink-gated: a retired PIN still seats someone here.
+    for (const col of ['quiz_sessions', 'video_activity_sessions']) {
+      await setDoc(doc(db, `${col}/${NO_CLASS}`), {
+        teacherUid: TEACHER,
+        status: 'active',
+        mode: 'submissions',
+        code: 'QJPF',
+        rosterIds: ['roster-1'],
+      });
+    }
     // Alice's old sequential PIN 01, retired when she got a 6-digit PIN.
     await setDoc(doc(db, `users/${TEACHER}/retired_pins/period_1__01`), {
       rosterIds: ['roster-1'],
@@ -300,38 +311,6 @@ describe('retired roster PINs on a ClassLink-rostered quiz', () => {
     );
   });
 
-  it('refuses a backdated join time on a PIN key, and keeps a skewed clock inside the window', async () => {
-    for (const joinedAt of [0, Date.UTC(2026, 10, 1), Date.now() - 3600000]) {
-      await assertFails(
-        setDoc(
-          quizRef(anonDb(ANON), PLAIN, quizKey('Period 1', '07')),
-          joinDoc(ANON, { pin: '07', classPeriod: 'Period 1', joinedAt })
-        )
-      );
-    }
-    await assertSucceeds(
-      setDoc(
-        quizRef(anonDb(ANON), PLAIN, quizKey('Period 1', '08')),
-        joinDoc(ANON, {
-          pin: '08',
-          classPeriod: 'Period 1',
-          joinedAt: Date.now() - 240000,
-        })
-      )
-    );
-  });
-
-  it('refuses a PIN-key join with no numeric join time', async () => {
-    for (const joinedAt of ['now', null]) {
-      await assertFails(
-        setDoc(
-          quizRef(anonDb(ANON), PLAIN, quizKey('Period 1', '09')),
-          joinDoc(ANON, { pin: '09', classPeriod: 'Period 1', joinedAt })
-        )
-      );
-    }
-  });
-
   it('still blocks a PIN retired in the legacy single-roster shape', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
@@ -478,24 +457,6 @@ describe('video activity: retired roster PINs and backdated joins', () => {
     );
   });
 
-  it('refuses a PIN-key join with no numeric join time', async () => {
-    await assertFails(
-      setDoc(vaRef(rawKey('Period 1', '10')), {
-        ...vaJoinDoc(ANON, '10'),
-        joinedAt: 'now',
-      })
-    );
-  });
-
-  it('refuses a backdated join time on a PIN key', async () => {
-    await assertFails(
-      setDoc(vaRef(rawKey('Period 1', '06')), {
-        ...vaJoinDoc(ANON, '06'),
-        joinedAt: 0,
-      })
-    );
-  });
-
   it('still lets an SSO student join with any join time', async () => {
     await assertSucceeds(
       setDoc(
@@ -504,4 +465,37 @@ describe('video activity: retired roster PINs and backdated joins', () => {
       )
     );
   });
+});
+
+describe('PIN join times: clamped only for a retired PIN', () => {
+  const OLD_CLOCKS = [0, 1000, Date.now() - 3600000, 'now', null];
+  const refs = (col: string, pin: string) => {
+    const key =
+      col === 'quiz_sessions'
+        ? quizKey('Period 1', pin)
+        : rawKey('Period 1', pin);
+    return doc(anonDb(ANON), `${col}/${NO_CLASS}/responses/${key}`);
+  };
+  const body = (col: string, pin: string, joinedAt: unknown) =>
+    col === 'quiz_sessions'
+      ? joinDoc(ANON, { pin, classPeriod: 'Period 1', joinedAt })
+      : { ...vaJoinDoc(ANON, pin), joinedAt };
+
+  for (const col of ['quiz_sessions', 'video_activity_sessions']) {
+    it(`${col}: refuses a backdated or missing join time under a retired PIN`, async () => {
+      for (const joinedAt of OLD_CLOCKS) {
+        await assertFails(setDoc(refs(col, '01'), body(col, '01', joinedAt)));
+      }
+      await assertSucceeds(
+        setDoc(refs(col, '01'), body(col, '01', Date.now() - 240000))
+      );
+    });
+
+    it(`${col}: still seats an unretired PIN from a device with a wrong clock (previous client)`, async () => {
+      for (const [i, joinedAt] of [0, 1000, Date.now() - 3600000].entries()) {
+        const pin = `0${i + 2}`;
+        await assertSucceeds(setDoc(refs(col, pin), body(col, pin, joinedAt)));
+      }
+    });
+  }
 });

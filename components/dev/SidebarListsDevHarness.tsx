@@ -40,7 +40,10 @@ const roster = (
 });
 
 const ROSTERS: ClassRoster[] = [
-  roster('r1', 'Sample - Mock Class', { students: students(1) }),
+  roster('r1', 'Sample - Mock Period 1 (TEST)', {
+    students: students(10),
+    testClassId: 'mock-period-1',
+  }),
   roster('r2', 'Period 3 - Grade 7 Social Studies (Ivers)', {
     students: students(28),
     classlinkClassId: 'cl-class-2',

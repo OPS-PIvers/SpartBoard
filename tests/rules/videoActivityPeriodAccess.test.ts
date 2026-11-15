@@ -127,7 +127,7 @@ async function seedResponse(
         `video_activity_sessions/${sessionId}/responses/${key}`
       ),
       {
-        joinedAt: Date.now(),
+        joinedAt: 1000,
         score: null,
         answers: [],
         completedAt: null,
@@ -154,7 +154,7 @@ async function seedSeat(
 
 const joinDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
   studentUid: uid,
-  joinedAt: Date.now(),
+  joinedAt: 1000,
   score: null,
   answers: [],
   completedAt: null,

@@ -27,7 +27,9 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'claude-connector-apps',
   'video-activity-live',
   'quiz-student-view',
+  'class-student-page',
   'quiz-live-view',
+  'quiz-monitor-roster',
   'quiz-score-on-submit',
   'gradebook',
   'student-gradebook',
@@ -83,6 +85,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-embed',
   'import-link',
   'import-schoology-course',
+  'import-straight-to-board',
   'video-import-ai',
   'embed-mini-app',
   'schoology-push-due-date',
@@ -90,6 +93,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-check-sync',
   'youtube-paste-picker',
   'choose-n-pick-counted',
+  'assign-due-date',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

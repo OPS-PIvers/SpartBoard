@@ -21,11 +21,21 @@ vi.mock('@/hooks/useStudentClassDirectory', () => ({
   useStudentClassDirectory: () => directory.value,
 }));
 
+const turnIns = { settled: true };
+vi.mock('@/hooks/useStudentTurnIns', () => ({
+  useStudentTurnIns: () => ({
+    checks: {},
+    recheck: vi.fn(),
+    settled: turnIns.settled,
+  }),
+}));
+
+const stableAssignments: never[] = [];
 vi.mock('@/hooks/useStudentAssignments', () => ({
   isClosedProjectRun: () => false,
   useStudentAssignments: () => ({
     loadState: 'ready',
-    assignments: [],
+    assignments: stableAssignments,
     hasErrors: false,
     hasClassErrors: false,
     retry: vi.fn(),
@@ -89,6 +99,7 @@ const at = (h: number, m: number) => new Date(2026, 9, 2, h, m).getTime();
 beforeEach(() => {
   window.matchMedia = vi.fn().mockReturnValue({ matches: true });
   schedules.status = 'ready';
+  turnIns.settled = true;
   clock.now = at(8, 30);
   window.history.replaceState(null, '', '/my-assignments');
 });
@@ -215,5 +226,53 @@ describe('MyAssignmentsPage bell period', () => {
     clock.now = at(9, 20);
     away(11 * 60 * 1000);
     expect(heading()).toBe('Art');
+  });
+});
+
+describe('MyAssignmentsPage turn-in checks', () => {
+  const setReady = () => {
+    const eng = { classId: 'ENG', name: 'English 9', teacherDisplayName: 'T' };
+    directory.value = {
+      status: 'ready',
+      classes: [eng],
+      byId: { ENG: eng },
+      retry: vi.fn(),
+    };
+  };
+
+  it('keeps the loading screen until checks settle', () => {
+    setReady();
+    turnIns.settled = false;
+    const { rerender } = render(<MyAssignmentsPage />);
+    expect(screen.getByText('Loading your assignments…')).toBeTruthy();
+    turnIns.settled = true;
+    rerender(<MyAssignmentsPage />);
+    expect(screen.queryByText('Loading your assignments…')).toBeNull();
+    expect(screen.getByText('English 9')).toBeTruthy();
+  });
+
+  it('shows the list after 4 seconds even if checks never settle', () => {
+    vi.useFakeTimers();
+    try {
+      setReady();
+      turnIns.settled = false;
+      render(<MyAssignmentsPage />);
+      expect(screen.getByText('Loading your assignments…')).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
+      expect(screen.queryByText('Loading your assignments…')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not bring the loading screen back after the list appeared', () => {
+    setReady();
+    const { rerender } = render(<MyAssignmentsPage />);
+    expect(screen.queryByText('Loading your assignments…')).toBeNull();
+    turnIns.settled = false;
+    rerender(<MyAssignmentsPage />);
+    expect(screen.queryByText('Loading your assignments…')).toBeNull();
   });
 });

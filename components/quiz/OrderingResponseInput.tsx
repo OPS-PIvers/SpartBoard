@@ -173,6 +173,7 @@ const Slot: React.FC<{
   speaker,
   highlighted,
 }) => {
+  const { t } = useTranslation();
   const { isOver, setNodeRef } = useDroppable({ id, disabled });
   const {
     attributes,
@@ -187,7 +188,7 @@ const Slot: React.FC<{
   const dragStyle: React.CSSProperties = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
-  const slotPosition = `position ${index + 1}`;
+  const slotPosition = t('quizStudent.ordering.position', { n: index + 1 });
   return (
     <div
       ref={setNodeRef}
@@ -239,7 +240,9 @@ const Slot: React.FC<{
             e.preventDefault();
             if (!disabled) onTapEmpty();
           }}
-          aria-label={`Empty drop zone, ${slotPosition}`}
+          aria-label={t('quizStudent.ordering.emptySlot', {
+            position: slotPosition,
+          })}
           className={`flex-1 min-h-[44px] px-3 py-2 rounded-xl text-sm font-bold border-2 border-dashed transition-colors text-left ${
             isOver
               ? light
@@ -250,7 +253,7 @@ const Slot: React.FC<{
                 : 'border-slate-600 bg-slate-800/40 text-slate-500'
           } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
         >
-          Drop here
+          {t('quizStudent.dropHere')}
         </button>
       )}
       {filledLabel && filledImage ? (
@@ -267,8 +270,10 @@ const Slot: React.FC<{
           type="button"
           onClick={() => onMove('up')}
           disabled={(disabled ?? false) || upDisabled || !filledLabel}
-          className={`min-w-[32px] min-h-[22px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
-          aria-label={`Move ${slotPosition} up`}
+          className={`min-w-[44px] min-h-[36px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-500 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
+          aria-label={t('quizStudent.ordering.moveUp', {
+            position: slotPosition,
+          })}
         >
           ▲
         </button>
@@ -277,8 +282,10 @@ const Slot: React.FC<{
           type="button"
           onClick={() => onMove('down')}
           disabled={(disabled ?? false) || downDisabled || !filledLabel}
-          className={`min-w-[32px] min-h-[22px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
-          aria-label={`Move ${slotPosition} down`}
+          className={`min-w-[44px] min-h-[36px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-500 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
+          aria-label={t('quizStudent.ordering.moveDown', {
+            position: slotPosition,
+          })}
         >
           ▼
         </button>
@@ -356,10 +363,16 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     | null
   >(null);
 
+  const [undo, setUndo] = React.useState<{
+    slots: (number | null)[];
+    bank: number[];
+  } | null>(null);
+
   useResetOnChange(question.id, () => {
     setSlots(initialSlots);
     setBankItems(initialBank);
     setSelectedSource(null);
+    setUndo(null);
   });
 
   const sensors = useSensors(
@@ -404,6 +417,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     setSlots(next);
     setBankItems(nextBank);
     setSelectedSource(null);
+    setUndo(null);
     emit(next);
   };
 
@@ -415,6 +429,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     setSlots(next);
     setBankItems([...bankItems, idx]);
     setSelectedSource(null);
+    setUndo(null);
     emit(next);
   };
 
@@ -425,15 +440,26 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     [next[slotIndex], next[target]] = [next[target], next[slotIndex]];
     setSlots(next);
     setSelectedSource(null);
+    setUndo(null);
     emit(next);
   };
 
   const reset = () => {
+    if (slots.some((v) => v !== null)) setUndo({ slots, bank: bankItems });
     const blank = items.map(() => null);
     setSlots(blank);
     setBankItems(shuffle(items.map((_, i) => i)));
     setSelectedSource(null);
     emit(blank);
+  };
+
+  const undoReset = () => {
+    if (!undo) return;
+    setSlots(undo.slots);
+    setBankItems(undo.bank);
+    setSelectedSource(null);
+    emit(undo.slots);
+    setUndo(null);
   };
 
   // ─── Drag handlers ────────────────────────────────────────────────────────
@@ -558,24 +584,26 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
             <span
               className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}
             >
-              Word Bank
+              {t('quizStudent.wordBank')}
             </span>
             <button
               // no-tour-anchor: student quiz screen; tours walk teachers
               type="button"
-              onClick={reset}
+              onClick={undo ? undoReset : reset}
               disabled={disabled}
-              className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${light ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
-              aria-label="Reset all placements"
+              className={`flex items-center gap-1 min-h-[44px] px-3 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${light ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+              aria-label={
+                undo ? t('quizStudent.undoReset') : t('quizStudent.resetAll')
+              }
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              Reset
+              {undo ? t('quizSubmit.undo') : t('quizStudent.reset')}
             </button>
           </div>
           <div className="flex flex-wrap gap-2 min-h-[48px]">
             {bankItems.length === 0 && (
               <span className="text-xs text-slate-500 italic px-2 py-1">
-                All items placed.
+                {t('quizStudent.allItemsPlaced')}
               </span>
             )}
             {bankItems.map((itemIndex) => {
@@ -595,7 +623,9 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                     selected={selected}
                     disabled={disabled}
                     onTap={() => handleBankChipTap(itemIndex)}
-                    ariaLabel={`${pictureName(itemIndex) ?? items[itemIndex]}, in word bank`}
+                    ariaLabel={t('quizStudent.inWordBank', {
+                      name: pictureName(itemIndex) ?? items[itemIndex],
+                    })}
                     light={light}
                   />
                   {speaker(items[itemIndex])}

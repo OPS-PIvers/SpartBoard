@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { QuizSession } from '@/types';
 import { formatOpensLabel } from '@/utils/assignmentWindow';
 
@@ -16,25 +17,28 @@ export const QuizPeriodLockedScreen: React.FC<QuizPeriodLockedScreenProps> = ({
   session,
   opensAt,
   pin,
-}) => (
-  <div className="min-h-screen bg-brand-blue-dark flex flex-col items-center justify-center p-6 text-center">
-    <Lock className="w-14 h-14 text-white/80 mb-6" aria-hidden />
-    <h1 className="font-sans text-4xl font-bold text-white mb-3">
-      {session.quizTitle}
-    </h1>
-    <p className="text-brand-blue-lighter text-lg font-medium mb-8">
-      {opensAt != null
-        ? formatOpensLabel(opensAt)
-        : 'Opens when your teacher starts it.'}
-    </p>
-    <p className="text-white/60 text-sm mb-8 max-w-sm">
-      Keep this tab open. The quiz appears here as soon as your class is let in.
-    </p>
-    {pin && (
-      <p className="text-brand-blue-lighter text-sm">
-        Joined as PIN{' '}
-        <span className="font-semibold text-white font-mono">{pin}</span>
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-brand-blue-dark flex flex-col items-center justify-center p-6 text-center">
+      <Lock className="w-14 h-14 text-white/80 mb-6" aria-hidden />
+      <h1 className="font-sans text-4xl font-bold text-white mb-3">
+        {session.quizTitle}
+      </h1>
+      <p className="text-brand-blue-lighter text-lg font-medium mb-8">
+        {opensAt != null
+          ? formatOpensLabel(opensAt)
+          : t('quizStudent.locked.opensSoon')}
       </p>
-    )}
-  </div>
-);
+      <p className="text-white/60 text-sm mb-8 max-w-sm">
+        {t('quizStudent.locked.keepOpen')}
+      </p>
+      {pin && (
+        <p className="text-brand-blue-lighter text-sm">
+          {t('quizStudent.common.joinedAs')}{' '}
+          <span className="font-semibold text-white font-mono">{pin}</span>
+        </p>
+      )}
+    </div>
+  );
+};

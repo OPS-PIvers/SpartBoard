@@ -88,7 +88,7 @@ const seed = async (opts: {
     });
     await setDoc(doc(db, responsePath), {
       studentUid: STUDENT_UID,
-      joinedAt: Date.now(),
+      joinedAt: 1000,
       score: null,
       answers: [],
       status: 'joined',

@@ -104,7 +104,7 @@ beforeEach(async () => {
     await setDoc(doc(db, `quiz_sessions/${SESSION_ID}/responses/${ANON_KEY}`), {
       studentUid: ANON_UID,
       pin: '1234',
-      joinedAt: Date.now(),
+      joinedAt: 1000,
       score: null,
       status: 'in-progress',
       answers: [draft],

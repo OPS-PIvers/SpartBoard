@@ -2,7 +2,13 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import type { AssignmentMode, GlobalFeature, MiniAppAnswerKey } from '@/types';
+import type {
+  AssignmentMode,
+  GlobalFeature,
+  MiniAppAnswerKey,
+  PublishedMiniAppResult,
+  QuizScoreVisibility,
+} from '@/types';
 import { logError } from '@/utils/logError';
 
 /** Results v2 needs the preview flag AND Mini App submissions on in Organization settings. */
@@ -113,5 +119,35 @@ export async function readOwnMiniAppSubmission(
       if (isPermissionDenied(receiptErr)) return null;
       throw receiptErr;
     }
+  }
+}
+
+/** Publishes (or with 'none', unpublishes) an ended assignment's results to its students. */
+export async function publishMiniAppScores(
+  sessionId: string,
+  visibility: QuizScoreVisibility
+): Promise<{ published: number }> {
+  const callable = httpsCallable<
+    { sessionId: string; visibility: QuizScoreVisibility },
+    { published: number }
+  >(functions, 'publishMiniAppScoresV1');
+  const res = await callable({ sessionId, visibility });
+  return res.data;
+}
+
+/** The student's own published results, or null when none were published for them. */
+export async function readPublishedMiniAppResult(
+  sessionId: string,
+  docId: string
+): Promise<PublishedMiniAppResult | null> {
+  try {
+    const snap = await getDoc(
+      doc(db, 'mini_app_sessions', sessionId, 'published', docId)
+    );
+    return snap.exists() ? (snap.data() as PublishedMiniAppResult) : null;
+  } catch (err) {
+    // A missing doc reads as refused, since the rule checks its studentUid.
+    if (isPermissionDenied(err)) return null;
+    throw err;
   }
 }

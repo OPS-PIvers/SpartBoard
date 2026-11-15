@@ -692,14 +692,14 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
         entries,
         hmacSecret
       );
-      // All linked students (not just enrolled); prune only when the list isn't capped.
+      // All linked students (not just enrolled); an empty (owner unconfirmed) or capped list never prunes a retired PIN.
       const all = linkedEntries(rosterData, students, null);
       await recordRetiredPins(
         db,
         rosterRef,
         all,
         Date.now(),
-        all.length < PIN_INDEX_MAX_ENTRIES
+        all.length > 0 && all.length < PIN_INDEX_MAX_ENTRIES
       );
     },
 

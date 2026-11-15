@@ -1,5 +1,12 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import {
+  Check,
+  MessageSquare,
+  MessageSquareText,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import type { QuizQuestion } from '@/types';
 import { MathText } from '@/components/common/MathText';
 import { hasPromptMath } from '@/utils/promptMath';
@@ -48,6 +55,10 @@ interface ChoiceOptionsEditorProps {
   onChange: (updates: ChoiceUpdates) => void;
   /** Uploads one picture and resolves to its URL; absent leaves only removing a saved one. */
   onUploadImage?: UploadAnswerImage;
+  /** Shows a per-option explanation button; absent hides it. */
+  onExplanationsChange?: (
+    optionExplanations: Record<string, string> | undefined
+  ) => void;
 }
 
 /** `label` is the generated name a picture-only row saves under; `text` stays what the teacher typed. */
@@ -156,8 +167,11 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
   question,
   onChange,
   onUploadImage,
+  onExplanationsChange,
 }) => {
+  const { t } = useTranslation();
   const multi = question.type === 'MA';
+  const [explainOpen, setExplainOpen] = useState<string | null>(null);
   const [rows, setRows] = useState<EditorRow[]>(() => initialRows(question));
   const [lastSig, setLastSig] = useState(() => signature(question));
 
@@ -237,6 +251,18 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
     commit(rows.map((r) => (r.id === id ? { ...r, alt } : r)));
   const images = useAnswerImagePicker(onUploadImage, setRowImage);
 
+  // Explanations are keyed by the option text as saved.
+  const explainKey = (r: EditorRow) => {
+    const text = isImageOnly(r) ? (r.label ?? '') : r.text;
+    return multi ? text.replace(/\|/g, '') : text;
+  };
+  const setExplanation = (key: string, text: string) => {
+    if (!onExplanationsChange) return;
+    const next = { ...question.optionExplanations, [key]: text };
+    if (!text.trim()) delete next[key];
+    onExplanationsChange(Object.keys(next).length > 0 ? next : undefined);
+  };
+
   const canTurnOffMulti = rows.length <= MAX_SINGLE_OPTIONS;
   const Marker = multi ? 'rounded-md' : 'rounded-full';
 
@@ -253,6 +279,16 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
         >
           {rows.map((row, idx) => {
             const letter = LETTERS[idx] ?? String(idx + 1);
+            const key = explainKey(row);
+            const explanation = question.optionExplanations?.[key] ?? '';
+            const explaining = explainOpen === row.id;
+            const explainLabel = t('quizExplanations.optionLabel', {
+              option: `option ${letter}`,
+              defaultValue: 'Explanation for {{option}}',
+            });
+            const ExplainIcon = explanation.trim()
+              ? MessageSquareText
+              : MessageSquare;
             return (
               <div key={row.id} className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -325,6 +361,29 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                       )}
                     />
                   )}
+                  {onExplanationsChange && (
+                    <button
+                      type="button"
+                      onClick={() => setExplainOpen(explaining ? null : row.id)}
+                      disabled={!explaining && !key.trim()}
+                      aria-label={explainLabel}
+                      title={explainLabel}
+                      aria-expanded={explaining}
+                      aria-controls={`explain-${row.id}`}
+                      {...tourFieldAttr(
+                        'quiz-editor.option-explanation',
+                        'quiz',
+                        letter.toLowerCase()
+                      )}
+                      className={`flex items-center justify-center w-9 h-9 shrink-0 rounded-lg transition-colors disabled:opacity-40 touch-target-expand focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                        explanation.trim()
+                          ? 'text-brand-blue-primary hover:bg-slate-100'
+                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                      } ${explaining ? 'bg-slate-100' : ''}`}
+                    >
+                      <ExplainIcon className="w-4 h-4" aria-hidden />
+                    </button>
+                  )}
                   {rows.length > 2 && (
                     <button
                       type="button"
@@ -345,6 +404,34 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                   <p className="pl-12 text-sm text-slate-800 wrap-break-word">
                     <MathText text={row.text} />
                   </p>
+                )}
+                {onExplanationsChange && explaining && (
+                  <div className="pl-14">
+                    <textarea
+                      id={`explain-${row.id}`}
+                      autoFocus
+                      rows={2}
+                      value={explanation}
+                      onChange={(e) => setExplanation(key, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          e.stopPropagation();
+                          setExplainOpen(null);
+                        }
+                      }}
+                      aria-label={explainLabel}
+                      placeholder={t(
+                        'quizExplanations.optionPlaceholder',
+                        'Why right or wrong'
+                      )}
+                      {...tourFieldAttr(
+                        'quiz-editor.option-explanation-text',
+                        'quiz',
+                        letter.toLowerCase()
+                      )}
+                      className={`${inputClass} resize-y`}
+                    />
+                  </div>
                 )}
                 {isImageOnly(row) && (
                   <PictureDescriptionInput

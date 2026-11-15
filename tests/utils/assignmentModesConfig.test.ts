@@ -10,6 +10,7 @@ import {
 import {
   _resetAssignmentModesWarnings,
   parseAssignmentModesConfig,
+  resolveAssignmentMode,
 } from '@/utils/assignmentModesConfig';
 
 describe('parseAssignmentModesConfig', () => {
@@ -93,5 +94,31 @@ describe('parseAssignmentModesConfig', () => {
     // Only the known-key-with-bad-value triggers a warn; the unknown key is
     // silent since the schema may legitimately gain keys we don't yet know.
     expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('resolveAssignmentMode', () => {
+  it('gives Mini App submissions only to teachers with the preview', () => {
+    const config = { miniApp: 'submissions', quiz: 'submissions' };
+    expect(resolveAssignmentMode(config, 'miniApp', true)).toBe('submissions');
+    expect(resolveAssignmentMode(config, 'miniApp', false)).toBe('view-only');
+    expect(resolveAssignmentMode({}, 'miniApp', false)).toBe('view-only');
+  });
+
+  it('keeps Mini Apps view-only app-wide even with the preview', () => {
+    expect(
+      resolveAssignmentMode({ miniApp: 'view-only' }, 'miniApp', true)
+    ).toBe('view-only');
+  });
+
+  it('leaves the other widgets alone', () => {
+    expect(resolveAssignmentMode({}, 'quiz', false)).toBe('submissions');
+    expect(
+      resolveAssignmentMode(
+        { guidedLearning: 'view-only' },
+        'guidedLearning',
+        true
+      )
+    ).toBe('view-only');
   });
 });

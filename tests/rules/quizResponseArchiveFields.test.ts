@@ -47,7 +47,7 @@ const baseResponse = (uid: string) => ({
   studentUid: uid,
   pin: '01',
   classPeriod: 'period_1',
-  joinedAt: Date.now(),
+  joinedAt: 1000,
   status: 'joined',
   answers: [{ questionId: 'q1', artifacts: [{ id: 'art-1', kind: 'audio' }] }],
   score: null,

@@ -8,6 +8,7 @@ import { AssignWhenStep } from './AssignWhenStep';
 import {
   defaultWhenValue,
   formatWhenValue,
+  whenBackwards,
   type AssignWhenValue,
   type AssignWhenVariant,
 } from './assignWhenValue';
@@ -321,5 +322,129 @@ describe('AssignWhenStep', () => {
       screen.getByText('Starts paused. You start it from the board.')
     ).toBeTruthy();
     expect(screen.queryByLabelText('Opens')).toBeNull();
+  });
+});
+
+describe('Manual due date', () => {
+  const MANUAL: AssignWhenValue = {
+    mode: 'manual',
+    availability: { ...BELL.availability, manualDue: { kind: 'ended' } },
+  };
+
+  it('starts on When ended and switches to Date & time', () => {
+    const onValue = vi.fn();
+    render(<Harness initial={MANUAL} onValue={onValue} />);
+    const due = screen.getByLabelText('Due');
+    fireEvent.change(due, { target: { value: 'date' } });
+    const next = onValue.mock.calls.at(-1)?.[0] as AssignWhenValue;
+    expect(next.availability.manualDue).toMatchObject({
+      kind: 'date',
+      time: '23:59',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'When ended' }));
+    expect(
+      (onValue.mock.calls.at(-1)?.[0] as AssignWhenValue).availability.manualDue
+    ).toEqual({ kind: 'ended', time: '23:59' });
+  });
+
+  it('switches to Date & time at the remembered time', () => {
+    const onValue = vi.fn();
+    render(
+      <Harness
+        initial={{
+          ...MANUAL,
+          availability: {
+            ...MANUAL.availability,
+            manualDue: { kind: 'ended', time: '14:30' },
+          },
+        }}
+        onValue={onValue}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Due'), {
+      target: { value: 'date' },
+    });
+    expect(
+      (onValue.mock.calls.at(-1)?.[0] as AssignWhenValue).availability.manualDue
+    ).toMatchObject({ kind: 'date', time: '14:30' });
+  });
+
+  it('moves a remembered time that has passed today to tomorrow', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 14, 14, 0));
+    try {
+      const onValue = vi.fn();
+      render(
+        <Harness
+          initial={{
+            ...MANUAL,
+            availability: {
+              ...MANUAL.availability,
+              manualDue: { kind: 'ended', time: '08:00' },
+            },
+          }}
+          onValue={onValue}
+        />
+      );
+      fireEvent.change(screen.getByLabelText('Due'), {
+        target: { value: 'date' },
+      });
+      expect(
+        (onValue.mock.calls.at(-1)?.[0] as AssignWhenValue).availability
+          .manualDue
+      ).toEqual({ kind: 'date', day: '2026-11-15', time: '08:00' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides the row without the flag value', () => {
+    render(
+      <Harness initial={{ ...MANUAL, availability: BELL.availability }} />
+    );
+    expect(screen.queryByLabelText('Due')).toBeNull();
+  });
+
+  it('keeps Assign off for a due time already past', () => {
+    const due = (time: string) => ({
+      ...MANUAL,
+      availability: {
+        ...MANUAL.availability,
+        manualDue: { kind: 'date' as const, day: '2026-11-14', time },
+      },
+    });
+    const now = new Date(2026, 10, 14, 12, 0).getTime();
+    expect(whenBackwards(due('11:00'), [], undefined, undefined, now)).toBe(
+      true
+    );
+    expect(whenBackwards(due('13:00'), [], undefined, undefined, now)).toBe(
+      false
+    );
+    expect(whenBackwards(MANUAL, [], undefined, undefined, now)).toBe(false);
+  });
+
+  it('formats the collapsed value', () => {
+    expect(fmt(MANUAL)).toBe('Manual, due when ended');
+    expect(
+      fmt({
+        ...MANUAL,
+        availability: {
+          ...MANUAL.availability,
+          manualDue: { kind: 'date', day: '2026-11-20', time: '23:59' },
+        },
+      })
+    ).toMatch(/^Manual, due Nov 20, 11:59/);
+  });
+});
+
+describe('Scheduled opens Now', () => {
+  it('shows Now and formats the open-now window', () => {
+    const value: AssignWhenValue = {
+      ...BELL,
+      availability: { ...BELL.availability, opensOnAssign: true },
+    };
+    render(<Harness initial={value} />);
+    expect(screen.getByLabelText('Opens')).toHaveValue('open');
+    expect(fmt(value)).toBe('Open now to Oct 8, end of class');
   });
 });

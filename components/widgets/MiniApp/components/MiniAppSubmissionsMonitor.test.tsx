@@ -157,9 +157,11 @@ describe('MiniAppSubmissionsMonitor', () => {
 
   it('keeps the submitted data one tap away', () => {
     renderMonitor(session());
-    expect(screen.queryByText(/"score": 4/)).toBeNull();
+    expect(screen.queryByTestId('mini-app-submission-details')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Ava Martinez/ }));
-    expect(screen.getByText(/"score": 4/)).toBeVisible();
+    const details = screen.getByTestId('mini-app-submission-details');
+    expect(details).toHaveTextContent('Score4');
+    expect(details).not.toHaveTextContent('{');
   });
 
   it('shows only Done when no class roster is known', () => {

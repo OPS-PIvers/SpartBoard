@@ -165,8 +165,16 @@ afterAll(async () => {
 // Seeding helpers
 // ---------------------------------------------------------------------------
 
-function sessionDoc(classId: string) {
-  return { teacherUid: TEACHER_UID, classId, status: 'active' };
+// Activity walls keep the legacy single-classId shape (prod still has some, PT-175); the rest write classIds.
+function sessionDoc(classId: string, legacyShape = false) {
+  return legacyShape
+    ? { teacherUid: TEACHER_UID, classId, status: 'active' }
+    : {
+        teacherUid: TEACHER_UID,
+        classIds: [classId],
+        classId,
+        status: 'active',
+      };
 }
 
 function vaFields(sessionId: string, classId: string) {
@@ -180,6 +188,7 @@ function vaFields(sessionId: string, classId: string) {
     allowedPins: [],
     createdAt: 1000,
     assignmentName: 'Assignment',
+    classIds: [classId],
     classId,
     teacherUid: TEACHER_UID,
     status: 'active',
@@ -195,13 +204,14 @@ async function seedSessions(cols: string[], opts: SeedOptions = {}) {
 
     for (const col of cols) {
       const isVa = col === 'video_activity_sessions';
+      const legacy = col === 'activity_wall_sessions';
       await setDoc(
         doc(db, `${col}/${SESSION_A}`),
-        isVa ? vaFields(SESSION_A, CLASS_A) : sessionDoc(CLASS_A)
+        isVa ? vaFields(SESSION_A, CLASS_A) : sessionDoc(CLASS_A, legacy)
       );
       await setDoc(
         doc(db, `${col}/${SESSION_B}`),
-        isVa ? vaFields(SESSION_B, CLASS_B) : sessionDoc(CLASS_B)
+        isVa ? vaFields(SESSION_B, CLASS_B) : sessionDoc(CLASS_B, legacy)
       );
 
       if (opts.withResponses) {
@@ -211,7 +221,7 @@ async function seedSessions(cols: string[], opts: SeedOptions = {}) {
             {
               studentUid: STUDENT_A_UID,
               pin: '9999',
-              joinedAt: Date.now(),
+              joinedAt: 1000,
               score: null,
               answers: [],
               status: 'active',
@@ -225,7 +235,7 @@ async function seedSessions(cols: string[], opts: SeedOptions = {}) {
               studentUid: STUDENT_A_UID,
               pin: '9999',
               name: 'Student A',
-              joinedAt: Date.now(),
+              joinedAt: 1000,
               score: null,
               completedAt: null,
               answers: [],
@@ -316,7 +326,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
   const baseResp = (pin = '1234', score: null | number = null) => ({
     studentUid: STUDENT_A_UID,
     pin,
-    joinedAt: Date.now(),
+    joinedAt: 1000,
     score,
     answers: [],
     status: 'active',
@@ -416,6 +426,23 @@ describe('quiz_sessions/responses — student-role gate', () => {
         { ...baseResp(), joinedAt: 2000 }
       )
     );
+  });
+
+  // PT-175: prod has no quiz session with a classId but no classIds, so the single-classId gate is gone.
+  it('a classId-only quiz session is treated as untargeted (legacy gate removed)', async () => {
+    const LEGACY = 'session-legacy-classid';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${LEGACY}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_B,
+        status: 'active',
+      });
+    });
+    const legacyResp = `quiz_sessions/${LEGACY}/responses/${STUDENT_A_UID}`;
+    await assertSucceeds(
+      setDoc(doc(asStudentA(), legacyResp), { ...baseResp(), joinedAt: 2000 })
+    );
+    await assertSucceeds(getDoc(doc(asStudentA(), legacyResp)));
   });
 
   it('anonymous PIN student can create response without studentRole restriction', async () => {
@@ -558,7 +585,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
     studentUid: STUDENT_A_UID,
     pin,
     name: 'Student A',
-    joinedAt: Date.now(),
+    joinedAt: 1000,
     score: null,
     completedAt: null,
     answers: [],
@@ -734,7 +761,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
         studentUid: STUDENT_A_UID,
         pin: '9999',
         name: 'Student A',
-        joinedAt: Date.now(),
+        joinedAt: 1000,
         score: null,
         completedAt: null,
         answers: [],
@@ -758,7 +785,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
         studentUid: STUDENT_A_UID,
         pin: '9999',
         name: 'Student A',
-        joinedAt: Date.now(),
+        joinedAt: 1000,
         score: null,
         completedAt: null,
         answers: [],
@@ -1374,6 +1401,7 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
     id: SESSION_ID,
     assignmentId: SESSION_ID,
     teacherUid: TEACHER_UID,
+    classIds: [CLASS_A],
     classId: CLASS_A,
     code: JOIN_CODE,
     sessionMode: 'teacher',
@@ -1387,7 +1415,7 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
   const baseStudentResp = (uid: string, pin: string) => ({
     studentUid: uid,
     pin,
-    joinedAt: Date.now(),
+    joinedAt: 1000,
     score: null,
     answers: [] as unknown[],
     status: 'active',

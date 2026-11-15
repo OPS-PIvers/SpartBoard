@@ -116,7 +116,7 @@ describe('score-on-submit attempt stamp on a response', () => {
       });
       await setDoc(doc(db, RESPONSE), {
         studentUid: STUDENT_UID,
-        joinedAt: Date.now(),
+        joinedAt: 1000,
         score: 80,
         answers: [],
         status: 'completed',

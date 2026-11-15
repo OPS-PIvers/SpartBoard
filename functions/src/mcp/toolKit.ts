@@ -250,7 +250,7 @@ export function titleAndFolderFilter(
 }
 
 type ListHandler = (request: unknown, extra: unknown) => Promise<unknown>;
-interface ListedTool {
+export interface ListedTool {
   name?: string;
   inputSchema?: Record<string, unknown>;
   execution?: { taskSupport?: string };
@@ -292,7 +292,8 @@ export function stripAppMeta(tool: ListedTool): ListedTool {
 export function slimToolListing(
   server: McpServer,
   hidden?: () => Promise<ReadonlySet<string>>,
-  keepAppMeta?: () => Promise<boolean>
+  keepAppMeta?: () => Promise<boolean>,
+  adjust?: () => Promise<(tool: ListedTool) => ListedTool>
 ): void {
   const handlers = (
     server.server as unknown as { _requestHandlers?: Map<string, ListHandler> }
@@ -302,13 +303,14 @@ export function slimToolListing(
   handlers.set('tools/list', async (request, extra) => {
     const result = (await original(request, extra)) as { tools?: ListedTool[] };
     if (!Array.isArray(result.tools)) return result;
-    const [skip, keepApps] = await Promise.all([
+    const [skip, keepApps, fit] = await Promise.all([
       hidden ? hidden() : new Set<string>(),
       keepAppMeta ? keepAppMeta() : true,
+      adjust ? adjust() : (t: ListedTool) => t,
     ]);
     const tools = result.tools
       .filter((t) => !skip.has(t.name ?? ''))
-      .map(slimTool);
+      .map((t) => fit(slimTool(t)));
     return {
       ...result,
       tools: keepApps ? tools : tools.map(stripAppMeta),
