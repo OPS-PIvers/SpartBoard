@@ -651,7 +651,8 @@ export const DeepLinkShareImporter: React.FC = () => {
           ? describeSharer(
               importModePrompt.originalAuthor,
               user?.uid ?? '',
-              plcs
+              plcs,
+              true
             )
           : undefined
       }

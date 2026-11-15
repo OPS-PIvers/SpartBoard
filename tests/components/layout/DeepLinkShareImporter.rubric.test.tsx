@@ -80,7 +80,7 @@ vi.mock('@/hooks/useQuestionBanks', () => ({
 vi.mock('@/utils/shareImportPeek', () => ({
   peekShareHeader: () =>
     Promise.resolve({ title: 'Paragraph', originalAuthor: 'attacker-uid' }),
-  describeSharer: () => 'Unknown account',
+  describeSharer: () => 'Someone outside your PLCs',
 }));
 
 vi.mock('@/hooks/usePlcs', () => ({
@@ -103,7 +103,7 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
     importSharedRubric.mockResolvedValue({ id: 'r1', title: 'Paragraph' });
     render(<DeepLinkShareImporter />);
 
-    await screen.findByText('Unknown account');
+    await screen.findByText('Someone outside your PLCs');
     expect(importSharedRubric).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     await waitFor(() =>
@@ -140,7 +140,7 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
       expect(importSharedRubric).toHaveBeenCalledWith('share-abc')
     );
     expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
-    expect(screen.queryByText('Unknown account')).toBeNull();
+    expect(screen.queryByText('Someone outside your PLCs')).toBeNull();
   });
 
   it('neither imports nor shows the dialog until permissions load', async () => {

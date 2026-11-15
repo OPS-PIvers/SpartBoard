@@ -31,12 +31,15 @@ export async function peekShareHeader(
 export function describeSharer(
   authorUid: string,
   currentUid: string,
-  plcs: Plc[]
+  plcs: Plc[],
+  nameOnly = false
 ): string {
   if (authorUid && authorUid === currentUid) return 'You';
   for (const plc of plcs) {
     const m = getPlcMembers(plc).find((x) => x.uid === authorUid);
-    if (m) return `${m.displayName || m.email} (${m.email}) via ${plc.name}`;
+    if (!m) continue;
+    const name = m.displayName || m.email;
+    return nameOnly ? name : `${name} (${m.email}) via ${plc.name}`;
   }
-  return `Unknown account${authorUid ? ` (ID ${authorUid.slice(0, 6)}…)` : ''}, not in any of your groups`;
+  return 'Someone outside your PLCs';
 }
