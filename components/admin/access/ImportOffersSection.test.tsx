@@ -74,12 +74,12 @@ describe('ImportOffersSection', () => {
     render(<ImportOffersSection editor={editor} />);
     expect(
       screen.getByText(
-        /A page address pasted or dropped on the board\. Offers Embed, Link, Flashcards, Activity Wall, New board\./
+        /A link dropped on the board or sent with the Chrome extension\. Offers Embed, Link, Flashcards, Activity Wall, New board\./
       )
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole('switch', {
-        name: /^(Web link|Picture|Pasted text)$/,
+        name: /^(Web link|Picture|Dropped text)$/,
       })
     ).toHaveLength(3);
     expect(screen.getByRole('switch', { name: 'Picture' })).toBeChecked();
