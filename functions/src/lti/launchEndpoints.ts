@@ -37,6 +37,7 @@ import {
   newOpaqueId,
 } from './stores';
 import type { StoredLaunch } from './stores';
+import { isDistrictTeacher } from './teacherAuth';
 import {
   ALLOWED_ORIGINS,
   normalizeEmailDomain,
@@ -418,7 +419,7 @@ async function recordTeacherSection(
 /** A bound code needs its browser cookie (sent via the /lti/exchange rewrite), except as below. */
 export function launchBindingAllows(
   launch: StoredLaunch,
-  auth: { token: unknown } | undefined,
+  districtTeacherEmail: string | null,
   cookieHeader: string | undefined
 ): boolean {
   if (!launch.bindingHash) return true;
@@ -429,10 +430,9 @@ export function launchBindingAllows(
     launch.messageType !== MESSAGE_TYPE_DEEP_LINKING
   )
     return false;
-  const email = auth ? staffEmailFromToken(auth.token) : null;
-  if (!email) return false;
+  if (!districtTeacherEmail) return false;
   const launchEmail = (launch.email ?? '').trim().toLowerCase();
-  return !launchEmail || launchEmail === email;
+  return !launchEmail || launchEmail === districtTeacherEmail;
 }
 
 // ── ltiExchange ───────────────────────────────────────────────────────────────
@@ -457,9 +457,23 @@ export const ltiExchange = onCall(
     }
 
     const db = admin.firestore();
+    // Resolved before the consume because the predicate is sync; only a district teacher may stand in for the cookie.
+    const callerEmail = request.auth
+      ? staffEmailFromToken(request.auth.token)
+      : null;
+    const districtTeacherEmail =
+      callerEmail &&
+      request.auth &&
+      (await isDistrictTeacher(request.auth.token))
+        ? callerEmail
+        : null;
     // Checked inside the consume, so a refused caller leaves the real launcher's code intact.
     const launch = await consumeLaunchCode(db, code, (l) =>
-      launchBindingAllows(l, request.auth, request.rawRequest?.headers?.cookie)
+      launchBindingAllows(
+        l,
+        districtTeacherEmail,
+        request.rawRequest?.headers?.cookie
+      )
     );
     if (launch === 'refused') {
       console.warn(

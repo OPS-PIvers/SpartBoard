@@ -169,6 +169,18 @@ vi.mock('./config', async (orig) => ({
 const addVerifiedLmsClasses = vi.fn<(...args: unknown[]) => Promise<void>>(
   async () => {}
 );
+// Staff member docs, keyed by address; the real teacherAuth still applies the district-domain check.
+const districtStaff = new Set<string>();
+vi.mock('../districtStaff', () => ({
+  isDistrictStaffToken: async (
+    _db: unknown,
+    token: { email?: string; studentRole?: unknown; pinLogin?: unknown }
+  ) =>
+    token.studentRole !== true &&
+    token.pinLogin !== true &&
+    districtStaff.has((token.email ?? '').toLowerCase()),
+}));
+
 vi.mock('../verifiedClassList', async (orig) => ({
   ...(await orig<typeof import('../verifiedClassList')>()),
   addVerifiedLmsClasses: (...args: unknown[]) => addVerifiedLmsClasses(...args),
@@ -226,6 +238,7 @@ beforeEach(() => {
   existingResponses.clear();
   responseLookupFails = false;
   addVerifiedLmsClasses.mockClear();
+  districtStaff.clear();
 });
 
 describe('ltiExchange — teacher section on the verified class list', () => {
@@ -502,7 +515,8 @@ describe('ltiExchange — browser binding on the launch code', () => {
     expect(res.studentRole).toBe(true);
   });
 
-  const boundDeepLink = (email: string | null = 'T@school.edu') => ({
+  const T = 't@orono.k12.mn.us';
+  const boundDeepLink = (email: string | null = 'T@orono.k12.mn.us') => ({
     ...makeLaunch({
       role: 'teacher',
       email,
@@ -514,44 +528,51 @@ describe('ltiExchange — browser binding on the launch code', () => {
     uid: 'teacher-uid',
     token: { email, email_verified: true, ...extra },
   });
+  const refused = async (auth: Req['auth'], email: string | null) => {
+    nextLaunch = boundDeepLink(email);
+    await expect(callExchange({ ...withCookie(), auth })).rejects.toMatchObject(
+      { code: 'permission-denied' }
+    );
+  };
 
   it("redeems a bound deep-link code top-level (no partitioned cookie) with the launching teacher's ID token", async () => {
+    districtStaff.add(T);
     nextLaunch = boundDeepLink();
-    const res = await callExchange({
-      ...withCookie(),
-      auth: staff('t@school.edu'),
-    });
+    const res = await callExchange({ ...withCookie(), auth: staff(T) });
     expect(res.isDeepLinking).toBe(true);
     expect(res.studentRole).toBe(false);
   });
 
-  it('accepts a staff token on a bound deep-link code whose launch carried no email', async () => {
+  it('accepts a district teacher on a bound deep-link code whose launch carried no email', async () => {
+    districtStaff.add(T);
     nextLaunch = boundDeepLink(null);
-    const res = await callExchange({
-      ...withCookie(),
-      auth: staff('t@school.edu'),
-    });
+    const res = await callExchange({ ...withCookie(), auth: staff(T) });
     expect(res.isDeepLinking).toBe(true);
   });
 
+  it('refuses a district student Google account and an outside verified account on a no-email deep-link code', async () => {
+    await refused(staff('kid@orono.k12.mn.us'), null);
+    districtStaff.add('someone@gmail.com');
+    await refused(staff('someone@gmail.com'), null);
+  });
+
   it('refuses a bound deep-link code without its cookie for another teacher, a student or no token', async () => {
+    districtStaff.add(T);
+    districtStaff.add('other@orono.k12.mn.us');
     for (const auth of [
-      staff('other@school.edu'),
-      staff('t@school.edu', { studentRole: true }),
-      { uid: 'x', token: { email: 't@school.edu', email_verified: false } },
+      staff('other@orono.k12.mn.us'),
+      staff(T, { studentRole: true }),
+      { uid: 'x', token: { email: T, email_verified: false } },
       undefined,
     ]) {
-      nextLaunch = boundDeepLink();
-      await expect(
-        callExchange({ ...withCookie(), auth })
-      ).rejects.toMatchObject({ code: 'permission-denied' });
+      await refused(auth, T);
     }
   });
 
   it('never lets an ID token stand in for the cookie on a learner code', async () => {
     nextLaunch = bound();
     await expect(
-      callExchange({ ...withCookie(), auth: staff('t@school.edu') })
+      callExchange({ ...withCookie(), auth: staff(T) })
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(mintedTokens).toHaveLength(0);
   });
