@@ -231,6 +231,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (174, checked 2026-11-01)</summary>
 
+claude/project-thread-pabnrl (#5870)
+claude/ab112-pabnrl (this docs PR, delete after it merges)
 claude/project-thread-vubbhb (#5867)
 claude/ab112-toolbar-overlays (this docs PR, delete after it merges)
 claude/project-thread-1h4b12 (#5865)
