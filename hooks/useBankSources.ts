@@ -1,13 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  where,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   PlcQuestionBankEntry,
@@ -101,8 +93,7 @@ export async function loadBankContentsFor(
   quiz: Pick<QuizData, 'bankSlots'>,
   banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId'>[],
   loadBankData: (driveFileId: string) => Promise<QuestionBankData>,
-  userId?: string,
-  plcSharers?: ReadonlyMap<string, ReadonlySet<string>>
+  userId?: string
 ): Promise<Map<string, BankContent>> {
   const out = new Map<string, BankContent>();
   const slotsByKey = new Map(
@@ -112,24 +103,13 @@ export async function loadBankContentsFor(
     [...slotsByKey].map(async ([key, slot]) => {
       try {
         if (slot.syncGroupId) {
-          const owner = expectedSlotOwner(slot, banks, userId);
-          if (owner) {
-            out.set(key, await loadSyncedBankContent(slot.syncGroupId, owner));
-            return;
-          }
-          // Unpinned (pre-pin) slot: trust only my own doc or one a teammate shared into my PLC.
-          const content = await loadSyncedBankContent(slot.syncGroupId);
-          const docOwner = content.syncOwnerUid;
-          if (!docOwner)
-            throw new Error('Shared bank slot has no verified owner.');
-          const trusted =
-            docOwner === userId ||
-            !!plcSharers?.get(slot.syncGroupId)?.has(docOwner) ||
-            (!!userId &&
-              (await fetchPlcSharers(userId, slot.syncGroupId)).has(docOwner));
-          if (!trusted)
-            throw new Error('Shared bank slot has no verified owner.');
-          out.set(key, content);
+          out.set(
+            key,
+            await loadSyncedBankContent(
+              slot.syncGroupId,
+              expectedSlotOwner(slot, banks, userId)
+            )
+          );
           return;
         }
         const meta = banks.find((b) => b.id === slot.bankId);
@@ -144,48 +124,6 @@ export async function loadBankContentsFor(
       }
     })
   );
-  return out;
-}
-
-/** Uids that shared `syncGroupId` into one of my PLCs, read fresh (callers without live PLC listeners). */
-export async function fetchPlcSharers(
-  userId: string,
-  syncGroupId: string
-): Promise<Set<string>> {
-  const out = new Set<string>();
-  const plcSnap = await getDocs(
-    query(collection(db, 'plcs'), where('memberUids', 'array-contains', userId))
-  );
-  await Promise.all(
-    plcSnap.docs.map(async (plc) => {
-      const snap = await getDocs(
-        query(
-          collection(db, 'plcs', plc.id, BANKS_COLLECTION),
-          where('syncGroupId', '==', syncGroupId)
-        )
-      );
-      snap.docs.forEach((d) => {
-        const by = (d.data() as Partial<PlcQuestionBankEntry>).sharedBy;
-        if (by) out.add(by);
-      });
-    })
-  );
-  return out;
-}
-
-/** syncGroupId -> uids that shared it into one of my PLCs (rule-enforced sharedBy; unshared entries still count). */
-export function plcBankSharers(
-  sharedByPlc: Record<string, readonly PlcQuestionBankEntry[]>
-): Map<string, Set<string>> {
-  const out = new Map<string, Set<string>>();
-  for (const entries of Object.values(sharedByPlc)) {
-    for (const e of entries) {
-      if (!e.syncGroupId || !e.sharedBy) continue;
-      const set = out.get(e.syncGroupId) ?? new Set<string>();
-      set.add(e.sharedBy);
-      out.set(e.syncGroupId, set);
-    }
-  }
   return out;
 }
 
@@ -271,12 +209,10 @@ export function useBankSources(
     [loadBankData]
   );
 
-  const plcSharers = useMemo(() => plcBankSharers(sharedByPlc), [sharedByPlc]);
-
   const loadBankContentsForQuiz = useCallback(
     (quiz: Pick<QuizData, 'bankSlots'>) =>
-      loadBankContentsFor(quiz, banks, loadBankData, userId, plcSharers),
-    [banks, loadBankData, userId, plcSharers]
+      loadBankContentsFor(quiz, banks, loadBankData, userId),
+    [banks, loadBankData, userId]
   );
 
   return {

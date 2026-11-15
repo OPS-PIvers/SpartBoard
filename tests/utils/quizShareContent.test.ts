@@ -149,11 +149,35 @@ describe('restoreSharedQuizContent', () => {
     expect(content.bankSlots).toEqual(bankOnlyQuiz.bankSlots);
   });
 
-  it('drops the sharer-supplied owner pin from slots with no inlined bank', async () => {
+  it('keeps an old link slot group but drops a sharer-supplied pin', async () => {
     const { content } = await restoreSharedQuizContent(
       {
         title: 't',
         questions: [],
+        bankSlots: [
+          {
+            id: 's',
+            bankId: 'b',
+            bankTitle: 'Old',
+            mode: 'random',
+            count: 1,
+            syncGroupId: 'group-old',
+            syncOwnerUid: 'sharer',
+          },
+        ],
+      },
+      vi.fn()
+    );
+    expect(content.bankSlots?.[0]?.syncGroupId).toBe('group-old');
+    expect(content.bankSlots?.[0]).not.toHaveProperty('syncOwnerUid');
+  });
+
+  it('drops the bank link from a slot whose bank a newer link left out', async () => {
+    const { content } = await restoreSharedQuizContent(
+      {
+        title: 't',
+        questions: [],
+        banks: [],
         bankSlots: [
           {
             id: 's',
@@ -168,7 +192,7 @@ describe('restoreSharedQuizContent', () => {
       },
       vi.fn()
     );
-    expect(content.bankSlots?.[0]?.syncGroupId).toBe('attacker-group');
+    expect(content.bankSlots?.[0]).not.toHaveProperty('syncGroupId');
     expect(content.bankSlots?.[0]).not.toHaveProperty('syncOwnerUid');
   });
 });
