@@ -125,6 +125,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-monitor-roster',
   'quiz-read-aloud',
   'quiz-score-on-submit',
+  'quiz-stimulus-preview',
   'quiz-stimulus-quotes',
   'quiz-student-view',
   'quiz-time-limit',

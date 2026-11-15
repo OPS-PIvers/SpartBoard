@@ -758,6 +758,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-stimuli.attach-all-questions': ['quiz.editor'],
     'quiz-stimuli.attach-bank-slot': ['quiz.editor'],
     'quiz-stimuli.attach-calculator': ['quiz.editor'],
+    'quiz-stimuli.attach-preview': ['quiz.editor'],
     'quiz-stimuli.attach-question': ['quiz.editor'],
     'quiz-stimuli.attach-stimulus': ['quiz.editor'],
     'quiz-stimuli.attach-toggle': ['quiz.editor'],

@@ -3581,6 +3581,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-stimuli.attach-preview': {
+    label: 'Per-stimulus preview button in the Quiz widget attach list',
+    perField: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-question': {
     label: 'Per-question attach checkbox in the Quiz widget',
     perField: true,

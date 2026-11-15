@@ -247,3 +247,16 @@ export function questionsUsingStimulus(
   });
   return out;
 }
+
+/** Teacher-facing name: the label, else the passage's opening words, else the URL's last segment. */
+export function stimulusDisplayName(
+  s: Pick<QuizStimulus, 'label' | 'text' | 'url' | 'type'>
+): string {
+  const label = s.label.trim();
+  if (label) return label;
+  const passage = s.text?.replace(/\s+/g, ' ').trim();
+  if (passage)
+    return passage.length > 60 ? `${passage.slice(0, 60)}…` : passage;
+  const tail = s.url.split(/[?#]/)[0]?.split('/').filter(Boolean).pop();
+  return tail ? decodeURIComponent(tail) : STIMULUS_TYPE_LABELS[s.type];
+}

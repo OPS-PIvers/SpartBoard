@@ -184,6 +184,37 @@ const passage: QuizStimulus = {
   text: 'One dollar and eighty-seven cents. That was all.',
 };
 
+const mapSvg = `data:image/svg+xml;utf8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="640" height="400" fill="#dbeafe"/><path d="M80 300 L200 120 L320 260 L420 150 L560 300 Z" fill="#86efac" stroke="#166534" stroke-width="4"/><circle cx="200" cy="120" r="10" fill="#b91c1c"/><text x="215" y="115" font-family="sans-serif" font-size="24" fill="#1e293b">Mount Hood</text><text x="40" y="380" font-family="sans-serif" font-size="20" fill="#334155">Cascade Range, Oregon</text></svg>'
+)}`;
+
+/** A labeled map, an unlabeled photo and an unlabeled passage for the attach list preview. */
+const stimuliQuiz = (): QuizData => {
+  const base = quiz();
+  const stimuli: QuizStimulus[] = [
+    { id: 'stim-map', type: 'image', url: mapSvg, label: 'Cascade Range map' },
+    passage,
+    {
+      id: 'stim-untitled',
+      type: 'text',
+      url: '',
+      label: '',
+      text: 'Volcanoes form where tectonic plates meet. Magma rises through cracks in the crust and erupts as lava, ash and gas.',
+    },
+  ];
+  return {
+    ...base,
+    stimuli,
+    questions: base.questions.map((q, i) =>
+      i === 0
+        ? { ...q, stimulusIds: ['stim-map', 'stim-untitled'] }
+        : i === 1
+          ? { ...q, stimulusIds: [passage.id] }
+          : q
+    ),
+  };
+};
+
 const bank = (): QuestionBankData => ({
   id: 'dev-bank',
   title: 'Short story bank',
@@ -257,7 +288,9 @@ const MediaGateGranted: React.FC<{ children: React.ReactNode }> = ({
         ...auth,
         canAccessQuizMediaResponse: () => true,
         canAccessFeature: (id) =>
-          id === 'quiz-whiteboard-response' || auth.canAccessFeature(id),
+          id === 'quiz-whiteboard-response' ||
+          id === 'quiz-stimulus-preview' ||
+          auth.canAccessFeature(id),
       }}
     >
       {children}
@@ -299,13 +332,15 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
           ? sectionQuiz()
           : state === 'qe-picture-only'
             ? pictureOnlyQuiz()
-            : quiz()
+            : state === 'qe-stimuli'
+              ? stimuliQuiz()
+              : quiz()
       }
       onClose={() => undefined}
       onSave={() => Promise.resolve()}
     />
   );
-  return state === 'qe-gated' ? (
+  return state === 'qe-gated' || state === 'qe-stimuli' ? (
     <MediaGateGranted>{modal}</MediaGateGranted>
   ) : (
     modal

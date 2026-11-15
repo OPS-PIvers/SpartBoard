@@ -17,6 +17,8 @@ import {
   ChevronDown,
   ChevronRight,
   CloudDownload,
+  Eye,
+  EyeOff,
   FileText,
   Link2,
   Loader2,
@@ -34,7 +36,9 @@ import {
   detectStimulusTypeFromUrl,
   isPlayLimitedType,
   questionsUsingStimulus,
+  stimulusDisplayName,
 } from '@/utils/quizStimuli';
+import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
@@ -957,7 +961,15 @@ export const QuestionStimulusSection: React.FC<{
   calculatorAvailable?: boolean;
   /** Attaches an image pasted inside this element to the question; absent turns pasting off. */
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
-}> = ({ state, questionId, calculatorAvailable = false, pasteScopeRef }) => {
+  /** `quiz-stimulus-preview` gate. */
+  previewAvailable?: boolean;
+}> = ({
+  state,
+  questionId,
+  calculatorAvailable = false,
+  pasteScopeRef,
+  previewAvailable = false,
+}) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
     <AttachStimulusSection
@@ -965,6 +977,7 @@ export const QuestionStimulusSection: React.FC<{
       attachedIds={question?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
       pasteScopeRef={pasteScopeRef}
+      previewAvailable={previewAvailable}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
       }
@@ -977,13 +990,20 @@ export const SlotStimulusSection: React.FC<{
   state: QuizEditorController;
   slotId: string;
   calculatorAvailable?: boolean;
-}> = ({ state, slotId, calculatorAvailable = false }) => {
+  previewAvailable?: boolean;
+}> = ({
+  state,
+  slotId,
+  calculatorAvailable = false,
+  previewAvailable = false,
+}) => {
   const slot = state.bankSlots.find((s) => s.id === slotId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={slot?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
+      previewAvailable={previewAvailable}
       onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
     />
   );
@@ -994,8 +1014,16 @@ const AttachStimulusSection: React.FC<{
   attachedIds: string[] | undefined;
   calculatorAvailable: boolean;
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
+  previewAvailable?: boolean;
   onToggle: (stimulusId: string) => void;
-}> = ({ state, attachedIds, calculatorAvailable, pasteScopeRef, onToggle }) => {
+}> = ({
+  state,
+  attachedIds,
+  calculatorAvailable,
+  pasteScopeRef,
+  previewAvailable = false,
+  onToggle,
+}) => {
   const { stimuli, questions, bankSlots } = state;
   const intake = useStimulusIntake(state);
   const { addFromFile } = intake;
@@ -1027,6 +1055,14 @@ const AttachStimulusSection: React.FC<{
     void addFiles(addFromFile, files, (s) => onToggle(s.id));
   }, intake.busy);
   const attachedCount = attachedIds?.length ?? 0;
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  // Collapsed, the header names what is attached instead of only counting it.
+  const attachedNames = previewAvailable
+    ? stimuli
+        .filter((s) => attachedIds?.includes(s.id))
+        .map(stimulusDisplayName)
+        .join(', ')
+    : '';
 
   return (
     <div
@@ -1054,11 +1090,13 @@ const AttachStimulusSection: React.FC<{
         <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
           Stimuli
         </span>
-        <span className="text-xs text-slate-400 tabular-nums">
+        <span className="min-w-0 truncate text-xs text-slate-400 tabular-nums">
           {drop.dragging && !open
             ? 'Drop it here'
             : attachedCount > 0
-              ? `${attachedCount} attached`
+              ? attachedNames && !open
+                ? attachedNames
+                : `${attachedCount} attached`
               : stimuli.length === 0
                 ? 'No stimuli yet'
                 : 'None attached'}
@@ -1077,34 +1115,79 @@ const AttachStimulusSection: React.FC<{
                     .filter((slot) => slot.stimulusIds?.includes(s.id))
                     .map((slot) => slot.bankTitle),
                 ];
+                const previewing = previewAvailable && previewId === s.id;
+                const name = previewAvailable
+                  ? stimulusDisplayName(s)
+                  : s.label || s.url;
                 return (
                   <li key={s.id}>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={attachedIds?.includes(s.id) ?? false}
-                        onChange={() => onToggle(s.id)}
-                        {...tourFieldAttr(
-                          'quiz-stimuli.attach-stimulus',
-                          'quiz',
-                          String(stimulusIndex + 1)
-                        )}
-                        className="w-3.5 h-3.5 accent-brand-blue-primary"
-                      />
-                      <span
-                        className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+                    <div className="flex items-center gap-1">
+                      <label className="flex flex-1 min-w-0 items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          checked={attachedIds?.includes(s.id) ?? false}
+                          onChange={() => onToggle(s.id)}
+                          {...tourFieldAttr(
+                            'quiz-stimuli.attach-stimulus',
+                            'quiz',
+                            String(stimulusIndex + 1)
+                          )}
+                          className="w-3.5 h-3.5 accent-brand-blue-primary"
+                        />
+                        <span
+                          className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+                        >
+                          {STIMULUS_TYPE_LABELS[s.type]}
+                        </span>
+                        <span className="flex-1 truncate">{name}</span>
+                        <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
+                          {usedOn.length > 0
+                            ? `on ${usedOn.join(', ')}`
+                            : 'unused'}
+                        </span>
+                      </label>
+                      {previewAvailable && s.type !== 'calculator' && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewId((id) => (id === s.id ? null : s.id))
+                          }
+                          aria-expanded={previewing}
+                          aria-label={
+                            previewing ? `Hide ${name}` : `Preview ${name}`
+                          }
+                          title={previewing ? 'Hide preview' : 'Preview'}
+                          {...tourFieldAttr(
+                            'quiz-stimuli.attach-preview',
+                            'quiz',
+                            String(stimulusIndex + 1)
+                          )}
+                          className={`shrink-0 rounded-sm p-1 transition-colors touch-target-expand ${
+                            previewing
+                              ? 'text-brand-blue-primary bg-brand-blue-lighter'
+                              : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {previewing ? (
+                            <EyeOff className="w-3.5 h-3.5" aria-hidden />
+                          ) : (
+                            <Eye className="w-3.5 h-3.5" aria-hidden />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {previewing && (
+                      <div
+                        data-testid="attach-stimulus-preview"
+                        className="mt-1 mb-2 ml-6 max-h-[60vh] overflow-y-auto custom-scrollbar"
                       >
-                        {STIMULUS_TYPE_LABELS[s.type]}
-                      </span>
-                      <span className="flex-1 truncate">
-                        {s.label || s.url}
-                      </span>
-                      <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
-                        {usedOn.length > 0
-                          ? `on ${usedOn.join(', ')}`
-                          : 'unused'}
-                      </span>
-                    </label>
+                        <StimulusRenderer
+                          stimulus={s}
+                          light
+                          enforcePlayLimit={false}
+                        />
+                      </div>
+                    )}
                   </li>
                 );
               })}
