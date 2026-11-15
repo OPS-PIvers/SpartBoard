@@ -3251,7 +3251,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             attemptStartedAt?: FieldValue;
           } = {
             studentUid,
-            joinedAt: Date.now(),
+            joinedAt: getServerNow(),
             // Seed `lastWriteAt` at join so a student who joins but
             // never answers still ages into the idle auto-submit query.
             // Server-stamped (not Date.now()) so a Chromebook with a
@@ -3280,13 +3280,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),
             ...staffResponseFields(staffIdentity),
           };
-          const created = periodKey
-            ? writeBatch(db)
-                .set(responseRef, newResponse)
-                .set(seatRef(sessionDoc.id, studentUid), { responseKey })
-                .commit()
-            : setDoc(responseRef, newResponse);
-          await created.catch((err: unknown) =>
+          // A denied create re-syncs the clock and restamps `joinedAt`, which the rules hold to server time.
+          const create = () => {
+            const row = { ...newResponse, joinedAt: getServerNow() };
+            return periodKey
+              ? writeBatch(db)
+                  .set(responseRef, row)
+                  .set(seatRef(sessionDoc.id, studentUid), { responseKey })
+                  .commit()
+              : setDoc(responseRef, row);
+          };
+          await retryWithFreshClock(studentUid, create).catch((err: unknown) =>
             logQuizJoinFirestoreError('create-response', err, {
               sessionId: sessionDoc.id,
               responseKey,
