@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-242**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-244**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -21,6 +21,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Security and correctness
 
+- **AB-242 Follow-ups from the 2026-11-15 PR sweep** (S). Small findings left after #5884, #5887, #5888 and #5889 merged: (1) `hooks/useSubShareContentLoader.ts` `load()` logs every permission-denied on `calendar_*` content for link-only subs once a share carries `calendarIds`; skip permission-denied as `loadKey` does. (2) Add `(?s)` to the super-admin path regex in `firestore.rules` (the `admin_settings` super-admin match, unchanged by #5884) so a newline doc id can't slip past it, with a rules test. (3) Add a unit test that greps `functions/src` for `collectionGroup(` names and fails when one is missing from `notServerCgPath`. (4) `importPaperResponses.ts` counts skipped foreign pointers in `foreign`, which no client reads; add them to `unplaced` or show them. (5) `functions/src/subControlAssignment.ts` `finalizeQuizResponses` runs every transaction at once; chunk at about 50. (6) Consider merging `provenGoogleEmail` (`mailRecipients.ts`) and `trustedSignInUid` (`webTourExtension.ts`) into one check.
+- **AB-243 Store re-minted class claims on student_sections** (S). From the #5887 re-review: `getStudentClassDirectoryV1` re-mints the token without updating `student_sections.classIds`, so a section added mid-day can drop at the next sign-in during a ClassLink blip; and an owner whose class list is always truncated keeps returning 'unavailable', so a once-claimed section holds a claim slot at every sign-in. Write the re-minted set back, and treat `class list truncated` separately from an outage.
 - **AB-240 Focus: frame writes into an allowed about:blank tab** (S, security). Split from AB-73. about:blank stays allowed (sign-in popups start there), so a student who can run a typed `javascript:` URL or a bookmarklet can still write a frame into a blank tab; check whether student Chromebooks block those URLs by policy, else allow about:blank only for tabs with an opener. Done with a test for a blank tab with no opener being sent away.
 - **AB-220 Re-tighten the permission original reads** (S, security). Unblocked: release 2026.11.15 shipped after #5848, so do it now for the next release. #5848 reopened `feature_permissions` and `global_permissions` to `signedIn()` for one release, so student (anonymous) sessions can read `betaUsers` emails meanwhile. Once no previous-client page can be live, set both back to `isAdmin()` reads in `firestore.rules` and flip the signed-in read cases in `tests/rules/permissionReads.test.ts` to denied.
 - **AB-202 Drop the client org admin write rules** (S). Unblocked: `orgAdminV1` reached prod in #5640 (2026-11-11) and later releases (Admin Settings organization, buildings, domains, roles and members now write through it). In `firestore.rules` under `organizations/{orgId}`, delete the org `create`/`delete`/`update` allows (and `managedAuthOk`/`managedAuthShape`), the `buildings`, `domains` and `roles` write allows, the members `create`/`delete` and the domain admin and building admin `update` branches (keep only the self `lastActive` branch), and `removedMembers` writes; then drop helpers left unused (`memberStatusOk`, `legacyStatusSafe`, `notLegacyListed`, `manages` if nothing else calls them). Flip `tests/rules/firestore-rules-organizations.test.ts` and any other suite that still expects those client writes to succeed to `assertFails`. Measure with `pnpm run check:rules-size` (about 6 KB expected) and test the release with `node scripts/releaseFirestoreRules.mjs spartboard-dev`.
@@ -237,6 +239,19 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+security/k2-scheduled-mailers (#5884)
+security/m-classlink-student-identity (#5887)
+security/p-paper-import (#5888)
+security/h2-calendar-and-seed (#5889)
+nightly/widgets-2026-11-15 (#5878)
+nightly/layout-2026-11-15 (#5879)
+nightly/state-2026-11-15 (#5880)
+nightly/admin-2026-11-15 (#5881)
+nightly/build-2026-11-15 (#5882)
+nightly/debugger-log-2026-11-15 (#5883)
+nightly/unifier-log-2026-11-15 (#5858)
+claude/funny-wozniak-ch4xxx (#5908)
+claude/project-thread-984ja9 (this docs PR, delete after it merges)
 claude/project-thread-pabnrl (#5870)
 claude/ab112-pabnrl (this docs PR, delete after it merges)
 claude/project-thread-eyxxw7 (#5907; this docs PR reuses it, delete after it merges)
