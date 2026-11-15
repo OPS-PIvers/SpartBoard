@@ -323,16 +323,16 @@ describe('handleCheckVideoActivityAnswer when wrong answers are kept', () => {
     expect(closed.docs[RESPONSE].answers).toEqual([]);
   });
 
-  it('records a PIN joiner without a verdict or key, so a throwaway join cannot probe', async () => {
+  it('gives a PIN joiner the verdict and key when the teacher shows them', async () => {
     const pin = `${SESSION}/responses/pin-p1-02`;
     const { docs } = setup();
     docs[pin] = { studentUid: 'anon', answers: [], completedAt: null };
     const db = makeDb(docs);
     await expect(
       handleCheckVideoActivityAnswer(db, 'anon', input('Rome'), 1000)
-    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
     expect(docs[pin].answers).toEqual([
-      { questionId: 'q1', answer: 'Rome', answeredAt: 1000 },
+      { questionId: 'q1', answer: 'Rome', answeredAt: 1000, isCorrect: false },
     ]);
   });
 

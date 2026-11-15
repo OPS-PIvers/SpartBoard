@@ -5549,7 +5549,7 @@ service cloud.firestore {
         function vaNewAnswerOk(a) {
           return !('takeIndex' in a) &&
             (existing().get('completedAt', null) == null || existing().get('unlocked', false) == true) &&
-            existing().get('checkedAnswers', {}).get(a.questionId, {}).get('attempt', -1) !=
+            existing().get('checkedAnswers', {}).get(a.get('questionId', ''), {}).get('attempt', -1) !=
               existing().get('completedAttempts', 0);
         }
         function nearServerNow(t) {
