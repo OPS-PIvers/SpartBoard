@@ -152,7 +152,7 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
               maxHeight: pos.maxHeight,
               width: PANEL_WIDTH,
               maxWidth: 'calc(100vw - 16px)',
-              zIndex: Z_INDEX.dropdown,
+              zIndex: Z_INDEX.popover,
             }}
             className="overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-hidden"
           >
