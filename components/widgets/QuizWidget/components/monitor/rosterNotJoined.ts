@@ -31,24 +31,39 @@ export interface MonitorRosterTargets {
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   excludedTargets?: StudentTargetRef[];
-  removedStudentRefs?: StudentTargetRef[];
 }
 
 const nameKey = (s: string): string =>
   s.trim().replace(/\s+/g, ' ').toLowerCase();
 
-/** Roster students who haven't opened the quiz; skipped, removed and untargeted students are left out. */
+interface Candidate {
+  key: string;
+  uid: string | null;
+  name: string;
+  pin: string;
+  period: string;
+  periodKey: string | null;
+}
+
+/** Roster students who haven't opened the quiz; skipped and untargeted students are left out. */
 export function buildNotJoined(params: {
-  session: Pick<QuizSession, 'rosterIds' | 'individualTargeting'>;
+  session: Pick<
+    QuizSession,
+    | 'rosterIds'
+    | 'individualTargeting'
+    | 'classIds'
+    | 'classId'
+    | 'classPeriodByClassId'
+  >;
   rosters: ClassRoster[];
   responses: QuizResponse[];
   targets: MonitorRosterTargets | null;
   byStudentUid: Map<string, StudentName>;
   targetRefKeyByStudentUid: Map<string, string>;
-  /** False while the class lookup is loading; ClassLink students wait for it. */
+  /** False while the class lookup is loading or failed; ClassLink students wait for it. */
   lookupReady: boolean;
-  /** Names already shown for joined responses, to catch a PIN or LMS join. */
-  joinedNames: Iterable<string>;
+  /** The name the monitor shows for a response, to catch a PIN or LMS join. */
+  responseName: (r: QuizResponse) => string;
 }): NotJoinedStudent[] {
   const {
     session,
@@ -58,7 +73,7 @@ export function buildNotJoined(params: {
     byStudentUid,
     targetRefKeyByStudentUid,
     lookupReady,
-    joinedNames,
+    responseName,
   } = params;
   const studentsMode = targets?.targetMode === 'students';
   // A per-student assignment we can't see the targets of would list the whole class.
@@ -68,78 +83,55 @@ export function buildNotJoined(params: {
   const matched = (session.rosterIds ?? [])
     .map((id) => rosters.find((r) => r.id === id))
     .filter((r): r is ClassRoster => !!r);
+  // The class lookup only covers the session's classes.
+  const lookedUp = new Set(
+    session.classIds?.length
+      ? session.classIds
+      : session.classId
+        ? [session.classId]
+        : []
+  );
 
   const uidByRefKey = new Map<string, string>();
   for (const [uid, refKey] of targetRefKeyByStudentUid)
     uidByRefKey.set(refKey, uid);
 
-  const joinedUids = new Set(responses.map((r) => r.studentUid));
-  const joinedPins = new Set<string>();
-  for (const r of responses)
-    if (r.pin) joinedPins.add(`${r.classPeriod ?? ''}|${r.pin}`);
-  const pinJoined = (period: string, pin: string): boolean =>
-    joinedPins.has(`${period}|${pin}`) || joinedPins.has(`|${pin}`);
-  const joinedNameKeys = new Set([...joinedNames].map(nameKey));
-
   const skip = new Set(
-    [
-      ...(targets?.excludedTargets ?? []),
-      ...(targets?.removedStudentRefs ?? []),
-    ].map(studentTargetRefKey)
+    (targets?.excludedTargets ?? []).map(studentTargetRefKey)
   );
   const targeted = studentsMode
     ? new Set((targets?.targetStudents ?? []).map(studentTargetRefKey))
     : null;
 
-  const out: NotJoinedStudent[] = [];
+  const candidates: Candidate[] = [];
   const seen = new Set<string>();
-  const add = (
-    refKey: string | null,
-    uid: string | undefined,
-    fallbackName: string,
-    pins: string[],
-    period: string,
-    periodKey: string | null
-  ) => {
-    if (uid && joinedUids.has(uid)) return;
-    if (pins.some((p) => p && pinJoined(period, p))) return;
-    const name =
-      (uid ? formatStudentName(byStudentUid.get(uid)) : '') ||
-      fallbackName ||
-      'Student';
-    if (joinedNameKeys.has(nameKey(name))) return;
-    out.push({
-      key: uid ?? refKey ?? `roster:${period}:${name}`,
-      name,
-      studentUid: uid ?? null,
-      period,
-      periodKey,
-    });
-  };
-
   for (const roster of matched) {
+    const periodKey = periodKeyForRoster(roster);
     for (const student of roster.students) {
       const ref = resolveStudentTargetRef(student, roster);
       const refKey = ref ? studentTargetRefKey(ref) : null;
       if (targeted && (!refKey || !targeted.has(refKey))) continue;
       if (refKey && skip.has(refKey)) continue;
-      const dedupe = refKey ?? `${roster.id}:${student.id}`;
+      const rowKey = `${roster.id}:${student.id}`;
+      const dedupe = refKey ?? rowKey;
       if (seen.has(dedupe)) continue;
       seen.add(dedupe);
-      const uid = refKey ? uidByRefKey.get(refKey) : undefined;
-      // Wait for the lookup so a joined student never flashes as not joined.
-      if (refKey && !lookupReady) continue;
-      add(
-        refKey,
+      // Signed-in students need their uid, so a joined student never shows as not joined.
+      if (refKey && (!lookupReady || !lookedUp.has(periodKey))) continue;
+      const uid = refKey ? (uidByRefKey.get(refKey) ?? null) : null;
+      candidates.push({
+        key: uid ?? rowKey,
         uid,
-        `${student.firstName} ${student.lastName}`.trim(),
-        [student.pin, ...(student.formerPins ?? [])],
-        roster.name,
-        periodKeyForRoster(roster)
-      );
+        name:
+          (uid ? formatStudentName(byStudentUid.get(uid)) : '') ||
+          `${student.firstName} ${student.lastName}`.trim() ||
+          'Student',
+        pin: student.pin ?? '',
+        period: roster.name,
+        periodKey,
+      });
     }
   }
-
   // Targeted students on none of the matched rosters.
   if (targeted && lookupReady) {
     for (const refKey of targeted) {
@@ -147,8 +139,66 @@ export function buildNotJoined(params: {
       seen.add(refKey);
       const uid = uidByRefKey.get(refKey);
       if (!uid) continue;
-      add(refKey, uid, '', [], '', null);
+      candidates.push({
+        key: uid,
+        uid,
+        name: formatStudentName(byStudentUid.get(uid)) || 'Student',
+        pin: '',
+        period: '',
+        periodKey: null,
+      });
     }
   }
-  return out;
+
+  const periodOf = (r: QuizResponse): string =>
+    r.classPeriod ??
+    (r.classId ? session.classPeriodByClassId?.[r.classId] : undefined) ??
+    '';
+  const singleClass = matched.length <= 1;
+  const unclaimed = new Set(responses);
+  const joined = new Set<Candidate>();
+  // First by uid, then by PIN within the class.
+  const byUid = new Map(responses.map((r) => [r.studentUid, r]));
+  for (const c of candidates) {
+    const r = c.uid ? byUid.get(c.uid) : undefined;
+    if (r) {
+      joined.add(c);
+      unclaimed.delete(r);
+    }
+  }
+  for (const c of candidates) {
+    if (joined.has(c) || !c.pin) continue;
+    const r = [...unclaimed].find(
+      (x) =>
+        x.pin === c.pin &&
+        (periodOf(x) === c.period || (!periodOf(x) && singleClass))
+    );
+    if (r) {
+      joined.add(c);
+      unclaimed.delete(r);
+    }
+  }
+  // Last, a response no row claimed (an LMS or PIN join) by its shown name, one row each.
+  for (const c of candidates) {
+    if (joined.has(c)) continue;
+    const r = [...unclaimed].find(
+      (x) =>
+        nameKey(responseName(x)) === nameKey(c.name) &&
+        (periodOf(x) === c.period || !periodOf(x))
+    );
+    if (r) {
+      joined.add(c);
+      unclaimed.delete(r);
+    }
+  }
+
+  return candidates
+    .filter((c) => !joined.has(c))
+    .map(({ key, uid, name, period, periodKey }) => ({
+      key,
+      name,
+      studentUid: uid,
+      period,
+      periodKey,
+    }));
 }

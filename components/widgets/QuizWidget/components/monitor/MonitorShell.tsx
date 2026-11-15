@@ -145,6 +145,8 @@ export interface QuizLiveMonitorProps {
   assignmentSettings?: React.ReactNode;
   /** The assignment's targeting, so Not started lists only the students it went to. */
   rosterTargets?: MonitorRosterTargets | null;
+  /** False until the responses listener first delivers; roster rows wait for it. */
+  responsesLoaded?: boolean;
 }
 
 type Screen =
@@ -198,6 +200,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     servedLanguageByStudentUid = null,
     assignmentSettings,
     rosterTargets = null,
+    responsesLoaded = true,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
@@ -238,7 +241,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     // Shared-Pause sessions open on All classes so Pause is in reach; per-period ones on the first class.
     !hasPeriodAccess(session) && session.sessionMode !== 'game',
     rosterTargets,
-    authContext?.canAccessFeature?.('quiz-monitor-roster') === true
+    responsesLoaded &&
+      authContext?.canAccessFeature?.('quiz-monitor-roster') === true
   );
 
   // Live view (QUIZ_LIVE_VIEW.md D3): only the assigning teacher, on a running self-paced quiz.
@@ -965,7 +969,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             )}
             {!(isGame && boardView) && (
               <StatusBuckets
-                counts={data.counts}
+                counts={{
+                  ...data.counts,
+                  notStarted: data.counts.notStarted + data.notJoined.length,
+                }}
                 handCount={
                   session.handRaiseEnabled === true ? data.handCount : 0
                 }

@@ -61,7 +61,7 @@ export interface MonitorStudent {
 export interface MonitorData {
   students: MonitorStudent[];
   byBucket: Record<'notStarted' | 'inProgress' | 'done', MonitorStudent[]>;
-  /** Not started counts these too. */
+  /** Joined students only; the Not started bucket adds `notJoined`. */
   counts: { notStarted: number; inProgress: number; done: number };
   /** Roster students in the selected classes who haven't opened the quiz. */
   notJoined: NotJoinedStudent[];
@@ -99,7 +99,7 @@ export function useMonitorData(
   openOnAllClasses = false,
   /** The assignment's targeting; null leaves per-student assignments without roster rows. */
   rosterTargets: MonitorRosterTargets | null = null,
-  /** Lists roster students who haven't joined (the quiz-monitor-roster flag). */
+  /** Lists roster students who haven't joined: the quiz-monitor-roster flag, once responses have loaded. */
   showRoster = false
 ): MonitorData {
   const { orgId } = useAuth();
@@ -256,9 +256,8 @@ export function useMonitorData(
             byStudentUid,
             targetRefKeyByStudentUid,
             lookupReady: !namesLoading && !namesError,
-            joinedNames: responses.map((r) =>
-              resolveResponseDisplayName(r, pinToName, byStudentUid)
-            ),
+            responseName: (r) =>
+              resolveResponseDisplayName(r, pinToName, byStudentUid),
           })
         : [],
     [
@@ -307,7 +306,7 @@ export function useMonitorData(
       return {
         byBucket: buckets,
         counts: {
-          notStarted: buckets.notStarted.length + notJoined.length,
+          notStarted: buckets.notStarted.length,
           inProgress: buckets.inProgress.length,
           done: buckets.done.length,
         },
@@ -315,7 +314,7 @@ export function useMonitorData(
         idleCount: idle,
         answeredCurrent: answered,
       };
-    }, [students, currentQ, notJoined.length]);
+    }, [students, currentQ]);
 
   return {
     students,

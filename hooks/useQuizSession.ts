@@ -1327,6 +1327,8 @@ async function findExistingResponseDoc(
 export interface UseQuizSessionTeacherResult {
   session: QuizSession | null;
   responses: QuizResponse[];
+  /** The responses listener has delivered its first snapshot. */
+  responsesLoaded: boolean;
   loading: boolean;
   advanceQuestion: () => Promise<void>;
   /**
@@ -2087,6 +2089,7 @@ export const useQuizSessionTeacher = (
   return {
     session,
     responses,
+    responsesLoaded: state.responsesLoaded,
     // A per-period session's questions arrive on their own read.
     loading: loading || (inContent && !contentLoaded),
     advanceQuestion,

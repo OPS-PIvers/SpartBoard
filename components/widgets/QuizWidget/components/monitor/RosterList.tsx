@@ -253,6 +253,7 @@ export const RosterList: React.FC<RosterListProps> = ({
     (config.monitorShowProficiency ?? false) && bucket === 'done';
   const sortBy: MonitorSortBy = config.monitorSortBy ?? 'first';
   const filterBy: MonitorFilterBy = config.monitorFilterBy ?? 'all';
+  // Matches the joined rows above, which Not started always sorts by first name.
   const absent = [...notJoined].sort((a, b) => a.name.localeCompare(b.name));
   const showJoined = absent.length > 0;
 

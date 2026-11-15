@@ -55,13 +55,14 @@ const refs = new Map([
 ]);
 
 const base = {
-  session: { rosterIds: ['r1'] },
+  session: { rosterIds: ['r1'], classIds: ['class-1'] },
   rosters: [cl],
   targets: null,
   byStudentUid: names,
   targetRefKeyByStudentUid: refs,
   lookupReady: true,
-  joinedNames: [] as string[],
+  responseName: (r: QuizResponse) =>
+    (r as QuizResponse & { name?: string }).name ?? '',
 };
 
 describe('buildNotJoined', () => {
@@ -83,22 +84,33 @@ describe('buildNotJoined', () => {
     ).toEqual([]);
   });
 
-  it('leaves out skipped and removed students', () => {
+  it('leaves out skipped students', () => {
     const out = buildNotJoined({
       ...base,
       responses: [],
-      targets: {
-        excludedTargets: [{ kind: 'classlink', sourcedId: 'A' }],
-        removedStudentRefs: [{ kind: 'classlink', sourcedId: 'C' }],
-      },
+      targets: { excludedTargets: [{ kind: 'classlink', sourcedId: 'A' }] },
     });
-    expect(out.map((s) => s.name)).toEqual(['Ben Lee']);
+    expect(out.map((s) => s.name)).toEqual(['Ben Lee', 'Cy Lee']);
+  });
+
+  it('holds back signed-in students whose class the lookup did not cover', () => {
+    expect(
+      buildNotJoined({
+        ...base,
+        session: { rosterIds: ['r1'], classIds: ['class-2'] },
+        responses: [],
+      })
+    ).toEqual([]);
   });
 
   it('lists only targeted students on a per-student assignment', () => {
     const out = buildNotJoined({
       ...base,
-      session: { rosterIds: ['r1'], individualTargeting: true },
+      session: {
+        rosterIds: ['r1'],
+        classIds: ['class-1'],
+        individualTargeting: true,
+      },
       responses: [],
       targets: {
         targetMode: 'students',
@@ -140,12 +152,50 @@ describe('buildNotJoined', () => {
       rosters: [local],
       responses: [
         response({ studentUid: 'anon', pin: '01', classPeriod: 'Class r2' }),
+        response({
+          studentUid: 'lti',
+          name: 'Eve  Lee',
+        } as Partial<QuizResponse>),
       ],
-      joinedNames: ['Eve  Lee'],
     });
-    expect(out.map((s) => [s.name, s.studentUid, s.periodKey])).toEqual([
-      ['Fay Lee', null, 'roster:r2'],
+    expect(out.map((s) => [s.name, s.studentUid, s.key])).toEqual([
+      ['Fay Lee', null, 'r2:p3'],
     ]);
+  });
+
+  it('lets one response by name stand for one student in its own class', () => {
+    const p1 = roster('r4', [student('a', 'Sam')]);
+    const p3 = roster('r5', [student('b', 'Sam'), student('c', 'Sam')]);
+    const out = buildNotJoined({
+      ...base,
+      session: {
+        rosterIds: ['r4', 'r5'],
+        classPeriodByClassId: {},
+      },
+      rosters: [p1, p3],
+      responses: [
+        response({
+          studentUid: 'lti',
+          classPeriod: 'Class r5',
+          name: 'Sam Lee',
+        } as Partial<QuizResponse>),
+      ],
+    });
+    expect(out.map((s) => s.key)).toEqual(['r4:a', 'r5:c']);
+  });
+
+  it('does not count a PIN joined in another class', () => {
+    const a = roster('r6', [student('x', 'Ann', { pin: '07' })]);
+    const b = roster('r7', [student('y', 'Bo', { pin: '07' })]);
+    const out = buildNotJoined({
+      ...base,
+      session: { rosterIds: ['r6', 'r7'] },
+      rosters: [a, b],
+      responses: [
+        response({ studentUid: 'anon', pin: '07', classPeriod: 'Class r6' }),
+      ],
+    });
+    expect(out.map((s) => s.name)).toEqual(['Bo Lee']);
   });
 
   it('lists a student on two assigned rosters once', () => {
@@ -154,7 +204,7 @@ describe('buildNotJoined', () => {
     ]);
     const out = buildNotJoined({
       ...base,
-      session: { rosterIds: ['r1', 'r3'] },
+      session: { rosterIds: ['r1', 'r3'], classIds: ['class-1'] },
       rosters: [cl, twin],
       responses: [],
     });
