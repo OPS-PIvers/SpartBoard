@@ -5081,5 +5081,14 @@
   "quizAnswerPicture": {
     "name": "Imagen {{n}}",
     "nameWithAlt": "Imagen {{n}}: {{alt}}"
+  },
+  "picker": {
+    "clear": "Borrar",
+    "today": "Hoy",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "hour": "Hora",
+    "minute": "Minuto",
+    "period": "a. m. o p. m."
   }
 }

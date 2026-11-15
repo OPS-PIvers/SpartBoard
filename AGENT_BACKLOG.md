@@ -231,7 +231,15 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (174, checked 2026-11-01)</summary>
 
+claude/project-thread-29pa8f (#5868)
+claude/project-thread-29pa8f-ab112 (this docs PR, delete after it merges)
+claude/project-thread-vubbhb (#5867)
+claude/ab112-toolbar-overlays (this docs PR, delete after it merges)
+claude/project-thread-1h4b12 (#5865)
+claude/ab112-board-menu (this docs PR, delete after it merges)
 claude/project-thread-sqz8of (#5863)
+claude/project-thread-sqz8of-shot (#5871)
+claude/ab112-sqz8of-2 (this docs PR, delete after it merges)
 claude/ab112-sqz8of (this docs PR, delete after it merges)
 claude/project-thread-731sur (#5861; this docs PR reuses it, delete after it merges)
 claude/project-thread-24fjg3 (#5839, #5842, #5853; this docs PR reuses it, delete after it merges)

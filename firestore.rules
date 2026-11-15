@@ -4984,10 +4984,12 @@ service cloud.firestore {
           allow create, update: if signedIn() &&
             liveId == 'state' &&
             authUid() == dbGet4('quiz_sessions', sessionId, 'responses', responseKey).data.studentUid &&
-            incoming().keys().hasOnly(['questionId', 'at']) &&
+            incoming().keys().hasOnly(['questionId', 'at', 'activeAt', 'warning']) &&
             isStr('questionId') &&
             incoming().questionId.size() <= 200 &&
-            isNumber('at');
+            isNumber('at') &&
+            optNumber(incoming(), 'activeAt') &&
+            optBool(incoming(), 'warning');
         }
 
         // Handwritten paper answers: AI transcript internals. Session teacher reads; only the server writes.

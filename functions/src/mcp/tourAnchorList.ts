@@ -1717,6 +1717,114 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "board-menu.paste",
+    "label": "Paste in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.undo",
+    "label": "Undo in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.redo",
+    "label": "Redo in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.tidy",
+    "label": "Tidy up in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.minimize-all",
+    "label": "Minimize all in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.restore-all",
+    "label": "Restore all in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.background",
+    "label": "Change background in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.draw",
+    "label": "Draw on board in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
+    "id": "board-menu.copy-link",
+    "label": "Copy board link in the board right-click menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.background-menu",
+        "kind": "menu"
+      }
+    ]
+  },
+  {
     "id": "board.claude-editing-show",
     "label": "Show button on the \"Claude is editing\" notice",
     "scope": "board",
@@ -19146,7 +19254,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-live-view.tell-student",
-    "label": "Tell the student switch in Quiz Live view",
+    "label": "Notify student when viewing switch in Quiz Live view",
     "scope": "widget type",
     "panel": true,
     "persists": true,

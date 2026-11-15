@@ -143,6 +143,9 @@ const WebTourEditorHost = React.lazy(() =>
     default: m.WebTourEditorHost,
   }))
 );
+const BoardMenuHost = React.lazy(() =>
+  import('./BoardMenuHost').then((m) => ({ default: m.BoardMenuHost }))
+);
 const opensWebTour = () =>
   new URLSearchParams(window.location.search).has(EDIT_WEB_TOUR_PARAM);
 
@@ -1919,6 +1922,13 @@ export const DashboardView: React.FC = () => {
           {!isActiveBoardReadOnly && <Dock />}
         </React.Suspense>
       </LazyChunkErrorBoundary>
+      {canAccessFeature('board-context-menu') && (
+        <LazyChunkErrorBoundary fallback={() => null}>
+          <React.Suspense fallback={null}>
+            <BoardMenuHost />
+          </React.Suspense>
+        </LazyChunkErrorBoundary>
+      )}
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />

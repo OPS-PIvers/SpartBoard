@@ -17,6 +17,8 @@ interface BadgePopoverProps {
   panel: React.ReactNode;
   /** The badge; becomes the button that opens the panel. */
   children: React.ReactNode;
+  /** Extra classes for the trigger button, such as a larger tap area. */
+  triggerClassName?: string;
 }
 
 const PANEL_WIDTH = 340;
@@ -38,6 +40,7 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
   dialogLabel,
   panel,
   children,
+  triggerClassName = '',
 }) => {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<PanelPos | null>(null);
@@ -122,7 +125,7 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="inline-flex rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        className={`inline-flex rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${triggerClassName}`}
       >
         {children}
       </button>
@@ -149,7 +152,7 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
               maxHeight: pos.maxHeight,
               width: PANEL_WIDTH,
               maxWidth: 'calc(100vw - 16px)',
-              zIndex: Z_INDEX.dropdown,
+              zIndex: Z_INDEX.popover,
             }}
             className="overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg focus:outline-hidden"
           >
