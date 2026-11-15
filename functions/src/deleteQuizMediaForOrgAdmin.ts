@@ -28,7 +28,10 @@
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import {
   computeHasStuckArchive,
   deleteQuizArchiveDriveFile,
@@ -1178,7 +1181,11 @@ export function buildDefaultOrgMediaDeps(): OrgMediaDeps {
   return {
     db,
     getAccessToken: async (teacherUid) =>
-      (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(teacherUid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
     deleteDriveFile: deleteQuizArchiveDriveFile,
     deleteStorageObject: async (storagePath) => {
       await admin

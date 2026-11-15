@@ -61,7 +61,8 @@ const GOOGLE_API_TIMEOUT_MS = 10_000;
 // acquired on demand client-side via GIS (`ensureGoogleScope`) and are NOT part
 // of the offline refresh-token grant — so requiring them here would wrongly
 // reject every new offline grant with `partial-consent`.
-const REQUIRED_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+export const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const REQUIRED_DRIVE_SCOPES = [DRIVE_FILE_SCOPE];
 
 const PRIVATE_DOC_PATH = (uid: string) =>
   `users/${uid}/private/googleAuth` as const;
@@ -348,7 +349,13 @@ export const exchangeGoogleAuthCode = onCall(
  */
 export async function refreshGoogleAccessTokenForUid(
   uid: string,
-  options: { keepStoredOnFailure?: boolean } = {}
+  options: {
+    keepStoredOnFailure?: boolean;
+    /** Down-scopes the issued token to these space-separated scopes. */
+    scope?: string;
+    /** Refuses a token Google issued with any scope beyond `scope`. */
+    exactScope?: boolean;
+  } = {}
 ): Promise<{ accessToken: string; expiresIn: number }> {
   const db = admin.firestore();
   const ref = db.doc(PRIVATE_DOC_PATH(uid));
@@ -427,6 +434,7 @@ export async function refreshGoogleAccessTokenForUid(
         client_secret: GOOGLE_OAUTH_CLIENT_SECRET.value(),
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
+        ...(options.scope ? { scope: options.scope } : {}),
       }).toString(),
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -435,6 +443,16 @@ export async function refreshGoogleAccessTokenForUid(
     );
     if (!res.data.access_token) {
       throw transientError('Google refresh returned no access_token.');
+    }
+    if (options.scope && options.exactScope) {
+      const wanted = new Set(options.scope.split(' '));
+      const got = typeof res.data.scope === 'string' ? res.data.scope : '';
+      if (!got || got.split(' ').some((s) => s && !wanted.has(s))) {
+        throw new HttpsError(
+          'permission-denied',
+          'Google issued a token wider than requested.'
+        );
+      }
     }
     return {
       accessToken: res.data.access_token,
@@ -499,9 +517,13 @@ export const refreshGoogleAccessToken = onCall(
     ],
   },
   async (req) => {
-    await assertViewAsAllowed(req);
+    const claim = await assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
-    return refreshGoogleAccessTokenForUid(uid);
+    // A View as tab gets the target's token, so it never carries more than drive.file.
+    return refreshGoogleAccessTokenForUid(
+      uid,
+      claim ? { scope: DRIVE_FILE_SCOPE, exactScope: true } : {}
+    );
   }
 );
 

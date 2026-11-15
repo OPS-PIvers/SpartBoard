@@ -6,12 +6,9 @@
  * whose Drive grants live on the parent doc and whose `boards/` subcollection
  * is reaped before the parent on cleanup).
  *
- * Why client-side: revoking permissions on a teacher's own Drive files
- * requires either their OAuth refresh token (we don't store one) or
- * Workspace domain-wide delegation (district hasn't enabled, and the GCP
- * docs flag it as a privilege-escalation risk). Doing the revoke client-
- * side reuses the teacher's existing browser OAuth session — same scope
- * they granted for normal Drive use, no new attack surface.
+ * The hourly `expireSubShares` function revokes these grants server-side
+ * with the teacher's stored offline grant; this client pass covers teachers
+ * with no stored grant (or a Drive error), whose shares the server keeps.
  *
  * Permission refcounting:
  *   Drive's `permissions.create` is idempotent — granting (file, email)
@@ -31,10 +28,8 @@
  *     grace-period fallback) gets another shot. Only docs whose revokes
  *     all succeeded (or had no grants to begin with) get deleted here.
  *
- * The `expireSubShares` cloud function still runs hourly as a fallback in
- * case the teacher never returns (e.g. left the district). It honours a
- * 7-day grace period for docs that still carry unrevoked grants so this
- * client-side path has a chance to run first.
+ * The server never deletes a share whose grants it could not revoke, so
+ * this path always gets another shot.
  */
 
 import { useEffect, useRef } from 'react';
@@ -323,9 +318,8 @@ export async function reconcileExpiredSubShares(
     }
     // If any revoke failed, leave the doc behind. The throttle won't fire
     // (sweep throws on the next operation OR returns "partial" — see
-    // below), so next session will try again. After 7 days the cloud
-    // function fallback gives up and deletes the doc with a Cloud Logging
-    // warning about the orphaned permissionIds.
+    // below), so next session will try again; the server keeps the doc
+    // and logs it past 7 days.
   }
 
   if (failed > 0) {
