@@ -261,7 +261,7 @@ export async function handlePublishMiniAppScores(
       published += 1;
       writes.push({
         apply: (b) => b.set(publishedCol.doc(sub.id), result),
-        bytes: JSON.stringify(result).length,
+        bytes: Buffer.byteLength(JSON.stringify(result), 'utf8') + 512,
       });
     }
     for (const d of existing.docs)
