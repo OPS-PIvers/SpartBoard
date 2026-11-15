@@ -6,7 +6,7 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
 
 ## Each week
 
-1. **Preflight.** List branches made by earlier weeks that still wait on the page (`candidates.json` of a week with no `sentAt`); if any exist, don't start a new week, send Paul the existing page link again and stop. Then run the queue, passing this week's candidates as `--open` pairs as they are made:
+1. **Preflight.** Read the "Widget Fixes" page (Artifact `read`) and run `review.ts decisions` on it. If it has a `sentAt` whose approved fixes have no PR yet, do step 10 for them first. If it has no `sentAt` and still lists candidates, don't start a new week: send Paul the page link again and stop. Then run the queue, passing this week's candidates as `--open` pairs as they are made:
 
    ```
    node scripts/widget-grader/queue.ts --open clock:layout,poll:visual
@@ -59,7 +59,7 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
    node scripts/widget-grader/grading/review.ts build --candidates scripts/widget-grader/out/week-<date>/candidates.json --out scripts/widget-grader/out/week-<date>/page
    ```
 
-   Publish `page/index.html` to the "Widget Fixes" artifact with `capabilities: {artifact: {}}`, to the same URL every week (it is in the `widget-rubric-routines` memory; the first week creates it and saves the URL there). Send Paul one line in the routine's thread: "This week's widget fixes: <n> to approve or skip" with the link. Then end the run: the page republishes itself when Paul taps Send, and that wakes the session.
+   Publish `page/index.html` to the "Widget Fixes" artifact with `capabilities: {artifact: {}}`, to the same URL every week (it is in the `widget-rubric-routines` memory; the first week creates it and saves the URL there). Send Paul one line in the routine's thread: "This week's widget fixes: <n> to approve or skip" with the link. Then end the run: the page republishes itself when Paul taps Send, which should wake the session. That wake can fail to arrive, so the next run's preflight also reads the page.
 
 10. **Act on Paul's picks.** When the page republishes, read it (Artifact `read`), save it, and run:
 
