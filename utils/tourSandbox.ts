@@ -23,6 +23,8 @@ export interface TourSandboxState {
   passthrough: ReadonlySet<string>;
   /** Tour material id to the library item it is on this run. */
   bound: ReadonlyMap<string, { kind: TourMaterialKind; id: string }>;
+  /** Faked assignment writes (publish, pause), shown on the real assignment rows. */
+  assignmentPatches: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 }
 
 export const TOUR_MATERIAL_KINDS: readonly TourMaterialKind[] = [
@@ -51,6 +53,7 @@ const empty = (): TourSandboxState => ({
   },
   passthrough: new Set(),
   bound: new Map(),
+  assignmentPatches: new Map(),
 });
 
 let state = empty();
@@ -162,6 +165,35 @@ export const tourMaterialItem = (
   materialId: string
 ): { kind: TourMaterialKind; id: string } | undefined =>
   state.bound.get(materialId);
+
+/** Records a faked assignment write so the tour shows it as done. */
+export const sandboxPatchAssignment = (
+  id: string,
+  patch: Readonly<Record<string, unknown>>
+): void => {
+  if (!state.active || !id) return;
+  const prev = state.assignmentPatches.get(id);
+  emit({
+    ...state,
+    assignmentPatches: new Map(state.assignmentPatches).set(id, {
+      ...prev,
+      ...patch,
+    }),
+  });
+};
+
+/** Assignment rows with the tour's faked writes applied. */
+export function withSandboxAssignmentPatches<T extends { id: string }>(
+  real: readonly T[],
+  sandbox: TourSandboxState
+): T[] {
+  const patches = sandbox.assignmentPatches;
+  if (!sandbox.active || patches.size === 0) return real as T[];
+  return real.map((a) => {
+    const patch = patches.get(a.id);
+    return patch ? { ...a, ...patch } : a;
+  });
+}
 
 /** The library list as the tour sees it: its own items first, deleted ones gone. */
 export function mergeSandboxList<T extends { id: string }>(
