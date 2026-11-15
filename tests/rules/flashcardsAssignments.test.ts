@@ -518,6 +518,22 @@ describe('flashcard_sessions progress', () => {
     );
   });
 
+  it('lets a rostered student join a classless session with an empty classId', async () => {
+    await seed(SESSION_PATH, session({ classIds: [], classId: '' }));
+    await seed(`student_assignments/${STUDENT_UID}/items/session-1`, {
+      kind: 'flashcards',
+      sessionId: 'session-1',
+      teacherUid: TEACHER_UID,
+      classId: '',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    await assertSucceeds(
+      setDoc(doc(studentDb, progressPath), progress({ classId: '' }))
+    );
+  });
+
   it('accepts Speak progress and lets the student and teacher read it', async () => {
     await seed(SESSION_PATH, session());
     const studentDb = asStudent(STUDENT_UID, [CLASS_A]);

@@ -78,6 +78,9 @@ export function parseCompletedResponse(
       : undefined,
     classPeriod: asString(raw.classPeriod) || undefined,
     classId: asString(raw.classId) || undefined,
+    paperAttested:
+      asString(raw.paperBatchId) !== '' ||
+      asString(raw.paperWrittenBatchId) !== '',
     manualGrades: parseManualGrades(
       currentShortAnswerGrading(raw.grading, raw.answers)
     ),
