@@ -489,10 +489,10 @@ export const LiveTourRunner: React.FC = () => {
   // The row each wildcard step was answered with, so a replayed route reopens that row.
   const rowPicks = useRef<Record<string, string>>({});
   const [pickedRows, setPickedRows] = useState<Record<string, string>>({});
-  const notePick = (ref: string, el: Element) => {
+  const notePick = useEffectEvent((ref: string, el: Element) => {
     if (notePickedRow(rowPicks.current, ref, el))
       setPickedRows({ ...rowPicks.current });
-  };
+  });
   const lastStepCreated = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
