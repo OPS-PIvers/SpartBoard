@@ -57,6 +57,9 @@ describe('admin wildcard collections cannot hold a nested server collection-grou
     'admin_settings/a/b/c/group_email_alerts/y',
     'global_permissions/x/members/y',
     'admin_settings/x/rosters/y',
+    'admin_settings/x\n/group_email_alerts/y',
+    'admin_settings/x/domains/y\n',
+    'global_permissions/x\n/members/y',
   ])('denies an admin write to %s', async (path) => {
     await assertFails(setDoc(doc(asAdmin(), path), forged));
   });

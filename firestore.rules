@@ -56,7 +56,7 @@ service cloud.firestore {
     function isTimestamp(k) { return request.resource.data[k] is timestamp; }
 
     // Server collection-group queries trust any doc in these subcollections, so wildcard admin paths may not create one.
-    function notServerCgPath(p) { return !string(p).matches('(.*/)?(domains|group_email_alerts|members|rosters|dashboards|responses|submissions|recordings|assessments|aggregates|keys|userProfile|gradebook_classes|paperPrivate|paper_transcription_jobs|guided_learning|claude_revisions|gl_media_tombstones|quizzes|quiz_assignments|miniapps|activity_wall_activities|notebooks|rubrics)/.*'); }
+    function notServerCgPath(p) { return !string(p).matches('(?s)(.*/)?(domains|group_email_alerts|members|rosters|dashboards|responses|submissions|recordings|assessments|aggregates|keys|userProfile|gradebook_classes|paperPrivate|paper_transcription_jobs|guided_learning|claude_revisions|gl_media_tombstones|quizzes|quiz_assignments|miniapps|activity_wall_activities|notebooks|rubrics)/.*'); }
 
     // True if the caller's email has an /admins/{email} doc.
     // token.get('email','') (not direct .email) avoids a CEL "undefined" throw on
