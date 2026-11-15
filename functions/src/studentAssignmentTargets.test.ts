@@ -153,6 +153,7 @@ function makeDb(state: StubState) {
     const data = state.docs.get(path);
     return {
       exists: data !== undefined,
+      id: path.split('/').pop() ?? '',
       ref: docRef(path),
       get: (field: string) => data?.[field],
       data: () => data,
@@ -983,6 +984,43 @@ describe('handleSetAssignmentTargets', () => {
 // in `add`. Without a refresh pass, a D3 edit to their override or the window
 // would never reach their pointer doc.
 // ---------------------------------------------------------------------------
+
+describe('handleSetAssignmentTargets — assignment id bound to the session', () => {
+  it('refuses a foreign assignment id paired with the caller own session', async () => {
+    state.docs.set(`users/${TEACHER_UID}/quiz_assignments/victim-session`, {
+      id: 'victim-session',
+    });
+    await expect(
+      run(baseInput({ assignmentId: 'victim-session' }))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(
+      [...state.docs.keys()].filter((k) => k.endsWith('/items/victim-session'))
+    ).toHaveLength(0);
+  });
+
+  it('accepts a mini-app assignment id stored on the session', async () => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/arch-1`, {
+      id: 'arch-1',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'arch-1',
+    });
+    const input = { kind: 'mini-app' as const, sessionId: 'mini-s' };
+    await run(baseInput({ ...input, assignmentId: 'arch-1' }));
+    expect(
+      state.docs.get(
+        `student_assignments/${computeStudentUid(SOURCED_A, HMAC)}/items/arch-1`
+      )
+    ).toMatchObject({ sessionId: 'mini-s', teacherUid: TEACHER_UID });
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/other`, {
+      id: 'other',
+    });
+    await expect(
+      run(baseInput({ ...input, assignmentId: 'other' }))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});
 
 describe('handleSetAssignmentTargets — pointers owned by another teacher', () => {
   const uidA = () => computeStudentUid(SOURCED_A, HMAC);

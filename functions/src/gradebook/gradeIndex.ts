@@ -43,6 +43,7 @@ import type {
   RowScore,
   SessionMeta,
 } from './types';
+import { isForeignPointer } from '../pointerOwnership';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
@@ -260,7 +261,15 @@ async function targetingFor(
     .doc(meta.assignmentId)
     .get();
   const data = pointer.data();
-  if (!pointer.exists || !data || data.excluded === true)
+  if (
+    !pointer.exists ||
+    !data ||
+    data.excluded === true ||
+    isForeignPointer(data, {
+      sessionId: meta.sessionId,
+      teacherUid: meta.ownerUid,
+    })
+  )
     return { assigned: false, pointerDueAt: null };
   return { assigned: true, pointerDueAt: toMillis(data.dueAt) };
 }

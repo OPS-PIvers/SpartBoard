@@ -307,7 +307,8 @@ const StudentExperience: React.FC<{
   const pointer = useStudentAssignmentPointer(
     isStudentRole ? anonymousUid : null,
     sessionId || null,
-    isStudentRole && !isViewOnly
+    isStudentRole && !isViewOnly,
+    { sessionId }
   );
   const timeMultiplier = pointer?.override?.timeMultiplier;
 

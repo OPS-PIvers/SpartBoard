@@ -51,6 +51,7 @@ import { auth, db, functions } from '@/config/firebase';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { logError } from '@/utils/logError';
 import { dropPinLogin } from '@/utils/pinLoginScope';
+import { isForeignPointer } from '@/utils/pointerOwnership';
 import {
   MiniAppSession,
   MiniAppSubmission,
@@ -599,6 +600,13 @@ const AppViewer: React.FC<{
         );
         if (cancelled || !snap.exists()) return;
         const pointer = snap.data() as StudentAssignmentPointer;
+        if (
+          isForeignPointer(pointer, {
+            sessionId: session.id,
+            teacherUid: session.teacherUid,
+          })
+        )
+          return;
         dispatch({
           type: 'pointerLoaded',
           excluded: pointer.excluded === true,
@@ -613,7 +621,7 @@ const AppViewer: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [session.id, session.assignmentId, authedUid]);
+  }, [session.id, session.assignmentId, session.teacherUid, authedUid]);
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. The teacher's

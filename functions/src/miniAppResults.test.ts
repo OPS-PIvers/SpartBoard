@@ -181,6 +181,22 @@ describe('handleSubmitMiniAppResult gating', () => {
     );
   });
 
+  it('ignores an exclusion planted by another teacher', async () => {
+    await expect(
+      submit(
+        {
+          [SESSION]: session({ assignmentId: 'a1' }),
+          'student_assignments/stu-1/items/a1': {
+            excluded: true,
+            teacherUid: 'other-teacher',
+            sessionId: 'other-session',
+          },
+        },
+        result('B', true)
+      )
+    ).resolves.toBeDefined();
+  });
+
   it('refuses a seated student whose period is closed', async () => {
     await expectCode(
       submit(

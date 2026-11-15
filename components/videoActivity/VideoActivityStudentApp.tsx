@@ -396,7 +396,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const pointer = useStudentAssignmentPointer(
     authedUid,
     sessionId || null,
-    isStudentRole
+    isStudentRole,
+    { sessionId }
   );
 
   // View tracking — log each pageview of a view-only Share link as an

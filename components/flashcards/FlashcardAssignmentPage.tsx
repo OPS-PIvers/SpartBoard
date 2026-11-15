@@ -572,7 +572,8 @@ export const FlashcardAssignmentPage: React.FC<{
   const pointer = useStudentAssignmentPointer(
     pseudonymUid,
     assignmentId,
-    !staff
+    !staff,
+    { sessionId: assignmentId }
   );
   const rawSession = sessionState.kind === 'ready' ? sessionState.value : null;
   const perPeriod = hasPeriodAccess(rawSession);

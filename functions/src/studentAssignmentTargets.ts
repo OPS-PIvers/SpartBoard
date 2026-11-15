@@ -859,6 +859,16 @@ async function readPointers(
   }
 }
 
+/** The pointer key the student apps read for a session (mini-app falls back to the session id). */
+export function pointerKeyForSession(
+  kind: AssignmentKind,
+  sessionSnap: admin.firestore.DocumentSnapshot
+): string {
+  const own: unknown =
+    kind === 'mini-app' ? sessionSnap.get('assignmentId') : null;
+  return typeof own === 'string' && own ? own : sessionSnap.id;
+}
+
 /**
  * Core orchestration. `loadContext` is injected so unit tests can supply the
  * authorized-class map without standing up ClassLink.
@@ -898,6 +908,13 @@ export async function handleSetAssignmentTargets(
   const sessionTeacherUid: unknown = sessionSnap.get('teacherUid');
   if (sessionTeacherUid !== callerUid) {
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
+  }
+  // Pointer keys must belong to this session, never another teacher's assignment id.
+  if (input.assignmentId !== pointerKeyForSession(input.kind, sessionSnap)) {
+    throw new HttpsError(
+      'permission-denied',
+      'Assignment does not belong to this session.'
+    );
   }
 
   // D5b: only classes the session actually targets can be narrowed.

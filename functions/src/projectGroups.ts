@@ -183,9 +183,9 @@ async function allowedTestEmails(
   groups: CommitProjectGroupEntry[]
 ): Promise<Map<string, Set<string>>> {
   const allowed = new Map<string, Set<string>>();
-  const classIds = Array.from(
-    new Set(groups.filter((g) => g.testEmails.length > 0).map((g) => g.classId))
-  ).filter(isDocumentId);
+  const classIds = Array.from(new Set(groups.map((g) => g.classId))).filter(
+    isDocumentId
+  );
   if (classIds.length === 0 || !callerEmail) return allowed;
   const domain = normalizeEmailDomain(callerEmail);
   const orgId = domain ? await resolveOrgIdForDomain(db, domain) : null;
@@ -198,8 +198,9 @@ async function allowedTestEmails(
     )
   );
   snaps.forEach((snap, i) => {
-    const members: unknown = snap.exists ? snap.get('memberEmails') : null;
-    if (!Array.isArray(members)) return;
+    if (!snap.exists) return;
+    const raw: unknown = snap.get('memberEmails');
+    const members: unknown[] = Array.isArray(raw) ? raw : [];
     allowed.set(
       classIds[i],
       new Set(
@@ -212,15 +213,20 @@ async function allowedTestEmails(
   return allowed;
 }
 
+interface TaughtRoster {
+  taught: ReadonlySet<string>;
+  /** Enrolled sourcedIds for each taught class that was read. */
+  enrolled: Map<string, ReadonlySet<string>>;
+}
+
 /**
- * Sourced ids ClassLink enrolls in any class the caller teaches; empty when the caller teaches none.
+ * ClassLink classes the caller teaches, with the enrollment of those `pick` names.
  * Throws unless the caller is a verified non-student teacher.
  */
-async function taughtStudentIds(
+async function loadTaughtRoster(
   token: AiCallerToken,
-  groups: CommitProjectGroupEntry[]
-): Promise<ReadonlySet<string>> {
-  if (!groups.some((g) => g.classLinkSourcedIds.length > 0)) return new Set();
+  pick: (taught: ReadonlySet<string>) => string[]
+): Promise<TaughtRoster> {
   const email = asString(token.email);
   const domain = normalizeEmailDomain(email.toLowerCase()) ?? '';
   if (!isTeacherShapedToken(token) || domain.startsWith('@students.')) {
@@ -233,27 +239,28 @@ async function taughtStudentIds(
   };
   // Group payloads are client-written, so ClassLink decides which students the caller may place.
   const started = Date.now();
+  const enrolled = new Map<string, ReadonlySet<string>>();
   const taught = await loadTeacherClassIds(email, creds);
-  if (!taught) return new Set();
+  if (!taught) return { taught: new Set(), enrolled };
   // Never place against part of the caller's classes: past the ceiling the commit fails.
   if (taught.size > MAX_TAUGHT_CLASSES) {
     throw new HttpsError('unavailable', 'Roster service unavailable.');
   }
-  const enrolled = new Set<string>();
-  const classIds = [...taught];
+  const classIds = [...new Set(pick(taught))].filter((id) => taught.has(id));
   for (let i = 0; i < classIds.length; i += 10) {
     if (Date.now() - started > CLASSLINK_TOTAL_BUDGET_MS) {
       throw new HttpsError('unavailable', 'Roster service unavailable.');
     }
+    const batch = classIds.slice(i, i + 10);
     const lists = await Promise.all(
-      classIds
-        .slice(i, i + 10)
-        .map((classId) => loadClassStudentIds(classId, creds))
+      batch.map((classId) => loadClassStudentIds(classId, creds))
     );
-    for (const list of lists) for (const id of list) enrolled.add(id);
+    lists.forEach((list, j) => enrolled.set(batch[j], new Set(list)));
   }
-  return enrolled;
+  return { taught, enrolled };
 }
+
+const isLocalClass = (classId: string): boolean => classId.startsWith('local:');
 
 /** Teacher-only. Writes the groups it was handed and deletes only the ids named in `deleteGroupIds` (D9). */
 export const commitProjectGroupsV1 = onCall(
@@ -337,13 +344,56 @@ export const commitProjectGroupsV1 = onCall(
         .filter((snap) => snap.exists)
         .map((snap) => [snap.id, new Set(stringList(snap.data()?.memberUids))])
     );
+    const storedClass = new Map(
+      existing
+        .filter((snap) => snap.exists)
+        .map((snap) => [snap.id, asString(snap.data()?.classId)])
+    );
+    // A new or re-classed group must name a class the caller teaches; local rosters have no sign-in.
+    const placesClass = (g: CommitProjectGroupEntry) =>
+      !isLocalClass(g.classId) && storedClass.get(g.id) !== g.classId;
 
-    const enrolledIds = await taughtStudentIds(request.auth.token, groups);
     const testMembers = await allowedTestEmails(
       db,
       asString(request.auth.token.email).toLowerCase(),
-      groups
+      groups.filter((g) => g.testEmails.length > 0 || placesClass(g))
     );
+    const needsClassLink = groups.some(
+      (g) =>
+        g.classLinkSourcedIds.length > 0 ||
+        (placesClass(g) && !testMembers.has(g.classId))
+    );
+    const roster: TaughtRoster = needsClassLink
+      ? await loadTaughtRoster(request.auth.token, (taught) =>
+          groups.some(
+            (g) => isLocalClass(g.classId) && g.classLinkSourcedIds.length > 0
+          )
+            ? [...taught]
+            : groups
+                .filter((g) => g.classLinkSourcedIds.length > 0)
+                .map((g) => g.classId)
+        )
+      : { taught: new Set(), enrolled: new Map() };
+    for (const g of groups) {
+      if (
+        placesClass(g) &&
+        !testMembers.has(g.classId) &&
+        !roster.taught.has(g.classId)
+      ) {
+        throw new HttpsError(
+          'permission-denied',
+          'A group names a class you do not teach.'
+        );
+      }
+    }
+    // A local roster has no ClassLink class, so its students may come from any taught class.
+    const anyTaught = new Set(
+      [...roster.enrolled.values()].flatMap((ids) => [...ids])
+    );
+    const enrolledFor = (g: CommitProjectGroupEntry): ReadonlySet<string> =>
+      isLocalClass(g.classId)
+        ? anyTaught
+        : (roster.enrolled.get(g.classId) ?? new Set());
 
     const batch = db.batch();
     let membersResolved = 0;
@@ -352,7 +402,7 @@ export const commitProjectGroupsV1 = onCall(
       const inTestClass = testMembers.get(group.classId);
       const minted = [
         ...group.classLinkSourcedIds
-          .filter((sourcedId) => enrolledIds.has(sourcedId))
+          .filter((sourcedId) => enrolledFor(group).has(sourcedId))
           .map((sourcedId) => computeStudentUid(sourcedId, hmacSecret)),
         // Matches the uid studentLoginV1 mints for a test-class sign-in.
         ...group.testEmails

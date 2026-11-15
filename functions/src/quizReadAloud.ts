@@ -25,6 +25,7 @@ import { mp3DurationMs, storedDurationMs } from './mp3Duration';
 import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertAiTeacherCaller } from './aiCallerGate';
+import { isForeignPointer } from './pointerOwnership';
 
 export { ttsLanguageForTranslationLocale };
 
@@ -1314,18 +1315,25 @@ export async function synthesizeQuizAudio(
     .collection('items')
     .doc(request.sessionId)
     .get();
-  const pointer = pointerSnap.data() ?? {};
   const sessionRef = db.collection('quiz_sessions').doc(request.sessionId);
   const sessionSnap = await sessionRef.get();
   if (!sessionSnap.exists)
     throw new HttpsError('not-found', 'Quiz session not found.');
+  // A pointer stamped for another session or teacher is treated as absent.
+  const ownPointer =
+    pointerSnap.exists &&
+    !isForeignPointer(pointerSnap.data(), {
+      sessionId: request.sessionId,
+      teacherUid: sessionSnap.get('teacherUid') as string | null,
+    });
+  const pointer = ownPointer ? (pointerSnap.data() ?? {}) : {};
   const session = await withQuizSessionContent(
     sessionRef,
     sessionSnap.data() ?? {}
   );
   // Class-wide assignments write no pointer docs; the token's classIds claim
   // is the same membership proof the student app uses to list them.
-  if (!pointerSnap.exists && !inSessionClass(session, caller.classIds))
+  if (!ownPointer && !inSessionClass(session, caller.classIds))
     throw new HttpsError(
       'permission-denied',
       'Assignment not found for this student.'

@@ -20,6 +20,7 @@ import { isPeriodFrozen } from './quizSessionContent';
 import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
 import { verifiedStaffIdentity, type StaffIdentity } from './staffAudience';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isForeignPointer } from './pointerOwnership';
 
 export const WINDOW_GRACE_MS = 120_000;
 const SESSIONS = 'mini_app_sessions';
@@ -164,7 +165,12 @@ export async function handleSubmitMiniAppResult(
       .collection('items')
       .doc(pointerId)
       .get();
-    if (pointer.exists && pointer.data()?.excluded === true)
+    const own = !isForeignPointer(pointer.data(), {
+      sessionId: input.sessionId,
+      teacherUid:
+        typeof session.teacherUid === 'string' ? session.teacherUid : null,
+    });
+    if (own && pointer.exists && pointer.data()?.excluded === true)
       throw new HttpsError(
         'permission-denied',
         'Not assigned to this student.'
