@@ -80,6 +80,26 @@ export interface SubControlDeps {
 
 export const liveSubControlDeps: SubControlDeps = { now: () => Date.now() };
 
+/** Every response doc, paged by id so a large class is not cut off at one page. */
+async function listAllResponses(
+  db: admin.firestore.Firestore,
+  sessionId: string
+): Promise<admin.firestore.QueryDocumentSnapshot[]> {
+  const out: admin.firestore.QueryDocumentSnapshot[] = [];
+  let last: admin.firestore.QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let q = db
+      .collection(`quiz_sessions/${sessionId}/responses`)
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(MAX_FINALIZED);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    out.push(...snap.docs);
+    if (snap.docs.length < MAX_FINALIZED) return out;
+    last = snap.docs[snap.docs.length - 1];
+  }
+}
+
 /** Mirror of the teacher's End: each unfinished response is finalized in its own transaction. */
 export async function finalizeQuizResponses(
   db: admin.firestore.Firestore,
@@ -98,12 +118,9 @@ export async function finalizeQuizResponses(
         ? content.completenessModel
         : 0,
   };
-  const snap = await db
-    .collection(`quiz_sessions/${sessionId}/responses`)
-    .limit(MAX_FINALIZED)
-    .get();
+  const docs = await listAllResponses(db, sessionId);
   const results = await Promise.allSettled(
-    snap.docs
+    docs
       .filter((doc) => {
         const status: unknown = doc.data().status;
         return status === 'in-progress' || status === 'joined';
@@ -137,11 +154,7 @@ async function refreshIdleResponses(
   now: number
 ): Promise<void> {
   const cutoff = now - IDLE_REFRESH_CUTOFF_MS;
-  const snap = await db
-    .collection(`quiz_sessions/${sessionId}/responses`)
-    .limit(MAX_FINALIZED)
-    .get();
-  const idle = snap.docs.filter((doc) => {
+  const idle = (await listAllResponses(db, sessionId)).filter((doc) => {
     const data = doc.data();
     if (data.status !== 'in-progress' && data.status !== 'joined') return false;
     const last = timestampMillis(data.lastWriteAt);
