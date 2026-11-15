@@ -4,7 +4,7 @@ import {
   embedJson,
   readState,
   type ReviewState,
-} from '../../scripts/widget-grader/grading/review.ts';
+} from '@/scripts/widget-grader/grading/review.ts';
 
 const state: ReviewState = {
   weekId: '2026-11-16',
