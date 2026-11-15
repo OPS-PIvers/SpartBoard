@@ -198,8 +198,6 @@ export function useSubShares(enabled: boolean): SubSharesApi {
             ...(share.subEmails && share.subEmails.length > 0
               ? { subEmails: share.subEmails }
               : {}),
-            // The calendars the host ticked at share time, so Update now keeps them.
-            ...(share.calendarIds ? { calendarIds: share.calendarIds } : {}),
             // Always stated, so a roster no board references any more is
             // dropped from the share instead of reading as "unchanged".
             sharedRosters,

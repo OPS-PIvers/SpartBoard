@@ -3264,7 +3264,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'sub-share.cancel': ['board.share-with-sub'],
     'sub-share.url': ['board.share-with-sub'],
     'sub-share.copy-link': ['board.share-with-sub'],
-    'sub-share.calendar': ['board.share-with-sub'],
     'share-collection.mode-synced': ['board.share-collection'],
     'share-collection.mode-view-only': ['board.share-collection'],
     'share-collection.mode-copy': ['board.share-collection'],

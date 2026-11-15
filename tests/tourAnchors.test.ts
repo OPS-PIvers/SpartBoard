@@ -98,7 +98,6 @@ describe('tour anchor registry', () => {
       'sub-share.building',
       'sub-share.email-input',
       'sub-share.add-email',
-      'sub-share.calendar',
       'sub-share.done',
       'quiz-settings.assignment-archive',
       'activity-wall-editor.allow-delete',

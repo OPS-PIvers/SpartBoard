@@ -1707,8 +1707,7 @@ service cloud.firestore {
             changedOnly([
               'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
               'kind', 'subEmails', 'sharedRosters', 'driveGrants',
-              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt',
-              'calendarIds'
+              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt'
             ])
             && isNumber('expiresAt')
             && incoming().expiresAt <= nowMs() + 1209600000
@@ -1741,18 +1740,6 @@ service cloud.firestore {
         return signedIn()
           && shareData().get('hostUid', null) == authUid();
       }
-      function canReadKeys() {
-        return signedIn() && (
-          isShareHost()
-          || isAdmin()
-          || (
-            isDistrictStaff()
-            && shareData().get('expiresAt', 0) > nowMs()
-            && tok().get('email', '').lower()
-               in shareData().get('subEmails', [])
-          )
-        );
-      }
 
       // Per-Board snapshots.
       match /boards/{boardId} {
@@ -1763,16 +1750,23 @@ service cloud.firestore {
       // Display content for widgets whose data lives outside the board, so a
       // sub sees the teacher's drawing, notebook or queue rather than their own.
       match /content/{contentId} {
-        // Calendar events come from the host's private account: host, admin or named subs only.
-        allow read: if canReadShared()
-          && (!contentId.matches('calendar_.*') || canReadKeys());
+        allow read: if canReadShared();
         allow create, update, delete: if isShareHost();
       }
 
       // Answer keys and full activity copies. Narrower than content/: the host,
       // an admin, or a sub this share names by email, and never past expiry.
       match /keys/{keyId} {
-        allow read: if canReadKeys();
+        allow read: if signedIn() && (
+          isShareHost()
+          || isAdmin()
+          || (
+            isDistrictStaff()
+            && shareData().get('expiresAt', 0) > nowMs()
+            && tok().get('email', '').lower()
+               in shareData().get('subEmails', [])
+          )
+        );
         allow create, update, delete: if isShareHost();
       }
     }

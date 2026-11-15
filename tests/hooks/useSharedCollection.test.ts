@@ -603,8 +603,7 @@ describe('useSharedCollection', () => {
 
     const shareWithDrawing = async (
       boards: Dashboard[],
-      onBundle?: (bundle: { failures: unknown[] }) => void,
-      calendarIds?: string[]
+      onBundle?: (bundle: { failures: unknown[] }) => void
     ) => {
       const { result } = renderHook(() => useSharedCollection());
       const shareId = await result.current.shareSubstituteCollection({
@@ -618,7 +617,6 @@ describe('useSharedCollection', () => {
         buildingId: 'middle-school',
         ...tree(),
         ...(onBundle ? { onBundle: onBundle } : {}),
-        ...(calendarIds ? { calendarIds } : {}),
       });
       return { shareId, api: result.current };
     };
@@ -653,11 +651,7 @@ describe('useSharedCollection', () => {
         { date: '2026-09-24', title: 'Staff meeting' },
       ]);
 
-      const { shareId } = await shareWithDrawing(
-        [calendarBoard('b1')],
-        undefined,
-        ['teacher@school.org']
-      );
+      const { shareId } = await shareWithDrawing([calendarBoard('b1')]);
 
       expect(ensureGoogleScopeMock).toHaveBeenCalledWith('calendar.readonly');
       expect(getEventsMock).toHaveBeenCalled();
@@ -671,28 +665,12 @@ describe('useSharedCollection', () => {
       ]);
     });
 
-    it('mints no token and reads nothing for calendars the host did not confirm', async () => {
-      ensureGoogleScopeMock.mockClear();
-      getEventsMock.mockClear();
-
-      const { shareId } = await shareWithDrawing([calendarBoard('b1')]);
-
-      expect(ensureGoogleScopeMock).not.toHaveBeenCalled();
-      expect(getEventsMock).not.toHaveBeenCalled();
-      const helpers = await getHelpers();
-      expect(
-        helpers.docs.get(`shared_collections/${shareId}/content/calendar_w1`)
-      ).toBeUndefined();
-    });
-
     it('tells the teacher when the calendar scope was never granted', async () => {
       ensureGoogleScopeMock.mockResolvedValueOnce(null);
       getEventsMock.mockClear();
       const onBundle = vi.fn();
 
-      await shareWithDrawing([calendarBoard('b1')], onBundle, [
-        'teacher@school.org',
-      ]);
+      await shareWithDrawing([calendarBoard('b1')], onBundle);
 
       const bundle = onBundle.mock.calls[0][0] as {
         failures: { label: string }[];

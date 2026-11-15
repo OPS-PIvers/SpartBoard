@@ -170,6 +170,11 @@ export function watchBoardItemPick(
 // Per `uid/shareId`, this session's seed of a share's picks: true when picks were written.
 const seeds = new Map<string, Promise<boolean>>();
 
+const isBoardItemWidget = (w: unknown): w is BoardItemWidget =>
+  !!w &&
+  typeof w === 'object' &&
+  typeof (w as { type?: unknown }).type === 'string';
+
 /** Lets publishers on a share just made wait for its share-time picks instead of seeding their own. */
 export function noteBoardItemPicksSeeding(
   uid: string,
@@ -183,6 +188,51 @@ export function noteBoardItemPicksSeeding(
       () => true
     )
   );
+}
+
+// Shares made before this cutoff predate picks; later ones get their picks at share time.
+export const LEGACY_PICKS_SHARE_CUTOFF_MS = Date.UTC(2026, 10, 9, 12);
+
+/** A share made before picks existed: picks the teacher's own items its board names, once per teacher and share. */
+export function seedLegacyBoardItemPicks(
+  uid: string,
+  shareId: string
+): Promise<boolean> {
+  const id = `${uid}/${shareId}`;
+  const known = seeds.get(id);
+  if (known) return known;
+  const run = (async () => {
+    if (isViewAsTab) return false;
+    const share = await getDoc(doc(db, 'shared_boards', shareId));
+    if (!share.exists()) return false;
+    const data = share.data();
+    const sharedAt: unknown = data.sharedAt;
+    if (
+      typeof sharedAt === 'number' &&
+      sharedAt >= LEGACY_PICKS_SHARE_CUTOFF_MS
+    )
+      return false;
+    const picks = await getDoc(picksRef(uid, shareId));
+    if (picks.exists() && picks.data().legacySeeded === true) return false;
+    const widgets: unknown = data.widgets;
+    const keys = Array.isArray(widgets)
+      ? ownBoardItemPicks(widgets.filter(isBoardItemWidget), uid)
+      : [];
+    await setDoc(
+      picksRef(uid, shareId),
+      keys.length
+        ? { items: arrayUnion(...keys), legacySeeded: true }
+        : { legacySeeded: true },
+      { merge: true }
+    );
+    return keys.length > 0;
+  })().catch((err: unknown) => {
+    seeds.delete(id);
+    logError('seedLegacyBoardItemPicks', err, { shareId });
+    return false;
+  });
+  seeds.set(id, run);
+  return run;
 }
 
 /** Test hook: forget which shares this tab already seeded. */

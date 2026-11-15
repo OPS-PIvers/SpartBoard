@@ -609,15 +609,6 @@ describe('shared_collections — update, substitute manager writes', () => {
     );
   });
 
-  it('host can record the ticked calendars on a re-push', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asHost(), sharePath), {
-        calendarIds: ['cal-1'],
-        updatedAt: NOW_MS,
-      })
-    );
-  });
-
   it('host can retarget the named subs', async () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), sharePath), {
@@ -1196,32 +1187,6 @@ describe('shared_collections/content — write authorization', () => {
 // ---------------------------------------------------------------------------
 // 21. Subcollection /keys/{keyId} — named subs only
 // ---------------------------------------------------------------------------
-
-describe('shared_collections/content — calendar items', () => {
-  const calPath = `shared_collections/${SHARE_ID}/content/calendar_w1`;
-  const seedCal = async (share: Record<string, unknown>) =>
-    testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), sharePath), share);
-      await setDoc(doc(ctx.firestore(), calPath), {
-        kind: 'calendar',
-        itemId: 'w1',
-        bundledAt: NOW_MS,
-        payload: { events: [] },
-      });
-    });
-
-  it('a named sub, the host and an admin read it', async () => {
-    await seedCal(namedSubShareDoc());
-    await assertSucceeds(getDoc(doc(asOronoTeacher(), calPath)));
-    await assertSucceeds(getDoc(doc(asHost(), calPath)));
-    await assertSucceeds(getDoc(doc(asAdmin(), calPath)));
-  });
-
-  it('a district teacher the share does not name is denied', async () => {
-    await seedCal(namedSubShareDoc());
-    await assertFails(getDoc(doc(asUnnamedOronoSub(), calPath)));
-  });
-});
 
 describe('shared_collections/keys — read', () => {
   it('positive: a sub the share names by email can read a key', async () => {

@@ -27,6 +27,7 @@ import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import {
   noteBoardItemPicksSeeding,
   boardItemPickOf,
+  ownBoardItemPicks,
   readBoardItemPicks,
   recordBoardItemPicks,
 } from '@/utils/boardItemPicks';
@@ -764,11 +765,12 @@ export const useFirestore = (userId: string | null) => {
       const seedPicks = async (id: string) => {
         if (!userId || intendedMode === 'copy') return;
         const oldShareId = dashboard.linkedShareId;
+        const own = () => ownBoardItemPicks(dashboard.widgets ?? [], userId);
         if (oldShareId) {
           if (dashboard.linkedShareRole !== 'owner') return;
-          // A legacy share has no picks to carry; its widgets may be co-teacher-written, so the owner re-picks.
+          // A share made before picks existed has none to carry, so the board's own items stand in.
           const old = await readBoardItemPicks(userId, oldShareId);
-          await recordBoardItemPicks(userId, id, old ?? []);
+          await recordBoardItemPicks(userId, id, old ?? own());
           return;
         }
         // Every item on a never-shared board is this teacher's, whatever stale stamp a widget carries.

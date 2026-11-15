@@ -61676,24 +61676,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "sub-share.calendar",
-    "label": "Calendar checkbox in the sub share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-with-sub",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board",
-          "share-link.share-with-sub"
-        ]
-      }
-    ]
-  },
-  {
     "id": "share-collection.mode-synced",
     "label": "Synced option in the collection share dialog",
     "scope": "board",
