@@ -152,7 +152,11 @@ export async function handleGetMyQuizAttempts(
   ]);
   const copies = copiesSnap.docs
     .map((d) => asRecord(d.data()))
-    .filter((c) => c.closed === true && num(c.n) !== null)
+    // A copy left by an earlier occupant of this key is never the caller's.
+    .filter(
+      (c) =>
+        c.closed === true && num(c.n) !== null && c.studentUid === callerUid
+    )
     .sort((a, b) => Number(a.n) - Number(b.n));
   if (copies.length === 0) return none;
 

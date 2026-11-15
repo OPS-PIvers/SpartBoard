@@ -30,7 +30,13 @@ export function useTrayFit(
       }
     };
     fit();
-    const observer = new ResizeObserver(fit);
+    // A board resize refits now; a tray-only resize waits a frame, since refitting resizes the tray (ResizeObserver loop).
+    let frame = 0;
+    const observer = new ResizeObserver((entries) => {
+      cancelAnimationFrame(frame);
+      if (entries.some((e) => e.target === board)) fit();
+      else frame = requestAnimationFrame(fit);
+    });
     observer.observe(board);
     observer.observe(tray);
     let live = true;
@@ -39,6 +45,7 @@ export function useTrayFit(
     });
     return () => {
       live = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, [boardRef, trayRef, contentKey]);

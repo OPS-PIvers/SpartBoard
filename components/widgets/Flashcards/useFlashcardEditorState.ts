@@ -75,10 +75,6 @@ export const useFlashcardEditorState = (
 ) => {
   const canSpeak =
     useContext(AuthContext)?.canAccessFeature('flashcards-speak') ?? false;
-  const canSwap =
-    useContext(AuthContext)?.canAccessFeature('flashcards-swap-sides') ?? false;
-  const termOnly =
-    useContext(AuthContext)?.canAccessFeature('flashcards-term-only') ?? false;
   const [title, setTitle] = useState(initialSet.title);
   const [description, setDescription] = useState(initialSet.description ?? '');
   const [targets, setTargets] = useState(initialSet.targets);
@@ -282,8 +278,6 @@ export const useFlashcardEditorState = (
 
   return {
     canSpeak,
-    canSwap,
-    termOnly,
     title,
     setTitle,
     description,

@@ -148,4 +148,51 @@ describe('restoreSharedQuizContent', () => {
     expect(saveBank).not.toHaveBeenCalled();
     expect(content.bankSlots).toEqual(bankOnlyQuiz.bankSlots);
   });
+
+  it('keeps an old link slot group but drops a sharer-supplied pin', async () => {
+    const { content } = await restoreSharedQuizContent(
+      {
+        title: 't',
+        questions: [],
+        bankSlots: [
+          {
+            id: 's',
+            bankId: 'b',
+            bankTitle: 'Old',
+            mode: 'random',
+            count: 1,
+            syncGroupId: 'group-old',
+            syncOwnerUid: 'sharer',
+          },
+        ],
+      },
+      vi.fn()
+    );
+    expect(content.bankSlots?.[0]?.syncGroupId).toBe('group-old');
+    expect(content.bankSlots?.[0]).not.toHaveProperty('syncOwnerUid');
+  });
+
+  it('drops the bank link from a slot whose bank a newer link left out', async () => {
+    const { content } = await restoreSharedQuizContent(
+      {
+        title: 't',
+        questions: [],
+        banks: [],
+        bankSlots: [
+          {
+            id: 's',
+            bankId: 'b',
+            bankTitle: 'Evil',
+            mode: 'random',
+            count: 1,
+            syncGroupId: 'attacker-group',
+            syncOwnerUid: 'attacker',
+          },
+        ],
+      },
+      vi.fn()
+    );
+    expect(content.bankSlots?.[0]).not.toHaveProperty('syncGroupId');
+    expect(content.bankSlots?.[0]).not.toHaveProperty('syncOwnerUid');
+  });
 });

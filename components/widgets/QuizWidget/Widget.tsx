@@ -1,3 +1,4 @@
+import { useReopenedForAutoEnd } from '@/hooks/useReopenedForAutoEnd';
 import React, {
   lazy,
   Suspense,
@@ -247,7 +248,6 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { Loader2, AlertTriangle, LogIn, Gamepad2 } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
-import { STUDENT_KEYBOARDS_FEATURE } from '@/config/studentKeyboards';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
@@ -400,8 +400,6 @@ const TeacherQuizWidget: React.FC<{
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
     canUseQuizAi;
-  const googleDocAsPdf =
-    canImportDocuments && canAccessFeature('quiz-import-google-doc-pdf');
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
   // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
@@ -452,7 +450,7 @@ const TeacherQuizWidget: React.FC<{
   }, [ensureGoogleScope, openPicker, getDriveFileAsBlob]);
 
   // Test document from Drive (D9): the Picker lists PDFs, Word files and
-  // Google Docs, and a Doc comes back already exported as .docx (D4).
+  // Google Docs, and a Doc comes back exported as a PDF, or as .docx when too long.
   const pickDocument = useCallback(async (): Promise<{
     file: Blob;
     fileName: string;
@@ -463,13 +461,9 @@ const TeacherQuizWidget: React.FC<{
     }
     const picked = await openPicker({ mode: 'documents', token });
     if (!picked) return null;
-    let downloaded = await getDriveDocumentAsBlob(
-      picked.id,
-      googleDocAsPdf ? 'pdf' : 'docx'
-    );
+    let downloaded = await getDriveDocumentAsBlob(picked.id, 'pdf');
     // A long Doc is past the PDF reader's page limit; its Word export has none.
     if (
-      googleDocAsPdf &&
       downloaded?.mimeType === 'application/pdf' &&
       picked.mimeType !== 'application/pdf'
     ) {
@@ -486,7 +480,7 @@ const TeacherQuizWidget: React.FC<{
       file: downloaded.blob,
       fileName: downloaded.name || picked.name,
     };
-  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob, googleDocAsPdf]);
+  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
 
   // Pictures the last read document carried. They wait here rather than in
   // the adapter, which owns no state, until the teacher confirms the import.
@@ -624,6 +618,8 @@ const TeacherQuizWidget: React.FC<{
   } = useFolders(user?.uid, 'question_bank');
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
+  /** Assignment whose monitor opened to pick students to reopen for. */
+  const [reopenPickFor, setReopenPickFor] = useState<string | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const pendingHandoff = useImportHandoff(widget.id);
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
@@ -691,6 +687,7 @@ const TeacherQuizWidget: React.FC<{
     resumeAssignment,
     deactivateAssignment,
     reopenAssignment,
+    reopenForStudents,
     deleteAssignment,
     updateAssignmentSettings,
     setAssignmentRosters,
@@ -807,10 +804,7 @@ const TeacherQuizWidget: React.FC<{
     districtViewer,
     districtLibraryOn && variant === 'quiz'
   );
-  const districtFoldersOn =
-    districtLibraryOn &&
-    variant === 'quiz' &&
-    canAccessFeature('district-library-folders');
+  const districtFoldersOn = districtLibraryOn && variant === 'quiz';
   const districtFolders = useDistrictFolders(districtFoldersOn);
   const districtItemFolderIds = useMemo(
     () => new Map(districtItems.map((i) => [i.id, i.folderId ?? null])),
@@ -2227,6 +2221,8 @@ const TeacherQuizWidget: React.FC<{
     liveSession,
   ]);
 
+  useReopenedForAutoEnd(assignments, deactivateAssignment);
+
   // Persist a new ordering of quizzes. We write `order` onto each metadata
   // doc in a single batch — the Drive blob is untouched. Declared before the
   // early returns below so the hook runs on every render (rules-of-hooks).
@@ -2253,6 +2249,42 @@ const TeacherQuizWidget: React.FC<{
     },
     [user?.uid, addToast]
   );
+
+  const openArchiveMonitor = async (a: QuizAssignment): Promise<boolean> => {
+    // Look up the library quiz metadata so the monitor can load the full
+    // answer key from Drive. If the quiz was deleted from the library,
+    // we still have the session doc but no way to show the answer key.
+    const meta = quizzes.find((q) => q.id === a.quizId);
+    if (!meta) {
+      addToast(
+        'Quiz is no longer in your library — cannot open monitor.',
+        'error'
+      );
+      return false;
+    }
+    const data = await loadAnswerKeyQuiz(meta, a);
+    if (!data) return false;
+    updateWidget(
+      widget.id,
+      {
+        config: {
+          ...config,
+          view: 'monitor',
+          selectedQuizId: a.quizId,
+          selectedQuizTitle: a.quizTitle,
+          activeAssignmentId: a.id,
+          activeLiveSessionCode: a.code,
+          periodName: a.periodName ?? '',
+          periodNames: a.periodNames ?? [],
+          teacherName: a.teacherName ?? '',
+          plcMode: !!a.plc,
+          plcSheetUrl: a.plc?.sheetUrl ?? '',
+        },
+      },
+      { pickItem: true }
+    );
+    return true;
+  };
 
   // ─── Guard: not signed in ──────────────────────────────────────────────────
   if (!user) {
@@ -2523,10 +2555,7 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
-      pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
-      equations:
-        canAccessFeature('quiz-import-equations') &&
-        canAccessFeature(STUDENT_KEYBOARDS_FEATURE),
+      equations: canAccessFeature('quiz-import-equations'),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportDocuments
         ? {
@@ -3167,6 +3196,30 @@ const TeacherQuizWidget: React.FC<{
     return (
       <>
         <QuizLiveMonitor
+          reopenPicker={
+            reopenPickFor && reopenPickFor === config.activeAssignmentId
+              ? {
+                  onClose: () => {
+                    setReopenPickFor(null);
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        view: 'manager',
+                        managerTab: 'archive',
+                      },
+                    });
+                  },
+                  onDone: () => setReopenPickFor(null),
+                  onStart: () => reopenAssignment(reopenPickFor),
+                  onAbort: () => deactivateAssignment(reopenPickFor),
+                  onConfirm: (uids) =>
+                    reopenForStudents(reopenPickFor, {
+                      uids,
+                      letInUids: uids,
+                    }),
+                }
+              : null
+          }
           widgetId={widget.id}
           session={liveSession}
           responses={responses}
@@ -4443,39 +4496,17 @@ const TeacherQuizWidget: React.FC<{
           }
         }}
         onArchiveMonitor={async (a) => {
-          // Look up the library quiz metadata so the monitor can load the full
-          // answer key from Drive. If the quiz was deleted from the library,
-          // we still have the session doc but no way to show the answer key.
-          const meta = quizzes.find((q) => q.id === a.quizId);
-          if (!meta) {
-            addToast(
-              'Quiz is no longer in your library — cannot open monitor.',
-              'error'
-            );
-            return;
-          }
-          const data = await loadAnswerKeyQuiz(meta, a);
-          if (!data) return;
-          updateWidget(
-            widget.id,
-            {
-              config: {
-                ...config,
-                view: 'monitor',
-                selectedQuizId: a.quizId,
-                selectedQuizTitle: a.quizTitle,
-                activeAssignmentId: a.id,
-                activeLiveSessionCode: a.code,
-                periodName: a.periodName ?? '',
-                periodNames: a.periodNames ?? [],
-                teacherName: a.teacherName ?? '',
-                plcMode: !!a.plc,
-                plcSheetUrl: a.plc?.sheetUrl ?? '',
-              },
-            },
-            { pickItem: true }
-          );
+          await openArchiveMonitor(a);
         }}
+        onArchiveReopenStudents={
+          canAccessFeature('reopen-selected-students')
+            ? (a) => {
+                void openArchiveMonitor(a).then((ok) => {
+                  if (ok) setReopenPickFor(a.id);
+                });
+              }
+            : undefined
+        }
         onArchiveStudentView={
           canAccessFeature('quiz-student-view')
             ? async (a) => {

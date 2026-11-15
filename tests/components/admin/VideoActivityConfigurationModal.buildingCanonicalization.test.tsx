@@ -8,7 +8,7 @@ import '@testing-library/jest-dom/vitest';
 // Organization Buildings panel switched to short canonical ids ("high").
 // Toggling a building must canonicalize before comparing/writing, mirroring
 // the fix already applied to AnalyticsManager's userList.buildings and
-// NewUserSetup's selectedBuildings via config/buildings.ts's
+// the old setup wizard's selectedBuildings via config/buildings.ts's
 // canonicalizeBuildingIds — otherwise the UI can never fully unassign a
 // legacy-tagged building (see toggleBuilding in the component under test).
 

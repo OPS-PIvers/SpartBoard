@@ -32,6 +32,8 @@ export interface TourAnchorDef {
   closes?: string;
   /** One element per row of a list, so a step can bind `#row-*` to whichever row the teacher picks. */
   rows?: true;
+  /** The list its `row-N` keys count in; a later step keyed to a row follows the row picked on that list. */
+  rowList?: string;
 }
 
 export const TOUR_ANCHOR_PREREQUISITES = [
@@ -1312,6 +1314,8 @@ export const TOUR_ANCHORS = {
     keyPattern: 'assign#row-[1-9]\\d*',
     keyHint: 'assign#row-1 for the first row',
     panel: true,
+    rows: true,
+    rowList: 'assign-classes',
   },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
@@ -1327,6 +1331,7 @@ export const TOUR_ANCHORS = {
     keyPattern: 'assign#row-[1-9]\\d*',
     keyHint: 'assign#row-1 for the first row',
     panel: true,
+    rows: true,
   },
   'assign-students.search': {
     label: 'Search students box in the Assign dialog students menu',
@@ -4665,7 +4670,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-live-view.tell-student': {
-    label: 'Tell the student switch in Quiz Live view',
+    label: 'Notify student when viewing switch in Quiz Live view',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -6145,32 +6150,40 @@ export const TOUR_ANCHORS = {
     label: 'Library item card body (open)',
     perField: true,
     rows: true,
+    rowList: 'library-cards',
   },
   'library-shell.card-primary-action': {
     label: 'Primary action button on a library item card',
     persists: true,
     perField: true,
     rows: true,
+    rowList: 'library-cards',
   },
   'library-shell.card-secondary-action': {
     label: 'Secondary primary action button on a library item card',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'library-cards',
   },
   'library-shell.card-icon-action': {
     label: 'Icon-only quick action button on a library item card',
     persists: true,
     perField: true,
+    rowList: 'library-cards',
   },
   'library-shell.card-menu': {
     label: 'Kebab menu button on a library item card',
     perField: true,
+    rows: true,
+    rowList: 'library-cards',
   },
   'library-shell.card-menu-item': {
     label: 'Item inside a library item card kebab menu',
     persists: true,
     perField: true,
     panel: true,
+    rowList: 'library-cards',
   },
   'library-shell.archive-primary-action': {
     label:
@@ -6178,17 +6191,21 @@ export const TOUR_ANCHORS = {
     persists: true,
     perField: true,
     rows: true,
+    rowList: 'assignment-rows',
   },
   'library-shell.archive-menu': {
     label:
       'Kebab menu button on an assignment row (In Progress or Archive tab)',
     perField: true,
+    rows: true,
+    rowList: 'assignment-rows',
   },
   'library-shell.archive-menu-item': {
     label: 'Item inside an assignment row kebab menu',
     persists: true,
     perField: true,
     panel: true,
+    rowList: 'assignment-rows',
   },
   'widget-settings.calendar.remove-calendar': {
     label: 'Remove a personal calendar in Calendar settings',
@@ -6323,30 +6340,37 @@ export const TOUR_ANCHORS = {
     persists: true,
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'classes',
   },
   'classes.edit-roster': {
     label: 'Edit class button in My Classes',
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'classes',
   },
   'classes.sync-classlink': {
     label: 'Sync with ClassLink button in My Classes',
     persists: true,
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'classes',
   },
   'classes.link-classroom': {
     label: 'Link to Google Classroom button in My Classes',
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'classes',
   },
   'classes.view-student-page': {
     label: 'View Student Page button in My Classes',
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'classes',
   },
   'classes.delete-roster': {
     label: 'Delete class button in My Classes',
@@ -6359,6 +6383,7 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'classes',
   },
   'classes.classroom-course-row': {
     label: 'Course row in the Link to Google Classroom modal',
@@ -6371,18 +6396,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'plcs',
   },
   'plcs.actions-menu': {
     label: 'Team actions kebab in My Teams',
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'plcs',
   },
   'plcs.edit-plc': {
     label: 'Edit/View PLC action in the PLC actions menu',
     perField: true,
     panel: true,
     rows: true,
+    rowList: 'plcs',
   },
   'plcs.delete-plc': {
     label: 'Delete PLC action in the PLC actions menu',
@@ -13935,6 +13963,7 @@ export const TOUR_ANCHORS = {
     label: 'Select checkbox on a library item card',
     perField: true,
     panel: true,
+    rowList: 'library-cards',
   },
   'library-shell.card-badge': {
     label: 'Status badge button on a library item card',
@@ -17446,6 +17475,34 @@ export const TOUR_ANCHORS = {
   'quiz-library.archive-reopen': {
     label: 'Reopen item in a quiz Archive (Completed) row menu',
     perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reopen-all': {
+    label: 'All students item under Reopen in a quiz Completed row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reopen-students': {
+    label: 'Select students item under Reopen in a quiz Completed row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reopen-students.search': {
+    label: 'Search box in the reopen for selected students dialog',
+    panel: true,
+  },
+  'quiz-reopen-students.select-group': {
+    label: 'Select all button for a group in the reopen students dialog',
+    panel: true,
+  },
+  'quiz-reopen-students.cancel': {
+    label: 'Cancel button in the reopen students dialog',
+    panel: true,
+  },
+  'quiz-reopen-students.confirm': {
+    label: 'Reopen button in the reopen students dialog',
     panel: true,
     persists: true,
   },

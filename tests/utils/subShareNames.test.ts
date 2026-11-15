@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, type Mock } from 'vitest';
+
+const fsMock = vi.hoisted(() => ({ getDoc: vi.fn(), doc: vi.fn() }));
+vi.mock('firebase/firestore', () => fsMock);
+vi.mock('@/config/firebase', () => ({ db: {} }));
+
 import {
   driveQueueReader,
   extractSubShareNames,
@@ -213,7 +218,7 @@ describe('withSubShareQueues', () => {
       readQueue
     );
 
-    expect(readQueue).toHaveBeenCalledWith('queue-file');
+    expect(readQueue).toHaveBeenCalledWith('queue-file', 'b1-q');
     expect(names.boards.b1['b1-q']).toEqual({ subShareQueue: items });
     expect(unreadable).toEqual([]);
     expect(subShareNamesIsEmpty(names)).toBe(false);
@@ -337,30 +342,54 @@ describe('withSubShareQueues', () => {
 });
 
 describe('driveQueueReader', () => {
-  it('is absent without a Drive connection', () => {
-    expect(driveQueueReader(null)).toBeUndefined();
+  const bound = (fileId: string | null) =>
+    fsMock.getDoc.mockResolvedValue({
+      exists: () => fileId !== null,
+      data: () => ({ activeDriveFileId: fileId }),
+    });
+
+  it('is absent without a Drive connection or teacher', () => {
+    expect(driveQueueReader(null, 'me')).toBeUndefined();
+    expect(
+      driveQueueReader({ downloadFile: vi.fn(), isInAppFolder: vi.fn() })
+    ).toBeUndefined();
   });
 
   it('reads the queue file as JSON', async () => {
+    bound('queue-file');
     const downloadFile = vi.fn().mockResolvedValue({
       text: () => Promise.resolve('[{"id":"q1","name":"Ada"}]'),
     });
-
     const isInAppFolder = vi.fn().mockResolvedValue(true);
-    const read = driveQueueReader({ downloadFile, isInAppFolder });
+    const read = driveQueueReader({ downloadFile, isInAppFolder }, 'me');
 
-    expect(await read?.('queue-file')).toEqual([{ id: 'q1', name: 'Ada' }]);
+    expect(await read?.('queue-file', 'w1')).toEqual([
+      { id: 'q1', name: 'Ada' },
+    ]);
     expect(isInAppFolder).toHaveBeenCalledWith('queue-file', ['NextUp']);
   });
 
   it('never reads a file outside the NextUp folder', async () => {
+    bound('roster-file');
     const downloadFile = vi.fn();
-    const read = driveQueueReader({
-      downloadFile,
-      isInAppFolder: vi.fn().mockResolvedValue(false),
-    });
+    const read = driveQueueReader(
+      { downloadFile, isInAppFolder: vi.fn().mockResolvedValue(false) },
+      'me'
+    );
 
-    await expect(read?.('roster-file')).rejects.toThrow();
+    await expect(read?.('roster-file', 'w1')).rejects.toThrow();
+    expect(downloadFile).not.toHaveBeenCalled();
+  });
+
+  it('never reads another of the teacher’s queue files the widget was retargeted to', async () => {
+    bound('own-file');
+    const downloadFile = vi.fn();
+    const read = driveQueueReader(
+      { downloadFile, isInAppFolder: vi.fn().mockResolvedValue(true) },
+      'me'
+    );
+
+    await expect(read?.('other-queue-file', 'w1')).rejects.toThrow();
     expect(downloadFile).not.toHaveBeenCalled();
   });
 });

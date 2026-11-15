@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  importedConnections,
   sanitizeBoardForRecipient,
   sanitizeBoardSnapshot,
 } from '@/utils/dashboardSanitize';
@@ -213,5 +214,33 @@ describe('sanitizeBoardForRecipient', () => {
     expect(
       (board.widgets[0].config as Record<string, unknown>).firstNames
     ).toBe('Alice\nBob');
+  });
+});
+
+describe('importedConnections', () => {
+  const seq = {
+    id: 's1',
+    kind: 'sequence',
+    steps: [{ id: 'st1', actions: [{ widgetId: 'w1', action: 'show' }] }],
+    run: { stepIndex: 1 },
+  };
+  const follow = { id: 'f1', kind: 'follow', leaderId: 'a', followerId: 'b' };
+
+  it('drops malformed entries and keeps valid ones with runs cleared', () => {
+    const bad = [
+      { kind: 'sequence' },
+      { id: 'x', kind: 'sequence', steps: [{ id: 's', actions: [null] }] },
+      { id: 'y', kind: 'follow', leaderId: 1 },
+      1,
+      null,
+    ];
+    expect(importedConnections([...bad, seq, follow])).toEqual({
+      connections: [{ ...seq, run: null }, follow],
+    });
+  });
+
+  it('leaves the board unchanged when nothing valid is left', () => {
+    expect(importedConnections([{ kind: 'sequence' }, 1, null])).toEqual({});
+    expect(importedConnections('nope')).toEqual({});
   });
 });

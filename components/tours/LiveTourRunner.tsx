@@ -93,7 +93,7 @@ import {
   findTourAnchor,
   findTourAnchors,
   isAnchorReachable,
-  pickedRowRef,
+  notePickedRow,
 } from './resolveTourAnchor';
 import {
   prerequisiteWidgetId,
@@ -440,12 +440,6 @@ function fullRunIndex(index: number, dropped: readonly number[] = []): number {
   return at;
 }
 
-/** Records the row a wildcard step was answered with, under its route form `id:type`. */
-function notePick(picks: Record<string, string>, ref: string, el: Element) {
-  const picked = pickedRowRef(ref, el);
-  if (picked) picks[ref.slice(0, ref.indexOf('#'))] = picked;
-}
-
 /** Runs a Guided Learning set's live-tour steps against the real app. */
 export const LiveTourRunner: React.FC = () => {
   const { t } = useTranslation();
@@ -494,6 +488,11 @@ export const LiveTourRunner: React.FC = () => {
   const lastStepClickAt = useRef(0);
   // The row each wildcard step was answered with, so a replayed route reopens that row.
   const rowPicks = useRef<Record<string, string>>({});
+  const [pickedRows, setPickedRows] = useState<Record<string, string>>({});
+  const notePick = useEffectEvent((ref: string, el: Element) => {
+    if (notePickedRow(rowPicks.current, ref, el))
+      setPickedRows({ ...rowPicks.current });
+  });
   const lastStepCreated = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
@@ -734,7 +733,7 @@ export const LiveTourRunner: React.FC = () => {
     tour.index + 1 === tour.steps.length;
   const anchor = useAnchorElement(
     editAtEnd ? null : (step?.tour ?? null),
-    { widgetIds: added, slots: tour?.slots },
+    { widgetIds: added, slots: tour?.slots, picks: pickedRows },
     attempt
   );
 
@@ -836,7 +835,11 @@ export const LiveTourRunner: React.FC = () => {
       window.clearTimeout(timer);
     };
   }, [snapStepId, snapElement, binding, shotKey, testShot, snapIndex]);
-  const anchorScope = { widgetIds: added, slots: tour?.slots };
+  const anchorScope = {
+    widgetIds: added,
+    slots: tour?.slots,
+    picks: pickedRows,
+  };
   const onStage = hiddenIds.length
     ? widgets.filter((w) => !hiddenIds.includes(w.id))
     : widgets;
@@ -984,6 +987,7 @@ export const LiveTourRunner: React.FC = () => {
     healTried.current.clear();
     takeBackUsed.current.clear();
     rowPicks.current = {};
+    setPickedRows({});
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -1008,15 +1012,14 @@ export const LiveTourRunner: React.FC = () => {
         }
       : set;
     // Keep or Remove and following a run's own boards are Getting Started behaviour.
-    runStart.current =
-      opts.edit || !latest.current.canAccessFeature('getting-started')
-        ? null
-        : {
-            at: Date.now(),
-            boardId: d.activeDashboard?.id ?? null,
-            boards: new Set(d.dashboards.map((b) => b.id)),
-            collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
-          };
+    runStart.current = opts.edit
+      ? null
+      : {
+          at: Date.now(),
+          boardId: d.activeDashboard?.id ?? null,
+          boards: new Set(d.dashboards.map((b) => b.id)),
+          collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
+        };
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
     const beforeIds = new Set(current.map((w) => w.id));
@@ -1312,15 +1315,8 @@ export const LiveTourRunner: React.FC = () => {
       noteMiss();
       runLog.current?.end(done ? { done } : { done, exit: tour.index });
       runLog.current = null;
-      const { uid, canAccessFeature: canAccess } = latest.current;
-      if (
-        done &&
-        uid &&
-        !tour.draft &&
-        !tour.edit &&
-        !tour.test &&
-        canAccess('getting-started')
-      ) {
+      const { uid } = latest.current;
+      if (done && uid && !tour.draft && !tour.edit && !tour.test) {
         void recordTourFinished(uid, tour.set.id);
       }
       if (
@@ -1686,7 +1682,7 @@ export const LiveTourRunner: React.FC = () => {
       lastStepClickAt.current = Date.now();
       lastStepCreated.current = stepCreates;
       if (e.currentTarget instanceof Element)
-        notePick(rowPicks.current, stepAnchor, e.currentTarget);
+        notePick(stepAnchor, e.currentTarget);
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
       const signal = clickWait.current?.signal;
@@ -1790,7 +1786,11 @@ export const LiveTourRunner: React.FC = () => {
     if (anchor.status === 'found' && !inAnchor && !isInPopup(hit)) return;
     const kinds: readonly string[] =
       e.type === 'change' ? ['type', 'select'] : ['click', 'toggle', 'select'];
-    const scope = { widgetIds: added, slots: tour.slots };
+    const scope = {
+      widgetIds: added,
+      slots: tour.slots,
+      picks: rowPicks.current,
+    };
     const found: { el?: Element } = {};
     const matched = matchLookahead(tour.steps, tour.index, (s, i) => {
       const b = s.tour;
@@ -1803,7 +1803,7 @@ export const LiveTourRunner: React.FC = () => {
     });
     const el = found.el;
     if (matched === null || !el) return;
-    notePick(rowPicks.current, tour.steps[matched]?.tour?.anchor ?? '', el);
+    notePick(tour.steps[matched]?.tour?.anchor ?? '', el);
     const p = pendingCatch.current;
     if (p && p.from === tour.index) {
       // A quick burst lands once, on the step after the furthest one done.
@@ -2383,6 +2383,7 @@ export const LiveTourRunner: React.FC = () => {
               widgetIds: latestAdded.current,
               slots: latestSlots.current,
               accept: isAnchorReachable,
+              picks: rowPicks.current,
             });
             return !!next && isSettled(next);
           },

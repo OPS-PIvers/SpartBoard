@@ -46,11 +46,6 @@ const FirstRunSetup = lazy(() =>
     default: module.FirstRunSetup,
   }))
 );
-const NewUserSetup = lazy(() =>
-  import('./components/auth/NewUserSetup').then((module) => ({
-    default: module.NewUserSetup,
-  }))
-);
 const MobileRemoteApp = lazy(() =>
   import('./components/remote/MobileRemoteView').then((module) => ({
     default: module.MobileRemoteView,
@@ -877,20 +872,13 @@ const AppContent: React.FC = () => {
     return <FullPageLoader />;
   }
 
-  // First-time users go through the setup wizard, or under Getting Started straight to the board (D2).
+  // First-time users go straight to the board (D2).
   if (!setupCompleted) {
-    // The flag isn't known until role and permissions settle, and the wizard must never flash.
+    // The starting Dock tools depend on role and permissions, so wait for them to settle.
     if (!globalPermissionsLoaded || isAdmin === null) return <FullPageLoader />;
-    if (canAccessFeature('getting-started')) {
-      return (
-        <Suspense fallback={<FullPageLoader />}>
-          <FirstRunSetup fallback={<FullPageLoader />} />
-        </Suspense>
-      );
-    }
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <NewUserSetup />
+        <FirstRunSetup fallback={<FullPageLoader />} />
       </Suspense>
     );
   }
@@ -937,12 +925,11 @@ const AppContent: React.FC = () => {
           <GradebookRouteHost parsed={gradebookParsed} />
         </Suspense>
       )}
-      {canAccessFeature('getting-started') &&
-        isGettingStartedRoute(pathname) && (
-          <Suspense fallback={<FullPageLoader />}>
-            <GettingStartedPage />
-          </Suspense>
-        )}
+      {isGettingStartedRoute(pathname) && (
+        <Suspense fallback={<FullPageLoader />}>
+          <GettingStartedPage />
+        </Suspense>
+      )}
     </Suspense>
   );
 };

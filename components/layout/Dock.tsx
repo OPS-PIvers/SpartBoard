@@ -575,7 +575,6 @@ export const Dock: React.FC = () => {
           if (
             result.action === 'create-widget' &&
             videoId &&
-            canAccessFeature('youtube-paste-picker') &&
             canAccessWidget('video-activity')
           ) {
             setVideoPastePending({ embedConfig: result.config, videoId });
