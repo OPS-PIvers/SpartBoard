@@ -3,15 +3,25 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { AssignmentClassNames } from './AssignmentClassNames';
 
 describe('AssignmentClassNames', () => {
-  it('expands unrelated classes and keeps focus on the list', () => {
+  it('shows a count that opens the full class names', () => {
     render(
-      <AssignmentClassNames names={['Biology', 'Chemistry', 'Physics']} />
+      <AssignmentClassNames
+        names={[
+          'MS Science 8 - Ivers - Period 1 (2026-27 S1)',
+          'MS Science 8 - Ivers - Period 2 (2026-27 S1)',
+        ]}
+      />
     );
-    const list = screen.getByTestId('assignment-class-names');
-    expect(list.textContent).toBe('Biology +2 more');
-    fireEvent.click(screen.getByRole('button', { name: '+2 more' }));
-    expect(list.textContent).toBe('Biology, Chemistry, Physics');
-    expect(document.activeElement).toBe(list);
+    fireEvent.click(screen.getByRole('button', { name: '2 classes' }));
+    const dialog = screen.getByRole('dialog', { name: 'Classes' });
+    expect(dialog.textContent).toContain(
+      'MS Science 8 - Ivers - Period 2 (2026-27 S1)'
+    );
+  });
+
+  it('says 1 class for one', () => {
+    render(<AssignmentClassNames names={['Sample - Mock Period 1']} />);
+    expect(screen.getByRole('button', { name: '1 class' })).toBeTruthy();
   });
 
   it('renders nothing without classes', () => {

@@ -1,52 +1,42 @@
-import React, { useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
-import {
-  assignmentClassNamesTitle,
-  formatAssignmentClassNames,
-  splitAssignmentClassNames,
-} from './assignmentClassNames';
+import React from 'react';
+import { BadgePopover } from '@/components/common/BadgePopover';
+import { classCountLabel, uniqueClassNames } from './assignmentClassNames';
 
 interface AssignmentClassNamesProps {
   names: readonly (string | null | undefined)[];
 }
 
-/** Class names in an assignment row's meta line; wraps instead of truncating. */
+/** "N classes" in an assignment row; tap it to list every class in full. */
 export const AssignmentClassNames: React.FC<AssignmentClassNamesProps> = ({
   names,
 }) => {
-  const [expanded, setExpanded] = useState(false);
-  const listRef = useRef<HTMLSpanElement>(null);
-  const expand = () => {
-    flushSync(() => setExpanded(true));
-    // Keep keyboard focus here once the button is gone.
-    listRef.current?.focus();
-  };
-  const label = formatAssignmentClassNames(names);
-  if (label == null) return null;
-  const split = expanded ? null : splitAssignmentClassNames(names);
+  const list = uniqueClassNames(names);
+  if (list.length === 0) return null;
+  const label = classCountLabel(list.length);
   return (
-    <span
-      ref={listRef}
-      tabIndex={expanded ? -1 : undefined}
-      data-testid="assignment-class-names"
-      className="min-w-0 whitespace-normal text-pretty font-semibold outline-hidden [overflow-wrap:anywhere]"
-      title={assignmentClassNamesTitle(names)}
+    <BadgePopover
+      triggerLabel={label}
+      dialogLabel="Classes"
+      triggerClassName="touch-target-expand"
+      panel={
+        <ul className="divide-y divide-slate-200/70">
+          {list.map((name) => (
+            <li
+              key={name}
+              className="py-1.5 font-semibold text-slate-700 [overflow-wrap:anywhere] first:pt-0 last:pb-0"
+            >
+              {name}
+            </li>
+          ))}
+        </ul>
+      }
     >
-      {split ? (
-        <>
-          {split.first}{' '}
-          {/* no-tour-anchor: reveals the rest of this row's class list */}
-          <button
-            type="button"
-            onClick={expand}
-            className="touch-target-expand relative whitespace-nowrap font-bold underline decoration-current/40 underline-offset-2 hover:decoration-current focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 rounded-sm [-webkit-tap-highlight-color:transparent]"
-          >
-            +{split.more} more
-          </button>
-        </>
-      ) : (
-        label
-      )}
-    </span>
+      <span
+        data-testid="assignment-class-names"
+        className="font-semibold underline decoration-current/40 underline-offset-2 hover:decoration-current"
+      >
+        {label}
+      </span>
+    </BadgePopover>
   );
 };
