@@ -2506,7 +2506,28 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     });
   });
 
-  it('saves a changed answer on a revisited submitted question and keeps it submitted', async () => {
+  it('skips a changed draft over a submitted answer outside Live view', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'Wrong',
+      answeredAt: 100,
+      status: 'submitted',
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'Right', undefined, {
+        isDraft: true,
+      });
+    });
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('saves a changed answer on a Live view revisit of a submitted question and keeps it submitted', async () => {
     // Live view bug: a student who went back and changed an answered question wrote nothing until Next.
     const result = await joinAndSeedPrior({
       questionId: 'q1',
@@ -2522,6 +2543,7 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     await act(async () => {
       await result.current.submitAnswer('q1', 'Right', undefined, {
         isDraft: true,
+        liveRevisit: true,
       });
     });
 
@@ -2554,6 +2576,7 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     await act(async () => {
       await result.current.submitAnswer('q1', 'Right', undefined, {
         isDraft: true,
+        liveRevisit: true,
       });
     });
 
