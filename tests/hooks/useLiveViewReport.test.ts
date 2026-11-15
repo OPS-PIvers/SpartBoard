@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
+import type { QuizLiveState } from '@/types';
 import {
   LIVE_ACTIVITY_REPORT_MS,
   useLiveViewReport,
@@ -18,7 +19,7 @@ describe('useLiveViewReport', () => {
   });
 
   const setup = (extra: Partial<UseLiveViewReportArgs> = {}) => {
-    const report = vi.fn(() => Promise.resolve());
+    const report = vi.fn((_state: QuizLiveState) => Promise.resolve());
     const args: UseLiveViewReportArgs = {
       until: Date.now() + 60_000,
       questionId: 'q1',
