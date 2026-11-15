@@ -39,6 +39,32 @@
       "details": []
     },
     {
+      "version": "2026.11.15.1",
+      "date": "2026-11-15",
+      "title": "Flashcards study and editing updates",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Flashcards",
+          "items": [
+            {
+              "text": "Students in a study assignment can study just the cards they missed. They tap Missed at the top, or Study missed cards at the end of a round."
+            },
+            {
+              "text": "Assigning a set now starts as a Study resource. A new Study settings step picks what students start with, like which side shows first, and can lock it."
+            },
+            {
+              "text": "When you fix a card in a set, open Checks get the fix too and their scores update. Cards you add or delete don't change a Check."
+            },
+            {
+              "text": "A card can now have a term and no definition, for things like sight words. Write and Test are hidden for those sets."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.14.1",
       "date": "2026-11-14",
       "title": "Quiz pictures and readings beside the question",
@@ -2686,6 +2712,36 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "flashcards-missed-cards-2026-11-15",
+      "widget": "flashcards",
+      "date": "2026-11-15",
+      "text": "Students can now study just the cards they missed in a study assignment."
+    },
+    {
+      "id": "flashcards-study-settings-2026-11-15",
+      "widget": "flashcards",
+      "date": "2026-11-15",
+      "text": "Assign now starts as a Study resource, with a Study settings step for what students start with."
+    },
+    {
+      "id": "flashcards-check-sync-2026-11-15",
+      "widget": "flashcards",
+      "date": "2026-11-15",
+      "text": "Fixing a card now updates open Checks and their scores."
+    },
+    {
+      "id": "flashcards-term-only-2026-11-15",
+      "widget": "flashcards",
+      "date": "2026-11-15",
+      "text": "Cards can have a term with no definition, like sight words."
+    },
+    {
+      "id": "flashcards-swap-sides-2026-11-15",
+      "widget": "flashcards",
+      "date": "2026-11-15",
+      "text": "Swap terms and definitions with the arrows button above the cards in the set editor."
+    },
     {
       "id": "quiz-stimuli-beside-question-2026-11-14",
       "widget": "quiz",

@@ -15,8 +15,11 @@ vi.mock('firebase/firestore', () => ({
   getDocs: vi.fn(),
   onSnapshot: vi.fn(() => () => undefined),
   orderBy: vi.fn(),
-  query: vi.fn(),
-  where: vi.fn(),
+  query: vi.fn((_ref: unknown, ...clauses: unknown[]) => clauses),
+  where: vi.fn((field: string, _op: string, value: unknown) => ({
+    field,
+    value,
+  })),
   writeBatch: vi.fn(),
 }));
 
@@ -79,16 +82,26 @@ const wrapper = (canSpeak: boolean) =>
     );
   };
 
+// These are open Study sessions; the Check query finds none.
 const openSessions = (docs: Array<Record<string, unknown>>) =>
-  (getDocs as Mock).mockResolvedValue({
-    empty: docs.length === 0,
-    size: docs.length,
-    docs: docs.map((data, i) => ({
-      id: `session-${i}`,
-      ref: `flashcard_sessions/session-${i}`,
-      get: (key: string) => data[key],
-    })),
-  });
+  (getDocs as Mock).mockImplementation(
+    (clauses: Array<{ field: string; value: unknown }> | undefined) => {
+      const found = clauses?.some(
+        (c) => c.field === 'kind' && c.value === 'check'
+      )
+        ? []
+        : docs;
+      return Promise.resolve({
+        empty: found.length === 0,
+        size: found.length,
+        docs: found.map((data, i) => ({
+          id: `session-${i}`,
+          ref: `flashcard_sessions/session-${i}`,
+          get: (key: string) => data[key],
+        })),
+      });
+    }
+  );
 
 const opFor = (ref: string) => ops.find((op) => op.ref === ref);
 

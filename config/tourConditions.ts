@@ -30,6 +30,11 @@ const FEATURE_PREFIX = 'feature:';
 /** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
 export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'district-library-folders',
+  'flashcards-check-sync',
+  'flashcards-missed-cards',
+  'flashcards-study-settings',
+  'flashcards-swap-sides',
+  'flashcards-term-only',
   'getting-started',
   'lunch-count-resend',
   'quiz-import-versions',
