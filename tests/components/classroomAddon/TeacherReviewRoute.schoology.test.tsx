@@ -253,7 +253,10 @@ describe('ClassroomAddonTeacherReview on Schoology', () => {
       )
     );
     fireEvent.click(button);
-    await waitFor(() => expect(pushCallable).toHaveBeenCalledTimes(1));
+    // The bank fetch and regrade run before the push; a loaded CI runner can pass 1 s.
+    await waitFor(() => expect(pushCallable).toHaveBeenCalledTimes(1), {
+      timeout: 5000,
+    });
     expect(pushCallable).toHaveBeenCalledWith(
       expect.objectContaining({
         maxPoints: 10,

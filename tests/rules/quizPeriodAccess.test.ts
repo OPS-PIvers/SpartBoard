@@ -260,7 +260,7 @@ describe('global pause (every session)', () => {
     await assertSucceeds(
       setDoc(
         doc(asStudent(OTHER_UID), `quiz_sessions/${S}/responses/${OTHER_UID}`),
-        joinDoc(OTHER_UID, { classId: CLASS_A })
+        joinDoc(OTHER_UID)
       )
     );
   });
@@ -284,8 +284,8 @@ describe('joining a session with no period access', () => {
     );
   });
 
-  it('refuses a response with no class on a multi-class session', async () => {
-    await assertFails(
+  it('accepts no class on a multi-class session, as older clients send', async () => {
+    await assertSucceeds(
       setDoc(respRef(asStudent(OTHER_UID), OTHER_UID), joinDoc(OTHER_UID))
     );
   });

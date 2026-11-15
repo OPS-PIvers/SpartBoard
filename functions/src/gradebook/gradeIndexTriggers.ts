@@ -382,15 +382,13 @@ export async function handleRowWrite(event: WriteEvent): Promise<void> {
   await guarded('projection', { rowId: event.params.rowId }, async () => {
     const db = admin.firestore();
     // Deleting a pre-kind row that a kind-keyed row replaced clears only an entry the replacement moved.
-    if (
-      !after &&
-      before &&
-      event.params.rowId !==
-        rowId(before.kind, before.sessionId, before.studentUid)
-    ) {
+    const replacementId = before
+      ? rowId(before.kind || 'quiz', before.sessionId, before.studentUid)
+      : '';
+    if (!after && before && event.params.rowId !== replacementId) {
       const replacement = await db
         .collection(GRADE_INDEX)
-        .doc(rowId(before.kind, before.sessionId, before.studentUid))
+        .doc(replacementId)
         .get();
       if (replacement.exists) {
         await projectRow(db, replacement.data() as IndexRow, before);

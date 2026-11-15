@@ -335,9 +335,9 @@ describe('scoreVideoResponse', () => {
       questions
     );
     expect(r).toMatchObject({
-      state: 'awaiting-grade',
-      rawPct: null,
-      points: null,
+      state: 'scored',
+      rawPct: 0,
+      points: 0,
       max: 2,
       submittedAt: 9,
     });

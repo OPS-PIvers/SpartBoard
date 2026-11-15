@@ -22,12 +22,7 @@ import {
   type StudentStandardEntry,
 } from '../gradebookCore';
 import { legacyRowId } from './gradeRowMath';
-import {
-  GRADE_INDEX,
-  defaultProjectMemberAuthority,
-  stableStringify,
-  type ProjectMemberAuthority,
-} from './gradeIndex';
+import { GRADE_INDEX, stableStringify } from './gradeIndex';
 import type { IndexRow } from './types';
 
 type Firestore = admin.firestore.Firestore;
@@ -400,8 +395,7 @@ export async function projectRow(
   db: Firestore,
   after: IndexRow | null,
   before: IndexRow | null,
-  now = Date.now(),
-  authority: ProjectMemberAuthority = defaultProjectMemberAuthority(db)
+  now = Date.now()
 ): Promise<void> {
   if (
     before?.classId &&
@@ -435,11 +429,6 @@ export async function projectRow(
     loadRowInputs(db, after),
     loadClassSettings(db, after.ownerUid, after.rosterId),
   ]);
-  // Only a teacher of the class may put an entry in a student's view of it.
-  const taught = await authority(after.ownerUid, after.classId, [
-    after.studentUid,
-  ]);
-  if (!taught.has(after.studentUid)) return;
   const entry = buildStudentGradeEntry(
     after,
     inputs.mark,

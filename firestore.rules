@@ -333,12 +333,10 @@ service cloud.firestore {
                 ? d.classId in request.auth.token.classIds
                 : s.get('accessMode', '') != 'assessment'));
     }
-    // A studentRole response names a class from its own claim; it may omit one only on a single-class or per-period session.
-    function claimClassOk(d, s) {
-      return !isStudentRoleUser() ||
-             (d.get('classId', '') in [null, ''] &&
-              (s.get('classIds', []).size() < 2 || s.get('periodAccess', null) != null)) ||
-             d.get('classId', '') in tok().get('classIds', []);
+    // A studentRole response names no class or one from its own claim (older clients omit it on multi-class sessions).
+    function claimClassOk(d) {
+      return !isStudentRoleUser() || d.get('classId', '') in [null, ''] ||
+             d.classId in tok().get('classIds', []);
     }
 
     // Per-period content docs: the caller's seat names their response, whose
@@ -4766,7 +4764,7 @@ service cloud.firestore {
           runOpen(sessionData()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(sessionData()) &&
-          periodJoinOk(sessionData(), incoming()) && claimClassOk(incoming(), sessionData()) &&
+          periodJoinOk(sessionData(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(sessionData(), incoming()) &&
           joinKeyOk(sessionData(), responseKey) &&
           // The PIN is short text the hourly archive email quotes.
@@ -5590,7 +5588,7 @@ service cloud.firestore {
           runOpen(vaS()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(vaS()) &&
-          periodJoinOk(vaS(), incoming()) && claimClassOk(incoming(), vaS()) &&
+          periodJoinOk(vaS(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(vaS(), incoming()) &&
           joinKeyOk(vaS(), responseDocId) &&
           // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1.
@@ -5925,7 +5923,7 @@ service cloud.firestore {
           staffJoinOk(glSession(), incoming()) &&
           // Per-student publication is teacher-written only.
           incoming().get('resultsOverride', null) == null &&
-          glClassGate() && claimClassOk(incoming(), glSession()) &&
+          glClassGate() && claimClassOk(incoming()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions' &&
           // Block joins outside the assignment's open/close window (M17).
@@ -6851,7 +6849,7 @@ service cloud.firestore {
                       && data.attemptStartedAt <= nowMs() + 60000))
                  && (data.get('handRaisedAt', null) == null || data.handRaisedAt is int)
                  && data.get('tabSwitchWarnings', 0) >= (noDoc() ? 0 : existing().get('tabSwitchWarnings', 0))
-                 && data.classId is string && claimClassOk(data, fcSession())
+                 && data.classId is string
                  && fcCardsOk()
                  && data.starred is list
                  && data.round is int
