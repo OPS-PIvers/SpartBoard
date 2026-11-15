@@ -135,7 +135,7 @@ describe('restoreSharedQuizContent', () => {
     expect(content).not.toHaveProperty('banks');
   });
 
-  it('keeps slots from older links that carried no banks', async () => {
+  it('keeps slots from older links that carried no banks, minus any bank link', async () => {
     const saveBank = vi.fn();
     const { content } = await restoreSharedQuizContent(
       {
@@ -146,10 +146,12 @@ describe('restoreSharedQuizContent', () => {
       saveBank
     );
     expect(saveBank).not.toHaveBeenCalled();
-    expect(content.bankSlots).toEqual(bankOnlyQuiz.bankSlots);
+    expect(content.bankSlots).toEqual(
+      bankOnlyQuiz.bankSlots?.map(({ syncGroupId: _g, ...rest }) => rest)
+    );
   });
 
-  it('drops the sharer-supplied owner pin from slots with no inlined bank', async () => {
+  it('drops the sharer-supplied bank link from slots with no inlined bank', async () => {
     const { content } = await restoreSharedQuizContent(
       {
         title: 't',
@@ -168,7 +170,7 @@ describe('restoreSharedQuizContent', () => {
       },
       vi.fn()
     );
-    expect(content.bankSlots?.[0]?.syncGroupId).toBe('attacker-group');
+    expect(content.bankSlots?.[0]).not.toHaveProperty('syncGroupId');
     expect(content.bankSlots?.[0]).not.toHaveProperty('syncOwnerUid');
   });
 });
