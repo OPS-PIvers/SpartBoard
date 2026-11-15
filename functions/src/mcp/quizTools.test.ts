@@ -420,7 +420,7 @@ describe('DOK levels', () => {
   const fileOf = (id: string) =>
     drive.files.get(`file-${id}`) as { questions: Data[] };
 
-  it('saves and returns dok for a teacher with DOK levels', async () => {
+  it('saves and returns dok', async () => {
     const call = await connect(fakeDb(admin).db);
     const res = await call('create_quiz', {
       title: 'T',
