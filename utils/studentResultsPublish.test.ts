@@ -153,6 +153,45 @@ describe('publishVideoActivityResultsForStudents', () => {
   });
 });
 
+describe('VA graded entry is the first by list position', () => {
+  const byId = new Map([vaQ('q1', 'a')].map((q) => [q.id, q]));
+
+  it('scores a wrong first entry over a correct duplicate with answeredAt 0', () => {
+    const graded = gradeVideoActivityResponseForPublish(
+      {
+        answers: [
+          { questionId: 'q1', answer: 'b', answeredAt: 5000 },
+          { questionId: 'q1', answer: 'a', answeredAt: 0, takeIndex: 9 },
+        ],
+      } as unknown as VideoActivityResponse,
+      byId
+    );
+    expect(graded.score).toBe(0);
+  });
+
+  it('scores a live entry the check callable never recorded as 0', () => {
+    const graded = gradeVideoActivityResponseForPublish(
+      {
+        answers: [{ questionId: 'q1', answer: 'a', answeredAt: 9000 }],
+        checkedAnswers: {},
+      } as unknown as VideoActivityResponse,
+      byId,
+      true
+    );
+    expect(graded.score).toBe(0);
+    expect(graded.answers[0].isCorrect).toBeUndefined();
+    const recorded = gradeVideoActivityResponseForPublish(
+      {
+        answers: [{ questionId: 'q1', answer: 'a', answeredAt: 9000 }],
+        checkedAnswers: { q1: { answer: 'a', attempt: 0 } },
+      } as unknown as VideoActivityResponse,
+      byId,
+      true
+    );
+    expect(recorded.score).toBe(100);
+  });
+});
+
 describe('publishGuidedLearningResultsForStudents', () => {
   it('carries the answer key only at the answers level', async () => {
     docs.set('guided_learning_sessions/g1/responses/u1', {

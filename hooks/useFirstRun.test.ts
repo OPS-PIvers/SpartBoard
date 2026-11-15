@@ -4,11 +4,9 @@ import type { GettingStartedProgress } from '@/utils/gettingStartedProgress';
 
 const h = vi.hoisted(
   (): {
-    on: boolean;
     loading: boolean;
     progress: GettingStartedProgress;
   } => ({
-    on: true,
     loading: false,
     progress: { finished: {} },
   })
@@ -17,7 +15,6 @@ const h = vi.hoisted(
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u1' },
-    canAccessFeature: () => h.on,
   }),
 }));
 vi.mock('@/hooks/useGettingStarted', () => ({
@@ -31,7 +28,6 @@ const { useFirstRun } = await import('./useFirstRun');
 const { QUIET_START_MS } = await import('@/utils/gettingStartedProgress');
 
 beforeEach(() => {
-  h.on = true;
   h.loading = false;
   h.progress = { finished: {} };
 });
@@ -62,19 +58,7 @@ describe('useFirstRun', () => {
     expect(quiet).toBe(false);
   });
 
-  it('is all off without the flag, and holds alerts while the doc loads', () => {
-    h.on = false;
-    h.progress = {
-      finished: {},
-      welcome: 'pending',
-      firstSignInAt: Date.now(),
-    };
-    expect(renderHook(() => useFirstRun()).result.current).toEqual({
-      welcomePending: false,
-      quiet: false,
-      firstRun: false,
-    });
-    h.on = true;
+  it('holds alerts while the doc loads', () => {
     h.loading = true;
     expect(renderHook(() => useFirstRun()).result.current.quiet).toBe(true);
   });

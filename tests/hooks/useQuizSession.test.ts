@@ -2506,6 +2506,83 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     });
   });
 
+  it('skips a changed draft over a submitted answer outside Live view', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'Wrong',
+      answeredAt: 100,
+      status: 'submitted',
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'Right', undefined, {
+        isDraft: true,
+      });
+    });
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('saves a changed answer on a Live view revisit of a submitted question and keeps it submitted', async () => {
+    // Live view bug: a student who went back and changed an answered question wrote nothing until Next.
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'Wrong',
+      answeredAt: 100,
+      status: 'submitted',
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'Right', undefined, {
+        isDraft: true,
+        liveRevisit: true,
+      });
+    });
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+      lastWriteAt: unknown;
+    };
+    expect(payload.answers[0]).toMatchObject({
+      questionId: 'q1',
+      answer: 'Right',
+      status: 'submitted',
+    });
+    expect(payload.answers[0].answeredAt).toBeGreaterThan(100);
+    expect(payload).toHaveProperty('lastWriteAt');
+  });
+
+  it('skips a draft that repeats a submitted answer', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'Right',
+      answeredAt: 100,
+      status: 'submitted',
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'Right', undefined, {
+        isDraft: true,
+        liveRevisit: true,
+      });
+    });
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
   it('writes only the freshly-earned speedBonus, clamped to [0, 50]', async () => {
     const result = await joinAndSeedPrior({
       questionId: 'q1',

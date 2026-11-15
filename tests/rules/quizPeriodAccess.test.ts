@@ -266,6 +266,47 @@ describe('global pause (every session)', () => {
   });
 });
 
+describe('joining a session with no period access', () => {
+  const S = 'no-pa-join';
+  const respRef = (db: ReturnType<typeof asStudent>, key: string) =>
+    doc(db, `quiz_sessions/${S}/responses/${key}`);
+
+  beforeEach(async () => {
+    await seedSession(S);
+  });
+
+  it('accepts a class from the caller claim', async () => {
+    await assertSucceeds(
+      setDoc(
+        respRef(asStudent(), STUDENT_UID),
+        joinDoc(STUDENT_UID, { classId: CLASS_A })
+      )
+    );
+  });
+
+  it('accepts no class on a multi-class session, as older clients send', async () => {
+    await assertSucceeds(
+      setDoc(respRef(asStudent(OTHER_UID), OTHER_UID), joinDoc(OTHER_UID))
+    );
+  });
+
+  it('accepts no class on a single-class session', async () => {
+    await seedSession(S, { classIds: [CLASS_A] });
+    await assertSucceeds(
+      setDoc(respRef(asStudent(OTHER_UID), OTHER_UID), joinDoc(OTHER_UID))
+    );
+  });
+
+  it("refuses another section's class outside the caller claim", async () => {
+    await assertFails(
+      setDoc(
+        respRef(asStudent(), STUDENT_UID),
+        joinDoc(STUDENT_UID, { classId: CLASS_B })
+      )
+    );
+  });
+});
+
 describe('joining a per-period session', () => {
   const S = 'pa-join';
   const respRef = (db: ReturnType<typeof asStudent>, key: string) =>

@@ -78,6 +78,18 @@ function makeDb(docs: Record<string, Doc>) {
   // `where(field, '==', value).count()`, over direct children of the collection.
   const collectionRef = (path: string) => ({
     doc: (id: string) => docRef(`${path}/${id}`),
+    select: () => ({
+      get: () =>
+        Promise.resolve({
+          docs: Object.keys(docs)
+            .filter(
+              (p) =>
+                p.startsWith(`${path}/`) &&
+                !p.slice(path.length + 1).includes('/')
+            )
+            .map((p) => ({ id: p.slice(path.length + 1), ref: docRef(p) })),
+        }),
+    }),
     where: (field: string, op: string, value: unknown) => {
       const matches = () =>
         Object.entries(docs).filter(
@@ -86,7 +98,9 @@ function makeDb(docs: Record<string, Doc>) {
             !p.slice(path.length + 1).includes('/') &&
             (op === '=='
               ? d[field] === value
-              : typeof d[field] === 'string' && d[field] > '')
+              : op === 'in'
+                ? (value as unknown[]).includes(d[field])
+                : typeof d[field] === 'string' && d[field] > '')
         );
       return {
         get: () =>
@@ -610,6 +624,51 @@ describe('handlePublishPaperResults', () => {
         override: { timeMultiplier: 2 },
       })
     );
+  });
+
+  it('writes no pointer for a uid or class the caller pin_index does not record', async () => {
+    const docs = withResponses();
+    docs[`quiz_sessions/${ASSIGNMENT}/responses/forged`] = {
+      studentUid: 'someone-else',
+      classId: 'class-1',
+      paperBatchId: BATCH,
+    };
+    docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`] = {
+      ...docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`],
+      classId: 'other-teachers-class',
+    };
+    const { result } = await publish(docs);
+    expect(result).toEqual({ pointersWritten: 0, unlinked: 1, unplaced: 3 });
+    expect(
+      docs[`student_assignments/someone-else/items/${ASSIGNMENT}`]
+    ).toBeUndefined();
+    expect(
+      docs[`student_assignments/pseudo-s2/items/${ASSIGNMENT}`]
+    ).toBeUndefined();
+  });
+
+  it("leaves another teacher's or another kind's pointer at this id untouched", async () => {
+    for (const prior of [
+      {
+        kind: 'quiz',
+        teacherUid: 'victim',
+        classId: 'class-9',
+        sessionId: ASSIGNMENT,
+      },
+      { kind: 'flashcards', teacherUid: UID, classId: 'class-1' },
+    ]) {
+      const docs = withResponses();
+      const path = `student_assignments/pseudo-s2/items/${ASSIGNMENT}`;
+      docs[path] = { ...prior, createdAt: 7, updatedAt: 7 };
+      const { result } = await publish(docs);
+      expect(result).toEqual({
+        pointersWritten: 0,
+        unlinked: 1,
+        unplaced: 1,
+        foreign: 1,
+      });
+      expect(docs[path]).toEqual({ ...prior, createdAt: 7, updatedAt: 7 });
+    }
   });
 
   it('is a no-op for an administration with no paper responses', async () => {

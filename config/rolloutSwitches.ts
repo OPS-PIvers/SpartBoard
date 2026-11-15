@@ -225,7 +225,6 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   {
     docId: GETTING_STARTED_SETTINGS_DOC,
     field: 'showInSidebar',
-    feature: 'getting-started',
     title: 'Getting Started in the sidebar',
     description: "Shows the item below What's New. On by default.",
     normalize: normalizeGettingStartedSidebarSwitch,

@@ -807,14 +807,12 @@ export const Sidebar: React.FC = () => {
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
                   )}
-                  {canAccessFeature('getting-started') && (
-                    <SidebarGettingStarted
-                      onOpen={() => {
-                        setIsOpen(false);
-                        setActiveSection('main');
-                      }}
-                    />
-                  )}
+                  <SidebarGettingStarted
+                    onOpen={() => {
+                      setIsOpen(false);
+                      setActiveSection('main');
+                    }}
+                  />
                 </div>
               </nav>
 

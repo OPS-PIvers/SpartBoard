@@ -46,6 +46,8 @@ import { useDashboard } from '@/context/useDashboard';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { logError } from '@/utils/logError';
+import { ReopenStudentsDialog } from '../ReopenStudentsDialog';
+import { buildReopenOptions } from './reopenOptions';
 import {
   QUIZ_LIVE_VIEW_FEATURE,
   liveViewSupported,
@@ -71,6 +73,8 @@ import { resolveStimuli } from '@/utils/quizStimuli';
 import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
+import type { MonitorRosterTargets, NotJoinedStudent } from './rosterNotJoined';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { useGameClockControls } from './useGameClockControls';
 import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameBoard';
@@ -142,6 +146,22 @@ export interface QuizLiveMonitorProps {
   servedLanguageByStudentUid?: Record<string, string> | null;
   /** The assignment's assign-stepper steps, shown in place on the settings screen. */
   assignmentSettings?: React.ReactNode;
+  /** The assignment's targeting, so Not started lists only the students it went to. */
+  rosterTargets?: MonitorRosterTargets | null;
+  /** False until the responses listener first delivers; roster rows wait for it. */
+  responsesLoaded?: boolean;
+  /** Opens the picker that reopens this ended quiz for chosen students. */
+  reopenPicker?: {
+    /** Cancel: leave without reopening. */
+    onClose: () => void;
+    /** Reopened; the monitor stays on the now live quiz. */
+    onDone: () => void;
+    /** Takes the quiz out of Ended, paused, before any attempt reopens. */
+    onStart: () => Promise<void>;
+    /** Ends it again when the reopen fails partway. */
+    onAbort: () => Promise<void>;
+    onConfirm: (uids: string[]) => Promise<void>;
+  } | null;
 }
 
 type Screen =
@@ -194,6 +214,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     overridesByStudentUid = null,
     servedLanguageByStudentUid = null,
     assignmentSettings,
+    rosterTargets = null,
+    responsesLoaded = true,
+    reopenPicker = null,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
@@ -212,7 +235,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   const { showConfirm, showAlert } = useDialog();
   const outward = useViewAsOutward();
-  const { addToast } = useDashboard();
+  const { addToast, setAbsentStudents } = useDashboard();
   // Read via context so a provider-less (sub portal) mount keeps today's behavior.
   const authContext = useContext(AuthContext);
   const showJoinCode =
@@ -232,8 +255,32 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     rosters,
     fibGrading,
     // Shared-Pause sessions open on All classes so Pause is in reach; per-period ones on the first class.
-    !hasPeriodAccess(session) && session.sessionMode !== 'game'
+    !hasPeriodAccess(session) && session.sessionMode !== 'game',
+    rosterTargets,
+    responsesLoaded &&
+      (!!reopenPicker ||
+        authContext?.canAccessFeature?.('quiz-monitor-roster') === true)
   );
+  const reopenOptions = useMemo(
+    () => buildReopenOptions(data.allNames, data.allNotJoined, session),
+    [data.allNames, data.allNotJoined, session]
+  );
+
+  const absentCount = data.notJoined.filter((s) => s.absent).length;
+  // Writes the roster's absent list for today, the same list Group Maker uses.
+  const markAbsent = (student: NotJoinedStudent, absent: boolean) => {
+    const roster = rosters.find((r) => r.id === student.rosterId);
+    if (!roster || !student.studentId) return;
+    const today = getLocalIsoDate();
+    const current =
+      roster.absent?.date === today ? roster.absent.studentIds : [];
+    const next = absent
+      ? [...new Set([...current, student.studentId])]
+      : current.filter((id) => id !== student.studentId);
+    setAbsentStudents(roster.id, next).catch(() =>
+      addToast('Could not save the absent list. Try again.', 'error')
+    );
+  };
 
   // Live view (QUIZ_LIVE_VIEW.md D3): only the assigning teacher, on a running self-paced quiz.
   const canLiveView =
@@ -548,6 +595,55 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   );
 
   const sessionEnded = session.status === 'ended';
+  const handleReopenPicked = useCallback(
+    async (keys: string[]) => {
+      if (!reopenPicker) return;
+      const wanted = new Set(keys);
+      const picks = reopenOptions.filter((o) => wanted.has(o.key));
+      let started = false;
+      try {
+        // The quiz leaves Ended first, so End's delayed turn-in can't undo the reopens.
+        await reopenPicker.onStart();
+        started = true;
+        const outcomes = await Promise.allSettled(
+          picks.map((p) =>
+            p.responseKey && onReopenStudent
+              ? onReopenStudent(p.responseKey)
+              : Promise.resolve()
+          )
+        );
+        const failed = outcomes.filter((o) => o.status === 'rejected');
+        if (failed.length > 0)
+          logError('QuizLiveMonitor.reopenPicked', failed[0]);
+        // A student whose attempt didn't reopen stays submitted, so the quiz can still end on its own.
+        const reopened = picks.filter(
+          (_, i) => outcomes[i].status === 'fulfilled'
+        );
+        if (reopened.length === 0) throw new Error('No student reopened');
+        await reopenPicker.onConfirm(reopened.map((p) => p.uid));
+        if (failed.length > 0)
+          addToast(
+            `Could not reopen for ${failed.length} student${failed.length === 1 ? '' : 's'}.`,
+            'error'
+          );
+        addToast(
+          `Reopened for ${reopened.length} student${reopened.length === 1 ? '' : 's'}.`,
+          'success'
+        );
+        reopenPicker.onDone();
+      } catch (err) {
+        logError('QuizLiveMonitor.reopenPicked', err);
+        // Put the quiz back to Ended rather than leave it paused for everyone.
+        if (started)
+          await reopenPicker
+            .onAbort()
+            .catch((e: unknown) => logError('QuizLiveMonitor.reopenAbort', e));
+        addToast('Could not reopen the quiz. Try again.', 'error');
+      }
+    },
+    [reopenPicker, reopenOptions, onReopenStudent, addToast]
+  );
+
   const handleReopen = useCallback(
     async (key: string) => {
       if (sessionEnded) {
@@ -767,6 +863,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   return (
     <div className="h-full w-full flex flex-col bg-white text-brand-gray-dark relative">
+      {reopenPicker && (
+        <ReopenStudentsDialog
+          isOpen
+          title="Reopen for selected students"
+          students={reopenOptions}
+          onClose={reopenPicker.onClose}
+          onConfirm={handleReopenPicked}
+        />
+      )}
       {canLiveView && liveViewKey && (
         <Suspense fallback={null}>
           <LiveViewPanel
@@ -980,7 +1085,30 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             )}
             {!(isGame && boardView) && (
               <StatusBuckets
-                counts={data.counts}
+                counts={{
+                  ...data.counts,
+                  notStarted:
+                    data.counts.notStarted +
+                    data.notJoined.length -
+                    absentCount,
+                }}
+                notes={
+                  absentCount > 0
+                    ? {
+                        notStarted: (
+                          <span
+                            className="font-sans text-brand-gray-primary tabular-nums"
+                            style={{
+                              fontSize: 'min(10px, 3.5cqmin)',
+                              marginTop: 'min(2px, 0.5cqmin)',
+                            }}
+                          >
+                            {absentCount} absent
+                          </span>
+                        ),
+                      }
+                    : undefined
+                }
                 handCount={
                   session.handRaiseEnabled === true ? data.handCount : 0
                 }
@@ -995,6 +1123,14 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <RosterList
                 bucket={openBucket}
                 students={data.byBucket[openBucket]}
+                notJoined={
+                  openBucket === 'notStarted' ? data.notJoined : undefined
+                }
+                onSetAbsent={
+                  !outward.locked && session.status !== 'ended'
+                    ? markAbsent
+                    : undefined
+                }
                 session={session}
                 config={config}
                 isGamified={data.isGamified}

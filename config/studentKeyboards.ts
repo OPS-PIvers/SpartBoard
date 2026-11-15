@@ -1,7 +1,5 @@
 import type { AccentSetId, AnswerKeyboard } from '@/types';
 
-export const STUDENT_KEYBOARDS_FEATURE = 'student-keyboards' as const;
-
 export interface AccentSet {
   id: AccentSetId;
   /** English name for the teacher's picker. */

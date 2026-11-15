@@ -31,10 +31,7 @@ import {
   stageSetWrite,
   type FlashcardSet,
 } from './flashcardStore';
-import {
-  CHECK_SYNC_FEATURE_ID,
-  handleRescoreFlashcardCheck,
-} from '../flashcardRescore';
+import { handleRescoreFlashcardCheck } from '../flashcardRescore';
 import { prepareSpeakSave, type SpeakSaveResult } from './flashcardSpeak';
 import {
   CONTENT_TYPES,
@@ -52,7 +49,6 @@ import {
   type FolderRow,
 } from './toolKit';
 import { registerQuizTools, restoreQuizRevision } from './quizTools';
-export { questionFieldsFor } from './quizTools';
 import { registerVideoTools, restoreVideoRevision } from './videoTools';
 import { registerRubricTools, restoreRubricRevision } from './rubricTools';
 import { registerWallTools, restoreWallRevision } from './wallTools';
@@ -90,7 +86,7 @@ export const SERVER_INSTRUCTIONS = [
   'No student-level data is available through this connector; results summaries are class-level and hidden for fewer than 5 students.',
   "Quizzes, question banks and video activities are saved in the teacher's Google Drive; items shared with a PLC can only be edited in SpartBoard.",
   "Meeting notes are saved as a draft that a group editor reviews in SpartBoard; Claude never edits a group's notes directly.",
-  "Quiz, question bank, video and Guided Learning questions have a Learning Targets field. Tag Minnesota standards first: find codes with search_standards and save them in each question's standards. Use learning_targets only when the teacher gives their own or PLC targets. When the quiz and question bank tools offer them, also set each question's dok (Depth of Knowledge 1-4, rating the thinking it asks for) as you tag its standards, and write its explanation plus option_explanations for every multiple choice or choose all choice, unless the teacher says not to.",
+  "Quiz, question bank, video and Guided Learning questions have a Learning Targets field. Tag Minnesota standards first: find codes with search_standards and save them in each question's standards. Use learning_targets only when the teacher gives their own or PLC targets. For quiz and question bank questions, also set each question's dok (Depth of Knowledge 1-4, rating the thinking it asks for) as you tag its standards, and write its explanation plus option_explanations for every multiple choice or choose all choice, unless the teacher says not to.",
   'Admins writing a live tour read get_live_tour_guide first. For a live tour, skip the plan: build it, check it with dry_run, save it and report back as the guide says.',
   "When the board tools are available, read get_board_guide before building or changing a board: ask only for what you can't infer, state a short plan, then build, and check the wireframe picture each board tool returns. Small tweaks after that need no new plan. Claude never deletes a board and can't change boards another teacher shares with this teacher.",
 ].join(' ');
@@ -247,33 +243,19 @@ async function saveFlashcardEdit(
   }
   let checksUpdated: number | undefined;
   try {
-    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
-    if (
-      await isGlobalFeatureGranted(
+    const synced = await rewriteOpenCheckSessions(ctx.db, ctx.uid, normalized);
+    checksUpdated = synced.updated;
+    for (const assignmentId of synced.cardsChanged) {
+      await handleRescoreFlashcardCheck(
         ctx.db,
-        CHECK_SYNC_FEATURE_ID,
-        ctx.email,
-        ctx.uid
-      )
-    ) {
-      const synced = await rewriteOpenCheckSessions(
-        ctx.db,
-        ctx.uid,
-        normalized
+        { uid: ctx.uid, email: ctx.email, studentRole: false },
+        { assignmentId }
+      ).catch((err: unknown) =>
+        console.error('[mcpServer] check rescore failed', {
+          assignmentId,
+          err,
+        })
       );
-      checksUpdated = synced.updated;
-      for (const assignmentId of synced.cardsChanged) {
-        await handleRescoreFlashcardCheck(
-          ctx.db,
-          { uid: ctx.uid, email: ctx.email, studentRole: false },
-          { assignmentId }
-        ).catch((err: unknown) =>
-          console.error('[mcpServer] check rescore failed', {
-            assignmentId,
-            err,
-          })
-        );
-      }
     }
   } catch (err) {
     console.error('[mcpServer] check session rewrite failed', {
@@ -322,15 +304,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
         const granted = (id: string) =>
           isGlobalFeatureGranted(db, id, ctx.email, uid).catch(() => false);
-        const [resultsOn, gl, meetings, adminUser, dok, explanations] =
-          await Promise.all([
-            miniAppResultsOn(ctx).catch(() => false),
-            granted(GL_FEATURE_ID),
-            granted(MEETING_AI_FEATURE_ID),
-            isAdmin(ctx).catch(() => false),
-            granted('quiz-dok'),
-            granted('quiz-explanations'),
-          ]);
+        const [resultsOn, gl, meetings, adminUser] = await Promise.all([
+          miniAppResultsOn(ctx).catch(() => false),
+          granted(GL_FEATURE_ID),
+          granted(MEETING_AI_FEATURE_ID),
+          isAdmin(ctx).catch(() => false),
+        ]);
         return {
           email: ctx.email,
           name,
@@ -353,10 +332,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             'undo edits',
             'organize library folders',
             'tag Minnesota standards',
-            ...(dok ? ['set quiz and question bank DOK levels'] : []),
-            ...(explanations
-              ? ['write quiz and question bank explanations']
-              : []),
+            'set quiz and question bank DOK levels',
+            'write quiz and question bank explanations',
             resultsOn
               ? 'class-level quiz, video activity and mini-app results'
               : 'class-level quiz and video activity results',

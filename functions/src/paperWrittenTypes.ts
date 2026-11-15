@@ -63,7 +63,12 @@ export interface PaperPrivateAnswer {
   editedBy?: string;
   editedAt?: number;
   /** A rescan whose box was not applied because this answer was graded or edited (D28). */
-  newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' };
+  newerScan?: {
+    scanId: string;
+    page: number;
+    state: 'ink' | 'blank';
+    seat?: number;
+  };
   /** A custom image box: graded from the scan, archived but never transcribed. */
   noTranscript?: true;
   updatedAt: number;
@@ -152,6 +157,14 @@ export const PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT = 300;
 export const PAPER_WRITTEN_CROP_PREFIX = 'paper_written_crops';
 export const PAPER_TRANSCRIPTION_JOBS = 'paper_transcription_jobs';
 export const PAPER_PRIVATE_SUBCOLLECTION = 'paperPrivate';
+
+/** The first server-written seat among the candidates; never a student-editable path. */
+export function serverSeat(...candidates: unknown[]): number | null {
+  for (const c of candidates) {
+    if (typeof c === 'number' && Number.isInteger(c) && c >= 1) return c;
+  }
+  return null;
+}
 
 export function paperCropStoragePath(
   uid: string,

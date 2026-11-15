@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { InputSignalCounts } from '@/types';
 import {
+  INPUT_SIGNALS_FLUSH_EVENT,
+  type InputSignalsFlushDetail,
   InputSignalCollector,
   addSignals,
   otherLogBytes,
@@ -95,24 +97,38 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     collector.setQuestion(argsRef.current.questionId);
     const visible = () => document.visibilityState === 'visible';
     collector.clock(performance.now(), visible());
-    if ((window.screen as Screen & { isExtended?: boolean }).isExtended)
-      collector.extraScreen();
+    // `isExtended` is Chrome and Edge only; elsewhere this sign is never raised.
+    const screen = window.screen as Screen & {
+      isExtended?: boolean;
+      addEventListener?: EventTarget['addEventListener'];
+      removeEventListener?: EventTarget['removeEventListener'];
+    };
+    let extended = screen.isExtended === true;
+    if (extended) collector.extraScreen();
+    const onScreenChange = () => {
+      if (screen.isExtended === true && !extended) collector.extraScreen();
+      extended = screen.isExtended === true;
+    };
     void detectQuizEnvironment(pingExtension).then(
       (env) => collector.setEnvironment(env.browser, env.profile),
       (err: unknown) => logError('useInputSignals.environment', err)
     );
-    const flush = () => {
+    const flush = (e?: Event) => {
       const save = argsRef.current.save;
       collector.clock(performance.now(), visible());
       if (!save || !collector.takeDirty()) return;
       const counts = addSignals(base, collector.snapshot());
       writtenRef.current = { attempt, counts };
-      save(attempt, counts).catch((err: unknown) =>
+      const saved = save(attempt, counts).catch((err: unknown) =>
         logError('useInputSignals.save', err)
       );
+      (
+        e as CustomEvent<InputSignalsFlushDetail> | undefined
+      )?.detail?.saves?.push(saved);
     };
     collectorRef.current = collector;
     flushRef.current = flush;
+    document.addEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isTrustedEvent(e) || e.pointerType !== 'mouse') return;
@@ -121,7 +137,16 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       for (const m of raw) collector.pointerMove(m.clientX, m.clientY);
     };
     const onPointerDown = (e: PointerEvent) => {
-      if (isTrustedEvent(e) && e.pointerType === 'mouse' && e.button === 0)
+      if (!isTrustedEvent(e)) return;
+      // An on-screen accent key types its letter, so the text it adds is keyed.
+      if (e.target instanceof Element && e.target.closest('[data-typing-key]'))
+        collector.keyDown({
+          code: '',
+          t: e.timeStamp,
+          field: null,
+          char: false,
+        });
+      if (e.pointerType === 'mouse' && e.button === 0)
         collector.pointerDown(e.clientX, e.clientY);
     };
     const onClick = (e: MouseEvent) => {
@@ -132,6 +157,13 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
         if (isControl(e.target)) collector.scripted();
         return;
       }
+      if (e.target instanceof Element && e.target.closest('[data-typing-key]'))
+        collector.keyDown({
+          code: '',
+          t: e.timeStamp,
+          field: null,
+          char: false,
+        });
       if (!isAnswerBox(e.target)) return;
       collector.keyDown({
         code: e.code,
@@ -235,6 +267,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     document.addEventListener('input', onInput, opts);
     document.addEventListener('visibilitychange', onHidden);
     window.addEventListener('resize', onResize);
+    screen.addEventListener?.('change', onScreenChange);
     let lastTimed = performance.now();
     const id = window.setInterval(() => {
       const now = performance.now();
@@ -258,8 +291,11 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       document.removeEventListener('input', onInput, opts);
       document.removeEventListener('visibilitychange', onHidden);
       window.removeEventListener('resize', onResize);
+      screen.removeEventListener?.('change', onScreenChange);
       window.clearInterval(id);
-      flush();
+      document.removeEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
+      // Once the attempt moves on (a turn-in), the rules refuse its key; the awaited pre-turn-in flush already saved it.
+      if (argsRef.current.attempt === attempt) flush();
       collectorRef.current = null;
       flushRef.current = null;
     };

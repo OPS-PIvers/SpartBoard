@@ -1,24 +1,13 @@
 // Admin Settings > District library (docs/plans/QUIZ_MCA_PRACTICE.md M29, M31).
 import React, { useMemo, useRef, useState } from 'react';
-import {
-  Eye,
-  EyeOff,
-  Library,
-  ListChecks,
-  Loader2,
-  RefreshCw,
-  Trash2,
-  Upload,
-  Users,
-} from 'lucide-react';
+import { Library, Loader2, Upload } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   deleteDistrictLibraryItem,
   publishDistrictPackage,
-  saveDistrictLibraryTargeting,
   setDistrictLibraryStatus,
   previewPackageChanges,
   useDistrictLibraryItems,
@@ -35,13 +24,9 @@ import {
   type UploadProblem,
 } from '@/utils/districtLibraryPublish';
 import { isSiteAdminActor } from '@/utils/superAdmin';
-import {
-  describeTargeting,
-  targetsNobody,
-} from '@/utils/districtLibraryTargeting';
+import { targetsNobody } from '@/utils/districtLibraryTargeting';
 import { canonicalBuildingId } from '@/config/buildings';
 import type { DistrictLibraryItem } from '@/types/districtLibrary';
-import { DistrictLibraryTargetingEditor } from './DistrictLibraryTargetingEditor';
 import {
   DistrictLibraryFolderView,
   type AdminPlace,
@@ -69,18 +54,14 @@ interface PendingUpload {
   changes: QuestionChanges;
 }
 
-const iconButton =
-  'touch-target-expand relative inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50';
-
 export const DistrictLibraryPanel: React.FC = () => {
-  const { user, isAdmin, adminDoc, canAccessFeature } = useAuth();
+  const { user, isAdmin, adminDoc } = useAuth();
   const { showConfirm } = useDialog();
   const buildings = useAdminBuildings();
   const siteAdmin = isSiteAdminActor(isAdmin, adminDoc);
   const { items, loading, error } = useDistrictLibraryItems(siteAdmin);
-  const foldersOn = siteAdmin && canAccessFeature('district-library-folders');
-  const folders = useDistrictFolders(foldersOn);
-  const audiences = useDistrictFolderAudiences(foldersOn);
+  const folders = useDistrictFolders(siteAdmin);
+  const audiences = useDistrictFolderAudiences(siteAdmin);
   const [place, setPlace] = useState<AdminPlace>('all');
   const [uploadFolder, setUploadFolder] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -91,7 +72,6 @@ export const DistrictLibraryPanel: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [failed, setFailed] = useState<UploadProblem[]>([]);
 
   const byId = useMemo(
@@ -168,7 +148,7 @@ export const DistrictLibraryPanel: React.FC = () => {
       ].filter(Boolean);
       setMessage(parts.length > 0 ? `${parts.join(', ')}.` : null);
       setFailed(result.failed);
-      if (foldersOn && uploadFolder && result.addedIds.length > 0) {
+      if (uploadFolder && result.addedIds.length > 0) {
         await moveDistrictItems(result.addedIds, uploadFolder, {
           folders,
           audiences,
@@ -261,7 +241,7 @@ export const DistrictLibraryPanel: React.FC = () => {
       addOptions(f.id);
     }
   };
-  if (foldersOn) addOptions(null);
+  addOptions(null);
 
   return (
     <div className="p-6 max-w-4xl">
@@ -425,7 +405,7 @@ export const DistrictLibraryPanel: React.FC = () => {
               questions unless the teacher chooses Sync to latest.
             </p>
           )}
-          {foldersOn && plan.some((p) => p.action === 'add') && (
+          {plan.some((p) => p.action === 'add') && (
             <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
               Put new items in
               <select
@@ -481,7 +461,7 @@ export const DistrictLibraryPanel: React.FC = () => {
         <p role="alert" className="text-sm text-red-600">
           {error}
         </p>
-      ) : foldersOn && user ? (
+      ) : user ? (
         <DistrictLibraryFolderView
           uid={user.uid}
           items={items}
@@ -498,147 +478,7 @@ export const DistrictLibraryPanel: React.FC = () => {
           onRemove={(item) => void remove(item)}
           onError={setActionError}
         />
-      ) : items.length === 0 ? (
-        <div className="py-10 text-center">
-          <p className="text-sm font-semibold text-slate-700">
-            No library items yet
-          </p>
-          <p className="text-sm text-slate-500">
-            Upload a package file to add quizzes and question banks.
-          </p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-slate-200 border-y border-slate-200">
-          {items.map((item) => {
-            const busy = busyId === item.id || uploadingIds.has(item.id);
-            const KindIcon = item.kind === 'quiz' ? ListChecks : Library;
-            return (
-              <li key={item.id} className="py-3">
-                <div className="flex flex-wrap items-start gap-3">
-                  <KindIcon
-                    className="w-5 h-5 mt-0.5 shrink-0 text-slate-400"
-                    aria-hidden
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="text-sm font-semibold text-slate-900">
-                        {item.title}
-                      </span>
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider ${
-                          item.status === 'published'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        {item.status === 'published' ? 'Published' : 'Draft'}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {item.kind === 'quiz' ? 'Quiz' : 'Question bank'} ·{' '}
-                      {item.questionCount} questions ·{' '}
-                      {describeTargeting(item, buildingName)} · updated{' '}
-                      {formatDate(item.updatedAt)}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={
-                        busy ||
-                        (item.status === 'draft' && !(item.contentVersion > 0))
-                      }
-                      title={
-                        item.contentVersion > 0
-                          ? undefined
-                          : 'Its upload did not finish. Upload the package again first.'
-                      }
-                      onClick={() => void togglePublished(item)}
-                      {...tourFieldAttr(
-                        'admin.district-library.publish',
-                        'admin',
-                        item.id
-                      )}
-                      className={iconButton}
-                    >
-                      {item.status === 'published' ? (
-                        <EyeOff className="w-3.5 h-3.5" aria-hidden />
-                      ) : (
-                        <Eye className="w-3.5 h-3.5" aria-hidden />
-                      )}
-                      {item.status === 'published' ? 'Unpublish' : 'Publish'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        setEditingId((prev) =>
-                          prev === item.id ? null : item.id
-                        )
-                      }
-                      aria-expanded={editingId === item.id}
-                      {...tourFieldAttr(
-                        'admin.district-library.targeting',
-                        'admin',
-                        item.id
-                      )}
-                      className={iconButton}
-                    >
-                      <Users className="w-3.5 h-3.5" aria-hidden />
-                      Who sees it
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || !!pending}
-                      onClick={() => pickFile(item.id)}
-                      title="Replace with a corrected package file"
-                      {...tourFieldAttr(
-                        'admin.district-library.replace',
-                        'admin',
-                        item.id
-                      )}
-                      className={iconButton}
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" aria-hidden />
-                      Replace
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void remove(item)}
-                      aria-label={`Delete ${item.title}`}
-                      {...tourFieldAttr(
-                        'admin.district-library.delete',
-                        'admin',
-                        item.id
-                      )}
-                      className={`${iconButton} hover:text-red-700`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" aria-hidden />
-                    </button>
-                  </div>
-                </div>
-                {editingId === item.id && user && !busy && (
-                  <DistrictLibraryTargetingEditor
-                    item={item}
-                    buildings={buildings}
-                    onCancel={() => setEditingId(null)}
-                    onSave={async (targeting) => {
-                      await saveDistrictLibraryTargeting(
-                        item.id,
-                        targeting,
-                        buildings,
-                        user.uid
-                      );
-                      setEditingId(null);
-                    }}
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -346,16 +346,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [flashcardSets, importedFrom]
   );
 
-  const allowTermOnly = canAccessFeature('flashcards-term-only');
   const importAdapter = useMemo(
     () =>
       createFlashcardImportAdapter({
         loadSheet,
         pickSheet,
         save: saveImportedSet,
-        termOnly: allowTermOnly,
+        termOnly: true,
       }),
-    [loadSheet, pickSheet, saveImportedSet, allowTermOnly]
+    [loadSheet, pickSheet, saveImportedSet]
   );
 
   const editorAiEnabled =
@@ -363,7 +362,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const editingIsNew =
     !!editingSet && !flashcardSets.sets.some((s) => s.id === editingSet.id);
 
-  const syncsChecks = canAccessFeature('flashcards-check-sync');
   // Autosave also refreshes share links and open assignments once the set is complete.
   const persistSet = async (
     set: FlashcardSet,
@@ -377,16 +375,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         syncChecks: final,
       });
       if (final && rewritten > 0) {
-        const noun = syncsChecks ? 'assignment' : 'Study assignment';
         addToast(
-          `“${set.title}” saved. ${rewritten} open ${noun}${rewritten === 1 ? '' : 's'} updated.`,
+          `“${set.title}” saved. ${rewritten} open assignment${rewritten === 1 ? '' : 's'} updated.`,
           'success'
         );
       }
     } catch (error) {
       if (!(error instanceof FlashcardStudySyncError)) throw error;
       addToast(
-        `“${set.title}” saved, but open ${syncsChecks ? 'assignments' : 'Study assignments'} still show the old cards.`,
+        `“${set.title}” saved, but open assignments still show the old cards.`,
         'error'
       );
     }
@@ -440,9 +437,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Add cards to this set before assigning it.', 'error');
       return;
     }
-    const incomplete = flashcardSetIncompleteReason(set, {
-      termOnly: allowTermOnly,
-    });
+    const incomplete = flashcardSetIncompleteReason(set, { termOnly: true });
     if (incomplete) {
       addToast(`Not ready to use yet: ${incomplete}`, 'error');
       return;

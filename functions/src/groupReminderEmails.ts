@@ -121,9 +121,30 @@ export function buildGroupAlertEmail(
   return { subject, text: `${text}\n\n${subject}`, html };
 }
 
-function parseDoc(raw: admin.firestore.DocumentData): EmailAlertDoc | null {
+/** The owner uid of a doc at exactly users/{uid}/group_email_alerts/{alertId}, else null. */
+export function alertOwnerUid(path: string): string | null {
+  const [root, uid, sub, id, ...rest] = path.split('/');
+  return root === 'users' &&
+    uid &&
+    sub === 'group_email_alerts' &&
+    id &&
+    !rest.length
+    ? uid
+    : null;
+}
+
+export function parseDoc(
+  raw: admin.firestore.DocumentData
+): EmailAlertDoc | null {
   if (!Array.isArray(raw.days) || !Array.isArray(raw.alerts)) return null;
   if (typeof raw.timeZone !== 'string' || typeof raw.startDate !== 'string')
+    return null;
+  // Same caps as the firestore.rules groupEmailAlertOk check.
+  if (raw.days.length > 7 || raw.alerts.length < 1 || raw.alerts.length > 6)
+    return null;
+  if (typeof raw.groupName === 'string' && [...raw.groupName].length > 80)
+    return null;
+  if (typeof raw.message === 'string' && [...raw.message].length > 500)
     return null;
   return {
     groupName: typeof raw.groupName === 'string' ? raw.groupName : '',
@@ -164,7 +185,7 @@ export async function runGroupReminderEmails(
     const page = await q.get();
     for (const snap of page.docs) {
       counts.scanned += 1;
-      const uid = snap.ref.parent.parent?.id;
+      const uid = alertOwnerUid(snap.ref.path);
       const doc = parseDoc(snap.data());
       if (!uid || !doc) continue;
       for (const due of dueEmailAlerts(doc, now)) {

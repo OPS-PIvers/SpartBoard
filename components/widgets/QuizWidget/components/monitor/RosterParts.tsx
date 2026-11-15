@@ -249,7 +249,17 @@ export const RosterRow: React.FC<{
   children: React.ReactNode;
   below?: React.ReactNode;
   rowAttrs?: TourAnchorAttrs;
-}> = ({ name, tint = 'bg-white', nameNote, children, below, rowAttrs }) => {
+  /** Grays the name, e.g. a roster student who hasn't joined. */
+  muted?: boolean;
+}> = ({
+  name,
+  tint = 'bg-white',
+  nameNote,
+  children,
+  below,
+  rowAttrs,
+  muted = false,
+}) => {
   const line = (
     <>
       <div
@@ -257,7 +267,7 @@ export const RosterRow: React.FC<{
         style={{ gap: 'min(6px, 1.5cqmin)' }}
       >
         <p
-          className="font-sans font-medium text-brand-gray-dark truncate"
+          className={`font-sans font-medium truncate ${muted ? 'text-brand-gray-primary' : 'text-brand-gray-dark'}`}
           style={{ fontSize: 'min(13px, 4.5cqmin)' }}
         >
           {name}

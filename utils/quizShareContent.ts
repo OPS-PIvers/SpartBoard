@@ -144,7 +144,16 @@ export async function restoreSharedQuizContent(
     }
     bankSlots = slots.map((slot) => {
       const id = newIdByKey.get(bankSlotKey(slot));
-      if (!id) return slot;
+      if (!id) {
+        // Pre-2026-09-29 links carried no banks: keep the group, never a sharer-supplied pin.
+        if (!sharedBanks) {
+          const { syncOwnerUid: _pin, ...unpinned } = slot;
+          return unpinned;
+        }
+        // Newer links inline every bank, so a missing one is crafted: drop its link.
+        const { syncGroupId: _g, syncOwnerUid: _o, ...unbound } = slot;
+        return unbound;
+      }
       const {
         syncGroupId: _syncGroupId,
         syncOwnerUid: _syncOwnerUid,
