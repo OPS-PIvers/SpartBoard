@@ -1,6 +1,44 @@
 {
   "entries": [
     {
+      "version": "2026.11.15.2",
+      "date": "2026-11-15",
+      "title": "Sparty, Getting Started and the District library",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Getting started",
+          "items": [
+            {
+              "text": "Getting Started in the sidebar has short tours that walk you through the real app one step at a time. New teachers go straight to a board and Sparty welcomes them."
+            },
+            {
+              "text": "Sparty, the Spartan mascot, now shows up in tours, setup and the Help Center. To hide Sparty, turn off Show Sparty in your settings."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Your district can share quizzes and question banks with you in the District library. Open it from the Quiz widget, browse its folders and add what you need to your own library."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Board",
+          "items": [
+            {
+              "text": "When you paste a YouTube link on your board, you can pick whether it opens as an Embed or as a Video Activity."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.14.1",
       "date": "2026-11-14",
       "title": "Quiz pictures and readings beside the question",
