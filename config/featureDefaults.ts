@@ -916,6 +916,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+    requires: 'quiz-live-view',
   },
   'quiz-live-view-nudge-note': {
     label: 'Quiz Live view: Nudge note',
@@ -929,6 +930,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+    requires: 'quiz-live-view',
   },
   'quiz-live-view-screenshot': {
     label: 'Quiz Live view: Screenshot',
@@ -942,6 +944,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+    requires: 'quiz-live-view',
   },
   // Quiz Monitor roster: students who haven't joined show under Not started.
   'quiz-monitor-roster': {
