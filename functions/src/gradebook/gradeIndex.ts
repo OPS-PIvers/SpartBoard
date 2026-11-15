@@ -569,6 +569,7 @@ const WATCHED: Record<GradeKind, string[]> = {
     'classId',
     'servedQuestionIds',
     'countedChoices',
+    'turnIn',
   ],
   'video-activity': [
     'score',
@@ -577,6 +578,7 @@ const WATCHED: Record<GradeKind, string[]> = {
     'completedAttempts',
     'resultsOverride',
     'classId',
+    'turnIn',
   ],
   'guided-learning': ['score', 'completedAt', 'resultsOverride', 'classId'],
   flashcards: ['score', 'total', 'submittedAt', 'resultsOverride', 'classId'],

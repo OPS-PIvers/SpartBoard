@@ -9,7 +9,12 @@ import {
   markSessionDirty,
   stableStringify,
 } from './gradebook/gradeIndex';
-import { legacyRowId, mergeAttempts, rowId } from './gradebook/gradeRowMath';
+import {
+  legacyRowId,
+  mergeAttempts,
+  rowId,
+  trustedTurnInMs,
+} from './gradebook/gradeRowMath';
 import type { IndexAttempt } from './gradebook/types';
 
 type Firestore = admin.firestore.Firestore;
@@ -31,6 +36,7 @@ const COPIED_FIELDS = [
   'answers',
   'servedQuestionIds',
   'submittedAt',
+  'turnIn',
   'autoSubmitted',
   'timeUp',
   'score',
@@ -55,6 +61,8 @@ const WATCHED_WHILE_DONE = [
   'servedQuestionIds',
   'tabExits',
   'countedChoices',
+  'turnIn',
+  'timeUp',
 ] as const;
 
 export interface AttemptWrite {
@@ -173,10 +181,15 @@ async function saveAttempt(
     return {
       n: Number(c.n) || Number(d.id) || 0,
       closed: c.closed === true,
-      submittedAt: c.submittedAt,
+      submittedAt: trustedTurnInMs(c, 'submittedAt'),
     };
   });
-  const target = pickAttemptNumber(copies, n, data.submittedAt);
+  // Copies match on the server's turn-in time, so a reused client time can't fold a retake into an earlier copy.
+  const target = pickAttemptNumber(
+    copies,
+    n,
+    trustedTurnInMs(data, 'submittedAt')
+  );
   const attemptRef = liveRef
     .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
     .doc(String(target));

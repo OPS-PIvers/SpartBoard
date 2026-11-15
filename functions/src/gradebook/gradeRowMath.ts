@@ -57,6 +57,22 @@ export function toMillis(v: unknown): number | null {
   return null;
 }
 
+/** A vouched claim this close to the server's time stands, so an honest turn-in's commit lag never moves it. */
+export const TURN_IN_SLACK_MS = 15_000;
+
+/** The server's turn-in time when its stamp vouches for this submission, else the claim, never earlier than the stamp. */
+export function trustedTurnInMs(
+  response: Doc,
+  field: 'submittedAt' | 'completedAt'
+): number | null {
+  const claimed = toMillis(response[field]);
+  if (claimed === null) return null;
+  const stamp = asRecord(response.turnIn);
+  if (typeof stamp.at !== 'number') return claimed;
+  if (toMillis(stamp.claimed) !== claimed) return Math.max(claimed, stamp.at);
+  return Math.abs(stamp.at - claimed) <= TURN_IN_SLACK_MS ? claimed : stamp.at;
+}
+
 function numberMap(v: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, raw] of Object.entries(asRecord(v))) {
@@ -135,6 +151,14 @@ export function effectiveDueAt(
   return meta.dueAt;
 }
 
+/** One entry per turn-in: entries sharing a turn-in time are one submission re-counted, so the latest number stands. */
+function onePerTurnIn(list: readonly IndexAttempt[]): IndexAttempt[] {
+  const top = new Map<number, number>();
+  for (const a of list)
+    if (a.at > 0) top.set(a.at, Math.max(top.get(a.at) ?? a.n, a.n));
+  return list.filter((a) => a.at <= 0 || top.get(a.at) === a.n);
+}
+
 /** Adds this attempt's score to the ledger kept on the row; a regrade replaces the same attempt. */
 export function mergeAttempts(
   previous: readonly IndexAttempt[],
@@ -142,7 +166,7 @@ export function mergeAttempts(
 ): IndexAttempt[] {
   const n = score.attemptNumber ?? 1;
   if (score.state !== 'scored' && score.state !== 'awaiting-grade') {
-    return previous.filter((a) => a.n < n);
+    return onePerTurnIn(previous.filter((a) => a.n < n));
   }
   const current: IndexAttempt = {
     n,
@@ -151,9 +175,10 @@ export function mergeAttempts(
     max: score.max,
     state: score.state,
   };
-  return [...previous.filter((a) => a.n !== n), current].sort(
-    (a, b) => a.n - b.n
+  const others = previous.filter(
+    (a) => a.n !== n && !(current.at > 0 && a.at === current.at)
   );
+  return [...onePerTurnIn(others), current].sort((a, b) => a.n - b.n);
 }
 
 export interface AssembleInput {
@@ -451,7 +476,7 @@ export function scoreQuizResponse(
       attemptNumber: attemptsDone + 1,
     };
   }
-  const submittedAt = toMillis(response.submittedAt);
+  const submittedAt = trustedTurnInMs(response, 'submittedAt');
   const stored = parsed.score;
   let state: BuildState = 'scored';
   let rawPct: number | null;
@@ -571,7 +596,7 @@ export function scoreVideoResponse(
       rawPct !== null && max !== null ? round2((rawPct / 100) * max) : null,
     max,
     state: rawPct === null ? 'awaiting-grade' : 'scored',
-    submittedAt: completedAt,
+    submittedAt: trustedTurnInMs(response, 'completedAt'),
     attemptNumber: Math.max(attemptsDone, 1),
   };
 }

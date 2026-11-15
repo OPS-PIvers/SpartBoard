@@ -37,6 +37,7 @@ import {
   initialQuestionStep,
   initialQuizJoinFlow,
   isAttemptSubmitted,
+  needsAttemptClock,
   questionStepReducer,
   questionTimedOut,
   quizJoinFlowReducer,
@@ -2250,23 +2251,17 @@ export const ActiveQuiz: React.FC<{
           session.pauseSpans
         )
       : null;
-  // A limit added to a live assignment starts the clock for attempts already underway.
-  const needsAttemptClock =
-    session.sessionMode === 'student' &&
-    session.timeLimitMinutes != null &&
-    myResponse != null &&
-    !isAttemptSubmitted(myResponse) &&
-    myResponse.lastWriteAt != null &&
-    myResponse.attemptStartedAt == null;
+  // Any open timed attempt without a clock (a limit added mid-assignment, or a row a paper scan created) starts it.
+  const attemptNeedsClock = needsAttemptClock(session, myResponse);
   const attemptClockRequestedRef = useRef(false);
   useEffect(() => {
-    if (!needsAttemptClock || !onStartAttemptClock) return;
+    if (!attemptNeedsClock || !onStartAttemptClock) return;
     if (attemptClockRequestedRef.current) return;
     attemptClockRequestedRef.current = true;
     onStartAttemptClock().catch((err: unknown) => {
       console.error('[QuizStudentApp] attempt clock stamp failed:', err);
     });
-  }, [needsAttemptClock, onStartAttemptClock]);
+  }, [attemptNeedsClock, onStartAttemptClock]);
   const [timeUpSubmitted, setTimeUpSubmitted] = useState(false);
   const [timeUpFailed, setTimeUpFailed] = useState(false);
   const timeUpTriggeredRef = useRef(false);

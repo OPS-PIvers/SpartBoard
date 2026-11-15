@@ -2,6 +2,7 @@ import type {
   GuidedLearningResponse,
   QuizQuestion,
   QuizResponse,
+  TurnInStamp,
   VideoActivityQuestion,
   VideoActivityResponse,
 } from '@/types';
@@ -21,6 +22,20 @@ import {
 } from '@/utils/videoActivityGrading';
 import type { LiveRawScore } from '@/utils/gradebook/finalScoreOverlay';
 
+/** A vouched claim this close to the server's time stands, so an honest turn-in's commit lag never moves it. */
+export const TURN_IN_SLACK_MS = 15_000;
+
+/** The server's turn-in time when its stamp vouches for this submission, else the claim, never earlier than the stamp. */
+export function trustedTurnInMs(
+  claimed: number | null | undefined,
+  stamp: TurnInStamp | undefined
+): number | null {
+  if (claimed == null) return null;
+  if (!stamp || typeof stamp.at !== 'number') return claimed;
+  if (stamp.claimed !== claimed) return Math.max(claimed, stamp.at);
+  return Math.abs(stamp.at - claimed) <= TURN_IN_SLACK_MS ? claimed : stamp.at;
+}
+
 const NOT_SCORED: LiveRawScore = {
   points: null,
   max: null,
@@ -37,7 +52,7 @@ export function quizLiveRaw(
 ): LiveRawScore {
   if (r.status !== 'completed') return NOT_SCORED;
   const deduped = dedupeQuestionsById(questions);
-  const submittedAt = r.submittedAt ?? null;
+  const submittedAt = trustedTurnInMs(r.submittedAt, r.turnIn);
   if (!canScoreResponse(r, deduped)) return { ...NOT_SCORED, submittedAt };
   const max = deduped.reduce((s, q) => s + questionPointsFor(q, r), 0);
   if (isResponseAwaitingGrade(r, deduped, paperWrittenQuestionIds)) {
@@ -60,7 +75,7 @@ export function videoActivityLiveRaw(
 ): LiveRawScore {
   const r = live ? liveScoredResponse(rawResponse) : rawResponse;
   if (r.completedAt === null) return NOT_SCORED;
-  const submittedAt = r.completedAt;
+  const submittedAt = trustedTurnInMs(r.completedAt, r.turnIn);
   if (!canScoreVideoActivityResponse(questions, r.answers)) {
     return { ...NOT_SCORED, submittedAt };
   }
