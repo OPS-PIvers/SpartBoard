@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import type { Dashboard } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import { tourAttr } from '@/config/tourAnchors';
@@ -64,7 +65,7 @@ export const BoardMenuHost: React.FC = () => {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const [pressAt, setPressAt] = useState<{ x: number; y: number } | null>(null);
   const [backgroundsOpen, setBackgroundsOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
+  const [shareBoard, setShareBoard] = useState<Dashboard | null>(null);
   const [madeUrl, setMadeUrl] = useState<string | null>(null);
   const closeMenu = useCallback(() => setMenuAt(null), []);
 
@@ -259,7 +260,7 @@ export const BoardMenuHost: React.FC = () => {
     if (outward.locked) return;
     if (outward.active) {
       setMadeUrl(null);
-      setShareOpen(true);
+      setShareBoard(activeDashboard);
       return;
     }
     const linkPromise = shareDashboard(activeDashboard, 'copy').then(
@@ -293,7 +294,7 @@ export const BoardMenuHost: React.FC = () => {
       if (created) {
         // The link exists but the clipboard refused it; the dialog shows it to copy by hand.
         setMadeUrl(created);
-        setShareOpen(true);
+        setShareBoard(activeDashboard);
       } else {
         console.error('Board copy link failed:', err);
         addToast(
@@ -417,14 +418,14 @@ export const BoardMenuHost: React.FC = () => {
         {backgroundsOpen && (
           <BackgroundsModal isOpen onClose={() => setBackgroundsOpen(false)} />
         )}
-        {shareOpen && (
+        {shareBoard && (
           <ShareLinkCreatorModal
-            dashboard={activeDashboard}
+            dashboard={shareBoard}
             isOpen
             initialMode="copy"
             initialUrl={madeUrl}
             onClose={() => {
-              setShareOpen(false);
+              setShareBoard(null);
               setMadeUrl(null);
             }}
           />

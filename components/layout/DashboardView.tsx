@@ -1921,12 +1921,14 @@ export const DashboardView: React.FC = () => {
           <Sidebar />
           {!isActiveBoardReadOnly && <Dock />}
         </React.Suspense>
-        {canAccessFeature('board-context-menu') && (
+      </LazyChunkErrorBoundary>
+      {canAccessFeature('board-context-menu') && (
+        <LazyChunkErrorBoundary fallback={() => null}>
           <React.Suspense fallback={null}>
             <BoardMenuHost />
           </React.Suspense>
-        )}
-      </LazyChunkErrorBoundary>
+        </LazyChunkErrorBoundary>
+      )}
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />

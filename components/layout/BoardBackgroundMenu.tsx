@@ -60,7 +60,7 @@ export const BoardBackgroundMenu: React.FC<BoardBackgroundMenuProps> = ({
                 onClose();
                 item.action();
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 transition-colors hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-hidden disabled:text-slate-400 disabled:hover:bg-transparent disabled:cursor-default"
+              className="w-full flex items-center gap-2 px-3 py-2 touch:py-3 text-sm text-left text-slate-700 transition-colors hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-hidden disabled:text-slate-400 disabled:hover:bg-transparent disabled:cursor-default"
               {...item.tour}
             >
               <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />

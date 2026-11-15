@@ -74,7 +74,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       setMode(initialMode);
       setPlcId(null);
       setCreating(false);
-      setCreatedUrl(initialUrl);
+      setCreatedUrl(justOpened ? initialUrl : null);
       setCopied(false);
     }
   }, [isOpen, dashboard?.id, initialMode, initialUrl]);
