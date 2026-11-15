@@ -250,7 +250,7 @@ export interface AuthContextType {
   quizGraderMode: 'question' | 'student';
   /** Whether the Free Response grader moves on by itself once a grade is complete. */
   quizGraderAutoAdvance: boolean;
-  /** Teacher's own "Show Sparty" switch; Sparty also needs the `sparty` feature. */
+  /** Teacher's own "Show Sparty" switch. */
   spartyEnabled: boolean;
   /** Teacher's own alignment guides switch. */
   alignmentGuidesEnabled: boolean;

@@ -47,12 +47,11 @@ type PeriodSession = PeriodAccessSessionFields & {
   id: string;
   teacherUid: string;
   dueAt?: number | null;
-  closeAt?: number | null;
 };
 
-/** Where a period's close is held: the Manual due, or an older session's shared close. */
+/** Where a period's close is held: only a Manual due (`dueLocks`); a Scheduled close never caps Start or Extend. */
 const lockAt = (session: PeriodSession | null): number | null =>
-  session ? (dueLockAt(session) ?? session.closeAt ?? null) : null;
+  session ? dueLockAt(session) : null;
 
 /** A period's close, held to the due while it is ahead; after it, a Start runs late to the bell. */
 export function capAtDue(

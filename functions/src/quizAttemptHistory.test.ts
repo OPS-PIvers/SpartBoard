@@ -225,6 +225,27 @@ describe('applyAttemptWrite', () => {
     ]);
   });
 
+  it('gives a quick retake that reuses the earlier client time its own copy', async () => {
+    const stub = seed();
+    const first = done({ turnIn: { at: T, claimed: T } });
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const second = done({
+      completedAttempts: 2,
+      submittedAt: T,
+      turnIn: { at: T + 60_000, claimed: T },
+      answers: [{ questionId: 'q1', answer: 'B' }],
+    });
+    await apply(stub, write(reset(), second, T + 60_000));
+    expect(stub.get(`${RESPONSE}/attempts/2`)?.answers).toEqual([
+      { questionId: 'q1', answer: 'B' },
+    ]);
+    expect(stub.get(SCORES)?.attempts).toEqual([
+      { n: 1, at: T, points: 2, max: 2, state: 'scored' },
+      { n: 2, at: T + 60_000, points: 0, max: 2, state: 'scored' },
+    ]);
+  });
+
   it('keeps a legacy attempt whose count never advanced', async () => {
     const stub = seed();
     const first = done({ completedAttempts: 0 });
@@ -336,13 +357,31 @@ describe('applyAttemptWrite', () => {
     ).toBe(false);
   });
 
-  it('leaves attempts alone when the student has rejoined by the time a removal runs', async () => {
+  it("moves the removed occupant's attempts even when the key was re-created first, and keeps the new occupant's", async () => {
     const stub = seed();
-    await apply(stub, write(undefined, done()));
-    stub.store.set(RESPONSE, done({ completedAttempts: 1 }));
-    await applyAttemptWrite(stub.db as unknown as Db, write(done(), undefined));
+    const first = done();
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    await apply(
+      stub,
+      write(reset(), done({ completedAttempts: 2, submittedAt: T + 2 }), T + 2)
+    );
     expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(true);
-    expect(stub.has(SCORES)).toBe(true);
+    // Another student takes the key before the removal event is handled.
+    const removedAt = T + 5;
+    stub.store.set(RESPONSE, reset({ studentUid: 'intruder' }));
+    const removal = write(done({ completedAttempts: 2 }), undefined, removedAt);
+    await applyAttemptWrite(stub.db as unknown as Db, removal);
+    expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(false);
+    expect(stub.has(`${RESPONSE}/attempts/2`)).toBe(false);
+    expect(stub.get(SCORES)?.attempts).toEqual([]);
+    // The new occupant's own attempt survives a retried removal.
+    const mine = done({ studentUid: 'intruder', submittedAt: T + 10 });
+    await apply(stub, write(reset({ studentUid: 'intruder' }), mine, T + 10));
+    await applyAttemptWrite(stub.db as unknown as Db, removal);
+    expect(stub.get(`${RESPONSE}/attempts/1`)).toMatchObject({
+      studentUid: 'intruder',
+    });
   });
 
   it('writes nothing for a late event about a removed response', async () => {
@@ -472,15 +511,19 @@ describe('applyAttemptGradeWrite', () => {
     expect(attempts[0]).toMatchObject({ points: 4, max: 4 });
   });
 
-  const ROW = 'grade_index/qs1__u1';
+  const ROW = 'grade_index/quiz__qs1__u1';
   const ROW_ATTEMPTS = [
     { n: 1, at: T, points: 0, max: 2, state: 'awaiting-grade' },
   ];
-  const rescoreEarlierAttempt = async (indexOn: boolean, kind?: string) => {
+  const rescoreEarlierAttempt = async (
+    indexOn: boolean,
+    kind?: string,
+    rowPath = ROW
+  ) => {
     __resetGradeIndexEnabledCache();
     const stub = seed({
       'admin_settings/gradebook_index': { enabled: indexOn },
-      [ROW]: { attempts: ROW_ATTEMPTS, ...(kind ? { kind } : {}) },
+      [rowPath]: { attempts: ROW_ATTEMPTS, ...(kind ? { kind } : {}) },
     });
     const first = done({ answers: [{ questionId: 'q1', answer: 'B' }] });
     await apply(stub, write(undefined, first));
@@ -504,6 +547,12 @@ describe('applyAttemptGradeWrite', () => {
     expect(stub.get('grade_index_sessions/quiz__qs1')).toMatchObject({
       kind: 'quiz',
     });
+  });
+
+  it('rescores a row still at its pre-kind id', async () => {
+    const legacy = 'grade_index/qs1__u1';
+    const stub = await rescoreEarlierAttempt(true, undefined, legacy);
+    expect(stub.get(legacy)?.attempts).toEqual(stub.get(SCORES)?.attempts);
   });
 
   it("never writes quiz scores into another kind's row at the same id", async () => {

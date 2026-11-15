@@ -1,7 +1,9 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchAutoClick } from '@/components/tours/autopilot';
+import { installSelectMenus } from '@/utils/selectMenu';
+import { setAppPickersEnabled } from '@/utils/pickerPanel';
 import { TourAnchorPicker } from './TourAnchorPicker';
 
 const board = () => (
@@ -185,18 +187,33 @@ describe('TourAnchorPicker', () => {
     );
   });
 
-  it('opens a native dropdown on a Ctrl click so its option can be chosen', () => {
+  it('opens a dropdown on a Ctrl click so its option can be chosen', () => {
     const showPicker = vi.fn();
     HTMLSelectElement.prototype.showPicker = showPicker;
+    setAppPickersEnabled(true);
+    const uninstall = installSelectMenus();
     const { onPick } = setup();
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'What moves on');
+    select.innerHTML =
+      '<option value="a">Right away</option><option value="b">After a click</option>';
+    const onChange = vi.fn();
+    select.addEventListener('change', onChange);
     document.body.appendChild(select);
     fireEvent.pointerDown(select, { ctrlKey: true });
-    expect(showPicker).toHaveBeenCalledTimes(1);
+    expect(showPicker).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(select);
+    const menu = screen.getByRole('listbox', { name: 'What moves on' });
     fireEvent.click(select, { ctrlKey: true });
     expect(onPick).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(menu).getByRole('option', { name: 'After a click' })
+    );
+    expect(select.value).toBe('b');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    uninstall();
+    setAppPickersEnabled(false);
     select.remove();
   });
 

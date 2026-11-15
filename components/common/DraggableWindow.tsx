@@ -300,11 +300,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  // Suppress the floating toolbar while any portalled Modal is open. The
-  // toolbar normally sits at Z_INDEX.toolMenu (above modals) so it remains
-  // reachable during regular use, but when the user has opened an editor,
-  // import, or assignment modal from within the widget, the toolbar floating
-  // on top of that modal is disorienting and blocks clicks.
+  // Z_INDEX.toolMenu already sits under every overlay; also hide it under a Modal's dimmed backdrop.
   const hasOpenModal = useHasOpenModal();
   // Hide the floating action toolbar entirely on read-only dashboards
   // (substitute view, view-only guest). None of its actions (gear/flip,

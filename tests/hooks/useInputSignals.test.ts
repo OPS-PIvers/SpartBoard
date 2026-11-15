@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook } from '@testing-library/react';
 import type { InputSignalCounts } from '@/types';
 import { parseWritingLog, textAfter } from '@/utils/writingLog';
+import { INPUT_SIGNALS_FLUSH_EVENT } from '@/utils/inputSignals';
 import {
   useInputSignals,
   type UseInputSignalsArgs,
@@ -59,6 +60,13 @@ afterEach(() => {
 });
 
 describe('useInputSignals', () => {
+  it('saves when a turn-in is about to lock the attempt', () => {
+    const { save } = setup();
+    document.body.dispatchEvent(mouse('pointerdown', 10, 10));
+    document.dispatchEvent(new CustomEvent(INPUT_SIGNALS_FLUSH_EVENT));
+    expect(save).toHaveBeenCalledExactlyOnceWith(0, { q1: { clicks: 1 } });
+  });
+
   it('saves the question just left, added to an earlier page load', () => {
     const { save, rerender } = setup({
       serverSignals: { '0': { q1: { clicks: 2 } } },
@@ -90,7 +98,18 @@ describe('useInputSignals', () => {
     });
   });
 
-  it('saves under the attempt it recorded when the attempt is turned in', () => {
+  it('hands the flush event its save promise so a turn-in can wait for it', () => {
+    const { save } = setup();
+    document.body.dispatchEvent(mouse('pointerdown', 10, 10));
+    const saves: Promise<void>[] = [];
+    document.dispatchEvent(
+      new CustomEvent(INPUT_SIGNALS_FLUSH_EVENT, { detail: { saves } })
+    );
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saves).toHaveLength(1);
+  });
+
+  it('does not save under the old attempt once it is turned in', () => {
     const { save, rerender } = setup({ attempt: 1 });
     document.body.dispatchEvent(mouse('pointerdown', 10, 10));
     rerender({
@@ -101,7 +120,7 @@ describe('useInputSignals', () => {
       serverSignals: undefined,
       save,
     });
-    expect(save).toHaveBeenCalledExactlyOnceWith(1, { q1: { clicks: 1 } });
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('keeps earlier counts across a pause and resume', () => {
@@ -166,6 +185,74 @@ describe('useInputSignals', () => {
     });
     unmount();
     expect(save.mock.calls[0][1].q1.panelOpens).toBe(1);
+  });
+
+  it('counts a tap on an accent key as a key press for the letter it types', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('textarea');
+    const key = document.createElement('button');
+    key.setAttribute('data-typing-key', '');
+    document.body.append(box, key);
+    const type = (data: string) =>
+      box.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          inputType: 'insertText',
+          data,
+        })
+      );
+    key.dispatchEvent(mouse('pointerdown', 5, 5, false));
+    type('x'.repeat(5));
+    key.dispatchEvent(mouse('pointerdown', 5, 5));
+    type('é'.repeat(20));
+    unmount();
+    expect(save.mock.calls[0][1].q1).toMatchObject({
+      chars: 25,
+      unkeyedChars: 5,
+    });
+  });
+
+  it('counts pressing Enter on an accent key as a key press', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('textarea');
+    const key = document.createElement('button');
+    key.setAttribute('data-typing-key', '');
+    document.body.append(box, key);
+    key.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })
+    );
+    box.dispatchEvent(
+      new InputEvent('input', {
+        bubbles: true,
+        inputType: 'insertText',
+        data: 'é'.repeat(20),
+      })
+    );
+    unmount();
+    expect(save.mock.calls[0][1].q1).toMatchObject({ chars: 20 });
+    expect(save.mock.calls[0][1].q1.unkeyedChars).toBeUndefined();
+  });
+
+  it('counts a second screen plugged in during the attempt', () => {
+    // jsdom's Screen is no event target, so stand one in as Chrome's is.
+    const target = new EventTarget();
+    let isExtended = false;
+    const screen = {
+      get isExtended() {
+        return isExtended;
+      },
+      addEventListener: target.addEventListener.bind(target),
+      removeEventListener: target.removeEventListener.bind(target),
+    };
+    vi.spyOn(window, 'screen', 'get').mockReturnValue(
+      screen as unknown as Screen
+    );
+    const { save, unmount } = setup();
+    isExtended = true;
+    target.dispatchEvent(new Event('change'));
+    target.dispatchEvent(new Event('change'));
+    unmount();
+    expect(save.mock.calls[0][1].q1.extraScreen).toBe(1);
   });
 
   it('saves the browser and profile the attempt ran in', async () => {

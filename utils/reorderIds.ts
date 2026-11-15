@@ -36,6 +36,6 @@ export const mergeSubsetOrder = (
   subset: readonly string[]
 ): string[] => {
   const members = new Set(subset.filter((id) => allIds.includes(id)));
-  const queue = subset.filter((id) => members.has(id));
+  const queue = [...members];
   return allIds.map((id) => (members.has(id) ? (queue.shift() ?? id) : id));
 };

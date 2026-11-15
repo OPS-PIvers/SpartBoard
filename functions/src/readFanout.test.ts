@@ -92,7 +92,8 @@ describe('server read counts per trigger invocation', () => {
       after: response(),
     });
     console.log('READS grade signed-in', stub.reads.length);
-    expect(stub.reads.length).toBeLessThanOrEqual(6);
+    // +2 on a row's first write only: the check for its pre-kind id.
+    expect(stub.reads.length).toBeLessThanOrEqual(8);
   });
 
   it('grade index, PIN-joined response', async () => {
