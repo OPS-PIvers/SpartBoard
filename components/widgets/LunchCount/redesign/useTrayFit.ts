@@ -30,11 +30,12 @@ export function useTrayFit(
       }
     };
     fit();
-    // Refit next frame: fitting resizes the observed tray, which inside the callback is a ResizeObserver loop.
+    // A board resize refits now; a tray-only resize waits a frame, since refitting resizes the tray (ResizeObserver loop).
     let frame = 0;
-    const observer = new ResizeObserver(() => {
+    const observer = new ResizeObserver((entries) => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(fit);
+      if (entries.some((e) => e.target === board)) fit();
+      else frame = requestAnimationFrame(fit);
     });
     observer.observe(board);
     observer.observe(tray);

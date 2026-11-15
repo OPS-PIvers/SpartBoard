@@ -10,6 +10,7 @@ const setup = (
   const board = document.createElement('div');
   const tray = document.createElement('section');
   board.style.flexDirection = direction;
+  board.appendChild(tray);
   Object.defineProperty(tray, 'clientHeight', { value: 100 });
   Object.defineProperty(tray, 'scrollHeight', {
     get: () => (fitsAt(tray) ? 100 : 200),
@@ -23,7 +24,10 @@ const width = (t: HTMLElement) =>
 const scale = (t: HTMLElement) =>
   parseFloat(t.style.getPropertyValue('--tray-scale') || '1');
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('useTrayFit', () => {
   it('widens the side column only as far as the names need', () => {
@@ -44,32 +48,62 @@ describe('useTrayFit', () => {
     expect(tray.style.getPropertyValue('--tray-scale')).toBe('1');
   });
 
-  it('refits on the next frame after a resize, not inside the observer callback', () => {
-    let notify: ResizeObserverCallback = () => undefined;
+  const observeResizes = () => {
+    const observer: { notify: ResizeObserverCallback } = {
+      notify: () => undefined,
+    };
     vi.stubGlobal(
       'ResizeObserver',
       class {
         constructor(cb: ResizeObserverCallback) {
-          notify = cb;
+          observer.notify = cb;
         }
         observe = vi.fn();
         disconnect = vi.fn();
       }
     );
-    const frames: FrameRequestCallback[] = [];
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
-      frames.push(cb)
-    );
-    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    const frames = new Map<number, FrameRequestCallback>();
+    let next = 1;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.set(next, cb);
+      return next++;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+    const flush = () => {
+      const pending = [...frames.values()];
+      frames.clear();
+      pending.forEach((cb) => cb(0));
+      return pending.length;
+    };
+    return { observer, flush };
+  };
+  const resized = (target: Element) =>
+    [{ target }] as unknown as ResizeObserverEntry[];
+
+  it('refits a tray-only resize on the next frame, once', () => {
+    const { observer, flush } = observeResizes();
     let roomy = true;
     const tray = setup('column', (t) => roomy || scale(t) <= 0.8);
     expect(tray.style.getPropertyValue('--tray-scale')).toBe('1');
     roomy = false;
-    notify([], {} as ResizeObserver);
+    observer.notify(resized(tray), {} as ResizeObserver);
+    observer.notify(resized(tray), {} as ResizeObserver);
     expect(tray.style.getPropertyValue('--tray-scale')).toBe('1');
-    frames.forEach((cb) => cb(0));
+    expect(flush()).toBe(1);
     expect(tray.style.getPropertyValue('--tray-scale')).toBe('0.8');
-    vi.unstubAllGlobals();
+  });
+
+  it('refits a board resize right away', () => {
+    const { observer, flush } = observeResizes();
+    let roomy = true;
+    const tray = setup('column', (t) => roomy || scale(t) <= 0.8);
+    roomy = false;
+    observer.notify(
+      resized(tray.parentElement as Element),
+      {} as ResizeObserver
+    );
+    expect(tray.style.getPropertyValue('--tray-scale')).toBe('0.8');
+    expect(flush()).toBe(0);
   });
 
   it('shrinks stacked tray text no further than 60%', () => {
