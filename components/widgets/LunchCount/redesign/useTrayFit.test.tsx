@@ -44,6 +44,34 @@ describe('useTrayFit', () => {
     expect(tray.style.getPropertyValue('--tray-scale')).toBe('1');
   });
 
+  it('refits on the next frame after a resize, not inside the observer callback', () => {
+    let notify: ResizeObserverCallback = () => undefined;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: ResizeObserverCallback) {
+          notify = cb;
+        }
+        observe = vi.fn();
+        disconnect = vi.fn();
+      }
+    );
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
+      frames.push(cb)
+    );
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    let roomy = true;
+    const tray = setup('column', (t) => roomy || scale(t) <= 0.8);
+    expect(tray.style.getPropertyValue('--tray-scale')).toBe('1');
+    roomy = false;
+    notify([], {} as ResizeObserver);
+    expect(tray.style.getPropertyValue('--tray-scale')).toBe('1');
+    frames.forEach((cb) => cb(0));
+    expect(tray.style.getPropertyValue('--tray-scale')).toBe('0.8');
+    vi.unstubAllGlobals();
+  });
+
   it('shrinks stacked tray text no further than 60%', () => {
     const tray = setup('column', () => false);
     expect(tray.style.getPropertyValue('--tray-scale')).toBe('0.6');

@@ -30,7 +30,12 @@ export function useTrayFit(
       }
     };
     fit();
-    const observer = new ResizeObserver(fit);
+    // Refit next frame: fitting resizes the observed tray, which inside the callback is a ResizeObserver loop.
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    });
     observer.observe(board);
     observer.observe(tray);
     let live = true;
@@ -39,6 +44,7 @@ export function useTrayFit(
     });
     return () => {
       live = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, [boardRef, trayRef, contentKey]);
