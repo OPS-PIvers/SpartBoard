@@ -22,8 +22,10 @@ import {
   sandboxGet,
   sandboxId,
   sandboxPut,
+  sandboxPatchAssignment,
   sandboxRemove,
   useTourSandbox,
+  withSandboxAssignmentPatches,
 } from '@/utils/tourSandbox';
 import type { UseQuizResult } from './useQuiz';
 import type { UseVideoActivityResult } from './useVideoActivity';
@@ -153,13 +155,31 @@ const keepReal = <R>(id: string | undefined, result: R): R => {
 };
 
 type AnyFn = (...args: unknown[]) => unknown;
+type AssignmentPatchOf = (args: unknown[]) => Record<string, unknown>;
+
+const statusPatch =
+  (status: string): AssignmentPatchOf =>
+  () => ({ status });
+const publishPatch: AssignmentPatchOf = (args) => ({
+  scoreVisibility: args[2],
+  scorePublishedAt: Date.now(),
+});
+const archivePatch: AssignmentPatchOf = () => ({
+  status: 'archived',
+  archivedAt: Date.now(),
+});
+const unpublishPatch: AssignmentPatchOf = () => ({
+  scoreVisibility: undefined,
+  scorePublishedAt: undefined,
+});
 
 /** Calls on an assignment run only when its material is one the teacher picked for the tour. */
 const guardAssignmentCalls = <T extends object>(
   api: T,
   materialOf: (assignmentId: string) => string | undefined,
   keys: readonly (keyof T & string)[],
-  fallbacks: Partial<Record<keyof T, unknown>> = {}
+  fallbacks: Partial<Record<keyof T, unknown>> = {},
+  patches: Partial<Record<keyof T, AssignmentPatchOf>> = {}
 ): Partial<T> =>
   Object.fromEntries(
     keys.map((key) => {
@@ -168,7 +188,11 @@ const guardAssignmentCalls = <T extends object>(
         const id = typeof args[0] === 'string' ? args[0] : '';
         const real =
           realTourAssignments.has(id) || !isSandboxed(materialOf(id));
-        return real ? fn(...args) : Promise.resolve(fallbacks[key]);
+        if (real) return fn(...args);
+        // The faked write still shows on the row, so a tour step waiting on it can finish.
+        const patch = patches[key];
+        if (patch) sandboxPatchAssignment(id, patch(args));
+        return Promise.resolve(fallbacks[key]);
       };
       return [key, guarded];
     })
@@ -401,11 +425,12 @@ export const useMiniAppKeeper = (
 export function useSandboxedQuizAssignments(
   api: UseQuizAssignmentsResult
 ): UseQuizAssignmentsResult {
-  const { active } = useTourSandbox();
-  if (!active) return api;
+  const sandbox = useTourSandbox();
+  if (!sandbox.active) return api;
   const materialOf = (id: string) =>
     api.assignments.find((a) => a.id === id)?.quizId;
   return sandboxApi(api, {
+    assignments: withSandboxAssignmentPatches(api.assignments, sandbox),
     ...guardAssignmentCalls(
       api,
       materialOf,
@@ -439,6 +464,14 @@ export function useSandboxedQuizAssignments(
         },
         publishAssignmentScores: { responsesUpdated: 0, paperResponses: 0 },
         publishResultsForStudents: { responsesUpdated: 0, skipped: 0 },
+      },
+      {
+        pauseAssignment: statusPatch('paused'),
+        resumeAssignment: statusPatch('active'),
+        deactivateAssignment: statusPatch('inactive'),
+        reopenAssignment: statusPatch('active'),
+        publishAssignmentScores: publishPatch,
+        unpublishAssignmentScores: unpublishPatch,
       }
     ),
     createAssignment: async (quiz, settings, options) => {
@@ -466,11 +499,12 @@ export function useSandboxedVideoActivitySession(
 export function useSandboxedVideoActivityAssignments(
   api: UseVideoActivityAssignmentsResult
 ): UseVideoActivityAssignmentsResult {
-  const { active } = useTourSandbox();
-  if (!active) return api;
+  const sandbox = useTourSandbox();
+  if (!sandbox.active) return api;
   const materialOf = (id: string) =>
     api.assignments.find((a) => a.id === id)?.activityId;
   return sandboxApi(api, {
+    assignments: withSandboxAssignmentPatches(api.assignments, sandbox),
     ...guardAssignmentCalls(
       api,
       materialOf,
@@ -489,6 +523,14 @@ export function useSandboxedVideoActivityAssignments(
       {
         shareAssignment: `${origin()}/share/${sandboxId()}`,
         publishAssignmentScores: { responsesUpdated: 0, scoredQuestions: [] },
+      },
+      {
+        pauseAssignment: statusPatch('paused'),
+        resumeAssignment: statusPatch('active'),
+        deactivateAssignment: statusPatch('inactive'),
+        reactivateAssignment: statusPatch('active'),
+        publishAssignmentScores: publishPatch,
+        unpublishAssignmentScores: unpublishPatch,
       }
     ),
     createAssignment: async (activity, ...rest) => {
@@ -516,11 +558,12 @@ export function useSandboxedGuidedLearningAssignments(
   api: UseGuidedLearningAssignmentsResult,
   teacherUid: string | undefined
 ): UseGuidedLearningAssignmentsResult {
-  const { active } = useTourSandbox();
-  if (!active) return api;
+  const sandbox = useTourSandbox();
+  if (!sandbox.active) return api;
   const materialOf = (id: string) =>
     api.assignments.find((a) => a.id === id)?.setId;
   return sandboxApi(api, {
+    assignments: withSandboxAssignmentPatches(api.assignments, sandbox),
     ...guardAssignmentCalls(
       api,
       materialOf,
@@ -532,7 +575,13 @@ export function useSandboxedGuidedLearningAssignments(
         'unpublishAssignmentScores',
         'setAssignmentClasses',
       ],
-      { publishAssignmentScores: { responsesUpdated: 0 } }
+      { publishAssignmentScores: { responsesUpdated: 0 } },
+      {
+        archiveAssignment: archivePatch,
+        unarchiveAssignment: () => ({ status: 'active', archivedAt: null }),
+        publishAssignmentScores: publishPatch,
+        unpublishAssignmentScores: unpublishPatch,
+      }
     ),
     createAssignment: async (input) => {
       if (isSandboxed(input.setId)) return fakeGlAssignment(input, teacherUid);
@@ -558,19 +607,29 @@ export function useSandboxedMiniAppSession(
 export function useSandboxedMiniAppAssignments(
   api: UseMiniAppAssignmentsResult
 ): UseMiniAppAssignmentsResult {
-  const { active } = useTourSandbox();
-  if (!active) return api;
+  const sandbox = useTourSandbox();
+  if (!sandbox.active) return api;
   const materialOf = (id: string) =>
     api.assignments.find((a) => a.id === id)?.appId;
   return sandboxApi(api, {
-    ...guardAssignmentCalls(api, materialOf, [
-      'renameAssignment',
-      'endAssignment',
-      'reactivateAssignment',
-      'deleteAssignment',
-      'setTargetSkippedCount',
-      'setAssignmentClasses',
-    ]),
+    assignments: withSandboxAssignmentPatches(api.assignments, sandbox),
+    ...guardAssignmentCalls(
+      api,
+      materialOf,
+      [
+        'renameAssignment',
+        'endAssignment',
+        'reactivateAssignment',
+        'deleteAssignment',
+        'setTargetSkippedCount',
+        'setAssignmentClasses',
+      ],
+      {},
+      {
+        endAssignment: statusPatch('inactive'),
+        reactivateAssignment: statusPatch('active'),
+      }
+    ),
     createAssignment: async (input) => {
       if (isSandboxed(input.app.id)) return sandboxId();
       const made = await api.createAssignment(input);
