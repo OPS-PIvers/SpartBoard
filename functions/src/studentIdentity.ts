@@ -107,11 +107,13 @@ const rosterTaughtCache = new BoundedLruMap<
   string,
   { ids: TaughtClasses; at: number }
 >(2000);
+const rosterTaughtInFlight = new Map<string, Promise<TaughtClasses>>();
 
 /** Test-only: forget cached roster-owner checks. */
 export function __resetRosterOwnerCache(): void {
   rosterOwnerCache.clear();
   rosterTaughtCache.clear();
+  rosterTaughtInFlight.clear();
 }
 
 /** Each owner's standing, with Auth read 100 at a time. An Auth outage throws; it must not read as "not a teacher". */
@@ -192,18 +194,25 @@ async function candidateTaughtClasses(
       ? ROSTER_UNAVAILABLE_TTL_MS
       : ROSTER_OWNER_TTL_MS;
   if (cached && Date.now() - cached.at < ttl) return cached.ids;
-  let ids: TaughtClasses = 'unavailable';
-  try {
-    ids = await loadTeacherClassIds(email, {
-      classlinkClientId: CLASSLINK_CLIENT_ID.value(),
-      classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
-      tenantUrl: CLASSLINK_TENANT_URL.value(),
-    });
-  } catch {
-    // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
-  }
-  rosterTaughtCache.set(uid, { ids, at: Date.now() });
-  return ids;
+  // A class signing in at once shares one ClassLink lookup per owner.
+  const pending = rosterTaughtInFlight.get(uid);
+  if (pending) return pending;
+  const lookup = (async (): Promise<TaughtClasses> => {
+    let ids: TaughtClasses = 'unavailable';
+    try {
+      ids = await loadTeacherClassIds(email, {
+        classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+        classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+        tenantUrl: CLASSLINK_TENANT_URL.value(),
+      });
+    } catch {
+      // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
+    }
+    rosterTaughtCache.set(uid, { ids, at: Date.now() });
+    return ids;
+  })().finally(() => rosterTaughtInFlight.delete(uid));
+  rosterTaughtInFlight.set(uid, lookup);
+  return lookup;
 }
 
 /** Roster docs whose owner ClassLink confirms teaches the section, grouped by `classlinkClassId`; `uncertain` when ClassLink could not answer for an owner, and `uncertainIds` the sections that owner had a roster for. */
@@ -303,19 +312,19 @@ async function lookupRostersBySection(
   return { matches: out, uncertain, uncertainIds };
 }
 
-/** The roster classIds this student's last SSO sign-in in this org claimed; empty when unknown. */
+/** The roster classIds this student's last SSO sign-in in this org claimed; null when no claim was recorded yet. */
 async function readPreviousClaim(
   db: FirebaseFirestore.Firestore,
   uid: string,
   orgId: string
-): Promise<Set<string>> {
+): Promise<Set<string> | null> {
   const snap = await db
     .doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`)
     .get()
     .catch(() => null);
   const data = snap?.exists ? snap.data() : undefined;
   if (!data || data.orgId !== orgId || !Array.isArray(data.classIds))
-    return new Set();
+    return null;
   return new Set(
     (data.classIds as unknown[]).filter(
       (c): c is string => typeof c === 'string' && c.length > 0
@@ -531,7 +540,7 @@ export const studentLoginV1 = onCall(
 
     let rosterMatches: Map<string, RosterSnap[]>;
     let uncertainIds: Set<string>;
-    let previousClaim: Set<string>;
+    let previousClaim: Set<string> | null;
     try {
       [{ matches: rosterMatches, uncertainIds }, previousClaim] =
         await Promise.all([
@@ -542,12 +551,12 @@ export const studentLoginV1 = onCall(
       console.error('[studentLoginV1] roster lookup failed:', err);
       throw new HttpsError('internal', 'Roster service unavailable.');
     }
-    // A section ClassLink couldn't confirm just now keeps its place from the last sign-in, so a blip never narrows the claim.
+    // A section ClassLink couldn't confirm just now keeps its place from the last sign-in (or any, before one was recorded), so a blip never narrows the claim.
     const classIds = sectionIds
       .filter(
         (id) =>
           rosterMatches.has(id) ||
-          (uncertainIds.has(id) && previousClaim.has(id))
+          (uncertainIds.has(id) && (!previousClaim || previousClaim.has(id)))
       )
       .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
 

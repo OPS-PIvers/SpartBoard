@@ -774,9 +774,25 @@ describe('studentLoginV1', () => {
       expect(claim()).toEqual(['ENG']);
     });
 
+    it('keeps an unconfirmed section on a first sign-in before any claim was recorded', async () => {
+      seed();
+      teacherDown = true;
+      h.docStore.set(`student_sections/${uid()}`, {
+        orgId: 'org-orono',
+        sectionIds: ['ENG', 'BIO'],
+      });
+      await callStudentLogin({ data: { idToken: 'x' } });
+      expect(claim()).toEqual(['ENG', 'BIO']);
+    });
+
     it('asks ClassLink again after a short wait rather than holding the failure for five minutes', async () => {
       seed();
       teacherDown = true;
+      h.docStore.set(`student_sections/${uid()}`, {
+        orgId: 'org-orono',
+        sectionIds: ['ENG', 'BIO'],
+        classIds: ['ENG'],
+      });
       const now = Date.now();
       const spy = vi.spyOn(Date, 'now').mockReturnValue(now);
       try {
