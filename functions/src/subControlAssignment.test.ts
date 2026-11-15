@@ -47,6 +47,24 @@ interface Written {
   precondition?: unknown;
 }
 
+function pagedQuery(all: { ref: { path: string } }[]) {
+  let after = -1;
+  let size = Infinity;
+  const q = {
+    limit: (n: number) => {
+      size = n;
+      return q;
+    },
+    startAfter: (d: { ref: { path: string } }) => {
+      after = all.findIndex((x) => x.ref.path === d.ref.path);
+      return q;
+    },
+    get: () =>
+      Promise.resolve({ docs: all.slice(after + 1, after + 1 + size) }),
+  };
+  return q;
+}
+
 function stubDb(state: StubState = {}) {
   const {
     switchOn = true,
@@ -86,12 +104,10 @@ function stubDb(state: StubState = {}) {
     }),
     collection: (path: string) => ({
       path,
-      limit: () => ({
-        get: () =>
-          Promise.resolve({
-            docs: path.endsWith('/responses') ? responseDocs : [],
-          }),
-      }),
+      orderBy: () =>
+        pagedQuery(path.endsWith('/responses') ? responseDocs : []),
+      limit: (n: number) =>
+        pagedQuery(path.endsWith('/responses') ? responseDocs : []).limit(n),
     }),
     runTransaction: async <T>(
       fn: (tx: {
@@ -190,6 +206,18 @@ describe('handleControlSubAssignment — ending a quiz', () => {
     expect(finalized[0].data.unlocked).toBe(false);
     // A blank attempt uses no slot, as in the idle sweep and Submit for student.
     expect(finalized[0].data).not.toHaveProperty('completedAttempts');
+  });
+
+  it('finalizes every unfinished response past the first page', async () => {
+    const responses: Record<string, Record<string, unknown>> = {};
+    for (let i = 0; i < 1000; i++) {
+      responses[`r${String(i).padStart(4, '0')}`] = { status: 'in-progress' };
+    }
+    const { run, written } = control({ responses });
+    await run();
+    expect(written.filter((w) => w.path.includes('/responses/'))).toHaveLength(
+      1000
+    );
   });
 
   it('promotes drafts, clears unlocked and counts the attempt once', async () => {
