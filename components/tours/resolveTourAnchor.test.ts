@@ -369,6 +369,29 @@ describe('wildcard row refs', () => {
     ).toBe('library-shell.archive-menu-item:quiz#row-1-item-2');
   });
 
+  it('leaves a keyless ref on a control inside a row as written', () => {
+    const picks = {
+      'library-shell.archive-menu:quiz':
+        'library-shell.archive-menu:quiz#row-3',
+    };
+    expect(followPickedRow('library-shell.archive-menu-item:quiz', picks)).toBe(
+      'library-shell.archive-menu-item:quiz'
+    );
+  });
+
+  it('keeps the step as written when the followed row is not on screen', () => {
+    mount(rows('library-shell.card-menu', 'quiz', 2));
+    const picks = {
+      'library-shell.card-open:quiz': 'library-shell.card-open:quiz#row-5',
+    };
+    expect(
+      findTourAnchor(
+        { anchor: 'library-shell.card-menu:quiz#row-2' },
+        { picks }
+      )?.dataset.tourField
+    ).toBe('row-2');
+  });
+
   it('lights every assignment row kebab for a wildcard step', () => {
     mount(rows('library-shell.archive-menu', 'quiz', 3));
     expect(

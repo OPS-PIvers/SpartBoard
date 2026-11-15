@@ -5396,7 +5396,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "key_pattern": "assign#row-[1-9]\\d*",
     "key_hint": "assign#row-1 for the first row",
     "row_wildcard": true,
-    "row_list": "assign-classes",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -27711,7 +27710,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Open button in the PLC assessments tab",
     "scope": "field",
     "row_wildcard": true,
-    "row_list": "plc-assessments",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27774,7 +27772,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
-    "row_list": "plc-assessments",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27797,7 +27794,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "plc-assessments",
     "routes": [
       {
         "surface": "plc.assessments",

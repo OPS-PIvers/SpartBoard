@@ -4,7 +4,6 @@ import React, {
   useCallback,
   useEffect,
   useEffectEvent,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -94,7 +93,6 @@ import {
   findTourAnchor,
   findTourAnchors,
   isAnchorReachable,
-  followPickedRow,
   notePickedRow,
 } from './resolveTourAnchor';
 import {
@@ -724,26 +722,18 @@ export const LiveTourRunner: React.FC = () => {
       wroteSaved.current = false;
     }
   }, [savedKey, ended]);
-  const storedStep =
+  const step =
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
-  // A step on a row of a list the teacher picked from earlier follows that row.
-  const step = useMemo(() => {
-    const ref = storedStep?.tour?.anchor;
-    const followed = ref ? followPickedRow(ref, pickedRows) : ref;
-    return storedStep?.tour && followed !== ref
-      ? { ...storedStep, tour: { ...storedStep.tour, anchor: followed ?? '' } }
-      : storedStep;
-  }, [storedStep, pickedRows]);
   // A draft edit swaps the step objects, so any change to the steps searches again.
   const editAtEnd =
     !!tour?.edit &&
     tour.phase === 'running' &&
     editEnd?.visit === visit &&
-    editEnd.step === storedStep &&
+    editEnd.step === step &&
     tour.index + 1 === tour.steps.length;
   const anchor = useAnchorElement(
     editAtEnd ? null : (step?.tour ?? null),
-    { widgetIds: added, slots: tour?.slots },
+    { widgetIds: added, slots: tour?.slots, picks: pickedRows },
     attempt
   );
 
@@ -845,7 +835,11 @@ export const LiveTourRunner: React.FC = () => {
       window.clearTimeout(timer);
     };
   }, [snapStepId, snapElement, binding, shotKey, testShot, snapIndex]);
-  const anchorScope = { widgetIds: added, slots: tour?.slots };
+  const anchorScope = {
+    widgetIds: added,
+    slots: tour?.slots,
+    picks: pickedRows,
+  };
   const onStage = hiddenIds.length
     ? widgets.filter((w) => !hiddenIds.includes(w.id))
     : widgets;
@@ -2242,11 +2236,11 @@ export const LiveTourRunner: React.FC = () => {
     reportTestStep({
       index: stepIndex,
       stepId: step.id,
-      anchor: storedStep?.tour?.anchor ?? '',
+      anchor: step.tour?.anchor ?? '',
       status: testStatus,
     });
     if (testStatus === 'missing' && !found) advanceRef.current(stepIndex + 1);
-  }, [testStatus, stepIndex, step, storedStep]);
+  }, [testStatus, stepIndex, step]);
   const waitingOnTeacher = autoStage === 'blocked' || autoStage === 'fallback';
   const autoBusy =
     autoStage === 'demo' || autoStage === 'waiting' || autoStage === 'confirm';

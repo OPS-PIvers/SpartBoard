@@ -48,12 +48,12 @@ export function followPickedRow(
 ): string {
   if (!picks) return anchor;
   const { id, widgetType, fieldKey } = parseTourAnchorRef(anchor);
-  const list = rowListOf(id);
-  if (
-    list &&
-    widgetType &&
-    (fieldKey === undefined || ROW_KEY.test(fieldKey))
-  ) {
+  const def = isTourAnchorId(id) ? (TOUR_ANCHORS[id] as TourAnchorDef) : null;
+  const list = def?.rowList;
+  // A keyless ref only takes a row on anchors with one element per row.
+  const followable =
+    fieldKey === undefined ? !!def?.rows : ROW_KEY.test(fieldKey);
+  if (list && widgetType && followable) {
     // Every control in a row, menu items keyed row-N-item-K too, follows the row picked last on its list.
     const row = lastRowOn(list, widgetType, picks);
     if (!row) return anchor;
@@ -253,7 +253,19 @@ function taggedAnchors(
   scope: TourAnchorScope,
   root: ParentNode
 ): HTMLElement[] {
-  const anchor = pickedRef(ref, scope);
+  const followed = pickedRef(ref, scope);
+  const found = taggedAs(followed, usable, root);
+  // A followed row that isn't on screen, like another tab's list, leaves the step as written.
+  return found.length > 0 || followed === ref
+    ? found
+    : taggedAs(ref, usable, root);
+}
+
+function taggedAs(
+  anchor: string,
+  usable: (el: Element) => boolean,
+  root: ParentNode
+): HTMLElement[] {
   const { id, widgetType, fieldKey } = parseTourAnchorRef(anchor);
   if (!id) return [];
   const anyRow = isRowWildcardRef(anchor);

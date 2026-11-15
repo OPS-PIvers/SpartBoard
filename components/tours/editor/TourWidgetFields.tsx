@@ -35,7 +35,7 @@ export const TourWidgetFields: React.FC<Props> = ({
     ? (TOUR_ANCHORS as Record<string, TourAnchorDef>)[id]
     : undefined;
   const perField = !!def?.perField;
-  const rowPicker = perField && !!def?.rows;
+  const rowPicker = perField && !!def?.rows && !!def.rowList;
   const needsType = !!def?.perWidgetType || perField;
 
   const schemaAvailable =

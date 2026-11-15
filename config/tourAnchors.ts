@@ -1332,7 +1332,6 @@ export const TOUR_ANCHORS = {
     keyHint: 'assign#row-1 for the first row',
     panel: true,
     rows: true,
-    rowList: 'assign-classes',
   },
   'assign-students.search': {
     label: 'Search students box in the Assign dialog students menu',
@@ -6769,7 +6768,6 @@ export const TOUR_ANCHORS = {
     label: 'Open button in the PLC assessments tab',
     perField: true,
     rows: true,
-    rowList: 'plc-assessments',
   },
   'plc-assessments.status': {
     label: 'Status chip on a PLC assessment row',
@@ -6784,14 +6782,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     perField: true,
     rows: true,
-    rowList: 'plc-assessments',
   },
   'plc-assessments.menu': {
     label: 'Menu button in the PLC assessments tab',
     perField: true,
     panel: true,
     rows: true,
-    rowList: 'plc-assessments',
   },
   'plc-assessments.menu-item': {
     label: 'Menu item button in the PLC assessments tab',
