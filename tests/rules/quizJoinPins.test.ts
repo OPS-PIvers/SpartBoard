@@ -499,3 +499,34 @@ describe('PIN join times: clamped only for a retired PIN', () => {
     });
   }
 });
+
+describe('video activity: a made-up period cannot dodge a retired PIN', () => {
+  const NAMED = 'qjp-va-named';
+  const ref = (key: string) =>
+    doc(anonDb(ANON), `video_activity_sessions/${NAMED}/responses/${key}`);
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `video_activity_sessions/${NAMED}`), {
+        teacherUid: TEACHER,
+        status: 'active',
+        mode: 'submissions',
+        code: 'QJPG',
+        rosterIds: ['roster-1'],
+        classIds: [CLASS],
+        periodNames: ['Period 1'],
+      });
+    });
+  });
+
+  it('refuses a retired PIN under a period the session does not name', async () => {
+    await assertFails(
+      setDoc(ref('pin-zz-01'), { ...vaJoinDoc(ANON, '01'), classPeriod: 'zz' })
+    );
+  });
+
+  it('still seats an unretired PIN in a named period', async () => {
+    await assertSucceeds(
+      setDoc(ref(rawKey('Period 1', '02')), vaJoinDoc(ANON, '02'))
+    );
+  });
+});
