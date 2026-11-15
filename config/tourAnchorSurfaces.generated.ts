@@ -2735,6 +2735,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'mini-app.try-as-student': ['library.mini-app.editor'],
     'mini-app.key-add-question': ['library.mini-app'],
     'mini-app.results-back': ['library.mini-app'],
+    'mini-app.archive-publish-scores': ['library.mini-app'],
     'mini-app.results-hide-names': ['library.mini-app'],
     'mini-app.results-export-sheet': ['library.mini-app'],
     'mini-app.submissions-close': ['library.mini-app.submissions'],

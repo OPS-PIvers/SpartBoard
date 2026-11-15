@@ -304,7 +304,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
       return 'Mini app';
     },
     hrefFrom: (sessionId) => `/miniapp/${encodeURIComponent(sessionId)}`,
-    gradingStateFrom: () => 'not-graded',
+    gradingStateFrom: (data) => parsePublicationFields('mini-app', data),
   },
   'activity-wall': {
     collectionName: 'activity_wall_sessions',

@@ -135,6 +135,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   mcpAuthorizeV1: 'outward',
   plcGoalCoachV1: 'outward',
   prepareQuizReadAloudV1: 'outward',
+  publishMiniAppScoresV1: 'outward',
   publishPaperResultsV1: 'outward',
   pushClassroomFinalGradesForAssignment: 'outward',
   pushClassroomGradesForAssignment: 'outward',
