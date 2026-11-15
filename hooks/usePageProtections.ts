@@ -44,9 +44,16 @@ export const subscribeFullscreen = (onChange: () => void) => {
 };
 export const isFullscreenNow = () => document.fullscreenElement != null;
 
-/** Whether this browser lets a page go fullscreen; iPads and some embeds can't. */
+/** iPhone or iPad, in any browser; an iPad asking for desktop sites reports as a Mac with a touchscreen. */
+export const isAppleTouchDevice = (): boolean =>
+  typeof navigator !== 'undefined' &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+
+/** Whether this browser lets a page stay fullscreen; iPads drop it whenever an answer box takes focus, and some embeds can't open it. */
 export const fullscreenSupported = (): boolean =>
   typeof document !== 'undefined' &&
+  !isAppleTouchDevice() &&
   document.fullscreenEnabled === true &&
   typeof document.documentElement.requestFullscreen === 'function';
 

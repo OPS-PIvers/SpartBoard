@@ -39,6 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Reflect.deleteProperty(navigator, 'maxTouchPoints');
   resetHandOffForTests();
   vi.restoreAllMocks();
   document
@@ -195,6 +196,50 @@ describe('FullscreenCover', () => {
       screen.getByRole('dialog', {
         name: 'This activity is open in another tab',
       })
+    ).toBeTruthy();
+  });
+
+  it('skips fullscreen on an iPad, which leaves it whenever an answer box takes focus', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15'
+    );
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      configurable: true,
+      get: () => 5,
+    });
+    const { container } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(container.innerHTML).toBe('');
+    expect(requestFullscreen).not.toHaveBeenCalled();
+  });
+
+  it('skips the pop out on an iPad in a Schoology frame', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1'
+    );
+    vi.spyOn(window, 'top', 'get').mockReturnValue({} as Window);
+    vi.spyOn(document, 'referrer', 'get').mockReturnValue(
+      'https://orono.schoology.com/'
+    );
+    const { container } = render(
+      <PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />
+    );
+    expect(container.innerHTML).toBe('');
+    expect(getHandOffState()).toBe('active');
+  });
+
+  it('still asks for fullscreen on a Mac without a touchscreen', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15'
+    );
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      configurable: true,
+      get: () => 0,
+    });
+    render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
+    expect(
+      screen.getByRole('dialog', { name: 'This activity uses fullscreen' })
     ).toBeTruthy();
   });
 

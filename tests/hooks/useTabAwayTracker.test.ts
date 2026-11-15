@@ -279,6 +279,16 @@ describe('useTabAwayTracker', () => {
       ]);
     });
 
+    it('ignores leaving fullscreen on an iPad, where focusing an answer box drops it', async () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15'
+      );
+      const { onLeave } = setup({ fullscreenRequired: true });
+      setFullscreen(false);
+      await flush();
+      expect(onLeave).not.toHaveBeenCalled();
+    });
+
     it('ignores leaving fullscreen when the page does not require it', async () => {
       const { onLeave } = setup();
       setFullscreen(false);
