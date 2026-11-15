@@ -2539,6 +2539,33 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     expect(payload).toHaveProperty('lastWriteAt');
   });
 
+  it('keeps the timed-out-under-minimum marker when a revisit draft saves', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'short',
+      answeredAt: 100,
+      status: 'submitted',
+      timedOutUnderMinimum: true,
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'short plus', undefined, {
+        isDraft: true,
+      });
+    });
+    const payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+    };
+    expect(payload.answers[0]).toMatchObject({
+      answer: 'short plus',
+      status: 'submitted',
+      timedOutUnderMinimum: true,
+    });
+  });
+
   it('skips a draft that repeats a submitted answer', async () => {
     const result = await joinAndSeedPrior({
       questionId: 'q1',

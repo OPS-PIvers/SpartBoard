@@ -2586,7 +2586,6 @@ export const ActiveQuiz: React.FC<{
     questionId: currentQuestion?.id,
     serverSignals: myResponse?.inputSignals,
     save: saveInputSignals,
-    watchedUntil: liveViewUntil,
   });
 
   // Sections (QUIZ_EXAMVIEW_IMPORT.md E12, E13): the intro shows once per section.
@@ -3052,7 +3051,13 @@ export const ActiveQuiz: React.FC<{
   // read state directly.
   const submittedRef = useRef(false);
   // A self-paced revisit of a saved answer stays editable, so its changes autosave like a first answer.
-  const draftLocked = submitted && !(isStudentPaced && step.alreadyAnswered);
+  const draftLocked =
+    submitted &&
+    !(
+      isStudentPaced &&
+      step.alreadyAnswered &&
+      step.timedOutFor !== currentQuestion?.id
+    );
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   submittedRef.current = draftLocked;
   // Pending draft tracker for question-change flushes. The state-driven
@@ -3257,6 +3262,8 @@ export const ActiveQuiz: React.FC<{
     const type = currentQuestion?.type;
     if (!qid || !type) return;
     if (draftLocked) return;
+    // A revisit over the word limit keeps its saved answer, as Next does.
+    if (submitted && wordLimitBlocked) return;
     // Cache miss — student hasn't touched this question this session
     // and there's no saved value either. Nothing to write.
     if (cachedDraft === null) return;
@@ -3322,6 +3329,8 @@ export const ActiveQuiz: React.FC<{
     currentQid,
     currentQuestion?.type,
     draftLocked,
+    submitted,
+    wordLimitBlocked,
     savedAnswerForCurrent,
   ]);
 

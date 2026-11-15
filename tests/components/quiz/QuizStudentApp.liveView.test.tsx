@@ -146,7 +146,6 @@ describe('ActiveQuiz on a watched student’s device', () => {
       expect(report).toHaveBeenCalledWith({
         questionId: 'q1',
         at: expect.any(Number),
-        warning: false,
       })
     );
     expect(screen.getByText('Your teacher is viewing your quiz')).toBeTruthy();

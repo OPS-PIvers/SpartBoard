@@ -45,7 +45,7 @@ export function useLiveViewReport({
     report({
       questionId,
       at: arrivalRef.current?.at ?? getServerNow(),
-      warning,
+      ...(warning ? { warning } : {}),
       ...(activeAt != null ? { activeAt } : {}),
     }).catch((err: unknown) =>
       console.error('[ActiveQuiz] live position report failed:', err)

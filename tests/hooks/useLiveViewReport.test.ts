@@ -68,9 +68,9 @@ describe('useLiveViewReport', () => {
       expect.objectContaining({ warning: true })
     );
     rerender({ ...args, warning: false });
-    expect(report).toHaveBeenLastCalledWith(
-      expect.objectContaining({ warning: false })
-    );
+    // Left out when off, so a report still passes rules that predate the field.
+    expect(report).toHaveBeenCalledTimes(2);
+    expect(report.mock.lastCall?.[0]).not.toHaveProperty('warning');
   });
 
   it('writes nothing while nobody watches, but remembers the last activity', () => {
