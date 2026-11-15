@@ -6217,8 +6217,12 @@ export interface QuizLiveViewStamp {
 /** `responses/{key}/live/state`: the question a watched student is showing. */
 export interface QuizLiveState {
   questionId: string;
-  /** Server-clock ms. */
+  /** Server-clock ms the student reached this question. */
   at: number;
+  /** Server-clock ms of the student's last real click, key or scroll; absent from older clients. */
+  activeAt?: number;
+  /** The red tab warning is on the student's screen. */
+  warning?: boolean;
 }
 
 /** `users/{uid}/quiz_assignments/{id}/live_log/{id}`: what a teacher did in Live view. Never on the response doc. */
@@ -11312,6 +11316,12 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz Monitor Live view: a teacher watches one student's in-progress attempt, redrawn from saved data. */
   | 'quiz-live-view'
+  /** Live view's Nudge button. */
+  | 'quiz-live-view-nudge'
+  /** The note a teacher can add to a Live view Nudge. */
+  | 'quiz-live-view-nudge-note'
+  /** Live view's Screenshot button. */
+  | 'quiz-live-view-screenshot'
   /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
   | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
@@ -11424,6 +11434,8 @@ export type GlobalFeature =
   | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker'
+  /** Right-click menu on the board background. */
+  | 'board-context-menu'
   /** Teachers pick which answers count when a student answers more than a section asks. */
   | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */

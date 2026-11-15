@@ -70,7 +70,7 @@ export const MountedBoardsLayer: FC<MountedBoardsLayerProps> = ({
   );
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" data-board-surface>
       {mounted.map((db) => (
         <BoardCanvas
           key={db.id}
