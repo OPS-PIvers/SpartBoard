@@ -90,6 +90,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'instructional-routine',
   'live-session',
   'live-tour-editing-v2',
+  'lunch-count-redesign',
   'magic-layout',
   'managed-profile-check',
   'mini-app-ai',
@@ -161,7 +162,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
-  'lunch-count-redesign',
   'lunch-count-resend',
   'quiz-import-versions',
   'quiz-ordering-images',
