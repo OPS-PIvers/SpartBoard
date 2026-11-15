@@ -51,6 +51,7 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
+  auth: { currentUser: null },
 }));
 
 vi.mock('@/hooks/useSessionViewCount', () => ({
@@ -752,6 +753,71 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     expect(mockCallJoin).not.toHaveBeenCalled();
     expect(mockPullContent).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['non-member', false],
+    ['member', true],
+  ])(
+    'importSharedAssignment keeps plc linkage only for a PLC member (%s)',
+    async (_l, member) => {
+      mockGetDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () =>
+          ({
+            id: 'share-plc',
+            title: 'T',
+            youtubeUrl: 'https://youtube.com/watch?v=def',
+            questions: [],
+            createdAt: 1,
+            updatedAt: 1,
+            assignmentSettings: {
+              sessionSettings: {
+                autoPlay: false,
+                requireCorrectAnswer: true,
+                allowSkipping: false,
+              },
+              plc: {
+                id: 'plc-x',
+                name: 'X',
+                sheetUrl: 'https://docs.google.com/spreadsheets/d/s',
+                memberEmails: ['a@b.c'],
+              },
+            },
+            originalAuthor: 'teacher-A',
+            sharedAt: 1,
+          }) as unknown as SharedVideoActivityAssignment,
+      });
+      const set = vi.fn();
+      mockWriteBatch.mockReturnValue({
+        set,
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+      const saveActivity = vi.fn().mockResolvedValue({
+        id: 'imp',
+        title: 'T',
+        youtubeUrl: 'https://youtube.com/watch?v=def',
+        driveFileId: 'd',
+        questionCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const { result } = renderHook(() =>
+        useVideoActivityAssignments(TEACHER_UID)
+      );
+      await act(async () => {
+        await result.current.importSharedAssignment('share-plc', {
+          mode: 'copy',
+          saveActivity,
+          isPlcMember: (id) => member && id === 'plc-x',
+        });
+      });
+      expect(set).toHaveBeenCalled();
+      const written = JSON.stringify(set.mock.calls);
+      if (member) expect(written).toContain('plc-x');
+      else expect(written).not.toContain('plc-x');
+    }
+  );
 
   it('importSharedAssignment in sync mode joins the group and attaches linkage', async () => {
     const sharedDoc: SharedVideoActivityAssignment = {

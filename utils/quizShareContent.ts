@@ -144,7 +144,11 @@ export async function restoreSharedQuizContent(
     }
     bankSlots = slots.map((slot) => {
       const id = newIdByKey.get(bankSlotKey(slot));
-      if (!id) return slot;
+      if (!id) {
+        // Drop the sharer-supplied pin; the loader then trusts the group only via my PLC's sharer record.
+        const { syncOwnerUid: _o, ...unpinned } = slot;
+        return unpinned;
+      }
       const {
         syncGroupId: _syncGroupId,
         syncOwnerUid: _syncOwnerUid,
