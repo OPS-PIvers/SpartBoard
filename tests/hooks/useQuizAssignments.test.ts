@@ -889,6 +889,87 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     expect(onNonMember).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['non-member', false],
+    ['member', true],
+  ])(
+    'sync import keeps canonical bank pins only for a PLC member (%s)',
+    async (_l, member) => {
+      const { pullSyncedQuizContent, callJoinSyncedQuizGroup } =
+        await import('@/hooks/useSyncedQuizGroups');
+      (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+        title: 'Canon',
+        questions: [],
+        version: 1,
+        bankSlots: [
+          {
+            id: 's1',
+            bankId: 'b1',
+            count: 1,
+            syncGroupId: 'atk',
+            syncOwnerUid: 'attacker',
+          },
+          {
+            id: 's2',
+            bankId: 'lib1',
+            count: 1,
+            syncGroupId: 'lib-group',
+            syncOwnerUid: 'admin-uid',
+            districtItemId: 'lib1',
+          },
+        ],
+      });
+      (callJoinSyncedQuizGroup as Mock).mockResolvedValueOnce({
+        groupId: 'g',
+        version: 1,
+      });
+      mockGetDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () =>
+          ({
+            title: 'Q',
+            questions: [],
+            createdAt: 1,
+            updatedAt: 1,
+            syncGroupId: 'g',
+            assignmentSettings: {
+              sessionMode: 'teacher',
+              sessionOptions: {},
+              plc: { id: 'plc-shared', name: 'P' },
+            },
+            originalAuthor: 'attacker',
+            sharedAt: 1,
+          }) as unknown as SharedQuizAssignment,
+      });
+      const saveQuiz = vi.fn().mockResolvedValue({ id: 'q', driveFileId: 'd' });
+      const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+      await act(async () => {
+        await result.current.importSharedAssignment(
+          'share-id',
+          saveQuiz,
+          undefined,
+          { isMember: () => member, onNonMember: vi.fn() },
+          { mode: 'sync' }
+        );
+      });
+      const slots = (
+        saveQuiz.mock.calls[0][0] as { bankSlots: Record<string, unknown>[] }
+      ).bankSlots;
+      const slot = slots[0];
+      // District library slots stay linked for everyone.
+      expect(slots[1]).toMatchObject({
+        syncGroupId: 'lib-group',
+        syncOwnerUid: 'admin-uid',
+      });
+      if (member) {
+        expect(slot.syncGroupId).toBe('atk');
+      } else {
+        expect(slot.syncGroupId).toBeUndefined();
+        expect(slot.syncOwnerUid).toBeUndefined();
+      }
+    }
+  );
+
   it('copies a bank-draw quiz with its banks and freezes the pool onto the assignment', async () => {
     const bankQuestion = (id: string) => ({
       id,

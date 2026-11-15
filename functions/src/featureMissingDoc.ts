@@ -100,6 +100,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'choose-n-pick-counted',
   'assign-due-date',
   'reopen-selected-students',
+  'share-import-confirm',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
