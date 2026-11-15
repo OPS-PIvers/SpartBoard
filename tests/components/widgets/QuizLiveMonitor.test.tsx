@@ -301,11 +301,12 @@ describe('QuizLiveMonitor roster rows', () => {
       screen.getByRole('button', { name: /Not started/ })
     ).toHaveTextContent('1');
     openBucket(/Not started/);
-    expect(screen.getByText('Absent')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Absent', pressed: true })
+    ).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Actions for Ana Lee' })
+      screen.getByRole('button', { name: 'Absent', pressed: false })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Mark absent' }));
     expect(setAbsentStudents).toHaveBeenCalledWith(roster.id, ['s2', 's1']);
   });
 

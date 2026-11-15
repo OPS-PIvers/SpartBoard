@@ -4563,10 +4563,10 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-monitor.student-mark-absent': {
-    label: 'Mark absent or Mark present item in the Quiz monitor student menu',
-    perWidgetType: true,
+    label:
+      'Absent button on a student who has not joined, in the Quiz monitor roster',
+    perField: true,
     persists: true,
-    panel: true,
   },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',

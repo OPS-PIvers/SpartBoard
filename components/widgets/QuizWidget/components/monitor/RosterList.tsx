@@ -609,21 +609,38 @@ export const RosterList: React.FC<RosterListProps> = ({
             onClick: () => onLetIn(uid),
           });
         }
-        if (onSetAbsent && s.rosterId && s.studentId)
-          items.push({
-            label: s.absent ? 'Mark present' : 'Mark absent',
-            closes: true,
-            tour: tourTypeAttr('quiz-monitor.student-mark-absent', 'quiz'),
-            onClick: () => onSetAbsent(s, !s.absent),
-          });
+        const canMark = !!onSetAbsent && !!s.rosterId && !!s.studentId;
         return (
           <RosterRow key={s.key} name={s.name} muted>
-            <span
-              className="font-sans text-brand-gray-primary"
-              style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-            >
-              {s.absent ? 'Absent' : 'Not joined'}
-            </span>
+            {!s.absent && (
+              <span
+                className="font-sans text-brand-gray-primary"
+                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+              >
+                Not joined
+              </span>
+            )}
+            {canMark ? (
+              <ToggleChip
+                label="Absent"
+                on={s.absent}
+                onToggle={() => onSetAbsent?.(s, !s.absent)}
+                anchor={tourFieldAttr(
+                  'quiz-monitor.student-mark-absent',
+                  'quiz',
+                  s.key
+                )}
+              />
+            ) : (
+              s.absent && (
+                <span
+                  className="font-sans text-brand-gray-primary"
+                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                >
+                  Absent
+                </span>
+              )
+            )}
             <RosterRowMenu
               ariaLabel={`Actions for ${s.name}`}
               triggerAnchor={tourFieldAttr(
