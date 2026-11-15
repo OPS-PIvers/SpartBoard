@@ -50,10 +50,13 @@ import {
 } from '@/utils/tabWarningThreshold';
 import { partsDoneOf } from '@/utils/quizParts';
 import { isResponseWaiting } from './openPart';
+import type { NotJoinedStudent } from './rosterNotJoined';
 
 interface RosterListProps {
   bucket: BucketKey;
   students: MonitorStudent[];
+  /** Not started only: roster students who haven't opened the quiz, listed after the joined ones. */
+  notJoined?: NotJoinedStudent[];
   session: QuizSession;
   config: QuizConfig;
   isGamified: boolean;
@@ -222,6 +225,7 @@ const RowMenu: React.FC<{
 export const RosterList: React.FC<RosterListProps> = ({
   bucket,
   students,
+  notJoined = [],
   session,
   config,
   isGamified,
@@ -249,6 +253,8 @@ export const RosterList: React.FC<RosterListProps> = ({
     (config.monitorShowProficiency ?? false) && bucket === 'done';
   const sortBy: MonitorSortBy = config.monitorSortBy ?? 'first';
   const filterBy: MonitorFilterBy = config.monitorFilterBy ?? 'all';
+  const absent = [...notJoined].sort((a, b) => a.name.localeCompare(b.name));
+  const showJoined = absent.length > 0;
 
   // Board view (default): per-student hand/idle flags stay off the projected face; counts live in StatusBuckets.
   const showFlags =
@@ -348,7 +354,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         </div>
       ))}
 
-      {rest.length === 0 && hands.length === 0 && (
+      {rest.length === 0 && hands.length === 0 && absent.length === 0 && (
         <p
           className="text-brand-gray-primary text-center"
           style={{ fontSize: 'min(12px, 4cqmin)', padding: 'min(8px, 2cqmin)' }}
@@ -409,6 +415,14 @@ export const RosterList: React.FC<RosterListProps> = ({
           >
             {bucket === 'inProgress' && (
               <RosterOnQuestion index={s.onQuestion} />
+            )}
+            {showJoined && bucket === 'notStarted' && (
+              <span
+                className="font-sans font-medium text-emerald-700"
+                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+              >
+                Joined
+              </span>
             )}
             {r.status !== 'completed' && deadline != null && (
               <TimeLeft deadline={deadline} />
@@ -568,6 +582,44 @@ export const RosterList: React.FC<RosterListProps> = ({
               overridesBySourcedId={overridesBySourcedId}
               targetRefKeyByStudentUid={targetRefKeyByStudentUid}
             />
+          </RosterRow>
+        );
+      })}
+
+      {absent.map((s) => {
+        const letIn =
+          onLetIn &&
+          s.studentUid &&
+          s.periodKey &&
+          !studentCanEnter(session, [s.periodKey], s.studentUid, now)
+            ? s.studentUid
+            : null;
+        return (
+          <RosterRow key={s.key} name={s.name} muted>
+            <span
+              className="font-sans text-brand-gray-primary"
+              style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+            >
+              Not joined
+            </span>
+            {letIn && (
+              <RosterRowMenu
+                ariaLabel={`Actions for ${s.name}`}
+                triggerAnchor={tourFieldAttr(
+                  'quiz-monitor.roster-row-actions',
+                  'quiz',
+                  s.key
+                )}
+                items={[
+                  {
+                    label: 'Let in now',
+                    closes: true,
+                    tour: tourTypeAttr('quiz-monitor.student-let-in', 'quiz'),
+                    onClick: () => onLetIn?.(letIn),
+                  },
+                ]}
+              />
+            )}
           </RosterRow>
         );
       })}

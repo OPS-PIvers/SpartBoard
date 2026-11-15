@@ -49,6 +49,9 @@ vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
   useAssignmentPseudonymsMulti: () => ({
     byStudentUid: new Map(),
     byAssignmentPseudonym: new Map(),
+    targetRefKeyByStudentUid: new Map(),
+    loading: false,
+    error: null,
   }),
   formatStudentName: () => '',
 }));
@@ -185,6 +188,8 @@ interface RenderOpts {
   onClearHand?: (key: string) => Promise<void>;
   assessmentOnly?: boolean;
   hideLiveScoreboard?: boolean;
+  /** Features the signed-in teacher can use; no provider when absent. */
+  features?: string[];
 }
 
 function renderMonitor(opts: RenderOpts = {}) {
@@ -208,12 +213,104 @@ function renderMonitor(opts: RenderOpts = {}) {
       onClearHand={opts.onClearHand}
       assessmentOnly={opts.assessmentOnly}
       hideLiveScoreboard={opts.hideLiveScoreboard}
-    />
+    />,
+    opts.features
+      ? {
+          wrapper: ({ children }) => (
+            <AuthContext.Provider
+              value={
+                {
+                  canAccessFeature: (id: string) =>
+                    opts.features?.includes(id) ?? false,
+                  globalPermissions: [],
+                  selectedBuildings: [],
+                } as unknown as AuthContextType
+              }
+            >
+              {children}
+            </AuthContext.Provider>
+          ),
+        }
+      : undefined
   );
 }
 
 const openBucket = (label: RegExp) =>
   fireEvent.click(screen.getByRole('button', { name: label }));
+
+describe('QuizLiveMonitor roster rows', () => {
+  it('lists roster students who have not joined under Not started', () => {
+    const roster: ClassRoster = {
+      ...makeRoster('Period 1'),
+      students: [
+        { id: 's1', firstName: 'Ana', lastName: 'Lee', pin: '1111' },
+        { id: 's2', firstName: 'Ben', lastName: 'Ray', pin: '2222' },
+        { id: 's3', firstName: 'Cy', lastName: 'Oh', pin: '3333' },
+        { id: 's4', firstName: 'Dee', lastName: 'Fox', pin: '4444' },
+      ],
+    };
+    renderMonitor({
+      features: ['quiz-monitor-roster'],
+      session: { rosterIds: [roster.id] },
+      rosters: [roster],
+      responses: [
+        makeResponse({
+          pin: '1111',
+          classPeriod: 'Period 1',
+          status: 'joined',
+          answers: [],
+        }),
+        makeResponse({
+          pin: '2222',
+          classPeriod: 'Period 1',
+          status: 'in-progress',
+          answers: [],
+        }),
+      ],
+    });
+    expect(screen.getByText('2 not joined')).toBeInTheDocument();
+    const notStarted = screen.getByRole('button', { name: /Not started/ });
+    expect(notStarted).toHaveTextContent('3');
+    openBucket(/Not started/);
+    expect(screen.getByText('Ana Lee')).toBeInTheDocument();
+    expect(screen.getByText('Joined')).toBeInTheDocument();
+    expect(screen.getAllByText('Not joined')).toHaveLength(2);
+    expect(screen.getByText('Cy Oh')).toBeInTheDocument();
+    expect(screen.getByText('Dee Fox')).toBeInTheDocument();
+    expect(screen.queryByText('Ben Ray')).not.toBeInTheDocument();
+  });
+
+  it('adds no roster rows when the session names no rosters', () => {
+    renderMonitor({
+      features: ['quiz-monitor-roster'],
+      rosters: [
+        {
+          ...makeRoster('Period 1'),
+          students: [
+            { id: 's1', firstName: 'Ana', lastName: 'Lee', pin: '1111' },
+          ],
+        },
+      ],
+    });
+    expect(screen.queryByText(/not joined/)).not.toBeInTheDocument();
+  });
+});
+
+it('adds no roster rows without the Class roster preview', () => {
+  renderMonitor({
+    features: [],
+    session: { rosterIds: ['roster-Period 1'] },
+    rosters: [
+      {
+        ...makeRoster('Period 1'),
+        students: [
+          { id: 's1', firstName: 'Ana', lastName: 'Lee', pin: '9999' },
+        ],
+      },
+    ],
+  });
+  expect(screen.queryByText(/not joined/)).not.toBeInTheDocument();
+});
 
 describe('QuizLiveMonitor (rebuilt)', () => {
   beforeEach(() => {

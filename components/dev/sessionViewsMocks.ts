@@ -17,6 +17,7 @@
  */
 
 import {
+  ClassRoster,
   QuizSession,
   QuizSessionStatus,
   QuizResponse,
@@ -1306,4 +1307,37 @@ export function makeChooseNResponses(): QuizResponse[] {
       w2: 'They were different.',
     }),
   ];
+}
+
+/** Period 3 roster for the quiz monitor: the fixture responses' PINs plus students who haven't joined. */
+export function makeQuizMonitorRoster(): ClassRoster {
+  const names = [
+    ['Ada', 'Lovelace'],
+    ['Grace', 'Hopper'],
+    ['Katherine', 'Johnson'],
+    ['Alan', 'Turing'],
+    ['Edsger', 'Dijkstra'],
+    ['Barbara', 'Liskov'],
+    ['Donald', 'Knuth'],
+    ['Margaret', 'Hamilton'],
+    ['Radia', 'Perlman'],
+    ['Maximiliano', 'Fernandez-Castellanos-Whitfield'],
+    ['J', 'Ng'],
+    ['Hedy', 'Lamarr'],
+    ['Frances', 'Allen'],
+    ['Tim', 'Berners-Lee'],
+  ];
+  return {
+    id: 'roster-p3',
+    name: 'Period 3',
+    driveFileId: null,
+    studentCount: names.length,
+    createdAt: NOW,
+    students: names.map(([firstName, lastName], i) => ({
+      id: `s-${i + 1}`,
+      firstName,
+      lastName,
+      pin: String(1001 + i),
+    })),
+  };
 }

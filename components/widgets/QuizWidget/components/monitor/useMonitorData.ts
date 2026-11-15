@@ -31,6 +31,11 @@ import {
   ProficiencyBand,
   proficiencyBand,
 } from './monitorUtils';
+import {
+  buildNotJoined,
+  type MonitorRosterTargets,
+  type NotJoinedStudent,
+} from './rosterNotJoined';
 
 export interface MonitorStudent {
   response: QuizResponse;
@@ -56,7 +61,10 @@ export interface MonitorStudent {
 export interface MonitorData {
   students: MonitorStudent[];
   byBucket: Record<'notStarted' | 'inProgress' | 'done', MonitorStudent[]>;
+  /** Not started counts these too. */
   counts: { notStarted: number; inProgress: number; done: number };
+  /** Roster students in the selected classes who haven't opened the quiz. */
+  notJoined: NotJoinedStudent[];
   handCount: number;
   idleCount: number;
   currentQ: QuizQuestion | undefined;
@@ -88,7 +96,11 @@ export function useMonitorData(
   /** Translated FIB answer keys + served-locale overrides from the assignment. */
   fibGrading?: FibGradingContext | null,
   /** Start on every class instead of the first one. */
-  openOnAllClasses = false
+  openOnAllClasses = false,
+  /** The assignment's targeting; null leaves per-student assignments without roster rows. */
+  rosterTargets: MonitorRosterTargets | null = null,
+  /** Lists roster students who haven't joined (the quiz-monitor-roster flag). */
+  showRoster = false
 ): MonitorData {
   const { orgId } = useAuth();
 
@@ -110,8 +122,12 @@ export function useMonitorData(
           : [],
     [session.classIds, session.classId]
   );
-  const { byStudentUid: classLinkNames, targetRefKeyByStudentUid } =
-    useAssignmentPseudonymsMulti(session.id, sessionClassIds, orgId);
+  const {
+    byStudentUid: classLinkNames,
+    targetRefKeyByStudentUid,
+    loading: namesLoading,
+    error: namesError,
+  } = useAssignmentPseudonymsMulti(session.id, sessionClassIds, orgId);
   const ltiNames = useLtiSessionNames(
     session.id,
     session.ltiNrps === true,
@@ -229,6 +245,42 @@ export function useMonitorData(
     ]
   );
 
+  const allNotJoined = useMemo(
+    () =>
+      showRoster
+        ? buildNotJoined({
+            session,
+            rosters,
+            responses,
+            targets: rosterTargets,
+            byStudentUid,
+            targetRefKeyByStudentUid,
+            lookupReady: !namesLoading && !namesError,
+            joinedNames: responses.map((r) =>
+              resolveResponseDisplayName(r, pinToName, byStudentUid)
+            ),
+          })
+        : [],
+    [
+      showRoster,
+      session,
+      rosters,
+      responses,
+      rosterTargets,
+      byStudentUid,
+      targetRefKeyByStudentUid,
+      namesLoading,
+      namesError,
+      pinToName,
+    ]
+  );
+  const notJoined = useMemo(() => {
+    if (periodNames.length <= 1 || selectedPeriods.length === 0)
+      return allNotJoined;
+    const selected = new Set(selectedPeriods);
+    return allNotJoined.filter((s) => selected.has(s.period));
+  }, [allNotJoined, periodNames, selectedPeriods]);
+
   const { byBucket, counts, handCount, idleCount, answeredCurrent } =
     useMemo(() => {
       const buckets: MonitorData['byBucket'] = {
@@ -255,7 +307,7 @@ export function useMonitorData(
       return {
         byBucket: buckets,
         counts: {
-          notStarted: buckets.notStarted.length,
+          notStarted: buckets.notStarted.length + notJoined.length,
           inProgress: buckets.inProgress.length,
           done: buckets.done.length,
         },
@@ -263,12 +315,13 @@ export function useMonitorData(
         idleCount: idle,
         answeredCurrent: answered,
       };
-    }, [students, currentQ]);
+    }, [students, currentQ, notJoined.length]);
 
   return {
     students,
     byBucket,
     counts,
+    notJoined,
     handCount,
     idleCount,
     currentQ,

@@ -71,6 +71,7 @@ import { resolveStimuli } from '@/utils/quizStimuli';
 import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
+import type { MonitorRosterTargets } from './rosterNotJoined';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { useGameClockControls } from './useGameClockControls';
 import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameBoard';
@@ -142,6 +143,8 @@ export interface QuizLiveMonitorProps {
   servedLanguageByStudentUid?: Record<string, string> | null;
   /** The assignment's assign-stepper steps, shown in place on the settings screen. */
   assignmentSettings?: React.ReactNode;
+  /** The assignment's targeting, so Not started lists only the students it went to. */
+  rosterTargets?: MonitorRosterTargets | null;
 }
 
 type Screen =
@@ -194,6 +197,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     overridesByStudentUid = null,
     servedLanguageByStudentUid = null,
     assignmentSettings,
+    rosterTargets = null,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
@@ -232,7 +236,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     rosters,
     fibGrading,
     // Shared-Pause sessions open on All classes so Pause is in reach; per-period ones on the first class.
-    !hasPeriodAccess(session) && session.sessionMode !== 'game'
+    !hasPeriodAccess(session) && session.sessionMode !== 'game',
+    rosterTargets,
+    authContext?.canAccessFeature?.('quiz-monitor-roster') === true
   );
 
   // Live view (QUIZ_LIVE_VIEW.md D3): only the assigning teacher, on a running self-paced quiz.
@@ -964,6 +970,23 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                   session.handRaiseEnabled === true ? data.handCount : 0
                 }
                 idleCount={data.idleCount}
+                notes={
+                  data.notJoined.length > 0
+                    ? {
+                        notStarted: (
+                          <span
+                            className="font-sans text-brand-gray-primary tabular-nums"
+                            style={{
+                              fontSize: 'min(10px, 3.5cqmin)',
+                              marginTop: 'min(2px, 0.5cqmin)',
+                            }}
+                          >
+                            {data.notJoined.length} not joined
+                          </span>
+                        ),
+                      }
+                    : undefined
+                }
                 openBucket={openBucket}
                 onToggle={(key) =>
                   setOpenBucket((cur) => (cur === key ? null : key))
@@ -974,6 +997,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <RosterList
                 bucket={openBucket}
                 students={data.byBucket[openBucket]}
+                notJoined={
+                  openBucket === 'notStarted' ? data.notJoined : undefined
+                }
                 session={session}
                 config={config}
                 isGamified={data.isGamified}
