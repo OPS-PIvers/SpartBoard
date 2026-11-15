@@ -76,6 +76,27 @@ describe('attach list preview', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('closes the preview when the question changes', async () => {
+    const two = {
+      ...state,
+      questions: [question, { ...question, id: 'q2' }],
+    };
+    const { rerender } = render(
+      <QuestionStimulusSection state={two} questionId="q1" previewAvailable />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Stimuli/ }));
+    await userEvent.click(
+      screen.getByRole('button', { name: /^Preview The quick brown fox/ })
+    );
+    expect(screen.getByTestId('attach-stimulus-preview')).toBeInTheDocument();
+    rerender(
+      <QuestionStimulusSection state={two} questionId="q2" previewAvailable />
+    );
+    expect(
+      screen.queryByTestId('attach-stimulus-preview')
+    ).not.toBeInTheDocument();
+  });
+
   it('keeps the old count and no preview buttons when the flag is off', async () => {
     render(<QuestionStimulusSection state={state} questionId="q1" />);
     const header = screen.getByRole('button', { name: /Stimuli/ });

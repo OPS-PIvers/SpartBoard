@@ -978,6 +978,7 @@ export const QuestionStimulusSection: React.FC<{
       calculatorAvailable={calculatorAvailable}
       pasteScopeRef={pasteScopeRef}
       previewAvailable={previewAvailable}
+      ownerId={questionId}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
       }
@@ -1004,6 +1005,7 @@ export const SlotStimulusSection: React.FC<{
       attachedIds={slot?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
       previewAvailable={previewAvailable}
+      ownerId={slotId}
       onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
     />
   );
@@ -1015,6 +1017,8 @@ const AttachStimulusSection: React.FC<{
   calculatorAvailable: boolean;
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
   previewAvailable?: boolean;
+  /** The question or slot shown; a change closes the open preview. */
+  ownerId?: string;
   onToggle: (stimulusId: string) => void;
 }> = ({
   state,
@@ -1022,6 +1026,7 @@ const AttachStimulusSection: React.FC<{
   calculatorAvailable,
   pasteScopeRef,
   previewAvailable = false,
+  ownerId,
   onToggle,
 }) => {
   const { stimuli, questions, bankSlots } = state;
@@ -1056,6 +1061,11 @@ const AttachStimulusSection: React.FC<{
   }, intake.busy);
   const attachedCount = attachedIds?.length ?? 0;
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewOwner, setPreviewOwner] = useState(ownerId);
+  if (previewOwner !== ownerId) {
+    setPreviewOwner(ownerId);
+    setPreviewId(null);
+  }
   // Collapsed, the header names what is attached instead of only counting it.
   const attachedNames = previewAvailable
     ? stimuli
@@ -1090,7 +1100,9 @@ const AttachStimulusSection: React.FC<{
         <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
           Stimuli
         </span>
-        <span className="min-w-0 truncate text-xs text-slate-400 tabular-nums">
+        <span
+          className={`${previewAvailable ? 'min-w-0 truncate ' : ''}text-xs text-slate-400 tabular-nums`}
+        >
           {drop.dragging && !open
             ? 'Drop it here'
             : attachedCount > 0
@@ -1119,40 +1131,46 @@ const AttachStimulusSection: React.FC<{
                 const name = previewAvailable
                   ? stimulusDisplayName(s)
                   : s.label || s.url;
+                const row = (
+                  <label
+                    className={`flex ${previewAvailable ? 'flex-1 min-w-0 ' : ''}items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={attachedIds?.includes(s.id) ?? false}
+                      onChange={() => onToggle(s.id)}
+                      {...tourFieldAttr(
+                        'quiz-stimuli.attach-stimulus',
+                        'quiz',
+                        String(stimulusIndex + 1)
+                      )}
+                      className="w-3.5 h-3.5 accent-brand-blue-primary"
+                    />
+                    <span
+                      className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+                    >
+                      {STIMULUS_TYPE_LABELS[s.type]}
+                    </span>
+                    <span className="flex-1 truncate">{name}</span>
+                    <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
+                      {usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused'}
+                    </span>
+                  </label>
+                );
+                if (!previewAvailable) return <li key={s.id}>{row}</li>;
+                const previewDomId = `attach-preview-${s.id}`;
                 return (
                   <li key={s.id}>
                     <div className="flex items-center gap-1">
-                      <label className="flex flex-1 min-w-0 items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
-                        <input
-                          type="checkbox"
-                          checked={attachedIds?.includes(s.id) ?? false}
-                          onChange={() => onToggle(s.id)}
-                          {...tourFieldAttr(
-                            'quiz-stimuli.attach-stimulus',
-                            'quiz',
-                            String(stimulusIndex + 1)
-                          )}
-                          className="w-3.5 h-3.5 accent-brand-blue-primary"
-                        />
-                        <span
-                          className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
-                        >
-                          {STIMULUS_TYPE_LABELS[s.type]}
-                        </span>
-                        <span className="flex-1 truncate">{name}</span>
-                        <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
-                          {usedOn.length > 0
-                            ? `on ${usedOn.join(', ')}`
-                            : 'unused'}
-                        </span>
-                      </label>
-                      {previewAvailable && s.type !== 'calculator' && (
+                      {row}
+                      {s.type !== 'calculator' && (
                         <button
                           type="button"
                           onClick={() =>
                             setPreviewId((id) => (id === s.id ? null : s.id))
                           }
                           aria-expanded={previewing}
+                          aria-controls={previewing ? previewDomId : undefined}
                           aria-label={
                             previewing ? `Hide ${name}` : `Preview ${name}`
                           }
@@ -1178,8 +1196,9 @@ const AttachStimulusSection: React.FC<{
                     </div>
                     {previewing && (
                       <div
+                        id={previewDomId}
                         data-testid="attach-stimulus-preview"
-                        className="mt-1 mb-2 ml-6 max-h-[60vh] overflow-y-auto custom-scrollbar"
+                        className="mt-1 mb-2 ml-6 max-h-[60vh] overflow-y-auto custom-scrollbar pb-2"
                       >
                         <StimulusRenderer
                           stimulus={s}

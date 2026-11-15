@@ -248,15 +248,34 @@ export function questionsUsingStimulus(
   return out;
 }
 
-/** Teacher-facing name: the label, else the passage's opening words, else the URL's last segment. */
+/** Teacher-facing name: a custom label, else the passage's opening words, else a file name, else the type. */
 export function stimulusDisplayName(
-  s: Pick<QuizStimulus, 'label' | 'text' | 'url' | 'type'>
+  s: Pick<QuizStimulus, 'label' | 'text' | 'url' | 'type' | 'driveFileId'>
 ): string {
+  const typeLabel = STIMULUS_TYPE_LABELS[s.type];
   const label = s.label.trim();
-  if (label) return label;
+  if (label && label !== typeLabel) return label;
   const passage = s.text?.replace(/\s+/g, ' ').trim();
-  if (passage)
-    return passage.length > 60 ? `${passage.slice(0, 60)}…` : passage;
-  const tail = s.url.split(/[?#]/)[0]?.split('/').filter(Boolean).pop();
-  return tail ? decodeURIComponent(tail) : STIMULUS_TYPE_LABELS[s.type];
+  if (passage) return clip(passage);
+  if (s.driveFileId || /^data:/i.test(s.url)) return typeLabel;
+  if (/(^|\.)(google\.com|youtube\.com|youtu\.be)$/i.test(hostOf(s.url)))
+    return typeLabel;
+  const tail = s.url.split(/[?#]/)[0]?.split('/').filter(Boolean).pop() ?? '';
+  if (!/\.[a-z0-9]{2,5}$/i.test(tail)) return typeLabel;
+  try {
+    return clip(decodeURIComponent(tail));
+  } catch {
+    return clip(tail);
+  }
+}
+
+const clip = (text: string) =>
+  text.length > 60 ? `${text.slice(0, 60)}…` : text;
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
 }
