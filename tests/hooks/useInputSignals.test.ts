@@ -182,6 +182,7 @@ describe('useInputSignals', () => {
           data,
         })
       );
+    key.dispatchEvent(mouse('pointerdown', 5, 5, false));
     type('x'.repeat(5));
     key.dispatchEvent(mouse('pointerdown', 5, 5));
     type('é'.repeat(20));
