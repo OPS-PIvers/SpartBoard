@@ -839,14 +839,7 @@ export async function seedGradebookDemo(
       .where('sessionId', 'in', sids.slice(i, i + 30))
       .get();
     rowsBuilt += snap.size;
-    for (const d of snap.docs)
-      await projectRow(
-        db,
-        d.data() as IndexRow,
-        null,
-        Date.now(),
-        (_o, _c, uids) => Promise.resolve(new Set(uids))
-      );
+    for (const d of snap.docs) await projectRow(db, d.data() as IndexRow, null);
   }
   return {
     assignments: sids.length,
