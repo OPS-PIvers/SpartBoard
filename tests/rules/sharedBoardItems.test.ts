@@ -174,6 +174,51 @@ describe('a share re-created at an old id', () => {
     await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), ITEM_PATH)));
   });
 
+  it('the owner reads and overwrites their own stale copy after the id is re-created', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'old' })
+      );
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: HOST_UID,
+        intendedMode: 'synced',
+        participants: { [VIEWER_UID]: participant('viewer') },
+        createdNonce: 'new',
+        sharedAt: 2_000_000,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asTeacher(HOST_UID), ITEM_PATH)));
+    await assertFails(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'new' })
+      )
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
+  });
+
+  it('an owner who left the re-created share cannot read their old copy', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'old' })
+      );
+    });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SHARE), {
+        originalAuthor: OUTSIDER_UID,
+        intendedMode: 'synced',
+        participants: {},
+        createdNonce: 'new',
+      });
+    });
+    await assertFails(getDoc(doc(asTeacher(HOST_UID), ITEM_PATH)));
+  });
+
   it('cannot read an old instance’s no-nonce copy published before it was made', async () => {
     await seed();
     await testEnv.withSecurityRulesDisabled(async (ctx) => {

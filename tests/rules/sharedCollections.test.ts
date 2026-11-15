@@ -503,6 +503,20 @@ describe('shared_collections — create, substitute Drive-grant fields', () => {
     );
   });
 
+  it('substitute create takes up to 50 ticked calendars', async () => {
+    await assertSucceeds(
+      setDoc(doc(asHost(), sharePath), subShareDoc({ calendarIds: [] }))
+    );
+    await assertFails(
+      setDoc(
+        doc(asHost(), `shared_collections/${SHARE_ID}-big`),
+        subShareDoc({
+          calendarIds: Array.from({ length: 51 }, (_, i) => `cal-${i}`),
+        })
+      )
+    );
+  });
+
   it('only the host rewrites driveGrants, which is how a sub is added later', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
@@ -613,6 +627,21 @@ describe('shared_collections — update, substitute manager writes', () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), sharePath), {
         calendarIds: ['cal-1'],
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('host cannot record more than 50 calendars, or a non-list', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        calendarIds: Array.from({ length: 51 }, (_, i) => `cal-${i}`),
+        updatedAt: NOW_MS,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        calendarIds: 'cal-1',
         updatedAt: NOW_MS,
       })
     );

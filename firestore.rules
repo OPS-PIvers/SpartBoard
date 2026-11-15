@@ -1625,11 +1625,12 @@ service cloud.firestore {
             || (!('shareNonce' in existing()) && existing().get('publishedAt', 0) >= sb.get('sharedAt', 0));
         }
         // The owner must still belong and the copy must be this instance's, so a share recreated at an
-        // old id can't read copies the deleted share left behind.
+        // old id can't read copies the deleted share left behind. Its owner always reads it, to overwrite it.
         allow get: if staffSignedIn() && isDistrictStaff()
           && sbItemMember(authUid())
-          && (noDoc() || (sbItemMember(existing().get('ownerUid', ''))
-              && sbItemNonceOk(sbItemShare())));
+          && (noDoc() || existing().get('ownerUid', '') == authUid()
+              || (sbItemMember(existing().get('ownerUid', ''))
+                  && sbItemNonceOk(sbItemShare())));
         // A first copy needs the owner's own pick, so a co-editor's config edit never publishes it.
         allow create: if signedIn() && sbItemWriteOk()
           && (incoming().kind + '_' + incoming().itemId) in get(/databases/$(database)/documents/users/$(authUid())/board_item_picks/$(shareId)).data.get('items', []);
@@ -1710,6 +1711,7 @@ service cloud.firestore {
             // subEmails DoS cap (one Drive grant per entry, unbounded). Optional;
             // a list of <=20 when present.
             && (optListMax('subEmails', 20))
+            && optListMax('calendarIds', 50)
           )
         );
 
@@ -1735,6 +1737,7 @@ service cloud.firestore {
         && incoming().get('hostUid', null)
            == existing().get('hostUid', null)
         && (optListMax('subEmails', 20))
+        && optListMax('calendarIds', 50)
         && (
           existing().get('intendedMode', null) == 'copy'
           || (
