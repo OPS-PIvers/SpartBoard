@@ -115,6 +115,7 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 
 ### MEDIUM VideoActivityWidget: no `case 'video-activity'` in admin building config — live session-default toggles unseedable
 
+- **Action note (2026-11-15):** Skipped again — `types.ts` was modified within its last 5 commits (`4d8d3c04b`, `d74045a8c`, `e67da0149`, `2d16c626e`, `76ffc6560`). Other Open MEDIUM (`migrateLocalStorageToFirestore`) needs a production data audit; no code change.
 - **Action note (2026-10-25):** Skipped — `types.ts` (needs new `BuildingVideoActivityDefaults`) was modified within its last 5 commits (`fa8ce2a8` Poll, `b61eeae3`/`9b045349` Seating Chart, `24718c44`/`e4fb0ba4` Scoreboard, all 2026-10-24). Nothing else started. Revisit once the file has settled.
 - **Detected:** 2026-08-30
 - **File:** utils/adminBuildingConfig.ts (no `case 'video-activity'`), types.ts (`VideoActivityConfig`, no `BuildingVideoActivityDefaults` interface exists), components/admin/VideoActivityConfigurationModal.tsx, components/widgets/VideoActivityWidget/Settings.tsx, hooks/useVideoActivitySession.ts
