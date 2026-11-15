@@ -171,6 +171,7 @@ import {
   StudentOverride,
   TabExit,
   InputSignalCounts,
+  QuizLiveState,
   QuizStimulus,
   isFreeResponseType,
   isAnswerSubmitted,
@@ -271,6 +272,7 @@ import {
 } from '@/hooks/useQuizResponseAttempts';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { useInputSignals } from '@/hooks/useInputSignals';
+import { useLiveViewReport } from '@/hooks/useLiveViewReport';
 import { isHandedOff } from '@/utils/attemptHandOff';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
@@ -2016,8 +2018,10 @@ export const ActiveQuiz: React.FC<{
   fullscreenRequired?: boolean;
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
   watchQuestionId?: string | null;
+  /** Teacher's Live view: the student has the red tab warning up. */
+  watchTabWarning?: boolean;
   /** Reports the question on screen while the teacher has Live view open. */
-  onReportLivePosition?: (questionId: string, at?: number) => Promise<void>;
+  onReportLivePosition?: (state: QuizLiveState) => Promise<void>;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -2050,6 +2054,7 @@ export const ActiveQuiz: React.FC<{
   readAloudRequested,
   fullscreenRequired = false,
   watchQuestionId,
+  watchTabWarning,
   onReportLivePosition,
 }) => {
   const watching = watchQuestionId !== undefined;
@@ -2566,24 +2571,12 @@ export const ActiveQuiz: React.FC<{
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
-  const arrivalRef = useRef<{ id: string; at: number } | null>(null);
-  const reportLivePosition = useEffectEvent((questionId: string) => {
-    if (!onReportLivePosition || liveViewUntil <= getServerNow()) return;
-    const at = arrivalRef.current?.at ?? getServerNow();
-    onReportLivePosition(questionId, at).catch((err: unknown) =>
-      console.error('[ActiveQuiz] live position report failed:', err)
-    );
+  useLiveViewReport({
+    until: liveViewUntil,
+    questionId: currentQuestion?.id,
+    warning: showCheatWarning,
+    report: onReportLivePosition,
   });
-  const livePositionId = currentQuestion?.id;
-  // Arrival time stays fixed across renewals so "time on this question" doesn't reset.
-  useLayoutEffect(() => {
-    if (livePositionId && arrivalRef.current?.id !== livePositionId)
-      arrivalRef.current = { id: livePositionId, at: getServerNow() };
-  }, [livePositionId]);
-  // Each renewal re-reports, so a reopened panel never starts from a stale place.
-  useEffect(() => {
-    if (liveViewUntil > 0 && livePositionId) reportLivePosition(livePositionId);
-  }, [liveViewUntil, livePositionId]);
   // Unusual-input counters; stamped on the session only with the input-signals flag.
   useInputSignals({
     enabled:
@@ -3060,8 +3053,18 @@ export const ActiveQuiz: React.FC<{
   // paths (flush handler, structured-input change callbacks) that can't
   // read state directly.
   const submittedRef = useRef(false);
+  // A self-paced revisit of a saved answer stays editable, so its changes autosave like a first answer.
+  const draftLocked =
+    submitted &&
+    !(
+      isStudentPaced &&
+      step.alreadyAnswered &&
+      step.timedOutFor !== currentQuestion?.id
+    );
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  submittedRef.current = submitted;
+  submittedRef.current = draftLocked;
+  // A revisit over the word limit keeps its saved answer on every draft path, as Next does.
+  const overLimitRevisitRef = useRef(false);
   // Pending draft tracker for question-change flushes. The state-driven
   // autosave effect populates this when it schedules a write; a watcher
   // on `currentQuestion?.id` calls `write()` synchronously when the
@@ -3243,6 +3246,8 @@ export const ActiveQuiz: React.FC<{
       ? wordLimitStatus(countWords(liveAnswer ?? ''), currentQuestion)
       : null;
   const wordLimitBlocked = writtenLimit?.blocked === true;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  overLimitRevisitRef.current = submitted && wordLimitBlocked;
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
@@ -3263,7 +3268,9 @@ export const ActiveQuiz: React.FC<{
     const qid = currentQid;
     const type = currentQuestion?.type;
     if (!qid || !type) return;
-    if (submitted) return;
+    if (draftLocked) return;
+    // A revisit over the word limit keeps its saved answer, as Next does.
+    if (submitted && wordLimitBlocked) return;
     // Cache miss — student hasn't touched this question this session
     // and there's no saved value either. Nothing to write.
     if (cachedDraft === null) return;
@@ -3328,7 +3335,9 @@ export const ActiveQuiz: React.FC<{
     cachedDraft,
     currentQid,
     currentQuestion?.type,
+    draftLocked,
     submitted,
+    wordLimitBlocked,
     savedAnswerForCurrent,
   ]);
 
@@ -3370,7 +3379,7 @@ export const ActiveQuiz: React.FC<{
       // bail-out below would otherwise fail and re-write the answer as
       // a draft — downgrading the just-submitted answer.
       if (myResponseStatusRef.current === 'completed') return;
-      if (submittedRef.current) return;
+      if (submittedRef.current || overLimitRevisitRef.current) return;
       const qid = currentQuestionRef.current?.id;
       const type = currentQuestionRef.current?.type;
       if (!qid || !type) return;
@@ -4300,7 +4309,7 @@ export const ActiveQuiz: React.FC<{
       )}
 
       {/* 🔴 The Cheating Warning Modal */}
-      {showCheatWarning && (
+      {(watching ? watchTabWarning === true : showCheatWarning) && (
         <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">

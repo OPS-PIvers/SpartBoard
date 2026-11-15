@@ -47,6 +47,9 @@ import {
   liveViewStats,
   newestAnswerQuestionId,
   liveViewDrawIds,
+  LIVE_VIEW_NUDGE_FEATURE,
+  LIVE_VIEW_NUDGE_NOTE_FEATURE,
+  LIVE_VIEW_SCREENSHOT_FEATURE,
   studentQuestionOrder,
 } from '@/utils/quizLiveView';
 import {
@@ -119,6 +122,11 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const showPastedChars =
     auth?.isAdmin === true || isSignShown(signs, 'pasted');
   const showPastes = showPastedChars || isSignShown(signs, 'paste-attempts');
+  const canNudge = auth?.canAccessFeature?.(LIVE_VIEW_NUDGE_FEATURE) === true;
+  const canNudgeNote =
+    canNudge && auth?.canAccessFeature?.(LIVE_VIEW_NUDGE_NOTE_FEATURE) === true;
+  const canScreenshot =
+    auth?.canAccessFeature?.(LIVE_VIEW_SCREENSHOT_FEATURE) === true;
 
   const index = students.findIndex((s) => s.key === studentKey);
   const student = index >= 0 ? students[index] : undefined;
@@ -148,9 +156,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const stats = useMemo(
     () =>
       response
-        ? liveViewStats(session, response, questionId, now, override)
+        ? liveViewStats(session, response, questionId, now, override, reported)
         : null,
-    [session, response, questionId, now, override]
+    [session, response, questionId, now, override, reported]
   );
 
   const record = useCallback(
@@ -208,6 +216,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   // The stamp tells this one student's page to report its question; clearing it on close stops that.
   useEffect(() => {
     if (!watching) return;
+    // Drop any report left from an earlier watch (or a closed tab) before asking for a fresh one.
+    deleteLiveState(sessionId, studentKey).catch(() => undefined);
     stamp();
     const renew = window.setInterval(stamp, LIVE_VIEW_RENEW_MS);
     const stop = watchLiveState(sessionId, studentKey, (state) =>
@@ -426,12 +436,13 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                       reportTabSwitch={noTabSwitch}
                       onSetHandRaised={noop}
                       handRaised={false}
-                      warningCount={0}
+                      warningCount={response?.tabSwitchWarnings ?? 0}
                       onRecordStimulusPlay={noop}
                       onReportStimulusError={noop}
                       override={override}
                       drawIds={liveViewDrawIds(session, response)}
                       watchQuestionId={questionId ?? firstQuestionId}
+                      watchTabWarning={reported?.warning === true}
                     />
                   </RecordingNoticeDrawingContext.Provider>
                 </div>
@@ -492,7 +503,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
             <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
               {!alwaysNotify && (
                 <label className="flex items-center justify-between gap-3 font-semibold text-slate-800">
-                  Tell the student
+                  Notify student when viewing
                   <span
                     {...tourTypeAttr('quiz-live-view.tell-student', 'quiz')}
                   >
@@ -501,7 +512,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                       onChange={onTell}
                       size="sm"
                       showLabels={false}
-                      label="Tell the student"
+                      label="Notify student when viewing"
                     />
                   </span>
                 </label>
@@ -512,48 +523,59 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                   quiz&quot;.
                 </p>
               )}
-              <div className="flex items-center gap-2">
-                <select
-                  {...tourTypeAttr('quiz-live-view.nudge-note', 'quiz')}
-                  aria-label="Nudge note"
-                  value={noteId}
-                  onChange={(e) =>
-                    setNoteId(e.target.value as QuizNudgeNoteId | '')
-                  }
-                  className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800"
-                >
-                  <option value="">No note</option>
-                  {NUDGE_NOTE_IDS.map((id) => (
-                    <option key={id} value={id}>
-                      {NUDGE_NOTE_TEXT[id]}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  {...tourTypeAttr('quiz-live-view.nudge', 'quiz')}
-                  onClick={() => void onNudge()}
-                  disabled={nudging}
-                  className="flex min-h-11 items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
-                >
-                  <BellRing className="h-4 w-4" aria-hidden />
-                  Nudge
-                </button>
-              </div>
-              <button
-                type="button"
-                {...tourTypeAttr('quiz-live-view.screenshot', 'quiz')}
-                onClick={() => void onScreenshot()}
-                disabled={shotAt != null}
-                className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-slate-300 font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-              >
-                {shotAt != null ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Camera className="h-4 w-4" aria-hidden />
-                )}
-                Screenshot
-              </button>
+              {canNudge && (
+                <div className="flex items-center gap-2">
+                  {canNudgeNote && (
+                    <select
+                      {...tourTypeAttr('quiz-live-view.nudge-note', 'quiz')}
+                      aria-label="Nudge note"
+                      value={noteId}
+                      onChange={(e) =>
+                        setNoteId(e.target.value as QuizNudgeNoteId | '')
+                      }
+                      className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800"
+                    >
+                      <option value="">No note</option>
+                      {NUDGE_NOTE_IDS.map((id) => (
+                        <option key={id} value={id}>
+                          {NUDGE_NOTE_TEXT[id]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    {...tourTypeAttr('quiz-live-view.nudge', 'quiz')}
+                    onClick={() => void onNudge()}
+                    disabled={nudging}
+                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-brand-blue-primary px-3 font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60 ${canNudgeNote ? '' : 'flex-1'}`}
+                  >
+                    <BellRing className="h-4 w-4" aria-hidden />
+                    Nudge
+                  </button>
+                </div>
+              )}
+              {canScreenshot && (
+                <>
+                  <button
+                    type="button"
+                    {...tourTypeAttr('quiz-live-view.screenshot', 'quiz')}
+                    onClick={() => void onScreenshot()}
+                    disabled={shotAt != null}
+                    className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-slate-300 font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {shotAt != null ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Camera className="h-4 w-4" aria-hidden />
+                    )}
+                    Screenshot
+                  </button>
+                  <p className="text-center text-xs text-slate-500">
+                    Saves this redrawn view, not the student&apos;s screen.
+                  </p>
+                </>
+              )}
             </div>
 
             {entries.length > 0 && (

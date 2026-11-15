@@ -42,6 +42,7 @@ Keep implementation details out. Name only user paths, stable handles, required 
 
 - [Add a widget from the Dock](./dock-add-widget.md) covers opening the Dock, adding a widget, the widget toolbar and closing it.
 - [Widget settings drawer](./widget-settings-drawer.md) covers opening a widget's settings and changing a setting that visibly changes the widget. **Proven 2026-10-12.**
+- [Board right-click menu](./board-right-click-menu.md) covers right-click and long press on empty board, Paste, Tidy up and the copy link.
 - [Sidebar menu](./sidebar-menu.md) covers opening the sidebar and reaching its sections.
 - [Admin Settings](./admin-settings.md) covers opening Admin Settings and switching tabs.
 - [Paper markup editor](./paper-markup-editor.md) covers marking up a handwritten answer, saved comments and the earlier-scan notice on `/paper-markup-dev`.

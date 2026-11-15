@@ -365,8 +365,8 @@ export function isWriteAtAfter(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Defensive predicate: refuse a draft autosave that would downgrade an
- * already-submitted answer's status to 'draft'. The cache-driven
+ * Defensive predicate: a draft autosave over an already-submitted answer
+ * must not downgrade its status to 'draft' (the write keeps 'submitted'). The cache-driven
  * autosave path can re-fire for the same question during the SSO
  * listener-fast race window (back-nav before the response listener
  * echoes the just-submitted answer back, so the local `submitted` state
@@ -2215,7 +2215,7 @@ export interface UseQuizSessionStudentResult {
   /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
   saveTabExits: (exits: TabExit[]) => Promise<void>;
   /** Writes the question on screen to `live/state` while the teacher watches. */
-  reportLivePosition: (questionId: string, at?: number) => Promise<void>;
+  reportLivePosition: (state: QuizLiveState) => Promise<void>;
   /** Writes one attempt's input counters (utils/inputSignals.ts). */
   saveInputSignals: (
     attempt: number,
@@ -3501,12 +3501,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ? { priorEntry, now }
             : null;
 
-        // Status-downgrade guard — see `isUnsafeStatusDowngrade` doc.
-        // Stops the back-nav listener-lag race from silently flipping a
-        // 'submitted' answer back to 'draft' status. Runs AFTER the
-        // history snapshot so the rejected attempt is still recorded
-        // (the decision already made above is returned as-is).
-        if (isUnsafeStatusDowngrade(isDraft, priorEntry)) {
+        // A draft over a submitted answer keeps it submitted: an unchanged one is skipped, a changed one saves.
+        const keepSubmitted = isUnsafeStatusDowngrade(isDraft, priorEntry);
+        if (keepSubmitted && priorEntry?.answer === answer) {
           return { skip: true, snapshot };
         }
 
@@ -3522,7 +3519,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           questionId,
           answer,
           answeredAt: Date.now(),
-          status: isDraft ? 'draft' : 'submitted',
+          status: isDraft && !keepSubmitted ? 'draft' : 'submitted',
         };
         delete newAnswer.speedBonus;
         delete newAnswer.isCorrect;
@@ -4316,11 +4313,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   // Live view position goes to its own small doc, so the response triggers stay asleep.
   const reportLivePosition = useCallback(
-    async (questionId: string, at?: number): Promise<void> => {
+    async (state: QuizLiveState): Promise<void> => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
       if (!sessionId || !responseKey || studentPreviewBlocksWrite()) return;
-      const state: QuizLiveState = { questionId, at: at ?? getServerNow() };
       await setDoc(
         doc(
           db,

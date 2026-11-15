@@ -60,11 +60,32 @@ const QUIZZES: QuizMetadata[] = range((i) => ({
   updatedAt: NOW - i * 3600_000,
 }));
 
+// Worst-case class names from the SIS: one, five sharing a prefix, five unrelated.
+const SIS_CLASSES: string[][] = [
+  ['Sample - Mock Period 1'],
+  [
+    'MS Science 8 - Ivers - Period 1 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 2 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 4 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 5 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 6 (2026-27 S1)',
+  ],
+  [
+    'Grade 8 Science - Section 01 - Fall',
+    'Honors Physical Science 9 - Section 03',
+    'Earth and Space Science - Section 02',
+    'STEM Exploration Lab - Section 05',
+    'Advisory / Homeroom 8B',
+  ],
+  [],
+];
+
 const QUIZ_ASSIGNMENTS: QuizAssignment[] = range((i) => ({
   id: `qa-${i}`,
   quizId: `quiz-${i}`,
   quizTitle: `Unit ${i + 1} checkpoint`,
   quizDriveFileId: `drive-quiz-${i}`,
+  periodNames: SIS_CLASSES[i % 4],
   teacherUid: 'mock-user-id',
   code: `AB${String(i).padStart(3, '0')}`,
   sessionMode: 'student',
@@ -115,6 +136,7 @@ const VA_ASSIGNMENTS: VideoActivityAssignment[] = range((i) => ({
   activityId: `va-${i}`,
   activityTitle: `Video lesson ${i + 1}`,
   activityDriveFileId: `drive-va-${i}`,
+  periodNames: SIS_CLASSES[i % 4],
   teacherUid: 'mock-user-id',
   sessionSettings: VA_SETTINGS,
   status: i % 2 === 0 ? 'active' : 'inactive',
@@ -178,7 +200,7 @@ const FLASHCARD_SETS: FlashcardSet[] = range((i) => ({
 }));
 
 const FC_MODES = ['write', 'speak', 'test', 'flashcards'] as const;
-const FC_PERIODS = [['Period 3'], ['Period 3', 'Period 5'], ['Period 4'], []];
+const FC_PERIODS = SIS_CLASSES;
 const FC_ROSTER_IDS = [
   ['roster-3'],
   ['roster-3', 'roster-5'],
