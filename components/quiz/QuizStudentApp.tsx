@@ -3069,8 +3069,9 @@ export const ActiveQuiz: React.FC<{
     revisit: false,
     until: 0,
   });
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  liveRevisitRef.current = { revisit: submitted, until: liveViewUntil };
+  useLayoutEffect(() => {
+    liveRevisitRef.current = { revisit: submitted, until: liveViewUntil };
+  }, [submitted, liveViewUntil]);
   // A revisit over the word limit keeps its saved answer on every draft path, as Next does.
   const overLimitRevisitRef = useRef(false);
   // Pending draft tracker for question-change flushes. The state-driven
