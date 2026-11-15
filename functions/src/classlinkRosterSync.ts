@@ -265,6 +265,8 @@ export async function runClassLinkRosterSync(
   // Dry runs write nothing, so they neither use nor move the cursor.
   const saved = settings.dryRun ? null : await readSyncCursor(settingsRef);
   let lastDone: SyncCursor | null = null;
+  // Only rosters ClassLink confirms count toward the per-run cap, so client-seeded docs can't use it up.
+  let charged = 0;
 
   // Walks rosters after `from` until the end of the list, `stopAt`, or a run limit.
   const runPass = async (
@@ -272,14 +274,16 @@ export async function runClassLinkRosterSync(
     stopAt: SyncCursor | null
   ): Promise<'end' | 'stopAt' | 'limit'> => {
     let after = from;
-    while (summary.scanned < MAX_ROSTERS_PER_RUN) {
+    while (charged < MAX_ROSTERS_PER_RUN) {
       if (deps.now() - startedAt > RUN_BUDGET_MS) {
         summary.budgetExhausted = true;
         return 'limit';
       }
 
+      // A range filter matches only strings, so a non-string or empty id can never become the cursor.
       let query = db
         .collectionGroup('rosters')
+        .where('classlinkClassId', '>', '')
         .orderBy('classlinkClassId')
         .orderBy(admin.firestore.FieldPath.documentId())
         .limit(ROSTER_PAGE_SIZE);
@@ -288,20 +292,20 @@ export async function runClassLinkRosterSync(
       const page = await query.get();
       if (page.empty) return 'end';
 
+      const pageStart = after;
       for (const rosterSnap of page.docs) {
-        const here = {
-          classId: String(rosterSnap.data().classlinkClassId ?? ''),
-          path: rosterSnap.ref.path,
-        };
+        const classId: unknown = rosterSnap.data().classlinkClassId;
+        if (typeof classId !== 'string') continue;
+        const here = { classId, path: rosterSnap.ref.path };
         if (stopAt && !cursorBefore(here, stopAt)) return 'stopAt';
         if (deps.now() - startedAt > RUN_BUDGET_MS) {
           summary.budgetExhausted = true;
           return 'limit';
         }
-        if (summary.scanned >= MAX_ROSTERS_PER_RUN) return 'limit';
+        if (charged >= MAX_ROSTERS_PER_RUN) return 'limit';
         summary.scanned += 1;
         try {
-          await syncOneRoster(
+          const confirmed = await syncOneRoster(
             rosterSnap,
             deps,
             settings,
@@ -309,7 +313,9 @@ export async function runClassLinkRosterSync(
             tokenCache,
             taughtCache
           );
+          if (confirmed) charged += 1;
         } catch (err) {
+          charged += 1;
           summary.errors += 1;
           console.error(
             `[classlinkRosterSync] roster ${rosterSnap.ref.path} failed:`,
@@ -320,7 +326,7 @@ export async function runClassLinkRosterSync(
         after = here;
       }
 
-      if (page.size < ROSTER_PAGE_SIZE) return 'end';
+      if (page.size < ROSTER_PAGE_SIZE || after === pageStart) return 'end';
     }
     return 'limit';
   };
@@ -343,6 +349,7 @@ export async function runClassLinkRosterSync(
   return summary;
 }
 
+/** Syncs one roster; true once ClassLink has confirmed its owner teaches the class. */
 async function syncOneRoster(
   rosterSnap: admin.firestore.QueryDocumentSnapshot,
   deps: ClassLinkSyncDeps,
@@ -350,22 +357,22 @@ async function syncOneRoster(
   summary: SyncSummary,
   tokenCache: Map<string, string | null>,
   taughtCache: Map<string, ReadonlySet<string> | null>
-): Promise<void> {
+): Promise<boolean> {
   const data = rosterSnap.data();
   // `DocumentData` values are `any`; keep them opaque until the guards below.
   const classId: unknown = data.classlinkClassId;
   const driveFileId: unknown = data.driveFileId;
-  if (typeof classId !== 'string' || !classId) return;
+  if (typeof classId !== 'string' || !classId) return false;
 
   // `users/{uid}/rosters/{rosterId}` — the grandparent doc is the owner.
   const uid = rosterSnap.ref.parent.parent?.id;
-  if (!uid) return;
+  if (!uid) return false;
 
   if (typeof driveFileId !== 'string' || !driveFileId) {
     // Roster was never written to Drive (Drive was down at import time).
     // There are no student names to reconcile against.
     summary.skippedNoFile += 1;
-    return;
+    return false;
   }
 
   // The roster doc is client-written, so ClassLink must confirm its owner teaches the class before any fetch.
@@ -383,7 +390,7 @@ async function syncOneRoster(
     console.warn(
       `[classlinkRosterSync] ${rosterSnap.ref.path}: ClassLink did not confirm the owner teaches this class; skipping`
     );
-    return;
+    return false;
   }
 
   let token = tokenCache.get(uid);
@@ -398,7 +405,7 @@ async function syncOneRoster(
   }
   if (token === null) {
     summary.skippedNoGrant += 1;
-    return;
+    return true;
   }
 
   const upstream = await deps.fetchClassStudents(classId);
@@ -407,7 +414,7 @@ async function syncOneRoster(
     console.warn(
       `[classlinkRosterSync] ${rosterSnap.ref.path}: upstream list may be truncated; skipping`
     );
-    return;
+    return true;
   }
 
   const { content, driveVersion } = await deps.readRosterFile(
@@ -434,7 +441,7 @@ async function syncOneRoster(
         classlinkSyncBlocked: { reason: result.blocked, at: deps.now() },
       });
     }
-    return;
+    return true;
   }
 
   const clearBlocked = data.classlinkSyncBlocked
@@ -452,7 +459,7 @@ async function syncOneRoster(
     if (!settings.dryRun && data.classlinkSyncBlocked) {
       await rosterSnap.ref.update(clearBlocked);
     }
-    return;
+    return true;
   }
 
   summary.added += result.added.length;
@@ -462,7 +469,7 @@ async function syncOneRoster(
     console.log(
       `[classlinkRosterSync] DRY RUN ${rosterSnap.ref.path}: +${result.added.length} -${result.removed.length}`
     );
-    return;
+    return true;
   }
 
   // Drive has no If-Match on a media upload, so re-read the file version
@@ -475,7 +482,7 @@ async function syncOneRoster(
     console.warn(
       `[classlinkRosterSync] ${rosterSnap.ref.path} changed mid-sync; skipping`
     );
-    return;
+    return true;
   }
 
   // Sidecar before Drive and the stamp: a removed student keeping their pin_index
@@ -512,6 +519,7 @@ async function syncOneRoster(
     },
   });
   summary.synced += 1;
+  return true;
 }
 
 // ─── Live dependency wiring ───────────────────────────────────────────────────

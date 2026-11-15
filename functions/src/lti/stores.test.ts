@@ -117,6 +117,13 @@ describe('launch-code store', () => {
     expect(await consumeLaunchCode(db, code)).toBeNull();
   });
 
+  it('round-trips the launching browser binding hash', async () => {
+    const { db } = makeFakeDb();
+    const launch = { ...sampleLaunch(), bindingHash: 'hash-1' };
+    const code = await mintLaunchCode(db, launch);
+    expect((await consumeLaunchCode(db, code))?.bindingHash).toBe('hash-1');
+  });
+
   it('returns null for an unknown / empty code', async () => {
     const { db } = makeFakeDb();
     expect(await consumeLaunchCode(db, 'missing')).toBeNull();

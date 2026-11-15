@@ -103,7 +103,8 @@ vi.mock('firebase-functions/params', () => ({
 
 // Provide a real-enough launch code store: consumeLaunchCode returns the
 // launch we pre-seed via `nextLaunch`. The real stores.ts isn't needed here.
-let nextLaunch: ReturnType<typeof makeLaunch> | null = null;
+let nextLaunch:
+  (ReturnType<typeof makeLaunch> & { bindingHash?: string }) | null = null;
 vi.mock('./stores', () => ({
   putOidcState: vi.fn(),
   consumeOidcState: vi.fn(),
@@ -164,11 +165,13 @@ vi.mock('../verifiedClassList', async (orig) => ({
 }));
 
 import { ltiExchange } from './launchEndpoints';
+import { hashBindingId } from './browserBinding';
 import { persistLtiLaunchContext } from './nrpsStore';
 
 type Req = {
   auth?: { uid: string; token: Record<string, unknown> };
   data: unknown;
+  rawRequest?: { headers: { cookie?: string } };
 };
 const callExchange = ltiExchange as unknown as (
   r: Req
@@ -449,5 +452,43 @@ describe('ltiExchange — deep-linking teacher binding', () => {
       expect.anything(),
       expect.objectContaining({ quizCode: 'ABC123', teacherUid: null })
     );
+  });
+});
+
+describe('ltiExchange — browser binding on the launch code', () => {
+  const BID = 'b'.repeat(40);
+  const bound = () => ({ ...makeLaunch(), bindingHash: hashBindingId(BID) });
+  const withCookie = (cookie?: string): Req => ({
+    data: { code: 'code-1' },
+    rawRequest: { headers: cookie ? { cookie } : {} },
+  });
+
+  it('refuses a bound code from a browser without the binding cookie', async () => {
+    nextLaunch = bound();
+    await expect(callExchange(withCookie())).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(mintedTokens).toHaveLength(0);
+  });
+
+  it('refuses a bound code from a browser with another binding cookie', async () => {
+    nextLaunch = bound();
+    await expect(
+      callExchange(withCookie(`__session=${'c'.repeat(40)}`))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(mintedTokens).toHaveLength(0);
+  });
+
+  it('redeems a bound code in the browser that launched', async () => {
+    nextLaunch = bound();
+    const res = await callExchange(withCookie(`x=1; __session=${BID}`));
+    expect(res.studentRole).toBe(true);
+    expect(mintedTokens).toHaveLength(1);
+  });
+
+  it('still redeems an unbound code (launch from a browser without the cookie)', async () => {
+    nextLaunch = makeLaunch();
+    const res = await callExchange(withCookie());
+    expect(res.studentRole).toBe(true);
   });
 });

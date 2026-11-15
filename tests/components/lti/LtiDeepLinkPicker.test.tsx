@@ -27,6 +27,8 @@ vi.mock('@/config/firebase', () => ({
 vi.mock('firebase/functions', () => ({
   httpsCallable: (_fns: unknown, name: string) =>
     name === 'ltiExchange' ? exchangeCallable : signCallable,
+  httpsCallableFromURL: (_fns: unknown, url: string) =>
+    url.endsWith('/lti/exchange') ? exchangeCallable : signCallable,
 }));
 
 vi.mock('firebase/firestore', () => ({

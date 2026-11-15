@@ -274,6 +274,8 @@ export const ltiLaunch = onRequest(
         custom: claims.custom,
         email: claims.email,
         name: claims.name,
+        // Bound only when this browser proved its cookie, so cookie-less browsers keep working.
+        bindingHash: binding === 'ok' ? stateRecord.bindingHash : null,
       });
 
       const target = launchRedirectTarget(claims.role, claims.isDeepLinking);
@@ -440,6 +442,17 @@ export const ltiExchange = onCall(
         'unauthenticated',
         'Launch code is invalid or expired.'
       );
+    }
+    // A copied launch URL opened in another browser lacks the binding cookie (sent via the /lti/exchange rewrite).
+    if (
+      launch.bindingHash &&
+      checkBinding(launch.bindingHash, request.rawRequest?.headers?.cookie) !==
+        'ok'
+    ) {
+      console.warn(
+        '[ltiExchange] launch code presented without its browser binding'
+      );
+      throw new HttpsError('permission-denied', 'Launch validation failed.');
     }
 
     // Safe, PII-light context for the SPA to render.

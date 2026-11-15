@@ -7,7 +7,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 const exchange = vi.fn();
 
 vi.mock('@/config/firebase', () => ({ auth: {}, functions: {} }));
-vi.mock('firebase/functions', () => ({ httpsCallable: () => exchange }));
+vi.mock('firebase/functions', () => ({
+  httpsCallable: () => exchange,
+  httpsCallableFromURL: () => exchange,
+}));
 vi.mock('firebase/auth', () => ({ signInWithCustomToken: vi.fn() }));
 
 const reviewProps = vi.fn();

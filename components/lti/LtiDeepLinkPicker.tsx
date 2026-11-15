@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { ltiExchangeCallable } from './ltiExchangeCallable';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useBankSources } from '@/hooks/useBankSources';
@@ -474,10 +475,7 @@ const LtiDeepLinkFlow: React.FC = () => {
 
     void (async () => {
       try {
-        const exchange = httpsCallable<{ code: string }, LtiExchangeResult>(
-          functions,
-          'ltiExchange'
-        );
+        const exchange = ltiExchangeCallable<LtiExchangeResult>();
         const { data } = await exchange({ code });
         if (!data.isDeepLinking || !data.deepLinking?.deep_link_return_url) {
           setErrorMsg(

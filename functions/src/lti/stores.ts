@@ -128,6 +128,8 @@ export interface StoredLaunch {
   custom: Record<string, unknown> | null;
   email: string | null;
   name: string | null;
+  /** Hash of the launching browser's binding id; only that browser may redeem the code. */
+  bindingHash?: string | null;
 }
 
 export async function mintLaunchCode(
@@ -182,6 +184,9 @@ export async function consumeLaunchCode(
       custom: data.custom ?? null,
       email: data.email ?? null,
       name: data.name ?? null,
+      ...(typeof data.bindingHash === 'string' && data.bindingHash
+        ? { bindingHash: data.bindingHash }
+        : {}),
     };
   });
 }
