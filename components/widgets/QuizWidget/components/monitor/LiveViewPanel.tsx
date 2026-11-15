@@ -500,7 +500,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
             <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
               {!alwaysNotify && (
                 <label className="flex items-center justify-between gap-3 font-semibold text-slate-800">
-                  Show the student I&apos;m viewing
+                  Notify student when viewing
                   <span
                     {...tourTypeAttr('quiz-live-view.tell-student', 'quiz')}
                   >
@@ -509,7 +509,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                       onChange={onTell}
                       size="sm"
                       showLabels={false}
-                      label="Show the student I'm viewing"
+                      label="Notify student when viewing"
                     />
                   </span>
                 </label>
