@@ -131,7 +131,7 @@ Each prompt starts a grilling; the agent writes your answers into the plan and m
   - Focus Redirect and Lock block other extensions' own pages, such as a PDF annotator's tab. Allow a short list of extension ids? (AB-73)
   - Flashcards accept either half of `yes/no`, `true/false` and `and/or` typed alone. Keep that, or only split gendered pairs like `el/la`? (AB-212)
   - Expired substitute shares can leave Drive access on a teacher's files that the server can't remove. Keep a hidden admin-only record so an agent can clean them up, or accept it? (AB-142)
-  > Ask me each PT-213 question with a decision card, then move the answered AB items to Ready in AGENT_BACKLOG.md.
+  > Ask me each PT-213 question with a decision card. Write my answer into each AB brief. Move a yes to Ready; move a "keep it" or "accept it" to Known limits with my answer as the reason.
 - [ ] **PT-145 Should quiz End turn in scanned written answers the student never opened on a device?** Turning them in uses an attempt and marks the device questions blank; leaving them open keeps them In Progress and off the gradebook. Tell an agent your choice (AB-152).
 - [ ] **PT-143 Should invited and inactive members count in org user totals?** Today every member doc counts regardless of status (kept as is in #5363). Tell an agent your choice.
 - [ ] **PT-87 🤖 PLC rename "Quizzes" to "Assessments"** scope (teacher-side widget? VA and rubrics as kinds? student copy?).
