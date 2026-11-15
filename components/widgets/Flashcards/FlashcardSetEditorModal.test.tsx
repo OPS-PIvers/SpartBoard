@@ -53,11 +53,9 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
   ...overrides,
 });
 
-const auth = (speak: boolean, swap = true) =>
+const auth = (speak: boolean) =>
   ({
-    canAccessFeature: (id: string) =>
-      (speak && id === 'flashcards-speak') ||
-      (swap && id === 'flashcards-swap-sides'),
+    canAccessFeature: (id: string) => speak && id === 'flashcards-speak',
   }) as unknown as AuthContextType;
 
 const lookup = vi.fn<SpeakLookupCall>((input) =>
@@ -73,14 +71,13 @@ const renderModal = (opts: {
   set?: FlashcardSet;
   isNew?: boolean;
   speak?: boolean;
-  swap?: boolean;
 }) => {
   const onPersist = vi.fn<
     (set: FlashcardSet, o: { final: boolean }) => Promise<void>
   >(() => Promise.resolve());
   const onClose = vi.fn();
   render(
-    <AuthContext.Provider value={auth(opts.speak ?? false, opts.swap ?? true)}>
+    <AuthContext.Provider value={auth(opts.speak ?? false)}>
       <FlashcardSetEditorModal
         set={opts.set ?? baseSet()}
         isNew={opts.isNew ?? false}
@@ -268,11 +265,6 @@ describe('FlashcardSetEditorModal', () => {
       'value',
       'it-IT'
     );
-  });
-
-  it('hides the swap button without the feature', () => {
-    renderModal({ swap: false });
-    expect(screen.queryByLabelText('Swap terms and definitions')).toBeNull();
   });
 
   it('ignores Enter while an IME composition is open', () => {

@@ -175,8 +175,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   const cardCount = set.cards.length;
 
   // Study settings flag: Study resource opens first and gets its own settings step.
-  const studyOn = auth?.canAccessFeature('flashcards-study-settings') ?? false;
-  const [kind, setKind] = useState<AssignKind>(studyOn ? 'resource' : 'work');
+  const [kind, setKind] = useState<AssignKind>('resource');
   const [classes, setClasses] = useState<AssignClassesValue>(() => ({
     classIds: initialRosterIds.filter((id) => rosters.some((r) => r.id === id)),
     studentsByClass: {},
@@ -361,7 +360,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     plcId: '',
   });
   const needsPlc = inPlc && sharingNeedsPlc(sharing, plcs);
-  const ctx = { kind, speak: speakAvailable, inPlc, study: studyOn };
+  const ctx = { kind, speak: speakAvailable, inPlc };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
   const manualAvailable = whenVariant === 'when' && !staff;
 
@@ -571,7 +570,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
           }
         : undefined;
     if (speakChoice) submission.input.speakChoice = speakChoice;
-    if (studyOn && kind === 'resource') {
+    if (kind === 'resource') {
       // Multiple choice alone can't run under 4 cards; Test drops it until the deck grows.
       const mcOnly = study.testTypes.every((type) => type === 'mc');
       submission.input.studySettings = {
@@ -610,8 +609,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
             : {}),
         }
       : lastUsed.lastUsed?.speak;
-    const lastStudy =
-      studyOn && kind === 'resource' ? study : lastUsed.lastUsed?.study;
+    const lastStudy = kind === 'resource' ? study : lastUsed.lastUsed?.study;
     if (ok !== false && kind === 'work') {
       lastUsed.save({
         ...check,
