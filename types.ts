@@ -3935,6 +3935,29 @@ export interface MiniAppSession
   summaryHidden?: true;
   /** v2 only: frozen copy of the app's manifest at assign. */
   manifest?: MiniAppManifest;
+  /** v2 only: what students see of their results, set by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
+}
+
+/** A student's own published copy at `mini_app_sessions/{id}/published/{key}`. */
+export interface PublishedMiniAppResult {
+  studentUid: string;
+  visibility: Exclude<QuizScoreVisibility, 'none'>;
+  publishedAt: number;
+  score?: number;
+  maxScore?: number;
+  gradedBy?: 'server' | 'app';
+  correctCount?: number;
+  gradedCount?: number;
+  items?: {
+    id: string;
+    prompt: string;
+    answer: unknown;
+    correct: boolean | null;
+    correctAnswer?: string;
+  }[];
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -12483,6 +12506,9 @@ export interface MiniAppAssignment extends PeriodAccessSessionFields {
   targetSkippedCount?: number;
   /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Mirrors `MiniAppSession.scoreVisibility`, written by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
 }
 
 // === /MiniApp assignments ===

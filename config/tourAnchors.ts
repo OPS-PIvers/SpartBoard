@@ -11747,6 +11747,12 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'mini-app.archive-publish-scores': {
+    label: 'Publish scores item in a Mini App Completed assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
   'mini-app.results-hide-names': {
     label: 'Hide student names button in the Mini App results view',
     perWidgetType: true,

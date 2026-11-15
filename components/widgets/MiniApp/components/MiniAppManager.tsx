@@ -45,6 +45,7 @@ import {
   CheckSquare,
   RotateCcw,
   FolderMinus,
+  Send,
   Users,
 } from 'lucide-react';
 import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
@@ -163,6 +164,8 @@ export interface MiniAppManagerProps {
   onArchiveReactivate?: (assignment: MiniAppAssignment) => void;
   /** Opens the Edit classes dialog for an in-progress assignment. */
   onArchiveEditClasses?: (assignment: MiniAppAssignment) => void;
+  /** Opens Publish scores for an ended submissions assignment; unset hides the item. */
+  onArchivePublishScores?: (assignment: MiniAppAssignment) => void;
   onArchiveDelete: (assignment: MiniAppAssignment) => void;
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
@@ -358,6 +361,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveEnd,
   onArchiveReactivate,
   onArchiveEditClasses,
+  onArchivePublishScores,
   onArchiveDelete,
   onArchiveOpenApp,
   assignmentMode = 'submissions',
@@ -1183,6 +1187,19 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         label: isViewOnly ? 'End share' : 'End assignment',
         icon: Box,
         onClick: () => onArchiveEnd(assignment),
+      });
+    }
+
+    if (mode === 'archive' && !isViewOnly && onArchivePublishScores) {
+      actions.push({
+        id: 'publish-scores',
+        label:
+          assignment.scoreVisibility && assignment.scoreVisibility !== 'none'
+            ? 'Update published scores'
+            : 'Publish scores',
+        icon: Send,
+        onClick: () => onArchivePublishScores(assignment),
+        anchor: tourTypeAttr('mini-app.archive-publish-scores', 'miniApp'),
       });
     }
 

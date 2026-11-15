@@ -5805,6 +5805,11 @@ service cloud.firestore {
         allow read: if signedIn() && existing().studentUid == authUid();
       }
 
+      // Published results, written only by publishMiniAppScoresV1.
+      match /published/{key} {
+        allow read: if signedIn() && (existing().studentUid == authUid() || maOwner());
+      }
+
       // v2 answer key copied at assign; students never read it (MINI_APP_RESULTS.md D5).
       match /private/{docId} {
         allow read: if signedIn() && (
