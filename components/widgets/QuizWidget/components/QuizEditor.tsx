@@ -933,6 +933,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             state={state}
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
           />
         }
       />
@@ -988,6 +989,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           questionId={q.id}
           calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
           pasteScopeRef={paneRef}
+          previewAvailable={canAccessFeature('quiz-stimulus-preview')}
         />
 
         {/* Learning targets */}
