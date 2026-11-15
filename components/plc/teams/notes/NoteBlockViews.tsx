@@ -9,6 +9,7 @@ import { ItemAnalysisLegend } from '@/components/plc/redesignMockup/charts/ItemA
 import { META, Row, TextLink } from '@/components/plc/redesignMockup/ui';
 import { NoteItemAnalysisChart } from './NoteItemAnalysisChart';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { openFieldPicker } from '@/utils/datePicker';
 
 const BLOCK = 'rounded-xl border border-slate-200 p-4';
 
@@ -282,13 +283,9 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
                   'teams-notes',
                   anchorKey
                 )}
-                onClick={() => {
-                  try {
-                    dateRef.current?.showPicker();
-                  } catch {
-                    dateRef.current?.focus();
-                  }
-                }}
+                onClick={(e) =>
+                  openFieldPicker(dateRef.current, e.currentTarget)
+                }
                 className="rounded-sm hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
               >
                 {revisitLabel ??

@@ -6409,5 +6409,14 @@
   "quizAnswerPicture": {
     "name": "Picture {{n}}",
     "nameWithAlt": "Picture {{n}}: {{alt}}"
+  },
+  "picker": {
+    "clear": "Clear",
+    "today": "Today",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "hour": "Hour",
+    "minute": "Minute",
+    "period": "AM or PM"
   }
 }
