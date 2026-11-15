@@ -40,7 +40,7 @@ export const useCardMenu = (
 
   useEffect(() => {
     menuRef.current
-      ?.querySelector<HTMLElement>('[role="menuitem"]')
+      ?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')
       ?.focus({ preventScroll: true });
   }, []);
 
@@ -55,7 +55,9 @@ export const useCardMenu = (
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const items = Array.from(
-      menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []
+      menuRef.current?.querySelectorAll<HTMLElement>(
+        '[role="menuitem"]:not(:disabled)'
+      ) ?? []
     );
     const index = items.indexOf(document.activeElement as HTMLElement);
     if (e.key === 'Escape') {
