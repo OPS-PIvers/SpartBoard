@@ -23,7 +23,10 @@ export const SURFACES: TourSurfaceMap = {
   'admin.features': {
     label: 'Admin Settings > Features',
     kind: 'panel',
-    files: ['components/admin/access/FeaturesPanel.tsx'],
+    files: [
+      'components/admin/access/FeaturesPanel.tsx',
+      'components/admin/access/AssignmentModesSection.tsx',
+    ],
     opensWith: 'admin.settings.tab:admin#features',
     needs: ['admin'],
   },
@@ -33,6 +36,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/admin/access/PreviewsPanel.tsx',
       'components/admin/access/FocusHoursRow.tsx',
+      'components/admin/access/ImportOffersSection.tsx',
     ],
     opensWith: 'admin.settings.tab:admin#previews',
     needs: ['admin'],

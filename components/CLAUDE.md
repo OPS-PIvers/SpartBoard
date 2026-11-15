@@ -56,8 +56,9 @@ Permanent helper text was cut across the app in September 2026 (`docs/plans/ship
 
 ## Picking from a list
 
-- One choice is a native `<select>`, or a segmented control when there are two or three short options that should stay visible.
+- One choice is a native `<select>`, or a segmented control when there are two or three short options that should stay visible. Every select opens the app's own list (`utils/selectMenu.ts`, installed in `index.tsx`), never the browser's, so don't hand-roll a single-choice dropdown or call `showPicker()` on a select (use `openSelectMenu`); `tests/selectMenu.static.test.ts` guards both.
 - Several choices are a select-style button that shows the picks as plain text and opens a checklist menu (a check per row, the menu stays open while picking). A long list, like standards, adds a search box at the top of the menu.
+- The exception is a short list the step is about, like a teacher's classes in the Assign dialog: an inline checklist that scrolls after about six rows, so no menu covers the buttons below it.
 - Never lay out options as a wrapping row of pills or chips, for picking or for showing active filters: it reads as clutter and misaligns the form. Pills are only for read-only status badges.
 
 ## Design Context

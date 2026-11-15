@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   FileText,
   FolderTree,
@@ -16,7 +16,12 @@ import { TOOLS } from '@/config/tools';
 import type { ImportInboxItem, ImportTarget } from '@/utils/import/contract';
 import type { PendingSource } from './importHandoff';
 import type { DroppedPage } from './fetchImportPage';
-import { importRoute, targetChoices, usesAi } from './importTargets';
+import {
+  importRoute,
+  targetChoices,
+  usesAi,
+  type ImportAiOn,
+} from './importTargets';
 import { AI_CONVERSION_LIMIT_NOTE } from '@/utils/import/aiConversion';
 import { sourceFromInboxItem } from './sourceFromInbox';
 import { ReferenceEmbedStep } from './reference/ReferenceEmbedStep';
@@ -34,8 +39,10 @@ interface ImportScreenProps {
   onRemoveInboxItem: (id: string) => void;
   /** Targets this teacher may use for this Source (widget access and import gates). */
   allowed: (target: ImportTarget, source: PendingSource) => boolean;
-  /** AI Conversions are on for this teacher (switch, flags and view-as). */
-  aiOn?: boolean;
+  /** AI Conversions are on for this teacher (switch, flags and view-as), for every widget or per widget. */
+  aiOn?: ImportAiOn;
+  /** A dropped Source with only one widget to become skips the list. */
+  straightToBoard?: boolean;
   onContinue: (source: PendingSource, target: ImportTarget) => void;
   /** Places what the Embed check built (an Embed, or a Link when the page refuses framing). */
   onPlaceReference: (widget: ReferenceWidget, source: PendingSource) => void;
@@ -115,6 +122,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   onPlaceReference,
   canAddLink = true,
   onCourse,
+  straightToBoard = false,
 }) => {
   // The page being checked for Embed, and rows whose page refused it.
   const [embedding, setEmbedding] = useState<Row | null>(null);
@@ -154,6 +162,29 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
       removeId: item.id,
     })),
   ];
+
+  // One widget for a dropped Source: picked for the teacher, except AI (it costs a use) and Forms (consent needs a click).
+  const dropped = rows.find((r) => r.key === 'dropped');
+  const single =
+    straightToBoard && dropped && droppedPage?.status !== 'reading'
+      ? onlyChoice(dropped.source, allowed, aiOn, onCourse)
+      : null;
+  // Decided once per window: an Embed opens its check here, anything else is placed by the effect below.
+  const [autoPick, setAutoPick] = useState<ImportTarget | null>(null);
+  if (single && !autoPick && dropped) {
+    setAutoPick(single);
+    if (single === 'embed' && dropped.source.url) setEmbedding(dropped);
+  }
+  // StrictMode runs mount effects twice; this keeps the placement to one.
+  const placed = useRef(false);
+  const placeSingle = useEffectEvent((target: ImportTarget) => {
+    if (placed.current || !dropped) return;
+    placed.current = true;
+    onContinue(dropped.source, target);
+  });
+  useEffect(() => {
+    if (autoPick && autoPick !== 'embed') placeSingle(autoPick);
+  }, [autoPick]);
 
   return (
     <Modal
@@ -237,6 +268,22 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
   );
 };
 
+/** The one widget a Source can become without AI or a consent click; null when the teacher should pick. */
+function onlyChoice(
+  source: PendingSource,
+  allowed: ImportScreenProps['allowed'],
+  aiOn: ImportAiOn,
+  onCourse: ImportScreenProps['onCourse']
+): ImportTarget | null {
+  if (onCourse && source.file && COURSE_EXPORT.test(source.file.name))
+    return null;
+  const { targets } = targetChoices(source, allowed, aiOn);
+  if (targets.length !== 1) return null;
+  const [target] = targets;
+  if (usesAi(target, source, aiOn) || source.inboxItem?.form) return null;
+  return target;
+}
+
 const toolFor = (widgetType: string | undefined) =>
   widgetType ? TOOLS.find((tool) => tool.type === widgetType) : undefined;
 
@@ -268,7 +315,7 @@ const SourceRow: React.FC<{
   detail?: string;
   note?: string;
   allowed: ImportScreenProps['allowed'];
-  aiOn: boolean;
+  aiOn: ImportAiOn;
   onPick: (target: ImportTarget) => void;
   onRemove?: () => void;
   onCourse?: (file: File) => void;

@@ -551,7 +551,7 @@ export interface UseGuidedLearningSessionStudentResult {
 type RawStudentSession = GuidedLearningSession & { imageUrl?: string };
 
 /** Legacy single-image fallback and step index clamping for the player. */
-function normalizeStudentSession(
+export function normalizeStudentSession(
   raw: RawStudentSession
 ): GuidedLearningSession {
   const imageUrls =

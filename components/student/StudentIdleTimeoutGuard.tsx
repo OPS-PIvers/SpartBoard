@@ -18,6 +18,7 @@ import React, { useEffect, useState } from 'react';
 import { onIdTokenChanged } from 'firebase/auth';
 import { auth, isAuthBypass } from '@/config/firebase';
 import { useStudentIdleTimeout } from '@/hooks/useStudentIdleTimeout';
+import { StudentIdleWarning } from './StudentIdleWarning';
 
 export const StudentIdleTimeoutGuard: React.FC = () => {
   const [isStudentRole, setIsStudentRole] = useState(false);
@@ -50,6 +51,6 @@ export const StudentIdleTimeoutGuard: React.FC = () => {
     };
   }, []);
 
-  useStudentIdleTimeout(isStudentRole);
-  return null;
+  const { warning } = useStudentIdleTimeout(isStudentRole);
+  return <StudentIdleWarning visible={warning} />;
 };

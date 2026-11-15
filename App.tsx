@@ -446,6 +446,13 @@ const WidgetGraderHarness =
         )
       )
     : null;
+const ClassStudentPageDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/ClassStudentPageDevHarness').then((module) => ({
+        default: module.ClassStudentPageDevHarness,
+      }))
+    )
+  : null;
 // Also built into auth-bypass (E2E) builds for the student page end-padding guard.
 const StudentLandingDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -1474,6 +1481,22 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <WidgetGraderHarness />
       </Suspense>
+    );
+  }
+
+  // My Classes "View Student Page" on fixtures; auth-bypass only.
+  if (
+    ClassStudentPageDevHarness &&
+    isAuthBypass &&
+    pathname === '/class-student-page-dev'
+  ) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <ClassStudentPageDevHarness />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 

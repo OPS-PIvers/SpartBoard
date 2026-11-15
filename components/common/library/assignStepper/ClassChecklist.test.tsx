@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import { ClassPickerMenu } from './ClassPickerMenu';
+import { ClassChecklist } from './ClassChecklist';
 import {
   EMPTY_ASSIGN_CLASSES_VALUE,
   type AssignClassesValue,
@@ -11,18 +11,21 @@ import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
 const Harness = ({
   initial = EMPTY_ASSIGN_CLASSES_VALUE,
   singleSelect,
+  disabled,
   onChange,
 }: {
   initial?: AssignClassesValue;
   singleSelect?: boolean;
+  disabled?: boolean;
   onChange?: (v: AssignClassesValue) => void;
 }) => {
   const [value, setValue] = useState(initial);
   return (
-    <ClassPickerMenu
+    <ClassChecklist
       rosters={SAMPLE_ROSTERS}
       value={value}
       singleSelect={singleSelect}
+      disabled={disabled}
       onChange={(v) => {
         setValue(v);
         onChange?.(v);
@@ -31,27 +34,29 @@ const Harness = ({
   );
 };
 
-const openMenu = () =>
-  fireEvent.click(
-    screen.getByRole('button', { name: /No classes|Sample|All/ })
-  );
-
-describe('ClassPickerMenu', () => {
-  it('shows the picks as text and stays open while picking', () => {
+describe('ClassChecklist', () => {
+  it('lists every class inline with no menu button', () => {
     render(<Harness />);
-    openMenu();
+    expect(screen.getByRole('group', { name: 'Classes' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Sample 1/)).toBeVisible();
+    expect(screen.queryByRole('button', { expanded: false })).toBeNull();
+  });
+
+  it('keeps picks in roster order', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
     fireEvent.click(screen.getByLabelText(/Sample 2/));
     fireEvent.click(screen.getByLabelText(/Sample 1/));
     expect(screen.getByLabelText(/Sample 1/)).toBeChecked();
-    expect(
-      screen.getByRole('button', { name: 'Sample 1, Sample 2' })
-    ).toHaveAttribute('aria-expanded', 'true');
+    expect(onChange).toHaveBeenLastCalledWith({
+      classIds: ['c1', 'c2'],
+      studentsByClass: {},
+    });
   });
 
   it('Select all skips unavailable classes and Clear empties', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    openMenu();
     expect(screen.getByLabelText(/Sample 3/)).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
     expect(onChange).toHaveBeenLastCalledWith({
@@ -73,7 +78,6 @@ describe('ClassPickerMenu', () => {
         }}
       />
     );
-    openMenu();
     fireEvent.click(screen.getByLabelText(/Sample 1/));
     expect(onChange).toHaveBeenLastCalledWith({
       classIds: ['c2'],
@@ -81,30 +85,28 @@ describe('ClassPickerMenu', () => {
     });
   });
 
-  it('single select replaces the pick, closes, and has no Select all', () => {
+  it('single select replaces the pick and has no Select all', () => {
+    const onChange = vi.fn();
     render(
       <Harness
         singleSelect
+        onChange={onChange}
         initial={{ classIds: ['c1'], studentsByClass: {} }}
       />
     );
-    openMenu();
     expect(screen.queryByRole('button', { name: 'Select all' })).toBeNull();
     fireEvent.click(screen.getByLabelText(/Sample 2/));
-    expect(screen.getByRole('button', { name: 'Sample 2' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      classIds: ['c2'],
+      studentsByClass: {},
+    });
+    expect(screen.getByLabelText(/Sample 1/)).not.toBeChecked();
   });
 
-  it('Escape closes the menu without reaching the dialog', () => {
-    const onWindowKey = vi.fn();
-    window.addEventListener('keydown', onWindowKey);
-    render(<Harness />);
-    openMenu();
-    fireEvent.keyDown(screen.getByLabelText(/Sample 1/), { key: 'Escape' });
-    expect(screen.queryByLabelText(/Sample 1/)).toBeNull();
-    expect(onWindowKey).not.toHaveBeenCalled();
-    window.removeEventListener('keydown', onWindowKey);
+  it('disabled locks every row and button', () => {
+    render(<Harness disabled />);
+    expect(screen.getByLabelText(/Sample 1/)).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Select all' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Clear' })).toBeDisabled();
   });
 });

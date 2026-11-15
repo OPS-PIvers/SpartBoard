@@ -11,10 +11,12 @@ import {
   type User,
 } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
+import { StudentIdleWarning } from '@/components/student/StudentIdleWarning';
 import { auth, isAuthBypass } from '@/config/firebase';
 import {
   useStudentIdleTimeout,
   STUDENT_LOGIN_PATH,
+  STUDENT_SIGNED_OUT_LOGIN_PATH,
 } from '@/hooks/useStudentIdleTimeout';
 import {
   StudentAuthContext,
@@ -300,7 +302,9 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Idle timeout (15 minutes). `useStudentIdleTimeout` owns the listeners,
   // throttle, timer, and sign-out+redirect. Armed only for authenticated
   // student sessions; bypass mode and teacher previews never arm it.
-  useStudentIdleTimeout(!isAuthBypass && state.status === 'authenticated');
+  const { warning: idleWarning } = useStudentIdleTimeout(
+    !isAuthBypass && state.status === 'authenticated'
+  );
 
   // --- Imperative sign-out (exposed on context) -----------------------------
   const signOut = useCallback(async () => {
@@ -313,7 +317,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // redirecting. Real Firebase Auth isn't involved.
       setState(UNAUTH_STATE);
       if (typeof window !== 'undefined') {
-        window.location.assign(STUDENT_LOGIN_PATH);
+        window.location.assign(STUDENT_SIGNED_OUT_LOGIN_PATH);
       }
       return;
     }
@@ -323,7 +327,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Always redirect — even if sign-out threw, the user should be booted
       // off a protected page on a shared device.
       if (typeof window !== 'undefined') {
-        window.location.assign(STUDENT_LOGIN_PATH);
+        window.location.assign(STUDENT_SIGNED_OUT_LOGIN_PATH);
       }
     }
   }, []);
@@ -352,6 +356,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <StudentAuthContext.Provider value={value}>
       {children}
+      <StudentIdleWarning visible={idleWarning} />
     </StudentAuthContext.Provider>
   );
 };

@@ -730,4 +730,25 @@ describe('scoreMiniAppBest', () => {
       scoreMiniAppBest({ showCorrectAnswers: false }, submission, 'c1')
     ).toMatchObject({ published: false, rawPct: 75, state: 'scored' });
   });
+
+  it('publishes a hidden-answers score once the teacher publishes scores', () => {
+    expect(
+      scoreMiniAppBest(
+        {
+          showCorrectAnswers: false,
+          scoreVisibility: 'score-only',
+          scorePublishedAt: 5,
+        },
+        submission,
+        'c1'
+      )
+    ).toMatchObject({ published: true });
+    expect(
+      scoreMiniAppBest(
+        { showCorrectAnswers: false, scoreVisibility: 'none' },
+        submission,
+        'c1'
+      )
+    ).toMatchObject({ published: false });
+  });
 });

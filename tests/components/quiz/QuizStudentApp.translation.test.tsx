@@ -8,6 +8,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import es from '@/locales/es.json';
 import '@testing-library/jest-dom/vitest';
 import type {
   QuizSession,
@@ -669,11 +670,17 @@ describe('QuizStudentApp — localized FIB feedback', () => {
     );
 
     await user.type(screen.getByRole('textbox'), 'París');
-    await user.click(screen.getByRole('button', { name: /Submit Answer/i }));
+    await user.click(
+      screen.getByRole('button', { name: es.quizStudent.nav.submitAnswer })
+    );
 
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
-    expect(screen.queryByText('Incorrect')).not.toBeInTheDocument();
-    expect(screen.queryByText('Correct!')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(es.quizStudent.feedback.incorrect)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(es.quizStudent.feedback.correct)
+    ).not.toBeInTheDocument();
   });
 
   it('still grades locally when the student answers in English', async () => {
@@ -686,10 +693,14 @@ describe('QuizStudentApp — localized FIB feedback', () => {
     await user.click(englishToggle());
 
     await user.type(screen.getByRole('textbox'), 'Paris');
-    await user.click(screen.getByRole('button', { name: /Submit Answer/i }));
+    await user.click(
+      screen.getByRole('button', { name: es.quizStudent.nav.submitAnswer })
+    );
 
     await waitFor(() =>
-      expect(screen.getByText('Correct!')).toBeInTheDocument()
+      expect(
+        screen.getByText(es.quizStudent.feedback.correct)
+      ).toBeInTheDocument()
     );
   });
 });

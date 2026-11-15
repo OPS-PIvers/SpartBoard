@@ -604,6 +604,13 @@ const validateRosterMeta = (
       meta.bellPeriod = { buildingId: b.buildingId, periodId: b.periodId };
     }
   }
+  if (d.retiredPinsAt && typeof d.retiredPinsAt === 'object') {
+    const at: Record<string, number> = {};
+    for (const [seg, ms] of Object.entries(d.retiredPinsAt)) {
+      if (typeof ms === 'number' && Number.isFinite(ms)) at[seg] = ms;
+    }
+    if (Object.keys(at).length > 0) meta.retiredPinsAt = at;
+  }
   return meta;
 };
 

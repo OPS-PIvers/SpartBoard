@@ -75,7 +75,7 @@ const nonEmptyIds = (v: unknown): string[] =>
     ? v.filter((c): c is string => typeof c === 'string' && c.length > 0)
     : [];
 
-/** Mirrors the rules' passesStudentClassGateCompat; a PIN token must also match a targeted class. */
+/** Class gate (stricter than the rules' list gate: also honors a legacy classId); a PIN token must also match a targeted class. */
 function passesClassGate(session: Doc, claims: MyAttemptsClaims): boolean {
   if (claims.studentRole !== true && claims.pinLogin !== true) return true;
   const listed = Array.isArray(session.classIds) && session.classIds.length > 0;
