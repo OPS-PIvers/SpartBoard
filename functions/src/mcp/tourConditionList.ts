@@ -126,6 +126,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-import-versions-plain',
   'quiz-live-view',
   'quiz-media-response',
+  'quiz-monitor-roster',
   'quiz-read-aloud',
   'quiz-score-on-submit',
   'quiz-stimulus-quotes',

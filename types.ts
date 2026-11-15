@@ -11310,6 +11310,8 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz Monitor Live view: a teacher watches one student's in-progress attempt, redrawn from saved data. */
   | 'quiz-live-view'
+  /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
+  | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */

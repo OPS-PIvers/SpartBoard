@@ -658,6 +658,7 @@ const TeacherQuizWidget: React.FC<{
     session: liveSession,
     loading: liveSessionLoading,
     responses,
+    responsesLoaded: liveResponsesLoaded,
     advanceQuestion,
     endQuizSession,
     removeStudent,
@@ -3248,6 +3249,8 @@ const TeacherQuizWidget: React.FC<{
           localizedFibAnswers={
             monitorActiveAssignment?.localizedFibAnswers ?? null
           }
+          rosterTargets={monitorActiveAssignment ?? null}
+          responsesLoaded={liveResponsesLoaded}
           assignmentSettings={
             monitorActiveAssignment &&
             getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
