@@ -140,10 +140,13 @@ describe('bell helpers', () => {
   });
 
   it('caps a period close at the session close', () => {
-    expect(capAtSessionClose(50, null)).toBe(50);
-    expect(capAtSessionClose(null, 40)).toBe(40);
-    expect(capAtSessionClose(50, 40)).toBe(40);
-    expect(capAtSessionClose(30, 40)).toBe(30);
+    expect(capAtSessionClose(50, null, 0)).toBe(50);
+    expect(capAtSessionClose(null, 40, 0)).toBe(40);
+    expect(capAtSessionClose(50, 40, 0)).toBe(40);
+    expect(capAtSessionClose(30, 40, 0)).toBe(30);
+    // Past the shared close, Start opens to the bell so reopened students get in.
+    expect(capAtSessionClose(50, 40, 45)).toBe(50);
+    expect(capAtSessionClose(null, 40, 45)).toBeNull();
   });
 
   it('lets a student in until the bell of whichever period is in session', () => {

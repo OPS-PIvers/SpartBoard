@@ -49,12 +49,13 @@ type PeriodSession = PeriodAccessSessionFields & {
   closeAt?: number | null;
 };
 
-/** A period's close, held to the session's shared close when it has one. */
+/** A period's close, held to the session's shared close while that is ahead; past it, only reopened students get in. */
 export function capAtSessionClose(
   closeAt: number | null,
-  sessionCloseAt: number | null | undefined
+  sessionCloseAt: number | null | undefined,
+  nowMs: number
 ): number | null {
-  if (sessionCloseAt == null) return closeAt;
+  if (sessionCloseAt == null || sessionCloseAt <= nowMs) return closeAt;
   return closeAt == null ? sessionCloseAt : Math.min(closeAt, sessionCloseAt);
 }
 
@@ -220,7 +221,7 @@ export function usePeriodAccess(
         if (
           session.accessMode === 'assessment' &&
           bell == null &&
-          session.closeAt == null
+          (session.closeAt == null || session.closeAt <= now)
         )
           untimed.push(key);
         stage(batch, key, {
@@ -228,7 +229,8 @@ export function usePeriodAccess(
           openAt: null,
           closeAt: capAtSessionClose(
             startCloseAt(session, access, bell, now),
-            session.closeAt
+            session.closeAt,
+            now
           ),
         });
       }
@@ -268,7 +270,8 @@ export function usePeriodAccess(
           by == null
             ? null
             : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
-          session?.closeAt
+          session?.closeAt,
+          Date.now()
         ),
       });
       await batch.commit();
