@@ -2,10 +2,8 @@
 import type React from 'react';
 import {
   ClipboardList,
-  FolderTree,
   MonitorPlay,
   Users,
-  ArrowLeftRight,
   Camera,
   PenLine,
   BarChart,
@@ -13,7 +11,6 @@ import {
   Bot,
   Building2,
   Cast,
-  Keyboard,
   ClipboardCheck,
   Highlighter,
   ScanLine,
@@ -500,46 +497,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Swap terms and definitions button in the Flashcards set editor. Admin-only until Paul has tried it in prod.
-  'flashcards-swap-sides': {
-    label: 'Flashcards: swap terms and definitions',
-    icon: ArrowLeftRight,
-    description: 'Adds a swap button above the cards in the set editor.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Version split without AI (F24). Admin-only until Paul has imported with it.
   'quiz-import-versions-plain': {
     label: 'Split versions without AI',
     icon: Layers,
     description: 'Splits a typed PDF with version headings without using AI.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Google Docs read as their PDF, not as Word. Admin-only until Paul has imported with it.
-  'quiz-import-google-doc-pdf': {
-    label: 'Read Google Docs as printed',
-    icon: FileText,
-    description:
-      'Imports a Google Doc test from its PDF, keeping figures and their labels.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Bold, underlined or highlighted choices in a PDF read as answers. Admin-only until Paul has imported with it.
-  'quiz-import-pdf-answer-marks': {
-    label: 'Read marked answers in PDFs',
-    icon: FileText,
-    description:
-      'Takes a bold, underlined or highlighted choice in a PDF test as its answer.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -653,19 +615,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Student math keyboard and accent keys. Admin-only until Paul has tested it in prod.
-  'student-keyboards': {
-    label: 'Student keyboards',
-    icon: Keyboard,
-    description:
-      'Teachers turn on a math keyboard or accent keys for a quiz question.',
-    stage: 'preview',
-    afterLaunch: 'keep',
-    category: 'students',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -740,7 +689,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: TextCursorInput,
     description:
       'When a teacher rewords a choice on a scanned paper test, saved student answers follow the new wording.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'quiz',
     modalLabel: 'Keep scanned answers when rewording',
@@ -1163,49 +1112,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: true,
   },
-  sparty: {
-    label: 'Sparty',
-    icon: Smile,
-    description: 'Pixel Spartan mascot in tours, setup and help.',
-    stage: 'preview',
-    afterLaunch: 'keep',
-    category: 'look',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'getting-started': {
-    label: 'Getting Started',
-    icon: Footprints,
-    description: 'Live tours and a Getting Started page for new teachers.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'district-library': {
     label: 'District library',
     icon: Library,
     description:
       'Quizzes and question banks admins publish to buildings, grades or teachers.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'sharing',
-    defaultAccessLevel: 'admin',
+    defaultAccessLevel: 'public',
     defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'district-library-folders': {
-    label: 'District library folders',
-    icon: FolderTree,
-    description:
-      'Folders in the District library, with one audience per folder, shown to teachers as folders.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
+    missingDocPublic: true,
   },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
@@ -1255,41 +1172,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Dropdown and Drag blank types. Admin-only until Paul has tested it in prod.
+  // Dropdown and Drag blank types.
   'quiz-blank-types': {
     label: 'Fill in the blank: dropdown and drag',
     icon: SquareChevronDown,
     description:
       'Blanks can be a dropdown list or a word bank students drag words from, as well as typed.',
-    stage: 'preview',
-    afterLaunch: 'retire',
+    stage: 'permanent',
+    afterLaunch: 'keep',
     widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Explanations on questions and answers. Admin-only until Paul has tested it in prod.
-  'quiz-explanations': {
-    label: 'Quiz explanations',
-    icon: FileText,
-    description:
-      'Add an explanation to any question or answer. Students see them under their published results when Show explanations is on.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // DOK levels on questions. Admin-only until Paul has tested it in prod.
-  'quiz-dok': {
-    label: 'Quiz DOK levels',
-    icon: Gauge,
-    description:
-      'Tag questions with a DOK level, group results by DOK, and draw bank questions by DOK.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
+    modalLabel: 'Dropdown and drag blanks',
+    group: 'questions',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1389,45 +1282,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: false,
     missingDocPublic: false,
     failClosedForAdmins: true,
-  },
-  // Stamped on study assignments at assign time; students can't read flags.
-  'flashcards-missed-cards': {
-    label: 'Flashcards: study missed cards',
-    icon: Layers,
-    description:
-      'Students in a study assignment can study just the cards they missed, in every mode.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Admin-only until Paul has assigned a study resource with it.
-  'flashcards-study-settings': {
-    label: 'Flashcards: study settings',
-    icon: Layers,
-    description:
-      'Sets what students start with in a study resource, and Study resource as the default.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Admin-only until Paul has saved a sight-word set with it.
-  'flashcards-term-only': {
-    label: 'Flashcards: cards without definitions',
-    icon: Layers,
-    description:
-      'Teachers can save cards with only a term, like sight words. Write and Test are hidden for those sets.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
   },
   // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
@@ -1711,17 +1565,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'youtube-paste-picker': {
-    label: 'Paste a YouTube link: pick a widget',
-    icon: Video,
-    description:
-      'Pasting a YouTube link on the board asks whether to add it as an Embed or a Video Activity.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // The app's own dropdown, date/time and suggestion panels. Admin-only until Paul has used them on prod.
   'app-pickers': {
     label: 'App dropdowns and date pickers',
@@ -1797,28 +1640,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'video-activity',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'schoology-push-due-date': {
-    label: 'Schoology push: due date',
-    icon: Send,
-    description:
-      'Lets teachers pick the Schoology due date when a push makes a new gradebook column.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'flashcards-check-sync': {
-    label: 'Flashcards: set fixes reach Checks',
-    icon: Layers,
-    description:
-      'Saving a set updates the cards in its open Checks. Cards added or deleted stay as assigned.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

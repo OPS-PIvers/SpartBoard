@@ -1012,15 +1012,14 @@ export const LiveTourRunner: React.FC = () => {
         }
       : set;
     // Keep or Remove and following a run's own boards are Getting Started behaviour.
-    runStart.current =
-      opts.edit || !latest.current.canAccessFeature('getting-started')
-        ? null
-        : {
-            at: Date.now(),
-            boardId: d.activeDashboard?.id ?? null,
-            boards: new Set(d.dashboards.map((b) => b.id)),
-            collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
-          };
+    runStart.current = opts.edit
+      ? null
+      : {
+          at: Date.now(),
+          boardId: d.activeDashboard?.id ?? null,
+          boards: new Set(d.dashboards.map((b) => b.id)),
+          collections: new Set(d.collectionsApi.collections.map((c) => c.id)),
+        };
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
     const beforeIds = new Set(current.map((w) => w.id));
@@ -1316,15 +1315,8 @@ export const LiveTourRunner: React.FC = () => {
       noteMiss();
       runLog.current?.end(done ? { done } : { done, exit: tour.index });
       runLog.current = null;
-      const { uid, canAccessFeature: canAccess } = latest.current;
-      if (
-        done &&
-        uid &&
-        !tour.draft &&
-        !tour.edit &&
-        !tour.test &&
-        canAccess('getting-started')
-      ) {
+      const { uid } = latest.current;
+      if (done && uid && !tour.draft && !tour.edit && !tour.test) {
         void recordTourFinished(uid, tour.set.id);
       }
       if (

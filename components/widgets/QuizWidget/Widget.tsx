@@ -248,7 +248,6 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { Loader2, AlertTriangle, LogIn, Gamepad2 } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
-import { STUDENT_KEYBOARDS_FEATURE } from '@/config/studentKeyboards';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
@@ -401,8 +400,6 @@ const TeacherQuizWidget: React.FC<{
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
     canUseQuizAi;
-  const googleDocAsPdf =
-    canImportDocuments && canAccessFeature('quiz-import-google-doc-pdf');
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
   // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
@@ -453,7 +450,7 @@ const TeacherQuizWidget: React.FC<{
   }, [ensureGoogleScope, openPicker, getDriveFileAsBlob]);
 
   // Test document from Drive (D9): the Picker lists PDFs, Word files and
-  // Google Docs, and a Doc comes back already exported as .docx (D4).
+  // Google Docs, and a Doc comes back exported as a PDF, or as .docx when too long.
   const pickDocument = useCallback(async (): Promise<{
     file: Blob;
     fileName: string;
@@ -464,13 +461,9 @@ const TeacherQuizWidget: React.FC<{
     }
     const picked = await openPicker({ mode: 'documents', token });
     if (!picked) return null;
-    let downloaded = await getDriveDocumentAsBlob(
-      picked.id,
-      googleDocAsPdf ? 'pdf' : 'docx'
-    );
+    let downloaded = await getDriveDocumentAsBlob(picked.id, 'pdf');
     // A long Doc is past the PDF reader's page limit; its Word export has none.
     if (
-      googleDocAsPdf &&
       downloaded?.mimeType === 'application/pdf' &&
       picked.mimeType !== 'application/pdf'
     ) {
@@ -487,7 +480,7 @@ const TeacherQuizWidget: React.FC<{
       file: downloaded.blob,
       fileName: downloaded.name || picked.name,
     };
-  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob, googleDocAsPdf]);
+  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
 
   // Pictures the last read document carried. They wait here rather than in
   // the adapter, which owns no state, until the teacher confirms the import.
@@ -811,10 +804,7 @@ const TeacherQuizWidget: React.FC<{
     districtViewer,
     districtLibraryOn && variant === 'quiz'
   );
-  const districtFoldersOn =
-    districtLibraryOn &&
-    variant === 'quiz' &&
-    canAccessFeature('district-library-folders');
+  const districtFoldersOn = districtLibraryOn && variant === 'quiz';
   const districtFolders = useDistrictFolders(districtFoldersOn);
   const districtItemFolderIds = useMemo(
     () => new Map(districtItems.map((i) => [i.id, i.folderId ?? null])),
@@ -2565,10 +2555,7 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
-      pdfMarks: canAccessFeature('quiz-import-pdf-answer-marks'),
-      equations:
-        canAccessFeature('quiz-import-equations') &&
-        canAccessFeature(STUDENT_KEYBOARDS_FEATURE),
+      equations: canAccessFeature('quiz-import-equations'),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportDocuments
         ? {

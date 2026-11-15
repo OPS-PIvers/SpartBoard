@@ -4572,7 +4572,7 @@ export interface QuizQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
   noSpellCheck?: boolean;
-  /** FIB and Free Response: the student keyboard (`student-keyboards` flag). Absent = plain typing. */
+  /** FIB and Free Response: the student keyboard. Absent = plain typing. */
   answerKeyboard?: AnswerKeyboard;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
@@ -10097,7 +10097,7 @@ export interface FlashcardSession
   speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
-  /** Study: students can study just the cards they missed (flag `flashcards-missed-cards`). */
+  /** Study: students can study just the cards they missed. */
   missedCards?: true;
   /** Speak rules picked when assigning; a set save re-stamps with these instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
@@ -10947,7 +10947,7 @@ export interface UserProfile {
    * Per-teacher account-level preference.
    */
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
-  /** Show Sparty the mascot where the `sparty` feature allows; absent means shown. */
+  /** Show Sparty the mascot; absent means shown. */
   spartyEnabled?: boolean;
   /** Alignment guides while moving or resizing widgets; absent means off. */
   alignmentGuidesEnabled?: boolean;
@@ -11283,12 +11283,7 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
-  | 'flashcards-swap-sides'
-  /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
-  | 'quiz-import-google-doc-pdf'
-  /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
-  | 'quiz-import-pdf-answer-marks'
-  /** Math in an imported question's text becomes drawn equations; AND-ed with `student-keyboards`. */
+  /** Math in an imported question's text becomes drawn equations. */
   | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
@@ -11300,8 +11295,6 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
-  /** Math keyboard and accent keys on student answer boxes, set per quiz. */
-  | 'student-keyboards'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -11363,17 +11356,11 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'flashcards-ai'
-  /** Flashcards study resources: the teacher's starting settings, and Study resource as the default. */
-  | 'flashcards-study-settings'
-  /** Flashcards cards can be saved with a term and no definition (e.g. sight words). */
-  | 'flashcards-term-only'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
-  /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
-  | 'sparty'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md). */
@@ -11384,10 +11371,6 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Quiz explanations on questions and answers, shown with published results. */
-  | 'quiz-explanations'
-  /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */
-  | 'quiz-dok'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
   | 'quiz-blank-types'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
@@ -11406,8 +11389,6 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
-  /** Flashcards study: students study just the cards they missed, in every mode. */
-  | 'flashcards-missed-cards'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
@@ -11419,12 +11400,8 @@ export type GlobalFeature =
   | 'managed-profile-check'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
-  /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
-  | 'getting-started'
   /** District library: admin-published quizzes and banks teachers add as linked copies (docs/plans/QUIZ_MCA_PRACTICE.md M26-M31). */
   | 'district-library'
-  /** Folders in the District library: admin folders with a folder audience, mirrored for teachers. */
-  | 'district-library-folders'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
@@ -11446,12 +11423,6 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Due date picker in the Push to Schoology dialog. */
-  | 'schoology-push-due-date'
-  /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
-  | 'flashcards-check-sync'
-  /** Pasting a YouTube link asks Embed or Video Activity. */
-  | 'youtube-paste-picker'
   /** Right-click menu on the board background. */
   | 'board-context-menu'
   /** Teachers pick which answers count when a student answers more than a section asks. */

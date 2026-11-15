@@ -1113,18 +1113,6 @@ describe('Dock smart-paste – YouTube links offer Embed or Video Activity', () 
     });
   });
 
-  it('adds an Embed straight away when the preview flag is off', () => {
-    const addWidget = vi.fn();
-    setupMocks({
-      addWidget,
-      canAccessFeature: vi.fn((id: string) => id !== 'youtube-paste-picker'),
-    });
-    render(<Dock />);
-    pasteText(YT);
-    expect(screen.queryByTestId('video-paste-picker-modal')).toBeNull();
-    expect(addWidget).toHaveBeenCalledWith('embed', expect.anything());
-  });
-
   it('adds an Embed straight away without Video Activity access', () => {
     const addWidget = vi.fn();
     setupMocks({

@@ -36,6 +36,14 @@ export function provenGoogleEmail(
   return email && isWellFormedEmail(email) ? email : null;
 }
 
+/** The proven Google email of a uid's Auth account, or null if it is missing or unproven. */
+export async function provenGoogleEmailForUid(
+  auth: Pick<admin.auth.Auth, 'getUser'>,
+  uid: string
+): Promise<string | null> {
+  return provenGoogleEmail(await auth.getUser(uid).catch(() => null));
+}
+
 /** Caches a lookup for one run, and forgets a failed one so the next caller retries. */
 function memo<T>(
   cache: Map<string, Promise<T>>,

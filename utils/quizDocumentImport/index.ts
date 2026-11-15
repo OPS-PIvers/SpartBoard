@@ -155,7 +155,7 @@ export interface ReadDocumentOptions {
   fetchRemoteImage?: RemoteImageFetcher;
   /** A typed PDF with version headings splits into versions without AI (QUIZ_IMPORT_VERSIONS V13). */
   versions?: boolean;
-  /** A PDF's bold, underlined or highlighted choice is its answer (`quiz-import-pdf-answer-marks`). */
+  /** A PDF's bold, underlined or highlighted choice is its answer */
   pdfMarks?: boolean;
   /** A PDF choice printed only as a picture comes in as that picture. */
   answerPictures?: boolean;

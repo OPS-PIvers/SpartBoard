@@ -8,8 +8,7 @@ import type { FeaturePermission } from '@/types';
 // The panel reads its building list from useAdminBuildings(), which for a
 // real org can hand back a legacy long-form building doc id (e.g.
 // `orono-high-school`) when that org's building record predates the
-// short-id migration — see components/auth/NewUserSetup.tsx's canonicalize
-// workaround for the same hook.
+// short-id migration (see canonicalBuildingId in config/buildings.ts).
 const mockUseAdminBuildings = vi.fn<() => Building[]>();
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => mockUseAdminBuildings(),

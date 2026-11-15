@@ -2,7 +2,7 @@
 
 Grilled and settled with Paul on 2026-11-06. P0 is done (results below, D19 revised, D31 added); nothing else is built. Six PRs to `dev-paul` behind `getting-started` (P1-P6), the tours written as data on dev (P7), a prod test on Paul's account, and a final PR that deletes the old flow once the flag is open (P8).
 
-Terms (Live tour, Getting Started, Essentials, Next steps, Sparty, Team) are defined in [GLOSSARY.md](../../GLOSSARY.md).
+Terms (Live tour, Getting Started, Essentials, Next steps, Sparty, Team) are defined in [GLOSSARY.md](../../../GLOSSARY.md).
 
 ## Goal
 

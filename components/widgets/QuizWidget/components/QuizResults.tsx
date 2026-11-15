@@ -1141,7 +1141,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     (row) => row.servedCount > 0
   );
   // The Group by switch and DOK rows exist only when a question has a DOK level.
-  const dokOn = canAccessFeature('quiz-dok') && quizHasDok(quiz.questions);
+  const dokOn = quizHasDok(quiz.questions);
   const [groupByChoice, setGroupByChoice] = useState<'target' | 'dok'>(
     'target'
   );
@@ -2680,7 +2680,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               showStudentNames={!plcView}
               onSelectStudents={handleSelectStudents}
               onOpenStudent={handleOpenStudent}
-              explanationsOn={canAccessFeature('quiz-explanations')}
             />
           )}
           {effectiveScreen === 'targets' && hasTargetsScreen && (
@@ -3776,8 +3775,6 @@ const QuestionsScreen: React.FC<{
   showStudentNames: boolean;
   onSelectStudents?: (keys: string[]) => void;
   onOpenStudent?: (responseKey: string) => void;
-  /** Teachers see each question's explanations (quiz-explanations). */
-  explanationsOn?: boolean;
 }> = ({
   questions,
   responses,
@@ -3787,7 +3784,6 @@ const QuestionsScreen: React.FC<{
   showStudentNames,
   onSelectStudents,
   onOpenStudent,
-  explanationsOn = false,
 }) => {
   const { t } = useTranslation();
   const [sortBy, setSortBy] = useState<QuestionSort>('order');
@@ -4123,7 +4119,7 @@ const QuestionsScreen: React.FC<{
                 onOpenStudent={onOpenStudent}
                 isOrdering={byItem}
                 pictures={imageOnlyPictures(q)}
-                explanation={explanationsOn ? explanationsForQuestion(q) : null}
+                explanation={explanationsForQuestion(q)}
               />
             )}
           </div>
