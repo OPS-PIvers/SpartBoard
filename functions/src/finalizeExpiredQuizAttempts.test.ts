@@ -116,6 +116,77 @@ describe('runFinalizeExpiredQuizAttempts', () => {
     expect(updates.held).toMatchObject({ status: 'completed', timeUp: true });
   });
 
+  it('pages past a full page of skipped attempts to reach a new expiry, and keeps the floor in the query', async () => {
+    const pausedRef = {
+      id: 'paused',
+      get: () =>
+        Promise.resolve({
+          exists: true,
+          data: () => ({ ...session, status: 'paused' }),
+        }),
+    };
+    const liveRef = {
+      id: 's1',
+      get: () => Promise.resolve({ exists: true, data: () => session }),
+    };
+    const snap = (id: string, startedAt: number, parent: unknown) => ({
+      id,
+      data: () => ({
+        status: 'in-progress',
+        attemptStartedAt: ts(startedAt),
+      }),
+      ref: {
+        id,
+        path: `quiz_sessions/${(parent as { id: string }).id}/responses/${id}`,
+        parent: { parent },
+      },
+    });
+    // 600 attempts in a paused session sort ahead of the one that just expired.
+    const all = [
+      ...Array.from({ length: 600 }, (_, i) =>
+        snap(`p${i}`, NOW - 300 * MIN + i, pausedRef)
+      ),
+      snap('late', NOW - 20 * MIN, liveRef),
+    ];
+    const updates: Record<string, Record<string, unknown>> = {};
+    const floors: number[] = [];
+    const query = (from: number) => {
+      const q = {
+        where: (f: string, op: string, v: { toMillis: () => number }) => {
+          if (f === 'attemptStartedAt' && op === '>') floors.push(v.toMillis());
+          return q;
+        },
+        orderBy: () => q,
+        limit: () => q,
+        startAfter: (d: { id: string }) =>
+          query(all.findIndex((s) => s.id === d.id) + 1),
+        get: () => {
+          const docs = all.slice(from, from + 500);
+          return Promise.resolve({ docs, size: docs.length });
+        },
+      };
+      return q;
+    };
+    const db = {
+      collectionGroup: () => query(0),
+      runTransaction: async (fn: (tx: unknown) => Promise<boolean>) =>
+        fn({
+          get: (ref: { id: string }) =>
+            Promise.resolve({
+              data: () => all.find((s) => s.id === ref.id)?.data(),
+            }),
+          update: (ref: { id: string }, d: Record<string, unknown>) => {
+            updates[ref.id] = d;
+          },
+        }),
+    };
+    const res = await runFinalizeExpiredQuizAttempts(db as never, NOW);
+    expect(res.candidates).toBe(601);
+    expect(Object.keys(updates)).toEqual(['late']);
+    expect(floors.length).toBeGreaterThan(0);
+    for (const f of floors) expect(f).toBeGreaterThan(NOW - 3 * 24 * 60 * MIN);
+  });
+
   it('skips a paused session', async () => {
     const { db, updates } = makeDb(
       { ...session, status: 'paused' },

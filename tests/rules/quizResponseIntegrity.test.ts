@@ -263,6 +263,51 @@ describe('quiz timed-attempt clock', () => {
     );
   });
 
+  it('a hybrid paper-scan row (no clock, no lastWriteAt) starts its clock, then takes device answers', async () => {
+    await seed(
+      QUIZ,
+      quizSession({
+        timeLimitMinutes: 10,
+        paperWrittenQuestionIds: ['p1'],
+      })
+    );
+    const scanned = {
+      questionId: 'p1',
+      answer: 'scan',
+      answeredAt: 1,
+      status: 'submitted',
+      paperScanId: 'scan1',
+    };
+    await seed(
+      QUIZ_RESPONSE,
+      quizResponse({
+        status: 'joined',
+        answers: [scanned],
+        paperWrittenBatchId: 'b1',
+        paperWrittenSeat: 1,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(), QUIZ_RESPONSE), {
+        answers: [scanned, answer],
+        status: 'in-progress',
+        lastWriteAt: serverTimestamp(),
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), QUIZ_RESPONSE), {
+        attemptStartedAt: serverTimestamp(),
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), QUIZ_RESPONSE), {
+        answers: [scanned, answer],
+        status: 'in-progress',
+        lastWriteAt: serverTimestamp(),
+      })
+    );
+  });
+
   it('a timed join with answers but no clock is denied', async () => {
     await seed(QUIZ, quizSession({ timeLimitMinutes: 10 }));
     const join = {

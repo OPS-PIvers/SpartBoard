@@ -14,6 +14,7 @@ import {
   publicImageOnlyAnswers,
 } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
+import { needsAttemptClock } from '@/utils/quizStudentPhase';
 import {
   INPUT_SIGNALS_FLUSH_EVENT,
   type InputSignalsFlushDetail,
@@ -3084,15 +3085,23 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 hasClassPeriod: !!classPeriod,
               })
             );
-          } else if (classPeriod && existing.classPeriod !== classPeriod) {
+          } else if (
+            (classPeriod && existing.classPeriod !== classPeriod) ||
+            needsAttemptClock(sessionData, existing)
+          ) {
             // Backfill classPeriod on an in-flight response (e.g. student
             // joined before periods were configured or reloaded after a
             // change). Treat this as activity — refresh lastWriteAt so
             // a long-running session doesn't trip the idle auto-submit
             // on the next sweep just because of a backfill touch.
+            // An open timed row with no clock (a paper scan made it) starts it here, or its answers are refused.
             await updateDoc(responseRef, {
-              classPeriod,
-              lastWriteAt: serverTimestamp(),
+              ...(classPeriod && existing.classPeriod !== classPeriod
+                ? { classPeriod, lastWriteAt: serverTimestamp() }
+                : {}),
+              ...(needsAttemptClock(sessionData, existing)
+                ? { attemptStartedAt: serverTimestamp() }
+                : {}),
             }).catch((err: unknown) =>
               logQuizJoinFirestoreError('update-backfill-period', err, {
                 sessionId: sessionDoc.id,

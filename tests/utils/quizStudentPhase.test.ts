@@ -7,6 +7,7 @@ import {
   isAtAttemptCap,
   isAttemptStarted,
   isAttemptSubmitted,
+  needsAttemptClock,
   questionStepReducer,
   questionTimedOut,
   quizJoinFlowReducer,
@@ -100,6 +101,28 @@ describe('attempt helpers', () => {
       )
     ).toBe(true);
     expect(isAtAttemptCap(session({ attemptLimit: 1 }), null)).toBe(false);
+  });
+
+  it('starts the clock on any open timed self-paced attempt without one, including a paper-scan row with no lastWriteAt', () => {
+    const timed = session({ sessionMode: 'student', timeLimitMinutes: 10 });
+    const scanRow = response({ status: 'joined' });
+    expect(scanRow.lastWriteAt).toBeUndefined();
+    expect(needsAttemptClock(timed, scanRow)).toBe(true);
+    expect(needsAttemptClock(timed, response())).toBe(true);
+    const started = response({
+      attemptStartedAt: { toMillis: () => 1 },
+    } as unknown as Partial<QuizResponse>);
+    expect(needsAttemptClock(timed, started)).toBe(false);
+    expect(needsAttemptClock(timed, response({ status: 'completed' }))).toBe(
+      false
+    );
+    expect(needsAttemptClock(timed, null)).toBe(false);
+    expect(needsAttemptClock(session({ timeLimitMinutes: 10 }), scanRow)).toBe(
+      false
+    );
+    expect(
+      needsAttemptClock(session({ sessionMode: 'student' }), scanRow)
+    ).toBe(false);
   });
 });
 

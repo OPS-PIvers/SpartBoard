@@ -51,7 +51,8 @@ async function candidates(
   );
   const out: admin.firestore.QueryDocumentSnapshot[] = [];
   let last: admin.firestore.QueryDocumentSnapshot | undefined;
-  while (out.length < MAX_READ_PER_RUN) {
+  // Counts every doc read (other kinds' responses too), and the floor above keeps long-skipped attempts from filling it.
+  for (let read = 0; read < MAX_READ_PER_RUN;) {
     let q = db
       .collectionGroup('responses')
       .where('status', 'in', ['joined', 'in-progress'])
@@ -65,6 +66,7 @@ async function candidates(
       .limit(PAGE);
     if (last) q = q.startAfter(last);
     const page = await q.get();
+    read += page.size;
     out.push(
       ...page.docs.filter((d) => d.ref.path.startsWith('quiz_sessions/'))
     );
