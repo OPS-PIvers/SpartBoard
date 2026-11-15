@@ -9,7 +9,7 @@
  * attach (never auto-shared silently).
  */
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
@@ -47,6 +47,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
 import type { QuizEditorController } from './useQuizEditorState';
+import { MetaChevron, MetaItem, metaValueClass } from './QuestionFields';
 import { StimulusTabFields } from './StimulusTabFields';
 
 const labelClass =
@@ -963,12 +964,15 @@ export const QuestionStimulusSection: React.FC<{
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
   /** `quiz-stimulus-preview` gate. */
   previewAvailable?: boolean;
+  /** `question-editor-fields`: a row of the light metadata list. */
+  metaList?: boolean;
 }> = ({
   state,
   questionId,
   calculatorAvailable = false,
   pasteScopeRef,
   previewAvailable = false,
+  metaList = false,
 }) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
@@ -978,6 +982,7 @@ export const QuestionStimulusSection: React.FC<{
       calculatorAvailable={calculatorAvailable}
       pasteScopeRef={pasteScopeRef}
       previewAvailable={previewAvailable}
+      metaList={metaList}
       ownerId={questionId}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
@@ -992,11 +997,13 @@ export const SlotStimulusSection: React.FC<{
   slotId: string;
   calculatorAvailable?: boolean;
   previewAvailable?: boolean;
+  metaList?: boolean;
 }> = ({
   state,
   slotId,
   calculatorAvailable = false,
   previewAvailable = false,
+  metaList = false,
 }) => {
   const slot = state.bankSlots.find((s) => s.id === slotId);
   return (
@@ -1005,6 +1012,7 @@ export const SlotStimulusSection: React.FC<{
       attachedIds={slot?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
       previewAvailable={previewAvailable}
+      metaList={metaList}
       ownerId={slotId}
       onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
     />
@@ -1019,6 +1027,7 @@ const AttachStimulusSection: React.FC<{
   previewAvailable?: boolean;
   /** The question or slot shown; a change closes the open preview. */
   ownerId?: string;
+  metaList?: boolean;
   onToggle: (stimulusId: string) => void;
 }> = ({
   state,
@@ -1027,6 +1036,7 @@ const AttachStimulusSection: React.FC<{
   pasteScopeRef,
   previewAvailable = false,
   ownerId,
+  metaList = false,
   onToggle,
 }) => {
   const { stimuli, questions, bankSlots } = state;
@@ -1042,6 +1052,7 @@ const AttachStimulusSection: React.FC<{
     [addFromFile, onToggle]
   );
   const [open, setOpen] = useState(false);
+  const fieldId = useId();
   const onPasted = useCallback(
     (files: File[]) => {
       setOpen(true);
@@ -1073,6 +1084,190 @@ const AttachStimulusSection: React.FC<{
         .map(stimulusDisplayName)
         .join(', ')
     : '';
+  const summary =
+    drop.dragging && !open
+      ? 'Drop it here'
+      : attachedCount > 0
+        ? attachedNames && !open
+          ? attachedNames
+          : `${attachedCount} attached`
+        : stimuli.length === 0
+          ? 'No stimuli yet'
+          : 'None attached';
+
+  const panel = (
+    <>
+      {stimuli.length > 0 && (
+        <ul className="space-y-1">
+          {stimuli.map((s, stimulusIndex) => {
+            const usedOn = [
+              ...questionsUsingStimulus(questions, s.id).map(
+                (i) => `Q${i + 1}`
+              ),
+              ...bankSlots
+                .filter((slot) => slot.stimulusIds?.includes(s.id))
+                .map((slot) => slot.bankTitle),
+            ];
+            const previewing = previewAvailable && previewId === s.id;
+            const name = previewAvailable
+              ? stimulusDisplayName(s)
+              : s.label || s.url;
+            const row = (
+              <label
+                className={`flex ${previewAvailable ? 'flex-1 min-w-0 ' : ''}items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50`}
+              >
+                <input
+                  type="checkbox"
+                  checked={attachedIds?.includes(s.id) ?? false}
+                  onChange={() => onToggle(s.id)}
+                  {...tourFieldAttr(
+                    'quiz-stimuli.attach-stimulus',
+                    'quiz',
+                    String(stimulusIndex + 1)
+                  )}
+                  className="w-3.5 h-3.5 accent-brand-blue-primary"
+                />
+                <span
+                  className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+                >
+                  {STIMULUS_TYPE_LABELS[s.type]}
+                </span>
+                <span className="flex-1 truncate">{name}</span>
+                <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
+                  {usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused'}
+                </span>
+              </label>
+            );
+            if (!previewAvailable) return <li key={s.id}>{row}</li>;
+            const previewDomId = `attach-preview-${s.id}`;
+            return (
+              <li key={s.id}>
+                <div className="flex items-center gap-1">
+                  {row}
+                  {s.type !== 'calculator' && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewId((id) => (id === s.id ? null : s.id))
+                      }
+                      aria-expanded={previewing}
+                      aria-controls={previewing ? previewDomId : undefined}
+                      aria-label={
+                        previewing ? `Hide ${name}` : `Preview ${name}`
+                      }
+                      title={previewing ? 'Hide preview' : 'Preview'}
+                      {...tourFieldAttr(
+                        'quiz-stimuli.attach-preview',
+                        'quiz',
+                        String(stimulusIndex + 1)
+                      )}
+                      className={`shrink-0 rounded-sm p-1 transition-colors touch-target-expand ${
+                        previewing
+                          ? 'text-brand-blue-primary bg-brand-blue-lighter'
+                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {previewing ? (
+                        <EyeOff className="w-3.5 h-3.5" aria-hidden />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" aria-hidden />
+                      )}
+                    </button>
+                  )}
+                </div>
+                {previewing && (
+                  <div
+                    id={previewDomId}
+                    data-testid="attach-stimulus-preview"
+                    className="mt-1 mb-2 ml-6 max-h-[60vh] overflow-y-auto custom-scrollbar pb-2"
+                  >
+                    <StimulusRenderer
+                      stimulus={s}
+                      light
+                      enforcePlayLimit={false}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div
+        className={`flex flex-col items-center gap-2 rounded-lg border border-dashed px-2.5 py-2.5 ${
+          drop.dragging ? 'border-brand-blue-primary' : 'border-slate-300'
+        }`}
+      >
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+          {intake.busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Upload className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {drop.dragging
+            ? 'Drop it here'
+            : pasteScopeRef
+              ? 'Drag a file or paste an image'
+              : 'Drag a file'}
+        </span>
+        <div className="flex flex-wrap justify-center gap-2">
+          <FileSourceButtons
+            compact
+            intake={intake}
+            onAdded={(added) => onToggle(added.id)}
+          />
+          {calculatorAvailable && (
+            <button
+              type="button"
+              onClick={() => onToggle(intake.addCalculator().id)}
+              disabled={intake.busy}
+              {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
+              className={fileButtonClass}
+            >
+              <Calculator className="h-3.5 w-3.5" aria-hidden />
+              Calculator
+            </button>
+          )}
+        </div>
+      </div>
+      <UrlAddRow
+        busy={intake.busy}
+        onAdd={async (url) => {
+          const added = await intake.addFromUrl(url);
+          if (added) onToggle(added.id);
+        }}
+      />
+    </>
+  );
+
+  if (metaList) {
+    return (
+      <div
+        {...drop.dropProps}
+        data-testid="question-stimulus-drop-zone"
+        className={`rounded-sm ${drop.dragging ? 'bg-brand-blue-lighter' : ''}`}
+      >
+        <MetaItem label="Stimuli" htmlFor={fieldId}>
+          <button
+            id={fieldId}
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+            className={`${metaValueClass} max-w-full`}
+          >
+            <span
+              className={`min-w-0 truncate tabular-nums ${attachedCount > 0 ? '' : 'text-slate-400'}`}
+            >
+              {summary}
+            </span>
+            <MetaChevron open={open} />
+          </button>
+        </MetaItem>
+        {open && <div className="space-y-2 pb-3 pt-1">{panel}</div>}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1103,159 +1298,12 @@ const AttachStimulusSection: React.FC<{
         <span
           className={`${previewAvailable ? 'min-w-0 truncate ' : ''}text-xs text-slate-400 tabular-nums`}
         >
-          {drop.dragging && !open
-            ? 'Drop it here'
-            : attachedCount > 0
-              ? attachedNames && !open
-                ? attachedNames
-                : `${attachedCount} attached`
-              : stimuli.length === 0
-                ? 'No stimuli yet'
-                : 'None attached'}
+          {summary}
         </span>
       </button>
       {open && (
         <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2">
-          {stimuli.length > 0 && (
-            <ul className="space-y-1">
-              {stimuli.map((s, stimulusIndex) => {
-                const usedOn = [
-                  ...questionsUsingStimulus(questions, s.id).map(
-                    (i) => `Q${i + 1}`
-                  ),
-                  ...bankSlots
-                    .filter((slot) => slot.stimulusIds?.includes(s.id))
-                    .map((slot) => slot.bankTitle),
-                ];
-                const previewing = previewAvailable && previewId === s.id;
-                const name = previewAvailable
-                  ? stimulusDisplayName(s)
-                  : s.label || s.url;
-                const row = (
-                  <label
-                    className={`flex ${previewAvailable ? 'flex-1 min-w-0 ' : ''}items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={attachedIds?.includes(s.id) ?? false}
-                      onChange={() => onToggle(s.id)}
-                      {...tourFieldAttr(
-                        'quiz-stimuli.attach-stimulus',
-                        'quiz',
-                        String(stimulusIndex + 1)
-                      )}
-                      className="w-3.5 h-3.5 accent-brand-blue-primary"
-                    />
-                    <span
-                      className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
-                    >
-                      {STIMULUS_TYPE_LABELS[s.type]}
-                    </span>
-                    <span className="flex-1 truncate">{name}</span>
-                    <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
-                      {usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused'}
-                    </span>
-                  </label>
-                );
-                if (!previewAvailable) return <li key={s.id}>{row}</li>;
-                const previewDomId = `attach-preview-${s.id}`;
-                return (
-                  <li key={s.id}>
-                    <div className="flex items-center gap-1">
-                      {row}
-                      {s.type !== 'calculator' && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreviewId((id) => (id === s.id ? null : s.id))
-                          }
-                          aria-expanded={previewing}
-                          aria-controls={previewing ? previewDomId : undefined}
-                          aria-label={
-                            previewing ? `Hide ${name}` : `Preview ${name}`
-                          }
-                          title={previewing ? 'Hide preview' : 'Preview'}
-                          {...tourFieldAttr(
-                            'quiz-stimuli.attach-preview',
-                            'quiz',
-                            String(stimulusIndex + 1)
-                          )}
-                          className={`shrink-0 rounded-sm p-1 transition-colors touch-target-expand ${
-                            previewing
-                              ? 'text-brand-blue-primary bg-brand-blue-lighter'
-                              : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          {previewing ? (
-                            <EyeOff className="w-3.5 h-3.5" aria-hidden />
-                          ) : (
-                            <Eye className="w-3.5 h-3.5" aria-hidden />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    {previewing && (
-                      <div
-                        id={previewDomId}
-                        data-testid="attach-stimulus-preview"
-                        className="mt-1 mb-2 ml-6 max-h-[60vh] overflow-y-auto custom-scrollbar pb-2"
-                      >
-                        <StimulusRenderer
-                          stimulus={s}
-                          light
-                          enforcePlayLimit={false}
-                        />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <div
-            className={`flex flex-col items-center gap-2 rounded-lg border border-dashed px-2.5 py-2.5 ${
-              drop.dragging ? 'border-brand-blue-primary' : 'border-slate-300'
-            }`}
-          >
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-              {intake.busy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Upload className="h-3.5 w-3.5" aria-hidden />
-              )}
-              {drop.dragging
-                ? 'Drop it here'
-                : pasteScopeRef
-                  ? 'Drag a file or paste an image'
-                  : 'Drag a file'}
-            </span>
-            <div className="flex flex-wrap justify-center gap-2">
-              <FileSourceButtons
-                compact
-                intake={intake}
-                onAdded={(added) => onToggle(added.id)}
-              />
-              {calculatorAvailable && (
-                <button
-                  type="button"
-                  onClick={() => onToggle(intake.addCalculator().id)}
-                  disabled={intake.busy}
-                  {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
-                  className={fileButtonClass}
-                >
-                  <Calculator className="h-3.5 w-3.5" aria-hidden />
-                  Calculator
-                </button>
-              )}
-            </div>
-          </div>
-          <UrlAddRow
-            busy={intake.busy}
-            onAdd={async (url) => {
-              const added = await intake.addFromUrl(url);
-              if (added) onToggle(added.id);
-            }}
-          />
+          {panel}
         </div>
       )}
     </div>

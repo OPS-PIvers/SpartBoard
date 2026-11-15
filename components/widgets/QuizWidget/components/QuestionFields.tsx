@@ -1,7 +1,7 @@
 // Question fields shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, Plus, Sigma, Tag } from 'lucide-react';
+import { AlertCircle, ChevronDown, Plus, Sigma, Tag } from 'lucide-react';
 import type {
   QuestionTargetTag,
   QuizQuestion,
@@ -231,11 +231,66 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   );
 };
 
+export const metaLabelClass =
+  'shrink-0 text-xs font-bold uppercase tracking-wider text-slate-500';
+
+export const metaValueClass =
+  'flex min-w-0 items-center gap-1 rounded-sm text-left text-sm text-slate-800 hover:text-brand-blue-primary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
+
+/** One row of the light question metadata list: label column, plain value. */
+export const MetaItem: React.FC<{
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
+}> = ({ label, htmlFor, children }) => (
+  <div className="flex min-h-8 items-center gap-3">
+    <label htmlFor={htmlFor} className={`${metaLabelClass} w-36`}>
+      {label}
+    </label>
+    <div className="flex min-w-0 flex-1">{children}</div>
+  </div>
+);
+
+export const MetaChevron: React.FC<{ open?: boolean }> = ({ open }) => (
+  <ChevronDown
+    className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+    aria-hidden
+  />
+);
+
 const DokSelect: React.FC<{
   value: QuizQuestion['dok'];
   onChange: (dok: QuizQuestion['dok']) => void;
-}> = ({ value, onChange }) => {
+  /** Light metadata style: plain value under its own DOK label. */
+  field?: { id: string };
+}> = ({ value, onChange, field }) => {
   const { t } = useTranslation();
+  if (field) {
+    return (
+      <span className="relative inline-flex min-w-0 items-center">
+        <select
+          id={field.id}
+          value={value ?? ''}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            onChange(n >= 1 && n <= 4 ? (n as 1 | 2 | 3 | 4) : undefined);
+          }}
+          className={`${metaValueClass} cursor-pointer appearance-none bg-transparent pr-5 field-sizing-content ${value ? '' : 'text-slate-400!'}`}
+          {...tourTypeAttr('quiz-editor.dok', 'quiz')}
+        >
+          <option value="">{t('quizDok.fieldNone', 'None')}</option>
+          {[1, 2, 3, 4].map((level) => (
+            <option key={level} value={level}>
+              {level}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-0">
+          <MetaChevron />
+        </span>
+      </span>
+    );
+  }
   return (
     <select
       value={value ?? ''}
@@ -257,34 +312,21 @@ const DokSelect: React.FC<{
   );
 };
 
-interface QuestionTargetsFieldProps {
-  question: Pick<QuizQuestion, 'id' | 'text' | 'targets' | 'dok'>;
+const LegacyTargetsRows: React.FC<{
+  question: Pick<QuizQuestion, 'targets' | 'dok'>;
   onChange: (targets: QuestionTargetTag[] | undefined) => void;
-  /** Offers the DOK level beside the targets; absent where DOK is off or unsupported. */
   onDokChange?: (dok: QuizQuestion['dok']) => void;
-  promptStandards: ReturnType<typeof useStandardsFromPrompt>;
-  pickerOpen: boolean;
-  onPickerOpenChange: (open: boolean) => void;
-  editAnchor?: TourAnchorAttrs;
-}
-
-export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
-  question: q,
-  onChange,
-  onDokChange,
-  promptStandards,
-  pickerOpen,
-  onPickerOpenChange,
-  editAnchor = tourTypeAttr('quiz-editor.targets-edit', 'quiz'),
-}) => (
-  <div>
+  onOpen: () => void;
+  editAnchor: TourAnchorAttrs;
+}> = ({ question: q, onChange, onDokChange, onOpen, editAnchor }) => (
+  <>
     <div className="flex items-center justify-between mb-1">
       <label className={labelClass}>Learning targets</label>
       <div className="flex items-center gap-3">
         {onDokChange && <DokSelect value={q.dok} onChange={onDokChange} />}
         <button
           type="button"
-          onClick={() => onPickerOpenChange(true)}
+          onClick={onOpen}
           className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
           {...editAnchor}
         >
@@ -304,8 +346,98 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
     ) : (
       <p className="text-xs text-slate-500">No targets.</p>
     )}
+  </>
+);
+
+const TargetsMetaItems: React.FC<{
+  question: Pick<QuizQuestion, 'id' | 'targets' | 'dok'>;
+  onDokChange?: (dok: QuizQuestion['dok']) => void;
+  onOpen: () => void;
+  editAnchor: TourAnchorAttrs;
+}> = ({ question: q, onDokChange, onOpen, editAnchor }) => {
+  const tags = q.targets ?? [];
+  const targetsId = `question-targets-${q.id}`;
+  const dokId = `question-dok-${q.id}`;
+  return (
+    <>
+      <MetaItem label="Learning targets" htmlFor={targetsId}>
+        <button
+          id={targetsId}
+          type="button"
+          aria-haspopup="dialog"
+          onClick={onOpen}
+          title={tags.map((t) => t.label).join('\n') || undefined}
+          className={`${metaValueClass} max-w-full`}
+          {...editAnchor}
+        >
+          <span
+            className={`min-w-0 truncate ${tags.length ? '' : 'text-slate-400'}`}
+          >
+            {tags.length
+              ? tags.map((t) => t.code ?? t.label).join(', ')
+              : 'None'}
+          </span>
+          <MetaChevron />
+        </button>
+      </MetaItem>
+      {onDokChange && (
+        <MetaItem label="DOK" htmlFor={dokId}>
+          <DokSelect
+            value={q.dok}
+            onChange={onDokChange}
+            field={{ id: dokId }}
+          />
+        </MetaItem>
+      )}
+    </>
+  );
+};
+
+interface QuestionTargetsFieldProps {
+  question: Pick<QuizQuestion, 'id' | 'text' | 'targets' | 'dok'>;
+  onChange: (targets: QuestionTargetTag[] | undefined) => void;
+  /** Offers the DOK level beside the targets; absent where DOK is off or unsupported. */
+  onDokChange?: (dok: QuizQuestion['dok']) => void;
+  promptStandards: ReturnType<typeof useStandardsFromPrompt>;
+  pickerOpen: boolean;
+  onPickerOpenChange: (open: boolean) => void;
+  editAnchor?: TourAnchorAttrs;
+  /** `question-editor-fields`: rows of the light metadata list. */
+  metaList?: boolean;
+}
+
+export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
+  question: q,
+  onChange,
+  onDokChange,
+  promptStandards,
+  pickerOpen,
+  onPickerOpenChange,
+  editAnchor = tourTypeAttr('quiz-editor.targets-edit', 'quiz'),
+  metaList = false,
+}) => (
+  <div>
+    {metaList ? (
+      <TargetsMetaItems
+        question={q}
+        onDokChange={onDokChange}
+        onOpen={() => onPickerOpenChange(true)}
+        editAnchor={editAnchor}
+      />
+    ) : (
+      <LegacyTargetsRows
+        question={q}
+        onChange={onChange}
+        onDokChange={onDokChange}
+        onOpen={() => onPickerOpenChange(true)}
+        editAnchor={editAnchor}
+      />
+    )}
     {promptStandards.isCurrent(q.id, q.text, q.targets) && (
-      <p className="mt-1 text-xs text-slate-500" role="status">
+      <p
+        className={`text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
+        role="status"
+      >
         {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
         <button
           type="button"

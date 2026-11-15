@@ -934,6 +934,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             previewAvailable={canAccessFeature('quiz-stimulus-preview')}
+            metaList={canAccessFeature('question-editor-fields')}
           />
         }
       />
@@ -960,6 +961,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const timeLimitLockedByRecording = mediaResponseAllowed && !!q.recording;
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
+  const metaList = canAccessFeature('question-editor-fields');
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
@@ -983,24 +985,30 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptFormat
         />
 
-        {/* Under the prompt, matching where students see it. */}
-        <QuestionStimulusSection
-          state={state}
-          questionId={q.id}
-          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-          pasteScopeRef={paneRef}
-          previewAvailable={canAccessFeature('quiz-stimulus-preview')}
-        />
+        <div
+          className={metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'}
+        >
+          {/* Under the prompt, matching where students see it. */}
+          <QuestionStimulusSection
+            state={state}
+            questionId={q.id}
+            calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+            pasteScopeRef={paneRef}
+            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
+            metaList={metaList}
+          />
 
-        {/* Learning targets */}
-        <QuestionTargetsField
-          question={q}
-          onChange={(targets) => updateQuestion(q.id, { targets })}
-          onDokChange={(dok) => updateQuestion(q.id, { dok })}
-          promptStandards={promptStandards}
-          pickerOpen={pickerOpen}
-          onPickerOpenChange={setPickerOpen}
-        />
+          {/* Learning targets */}
+          <QuestionTargetsField
+            question={q}
+            onChange={(targets) => updateQuestion(q.id, { targets })}
+            onDokChange={(dok) => updateQuestion(q.id, { dok })}
+            promptStandards={promptStandards}
+            pickerOpen={pickerOpen}
+            onPickerOpenChange={setPickerOpen}
+            metaList={metaList}
+          />
+        </div>
 
         {/* Type / format / time / points row */}
         <div
