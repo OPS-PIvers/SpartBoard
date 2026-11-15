@@ -169,7 +169,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
-  'lunch-count-redesign',
   'lunch-count-resend',
   'quiz-import-versions',
   'quiz-ordering-images',
