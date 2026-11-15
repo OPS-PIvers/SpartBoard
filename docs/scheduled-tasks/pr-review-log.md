@@ -5117,3 +5117,15 @@ rather than "no data") is also still open.
   - Ready: #5806, #5805, #5804, #5783.
   - Ready with minor notes: #5807 (its #5804 row still describes the earlier regex).
 - Notes: GitHub access went through MCP. Each fix passed `pnpm run type-check`, `vitest related` and the pre-commit lint hook. I didn't run full lint or full test, per CLAUDE.md.
+
+## 2026-11-15
+
+- PRs reviewed (14): #5889 Security: sub-share calendar opt-in and legacy pick seed (H2 part 2); #5888 Security: paper scan import hardening (bundle P); #5887 Security: ClassLink roster trust, sync sweep and LTI launch binding; #5884 Security: scheduled mailers send only from owner paths to proven Google addresses; #5883 docs: nightly debugger run 124; #5882 Sub quiz control End/Resume reach every response; #5881 Specialist Schedule admin modal failed-load guard; #5880 mergeSubsetOrder repeated id; #5879 useSortableReorder mid-commit items; #5878 Guided Learning denied clipboard; #5875 AB-112 list the merged Live view branch; #5858 docs: unifier run 147; #5817 Security: gradebook integrity (bundle G); #5816 Security: quiz response integrity (bundle D2)
+- Comments processed: 4 needed a reply, 0 fixed, 4 explained. All 10 inline review threads (#5816, #5817) were already resolved, with author fixes. Replies went to the open summary notes on #5816 (`failUnlessStale` wrap, already done on the branch), #5817 (PR description behavior callouts, needs the author), #5882 (optional chunking) and #5889 (marked no change needed). The other claude[bot] summaries found no issues.
+- Fixes pushed:
+  - #5817 `security/g-gradebook-integrity` (15f7c52e): this review found the functions build broken (TS2554, a stale fifth `projectRow` argument in `devGradebookDemo.ts`). Restored the 3-arg call that `dev-paul` uses.
+- Reviews posted: 14
+  - Ready: #5881, #5880, #5875, #5858, #5883.
+  - Ready with minor notes: #5882, #5879, #5878, #5888, #5887 (login-path ClassLink outage drops sections; `'unavailable'` cached 5 min), #5884, #5816 (server-written turn-ins skip `isOverTime`), #5817 (once CI is green; app-graded Mini App marks need a column max to count).
+  - Needs changes: #5889 (a stale-nonce copy blocks its owner's republish; old-client nonce tolerance; stale base).
+- Notes: GitHub access went through MCP. Reviews were drafted by four parallel read-only subagents and the docs PRs reviewed inline. The #5817 fix passed functions `tsc --noEmit` and the pre-commit lint hook. No test covers that file. I didn't run full lint or full test, per CLAUDE.md.
