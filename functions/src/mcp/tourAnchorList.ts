@@ -19254,7 +19254,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-live-view.tell-student",
-    "label": "Tell the student switch in Quiz Live view",
+    "label": "Notify student when viewing switch in Quiz Live view",
     "scope": "widget type",
     "panel": true,
     "persists": true,

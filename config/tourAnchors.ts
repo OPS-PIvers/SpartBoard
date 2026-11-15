@@ -4665,7 +4665,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-live-view.tell-student': {
-    label: 'Tell the student switch in Quiz Live view',
+    label: 'Notify student when viewing switch in Quiz Live view',
     perWidgetType: true,
     persists: true,
     panel: true,
