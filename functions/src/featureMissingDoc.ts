@@ -84,6 +84,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-embed',
   'import-link',
   'import-schoology-course',
+  'import-straight-to-board',
   'video-import-ai',
   'embed-mini-app',
   'schoology-push-due-date',

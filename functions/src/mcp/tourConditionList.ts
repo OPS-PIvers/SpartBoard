@@ -85,6 +85,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'import-pdf',
   'import-schoology-course',
   'import-sticker',
+  'import-straight-to-board',
   'import-video-activity',
   'input-signals',
   'instructional-routine',

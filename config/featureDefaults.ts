@@ -1627,6 +1627,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'import-straight-to-board': {
+    label: 'Import: add straight to the board',
+    icon: Zap,
+    description:
+      'A dropped file or link that offers one widget skips Add to board and goes straight onto the board.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    requires: 'universal-import',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'youtube-paste-picker': {
     label: 'Paste a YouTube link: pick a widget',
     icon: Video,

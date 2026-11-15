@@ -64,10 +64,6 @@ import {
   normalizeStudentGrammarlySettings,
 } from '@/config/studentContextMenu';
 import {
-  IMPORT_CONVERSION_SETTINGS_DOC,
-  normalizeImportConversionSettings,
-} from '@/config/importConversion';
-import {
   FOCUS_SESSIONS_SETTINGS_DOC,
   normalizeFocusLiveSiteSettings,
 } from '@/config/focusSessions';
@@ -225,13 +221,6 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
       'During a focus session, the roster shows the site each student is on.',
     superAdminOnly: true,
     normalize: normalizeFocusLiveSiteSettings,
-  },
-  {
-    docId: IMPORT_CONVERSION_SETTINGS_DOC,
-    feature: 'universal-import',
-    title: 'AI in Import',
-    description: 'Import can use AI to turn a page or file into an activity.',
-    normalize: normalizeImportConversionSettings,
   },
   {
     docId: GETTING_STARTED_SETTINGS_DOC,
