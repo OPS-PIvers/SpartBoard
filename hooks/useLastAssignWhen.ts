@@ -74,7 +74,7 @@ export function resetLastAssignWhenCache(): void {
 }
 
 /** Today at this time, or tomorrow once today's has passed. */
-function nextDue(time: string, now: Date): ManualDue {
+export function nextDue(time: string, now: Date): ManualDue {
   const today = getLocalIsoDate(now);
   const at = manualDueAt({ kind: 'date', day: today, time });
   if (at == null || at > now.getTime())
@@ -106,7 +106,7 @@ export function withRememberedWhen(
         ? undefined
         : due === 'date'
           ? nextDue(last?.dueTime ?? DEFAULT_DUE_TIME, now)
-          : { kind: 'ended' },
+          : { kind: 'ended', time: last?.dueTime ?? DEFAULT_DUE_TIME },
     },
   };
 }
@@ -122,8 +122,7 @@ export function lastWhenFrom(
     allowLate: value.availability.allowLate,
     opens: value.availability.opensOnAssign === false ? 'date' : 'now',
     due: due?.kind ?? previous?.due ?? 'ended',
-    dueTime:
-      due?.kind === 'date' ? due.time : (previous?.dueTime ?? DEFAULT_DUE_TIME),
+    dueTime: due?.time ?? previous?.dueTime ?? DEFAULT_DUE_TIME,
   };
 }
 

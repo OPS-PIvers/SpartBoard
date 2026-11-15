@@ -4562,6 +4562,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-mark-absent': {
+    label:
+      'Absent button on a student who has not joined, in the Quiz monitor roster',
+    perField: true,
+    persists: true,
+  },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
     perWidgetType: true,
@@ -9264,6 +9270,35 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.import-source': {
+    label: 'An import kind in What each import offers (opens its widget list)',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.import-source-switch': {
+    label: 'On/off switch for an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-widget': {
+    label: 'Widget checkbox under an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-switch': {
+    label: 'With AI switch for a widget in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-limit': {
+    label: 'Daily limit field for a widget with AI in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.previews.focus-hours-start': {
     label: 'Start time field in Focus session hours',
     panel: true,
@@ -11746,6 +11781,12 @@ export const TOUR_ANCHORS = {
     label: 'Back button in the Mini App results view',
     perWidgetType: true,
     panel: true,
+  },
+  'mini-app.archive-publish-scores': {
+    label: 'Publish scores item in a Mini App Completed assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
   },
   'mini-app.results-hide-names': {
     label: 'Hide student names button in the Mini App results view',

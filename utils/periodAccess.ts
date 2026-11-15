@@ -106,3 +106,13 @@ export function summarizePeriods(
     total: all.length,
   };
 }
+
+/** The Manual due date every period locks at, when the session has one. */
+export function dueLockAt(session: {
+  dueLocks?: boolean;
+  dueAt?: number | null;
+}): number | null {
+  return session.dueLocks === true && typeof session.dueAt === 'number'
+    ? session.dueAt
+    : null;
+}

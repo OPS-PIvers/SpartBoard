@@ -4,6 +4,7 @@ import {
   ClipboardList,
   FolderTree,
   MonitorPlay,
+  Users,
   ArrowLeftRight,
   Camera,
   PenLine,
@@ -902,6 +903,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz Monitor roster: students who haven't joined show under Not started.
+  'quiz-monitor-roster': {
+    label: 'Quiz Monitor class roster',
+    icon: Users,
+    description:
+      "Monitor lists every student in the class, including those who haven't joined.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Class roster',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Quiz "Show score on submit" setting. Admin-only until Paul has used it with a class.
   'quiz-score-on-submit': {
     label: 'Quiz score on submit',
@@ -1620,6 +1636,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Import: whole Schoology course',
     icon: Library,
     description: 'Offers Whole course for a Schoology course export.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    requires: 'universal-import',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'import-straight-to-board': {
+    label: 'Import: add straight to the board',
+    icon: Zap,
+    description:
+      'A dropped file or link that offers one widget skips Add to board and goes straight onto the board.',
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',

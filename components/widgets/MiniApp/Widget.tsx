@@ -10,6 +10,7 @@ import {
   DEFAULT_MINI_APP_RESULTS,
   loadMiniAppKey,
   miniAppResultsOn,
+  publishMiniAppScores,
   type MiniAppResultsChoice,
 } from '@/utils/miniAppResults';
 import { createPortal } from 'react-dom';
@@ -93,6 +94,7 @@ import {
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
+import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
@@ -521,6 +523,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     assignments.some((a) => a.appId === activeApp.id && a.mode !== 'view-only');
   const [editingClasses, setEditingClasses] =
     useState<MiniAppAssignment | null>(null);
+  const [publishingScores, setPublishingScores] =
+    useState<MiniAppAssignment | null>(null);
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
@@ -693,6 +697,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           assignmentName,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
+          ...(results ? { resultsVersion: 2 as const } : {}),
           targetMode: expandedTargeting.targetMode,
           targetGroupIds: expandedTargeting.targetGroupIds,
           overridesBySourcedId: expandedTargeting.overridesByKey,
@@ -1980,11 +1985,49 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
               onArchiveEditClasses={setEditingClasses}
+              onArchivePublishScores={
+                canAccessFeature('mini-app-results')
+                  ? setPublishingScores
+                  : undefined
+              }
               assignmentMode={assignmentMode}
               readOnly={isActiveBoardReadOnly}
             />
             {/* Assign modal */}
             {assignDialog}
+            {publishingScores && (
+              <PublishScoresModal
+                assignmentTitle={publishingScores.assignmentName}
+                currentVisibility={publishingScores.scoreVisibility}
+                onClose={() => setPublishingScores(null)}
+                onConfirm={async (visibility) => {
+                  const target = publishingScores;
+                  try {
+                    const { published } = await publishMiniAppScores(
+                      target.sessionId,
+                      visibility
+                    );
+                    addToast(
+                      visibility === 'none'
+                        ? 'Scores unpublished.'
+                        : `Scores published to ${published} student${published === 1 ? '' : 's'}.`,
+                      'success'
+                    );
+                    setPublishingScores(null);
+                  } catch (err) {
+                    logError('MiniAppWidget.publishScores', err, {
+                      assignmentId: target.id,
+                    });
+                    addToast(
+                      err instanceof Error && err.message
+                        ? err.message
+                        : "Couldn't publish scores.",
+                      'error'
+                    );
+                  }
+                }}
+              />
+            )}
             {editingClasses && (
               <AssignmentClassesModal
                 rosters={rosters}

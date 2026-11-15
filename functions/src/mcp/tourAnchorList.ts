@@ -18845,6 +18845,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.student-mark-absent",
+    "label": "Absent button on a student who has not joined, in the Quiz monitor roster",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.student-unlock-attempt",
     "label": "Unlock attempt item in the Quiz monitor student menu",
     "scope": "widget type",
@@ -40737,6 +40758,105 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.previews.import-source",
+    "label": "An import kind in What each import offers (opens its widget list)",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.import-source-switch",
+    "label": "On/off switch for an import kind in What each import offers",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.import-widget",
+    "label": "Widget checkbox under an import kind in What each import offers",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.import-ai-switch",
+    "label": "With AI switch for a widget in What each import offers",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.import-ai-limit",
+    "label": "Daily limit field for a widget with AI in What each import offers",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.previews.focus-hours-start",
     "label": "Start time field in Focus session hours",
     "scope": "board",
@@ -51434,6 +51554,30 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "widget",
         "widget_type": "miniApp",
         "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.archive-publish-scores",
+    "label": "Publish scores item in a Mini App Completed assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [
+          "library-shell.archive-menu:miniApp#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:miniApp#row-1",
         "needs": [
           "widget-on-stage"
         ]

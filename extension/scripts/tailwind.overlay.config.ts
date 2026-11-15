@@ -20,5 +20,6 @@ export default {
     `${root}components/common/lightChrome.ts`,
     `${root}components/tours/web/BlurBoxes.tsx`,
     `${root}components/common/Toggle.tsx`,
+    `${root}utils/selectMenu.ts`,
   ],
 } satisfies Config;

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Z_INDEX } from '@/config/zIndex';
 import { chromeSurface } from '@/components/common/lightChrome';
 import { asScriptedClick, isScriptedClick } from '@/components/tours/autopilot';
+import { openSelectMenu } from '@/utils/selectMenu';
 import type { TourSlots } from '@/components/tours/tourSession';
 import { secondaryBtn } from '@/components/tours/tourButtons';
 import {
@@ -110,6 +111,7 @@ const openNativeSelect = (e: MouseEvent): boolean => {
   const select = elementBelow(e)?.closest('select');
   if (!select || select.disabled) return false;
   select.focus({ preventScroll: true });
+  if (openSelectMenu(select)) return true;
   try {
     select.showPicker();
   } catch {

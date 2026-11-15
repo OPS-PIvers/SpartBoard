@@ -167,6 +167,7 @@ export {
   reopenFlashcardCheckV1,
 } from './flashcardCheck';
 export { submitMiniAppResultV1 } from './miniAppResults';
+export { publishMiniAppScoresV1 } from './miniAppPublish';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 export { rescoreFlashcardCheckV1 } from './flashcardRescore';
 

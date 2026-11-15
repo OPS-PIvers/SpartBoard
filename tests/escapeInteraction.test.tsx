@@ -15,6 +15,13 @@ import {
 import { Dashboard, WidgetData, GlobalStyle } from '@/types';
 
 // Mock child components to simplify testing
+vi.mock('@/hooks/useImportConversionSettings', async () => {
+  const { normalizeImportConversionSettings } =
+    await import('@/config/importConversion');
+  return {
+    useImportConversionSettings: () => normalizeImportConversionSettings({}),
+  };
+});
 vi.mock('@/components/announcements/AnnouncementOverlay', () => ({
   AnnouncementOverlay: () => <div data-testid="announcement-overlay" />,
 }));

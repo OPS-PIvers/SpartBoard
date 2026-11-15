@@ -3935,6 +3935,29 @@ export interface MiniAppSession
   summaryHidden?: true;
   /** v2 only: frozen copy of the app's manifest at assign. */
   manifest?: MiniAppManifest;
+  /** v2 only: what students see of their results, set by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
+}
+
+/** A student's own published copy at `mini_app_sessions/{id}/published/{key}`. */
+export interface PublishedMiniAppResult {
+  studentUid: string;
+  visibility: Exclude<QuizScoreVisibility, 'none'>;
+  publishedAt: number;
+  score?: number;
+  maxScore?: number;
+  gradedBy?: 'server' | 'app';
+  correctCount?: number;
+  gradedCount?: number;
+  items?: {
+    id: string;
+    prompt: string;
+    answer: unknown;
+    correct: boolean | null;
+    correctAnswer?: string;
+  }[];
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -5500,6 +5523,8 @@ export interface PeriodAccessSessionFields {
   studentAccess?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
+  /** Manual due date: every period locks at `dueAt`; a Start or Let in after it is late. */
+  dueLocks?: boolean;
 }
 
 /** One closed pause, epoch ms; the overall time limit does not run through it. */
@@ -11295,6 +11320,8 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz Monitor Live view: a teacher watches one student's in-progress attempt, redrawn from saved data. */
   | 'quiz-live-view'
+  /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
+  | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
@@ -11396,6 +11423,7 @@ export type GlobalFeature =
   | 'import-embed'
   | 'import-link'
   | 'import-schoology-course'
+  | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
   /** Due date picker in the Push to Schoology dialog. */
@@ -12493,6 +12521,11 @@ export interface MiniAppAssignment extends PeriodAccessSessionFields {
   targetSkippedCount?: number;
   /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Mirrors `MiniAppSession.resultsVersion`; only these rows can publish scores. */
+  resultsVersion?: 2;
+  /** Mirrors `MiniAppSession.scoreVisibility`, written by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
 }
 
 // === /MiniApp assignments ===
