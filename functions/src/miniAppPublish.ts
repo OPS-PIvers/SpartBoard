@@ -109,9 +109,11 @@ export function buildPublishedResult(
       ? {
           score: best.score,
           maxScore: best.maxScore,
-          ...(best.gradedBy === 'server' || best.gradedBy === 'app'
-            ? { gradedBy: best.gradedBy }
-            : {}),
+          ...(best.gradedBy === 'server'
+            ? { gradedBy: 'server' as const }
+            : best.gradedBy === 'app'
+              ? { gradedBy: 'app' as const }
+              : {}),
         }
       : null;
   const marks =
