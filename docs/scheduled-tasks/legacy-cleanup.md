@@ -26,6 +26,12 @@ _Nothing currently in progress._
 
 ## Open
 
+### [LOW] ~296 exports in utils/ and hooks/ referenced nowhere outside their own file
+- **Detected:** 2026-11-15
+- **File:** utils/, hooks/ (e.g. `utils/quizJoinCodes.ts`, `utils/paperSheetReader.ts`, `utils/paperPageMap.ts`)
+- **Detail:** Word-match scan across components, context, hooks, utils, config, tests, scripts, extension found no outside reference. Many are likely used inside their own file, so the `export` keyword is the surplus.
+- **Fix:** Drop `export` where the symbol is used only locally and delete symbols that are dead; verify with `pnpm type-check`.
+
 _2026-10-04: Weekly D2 (Sunday). `migrateLocalStorageToFirestore` still invoked at `context/DashboardContext.tsx:2710` (existing MEDIUM stands). No `timer`/`stopwatch`/`workSymbols` type strings generated; 0 `console.log` calls in app code; no commented-out code runs over 10 lines; `scripts/tools/` stays deleted. All 8 previously-filed dead exports still have a single (definition-only) non-test reference. 0 new issues._
 
 ### LOW `utils/paperSheetMarker.ts:156` — `markerFitsGrid` dead export (test-only, no production call site)
