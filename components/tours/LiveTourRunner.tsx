@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -93,7 +94,8 @@ import {
   findTourAnchor,
   findTourAnchors,
   isAnchorReachable,
-  pickedRowRef,
+  followPickedRow,
+  notePickedRow,
 } from './resolveTourAnchor';
 import {
   prerequisiteWidgetId,
@@ -440,12 +442,6 @@ function fullRunIndex(index: number, dropped: readonly number[] = []): number {
   return at;
 }
 
-/** Records the row a wildcard step was answered with, under its route form `id:type`. */
-function notePick(picks: Record<string, string>, ref: string, el: Element) {
-  const picked = pickedRowRef(ref, el);
-  if (picked) picks[ref.slice(0, ref.indexOf('#'))] = picked;
-}
-
 /** Runs a Guided Learning set's live-tour steps against the real app. */
 export const LiveTourRunner: React.FC = () => {
   const { t } = useTranslation();
@@ -494,6 +490,11 @@ export const LiveTourRunner: React.FC = () => {
   const lastStepClickAt = useRef(0);
   // The row each wildcard step was answered with, so a replayed route reopens that row.
   const rowPicks = useRef<Record<string, string>>({});
+  const [pickedRows, setPickedRows] = useState<Record<string, string>>({});
+  const notePick = (ref: string, el: Element) => {
+    if (notePickedRow(rowPicks.current, ref, el))
+      setPickedRows({ ...rowPicks.current });
+  };
   const lastStepCreated = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
@@ -723,14 +724,22 @@ export const LiveTourRunner: React.FC = () => {
       wroteSaved.current = false;
     }
   }, [savedKey, ended]);
-  const step =
+  const storedStep =
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
+  // A step on a row of a list the teacher picked from earlier follows that row.
+  const step = useMemo(() => {
+    const ref = storedStep?.tour?.anchor;
+    const followed = ref ? followPickedRow(ref, pickedRows) : ref;
+    return storedStep?.tour && followed !== ref
+      ? { ...storedStep, tour: { ...storedStep.tour, anchor: followed ?? '' } }
+      : storedStep;
+  }, [storedStep, pickedRows]);
   // A draft edit swaps the step objects, so any change to the steps searches again.
   const editAtEnd =
     !!tour?.edit &&
     tour.phase === 'running' &&
     editEnd?.visit === visit &&
-    editEnd.step === step &&
+    editEnd.step === storedStep &&
     tour.index + 1 === tour.steps.length;
   const anchor = useAnchorElement(
     editAtEnd ? null : (step?.tour ?? null),
@@ -984,6 +993,7 @@ export const LiveTourRunner: React.FC = () => {
     healTried.current.clear();
     takeBackUsed.current.clear();
     rowPicks.current = {};
+    setPickedRows({});
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -1686,7 +1696,7 @@ export const LiveTourRunner: React.FC = () => {
       lastStepClickAt.current = Date.now();
       lastStepCreated.current = stepCreates;
       if (e.currentTarget instanceof Element)
-        notePick(rowPicks.current, stepAnchor, e.currentTarget);
+        notePick(stepAnchor, e.currentTarget);
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
       const signal = clickWait.current?.signal;
@@ -1790,7 +1800,11 @@ export const LiveTourRunner: React.FC = () => {
     if (anchor.status === 'found' && !inAnchor && !isInPopup(hit)) return;
     const kinds: readonly string[] =
       e.type === 'change' ? ['type', 'select'] : ['click', 'toggle', 'select'];
-    const scope = { widgetIds: added, slots: tour.slots };
+    const scope = {
+      widgetIds: added,
+      slots: tour.slots,
+      picks: rowPicks.current,
+    };
     const found: { el?: Element } = {};
     const matched = matchLookahead(tour.steps, tour.index, (s, i) => {
       const b = s.tour;
@@ -1803,7 +1817,7 @@ export const LiveTourRunner: React.FC = () => {
     });
     const el = found.el;
     if (matched === null || !el) return;
-    notePick(rowPicks.current, tour.steps[matched]?.tour?.anchor ?? '', el);
+    notePick(tour.steps[matched]?.tour?.anchor ?? '', el);
     const p = pendingCatch.current;
     if (p && p.from === tour.index) {
       // A quick burst lands once, on the step after the furthest one done.
@@ -2228,11 +2242,11 @@ export const LiveTourRunner: React.FC = () => {
     reportTestStep({
       index: stepIndex,
       stepId: step.id,
-      anchor: step.tour?.anchor ?? '',
+      anchor: storedStep?.tour?.anchor ?? '',
       status: testStatus,
     });
     if (testStatus === 'missing' && !found) advanceRef.current(stepIndex + 1);
-  }, [testStatus, stepIndex, step]);
+  }, [testStatus, stepIndex, step, storedStep]);
   const waitingOnTeacher = autoStage === 'blocked' || autoStage === 'fallback';
   const autoBusy =
     autoStage === 'demo' || autoStage === 'waiting' || autoStage === 'confirm';
@@ -2383,6 +2397,7 @@ export const LiveTourRunner: React.FC = () => {
               widgetIds: latestAdded.current,
               slots: latestSlots.current,
               accept: isAnchorReachable,
+              picks: rowPicks.current,
             });
             return !!next && isSettled(next);
           },

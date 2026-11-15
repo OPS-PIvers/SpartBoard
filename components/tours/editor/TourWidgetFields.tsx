@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GuidedLearningTourBinding, WidgetType } from '@/types';
 import {
+  ROW_WILDCARD,
   TOUR_ANCHORS,
   isTourAnchorId,
   parseTourAnchorRef,
@@ -11,6 +12,8 @@ import {
 import { TOOLS } from '@/config/tools';
 import { fieldKeysForWidgetType, hasFieldSchema } from './tourFieldKeys';
 import { fitActionToAnchor } from './stepStatus';
+
+const MAX_ROW_CHOICES = 10;
 
 interface Props {
   tour: GuidedLearningTourBinding;
@@ -32,10 +35,14 @@ export const TourWidgetFields: React.FC<Props> = ({
     ? (TOUR_ANCHORS as Record<string, TourAnchorDef>)[id]
     : undefined;
   const perField = !!def?.perField;
+  const rowPicker = perField && !!def?.rows;
   const needsType = !!def?.perWidgetType || perField;
 
   const schemaAvailable =
-    perField && !!widgetType && hasFieldSchema(widgetType as WidgetType);
+    perField &&
+    !rowPicker &&
+    !!widgetType &&
+    hasFieldSchema(widgetType as WidgetType);
   const [loadedKeys, setLoadedKeys] = useState<{
     type: string;
     keys: string[];
@@ -63,6 +70,8 @@ export const TourWidgetFields: React.FC<Props> = ({
     fieldKey && !fieldKeys.includes(fieldKey)
       ? [fieldKey, ...fieldKeys]
       : fieldKeys;
+  const rowNumber = Number(/^row-(\d+)$/.exec(fieldKey ?? '')?.[1] ?? 0);
+  const rowCount = Math.max(MAX_ROW_CHOICES, rowNumber);
 
   return (
     <>
@@ -85,7 +94,31 @@ export const TourWidgetFields: React.FC<Props> = ({
           ))}
         </select>
       </label>
-      {perField && widgetType && (
+      {rowPicker && widgetType && (
+        <label className={labelClass}>
+          {t('glStudio.tourRow')}
+          <select
+            value={fieldKey ?? ''}
+            onChange={(e) => rebind(widgetType, e.target.value || undefined)}
+            className={inputClass}
+            data-testid="tour-editor-row-key"
+          >
+            {!fieldKey && (
+              <option value="">{t('glStudio.tourRowFirst')}</option>
+            )}
+            <option value={ROW_WILDCARD}>{t('glStudio.tourRowAny')}</option>
+            {fieldKey && fieldKey !== ROW_WILDCARD && !rowNumber && (
+              <option value={fieldKey}>{fieldKey}</option>
+            )}
+            {Array.from({ length: rowCount }, (_, i) => (
+              <option key={i} value={`row-${i + 1}`}>
+                {t('glStudio.tourRowN', { n: i + 1 })}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {perField && !rowPicker && widgetType && (
         <label className={labelClass}>
           {t('glStudio.tourField')}
           {schemaAvailable ? (

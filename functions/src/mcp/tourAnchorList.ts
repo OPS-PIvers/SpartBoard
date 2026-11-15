@@ -12,6 +12,7 @@ export interface TourAnchorEntry {
   key_pattern?: string;
   key_hint?: string;
   row_wildcard?: true;
+  row_list?: string;
   cycles?: string;
   opens_empty?: string;
   closes?: string;
@@ -5351,6 +5352,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
     "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -5392,6 +5395,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
     "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -25392,6 +25397,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Library item card body (open)",
     "scope": "field",
     "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25406,6 +25412,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25419,6 +25426,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Secondary primary action button on a library item card",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25432,6 +25441,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Icon-only quick action button on a library item card",
     "scope": "field",
     "persists": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25444,6 +25454,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.card-menu",
     "label": "Kebab menu button on a library item card",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25458,6 +25470,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25475,6 +25488,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
+    "row_list": "assignment-rows",
     "routes": [
       {
         "surface": "library.assignments",
@@ -25487,6 +25501,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.archive-menu",
     "label": "Kebab menu button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
     "routes": [
       {
         "surface": "library.shell",
@@ -25501,6 +25517,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_list": "assignment-rows",
     "routes": [
       {
         "surface": "library.shell",
@@ -25961,6 +25978,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25978,6 +25997,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25995,6 +26015,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26012,6 +26034,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26029,6 +26052,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26063,6 +26087,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26099,6 +26124,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plcs",
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -26116,6 +26142,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plcs",
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -26133,6 +26160,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plcs",
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -27683,6 +27711,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Open button in the PLC assessments tab",
     "scope": "field",
     "row_wildcard": true,
+    "row_list": "plc-assessments",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27745,6 +27774,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
+    "row_list": "plc-assessments",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -27767,6 +27797,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plc-assessments",
     "routes": [
       {
         "surface": "plc.assessments",
@@ -62125,6 +62156,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Select checkbox on a library item card",
     "scope": "field",
     "panel": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",

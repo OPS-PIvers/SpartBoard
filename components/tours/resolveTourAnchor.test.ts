@@ -4,7 +4,9 @@ import {
   accessibleName,
   findTourAnchor,
   findTourAnchors,
+  followPickedRow,
   isAnchorVisible,
+  notePickedRow,
   pickedRowRef,
   roleOf,
 } from './resolveTourAnchor';
@@ -325,5 +327,52 @@ describe('wildcard row refs', () => {
         findTourAnchor({ anchor }, { picks })?.dataset.tourField,
         anchor
       ).toBe('row-3');
+  });
+  it('moves later steps on the same list to the row picked last', () => {
+    const picks: Record<string, string> = {};
+    mount(rows('library-shell.archive-menu', 'quiz', 4));
+    const third = document.querySelectorAll('button')[2];
+    expect(
+      notePickedRow(picks, 'library-shell.archive-menu:quiz#row-*', third)
+    ).toBe(true);
+    expect(
+      followPickedRow(
+        'library-shell.archive-menu-item:quiz#row-1-item-2',
+        picks
+      )
+    ).toBe('library-shell.archive-menu-item:quiz#row-3-item-2');
+    expect(
+      followPickedRow('library-shell.archive-primary-action:quiz#row-1', picks)
+    ).toBe('library-shell.archive-primary-action:quiz#row-3');
+    expect(followPickedRow('library-shell.archive-menu:quiz', picks)).toBe(
+      'library-shell.archive-menu:quiz#row-3'
+    );
+    // Another list, another widget type, or the wildcard itself stay put.
+    for (const ref of [
+      'library-shell.card-menu-item:quiz#row-1-item-2',
+      'library-shell.archive-menu-item:mini-app#row-1-item-2',
+      'library-shell.archive-menu:quiz#row-*',
+      'library-shell.archive-menu-item:quiz#item-2',
+    ])
+      expect(followPickedRow(ref, picks), ref).toBe(ref);
+    const first = document.querySelectorAll('button')[0];
+    notePickedRow(
+      picks,
+      'library-shell.archive-primary-action:quiz#row-*',
+      first
+    );
+    expect(
+      followPickedRow(
+        'library-shell.archive-menu-item:quiz#row-3-item-2',
+        picks
+      )
+    ).toBe('library-shell.archive-menu-item:quiz#row-1-item-2');
+  });
+
+  it('lights every assignment row kebab for a wildcard step', () => {
+    mount(rows('library-shell.archive-menu', 'quiz', 3));
+    expect(
+      findTourAnchors({ anchor: 'library-shell.archive-menu:quiz#row-*' })
+    ).toHaveLength(3);
   });
 });

@@ -1,5 +1,11 @@
 import type { GuidedLearningTourBinding } from '@/types';
-import { isRowWildcardRef, parseTourAnchorRef } from '@/config/tourAnchors';
+import {
+  TOUR_ANCHORS,
+  isRowWildcardRef,
+  isTourAnchorId,
+  parseTourAnchorRef,
+  type TourAnchorDef,
+} from '@/config/tourAnchors';
 
 export interface TourAnchorScope {
   /** Widgets the tour added; per-widget anchors prefer these. */
@@ -19,17 +25,67 @@ export function pickedRowRef(ref: string, el: Element): string | null {
   return key ? `${ref.slice(0, ref.indexOf('#'))}#${key}` : null;
 }
 
-/** A route entry with no key or a row position, swapped for the row the teacher picked on it earlier. */
-const pickedRef = (anchor: string, scope: TourAnchorScope): string => {
-  const picks = scope.picks;
+/** Records the row a wildcard step was answered with, under its route form `id:type`, latest last. */
+export function notePickedRow(
+  picks: Record<string, string>,
+  ref: string,
+  el: Element
+): boolean {
+  const picked = pickedRowRef(ref, el);
+  if (!picked) return false;
+  const at = ref.slice(0, ref.indexOf('#'));
+  delete picks[at];
+  picks[at] = picked;
+  return true;
+}
+
+const ROW_KEY = /^row-(\d+)(?=$|-)/;
+
+/** A ref with no key or a row key, moved to the row the teacher picked earlier on its list. */
+export function followPickedRow(
+  anchor: string,
+  picks: Readonly<Record<string, string>> | undefined
+): string {
   if (!picks) return anchor;
   const { id, widgetType, fieldKey } = parseTourAnchorRef(anchor);
+  const list = rowListOf(id);
+  if (
+    list &&
+    widgetType &&
+    (fieldKey === undefined || ROW_KEY.test(fieldKey))
+  ) {
+    // Every control in a row, menu items keyed row-N-item-K too, follows the row picked last on its list.
+    const row = lastRowOn(list, widgetType, picks);
+    if (!row) return anchor;
+    return `${id}:${widgetType}#${fieldKey ? fieldKey.replace(ROW_KEY, row) : row}`;
+  }
   if (fieldKey !== undefined && !/^row-\d+$/.test(fieldKey)) return anchor;
   const pick = widgetType
     ? picks[`${id}:${widgetType}`]
     : Object.entries(picks).find(([k]) => k.startsWith(`${id}:`))?.[1];
   return pick ?? anchor;
-};
+}
+
+const rowListOf = (id: string): string | undefined =>
+  isTourAnchorId(id) ? (TOUR_ANCHORS[id] as TourAnchorDef).rowList : undefined;
+
+/** The `row-N` most recently picked on any anchor of `list` for this widget type. */
+function lastRowOn(
+  list: string,
+  widgetType: string | undefined,
+  picks: Readonly<Record<string, string>>
+): string | undefined {
+  let row: string | undefined;
+  for (const picked of Object.values(picks)) {
+    const p = parseTourAnchorRef(picked);
+    if (p.widgetType === widgetType && rowListOf(p.id) === list && p.fieldKey)
+      row = p.fieldKey;
+  }
+  return row;
+}
+
+const pickedRef = (anchor: string, scope: TourAnchorScope): string =>
+  followPickedRow(anchor, scope.picks);
 
 export const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
 
