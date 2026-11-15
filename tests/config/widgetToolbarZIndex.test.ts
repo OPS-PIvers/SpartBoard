@@ -29,6 +29,7 @@ const BELOW_TOOLBAR: ZIndexLayer[] = [
   'annotationChrome',
   'shareChip',
   'drawer',
+  'widgetActionBar',
 ];
 
 // Full-screen surfaces that sit under the toolbar on purpose.
