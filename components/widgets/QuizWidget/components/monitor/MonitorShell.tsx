@@ -1049,9 +1049,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                   openBucket === 'notStarted' ? data.notJoined : undefined
                 }
                 onSetAbsent={
-                  setAbsentStudents &&
-                  !outward.locked &&
-                  session.status !== 'ended'
+                  !outward.locked && session.status !== 'ended'
                     ? markAbsent
                     : undefined
                 }
