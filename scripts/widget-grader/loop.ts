@@ -73,8 +73,13 @@ export function compareFill(
   return drops;
 }
 
+// A Paul grade with no automatic level is unknown here, not a level to compare against.
 const autoLevel = (s: CriterionScore | undefined): Level | null | undefined =>
-  s ? (s.candidates?.script ?? s.candidates?.judge ?? s.score) : undefined;
+  s
+    ? (s.candidates?.script ??
+      s.candidates?.judge ??
+      (s.source === 'paul' ? undefined : s.score))
+    : undefined;
 
 /** R20: the whole widget is re-graded; any criterion drop or any gate failure rejects the loop. `auto` compares script/judge levels so Paul's grades don't hide a gain. */
 export function compareScorecards(
@@ -91,6 +96,7 @@ export function compareScorecards(
     for (const c of d.criteria) {
       const b = level(before.criteria[c.id]);
       const a = level(after.criteria[c.id]);
+      if (opts.auto && before.criteria[c.id] && b === undefined) continue;
       if (typeof b === 'number' && (typeof a !== 'number' || a < b))
         drops.push({ criterionId: c.id, before: b, after: a ?? null });
       else if (typeof a === 'number' && (typeof b !== 'number' || a > b))

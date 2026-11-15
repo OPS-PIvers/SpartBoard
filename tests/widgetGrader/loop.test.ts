@@ -282,6 +282,17 @@ describe('loop: no-regression check (R20)', () => {
     ).toEqual([{ criterionId: 'S1', before: 1, after: 3 }]);
   });
 
+  it('with auto, skips a Paul grade that has no automatic level before', () => {
+    const before = card('a', 2);
+    before.criteria.S1 = { ...before.criteria.S1, source: 'paul', score: 3 };
+    delete before.criteria.S1.candidates;
+    const after = card('a', 2);
+    after.criteria.S1 = { ...after.criteria.S1, candidates: { judge: 2 } };
+    const r = compareScorecards(rubric, before, after, { auto: true });
+    expect(r.drops).toEqual([]);
+    expect(r.gains).toEqual([]);
+  });
+
   it('with auto, a script level wins over the judge, as it does for the score', () => {
     const before = card('a', 2);
     before.criteria.S1 = {
