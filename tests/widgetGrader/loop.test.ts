@@ -261,6 +261,41 @@ describe('loop: no-regression check (R20)', () => {
         .ok
     ).toBe(false);
   });
+  const s1 = (sc: Scorecard): CriterionScore => {
+    const s = sc.criteria.S1;
+    if (!s) throw new Error('no S1');
+    return s;
+  };
+  it('with auto, compares judge levels so a Paul grade does not hide a gain', () => {
+    const before = card('a', 2);
+    Object.assign(s1(before), { source: 'paul', candidates: { judge: 1 } });
+    const after = card('a', 2);
+    Object.assign(s1(after), { source: 'paul', candidates: { judge: 3 } });
+    expect(compareScorecards(rubric, before, after).gains).toEqual([]);
+    expect(
+      compareScorecards(rubric, before, after, { auto: true }).gains
+    ).toEqual([{ criterionId: 'S1', before: 1, after: 3 }]);
+  });
+
+  it('with auto, skips a Paul grade that has no automatic level before', () => {
+    const before = card('a', 2);
+    Object.assign(s1(before), { source: 'paul', score: 3 });
+    const after = card('a', 2);
+    Object.assign(s1(after), { candidates: { judge: 2 } });
+    const r = compareScorecards(rubric, before, after, { auto: true });
+    expect(r.drops).toEqual([]);
+    expect(r.gains).toEqual([]);
+  });
+
+  it('with auto, a script level wins over the judge, as it does for the score', () => {
+    const before = card('a', 2);
+    Object.assign(s1(before), { candidates: { script: 2, judge: 3 } });
+    const after = card('a', 2);
+    Object.assign(s1(after), { candidates: { script: 2, judge: 1 } });
+    const r = compareScorecards(rubric, before, after, { auto: true });
+    expect(r.gains).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
 });
 
 describe('loop: fill check', () => {

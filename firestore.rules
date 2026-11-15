@@ -140,6 +140,28 @@ service cloud.firestore {
         : key.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
           s.get('allowAnonymousJoin', true) != false;
     }
+    // PIN key segments: encodeResponseKeySegment, and the PIN's canonical form (quizPinKeySegment: leading zeros stripped, one digit padded to two).
+    function keySeg(v) {
+      let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
+      return t == '' ? 'default' : t;
+    }
+    function pinSeg(p) {
+      let z = p.replace('^0+', '');
+      return z == '' ? '00' : (z.matches('[0-9]') ? '0' + z : z);
+    }
+    // A retired PIN's join time must sit near server time so the teacher views' former-PIN gate can't be backdated; other PINs keep a device clock.
+    function joinedAtOk(t) {
+      return t is number && t > request.time.toMillis() - 300000 && t < request.time.toMillis() + 300000;
+    }
+    // Sessions not ClassLink-rostered take any PIN length, and check retirement only for an off-clock join.
+    function pinOpen(s) {
+      return s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0;
+    }
+    // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one on that roster's sessions.
+    function pinRetired(s, per, c) {
+      let r = dbGet4('users', s.teacherUid, 'retired_pins', per + '__' + c);
+      return r != null && (r.data.get('rosterIds', []).hasAny(s.get('rosterIds', [])) || r.data.get('rosterId', '') in s.get('rosterIds', []));
+    }
 
     // ---- Optional-field type guards ----
     // optX(d, 'k') is exactly `!('k' in d) || d.k is X`, written once instead of
@@ -4662,26 +4684,17 @@ service cloud.firestore {
         // doc's own period (one the session offers) and PIN (encodeResponseKeySegment).
         // A sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1,
         // which rate-limits guesses.
-        function keySeg(v) {
-          let t = v.trim().lower().replace('[^a-z0-9]+', '_').replace('^_+|_+$', '');
-          return t == '' ? 'default' : t;
-        }
-        // Leading zeros stripped (one digit padded to two), so 4821 and 04821 share a seat (quizPinKeySegment).
-        // A linked student's retired PIN (users/{teacher}/retired_pins, server-written) seats no one on that roster's sessions.
-        function pinRetired(s, k) {
-          let r = dbGet4('users', s.teacherUid, 'retired_pins', k.replace('-', '__'));
-          return r != null && r.data.get('rosterId', '') in s.get('rosterIds', []);
-        }
+        // Leading zeros stripped, so 4821 and 04821 share a seat.
         function pinKeyOk(s, d) {
           let p = keySeg(d.get('pin', ''));
-          let z = p.replace('^0+', '');
-          let k = keySeg(d.get('classPeriod', '')) + '-' + (z == '' ? '00' : (z.matches('[0-9]') ? '0' + z : z));
+          let c = pinSeg(p);
+          let per = keySeg(d.get('classPeriod', ''));
           let pn = s.get('periodNames', []);
-          return responseKey == 'pin-' + k &&
+          let open = pinOpen(s);
+          return responseKey == 'pin-' + per + '-' + c &&
             (pn.size() == 0 || d.get('classPeriod', '') in pn) &&
-            (s.get('rosterIds', []).size() == 0 || s.get('classIds', []).size() == 0 ||
-             (p.replace('_', '').size() < 6 &&
-              !pinRetired(s, k)));
+            (open || p.replace('_', '').size() < 6) &&
+            ((open && joinedAtOk(d.get('joinedAt', null))) || !pinRetired(s, per, c));
         }
 
         // A missing doc is readable only at the caller's own uid key, so a
@@ -5560,6 +5573,24 @@ service cloud.firestore {
         function nearServerNow(t) {
           return t is number && t > request.time.toMillis() - 120000 && t < request.time.toMillis() + 120000;
         }
+        // The doc's period is one the session names (its periodAccess label, else a periodNames entry), so a made-up period can't dodge a retired PIN.
+        function vaPeriodOk(s, d) {
+          let pa = s.get('periodAccess', null);
+          let pn = s.get('periodNames', []);
+          let cp = d.get('classPeriod', '');
+          return pa != null ? cp == pa[d.classId].get('label', cp) : (pn.size() == 0 || cp in pn);
+        }
+        // The key's PIN segment is the doc's own pin, so the teacher views' name lookup by pin can't be forged; ClassLink-rostered sessions also refuse sign-in-length and retired PINs.
+        function vaPinOk(s, d) {
+          let a = responseDocId.split('-');
+          let p = keySeg(d.get('pin', ''));
+          let c = pinSeg(p);
+          let dp = keySeg(d.get('classPeriod', ''));
+          let open = pinOpen(s);
+          return a[2] == p && (open || p.replace('_', '').size() < 6) &&
+            ((open && joinedAtOk(d.get('joinedAt', null))) ||
+             (vaPeriodOk(s, d) && !pinRetired(s, dp, c) && (a[1] == dp || !pinRetired(s, a[1], c))));
+        }
 
         // A missing doc is readable only at the caller's own uid key; mirrors
         // the Quiz response read (no probing which PINs have joined).
@@ -5600,9 +5631,7 @@ service cloud.firestore {
           periodJoinOk(vaS(), incoming()) &&
           staffJoinOk(vaS(), incoming()) &&
           joinKeyOk(vaS(), responseDocId) &&
-          // As quiz: a sign-in-length PIN on a ClassLink-rostered session joins through pinLoginV1.
-          (vaS().get('rosterIds', []).size() == 0 || vaS().get('classIds', []).size() == 0 ||
-           !responseDocId.matches('pin-[a-z0-9_]*-(_*[a-z0-9]){6}.*'));
+          (responseDocId == authUid() || vaPinOk(vaS(), incoming()));
         // Update split: TEACHER branch (PR3 publish-scores: score/isCorrect/
         // scoreVisibility; gated by parent teacherUid, admins also pass) and
         // STUDENT branch (answer-submit, append-only invariants). Mutually
