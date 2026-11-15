@@ -459,11 +459,7 @@ export const ltiExchange = onCall(
     const db = admin.firestore();
     // Checked inside the consume, so a refused caller leaves the real launcher's code intact.
     const launch = await consumeLaunchCode(db, code, (l) =>
-      launchBindingAllows(
-        l,
-        request.auth,
-        request.rawRequest?.headers?.cookie
-      )
+      launchBindingAllows(l, request.auth, request.rawRequest?.headers?.cookie)
     );
     if (launch === 'refused') {
       console.warn(
