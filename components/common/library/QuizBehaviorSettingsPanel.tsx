@@ -23,10 +23,7 @@ import { CollapsibleSection } from './CollapsibleSection';
 import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 import { QuizTimeLimitRow } from './QuizTimeLimitRow';
-import {
-  useQuizExplanationsOn,
-  useQuizRuleGates,
-} from './assignStepper/QuizRuleStepGates';
+import { useQuizRuleGates } from './assignStepper/QuizRuleStepGates';
 import { patchQuizSessionOptions } from './assignStepper/QuizRuleStepValues';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
@@ -66,7 +63,6 @@ export const QuizBehaviorSettingsPanel: React.FC<
 }) => {
   const { t } = useTranslation();
   const assessmentOnly = variant === 'quiz';
-  const explanationsOn = useQuizExplanationsOn();
   const gates = useQuizRuleGates();
   const { tabAwayTimerOn, scoreOnSubmitOn } = gates;
   const timeLimitOn =
@@ -97,23 +93,21 @@ export const QuizBehaviorSettingsPanel: React.FC<
         hideCorrectOnBoard={assessmentOnly}
         feedbackLeadingSlot={
           <>
-            {explanationsOn && (
-              <ToggleRow
-                compact
-                label={t('quizExplanations.label', 'Show explanations')}
-                hint={t(
-                  'quizExplanations.hint',
-                  'Students see explanations with published results. A change applies the next time you publish.'
-                )}
-                anchor={tourFieldAttr(
-                  'assign-quiz-behavior.toggle',
-                  'assign',
-                  'show-explanations'
-                )}
-                checked={value.sessionOptions.showExplanations ?? false}
-                onChange={(v) => patch({ showExplanations: v })}
-              />
-            )}
+            <ToggleRow
+              compact
+              label={t('quizExplanations.label', 'Show explanations')}
+              hint={t(
+                'quizExplanations.hint',
+                'Students see explanations with published results. A change applies the next time you publish.'
+              )}
+              anchor={tourFieldAttr(
+                'assign-quiz-behavior.toggle',
+                'assign',
+                'show-explanations'
+              )}
+              checked={value.sessionOptions.showExplanations ?? false}
+              onChange={(v) => patch({ showExplanations: v })}
+            />
             {scoreOnSubmitOn && (
               <ToggleRow
                 compact

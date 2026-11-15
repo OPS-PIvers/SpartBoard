@@ -29,7 +29,12 @@ const FEATURE_PREFIX = 'feature:';
 
 /** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
 export const RETIRED_TOUR_FEATURES: readonly string[] = [
+  'import-google-forms',
   'lunch-count-resend',
+  'quiz-dok',
+  'quiz-explanations',
+  'quiz-import-google-doc-pdf',
+  'quiz-import-pdf-answer-marks',
   'quiz-import-versions',
   'quiz-ordering-images',
   'quiz-ordering-list',
@@ -40,7 +45,9 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-review-step',
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',
+  'schoology-push-due-date',
   'spell-check-setting',
+  'student-keyboards',
   'tour-pacing',
   'tour-steps-view',
   'video-activity-editor-arrows',

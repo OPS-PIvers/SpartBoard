@@ -4572,7 +4572,7 @@ export interface QuizQuestion {
   enforceWordLimit?: boolean;
   /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
   noSpellCheck?: boolean;
-  /** FIB and Free Response: the student keyboard (`student-keyboards` flag). Absent = plain typing. */
+  /** FIB and Free Response: the student keyboard. Absent = plain typing. */
   answerKeyboard?: AnswerKeyboard;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
@@ -11284,11 +11284,7 @@ export type GlobalFeature =
   /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
   | 'flashcards-swap-sides'
-  /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
-  | 'quiz-import-google-doc-pdf'
-  /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
-  | 'quiz-import-pdf-answer-marks'
-  /** Math in an imported question's text becomes drawn equations; AND-ed with `student-keyboards`. */
+  /** Math in an imported question's text becomes drawn equations. */
   | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
@@ -11300,8 +11296,6 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
-  /** Math keyboard and accent keys on student answer boxes, set per quiz. */
-  | 'student-keyboards'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -11384,10 +11378,6 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/shipped/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Quiz explanations on questions and answers, shown with published results. */
-  | 'quiz-explanations'
-  /** Quiz DOK levels, Group by DOK in results and a DOK filter on bank draws. */
-  | 'quiz-dok'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
   | 'quiz-blank-types'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
@@ -11431,7 +11421,6 @@ export type GlobalFeature =
   | 'import-extension-send'
   | 'import-board-drop'
   | 'import-flashcards'
-  | 'import-google-forms'
   | 'import-activity-wall'
   | 'import-new-board'
   | 'import-guided-learning'
@@ -11446,8 +11435,6 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Due date picker in the Push to Schoology dialog. */
-  | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */

@@ -52,7 +52,6 @@ import {
   type FolderRow,
 } from './toolKit';
 import { registerQuizTools, restoreQuizRevision } from './quizTools';
-export { questionFieldsFor } from './quizTools';
 import { registerVideoTools, restoreVideoRevision } from './videoTools';
 import { registerRubricTools, restoreRubricRevision } from './rubricTools';
 import { registerWallTools, restoreWallRevision } from './wallTools';
@@ -322,15 +321,12 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
         const granted = (id: string) =>
           isGlobalFeatureGranted(db, id, ctx.email, uid).catch(() => false);
-        const [resultsOn, gl, meetings, adminUser, dok, explanations] =
-          await Promise.all([
-            miniAppResultsOn(ctx).catch(() => false),
-            granted(GL_FEATURE_ID),
-            granted(MEETING_AI_FEATURE_ID),
-            isAdmin(ctx).catch(() => false),
-            granted('quiz-dok'),
-            granted('quiz-explanations'),
-          ]);
+        const [resultsOn, gl, meetings, adminUser] = await Promise.all([
+          miniAppResultsOn(ctx).catch(() => false),
+          granted(GL_FEATURE_ID),
+          granted(MEETING_AI_FEATURE_ID),
+          isAdmin(ctx).catch(() => false),
+        ]);
         return {
           email: ctx.email,
           name,
@@ -353,10 +349,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             'undo edits',
             'organize library folders',
             'tag Minnesota standards',
-            ...(dok ? ['set quiz and question bank DOK levels'] : []),
-            ...(explanations
-              ? ['write quiz and question bank explanations']
-              : []),
+            'set quiz and question bank DOK levels',
+            'write quiz and question bank explanations',
             resultsOn
               ? 'class-level quiz, video activity and mini-app results'
               : 'class-level quiz and video activity results',

@@ -151,7 +151,6 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### PLC, Schoology and imports
 
-- **AB-186 Schoology push due date: check the flag on the server** (S). `ltiPushToolColumnV1` (`functions/src/lti/toolColumnEndpoints.ts`) applies `dueDate` from any caller; only the client hides the picker behind `schoology-push-due-date`. Ignore `dueDate` unless `isGlobalFeatureGranted(db, 'schoology-push-due-date', email, uid)`. Low risk (it only sets the due date on the caller's own new column). Delete with the gate when it retires. From release #5559 review.
 - **AB-24 Schoology columns Phase 6** (M). Score never-launched students on Schoology-attached sessions through NRPS matching. Plan: `docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md`.
 - **AB-25 PLC sync rollback gaps** (M). `docs/PLC_ROADMAP.md` "Still open": the share-write rollback gap and the `detachSyncLinkage` API.
 - **AB-26 Rostered join link** (L). Quiz, Video Activity and GL get a rostered join link (`docs/wide-distro-plan.md`).

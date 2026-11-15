@@ -171,7 +171,7 @@ export const IMPORT_TARGET_FEATURES: Partial<
 > = {
   quiz: null,
   questionBank: null,
-  poll: 'import-google-forms',
+  poll: null,
   flashcards: 'import-flashcards',
   activityWall: 'import-activity-wall',
   board: 'import-new-board',
