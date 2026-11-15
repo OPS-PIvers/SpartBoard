@@ -239,6 +239,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-r2540g (#5917; this docs PR reuses it, delete after it merges)
 security/k2-scheduled-mailers (#5884)
 security/m-classlink-student-identity (#5887)
 security/p-paper-import (#5888)
