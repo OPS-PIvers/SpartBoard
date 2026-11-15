@@ -934,7 +934,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             previewAvailable={canAccessFeature('quiz-stimulus-preview')}
-            metaList={canAccessFeature('question-editor-fields')}
           />
         }
       />

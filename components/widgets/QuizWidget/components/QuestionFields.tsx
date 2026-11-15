@@ -356,8 +356,9 @@ const TargetsMetaItems: React.FC<{
   editAnchor: TourAnchorAttrs;
 }> = ({ question: q, onDokChange, onOpen, editAnchor }) => {
   const tags = q.targets ?? [];
-  const targetsId = `question-targets-${q.id}`;
-  const dokId = `question-dok-${q.id}`;
+  const baseId = React.useId();
+  const targetsId = `${baseId}-targets`;
+  const dokId = `${baseId}-dok`;
   return (
     <>
       <MetaItem label="Learning targets" htmlFor={targetsId}>
@@ -367,10 +368,12 @@ const TargetsMetaItems: React.FC<{
           aria-haspopup="dialog"
           onClick={onOpen}
           title={tags.map((t) => t.label).join('\n') || undefined}
+          aria-describedby={`${targetsId}-value`}
           className={`${metaValueClass} max-w-full`}
           {...editAnchor}
         >
           <span
+            id={`${targetsId}-value`}
             className={`min-w-0 truncate ${tags.length ? '' : 'text-slate-400'}`}
           >
             {tags.length

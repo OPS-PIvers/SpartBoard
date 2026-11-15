@@ -1253,10 +1253,12 @@ const AttachStimulusSection: React.FC<{
             type="button"
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
+            aria-describedby={`${fieldId}-value`}
             {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
             className={`${metaValueClass} max-w-full`}
           >
             <span
+              id={`${fieldId}-value`}
               className={`min-w-0 truncate tabular-nums ${attachedCount > 0 ? '' : 'text-slate-400'}`}
             >
               {summary}
