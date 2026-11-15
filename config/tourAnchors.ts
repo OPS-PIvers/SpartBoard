@@ -361,6 +361,42 @@ export const TOUR_ANCHORS = {
   'board-nav.manage-boards': { label: 'Manage all boards item', panel: true },
 
   'board.whole': { label: 'The whole board, for opening and closing steps' },
+  'board-menu.paste': {
+    label: 'Paste in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.undo': {
+    label: 'Undo in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.redo': {
+    label: 'Redo in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.tidy': {
+    label: 'Tidy up in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.minimize-all': {
+    label: 'Minimize all in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.restore-all': {
+    label: 'Restore all in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.background': {
+    label: 'Change background in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.draw': {
+    label: 'Draw on board in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.copy-link': {
+    label: 'Copy board link in the board right-click menu',
+    panel: true,
+  },
   'board.claude-editing-show': {
     label: 'Show button on the "Claude is editing" notice',
     panel: true,

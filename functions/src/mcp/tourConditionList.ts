@@ -41,6 +41,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'assign-due-date',
   'assignment-modes',
   'blooms-ai',
+  'board-context-menu',
   'checklist-small-card',
   'choose-n-pick-counted',
   'class-student-page',

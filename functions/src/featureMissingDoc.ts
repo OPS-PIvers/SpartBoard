@@ -91,6 +91,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-missed-cards',
   'flashcards-check-sync',
   'youtube-paste-picker',
+  'board-context-menu',
   'choose-n-pick-counted',
   'assign-due-date',
 ];

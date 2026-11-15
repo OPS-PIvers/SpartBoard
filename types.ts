@@ -11420,6 +11420,8 @@ export type GlobalFeature =
   | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker'
+  /** Right-click menu on the board background. */
+  | 'board-context-menu'
   /** Teachers pick which answers count when a student answers more than a section asks. */
   | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */

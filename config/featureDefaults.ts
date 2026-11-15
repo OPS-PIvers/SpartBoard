@@ -1650,6 +1650,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'board-context-menu': {
+    label: 'Board right-click menu',
+    icon: MousePointerClick,
+    description:
+      'Right-click the board background to paste, tidy up, change the background or copy a link to the board.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'choose-n-pick-counted': {
     label: 'Quiz: pick which answers count',
     icon: ListChecks,
