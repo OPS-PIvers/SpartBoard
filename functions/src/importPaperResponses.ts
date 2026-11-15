@@ -983,7 +983,12 @@ async function importSeat(
         privateWrites.push({
           questionId: box.questionId,
           data: {
-            newerScan: { scanId, page: box.page, state: box.state },
+            newerScan: {
+              scanId,
+              page: box.page,
+              state: box.state,
+              seat: sheet.seat,
+            },
             updatedAt: ctx.now,
           },
           merge: true,
@@ -1137,6 +1142,40 @@ export interface PublishPaperResultsResult {
   unlinked: number;
   /** Responses with a student identity but no class on the roster's pin index. */
   unplaced: number;
+  /** Students whose pointer at this id belongs to another teacher or kind, left untouched. */
+  foreign?: number;
+}
+
+const PIN_INDEX_IN_LIMIT = 30;
+
+/** `uid\u0000classId` pairs the caller's own rosters' server-only pin_index records. */
+async function knownPseudonymClasses(
+  userRef: admin.firestore.DocumentReference,
+  uids: string[]
+): Promise<Set<string>> {
+  const known = new Set<string>();
+  if (uids.length === 0) return known;
+  const rosters = await userRef.collection('rosters').select().get();
+  const chunks: string[][] = [];
+  for (let i = 0; i < uids.length; i += PIN_INDEX_IN_LIMIT)
+    chunks.push(uids.slice(i, i + PIN_INDEX_IN_LIMIT));
+  const queries = rosters.docs.flatMap((roster) =>
+    chunks.map((chunk) => ({ roster, chunk }))
+  );
+  const snaps = await mapLimited(
+    queries,
+    READ_CONCURRENCY,
+    ({ roster, chunk }) =>
+      roster.ref.collection('pin_index').where('pseudonym', 'in', chunk).get()
+  );
+  for (const snap of snaps) {
+    for (const d of snap.docs) {
+      const e = d.data() ?? {};
+      if (typeof e.pseudonym === 'string' && typeof e.classId === 'string')
+        known.add(`${e.pseudonym}\u0000${e.classId}`);
+    }
+  }
+  return known;
 }
 
 /**
@@ -1200,13 +1239,23 @@ export async function handlePublishPaperResults(
     linked.push({ uid, classId });
   }
 
+  // Response fields are teacher-editable, so each target must match the caller's own server-only pin_index.
+  const known = await knownPseudonymClasses(userRef, [
+    ...new Set(linked.map((t) => t.uid)),
+  ]);
+  const verified = linked.filter((t) => {
+    if (known.has(`${t.uid}\u0000${t.classId}`)) return true;
+    unplaced += 1;
+    return false;
+  });
+
   const pointerRef = (uid: string) =>
     db
       .collection('student_assignments')
       .doc(uid)
       .collection('items')
       .doc(assignmentId);
-  const existing = await mapLimited(linked, READ_CONCURRENCY, (t) =>
+  const existing = await mapLimited(verified, READ_CONCURRENCY, (t) =>
     pointerRef(t.uid).get()
   );
 
@@ -1229,9 +1278,16 @@ export async function handlePublishPaperResults(
     );
     pending += 2;
   }
-  for (let i = 0; i < linked.length; i += 1) {
-    const { uid, classId } = linked[i];
+  let pointersWritten = 0;
+  let foreign = 0;
+  for (let i = 0; i < verified.length; i += 1) {
+    const { uid, classId } = verified[i];
     const prior = existing[i].exists ? (existing[i].data() ?? {}) : null;
+    // Another teacher's or another kind's pointer at this id is never taken over.
+    if (prior && (prior.teacherUid !== caller.uid || prior.kind !== 'quiz')) {
+      foreign += 1;
+      continue;
+    }
     writes.set(
       pointerRef(uid),
       {
@@ -1245,6 +1301,7 @@ export async function handlePublishPaperResults(
       { merge: true }
     );
     pending += 1;
+    pointersWritten += 1;
     if (pending >= WRITE_CHUNK) {
       await writes.commit();
       writes = db.batch();
@@ -1253,7 +1310,12 @@ export async function handlePublishPaperResults(
   }
   if (pending > 0) await writes.commit();
 
-  return { pointersWritten: linked.length, unlinked, unplaced };
+  return {
+    pointersWritten,
+    unlinked,
+    unplaced,
+    ...(foreign > 0 ? { foreign } : {}),
+  };
 }
 
 export const publishPaperResultsV1 = onCall(

@@ -1816,6 +1816,25 @@ describe('handwriting crops', () => {
     expect(deps.deleteObject).not.toHaveBeenCalled();
   });
 
+  it('resolves a hybrid seat from paperWrittenSeat and never from the path', async () => {
+    const seed = cropSeed();
+    delete seed.response!.paperSeat;
+    seed.response!.paperWrittenSeat = 3;
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).resolves.toMatchObject({
+      archiveStatus: 'archived',
+    });
+    const forged = cropSeed({ storagePath: VICTIM_PATH });
+    delete forged.response!.paperSeat;
+    forged.response!.paperWrittenSeat = 3;
+    const other = cropDeps(makeStubDb(forged).db);
+    await expect(archiveAs(other, null)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(other.deleteObject).not.toHaveBeenCalled();
+  });
+
   it('archives a kept crop after a re-import moved the seat', async () => {
     const seed = cropSeed();
     seed.response!.paperSeat = 5;
