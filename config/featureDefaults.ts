@@ -56,6 +56,7 @@ import {
   Quote,
   Strikethrough,
   Calculator,
+  Utensils,
   CloudSun,
   Workflow,
   SquareChevronDown,
@@ -1293,6 +1294,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Lunch Count redesign. Admin-only until Paul has used it in prod.
+  'lunch-count-redesign': {
+    label: 'Lunch Count redesign',
+    icon: Utensils,
+    description: 'Big counts, layouts for every size and clearer empty states.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'lunchCount',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'weather-details': {
     label: 'Weather details',
     icon: CloudSun,
@@ -1736,6 +1749,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: CalendarClock,
     description:
       "Manual assignments are due when ended or at a set date and time, which closes them. Assign remembers each teacher's When choices.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'reopen-selected-students': {
+    label: 'Quiz: reopen for selected students',
+    icon: RefreshCw,
+    description:
+      'Reopen on a Completed quiz can reopen it for selected students, missing students listed first.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
