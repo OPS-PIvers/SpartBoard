@@ -209,6 +209,11 @@ beforeEach(() => {
   createAssignment.mockResolvedValue(undefined);
 });
 
+const STUDENT_LINK = new URL(
+  '/guided-learning/session-1',
+  'https://spartboard.app'
+).href;
+
 describe('GuidedLearningWidget onAssign — class-wide flow', () => {
   it('never calls setAssignmentTargetsV1 for a class-wide assignment', async () => {
     const dialog = await openAssignModal();
@@ -345,7 +350,7 @@ describe('GuidedLearningWidget onAssign — clipboard denied', () => {
       toasts.some((t) =>
         String(t.msg)
           .split(/\s+/)
-          .includes('https://spartboard.app/guided-learning/session-1')
+          .some((word) => word === STUDENT_LINK)
       )
     ).toBe(true);
   });
