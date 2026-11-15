@@ -105,6 +105,15 @@ describe('suggestionList', () => {
     expect(isSuggestionListOpen()).toBe(false);
   });
 
+  it('opens on the first click into the field', () => {
+    render(<Category />);
+    act(() => field().focus());
+    fireEvent.click(field());
+    expect(isSuggestionListOpen()).toBe(true);
+    fireEvent.click(field());
+    expect(isSuggestionListOpen()).toBe(false);
+  });
+
   it('lets Enter reach the field when no suggestion is highlighted', () => {
     const onEnter = vi.fn<() => void>();
     render(

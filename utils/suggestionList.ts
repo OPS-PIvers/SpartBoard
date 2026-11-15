@@ -187,8 +187,11 @@ const choose = (o: Open, index: number) => {
   }
 };
 
+const TEXT_TYPES = new Set(['text', 'search', 'url', 'email', 'tel']);
+
 const isSuggestField = (el: unknown): el is HTMLInputElement =>
   el instanceof HTMLInputElement &&
+  TEXT_TYPES.has(el.type) &&
   !el.readOnly &&
   !el.matches(':disabled') &&
   (el.hasAttribute('list') || !!el.dataset[STASH]);
@@ -238,17 +241,16 @@ export const installSuggestionLists = (): (() => void) => {
 
   const onMouseDown = (e: MouseEvent) => {
     if (current?.panel.contains(e.target as Node)) return;
+    if (current && e.target !== current.input) closeSuggestions();
+  };
+
+  // A click on the field toggles the list, as the browser's does.
+  const onClick = (e: MouseEvent) => {
     const input = e.target;
-    if (current && input !== current.input) closeSuggestions();
-    if (
-      e.button === 0 &&
-      isSuggestField(input) &&
-      document.activeElement === input &&
-      !touchOnly()
-    ) {
-      if (current?.input === input) closeSuggestions();
-      else showSuggestions(input);
-    }
+    if (e.button !== 0 || !isSuggestField(input) || !input.dataset[STASH])
+      return;
+    if (current?.input === input) closeSuggestions();
+    else showSuggestions(input);
   };
 
   const onInput = (e: Event) => {
@@ -302,6 +304,7 @@ export const installSuggestionLists = (): (() => void) => {
   window.addEventListener('focusin', onFocusIn, true);
   window.addEventListener('focusout', onFocusOut, true);
   window.addEventListener('mousedown', onMouseDown, true);
+  window.addEventListener('click', onClick, true);
   window.addEventListener('input', onInput, true);
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('resize', onResize);
@@ -314,6 +317,7 @@ export const installSuggestionLists = (): (() => void) => {
     window.removeEventListener('focusin', onFocusIn, true);
     window.removeEventListener('focusout', onFocusOut, true);
     window.removeEventListener('mousedown', onMouseDown, true);
+    window.removeEventListener('click', onClick, true);
     window.removeEventListener('input', onInput, true);
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('resize', onResize);

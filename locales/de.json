@@ -3916,6 +3916,7 @@
       "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
       "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
+      "tryAgain": "Erneut versuchen",
       "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
       "tabWarningOf": "Warnung {{count}} von {{limit}}."
     },

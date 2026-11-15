@@ -26,6 +26,9 @@ beforeEach(() => {
     ...RECT,
     toJSON: () => RECT,
   });
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+  );
   uninstall = installDatePickers();
 });
 afterEach(() => {
@@ -159,6 +162,18 @@ describe('datePicker', () => {
     expect(isDatePickerOpen()).toBe(true);
   });
 
+  it('fires change once when a date-and-time panel closes, like the browser picker', () => {
+    const changes = vi.fn<() => void>();
+    render(<Field type="datetime-local" initial="2026-11-15T14:30" />);
+    field().addEventListener('change', changes);
+    iconClick(field());
+    fireEvent.click(day(/November 18, 2026/));
+    fireEvent.click(day(/November 19, 2026/));
+    expect(changes).not.toHaveBeenCalled();
+    fireEvent.keyDown(field(), { key: 'Escape' });
+    expect(changes).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the time when a date-and-time field gets a new day', () => {
     const onPick = vi.fn();
     render(
@@ -193,7 +208,14 @@ describe('datePicker', () => {
       );
     };
     render(<Hidden />);
-    fireEvent.click(screen.getByRole('button', { name: 'Due date' }));
+    const open = screen.getByRole('button', { name: 'Due date' });
+    fireEvent.click(open);
+    expect(isDatePickerOpen()).toBe(true);
+    fireEvent.mouseDown(open);
+    fireEvent.click(open);
+    expect(isDatePickerOpen()).toBe(false);
+    fireEvent.mouseDown(open);
+    fireEvent.click(open);
     fireEvent.click(day(/November 16, 2026/));
     expect(onPick).toHaveBeenCalledWith('2026-11-16');
   });

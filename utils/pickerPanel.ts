@@ -25,6 +25,12 @@ export const isMac = () =>
   typeof navigator !== 'undefined' &&
   /Mac|iP(hone|od|ad)/.test(navigator.platform);
 
+/** Chromium opens its own calendar only from the field's icon; Firefox and Safari keep theirs. */
+export const isChromium = () =>
+  typeof navigator !== 'undefined' &&
+  /Chrome\/|Chromium\/|CriOS\//.test(navigator.userAgent) &&
+  !/Firefox\//.test(navigator.userAgent);
+
 /** Phones and tablets keep the system picker; touch panels and Chromebooks get the app's. */
 export const touchOnly = () =>
   typeof navigator !== 'undefined' &&
@@ -102,7 +108,11 @@ export const placePanel = (
 };
 
 /** Sets a field's value the way typing does, so React's onChange and plain listeners both run. */
-export const setFieldValue = (input: HTMLInputElement, value: string) => {
+export const setFieldValue = (
+  input: HTMLInputElement,
+  value: string,
+  fireChange = true
+) => {
   if (input.value === value) return;
   const descriptor = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
@@ -112,5 +122,5 @@ export const setFieldValue = (input: HTMLInputElement, value: string) => {
   if (descriptor?.set) descriptor.set.call(input, value);
   else input.value = value;
   input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
+  if (fireChange) input.dispatchEvent(new Event('change', { bubbles: true }));
 };

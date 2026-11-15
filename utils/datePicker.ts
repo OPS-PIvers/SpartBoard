@@ -10,6 +10,7 @@ import {
   setFieldValue,
   showPanel,
   touchOnly,
+  isChromium,
 } from './pickerPanel';
 
 type Kind = 'date' | 'time' | 'datetime-local';
@@ -42,12 +43,17 @@ interface OpenPicker {
   frame: number;
   placedAt: string;
   onInput: () => void;
+  onChange: (e: Event) => void;
   anchor: HTMLElement | null;
+  // The value when the panel opened; change fires on close, as the browser's picker does.
+  openedWith: string;
 }
 
 let current: OpenPicker | null = null;
 let installed = false;
 let swallowClickOn: HTMLInputElement | null = null;
+// A press on the button that opened the panel closes it; its click must not reopen it.
+let closedByAnchor: HTMLElement | null = null;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoDate = (y: number, m: number, d: number) => {
@@ -73,9 +79,24 @@ const nowTime = () => {
 const locale = () =>
   i18n.language ||
   (typeof navigator !== 'undefined' ? navigator.language : 'en-US');
+// The field itself is drawn in the browser's locale, so its hour format and week start come from there.
+const browserLocale = () =>
+  typeof navigator !== 'undefined' ? navigator.language : 'en-US';
+const firstWeekday = (): number => {
+  try {
+    const loc = new Intl.Locale(browserLocale()) as Intl.Locale & {
+      getWeekInfo?: () => { firstDay: number };
+      weekInfo?: { firstDay: number };
+    };
+    const day = loc.getWeekInfo?.().firstDay ?? loc.weekInfo?.firstDay ?? 7;
+    return day % 7;
+  } catch {
+    return 0;
+  }
+};
 const uses12h = () => {
   try {
-    const { hourCycle, hour12 } = new Intl.DateTimeFormat(locale(), {
+    const { hourCycle, hour12 } = new Intl.DateTimeFormat(browserLocale(), {
       hour: 'numeric',
     }).resolvedOptions();
     return hour12 ?? (hourCycle === 'h11' || hourCycle === 'h12');
@@ -98,8 +119,10 @@ const timePart = (p: OpenPicker) =>
   p.kind === 'date'
     ? ''
     : p.kind === 'time'
-      ? p.input.value.slice(0, 5)
-      : p.input.value.slice(11, 16);
+      ? p.input.value
+      : p.input.value.slice(11);
+// Seconds and fractions the field already holds survive a new hour or minute.
+const secondsOf = (time: string) => time.slice(5);
 
 const outOfRange = (p: OpenPicker, iso: string) => {
   const min = p.input.min.slice(0, 10);
@@ -114,16 +137,20 @@ const commitDay = (p: OpenPicker, iso: string) => {
     setFieldValue(p.input, iso);
     return;
   }
-  setFieldValue(p.input, `${iso}T${timePart(p) || nowTime()}`);
+  setFieldValue(p.input, `${iso}T${timePart(p) || nowTime()}`, false);
   p.active = iso;
   render(p);
 };
 
 const commitTime = (p: OpenPicker, h: number, mi: number) => {
-  const time = `${pad(h)}:${pad(mi)}`;
-  if (p.kind === 'time') setFieldValue(p.input, time);
-  else setFieldValue(p.input, `${datePart(p) || p.active || today()}T${time}`);
-  render(p);
+  const time = `${pad(h)}:${pad(mi)}${secondsOf(timePart(p))}`;
+  if (p.kind === 'time') setFieldValue(p.input, time, false);
+  else
+    setFieldValue(
+      p.input,
+      `${datePart(p) || p.active || today()}T${time}`,
+      false
+    );
 };
 
 const button = (
@@ -191,17 +218,20 @@ const renderCalendar = (p: OpenPicker): HTMLElement => {
   weekdays.setAttribute('role', 'row');
   weekdays.className = 'grid grid-cols-7 gap-0.5';
   const dayName = new Intl.DateTimeFormat(locale(), { weekday: 'short' });
+  const weekStart = firstWeekday();
   for (let i = 0; i < 7; i++) {
     const cell = document.createElement('div');
     cell.setAttribute('role', 'columnheader');
     cell.className =
       'flex h-7 items-center justify-center text-xs font-semibold text-slate-500';
-    cell.textContent = dayName.format(new Date(2023, 0, 1 + i)).slice(0, 2);
+    cell.textContent = dayName
+      .format(new Date(2023, 0, 1 + ((i + weekStart) % 7)))
+      .slice(0, 2);
     weekdays.appendChild(cell);
   }
   grid.appendChild(weekdays);
 
-  const first = new Date(p.viewY, p.viewM, 1).getDay();
+  const first = (new Date(p.viewY, p.viewM, 1).getDay() - weekStart + 7) % 7;
   const picked = datePart(p);
   const now = today();
   const longDay = new Intl.DateTimeFormat(locale(), { dateStyle: 'full' });
@@ -355,7 +385,14 @@ const render = (p: OpenPicker) => {
   // Keeps the picked hour and minute in view.
   p.panel
     .querySelectorAll<HTMLElement>('[role="listbox"] [aria-selected="true"]')
-    .forEach((el) => el.scrollIntoView?.({ block: 'center' }));
+    .forEach((el) => {
+      const col = el.parentElement;
+      if (col)
+        col.scrollTop =
+          el.offsetTop -
+          col.offsetTop -
+          (col.clientHeight - el.offsetHeight) / 2;
+    });
   place(p, true);
 };
 
@@ -436,6 +473,11 @@ export const openDatePicker = (
     frame: 0,
     placedAt: '',
     anchor,
+    openedWith: input.value,
+    onChange: (e) => {
+      // Typing fires its own change; only the panel's picks are left for close.
+      if (e.isTrusted) p.openedWith = input.value;
+    },
     onInput: () => {
       if (current !== p) return;
       syncView(p);
@@ -448,6 +490,7 @@ export const openDatePicker = (
   input.setAttribute('aria-expanded', 'true');
   input.setAttribute('aria-controls', panel.id);
   input.addEventListener('input', p.onInput);
+  input.addEventListener('change', p.onChange);
   if (document.activeElement !== input) input.focus({ preventScroll: true });
   render(p);
   follow(p);
@@ -460,7 +503,11 @@ export const openFieldPicker = (
   anchor: HTMLElement | null = null
 ) => {
   if (!input) return;
-  if (!touchOnly() && openDatePicker(input, anchor)) return;
+  if (anchor && closedByAnchor === anchor) {
+    closedByAnchor = null;
+    return;
+  }
+  if (!touchOnly() && isChromium() && openDatePicker(input, anchor)) return;
   try {
     input.showPicker();
   } catch {
@@ -474,11 +521,16 @@ export const closeDatePicker = () => {
   current = null;
   cancelAnimationFrame(p.frame);
   p.input.removeEventListener('input', p.onInput);
+  p.input.removeEventListener('change', p.onChange);
   p.panel.remove();
   p.status.remove();
   p.input.removeAttribute('aria-expanded');
   p.input.removeAttribute('aria-controls');
   p.input.removeAttribute('aria-activedescendant');
+  if (p.input.value !== p.openedWith)
+    p.input.dispatchEvent(new Event('change', { bubbles: true }));
+  if (p.anchor?.isConnected && document.activeElement === p.input)
+    p.anchor.focus({ preventScroll: true });
 };
 
 export const isDatePickerOpen = () => current !== null;
@@ -520,7 +572,9 @@ const onOpenKey = (e: KeyboardEvent, p: OpenPicker) => {
     return;
   } else {
     const day = parseDay(p.active);
-    const weekday = day ? new Date(day.y, day.m, day.d).getDay() : 0;
+    const weekday = day
+      ? (new Date(day.y, day.m, day.d).getDay() - firstWeekday() + 7) % 7
+      : 0;
     switch (e.key) {
       case 'ArrowLeft':
         moveActive(p, -1);
@@ -623,7 +677,7 @@ const opensPicker = (e: KeyboardEvent) =>
 
 /** Installs the app's date and time pickers; returns the uninstaller. Runs before React so its window listeners go first. */
 export const installDatePickers = (): (() => void) => {
-  if (installed) return () => undefined;
+  if (installed || !isChromium()) return () => undefined;
   installed = true;
 
   const onPanelEvent = (e: Event) => {
@@ -642,6 +696,10 @@ export const installDatePickers = (): (() => void) => {
 
   const onMouseDown = (e: MouseEvent) => {
     if (current?.panel.contains(e.target as Node)) return;
+    swallowClickOn = null;
+    closedByAnchor = current?.anchor?.contains(e.target as Node)
+      ? current.anchor
+      : null;
     const input = e.target;
     if (current && input === current.input) {
       if (isPickerField(input) && inIconZone(input, e)) swallowClickOn = input;
@@ -696,6 +754,7 @@ export const installDatePickers = (): (() => void) => {
     closeDatePicker();
     installed = false;
     swallowClickOn = null;
+    closedByAnchor = null;
     for (const type of PANEL_EVENTS)
       window.removeEventListener(type, onPanelEvent, true);
     window.removeEventListener('mousedown', onMouseDown, true);
