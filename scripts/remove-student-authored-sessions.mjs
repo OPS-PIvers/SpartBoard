@@ -9,14 +9,15 @@ import { dirname, join, resolve } from 'path';
 
 /** Session collections whose create rule once admitted studentRole tokens, with their `${sessionId}__` side collections. */
 export const SESSION_COLLECTIONS = [
-  { name: 'quiz_sessions', side: ['grade_index', 'quiz_attempt_ledger'] },
+  { name: 'quiz_sessions', kind: 'quiz', side: ['grade_index', 'quiz_attempt_ledger'] },
   {
     name: 'video_activity_sessions',
+    kind: 'video-activity',
     side: ['grade_index', 'video_activity_attempt_ledger'],
   },
-  { name: 'guided_learning_sessions', side: ['grade_index'] },
-  { name: 'mini_app_sessions', side: ['grade_index'] },
-  { name: 'activity_wall_sessions', side: ['grade_index'] },
+  { name: 'guided_learning_sessions', kind: 'guided-learning', side: ['grade_index'] },
+  { name: 'mini_app_sessions', kind: 'mini-app', side: ['grade_index'] },
+  { name: 'activity_wall_sessions', kind: 'activity-wall', side: ['grade_index'] },
 ];
 
 const PAGE = 1000;
@@ -118,21 +119,28 @@ async function loadUsers(auth, uids) {
 }
 
 /** Doc-id bounds [lo, hi) for the `${sessionId}__${uid}` rows of one session. */
-export function sideIdRange(sessionId) {
-  return [`${sessionId}__`, `${sessionId}__\uf8ff`];
+export function sideIdRange(sessionId, kind) {
+  const p = kind ? `${kind}__${sessionId}__` : `${sessionId}__`;
+  return [p, `${p}\uf8ff`];
 }
 
-async function sideRefs(db, sessionId, collections) {
+async function sideRefs(db, sessionId, collections, kind) {
   const refs = [];
-  const [lo, hi] = sideIdRange(sessionId);
   for (const name of collections) {
-    const snap = await db
-      .collection(name)
-      .where(FieldPath.documentId(), '>=', lo)
-      .where(FieldPath.documentId(), '<', hi)
-      .select()
-      .get();
-    refs.push(...snap.docs.map((d) => d.ref));
+    // grade_index rows are `${kind}__${sessionId}__${uid}`, or the pre-kind `${sessionId}__${uid}`.
+    const ranges =
+      name === 'grade_index'
+        ? [sideIdRange(sessionId, kind), sideIdRange(sessionId)]
+        : [sideIdRange(sessionId)];
+    for (const [lo, hi] of ranges) {
+      const snap = await db
+        .collection(name)
+        .where(FieldPath.documentId(), '>=', lo)
+        .where(FieldPath.documentId(), '<', hi)
+        .select()
+        .get();
+      refs.push(...snap.docs.map((d) => d.ref));
+    }
   }
   return refs;
 }
@@ -158,13 +166,14 @@ async function main() {
   const users = await loadUsers(getAuth(), candidates.map((c) => c.owner));
   const { remove, review } = planCleanup(candidates, users);
   const sideOf = new Map(SESSION_COLLECTIONS.map((c) => [c.name, c.side]));
+  const kindOf = new Map(SESSION_COLLECTIONS.map((c) => [c.name, c.kind]));
 
   for (const c of review) {
     console.log(`  REVIEW ${c.collection}/${c.id}  owner ${c.owner.slice(0, 8)}… has a sign-in provider; left alone`);
   }
   const plans = [];
   for (const c of remove) {
-    const side = await sideRefs(db, c.id, sideOf.get(c.collection));
+    const side = await sideRefs(db, c.id, sideOf.get(c.collection), kindOf.get(c.collection));
     plans.push({ ...c, side });
     console.log(`  delete ${c.collection}/${c.id}  owner ${c.owner.slice(0, 8)}…  +${side.length} grade/ledger rows`);
   }
@@ -178,7 +187,7 @@ async function main() {
   for (const p of plans) {
     await db.recursiveDelete(p.ref);
     // After the session is gone the grade-index triggers no longer rebuild its rows.
-    for (const ref of await sideRefs(db, p.id, sideOf.get(p.collection))) {
+    for (const ref of await sideRefs(db, p.id, sideOf.get(p.collection), kindOf.get(p.collection))) {
       await ref.delete();
       rows++;
     }

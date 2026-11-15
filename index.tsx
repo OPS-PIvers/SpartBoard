@@ -8,6 +8,9 @@ import './index.css';
 import { i18nReady } from './i18n';
 import { attemptChunkReload } from './utils/chunkLoadError';
 import { installTranslateDomGuard } from './utils/translateDomGuard';
+import { installSelectMenus } from './utils/selectMenu';
+import { installDatePickers } from './utils/datePicker';
+import { installSuggestionLists } from './utils/suggestionList';
 import { LocalProdBanner } from './components/common/LocalProdBanner';
 import { StudentContextMenuGuard } from './components/student/StudentContextMenuGuard';
 
@@ -21,6 +24,9 @@ window.addEventListener('vite:preloadError', (event) => {
 });
 
 installTranslateDomGuard();
+installSelectMenus();
+installDatePickers();
+installSuggestionLists();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Could not find root element');

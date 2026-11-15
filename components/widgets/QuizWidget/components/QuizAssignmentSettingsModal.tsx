@@ -57,6 +57,7 @@ import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { AuthContext } from '@/context/AuthContextValue';
+import { dueLockAt } from '@/utils/periodAccess';
 import {
   loadAttemptPolicy,
   saveAttemptPolicy,
@@ -233,7 +234,10 @@ export const QuizAssignmentSettingsModal: React.FC<
       periodAccess: assignment.periodAccess ?? {},
       accessMode: assignment.accessMode,
       rosters: selected,
-      window: resolveAvailability(availability, selected, undefined),
+      window: {
+        ...resolveAvailability(availability, selected, undefined),
+        dueLockAt: dueLockAt(assignment),
+      },
     });
     return Object.keys(rows).length > 0 ? { periodAccessRows: rows } : {};
   };
@@ -302,10 +306,12 @@ export const QuizAssignmentSettingsModal: React.FC<
       assignment.accessMode === 'assessment' &&
       Object.keys(assignment.periodAccess ?? {}).length > 0 &&
       assignment.openAt == null &&
-      (assignment.closeAt ?? null) === (assignment.dueAt ?? null);
-    // A Manual due date is saved as both the close and the due date.
+      ((assignment.closeAt == null &&
+        (assignment.dueAt == null || assignment.dueLocks === true)) ||
+        assignment.closeAt === assignment.dueAt);
+    // A Manual due date locks each class at the due (`dueLocks`).
     const manualDue =
-      manualStart && assignment.dueAt != null
+      manualStart && assignment.dueLocks === true && assignment.dueAt != null
         ? manualDueFromMs(assignment.dueAt)
         : undefined;
     const whenStep: AssignStepDef = {

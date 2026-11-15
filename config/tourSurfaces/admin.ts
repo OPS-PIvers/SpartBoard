@@ -36,6 +36,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/admin/access/PreviewsPanel.tsx',
       'components/admin/access/FocusHoursRow.tsx',
+      'components/admin/access/ImportOffersSection.tsx',
     ],
     opensWith: 'admin.settings.tab:admin#previews',
     needs: ['admin'],

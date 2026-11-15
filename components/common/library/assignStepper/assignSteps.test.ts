@@ -105,26 +105,26 @@ describe('getAssignSteps (D4)', () => {
         kind: 'resource',
         inPlc: true,
       })
-    ).toEqual(['classes', 'when']);
+    ).toEqual(['classes', 'when', 'study']);
     expect(getAssignStepTitle('integrity', 'flashcards', ctx)).toBe(
       'Integrity'
     );
   });
 
-  it('removes every step after When for a study resource', () => {
+  it('keeps only Study settings after When for a study resource', () => {
     expect(getAssignSteps('gl', { kind: 'resource' })).toEqual([
       'classes',
       'when',
     ]);
     expect(
       getAssignSteps('flashcards', { kind: 'resource', inPlc: true })
-    ).toEqual(['classes', 'when']);
+    ).toEqual(['classes', 'when', 'study']);
   });
 
   it('adds the Speak step to a Flashcards study resource when Speak is available', () => {
     expect(
       getAssignSteps('flashcards', { kind: 'resource', speak: true })
-    ).toEqual(['classes', 'when', 'speak']);
+    ).toEqual(['classes', 'when', 'study', 'speak']);
     expect(getAssignSteps('flashcards', { kind: 'work', speak: true })).toEqual(
       ['classes', 'when', 'cards', 'check', 'attempts', 'integrity', 'feedback']
     );

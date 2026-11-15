@@ -75,6 +75,16 @@ describe('sideIdRange', () => {
   });
 });
 
+describe('sideIdRange with a kind', () => {
+  it('covers the kind-prefixed grade_index rows', () => {
+    const [lo, hi] = sideIdRange('s1', 'quiz');
+    const inRange = (id: string) => id >= lo && id < hi;
+    expect(inRange(`quiz__s1__${STUDENT}`)).toBe(true);
+    expect(inRange(`quiz__s10__${STUDENT}`)).toBe(false);
+    expect(inRange(`mini-app__s1__${STUDENT}`)).toBe(false);
+  });
+});
+
 describe('parseArgs', () => {
   it('maps the dev and prod aliases and passes other project ids through', () => {
     expect(parseArgs(['--project', 'dev']).project).toBe('spartboard-dev');

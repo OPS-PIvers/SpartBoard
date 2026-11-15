@@ -498,6 +498,30 @@ describe('wildcard row refs', () => {
     expect(messages(report.errors).join('\n')).not.toContain('only shows once');
   });
 
+  it('lets a menu item follow the assignment row the teacher picked', () => {
+    const report = dryRunTour(
+      [
+        step('board.whole'),
+        step('library-shell.archive-menu:quiz#row-*', 'click'),
+        step('library-shell.archive-menu-item:quiz#row-1-item-2', 'click'),
+      ],
+      { widgets: ['quiz'] }
+    );
+    expect(report.errors).toEqual([]);
+    const warned = messages(report.warnings);
+    expect(warned.some((m) => m.includes('position in a list'))).toBe(false);
+    const alone = dryRunTour(
+      [
+        step('board.whole'),
+        step('library-shell.archive-menu-item:quiz#row-1-item-2', 'click'),
+      ],
+      { widgets: ['quiz'] }
+    );
+    expect(
+      messages(alone.warnings).some((m) => m.includes('position in a list'))
+    ).toBe(true);
+  });
+
   it('refuses row-* on an anchor that is not a list', () => {
     const report = dryRunTour(
       [

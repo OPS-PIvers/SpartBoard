@@ -25,6 +25,7 @@ import {
   resolveBellWindow,
 } from '@/utils/bellSchedule';
 import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
+import { dueLockAt } from '@/utils/periodAccess';
 
 /** Stale in-progress responses get a fresh `lastWriteAt` on start, inside the idle finalizer's 90-minute window. */
 const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
@@ -45,7 +46,22 @@ export interface PeriodAccessCollections {
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
   teacherUid: string;
+  dueAt?: number | null;
 };
+
+/** Where a period's close is held: only a Manual due (`dueLocks`); a Scheduled close never caps Start or Extend. */
+const lockAt = (session: PeriodSession | null): number | null =>
+  session ? dueLockAt(session) : null;
+
+/** A period's close, held to the due while it is ahead; after it, a Start runs late to the bell. */
+export function capAtDue(
+  closeAt: number | null,
+  dueAt: number | null,
+  nowMs: number
+): number | null {
+  if (dueAt == null || dueAt <= nowMs) return closeAt;
+  return closeAt == null ? dueAt : Math.min(closeAt, dueAt);
+}
 
 type BellRoster = Pick<ClassRoster, 'id' | 'bellPeriod'>;
 
@@ -206,12 +222,20 @@ export function usePeriodAccess(
           featurePermissions,
           now
         );
-        if (session.accessMode === 'assessment' && bell == null)
+        if (
+          session.accessMode === 'assessment' &&
+          bell == null &&
+          (lockAt(session) ?? now) <= now
+        )
           untimed.push(key);
         stage(batch, key, {
           state: 'open',
           openAt: null,
-          closeAt: startCloseAt(session, access, bell, now),
+          closeAt: capAtDue(
+            startCloseAt(session, access, bell, now),
+            lockAt(session),
+            now
+          ),
         });
       }
       await batch.commit();
@@ -246,14 +270,17 @@ export function usePeriodAccess(
       if (!access) return;
       const batch = writeBatch(db);
       stage(batch, key, {
-        closeAt:
+        closeAt: capAtDue(
           by == null
             ? null
             : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
+          lockAt(session),
+          Date.now()
+        ),
       });
       await batch.commit();
     },
-    [periodAccess, stage]
+    [periodAccess, stage, session]
   );
 
   const letIn = useCallback(

@@ -181,7 +181,7 @@ export const mcpServer = onRequest(
     const [
       { McpServer },
       { StreamableHTTPServerTransport },
-      { registerTools, hiddenToolsFor, questionFieldsFor, SERVER_INSTRUCTIONS },
+      { registerTools, hiddenToolsFor, SERVER_INSTRUCTIONS },
       { registerPrompts },
       { slimToolListing },
       { appsOn, registerAppResources },
@@ -221,8 +221,7 @@ export const mcpServer = onRequest(
     slimToolListing(
       server,
       () => hiddenToolsFor(ctx),
-      () => appsOn(ctx),
-      () => questionFieldsFor(ctx)
+      () => appsOn(ctx)
     );
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

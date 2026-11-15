@@ -701,6 +701,15 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/common/DialogContainer.tsx'],
   },
+  'board.background-menu': {
+    label: 'Board right-click menu',
+    kind: 'menu',
+    files: [
+      'components/layout/BoardBackgroundMenu.tsx',
+      'components/layout/BoardMenuHost.tsx',
+    ],
+    openerMissing: 'Right-click on the board background',
+  },
   'board.boards-board-menu': {
     label: 'Board edit menu',
     kind: 'menu',
