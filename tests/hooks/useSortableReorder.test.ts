@@ -235,4 +235,36 @@ describe('useSortableReorder', () => {
     rerender({ items: makeItems(['b', 'c', 'a']) });
     expect(result.current.orderedItems.map(getId)).toEqual(['b', 'c', 'a']);
   });
+
+  it('keeps items that arrived mid-commit when the commit rejects', async () => {
+    let rejectCommit: (e: Error) => void = () => undefined;
+    const onCommit = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectCommit = reject;
+        })
+    );
+    const { result, rerender } = renderHook(
+      ({ items }: { items: Item[] }) =>
+        useSortableReorder({ items, getId, onCommit }),
+      { initialProps: { items: makeItems(['a', 'b', 'c']) } }
+    );
+
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.handleReorder(['c', 'b', 'a']);
+    });
+    rerender({ items: makeItems(['a', 'b', 'c', 'd']) });
+    await act(async () => {
+      rejectCommit(new Error('nope'));
+      await pending;
+    });
+
+    expect(result.current.orderedItems.map(getId)).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+  });
 });

@@ -16,6 +16,7 @@ vi.mock('./glTours', () => ({
   GL_TOURS_COLLECTION: 'building_guided_learning_tours',
 }));
 
+import * as firebaseAdmin from './firebaseAdmin';
 import {
   CROSS_SITE_PROTOCOL,
   ExtensionCallError,
@@ -29,6 +30,7 @@ import {
   parseRun,
   parseSetId,
   startHostOf,
+  trustedUidForEmail,
   verifyCaller,
   type ExtensionDeps,
 } from './webTourExtension';
@@ -164,6 +166,37 @@ describe('verifyCaller', () => {
       deps({ uidForEmail: () => Promise.resolve(null) })
     );
     expect(caller.uid).toBeNull();
+  });
+});
+
+describe('trustedUidForEmail', () => {
+  const EMAIL = 'teacher@orono.k12.mn.us';
+  const lookup = (user: object | Error) =>
+    vi.mocked(firebaseAdmin.auth).mockReturnValue({
+      getUserByEmail: () =>
+        user instanceof Error ? Promise.reject(user) : Promise.resolve(user),
+    } as never);
+  const google = [{ providerId: 'google.com', email: EMAIL }];
+
+  it('returns the uid only for an enabled, verified Google account at that address', async () => {
+    lookup({ uid: 'u1', emailVerified: true, providerData: google });
+    expect(await trustedUidForEmail(EMAIL)).toBe('u1');
+  });
+
+  it('ignores password-only, unverified, disabled and missing accounts', async () => {
+    for (const user of [
+      {
+        uid: 'x',
+        emailVerified: true,
+        providerData: [{ providerId: 'password', email: EMAIL }],
+      },
+      { uid: 'x', emailVerified: false, providerData: google },
+      { uid: 'x', emailVerified: true, disabled: true, providerData: google },
+      new Error('user-not-found'),
+    ]) {
+      lookup(user);
+      expect(await trustedUidForEmail(EMAIL)).toBeNull();
+    }
   });
 });
 
