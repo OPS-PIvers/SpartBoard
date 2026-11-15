@@ -127,6 +127,26 @@ describe('ActiveQuiz as the teacher’s Live view mirror', () => {
   });
 });
 
+describe('ActiveQuiz mirror and the tab warning', () => {
+  it('shows the student’s red tab warning while they have it up', async () => {
+    const { rerender } = render(
+      renderQuiz(response(), { watchQuestionId: 'q1', warningCount: 2 })
+    );
+    await screen.findByText('First question?');
+    expect(screen.queryByText('TAB SWITCH DETECTED')).toBeNull();
+
+    rerender(
+      renderQuiz(response(), {
+        watchQuestionId: 'q1',
+        watchTabWarning: true,
+        warningCount: 2,
+      })
+    );
+    expect(screen.getByText('TAB SWITCH DETECTED')).toBeTruthy();
+    expect(screen.getByText('Warning 2.')).toBeTruthy();
+  });
+});
+
 describe('ActiveQuiz on a watched student’s device', () => {
   it('reports the question on screen only while the stamp is ahead', async () => {
     const report = vi.fn(() => Promise.resolve());

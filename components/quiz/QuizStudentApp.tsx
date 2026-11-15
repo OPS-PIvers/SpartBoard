@@ -2018,6 +2018,8 @@ export const ActiveQuiz: React.FC<{
   fullscreenRequired?: boolean;
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
   watchQuestionId?: string | null;
+  /** Teacher's Live view: the student has the red tab warning up. */
+  watchTabWarning?: boolean;
   /** Reports the question on screen while the teacher has Live view open. */
   onReportLivePosition?: (state: QuizLiveState) => Promise<void>;
 }> = ({
@@ -2052,6 +2054,7 @@ export const ActiveQuiz: React.FC<{
   readAloudRequested,
   fullscreenRequired = false,
   watchQuestionId,
+  watchTabWarning,
   onReportLivePosition,
 }) => {
   const watching = watchQuestionId !== undefined;
@@ -4302,7 +4305,7 @@ export const ActiveQuiz: React.FC<{
       )}
 
       {/* 🔴 The Cheating Warning Modal */}
-      {showCheatWarning && (
+      {(watching ? watchTabWarning === true : showCheatWarning) && (
         <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">

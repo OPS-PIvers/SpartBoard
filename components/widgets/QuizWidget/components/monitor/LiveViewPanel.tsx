@@ -426,12 +426,13 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                       reportTabSwitch={noTabSwitch}
                       onSetHandRaised={noop}
                       handRaised={false}
-                      warningCount={0}
+                      warningCount={response?.tabSwitchWarnings ?? 0}
                       onRecordStimulusPlay={noop}
                       onReportStimulusError={noop}
                       override={override}
                       drawIds={liveViewDrawIds(session, response)}
                       watchQuestionId={questionId ?? firstQuestionId}
+                      watchTabWarning={reported?.warning === true}
                     />
                   </RecordingNoticeDrawingContext.Provider>
                 </div>
@@ -470,11 +471,6 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                 {stats.tabExits > 0 &&
                   `, ${formatAwayDuration(stats.awayMs)} away`}
               </Stat>
-              {reported?.warning === true && (
-                <Stat label="Tab warning">
-                  <span className="text-brand-red-primary">On screen</span>
-                </Stat>
-              )}
               {stats.input ? (
                 <>
                   <Stat label="Keys typed">{stats.input.keys}</Stat>
