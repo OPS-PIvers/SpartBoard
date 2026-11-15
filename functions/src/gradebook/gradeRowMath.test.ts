@@ -94,10 +94,17 @@ describe('trustedTurnInMs', () => {
   it('uses the server stamp only when it vouches for this submission', () => {
     expect(
       trustedTurnInMs(
+        { submittedAt: 100, turnIn: { at: 90_000, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(90_000);
+    // An honest turn-in's commit lag keeps the claim, so the Late flag doesn't move.
+    expect(
+      trustedTurnInMs(
         { submittedAt: 100, turnIn: { at: 190, claimed: 100 } },
         'submittedAt'
       )
-    ).toBe(190);
+    ).toBe(100);
     expect(
       trustedTurnInMs(
         { submittedAt: 300, turnIn: { at: 190, claimed: 100 } },

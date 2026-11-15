@@ -77,6 +77,22 @@ describe('handleQuizResponseWrite', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('retries a fresh stamp failure but drops a stale one', async () => {
+    mocks.applyAttemptWrite.mockResolvedValue(undefined);
+    mocks.stampTurnIn.mockRejectedValue(new Error('contention'));
+    await expect(handleQuizResponseWrite(event as never)).rejects.toThrow(
+      'contention'
+    );
+    expect(mocks.applyAttemptWrite).not.toHaveBeenCalled();
+    await expect(
+      handleQuizResponseWrite({
+        ...event,
+        time: '2020-01-01T00:00:00Z',
+      })
+    ).resolves.toBeUndefined();
+    expect(mocks.applyAttemptWrite).toHaveBeenCalledTimes(1);
+  });
+
   it('resolves when both steps succeed', async () => {
     mocks.applyAttemptWrite.mockResolvedValue(undefined);
     await expect(

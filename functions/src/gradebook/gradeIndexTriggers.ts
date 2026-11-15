@@ -169,16 +169,19 @@ export async function handleQuizResponseWrite(
   const parsed = event.time ? Date.parse(event.time) : NaN;
   const eventAt = Number.isFinite(parsed) ? parsed : Date.now();
   const before = dataOf(event.data?.before);
-  // The turn-in stamp lands first, so both steps below read the server's time.
-  const after = await stampTurnIn(
-    admin.firestore(),
-    'quiz',
-    sessionId,
-    docId,
-    before,
-    dataOf(event.data?.after),
-    eventAt
-  );
+  // The turn-in stamp lands first, so both steps below read the server's time; a stale failure is dropped.
+  let after = dataOf(event.data?.after);
+  await failUnlessStale(event.time, async () => {
+    after = await stampTurnIn(
+      admin.firestore(),
+      'quiz',
+      sessionId,
+      docId,
+      before,
+      after,
+      eventAt
+    );
+  });
   const [attempt, index] = await Promise.allSettled([
     applyAttemptWrite(admin.firestore(), {
       sessionId,

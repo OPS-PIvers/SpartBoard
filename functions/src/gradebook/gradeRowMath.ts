@@ -57,6 +57,9 @@ export function toMillis(v: unknown): number | null {
   return null;
 }
 
+/** A vouched claim this close to the server's time stands, so an honest turn-in's commit lag never moves it. */
+export const TURN_IN_SLACK_MS = 15_000;
+
 /** The server's turn-in time when its stamp vouches for this submission, else the claim, never earlier than the stamp. */
 export function trustedTurnInMs(
   response: Doc,
@@ -66,9 +69,8 @@ export function trustedTurnInMs(
   if (claimed === null) return null;
   const stamp = asRecord(response.turnIn);
   if (typeof stamp.at !== 'number') return claimed;
-  return toMillis(stamp.claimed) === claimed
-    ? stamp.at
-    : Math.max(claimed, stamp.at);
+  if (toMillis(stamp.claimed) !== claimed) return Math.max(claimed, stamp.at);
+  return Math.abs(stamp.at - claimed) <= TURN_IN_SLACK_MS ? claimed : stamp.at;
 }
 
 function numberMap(v: unknown): Record<string, number> {

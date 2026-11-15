@@ -21,6 +21,9 @@ import {
 } from '@/utils/videoActivityGrading';
 import type { LiveRawScore } from '@/utils/gradebook/finalScoreOverlay';
 
+/** A vouched claim this close to the server's time stands, so an honest turn-in's commit lag never moves it. */
+export const TURN_IN_SLACK_MS = 15_000;
+
 /** The server's turn-in time when its stamp vouches for this submission, else the claim, never earlier than the stamp. */
 export function trustedTurnInMs(
   claimed: number | null | undefined,
@@ -28,7 +31,8 @@ export function trustedTurnInMs(
 ): number | null {
   if (claimed == null) return null;
   if (!stamp || typeof stamp.at !== 'number') return claimed;
-  return stamp.claimed === claimed ? stamp.at : Math.max(claimed, stamp.at);
+  if (stamp.claimed !== claimed) return Math.max(claimed, stamp.at);
+  return Math.abs(stamp.at - claimed) <= TURN_IN_SLACK_MS ? claimed : stamp.at;
 }
 
 const NOT_SCORED: LiveRawScore = {
