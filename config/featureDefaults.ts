@@ -2,10 +2,8 @@
 import type React from 'react';
 import {
   ClipboardList,
-  FolderTree,
   MonitorPlay,
   Users,
-  ArrowLeftRight,
   Camera,
   PenLine,
   BarChart,
@@ -495,17 +493,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'AI reader',
     group: 'building',
     requires: 'quiz-document-import',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Swap terms and definitions button in the Flashcards set editor. Admin-only until Paul has tried it in prod.
-  'flashcards-swap-sides': {
-    label: 'Flashcards: swap terms and definitions',
-    icon: ArrowLeftRight,
-    description: 'Adds a swap button above the cards in the set editor.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1125,49 +1112,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: true,
   },
-  sparty: {
-    label: 'Sparty',
-    icon: Smile,
-    description: 'Pixel Spartan mascot in tours, setup and help.',
-    stage: 'preview',
-    afterLaunch: 'keep',
-    category: 'look',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'getting-started': {
-    label: 'Getting Started',
-    icon: Footprints,
-    description: 'Live tours and a Getting Started page for new teachers.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'district-library': {
     label: 'District library',
     icon: Library,
     description:
       'Quizzes and question banks admins publish to buildings, grades or teachers.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'sharing',
-    defaultAccessLevel: 'admin',
+    defaultAccessLevel: 'public',
     defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'district-library-folders': {
-    label: 'District library folders',
-    icon: FolderTree,
-    description:
-      'Folders in the District library, with one audience per folder, shown to teachers as folders.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
+    missingDocPublic: true,
   },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
@@ -1327,45 +1282,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: false,
     missingDocPublic: false,
     failClosedForAdmins: true,
-  },
-  // Stamped on study assignments at assign time; students can't read flags.
-  'flashcards-missed-cards': {
-    label: 'Flashcards: study missed cards',
-    icon: Layers,
-    description:
-      'Students in a study assignment can study just the cards they missed, in every mode.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Admin-only until Paul has assigned a study resource with it.
-  'flashcards-study-settings': {
-    label: 'Flashcards: study settings',
-    icon: Layers,
-    description:
-      'Sets what students start with in a study resource, and Study resource as the default.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Admin-only until Paul has saved a sight-word set with it.
-  'flashcards-term-only': {
-    label: 'Flashcards: cards without definitions',
-    icon: Layers,
-    description:
-      'Teachers can save cards with only a term, like sight words. Write and Test are hidden for those sets.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
   },
   // Admin-only until saved, like Guided Learning AI; the server denies non-admins while no doc exists.
   'flashcards-ai': {
@@ -1649,17 +1565,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'youtube-paste-picker': {
-    label: 'Paste a YouTube link: pick a widget',
-    icon: Video,
-    description:
-      'Pasting a YouTube link on the board asks whether to add it as an Embed or a Video Activity.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // The app's own dropdown, date/time and suggestion panels. Admin-only until Paul has used them on prod.
   'app-pickers': {
     label: 'App dropdowns and date pickers',
@@ -1735,17 +1640,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'video-activity',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'flashcards-check-sync': {
-    label: 'Flashcards: set fixes reach Checks',
-    icon: Layers,
-    description:
-      'Saving a set updates the cards in its open Checks. Cards added or deleted stay as assigned.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

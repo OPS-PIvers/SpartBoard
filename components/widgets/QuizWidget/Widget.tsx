@@ -804,10 +804,7 @@ const TeacherQuizWidget: React.FC<{
     districtViewer,
     districtLibraryOn && variant === 'quiz'
   );
-  const districtFoldersOn =
-    districtLibraryOn &&
-    variant === 'quiz' &&
-    canAccessFeature('district-library-folders');
+  const districtFoldersOn = districtLibraryOn && variant === 'quiz';
   const districtFolders = useDistrictFolders(districtFoldersOn);
   const districtItemFolderIds = useMemo(
     () => new Map(districtItems.map((i) => [i.id, i.folderId ?? null])),

@@ -1,7 +1,7 @@
 import type { GlobalFeature } from '@/types';
 import { ALL_GLOBAL_FEATURES } from '@/config/featureDefaults';
 
-/** Facts a live tour can check about the teacher's account (docs/plans/GETTING_STARTED.md D10, D12). */
+/** Facts a live tour can check about the teacher's account (docs/plans/shipped/GETTING_STARTED.md D10, D12). */
 export const TOUR_FACTS = {
   'building-saved': 'The teacher has saved at least one building',
   'drive-connected': 'Drive stays connected, with a stored refresh token',
@@ -29,6 +29,13 @@ const FEATURE_PREFIX = 'feature:';
 
 /** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
 export const RETIRED_TOUR_FEATURES: readonly string[] = [
+  'district-library-folders',
+  'flashcards-check-sync',
+  'flashcards-missed-cards',
+  'flashcards-study-settings',
+  'flashcards-swap-sides',
+  'flashcards-term-only',
+  'getting-started',
   'lunch-count-resend',
   'quiz-dok',
   'quiz-explanations',
@@ -45,12 +52,14 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',
   'schoology-push-due-date',
+  'sparty',
   'spell-check-setting',
   'student-keyboards',
   'tour-pacing',
   'tour-steps-view',
   'video-activity-editor-arrows',
   'video-activity-stops',
+  'youtube-paste-picker',
 ];
 
 /** A fact, or `feature:<id>` for a feature the teacher can use. */

@@ -31,10 +31,7 @@ import {
   stageSetWrite,
   type FlashcardSet,
 } from './flashcardStore';
-import {
-  CHECK_SYNC_FEATURE_ID,
-  handleRescoreFlashcardCheck,
-} from '../flashcardRescore';
+import { handleRescoreFlashcardCheck } from '../flashcardRescore';
 import { prepareSpeakSave, type SpeakSaveResult } from './flashcardSpeak';
 import {
   CONTENT_TYPES,
@@ -246,33 +243,19 @@ async function saveFlashcardEdit(
   }
   let checksUpdated: number | undefined;
   try {
-    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
-    if (
-      await isGlobalFeatureGranted(
+    const synced = await rewriteOpenCheckSessions(ctx.db, ctx.uid, normalized);
+    checksUpdated = synced.updated;
+    for (const assignmentId of synced.cardsChanged) {
+      await handleRescoreFlashcardCheck(
         ctx.db,
-        CHECK_SYNC_FEATURE_ID,
-        ctx.email,
-        ctx.uid
-      )
-    ) {
-      const synced = await rewriteOpenCheckSessions(
-        ctx.db,
-        ctx.uid,
-        normalized
+        { uid: ctx.uid, email: ctx.email, studentRole: false },
+        { assignmentId }
+      ).catch((err: unknown) =>
+        console.error('[mcpServer] check rescore failed', {
+          assignmentId,
+          err,
+        })
       );
-      checksUpdated = synced.updated;
-      for (const assignmentId of synced.cardsChanged) {
-        await handleRescoreFlashcardCheck(
-          ctx.db,
-          { uid: ctx.uid, email: ctx.email, studentRole: false },
-          { assignmentId }
-        ).catch((err: unknown) =>
-          console.error('[mcpServer] check rescore failed', {
-            assignmentId,
-            err,
-          })
-        );
-      }
     }
   } catch (err) {
     console.error('[mcpServer] check session rewrite failed', {
