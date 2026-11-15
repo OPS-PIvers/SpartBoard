@@ -3916,7 +3916,6 @@
       "tabSubmitTitle": "Tu as quitté la page trop de fois",
       "submittingAnswers": "Envoi de tes réponses…",
       "forcedTab": "Tu as quitté la page trop de fois. Ton devoir a été remis. Parle à ton enseignant si tu penses que c'est une erreur.",
-      "tryAgain": "Réessayer",
       "tryAgainError": "Impossible de commencer une nouvelle tentative. Réessaie.",
       "tabWarningOf": "Avertissement {{count}} sur {{limit}}."
     },
@@ -5081,5 +5080,14 @@
   "quizAnswerPicture": {
     "name": "Image {{n}}",
     "nameWithAlt": "Image {{n}} : {{alt}}"
+  },
+  "picker": {
+    "clear": "Effacer",
+    "today": "Aujourd'hui",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant",
+    "hour": "Heure",
+    "minute": "Minute",
+    "period": "Matin ou après-midi"
   }
 }

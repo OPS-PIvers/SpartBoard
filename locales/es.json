@@ -3916,7 +3916,6 @@
       "tabSubmitTitle": "Saliste de la página demasiadas veces",
       "submittingAnswers": "Entregando tus respuestas…",
       "forcedTab": "Saliste de la página demasiadas veces. Tu tarea se entregó. Habla con tu maestro si crees que fue un error.",
-      "tryAgain": "Intentar de nuevo",
       "tryAgainError": "No se pudo empezar un nuevo intento. Inténtalo de nuevo.",
       "tabWarningOf": "Advertencia {{count}} de {{limit}}."
     },
@@ -5081,5 +5080,14 @@
   "quizAnswerPicture": {
     "name": "Imagen {{n}}",
     "nameWithAlt": "Imagen {{n}}: {{alt}}"
+  },
+  "picker": {
+    "clear": "Borrar",
+    "today": "Hoy",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "hour": "Hora",
+    "minute": "Minuto",
+    "period": "a. m. o p. m."
   }
 }
