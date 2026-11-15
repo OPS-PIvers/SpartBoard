@@ -43,7 +43,7 @@ export const BadgePopover: React.FC<BadgePopoverProps> = ({
   panel,
   children,
   triggerClassName = '',
-  panelZIndex = Z_INDEX.dropdown,
+  panelZIndex = Z_INDEX.popover,
 }) => {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<PanelPos | null>(null);
