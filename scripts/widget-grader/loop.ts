@@ -74,9 +74,9 @@ export function compareFill(
 }
 
 const autoLevel = (s: CriterionScore | undefined): Level | null | undefined =>
-  s ? (s.candidates?.judge ?? s.candidates?.script ?? s.score) : undefined;
+  s ? (s.candidates?.script ?? s.candidates?.judge ?? s.score) : undefined;
 
-/** R20: the whole widget is re-graded; any criterion drop or any gate failure rejects the loop. `auto` compares judge/script levels so Paul's grades don't hide a gain. */
+/** R20: the whole widget is re-graded; any criterion drop or any gate failure rejects the loop. `auto` compares script/judge levels so Paul's grades don't hide a gain. */
 export function compareScorecards(
   rubric: Rubric,
   before: Scorecard,

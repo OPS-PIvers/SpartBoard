@@ -281,6 +281,22 @@ describe('loop: no-regression check (R20)', () => {
       compareScorecards(rubric, before, after, { auto: true }).gains
     ).toEqual([{ criterionId: 'S1', before: 1, after: 3 }]);
   });
+
+  it('with auto, a script level wins over the judge, as it does for the score', () => {
+    const before = card('a', 2);
+    before.criteria.S1 = {
+      ...before.criteria.S1,
+      candidates: { script: 2, judge: 3 },
+    };
+    const after = card('a', 2);
+    after.criteria.S1 = {
+      ...after.criteria.S1,
+      candidates: { script: 2, judge: 1 },
+    };
+    const r = compareScorecards(rubric, before, after, { auto: true });
+    expect(r.gains).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
 });
 
 describe('loop: fill check', () => {

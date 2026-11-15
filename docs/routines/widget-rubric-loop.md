@@ -35,7 +35,7 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
 
 6. **Grade after, blind (R31).** Run `/grade-widget` steps 1–3 for the widget only: `grader:measure`, `grader:static`, `cli judge-prompt`, then a fresh general-purpose Agent per the skill, given only the prompt path. Never tell that agent what changed, why, or the before scores. `cli judge-check`, then `cli record` writes the new scores. Commit the change and the scorecard on the branch.
 
-7. **No-regression check (R20).** `--auto` compares judge and script levels, so an earlier grade from Paul doesn't hide a gain:
+7. **No-regression check (R20).** `--auto` compares script and judge levels (script first, as for the score), so an earlier grade from Paul doesn't hide a gain:
 
    ```
    node scripts/widget-grader/loop.ts compare --auto --before scripts/widget-grader/out/<runId>/before.json --after docs/widget-rubric/scorecards/<type>.json --before-measure scripts/widget-grader/out/<runId>/before-measure.json --after-measure scripts/widget-grader/out/<afterRunId>/measurements/<type>.json
