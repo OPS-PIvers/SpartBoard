@@ -14,12 +14,14 @@ import {
 
 const auth = vi.hoisted(() => ({
   ensureGoogleScope: vi.fn(() => Promise.resolve<string | null>('tok')),
+  formsOn: true,
 }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u1' },
     canAccessWidget: () => true,
-    canAccessFeature: () => true,
+    canAccessFeature: (f: string) =>
+      f === 'import-google-forms' ? auth.formsOn : true,
     ensureGoogleScope: auth.ensureGoogleScope,
   }),
 }));
@@ -242,6 +244,15 @@ describe('ImportScreenHost', () => {
       'quiz',
       expect.objectContaining({ id: expect.any(String) as unknown })
     );
+  });
+
+  it('offers no Poll for a form without the Google Forms flag', () => {
+    auth.formsOn = false;
+    inboxItems.push(sentForm());
+    renderHost();
+    act(() => openImportScreen());
+    expect(screen.queryByRole('button', { name: 'Poll' })).toBeNull();
+    auth.formsOn = true;
   });
 
   it('sends slides to a new Notebook when the one on the board has a notebook open', () => {

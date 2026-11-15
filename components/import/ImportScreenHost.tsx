@@ -50,6 +50,7 @@ import {
   formToPollQuestions,
 } from '@/utils/import/googleForms';
 import { withPollQuestions } from '@/utils/pollQuestions';
+import type { ImportInboxItem } from '@/utils/import/contract';
 import type { PollConfig } from '@/types';
 
 // A dropped link read on the server was never a Send, so nothing is removed for it.
@@ -64,6 +65,20 @@ const CourseImportHost = lazy(() =>
 );
 
 const QUIZ_DOCUMENT = /\.(pdf|docx|odt|rtf|tst)$/i;
+
+// Without the Google Forms flag a sent form is just its page text.
+const withoutForm = (item: ImportInboxItem): ImportInboxItem => {
+  if (!item.form) return item;
+  const rest = { ...item };
+  delete rest.form;
+  return rest;
+};
+
+function useFormsGate(inbox: ImportInbox): ImportInbox {
+  const { canAccessFeature } = useAuth();
+  if (canAccessFeature('import-google-forms')) return inbox;
+  return { ...inbox, items: inbox.items.map(withoutForm) };
+}
 
 interface ImportScreenHostProps {
   placeAt: (
@@ -88,7 +103,7 @@ export const ImportScreenHost: React.FC<ImportScreenHostProps> = (props) => {
   const sendOn = canAccessFeature(IMPORT_SEND_FEATURE);
   const courseOn = canAccessFeature('import-schoology-course');
   const [courseFile, setCourseFile] = useState<File | null>(null);
-  const inbox = useImportInbox(user?.uid, sendOn);
+  const inbox = useFormsGate(useImportInbox(user?.uid, sendOn));
   const [boardJob, setBoardJob] = useState<BoardJob | null>(null);
   // The extension's "Open in SpartBoard" lands on /?importInbox=1 after a Send.
   useEffect(() => {

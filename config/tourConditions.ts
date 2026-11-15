@@ -29,7 +29,6 @@ const FEATURE_PREFIX = 'feature:';
 
 /** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
 export const RETIRED_TOUR_FEATURES: readonly string[] = [
-  'import-google-forms',
   'lunch-count-resend',
   'quiz-dok',
   'quiz-explanations',

@@ -11421,6 +11421,7 @@ export type GlobalFeature =
   | 'import-extension-send'
   | 'import-board-drop'
   | 'import-flashcards'
+  | 'import-google-forms'
   | 'import-activity-wall'
   | 'import-new-board'
   | 'import-guided-learning'

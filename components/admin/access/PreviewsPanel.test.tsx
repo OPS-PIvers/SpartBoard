@@ -140,13 +140,13 @@ describe('PreviewsPanel', () => {
     expandRow('universal-import', 'Import anything');
     fireEvent.click(
       within(
-        screen.getByRole('radiogroup', { name: 'Import: Activity Wall access' })
+        screen.getByRole('radiogroup', { name: 'Import: Google Forms access' })
       ).getByRole('radio', { name: 'Public' })
     );
-    fireEvent.click(screen.getByLabelText('Save Import: Activity Wall'));
+    fireEvent.click(screen.getByLabelText('Save Import: Google Forms'));
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
-      'global_permissions/import-activity-wall'
+      'global_permissions/import-google-forms'
     );
     expect(setDocMock.mock.calls[0][1]).toMatchObject({
       accessLevel: 'public',

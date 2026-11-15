@@ -47,7 +47,7 @@ describe('preview groups', () => {
   it('nests every Import add-on under Import anything while it is in preview', () => {
     const all = previewFeatures();
     const kids = previewGroupChildren('universal-import', all);
-    expect(kids).toContain('import-activity-wall');
+    expect(kids).toContain('import-google-forms');
     expect(
       kids.every((id) => FEATURE_DEFAULTS[id].requires === 'universal-import')
     ).toBe(true);
