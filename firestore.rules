@@ -851,7 +851,10 @@ service cloud.firestore {
     // across the collection group, so anonymous and studentRole callers can't seed it.
     match /users/{userId}/rosters/{rosterId} {
       allow read: if ownsUser(userId);
-      allow write: if ownsUserTeacher(userId) && notAnon();
+      allow delete: if ownsUserTeacher(userId) && notAnon();
+      // classlinkClassId, when set, is a non-empty string (matches() errors on any other type).
+      allow create, update: if ownsUserTeacher(userId) && notAnon() &&
+        incoming().get('classlinkClassId', '-').matches('.+');
 
       // Non-PII PIN index sidecar bridging PIN-joining students into the SSO uid
       // space. commitRosterPinIndexV1 writes and pinLoginV1 reads via Admin SDK;

@@ -58,6 +58,13 @@
         }
       },
       {
+        "source": "/lti/exchange",
+        "function": {
+          "functionId": "ltiExchange",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/mcp",
         "function": {
           "functionId": "mcpServer",

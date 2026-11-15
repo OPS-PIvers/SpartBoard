@@ -98,6 +98,7 @@ function buildHarness(rosters: FakeRoster[]) {
       let after: string | undefined;
       let max = Infinity;
       const q = {
+        where: () => q,
         orderBy: () => q,
         limit: (n: number) => {
           max = n;
@@ -176,6 +177,7 @@ function buildHarness(rosters: FakeRoster[]) {
 
   return {
     db,
+    docs,
     deps,
     written,
     updated,
@@ -690,6 +692,7 @@ describe('runClassLinkRosterSync', () => {
     ]);
     harness.db.collectionGroup = (() => {
       const q = {
+        where: () => q,
         orderBy: () => q,
         limit: () => q,
         startAfter: () => q,
@@ -925,6 +928,160 @@ describe('runClassLinkRosterSync resume and blocked state', () => {
     expect(h.updated.get('users/u1/rosters/r1')?.classlinkSyncBlocked).toEqual(
       admin.firestore.FieldValue.delete()
     );
+  });
+});
+
+// Firestore's cross-type order: bool < number < string < array < map.
+const typeRank = (v: unknown): number =>
+  typeof v === 'boolean'
+    ? 1
+    : typeof v === 'number'
+      ? 2
+      : typeof v === 'string'
+        ? 3
+        : Array.isArray(v)
+          ? 4
+          : 5;
+const typedCompare = (a: unknown, b: unknown): number => {
+  const r = typeRank(a) - typeRank(b);
+  if (r !== 0) return r;
+  const [x, y] =
+    typeRank(a) === 5 ? [JSON.stringify(a), JSON.stringify(b)] : [a, b];
+  return (x as string) < (y as string)
+    ? -1
+    : (x as string) > (y as string)
+      ? 1
+      : 0;
+};
+
+/** Replaces the harness query with one that orders and filters by Firestore's typed rules. */
+function useTypedQuery(h: ReturnType<typeof buildHarness>) {
+  const value = (d: (typeof h.docs)[number]): unknown =>
+    (d.data() as Record<string, unknown>).classlinkClassId;
+  const sorted = [...h.docs].sort(
+    (a, b) =>
+      typedCompare(value(a), value(b)) || (a.ref.path < b.ref.path ? -1 : 1)
+  );
+  h.db.collectionGroup = (() => {
+    let rows = sorted;
+    let max = Infinity;
+    const q = {
+      where: (_f: string, op: string, v: unknown) => {
+        if (op !== '>') throw new Error('unsupported op ' + op);
+        rows = rows.filter(
+          (d) =>
+            typeRank(value(d)) === typeRank(v) && typedCompare(value(d), v) > 0
+        );
+        return q;
+      },
+      orderBy: () => q,
+      limit: (n: number) => {
+        max = n;
+        return q;
+      },
+      startAfter: (v: unknown, ref: { path: string }) => {
+        rows = rows.filter((d) => {
+          const c = typedCompare(value(d), v);
+          return c > 0 || (c === 0 && d.ref.path > ref.path);
+        });
+        return q;
+      },
+      get: () => {
+        const page = rows.slice(0, max);
+        return Promise.resolve({
+          empty: page.length === 0,
+          docs: page,
+          size: page.length,
+        });
+      },
+    };
+    return q;
+  }) as never;
+}
+
+describe('runClassLinkRosterSync with client-typed class ids', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  const real = (i: number, classId: string): FakeRoster => ({
+    ...classlinkRoster(
+      `users/t${i}/rosters/r`,
+      `t${i}`,
+      [student('Ada', '01', 's1')],
+      [up('s1', 'Ada')]
+    ),
+    data: { classlinkClassId: classId, name: 'P1', origin: 'classlink' },
+  });
+  const junk = (i: number, classId: unknown): FakeRoster => ({
+    ...classlinkRoster(`users/attacker/rosters/j${i}`, 'attacker', [], []),
+    data: { classlinkClassId: classId },
+  });
+
+  it('visits every string-id roster once and never keeps a cursor from a non-string id', async () => {
+    const realIds = Array.from({ length: 250 }, (_, i) =>
+      i % 2 ? `A-${String(i).padStart(3, '0')}` : `${1000 + i}`
+    );
+    const rosters = [
+      ...realIds.map((id, i) => real(i, id)),
+      ...Array.from({ length: 120 }, (_, i) => junk(i, true)),
+      ...Array.from({ length: 60 }, (_, i) => junk(200 + i, i)),
+      ...Array.from({ length: 30 }, (_, i) => junk(300 + i, { m: i })),
+      ...Array.from({ length: 20 }, (_, i) => junk(400 + i, '')),
+    ];
+    const h = buildHarness(rosters);
+    h.taught.set('attacker', null);
+    useTypedQuery(h);
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect([...h.upstreamFetches].sort()).toEqual([...realIds].sort());
+    expect(out.synced).toBe(250);
+    expect(out.resumePending).toBe(false);
+    for (const c of h.cursorWrites) {
+      if (c && typeof c === 'object' && 'classId' in c) {
+        expect(realIds).toContain(c.classId);
+      }
+    }
+  });
+
+  it('reaches a real roster behind more than a run of string-id docs from an unconfirmed owner', async () => {
+    const rosters = [
+      ...Array.from({ length: 700 }, (_, i) =>
+        junk(i, `0-junk-${String(i).padStart(4, '0')}`)
+      ),
+      real(1, 'Z-REAL'),
+    ];
+    const h = buildHarness(rosters);
+    h.taught.set('attacker', null);
+    useTypedQuery(h);
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(h.upstreamFetches).toEqual(['Z-REAL']);
+    expect(out.synced).toBe(1);
+    expect(out.skippedNotTeacher).toBe(700);
+    expect(out.resumePending).toBe(false);
+  });
+
+  it('still stops at the per-run cap of confirmed rosters', async () => {
+    const h = buildHarness(
+      Array.from({ length: 520 }, (_, i) =>
+        real(i, `C-${String(i).padStart(4, '0')}`)
+      )
+    );
+    useTypedQuery(h);
+
+    const out = await runClassLinkRosterSync(h.db, h.deps, ENABLED);
+
+    expect(out.synced).toBe(500);
+    expect(out.resumePending).toBe(true);
+    expect(h.cursorWrites.at(-1)).toEqual({
+      classId: 'C-0499',
+      path: 'users/t499/rosters/r',
+    });
   });
 });
 

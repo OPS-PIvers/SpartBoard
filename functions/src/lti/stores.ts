@@ -128,6 +128,8 @@ export interface StoredLaunch {
   custom: Record<string, unknown> | null;
   email: string | null;
   name: string | null;
+  /** Hash of the launching browser's binding id; only that browser may redeem the code. */
+  bindingHash?: string | null;
 }
 
 export async function mintLaunchCode(
@@ -148,11 +150,21 @@ export async function mintLaunchCode(
   return code;
 }
 
-/** Atomically reads + deletes the launch code. Returns the stored launch, or null. */
+/** Atomically reads + deletes the launch code; 'refused' (code kept) when `accept` rejects the caller. */
 export async function consumeLaunchCode(
   db: Db,
   code: string
-): Promise<StoredLaunch | null> {
+): Promise<StoredLaunch | null>;
+export async function consumeLaunchCode(
+  db: Db,
+  code: string,
+  accept: (launch: StoredLaunch) => boolean
+): Promise<StoredLaunch | null | 'refused'>;
+export async function consumeLaunchCode(
+  db: Db,
+  code: string,
+  accept?: (launch: StoredLaunch) => boolean
+): Promise<StoredLaunch | null | 'refused'> {
   if (!code) return null;
   const ref = db.collection(LTI_LAUNCH_CODE_COLLECTION).doc(code);
   return db.runTransaction(async (tx) => {
@@ -160,15 +172,17 @@ export async function consumeLaunchCode(
     if (!snap.exists) return null;
     const data = snap.data() as
       (StoredLaunch & { expiresAtMs?: number }) | undefined;
-    tx.delete(ref);
-    if (!data || isExpired(data)) return null;
+    if (!data || isExpired(data)) {
+      tx.delete(ref);
+      return null;
+    }
     // Return only the StoredLaunch fields (drop expiresAt*/createdAt bookkeeping).
     // All nullable fields use `?? null` so a doc written by an older code version
     // that omitted a field returns null (matching the StoredLaunch type contract)
     // rather than undefined. Consumers use `if (x)` / `x ?? fallback` patterns,
     // but returning undefined violates the declared `string | null` type and would
     // silently fail a strict `=== null` check.
-    return {
+    const launch: StoredLaunch = {
       role: data.role,
       messageType: data.messageType,
       sub: data.sub,
@@ -182,6 +196,12 @@ export async function consumeLaunchCode(
       custom: data.custom ?? null,
       email: data.email ?? null,
       name: data.name ?? null,
+      ...(typeof data.bindingHash === 'string' && data.bindingHash
+        ? { bindingHash: data.bindingHash }
+        : {}),
     };
+    if (accept && !accept(launch)) return 'refused';
+    tx.delete(ref);
+    return launch;
   });
 }

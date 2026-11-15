@@ -283,4 +283,28 @@ describe('LTI launch browser binding', () => {
     await launch(fakeReq({ id_token: 'n-old', state: 'old-state' }), res);
     expect(res.statusCode).toBe(302);
   });
+
+  it('binds the launch code to the browser cookie that proved the launch', async () => {
+    const { mintLaunchCode } = await import('./stores');
+    const { hashBindingId } = await import('./browserBinding');
+    const { state, nonce, cookie } = await startLogin();
+    await launch(fakeReq({ id_token: nonce, state }, cookie), fakeRes());
+    expect(vi.mocked(mintLaunchCode)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        bindingHash: hashBindingId(cookie.split('=')[1]),
+      })
+    );
+  });
+
+  it('leaves the code unbound when monitor mode let a cookie-less launch through', async () => {
+    const { mintLaunchCode } = await import('./stores');
+    launchMode = 'monitor';
+    const { state, nonce } = await startLogin();
+    await launch(fakeReq({ id_token: nonce, state }), fakeRes());
+    expect(vi.mocked(mintLaunchCode)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ bindingHash: null })
+    );
+  });
 });

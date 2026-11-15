@@ -11,10 +11,10 @@
  * in-iframe teacher review (responses, grading, publish, push to Schoology).
  */
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
 import { AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
-import { auth, functions } from '@/config/firebase';
+import { auth } from '@/config/firebase';
+import { ltiExchangeCallable } from './ltiExchangeCallable';
 
 const QuizStudentApp = lazy(() =>
   import('@/components/quiz/QuizStudentApp').then((m) => ({
@@ -74,10 +74,7 @@ export const LtiLaunchPage: React.FC = () => {
 
     void (async () => {
       try {
-        const exchange = httpsCallable<{ code: string }, LtiExchangeResult>(
-          functions,
-          'ltiExchange'
-        );
+        const exchange = ltiExchangeCallable<LtiExchangeResult>();
         const { data } = await exchange({ code });
         // A Learner launch MUST carry a custom token. Without it, proceeding
         // would mount the quiz runner as an anonymous/wrong identity instead of
