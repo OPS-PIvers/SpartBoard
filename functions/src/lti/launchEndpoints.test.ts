@@ -103,12 +103,23 @@ vi.mock('firebase-functions/params', () => ({
 
 // Provide a real-enough launch code store: consumeLaunchCode returns the
 // launch we pre-seed via `nextLaunch`. The real stores.ts isn't needed here.
-let nextLaunch: ReturnType<typeof makeLaunch> | null = null;
+let nextLaunch:
+  (ReturnType<typeof makeLaunch> & { bindingHash?: string }) | null = null;
 vi.mock('./stores', () => ({
   putOidcState: vi.fn(),
   consumeOidcState: vi.fn(),
   mintLaunchCode: vi.fn(),
-  consumeLaunchCode: vi.fn(async () => nextLaunch),
+  consumeLaunchCode: vi.fn(
+    async (
+      _db: unknown,
+      _code: string,
+      accept?: (l: NonNullable<typeof nextLaunch>) => boolean
+    ) => {
+      const l = nextLaunch;
+      if (!l) return null;
+      return accept && !accept(l) ? 'refused' : l;
+    }
+  ),
   newOpaqueId: vi.fn(() => 'opaque-id'),
 }));
 
@@ -158,17 +169,31 @@ vi.mock('./config', async (orig) => ({
 const addVerifiedLmsClasses = vi.fn<(...args: unknown[]) => Promise<void>>(
   async () => {}
 );
+// Staff member docs, keyed by address; the real teacherAuth still applies the district-domain check.
+const districtStaff = new Set<string>();
+vi.mock('../districtStaff', () => ({
+  isDistrictStaffToken: async (
+    _db: unknown,
+    token: { email?: string; studentRole?: unknown; pinLogin?: unknown }
+  ) =>
+    token.studentRole !== true &&
+    token.pinLogin !== true &&
+    districtStaff.has((token.email ?? '').toLowerCase()),
+}));
+
 vi.mock('../verifiedClassList', async (orig) => ({
   ...(await orig<typeof import('../verifiedClassList')>()),
   addVerifiedLmsClasses: (...args: unknown[]) => addVerifiedLmsClasses(...args),
 }));
 
 import { ltiExchange } from './launchEndpoints';
+import { hashBindingId } from './browserBinding';
 import { persistLtiLaunchContext } from './nrpsStore';
 
 type Req = {
   auth?: { uid: string; token: Record<string, unknown> };
   data: unknown;
+  rawRequest?: { headers: { cookie?: string } };
 };
 const callExchange = ltiExchange as unknown as (
   r: Req
@@ -213,6 +238,7 @@ beforeEach(() => {
   existingResponses.clear();
   responseLookupFails = false;
   addVerifiedLmsClasses.mockClear();
+  districtStaff.clear();
 });
 
 describe('ltiExchange — teacher section on the verified class list', () => {
@@ -449,5 +475,105 @@ describe('ltiExchange — deep-linking teacher binding', () => {
       expect.anything(),
       expect.objectContaining({ quizCode: 'ABC123', teacherUid: null })
     );
+  });
+});
+
+describe('ltiExchange — browser binding on the launch code', () => {
+  const BID = 'b'.repeat(40);
+  const bound = () => ({ ...makeLaunch(), bindingHash: hashBindingId(BID) });
+  const withCookie = (cookie?: string): Req => ({
+    data: { code: 'code-1' },
+    rawRequest: { headers: cookie ? { cookie } : {} },
+  });
+
+  it('refuses a bound code from a browser without the binding cookie', async () => {
+    nextLaunch = bound();
+    await expect(callExchange(withCookie())).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(mintedTokens).toHaveLength(0);
+  });
+
+  it('refuses a bound code from a browser with another binding cookie', async () => {
+    nextLaunch = bound();
+    await expect(
+      callExchange(withCookie(`__session=${'c'.repeat(40)}`))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(mintedTokens).toHaveLength(0);
+  });
+
+  it('redeems a bound code in the browser that launched', async () => {
+    nextLaunch = bound();
+    const res = await callExchange(withCookie(`x=1; __session=${BID}`));
+    expect(res.studentRole).toBe(true);
+    expect(mintedTokens).toHaveLength(1);
+  });
+
+  it('still redeems an unbound code (launch from a browser without the cookie)', async () => {
+    nextLaunch = makeLaunch();
+    const res = await callExchange(withCookie());
+    expect(res.studentRole).toBe(true);
+  });
+
+  const T = 't@orono.k12.mn.us';
+  const boundDeepLink = (email: string | null = 'T@orono.k12.mn.us') => ({
+    ...makeLaunch({
+      role: 'teacher',
+      email,
+      messageType: 'LtiDeepLinkingRequest',
+    }),
+    bindingHash: hashBindingId(BID),
+  });
+  const staff = (email: string, extra: Record<string, unknown> = {}) => ({
+    uid: 'teacher-uid',
+    token: { email, email_verified: true, ...extra },
+  });
+  const refused = async (auth: Req['auth'], email: string | null) => {
+    nextLaunch = boundDeepLink(email);
+    await expect(callExchange({ ...withCookie(), auth })).rejects.toMatchObject(
+      { code: 'permission-denied' }
+    );
+  };
+
+  it("redeems a bound deep-link code top-level (no partitioned cookie) with the launching teacher's ID token", async () => {
+    districtStaff.add(T);
+    nextLaunch = boundDeepLink();
+    const res = await callExchange({ ...withCookie(), auth: staff(T) });
+    expect(res.isDeepLinking).toBe(true);
+    expect(res.studentRole).toBe(false);
+  });
+
+  it('accepts a district teacher on a bound deep-link code whose launch carried no email', async () => {
+    districtStaff.add(T);
+    nextLaunch = boundDeepLink(null);
+    const res = await callExchange({ ...withCookie(), auth: staff(T) });
+    expect(res.isDeepLinking).toBe(true);
+  });
+
+  it('refuses a district student Google account and an outside verified account on a no-email deep-link code', async () => {
+    await refused(staff('kid@orono.k12.mn.us'), null);
+    districtStaff.add('someone@gmail.com');
+    await refused(staff('someone@gmail.com'), null);
+  });
+
+  it('refuses a bound deep-link code without its cookie for another teacher, a student or no token', async () => {
+    districtStaff.add(T);
+    districtStaff.add('other@orono.k12.mn.us');
+    for (const auth of [
+      staff('other@orono.k12.mn.us'),
+      staff(T, { studentRole: true }),
+      { uid: 'x', token: { email: T, email_verified: false } },
+      undefined,
+    ]) {
+      await refused(auth, T);
+    }
+  });
+
+  it('never lets an ID token stand in for the cookie on a learner code', async () => {
+    nextLaunch = bound();
+    await expect(
+      callExchange({ ...withCookie(), auth: staff(T) })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(mintedTokens).toHaveLength(0);
   });
 });
