@@ -54,7 +54,19 @@ describe('formatAssignmentClassNames', () => {
     );
   });
 
+  it('never compresses a shared tail alone', () => {
+    expect(formatAssignmentClassNames(['Algebra 1', 'Geometry 1'])).toBe(
+      'Algebra 1, Geometry 1'
+    );
+    expect(formatAssignmentClassNames(['Science - P1', 'Science / P1'])).toBe(
+      'Science - P1, Science / P1'
+    );
+  });
+
   it('drops duplicates and extra spaces', () => {
+    expect(formatAssignmentClassNames(['Period 3', 'period 3'])).toBe(
+      'Period 3'
+    );
     expect(formatAssignmentClassNames(['Period  3', 'Period 3'])).toBe(
       'Period 3'
     );
@@ -63,6 +75,14 @@ describe('formatAssignmentClassNames', () => {
 });
 
 describe('splitAssignmentClassNames', () => {
+  it('splits classes that share only a tail', () => {
+    expect(splitAssignmentClassNames(['Art 1', 'Music 1', 'PE 1'])).toEqual({
+      first: 'Art 1',
+      more: 2,
+      total: 3,
+    });
+  });
+
   it('splits three or more unrelated classes', () => {
     expect(
       splitAssignmentClassNames(['Biology', 'Chemistry', 'Physics'])

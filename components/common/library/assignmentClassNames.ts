@@ -7,8 +7,9 @@ const uniqueNames = (
   const out: string[] = [];
   for (const raw of names) {
     const name = raw?.trim().replace(/\s+/g, ' ');
-    if (name && !seen.has(name)) {
-      seen.add(name);
+    const key = name?.toLocaleLowerCase();
+    if (name && key && !seen.has(key)) {
+      seen.add(key);
       out.push(name);
     }
   }
@@ -56,14 +57,15 @@ export const formatAssignmentClassNames = (
   if (list.length === 1) return list[0];
   const prefixLen = commonPrefixLength(list);
   const suffixLen = commonSuffixLength(list, prefixLen);
-  if (prefixLen === 0 && suffixLen === 0) return list.join(', ');
+  // A shared tail alone ("Algebra 1", "Geometry 1") would read as new classes.
+  if (prefixLen === 0) return list.join(', ');
   const prefix = list[0].slice(0, prefixLen);
   const suffix = list[0].slice(list[0].length - suffixLen);
   const parts = list.map((n) =>
     n.slice(prefixLen, n.length - suffixLen).trim()
   );
   // Only compress when each class differs by one word, like a period number.
-  if (parts.some((p) => p.length === 0 || p.includes(' ')))
+  if (parts.some((p) => p.includes(' ') || !/[\p{L}\p{N}]/u.test(p)))
     return list.join(', ');
   return `${prefix}${parts.join(', ')}${suffix}`;
 };
