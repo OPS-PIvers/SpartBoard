@@ -2,7 +2,6 @@
 import type React from 'react';
 import {
   ClipboardList,
-  FolderTree,
   MonitorPlay,
   Users,
   Camera,
@@ -1151,49 +1150,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: true,
   },
-  sparty: {
-    label: 'Sparty',
-    icon: Smile,
-    description: 'Pixel Spartan mascot in tours, setup and help.',
-    stage: 'preview',
-    afterLaunch: 'keep',
-    category: 'look',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'getting-started': {
-    label: 'Getting Started',
-    icon: Footprints,
-    description: 'Live tours and a Getting Started page for new teachers.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'district-library': {
     label: 'District library',
     icon: Library,
     description:
       'Quizzes and question banks admins publish to buildings, grades or teachers.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     category: 'sharing',
-    defaultAccessLevel: 'admin',
+    defaultAccessLevel: 'public',
     defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'district-library-folders': {
-    label: 'District library folders',
-    icon: FolderTree,
-    description:
-      'Folders in the District library, with one audience per folder, shown to teachers as folders.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
+    missingDocPublic: true,
   },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
@@ -1656,17 +1623,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'youtube-paste-picker': {
-    label: 'Paste a YouTube link: pick a widget',
-    icon: Video,
-    description:
-      'Pasting a YouTube link on the board asks whether to add it as an Embed or a Video Activity.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

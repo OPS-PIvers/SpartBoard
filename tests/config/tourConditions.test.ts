@@ -21,7 +21,7 @@ const facts: Record<TourFact, boolean | undefined> = {
 describe('tour conditions', () => {
   it('accepts facts and known features, and nothing else', () => {
     expect(isTourConditionRef('building-saved')).toBe(true);
-    expect(isTourConditionRef('feature:sparty')).toBe(true);
+    expect(isTourConditionRef('feature:live-session')).toBe(true);
     expect(isTourConditionRef('feature:no-such-feature')).toBe(false);
     expect(isTourConditionRef('building')).toBe(false);
     expect(isTourConditionRef(3)).toBe(false);
@@ -34,11 +34,11 @@ describe('tour conditions', () => {
   });
 
   it('answers facts and features', () => {
-    const can = (id: string) => id === 'sparty';
+    const can = (id: string) => id === 'live-session';
     expect(checkTourCondition('building-saved', facts, can)).toBe(true);
     expect(checkTourCondition('classlink-on', facts, can)).toBe(false);
     expect(checkTourCondition('class-added', facts, can)).toBeUndefined();
-    expect(checkTourCondition('feature:sparty', facts, can)).toBe(true);
+    expect(checkTourCondition('feature:live-session', facts, can)).toBe(true);
     expect(checkTourCondition('feature:flashcards-speak', facts, can)).toBe(
       false
     );
