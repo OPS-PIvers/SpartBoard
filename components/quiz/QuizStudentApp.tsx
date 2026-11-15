@@ -3063,6 +3063,8 @@ export const ActiveQuiz: React.FC<{
     );
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   submittedRef.current = draftLocked;
+  // A revisit over the word limit keeps its saved answer on every draft path, as Next does.
+  const overLimitRevisitRef = useRef(false);
   // Pending draft tracker for question-change flushes. The state-driven
   // autosave effect populates this when it schedules a write; a watcher
   // on `currentQuestion?.id` calls `write()` synchronously when the
@@ -3244,6 +3246,8 @@ export const ActiveQuiz: React.FC<{
       ? wordLimitStatus(countWords(liveAnswer ?? ''), currentQuestion)
       : null;
   const wordLimitBlocked = writtenLimit?.blocked === true;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  overLimitRevisitRef.current = submitted && wordLimitBlocked;
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
@@ -3375,7 +3379,7 @@ export const ActiveQuiz: React.FC<{
       // bail-out below would otherwise fail and re-write the answer as
       // a draft — downgrading the just-submitted answer.
       if (myResponseStatusRef.current === 'completed') return;
-      if (submittedRef.current) return;
+      if (submittedRef.current || overLimitRevisitRef.current) return;
       const qid = currentQuestionRef.current?.id;
       const type = currentQuestionRef.current?.type;
       if (!qid || !type) return;

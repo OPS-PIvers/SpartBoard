@@ -208,6 +208,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   // The stamp tells this one student's page to report its question; clearing it on close stops that.
   useEffect(() => {
     if (!watching) return;
+    // Drop any report left from an earlier watch (or a closed tab) before asking for a fresh one.
+    deleteLiveState(sessionId, studentKey).catch(() => undefined);
     stamp();
     const renew = window.setInterval(stamp, LIVE_VIEW_RENEW_MS);
     const stop = watchLiveState(sessionId, studentKey, (state) =>

@@ -107,7 +107,7 @@ export interface LiveViewStats {
   questionNumber: number | null;
   questionCount: number;
   answeredCount: number;
-  /** Server time of the student's last real input while watched, else of the last write to the response. */
+  /** Server time of the student's last real input or response write, whichever is newer. */
   lastActivityAt: number | null;
   tabExits: number;
   awayMs: number;
@@ -127,6 +127,16 @@ const sumCounts = (
     total.clicks += c.clicks ?? 0;
   }
   return total;
+};
+
+/** The newer of the student's reported input and the last response write, never past now. */
+const lastActivity = (
+  activeAt: number | undefined,
+  lastWriteAt: number | null,
+  now: number
+): number | null => {
+  const newest = Math.max(activeAt ?? -Infinity, lastWriteAt ?? -Infinity);
+  return Number.isFinite(newest) ? Math.min(newest, now) : null;
 };
 
 export function liveViewStats(
@@ -161,8 +171,11 @@ export function liveViewStats(
       order.map((q) => q.id),
       session.paperWrittenQuestionIds
     ),
-    // A teacher's Start or resume also stamps lastWriteAt, so the student's own report wins when there is one.
-    lastActivityAt: reported?.activeAt ?? timestampMillis(response.lastWriteAt),
+    lastActivityAt: lastActivity(
+      reported?.activeAt,
+      timestampMillis(response.lastWriteAt),
+      now
+    ),
     tabExits: exits.length,
     awayMs: totalAwayMs(
       exits.map((e) =>

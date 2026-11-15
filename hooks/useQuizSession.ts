@@ -3523,11 +3523,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // Per-answer flag: the student write whitelist admits no new top-level
         // response field, and a re-submit must not carry the stale marker.
         delete newAnswer.timedOutUnderMinimum;
-        if (
-          opts?.timedOutUnderMinimum ||
-          (keepSubmitted && priorEntry?.timedOutUnderMinimum)
-        )
-          newAnswer.timedOutUnderMinimum = true;
+        if (opts?.timedOutUnderMinimum) newAnswer.timedOutUnderMinimum = true;
         // Per-call display hint (D18): a student who drafts in Somali, toggles to
         // English and retypes must not resurrect `locale` from the spread.
         delete newAnswer.locale;
