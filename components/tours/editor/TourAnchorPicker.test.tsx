@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchAutoClick } from '@/components/tours/autopilot';
-import { closeSelectMenu } from '@/utils/selectMenu';
+import { installSelectMenus } from '@/utils/selectMenu';
 import { TourAnchorPicker } from './TourAnchorPicker';
 
 const board = () => (
@@ -189,6 +189,7 @@ describe('TourAnchorPicker', () => {
   it('opens a dropdown on a Ctrl click so its option can be chosen', () => {
     const showPicker = vi.fn();
     HTMLSelectElement.prototype.showPicker = showPicker;
+    const uninstall = installSelectMenus();
     const { onPick } = setup();
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'What moves on');
@@ -209,7 +210,7 @@ describe('TourAnchorPicker', () => {
     expect(select.value).toBe('b');
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onPick).not.toHaveBeenCalled();
-    closeSelectMenu();
+    uninstall();
     select.remove();
   });
 

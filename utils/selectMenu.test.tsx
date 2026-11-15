@@ -174,4 +174,74 @@ describe('selectMenu', () => {
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Off' }));
     expect(isSelectMenuOpen()).toBe(false);
   });
+
+  it('keeps presses on the list away from click-outside closers and window Escape handlers', () => {
+    const outside = vi.fn();
+    const escape = vi.fn();
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('mousedown', outside);
+    const onWindowKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') escape();
+    };
+    window.addEventListener('keydown', onWindowKey, true);
+    render(<Controlled />);
+    const select = screen.getByRole('combobox');
+    fireEvent.mouseDown(select);
+    const option = within(listbox()).getByRole('option', { name: 'Apple' });
+    fireEvent.pointerDown(option);
+    fireEvent.mouseDown(option);
+    expect(outside).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(select, { key: 'Escape' });
+    expect(escape).not.toHaveBeenCalled();
+    expect(isSelectMenuOpen()).toBe(false);
+    document.removeEventListener('pointerdown', outside);
+    document.removeEventListener('mousedown', outside);
+    window.removeEventListener('keydown', onWindowKey, true);
+  });
+
+  it('leaves a select disabled by its fieldset closed', () => {
+    render(
+      <fieldset disabled>
+        <select aria-label="Locked" defaultValue="a">
+          <option value="a">A</option>
+          <option value="b">B</option>
+        </select>
+      </fieldset>
+    );
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Locked' }));
+    expect(isSelectMenuOpen()).toBe(false);
+  });
+
+  it('lets Space finish a typed search on a closed select', () => {
+    render(<Controlled />);
+    const select = screen.getByRole('combobox');
+    select.focus();
+    fireEvent.keyDown(select, { key: 'n' });
+    fireEvent.keyDown(select, { key: ' ' });
+    expect(isSelectMenuOpen()).toBe(false);
+  });
+
+  it('rebuilds the list when the options change while it is open', async () => {
+    const Swap: React.FC = () => {
+      const [more, setMore] = useState(false);
+      return (
+        <>
+          <select
+            aria-label="Swap"
+            defaultValue="a"
+            onFocus={() => setMore(true)}
+          >
+            <option value="a">A</option>
+            {more && <option value="z">Zed</option>}
+          </select>
+        </>
+      );
+    };
+    render(<Swap />);
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Swap' }));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(menuOptions().map((o) => o.textContent)).toEqual(['A', 'Zed']);
+  });
 });
