@@ -564,8 +564,6 @@ export interface UseQuizAssignmentsResult {
      */
     plcHandling?: {
       isMember: (plcId: string) => boolean;
-      /** The importer's own (member-readable) PLC sheet URL. */
-      sheetUrlFor?: (plcId: string) => string | undefined;
       onNonMember: (info: { plcId: string; plcName: string }) => void;
     },
     /**
@@ -2847,6 +2845,8 @@ export const useQuizAssignments = (
           canonicalFields = {
             ...canonicalFields,
             bankSlots: canonicalFields.bankSlots.map((slot) => {
+              // District library banks are readable by all staff and stay linked.
+              if (slot.districtItemId) return slot;
               const { syncGroupId: _g, syncOwnerUid: _o, ...unbound } = slot;
               return unbound;
             }),
@@ -2946,9 +2946,27 @@ export const useQuizAssignments = (
       //     3rd Period"). Cosmetic-only but confusing UX if left in
       //     place — Teacher B sees Teacher A's label as the subtitle
       //     on her own assignment card.
-      //   - plc: the share's linkage (sheet, roster) is sharer-controlled and
-      //     never copied; PLC members get id/name plus their own PLC's sheet.
+      //   - plc.sheetUrl: points at the ORIGINATOR's PLC Google Sheet.
+      //     If left in place, the importer's first results export takes
+      //     this URL (see QuizResults.tsx → exportResultsToSheet) and
+      //     calls Drive against a sheet the importer isn't shared on —
+      //     a 403. Clearing the whole `plc` linkage lets the auto-create
+      //     path on first PLC assignment populate the importer's own
+      //     sheet instead.
+      //   - plc.memberEmails: originator's PLC roster. Not consumed by
+      //     the importer's start-flow today (Widget.tsx derives sharing
+      //     from the live `plc` doc via getPlcTeammateEmails), but
+      //     cleared for hygiene — leaving someone else's email roster
+      //     on the doc is a future-foot-gun.
+      //   - plc itself: cleared so the importer explicitly opts back in
+      //     to PLC mode for their own assignment via the settings modal,
+      //     keeping repopulation tied to the importer's own PLC selection
+      //     rather than the originator's.
       //
+      // EXCEPTION: members of the share's PLC keep `plc` wiring so their
+      // exports route to the same shared sheet that the originator and
+      // every other peer use (already shared with all members at sheet
+      // creation time in Widget.tsx → createPlcSheetAndShare).
       const sharedPlc = shared.assignmentSettings.plc;
       const importerIsPlcMember =
         !!sharedPlc && !!plcHandling && plcHandling.isMember(sharedPlc.id);
@@ -2959,19 +2977,7 @@ export const useQuizAssignments = (
         teacherName: undefined,
         periodName: undefined,
         periodNames: undefined,
-        // Sheet/emails from the share are sharer-controlled, so never carry them over.
-        plc:
-          importerIsPlcMember && sharedPlc
-            ? {
-                id: sharedPlc.id,
-                name: sharedPlc.name,
-                memberEmails: [],
-                // Sheet comes from the importer's own PLC doc, never the share.
-                ...(plcHandling?.sheetUrlFor?.(sharedPlc.id)
-                  ? { sheetUrl: plcHandling.sheetUrlFor(sharedPlc.id) }
-                  : {}),
-              }
-            : undefined,
+        plc: importerIsPlcMember ? shared.assignmentSettings.plc : undefined,
       };
 
       if (sharedPlc && !importerIsPlcMember && plcHandling) {

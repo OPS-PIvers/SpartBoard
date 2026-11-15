@@ -1,5 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   PlcQuestionBankEntry,
@@ -109,13 +117,18 @@ export async function loadBankContentsFor(
             out.set(key, await loadSyncedBankContent(slot.syncGroupId, owner));
             return;
           }
-          // Unpinned (pre-pin) slot: trust only a doc owned by a teammate who shared this id in my PLC.
-          const sharers = plcSharers?.get(slot.syncGroupId);
-          if (!sharers?.size)
-            throw new Error('Shared bank slot has no verified owner.');
+          // Unpinned (pre-pin) slot: trust only my own doc or one a teammate shared into my PLC.
           const content = await loadSyncedBankContent(slot.syncGroupId);
-          if (!content.syncOwnerUid || !sharers.has(content.syncOwnerUid))
-            throw new Error('This shared bank is no longer available.');
+          const docOwner = content.syncOwnerUid;
+          if (!docOwner)
+            throw new Error('Shared bank slot has no verified owner.');
+          const trusted =
+            docOwner === userId ||
+            !!plcSharers?.get(slot.syncGroupId)?.has(docOwner) ||
+            (!!userId &&
+              (await fetchPlcSharers(userId, slot.syncGroupId)).has(docOwner));
+          if (!trusted)
+            throw new Error('Shared bank slot has no verified owner.');
           out.set(key, content);
           return;
         }
@@ -129,6 +142,32 @@ export async function loadBankContentsFor(
           bankId: slot.bankId,
         });
       }
+    })
+  );
+  return out;
+}
+
+/** Uids that shared `syncGroupId` into one of my PLCs, read fresh (callers without live PLC listeners). */
+export async function fetchPlcSharers(
+  userId: string,
+  syncGroupId: string
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  const plcSnap = await getDocs(
+    query(collection(db, 'plcs'), where('memberUids', 'array-contains', userId))
+  );
+  await Promise.all(
+    plcSnap.docs.map(async (plc) => {
+      const snap = await getDocs(
+        query(
+          collection(db, 'plcs', plc.id, BANKS_COLLECTION),
+          where('syncGroupId', '==', syncGroupId)
+        )
+      );
+      snap.docs.forEach((d) => {
+        const by = (d.data() as Partial<PlcQuestionBankEntry>).sharedBy;
+        if (by) out.add(by);
+      });
     })
   );
   return out;

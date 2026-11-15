@@ -287,6 +287,8 @@ export interface ImportSharedAssignmentOptions {
     activityId: string,
     linkage: VideoActivityMetadataSyncLinkage
   ) => Promise<void>;
+  /** True when the importer belongs to this PLC (checked against their own PLC list). */
+  isPlcMember?: (plcId: string) => boolean;
 }
 
 export const useVideoActivityAssignments = (
@@ -1069,8 +1071,8 @@ export const useVideoActivityAssignments = (
 
         // 3) Create the local assignment, paused. Originator-only fields
         // cleared: teacherName + periodName (which encode the original
-        // author's identity / single-class targeting). The share's plc
-        // linkage (sheet, roster) is sharer-controlled, so it is not copied.
+        // author's identity / single-class targeting). PLC linkage is kept
+        // only for a verified member of that PLC.
         const sourceSettings = sharedDoc.assignmentSettings;
         const importedSettings: VideoActivityAssignmentSettings = {
           className: sourceSettings.className,
@@ -1084,6 +1086,9 @@ export const useVideoActivityAssignments = (
           ...(sourceSettings.periodNames &&
           sourceSettings.periodNames.length > 0
             ? { periodNames: sourceSettings.periodNames }
+            : {}),
+          ...(sourceSettings.plc && options.isPlcMember?.(sourceSettings.plc.id)
+            ? { plc: sourceSettings.plc }
             : {}),
           ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
         };

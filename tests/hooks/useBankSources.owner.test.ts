@@ -1,7 +1,7 @@
 /** A shared-bank slot only resolves from a synced doc its recorded sharer owns. */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { getDoc } from 'firebase/firestore';
+import { getDoc, getDocs } from 'firebase/firestore';
 import {
   expectedSlotOwner,
   loadBankContentsFor,
@@ -15,9 +15,12 @@ import type {
 } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(),
+  collection: vi.fn((_db: unknown, ...path: string[]) => path.join('/')),
   doc: vi.fn((_db: unknown, col: string, id: string) => ({ col, id })),
   getDoc: vi.fn(),
+  getDocs: vi.fn(),
+  query: vi.fn((col: string) => col),
+  where: vi.fn(),
   onSnapshot: vi.fn(),
 }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
@@ -52,7 +55,10 @@ const slot = (over: Partial<QuizBankSlot> = {}): QuizBankSlot => ({
 const noDrive = vi.fn<(id: string) => Promise<QuestionBankData>>();
 
 describe('shared bank slot owner binding', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (getDocs as Mock).mockResolvedValue({ docs: [] });
+  });
 
   it('loads a doc owned by the recorded sharer', async () => {
     (getDoc as Mock).mockResolvedValue(syncedDoc('sharer'));
@@ -126,6 +132,36 @@ describe('shared bank slot owner binding', () => {
       new Map([['g1', new Set(['sharer'])]])
     );
     expect(out.has('g1')).toBe(false);
+  });
+
+  it('verifies an unpinned teammate slot by reading my PLCs when no live sharers were passed', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('sharer'));
+    (getDocs as Mock).mockImplementation((q: string) =>
+      Promise.resolve(
+        q === 'plcs'
+          ? { docs: [{ id: 'plc1' }] }
+          : { docs: [{ data: () => ({ sharedBy: 'sharer' }) }] }
+      )
+    );
+    const out = await loadBankContentsFor(
+      { bankSlots: [slot()] },
+      [],
+      noDrive,
+      'me'
+    );
+    expect(out.has('g1')).toBe(true);
+  });
+
+  it('loads an unpinned slot on my own synced doc before my bank list loads', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('me'));
+    const out = await loadBankContentsFor(
+      { bankSlots: [slot()] },
+      [],
+      noDrive,
+      'me'
+    );
+    expect(out.has('g1')).toBe(true);
+    expect(getDocs).not.toHaveBeenCalled();
   });
 
   it('keeps the pin on an own bank that was unshared since', () => {

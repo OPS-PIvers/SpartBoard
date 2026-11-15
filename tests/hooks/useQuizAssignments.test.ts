@@ -838,7 +838,7 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     expect(assignment.teacherUid).toBe(TEACHER_UID);
   });
 
-  it('keeps the PLC id for a member but drops the share’s sheet URL and emails', async () => {
+  it('preserves the PLC linkage for an importer that is a current member of the share’s PLC', async () => {
     const sharedDoc = {
       title: 'Quiz Title',
       questions: [],
@@ -882,54 +882,11 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     expect(assignment.plc).toEqual({
       id: 'plc-shared',
       name: 'Shared PLC',
-      memberEmails: [],
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/shared-sheet',
+      memberEmails: ['a@example.com', 'b@example.com'],
     });
     // Member path: the non-member nudge must NOT fire.
     expect(onNonMember).not.toHaveBeenCalled();
-  });
-
-  it('takes the PLC sheet from the importer’s own PLC, never the share', async () => {
-    const sharedDoc = {
-      title: 'Quiz Title',
-      questions: [],
-      createdAt: 1,
-      updatedAt: 1,
-      assignmentSettings: {
-        sessionMode: 'teacher',
-        sessionOptions: {},
-        plc: {
-          id: 'plc-shared',
-          name: 'Shared PLC',
-          sheetUrl: 'https://evil.example/sheet',
-        },
-      },
-      originalAuthor: 'originator-uid',
-      sharedAt: 1,
-    } as unknown as SharedQuizAssignment;
-    mockGetDoc.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => sharedDoc,
-    });
-    const saveQuiz = vi.fn().mockResolvedValue({ id: 'q', driveFileId: 'd' });
-    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
-    await act(async () => {
-      await result.current.importSharedAssignment(
-        'share-id',
-        saveQuiz,
-        undefined,
-        {
-          isMember: () => true,
-          sheetUrlFor: () => 'https://docs.google.com/spreadsheets/d/own',
-          onNonMember: vi.fn(),
-        }
-      );
-    });
-    expect(findAssignmentSet().plc).toEqual({
-      id: 'plc-shared',
-      name: 'Shared PLC',
-      memberEmails: [],
-      sheetUrl: 'https://docs.google.com/spreadsheets/d/own',
-    });
   });
 
   it.each([
@@ -951,6 +908,14 @@ describe('useQuizAssignments - importSharedAssignment', () => {
             count: 1,
             syncGroupId: 'atk',
             syncOwnerUid: 'attacker',
+          },
+          {
+            id: 's2',
+            bankId: 'lib1',
+            count: 1,
+            syncGroupId: 'lib-group',
+            syncOwnerUid: 'admin-uid',
+            districtItemId: 'lib1',
           },
         ],
       });
@@ -987,9 +952,15 @@ describe('useQuizAssignments - importSharedAssignment', () => {
           { mode: 'sync' }
         );
       });
-      const slot = (
+      const slots = (
         saveQuiz.mock.calls[0][0] as { bankSlots: Record<string, unknown>[] }
-      ).bankSlots[0];
+      ).bankSlots;
+      const slot = slots[0];
+      // District library slots stay linked for everyone.
+      expect(slots[1]).toMatchObject({
+        syncGroupId: 'lib-group',
+        syncOwnerUid: 'admin-uid',
+      });
       if (member) {
         expect(slot.syncGroupId).toBe('atk');
       } else {

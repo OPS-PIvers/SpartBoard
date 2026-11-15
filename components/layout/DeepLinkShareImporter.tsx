@@ -339,8 +339,6 @@ export const DeepLinkShareImporter: React.FC = () => {
             plcs.some(
               (p) => p.id === plcId && getPlcRole(p, user.uid) !== null
             ),
-          sheetUrlFor: (plcId) =>
-            plcs.find((p) => p.id === plcId)?.sharedSheetUrl ?? undefined,
           onNonMember: ({ plcName }) => {
             addToast(
               `This is a PLC quiz assignment for "${plcName}". You're not a member, so your results will export to your own sheet.`,
@@ -543,6 +541,9 @@ export const DeepLinkShareImporter: React.FC = () => {
         mode: 'copy',
         saveActivity: saveVideoActivity,
         attachSyncLinkage: attachVideoActivitySyncLinkage,
+        isPlcMember: (plcId) =>
+          !!user &&
+          plcs.some((p) => p.id === plcId && getPlcRole(p, user.uid) !== null),
       })
         .then(() => {
           addToast('Shared video activity imported!', 'success');
@@ -578,6 +579,8 @@ export const DeepLinkShareImporter: React.FC = () => {
       saveVideoActivity,
       attachVideoActivitySyncLinkage,
       addToast,
+      plcs,
+      user,
     ]
   );
 
@@ -598,7 +601,8 @@ export const DeepLinkShareImporter: React.FC = () => {
   // failure toast carries Retry as the recovery path.
   useEffect(() => {
     if (!pendingVideoActivityShareId || !user || !confirmReady) return;
-    if (confirmOn && plcsLoading) return;
+    // PLC membership decides whether the import keeps its PLC linkage.
+    if (plcsLoading) return;
     const shareId = pendingVideoActivityShareId;
     clearPendingVideoActivityShare();
     if (!confirmOn) {
