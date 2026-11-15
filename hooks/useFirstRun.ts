@@ -12,25 +12,21 @@ export interface FirstRunState {
   firstRun: boolean;
 }
 
-/** A brand-new teacher's welcome and quiet start; everything is off without the Getting Started flag. */
+/** A brand-new teacher's welcome and quiet start. */
 export function useFirstRun(): FirstRunState {
-  const { user, canAccessFeature } = useAuth();
-  const on = canAccessFeature('getting-started');
-  const { progress, loading } = useGettingStartedProgress(
-    on ? user?.uid : undefined
-  );
+  const { user } = useAuth();
+  const { progress, loading } = useGettingStartedProgress(user?.uid);
   // Read once per mount; a week-long window needs no live clock.
   const [now] = useState(Date.now);
   return {
     // A welcome left pending past the first week never appears, so a teacher who joined before the flag opened isn't interrupted (D4).
     welcomePending:
-      on &&
       !loading &&
       progress.welcome === 'pending' &&
       progress.firstSignInAt !== undefined &&
       now - progress.firstSignInAt < QUIET_START_MS,
     // Held while the doc loads, so a new teacher's Drive alert never flashes before it.
-    quiet: on && (loading || isQuietStart(progress, now)),
-    firstRun: on && progress.firstSignInAt !== undefined,
+    quiet: loading || isQuietStart(progress, now),
+    firstRun: progress.firstSignInAt !== undefined,
   };
 }

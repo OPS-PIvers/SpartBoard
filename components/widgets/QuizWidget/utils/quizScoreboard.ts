@@ -28,6 +28,7 @@ import {
   resolveSlotState,
 } from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+import { LEGACY_FORMER_PINS_AT } from '@/utils/rosterPins';
 import { gameDisplayPoints } from '@/utils/quizGame';
 import { quizPinKeySegment } from '@/utils/quizResponseKey';
 import {
@@ -377,9 +378,6 @@ function makePinKey(classPeriod: string, pin: string): string {
 
 // Former-PIN entries: key `${FORMER}${pinKey}`, value `${retiredAtMs}${FORMER}${name}`.
 const FORMER = '\u0002';
-// Re-rolls with neither a server stamp nor `formerPinsAt` count as retired by this date (the release day).
-const LEGACY_FORMER_PINS_AT = Date.UTC(2026, 10, 15);
-
 // The earlier of the server and student stamps, since a backfilled server stamp can be late.
 const formerCutoff = (server?: number, own?: number): number =>
   server !== undefined && own !== undefined

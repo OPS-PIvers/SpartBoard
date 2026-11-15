@@ -33,6 +33,7 @@ import {
   scoreQuizResponse,
   scoreVideoResponse,
   toMillis,
+  trustedTurnInMs,
   type QuizContext,
 } from './gradeRowMath';
 import type { RowScore } from './types';
@@ -86,6 +87,66 @@ describe('keyQuestions', () => {
     );
     expect(qs.map((q) => q.id)).toEqual(['p1']);
     expect(qs[0].correctAnswer).toBeNull();
+  });
+});
+
+describe('trustedTurnInMs', () => {
+  it('uses the server stamp only when it vouches for this submission', () => {
+    expect(
+      trustedTurnInMs(
+        { submittedAt: 100, turnIn: { at: 90_000, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(90_000);
+    // An honest turn-in's commit lag keeps the claim, so the Late flag doesn't move.
+    expect(
+      trustedTurnInMs(
+        { submittedAt: 100, turnIn: { at: 190, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(100);
+    expect(
+      trustedTurnInMs(
+        { submittedAt: 300, turnIn: { at: 190, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(300);
+    expect(
+      trustedTurnInMs(
+        { submittedAt: 150, turnIn: { at: 190, claimed: 100 } },
+        'submittedAt'
+      )
+    ).toBe(190);
+    expect(trustedTurnInMs({ completedAt: 7 }, 'completedAt')).toBe(7);
+    expect(
+      trustedTurnInMs({ submittedAt: null, turnIn: { at: 1 } }, 'submittedAt')
+    ).toBeNull();
+  });
+
+  it('dates the row by the server turn-in, not a backdated claim', () => {
+    const quiz = scoreQuizResponse(
+      {},
+      {
+        status: 'completed',
+        studentUid: 's1',
+        answers,
+        completedAttempts: 1,
+        submittedAt: 5_000,
+        turnIn: { at: 95_000, claimed: 5_000 },
+      },
+      quizCtx()
+    );
+    expect(quiz.submittedAt).toBe(95_000);
+    const video = scoreVideoResponse(
+      {},
+      {
+        completedAt: 5_000,
+        turnIn: { at: 95_000, claimed: 5_000 },
+        answers: [],
+      },
+      []
+    );
+    expect(video.submittedAt).toBe(95_000);
   });
 });
 
@@ -221,10 +282,13 @@ describe('scoreQuestions: written answers on paper', () => {
       { questionId: 'q3', answer: '', paperTranscript: 'image' as const },
     ];
     const questions = keyQuestions(key);
-    expect(scoreQuestions({ questions, answers }).awaiting).toBe(true);
+    expect(
+      scoreQuestions({ questions, answers, paperAttested: true }).awaiting
+    ).toBe(true);
     expect(
       scoreQuestions({
         questions,
+        paperAttested: true,
         answers: answers.map((a) =>
           a.questionId === 'q3'
             ? { ...a, paperTranscript: 'pending' as const }
@@ -232,6 +296,36 @@ describe('scoreQuestions: written answers on paper', () => {
         ),
       }).awaiting
     ).toBe(true);
+  });
+
+  it('ignores a student-written paperTranscript on a response the import never wrote, or on a non-written question', () => {
+    const questions = keyQuestions(key);
+    const forged = [
+      { questionId: 'q1', answer: '', paperTranscript: 'pending' as const },
+      { questionId: 'q2', answer: 'seven' },
+      { questionId: 'q3', answer: '', paperTranscript: 'pending' as const },
+    ];
+    const plain = scoreQuestions({ questions, answers: forged });
+    expect(plain).toMatchObject({ awaiting: false, earned: 1, max: 6 });
+    // Even on an imported paper response, an MC answer is never owed a written grade.
+    const imported = scoreQuestions({
+      questions,
+      answers: forged.slice(0, 2),
+      paperAttested: true,
+    });
+    expect(imported).toMatchObject({ awaiting: false, earned: 1 });
+    expect(
+      scoreQuizResponse(
+        {},
+        {
+          studentUid: 'u1',
+          status: 'completed',
+          submittedAt: 5,
+          answers: forged,
+        },
+        quizCtx()
+      )
+    ).toMatchObject({ state: 'scored', points: 1 });
   });
 
   it('holds the score until the paper answer is scanned or graded', () => {
@@ -280,7 +374,7 @@ describe('scoreQuestions: written answers on paper', () => {
 });
 
 describe('scoreVideoResponse', () => {
-  it('uses stored correctness when the key is gone', () => {
+  it('never scores a key-less question from the student-written isCorrect', () => {
     const questions = keyQuestions(
       undefined,
       [],
@@ -294,16 +388,17 @@ describe('scoreVideoResponse', () => {
       {
         completedAt: 9,
         answers: [
-          { questionId: 'v1', answer: 'a', isCorrect: true },
-          { questionId: 'v2', answer: 'b', isCorrect: false },
+          { questionId: 'v1', answer: 'a', isCorrect: true, answeredAt: 1 },
+          { questionId: 'v1', answer: 'b', isCorrect: false, answeredAt: 2 },
+          { questionId: 'v2', answer: 'b', isCorrect: true },
         ],
       },
       questions
     );
     expect(r).toMatchObject({
       state: 'scored',
-      rawPct: 50,
-      points: 1,
+      rawPct: 0,
+      points: 0,
       max: 2,
       submittedAt: 9,
     });
@@ -342,6 +437,41 @@ describe('scoreVideoResponse', () => {
         possible: 1,
       },
     ]);
+  });
+});
+
+describe('scoreVideoResponse answer selection', () => {
+  const questions = () =>
+    keyQuestions([
+      { id: 'v1', type: 'MC', text: 'x', correctAnswer: 'A', points: 1 },
+    ]);
+
+  it('grades the first entry, not a later duplicate with answeredAt 0', () => {
+    const r = scoreVideoResponse(
+      {},
+      {
+        completedAt: 9,
+        answers: [
+          { questionId: 'v1', answer: 'B', answeredAt: 5000 },
+          { questionId: 'v1', answer: 'A', answeredAt: 0, takeIndex: 9 },
+        ],
+      },
+      questions()
+    );
+    expect(r).toMatchObject({ rawPct: 0 });
+  });
+
+  it('scores a live entry the check callable never recorded as 0', () => {
+    const r = scoreVideoResponse(
+      { sessionMode: 'teacher', live: { askedQuestionIds: ['v1'] } },
+      {
+        completedAt: 9,
+        answers: [{ questionId: 'v1', answer: 'A', answeredAt: 9000 }],
+        checkedAnswers: {},
+      },
+      questions()
+    );
+    expect(r).toMatchObject({ rawPct: 0 });
   });
 });
 
@@ -399,7 +529,7 @@ describe('video publish state', () => {
 });
 
 describe('scoreGuidedLearningResponse', () => {
-  it('scores correct gradable steps over every gradable step', () => {
+  it('scores from the stored score over every gradable step', () => {
     const session = {
       publicSteps: [
         { id: 'a', question: {} },
@@ -409,12 +539,39 @@ describe('scoreGuidedLearningResponse', () => {
     };
     const r = scoreGuidedLearningResponse(session, {
       completedAt: 3,
+      score: 50,
       answers: [
         { stepId: 'a', isCorrect: true },
         { stepId: 'c', isCorrect: true },
       ],
     });
     expect(r).toMatchObject({ state: 'scored', rawPct: 50, points: 1, max: 2 });
+  });
+
+  it('holds a turned-in response with no stored score, whatever isCorrect says', () => {
+    const session = {
+      publicSteps: [
+        { id: 'a', question: {} },
+        { id: 'b', question: {} },
+      ],
+    };
+    const r = scoreGuidedLearningResponse(
+      session,
+      {
+        completedAt: 3,
+        answers: [
+          { stepId: 'a', isCorrect: true },
+          { stepId: 'b', isCorrect: true },
+        ],
+      },
+      parseStepTargets({ a: [target], b: [target] })
+    );
+    expect(r).toMatchObject({
+      state: 'awaiting-grade',
+      rawPct: null,
+      points: null,
+      targetEvidence: [],
+    });
   });
 
   it('turns tagged question steps into one-point evidence', () => {
@@ -437,6 +594,7 @@ describe('scoreGuidedLearningResponse', () => {
       session,
       {
         completedAt: 3,
+        score: 33,
         answers: [
           { stepId: 'a', isCorrect: true },
           { stepId: 'b', isCorrect: false },
@@ -580,6 +738,35 @@ describe('due dates and rows', () => {
       { n: 1, at: 250, points: 9, max: 10, state: 'scored' },
     ]);
   });
+
+  it("never takes the due date from a class outside the session's classes", () => {
+    const one = parseSessionMeta(
+      'quiz',
+      's',
+      { teacherUid: 't', classIds: ['c1'], dueAt: 100, dueAtByClassId: {} },
+      {}
+    );
+    const row = assembleRow({
+      meta: { ...one, dueAtByClassId: { other: 999 } },
+      studentUid: 'u',
+      score: {
+        classId: 'other',
+        published: false,
+        targetEvidence: [],
+        rawPct: 90,
+        points: 9,
+        max: 10,
+        state: 'scored',
+        submittedAt: 250,
+        attemptNumber: 1,
+      },
+      previousAttempts: [],
+      assigned: true,
+      pointerDueAt: null,
+      now: 1,
+    });
+    expect(row).toMatchObject({ classId: 'c1', dueAt: 100 });
+  });
 });
 
 describe('retakes', () => {
@@ -629,12 +816,61 @@ describe('mergeAttempts', () => {
 
   it('keeps each attempt and replaces a regraded one', () => {
     const one = mergeAttempts([], s({}));
-    const two = mergeAttempts(one, s({ attemptNumber: 2, points: 7 }));
-    const regraded = mergeAttempts(two, s({ attemptNumber: 2, points: 8 }));
+    const two = mergeAttempts(
+      one,
+      s({ attemptNumber: 2, points: 7, submittedAt: 2 })
+    );
+    const regraded = mergeAttempts(
+      two,
+      s({ attemptNumber: 2, points: 8, submittedAt: 2 })
+    );
     expect(regraded.map((a) => [a.n, a.points])).toEqual([
       [1, 5],
       [2, 8],
     ]);
+  });
+
+  it('a raised count re-scoring the same turn-in adds no attempt', () => {
+    let list = mergeAttempts([], s({ points: 4, submittedAt: 10 }));
+    list = mergeAttempts(
+      list,
+      s({ attemptNumber: 2, points: 9, submittedAt: 20 })
+    );
+    for (const n of [3, 4, 5])
+      list = mergeAttempts(
+        list,
+        s({ attemptNumber: n, points: 9, submittedAt: 20 })
+      );
+    expect(list.map((a) => [a.n, a.points])).toEqual([
+      [1, 4],
+      [5, 9],
+    ]);
+  });
+
+  it('a rebuild folds phantom entries already on the row', () => {
+    const inflated = [10, 20, 20, 20].map((at, i) => ({
+      n: i + 1,
+      at,
+      points: at === 10 ? 4 : 9,
+      max: 10,
+      state: 'scored' as const,
+    }));
+    expect(
+      mergeAttempts(
+        inflated,
+        s({ attemptNumber: 5, points: 6, submittedAt: 30 })
+      ).map((a) => [a.n, a.at])
+    ).toEqual([
+      [1, 10],
+      [4, 20],
+      [5, 30],
+    ]);
+    expect(
+      mergeAttempts(
+        inflated,
+        s({ state: 'in-progress', attemptNumber: 5, rawPct: null })
+      ).map((a) => a.n)
+    ).toEqual([1, 4]);
   });
 
   it('keeps earlier attempts while a retake is in progress', () => {
@@ -688,6 +924,25 @@ describe('scoreMiniAppBest', () => {
     expect(
       scoreMiniAppBest({ showCorrectAnswers: true }, submission, null)
     ).toMatchObject({ published: true });
+  });
+
+  it('holds an app-graded best for the teacher instead of counting its posted score and max', () => {
+    expect(
+      scoreMiniAppBest(
+        {},
+        {
+          best: { score: 1e9, maxScore: 1e9, gradedBy: 'app' },
+          submittedAt: 1,
+        },
+        'c1'
+      )
+    ).toMatchObject({
+      state: 'awaiting-grade',
+      points: null,
+      max: null,
+      rawPct: null,
+      gradedBy: 'app',
+    });
   });
 
   it('keeps the score unpublished when answers are hidden from students', () => {

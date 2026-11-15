@@ -21,7 +21,7 @@ import {
   type StudentGradeEntry,
   type StudentStandardEntry,
 } from '../gradebookCore';
-import { rowId } from './gradeRowMath';
+import { legacyRowId } from './gradeRowMath';
 import { GRADE_INDEX, stableStringify } from './gradeIndex';
 import type { IndexRow } from './types';
 
@@ -192,7 +192,7 @@ async function loadRowInputs(db: Firestore, row: IndexRow): Promise<RowInputs> {
   const [markSnap, columnSnap] = await Promise.all([
     db
       .collection(GRADEBOOK_MARKS)
-      .doc(rowId(row.sessionId, row.studentUid))
+      .doc(legacyRowId(row.sessionId, row.studentUid))
       .get(),
     db.collection(GRADEBOOK_COLUMNS).doc(row.sessionId).get(),
   ]);
@@ -248,8 +248,14 @@ export async function writeProjectionEntry(
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const data = snap.data() ?? {};
+    const docOwner = asString(data.ownerUid);
+    // An entry with no ownerUid predates per-entry owners; any owner may claim it.
+    const ownerOf = (e: unknown): string => asString(asRecord(e).ownerUid);
     const entries = { ...asRecord(data.entries) };
     const prev = entries[sessionId] as Doc | undefined;
+    // Another owner's entry under this session id is theirs to change.
+    if (prev && ownerOf(prev) && ownerOf(prev) !== target.ownerUid)
+      return false;
     let changed = false;
     if (entry === null) {
       if (prev) {
@@ -257,21 +263,40 @@ export async function writeProjectionEntry(
         changed = true;
       }
     } else {
-      const { updatedAt: _u, ...prevBody } = prev ?? {};
+      const owned = { ...entry, ownerUid: target.ownerUid };
+      const { updatedAt: _u, ...prevRest } = prev ?? {};
       void _u;
-      if (!prev || stableStringify(prevBody) !== stableStringify(entry)) {
+      // An entry stored before per-entry owners existed is not a change.
+      const prevBody = {
+        ...prevRest,
+        ownerUid: ownerOf(prev) || target.ownerUid,
+      };
+      if (!prev || stableStringify(prevBody) !== stableStringify(owned)) {
         // `updatedAt` moves only when what the student sees changes, which drives the New badge (D36).
-        entries[sessionId] = { ...entry, updatedAt: now };
+        entries[sessionId] = { ...owned, updatedAt: now };
+        changed = true;
+      } else if (prev && !ownerOf(prev)) {
+        // Claim a legacy entry without moving what the student sees.
+        entries[sessionId] = { ...prev, ownerUid: target.ownerUid };
         changed = true;
       }
     }
-    if (
+    // The class-level standards and scale stay with the owner who set them while they still have entries.
+    const keepOwner =
       snap.exists &&
-      stableStringify(data.standards ?? null) !==
-        stableStringify(extra.standards)
+      docOwner !== '' &&
+      docOwner !== target.ownerUid &&
+      Object.values(entries).some((e) => ownerOf(e) === docOwner);
+    if (
+      !keepOwner &&
+      snap.exists &&
+      (docOwner !== target.ownerUid ||
+        stableStringify(data.standards ?? null) !==
+          stableStringify(extra.standards))
     )
       changed = true;
     if (
+      !keepOwner &&
       snap.exists &&
       (stableStringify(data.cutoffs ?? null) !==
         stableStringify(cutoffsOf(extra.scale)) ||
@@ -281,6 +306,7 @@ export async function writeProjectionEntry(
       changed = true;
     if (!changed) return false;
     if (Object.keys(entries).length === 0) tx.delete(ref);
+    else if (keepOwner) tx.update(ref, { entries, updatedAt: now });
     else
       tx.set(ref, {
         studentUid: target.studentUid,
@@ -371,7 +397,12 @@ export async function projectRow(
   before: IndexRow | null,
   now = Date.now()
 ): Promise<void> {
-  if (before?.classId && (!after || after.classId !== before.classId)) {
+  if (
+    before?.classId &&
+    (!after ||
+      after.classId !== before.classId ||
+      after.ownerUid !== before.ownerUid)
+  ) {
     const { settings, scale } = await loadClassSettings(
       db,
       before.ownerUid,

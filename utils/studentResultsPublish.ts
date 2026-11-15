@@ -16,12 +16,16 @@ import type {
   VideoActivityResponse,
   VideoActivitySession,
 } from '@/types';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
-import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
+import {
+  isLiveVideoActivitySession,
+  scoredVideoActivityQuestions,
+} from '@/utils/videoActivityLive';
 import {
   currentShortAnswerGrading,
   dedupeQuestionsById,
+  firstVaAnswers,
   gradeVideoActivityAnswer,
+  liveScoredResponse,
 } from '@/utils/videoActivityGrading';
 import {
   dedupeStepsById,
@@ -64,15 +68,18 @@ export function formatCanonicalAnswer(step: GuidedLearningStep): string | null {
 /** Grades one VA response the way a class publish does. */
 export function gradeVideoActivityResponseForPublish(
   data: VideoActivityResponse,
-  questionsById: ReadonlyMap<string, VideoActivityQuestion>
+  questionsById: ReadonlyMap<string, VideoActivityQuestion>,
+  live = false
 ): { score: number | null; answers: VideoActivityAnswer[] } {
   const answers = Array.isArray(data.answers) ? data.answers : [];
   const grading = currentShortAnswerGrading(data);
   let pointsEarned = 0;
   let pointsMax = 0;
   let awaiting = false;
-  // One representative answer per question, so duplicates can't inflate the totals.
-  const representativeAnswers = selectRepresentativeAnswers(answers);
+  // The first entry per question counts; a live run counts only what the check callable recorded.
+  const representativeAnswers = firstVaAnswers(
+    live ? liveScoredResponse({ ...data, answers }).answers : answers
+  );
   const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
     const q = questionsById.get(a.questionId);
     if (!q) {
@@ -85,13 +92,14 @@ export function gradeVideoActivityResponseForPublish(
       a.answer,
       grading?.[a.questionId]
     );
-    if (representativeAnswers.get(a.questionId) === a) {
+    const scored = representativeAnswers.get(a.questionId) === a;
+    if (scored) {
       pointsEarned += result.pointsEarned;
       pointsMax += result.pointsMax;
       if (result.state === 'awaiting-grade') awaiting = true;
     }
-    // An unmarked short answer is neither right nor wrong yet.
-    if (result.state === 'awaiting-grade') {
+    // Unmarked short answers, and live entries the check never recorded, carry no verdict.
+    if ((live && !scored) || result.state === 'awaiting-grade') {
       const { isCorrect: _stale, ...rest } = a;
       void _stale;
       return rest;
@@ -99,7 +107,7 @@ export function gradeVideoActivityResponseForPublish(
     return { ...a, isCorrect: result.isCorrect };
   });
   // Unanswered questions count toward the denominator, so a blank response scores 0%.
-  const answered = new Set(answers.map((a) => a.questionId));
+  const answered = new Set(representativeAnswers.keys());
   for (const [qId, q] of questionsById) {
     if (!answered.has(qId)) pointsMax += q.points ?? 1;
   }
@@ -216,6 +224,7 @@ export async function publishVideoActivityResultsForStudents(
     deduped
   );
   const questionsById = new Map(scored.map((q) => [q.id, q]));
+  const live = isLiveVideoActivitySession(sessionSnap.data());
   const revealedAnswers: Record<string, string> = {};
   for (const q of deduped) revealedAnswers[q.id] = q.correctAnswer;
   return publishForStudents<VideoActivityResponse>(
@@ -223,7 +232,7 @@ export async function publishVideoActivityResultsForStudents(
     sessionId,
     responseKeys,
     (data) => ({
-      ...gradeVideoActivityResponseForPublish(data, questionsById),
+      ...gradeVideoActivityResponseForPublish(data, questionsById, live),
       resultsOverride: shownOverride(
         visibility,
         expiresAt,

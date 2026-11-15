@@ -19,6 +19,7 @@
 import React from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { OverflowMenu } from './LibraryOverflowMenu';
+import { useAssignmentClassList } from './useAssignmentClassList';
 import type { AssignmentArchiveCardProps, LibraryBadgeTone } from './types';
 
 /* ─── Tone → styling ──────────────────────────────────────────────────────── */
@@ -76,6 +77,7 @@ export function AssignmentArchiveCard<TAssignment>({
   tourIndex,
   tourWidgetType,
 }: AssignmentArchiveCardProps<TAssignment>): React.ReactElement {
+  const classList = useAssignmentClassList();
   const tone = TONE_STYLES[status.tone];
   const isArchive = mode === 'archive';
   const tourRowKey = tourIndex != null ? `row-${tourIndex + 1}` : undefined;
@@ -134,23 +136,47 @@ export function AssignmentArchiveCard<TAssignment>({
             {title}
           </div>
           {/* Meta items wrap to a new line instead of being clipped. */}
-          <div
-            className={`flex flex-wrap items-center mt-0.5 min-w-0 whitespace-nowrap ${metaClass}`}
-            style={{
-              columnGap: 'min(8px, 2cqmin)',
-              rowGap: 'min(2px, 0.5cqmin)',
-              fontSize: 'min(12px, 3.5cqmin)',
-            }}
-          >
-            {subtitle !== undefined && subtitle !== null && (
-              <span className="font-semibold min-w-0 whitespace-normal [overflow-wrap:anywhere]">
-                {subtitle}
-              </span>
-            )}
-            {meta !== undefined && meta !== null && (
-              <span className="contents">{meta}</span>
-            )}
-          </div>
+          {classList ? (
+            <div
+              className={`flex flex-wrap items-center mt-0.5 min-w-0 whitespace-nowrap ${metaClass}`}
+              style={{
+                columnGap: 'min(8px, 2cqmin)',
+                rowGap: 'min(2px, 0.5cqmin)',
+                fontSize: 'min(12px, 3.5cqmin)',
+              }}
+            >
+              {subtitle !== undefined && subtitle !== null && (
+                <span className="font-semibold min-w-0 whitespace-normal [overflow-wrap:anywhere]">
+                  {subtitle}
+                </span>
+              )}
+              {meta !== undefined && meta !== null && (
+                <span className="contents">{meta}</span>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`flex items-center mt-0.5 min-w-0 overflow-hidden ${metaClass}`}
+              style={{
+                gap: 'min(8px, 2cqmin)',
+                fontSize: 'min(12px, 3.5cqmin)',
+              }}
+            >
+              {subtitle !== undefined && subtitle !== null && (
+                <span className="font-semibold truncate min-w-0">
+                  {subtitle}
+                </span>
+              )}
+              {meta !== undefined && meta !== null && (
+                <span
+                  className="flex items-center min-w-0 overflow-hidden whitespace-nowrap"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
+                  {meta}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Status badge — fixed minimum width and centered text so the

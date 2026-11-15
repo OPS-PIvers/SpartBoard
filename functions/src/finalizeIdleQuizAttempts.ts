@@ -54,6 +54,7 @@ import {
   withQuizSessionContent,
 } from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
+import { withServerTurnIn } from './quizTurnIn';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
 
@@ -166,11 +167,10 @@ function sessionRunOver(data: QuizSessionDoc, now: number): boolean {
   );
 }
 
-/** A session close or Manual due past the same grace: only an unlocked or let-in attempt can still write. */
+/** A Manual due (`dueLocks`, written only by the flagged due-date flow) past the same grace; a Scheduled close never counts. */
 function sessionPastClose(data: QuizSessionDoc, now: number): boolean {
-  const closeAtMs =
-    toMillis(data.closeAt) ??
-    (data.dueLocks === true ? toMillis(data.dueAt) : null);
+  if (data.dueLocks !== true) return false;
+  const closeAtMs = toMillis(data.closeAt) ?? toMillis(data.dueAt);
   return (
     closeAtMs !== null &&
     closeAtMs >= CLOSE_SWEEP_SINCE_MS &&
@@ -600,9 +600,14 @@ export async function runFinalizeIdleQuizAttempts(
         if (!update) return 'raced-status' as const;
         // Past the close, count it as turned in at the student's last write, so on-time work isn't Late.
         const lastWriteMs = fresh.lastWriteAt?.toMillis();
-        if (pastDue && lastWriteMs != null)
-          update.submittedAt = Math.min(lastWriteMs, finalizedAt);
-        tx.update(docSnap.ref, { ...update, autoSubmitted: true });
+        const submittedAt =
+          pastDue && lastWriteMs != null
+            ? Math.min(lastWriteMs, finalizedAt)
+            : finalizedAt;
+        tx.update(docSnap.ref, {
+          ...withServerTurnIn(update, submittedAt),
+          autoSubmitted: true,
+        });
         return 'finalized' as const;
       });
       if (result === 'finalized') {

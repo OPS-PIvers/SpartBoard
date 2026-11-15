@@ -396,6 +396,7 @@ export {
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
+export { finalizeExpiredQuizAttempts } from './finalizeExpiredQuizAttempts';
 export {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,

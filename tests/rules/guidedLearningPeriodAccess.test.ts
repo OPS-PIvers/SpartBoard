@@ -444,6 +444,16 @@ describe('responses and progress on a per-period session', () => {
     );
   });
 
+  it("refuses a response naming another section's class", async () => {
+    await seedSeat(S, STUDENT_UID, CLASS_B);
+    await assertFails(
+      setDoc(
+        doc(b(), responsePath(S, STUDENT_UID)),
+        response(S, STUDENT_UID, { classId: CLASS_A, completedAt: null })
+      )
+    );
+  });
+
   it('takes a response from a student let in past a closed period', async () => {
     await seedSession(S, {
       accessMode: 'assignment',
