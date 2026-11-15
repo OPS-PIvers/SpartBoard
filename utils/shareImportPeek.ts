@@ -1,6 +1,15 @@
-import { doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { Plc } from '@/types';
+import type { MemberRecord } from '@/types/organization';
 import { getPlcMembers } from '@/utils/plc';
 
 export interface ShareHeader {
@@ -27,19 +36,52 @@ export async function peekShareHeader(
   };
 }
 
-/** Resolves the sharer from the importer's own PLC rosters; never from the share doc. */
+export interface OrgSharer {
+  name: string;
+  email: string;
+}
+
+/** Org staff member whose server-linked uid matches; email is the rule-pinned doc id. */
+export async function lookupOrgSharer(
+  orgId: string,
+  uid: string
+): Promise<OrgSharer | null> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'organizations', orgId, 'members'),
+      where('uid', '==', uid),
+      limit(1)
+    )
+  );
+  const d = snap.docs[0];
+  if (!d) return null;
+  const m = d.data() as Partial<MemberRecord>;
+  const live = ['active', 'invited'].includes(m.status ?? 'active');
+  if (!live || m.roleId === 'student') return null;
+  const name = (m.name ?? '').trim();
+  return { name: name.length > 0 ? name : d.id, email: d.id };
+}
+
+/** Resolves the sharer from org staff records or the importer's PLC rosters; never from the share doc. */
 export function describeSharer(
   authorUid: string,
   currentUid: string,
   plcs: Plc[],
+  orgSharer: OrgSharer | null,
   nameOnly = false
 ): string {
   if (authorUid && authorUid === currentUid) return 'You';
+  let plcName: string | undefined;
+  let fromPlc: OrgSharer | null = null;
   for (const plc of plcs) {
     const m = getPlcMembers(plc).find((x) => x.uid === authorUid);
     if (!m) continue;
-    const name = m.displayName || m.email;
-    return nameOnly ? name : `${name} (${m.email}) via ${plc.name}`;
+    plcName = plc.name;
+    fromPlc = { name: m.displayName || m.email, email: m.email };
+    break;
   }
-  return 'Someone outside your PLCs';
+  const who = orgSharer ?? fromPlc;
+  if (!who) return 'Someone outside your organization';
+  if (nameOnly) return who.name;
+  return `${who.name} (${who.email})${plcName ? ` via ${plcName}` : ''}`;
 }

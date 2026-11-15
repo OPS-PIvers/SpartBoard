@@ -14,7 +14,13 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { logError } from '@/utils/logError';
 import { getPlcRole } from '@/utils/plc';
-import { describeSharer, peekShareHeader } from '@/utils/shareImportPeek';
+import { OPERATOR_ORG_ID } from '@/config/organization';
+import {
+  describeSharer,
+  lookupOrgSharer,
+  peekShareHeader,
+  type OrgSharer,
+} from '@/utils/shareImportPeek';
 import { ShareImportConfirmModal } from './ShareImportConfirmModal';
 
 /**
@@ -42,7 +48,7 @@ import { ShareImportConfirmModal } from './ShareImportConfirmModal';
  * avoid the triple-import race, and surface the same toasts / mode picker.
  */
 export const DeepLinkShareImporter: React.FC = () => {
-  const { user, isAdmin, globalPermissionsLoaded, canAccessFeature } =
+  const { user, orgId, isAdmin, globalPermissionsLoaded, canAccessFeature } =
     useAuth();
   // Wait for permissions so a teacher never sees a dialog flash and an admin never gets a silent import.
   const confirmReady = globalPermissionsLoaded && isAdmin !== null;
@@ -102,6 +108,7 @@ export const DeepLinkShareImporter: React.FC = () => {
     shareId: string;
     title: string;
     originalAuthor: string;
+    orgSharer?: OrgSharer | null;
   } | null>(null);
 
   // Nothing is imported until the teacher confirms this prompt.
@@ -109,8 +116,24 @@ export const DeepLinkShareImporter: React.FC = () => {
     kindLabel: string;
     title: string;
     originalAuthor: string;
+    orgSharer: OrgSharer | null;
     run: () => void;
   } | null>(null);
+
+  // Org staff record for the share's author; a failed lookup falls back to PLC rosters.
+  const resolveOrgSharer = React.useCallback(
+    async (authorUid: string): Promise<OrgSharer | null> => {
+      if (!authorUid || authorUid === user?.uid) return null;
+      try {
+        // orgId may not have resolved yet; the operator org is the usual one.
+        return await lookupOrgSharer(orgId ?? OPERATOR_ORG_ID, authorUid);
+      } catch (err) {
+        logError('DeepLinkShareImporter.lookupOrgSharer', err);
+        return null;
+      }
+    },
+    [orgId, user?.uid]
+  );
 
   const requestConfirm = React.useCallback(
     (
@@ -121,14 +144,16 @@ export const DeepLinkShareImporter: React.FC = () => {
     ) => {
       const peek = (): void => {
         void peekShareHeader(collectionName, shareId)
-          .then((h) =>
+          .then(async (h) => {
+            const orgSharer = await resolveOrgSharer(h.originalAuthor);
             setConfirmPrompt({
               kindLabel,
               title: h.title,
               originalAuthor: h.originalAuthor,
+              orgSharer,
               run,
-            })
-          )
+            });
+          })
           .catch((err: unknown) => {
             logError('DeepLinkShareImporter.peekShareHeader', err, {
               shareId,
@@ -145,7 +170,7 @@ export const DeepLinkShareImporter: React.FC = () => {
       };
       peek();
     },
-    [addToast]
+    [addToast, resolveOrgSharer]
   );
 
   // Helper: open (or create) a Quiz widget and set its managerTab.
@@ -437,7 +462,7 @@ export const DeepLinkShareImporter: React.FC = () => {
   const peekAndDispatchImport = React.useCallback(
     (shareId: string) => {
       void peekSharedAssignment(shareId)
-        .then((preview) => {
+        .then(async (preview) => {
           // Sync mode is only offered when the share is sync-enabled AND
           // (the share has no PLC OR the importer is a member of that
           // PLC). A non-PLC-member of a PLC-shared synced assignment
@@ -460,6 +485,11 @@ export const DeepLinkShareImporter: React.FC = () => {
               shareId,
               title: preview.title,
               originalAuthor: preview.originalAuthor,
+              ...(confirmOn
+                ? {
+                    orgSharer: await resolveOrgSharer(preview.originalAuthor),
+                  }
+                : {}),
             });
             return;
           }
@@ -471,6 +501,7 @@ export const DeepLinkShareImporter: React.FC = () => {
             kindLabel: 'assignment',
             title: preview.title,
             originalAuthor: preview.originalAuthor,
+            orgSharer: await resolveOrgSharer(preview.originalAuthor),
             run: () => runAssignmentImport(shareId, 'copy'),
           });
         })
@@ -496,7 +527,15 @@ export const DeepLinkShareImporter: React.FC = () => {
           );
         });
     },
-    [peekSharedAssignment, runAssignmentImport, addToast, plcs, user, confirmOn]
+    [
+      peekSharedAssignment,
+      runAssignmentImport,
+      addToast,
+      plcs,
+      user,
+      confirmOn,
+      resolveOrgSharer,
+    ]
   );
 
   useEffect(() => {
@@ -632,7 +671,12 @@ export const DeepLinkShareImporter: React.FC = () => {
       <ShareImportConfirmModal
         kindLabel={confirmPrompt.kindLabel}
         title={confirmPrompt.title}
-        sharer={describeSharer(confirmPrompt.originalAuthor, user.uid, plcs)}
+        sharer={describeSharer(
+          confirmPrompt.originalAuthor,
+          user.uid,
+          plcs,
+          confirmPrompt.orgSharer
+        )}
         onConfirm={() => {
           setConfirmPrompt(null);
           run();
@@ -656,6 +700,7 @@ export const DeepLinkShareImporter: React.FC = () => {
               importModePrompt.originalAuthor,
               user?.uid ?? '',
               plcs,
+              importModePrompt.orgSharer ?? null,
               true
             )
           : undefined
