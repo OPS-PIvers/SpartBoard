@@ -167,11 +167,10 @@ function sessionRunOver(data: QuizSessionDoc, now: number): boolean {
   );
 }
 
-/** A session close or Manual due past the same grace: only an unlocked or let-in attempt can still write. */
+/** A Manual due (`dueLocks`, written only by the flagged due-date flow) past the same grace; a Scheduled close never counts. */
 function sessionPastClose(data: QuizSessionDoc, now: number): boolean {
-  const closeAtMs =
-    toMillis(data.closeAt) ??
-    (data.dueLocks === true ? toMillis(data.dueAt) : null);
+  if (data.dueLocks !== true) return false;
+  const closeAtMs = toMillis(data.closeAt) ?? toMillis(data.dueAt);
   return (
     closeAtMs !== null &&
     closeAtMs >= CLOSE_SWEEP_SINCE_MS &&
