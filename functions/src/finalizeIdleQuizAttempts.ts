@@ -489,7 +489,7 @@ export async function runFinalizeIdleQuizAttempts(
     // A closed or paused period freezes the attempt until the teacher starts it again.
     // A student held at a Stop waits for the next part, possibly for days.
     // None can resume once the run has ended or its close has passed, so they are turned in then.
-    const snapData: QuizResponseDoc = docSnap.data() ?? {};
+    const snapData = docSnap.data() ?? {};
     const heldOrFrozen =
       waitsForStudent(snapData) ||
       isPeriodFrozen(meta.periodGate, snapData, finalizedAt);
