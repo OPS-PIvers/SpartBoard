@@ -63,4 +63,12 @@ describe('mergeSubsetOrder', () => {
   it('ignores unknown ids', () => {
     expect(mergeSubsetOrder(['a', 'b'], ['x', 'b', 'a'])).toEqual(['b', 'a']);
   });
+
+  it('does not drop or duplicate ids when the subset repeats an id', () => {
+    expect(mergeSubsetOrder(['a', 'b', 'c'], ['a', 'a', 'c'])).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+  });
 });
