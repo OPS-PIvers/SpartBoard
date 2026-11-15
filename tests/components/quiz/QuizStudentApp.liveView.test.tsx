@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { QuizData, QuizResponse } from '@/types';
 import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
 import { buildStudentViewSession } from '@/utils/quizStudentViewSession';
@@ -143,7 +143,11 @@ describe('ActiveQuiz on a watched student’s device', () => {
       )
     );
     await waitFor(() =>
-      expect(report).toHaveBeenCalledWith('q1', expect.any(Number))
+      expect(report).toHaveBeenCalledWith({
+        questionId: 'q1',
+        at: expect.any(Number),
+        warning: false,
+      })
     );
     expect(screen.getByText('Your teacher is viewing your quiz')).toBeTruthy();
 
@@ -158,5 +162,34 @@ describe('ActiveQuiz on a watched student’s device', () => {
     );
     await screen.findByText('First question?');
     expect(report).not.toHaveBeenCalled();
+  });
+});
+
+describe('ActiveQuiz after going back to a submitted answer', () => {
+  it('saves the changed choice without waiting for Next', async () => {
+    const onAnswer = vi.fn(() => Promise.resolve());
+    render(
+      renderQuiz(
+        response({
+          answers: [
+            {
+              questionId: 'q1',
+              answer: 'Wrong',
+              answeredAt: 5,
+              status: 'submitted',
+            },
+          ],
+        }),
+        { onAnswer }
+      )
+    );
+    await screen.findByText('First question?');
+    fireEvent.click(screen.getByRole('button', { name: /^Right/ }));
+
+    await waitFor(() =>
+      expect(onAnswer).toHaveBeenCalledWith('q1', 'Right', undefined, {
+        isDraft: true,
+      })
+    );
   });
 });

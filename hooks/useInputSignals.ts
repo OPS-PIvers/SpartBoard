@@ -11,6 +11,7 @@ import { isTrustedEvent } from '@/utils/eventTrust';
 import { detectQuizEnvironment } from '@/utils/quizEnvironment';
 import { pingExtension } from '@/components/tours/web/extensionClient';
 import { logError } from '@/utils/logError';
+import { getServerNow } from '@/utils/serverTime';
 
 export interface UseInputSignalsArgs {
   /** Record: the session asks for it and the attempt is in progress. */
@@ -28,12 +29,16 @@ export interface UseInputSignalsArgs {
         counts: Record<string, InputSignalCounts>
       ) => Promise<void>)
     | undefined;
+  /** Server-clock ms the teacher's Live view stamp runs to; saves come faster until then. */
+  watchedUntil?: number;
 }
 
 const FLUSH_MS = 20_000;
 /** Past this many bytes of edit log, timed saves slow to one a minute so an essay isn't re-sent every 20 s. */
 const BIG_LOG_BYTES = 30_000;
 const BIG_LOG_FLUSH_MS = 60_000;
+/** While a teacher has Live view open, counts save this often so its numbers stay current. */
+const WATCHED_FLUSH_MS = 5_000;
 const SCRIPT_TARGETS =
   'button, select, textarea, input:not([type=file]):not([type=color]), [role=button], [role=radio], [role=checkbox], [role=option], [contenteditable=true]';
 
@@ -238,14 +243,20 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     let lastTimed = performance.now();
     const id = window.setInterval(() => {
       const now = performance.now();
-      if (
-        collector.logBytes() > BIG_LOG_BYTES &&
-        now - lastTimed < BIG_LOG_FLUSH_MS
-      )
-        return;
+      const watched = (argsRef.current.watchedUntil ?? 0) > getServerNow();
+      const big = collector.logBytes() > BIG_LOG_BYTES;
+      const wait = watched
+        ? big
+          ? FLUSH_MS
+          : WATCHED_FLUSH_MS
+        : big
+          ? BIG_LOG_FLUSH_MS
+          : FLUSH_MS;
+      // Half a tick of slack so timer drift never skips a whole tick.
+      if (now - lastTimed < wait - WATCHED_FLUSH_MS / 2) return;
       lastTimed = now;
       flush();
-    }, FLUSH_MS);
+    }, WATCHED_FLUSH_MS);
     return () => {
       document.removeEventListener('pointermove', onPointerMove, opts);
       document.removeEventListener('pointerdown', onPointerDown, opts);

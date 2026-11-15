@@ -171,6 +171,7 @@ import {
   StudentOverride,
   TabExit,
   InputSignalCounts,
+  QuizLiveState,
   QuizStimulus,
   isFreeResponseType,
   isAnswerSubmitted,
@@ -271,6 +272,7 @@ import {
 } from '@/hooks/useQuizResponseAttempts';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { useInputSignals } from '@/hooks/useInputSignals';
+import { useLiveViewReport } from '@/hooks/useLiveViewReport';
 import { isHandedOff } from '@/utils/attemptHandOff';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
@@ -2017,7 +2019,7 @@ export const ActiveQuiz: React.FC<{
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
   watchQuestionId?: string | null;
   /** Reports the question on screen while the teacher has Live view open. */
-  onReportLivePosition?: (questionId: string, at?: number) => Promise<void>;
+  onReportLivePosition?: (state: QuizLiveState) => Promise<void>;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -2566,24 +2568,12 @@ export const ActiveQuiz: React.FC<{
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
-  const arrivalRef = useRef<{ id: string; at: number } | null>(null);
-  const reportLivePosition = useEffectEvent((questionId: string) => {
-    if (!onReportLivePosition || liveViewUntil <= getServerNow()) return;
-    const at = arrivalRef.current?.at ?? getServerNow();
-    onReportLivePosition(questionId, at).catch((err: unknown) =>
-      console.error('[ActiveQuiz] live position report failed:', err)
-    );
+  useLiveViewReport({
+    until: liveViewUntil,
+    questionId: currentQuestion?.id,
+    warning: showCheatWarning,
+    report: onReportLivePosition,
   });
-  const livePositionId = currentQuestion?.id;
-  // Arrival time stays fixed across renewals so "time on this question" doesn't reset.
-  useLayoutEffect(() => {
-    if (livePositionId && arrivalRef.current?.id !== livePositionId)
-      arrivalRef.current = { id: livePositionId, at: getServerNow() };
-  }, [livePositionId]);
-  // Each renewal re-reports, so a reopened panel never starts from a stale place.
-  useEffect(() => {
-    if (liveViewUntil > 0 && livePositionId) reportLivePosition(livePositionId);
-  }, [liveViewUntil, livePositionId]);
   // Unusual-input counters; stamped on the session only with the input-signals flag.
   useInputSignals({
     enabled:
@@ -2596,6 +2586,7 @@ export const ActiveQuiz: React.FC<{
     questionId: currentQuestion?.id,
     serverSignals: myResponse?.inputSignals,
     save: saveInputSignals,
+    watchedUntil: liveViewUntil,
   });
 
   // Sections (QUIZ_EXAMVIEW_IMPORT.md E12, E13): the intro shows once per section.
@@ -3060,8 +3051,10 @@ export const ActiveQuiz: React.FC<{
   // paths (flush handler, structured-input change callbacks) that can't
   // read state directly.
   const submittedRef = useRef(false);
+  // A self-paced revisit of a saved answer stays editable, so its changes autosave like a first answer.
+  const draftLocked = submitted && !(isStudentPaced && step.alreadyAnswered);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  submittedRef.current = submitted;
+  submittedRef.current = draftLocked;
   // Pending draft tracker for question-change flushes. The state-driven
   // autosave effect populates this when it schedules a write; a watcher
   // on `currentQuestion?.id` calls `write()` synchronously when the
@@ -3263,7 +3256,7 @@ export const ActiveQuiz: React.FC<{
     const qid = currentQid;
     const type = currentQuestion?.type;
     if (!qid || !type) return;
-    if (submitted) return;
+    if (draftLocked) return;
     // Cache miss — student hasn't touched this question this session
     // and there's no saved value either. Nothing to write.
     if (cachedDraft === null) return;
@@ -3328,7 +3321,7 @@ export const ActiveQuiz: React.FC<{
     cachedDraft,
     currentQid,
     currentQuestion?.type,
-    submitted,
+    draftLocked,
     savedAnswerForCurrent,
   ]);
 

@@ -6217,8 +6217,12 @@ export interface QuizLiveViewStamp {
 /** `responses/{key}/live/state`: the question a watched student is showing. */
 export interface QuizLiveState {
   questionId: string;
-  /** Server-clock ms. */
+  /** Server-clock ms the student reached this question. */
   at: number;
+  /** Server-clock ms of the student's last real click, key or scroll; absent from older clients. */
+  activeAt?: number;
+  /** The red tab warning is on the student's screen. */
+  warning?: boolean;
 }
 
 /** `users/{uid}/quiz_assignments/{id}/live_log/{id}`: what a teacher did in Live view. Never on the response doc. */

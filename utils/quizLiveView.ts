@@ -1,5 +1,6 @@
 import type {
   InputSignalCounts,
+  QuizLiveState,
   QuizPublicQuestion,
   QuizResponse,
   QuizSession,
@@ -106,7 +107,7 @@ export interface LiveViewStats {
   questionNumber: number | null;
   questionCount: number;
   answeredCount: number;
-  /** Server time of the last answer write. */
+  /** Server time of the student's last real input while watched, else of the last write to the response. */
   lastActivityAt: number | null;
   tabExits: number;
   awayMs: number;
@@ -133,7 +134,8 @@ export function liveViewStats(
   response: QuizResponse,
   questionId: string | null,
   now: number,
-  override?: StudentOverride
+  override?: StudentOverride,
+  reported?: QuizLiveState | null
 ): LiveViewStats {
   const order = studentQuestionOrder(session, response, override);
   const index = questionId ? order.findIndex((q) => q.id === questionId) : -1;
@@ -159,7 +161,8 @@ export function liveViewStats(
       order.map((q) => q.id),
       session.paperWrittenQuestionIds
     ),
-    lastActivityAt: timestampMillis(response.lastWriteAt),
+    // A teacher's Start or resume also stamps lastWriteAt, so the student's own report wins when there is one.
+    lastActivityAt: reported?.activeAt ?? timestampMillis(response.lastWriteAt),
     tabExits: exits.length,
     awayMs: totalAwayMs(
       exits.map((e) =>

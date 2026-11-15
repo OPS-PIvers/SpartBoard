@@ -161,4 +161,28 @@ describe('liveViewStats', () => {
     expect(stats.input).toBeNull();
     expect(stats.questionNumber).toBeNull();
   });
+
+  it('takes Last activity from the student’s own report over the response stamp', () => {
+    // A teacher's Start or resume restamps lastWriteAt on every response, which isn't the student's activity.
+    const stamped = {
+      ...RESPONSE,
+      lastWriteAt: { toMillis: () => 9_000 },
+    } as unknown as QuizResponse;
+    expect(liveViewStats(SESSION, stamped, 'q1', 10_000).lastActivityAt).toBe(
+      9_000
+    );
+    expect(
+      liveViewStats(SESSION, stamped, 'q1', 10_000, undefined, {
+        questionId: 'q1',
+        at: 5_000,
+      }).lastActivityAt
+    ).toBe(9_000);
+    expect(
+      liveViewStats(SESSION, stamped, 'q1', 10_000, undefined, {
+        questionId: 'q1',
+        at: 5_000,
+        activeAt: 6_000,
+      }).lastActivityAt
+    ).toBe(6_000);
+  });
 });

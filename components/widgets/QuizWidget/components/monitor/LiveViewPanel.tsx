@@ -148,9 +148,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const stats = useMemo(
     () =>
       response
-        ? liveViewStats(session, response, questionId, now, override)
+        ? liveViewStats(session, response, questionId, now, override, reported)
         : null,
-    [session, response, questionId, now, override]
+    [session, response, questionId, now, override, reported]
   );
 
   const record = useCallback(
@@ -470,6 +470,11 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                 {stats.tabExits > 0 &&
                   `, ${formatAwayDuration(stats.awayMs)} away`}
               </Stat>
+              {reported?.warning === true && (
+                <Stat label="Tab warning">
+                  <span className="text-brand-red-primary">On screen</span>
+                </Stat>
+              )}
               {stats.input ? (
                 <>
                   <Stat label="Keys typed">{stats.input.keys}</Stat>
