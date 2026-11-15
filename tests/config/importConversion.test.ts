@@ -113,10 +113,10 @@ describe('import settings', () => {
     }
   });
 
-  it('matches the server: the kinds that list each AI widget, and the same switch result', () => {
+  it('matches the server: the kinds that make each widget with AI, and the same switch result', () => {
     for (const t of IMPORT_AI_TARGETS) {
-      const kinds = IMPORT_SOURCE_KINDS.filter((k) =>
-        IMPORT_SOURCE_TARGETS[k].includes(t)
+      const kinds = IMPORT_SOURCE_KINDS.filter(
+        (k) => k !== 'spreadsheet' && IMPORT_SOURCE_TARGETS[k].includes(t)
       );
       expect([...IMPORT_AI_TARGET_SOURCES[t]].sort()).toEqual(
         [...kinds].sort()

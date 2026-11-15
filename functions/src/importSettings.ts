@@ -1,17 +1,9 @@
 // Mirrors config/importConversion.ts for the server: AI per widget and what each import offers.
 export type ImportAiTarget = 'flashcards' | 'activityWall' | 'board';
 
-/** The import kinds whose admin checklist lists each AI widget (IMPORT_SOURCE_TARGETS on the client). */
+/** The import kinds that can make each widget with AI (a spreadsheet is read as rows, never by AI). */
 export const IMPORT_AI_TARGET_SOURCES: Record<ImportAiTarget, string[]> = {
-  flashcards: [
-    'web',
-    'youtube',
-    'spreadsheet',
-    'document',
-    'slides',
-    'course',
-    'text',
-  ],
+  flashcards: ['web', 'youtube', 'document', 'slides', 'course', 'text'],
   activityWall: ['web', 'youtube', 'document', 'slides', 'course', 'text'],
   board: ['web', 'youtube', 'document', 'slides', 'text'],
 };

@@ -125,11 +125,7 @@ describe('ImportOffersSection', () => {
     expect(setDocMock).toHaveBeenLastCalledWith(
       { path: 'admin_settings/import_conversion' },
       {
-        ai: {
-          flashcards: {},
-          activityWall: { enabled: true, dailyLimit: 8 },
-          board: {},
-        },
+        ai: { activityWall: { enabled: true, dailyLimit: 8 } },
         enabled: true,
       },
       { merge: true }
@@ -140,7 +136,7 @@ describe('ImportOffersSection', () => {
     expect(setDocMock).toHaveBeenLastCalledWith(
       { path: 'admin_settings/import_conversion' },
       {
-        ai: { flashcards: {}, activityWall: { enabled: false }, board: {} },
+        ai: { activityWall: { enabled: false } },
         enabled: false,
       },
       { merge: true }

@@ -202,7 +202,11 @@ const WidgetRow: React.FC<{
         IMPORT_AI_TARGETS.map((t) => [t, { ...settings.ai[t], ...pinned[t] }])
       ) as ImportConversionSettings['ai'],
     };
-    void save({ ai: pinned, enabled: legacyAiSwitch(next) });
+    // An empty map in a merge would replace that widget's saved settings.
+    const written = Object.fromEntries(
+      Object.entries(pinned).filter(([, v]) => Object.keys(v).length > 0)
+    );
+    void save({ ai: written, enabled: legacyAiSwitch(next) });
   };
   return (
     <div className="py-2">

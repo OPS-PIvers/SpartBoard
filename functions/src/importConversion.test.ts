@@ -386,6 +386,26 @@ describe('runConversion', () => {
 });
 
 describe('importAiAccess', () => {
+  it('refuses AI Flashcards when only a spreadsheet still offers Flashcards', () => {
+    const off = { enabled: true, off: ['flashcards'] };
+    const sources = Object.fromEntries(
+      ['web', 'youtube', 'document', 'slides', 'course', 'text'].map((k) => [
+        k,
+        off,
+      ])
+    );
+    expect(
+      importAiAccess(
+        {
+          enabled: true,
+          sources: { ...sources, spreadsheet: { enabled: true } },
+        },
+        'flashcards',
+        20
+      ).on
+    ).toBe(false);
+  });
+
   it('follows the old single switch and limit until a widget has its own', () => {
     expect(importAiAccess({ enabled: true }, 'board', 15)).toMatchObject({
       on: true,
