@@ -370,8 +370,8 @@ export function isWriteAtAfter(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Defensive predicate: a draft autosave over an already-submitted answer
- * must not downgrade its status to 'draft' (the write keeps 'submitted'). The cache-driven
+ * Defensive predicate: refuse a draft autosave that would downgrade an
+ * already-submitted answer's status to 'draft'. The cache-driven
  * autosave path can re-fire for the same question during the SSO
  * listener-fast race window (back-nav before the response listener
  * echoes the just-submitted answer back, so the local `submitted` state
@@ -2188,6 +2188,8 @@ export interface UseQuizSessionStudentResult {
       isDraft?: boolean;
       timedOutUnderMinimum?: boolean;
       locale?: string;
+      /** A revisit draft while Live view watches: a changed one saves over the submitted answer. */
+      liveRevisit?: boolean;
     }
   ) => Promise<void>;
   /**
@@ -3443,6 +3445,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         isDraft?: boolean;
         timedOutUnderMinimum?: boolean;
         locale?: string;
+        liveRevisit?: boolean;
       }
     ) => {
       const sessionId = sessionIdRef.current;
@@ -3518,9 +3521,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ? { priorEntry, now }
             : null;
 
-        // A draft over a submitted answer keeps it submitted: an unchanged one is skipped, a changed one saves.
+        // A draft over a submitted answer is skipped, except a changed Live view revisit, which stays submitted.
         const keepSubmitted = isUnsafeStatusDowngrade(isDraft, priorEntry);
-        if (keepSubmitted && priorEntry?.answer === answer) {
+        if (
+          keepSubmitted &&
+          (opts?.liveRevisit !== true || priorEntry?.answer === answer)
+        ) {
           return { skip: true, snapshot };
         }
 
