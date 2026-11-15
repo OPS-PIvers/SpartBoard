@@ -209,7 +209,7 @@ export function usePlcUnread(
     if (!plcId || !uid || isAuthBypass) return;
     const ref = doc(db, USERS_COLLECTION, uid, PLC_STATE_SUBCOLLECTION, plcId);
     // serverTimestamp() so the cursor jumps past every loaded event — the
-    // schema-locked rule accepts a single `lastSeenAt` (int || timestamp).
+    // schema-locked rule accepts a single timestamp `lastSeenAt`.
     await setDoc(ref, { lastSeenAt: serverTimestamp() });
   }, [plcId, uid]);
 

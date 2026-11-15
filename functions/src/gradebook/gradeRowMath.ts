@@ -748,7 +748,10 @@ export function scoreMiniAppBest(
   return {
     classId,
     // With answers hidden the student never got this score back (D9), so it waits for the teacher to publish.
-    published: session.showCorrectAnswers !== false,
+    published:
+      session.showCorrectAnswers !== false ||
+      (asString(session.scoreVisibility) !== 'none' &&
+        toMillis(session.scorePublishedAt) !== null),
     targetEvidence: [],
     rawPct: round2((score / maxScore) * 100),
     points: score,

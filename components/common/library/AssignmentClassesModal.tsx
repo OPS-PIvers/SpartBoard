@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { AccessMode, ClassRoster, PeriodAccess } from '@/types';
 import { Modal } from '@/components/common/Modal';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
 import {
   planAssignmentClassEdit,
@@ -100,12 +100,11 @@ export const AssignmentClassesModal: React.FC<AssignmentClassesModalProps> = ({
       footerClassName="px-5 pb-5 pt-3"
       captureEscape
     >
-      <ClassPickerMenu
+      <ClassChecklist
         rosters={rosters}
         value={classes}
         onChange={setClasses}
         disabled={saving}
-        menuInFlow
       />
     </Modal>
   );

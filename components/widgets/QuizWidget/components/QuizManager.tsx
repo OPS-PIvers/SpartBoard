@@ -176,6 +176,7 @@ import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
+import { useAssignWhen } from '@/hooks/useLastAssignWhen';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
@@ -1005,7 +1006,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignStudentsByClass, setAssignStudentsByClass] = useState<
     AssignClassesValue['studentsByClass']
   >({});
-  const [assignWhen, setAssignWhen] = useState<AssignWhenValue | null>(null);
+  const quizWhenSeed = (): AssignWhenValue =>
+    defaultWhenValue({
+      activity: 'quiz',
+      bellAvailable: !!periodAccess,
+      manualAvailable: true,
+    });
+  const assignWhenState = useAssignWhen('quiz', quizWhenSeed, {
+    manualDue: true,
+  });
+  const assignWhen = assignWhenState.when;
+  const setAssignWhen = assignWhenState.setWhen;
   const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
     DEFAULT_WRITTEN_ANSWERS
   );
@@ -1035,13 +1046,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       setAssignQuizData(null);
       setAssignStudentsByClass({});
       setAssignWritten(DEFAULT_WRITTEN_ANSWERS);
-      setAssignWhen(
-        defaultWhenValue({
-          activity: 'quiz',
-          bellAvailable: !!periodAccess,
-          manualAvailable: true,
-        })
-      );
+      assignWhenState.reseed(quizWhenSeed());
       // eslint-disable-next-line react-hooks/refs -- reset with the adjust-state-while-rendering block
       loadedAssignQuizDataForRef.current = null;
       setAssignOptions(
@@ -2205,7 +2210,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setAssignQuizData(null);
     setAssignStudentsByClass({});
-    setAssignWhen(null);
     setAssignWritten(DEFAULT_WRITTEN_ANSWERS);
     assignAudience.setAudience('students');
   };
@@ -2232,7 +2236,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [assignQuizData]
   );
   const handleStepperAssign = (): void => {
-    if (!assignTarget || !assignWhen) return;
+    if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
     const behavior: QuizBehaviorSettings = {
       ...(assignBehavior ?? getQuizAssignPrefill(lastAssignSettings)),
@@ -2263,7 +2267,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const applied = applyWhen(
       {
         ...(assignToStaff ? EMPTY_ASSIGN_TARGETING_VALUE : assignTargeting),
-        availability: assignWhen.availability,
+        availability: assignToStaff
+          ? { ...assignWhen.availability, manualDue: undefined }
+          : assignWhen.availability,
       },
       {
         mode: assignWhen.mode,
@@ -2304,6 +2310,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           : {}),
       }
     );
+    if (!assignToStaff) assignWhenState.remember(assignWhen);
     resetAssign();
   };
 
@@ -3139,7 +3146,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         />
       )}
 
-      {assignTarget && !isViewOnly && assignBehavior && assignWhen && (
+      {assignTarget && !isViewOnly && assignBehavior && (
         <QuizAssignStepper
           title={assignTarget.title}
           rosters={rosters}

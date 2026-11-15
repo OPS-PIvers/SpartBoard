@@ -315,7 +315,10 @@ describe('Speak mode', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(await screen.findByRole('button', { name: 'Try again' }));
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
-    await user.click(await screen.findByRole('button', { name: /round/i }));
+    expect(screen.queryByRole('button', { name: 'Next round' })).toBeNull();
+    await user.click(
+      await screen.findByRole('button', { name: 'Continue to submit' })
+    );
     await user.click(await screen.findByRole('button', { name: 'Submit' }));
     expect(onSubmit).toHaveBeenCalledWith({
       answerLog: [
@@ -484,6 +487,69 @@ describe('Speak mode', () => {
     await user.click(screen.getByRole('button', { name: 'Speak' }));
     expect(await screen.findByText('Microphone blocked')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
+
+  it('tells a Check student to tell the teacher when the mic is blocked', async () => {
+    mic.permission = 'denied';
+    renderPlayer(
+      {
+        speak: stamp({ locked: true }),
+        check: {
+          mode: 'speak',
+          submitting: false,
+          onSubmit: vi.fn(),
+          onCheckWrite: vi.fn(),
+        },
+      },
+      'speak-check-blocked'
+    );
+    expect(await screen.findByText('Microphone blocked')).toBeTruthy();
+    expect(
+      screen.getByText("Tell your teacher you can't record.")
+    ).toBeTruthy();
+    expect(screen.queryByText('The other study modes still work.')).toBeNull();
+  });
+
+  it('keeps the other-modes line for a blocked mic outside a Check', async () => {
+    const user = userEvent.setup();
+    mic.permission = 'denied';
+    renderPlayer();
+    await user.click(screen.getByRole('button', { name: 'Speak' }));
+    expect(await screen.findByText('Microphone blocked')).toBeTruthy();
+    expect(screen.getByText('The other study modes still work.')).toBeTruthy();
+  });
+
+  it('names the cost of Skip in a Check only', async () => {
+    const user = userEvent.setup();
+    renderPlayer(
+      {
+        speak: stamp({ locked: true }),
+        check: {
+          mode: 'speak',
+          submitting: false,
+          onSubmit: vi.fn(),
+          onCheckWrite: vi.fn(),
+        },
+      },
+      'speak-check-skip'
+    );
+    fake.queue({ tokens: [] });
+    await user.click(
+      await screen.findByRole('button', { name: 'Start speaking' })
+    );
+    expect(await screen.findByText("Couldn't hear you")).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Skip (counts as missed)' })
+    ).toBeTruthy();
+  });
+
+  it('keeps plain Skip outside a Check', async () => {
+    const user = userEvent.setup();
+    renderPlayer();
+    fake.queue({ tokens: [] });
+    await user.click(await openSpeak(user));
+    expect(await screen.findByText("Couldn't hear you")).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy();
   });
 
   it('shows a missing microphone when capture fails mid-round', async () => {

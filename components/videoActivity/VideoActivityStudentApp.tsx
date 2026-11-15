@@ -13,6 +13,8 @@
  */
 
 import React, {
+  useId,
+  useMemo,
   useState,
   useCallback,
   useEffect,
@@ -217,7 +219,10 @@ export const VideoActivityStudentApp: React.FC = () => {
 
   if (authFailed || !auth.currentUser) {
     return (
-      <ErrorScreen message="Unable to connect. Please refresh and try again." />
+      <ErrorScreen
+        message="Unable to connect. Please refresh and try again."
+        backToAssignments={isStudentRole}
+      />
     );
   }
 
@@ -299,6 +304,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const { activeQuestion, overlayNonce, seekRequest } = player;
   const videoEnded = selfPacedVideoEnded(player);
   const finishPending = player.finish === 'retry';
+  const finishSaving = player.finish === 'finishing';
 
   const {
     session,
@@ -638,6 +644,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     sessionState?.mode === 'live' && sessionState.pacing.phase === 'ended';
   const liveCompleteStartedRef = useRef(false);
   const [liveCompleteRetry, setLiveCompleteRetry] = useState(0);
+  const [liveCompleteStuck, setLiveCompleteStuck] = useState(false);
   const liveNeedsComplete =
     liveEnded &&
     joinStatus === 'joined' &&
@@ -654,7 +661,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       });
       // A failed write (often offline at the moment of End) retries with backoff.
       liveCompleteStartedRef.current = false;
-      if (liveCompleteRetry >= LIVE_COMPLETE_MAX_RETRIES) return;
+      if (liveCompleteRetry >= LIVE_COMPLETE_MAX_RETRIES) {
+        setLiveCompleteStuck(true);
+        return;
+      }
       setTimeout(
         () => setLiveCompleteRetry((n) => n + 1),
         Math.min(LIVE_COMPLETE_RETRY_BASE_MS * 2 ** liveCompleteRetry, 30_000)
@@ -701,6 +711,46 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // No player in live mode: tab exits log the board's last known position.
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   if (isLive) playheadRef.current = session?.live?.playheadSeconds ?? 0;
+  const pinInputId = useId();
+
+  const resumeSeconds = useMemo(() => {
+    if (
+      isLive ||
+      previewKey ||
+      (myResponse != null && isVaResponseCompleted(myResponse))
+    ) {
+      return undefined;
+    }
+    const answered = sortedQuestions.filter((q) =>
+      answeredQuestionIds.has(q.id)
+    );
+    return answered.length > 0
+      ? Math.max(...answered.map((q) => q.timestamp))
+      : undefined;
+  }, [isLive, previewKey, myResponse, sortedQuestions, answeredQuestionIds]);
+
+  // Rejoining self-paced: jump to the last answered question once.
+  const resumeDoneRef = useRef(false);
+  useEffect(() => {
+    if (
+      resumeDoneRef.current ||
+      answeredQuestionIds.size === 0 ||
+      isLive ||
+      previewKey ||
+      (myResponse != null && isVaResponseCompleted(myResponse))
+    ) {
+      return;
+    }
+    resumeDoneRef.current = true;
+    const time = sortedQuestions.reduce(
+      (latest, q) =>
+        answeredQuestionIds.has(q.id) ? Math.max(latest, q.timestamp) : latest,
+      0
+    );
+    if (time > playheadRef.current + 2) {
+      dispatchPlayer({ type: 'rewind', time, nonce: Date.now() });
+    }
+  }, [answeredQuestionIds, sortedQuestions, isLive, previewKey, myResponse]);
 
   // Track the previous `tabSwitchWarnings` value via state-during-render
   // so we can sync the local counter without an extra effect pass.
@@ -929,7 +979,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         // Prefer the hook's specific error (e.g. "session ended", "PIN
         // rejected") over the generic auto-join wrapper message. Mirrors
         // the QuizStudentApp precedence.
-        return <ErrorScreen message={error ?? ssoAutoJoinError ?? ''} />;
+        return (
+          <ErrorScreen
+            message={error ?? ssoAutoJoinError ?? ''}
+            backToAssignments={isStudentRole}
+          />
+        );
       }
       return <FullPageLoader message="Joining activity…" />;
     }
@@ -971,17 +1026,21 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
               <form onSubmit={handleJoin} className="p-5 flex flex-col gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Roster PIN
+                  <label
+                    htmlFor={pinInputId}
+                    className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5"
+                  >
+                    Your PIN
                   </label>
                   <input
+                    id={pinInputId}
                     type="text"
                     value={pin}
                     onChange={(e) => setPin(e.target.value)}
                     placeholder="Ask your teacher"
                     inputMode="numeric"
                     autoFocus
-                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-sm font-medium outline-hidden transition-colors"
+                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-base font-medium outline-hidden transition-colors"
                     required
                   />
                 </div>
@@ -1089,6 +1148,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         }
         tabWarnings={myResponse?.resultsTabWarnings ?? 0}
         lockedOut={myResponse?.resultsLockedOut === true}
+        backHref={isStudentRole ? '/my-assignments' : undefined}
         pin={myResponse?.pin}
         light
       >
@@ -1145,10 +1205,50 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-bold">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Results submitted to your teacher
-                  </div>
+                  {liveNeedsComplete && liveCompleteStuck ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <p
+                        role="alert"
+                        className="text-sm font-bold text-red-600"
+                      >
+                        Couldn&rsquo;t submit. Check your connection.
+                      </p>
+                      {/* no-tour-anchor: student finished screen; live tours walk teachers. */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLiveCompleteStuck(false);
+                          setLiveCompleteRetry(0);
+                        }}
+                        className="min-h-[44px] rounded-full bg-brand-blue-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-blue-dark"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : finishSaving || liveNeedsComplete ? (
+                    <div
+                      role="status"
+                      className="flex items-center justify-center gap-2 text-slate-600 text-sm font-bold"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
+                      Submitting your results. Keep this tab open.
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Results submitted to your teacher
+                    </div>
+                  )}
+
+                  {isStudentRole && !finishSaving && !liveNeedsComplete && (
+                    // no-tour-anchor: student finished screen; live tours walk teachers.
+                    <a
+                      href="/my-assignments"
+                      className="inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl bg-brand-blue-primary py-3 font-bold text-white hover:bg-brand-blue-dark"
+                    >
+                      Back to my assignments
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -1338,6 +1438,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 allowSkipping={session?.settings?.allowSkipping ?? false}
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
+                startSeconds={resumeSeconds}
                 playheadRef={playheadRef}
                 paused={periodPaused}
                 clip={session?.clip}
@@ -1348,7 +1449,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
               {periodPaused && <VideoActivityPeriodPausedOverlay />}
 
               {finishPending && !periodPaused && (
-                <div className="absolute inset-0 z-30 bg-slate-900/80 flex items-center justify-center p-6">
+                <div className="absolute inset-0 z-30 bg-slate-900/80 flex flex-col items-center justify-center gap-4 p-6 text-center">
+                  <p role="alert" className="text-sm font-bold text-white">
+                    Couldn&rsquo;t submit. Check your connection.
+                  </p>
                   <button
                     onClick={() => void handleVideoEnd()}
                     className="px-8 py-4 bg-white text-slate-900 font-bold rounded-xl active:scale-95 transition-transform"
@@ -1416,9 +1520,29 @@ const FullPageLoader: React.FC<{ message: string }> = ({ message }) => (
   </div>
 );
 
-const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
+const ErrorScreen: React.FC<{
+  message: string;
+  backToAssignments?: boolean;
+}> = ({ message, backToAssignments = false }) => (
   <div className="min-h-screen bg-linear-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3 p-6">
     <AlertCircle className="w-8 h-8 text-red-500" />
     <p className="text-slate-700 text-sm text-center">{message}</p>
+    {/* no-tour-anchor: student error screen; live tours walk teachers. */}
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+      className="min-h-[44px] rounded-full bg-brand-blue-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-blue-dark"
+    >
+      Try again
+    </button>
+    {backToAssignments && (
+      // no-tour-anchor: student error screen; live tours walk teachers.
+      <a
+        href="/my-assignments"
+        className="inline-flex min-h-[44px] items-center px-5 text-sm font-bold text-brand-blue-primary"
+      >
+        Back to my assignments
+      </a>
+    )}
   </div>
 );

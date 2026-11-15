@@ -50,6 +50,7 @@ import {
   type ConversionRequest,
 } from './importConversionAi';
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
+import { importAiAccess } from './importSettings';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 
 const SOURCE = {
@@ -69,7 +70,9 @@ const boardAnswer = JSON.stringify({
 function deps(over: Partial<ConversionDeps> = {}): ConversionDeps {
   return {
     db: {} as admin.firestore.Firestore,
-    switchOn: vi.fn(() => Promise.resolve(true)),
+    aiAccess: vi.fn((target: ConversionRequest['target']) =>
+      Promise.resolve(importAiAccess({ enabled: true }, target, 20))
+    ),
     isAdmin: vi.fn(() => Promise.resolve(false)),
     flagsOn: vi.fn(() => Promise.resolve(true)),
     layoutAllowed: vi.fn(() => Promise.resolve(true)),
@@ -264,9 +267,17 @@ describe('response parsing', () => {
 });
 
 describe('runConversion', () => {
-  it('refuses everyone, admins included, while the kill switch is off', async () => {
+  it("refuses everyone, admins included, while the widget's AI switch is off", async () => {
     const d = deps({
-      switchOn: vi.fn(() => Promise.resolve(false)),
+      aiAccess: vi.fn((target: ConversionRequest['target']) =>
+        Promise.resolve(
+          importAiAccess(
+            { enabled: true, ai: { flashcards: { enabled: false } } },
+            target,
+            20
+          )
+        )
+      ),
       isAdmin: vi.fn(() => Promise.resolve(true)),
     });
     await expect(
@@ -306,7 +317,12 @@ describe('runConversion', () => {
   it('charges staff, records admins, and returns the parsed result', async () => {
     const d = deps();
     const out = await runConversion(req('flashcards'), 'u', TOKEN, d);
-    expect(d.charge).toHaveBeenCalledOnce();
+    expect(d.charge).toHaveBeenCalledWith(TOKEN, 'u', {
+      key: 'import-ai-flashcards',
+      limit: 20,
+      message:
+        'Flashcards with AI limit reached (20 per day). Try again tomorrow.',
+    });
     expect(out).toMatchObject({ target: 'flashcards', truncated: false });
 
     const a = deps({
@@ -314,7 +330,7 @@ describe('runConversion', () => {
       isStaff: vi.fn(() => Promise.resolve(false)),
     });
     await runConversion(req('flashcards'), 'u', TOKEN, a);
-    expect(a.record).toHaveBeenCalledOnce();
+    expect(a.record).toHaveBeenCalledWith(TOKEN, 'u', 'import-ai-flashcards');
     expect(a.charge).not.toHaveBeenCalled();
   });
 
@@ -366,6 +382,82 @@ describe('runConversion', () => {
       runConversion({ ...req('board'), allowedWidgets: 'nope' }, 'u', TOKEN, d)
     ).rejects.toMatchObject({ code: 'invalid-argument' });
     expect(d.charge).not.toHaveBeenCalled();
+  });
+});
+
+describe('importAiAccess', () => {
+  it('refuses AI Flashcards when only a spreadsheet still offers Flashcards', () => {
+    const off = { enabled: true, off: ['flashcards'] };
+    const sources = Object.fromEntries(
+      ['web', 'youtube', 'document', 'slides', 'course', 'text'].map((k) => [
+        k,
+        off,
+      ])
+    );
+    expect(
+      importAiAccess(
+        {
+          enabled: true,
+          sources: { ...sources, spreadsheet: { enabled: true } },
+        },
+        'flashcards',
+        20
+      ).on
+    ).toBe(false);
+  });
+
+  it('follows the old single switch and limit until a widget has its own', () => {
+    expect(importAiAccess({ enabled: true }, 'board', 15)).toMatchObject({
+      on: true,
+      limit: 15,
+    });
+    expect(importAiAccess({}, 'board', undefined)).toMatchObject({
+      on: false,
+      limit: 20,
+    });
+    expect(importAiAccess(undefined, 'flashcards', 'x').on).toBe(false);
+  });
+
+  it('uses the widget switch and limit over the old ones', () => {
+    const doc = {
+      enabled: false,
+      ai: { activityWall: { enabled: true, dailyLimit: 7 } },
+    };
+    expect(importAiAccess(doc, 'activityWall', 20)).toMatchObject({
+      on: true,
+      limit: 7,
+      usageKey: 'import-ai-activity-wall',
+    });
+    expect(importAiAccess(doc, 'flashcards', 20).on).toBe(false);
+    expect(
+      importAiAccess(
+        { ai: { board: { enabled: true, dailyLimit: 0 } } },
+        'board',
+        3
+      ).limit
+    ).toBe(3);
+  });
+
+  it('is off when every import that offers the widget is off or unchecked', () => {
+    const off = (kind: string, how: 'off' | 'uncheck') =>
+      how === 'off' ? { enabled: false } : { enabled: true, off: ['board'] };
+    const kinds = ['web', 'youtube', 'document', 'slides', 'text'];
+    const all = Object.fromEntries(
+      kinds.map((k, i) => [k, off(k, i % 2 ? 'off' : 'uncheck')])
+    );
+    expect(
+      importAiAccess({ enabled: true, sources: all }, 'board', 20).on
+    ).toBe(false);
+    const rest = Object.fromEntries(
+      Object.entries(all).filter(([k]) => k !== 'text')
+    );
+    expect(
+      importAiAccess({ enabled: true, sources: rest }, 'board', 20).on
+    ).toBe(true);
+    // Unchecking board leaves Flashcards on from the same imports.
+    expect(
+      importAiAccess({ enabled: true, sources: all }, 'flashcards', 20).on
+    ).toBe(true);
   });
 });
 

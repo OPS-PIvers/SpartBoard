@@ -2,9 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   ROLLOUT_ONLY_SWITCHES,
   countAccessMatches,
+  groupChildLabel,
   matchesSearch,
+  previewFeatures,
+  previewGroupChildren,
   switchForFeature,
 } from './accessSearch';
+import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { ROLLOUT_SWITCHES } from '@/config/rolloutSwitches';
 
 describe('matchesSearch', () => {
@@ -36,5 +40,25 @@ describe('rollout switches on the Previews tab', () => {
         : ROLLOUT_ONLY_SWITCHES.includes(sw);
       expect(shown, sw.title).toBe(true);
     }
+  });
+});
+
+describe('preview groups', () => {
+  it('nests every Import add-on under Import anything while it is in preview', () => {
+    const all = previewFeatures();
+    const kids = previewGroupChildren('universal-import', all);
+    expect(kids).toContain('import-google-forms');
+    expect(
+      kids.every((id) => FEATURE_DEFAULTS[id].requires === 'universal-import')
+    ).toBe(true);
+    expect(previewGroupChildren('universal-import', kids)).toEqual([]);
+    expect(previewGroupChildren('paper-answer-sheets', all)).toEqual([]);
+  });
+
+  it('drops the parent prefix from a nested label', () => {
+    expect(groupChildLabel('import-extension-send')).toBe(
+      'Send from the Chrome extension'
+    );
+    expect(groupChildLabel('import-pdf')).toBe('PDF');
   });
 });

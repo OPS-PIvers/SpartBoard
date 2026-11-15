@@ -100,7 +100,7 @@ import {
   pickAppearanceKeys,
   type SavedWidgetConfigMap,
 } from '@/utils/widgetConfigPersistence';
-import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
+import { resolveAssignmentMode } from '@/utils/assignmentModesConfig';
 import {
   canWriteLastActive,
   stampLastActive,
@@ -160,16 +160,30 @@ async function resolveOrgIdForUser(emailLower: string): Promise<{
     const cached = sessionStorage.getItem(
       RESOLVED_ORG_CACHE_PREFIX + emailLower
     );
-    if (cached) return { orgId: cached };
+    // A token still carrying the deactivation claim skips the cache so the resolver can report a cleared claim.
+    const claims = cached
+      ? (await auth.currentUser?.getIdTokenResult().catch(() => undefined))
+          ?.claims
+      : undefined;
+    if (cached && claims?.deactivated !== true) return { orgId: cached };
   } catch {
     // sessionStorage unavailable (private mode / SSR) — fall through to the call.
   }
 
   const callable = httpsCallable<
     unknown,
-    { orgId: string | null; enrollFailed?: true; rosterStudent?: true }
+    {
+      orgId: string | null;
+      enrollFailed?: true;
+      rosterStudent?: true;
+      claimCleared?: true;
+    }
   >(functions, 'resolveOrgForUser');
   const { data } = await callable({});
+  // A cleared deactivation claim is still on the current ID token until it is refreshed.
+  if (data?.claimCleared) {
+    await auth.currentUser?.getIdToken(true).catch(() => undefined);
+  }
   const orgId = data?.orgId ?? null;
   if (data?.rosterStudent) return { orgId, rosterStudent: true };
 
@@ -3481,14 +3495,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const permission = globalPermissions.find(
         (p) => p.featureId === 'assignment-modes'
       );
-      // parseAssignmentModesConfig is the trust boundary: it drops unknown
-      // widget keys and warns + drops unrecognized mode values, returning a
-      // clean AssignmentModesConfig. The cast is gone; defaulting to
-      // 'submissions' here keeps the legacy-fallthrough behavior.
-      const config = parseAssignmentModesConfig(permission?.config);
-      return config[widget] ?? 'submissions';
+      return resolveAssignmentMode(
+        permission?.config,
+        widget,
+        widget === 'miniApp' && canAccessFeature('mini-app-results')
+      );
     },
-    [globalPermissions]
+    [globalPermissions, canAccessFeature]
   );
 
   const canSeeShareTracking = useCallback((): boolean => {

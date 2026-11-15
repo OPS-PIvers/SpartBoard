@@ -2,7 +2,7 @@
 // `/users/{uid}/plc_state/{plcId}` (Decision 2.2, §3.4): the per-user private
 // unread cursor for a PLC's activity feed.
 //   - Strictly owner-only read/create/update/delete.
-//   - Schema locked to a single `lastSeenAt` field (int || timestamp).
+//   - Schema locked to a single timestamp `lastSeenAt` field (int retired, PT-175).
 //   - Another user cannot read or write someone else's cursor.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
@@ -77,10 +77,8 @@ describe('users/{uid}/plc_state/{plcId} — owner-only cursor', () => {
     );
   });
 
-  it('owner can create their cursor with an int lastSeenAt (legacy)', async () => {
-    await assertSucceeds(
-      setDoc(doc(asOwner(), STATE_PATH), { lastSeenAt: 1000 })
-    );
+  it('owner cannot create their cursor with an int lastSeenAt (retired, PT-175)', async () => {
+    await assertFails(setDoc(doc(asOwner(), STATE_PATH), { lastSeenAt: 1000 }));
   });
 
   it('owner can update lastSeenAt', async () => {

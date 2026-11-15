@@ -168,6 +168,74 @@ describe('useInputSignals', () => {
     expect(save.mock.calls[0][1].q1.panelOpens).toBe(1);
   });
 
+  it('counts a tap on an accent key as a key press for the letter it types', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('textarea');
+    const key = document.createElement('button');
+    key.setAttribute('data-typing-key', '');
+    document.body.append(box, key);
+    const type = (data: string) =>
+      box.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          inputType: 'insertText',
+          data,
+        })
+      );
+    key.dispatchEvent(mouse('pointerdown', 5, 5, false));
+    type('x'.repeat(5));
+    key.dispatchEvent(mouse('pointerdown', 5, 5));
+    type('é'.repeat(20));
+    unmount();
+    expect(save.mock.calls[0][1].q1).toMatchObject({
+      chars: 25,
+      unkeyedChars: 5,
+    });
+  });
+
+  it('counts pressing Enter on an accent key as a key press', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('textarea');
+    const key = document.createElement('button');
+    key.setAttribute('data-typing-key', '');
+    document.body.append(box, key);
+    key.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })
+    );
+    box.dispatchEvent(
+      new InputEvent('input', {
+        bubbles: true,
+        inputType: 'insertText',
+        data: 'é'.repeat(20),
+      })
+    );
+    unmount();
+    expect(save.mock.calls[0][1].q1).toMatchObject({ chars: 20 });
+    expect(save.mock.calls[0][1].q1.unkeyedChars).toBeUndefined();
+  });
+
+  it('counts a second screen plugged in during the attempt', () => {
+    // jsdom's Screen is no event target, so stand one in as Chrome's is.
+    const target = new EventTarget();
+    let isExtended = false;
+    const screen = {
+      get isExtended() {
+        return isExtended;
+      },
+      addEventListener: target.addEventListener.bind(target),
+      removeEventListener: target.removeEventListener.bind(target),
+    };
+    vi.spyOn(window, 'screen', 'get').mockReturnValue(
+      screen as unknown as Screen
+    );
+    const { save, unmount } = setup();
+    isExtended = true;
+    target.dispatchEvent(new Event('change'));
+    target.dispatchEvent(new Event('change'));
+    unmount();
+    expect(save.mock.calls[0][1].q1.extraScreen).toBe(1);
+  });
+
   it('saves the browser and profile the attempt ran in', async () => {
     environment.detect.mockResolvedValueOnce({
       browser: 'Firefox 131, Windows',

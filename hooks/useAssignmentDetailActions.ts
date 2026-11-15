@@ -122,6 +122,22 @@ export function assignmentRowToTargetingValue(
   };
 }
 
+/** A Manual due date that moved: class rows still locked at the old due follow it. */
+export function dueLockRowCaps(
+  row: Pick<UnifiedAssignmentRow, 'dueLocks' | 'dueAt' | 'periodAccess'>,
+  window: { dueAt?: number | null }
+): Record<string, { closeAt: number | null }> | null {
+  if (!row.dueLocks || !('dueAt' in window) || row.dueAt == null) return null;
+  const next = window.dueAt ?? null;
+  if (next === row.dueAt) return null;
+  const caps = Object.fromEntries(
+    Object.entries(row.periodAccess ?? {})
+      .filter(([, access]) => access.closeAt === row.dueAt)
+      .map(([key]) => [key, { closeAt: next }])
+  );
+  return Object.keys(caps).length > 0 ? caps : null;
+}
+
 export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
   const { setAssignmentTargets } = useSetAssignmentTargets();
 
@@ -232,6 +248,11 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         sessionPatch.closeAt = effective.closeAt ?? null;
       if ('dueAt' in payload.window)
         sessionPatch.dueAt = effective.dueAt ?? null;
+      const rowCaps = dueLockRowCaps(row, payload.window);
+      if (rowCaps) {
+        sessionPatch.periodAccess = rowCaps;
+        assignmentPatch.periodAccess = rowCaps;
+      }
 
       const batch = writeBatch(db);
       batch.set(assignmentRef, assignmentPatch, { merge: true });

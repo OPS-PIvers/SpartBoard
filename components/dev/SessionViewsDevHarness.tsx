@@ -58,6 +58,7 @@ import {
 import {
   NOW,
   makeQuizSession,
+  makeQuizMonitorRoster,
   makeQuizResponses,
   makeQuizAttemptCopies,
   makeTimedQuizSession,
@@ -308,7 +309,8 @@ const SessionView: React.FC<{
           : state === 'stop'
             ? makeStopQuizResponses()
             : makeQuizResponses();
-    const perPeriod = state === 'per-period';
+    const pastDue = state === 'past-due';
+    const perPeriod = state === 'per-period' || pastDue;
     const period = (label: string, state: 'open' | 'paused' | 'closed') => ({
       label,
       state,
@@ -328,6 +330,13 @@ const SessionView: React.FC<{
               'cl-3': period('Period 3', 'open'),
               'cl-5': period('Period 5', 'closed'),
             },
+            ...(pastDue
+              ? {
+                  accessMode: 'assessment' as const,
+                  dueLocks: true,
+                  dueAt: NOW - 30 * 60_000,
+                }
+              : {}),
           }
         : state === 'stop'
           ? makeStopQuizSession(status)
@@ -340,11 +349,12 @@ const SessionView: React.FC<{
             : makeQuizSession(status);
     return (
       <QuizMonitorDev
-        session={session}
+        session={{ ...session, rosterIds: ['roster-p3'] }}
         assessmentOnly={perPeriod}
         responses={responses}
         quizData={makeQuizData()}
-        rosters={[]}
+        rosters={[makeQuizMonitorRoster()]}
+        rosterTargets={{}}
         onAdvance={noop}
         onEnd={noop}
         onPause={noop}
