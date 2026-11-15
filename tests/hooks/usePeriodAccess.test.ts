@@ -16,6 +16,7 @@ import type {
 } from '@/types';
 import {
   bellCloseFor,
+  capAtSessionClose,
   letInUntil,
   startCloseAt,
   usePeriodAccess,
@@ -138,6 +139,13 @@ describe('bell helpers', () => {
     ).toBeNull();
   });
 
+  it('caps a period close at the session close', () => {
+    expect(capAtSessionClose(50, null)).toBe(50);
+    expect(capAtSessionClose(null, 40)).toBe(40);
+    expect(capAtSessionClose(50, 40)).toBe(40);
+    expect(capAtSessionClose(30, 40)).toBe(30);
+  });
+
   it('lets a student in until the bell of whichever period is in session', () => {
     const pa = { a: period({ rosterId: 'r1' }), b: period({ rosterId: 'r3' }) };
     expect(letInUntil(pa, rosters, permissions, at(10, 50))).toBe(
@@ -217,6 +225,30 @@ describe('usePeriodAccess', () => {
     expect(fieldWrites('users/teacher-1/quiz_assignments/s1')).toEqual([
       expected,
     ]);
+  });
+
+  it('holds Start and Extend to a Manual due date on the session', async () => {
+    (getDocs as Mock).mockResolvedValue({ docs: [] });
+    const due = at(9, 0);
+    const { result } = renderHook(() =>
+      usePeriodAccess({ ...session, closeAt: due }, collections, rosters)
+    );
+    let untimed: string[] = [];
+    await act(async () => {
+      untimed = await result.current.startAll();
+    });
+    expect(untimed).toEqual([]);
+    expect(fieldWrites('quiz_sessions/s1')).toEqual([
+      expect.objectContaining({ 'periodAccess.cl-1.closeAt': due }),
+      expect.objectContaining({ 'periodAccess.roster:r5.closeAt': due }),
+    ]);
+    update.mockClear();
+    await act(async () => {
+      await result.current.extendPeriod('cl-1', null);
+    });
+    expect(fieldWrites('quiz_sessions/s1')[0]).toEqual({
+      'periodAccess.cl-1.closeAt': due,
+    });
   });
 
   it('reports an untagged assessment period that opened with no bell', async () => {

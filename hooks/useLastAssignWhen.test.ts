@@ -22,8 +22,29 @@ describe('withRememberedWhen', () => {
   it('starts on When ended and Opens Now with nothing saved', () => {
     const when = withRememberedWhen(seed, null, now);
     expect(when.mode).toBe('scheduled');
-    expect(when.availability.manualDue).toEqual({ kind: 'ended' });
+    expect(when.availability.manualDue).toEqual({
+      kind: 'ended',
+      time: '23:59',
+    });
     expect(when.availability.opensOnAssign).toBe(true);
+  });
+
+  it('keeps the last due time behind When ended', () => {
+    const when = withRememberedWhen(
+      seed,
+      {
+        mode: 'manual',
+        allowLate: false,
+        opens: 'now',
+        due: 'ended',
+        dueTime: '14:30',
+      },
+      now
+    );
+    expect(when.availability.manualDue).toEqual({
+      kind: 'ended',
+      time: '14:30',
+    });
   });
 
   it('applies the last choices, with a date due today at the last time', () => {
@@ -115,6 +136,23 @@ describe('lastWhenFrom', () => {
       due: 'ended',
       dueTime: '14:00',
     });
+  });
+});
+
+describe('lastWhenFrom with a picked time', () => {
+  it('saves the time a teacher picked before switching back to When ended', () => {
+    const saved = lastWhenFrom(
+      {
+        mode: 'manual',
+        availability: {
+          ...seed.availability,
+          manualDue: { kind: 'ended', time: '10:15' },
+        },
+      },
+      null
+    );
+    expect(saved.due).toBe('ended');
+    expect(saved.dueTime).toBe('10:15');
   });
 });
 

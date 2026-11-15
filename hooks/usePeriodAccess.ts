@@ -45,7 +45,18 @@ export interface PeriodAccessCollections {
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
   teacherUid: string;
+  /** A shared close (a Manual due date) that no period can run past. */
+  closeAt?: number | null;
 };
+
+/** A period's close, held to the session's shared close when it has one. */
+export function capAtSessionClose(
+  closeAt: number | null,
+  sessionCloseAt: number | null | undefined
+): number | null {
+  if (sessionCloseAt == null) return closeAt;
+  return closeAt == null ? sessionCloseAt : Math.min(closeAt, sessionCloseAt);
+}
 
 type BellRoster = Pick<ClassRoster, 'id' | 'bellPeriod'>;
 
@@ -206,12 +217,19 @@ export function usePeriodAccess(
           featurePermissions,
           now
         );
-        if (session.accessMode === 'assessment' && bell == null)
+        if (
+          session.accessMode === 'assessment' &&
+          bell == null &&
+          session.closeAt == null
+        )
           untimed.push(key);
         stage(batch, key, {
           state: 'open',
           openAt: null,
-          closeAt: startCloseAt(session, access, bell, now),
+          closeAt: capAtSessionClose(
+            startCloseAt(session, access, bell, now),
+            session.closeAt
+          ),
         });
       }
       await batch.commit();
@@ -246,14 +264,16 @@ export function usePeriodAccess(
       if (!access) return;
       const batch = writeBatch(db);
       stage(batch, key, {
-        closeAt:
+        closeAt: capAtSessionClose(
           by == null
             ? null
             : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
+          session?.closeAt
+        ),
       });
       await batch.commit();
     },
-    [periodAccess, stage]
+    [periodAccess, stage, session?.closeAt]
   );
 
   const letIn = useCallback(
