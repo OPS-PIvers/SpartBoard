@@ -3216,6 +3216,10 @@
     "tourField": "Quel réglage",
     "tourFieldPick": "Choisir un réglage",
     "tourFieldPlaceholder": "Clé du réglage",
+    "tourRow": "Quelle ligne",
+    "tourRowFirst": "Première ligne",
+    "tourRowAny": "N'importe quelle ligne",
+    "tourRowN": "Ligne {{n}}",
     "tourAction_click": "Attendre le clic",
     "tourAction_observe": "Le montrer, puis Suivant",
     "tourAction_toggle": "Attendre l'interrupteur",
@@ -5081,5 +5085,14 @@
   "quizAnswerPicture": {
     "name": "Image {{n}}",
     "nameWithAlt": "Image {{n}} : {{alt}}"
+  },
+  "picker": {
+    "clear": "Effacer",
+    "today": "Aujourd'hui",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant",
+    "hour": "Heure",
+    "minute": "Minute",
+    "period": "Matin ou après-midi"
   }
 }

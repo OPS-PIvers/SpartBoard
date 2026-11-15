@@ -140,8 +140,6 @@ export interface QuizImportAdapterDeps {
   aiExtract?: AiExtractFn;
   /** `quiz-import-versions-plain` is on, so a typed PDF splits into versions without AI. */
   plainVersions?: boolean;
-  /** `quiz-import-pdf-answer-marks` is on, so a PDF's bold, underlined or highlighted choice is its answer. */
-  pdfMarks?: boolean;
   /** `quiz-import-equations` is on, so math in a question's text comes in as drawn equations. */
   equations?: boolean;
   /** The versioned AI call; given only with AI access. */
@@ -474,7 +472,7 @@ export function createQuizImportAdapter(
             ...(source.useAi === false ? { useAi: false } : {}),
             multiAnswer: true,
             passages: true,
-            ...(deps.pdfMarks ? { pdfMarks: true } : {}),
+            pdfMarks: true,
             answerPictures: true,
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }

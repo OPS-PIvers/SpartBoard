@@ -151,8 +151,6 @@ export const useFlashcardAssignments = (
   const [error, setError] = useState<string | null>(null);
   const auth = useContext(AuthContext);
   const canSpeak = auth?.canAccessFeature('flashcards-speak') ?? false;
-  const canMissedCards =
-    auth?.canAccessFeature('flashcards-missed-cards') ?? false;
 
   // Reset during render when the signed-in user changes.
   const [prevUserId, setPrevUserId] = useState(userId);
@@ -291,7 +289,7 @@ export const useFlashcardAssignments = (
         ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
         ...(speak ? { speak } : {}),
         ...(speakOff ? { speakOff: true as const } : {}),
-        ...(!isCheck && canMissedCards ? { missedCards: true as const } : {}),
+        ...(!isCheck ? { missedCards: true as const } : {}),
         ...(speak && speakChoice ? { speakChoice } : {}),
         ...(!isCheck && input.studySettings
           ? { studySettings: input.studySettings }
@@ -364,7 +362,7 @@ export const useFlashcardAssignments = (
       await batch.commit();
       return id;
     },
-    [canMissedCards, canSpeak, userId]
+    [canSpeak, userId]
   );
 
   const endAssignment = useCallback<

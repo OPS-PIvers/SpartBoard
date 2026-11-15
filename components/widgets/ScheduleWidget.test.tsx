@@ -780,7 +780,7 @@ describe('ScheduleWidget', () => {
     render(<ScheduleWidget widget={widget} />);
     expect(screen.queryByText('Math')).not.toBeInTheDocument();
     expect(screen.queryByText('Science')).not.toBeInTheDocument();
-    expect(screen.getByText('No Schedule')).toBeInTheDocument();
+    expect(screen.getByText('No schedule yet')).toBeInTheDocument();
   });
 });
 

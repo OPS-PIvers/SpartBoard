@@ -14,8 +14,10 @@
  */
 
 import { VideoActivityQuestion, VideoActivityResponse } from '@/types';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import {
+  firstVaAnswers,
+  gradeVideoActivityAnswer,
+} from '@/utils/videoActivityGrading';
 
 type ResponseLike = Pick<VideoActivityResponse, 'answers'> &
   Partial<Pick<VideoActivityResponse, 'grading'>>;
@@ -28,7 +30,7 @@ export function computeQuestionAccuracy(
   let answeredCount = 0;
   let correctCount = 0;
   for (const r of responses) {
-    const answer = selectRepresentativeAnswers(r.answers).get(question.id);
+    const answer = firstVaAnswers(r.answers).get(question.id);
     if (answer === undefined) continue;
     const grade = gradeVideoActivityAnswer(
       question,
@@ -51,7 +53,7 @@ export function countCorrectAnswers(
   response: ResponseLike,
   questions: VideoActivityQuestion[]
 ): number {
-  const representative = selectRepresentativeAnswers(response.answers);
+  const representative = firstVaAnswers(response.answers);
   let correctCount = 0;
   for (const q of questions) {
     const answer = representative.get(q.id);

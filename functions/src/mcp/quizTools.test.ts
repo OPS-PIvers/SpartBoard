@@ -4,12 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type * as admin from '../firebaseAdmin';
 import type { ToolContext } from './activity';
-import {
-  questionFieldsFor,
-  registerQuizTools,
-  restoreQuizRevision,
-} from './quizTools';
-import { slimToolListing } from './toolKit';
+import { registerQuizTools, restoreQuizRevision } from './quizTools';
 
 const drive = vi.hoisted(() => ({ files: new Map<string, unknown>() }));
 vi.mock('./drive', () => ({
@@ -425,7 +420,7 @@ describe('DOK levels', () => {
   const fileOf = (id: string) =>
     drive.files.get(`file-${id}`) as { questions: Data[] };
 
-  it('saves and returns dok for a teacher with DOK levels', async () => {
+  it('saves and returns dok', async () => {
     const call = await connect(fakeDb(admin).db);
     const res = await call('create_quiz', {
       title: 'T',
@@ -471,14 +466,14 @@ describe('DOK levels', () => {
     }
   });
 
-  it('leaves dok out and says so when the teacher lacks DOK levels', async () => {
+  it('saves dok for a teacher who is not an admin', async () => {
     const call = await connect(fakeDb().db);
     const res = await call('create_quiz', {
       title: 'T',
       questions: [{ ...mc(1), dok: 2 }],
     });
-    expect(res.not_saved).toEqual([expect.stringMatching(/DOK levels/)]);
-    expect(fileOf(res.quiz_id as string).questions[0].dok).toBeUndefined();
+    expect(res.not_saved).toBeUndefined();
+    expect(fileOf(res.quiz_id as string).questions[0].dok).toBe(2);
   });
 });
 
@@ -556,60 +551,21 @@ describe('explanations', () => {
     expect(res.error).toMatch(/not one of its choices/);
   });
 
-  it('leaves them out and says so when the teacher lacks explanations', async () => {
+  it('saves them for a teacher who is not an admin', async () => {
     const call = await connect(fakeDb().db);
     const res = await call('create_quiz', {
       title: 'T',
       questions: [{ ...explained, dok: 2 }],
     });
-    expect(res.not_saved).toHaveLength(2);
+    expect(res.not_saved).toBeUndefined();
     const q = fileOf(res.quiz_id as string).questions[0];
-    expect(q.explanation).toBeUndefined();
-    expect(q.optionExplanations).toBeUndefined();
+    expect(q.explanation).toBe('Because.');
+    expect(q.optionExplanations).toBeDefined();
   });
 });
 
-describe('questionFieldsFor', () => {
-  async function listed(seed: Record<string, Data>) {
-    const ctx = ctxFor(fakeDb(seed).db);
-    const server = new McpServer({ name: 't', version: '1' });
-    registerQuizTools(server, ctx);
-    slimToolListing(server, undefined, undefined, () => questionFieldsFor(ctx));
-    const [a, b] = InMemoryTransport.createLinkedPair();
-    const client = new Client({ name: 'c', version: '1' });
-    await Promise.all([server.connect(a), client.connect(b)]);
-    const { tools } = await client.listTools();
-    const create = tools.find((t) => t.name === 'create_question_bank');
-    const items = (
-      create?.inputSchema.properties as {
-        questions: { items: { properties: Data } };
-      }
-    ).questions.items.properties;
-    return { description: create?.description ?? '', items };
-  }
-
-  it('offers dok and explanations to a teacher who has them', async () => {
-    const { description, items } = await listed({
-      'admins/u1@example.org': {},
-    });
-    expect(items).toHaveProperty('dok');
-    expect(items).toHaveProperty('option_explanations');
-    expect(description).toMatch(/dok level/);
-    expect(description).toMatch(/option_explanations/);
-  });
-
-  it('leaves them out for a teacher without the previews', async () => {
-    const { description, items } = await listed({});
-    expect(items).not.toHaveProperty('dok');
-    expect(items).not.toHaveProperty('explanation');
-    expect(items).not.toHaveProperty('option_explanations');
-    expect(items).toHaveProperty('standards');
-    expect(description).not.toMatch(/dok|explanation/);
-  });
-});
-
-describe('gated fields echoed back unchanged', () => {
-  it('keeps saved values without a not_saved note', async () => {
+describe('dok and explanations for every teacher', () => {
+  it('returns saved values and keeps them on update', async () => {
     const fx = fakeDb();
     const call = await connect(fx.db);
     const res = await call('create_quiz', { title: 'T', questions: [mc(1)] });
@@ -618,12 +574,8 @@ describe('gated fields echoed back unchanged', () => {
     Object.assign(file.questions[0], { dok: 2, explanation: 'Because.' });
     const got = await call('get_quiz', { quiz_id: id });
     const q = (got.questions as Data[])[0];
-    expect(q.dok).toBeUndefined();
-    expect(q.explanation).toBeUndefined();
-    const upd = await call('update_quiz', {
-      quiz_id: id,
-      questions: [{ ...q, dok: 2, explanation: 'Because.' }],
-    });
+    expect(q).toMatchObject({ dok: 2, explanation: 'Because.' });
+    const upd = await call('update_quiz', { quiz_id: id, questions: [q] });
     expect(upd.not_saved).toBeUndefined();
     const saved = (drive.files.get(`file-${id}`) as { questions: Data[] })
       .questions[0];

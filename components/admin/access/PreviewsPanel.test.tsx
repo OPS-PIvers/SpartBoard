@@ -22,6 +22,13 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   focus_sessions: undefined,
 };
 
+vi.mock('@/hooks/useImportConversionSettings', async () => {
+  const { normalizeImportConversionSettings } =
+    await import('@/config/importConversion');
+  return {
+    useImportConversionSettings: () => normalizeImportConversionSettings({}),
+  };
+});
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, collection: string, id: string) => ({

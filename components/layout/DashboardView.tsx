@@ -98,7 +98,13 @@ import {
   type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
-import { importTypeOn, targetChoices } from '@/components/import/importTargets';
+import {
+  importSourceKind,
+  importTypeOn,
+  targetChoices,
+} from '@/components/import/importTargets';
+import { importSourceOffers } from '@/config/importConversion';
+import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
 import {
   openImportScreen,
   type ImportDropPoint,
@@ -136,6 +142,9 @@ const WebTourEditorHost = React.lazy(() =>
   import('@/components/tours/web/WebTourEditorHost').then((m) => ({
     default: m.WebTourEditorHost,
   }))
+);
+const BoardMenuHost = React.lazy(() =>
+  import('./BoardMenuHost').then((m) => ({ default: m.BoardMenuHost }))
 );
 const opensWebTour = () =>
   new URLSearchParams(window.location.search).has(EDIT_WEB_TOUR_PARAM);
@@ -438,42 +447,6 @@ export const DashboardView: React.FC = () => {
       window.removeEventListener(TOUR_EDIT_EVENT, handleStartTour);
     };
   }, []);
-  const onboardingShownRef = React.useRef(false);
-  const seedAuth = useAuth();
-  // Under Getting Started the checklist widget is never seeded (D26); wait until the flag is known.
-  const seedHeld =
-    !seedAuth.globalPermissionsLoaded ||
-    seedAuth.isAdmin === null ||
-    seedAuth.canAccessFeature('getting-started');
-
-  // Auto-add onboarding widget for brand-new users on their first empty board.
-  // onboardingShownRef guards against duplicate adds within a session;
-  // localStorage persists the flag across reloads so the widget is never re-added.
-  // Skipped in auth-bypass mode (E2E / local dev) to keep tests deterministic.
-  React.useEffect(() => {
-    if (!activeDashboard || seedHeld) return;
-    if (onboardingShownRef.current) return;
-    if (import.meta.env.VITE_AUTH_BYPASS === 'true') return;
-    try {
-      if (localStorage.getItem('spart_onboarding_shown') === 'true') return;
-    } catch {
-      // Storage unavailable — treat as not yet shown
-    }
-    const totalWidgets = dashboards.reduce(
-      (sum, d) => sum + d.widgets.length,
-      0
-    );
-    if (totalWidgets === 0) {
-      onboardingShownRef.current = true;
-      try {
-        localStorage.setItem('spart_onboarding_shown', 'true');
-      } catch {
-        // Non-critical — onboardingShownRef still prevents duplicates this session
-      }
-      addWidget('onboarding', { x: 60, y: 80, w: 380, h: 440 });
-    }
-  }, [activeDashboard, dashboards, addWidget, seedHeld]);
-
   // WIDGET POSITION RESCUE
   // Refs keep values fresh inside stable callbacks without re-registering
   // the resize listener on every widget move/resize (per CLAUDE.md ref pattern).
@@ -538,8 +511,13 @@ export const DashboardView: React.FC = () => {
   const { canAccessFeature, isAdmin } = useAuth();
   const universalImport = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   const importOnDrop = universalImport && canAccessFeature(IMPORT_DROP_FEATURE);
-  const importTypeAllowed = (target: ImportTarget): boolean =>
-    importTypeOn(target, canAccessFeature);
+  const importSettings = useImportConversionSettings(universalImport);
+  const importTypeAllowed = (
+    target: ImportTarget,
+    source: PendingSource
+  ): boolean =>
+    importTypeOn(target, canAccessFeature) &&
+    importSourceOffers(importSettings, importSourceKind(source), target);
   const boxSelectEnabled =
     !annotationActive && !isActiveBoardReadOnly && !groupBuildMode;
   const marqueeRect = useBoardMarqueeSelect({
@@ -1407,7 +1385,9 @@ export const DashboardView: React.FC = () => {
     const files = Array.from(dt.files ?? []);
     const offered = (f: File) =>
       targetChoices({ file: f }, importTypeAllowed).targets.length > 0 ||
-      (/\.imscc$/i.test(f.name) && canAccessFeature('import-schoology-course'));
+      (/\.imscc$/i.test(f.name) &&
+        canAccessFeature('import-schoology-course') &&
+        importSettings.sources.course.enabled);
     // A file no Import type is open for keeps the old drop (a PDF or notebook lands as before).
     if (
       !files.some(offered) &&
@@ -1906,6 +1886,13 @@ export const DashboardView: React.FC = () => {
           {!isActiveBoardReadOnly && <Dock />}
         </React.Suspense>
       </LazyChunkErrorBoundary>
+      {canAccessFeature('board-context-menu') && (
+        <LazyChunkErrorBoundary fallback={() => null}>
+          <React.Suspense fallback={null}>
+            <BoardMenuHost />
+          </React.Suspense>
+        </LazyChunkErrorBoundary>
+      )}
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />

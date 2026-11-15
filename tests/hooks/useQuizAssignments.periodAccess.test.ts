@@ -181,6 +181,43 @@ describe('useQuizAssignments — per-period sessions', () => {
     });
   });
 
+  it('marks a Manual due date as locking each period, with no shared close', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let id = '';
+    await act(async () => {
+      ({ id } = await result.current.createAssignment(
+        QUIZ,
+        { sessionMode: 'student', sessionOptions: {}, dueAt: 2_000 },
+        { accessMode: 'assessment', periodAccess: PERIODS, closeAt: 2_000 }
+      ));
+    });
+    const session = setAt(`quiz_sessions/${id}`);
+    expect(session).toMatchObject({
+      dueLocks: true,
+      dueAt: 2_000,
+      periodAccess: PERIODS,
+    });
+    expect(session).not.toHaveProperty('closeAt');
+    expect(setAt(`users/${TEACHER_UID}/quiz_assignments/${id}`)).toMatchObject({
+      dueLocks: true,
+      dueAt: 2_000,
+    });
+  });
+
+  it('drops a shared close on an assignment-mode session', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let id = '';
+    await act(async () => {
+      ({ id } = await result.current.createAssignment(
+        QUIZ,
+        { sessionMode: 'student', sessionOptions: {}, dueAt: 2_000 },
+        { accessMode: 'assignment', periodAccess: PERIODS, closeAt: 2_000 }
+      ));
+    });
+    expect(setAt(`quiz_sessions/${id}`)).not.toHaveProperty('closeAt');
+    expect(setAt(`quiz_sessions/${id}`)).not.toHaveProperty('dueLocks');
+  });
+
   it('keeps a legacy session unchanged', async () => {
     const id = await create(false);
     const session = setAt(`quiz_sessions/${id}`);

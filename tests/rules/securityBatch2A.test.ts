@@ -288,16 +288,13 @@ describe('bank-slot served lists', () => {
     ...extra,
   });
 
-  // The previous app may roll its own first draw until the compat window closes (AB-98).
-  const compatOpen = Date.now() < Date.UTC(2026, 10, 10) - 60_000;
-
-  it('a student writes a first draw only inside the compat window', async () => {
+  it('a student cannot write a first draw', async () => {
     await seedQuiz({}, { bankSlots: BANK_SLOTS });
     const write = updateDoc(
       doc(asStudent(), responsePath),
       answer({ servedQuestionIds: ['q1', 'b1'] })
     );
-    await (compatOpen ? assertSucceeds(write) : assertFails(write));
+    await assertFails(write);
   });
 
   it('a student cannot replace a recorded draw or write a wrong-size one', async () => {

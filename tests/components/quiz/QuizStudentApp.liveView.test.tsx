@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { QuizData, QuizResponse } from '@/types';
 import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
 import { buildStudentViewSession } from '@/utils/quizStudentViewSession';
@@ -127,6 +127,26 @@ describe('ActiveQuiz as the teacher’s Live view mirror', () => {
   });
 });
 
+describe('ActiveQuiz mirror and the tab warning', () => {
+  it('shows the student’s red tab warning while they have it up', async () => {
+    const { rerender } = render(
+      renderQuiz(response(), { watchQuestionId: 'q1', warningCount: 2 })
+    );
+    await screen.findByText('First question?');
+    expect(screen.queryByText('TAB SWITCH DETECTED')).toBeNull();
+
+    rerender(
+      renderQuiz(response(), {
+        watchQuestionId: 'q1',
+        watchTabWarning: true,
+        warningCount: 2,
+      })
+    );
+    expect(screen.getByText('TAB SWITCH DETECTED')).toBeTruthy();
+    expect(screen.getByText('Warning 2.')).toBeTruthy();
+  });
+});
+
 describe('ActiveQuiz on a watched student’s device', () => {
   it('reports the question on screen only while the stamp is ahead', async () => {
     const report = vi.fn(() => Promise.resolve());
@@ -143,7 +163,10 @@ describe('ActiveQuiz on a watched student’s device', () => {
       )
     );
     await waitFor(() =>
-      expect(report).toHaveBeenCalledWith('q1', expect.any(Number))
+      expect(report).toHaveBeenCalledWith({
+        questionId: 'q1',
+        at: expect.any(Number),
+      })
     );
     expect(screen.getByText('Your teacher is viewing your quiz')).toBeTruthy();
 
@@ -158,5 +181,84 @@ describe('ActiveQuiz on a watched student’s device', () => {
     );
     await screen.findByText('First question?');
     expect(report).not.toHaveBeenCalled();
+  });
+});
+
+const revisited = (extra: Partial<QuizResponse> = {}) =>
+  response({
+    answers: [
+      {
+        questionId: 'q1',
+        answer: 'Wrong',
+        answeredAt: 5,
+        status: 'submitted',
+      },
+    ],
+    ...extra,
+  });
+
+const waitPastDebounce = () =>
+  new Promise((resolve) => setTimeout(resolve, 700));
+
+describe('ActiveQuiz after going back to a submitted answer', () => {
+  it('saves the changed choice without waiting for Next while Live view watches', async () => {
+    const onAnswer = vi.fn(() => Promise.resolve());
+    render(
+      renderQuiz(
+        revisited({ liveView: { until: Date.now() + 60_000, notify: false } }),
+        { onAnswer }
+      )
+    );
+    await screen.findByText('First question?');
+    fireEvent.click(screen.getByRole('button', { name: /^Right/ }));
+
+    await waitFor(() =>
+      expect(onAnswer).toHaveBeenCalledWith('q1', 'Right', undefined, {
+        isDraft: true,
+        liveRevisit: true,
+      })
+    );
+  });
+
+  it('writes nothing until Next when nobody is watching', async () => {
+    const onAnswer = vi.fn(() => Promise.resolve());
+    render(renderQuiz(revisited(), { onAnswer }));
+    await screen.findByText('First question?');
+    fireEvent.click(screen.getByRole('button', { name: /^Right/ }));
+
+    await waitPastDebounce();
+    document.dispatchEvent(new Event('spartboard:quiz:flush-written'));
+    expect(onAnswer).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Next/i }));
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledTimes(1));
+    expect(onAnswer).toHaveBeenCalledWith(
+      'q1',
+      'Right',
+      undefined,
+      expect.not.objectContaining({ isDraft: true })
+    );
+  });
+
+  it('falls back to saving on Next once the watch has run out', async () => {
+    const onAnswer = vi.fn(() => Promise.resolve());
+    render(
+      renderQuiz(
+        revisited({ liveView: { until: Date.now() - 1, notify: false } }),
+        { onAnswer }
+      )
+    );
+    await screen.findByText('First question?');
+    fireEvent.click(screen.getByRole('button', { name: /^Right/ }));
+
+    await waitPastDebounce();
+    document.dispatchEvent(new Event('spartboard:quiz:flush-written'));
+    expect(onAnswer).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Next/i }));
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledTimes(1));
+    expect(onAnswer.mock.calls[0]).toEqual(
+      expect.arrayContaining(['q1', 'Right'])
+    );
   });
 });

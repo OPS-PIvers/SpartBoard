@@ -10,6 +10,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
+import { importAiOn, importSourceOffers } from '@/config/importConversion';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import type { LibraryFolder, QuizData } from '@/types';
 import { createFlashcardImportAdapter } from '@/components/widgets/Flashcards/adapters/flashcardImportAdapter';
@@ -311,8 +312,9 @@ export const CourseImportHost: React.FC<{
       canUploadPictures: !!driveService,
       access: {
         target: (target) => {
-          // Each type in a course follows its own Import flag too.
+          // Each type in a course follows its own Import flag and the course checklist too.
           if (!importTypeOn(target, canAccessFeature)) return false;
+          if (!importSourceOffers(conversion, 'course', target)) return false;
           switch (target) {
             case 'quiz':
             case 'questionBank':
@@ -327,10 +329,10 @@ export const CourseImportHost: React.FC<{
               return canAccessWidget('url');
           }
         },
-        ai:
+        ai: (target) =>
           canAccessFeature(UNIVERSAL_IMPORT_FEATURE) &&
           canAccessFeature('gemini-functions') &&
-          conversion.enabled &&
+          importAiOn(conversion, target) &&
           !outward.locked,
         drive: !!driveService,
       },
@@ -347,7 +349,7 @@ export const CourseImportHost: React.FC<{
     uploadAndRegisterPdf,
     wallDefaults,
     outward,
-    conversion.enabled,
+    conversion,
     canAccessWidget,
     canAccessFeature,
     readFile,

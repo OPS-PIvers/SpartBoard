@@ -3895,6 +3895,7 @@ describe('index barrel — deployed export set', () => {
     'recordFlashcardCheckRatingsV1',
     'reopenFlashcardCheckV1',
     'submitMiniAppResultV1',
+    'publishMiniAppScoresV1',
     'resolveFlashcardFlagV1',
     'rescoreFlashcardCheckV1',
     // Shared board Activity Wall editing
@@ -4057,6 +4058,7 @@ describe('index barrel — deployed export set', () => {
     'focusSweepSessions',
     'expireActivityWallShares',
     'finalizeIdleQuizAttempts',
+    'finalizeExpiredQuizAttempts',
     // Google / Spotify OAuth
     'exchangeGoogleAuthCode',
     'refreshGoogleAccessToken',

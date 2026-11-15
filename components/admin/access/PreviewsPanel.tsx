@@ -8,6 +8,7 @@ import { TOOLS } from '@/config/tools';
 import { Toggle } from '@/components/common/Toggle';
 import { AccessFeatureRow } from './AccessFeatureRow';
 import { FocusHoursRow } from './FocusHoursRow';
+import { ImportOffersSection } from './ImportOffersSection';
 import { FOCUS_HOURS_SEARCH_FIELDS } from '@/config/focusSessions';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import {
@@ -254,6 +255,9 @@ export const PreviewsPanel: React.FC = () => {
                     editor={editor}
                     defaultExpanded={group.openForSearch}
                   >
+                    {id === 'universal-import' && (
+                      <ImportOffersSection editor={editor} />
+                    )}
                     <div className="space-y-1">
                       <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                         Options

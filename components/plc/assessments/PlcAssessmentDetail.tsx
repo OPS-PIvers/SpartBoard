@@ -350,7 +350,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   assessmentId,
 }) => {
   const { t, i18n } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const { addToast } = useDashboard();
   const { data: assessments, loading: assessmentsLoading } =
     usePlcAssessmentsData({ flashcards: true });
@@ -396,7 +396,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   const masteryCutoffs =
     learningTargetList?.masteryCutoffs ?? DEFAULT_MASTERY_CUTOFFS;
   // The switch exists only when a question has a DOK level and targets exist to switch from.
-  const dokRows = canAccessFeature('quiz-dok') ? (aggregate?.perDok ?? []) : [];
+  const dokRows = aggregate?.perDok ?? [];
   const [groupByDok, setGroupByDok] = useState(false);
   const dokView = dokRows.length > 0 && (groupByDok || targets.length === 0);
 

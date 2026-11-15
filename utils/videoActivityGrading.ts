@@ -174,6 +174,33 @@ export function gradeVideoActivityAnswer(
   return { isCorrect: false, pointsEarned: 0, pointsMax: max, state };
 }
 
+/** First entry per question by list position; the rules keep that prefix fixed, unlike client answeredAt/takeIndex. */
+export function firstVaAnswers<T extends { questionId: string }>(
+  answers: T[]
+): Map<string, T> {
+  const first = new Map<string, T>();
+  for (const a of answers)
+    if (!first.has(a.questionId)) first.set(a.questionId, a);
+  return first;
+}
+
+/** A live run's response scored only on answers the check callable recorded (when it recorded any). */
+export function liveScoredResponse<
+  T extends Pick<VideoActivityResponse, 'answers' | 'checkedAnswers'>,
+>(r: T): T {
+  const checked = r.checkedAnswers;
+  if (!checked || typeof checked !== 'object') return r;
+  const first = firstVaAnswers(r.answers ?? []);
+  return {
+    ...r,
+    answers: (r.answers ?? []).filter(
+      (a) =>
+        first.get(a.questionId) === a &&
+        checked[a.questionId]?.answer === a.answer
+    ),
+  };
+}
+
 /**
  * Convenience: compute a student's percentage score across all questions.
  * Uses points-aware totals so a 5-point MA question counts more than a
@@ -361,9 +388,10 @@ export function canScoreVideoActivityResponse(
 export function buildVideoActivityGradeEntries(
   responses: VideoActivityResponse[],
   questions: VideoActivityQuestion[],
-  maxPoints: number
+  maxPoints: number,
+  live = false
 ): { pseudonymUid: string; pointsEarned: number }[] {
-  return responses
+  return (live ? responses.map(liveScoredResponse) : responses)
     .filter(
       (r) =>
         r.completedAt !== null &&

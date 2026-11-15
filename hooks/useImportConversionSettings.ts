@@ -13,24 +13,35 @@ import {
 export function useImportConversionSettings(
   enabled: boolean = true
 ): ImportConversionSettings {
-  const [settings, setSettings] = useState<ImportConversionSettings>(
-    DEFAULT_IMPORT_CONVERSION_SETTINGS
-  );
+  return useImportConversionSettingsState(enabled).settings;
+}
+
+/** The settings plus whether the first read has come back, for choices that can't wait to be corrected. */
+export function useImportConversionSettingsState(enabled: boolean = true): {
+  settings: ImportConversionSettings;
+  loaded: boolean;
+} {
+  const [state, setState] = useState({
+    settings: DEFAULT_IMPORT_CONVERSION_SETTINGS,
+    loaded: false,
+  });
 
   useEffect(() => {
     if (!enabled) return;
     return onSnapshot(
       doc(db, 'admin_settings', IMPORT_CONVERSION_SETTINGS_DOC),
       (snap) =>
-        setSettings(
-          snap.exists()
+        setState({
+          settings: snap.exists()
             ? normalizeImportConversionSettings(snap.data())
-            : DEFAULT_IMPORT_CONVERSION_SETTINGS
-        ),
+            : DEFAULT_IMPORT_CONVERSION_SETTINGS,
+          loaded: true,
+        }),
       // An unreadable doc must keep AI off, never strand it half-on.
-      () => setSettings(DEFAULT_IMPORT_CONVERSION_SETTINGS)
+      () =>
+        setState({ settings: DEFAULT_IMPORT_CONVERSION_SETTINGS, loaded: true })
     );
   }, [enabled]);
 
-  return settings;
+  return state;
 }
