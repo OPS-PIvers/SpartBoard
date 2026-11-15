@@ -240,6 +240,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-eyxxw7 (#5907; this docs PR reuses it, delete after it merges)
 claude/project-thread-ri9uou (#5905)
 claude/project-thread-ri9uou-ab112 (this docs PR, delete after it merges)
 security/d1-followup
