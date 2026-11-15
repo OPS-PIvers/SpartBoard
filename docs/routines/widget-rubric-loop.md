@@ -1,66 +1,80 @@
 # Widget rubric loop routine
 
-A Claude Code routine that improves widgets, one widget and one dimension per PR, against the widget quality rubric (`docs/plans/WIDGET_RUBRIC.md`, `docs/widget-rubric/rubric.json`). Each run works through up to 3 queue items and opens one PR into `dev-paul` per item, each with a before/after scorecard and screenshot grid (R20, R25).
+A Claude Code routine that improves widgets, one widget and one dimension per fix, against the widget quality rubric (`docs/plans/WIDGET_RUBRIC.md`, `docs/widget-rubric/rubric.json`). Each week it tries up to 3 queue items on branches and opens no PRs. Paul gets one page with before/after screenshots and an Approve or Skip button per fix. Only approved fixes become PRs, and those merge as soon as CI passes. Paul's approval replaces his grading: there are no grading decks or spot checks in this routine.
 
-A scheduled trigger runs this nightly; it can also be run by hand with "run the widget rubric loop".
+A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday morning); it can also be run by hand with "run the widget rubric loop".
 
-## Each run
+## Each week
 
-1. **Preflight.** List open PRs against `dev-paul` whose head matches `claude/widget-loop-*`; pass them to the queue as `<type>:<dimension>` pairs:
+1. **Preflight.** List branches made by earlier weeks that still wait on the page (`candidates.json` of a week with no `sentAt`); if any exist, don't start a new week, send Paul the existing page link again and stop. Then run the queue, passing this week's candidates as `--open` pairs as they are made:
 
    ```
    node scripts/widget-grader/queue.ts --open clock:layout,poll:visual
    ```
 
-   Exit code 3 means the loop must not run: calibration hasn't passed under this rubric's major version (R22), or 3 loop PRs are already open (R25). Log the reason in the journal and stop. Never work around it.
+   Exit code 3 means the loop must not run (calibration hasn't passed under this rubric's major version, R22, or 3 candidates already exist). Log the reason and stop. Never work around it.
 
-2. **Re-grade before improving (R26).** If the queue lists widgets under "Re-grade first", run `/grade-widget` steps 1–3 for up to 3 of them (measure, judge, `cli record`), commit the scorecards on `claude/widget-regrade-<date>` and open a PR. That is the run's whole output; stop. A major rubric version marks every scorecard stale, so calibration (norming steps 4–5) must pass again before any loop.
+2. **Re-grade first (R26).** If the queue lists widgets under "Re-grade first", run `/grade-widget` steps 1–3 for up to 3 of them (measure, judge, `cli record`) on `claude/widget-regrade-<date>`, push the branch, and add it to the page as one candidate with no screenshots ("Rescored, no code change"). It counts as one of the week's 3.
 
-3. **Pick the item.** Take the first queue item:
+3. **Pick the item.** Take the next queue item:
    - `gate`: fix the failing gates on that widget. Read `docs/widget-rubric/gate-baseline.json` and the measurer output for the offending element.
-   - `platform`: a window chrome fix (`DraggableWindow`, settings drawer shell). Platform criteria are graded by hand with Paul (`platform.json`), so open the PR with screenshots and ask Paul to grade it; skip the scorecard compare.
+   - `platform`: a window chrome fix (`DraggableWindow`, settings drawer shell). Skip the compare; the page carries the screenshots and Paul's approval is the grade.
    - `widget`: improve that dimension, starting with the named criterion (R8). Read every descriptor in the dimension in `rubric.json` and the calibration examples for it in `docs/widget-rubric/calibration/examples.jsonl`.
-   - The queue already skips criteria paused by a spot check (`spot-checks.json`). Don't touch a paused criterion even if the fix would lift it.
+   - Skip an item Paul skipped in the last 4 weeks (`supervision.json` loops with outcome `rejected`) unless his note says what to change and this attempt does it.
+   - The queue already skips paused criteria (`spot-checks.json`). Don't touch one even if the fix would lift it.
 
-4. **Snapshot before.** Pick a run id `loop-<type>-<date>`. Copy `docs/widget-rubric/scorecards/<type>.json` to `scripts/widget-grader/out/<runId>/before.json`. Run `grader:measure --type <type>` on `origin/dev-paul` and copy its `measurements/<type>.json` to `scripts/widget-grader/out/<runId>/before-measure.json`; keep its screenshots for the grid.
+4. **Snapshot before.** Pick a run id `loop-<type>-<date>`. Copy `docs/widget-rubric/scorecards/<type>.json` to `scripts/widget-grader/out/<runId>/before.json`. Run `grader:measure --type <type>` on `origin/dev-paul` and copy its `measurements/<type>.json` to `scripts/widget-grader/out/<runId>/before-measure.json`; keep its screenshots for the page.
 
 5. **Make the change.** Branch `claude/widget-loop-<type>-<dimension>-<date>` from `origin/dev-paul`.
    - Visual and scaling fixes ship unflagged; a change to what the widget does, or a new setting, ships behind the widget's flag (R21, CLAUDE.md flag-first rule).
    - Never add or remove a Nexus connection (R14); write proposals to `docs/widget-rubric/proposals.md`.
-   - Never edit `rubric.json`, descriptors, thresholds, fixtures or measurer code in a loop PR. A loop that needs one of those stops and says so.
+   - Never edit `rubric.json`, descriptors, thresholds, fixtures or measurer code in a loop fix. A loop that needs one of those stops and says so.
+   - New on-screen wording needs Paul's OK, so a fix that adds or changes text says so in its page summary, quoting the new words.
    - A small-size fix may shrink, wrap or move a control, but never hide or remove one. Labels and decoration may hide; anything a teacher taps or types into stays (Time Tool +/- buttons, #4388, hotfixed in #4717).
    - Verify scoped, per CLAUDE.md: `pnpm exec vitest related --run <changed files>`.
 
-6. **Grade after, blind (R31).** Run `/grade-widget` steps 1–3 for the widget only: `grader:measure`, `grader:static`, `cli judge-prompt`, then a fresh general-purpose Agent per the skill, given only the prompt path. Never tell that agent what changed, why, or the before scores. `cli judge-check`, then `cli record` writes the new scores.
+6. **Grade after, blind (R31).** Run `/grade-widget` steps 1–3 for the widget only: `grader:measure`, `grader:static`, `cli judge-prompt`, then a fresh general-purpose Agent per the skill, given only the prompt path. Never tell that agent what changed, why, or the before scores. `cli judge-check`, then `cli record` writes the new scores. Commit the change and the scorecard on the branch.
 
-7. **No-regression check (R20).**
+7. **No-regression check (R20).** `--auto` compares judge and script levels, so an earlier grade from Paul doesn't hide a gain:
 
    ```
-   node scripts/widget-grader/loop.ts compare --before scripts/widget-grader/out/<runId>/before.json --after docs/widget-rubric/scorecards/<type>.json --before-measure scripts/widget-grader/out/<runId>/before-measure.json --after-measure scripts/widget-grader/out/<afterRunId>/measurements/<type>.json
+   node scripts/widget-grader/loop.ts compare --auto --before scripts/widget-grader/out/<runId>/before.json --after docs/widget-rubric/scorecards/<type>.json --before-measure scripts/widget-grader/out/<runId>/before-measure.json --after-measure scripts/widget-grader/out/<afterRunId>/measurements/<type>.json
    ```
 
-   Exit 1 means a criterion dropped, a score went missing, a gate fails, or a render lost fill (`fillDrops`: content covers clearly less of the card than before, which is wasted space even when no score moved). Try once more to fix it without losing the gain; if it still fails, close the branch without a PR and record the attempt in the journal. A run that raises nothing also opens no PR.
+   Exit 1 means a criterion dropped, a score went missing, a gate fails, or a render lost fill (`fillDrops`). Try once more to fix it without losing the gain; if it still fails, drop the branch and note the attempt for the journal. A fix that raises nothing is dropped too.
 
    Also open the after screenshots at the envelope-min and smallest stress sizes and check that every button, field and toggle on the default view is still on the card. A missing control fails the check the same as exit 1.
 
-8. **Open the PR** into `dev-paul`. Title: `Widget loop: <Widget name> <dimension> <before> → <after>`. The body has:
-   - one sentence on what changed, in plain words;
-   - one line confirming every control on the default view is still present at the smallest size;
-   - the before/after screenshot grid (same sizes and fixtures, side by side) as CI artifacts or images uploaded to the PR;
-   - the score table from the compare output (criteria gained, dimension and overall before → after, letter);
-   - the review mode from `node scripts/widget-grader/loop.ts supervision`: in `full` mode, ask Paul to grade the after-state in disagreements-only mode before merging (`/grade-widget --disagreements <type>`, norming step 6).
+8. **Add the candidate.** Run `pnpm exec prettier --write` on the changed scorecard and push the branch (no PR). Copy the before and after screenshots (envelope-min, typical and the smallest stress size) into `scripts/widget-grader/out/week-<date>/` and add an entry to its `candidates.json`:
 
-   Add the loop to `docs/widget-rubric/supervision.json` in the same PR: `{ pr, widgetType, dimension, openedAt, outcome: "open", changes }`, where `changes` lists each criterion the compare reported as gained with its `before` and `after` levels.
+   ```json
+   { "weekId": "<date>", "candidates": [{ "id": "<type>-<dimension>", "widgetType": "<type>", "widgetName": "<admin settings name>", "dimension": "<dimension>", "branch": "<branch>", "summary": "<one plain sentence on what changed>", "gains": [{ "criterionId": "S1", "before": 1, "after": 3 }], "shots": [{ "caption": "Smallest size", "before": "clock-min-before.png", "after": "clock-min-after.png" }] }] }
+   ```
 
-9. **Record outcomes of earlier loops.** For each loop in `supervision.json` still `open` whose PR has closed: `accepted` (merged with no commits from anyone but the loop), `changed` (merged after Paul or a review asked for changes), or `rejected` (closed unmerged). Commit those edits with this run's PR, or in their own small PR when this run opens none.
+   `gains` comes from the compare output. Use the widget's name from admin settings, including overrides. Go back to step 3 until the week has 3 candidates or the queue exits 3.
 
-10. **Journal.** Append one row below in the same PR.
+9. **Send the page.** If the week has no candidates, send nothing; record the week in the journal with the next PR. Otherwise:
 
-11. **Next item.** Go back to step 1 for the next item, counting this run's PRs as open loops, until this run has opened 3 PRs or the queue exits 3. Each item gets its own branch from `origin/dev-paul` and its own PR; record step 9 outcomes in the first PR only.
+   ```
+   node scripts/widget-grader/grading/review.ts build --candidates scripts/widget-grader/out/week-<date>/candidates.json --out scripts/widget-grader/out/week-<date>/page
+   ```
+
+   Publish `page/index.html` to the "Widget Fixes" artifact with `capabilities: {artifact: {}}`, to the same URL every week (it is in the `widget-rubric-routines` memory; the first week creates it and saves the URL there). Send Paul one line in the routine's thread: "This week's widget fixes: <n> to approve or skip" with the link. Then end the run: the page republishes itself when Paul taps Send, and that wakes the session.
+
+10. **Act on Paul's picks.** When the page republishes, read it (Artifact `read`), save it, and run:
+
+    ```
+    node scripts/widget-grader/grading/review.ts decisions --page <saved index.html>
+    ```
+
+    Stop if `sentAt` is null (a republish without Paul's picks). Otherwise:
+    - **Approve:** open a PR from the candidate's branch into `dev-paul`, titled `Widget loop: <Widget name> <dimension> <before> → <after>`, with one sentence on what changed, one line confirming every control is still present at the smallest size, the before/after screenshots, the compare score table, and "Approved by Paul on the weekly page". Subscribe to it, mark it ready, and merge it as soon as CI is green, fixing CI failures as on any PR you own. While a release PR into `main` is open, wait until it merges before merging.
+    - **Skip:** record it in `supervision.json` as `{ pr: "<branch>", widgetType, dimension, openedAt, outcome: "rejected", note }`, with his note when he left one. Add the branch to AB-112 in `AGENT_BACKLOG.md` for deletion.
+    - Each approved fix adds `{ pr, widgetType, dimension, openedAt, outcome: "accepted", changes }` to `supervision.json`. Put the supervision edits, the AB-112 lines and the journal row in the first approved PR; when Paul skipped everything, open one small docs PR with them and merge it on green.
 
 ## Never
 
-- Merge a loop PR. Paul merges them (R32).
+- Open a PR for a fix Paul hasn't approved on the page, or merge one before CI is green.
 - Hide or remove a control to win a small-size score.
 - Create, edit or turn on the scheduled trigger.
 - Read production data. The queue weights by prod usage only when `docs/widget-rubric/usage.json` exists (boards per widget type, counts only, added by Paul); without it the queue orders by gap only.
@@ -89,3 +103,4 @@ A scheduled trigger runs this nightly; it can also be run by hand with "run the 
 | 2026-11-04 | none | Layout | none | none | Specialist Schedule S1 closed without a PR: at 220px wide and under, hiding the header icon, date, row status circles and Now badge and putting floors on times and names lifted S1 1 → 2 with no fill drop, but two blind judges both dropped V6 3 → 2 (citing header text, the drawer title and emoji chips the change did not touch). Mini App S1 not tried: the fix needs the shared library toolbar, which Paul signs off on. Time Tool S1 waits on Paul's answer from 11-03. Skipped: the same gate, Nexus and Help-index items as 10-30. |
 | 2026-11-06 | none | none | none | none | Queue had nothing new to try (11-05 the same): gate items are known false positives or Paul-accepted, Embed and Traffic Light E2 need the prod Help index, Clock S2 needs Paul's re-grade, the E1 items need Nexus, the C items need new wording, Randomizer, Specialist Schedule and Mini App S1 closed this week, and Paul chose to keep Time Tool's narrow timers as they are (11-04). |
 | 2026-11-09 | none | none | none | none | Queue unchanged since 11-06 (11-07 and 11-08 the same), so nothing new to try. |
+| 2026-11-15 | none | none | none | none | Paul found the nightly runs and weekly spot checks too much to keep up with. The loop now runs weekly with an approval page instead of grading decks, and the spot check is retired. |

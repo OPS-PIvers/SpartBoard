@@ -202,7 +202,15 @@ export function applyAutomaticScores(
       deck.rubricVersion
     ));
     const prior = sc.criteria[card.criterionId];
-    if (prior?.source === 'paul' && !prior.stale) continue;
+    if (prior?.source === 'paul' && !prior.stale) {
+      // Paul's score stands; the new automatic levels still feed `loop.ts compare --auto`.
+      sc.criteria[card.criterionId] = {
+        ...prior,
+        candidates: candidates(card, prior),
+      };
+      touched.add(card.widgetType);
+      continue;
+    }
     const judge = card.judge?.score ?? null;
     const source = card.scriptLevel !== null ? 'script' : 'judge';
     const score = card.scriptLevel ?? judge;

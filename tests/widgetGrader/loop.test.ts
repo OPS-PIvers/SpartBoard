@@ -261,6 +261,26 @@ describe('loop: no-regression check (R20)', () => {
         .ok
     ).toBe(false);
   });
+  it('with auto, compares judge levels so a Paul grade does not hide a gain', () => {
+    const before = card('a', 2);
+    before.criteria.S1 = {
+      ...before.criteria.S1,
+      source: 'paul',
+      score: 2,
+      candidates: { judge: 1 },
+    };
+    const after = card('a', 2);
+    after.criteria.S1 = {
+      ...after.criteria.S1,
+      source: 'paul',
+      score: 2,
+      candidates: { judge: 3 },
+    };
+    expect(compareScorecards(rubric, before, after).gains).toEqual([]);
+    expect(
+      compareScorecards(rubric, before, after, { auto: true }).gains
+    ).toEqual([{ criterionId: 'S1', before: 1, after: 3 }]);
+  });
 });
 
 describe('loop: fill check', () => {
