@@ -374,8 +374,29 @@ const Fixture: React.FC = () => {
     },
     () => h.board.widgets
   );
+  const [menuRow, setMenuRow] = useState(0);
   return (
     <div>
+      {[1, 2, 3].map((n) => (
+        <button
+          key={n}
+          {...tourFieldAttr('library-shell.archive-menu', 'quiz', `row-${n}`)}
+          onClick={() => setMenuRow(n)}
+        >
+          Quiz menu {n}
+        </button>
+      ))}
+      {menuRow > 0 && (
+        <button
+          {...tourFieldAttr(
+            'library-shell.archive-menu-item',
+            'quiz',
+            `row-${menuRow}-item-1`
+          )}
+        >
+          Publish {menuRow}
+        </button>
+      )}
       <button
         {...tourTypeAttr('dock.item', 'dice')}
         onClick={() => {
@@ -642,6 +663,26 @@ describe('LiveTourRunner', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
     await frames();
     expect(progress()).toBe('1 / 2');
+  });
+
+  it('lets the teacher pick any row, then follows that row into its menu', async () => {
+    await start(
+      makeSet([
+        { anchor: 'library-shell.archive-menu:quiz#row-*', action: 'click' },
+        {
+          anchor: 'library-shell.archive-menu-item:quiz#row-1-item-1',
+          action: 'click',
+        },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    expect(progress()).toBe('1 / 3');
+    fireEvent.click(screen.getByText('Quiz menu 3'));
+    await frames();
+    expect(progress()).toBe('2 / 3');
+    fireEvent.click(screen.getByText('Publish 3'));
+    await frames();
+    expect(progress()).toBe('3 / 3');
   });
 
   it('advances when the dock click opens the widget the step spawns', async () => {
