@@ -9,6 +9,8 @@ import { assertViewAsAllowed } from './viewAsGuard';
 const SESSIONS = 'mini_app_sessions';
 const MAX_ID_LENGTH = 128;
 const BATCH_SIZE = 400;
+// Well under Firestore's 10 MiB request limit.
+const MAX_BATCH_BYTES = 4_000_000;
 
 export type MiniAppScoreVisibility =
   'none' | 'score-only' | 'score-and-responses' | 'score-responses-and-answers';
@@ -217,12 +219,16 @@ export async function handlePublishMiniAppScores(
     );
 
   const publishedCol = sessionRef.collection('published');
-  const writes: ((batch: admin.firestore.WriteBatch) => void)[] = [];
+  const writes: {
+    apply: (batch: admin.firestore.WriteBatch) => void;
+    bytes: number;
+  }[] = [];
   const existing = await publishedCol.get();
   let published = 0;
 
   if (visibility === 'none') {
-    for (const d of existing.docs) writes.push((b) => b.delete(d.ref));
+    for (const d of existing.docs)
+      writes.push({ apply: (b) => b.delete(d.ref), bytes: 0 });
   } else {
     const [submissions, keySnap] = await Promise.all([
       sessionRef.collection('submissions').get(),
@@ -253,37 +259,54 @@ export async function handlePublishMiniAppScores(
       if (!result) continue;
       kept.add(sub.id);
       published += 1;
-      writes.push((b) => b.set(publishedCol.doc(sub.id), result));
+      writes.push({
+        apply: (b) => b.set(publishedCol.doc(sub.id), result),
+        bytes: JSON.stringify(result).length,
+      });
     }
     for (const d of existing.docs)
-      if (!kept.has(d.id)) writes.push((b) => b.delete(d.ref));
+      if (!kept.has(d.id))
+        writes.push({ apply: (b) => b.delete(d.ref), bytes: 0 });
   }
 
-  for (let i = 0; i < writes.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    for (const w of writes.slice(i, i + BATCH_SIZE)) w(batch);
-    await batch.commit();
-  }
+  // Hide copies while they are rewritten, so a failed batch never leaves a higher level showing.
+  const row =
+    typeof session.assignmentId === 'string' && session.assignmentId.length > 0
+      ? db
+          .collection('users')
+          .doc(caller.uid)
+          .collection('miniapp_assignments')
+          .doc(session.assignmentId)
+      : null;
+  const rowExists = row ? (await row.get()).exists : false;
+  const setFields = async (fields: Record<string, unknown>) => {
+    await sessionRef.update(fields);
+    if (row && rowExists) await row.update(fields);
+  };
+  const hidden = {
+    scoreVisibility: 'none',
+    scorePublishedAt: admin.firestore.FieldValue.delete(),
+  };
+  await setFields(hidden);
 
-  const fields =
-    visibility === 'none'
-      ? {
-          scoreVisibility: 'none',
-          scorePublishedAt: admin.firestore.FieldValue.delete(),
-        }
-      : { scoreVisibility: visibility, scorePublishedAt: nowMs };
-  await sessionRef.update(fields);
-  if (
-    typeof session.assignmentId === 'string' &&
-    session.assignmentId.length > 0
-  ) {
-    const row = db
-      .collection('users')
-      .doc(caller.uid)
-      .collection('miniapp_assignments')
-      .doc(session.assignmentId);
-    if ((await row.get()).exists) await row.update(fields);
+  let batch = db.batch();
+  let count = 0;
+  let bytes = 0;
+  for (const w of writes) {
+    if (count >= BATCH_SIZE || bytes >= MAX_BATCH_BYTES) {
+      await batch.commit();
+      batch = db.batch();
+      count = 0;
+      bytes = 0;
+    }
+    w.apply(batch);
+    count += 1;
+    bytes += w.bytes;
   }
+  if (count > 0) await batch.commit();
+
+  if (visibility !== 'none')
+    await setFields({ scoreVisibility: visibility, scorePublishedAt: nowMs });
   return { published };
 }
 

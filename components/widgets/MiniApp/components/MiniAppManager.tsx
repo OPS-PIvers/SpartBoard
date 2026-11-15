@@ -1190,7 +1190,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       });
     }
 
-    if (mode === 'archive' && !isViewOnly && onArchivePublishScores) {
+    if (
+      mode === 'archive' &&
+      assignment.resultsVersion === 2 &&
+      onArchivePublishScores
+    ) {
       actions.push({
         id: 'publish-scores',
         label:

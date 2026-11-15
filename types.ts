@@ -12506,6 +12506,8 @@ export interface MiniAppAssignment extends PeriodAccessSessionFields {
   targetSkippedCount?: number;
   /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Mirrors `MiniAppSession.resultsVersion`; only these rows can publish scores. */
+  resultsVersion?: 2;
   /** Mirrors `MiniAppSession.scoreVisibility`, written by publishMiniAppScoresV1. */
   scoreVisibility?: QuizScoreVisibility;
   scorePublishedAt?: number;

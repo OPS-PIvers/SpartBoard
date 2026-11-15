@@ -697,6 +697,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           assignmentName,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
+          ...(results ? { resultsVersion: 2 as const } : {}),
           targetMode: expandedTargeting.targetMode,
           targetGroupIds: expandedTargeting.targetGroupIds,
           overridesBySourcedId: expandedTargeting.overridesByKey,
