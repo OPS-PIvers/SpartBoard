@@ -135,7 +135,7 @@ describe('restoreSharedQuizContent', () => {
     expect(content).not.toHaveProperty('banks');
   });
 
-  it('keeps slots from older links that carried no banks, minus any bank link', async () => {
+  it('keeps slots from older links that carried no banks', async () => {
     const saveBank = vi.fn();
     const { content } = await restoreSharedQuizContent(
       {
@@ -146,16 +146,15 @@ describe('restoreSharedQuizContent', () => {
       saveBank
     );
     expect(saveBank).not.toHaveBeenCalled();
-    expect(content.bankSlots).toEqual(
-      bankOnlyQuiz.bankSlots?.map(({ syncGroupId: _g, ...rest }) => rest)
-    );
+    expect(content.bankSlots).toEqual(bankOnlyQuiz.bankSlots);
   });
 
-  it('drops the sharer-supplied bank link from slots with no inlined bank', async () => {
+  it('drops the bank link from a slot whose bank a newer link left out', async () => {
     const { content } = await restoreSharedQuizContent(
       {
         title: 't',
         questions: [],
+        banks: [],
         bankSlots: [
           {
             id: 's',

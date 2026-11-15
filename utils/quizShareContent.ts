@@ -145,7 +145,9 @@ export async function restoreSharedQuizContent(
     bankSlots = slots.map((slot) => {
       const id = newIdByKey.get(bankSlotKey(slot));
       if (!id) {
-        // Honest shares always inline their banks; never keep a sharer-supplied bank link.
+        // Pre-2026-09-29 links carried no banks at all; keep their slots as before.
+        if (!sharedBanks) return slot;
+        // Newer links inline every bank, so a missing one is crafted: drop its link.
         const { syncGroupId: _g, syncOwnerUid: _o, ...unbound } = slot;
         return unbound;
       }
