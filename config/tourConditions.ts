@@ -1,7 +1,7 @@
 import type { GlobalFeature } from '@/types';
 import { ALL_GLOBAL_FEATURES } from '@/config/featureDefaults';
 
-/** Facts a live tour can check about the teacher's account (docs/plans/GETTING_STARTED.md D10, D12). */
+/** Facts a live tour can check about the teacher's account (docs/plans/shipped/GETTING_STARTED.md D10, D12). */
 export const TOUR_FACTS = {
   'building-saved': 'The teacher has saved at least one building',
   'drive-connected': 'Drive stays connected, with a stored refresh token',
