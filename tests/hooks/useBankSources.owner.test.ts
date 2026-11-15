@@ -6,8 +6,13 @@ import {
   expectedSlotOwner,
   loadBankContentsFor,
   loadSyncedBankContent,
+  plcBankSharers,
 } from '@/hooks/useBankSources';
-import type { QuestionBankData, QuizBankSlot } from '@/types';
+import type {
+  PlcQuestionBankEntry,
+  QuestionBankData,
+  QuizBankSlot,
+} from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -92,6 +97,33 @@ describe('shared bank slot owner binding', () => {
       [],
       noDrive,
       'me'
+    );
+    expect(out.has('g1')).toBe(false);
+  });
+
+  it('keeps loading a slot saved before the sharer was recorded, when a PLC teammate shared it', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('sharer'));
+    const sharers = plcBankSharers({
+      plc1: [{ syncGroupId: 'g1', sharedBy: 'sharer' } as PlcQuestionBankEntry],
+    });
+    const out = await loadBankContentsFor(
+      { bankSlots: [slot()] },
+      [],
+      noDrive,
+      'me',
+      sharers
+    );
+    expect(out.has('g1')).toBe(true);
+  });
+
+  it('refuses an unpinned slot whose doc a non-sharer re-created', async () => {
+    (getDoc as Mock).mockResolvedValue(syncedDoc('attacker'));
+    const out = await loadBankContentsFor(
+      { bankSlots: [slot()] },
+      [],
+      noDrive,
+      'me',
+      new Map([['g1', new Set(['sharer'])]])
     );
     expect(out.has('g1')).toBe(false);
   });

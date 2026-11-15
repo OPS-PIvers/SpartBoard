@@ -93,7 +93,8 @@ export async function loadBankContentsFor(
   quiz: Pick<QuizData, 'bankSlots'>,
   banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId'>[],
   loadBankData: (driveFileId: string) => Promise<QuestionBankData>,
-  userId?: string
+  userId?: string,
+  plcSharers?: ReadonlyMap<string, ReadonlySet<string>>
 ): Promise<Map<string, BankContent>> {
   const out = new Map<string, BankContent>();
   const slotsByKey = new Map(
@@ -104,10 +105,18 @@ export async function loadBankContentsFor(
       try {
         if (slot.syncGroupId) {
           const owner = expectedSlotOwner(slot, banks, userId);
-          // Unpinned shared slots fail closed: any doc at a re-created id would be trusted.
-          if (!owner)
+          if (owner) {
+            out.set(key, await loadSyncedBankContent(slot.syncGroupId, owner));
+            return;
+          }
+          // Unpinned (pre-pin) slot: trust only a doc owned by a teammate who shared this id in my PLC.
+          const sharers = plcSharers?.get(slot.syncGroupId);
+          if (!sharers?.size)
             throw new Error('Shared bank slot has no verified owner.');
-          out.set(key, await loadSyncedBankContent(slot.syncGroupId, owner));
+          const content = await loadSyncedBankContent(slot.syncGroupId);
+          if (!content.syncOwnerUid || !sharers.has(content.syncOwnerUid))
+            throw new Error('This shared bank is no longer available.');
+          out.set(key, content);
           return;
         }
         const meta = banks.find((b) => b.id === slot.bankId);
@@ -122,6 +131,22 @@ export async function loadBankContentsFor(
       }
     })
   );
+  return out;
+}
+
+/** syncGroupId -> uids that shared it into one of my PLCs (rule-enforced sharedBy; unshared entries still count). */
+export function plcBankSharers(
+  sharedByPlc: Record<string, readonly PlcQuestionBankEntry[]>
+): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const entries of Object.values(sharedByPlc)) {
+    for (const e of entries) {
+      if (!e.syncGroupId || !e.sharedBy) continue;
+      const set = out.get(e.syncGroupId) ?? new Set<string>();
+      set.add(e.sharedBy);
+      out.set(e.syncGroupId, set);
+    }
+  }
   return out;
 }
 
@@ -207,10 +232,12 @@ export function useBankSources(
     [loadBankData]
   );
 
+  const plcSharers = useMemo(() => plcBankSharers(sharedByPlc), [sharedByPlc]);
+
   const loadBankContentsForQuiz = useCallback(
     (quiz: Pick<QuizData, 'bankSlots'>) =>
-      loadBankContentsFor(quiz, banks, loadBankData, userId),
-    [banks, loadBankData, userId]
+      loadBankContentsFor(quiz, banks, loadBankData, userId, plcSharers),
+    [banks, loadBankData, userId, plcSharers]
   );
 
   return {

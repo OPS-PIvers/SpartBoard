@@ -11,6 +11,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
+const PROJECT_ID = 'spartboard-share-author';
 const AUTHOR_UID = 'author-uid';
 const VICTIM_UID = 'victim-uid';
 const RULES_PATH = fileURLToPath(
@@ -21,7 +22,7 @@ let testEnv: RulesTestEnvironment;
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
-    projectId: 'spartboard-share-author',
+    projectId: PROJECT_ID,
     firestore: { rules: readFileSync(RULES_PATH, 'utf8') },
   });
   await testEnv.withSecurityRulesDisabled(async (ctx) => {

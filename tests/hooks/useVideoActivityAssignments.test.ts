@@ -795,7 +795,7 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
       questionCount: 0,
       createdAt: 1,
       updatedAt: 1,
-    } as VideoActivityMetadata);
+    });
     const { result } = renderHook(() =>
       useVideoActivityAssignments(TEACHER_UID)
     );
