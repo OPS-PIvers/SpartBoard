@@ -401,6 +401,35 @@ describe('applyDocWrite', () => {
     });
   });
 
+  it('scores a project member from their own override doc', async () => {
+    const stub = makeStubFirestore({
+      'project_runs/t1_p1': {
+        teacherUid: 't1',
+        title: 'Bridge build',
+        classIds: ['c1'],
+      },
+      'project_runs/t1_p1/groups/g1': {
+        classId: 'c1',
+        memberUids: ['u1', 'u2'],
+      },
+      'project_runs/t1_p1/grades/g1/overrides/u2': { points: 10 },
+    });
+    await applyWrite(
+      stub,
+      {
+        kind: 'projects',
+        sessionId: 't1_p1',
+        docId: 'g1',
+        before: undefined,
+        after: { points: 16, maxPoints: 20, released: true },
+      },
+      NOW,
+      rosterOf(['u1', 'u2'])
+    );
+    expect(stub.get('grade_index/t1_p1__u1')).toMatchObject({ rawPct: 80 });
+    expect(stub.get('grade_index/t1_p1__u2')).toMatchObject({ rawPct: 50 });
+  });
+
   it('keeps an Activity Wall row until the author has no submissions left', async () => {
     const stub = makeStubFirestore({
       'activity_wall_sessions/t1_w1': {

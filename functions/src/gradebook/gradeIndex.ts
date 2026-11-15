@@ -527,6 +527,21 @@ async function projectRows(
   const group = groupSnap.data() ?? {};
   const memberUids = asStrings(group.memberUids);
   if (!grade) return { upserts: [], memberUids, denied: [] };
+  // Per-member overrides live in their own docs; a legacy map on the grade is the fallback.
+  const overrideSnap = await db
+    .collection(SESSION_COLLECTION.projects)
+    .doc(ctx.sessionId)
+    .collection('grades')
+    .doc(groupId)
+    .collection('overrides')
+    .get();
+  const scored: Doc = {
+    ...grade,
+    overridesByUid: {
+      ...asRecord(grade.overridesByUid),
+      ...Object.fromEntries(overrideSnap.docs.map((d) => [d.id, d.data()])),
+    },
+  };
   const allowed = await authority(
     ctx.meta.ownerUid,
     asString(group.classId),
@@ -543,7 +558,7 @@ async function projectRows(
         db,
         ctx,
         uid,
-        scoreProjectMember(grade, group, uid),
+        scoreProjectMember(scored, group, uid),
         previous,
         now
       )

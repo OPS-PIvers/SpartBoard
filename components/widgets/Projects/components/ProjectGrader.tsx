@@ -98,7 +98,8 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
   // Re-seed while rendering when the queue moves or a save lands, rather than
   // in an effect: an effect would paint the previous group's score first.
   const [hydrationKey, setHydrationKey] = useState('');
-  const nextKey = `${group?.id ?? ''}:${saved?.gradedAt ?? 0}`;
+  // Overrides load from their own docs after the grade, so they are part of the key.
+  const nextKey = `${group?.id ?? ''}:${saved?.gradedAt ?? 0}:${JSON.stringify(saved?.overridesByUid ?? {})}`;
   if (hydrationKey !== nextKey) {
     setHydrationKey(nextKey);
     setDraft(draftFrom(saved));
