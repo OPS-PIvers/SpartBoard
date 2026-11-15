@@ -95,4 +95,17 @@ describe('orderFromSaved / startingOrder', () => {
       spy.mockRestore();
     }
   });
+
+  it('makes the move arrows at least 44px wide', () => {
+    render(
+      <OrderingListInput
+        question={question}
+        initialOrder={[0, 1, 2]}
+        onChange={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: 'Move position 2 up' }).className
+    ).toContain('min-w-[44px]');
+  });
 });

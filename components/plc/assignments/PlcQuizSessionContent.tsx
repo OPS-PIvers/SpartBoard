@@ -82,6 +82,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
   const {
     session,
     responses,
+    responsesLoaded,
     advanceQuestion,
     endQuizSession,
     removeStudent,
@@ -268,6 +269,8 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         quizData={quizData}
         config={config}
         rosters={rosters}
+        rosterTargets={assignment}
+        responsesLoaded={responsesLoaded}
         hideLiveScoreboard
         onAdvance={async () => {
           await advanceQuestion();

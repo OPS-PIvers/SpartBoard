@@ -5,6 +5,7 @@ import {
   MoreVertical,
   Pencil,
   RefreshCw,
+  ScanEye,
   Star,
   Trash2,
 } from 'lucide-react';
@@ -25,6 +26,8 @@ interface SidebarClassRowProps {
   onEdit: () => void;
   onSyncClassLink: () => void;
   onLinkClassroom: () => void;
+  /** Absent when the class has no student page or the feature is off. */
+  onViewStudentPage?: () => void;
   onDelete: () => void;
 }
 
@@ -38,6 +41,7 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
   onEdit,
   onSyncClassLink,
   onLinkClassroom,
+  onViewStudentPage,
   onDelete,
 }) => {
   const { t } = useTranslation();
@@ -78,6 +82,17 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
         tourAnchor: tourFieldAttr('classes.link-classroom', 'classes', rowKey),
       }
     );
+  }
+  if (onViewStudentPage) {
+    items.push({
+      id: 'view-student-page',
+      label: t('sidebar.classes.viewStudentPage', {
+        defaultValue: 'View Student Page',
+      }),
+      icon: ScanEye,
+      onClick: onViewStudentPage,
+      tourAnchor: tourFieldAttr('classes.view-student-page', 'classes', rowKey),
+    });
   }
   items.push({
     id: 'delete',

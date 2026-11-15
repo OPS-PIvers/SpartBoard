@@ -666,13 +666,6 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     expect(screen.getAllByLabelText('Closes')).toHaveLength(2);
   });
 
-  const openClasses = () => {
-    const trigger = document.querySelector(
-      '[data-tour="assign-classes.trigger"]'
-    );
-    if (!trigger) throw new Error('class picker missing');
-    fireEvent.click(trigger);
-  };
   const toggleClass = (name: string) =>
     fireEvent.click(
       screen.getByRole('checkbox', { name: new RegExp(`^${name}`) })
@@ -688,7 +681,6 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
-    openClasses();
     toggleClass('Period 2');
     const patch = await savePatch(onSave);
     expect(patch.rosterIds).toEqual(['r1', 'r2']);
@@ -721,7 +713,6 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
-    openClasses();
     toggleClass('Period 2');
     toggleClass('Period 3');
     const patch = await savePatch(onSave);
@@ -761,7 +752,6 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
-    openClasses();
     toggleClass('Period 2');
     openWhen();
     fireEvent.change(screen.getByLabelText('Opens time'), {
@@ -807,7 +797,6 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
-    openClasses();
     toggleClass('Period 1');
     expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
   });

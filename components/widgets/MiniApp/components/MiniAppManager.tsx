@@ -45,6 +45,7 @@ import {
   CheckSquare,
   RotateCcw,
   FolderMinus,
+  Send,
   Users,
 } from 'lucide-react';
 import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
@@ -163,6 +164,8 @@ export interface MiniAppManagerProps {
   onArchiveReactivate?: (assignment: MiniAppAssignment) => void;
   /** Opens the Edit classes dialog for an in-progress assignment. */
   onArchiveEditClasses?: (assignment: MiniAppAssignment) => void;
+  /** Opens Publish scores for an ended submissions assignment; unset hides the item. */
+  onArchivePublishScores?: (assignment: MiniAppAssignment) => void;
   onArchiveDelete: (assignment: MiniAppAssignment) => void;
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
@@ -358,12 +361,21 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveEnd,
   onArchiveReactivate,
   onArchiveEditClasses,
+  onArchivePublishScores,
   onArchiveDelete,
   onArchiveOpenApp,
   assignmentMode = 'submissions',
   readOnly = false,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
+  // Apps with older submissions assignments keep View assignments in view-only mode.
+  const appsWithSubmissions = useMemo(
+    () =>
+      new Set(
+        assignments.filter((a) => a.mode !== 'view-only').map((a) => a.appId)
+      ),
+    [assignments]
+  );
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   /* ── Assignment buckets ─────────────────────────────────────────────── */
   const activeAssignments = useMemo(
@@ -703,8 +715,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // the overflow menu (the Shared tab is the surface for that).
     // Submissions mode keeps the existing prominent "Assign" button and the
     // full kebab so teachers can still jump to the assignments archive.
+    const viewAssignments: LibraryMenuAction = {
+      id: 'assignments',
+      label: 'View assignments',
+      icon: BarChart3,
+      onClick: () => onShowAssignments(app),
+    };
     const secondary: LibraryMenuAction[] = isViewOnly
       ? [
+          ...(appsWithSubmissions.has(app.id) ? [viewAssignments] : []),
           {
             id: 'edit',
             label: 'Edit',
@@ -871,6 +890,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     const saving = savingGlobalId === app.id;
     const secondary: LibraryMenuAction[] = isViewOnly
       ? [
+          ...(appsWithSubmissions.has(app.id)
+            ? [
+                {
+                  id: 'assignments',
+                  label: 'View assignments',
+                  icon: BarChart3,
+                  onClick: () => onShowAssignments(app),
+                },
+              ]
+            : []),
           {
             id: 'save',
             label: saving ? 'Saving…' : 'Save to my library',
@@ -1158,6 +1187,23 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         label: isViewOnly ? 'End share' : 'End assignment',
         icon: Box,
         onClick: () => onArchiveEnd(assignment),
+      });
+    }
+
+    if (
+      mode === 'archive' &&
+      assignment.resultsVersion === 2 &&
+      onArchivePublishScores
+    ) {
+      actions.push({
+        id: 'publish-scores',
+        label:
+          assignment.scoreVisibility && assignment.scoreVisibility !== 'none'
+            ? 'Update published scores'
+            : 'Publish scores',
+        icon: Send,
+        onClick: () => onArchivePublishScores(assignment),
+        anchor: tourTypeAttr('mini-app.archive-publish-scores', 'miniApp'),
       });
     }
 

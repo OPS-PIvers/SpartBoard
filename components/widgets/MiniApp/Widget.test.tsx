@@ -251,6 +251,47 @@ describe('MiniAppWidget — on the teacher’s own board', () => {
   });
 });
 
+describe('MiniAppWidget — view-only Mini Apps', () => {
+  beforeEach(mockHooks);
+
+  const renderViewOnly = (assignments: unknown[]) => {
+    vi.mocked(useDashboard).mockReturnValue({
+      updateWidget: vi.fn(),
+      addToast: vi.fn(),
+      rosters: [],
+      addWidget: vi.fn(),
+      selectedWidgetId: 'widget-1',
+      isActiveBoardReadOnly: false,
+    } as unknown as ReturnType<typeof useDashboard>);
+    vi.mocked(useAuth).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      getAssignmentMode: () => 'view-only',
+      canAccessFeature: () => false,
+    } as unknown as ReturnType<typeof useAuth>);
+    vi.mocked(useMiniAppAssignments).mockReturnValue({
+      ...vi.mocked(useMiniAppAssignments)(undefined),
+      assignments,
+    } as unknown as ReturnType<typeof useMiniAppAssignments>);
+    render(
+      <div data-widget-id="widget-1">
+        <MiniAppWidget widget={widget} />
+      </div>
+    );
+  };
+
+  it('keeps older submissions assignments reachable but offers no new Assign', () => {
+    renderViewOnly([{ id: 's1', appId: activeApp.id, mode: 'submissions' }]);
+    expect(screen.queryByTitle('Assign (copy student link)')).toBeNull();
+    expect(screen.getByTitle('View assignments')).toBeInTheDocument();
+  });
+
+  it('shows neither when the app has only view-only shares', () => {
+    renderViewOnly([{ id: 's1', appId: activeApp.id, mode: 'view-only' }]);
+    expect(screen.queryByTitle('Assign (copy student link)')).toBeNull();
+    expect(screen.queryByTitle('View assignments')).toBeNull();
+  });
+});
+
 describe('MiniAppWidget — QR Share with Connections', () => {
   beforeEach(mockHooks);
 

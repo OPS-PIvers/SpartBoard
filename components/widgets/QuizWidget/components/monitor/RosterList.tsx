@@ -6,6 +6,7 @@ import {
   Hand,
   ImageOff,
   Lock,
+  Monitor,
   MousePointerClick,
   Unlock,
 } from 'lucide-react';
@@ -49,10 +50,15 @@ import {
 } from '@/utils/tabWarningThreshold';
 import { partsDoneOf } from '@/utils/quizParts';
 import { isResponseWaiting } from './openPart';
+import type { NotJoinedStudent } from './rosterNotJoined';
 
 interface RosterListProps {
   bucket: BucketKey;
   students: MonitorStudent[];
+  /** Not started only: roster students who haven't opened the quiz, listed after the joined ones. */
+  notJoined?: NotJoinedStudent[];
+  /** Marks a student who hasn't joined absent for today, or present again. */
+  onSetAbsent?: (student: NotJoinedStudent, absent: boolean) => void;
   session: QuizSession;
   config: QuizConfig;
   isGamified: boolean;
@@ -221,6 +227,8 @@ const RowMenu: React.FC<{
 export const RosterList: React.FC<RosterListProps> = ({
   bucket,
   students,
+  notJoined = [],
+  onSetAbsent,
   session,
   config,
   isGamified,
@@ -248,6 +256,12 @@ export const RosterList: React.FC<RosterListProps> = ({
     (config.monitorShowProficiency ?? false) && bucket === 'done';
   const sortBy: MonitorSortBy = config.monitorSortBy ?? 'first';
   const filterBy: MonitorFilterBy = config.monitorFilterBy ?? 'all';
+  // Matches the joined rows above, which Not started always sorts by first name.
+  const absent = [...notJoined].sort(
+    (a, b) =>
+      Number(a.absent) - Number(b.absent) || a.name.localeCompare(b.name)
+  );
+  const showJoined = absent.length > 0;
 
   // Board view (default): per-student hand/idle flags stay off the projected face; counts live in StatusBuckets.
   const showFlags =
@@ -347,7 +361,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         </div>
       ))}
 
-      {rest.length === 0 && hands.length === 0 && (
+      {rest.length === 0 && hands.length === 0 && absent.length === 0 && (
         <p
           className="text-brand-gray-primary text-center"
           style={{ fontSize: 'min(12px, 4cqmin)', padding: 'min(8px, 2cqmin)' }}
@@ -408,6 +422,14 @@ export const RosterList: React.FC<RosterListProps> = ({
           >
             {bucket === 'inProgress' && (
               <RosterOnQuestion index={s.onQuestion} />
+            )}
+            {showJoined && bucket === 'notStarted' && (
+              <span
+                className="font-sans font-medium text-emerald-700"
+                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+              >
+                Joined
+              </span>
             )}
             {r.status !== 'completed' && deadline != null && (
               <TimeLeft deadline={deadline} />
@@ -480,25 +502,32 @@ export const RosterList: React.FC<RosterListProps> = ({
               }
               studentName={s.name}
             >
-              {(count) => (
-                <span
-                  className="inline-flex items-center text-amber-700 font-sans font-semibold tabular-nums"
-                  title={`${count} unusual input ${count === 1 ? 'sign' : 'signs'}`}
-                  style={{
-                    gap: 'min(2px, 0.5cqmin)',
-                    fontSize: 'min(11px, 3.8cqmin)',
-                  }}
-                >
-                  <MousePointerClick
-                    aria-hidden
+              {(count, deviceOnly) => {
+                const SignIcon = deviceOnly ? Monitor : MousePointerClick;
+                return (
+                  <span
+                    className={`inline-flex items-center font-sans font-semibold tabular-nums ${deviceOnly ? 'text-brand-gray-primary' : 'text-amber-700'}`}
+                    title={
+                      deviceOnly
+                        ? `${count} device ${count === 1 ? 'detail' : 'details'}`
+                        : `${count} unusual input ${count === 1 ? 'sign' : 'signs'}`
+                    }
                     style={{
-                      width: 'min(12px, 4cqmin)',
-                      height: 'min(12px, 4cqmin)',
+                      gap: 'min(2px, 0.5cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
                     }}
-                  />
-                  {count}
-                </span>
-              )}
+                  >
+                    <SignIcon
+                      aria-hidden
+                      style={{
+                        width: 'min(12px, 4cqmin)',
+                        height: 'min(12px, 4cqmin)',
+                      }}
+                    />
+                    {count}
+                  </span>
+                );
+              }}
             </InputSignalsBadge>
             {locked && (
               <Lock
@@ -559,6 +588,67 @@ export const RosterList: React.FC<RosterListProps> = ({
               onUnlockResults={onUnlockResults}
               overridesBySourcedId={overridesBySourcedId}
               targetRefKeyByStudentUid={targetRefKeyByStudentUid}
+            />
+          </RosterRow>
+        );
+      })}
+
+      {absent.map((s) => {
+        const items: RosterMenuItem[] = [];
+        if (
+          onLetIn &&
+          s.studentUid &&
+          s.periodKey &&
+          !studentCanEnter(session, [s.periodKey], s.studentUid, now)
+        ) {
+          const uid = s.studentUid;
+          items.push({
+            label: 'Let in now',
+            closes: true,
+            tour: tourTypeAttr('quiz-monitor.student-let-in', 'quiz'),
+            onClick: () => onLetIn(uid),
+          });
+        }
+        const canMark = !!onSetAbsent && !!s.rosterId && !!s.studentId;
+        return (
+          <RosterRow key={s.key} name={s.name} muted>
+            {!s.absent && (
+              <span
+                className="font-sans text-brand-gray-primary"
+                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+              >
+                Not joined
+              </span>
+            )}
+            {canMark ? (
+              <ToggleChip
+                label="Absent"
+                on={s.absent}
+                onToggle={() => onSetAbsent?.(s, !s.absent)}
+                anchor={tourFieldAttr(
+                  'quiz-monitor.student-mark-absent',
+                  'quiz',
+                  s.key
+                )}
+              />
+            ) : (
+              s.absent && (
+                <span
+                  className="font-sans text-brand-gray-primary"
+                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                >
+                  Absent
+                </span>
+              )
+            )}
+            <RosterRowMenu
+              ariaLabel={`Actions for ${s.name}`}
+              triggerAnchor={tourFieldAttr(
+                'quiz-monitor.roster-row-actions',
+                'quiz',
+                s.key
+              )}
+              items={items}
             />
           </RosterRow>
         );

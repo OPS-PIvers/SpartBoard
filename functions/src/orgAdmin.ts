@@ -120,7 +120,7 @@ const MEMBER_DOMAIN_ADMIN_KEYS = [
 const DOMAIN_PATTERN = /^@[a-z0-9.-]+[.][a-z]{2,}$/;
 const ISSUER_PATTERN = /^https:\/\/[^\s?#@]+$/;
 
-// Mirrors canonicalBuildingId()/buildingIdAliasGroup() in firestore.rules (and config/buildings.ts).
+// Mirrors BUILDING_ID_ALIASES in config/buildings.ts (the rules compare raw ids since PT-175).
 const BUILDING_ALIAS_GROUPS = [
   ['high', 'orono-high-school'],
   ['middle', 'orono-middle-school'],

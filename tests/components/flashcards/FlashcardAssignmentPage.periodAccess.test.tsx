@@ -152,6 +152,17 @@ describe('FlashcardAssignmentPage — per-period access', () => {
     expect(screen.queryByTestId('player')).toBeNull();
   });
 
+  it('gives the unavailable page a Try again button and a way back', async () => {
+    h.session = null;
+    render(<FlashcardAssignmentPage />);
+    expect(
+      await screen.findByRole('button', { name: 'Try again' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Back to my assignments' })
+    ).toHaveAttribute('href', '/my-assignments');
+  });
+
   it('loads the cards from the content doc once the period is open', async () => {
     h.session = session();
     h.contentReadable = true;

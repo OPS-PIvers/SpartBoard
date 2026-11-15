@@ -16,6 +16,8 @@ interface ResultsProtectionGateProps {
   lockedOut: boolean;
   pin?: string;
   light?: boolean;
+  /** Where the locked screen sends the student; no link when unset. */
+  backHref?: string;
   children: React.ReactNode;
 }
 
@@ -28,6 +30,7 @@ export const ResultsProtectionGate: React.FC<ResultsProtectionGateProps> = ({
   lockedOut,
   pin,
   light = false,
+  backHref,
   children,
 }) => {
   const [mountedAt] = useState(() => Date.now());
@@ -66,6 +69,17 @@ export const ResultsProtectionGate: React.FC<ResultsProtectionGateProps> = ({
             You left the results page too many times, so it&rsquo;s locked. Ask
             your teacher to unlock your results.
           </p>
+          {backHref && (
+            <>
+              {/* no-tour-anchor: student screen; live tours walk teachers. */}
+              <a
+                href={backHref}
+                className="inline-flex min-h-[44px] items-center rounded-full bg-brand-blue-primary px-5 text-sm font-bold text-white hover:bg-brand-blue-dark"
+              >
+                Back to my assignments
+              </a>
+            </>
+          )}
         </div>
       </div>
     );

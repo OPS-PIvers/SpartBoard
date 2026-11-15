@@ -49,7 +49,13 @@ export const AnswerLabel: React.FC<{
       <span className="min-w-0 text-center wrap-break-word">{label}</span>
     </span>
   ) : (
-    <span className="flex items-center gap-3">
+    <span
+      className={
+        layout === 'compact'
+          ? 'flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3'
+          : 'flex items-center gap-3'
+      }
+    >
       <AnswerImage src={image} layout={layout} />
       <span className="min-w-0 wrap-break-word">{label}</span>
     </span>

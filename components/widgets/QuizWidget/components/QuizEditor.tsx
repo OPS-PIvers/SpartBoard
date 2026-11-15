@@ -105,10 +105,7 @@ import {
   QuestionExplanationField,
   QuestionTypeSelect,
 } from './QuestionFields';
-import {
-  QUESTION_TYPES,
-  questionTypeChangeUpdates,
-} from './questionFieldUpdates';
+import { questionTypeChangeUpdates } from './questionFieldUpdates';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import {
   countQuestionsNeedingKey,
@@ -777,8 +774,8 @@ const QuestionRow = React.memo(function QuestionRow({
 
 /**
  * Slice comparator for the detail pane — same contract as
- * `quizContextPanePropsEqual`: `questions` / `selectedQuestion` /
- * `selectedIndex` cover everything the pane renders; the per-question
+ * `quizContextPanePropsEqual`: `questions` / `selectedQuestion` cover
+ * everything the pane renders; the per-question
  * handlers it consumes are all referentially stable.
  */
 const quizDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
@@ -786,7 +783,6 @@ const quizDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.questions === next.state.questions &&
   prev.state.selectedQuestion === next.state.selectedQuestion &&
   prev.state.selectedSlot === next.state.selectedSlot &&
-  prev.state.selectedIndex === next.state.selectedIndex &&
   prev.state.stimuli === next.state.stimuli;
 
 export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
@@ -796,7 +792,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const {
     selectedQuestion,
     selectedSlot,
-    selectedIndex,
     questions,
     updateQuestion,
     updateBankSlot,
@@ -966,7 +961,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   }
 
   const q = selectedQuestion;
-  const typeMeta = QUESTION_TYPES.find((entry) => entry.value === q.type);
   const timeLimitLockedByRecording = mediaResponseAllowed && !!q.recording;
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
@@ -979,21 +973,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       tabIndex={-1}
       className="flex flex-col h-full outline-hidden"
     >
-      <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
-        <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
-          Question {selectedIndex + 1} of {questions.length}
-          <span className="mx-1.5">·</span>
-          {typeMeta?.label ?? q.type}
-        </div>
-        <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
-          {q.text.trim() ? (
-            <MathText text={q.text} format />
-          ) : (
-            `Question ${selectedIndex + 1}`
-          )}
-        </h4>
-      </div>
-
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Question prompt */}
         <QuestionPromptField
@@ -1194,6 +1173,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
               onUploadImage={uploadAnswerImage}
+              onExplanationsChange={
+                canAccessFeature('quiz-explanations')
+                  ? (optionExplanations) =>
+                      updateQuestion(q.id, { optionExplanations })
+                  : undefined
+              }
             />
             <NeedsAnswerNotice
               question={q}

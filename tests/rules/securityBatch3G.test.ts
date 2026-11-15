@@ -240,3 +240,71 @@ describe('the summaryHidden marker', () => {
     );
   });
 });
+
+describe('published Mini App results', () => {
+  const publishedPath = (id: string, key: string) =>
+    `mini_app_sessions/${id}/published/${key}`;
+  beforeEach(async () => {
+    await seed(
+      sessionPath('pub'),
+      sessionDoc({ status: 'ended', scoreVisibility: 'score-only' })
+    );
+    await seed(publishedPath('pub', 'pseudo-1'), {
+      studentUid: STUDENT_UID,
+      visibility: 'score-only',
+      publishedAt: 1,
+      score: 1,
+      maxScore: 2,
+    });
+  });
+
+  it('lets the student and the teacher read the student copy', async () => {
+    await assertSucceeds(
+      getDoc(doc(asStudent(), publishedPath('pub', 'pseudo-1')))
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), publishedPath('pub', 'pseudo-1')))
+    );
+  });
+
+  it('hides it from other students and teachers', async () => {
+    await assertFails(
+      getDoc(
+        doc(asStudent(OTHER_STUDENT_UID), publishedPath('pub', 'pseudo-1'))
+      )
+    );
+    await assertFails(
+      getDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), publishedPath('pub', 'pseudo-1'))
+      )
+    );
+  });
+
+  it('hides the student copy while the session is unpublished', async () => {
+    await seed(
+      sessionPath('pub'),
+      sessionDoc({ status: 'ended', scoreVisibility: 'none' })
+    );
+    await assertFails(
+      getDoc(doc(asStudent(), publishedPath('pub', 'pseudo-1')))
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), publishedPath('pub', 'pseudo-1')))
+    );
+  });
+
+  it('lets nobody write it', async () => {
+    await assertFails(
+      setDoc(doc(asStudent(), publishedPath('pub', 'pseudo-1')), {
+        studentUid: STUDENT_UID,
+        visibility: 'score-responses-and-answers',
+        publishedAt: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(asTeacher(), publishedPath('pub', 'pseudo-2')), {
+        studentUid: STUDENT_UID,
+      })
+    );
+  });
+});

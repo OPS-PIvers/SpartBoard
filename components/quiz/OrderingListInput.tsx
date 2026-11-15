@@ -75,7 +75,7 @@ const Row: React.FC<{
     transition,
   };
   const slotPosition = `position ${position + 1}`;
-  const arrowCls = `min-w-[32px] min-h-[22px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`;
+  const arrowCls = `min-w-[44px] min-h-[36px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-500 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`;
   return (
     <li
       ref={setNodeRef}
