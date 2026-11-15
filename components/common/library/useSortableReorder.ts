@@ -14,7 +14,7 @@
  * escape hatch from the React docs.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type {
   UseSortableReorderOptions,
   UseSortableReorderResult,
@@ -106,6 +106,11 @@ export function useSortableReorder<TItem>(
     }
   }
 
+  const latestItemsRef = useRef(items);
+  useLayoutEffect(() => {
+    latestItemsRef.current = items;
+  });
+
   const handleReorder = useCallback(
     async (nextOrderedIds: string[]) => {
       const previous = orderedItems;
@@ -120,7 +125,10 @@ export function useSortableReorder<TItem>(
         setError(null);
       } catch (err) {
         // Revert on failure.
-        setOrderedItems(previous);
+        // Re-apply the old order to the latest items so rows that arrived mid-commit survive.
+        setOrderedItems(
+          reorderByIds(latestItemsRef.current, getId, previous.map(getId))
+        );
         setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setIsCommitting(false);
