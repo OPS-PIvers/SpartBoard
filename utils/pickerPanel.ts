@@ -1,5 +1,14 @@
 // Shared pieces for the app's own date, time and suggestion panels that replace the browser's.
 
+let pickersEnabled = false;
+
+/** Off by default so the browser's own pickers show; the teacher app switches it on behind the app-pickers flag. */
+export const setAppPickersEnabled = (on: boolean) => {
+  pickersEnabled = on;
+};
+
+export const appPickersEnabled = () => pickersEnabled;
+
 export const PANEL_CLASS =
   'fixed bottom-auto right-auto z-[2147483647] m-0 h-auto w-auto overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white text-left text-sm text-slate-700 shadow-lg outline-none';
 export const STATUS_CLASS =

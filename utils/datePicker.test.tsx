@@ -6,6 +6,7 @@ import {
   isDatePickerOpen,
   openFieldPicker,
 } from './datePicker';
+import { setAppPickersEnabled } from './pickerPanel';
 
 const RECT = {
   x: 10,
@@ -29,10 +30,12 @@ beforeEach(() => {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
   );
+  setAppPickersEnabled(true);
   uninstall = installDatePickers();
 });
 afterEach(() => {
   uninstall();
+  setAppPickersEnabled(false);
   vi.useRealTimers();
   vi.restoreAllMocks();
 });

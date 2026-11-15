@@ -1722,6 +1722,29 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // The app's own dropdown, date/time and suggestion panels. Admin-only until Paul has used them on prod.
+  'app-pickers': {
+    label: 'App dropdowns and date pickers',
+    icon: SquareChevronDown,
+    description:
+      "Dropdowns, date and time fields open the app's own lists instead of the browser's.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Assignment rows in the Quiz, Flashcards and Video Activity libraries show "N classes" with the full list.
+  'assignment-class-list': {
+    label: 'Assignment class list',
+    icon: UsersRound,
+    description: 'Assignment rows show N classes with the full list.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'board-context-menu': {
     label: 'Board right-click menu',
     icon: MousePointerClick,

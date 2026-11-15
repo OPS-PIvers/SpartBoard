@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchAutoClick } from '@/components/tours/autopilot';
 import { installSelectMenus } from '@/utils/selectMenu';
+import { setAppPickersEnabled } from '@/utils/pickerPanel';
 import { TourAnchorPicker } from './TourAnchorPicker';
 
 const board = () => (
@@ -189,6 +190,7 @@ describe('TourAnchorPicker', () => {
   it('opens a dropdown on a Ctrl click so its option can be chosen', () => {
     const showPicker = vi.fn();
     HTMLSelectElement.prototype.showPicker = showPicker;
+    setAppPickersEnabled(true);
     const uninstall = installSelectMenus();
     const { onPick } = setup();
     const select = document.createElement('select');
@@ -211,6 +213,7 @@ describe('TourAnchorPicker', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onPick).not.toHaveBeenCalled();
     uninstall();
+    setAppPickersEnabled(false);
     select.remove();
   });
 

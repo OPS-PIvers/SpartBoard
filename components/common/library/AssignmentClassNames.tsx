@@ -1,4 +1,5 @@
 import React from 'react';
+import { Z_INDEX } from '@/config/zIndex';
 import { BadgePopover } from '@/components/common/BadgePopover';
 import { classCountLabel, uniqueClassNames } from './assignmentClassNames';
 
@@ -18,6 +19,7 @@ export const AssignmentClassNames: React.FC<AssignmentClassNamesProps> = ({
       triggerLabel={label}
       dialogLabel="Classes"
       triggerClassName="touch-target-expand"
+      panelZIndex={Z_INDEX.popover}
       panel={
         <ul className="divide-y divide-slate-200/70">
           {list.map((name) => (

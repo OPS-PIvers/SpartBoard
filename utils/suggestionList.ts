@@ -9,6 +9,7 @@ import {
   setFieldValue,
   touchOnly,
   showPanel,
+  appPickersEnabled,
 } from './pickerPanel';
 
 const ID = 'spart-suggestions';
@@ -190,6 +191,7 @@ const choose = (o: Open, index: number) => {
 const TEXT_TYPES = new Set(['text', 'search', 'url', 'email', 'tel']);
 
 const isSuggestField = (el: unknown): el is HTMLInputElement =>
+  appPickersEnabled() &&
   el instanceof HTMLInputElement &&
   TEXT_TYPES.has(el.type) &&
   !el.readOnly &&
@@ -230,6 +232,7 @@ export const installSuggestionLists = (): (() => void) => {
   };
 
   const onFocusIn = (e: FocusEvent) => {
+    if (!appPickersEnabled() && !current) return;
     if (isSuggestField(e.target) && !touchOnly()) park(e.target);
   };
 
@@ -240,12 +243,14 @@ export const installSuggestionLists = (): (() => void) => {
   };
 
   const onMouseDown = (e: MouseEvent) => {
+    if (!appPickersEnabled() && !current) return;
     if (current?.panel.contains(e.target as Node)) return;
     if (current && e.target !== current.input) closeSuggestions();
   };
 
   // A click on the field toggles the list, as the browser's does.
   const onClick = (e: MouseEvent) => {
+    if (!appPickersEnabled() && !current) return;
     const input = e.target;
     if (e.button !== 0 || !isSuggestField(input) || !input.dataset[STASH])
       return;
@@ -254,11 +259,13 @@ export const installSuggestionLists = (): (() => void) => {
   };
 
   const onInput = (e: Event) => {
+    if (!appPickersEnabled() && !current) return;
     if (!choosing && isSuggestField(e.target) && e.target.dataset[STASH])
       showSuggestions(e.target);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (!appPickersEnabled() && !current) return;
     const input = e.target;
     if (!isSuggestField(input) || !input.dataset[STASH]) return;
     const o = current?.input === input ? current : null;
