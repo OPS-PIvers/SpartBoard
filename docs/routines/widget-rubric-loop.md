@@ -6,7 +6,7 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
 
 ## Each week
 
-1. **Preflight.** List branches made by earlier weeks that still wait on the page (`candidates.json` of a week with no `sentAt`); if any exist, don't start a new week, send Paul the existing page link again and stop. Then run the queue, passing this week's candidates as `--open` pairs as they are made:
+1. **Preflight.** Read the "Widget Fixes" page (Artifact `read`) and run `review.ts decisions` on it. If it has a `sentAt` whose approved fixes have no PR yet, do step 10 for them first. If it has no `sentAt` and still lists candidates, don't start a new week: send Paul the page link again and stop. Then run the queue, passing this week's candidates as `--open` pairs as they are made:
 
    ```
    node scripts/widget-grader/queue.ts --open clock:layout,poll:visual
@@ -59,7 +59,7 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
    node scripts/widget-grader/grading/review.ts build --candidates scripts/widget-grader/out/week-<date>/candidates.json --out scripts/widget-grader/out/week-<date>/page
    ```
 
-   Publish `page/index.html` to the "Widget Fixes" artifact with `capabilities: {artifact: {}}`, to the same URL every week (it is in the `widget-rubric-routines` memory; the first week creates it and saves the URL there). Send Paul one line in the routine's thread: "This week's widget fixes: <n> to approve or skip" with the link. Then end the run: the page republishes itself when Paul taps Send, and that wakes the session.
+   Publish `page/index.html` to the "Widget Fixes" artifact with `capabilities: {artifact: {}}`, to the same URL every week (it is in the `widget-rubric-routines` memory; the first week creates it and saves the URL there). Send Paul one line in the routine's thread: "This week's widget fixes: <n> to approve or skip" with the link. Then end the run: the page republishes itself when Paul taps Send, which should wake the session. That wake can fail to arrive, so the next run's preflight also reads the page.
 
 10. **Act on Paul's picks.** When the page republishes, read it (Artifact `read`), save it, and run:
 
@@ -104,3 +104,4 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
 | 2026-11-06 | none | none | none | none | Queue had nothing new to try (11-05 the same): gate items are known false positives or Paul-accepted, Embed and Traffic Light E2 need the prod Help index, Clock S2 needs Paul's re-grade, the E1 items need Nexus, the C items need new wording, Randomizer, Specialist Schedule and Mini App S1 closed this week, and Paul chose to keep Time Tool's narrow timers as they are (11-04). |
 | 2026-11-09 | none | none | none | none | Queue unchanged since 11-06 (11-07 and 11-08 the same), so nothing new to try. |
 | 2026-11-15 | none | none | none | none | Paul found the nightly runs and weekly spot checks too much to keep up with. The loop now runs weekly with an approval page instead of grading decks, and the spot check is retired. |
+| 2026-11-15 | Schedule | Config | #5914 | C3 1 → 2 (judge) | First approval-first week, run by hand at Paul's ask; Paul approved on the weekly page. Links C3 closed: two blind judges dropped I6 on unchanged tiles and C3 did not hold. The first Schedule judge dropped C1 on the unchanged drawer; a second blind judge kept it. |

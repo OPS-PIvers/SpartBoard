@@ -351,6 +351,31 @@
           "after": 3
         }
       }
+    },
+    {
+      "pr": 5914,
+      "widgetType": "schedule",
+      "dimension": "config",
+      "openedAt": "2026-11-15T16:30:00Z",
+      "outcome": "accepted",
+      "changes": {
+        "C3": {
+          "before": 1,
+          "after": 2
+        },
+        "V1": {
+          "before": 2,
+          "after": 3
+        },
+        "C2": {
+          "before": 2,
+          "after": 3
+        },
+        "S4": {
+          "before": 1,
+          "after": 2
+        }
+      }
     }
   ]
 }
